@@ -33,6 +33,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
       - name: Verify Wails environment
+        # Kept as an environment sanity check (GTK4/WebKitGTK headers present).
+        # The build step itself no longer needs the CLI — desktop-build.sh
+        # compiles with plain `go build`.
         run: |
           go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
           "$(go env GOPATH)/bin/wails3" doctor
@@ -41,6 +44,7 @@ jobs:
       - name: Vet desktop target
         run: go vet ./cmd/desktop
       - name: Build desktop application
+        # Uses plain `go build` — no wails3 CLI and no Taskfile required.
         run: ./scripts/desktop-build.sh
 
   cross-preview:
@@ -67,10 +71,14 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
       - name: Setup wails-cross image (one-time, cached)
+        # Built from the wails source checkout — `wails3 task setup:docker`
+        # cannot be used here because it requires a Taskfile.yml at the repo
+        # root, which this repo does not have (make is the task runner).
         run: |
-          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-          wails3 task setup:docker
+          git clone --depth 1 https://github.com/wailsapp/wails /tmp/wails-src
+          docker build -t wails-cross \
+            -f /tmp/wails-src/build/docker/Dockerfile.cross \
+            /tmp/wails-src/build/docker/
       - name: Cross previews (windows + darwin + linux)
         run: |
           chmod +x scripts/desktop-build.sh

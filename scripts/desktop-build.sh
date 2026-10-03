@@ -24,8 +24,9 @@
 # CGO: este repo PRECISA de CGO (ncruces/go-sqlite3 + WebView), então até
 # o alvo Windows usa Docker no cross. Só o build nativo usa toolchain local.
 #
-# One-time setup (só p/ cross, ~800MB):
-#   wails3 task setup:docker   # o script roda sozinho se a imagem faltar
+# One-time setup (só p/ cross, ~800MB) — o wails3 CLI NÃO é mais necessário:
+#   git clone https://github.com/wailsapp/wails && cd wails
+#   docker build -t wails-cross -f build/docker/Dockerfile.cross build/docker/
 #
 # Build output:
 #   build/desktop/              — native binary
@@ -40,18 +41,21 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/build"
 APP_NAME="${APP_NAME:-gogogo-fullstack-template}"
 TARGET="${1:-native}"
-# Keep CLI pinned to go.mod (wails/v3 v3.0.0-beta.24). Bump together.
-WAILS_VERSION="${WAILS_VERSION:-v3.0.0-beta.24}"
-WAILS_PKG="github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
 
 # ── Color helpers ──
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
-info()  { echo -e "${GREEN}→${NC} $1"; }
-warn()  { echo -e "${YELLOW}⚠${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; }
+# NOTE: printf '%s' (not `echo -e "$1"`) so escape sequences inside a message
+# are never re-interpreted. Separately, never write backticks inside a
+# double-quoted argument at the CALL site — the shell runs them as command
+# substitution before the function is even entered (that is how an error
+# message once executed `make desktop` and `wails3 init`). Quote command
+# names with single quotes instead: 'wails3 package'.
+info()  { printf '\033[0;32m→\033[0m %s\n' "$1"; }
+warn()  { printf '\033[1;33m⚠\033[0m %s\n' "$1"; }
+error() { printf '\033[0;31m✗\033[0m %s\n' "$1" >&2; }
 
 # ── Prerequisite checks ──
 check_go() {
@@ -73,26 +77,6 @@ check_go() {
     info "Go $version detected"
 }
 
-check_wails() {
-    # GOPATH/bin may not be on PATH (fresh `go install`); ensure it is so
-    # both a pre-existing and a just-installed wails3 are found below.
-    case ":$PATH:" in
-        *":$(go env GOPATH)/bin:"*) ;;
-        *) export PATH="$PATH:$(go env GOPATH)/bin" ;;
-    esac
-    if ! command -v wails3 &>/dev/null && ! command -v wails &>/dev/null; then
-        warn "Wails CLI not found. Installing ${WAILS_PKG}..."
-        go install "${WAILS_PKG}"
-        if ! command -v wails3 &>/dev/null; then
-            error "Wails installation failed. Try: go install ${WAILS_PKG}"
-            return 1
-        fi
-    fi
-    local cmd
-    cmd=$(command -v wails3 2>/dev/null || command -v wails 2>/dev/null)
-    info "Wails CLI: $cmd"
-}
-
 # ── Cross (wails-cross) helpers ──
 # Só o path cross usa Docker. Native/android/package não tocam nisso.
 check_docker() {
@@ -109,17 +93,17 @@ check_docker() {
 }
 
 ensure_cross_image() {
-    # wails3 detecta a imagem sozinho; só garantimos que ela existe.
     if docker image inspect wails-cross &>/dev/null; then
         info "wails-cross image present"
         return 0
     fi
-    warn "wails-cross image missing (~800MB download). Running one-time setup..."
-    warn "macOS SDK license: image pulls from wailsapp/macosx-sdks — review Apple's SDK terms."
-    wails3 task setup:docker || {
-        error "setup:docker failed. Run manually: wails3 task setup:docker"
-        return 1
-    }
+    error "wails-cross image missing (~800MB) and cannot be built automatically."
+    error "'wails3 task setup:docker' needs a Taskfile.yml at the repo root, and"
+    error "this repo has none. Build the image from the wails source checkout:"
+    error "  git clone https://github.com/wailsapp/wails && cd wails"
+    error "  docker build -t wails-cross -f build/docker/Dockerfile.cross build/docker/"
+    error "macOS SDK license: the image pulls wailsapp/macosx-sdks — review Apple's SDK terms."
+    return 1
 }
 
 default_arch_for() {
@@ -132,41 +116,13 @@ default_arch_for() {
 }
 
 check_android() {
-    if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ]; then
-        error "ANDROID_HOME or ANDROID_SDK_ROOT not set."
-        error "Install Android SDK + NDK, then: export ANDROID_HOME=~/Android/Sdk"
-        return 1
-    fi
-    local sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-    if [ ! -d "$sdk" ]; then
-        error "Android SDK directory not found: $sdk"
-        return 1
-    fi
-    info "Android SDK: $sdk"
-
-    if ! command -v java &>/dev/null; then
-        error "Java (JDK 21) not found. Install via: brew install openjdk@21"
-        return 1
-    fi
-    local java_version
-    java_version=$(java -version 2>&1 | grep -oP 'version "\K[0-9]+')
-    if [ "$java_version" -lt 21 ]; then
-        error "Java $java_version detected. JDK 21+ required."
-        return 1
-    fi
-    info "Java $java_version detected"
+    error "Android builds are not wired in this repo — see build_android()."
+    return 1
 }
 
 check_macos_package() {
-    if [ "$(uname)" != "Darwin" ]; then
-        error "macOS .app packaging is only available on macOS."
-        return 1
-    fi
-    if ! xcode-select -p &>/dev/null; then
-        error "Xcode Command Line Tools not installed. Run: xcode-select --install"
-        return 1
-    fi
-    info "Xcode Command Line Tools detected"
+    error "macOS .app packaging is not wired in this repo — see build_package()."
+    return 1
 }
 
 # ── Build functions ──
@@ -179,26 +135,28 @@ build_native() {
     # First generate Templ components
     go tool templ generate
 
-    # Build with Wails or plain Go
-    if command -v wails3 &>/dev/null; then
-        wails3 build -o "$RESULT_DIR/$APP_NAME"
-    elif command -v wails &>/dev/null; then
-        wails build -o "$RESULT_DIR/$APP_NAME"
-    else
-        go build -o "$RESULT_DIR/$APP_NAME" ./cmd/desktop
-    fi
+    # Plain `go build` — the same path `make desktop` uses, and the only one
+    # that works here. The Wails v3 CLI is NOT required to compile a desktop
+    # binary (the shell is just a Go program importing pkg/application), and
+    # `wails3 build` cannot be used in this repo anyway:
+    #   - it takes no `-o` flag (real flags: -tags, -obfuscated, -garbleargs,
+    #     -nocolour), so the output path must come from wails.json;
+    #   - it delegates to `wails3 task build`, which needs a Taskfile.yml at
+    #     the repo root, and this repo has none (make is the task runner).
+    # Using `go build` also keeps the native path free of any wails3-on-PATH
+    # dependency, so the build can never depend on which CLI happens to be
+    # installed.
+    go build -o "$RESULT_DIR/$APP_NAME" ./cmd/desktop
     info "Binary: $OUTPUT_DIR/desktop/$APP_NAME"
 }
 
 build_android() {
-    info "Building Android APK..."
-    check_android || return 1
-    mkdir -p "$OUTPUT_DIR/android"
-    cd "$PROJECT_DIR"
-
-    go tool templ generate
-    wails3 android:package -o "$OUTPUT_DIR/android/$APP_NAME.apk"
-    info "APK: $OUTPUT_DIR/android/$APP_NAME.apk"
+    error "Android packaging is not wired in this repo."
+    error "'wails3 android:package' does not exist in the pinned CLI (v3.0.0-beta.24,"
+    error "which only ships 'android:overlay:gen'), and 'wails3 build/package'"
+    error "requires a Taskfile.yml at the repo root that this repo does not have."
+    error "Tracked as future work — see the note in .github/workflows/desktop.yml."
+    return 1
 }
 
 build_ios() {
@@ -208,14 +166,13 @@ build_ios() {
 }
 
 build_package() {
-    info "Building macOS .app bundle..."
-    check_macos_package || return 1
-    mkdir -p "$OUTPUT_DIR/package"
-    cd "$PROJECT_DIR"
-
-    go tool templ generate
-    wails3 package GOOS=darwin -o "$OUTPUT_DIR/package"
-    info ".app bundle: $OUTPUT_DIR/package"
+    error "macOS .app packaging is not wired in this repo."
+    error "'wails3 package' takes no '-o' flag (real flags: -nocolour only) and"
+    error "delegates to 'wails3 task package', which needs a Taskfile.yml at the"
+    error "repo root that this repo does not have. Use 'make desktop' (plain"
+    error "'go build') for a runnable binary, or 'wails3 init' to scaffold a"
+    error "Taskfile first if you want the full packaging pipeline."
+    return 1
 }
 
 # Cross-preview via wails-cross (Zig + macOS SDK no Docker).
@@ -234,7 +191,6 @@ build_cross() {
         *) error "Unsupported GOARCH: $goarch (want amd64|arm64)"; return 1 ;;
     esac
 
-    check_wails || return 1
     check_docker || return 1
     ensure_cross_image || return 1
 
@@ -245,8 +201,17 @@ build_cross() {
     cd "$PROJECT_DIR"
 
     go tool templ generate
-    # O Taskfile do wails3 detecta host!=target e usa o container sozinho.
-    wails3 build "GOOS=${goos}" "GOARCH=${goarch}" -o "${outdir}/${APP_NAME}"
+    # Direct docker invocation — same command wails3's own darwin/windows/linux
+    # Taskfiles run, but without needing a Taskfile in this repo. The image
+    # contract: `wails-cross <goos> <goarch>`, source mounted at /app, artifact
+    # written to bin/<APP_NAME>-<goos>-<goarch>.
+    docker run --rm -v "$PROJECT_DIR:/app" -e APP_NAME="$APP_NAME" \
+        wails-cross "$goos" "$goarch"
+    # The container runs as root; hand the artifact back to the host user.
+    docker run --rm -v "$PROJECT_DIR:/app" alpine \
+        chown -R "$(id -u):$(id -g)" /app/bin
+    mkdir -p "$outdir"
+    mv "$PROJECT_DIR/bin/${APP_NAME}-${goos}-${goarch}" "${outdir}/${APP_NAME}"
     info "Binary: ${outdir}/${APP_NAME}"
     if [ "$goos" = "darwin" ]; then
         warn "macOS cross binary is UNSIGNED. Sign on macOS before distributing."
@@ -254,18 +219,14 @@ build_cross() {
 }
 
 build_cross_universal() {
-    check_wails || return 1
-    check_docker || return 1
-    ensure_cross_image || return 1
-    RESULT_DIR="$OUTPUT_DIR/cross/darwin-universal" # final echo; task may also write bin/
-    mkdir -p "$RESULT_DIR"
-    cd "$PROJECT_DIR"
-
-    go tool templ generate
-    # Combina amd64+arm64 via `wails3 tool lipo` interno (funciona fora do macOS).
-    wails3 task darwin:build:universal
-    info "Universal binary in: $OUTPUT_DIR/cross/darwin-universal (ou bin/ — ver output acima)"
-    warn "macOS cross binary is UNSIGNED. Sign on macOS before distributing."
+    error "macOS universal packaging is not wired in this repo."
+    error "It needs 'wails3 task darwin:build:universal', and this repo has no"
+    error "Taskfile.yml at the root (make is the task runner here). Build both"
+    error "arches individually instead:"
+    error "  ./scripts/desktop-build.sh cross-darwin arm64"
+    error "  ./scripts/desktop-build.sh cross-darwin amd64"
+    error "then combine with: wails3 tool lipo"
+    return 1
 }
 
 # ── Main ──
@@ -279,7 +240,7 @@ check_go || exit 1
 
 case "$TARGET" in
     native)
-        check_wails || true  # wails is optional for native build
+        # No wails3 needed: build_native uses plain `go build`.
         build_native
         ;;
     cross-windows)
@@ -307,14 +268,12 @@ case "$TARGET" in
         build_cross "$2" "${3:-$(default_arch_for "$2")}"
         ;;
     android)
-        check_wails
         build_android
         ;;
     ios)
         build_ios
         ;;
     package)
-        check_wails
         build_package
         ;;
     *)

@@ -5,7 +5,9 @@ VERSION     := $(shell v=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILDTIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILDTIME)"
-# Keep in sync with go.mod (wails/v3) + scripts/desktop-build.sh (WAILS_VERSION).
+# Wails v3 pin. Kept in sync with go.mod (wails/v3) and the install line in
+# .github/workflows/desktop.yml. The desktop BUILD does not use the CLI (it is
+# plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
 .PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help smoke gui run-gui lint-gui
@@ -24,9 +26,14 @@ desktop: templ
 	@echo "→ Building desktop shell (Wails v3 + Leaf Node) v$(VERSION)..."
 	@go build $(LDFLAGS) -o gogogo-desktop ./cmd/desktop
 
-wails-build: templ
-	@echo "→ wails build (requires wails CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION))"...
-	@wails3 build
+# NOTE: `wails3 build` cannot be used in this repo — it takes no `-o` flag and
+# delegates to `wails3 task build`, which needs a Taskfile.yml at the root
+# (make is the task runner here). `make desktop` is the real build; this target
+# is kept only as an explicit "why not" so nobody re-adds it by mistake.
+wails-build:
+	@echo "✗ Not available: 'wails3 build' needs a Taskfile.yml (this repo uses make)."
+	@echo "  Use: make desktop   (plain 'go build -o gogogo-desktop ./cmd/desktop')"
+	@exit 1
 
 # Cross-preview via wails-cross (opt-in, NÃO é gate). Um runner Linux gera
 # previews das 3 plataformas; binários darwin saem NÃO assinados (só p/ teste).
@@ -34,7 +41,12 @@ wails-build: templ
 # Release final continua em runners nativos (assinatura macOS). Requer Docker.
 desktop-setup-cross:
 	@echo "→ One-time wails-cross setup (~800MB, macOS SDK via wailsapp/macosx-sdks)..."
-	@wails3 task setup:docker
+	@echo "  Building from the wails source (no wails3 CLI / Taskfile needed)..."
+	@rm -rf /tmp/wails-src
+	@git clone --depth 1 https://github.com/wailsapp/wails /tmp/wails-src
+	@docker build -t wails-cross \
+		-f /tmp/wails-src/build/docker/Dockerfile.cross \
+		/tmp/wails-src/build/docker/
 
 desktop-cross-windows: templ
 	@echo "→ Cross preview Windows/amd64 (wails-cross, unsigned preview)..."
