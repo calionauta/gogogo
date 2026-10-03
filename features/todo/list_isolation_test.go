@@ -30,13 +30,13 @@ func TestIntegration_ListFiltersByOwner(t *testing.T) {
 
 	// 1) Log in as the demo user to get the gogogo_auth cookie (stored
 	//    in the client's cookie jar).
-	client := loginClient(t, base)
+	ctx := context.Background()
+	client := loginClient(ctx, t, base)
 	if c := cookieFor(client, base); c == "" {
 		t.Fatal("login did not yield gogogo_auth cookie")
 	}
 
 	// 2) User A creates 3 todos.
-	ctx := context.Background()
 	for _, title := range []string{"A1", "A2", "A3"} {
 		mustPostCtx(ctx, t, client, base, "/api/todos", url.Values{titleField: {title}}, 200)
 	}
@@ -100,7 +100,7 @@ func assertFilter(t *testing.T, client *http.Client, base, filter string) {
 // loginClient logs in with the demo creds via a redirect-following
 // client (with a cookie jar) and returns the client carrying the
 // gogogo_auth cookie.
-func loginClient(t *testing.T, base string) *http.Client {
+func loginClient(ctx context.Context, t *testing.T, base string) *http.Client {
 	t.Helper()
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -112,7 +112,6 @@ func loginClient(t *testing.T, base string) *http.Client {
 			return nil
 		},
 	}
-	ctx := context.Background()
 	req, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, base+"/login",
 		strings.NewReader(url.Values{"email": {demoEmail}, "password": {demoPassword}, "next": {"/todo"}}.Encode()))
 	if reqErr != nil {

@@ -116,8 +116,7 @@ type TodoHandler struct {
 
 // OnboardingResumer is the capability the create path needs from the
 // onboarding flow: resume it when a user with a pending onboarding adds
-// their first todo. Declared here (default build) so handleCreate can
-// call it unconditionally; the dagnats build supplies the real impl.
+// their first todo. The dagnats build supplies the real impl.
 type OnboardingResumer interface {
 	ResumeOnboarding(user string)
 }
@@ -153,14 +152,10 @@ func (h *TodoHandler) SetLLMMeter(m llm.Biller) {
 	}
 }
 
-// CreateTodoForOnboarding programmatically creates a todo. Used by the
-// DagNats onboarding worker handlers (always compiled; no-op when
-// DAGNATS_ENABLED=false) to write example
-// todos into the main PocketBase collection as the durable workflow
-// advances. owner scopes the todo to a user; pass "" for the unscoped
-// demo fallback. It reuses the same validation/save path as the HTTP
-// create handler so the todos appear identically in the UI and broadcast
-// to the subscribed client (per-user scoped via the owner rule).
+// CreateTodoForOnboarding programmatically creates a todo for the
+// DagNats onboarding worker (no-op when DAGNATS_ENABLED=false).
+// owner MUST be non-empty — saveTodo rejects "" fail-fast. Same
+// validation/save path as handleCreate, so rows render identically.
 func (h *TodoHandler) CreateTodoForOnboarding(title, owner string) error {
 	item := &todo.Todo{Title: title, Completed: false}
 	return h.saveTodo(nil, item, owner, "")

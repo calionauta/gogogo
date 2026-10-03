@@ -5,6 +5,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -39,6 +40,29 @@ var (
 // was a lie. Each collection must be explicitly registered here so a fresh
 // `make dev` clone can create todos out of the box without hitting the admin
 // UI first.
+// ApplySeeds runs every schema + demo-data seed synchronously, against
+// the App handle, without needing a serve event. SeedDefaults still
+// calls it from OnServe for the HTTP entry points; a native frontend
+// (cmd/gui) that only calls Bootstrap() and never serves HTTP calls
+// ApplySeeds directly, otherwise it would boot against an empty
+// database with no todos collection and no demo user.
+//
+// Keep this the single list of seeds: adding a seed here covers every
+// frontend, not just the ones that serve HTTP.
+func ApplySeeds(app core.App, offlineSyncEnabled bool) error {
+	var errs []error
+	join := func(err error) {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	join(ensureTodosCollection(app, offlineSyncEnabled))
+	join(ensureDemoUser(app))
+	join(ensureUsersCollectionRules(app))
+	join(ensureWhiteboardsCollection(app))
+	return errors.Join(errs...)
+}
+
 func SeedDefaults(app *pocketbase.PocketBase, offlineSyncEnabled bool) error {
 	// Idempotency dedup hook for the todos collection (see
 	// idempotency_hook.go). Only registered when offline-sync is on;
@@ -48,22 +72,8 @@ func SeedDefaults(app *pocketbase.PocketBase, offlineSyncEnabled bool) error {
 	}
 
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-		if err := ensureTodosCollection(se.App, offlineSyncEnabled); err != nil {
-			slog.Error("seed: ensureTodosCollection failed", "error", err)
-		}
-		if err := ensureDemoUser(se.App); err != nil {
-			slog.Error("seed: ensureDemoUser failed", "error", err)
-		}
-		// Lock the users collection so the public demo can't create or
-		// delete accounts through the API / admin UI (the demo superuser
-		// still can). See ensureUsersCollectionRules.
-		if err := ensureUsersCollectionRules(se.App); err != nil {
-			slog.Error("seed: ensureUsersCollectionRules failed", "error", err)
-		}
-		// Collaborative whiteboards (Loro CRDT snapshots) — the SyncWorker
-		// (internal/collab) persists resolved docs here.
-		if err := ensureWhiteboardsCollection(se.App); err != nil {
-			slog.Error("seed: ensureWhiteboardsCollection failed", "error", err)
+		if err := ApplySeeds(se.App, offlineSyncEnabled); err != nil {
+			slog.Error("seed: applying seeds failed", "error", err)
 		}
 		return se.Next()
 	})

@@ -9,7 +9,7 @@
 #   ./scripts/desktop-build.sh package      # macOS .app bundle
 #
 # Prerequisites (checked automatically):
-#   - Go 1.26+
+#   - Go 1.27+
 #   - Wails v3 CLI (go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12)
 #   - Android: SDK API 35 + NDK 26.3.x + JDK 21 (for Android builds)
 #   - macOS: Xcode Command Line Tools (for .app packaging)
@@ -44,13 +44,13 @@ error() { echo -e "${RED}✗${NC} $1"; }
 # ── Prerequisite checks ──
 check_go() {
     if ! command -v go &>/dev/null; then
-        error "Go is not installed. Install Go 1.26+ from https://go.dev/dl/"
+        error "Go is not installed. Install Go 1.27+ from https://go.dev/dl/"
         return 1
     fi
     local version
     version=$(go version | grep -oP 'go\K[0-9]+\.[0-9]+')
-    if awk "BEGIN {exit !($version < 1.26)}"; then
-        error "Go $version detected. Go 1.26+ required."
+    if awk "BEGIN {exit !($version < 1.27)}"; then
+        error "Go $version detected. Go 1.27+ required."
         return 1
     fi
     info "Go $version detected"

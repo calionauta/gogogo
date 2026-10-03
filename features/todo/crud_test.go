@@ -91,7 +91,14 @@ func TestIntegration_DeleteEmitsInfoToast(t *testing.T) {
 		t.Fatalf("expected 1 record, got %d (err=%v)", len(records), err)
 	}
 
-	resp, err := postForm(ctx, base+"/api/todos/"+records[0].Id+"/delete", nil)
+	client := loginClient(ctx, t, base)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		base+"/api/todos/"+records[0].Id+"/delete", strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}
@@ -156,16 +163,15 @@ func newTestCtx(t *testing.T) context.Context {
 
 // mustPost sends a form-encoded POST and asserts the status code. Used
 // by integration tests that don't care about the response body.
+//
+// It authenticates as the demo user first: since RequireOwner, anonymous
+// mutations fail closed with a 303 to /login (they used to proceed with
+// an empty owner — the fail-open this suite now guards against in
+// owner_require_test.go). Tests for the anonymous path assert the 303
+// explicitly; the happy-path tests below run authenticated.
 func mustPost(ctx context.Context, t *testing.T, base, path string, values url.Values, wantStatus int) {
 	t.Helper()
-	resp, err := postForm(ctx, base+path, values)
-	if err != nil {
-		t.Fatalf("POST %s: %v", path, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != wantStatus {
-		t.Fatalf("POST %s status=%d, want %d", path, resp.StatusCode, wantStatus)
-	}
+	mustPostCtx(ctx, t, loginClient(ctx, t, base), base, path, values, wantStatus)
 }
 
 // postForm wraps http.PostForm with a context-aware client so the

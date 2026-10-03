@@ -225,6 +225,7 @@ New infra should go in `internal/<name>/`. Same pattern: create the package, wir
 
 ```
 cmd/web/main.go            Entry point (PB + goqite + SSE Hub + DagNats + NATS)
+cmd/gui/main.go            Native window POC (gogpu/ui over the same PB + EntityStore, no HTTP) 🟢 FEATURE
 config/config.go           Env-based config (incl. UI_SKIN, ENTITY_STORE, BUILD_LABEL/COMMIT)
 db/pocketbase.go           PocketBase + seed (incl. idempotency hook)
 features/                  Demo features (🟢 FEATURE, except auth middleware 🔴 + store 🟡)

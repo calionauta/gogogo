@@ -39,7 +39,8 @@ func TestIntegration_CreateRendersInList(t *testing.T) {
 	defer cleanup()
 	ctx := newTestCtx(t)
 
-	resp, err := postForm(ctx, base+"/api/todos", url.Values{titleField: {buyMilk}})
+	client := loginClient(ctx, t, base)
+	resp, err := doPostForm(ctx, client, base+"/api/todos", url.Values{titleField: {buyMilk}})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

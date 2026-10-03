@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,9 +27,9 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 	// cookie explicitly so listTodos scopes to the logged-in owner
 	// instead of falling back to the single-tenant "all todos" view.
 	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("todo: sse auth load — falls back to unscoped list", "error", err)
+		slog.Warn("todo: sse auth load — stream opens with empty todo scope", "error", err)
 	} else if c.Auth == nil {
-		slog.Warn("todo: sse no auth cookie — list is unscoped")
+		slog.Warn("todo: sse no auth cookie — stream opens with empty todo scope")
 	}
 
 	clientID := c.Request.URL.Query().Get("clientID")
@@ -36,11 +37,22 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 		clientID = uuid.New().String()
 	}
 
+	// Fail-closed on the READ path without closing the stream: the
+	// stream multiplexes public demo events (queue retry feedback, LLM
+	// suggest, client count) that work without login, so an anonymous
+	// stream must still open. But its todo scope is EMPTY — never the
+	// unscoped "all users" list. Authenticated streams resolve the
+	// owner and register + list scoped as before.
+	owner, ownerErr := RequireOwner(c)
+	if ownerErr != nil {
+		owner = ""
+	}
+
 	sse := sdk.NewSSE(c.Response, c.Request)
 	ch := make(chan []byte, config.DefaultClientQueueSize)
-	h.q.Hub().Register(clientID, ownerOf(c), ch)
+	h.q.Hub().Register(clientID, owner, ch)
 	slog.Info("todo: sse registered",
-		"clientID", clientID, "userID", ownerOf(c), "total_users",
+		"clientID", clientID, "userID", owner, "total_users",
 		h.q.Hub().CountUserClients())
 	defer func() {
 		// Use UnregisterIfCurrent to prevent a stale deferred cleanup from
@@ -52,8 +64,14 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 
 	todos, err := h.listTodos(c, "all")
 	if err != nil {
-		slog.Error("todo: list on sse open failed", "error", err)
-		return c.String(statusInternal, "error listing todos")
+		if errors.Is(err, ErrNoOwner) {
+			// Anonymous stream (public demo events): empty scope,
+			// not an error. See the owner resolution above.
+			todos = []todo.Todo{}
+		} else {
+			slog.Error("todo: list on sse open failed", "error", err)
+			return c.String(statusInternal, "error listing todos")
+		}
 	}
 	if err := dshelpers.MergeSignals(sse, todo.Signals{
 		Todos:            todos,
@@ -113,10 +131,12 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 // handleSSEStreamWithAuth wraps handleSSEStream, loading the app auth
 // cookie first. The stream lives under /api/, which the global
 // LoadAuthFromCookie middleware deliberately skips, so without this
-// c.Auth is nil on the stream and listTodos returns EVERY user's todos
-// (unscoped). The broadcast would then re-render remote tabs with
-// foreign rows — the "I see other people's tasks" / "my list got wiped"
-// bug. LoadAppAuth is the /api-aware variant that does NOT skip /api.
+// c.Auth is nil on the stream. handleSSEStream itself resolves the
+// owner fail-closed (anonymous streams get an EMPTY todo scope, never
+// the unscoped "all users" list) while still opening the stream for
+// the public demo events (queue retry feedback, LLM suggest, client
+// count) that work without login. LoadAppAuth is the /api-aware
+// variant that does NOT skip /api.
 func (h *TodoHandler) handleSSEStreamWithAuth(c *core.RequestEvent) error {
 	if err := auth.LoadAppAuth(c); err != nil {
 		return err
@@ -165,10 +185,15 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 	}
 
 	// Load the current scoped item count from the database so the UI's
-	// header badge stays accurate.
+	// header badge stays accurate. An ownerless stream (anonymous,
+	// public demo events) counts zero rather than erroring.
 	count, err := h.countOwnedTodos(c)
 	if err != nil {
-		return fmt.Errorf("count todos for broadcast: %w", err)
+		if errors.Is(err, ErrNoOwner) {
+			count = 0
+		} else {
+			return fmt.Errorf("count todos for broadcast: %w", err)
+		}
 	}
 
 	// Merge the remote-source signal so new/updated items animate with
@@ -217,7 +242,11 @@ func (h *TodoHandler) refreshTodoListPatch(sse *sdk.ServerSentEventGenerator, c 
 	// every remote mutation (CAL-14).
 	todos, err := h.listTodos(c, "all")
 	if err != nil {
-		return fmt.Errorf("list todos for broadcast: %w", err)
+		if errors.Is(err, ErrNoOwner) {
+			todos = []todo.Todo{}
+		} else {
+			return fmt.Errorf("list todos for broadcast: %w", err)
+		}
 	}
 	return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos, h.resolveSkin(c)),
 		sdk.WithSelector("#todo-list"))

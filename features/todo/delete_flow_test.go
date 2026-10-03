@@ -25,9 +25,17 @@ func TestIntegration_DeleteConfirmModalFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find todos collection: %v", err)
 	}
+	// Seed the row owned by the demo user: since RequireOwner, the
+	// confirm/delete paths scope by owner, so an ownerless fixture row
+	// would 404 even for the rightful user.
+	demoRec, err := app.FindAuthRecordByEmail("users", demoEmail)
+	if err != nil {
+		t.Fatalf("find demo user: %v", err)
+	}
 	rec := core.NewRecord(coll)
 	rec.Set("title", "to delete")
 	rec.Set("completed", false)
+	rec.Set("owner", demoRec.Id)
 	if serr := app.Save(rec); serr != nil {
 		t.Fatalf("seed: %v", serr)
 	}
@@ -36,11 +44,13 @@ func TestIntegration_DeleteConfirmModalFlow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	client := loginClient(ctx, t, base)
+
 	confReq, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/todos/"+id+"/confirm-delete", nil)
 	if err != nil {
 		t.Fatalf("confirm-delete request build: %v", err)
 	}
-	confResp, err := http.DefaultClient.Do(confReq)
+	confResp, err := client.Do(confReq)
 	if err != nil {
 		t.Fatalf("confirm-delete request: %v", err)
 	}
@@ -49,7 +59,7 @@ func TestIntegration_DeleteConfirmModalFlow(t *testing.T) {
 		t.Fatalf("confirm-delete did not open modal: %s", body)
 	}
 
-	delResp, err := postForm(ctx, base+"/api/todos/"+id+"/delete", url.Values{})
+	delResp, err := doPostForm(ctx, client, base+"/api/todos/"+id+"/delete", url.Values{})
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}

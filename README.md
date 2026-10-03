@@ -26,6 +26,7 @@
 - [Getting started](#getting-started)
 - [Local CI (gh-signoff)](#local-ci-gh-signoff)
 - [Desktop & Mobile](#desktop--mobile-wails-v3--loro-crdt--nats-leaf-node)
+- [Native window PoC (gogpu/ui)](#native-window-poc-gogpuui)
 - [Deploy to your own box](#deploy-to-your-own-box)
 - [Structure (annotated by SCOPE)](#structure-annotated-by-scope)
 - [Acknowledgements & inside jokes](#acknowledgements--inside-jokes)
@@ -54,7 +55,7 @@ Everything you need to build a modern web app, in a single binary:
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| **Language** | Go 1.26 | Fast compilation, easy deploy, lean runtime |
+| **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime |
 | **Database + Auth + API** | [PocketBase](https://pocketbase.io) (embedded, on `ncruces/go-sqlite3`) | Zero-config auth, REST, [admin UI at `/_/`](https://<your-domain>/_/), file storage — all in SQLite |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via Tailwind v4 CLI; no JS framework build step. |
@@ -70,6 +71,7 @@ Everything you need to build a modern web app, in a single binary:
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
 | **CRDT (collaborative docs)** | [loro-go](https://github.com/aholstenson/loro-go) | Conflict-free merging of whiteboard/notes state; converges offline edits with no LWW data loss |
 | **Hand-drawn canvas** | [Rough.js](https://roughjs.com) (embedded) | Minimalist sketchy whiteboard rendering, embedded in the binary for self-contained removal with the whiteboard feature |
+| **Native window (PoC)** | [gogpu/ui](https://github.com/gogpu/ui) v0.1.54 (pure Go, zero CGO) | `cmd/gui`: second frontend over the same PocketBase + `EntityStore` — no HTTP, no webview. See [Native window PoC](#native-window-poc-gogpuui). |
 | **Linting** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | 27 linters: `govet`, `staticcheck`, `gosec`, `revive`, `gocritic`, `errcheck`, `ineffassign`, `unused`, `errorlint`, `nilerr`, `bodyclose`, `contextcheck`, `containedctx`, `sloglint`, `thelper`, `testifylint`, `gocyclo`, `gocognit`, `funlen`, `noctx`, `goconst`, `dupl`, `lll`, `mnd`, `tagliatelle`, `modernize`, `nolintlint` (see `.golangci.yml`); `datastar-lint` catches Datastar attribute/signal/expression mistakes (run via `make datastar-lint`) |
 | **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build, unified build) + `deploy.yml` (multi-arch Docker to ghcr.io, runs on `master`) |
 
@@ -419,6 +421,8 @@ make datastar-lint # Datastar attribute / signal anti-patterns in .templ
 make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
 make test          # Race tests (`-p 1` for DagNats engine stability). Discouraged locally — remote CI runs them.
 make ci-local      # Full local gate (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build
+make gui           # Native gogpu/ui PoC: headless race tests + CGO_ENABLED=0 build (CI: gui-poc job in desktop.yml)
+make run-gui       # Open the native window (needs DISPLAY/GPU; not exercised in CI)
 make signoff       # `make ci-local` + `gh signoff -f` stamp. Default pre-push gate — catches ~95%% of regressions in <3min locally.
 make setup         # Activate lefthook git hooks (needs: go install github.com/evilmartians/lefthook@latest)
 make docker-image  # Build and push multi-arch image to ghcr.io
@@ -609,6 +613,30 @@ NDK (26.3.x) + JDK 21**; `wails3 doctor` reports what's missing. Because
 that toolchain is heavy, APK builds are left to the developer and are not
 part of the CI matrix. iOS is analogous but requires Xcode.
 
+## Native window PoC (gogpu/ui)
+
+`cmd/gui` is a second frontend over the **same backend** (PocketBase +
+`EntityStore` + `features/auth.Login`/`ResolveOwner`) — no `*core.RequestEvent`,
+no cookies, no HTTP router, no webview. It proves the domain layer is
+transport-agnostic: login + todo add/toggle/delete through the exact store
+the web handlers use, with cross-frontend visibility on a 2s poll tick.
+
+```bash
+make gui      # headless: go test -race ./cmd/gui + CGO_ENABLED=0 build
+make run-gui  # open the window (needs DISPLAY/GPU; not exercised in CI)
+```
+
+Like `cmd/desktop` it is a separate target: excluded from `web-packages.sh`
+(web CI) and validated by the `gui-poc` job in `.github/workflows/desktop.yml`
+(gofumpt + vet + govulncheck + race tests + build, all headless).
+Full `golangci-lint` is a manual local step by design (linting wgpu/naga is
+minutes-cold per push and only catches style): run `make lint-gui` before
+committing any `cmd/gui` change.
+Deliberate limits (see `cmd/gui/main.go` header): online-only (no outbox/replay),
+no JetStream push (poll only), native `add()` does not trigger the onboarding
+workflow, session token in a `0600` file (no OS keyring). To remove: delete
+`cmd/gui/`, drop the `gui` Makefile target + the `gui-poc` job.
+
 ## Deploy to your own box
 
 The default workflow is to **clone + `make dev`** for local work. For a permanent
@@ -681,6 +709,7 @@ and overwritten on every run — there is no history of secrets on disk.
 ```
 cmd/web/                          🔴 CORE  Entry point (PB + goqite + SSE Hub + DagNats + NATS)
 cmd/desktop/                      🔴 CORE  Wails v3 desktop/edge shell (NATS Leaf Node when NATS_LEAFNODE_URL set)
+cmd/gui/                          🟢 FEATURE  gogpu/ui native window PoC over the same backend (no HTTP). See [Native window PoC](#native-window-poc-gogpuui).
 config/                           🔴 CORE  Per-environment config
   config.go                       🔴 CORE  Env vars + age secrets
   config_dev.go / config_prod.go  🔴 CORE  Build-tag defaults

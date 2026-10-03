@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/a-h/templ"
@@ -16,11 +17,45 @@ import (
 	morpheus "github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus"
 )
 
+// ErrNoOwner is returned by RequireOwner when the request carries no
+// authenticated user. Handlers translate it into a 303 redirect to
+// /login (same convention as handleList/handleListFragment) so an
+// expired or missing session can never reach the store with an empty
+// owner — which would list EVERY user's todos (no owner filter) or
+// write ownerless records.
+var ErrNoOwner = errors.New("todo: no authenticated owner")
+
+// RequireOwner returns the authenticated user's id, or ErrNoOwner when
+// the request is unauthenticated. This is the single choke point for
+// tenant scoping: every handler resolves the owner through here (or
+// through listTodos/saveTodo/countOwnedTodos below, which call it
+// internally), so a future handler cannot accidentally fall back to an
+// unscoped store call the way the old ownerOf(c)=="" used to allow.
+//
+// Callers handle ErrNoOwner INLINE (resolve + redirect in two lines,
+// not via a shared helper) because c.Redirect writes the response and
+// returns nil — a helper cannot signal "already responded" through its
+// error return, and the explicit form keeps the control flow greppable
+// at each mutation entry point.
+func RequireOwner(c *core.RequestEvent) (string, error) {
+	if c == nil || c.Auth == nil {
+		return "", ErrNoOwner
+	}
+	return c.Auth.Id, nil
+}
+
 // listTodos returns the authenticated user's todos, scoped by the
 // store (the strategy filters by owner internally). The handler-side
 // filter values are: "" (all), "active", "completed".
+//
+// Fail-closed: an unauthenticated call returns ErrNoOwner instead of
+// an unscoped list, so even a handler that forgot its auth check
+// cannot leak other users' todos.
 func (h *TodoHandler) listTodos(c *core.RequestEvent, filter string) ([]todo.Todo, error) {
-	owner := ownerOf(c)
+	owner, err := RequireOwner(c)
+	if err != nil {
+		return nil, err
+	}
 	todos, err := h.st().List(ctxOf(c), owner, filter)
 	if err != nil {
 		return nil, fmt.Errorf("list todos (filter=%q): %w", filter, err)
@@ -31,7 +66,13 @@ func (h *TodoHandler) listTodos(c *core.RequestEvent, filter string) ([]todo.Tod
 // saveTodo persists a new todo owned by owner. idemKey is the
 // client-generated UUID used for offline-replay dedup (PBStore uses it
 // via the OnRecordCreateRequest hook; CRDTStore would use op IDs).
+//
+// Fail-fast: an empty owner is rejected here (not written ownerless),
+// so a programming error surfaces as an error, not an invisible row.
 func (h *TodoHandler) saveTodo(c *core.RequestEvent, item *todo.Todo, owner, idemKey string) error {
+	if owner == "" {
+		return ErrNoOwner
+	}
 	out, err := h.st().Create(ctxOf(c), *item, owner, idemKey)
 	if err != nil {
 		return fmt.Errorf("save todo: %w", err)
@@ -41,10 +82,14 @@ func (h *TodoHandler) saveTodo(c *core.RequestEvent, item *todo.Todo, owner, ide
 }
 
 // countOwnedTodos returns the number of todos owned by the current
-// authenticated user (or the total when auth is nil). Cheap — uses
-// the store's count query, no full load.
+// authenticated user. Cheap — uses the store's count query, no full
+// load. Fail-closed like listTodos: no auth, no count.
 func (h *TodoHandler) countOwnedTodos(c *core.RequestEvent) (int, error) {
-	return h.st().Count(ctxOf(c), ownerOf(c))
+	owner, err := RequireOwner(c)
+	if err != nil {
+		return 0, err
+	}
+	return h.st().Count(ctxOf(c), owner)
 }
 
 // renderTodoList builds the SSE-friendly HTML for the list region,

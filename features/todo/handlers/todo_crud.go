@@ -153,12 +153,15 @@ func (h *TodoHandler) patchTodoListWithSelfOrigin(
 
 func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths, so c.Auth is nil
-	// here by default. Load the app session cookie explicitly so
-	// ownerOf(c) scopes the new todo to the logged-in user instead of
-	// saving with an empty owner (which makes it invisible to every
-	// authenticated list query).
+	// here by default. Load the app session cookie explicitly, then
+	// fail closed: without an owner the store would save an ownerless
+	// row (invisible to every authenticated list query).
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Debug("todo: create auth load", "error", err)
+	}
+	owner, ownerErr := RequireOwner(c)
+	if ownerErr != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 
 	if err := c.Request.ParseForm(); err != nil {
@@ -186,13 +189,13 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	if err := h.saveTodo(c, &item, ownerOf(c), idemKey); err != nil {
+	if err := h.saveTodo(c, &item, owner, idemKey); err != nil {
 		slog.Error("todo: save failed", "error", err)
 		return c.String(statusInternal, "save failed")
 	}
 
 	// Publish to NATS for cross-instance sync (desktop→server).
-	h.publishCrudOp(nats.CrudOpCreate, ownerOf(c), &nats.CrudOpData{
+	h.publishCrudOp(nats.CrudOpCreate, owner, &nats.CrudOpData{
 		ID: item.ID, Title: item.Title, Completed: item.Completed,
 	})
 
@@ -201,7 +204,7 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 	// todo they create moves the durable workflow to its second half
 	// (todo captured -> scheduled pause -> complete). No-op otherwise.
 	if h.onboarding != nil {
-		h.onboarding.ResumeOnboarding(ownerOf(c))
+		h.onboarding.ResumeOnboarding(owner)
 	}
 
 	if isOfflineReplay(c) {
@@ -243,20 +246,23 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 
 func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths, so c.Auth is nil
-	// here by default. Load the app session cookie explicitly so the
-	// owner-scoped check below works correctly — without it the check
-	// is always skipped (c.Auth is nil) and any user can toggle any
-	// todo.
+	// here by default. Load the app session cookie explicitly, then
+	// fail closed — without an owner the Get below skips its
+	// ownership check and any user could toggle any todo.
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Debug("todo: toggle auth load", "error", err)
 	}
+	owner, ownerErr := RequireOwner(c)
+	if ownerErr != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
 
 	id := c.Request.PathValue("id")
-	current, err := h.st().Get(ctxOf(c), ownerOf(c), id)
+	current, err := h.st().Get(ctxOf(c), owner, id)
 	if errors.Is(err, store.ErrNotFound) || err != nil {
 		return c.String(statusNotFound, "not found")
 	}
-	toggled, err := h.st().Update(ctxOf(c), ownerOf(c), id, map[string]any{
+	toggled, err := h.st().Update(ctxOf(c), owner, id, map[string]any{
 		"completed": !current.Completed,
 	})
 	if err != nil {
@@ -274,7 +280,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpToggle, ownerOf(c), &nats.CrudOpData{
+	h.publishCrudOp(nats.CrudOpToggle, owner, &nats.CrudOpData{
 		ID: toggled.ID, Completed: toggled.Completed,
 	})
 
@@ -285,14 +291,18 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 
 func (h *TodoHandler) handleConfirmDelete(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths, so c.Auth is nil
-	// here by default. Load the app session cookie explicitly so the
-	// owner-scoped check below works correctly.
+	// here by default. Load the app session cookie explicitly, then
+	// fail closed like the other mutations.
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Debug("todo: confirm-delete auth load", "error", err)
 	}
+	owner, ownerErr := RequireOwner(c)
+	if ownerErr != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
 
 	id := c.Request.PathValue("id")
-	t, err := h.st().Get(ctxOf(c), ownerOf(c), id)
+	t, err := h.st().Get(ctxOf(c), owner, id)
 	if errors.Is(err, store.ErrNotFound) || err != nil {
 		return c.String(statusNotFound, "not found")
 	}
@@ -312,18 +322,22 @@ func (h *TodoHandler) handleConfirmDelete(c *core.RequestEvent) error {
 
 func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths, so c.Auth is nil
-	// here by default. Load the app session cookie explicitly so the
-	// owner-scoped check below works correctly.
+	// here by default. Load the app session cookie explicitly, then
+	// fail closed like the other mutations.
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Debug("todo: delete auth load", "error", err)
 	}
+	owner, ownerErr := RequireOwner(c)
+	if ownerErr != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
 
 	id := c.Request.PathValue("id")
-	t, err := h.st().Get(ctxOf(c), ownerOf(c), id)
+	t, err := h.st().Get(ctxOf(c), owner, id)
 	if errors.Is(err, store.ErrNotFound) || err != nil {
 		return c.String(statusNotFound, "not found")
 	}
-	if delErr := h.st().Delete(ctxOf(c), ownerOf(c), id); delErr != nil && !errors.Is(delErr, store.ErrNotFound) {
+	if delErr := h.st().Delete(ctxOf(c), owner, id); delErr != nil && !errors.Is(delErr, store.ErrNotFound) {
 		slog.Error("todo: delete failed", "id", id, "error", delErr)
 		return c.String(statusInternal, "delete failed")
 	}
@@ -338,7 +352,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpDelete, ownerOf(c), &nats.CrudOpData{ID: t.ID})
+	h.publishCrudOp(nats.CrudOpDelete, owner, &nats.CrudOpData{ID: t.ID})
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	// Close the confirmation modal on every client by clearing the
@@ -358,14 +372,18 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 
 func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths, so c.Auth is nil
-	// here by default. Load the app session cookie explicitly so the
-	// store scopes the clear to the logged-in user instead of clearing
-	// every user's completed todos.
+	// here by default. Load the app session cookie explicitly, then
+	// fail closed — without an owner the store would clear EVERY
+	// user's completed todos.
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Debug("todo: clear-completed auth load", "error", err)
 	}
+	owner, ownerErr := RequireOwner(c)
+	if ownerErr != nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
 
-	count, err := h.st().ClearCompleted(ctxOf(c), ownerOf(c))
+	count, err := h.st().ClearCompleted(ctxOf(c), owner)
 	if err != nil {
 		slog.Error("todo: clear completed failed", "error", err)
 		return c.String(statusInternal, "clear failed")
@@ -381,7 +399,7 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpClearCompleted, ownerOf(c), nil)
+	h.publishCrudOp(nats.CrudOpClearCompleted, owner, nil)
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	if err := h.patchTodoListWithSelfOrigin(sse, todos, h.resolveSkin(c)); err != nil {
@@ -402,16 +420,6 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 // patch the SW discards — returning early skips that wasted render.
 func isOfflineReplay(c *core.RequestEvent) bool {
 	return c.Request.Header.Get("X-Offline-Replay") == "1"
-}
-
-// ownerOf returns the authenticated user's id, or "" if the request is
-// unauthenticated. Used to scope created todos to a tenant so the demo
-// user sees only their own todos.
-func ownerOf(c *core.RequestEvent) string {
-	if c == nil || c.Auth == nil {
-		return ""
-	}
-	return c.Auth.Id
 }
 
 // filterOf returns the list filter requested by the client (all / active /

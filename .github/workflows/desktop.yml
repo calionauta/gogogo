@@ -42,3 +42,46 @@ jobs:
         run: go vet ./cmd/desktop
       - name: Build desktop application
         run: ./scripts/desktop-build.sh
+
+  gui-poc:
+    # The gogpu/ui native POC (cmd/gui) is pure Go with zero CGO, so it
+    # needs no system headers — but its GPU deps (wgpu/naga) are heavy,
+    # so it is validated here instead of in web CI (web-packages.sh
+    # excludes cmd/gui for the same reason it excludes cmd/desktop).
+    # Tests run with the race detector (incl. the concurrent-access
+    # test); the shipped binary builds with CGO_ENABLED=0 per the gogpu
+    # ecosystem requirement (goffi fails the build otherwise).
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go 1.27.1 manually
+        run: |
+          curl -fsSL https://go.dev/dl/go1.27.1.linux-amd64.tar.gz -o /tmp/go.tgz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          /usr/local/go/bin/go version
+      - name: Check formatting (gofumpt + goimports)
+        run: |
+          go run mvdan.cc/gofumpt@v0.12.0 -l cmd/gui/ | tee /tmp/gofumpt.out
+          test ! -s /tmp/gofumpt.out
+      - name: Vet gui target
+        run: go vet ./cmd/gui/
+      # NOTE (CI weight): no golangci-lint here on purpose. Linting the
+      # wgpu/naga tree costs minutes cold on every push and only catches
+      # style — it never catches breakage (vet+tests+build do that).
+      # Run it locally before touching cmd/gui: `make lint-gui`.
+      # Same precedent as cmd/desktop (vet+build only in this workflow).
+      - name: Govulncheck gui target
+        # Reachability check for the new FFI tree (goffi/wgpu/naga):
+        # web CI's govulncheck sees these modules as unreachable, so
+        # only this step tells whether gui actually calls a vuln symbol.
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          $(go env GOPATH)/bin/govulncheck ./cmd/gui/
+      - name: Test gui backend wiring (headless, no window/GPU)
+        run: go test -race -count=1 ./cmd/gui/
+      - name: Build gui binary (headless check, no window opened)
+        run: CGO_ENABLED=0 go build -o /tmp/gogogo-gui ./cmd/gui

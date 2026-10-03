@@ -14,6 +14,7 @@ import (
 	"github.com/zendev-sh/goai/provider"
 
 	"github.com/calionauta/ai-credits/credits"
+
 	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
 )
 

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.26+
+- Go 1.27+
 - Air (optional, for live reload): `go install github.com/air-verse/air@latest`
 - Templ: `go install github.com/a-h/templ/cmd/templ@latest`
 
@@ -29,6 +29,7 @@ make dev
 | GoAI LLM SDK | ✅ Default |
 | DagNats durable workflows | 🔲 Opt-in (`make build-dagnats`) |
 | NATS JetStream (multi-user real-time) | 🔲 Opt-in (`make build-jetstream`) |
+| Native window PoC (gogpu/ui second frontend, `cmd/gui`) | 🔲 Opt-in (`make gui`, `make run-gui`) |
 
 ## Project Structure
 

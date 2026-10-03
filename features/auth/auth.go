@@ -31,12 +31,19 @@
 package auth
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// ErrBadCredentials is returned by Login when the email is unknown or
+// the password is wrong. Both cases share one sentinel so no caller
+// can tell them apart (no account enumeration).
+var ErrBadCredentials = errors.New("auth: bad credentials")
 
 // cookieName is the app's OWN session cookie, kept distinct from
 // pb_auth ON PURPOSE (see package doc — do NOT merge them, or the
@@ -173,38 +180,77 @@ func RedirectIfAuthed(e *core.RequestEvent) error {
 	return e.Next()
 }
 
-// HandlePasswordLogin parses the form, validates credentials against
-// the PocketBase `users` collection, sets the pb_auth cookie, and
-// redirects. On failure it re-renders /login with an error message.
+// Login validates email+password against the PocketBase `users`
+// collection and returns the authenticated user id plus a freshly
+// minted auth token. It is the transport-free core of the login flow:
+// it touches no *core.RequestEvent, no cookie, and no response.
+//
+// Every frontend calls this, so credential validation and token
+// minting live in exactly one place:
+//
+//   - HTTP: HandlePasswordLogin (below), which adds the cookie + redirect
+//   - Native (cmd/gui, gogpu/ui): a login form that keeps the token in
+//     memory and passes it straight to the store
+//
+// A bad email and a bad password both return ErrBadCredentials so the
+// caller cannot be used to enumerate which emails exist.
+func Login(app core.App, email, password string) (userID, token string, err error) {
+	if email == "" || password == "" {
+		return "", "", ErrBadCredentials
+	}
+	record, err := app.FindAuthRecordByEmail("users", email)
+	if err != nil {
+		return "", "", ErrBadCredentials
+	}
+	if !record.ValidatePassword(password) {
+		return "", "", ErrBadCredentials
+	}
+	token, err = record.NewAuthToken()
+	if err != nil {
+		return "", "", fmt.Errorf("auth: mint token: %w", err)
+	}
+	return record.Id, token, nil
+}
+
+// ResolveOwner maps an auth token back to the user id it belongs to —
+// the same value RequireOwner returns for an authenticated HTTP
+// request. This is what lets a non-HTTP frontend scope store calls:
+// the EntityStore contract takes a plain ownerID string, so a native
+// window only needs to turn its token into one of those.
+func ResolveOwner(app core.App, token string) (string, error) {
+	if token == "" {
+		return "", ErrBadCredentials
+	}
+	record, err := app.FindAuthRecordByToken(token, core.TokenTypeAuth)
+	if err != nil {
+		return "", fmt.Errorf("auth: resolve token: %w", err)
+	}
+	return record.Id, nil
+}
+
+// HandlePasswordLogin parses the form, calls Login, sets the auth
+// cookies, and redirects. On failure it re-renders /login with an
+// error message. All credential handling lives in Login; this is only
+// the HTTP shell around it.
 func HandlePasswordLogin(e *core.RequestEvent) error {
 	if err := e.Request.ParseForm(); err != nil {
 		return renderLoginPageTo(e, "Invalid form submission")
 	}
 	email := e.Request.FormValue("email")
 	password := e.Request.FormValue("password")
-	if email == "" || password == "" {
-		return renderLoginPageTo(e, "Email and password required")
-	}
 
-	// Validate against the `users` collection (PocketBase's built-in
-	// auth collection).
-	record, err := e.App.FindAuthRecordByEmail("users", email)
+	userID, token, err := Login(e.App, email, password)
 	if err != nil {
-		return renderLoginPageTo(e, "Wrong email or password")
-	}
-	if !record.ValidatePassword(password) {
-		return renderLoginPageTo(e, "Wrong email or password")
-	}
-
-	// Mint a token and set the cookie.
-	token, err := record.NewAuthToken()
-	if err != nil {
+		if errors.Is(err, ErrBadCredentials) {
+			return renderLoginPageTo(e, "Wrong email or password")
+		}
 		return renderLoginPageTo(e, "Could not issue auth token")
 	}
+
 	setAuthCookie(e.Response, token)
 	// Fire the login hook (e.g. start the per-user durable onboarding
 	// flow). Scoped to this user's record id, not a global broadcast.
-	fireOnLogin(record.Id)
+	fireOnLogin(userID)
 	return e.Redirect(http.StatusSeeOther, e.Request.FormValue("next"))
 }
 

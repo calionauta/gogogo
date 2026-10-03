@@ -6,7 +6,7 @@ COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILDTIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILDTIME)"
 
-.PHONY: all build desktop wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help smoke
+.PHONY: all build desktop wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help smoke gui run-gui lint-gui
 
 all: build
 
@@ -232,3 +232,25 @@ help:
 	@echo "  deps           go mod tidy"
 	@echo "  setup          Install git hooks"
 	@echo "  docker-image   Build and push Docker image"
+
+# gui builds the gogpu/ui native POC (proof that the backend is reachable
+# without HTTP). Tests run headless (no window/GPU); the shipped binary
+# builds with CGO_ENABLED=0 per the gogpu requirement. Validated in CI
+# by the gui-poc job in .github/workflows/desktop.yml.
+gui:
+	@echo "→ Testing native gogpu/ui POC v$(VERSION) (headless)..."
+	@go test -race -count=1 ./cmd/gui
+	@echo "→ Building native gogpu/ui POC v$(VERSION)..."
+	@CGO_ENABLED=0 go build $(LDFLAGS) -o gogogo-gui ./cmd/gui
+
+# lint-gui runs the full 27-linter gate on cmd/gui. NOT in CI (linting
+# the wgpu/naga tree is minutes-cold per push and only catches style —
+# breakage is caught by vet+tests+build in the gui-poc job). Run this
+# locally before committing any cmd/gui change; keep it at zero issues.
+lint-gui:
+	@echo "→ golangci-lint on cmd/gui (manual gate, see gui-poc NOTE)..."
+	@golangci-lint run ./cmd/gui/...
+
+run-gui:
+	@echo "→ Starting the native gogpu/ui POC (window + GPU required)..."
+	@./gogogo-gui

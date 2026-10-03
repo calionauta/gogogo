@@ -240,6 +240,7 @@ gate (subset of `make ci-local` without build verification). Use
 
 ```
 cmd/web/                 🔴 CORE  Entry point (PB + goqite + SSE Hub + DagNats + NATS)
+cmd/gui/                   🟢 FEATURE  gogpu/ui native window PoC (same backend, no HTTP)
 config/                  🔴 CORE  Env config
 db/                      🔴 CORE  PocketBase + collection seeds
 internal/
@@ -403,6 +404,12 @@ exclude `cmd/desktop` (same exclusion CI applies). To build it, run `make deskto
 ```
 
 The desktop binary shares 100% of the backend. With `NATS_LEAFNODE_URL` set, it becomes a NATS Leaf Node syncing JetStream with the server (offline edits replay on reconnect). See `scripts/desktop-build.sh` for full docs.
+
+## Native GUI PoC (`cmd/gui`)
+
+gogpu/ui window over the same backend (PocketBase + `EntityStore`, no HTTP). Like `cmd/desktop`, a **separate target**: excluded from `web-packages.sh` (web CI), validated by the `gui-poc` job in `.github/workflows/desktop.yml` (`gofumpt` + `vet` + `govulncheck` + `go test -race ./cmd/gui/` + `CGO_ENABLED=0` build, all headless). Local: `make gui` (test + build), `make run-gui` (needs DISPLAY/GPU). Full lint is manual by design (CI weight): `make lint-gui` before committing any `cmd/gui` change — keep it at zero issues.
+
+Rules: UI tree only on the UI thread (`uiMu` serializes `SetRoot`); background poll produces data under `stateMu`, views read `snapshot()` copies; lock order always `uiMu→stateMu`. Online-only (no outbox/replay); native `add()` does NOT trigger `ResumeOnboarding` (trigger lives in the HTTP layer). Remove: delete `cmd/gui/`, drop the `gui` Makefile target + `gui-poc` job (no script change needed — already excluded).
 
 ## Testing
 

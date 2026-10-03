@@ -61,6 +61,7 @@ stelow.json
 
 # Pre-built binaries (belong in releases, not in the repo)
 gogogo-desktop
+gogogo-gui
 
 # Investigation spikes (local only, never commit)
 spikes/

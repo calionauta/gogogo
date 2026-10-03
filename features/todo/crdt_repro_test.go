@@ -109,9 +109,9 @@ func TestRepro_CRDT_CreateStuckLoading(t *testing.T) {
 	defer server.Close()
 	defer q.Close()
 
-	client := loginClient(t, server.URL)
-
 	ctx := context.Background()
+	client := loginClient(ctx, t, server.URL)
+
 	uuid := "11111111-1111-1111-1111-111111111111"
 
 	// 1) CREATE — mirrors the live frontend: POST /api/todos with a
