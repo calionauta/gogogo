@@ -38,6 +38,13 @@ pre-commit:
       run: bin/check-agents-md.sh
       glob: "{AGENTS.md,go.mod,**/*.go,**/*.templ}"
 
+    # Non-blocking by design (always exits 0): warns when a behaviour-carrying
+    # file changes without a docs/ update. See the script header for why it
+    # does not block.
+    - name: docs-staleness
+      run: bin/check-docs-staleness.sh
+      glob: "{config/**,router/**,db/**,Makefile,.github/workflows/**,scripts/**,features/**,internal/**,docs/**,README.md}"
+
 # pre-push stays LIGHT. The heavy gate (lint + race tests + build + smoke)
 # runs in GitHub Actions CI (`make ci-local` equivalent) on the runner after
 # push, in parallel with your continued work, and blocks the auto-deploy if it

@@ -71,13 +71,51 @@ All blocking quality gates live at **git level**, managed by [lefthook](https://
 
 | Hook | Jobs | When |
 |------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy (`-diff`, race-safe) · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness | every commit; glob-filtered jobs skip when nothing relevant is staged |
-| `pre-push` | ci-local (= full T4 gate incl. race tests + build + smoke) · govulncheck · deadcode | every push |
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy (`-diff`, race-safe) · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory) | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-push` | govulncheck · deadcode (**light** — the heavy T4 gate runs in CI, in parallel with your push; see the note in `.lefthook.yml`) | every push |
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
 Agent-level hooks (pi.dev `hooks.yaml`) keep ONLY what git hooks cannot do: post-build info hints and the no-CI signoff fallback. Never re-add commit/push gates there for this repo — they would run twice.
 
 **Agent rule:** When the user asks to trim the project, never delete a `removal=core` file — always ask first. Delete `removal=feature` and `removal=plugin` files freely, after reading the inline description (it lists what to delete in `router/router.go` and `cmd/web/`).
+
+## Docs stay truthful
+
+`docs/*.md` (18 pages) is the **single source of truth** for how this project
+behaves; `README.md` links to it and the site publishes it. A doc that describes
+code the repo no longer has is a *second* source of truth, read by the next
+person who goes looking for why reality differs. Treat prose as part of the
+change, not as follow-up work.
+
+- **A behaviour change updates the doc in the SAME commit.** Not the next one.
+  This mirrors stelow's "Docs stay truthful" and bb-plugin-stelow's "a feature
+  without an entry does not exist".
+- **Never edit `site/docs/`** — it is generated from `docs/*.md` by
+  `site/build.mjs`. Edit the markdown, then run `make site`. `site/index.html`,
+  `site/styles.css` and `site/assets/` ARE hand-written and are edited directly.
+- **Derived facts have one source, and the doc describes rather than redefines
+  it.** Env vars and defaults: `config/config.go`. Routes: `router/router.go`.
+  Commands: the `Makefile`. Constants: the table below. When those change, the
+  doc is the thing that is now wrong.
+- **What counts as a behaviour change:** a new/removed env var or default, a
+  route, a command or Make target, a CI/deploy step, a dependency version, a
+  capability and its opt-out, a file that moves between SCOPE layers. Renames,
+  internal refactors and test-only edits are not.
+- **`make site-check` must stay green** — it validates every internal link and
+  heading anchor across the 18 pages, and CI runs it before publishing.
+
+**Enforcement (advisory).** `bin/check-docs-staleness.sh` runs in the
+pre-commit hook. It prints the changed behaviour-carrying files plus the page(s)
+most likely to need the edit when nothing under `docs/` is staged. It **always
+exits 0** on purpose: a rename or a test change legitimately touches Go without
+touching prose, and a blocking gate would only teach people to bypass it. The
+signal is the point — read it and judge.
+
+**Why this exists:** a veracity audit of these docs found 15 claims that were
+true of the old README and false of the code (the deploy directory, the CI's
+build strategy, an `/api/version` endpoint that has never existed). No check
+caught any of them, because nothing connected the prose to the source. This
+section and the script are that connection.
 
 ## Testing discipline (learned the hard way)
 
