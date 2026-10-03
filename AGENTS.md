@@ -384,16 +384,16 @@ When you remove a feature or plugin component, tests come along naturally:
 
 The desktop shell (`cmd/desktop`) is a **separate build target**, not part of
 the default web build/test loop. It pulls in Wails v3, which requires GTK + WebKit dev
-libs (`libwebkit2gtk-4.1-dev`) that only exist on desktop build hosts — so
+libs (`libgtk-4-dev libwebkitgtk-6.0-dev`) that only exist on desktop build hosts — so
 `make build`, `make test`, and `go build ./...`/`go test ./...` from the repo root
 exclude `cmd/desktop` (same exclusion CI applies). To build it, run `make desktop`
 (or `./scripts/desktop-build.sh`) on a machine with those libraries installed.
 
 ```bash
-# One-time: install Wails v3 CLI
-# go install github.com/wailsapp/wails/v3/cmd/wails@latest
+# One-time: install Wails v3 CLI (pin must match go.mod)
+# go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
 
-# Build for current platform
+# Build for current platform (fast native gate)
 ./scripts/desktop-build.sh
 
 # Build Android APK (requires SDK + NDK + JDK 21)
@@ -401,7 +401,17 @@ exclude `cmd/desktop` (same exclusion CI applies). To build it, run `make deskto
 
 # Build macOS .app bundle
 ./scripts/desktop-build.sh package
+
+# Cross-platform previews via wails-cross (opt-in, needs Docker, ~800MB one-time)
+./scripts/desktop-build.sh cross-windows  # or cross-darwin | cross-linux | cross-universal
+make desktop-cross        # all three into build/cross/; darwin is UNSIGNED (test only)
 ```
+
+Cross (`wails-cross`) is for previews without 3 native runners — release
+binaries still come from native runners (macOS signing can't cross).
+Version pin rule: `go.mod` (wails/v3) + `Makefile` (`WAILS_VERSION`) +
+`scripts/desktop-build.sh` (`WAILS_VERSION`) + `.github/workflows/desktop.yml`
+must carry the same beta — bump together.
 
 The desktop binary shares 100% of the backend. With `NATS_LEAFNODE_URL` set, it becomes a NATS Leaf Node syncing JetStream with the server (offline edits replay on reconnect). See `scripts/desktop-build.sh` for full docs.
 

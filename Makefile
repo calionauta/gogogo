@@ -5,8 +5,10 @@ VERSION     := $(shell v=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILDTIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILDTIME)"
+# Keep in sync with go.mod (wails/v3) + scripts/desktop-build.sh (WAILS_VERSION).
+WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help smoke gui run-gui lint-gui
+.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help smoke gui run-gui lint-gui
 
 all: build
 
@@ -23,8 +25,35 @@ desktop: templ
 	@go build $(LDFLAGS) -o gogogo-desktop ./cmd/desktop
 
 wails-build: templ
-	@echo "→ wails build (requires wails CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12)"...
+	@echo "→ wails build (requires wails CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION))"...
 	@wails3 build
+
+# Cross-preview via wails-cross (opt-in, NÃO é gate). Um runner Linux gera
+# previews das 3 plataformas; binários darwin saem NÃO assinados (só p/ teste).
+# Onde faz sentido: preview em PR / smoke multi-OS sem 3 runners nativos.
+# Release final continua em runners nativos (assinatura macOS). Requer Docker.
+desktop-setup-cross:
+	@echo "→ One-time wails-cross setup (~800MB, macOS SDK via wailsapp/macosx-sdks)..."
+	@wails3 task setup:docker
+
+desktop-cross-windows: templ
+	@echo "→ Cross preview Windows/amd64 (wails-cross, unsigned preview)..."
+	@./scripts/desktop-build.sh cross-windows
+
+desktop-cross-darwin: templ
+	@echo "→ Cross preview macOS/arm64 (wails-cross, UNSIGNED, test only)..."
+	@./scripts/desktop-build.sh cross-darwin
+
+desktop-cross-linux: templ
+	@echo "→ Cross preview Linux/amd64 (wails-cross)..."
+	@./scripts/desktop-build.sh cross-linux
+
+desktop-cross-universal: templ
+	@echo "→ Cross preview macOS universal (amd64+arm64, UNSIGNED, test only)..."
+	@./scripts/desktop-build.sh cross-universal
+
+desktop-cross: desktop-cross-windows desktop-cross-darwin desktop-cross-linux
+	@echo "✅ cross previews in build/cross/ (darwin binaries UNSIGNED)"
 
 run:
 	@echo "→ Starting $(APP_NAME) on port $(PORT)..."
@@ -215,7 +244,9 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  build          Build binary (unified: everything included)"
-	@echo "  desktop        Build desktop shell (Wails v3)"
+	@echo "  desktop        Build desktop shell (Wails v3, native, fast gate)"
+	@echo "  desktop-cross  Cross previews win+mac+linux via wails-cross (opt-in, unsigned)"
+	@echo "  desktop-setup-cross  One-time wails-cross Docker setup (~800MB)"
 	@echo "  fmt            Check formatting (gofumpt + goimports)"
 	@echo "  datastar-lint  Lint .templ files for Datastar anti-patterns"
 	@echo "  test           Run tests with race detector"

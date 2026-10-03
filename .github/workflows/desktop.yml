@@ -34,7 +34,7 @@ jobs:
           sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
       - name: Verify Wails environment
         run: |
-          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
           "$(go env GOPATH)/bin/wails3" doctor
       - name: Generate templ
         run: go tool templ generate
@@ -42,6 +42,46 @@ jobs:
         run: go vet ./cmd/desktop
       - name: Build desktop application
         run: ./scripts/desktop-build.sh
+
+  cross-preview:
+    # Opt-in multi-OS preview via wails-cross (UM runner Linux gera win+mac+linux).
+    # Onde faz sentido: smoke manual antes de release, sem pagar 3 runners nativos.
+    # Onde NÃO faz: release final (darwin sai UNSIGNED — assine num runner macOS).
+    # Só roda em workflow_dispatch para não pesar PR/push. Download ~800MB na 1ª vez
+    # (cacheado pelo Docker layer + setup:docker idempotente).
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go 1.27.1 manually
+        run: |
+          curl -fsSL https://go.dev/dl/go1.27.1.linux-amd64.tar.gz -o /tmp/go.tgz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          /usr/local/go/bin/go version
+      - name: Install Wails Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Setup wails-cross image (one-time, cached)
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          wails3 task setup:docker
+      - name: Cross previews (windows + darwin + linux)
+        run: |
+          chmod +x scripts/desktop-build.sh
+          ./scripts/desktop-build.sh cross-windows
+          ./scripts/desktop-build.sh cross-darwin
+          ./scripts/desktop-build.sh cross-linux
+      - name: Upload cross previews (UNSIGNED)
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-cross-preview
+          path: build/cross/
 
   gui-poc:
     # The gogpu/ui native POC (cmd/gui) is pure Go with zero CGO, so it

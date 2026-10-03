@@ -588,6 +588,23 @@ All builds compile with everything included (unified build).
 If you prefer a plain binary without the wails CLI, `make desktop` runs
 `go build ./cmd/desktop`.
 
+**Cross-platform previews (wails-cross, opt-in).** One Linux/macOS machine
+builds all three OS targets through the `wails-cross` Docker image
+(Zig + macOS SDK, one-time ~800MB via `wails3 task setup:docker`):
+
+```bash
+make desktop-setup-cross   # one-time Docker image setup
+make desktop-cross         # win+mac+linux previews into build/cross/
+./scripts/desktop-build.sh cross-windows  # or cross-darwin | cross-linux | cross-universal
+```
+
+Use previews for smoke tests without paying for 3 native runners.
+macOS cross binaries are **unsigned** — sign + notarize on a macOS runner
+before distributing. Release binaries always come from native runners.
+The Wails CLI pin (`WAILS_VERSION` in `Makefile` +
+`scripts/desktop-build.sh`, install line in `desktop.yml`) must match
+`go.mod` — bump together.
+
 **Edge sync.** If `NATS_LEAFNODE_URL` is set, the desktop boots as a **NATS Leaf Node** that
 syncs its JetStream streams with your central server — offline edits replay
 on reconnect. Without it, it runs a standalone embedded NATS for local
@@ -600,7 +617,10 @@ collection) and streams presence to browser clients via SSE
 
 Linux desktop builds run in the dedicated `desktop.yml` workflow on every
 pull request and push to `master`, using Ubuntu 24.04 with GTK4 + WebKitGTK
-6.0. Generate other platform artifacts locally with the commands above:
+6.0. The same workflow offers a manual `cross-preview` job
+(`gh workflow run Desktop`) that builds win+mac+linux previews via
+wails-cross from a single runner and uploads them as an artifact
+(macOS unsigned — test only). Generate other platform artifacts locally with the commands above:
 `wails3 build` for a binary and `wails3 package GOOS=darwin` for a macOS
 `.app` (wrap in a `.dmg` with `hdiutil` if you want a redistributable
 installer).
