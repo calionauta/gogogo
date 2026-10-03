@@ -10,7 +10,7 @@ require (
 	github.com/aholstenson/loro-go v0.5.0
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/calionauta/ai-credits v0.4.1
-	github.com/danmestas/dagnats v0.0.18
+	github.com/danmestas/dagnats v0.0.24
 	github.com/gogpu/gg v0.52.3
 	github.com/gogpu/gogpu v0.53.0
 	github.com/gogpu/ui v0.1.54

@@ -3,11 +3,14 @@ package dagnats
 
 // ExampleTodoTexts are the titles the onboarding workflow creates as
 // example todos once the user's first todo resumes the flow. They live
-// here (Go, not the workflow JSON) because DagNats v0.0.5 does NOT
-// deliver per-step config to workers — the engine's live dispatch path
-// (TaskPublisher.doPublish) builds the TaskPayload without the Config
-// field, so a worker never sees a step's `config` block. The titles
-// therefore ride the DAG's input/output chain instead: StartRun
+// here (Go, not the workflow JSON) because DagNats does NOT deliver
+// per-step `config` to workers — the engine's live dispatch path
+// (TaskPublisher.doPublish) builds the TaskPayload without a Config
+// field, so a worker never sees a step's `config` block. (Per-step
+// `metadata` IS delivered as of DagNats v0.0.22, which restored
+// TaskContext.Metadata() — but config still is not, so the titles keep
+// riding the DAG chain rather than being split across two mechanisms.)
+// The titles ride the DAG's input/output chain instead: StartRun
 // receives {"user":..., "todos":[...]}, the root step threads it
 // forward, and each create-todo step pops one title and passes the
 // remainder to the next step. This is durable (each step's output is
@@ -44,10 +47,9 @@ var ExampleTodoTexts = []string{
 // ResolveInput passes a single dep's output through unchanged). Each
 // create-todo handler pops todos[0], creates that todo scoped to the
 // owner, and completes with the remaining slice — so the three steps
-// create three distinct example todos. DagNats v0.0.5 never delivers
-// step config/metadata to workers (the live publish path omits both
-// TaskPayload.Config and TaskPayload.Metadata), which is why the
-// titles travel as input/output, not as step config.
+// create three distinct example todos. DagNats never delivers step
+// `config` to workers (the live publish path omits TaskPayload.Config),
+// which is why the titles travel as input/output, not as step config.
 //
 // The worker handlers (registered in cmd/web/dagnats.go) write to the
 // app's own SQLite DB, so the todos appear in the user's list exactly as

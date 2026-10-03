@@ -83,11 +83,10 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 		// The run input is {"user": ..., "todos": [...]}; greet (root)
 		// forwards it, and every downstream step's Input is its single
 		// dependency's output, so each create-todo step receives the same
-		// shape with whatever todos remain. This is the ONLY data channel
-		// DagNats v0.0.5 delivers to workers — step config/metadata
-		// (TaskPayload.Config/Metadata) are never populated by the engine's
-		// live publish path, so titles cannot ride step config on this
-		// version.
+		// shape with whatever todos remain. Titles ride this input/output
+		// chain rather than step config because the engine's live publish
+		// path still omits TaskPayload.Config (per-step `metadata` IS
+		// delivered as of DagNats v0.0.22, but config never was).
 		var input struct {
 			User  string   `json:"user"`
 			Todos []string `json:"todos"`
