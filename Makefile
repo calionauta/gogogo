@@ -285,3 +285,16 @@ lint-gui:
 run-gui:
 	@echo "→ Starting the native gogpu/ui POC (window + GPU required)..."
 	@./gogogo-gui
+
+# --- Docs site (GitHub Pages) ----------------------------------------------
+# site/index.html + styles.css + assets/ are hand-written sources; everything
+# under site/docs/ plus llms*.txt and sitemap.xml is generated from docs/*.md.
+# CI (.github/workflows/pages.yml) runs `site-check` then `site` before
+# publishing, so a broken internal link fails the deploy instead of shipping.
+site:
+	@echo "→ Building docs site from docs/*.md..."
+	@node site/build.mjs
+
+site-check:
+	@echo "→ Checking docs links and heading anchors..."
+	@node site/build.mjs --check

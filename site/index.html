@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gogogo-fullstack-template — a full-stack Go web app template that ships as one binary</title>
+<meta name="description" content="Full-stack Go web app template: PocketBase + Templ + Datastar + Tailwind in a single self-contained binary. Auth, database, queue, realtime, durable workflows, offline sync, and an admin UI — no Docker, no external services.">
+<meta property="og:title" content="gogogo-fullstack-template">
+<meta property="og:description" content="A full-stack Go web app template that ships as one binary. No Docker, no external services.">
+<meta property="og:image" content="./assets/logo.png">
+<link rel="icon" href="./assets/logo.png">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="gogogo home">
+    <img src="./assets/logo.png" alt="gogogo" width="120" height="65">
+  </a>
+  <nav class="links" aria-label="Primary">
+    <a href="#layers">Layers</a>
+    <a href="#stack">Stack</a>
+    <a href="#features">Features</a>
+    <a href="./docs/">Docs</a>
+    <a class="btn small" href="#start">Get started</a>
+    <a class="icon-link" href="https://github.com/calionauta/gogogo-fullstack-template" rel="noopener" aria-label="gogogo on GitHub">
+      <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+    </a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="kicker">Full-stack Go · one binary · zero external services</p>
+      <h1>The stack you keep<br>re-deciding, decided.</h1>
+      <p class="lede">Database, auth, REST, admin UI, task queue, realtime, durable
+      workflows, CRDT collaboration, offline sync, and an LLM client — compiled into
+      a single self-contained binary. No Docker. No Redis. No Postgres. No JS build
+      step. Clone it, run it, ship it.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="#start">Clone and run</a>
+        <a class="btn" href="./docs/">Read the docs</a>
+        <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
+      </div>
+      <p class="fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> — sign in as <code>demo@demo.app</code> / <code>demo</code>.</p>
+    </div>
+    <div class="hero-art">
+      <img src="./assets/logo.png" alt="gogogo-fullstack-template" width="677" height="369">
+      <div class="install-block">
+        <p class="install-label">Bootstrap</p>
+        <pre><code>git clone https://github.com/calionauta/gogogo-fullstack-template.git
+cd gogogo-fullstack-template
+make dev</code></pre>
+        <p class="install-note">Go 1.27+ is the only prerequisite. Everything else the
+        Makefile vendors or installs.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="layers" class="section">
+    <p class="kicker">What makes it different</p>
+    <h2>Most templates make you pick <em>one</em> async strategy.<br>This one ships six.</h2>
+    <p class="section-lede">Every web app eventually needs a queue, a workflow runtime, a
+    collaboration layer, and a realtime layer. They solve different problems, so
+    gogogo compiles all of them into one build — and lets you switch each off with a
+    single environment variable when you don't need it.</p>
+
+    <div class="layers">
+      <div class="layer">
+        <p class="layer-name">goqite</p>
+        <p class="layer-what">background jobs + SSE hub</p>
+        <p class="layer-why">Always on. Work that takes more than ~50ms goes here instead of blocking a request.</p>
+      </div>
+      <div class="layer">
+        <p class="layer-name">DagNats</p>
+        <p class="layer-what">durable multi-step workflows</p>
+        <p class="layer-why">Declarative JSON over JetStream. Kill the server mid-run; it resumes at the last incomplete step.</p>
+      </div>
+      <div class="layer">
+        <p class="layer-name">Loro CRDT</p>
+        <p class="layer-what">conflict-free collaborative state</p>
+        <p class="layer-why">Offline edits merge with no last-write-wins data loss. Ops converge idempotently.</p>
+      </div>
+      <div class="layer">
+        <p class="layer-name">PB realtime</p>
+        <p class="layer-what">record-change push</p>
+        <p class="layer-why">PocketBase's native channel, scoped per user by the collection's own access rules.</p>
+      </div>
+      <div class="layer">
+        <p class="layer-name">SSE Hub</p>
+        <p class="layer-what">ephemeral signals</p>
+        <p class="layer-why">Toasts, client counts, workflow progress — over Datastar's SSE protocol, not database-shaped.</p>
+      </div>
+      <div class="layer">
+        <p class="layer-name">JetStream</p>
+        <p class="layer-what">cross-instance broadcast</p>
+        <p class="layer-why">Run two or more instances behind a load balancer and records converge. Safe to enable on one.</p>
+      </div>
+    </div>
+
+    <p class="fine center">Six layers, one <code>make build</code>. No build tags, no
+    stub files, no matrix. <a href="./docs/async-layers/">Read the async layers doc →</a></p>
+  </section>
+
+  <section id="stack" class="section">
+    <p class="kicker">In the box</p>
+    <h2>Every choice already made.</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Database, auth, API</td><td>PocketBase (embedded SQLite)</td><td>Zero-config auth, REST, and an admin UI at <code>/_/</code></td></tr>
+          <tr><td>Templating</td><td>Templ</td><td>Type-safe Go components, generated at build time</td></tr>
+          <tr><td>Reactive UI</td><td>Datastar over SSE</td><td>Server-rendered HTML, ~12&nbsp;KiB client, no JS framework build</td></tr>
+          <tr><td>CSS / skins</td><td>DaisyUI v5 + Tailwind v4 (pluggable)</td><td>Three skins compiled in; switch at runtime with <code>UI_SKIN</code> or <code>?skin=</code></td></tr>
+          <tr><td>Task queue</td><td>goqite + SSE Hub</td><td>Background jobs streamed to the browser. No Redis</td></tr>
+          <tr><td>Durable workflows</td><td>DagNats</td><td>Multi-step workflows as declarative JSON over NATS JetStream</td></tr>
+          <tr><td>Collaboration</td><td>Loro CRDT + Rough.js</td><td>Conflict-free whiteboard state, offline-first</td></tr>
+          <tr><td>LLM</td><td>GoAI (any OpenAI-compatible provider)</td><td>Behind an injectable interface — plus optional AI credits and BYOK billing</td></tr>
+          <tr><td>Secrets</td><td>age + <code>~/.secrets/</code></td><td>Local encryption. No vault, no cloud</td></tr>
+          <tr><td>Desktop / mobile</td><td>Wails v3 + gogpu/ui</td><td>Native shells over the same backend, and a no-HTTP frontend</td></tr>
+          <tr><td>Linting</td><td>golangci-lint (27) + datastar-lint</td><td>Written for LLM-authored code — unchecked errors, context leaks, lost context propagation</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="fine center">Full table with every dependency and the reasoning:
+    <a href="./docs/stack-layers/">stack layers →</a></p>
+  </section>
+
+  <section id="features" class="section">
+    <p class="kicker">Out of the box</p>
+    <h2>Capabilities, and how to switch each one off.</h2>
+    <p class="section-lede">Every capability is always compiled. Infrastructure opts out
+    with an environment variable; product features opt out by deleting a package and its
+    one wiring call.</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">Todo app + realtime</p>
+        <p>Full CRUD. Database actions stream through PocketBase realtime, scoped per
+        user by the collection's access rule. Toasts, client count, and AI suggestions
+        ride the SSE Hub.</p>
+      </div>
+      <div class="card">
+        <p class="step">Queue + retry</p>
+        <p>Background jobs with exponential backoff and jitter. SSE-aware: a retry emits
+        a <code>lastRetry</code> signal so the UI can show "retrying…".</p>
+      </div>
+      <div class="card">
+        <p class="step">Durable workflows</p>
+        <p><code>WelcomeOnboarding</code> creates example todos through DagNats. Stop the
+        process mid-run and restart — it picks up where it left off.</p>
+      </div>
+      <div class="card">
+        <p class="step">Collaborative whiteboard</p>
+        <p>Loro CRDT canvas with Rough.js, presence cursors, offline outbox replay, and
+        PocketBase-persisted snapshots.</p>
+      </div>
+      <div class="card">
+        <p class="step">Hybrid offline sync</p>
+        <p>A Service Worker queues mutations in IndexedDB and replays them on reconnect;
+        the desktop build does it with a NATS Leaf Node. Server-side idempotency means
+        replays never duplicate.</p>
+      </div>
+      <div class="card">
+        <p class="step">Three pluggable skins</p>
+        <p>DaisyUI (default), Basecoat, and Morpheus — all compiled into the same binary,
+        switchable per process or per request.</p>
+      </div>
+      <div class="card">
+        <p class="step">AI credits + BYOK</p>
+        <p>Optional billing that shares PocketBase's SQLite file: reserve/settle ledger,
+        monthly entitlements, Stripe top-ups, and encrypted per-user keys.</p>
+      </div>
+      <div class="card">
+        <p class="step">Admin surfaces</p>
+        <p>PocketBase's admin UI at <code>/_/</code>, a read-only config view at
+        <code>/config</code>, and the DagNats workflow console — all from one binary.</p>
+      </div>
+    </div>
+    <p class="fine center">Every capability with its opt-out:
+    <a href="./docs/features/">features →</a></p>
+  </section>
+
+  <section id="scope" class="section">
+    <p class="kicker">Safe to trim</p>
+    <h2>Delete what you don't need, without guessing.</h2>
+    <p class="section-lede">Every file in the codebase carries a SCOPE annotation on two
+    axes: where it lives, and what happens if you delete it. A linter enforces it, so
+    you never have to guess whether a directory is load-bearing.</p>
+    <div class="compare">
+      <div class="scope-card core">
+        <p class="scope-badge">Core</p>
+        <p class="scope-desc">The binary does not work without it.</p>
+        <p class="fine mono">config · db · internal/queue<br>internal/secrets · features/app<br>router · web/resources</p>
+        <p class="scope-act">Customize, never remove.</p>
+      </div>
+      <div class="scope-card plugin">
+        <p class="scope-badge">Plugin</p>
+        <p class="scope-desc">The binary works but loses a capability.</p>
+        <p class="fine mono">internal/nats · internal/dagnats<br>internal/llm · internal/collab<br>internal/datastar · web/skins</p>
+        <p class="scope-act">Swap, or delete + remove the wiring call.</p>
+      </div>
+      <div class="scope-card feature">
+        <p class="scope-badge">Feature</p>
+        <p class="scope-desc">A demo or add-on.</p>
+        <p class="fine mono">features/todo · features/whiteboard<br>features/landing · features/config<br>router/onboarding_dagnats.go</p>
+        <p class="scope-act">Keep as reference, then remove.</p>
+      </div>
+    </div>
+    <p class="fine center"><code>make check-scope</code> runs in CI and in your pre-commit
+    hook. <a href="./docs/scope-taxonomy/">Scope taxonomy →</a></p>
+  </section>
+
+  <section id="start" class="section cta-section">
+    <p class="kicker">Start here</p>
+    <h2>Clone it. Run it. Ship it.</h2>
+    <div class="install-block wide">
+      <pre><code>git clone https://github.com/calionauta/gogogo-fullstack-template.git my-project
+cd my-project
+make dev</code></pre>
+      <p class="install-note">Then open <code>localhost:8080</code> for the landing page
+      and <code>localhost:8080/todo</code> for the demo (<code>demo@demo.app</code> /
+      <code>demo</code>).</p>
+    </div>
+    <div class="cta-row center">
+      <a class="btn primary" href="https://github.com/calionauta/gogogo-fullstack-template" rel="noopener">Use this template</a>
+      <a class="btn" href="./docs/getting-started/">Getting started</a>
+      <a class="btn" href="./docs/">All docs</a>
+    </div>
+  </section>
+
+  <section class="section meta">
+    <p>Inspired by <a href="https://github.com/zangster300/northstar" rel="noopener">northstar</a> by Zangster.</p>
+    <p>MIT licensed. Feedback, PRs, and adaptations welcome —
+    <a href="https://github.com/calionauta/gogogo-fullstack-template/issues" rel="noopener">open an issue</a>.</p>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p>Made with intent to be useful, not to be right.</p>
+</footer>
+
+</body>
+</html>

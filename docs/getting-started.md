@@ -1,107 +1,112 @@
-# Getting Started with gogogo-fullstack-template
+# Getting started
 
-## Prerequisites
-
-- Go 1.27+
-- Air (optional, for live reload): `go install github.com/air-verse/air@latest`
-- Templ: `go install github.com/a-h/templ/cmd/templ@latest`
-
-## Quick Start
+Use the green **Use this template** button on the GitHub repo, or clone it:
 
 ```bash
-# Clone the template
 git clone https://github.com/calionauta/gogogo-fullstack-template.git my-project
 cd my-project
-
-# Generate templ components and run
 make dev
 ```
 
-## What's Included
+Open `http://localhost:8080` for the landing page, then
+`http://localhost:8080/todo` for the demo — sign in with the seeded
+`demo@demo.app` / `demo`.
 
-| Feature | Status |
-|---------|--------|
-| PocketBase (database, auth, REST, realtime) | ✅ Default |
-| goqite task queue + SSE Hub | ✅ Default |
-| Datastar reactive UI + Templ | ✅ Default |
-| DaisyUI + TailwindCSS | ✅ Default |
-| age secrets management | ✅ Default |
-| GoAI LLM SDK | ✅ Default |
-| DagNats durable workflows | 🔲 Opt-in (`make build-dagnats`) |
-| NATS JetStream (multi-user real-time) | 🔲 Opt-in (`make build-jetstream`) |
-| Native window PoC (gogpu/ui second frontend, `cmd/gui`) | 🔲 Opt-in (`make gui`, `make run-gui`) |
+> The default port is `8080` (override with `PORT`). The default branch is
+> `master`.
 
-## Project Structure
+`make dev` regenerates the Templ components, rebuilds CSS, and runs Air for
+live reload. It is the only command you need on day one.
 
-```
-cmd/web/main.go           # Entry point
-config/                   # Configuration (dev/prod)
-db/                       # PocketBase setup + repositories
-internal/
-  secrets/                # age-decrypt loader
-  queue/                  # goqite + SSE Hub + workers
-  nats/                   # NATS JetStream (build-tag gated)
-  dagnats/                # DagNats durable workflow client (build-tag gated)
-  llm/                    # GoAI client
-  datastar/               # Datastar render helpers
-features/app/             # Application feature modules
-web/resources/            # Static assets (JS, CSS)
-router/                   # Route registration
-references/               # Reference documentation
-```
+## Prerequisites
+
+- **Go 1.27+** — the only hard requirement. Everything else the Makefile
+  installs or vendors.
+- `make setup` (optional but recommended) — activates the lefthook git hooks so
+  formatting, lint, and the CSS staleness check run on every commit. Requires
+  `go install github.com/evilmartians/lefthook@latest`.
+
+There is no build-tag matrix. `make build` and `go build ./cmd/web` compile
+everything — the unified build era means you never pass `-tags`.
+
+## First five minutes
+
+1. `make dev` — the binary boots with PocketBase + goqite + SSE Hub + DagNats +
+   NATS, and seeds the demo user and collections on first run.
+2. Open `/` — public landing page, no auth.
+3. Open `/todo` — sign in as `demo@demo.app` / `demo`, add a todo, and watch it
+   stream through PocketBase realtime.
+4. Open `/config` — auth-gated read-only view of what the binary decided:
+   env-decrypted values, masked secrets, runtime constants.
+5. Open `/whiteboard` — collaborative canvas; open it in a second window to
+   see presence cursors and CRDT convergence.
 
 ## Commands
 
 ```bash
-make templ            # Generate Templ components
-make build            # Build the binary
-make build-jetstream  # Build with JetStream support
-make build-dagnats    # Build with DagNats durable workflow support
-make build-all        # Build with JetStream + DagNats
-make dev              # Live reload with Air
-make test             # Run tests
-make test-dagnats     # Run tests with DagNats tag
-make lint             # Run linters
+make build         # Build binary (unified: everything included)
+make dev           # Live reload with Air (also re-runs templ + vet)
+make templ         # Regenerate .templ Go files after a .templ edit
+make css           # Rebuild app.min.css from src/css/input.css
+make lint          # go vet + golangci-lint (27 linters), full repo
+make datastar-lint # Datastar attribute / signal anti-patterns in .templ
+make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
+make test          # Race tests (`-p 1` for DagNats engine stability)
+make ci-local      # Full local gate (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build
+make gui           # Native gogpu/ui PoC: headless race tests + CGO_ENABLED=0 build
+make run-gui       # Open the native window (needs DISPLAY/GPU; not exercised in CI)
+make signoff       # `make ci-local` + `gh signoff -f` stamp. Default pre-push gate
+make setup         # Activate lefthook git hooks
+make docker-image  # Build and push multi-arch image to ghcr.io
 ```
 
-## Adding JetStream
+> `make check` was removed — it was a redundant subset of `make ci-local`. If a
+> doc or muscle memory mentions it, use `make ci-local`.
 
-```bash
-# Build with JetStream support
-make build-jetstream
+`make test` is discouraged locally: the remote CI runs the same suite and it
+takes minutes. For fast feedback while iterating, scope the tests:
+`go test -race -count=1 ./features/todo/...`.
 
-# Or run in dev mode
-go run ./cmd/web/
-NATS_ENABLED=true ./gogogo-fullstack-template
-```
+## Adding your own feature
 
-## Adding DagNats Workflows
+Every feature follows the same pattern — use the Todo feature as the reference
+implementation.
 
-DagNats is a DAG-based durable workflow engine built on NATS JetStream.
-Workflows are **declarative JSON** (not Go), so renaming Go handlers never
-breaks an in-flight run. The engine runs in the same binary on its own
-port (`DAGNATS_HTTP_ADDR`, default `127.0.0.1:8090`) so its API/console
-never collides with the app on `:8080`. It boots its own embedded NATS —
-always compiled into the unified binary — no build tags, no separate
-build targets. Opt out of either at runtime with `NATS_ENABLED=false` or
-`DAGNATS_ENABLED=false`.
+1. Create `features/<name>/` with its HTTP handlers + Templ components.
+2. Wire it in `router/router.go` → `Init()` with a single function call.
+3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback
+   (toasts, progress), and **Datastar** for the reactive frontend.
+4. Add a `SCOPE:` annotation so agents know what they can remove —
+   `make check-scope` enforces it.
+5. Add a `RegisterRoutes(se, deps)` function and call it from `router.Init`.
 
-```bash
-# Build / run the unified binary (everything included)
-make build
-go run ./cmd/web/
-DAGNATS_ENABLED=true ./gogogo-fullstack-template
-```
+The contract to imitate, in four rules:
 
-The onboarding demo workflow lives in
-`internal/dagnats/workflow.go` and is registered idempotently on startup.
-Worker handlers (which write example todos to PocketBase) are registered
-in `cmd/web/dagnats.go` via the `server.EmbeddedWorker` shim.
+1. **Pure HTTP + Datastar** for the user-facing surface.
+2. **goqite job** for any work that takes more than ~50ms (LLM, email, exports).
+3. **SSE toast** for async feedback to the originating client via `clientID`
+   routing.
+4. **age-encrypted secret** if the feature needs a credential.
 
-## Secrets Setup
+Every existing feature — toast on create, AI suggest, admin unlock, DagNats
+onboarding — follows this exact shape.
+
+## Secrets setup
+
+Secrets live in `~/.secrets/<service>.env`, mode 600, decrypted at boot with
+[age](https://age-encryption.org). The Todo example wires an
+`ADMIN_UNLOCK_TOKEN` master-password path end-to-end.
 
 ```bash
 bin/init-secrets
 # Add to ~/.bashrc:
 export AGE_SECRET_KEY=$(cat ~/.secrets/key.txt)
 ```
+
+Full env-var reference in [Configuration](configuration.md).
+
+## Next steps
+
+- [Features](features.md) — what you get out of the box, and how to remove it.
+- [Scope taxonomy](scope-taxonomy.md) — the rule for deciding what is safe to delete.
+- [Deploy to your own box](deploy.md) — when you're ready to ship.

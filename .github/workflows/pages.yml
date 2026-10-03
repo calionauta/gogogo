@@ -1,0 +1,60 @@
+name: pages
+
+# Publishes site/ (landing page + generated docs) to GitHub Pages using
+# Actions as the source (NOT a gh-pages branch), so the deployed artifact is
+# always the working tree.
+#
+# First-time setup: repo Settings -> Pages -> Build and deployment -> Source =
+# "GitHub Actions". The next push to master touching site/** or docs/**
+# publishes.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "site/**"
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Rebuild the docs from docs/*.md so the published site can never drift
+      # from the committed markdown. --check fails the build on a broken
+      # internal link or a missing heading anchor before we publish.
+      - name: Check docs links and anchors
+        run: node site/build.mjs --check
+
+      - name: Build docs site
+        run: node site/build.mjs
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
