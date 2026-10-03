@@ -48,11 +48,11 @@ jobs:
         run: ./scripts/desktop-build.sh
 
   cross-preview:
-    # Opt-in multi-OS preview via wails-cross (UM runner Linux gera win+mac+linux).
-    # Onde faz sentido: smoke manual antes de release, sem pagar 3 runners nativos.
-    # Onde NÃO faz: release final (darwin sai UNSIGNED — assine num runner macOS).
-    # Só roda em workflow_dispatch para não pesar PR/push. Download ~800MB na 1ª vez
-    # (cacheado pelo Docker layer + setup:docker idempotente).
+    # Opt-in multi-OS preview via wails-cross (ONE Linux runner builds win+mac+linux).
+    # Worth it for: manual smoke before a release, without paying for three native
+    # runners. NOT for: final release (darwin comes out UNSIGNED — sign on a macOS
+    # runner). Only runs on workflow_dispatch so it does not weigh down PR/push.
+    # ~800MB download the first time (cached by the Docker layer; setup is idempotent).
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     env:

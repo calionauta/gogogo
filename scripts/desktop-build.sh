@@ -3,36 +3,42 @@
 # desktop app (Wails v3), Android APK, macOS .app, or CROSS-PLATFORM
 # preview binaries via the wails-cross Docker image (Zig + macOS SDK).
 #
-# Usage (fácil p/ humano ou LLM — um entrypoint só):
+# Usage (one entrypoint, easy for a human or an LLM):
 #   ./scripts/desktop-build.sh                    # native (host OS/arch)
 #   ./scripts/desktop-build.sh cross-windows [arch]  # Windows .exe (default amd64)
-#   ./scripts/desktop-build.sh cross-darwin [arch]   # macOS (default arm64, NÃO assinado)
+#   ./scripts/desktop-build.sh cross-darwin [arch]   # macOS (default arm64, UNSIGNED)
 #   ./scripts/desktop-build.sh cross-linux [arch]    # Linux (default amd64)
-#   ./scripts/desktop-build.sh cross-universal    # macOS universal (amd64+arm64 via lipo)
-#   ./scripts/desktop-build.sh cross GOOS [GOARCH]   # genérico: cross darwin arm64
-#   ./scripts/desktop-build.sh android             # Android APK
-#   ./scripts/desktop-build.sh package            # macOS .app (só no macOS)
+#   ./scripts/desktop-build.sh cross-universal    # not wired — see below
+#   ./scripts/desktop-build.sh cross GOOS [GOARCH]   # generic: cross darwin arm64
+#   ./scripts/desktop-build.sh android             # not wired — see below
+#   ./scripts/desktop-build.sh package             # not wired — see below
 #
-# Onde faz sentido usar cross (wails-cross):
-#   - preview/teste das 3 plataformas a partir de UMA máquina Linux/macOS.
-#   - PR preview e smoke sem pagar 3 runners nativos.
-# Onde NÃO faz sentido (use runner nativo):
-#   - release final macOS: cross não assina/notariza (Gatekeeper bloqueia).
-#     Assine num runner macOS. Idem p/ .msi/.AppImage de distribuição.
-#   - `make desktop` (go build puro) continua sendo o gate rápido local/CI.
+# When cross (wails-cross) is worth it:
+#   - preview/test the three platforms from ONE Linux/macOS machine.
+#   - PR preview and smoke without paying for three native runners.
+# When it is NOT worth it (use a native runner):
+#   - final macOS release: cross does not sign/notarize (Gatekeeper blocks it).
+#     Sign on a macOS runner. Same for a distributed .msi/.AppImage.
+#   - `make desktop` (plain go build) remains the fast local/CI gate.
 #
-# CGO: este repo PRECISA de CGO (ncruces/go-sqlite3 + WebView), então até
-# o alvo Windows usa Docker no cross. Só o build nativo usa toolchain local.
+# CGO: this repo REQUIRES CGO (ncruces/go-sqlite3 + WebView), so even the
+# Windows target uses Docker in the cross path. Only the native build uses the
+# local toolchain.
 #
-# One-time setup (só p/ cross, ~800MB) — o wails3 CLI NÃO é mais necessário:
+# Not wired in this repo (each exits with the reason):
+#   android, package, cross-universal. `wails3 build/package/task` need a
+#   Taskfile.yml at the repo root, which this repo does not have (make is the
+#   task runner), and the pinned CLI has no `android:package` subcommand.
+#
+# One-time setup (cross only, ~800MB) — the wails3 CLI is NOT needed:
 #   git clone https://github.com/wailsapp/wails && cd wails
 #   docker build -t wails-cross -f build/docker/Dockerfile.cross build/docker/
 #
 # Build output:
 #   build/desktop/              — native binary
-#   build/cross/<goos>-<goarch>/ — previews cross (ex: build/cross/darwin-arm64/)
-#   build/android/              — .apk (quando target é android)
-#   build/package/              — .app bundle (macOS, quando target é package)
+#   build/cross/<goos>-<goarch>/ — cross previews (e.g. build/cross/darwin-arm64/)
+#   build/android/              — .apk (when the target is android)
+#   build/package/              — .app bundle (macOS, when the target is package)
 
 set -euo pipefail
 
@@ -64,7 +70,7 @@ check_go() {
         return 1
     fi
     local version
-    # Portable (BSD + GNU): `grep -oP` não existe no macOS.
+    # Portable (BSD + GNU): `grep -oP` does not exist on macOS.
     version=$(go version | sed -E 's/.*go([0-9]+\.[0-9]+).*/\1/')
     if [ -z "$version" ]; then
         warn "Could not parse Go version; skipping minimum-version check."
@@ -77,8 +83,8 @@ check_go() {
     info "Go $version detected"
 }
 
-# ── Cross (wails-cross) helpers ──
-# Só o path cross usa Docker. Native/android/package não tocam nisso.
+# Cross (wails-cross) helpers — only the cross path touches Docker.
+# Native/android/package do not.
 check_docker() {
     if ! command -v docker &>/dev/null; then
         error "Docker not found. Cross builds need Docker (wails-cross image)."
@@ -178,7 +184,7 @@ build_package() {
 # Cross-preview via wails-cross (Zig + macOS SDK no Docker).
 # Uso: build_cross <goos> [goarch]. Default arch por OS (darwin=arm64,
 # windows/linux=amd64). Saída: build/cross/<goos>-<goarch>/.
-# Binários darwin saem NÃO assinados — só p/ teste local, não distribua.
+# macOS cross binaries come out UNSIGNED — for local testing only, do not distribute.
 build_cross() {
     local goos="${1:?usage: build_cross GOOS [GOARCH]}"
     local goarch="${2:-$(default_arch_for "$goos")}"

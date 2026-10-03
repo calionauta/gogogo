@@ -35,10 +35,10 @@ wails-build:
 	@echo "  Use: make desktop   (plain 'go build -o gogogo-desktop ./cmd/desktop')"
 	@exit 1
 
-# Cross-preview via wails-cross (opt-in, NÃO é gate). Um runner Linux gera
-# previews das 3 plataformas; binários darwin saem NÃO assinados (só p/ teste).
-# Onde faz sentido: preview em PR / smoke multi-OS sem 3 runners nativos.
-# Release final continua em runners nativos (assinatura macOS). Requer Docker.
+# Cross-preview via wails-cross (opt-in, NOT a gate). One Linux runner generates
+# previews for all three platforms; darwin binaries come out UNSIGNED (test only).
+# Worth it for: PR preview / multi-OS smoke without three native runners.
+# Final release still happens on native runners (macOS signing). Needs Docker.
 desktop-setup-cross:
 	@echo "→ One-time wails-cross setup (~800MB, macOS SDK via wailsapp/macosx-sdks)..."
 	@echo "  Building from the wails source (no wails3 CLI / Taskfile needed)..."
