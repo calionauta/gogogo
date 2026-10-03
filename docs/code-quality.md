@@ -28,7 +28,7 @@ approach had a deeper issue.**
 
 | Command | What it checks |
 |---|---|
-| `make lint` | `go vet` + `golangci-lint` (27 linters), full repo |
+| `make lint` | `go vet` + `golangci-lint` (27 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
 | `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
 | `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → golangci-lint → race tests → build |

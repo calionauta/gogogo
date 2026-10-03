@@ -15,8 +15,10 @@ Open `http://localhost:8080` for the landing page, then
 > The default port is `8080` (override with `PORT`). The default branch is
 > `master`.
 
-`make dev` regenerates the Templ components, rebuilds CSS, and runs Air for
-live reload. It is the only command you need on day one.
+`make dev` regenerates the Templ components and runs Air for live reload (Air's
+`pre_cmd` also runs `bin/datastar-lint`). It does **not** rebuild CSS — run
+`make css` when you change Tailwind classes, or `make css-all` for every skin.
+It is the only command you need on day one.
 
 ## Prerequisites
 
@@ -99,9 +101,15 @@ Secrets live in `~/.secrets/<service>.env`, mode 600, decrypted at boot with
 
 ```bash
 bin/init-secrets
-# Add to ~/.bashrc:
-export AGE_SECRET_KEY=$(cat ~/.secrets/key.txt)
+# Generates ~/.secrets/key.txt (mode 600), writes a template at
+# ~/.secrets/<project>.env, and encrypts it to <project>.env.age — the file
+# the app reads at boot. Then add the printed export to your shell profile:
+export AGE_SECRET_KEY=AGE-SECRET-KEY-1...
 ```
+
+After editing `<project>.env`, re-encrypt with `bin/init-secrets --reencrypt`.
+The script needs the `age` CLI, or Go (it falls back to `scripts/agehelper`,
+which uses the same `filippo.io/age` library the app already depends on).
 
 Full env-var reference in [Configuration](configuration.md).
 

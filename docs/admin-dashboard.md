@@ -47,8 +47,10 @@ So login issues **two** cookies:
 
 The split is **intentional, not tech debt** — keep the two cookies separate.
 
-**Best practice:** run the admin UI on a separate origin/port (e.g. `:8090/_/`)
-so even `pb_auth` never collides between admin and app.
+**Best practice:** run the admin UI on a separate origin/port so even `pb_auth`
+never collides between admin and app. PocketBase's default admin port is
+`:8090`, but note that this repo already uses `:8090` for the DagNats console
+(below) — give the admin UI a different port, e.g. `:8091/_/`.
 
 ## DagNats console
 

@@ -3,6 +3,10 @@ cali-go-stack
 tmp/
 gogogo-fullstack-template
 
+# NOTE: a global ~/.gitignore_global commonly ignores `bin/`. The repo tracks
+# its own scripts under bin/ (check-*.sh, datastar-lint, init-secrets), so add
+# them with `git add -f bin/<script>` when the global rule hides them.
+
 # Environment
 .env
 .env.local

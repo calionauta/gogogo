@@ -18,9 +18,13 @@ teaches is visible here first — copy this shape when you add your own feature.
   originating client's own synchronous patch.
 - Stacked toast notifications (auto-dismiss, manual close, progress bar).
 - **UI sounds** via cuelume — see [UI sounds](ui-sounds.md).
-- Async jobs: `handleCreate` enqueues a `todo_created` job; a worker picks it
-  up and streams a success toast to the right browser tab via the SSE Hub
-  (`clientID` routing).
+- Async jobs: the queue handles `toast`, `suggest_result` and `retry_demo`
+  jobs (`internal/queue`), and `features/todo`'s own tests use a
+  `todo_created` job to exercise the worker → SSE path. **Todo CRUD itself does
+  not enqueue**: `handleCreate` re-renders synchronously (`emitToast(sse,
+  "Added", "success")`), because the broadcaster already pushes record changes
+  to other clients and a queue hop would only add latency to a fast local
+  mutation.
 - Retries with exponential backoff and jitter (`internal/queue/retry.go`,
   retry-go v4) — SSE-aware: a retry emits a `lastRetry` signal so the UI can
   show "retrying…".

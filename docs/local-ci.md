@@ -91,7 +91,7 @@ no-op when lefthook is not installed).
 | Hook | Jobs | When |
 |------|------|------|
 | `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness | every commit; glob-filtered jobs skip when nothing relevant is staged |
-| `pre-push` | ci-local · govulncheck · deadcode | every push |
+| `pre-push` | govulncheck · deadcode | every push |
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
 > If the pre-commit hook reports every job green but still exits non-zero, read

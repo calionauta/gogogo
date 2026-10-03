@@ -99,10 +99,16 @@ diff <(curl -s https://<host>/static/app.min.css) \
      <(git show HEAD:web/resources/static/app.min.css)
 ```
 
-For the version badge:
+For the version badge, compare what the navbar renders against the tag you
+built. There is no `/api/version` endpoint — a request for one returns 404, so
+do not use it as a health check:
 
 ```bash
-diff <(curl -s https://<host>/api/version) <(echo $VERSION)
+# what the repo says the current tag is
+VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+# what the running box reports: read BuildLabel/BuildCommit off the navbar,
+# or grep the served HTML
+curl -s https://<host>/ | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1
 ```
 
 A mismatch means the deploy did not run or the tunnel is serving a cached

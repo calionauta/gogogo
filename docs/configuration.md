@@ -52,7 +52,7 @@ in `~/.secrets/`. See [Getting started](getting-started.md#secrets-setup).
 | `GOAI_API_KEY` | unset | Any OpenAI-compatible provider key. Unset → the AI suggest route is not registered and the button is hidden. |
 | `GOAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible base URL |
 | `GOAI_MODEL` | `gpt-4o-mini` | Default model |
-| `SIMULATE_LLM` | `true` in dev | In-process fake LLM scripting 500 → retry → slow → 200, so you can watch the retry toasts without a provider key |
+| `SIMULATE_LLM` | anything but `false` | In-process fake LLM scripting 500 → retry → slow → 200, so you can watch the retry toasts without a provider key. Enabled unless explicitly set to `false` — including in production |
 
 ### AI credits + BYOK
 
@@ -64,7 +64,7 @@ All dormant unless `CREDITS_ENABLED=true`.
 | `CREDITS_MONTHLY_CREDITS` | `0` | Monthly entitlement per user |
 | `CREDITS_DEFAULT_MODE` | `explicit` | Billing mode applied when a request does not name one |
 | `CREDITS_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`) or a legacy raw 32-byte value. Encrypts user BYOK keys at rest. |
-| `CREDITS_MODEL` | unset | Model used for priced managed calls |
+| `CREDITS_MODEL` | `GOAI_MODEL`, else `gpt-4o-mini` | Model used for priced managed calls |
 | `CREDITS_PRICING_FILE` | unset | Path to a pricing table |
 | `BYOK_PROVIDERS` | unset | `openai=https://api.openai.com/v1,groq=https://api.groq.com/openai/v1` |
 | `STRIPE_SECRET_KEY` | unset | Stripe top-ups |

@@ -25,7 +25,9 @@ GOAI_MODEL=llama-3.3-70b-versatile
 
 ### 2. Keyless simulated LLM (on by default in dev)
 
-`SIMULATE_LLM` is enabled automatically in dev (no API key needed). It spins up
+`SIMULATE_LLM` is enabled unless it is explicitly set to `false` (the check is
+`os.Getenv("SIMULATE_LLM") != "false"`, so it is on in production too). Set
+`SIMULATE_LLM=false` to force the real provider. It spins up
 an in-process fake GoAI client that scripts a realistic failure (500 → retry →
 slow → 200) so you can watch the retry feedback toasts end-to-end. The UI shows
 a "Suggest (simulated)" button with the same `goqite` job + SSE feedback flow

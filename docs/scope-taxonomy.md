@@ -1,7 +1,10 @@
 # Scope taxonomy
 
-Every file in the codebase carries a `SCOPE` annotation at the top to tell
-agents and developers what can be safely removed. This is the rule that makes
+Every non-test, non-generated `.go` file under `internal/` and `features/`
+carries a `SCOPE` annotation in its leading doc comment to tell agents and
+developers what can be safely removed. (Files elsewhere — `cmd/`, `db/`,
+`web/`, `config/`, `router/` — have none; the linter only walks `internal/` and
+`features/`, skipping `*_test.go` and `*_templ.go`.) This is the rule that makes
 the template safely trimmable: you never have to guess whether a directory is
 load-bearing.
 

@@ -24,7 +24,7 @@ explains **why each choice is here**; for the layered async topology see
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
 | **Native window (PoC)** | [gogpu/ui](https://github.com/gogpu/ui) (pure Go, zero CGO) | `cmd/gui`: a second frontend over the same PocketBase + `EntityStore` — no HTTP, no webview. See [Desktop & Mobile](desktop-mobile.md). |
 | **Linting** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | 27 linters: `govet`, `staticcheck`, `gosec`, `revive`, `gocritic`, `errcheck`, `ineffassign`, `unused`, `errorlint`, `nilerr`, `bodyclose`, `contextcheck`, `containedctx`, `sloglint`, `thelper`, `testifylint`, `gocyclo`, `gocognit`, `funlen`, `noctx`, `goconst`, `dupl`, `lll`, `mnd`, `tagliatelle`, `modernize`, `nolintlint` (see `.golangci.yml`); `datastar-lint` catches Datastar attribute/signal/expression mistakes (run via `make datastar-lint`) |
-| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build) + `deploy.yml` (multi-arch Docker to ghcr.io, runs on `master`) |
+| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build) + `deploy.yml` (cross-compiles the prod binary and ships it to the server on `master`; `make docker-image` pushes a multi-arch image to ghcr.io, locally, when you want one) |
 
 ## Why `ncruces/go-sqlite3`?
 
@@ -34,8 +34,8 @@ always-on driver. `db/pocketbase.go` registers it as the `sqlite3`
 `modernc.org/sqlite`, but that registers itself as `sqlite` and stays unused,
 so **no build tag is required** and a plain `go build` just works.
 
-Being cgo-free means clean cross-compilation for the multi-arch Docker image
-(linux/amd64 + arm64) and the Wails desktop/mobile builds.
+Being cgo-free means clean cross-compilation of the production binary (the
+deploy workflow builds `GOOS=linux` from any runner).
 
 ## Why no frontend framework?
 
