@@ -1,3 +1,9 @@
+## [0.29.1] - 2026-10-03
+
+### Changed
+
+- **DagNats `v0.0.18` → `v0.0.24`.** Six minors of upstream bugfixes. No breaking change in the API this template uses — `server.New`/`server.Config`, `server.EmbeddedWorker` and `worker.TaskContext` (with every method) are unchanged; the only new field is `server.Config.MaxPayload`, optional and defaulting to nats-server's own 1 MiB. No transitive bump was needed: the repo already pinned `nats-server v2.15.0` and `nats.go v1.54.0`, exactly what v0.0.24 requires. Two upstream fixes matter here — v0.0.22 restores `TaskContext.Metadata()`, so per-step `metadata` reaches workers again after #652 dropped it from the dispatch path in v0.0.14 (per-step `config` is *still* never populated, so the onboarding example-todo titles keep riding the DAG input/output chain), and v0.0.20 fixes grouped-step retries never firing, which left a run stuck in `running` forever. v0.0.20 also requires Go >= 1.27.1; the repo is already there.
+
 ## [0.26.5] - 2026-08-21
 
 ### Fixed
