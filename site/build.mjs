@@ -65,7 +65,7 @@ const MANIFEST = [
     desc: "Symptoms and where they actually come from." },
 ];
 
-const CSS = `*{box-sizing:border-box}body{margin:0;font:16px/1.65 system-ui,-apple-system,sans-serif;color:#1a1a1a;background:#fff}.wrap{display:flex;max-width:1080px;margin:0 auto}nav.side{width:250px;flex-shrink:0;padding:32px 24px;border-right:1px solid #e5e5e5;position:sticky;top:0;align-self:flex-start;max-height:100vh;overflow:auto}nav.side .home{display:block;font-weight:700;margin-bottom:16px;color:#1a1a1a;text-decoration:none}nav.side h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:16px 0 4px}nav.side a{display:block;padding:3px 0;color:#333;text-decoration:none;font-size:14px}nav.side a.cur{font-weight:700}nav.side a:hover{text-decoration:underline}main{flex:1;min-width:0;padding:32px 40px;max-width:760px}main h1{font-size:30px;line-height:1.25;margin:0 0 16px}main h2{font-size:22px;margin:32px 0 8px;border-bottom:1px solid #eee;padding-bottom:6px}main h3{font-size:17px;margin:24px 0 8px}main p,main li{color:#222}main a{color:#0b5fff}main code{font:13px ui-monospace,monospace;background:#f4f4f5;padding:2px 5px;border-radius:4px}main pre{background:#111;color:#eee;padding:14px 16px;border-radius:8px;overflow:auto}main pre code{background:none;padding:0;color:inherit}main table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}main th,main td{border:1px solid #ddd;padding:8px 10px;text-align:left;vertical-align:top}main th{background:#f7f7f8}main blockquote{border-left:3px solid #0b5fff;margin:16px 0;padding:4px 16px;background:#f5f8ff}main hr{border:none;border-top:1px solid #e5e5e5;margin:32px 0}.prevnext{display:flex;justify-content:space-between;margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:14px}@media(max-width:760px){nav.side{display:none}main{padding:24px 20px}}`;
+const CSS = `*{box-sizing:border-box}body{margin:0;font:16px/1.65 system-ui,-apple-system,sans-serif;color:#1a1a1a;background:#fff}.wrap{display:flex;max-width:1080px;margin:0 auto}nav.side{width:250px;flex-shrink:0;padding:32px 24px;border-right:1px solid #e5e5e5;position:sticky;top:0;align-self:flex-start;max-height:100vh;overflow:auto}nav.side .home{display:block;font-weight:700;margin-bottom:16px;color:#1a1a1a;text-decoration:none}nav.side h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:16px 0 4px}nav.side a{display:block;padding:3px 0;color:#333;text-decoration:none;font-size:14px}nav.side a.cur{font-weight:700}nav.side a:hover{text-decoration:underline}main{flex:1;min-width:0;padding:32px 40px;max-width:720px}main h1{font-size:30px;line-height:1.25;margin:0 0 16px}main h2{font-size:22px;margin:32px 0 8px;border-bottom:1px solid #eee;padding-bottom:6px}main h3{font-size:17px;margin:24px 0 8px}main p,main li{color:#222}main a{color:#0b5fff}main code{font:13px ui-monospace,monospace;background:#f4f4f5;padding:2px 5px;border-radius:4px}main pre{background:#111;color:#eee;padding:14px 16px;border-radius:8px;overflow:auto}main pre code{background:none;padding:0;color:inherit}.table-wrap{overflow-x:auto;margin:16px 0;-webkit-overflow-scrolling:touch}main table{border-collapse:collapse;width:100%;min-width:max-content;margin:0;font-size:14px}main th,main td{border:1px solid #ddd;padding:8px 10px;text-align:left;vertical-align:top}main th{background:#f7f7f8}main blockquote{border-left:3px solid #0b5fff;margin:16px 0;padding:4px 16px;background:#f5f8ff}main hr{border:none;border-top:1px solid #e5e5e5;margin:32px 0}.prevnext{display:flex;justify-content:space-between;gap:16px;margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:14px}@media(max-width:760px){nav.side{display:none}main{padding:24px 20px;max-width:100%}main pre{font-size:12.5px}}`;
 
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -96,8 +96,14 @@ function rewrite(href, pageDir) {
   const relToDocs = relative(DOCS, abs).split(sep).join("/");
   const hit = MANIFEST.find((p) => p.file === relToDocs);
   if (hit) return rel(CUR_SLUG, hit.slug) + hash;
-  // relative() escaping docs/ (e.g. ../ARCHITECTURE.md) => GitHub blob at repo root
-  const blob = `https://github.com/calionauta/${NAME}/blob/master/${relToDocs}`;
+  // A path that escapes docs/ (e.g. ../ARCHITECTURE.md) points at a repo file
+  // outside the docs tree, so it becomes a GitHub blob URL. Resolve it against
+  // the REPO ROOT, not docs/ — otherwise the URL keeps a literal `..` segment
+  // (`blob/master/../ARCHITECTURE.md`). GitHub happens to normalise that and
+  // return 200, which is exactly why the mistake survives unnoticed: the link
+  // works by accident and reads as broken to anyone inspecting the markup.
+  const relToRoot = relative(ROOT, abs).split(sep).join("/");
+  const blob = `https://github.com/calionauta/${NAME}/blob/master/${relToRoot}`;
   return blob + hash;
 }
 
@@ -162,9 +168,9 @@ function renderBody(md, pageDir) {
       const cells = (r) => r.split("|").slice(1, -1).map((c) => c.trim());
       const head = cells(rows[0]);
       const body = rows.slice(1).filter((r) => !/^[\s|:|-]+$/.test(r));
-      out.push(`<table><thead><tr>${head.map((c) => `<th>${inline(c, pageDir)}</th>`).join("")}</tr></thead><tbody>${
+      out.push(`<div class="table-wrap"><table><thead><tr>${head.map((c) => `<th>${inline(c, pageDir)}</th>`).join("")}</tr></thead><tbody>${
         body.map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c, pageDir)}</td>`).join("")}</tr>`).join("")
-      }</tbody></table>`);
+      }</tbody></table></div>`);
       continue;
     }
     if (/^\s*$/.test(line)) {

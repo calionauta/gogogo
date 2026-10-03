@@ -64,5 +64,8 @@ The layers are not independent choices — they are designed to work together:
 - Record changes fan out through **PocketBase realtime**, scoped per user by
   the collection's own access rules.
 
-Related: [Features](features.md), [Async layers](async-layers.md),
-[Code quality for LLM agents](code-quality.md).
+## Related
+
+- [Features](features.md) — every capability and its runtime opt-out.
+- [Async layers](async-layers.md) — the six layers and why each exists.
+- [Code quality for LLM agents](code-quality.md) — the lint set behind these choices.

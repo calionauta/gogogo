@@ -109,9 +109,13 @@ pre code { background: none; padding: 0; color: inherit; font-size: 14px; }
 
 /* ---------- hero ---------- */
 
+/* Grid tracks use minmax(0,1fr), NOT 1fr: a bare `1fr` means
+   minmax(auto,1fr), whose `auto` floor is the item's min-content size — so a
+   long unbreakable line (a heading, a code path) refuses to shrink and the
+   track stays desktop-wide on a 390px screen, causing horizontal scroll. */
 .hero {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 56px;
   align-items: center;
   max-width: var(--max);
@@ -211,7 +215,7 @@ h1 {
 
 .layers {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(255px, 100%), 1fr));
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
@@ -270,7 +274,7 @@ td:nth-child(2) { color: var(--ink-soft); }
 
 .grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr));
   gap: 18px;
   margin-bottom: 22px;
 }
@@ -294,7 +298,7 @@ td:nth-child(2) { color: var(--ink-soft); }
 
 .compare {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(255px, 100%), 1fr));
   gap: 18px;
   margin-bottom: 22px;
 }
@@ -347,7 +351,7 @@ td:nth-child(2) { color: var(--ink-soft); }
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; gap: 36px; padding-top: 56px; }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 36px; padding-top: 56px; }
   .hero-art { order: -1; }
   .hero-art img { max-width: 320px; margin: 0 auto; }
 }

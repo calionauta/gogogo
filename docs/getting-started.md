@@ -105,7 +105,7 @@ export AGE_SECRET_KEY=$(cat ~/.secrets/key.txt)
 
 Full env-var reference in [Configuration](configuration.md).
 
-## Next steps
+## Related
 
 - [Features](features.md) — what you get out of the box, and how to remove it.
 - [Scope taxonomy](scope-taxonomy.md) — the rule for deciding what is safe to delete.

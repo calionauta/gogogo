@@ -72,7 +72,7 @@ is at [`/_/`](https://gogogo.calionauta.com/_/) and the DagNats workflow console
 at [`/dagnats/`](https://gogogo.calionauta.com/dagnats/). What each surface
 gives you: [Admin & Dashboard](admin-dashboard.md).
 
-## Where to go next
+## Related
 
 - [Getting started](getting-started.md) — clone it and run it in a minute.
 - [Architecture](architecture.md) — how the layers depend on each other.
