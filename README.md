@@ -47,15 +47,31 @@ in this repo.
 
 ## 🚀 Quick start
 
+This repo is a **GitHub template** — click **Use this template** to get your own
+copy, then rename it. Do not build inside a clone of the template itself: your
+module path would stay `github.com/calionauta/gogogo-fullstack-template` and
+deploys would target the template's server directory.
+
 ```bash
-git clone https://github.com/calionauta/gogogo-fullstack-template.git my-project
-cd my-project
+# 1. Create your repo (or click "Use this template" on GitHub)
+gh repo create my-app --template calionauta/gogogo-fullstack-template --clone
+cd my-app
+
+# 2. Rename the project — rewrites ~360 references, then builds to prove it
+make rename NAME=my-app          # add OWNER=myorg if not under calionauta
+make site                        # regenerate the published docs
+
+# 3. Run
 make dev
 ```
 
 Go 1.27+ is the only prerequisite. Open `http://localhost:8080` for the landing
 page, then `http://localhost:8080/todo` for the demo (sign in with the seeded
 `demo@demo.app` / `demo`).
+
+> `make rename` only rewrites **this** project's identity. Sibling repos under
+the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) are real
+dependencies and are left alone.
 
 > **One `make build` compiles everything.** No build tags, no feature matrix.
 > Opt out at runtime with env vars (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).

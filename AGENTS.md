@@ -7,7 +7,7 @@
 Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream.
 Module: `github.com/calionauta/gogogo-fullstack-template`
 
-**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, and tunnel hostname all share the project name. Replace `gogogo-fullstack-template` everywhere when cloning.
+**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, and tunnel hostname all share the project name. This repo is a GitHub **template** (`is_template: true`), so a fresh copy still carries `gogogo-fullstack-template` in ~360 places across ~130 files. Never rename by hand — run `make rename NAME=my-app [OWNER=myorg]` (`scripts/rename-project.py`), which rewrites the module path and every reference, then runs `go build ./cmd/web` to prove it. It deliberately skips generated `site/docs/` (regenerate with `make site`) and shields sibling repos under the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) from the owner substitution.
 
 **Unified build.** `go build ./cmd/web` or `make build` compiles **everything** — no build tags. Every feature (queue, workflows, realtime, whiteboard, onboarding) is always included. Opt out at runtime via env vars like `NATS_ENABLED=false`, `DAGNATS_ENABLED=false`.
 

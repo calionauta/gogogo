@@ -1,10 +1,45 @@
 # Getting started
 
-Use the green **Use this template** button on the GitHub repo, or clone it:
+This repository is a **GitHub template**. Start a project from it with the
+green **Use this template** button (or the CLI), then rename it — do not work
+inside a clone of the template itself, or your module path stays
+`github.com/calionauta/gogogo-fullstack-template` and every deploy goes to the
+template's server directory.
+
+## 1. Create your repository
 
 ```bash
-git clone https://github.com/calionauta/gogogo-fullstack-template.git my-project
-cd my-project
+# GitHub UI: click "Use this template" -> "Create a new repository"
+# or from the CLI:
+gh repo create my-app --template calionauta/gogogo-fullstack-template --clone
+cd my-app
+```
+
+## 2. Rename the project
+
+A fresh copy still says `gogogo-fullstack-template` in ~360 places across ~130
+files (module path, binary name, container, titles, deploy paths). One command
+rewrites all of it and then builds to prove it worked:
+
+```bash
+make rename NAME=my-app            # module path + every reference
+make rename NAME=my-app OWNER=myorg  # if the repo is not under calionauta
+make rename NAME=my-app DRY=1      # preview without writing
+```
+
+Then regenerate the published docs, which are built from the markdown:
+
+```bash
+make site                          # rewrites site/docs/, llms.txt, sitemap.xml
+```
+
+> The rename touches **only this project's** identity. Sibling repositories
+> under the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) are real
+> dependencies and are left untouched — the script shields them explicitly.
+
+## 3. Run it
+
+```bash
 make dev
 ```
 

@@ -10,7 +10,7 @@ LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMM
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help smoke gui run-gui lint-gui
+.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup rename help smoke gui run-gui lint-gui
 
 all: build
 
@@ -225,6 +225,17 @@ deps:
 setup:
 	@bin/setup-hooks.sh
 
+# Rename the project identity (module path, binary, container, titles, deploy
+# paths). This repo is a GitHub template, so a fresh copy still says
+# gogogo-fullstack-template everywhere — ~360 occurrences across ~130 files.
+# Doing that by hand invites a half-renamed tree that compiles but deploys to
+# the wrong directory, so the script does the whole pass and then builds to
+# prove it. See scripts/rename-project.py for exactly what is and is not touched.
+rename:
+	@test -n "$(NAME)" || { echo "usage: make rename NAME=my-app [OWNER=myorg] [DRY=1]"; exit 1; }
+	@python3 scripts/rename-project.py $(NAME) \
+		--owner "$(or $(OWNER),calionauta)" $(if $(DRY),--dry-run,)
+
 dev:
 	@echo "→ Starting Air live reload (ENVIRONMENT=development unless already set)..."
 	@ENVIRONMENT=$${ENVIRONMENT:-development} air
@@ -274,6 +285,7 @@ help:
 	@echo "  templ          Generate Templ components"
 	@echo "  deps           go mod tidy"
 	@echo "  setup          Install git hooks"
+	@echo "  rename         Rename the project (NAME=my-app [OWNER=myorg] [DRY=1])"
 	@echo "  docker-image   Build and push Docker image"
 
 # gui builds the gogpu/ui native POC (proof that the backend is reachable

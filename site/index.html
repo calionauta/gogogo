@@ -49,12 +49,14 @@
     <div class="hero-art">
       <img src="./assets/logo.png" alt="gogogo-fullstack-template" width="677" height="369">
       <div class="install-block">
-        <p class="install-label">Bootstrap</p>
-        <pre><code>git clone https://github.com/calionauta/gogogo-fullstack-template.git
-cd gogogo-fullstack-template
+        <p class="install-label">Start from the template</p>
+        <pre><code>gh repo create my-app --template \
+  calionauta/gogogo-fullstack-template --clone
+cd my-app
+make rename NAME=my-app
 make dev</code></pre>
-        <p class="install-note">Go 1.27+ is the only prerequisite. Everything else the
-        Makefile vendors or installs.</p>
+        <p class="install-note">Go 1.27+ is the only prerequisite. <code>make rename</code>
+        rewrites the module path and every project reference, then builds to prove it.</p>
       </div>
     </div>
   </section>
@@ -215,13 +217,18 @@ make dev</code></pre>
 
   <section id="start" class="section cta-section">
     <p class="kicker">Start here</p>
-    <h2>Clone it. Run it. Ship it.</h2>
+    <h2>Clone it. Rename it. Ship it.</h2>
     <div class="install-block wide">
-      <pre><code>git clone https://github.com/calionauta/gogogo-fullstack-template.git my-project
-cd my-project
+      <pre><code>gh repo create my-app --template \
+  calionauta/gogogo-fullstack-template --clone
+cd my-app
+make rename NAME=my-app
 make dev</code></pre>
-      <p class="install-note">Then open <code>localhost:8080</code> for the landing page
-      and <code>localhost:8080/todo</code> for the demo (<code>demo@demo.app</code> /
+      <p class="install-note">A fresh copy still carries the template's name in
+      ~360 places across ~130 files. <code>make rename</code> rewrites all of them
+      and then compiles, so a half-renamed tree cannot slip through. Then open
+      <code>localhost:8080</code> for the landing page and
+      <code>localhost:8080/todo</code> for the demo (<code>demo@demo.app</code> /
       <code>demo</code>).</p>
     </div>
     <div class="cta-row center">
