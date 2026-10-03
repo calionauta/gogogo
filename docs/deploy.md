@@ -1,6 +1,7 @@
 # Deploy to your own box
 
-The default workflow is **clone + `make dev`** for local work. For a permanent
+The default workflow is **copy the template + `make rename` + `make dev`** for
+local work. For a permanent
 deployment, the project ships a production deploy workflow that publishes to a
 server of your choosing — recommended: a small Linux box + Tailscale +
 a Cloudflare-tunneled domain. No registry, no cold starts, full control.

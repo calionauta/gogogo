@@ -74,7 +74,7 @@ gives you: [Admin & Dashboard](admin-dashboard.md).
 
 ## Related
 
-- [Getting started](getting-started.md) — clone it and run it in a minute.
+- [Getting started](getting-started.md) — create your repo from the template, rename it, run it.
 - [Architecture](architecture.md) — how the layers depend on each other.
 - [Features](features.md) — every capability and its runtime opt-out.
 - [Configuration](configuration.md) — every environment variable.
