@@ -64,8 +64,9 @@ make dev</code></pre>
     <h2>Every choice already made.</h2>
     <p class="section-lede">Decisions you would otherwise make in the first
     week — picked, wired together, explained, and grouped by how each one
-    leaves your build: always in, switched off, or deleted. Each one is
-    documented with its trade-offs in
+    leaves your build: always in, switched off, or deleted (the
+    <a href="./docs/scope-taxonomy/">core / plugin / feature</a> rule). Each
+    one is documented with its trade-offs in
     <a href="./docs/stack-layers/">stack layers</a>.</p>
     <p class="group-label core">Always in <span>(core — customize, never remove)</span></p>
     <div class="grid-2">
@@ -148,16 +149,6 @@ make dev</code></pre>
         <p class="off">Delete: <code>features/todo/</code></p>
       </div>
     </div>
-    <p class="fine center">Every dependency with the reasoning behind it:
-    <a href="./docs/stack-layers/">stack layers →</a>
-    How trimming works: <a href="./docs/scope-taxonomy/">scope taxonomy →</a></p>
-    <div class="exception">
-      <p class="exception-rule">Go for everything. Zig only as an exception.</p>
-      <p class="exception-when">Zig enters in one case: a <strong>proven</strong>
-      native need — a profiled hot kernel, a codec, an OS integration.
-      Everything else stays Go.</p>
-      <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
-    </div>
   </section>
 
   <section id="layers" class="section">
@@ -233,6 +224,15 @@ make dev</code></pre>
     </div>
     <p class="fine center"><code>make check-scope</code> runs in CI and in your pre-commit
     hook. <a href="./docs/scope-taxonomy/">Scope taxonomy →</a></p>
+  </section>
+
+  <section class="section exception-band">
+    <p class="kicker">The exception</p>
+    <p class="exception-rule">Go for everything. Zig only as an exception.</p>
+    <p class="exception-sub">Zig enters in one case: a <strong>proven</strong>
+    native need — a profiled hot kernel, a codec, an OS integration.
+    Everything else stays Go.</p>
+    <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
   </section>
 
   <section id="start" class="section cta-section">
