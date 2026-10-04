@@ -73,6 +73,13 @@ var All = []Capability{
 		Note:    "Core: cmd/web and cmd/desktop both boot through it.",
 	},
 	{
+		ID:      "routeutil",
+		Kind:    KindCore,
+		Summary: "shared routing helper (leaf: net/http + PocketBase core types)",
+		Dirs:    []string{"internal/routeutil"},
+		Note:    "Core: router and credits routes share it; removal breaks both.",
+	},
+	{
 		ID:      "database",
 		Kind:    KindCore,
 		Summary: "PocketBase setup + collection seeds",
