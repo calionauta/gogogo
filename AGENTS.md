@@ -170,6 +170,11 @@ change, not as follow-up work.
   internal refactors and test-only edits are not.
 - **`make site-check` must stay green** — it validates every internal link and
   heading anchor across the 18 pages, and CI runs it before publishing.
+- **Docs stay readable.** One idea per paragraph: a paragraph reaching for
+  its second "and" becomes bullets. Enumerations (steps, commands, options,
+  flags) are always lists or tables, never sentences. Never repeat what a
+  neighboring section already says — link to it. Around a snippet, keep
+  each prose block under two lines; the snippet carries the detail.
 
 **Enforcement (advisory).** `bin/check-docs-staleness.sh` runs in the
 pre-commit hook. It prints the changed behaviour-carrying files plus the page(s)

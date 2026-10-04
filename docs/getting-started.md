@@ -7,22 +7,20 @@ still works and is documented below as the fallback.
 
 ## 0. Recommended: the installer
 
+One line, on a machine with only curl + git. It installs, asks,
+scaffolds, proves, and hands the terminal to `make dev` (Ctrl-C stops dev):
+
 ```bash
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
 ```
 
-One line, on a machine with only curl + git: installs the binaries (plus
-a user-space Go toolchain when missing), answers 4 questions, clones,
-scaffolds, proves, and hands the terminal to `make dev` (Ctrl-C stops
-dev). With Go already installed, the equivalent without `curl | sh`:
-`go run github.com/calionauta/gogogo/cmd/gogogo@latest --run` (always
-tracks the latest commit; releases pin a version). Without `--run` the
-installer prints `cd <name> && make dev` instead — agents must use that
-path (`--run` never returns).
-No checkout needed: when the directory is missing the installer clones
-the template into it first (asks, or `--yes` to proceed unattended).
-No Go on this machine? Use the [binary release](../README.md#cli--mcp-agent-paths)
-instead of `go run` — same installer, no toolchain needed to run it.
+- No checkout needed: missing directories are cloned first (asks, or `--yes`).
+- No Go needed: a user-space toolchain is bootstrapped when missing.
+- With Go installed: `go run github.com/calionauta/gogogo/cmd/gogogo@latest --run`
+  instead (tracks master; releases pin a version).
+- Agents: skip `--run` (it never returns) — the installer prints
+  `cd <name> && make dev` for the scripted path.
+
 What it asks (4 questions):
 
 1. **Project name** (`my-app`) — validates like `make rename` does.
