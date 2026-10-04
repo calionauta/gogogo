@@ -259,6 +259,16 @@ h1 {
 
 .agent-points strong { color: var(--ink); }
 
+.cmd-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
 .exception-rule {
   margin: 0 0 10px;
   font-size: 24px;
