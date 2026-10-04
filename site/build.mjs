@@ -31,6 +31,8 @@ const MANIFEST = [
     desc: "What gogogo is, who it is for, and the six async layers it ships." },
   { group: "Get started", slug: "getting-started", file: "getting-started.md",
     desc: "Clone, run, first five minutes, and the commands you need." },
+  { group: "Get started", slug: "mcp", file: "mcp.md",
+    desc: "Install the MCP server, wire it into your client, and the six tools." },
   { group: "Core", slug: "architecture", file: "architecture.md",
     desc: "Directory layout, dependency direction, entry points, and route wiring gotchas." },
   { group: "Core", slug: "stack-layers", file: "stack-layers.md",
