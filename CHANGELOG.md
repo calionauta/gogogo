@@ -1,4 +1,29 @@
+## [0.30.1] - 2026-10-04
+
+### Fixed
+
+- **v0.30.0 crash-looped on startup — do not use it.** The DagNats proxy fix in 0.30.0 replaced the GET-only route registration with `Router.Any()`, which registers the route with an **empty method**. In Go 1.22+ ServeMux that becomes a method-less pattern, and a method-less pattern conflicts with a method-scoped one unless one strictly subsumes the other. The app registers `GET /` (`features/landing`), so the mux panicked at route-registration time:
+
+  ```
+  pattern "GET /" conflicts with pattern "/dagnats/{path...}":
+  GET / matches fewer methods than /dagnats/{path...},
+  but has a more general path pattern
+  ```
+
+  A panic during registration means the process dies before it serves anything, so the container restart-looped — 638 restarts over 11 hours, with every request through the tunnel returning 502 from Cloudflare. GET-only was never the actual bug: two GET patterns (`GET /`, `GET /dagnats/{path...}`) coexist fine, with the more specific path winning. The bug was that GET-only was **incomplete** — POST/PUT/PATCH/DELETE returned 404 — so switching to a method-less pattern traded a 404 for a startup panic. The proxy now registers each method explicitly with `Router.Route(method, …)`, which keeps every pattern method-scoped and satisfies both conditions.
+- **The same defect was latent in the BYOK relay.** `features/credits/routes.go` used `r.Any("/api/byok/*")`, which has the identical conflict with `GET /`. It had not fired only because the block is skipped when `Relay` is nil (i.e. unless BYOK is configured) — it would have taken production down the first time someone enabled BYOK. Reproduced in isolation, then fixed the same way.
+- **The test could not have caught it.** The proxy fixture built a mux containing only the proxy, so there was no `GET /` to conflict with. It now registers `GET /` the way `features/landing` does, so building the mux under production's constraints is part of the test. Re-introducing a method-less pattern now fails the suite with the exact panic above.
+
+### Verification
+
+- `make ci-local` green: templ + datastar-lint + css-check + check-scope + golangci-lint + `go test -race -p 1 ./...` + build
+- Browser smoke test passed on all three skins (daisyui, basecoat, morpheus) with zero uncaught client JS errors
+- Deployed and confirmed in production: container `healthy` with 0 restarts, `listening on 0.0.0.0:8080` with no panic, `/`, `/_/`, `/dagnats/` and `/dagnats/console/` all returning 200
+- A POST to a nonexistent console path now returns the DagNats console's own 404 page rather than PocketBase's, proving the request traverses the proxy
+
 ## [0.30.0] - 2026-10-03
+
+> **Warning:** this release crash-loops on startup. Use 0.30.1 or later. See the 0.30.1 entry below for the cause.
 
 ### Added
 
