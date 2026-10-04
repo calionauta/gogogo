@@ -8,7 +8,21 @@
 #
 # Env: BIN_DIR (install dir), REPO (owner/repo), GOGOGO_VERSION (pin, e.g. v0.32.0),
 #      GO_DIR (toolchain dir, default ~/.local/go), SKIP_GO_BOOTSTRAP=1 (offline/tests).
+#
+# Needs on this machine: sh, curl, tar (+gzip), uname, mktemp, and
+# sha256sum or shasum. Checked up front with a precise error.
 set -eu
+
+for tool in curl tar uname mktemp; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "install.sh: need '$tool' installed first (then re-run)" >&2
+    exit 1
+  fi
+done
+if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+  echo "install.sh: need 'sha256sum' or 'shasum' installed first (then re-run)" >&2
+  exit 1
+fi
 
 REPO="${REPO:-calionauta/gogogo}"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
@@ -47,11 +61,8 @@ curl -sSfL "$BASE/SHA256SUMS.txt" | grep " $TARBALL\$" > SHA256SUMS.want
 
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum -c SHA256SUMS.want
-elif command -v shasum >/dev/null 2>&1; then
-  shasum -a 256 -c SHA256SUMS.want
 else
-  echo "install.sh: need sha256sum or shasum to verify the download" >&2
-  exit 1
+  shasum -a 256 -c SHA256SUMS.want
 fi
 
 mkdir -p "$BIN_DIR"
