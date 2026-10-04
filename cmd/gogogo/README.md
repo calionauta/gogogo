@@ -70,10 +70,10 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 
 | Option | Verdict |
 |---|---|
-| `curl \| bash` shell script | Rejected as primary: zero deps but fragile TUI, hard to safely edit Go wiring, easy to half-trim. Kept as a future thin wrapper at most. |
+| `curl \| bash` shell script | Adopted as **distribution only**: `install.sh` fetches checksummed release binaries (thin wrapper, zero logic). Rejected as the trim engine itself: fragile TUI, hard to safely edit Go wiring, easy to half-trim. |
 | Extend `scripts/rename-project.py` with trim flags | Rejected: Python is not guaranteed on the user's machine, no TUI, and the trim engine belongs next to the Go code it edits. The Python script stays as the rename reference + `make rename` fallback. |
 | Go TUI with Charm `Huh` + `Bubbletea` in a **separate module** | Right UX, right stack (2026-standard, performative), but adds deps. Deferred: the prompts here are structured as a form model so they can move to `Huh` without touching the trim engine. When that happens it must live in its own `go.mod` so the main binary stays lean. |
-| `go run ./cmd/gogogo` stdlib-only in the main module (this) | **Chosen for v0.1**: `go run` needs nothing but Go, zero new dependencies, fully testable, and the trim engine is the same one a future TUI would call. `--no-tui` flag shape already matches the scripted path. |
+| `go run ./cmd/gogogo` stdlib-only in the main module (this) | **Chosen**: `go run` needs nothing but Go, zero new dependencies, fully testable, and the trim engine is the same one a future TUI would call. `--no-tui` flag shape already matches the scripted path. Prebuilt binaries (GoReleaser, same engine) cover Go-less machines. |
 | `gh extension` / `make init` wrapper | Rejected as primary (needs `gh` + extension install); `make init` may wrap this CLI later for discoverability. |
 
 ## Safe trim subset (v0.1)
