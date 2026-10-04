@@ -246,18 +246,18 @@ h1 {
 
 .agent-band { text-align: center; }
 
-.agent-points {
-  list-style: none;
-  margin: 0 auto 16px;
-  padding: 0;
-  max-width: 560px;
-  text-align: left;
-  display: grid;
-  gap: 8px;
+.agent-band .grid-2 { text-align: left; }
+
+.card.slim { padding: 16px 18px 15px; }
+
+.card.slim .step { font-size: 16px; margin-bottom: 6px; }
+
+.card.slim p:last-child {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
   color: var(--ink-soft);
 }
-
-.agent-points strong { color: var(--ink); }
 
 .cmd-list {
   list-style: none;
