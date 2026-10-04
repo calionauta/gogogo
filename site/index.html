@@ -36,7 +36,6 @@
       <h1>The stack you keep<br>re-deciding, decided.</h1>
       <p class="lede">Database, auth, realtime, background jobs, durable workflows,
       offline sync and an LLM client — in one self-contained Go binary.</p>
-      <p class="lede-sub">No Docker. No Redis. No Postgres. No JS build step.</p>
       <div class="cta-row">
         <a class="btn primary" href="#start">Get started</a>
         <a class="btn" href="./docs/">Read the docs</a>
@@ -78,6 +77,7 @@ make dev</code></pre>
     <a href="./docs/scope-taxonomy/">core / plugin / feature</a> rule). Each
     one is documented with its trade-offs in
     <a href="./docs/stack-layers/">stack layers</a>.</p>
+    <p class="lede-sub">No Docker. No Redis. No Postgres. No JS build step.</p>
     <p class="group-label core">Always in <span>(core — customize, never remove)</span></p>
     <div class="grid-2">
       <div class="card">
@@ -256,31 +256,8 @@ make dev</code></pre>
 cd my-app
 make dev</code></pre>
     </div>
-    <div class="steps">
-      <div class="step-card">
-        <p class="step-n">1</p>
-        <p class="step-t">Name your project</p>
-        <p class="step-d">Project name + GitHub owner. Sets the module path, binary,
-        container and deploy directory — then compiles, so a half-renamed tree
-        can't slip through.</p>
-      </div>
-      <div class="step-card">
-        <p class="step-n">2</p>
-        <p class="step-t">Pick plugins + features</p>
-        <p class="step-d">Durable workflows, whiteboard, landing, config view,
-        credits, sounds, extra skins. What you skip is deleted with its wiring call, not left as dead code.</p>
-      </div>
-      <div class="step-card">
-        <p class="step-n">3</p>
-        <p class="step-t">Run it</p>
-        <p class="step-d">Live reload on <code>localhost:8080</code>. The demo is at
-        <code>/todo</code> — sign in as <code>demo@demo.app</code> /
-        <code>demo</code>.</p>
-      </div>
-    </div>
     <div class="cta-row center">
       <a class="btn primary" href="./docs/getting-started/">Start with the installer</a>
-      <a class="btn" href="https://github.com/calionauta/gogogo" rel="noopener">Use this template</a>
       <a class="btn" href="./docs/">All docs</a>
     </div>
   </section>

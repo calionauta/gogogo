@@ -147,9 +147,9 @@ h1 {
   max-width: 54ch;
 }
 
-/* The "no Docker, no Redis" line. Sits right after the lede as a short, punchy
-   counterweight — deliberately NOT part of the lede, so the lede stays one
-   readable sentence instead of a comma pile-up. */
+/* A short, punchy counterweight after a lede — deliberately NOT part of the
+   lede, so the lede stays one readable sentence instead of a comma pile-up.
+   Currently the "no Docker, no Redis…" line under In the box. */
 .lede-sub {
   margin: -14px 0 26px;
   font-size: 16px;
@@ -430,34 +430,6 @@ td:nth-child(2) { color: var(--ink-soft); }
 
 .cta-section { text-align: center; }
 .cta-section .section-lede { margin-left: auto; margin-right: auto; }
-
-/* Three numbered steps under the install block. The install block explains
-   HOW; these explain WHAT each command does, which is what a first-time
-   reader needs before pasting anything into a terminal. */
-.steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: 18px;
-  max-width: 860px;
-  margin: 30px auto 34px;
-  text-align: left;
-}
-
-.step-card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 18px 20px;
-  background: var(--bg);
-}
-
-.step-n {
-  margin: 0 0 6px;
-  font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--accent);
-}
-
-.step-t { margin: 0 0 6px; font-weight: 600; font-size: 15px; }
-.step-d { margin: 0; font-size: 14px; color: var(--ink-soft); }
 
 .meta { text-align: center; color: var(--ink-faint); font-size: 14px; }
 .meta p { margin: 0 0 8px; }
