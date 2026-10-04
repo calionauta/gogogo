@@ -1,9 +1,9 @@
-// SCOPE:layer=infra,removal=core — the installer CLI. Split out of add.go.
+// SCOPE:layer=infra,removal=plugin — installer engine: add import restoration
 //
 // Import restoration: putting back the import lines a trim removed, in
 // the right slot and order, and merging a single import into an existing
 // parenthesised block.
-package main
+package installer
 
 import (
 	"fmt"

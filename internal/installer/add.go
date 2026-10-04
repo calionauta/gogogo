@@ -1,6 +1,8 @@
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: add units to existing checkouts (copy, rewire, prove)
+package installer
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -130,11 +132,10 @@ func requireScaffold(root string) error {
 	} {
 		p, err := joinRoot(root, f)
 		if err != nil {
-			return &exitError{code: 1, msg: err.Error()}
+			return &ExitError{code: 1, msg: err.Error()}
 		}
-		//nolint:gosec // G703 path validated by joinRoot above (no escape).
 		if _, err := os.Stat(p); err != nil {
-			return &exitError{code: 1, msg: "not a gogogo-scaffolded checkout (missing " + f + ")"}
+			return &ExitError{code: 1, msg: "not a gogogo-scaffolded checkout (missing " + f + ")"}
 		}
 	}
 	return nil
@@ -328,7 +329,7 @@ type addOptions struct {
 
 // runAdd implements `gogogo add <unit> --from TEMPLATE --dir PROJECT`:
 // the inverse of trim for existing checkouts (scaffolded or evolved).
-func runAdd(args []string, stdin *os.File, stdout *os.File) error {
+func runAdd(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
 	opt, err := parseAddArgs(args, stdout)
 	if err != nil {
 		return err
@@ -350,12 +351,12 @@ func runAdd(args []string, stdin *os.File, stdout *os.File) error {
 			return nil
 		}
 	}
-	return executeAdd(opt, stdin, stdout)
+	return executeAdd(ctx, opt, stdin, stdout)
 }
 
 // executeAdd applies units, proves, and reports (text plan already shown,
 // JSON envelope here).
-func executeAdd(opt addOptions, stdin *os.File, stdout *os.File) error {
+func executeAdd(ctx context.Context, opt addOptions, stdin io.Reader, stdout io.Writer) error {
 	if err := requireScaffold(opt.dir); err != nil {
 		return err
 	}
@@ -371,7 +372,7 @@ func executeAdd(opt addOptions, stdin *os.File, stdout *os.File) error {
 		}
 		receipts = append(receipts, rc)
 	}
-	proveErr := prove(opt.dir, opt.units, io.Discard)
+	proveErr := prove(ctx, opt.dir, opt.units, io.Discard)
 	if opt.format == planFormatJSON {
 		env := addEnvelope{
 			Unit: opt.unitID, From: opt.from, Dir: opt.dir,
@@ -393,7 +394,7 @@ func executeAdd(opt addOptions, stdin *os.File, stdout *os.File) error {
 }
 
 // parseAddArgs parses flags, resolves the unit, and validates paths.
-func parseAddArgs(args []string, stdout *os.File) (addOptions, error) {
+func parseAddArgs(args []string, stdout io.Writer) (addOptions, error) {
 	var opt addOptions
 	fs := flag.NewFlagSet("gogogo add", flag.ContinueOnError)
 	fs.StringVar(&opt.from, "from", "", "pristine template checkout to copy from (required)")
@@ -435,12 +436,12 @@ func parseAddArgs(args []string, stdout *os.File) (addOptions, error) {
 		return opt, fmt.Errorf("--from and --dir are both required")
 	}
 	if _, err := os.Stat(opt.from); err != nil {
-		return opt, &exitError{code: 1, msg: "template source not found: " + opt.from}
+		return opt, &ExitError{code: 1, msg: "template source not found: " + opt.from}
 	}
 	return opt, nil
 }
 
-func confirmAdd(stdout, stdin *os.File, unitID string) bool {
+func confirmAdd(stdout io.Writer, stdin io.Reader, unitID string) bool {
 	fmt.Fprintf(stdout, "Add unit %q from template? [y/N]: ", unitID)
 	var answer [8]byte
 	n, _ := stdin.Read(answer[:])

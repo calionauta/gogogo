@@ -1,8 +1,9 @@
-package main
+package installer
 
 // Apply, run and check tests: the end-to-end CLI behaviour.
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -28,7 +29,7 @@ func TestRunNoTUIWithoutYesChangesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := captureStdout(t, func(w *os.File) {
-		err := run([]string{
+		err := Run(context.Background(), []string{
 			"--name", "my-app", "--no-tui", "--dir", dir,
 		}, devNull(t), w)
 		if err != nil {
@@ -47,7 +48,7 @@ func TestRunNoTUIWithoutYesChangesNothing(t *testing.T) {
 func TestPlanJSONEncodesEmptySlices(t *testing.T) {
 	// Agent contract stability: empty collections encode as [] never null.
 	out := captureStdout(t, func(w *os.File) {
-		err := run([]string{
+		err := Run(context.Background(), []string{
 			"--name", "my-app", "--no-tui", "--dry-run", "--format", "json",
 			"--dir", "./my-app",
 		}, devNull(t), w)
@@ -76,7 +77,7 @@ func TestPlanJSONEncodesEmptySlices(t *testing.T) {
 func TestRunDryRunJSONPlan(t *testing.T) { // The agent contract: --dry-run --format json parses and carries
 	// drop ids with their warnings.
 	out := captureStdout(t, func(w *os.File) {
-		err := run([]string{
+		err := Run(context.Background(), []string{
 			"--name", "my-app", "--owner", "myorg",
 			"--plugins", "sounds", "--features", "sounds",
 			"--no-tui", "--dry-run", "--format", "json",
@@ -128,7 +129,7 @@ func TestRunDryRunJSONPlan(t *testing.T) { // The agent contract: --dry-run --fo
 
 func TestRunHelpMentionsContract(t *testing.T) {
 	out := captureStdout(t, func(w *os.File) {
-		_ = run([]string{"--help"}, devNull(t), w)
+		_ = Run(context.Background(), []string{"--help"}, devNull(t), w)
 	})
 	for _, want := range []string{
 		"Trim units:", "Agent contract:", "Exit codes:",

@@ -1,8 +1,5 @@
-// SCOPE:layer=infra,removal=core — the installer CLI. Split out of add.go.
-//
-// Router call restoration: re-inserting the single call per capability
-// that router.Init makes, so `gogogo add` wires the unit back.
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: add router call restoration
+package installer
 
 import (
 	"os"
@@ -10,8 +7,6 @@ import (
 	"strings"
 )
 
-// addRouterCalls inserts the unit's call lines above the OnServe return.
-// Idempotent: present lines are skipped.
 func addRouterCalls(root string, u trimUnit, rc *AddReceipt) error {
 	calls := routerCallLines(u)
 	if len(calls) == 0 {
@@ -31,7 +26,7 @@ func addRouterCalls(root string, u trimUnit, rc *AddReceipt) error {
 		}
 	}
 	if anchor == -1 {
-		return &exitError{code: 1, msg: "cannot locate insertion anchor in router/router.go (not a scaffolded Init?)"}
+		return &ExitError{code: 1, msg: "cannot locate insertion anchor in router/router.go (not a scaffolded Init?)"}
 	}
 	var insert []string
 	for _, c := range calls {

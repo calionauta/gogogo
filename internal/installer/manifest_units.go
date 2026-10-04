@@ -1,4 +1,5 @@
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: unit ids, capability map, trim manifest
+package installer
 
 // Unit ids, the capability map and the per-unit trim manifest. Split out of
 // manifest.go so the data and the machinery that applies it can be read

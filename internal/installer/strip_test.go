@@ -1,10 +1,11 @@
-package main
+package installer
 
 // Strip tests: what a trim removes from the tree, per unit.
 
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -147,7 +148,12 @@ func TestReadmeDocumentsUnits(t *testing.T) {
 	// Docs stay truthful: every installer unit id must appear backticked
 	// in cmd/gogogo/README.md, or humans read about a unit that the
 	// docs never explain.
-	raw, err := os.ReadFile("README.md")
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Skip("runtime.Caller unavailable")
+	}
+	readme := filepath.Join(filepath.Dir(file), "..", "..", "cmd", "gogogo", "README.md")
+	raw, err := os.ReadFile(readme)
 	if err != nil {
 		t.Fatal(err)
 	}

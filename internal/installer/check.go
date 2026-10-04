@@ -1,4 +1,5 @@
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: read-only drift gate over manifest markers
+package installer
 
 import (
 	"fmt"

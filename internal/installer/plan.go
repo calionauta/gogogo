@@ -1,4 +1,5 @@
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: plan preview, receipts, and JSON envelopes
+package installer
 
 import (
 	"encoding/json"
@@ -132,6 +133,7 @@ type envelope struct {
 	Receipt  Receipt      `json:"receipt"`
 	BuildOk  bool         `json:"buildOk"`
 	BuildErr string       `json:"buildError,omitempty"`
+	Next     nextSteps    `json:"next"`
 }
 
 func printEnvelopeJSON(w io.Writer, e envelope) error {

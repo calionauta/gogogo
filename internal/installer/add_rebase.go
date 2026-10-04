@@ -1,9 +1,9 @@
-// SCOPE:layer=infra,removal=core — the installer CLI. Split out of add.go.
+// SCOPE:layer=infra,removal=plugin — installer engine: add module-path rebasing
 //
 // Module-path rebasing, which `gogogo add` runs so a unit copied from the
 // template compiles inside the target project: rewriting the template
 // module prefix to the target one across the files it just copied.
-package main
+package installer
 
 import (
 	"fmt"

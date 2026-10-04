@@ -60,6 +60,73 @@ The interactive form is structured so it can move to Charm `Huh` + `Bubbletea`
 (a 2026-standard, performative Go TUI stack) without changing the trim engine —
 see `cmd/gogogo/README.md`.
 
+On success the installer prints the exact next commands — it cannot run
+them for you (`go run @latest` executes from an ephemeral module, so the new
+project's dev loop stays yours):
+
+```text
+gogogo: done — next:
+  cd my-app && make dev
+  app:       http://localhost:8080 (PORT overrides)
+  login:     demo@demo.app / demo1234456 (prefilled on the sign-in form)
+  admin:     http://localhost:8080/_/ (PocketBase — create the superuser on first visit)
+  workflows: http://localhost:8080/dagnats/ (DagNats console)
+```
+
+## 0b. Opinions before changes: `advise`
+
+When you (or your agent) want guidance instead of a scaffold — which units
+for which use-case, how each capability switches off, whether Zig is ever
+justified — ask first, install nothing:
+
+```bash
+go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "offline-first todo with AI"
+go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "realtime whiteboard" --format json
+```
+
+No `--dir`, no `--yes`, no filesystem touched: it reads the capability
+registry and prints use-case presets (keep/drop per preset), every
+capability with its trim flag or runtime off-switch, and the three global
+rules (Go-first with the profiled-kernel Zig exception, runtime switches
+before trim, upstream-first). The MCP server exposes the same document as
+`advise_stack` — agents deciding what to use start there, not at `trim_plan`.
+
+Strategy for LLMs: empty `--need` returns the full map (cheapest correct
+first call — the document is small). A filtered call that matches nothing
+is not a dead end: the capabilities table is always complete, so decide
+from it or retry with broader terms. Keyword matching is deliberately
+dumb (exact or ≥4-char prefix) — phrase the need with template vocabulary
+(`whiteboard`, `dagnats`, `offline`, `credits`) when a first attempt
+misses. Then preview with `trim_plan --dry-run` before any `trim_apply`.
+
+## 0c. Adding to an existing project
+
+Two cases, sharply different:
+
+**Scaffolded checkout (this template, already trimmed or not).**
+`add` restores one unit back with its dependency closure, module-path
+rebase, and proof build:
+
+```bash
+go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --dry-run
+go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
+```
+
+`--from` is a pristine template checkout to copy from; `--check --dir`
+verifies the markers first. `add` refuses anything that is not a
+scaffolded checkout (`router/router.go` + `go.mod` must exist) — it
+restores known markers, it does not merge foreign code.
+
+**Foreign Go codebase (not scaffolded).** There is no auto-adoption:
+the installer cannot know your router, module layout, or auth, so it
+will not guess. Do instead:
+
+1. Run `advise` (above) for the opinionated shortlist.
+2. Read the upstream pattern via `llms.txt` (`AGENTS.md` has the map) —
+   Todo is the reference implementation for jobs, SSE, and realtime.
+3. Copy the capability's dirs (the registry lists owned paths per
+   capability) and wire the single call in your router.
+
 ## 1. Manual fallback: create your repository
 
 ```bash
@@ -99,7 +166,7 @@ make dev
 
 Open `http://localhost:8080` for the landing page, then
 `http://localhost:8080/todo` for the demo — sign in with the seeded
-`demo@demo.app` / `demo`.
+`demo@demo.app` / `demo1234456`.
 
 > The default port is `8080` (override with `PORT`). The default branch is
 > `master`.
@@ -125,7 +192,7 @@ everything — the unified build era means you never pass `-tags`.
 1. `make dev` — the binary boots with PocketBase + goqite + SSE Hub + DagNats +
    NATS, and seeds the demo user and collections on first run.
 2. Open `/` — public landing page, no auth.
-3. Open `/todo` — sign in as `demo@demo.app` / `demo`, add a todo, and watch it
+3. Open `/todo` — sign in as `demo@demo.app` / `demo1234456`, add a todo, and watch it
    stream through PocketBase realtime.
 4. Open `/config` — auth-gated read-only view of what the binary decided:
    env-decrypted values, masked secrets, runtime constants.

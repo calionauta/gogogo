@@ -70,7 +70,7 @@ In the demo deployment it is reachable at
 | **Live PocketBase admin dashboard** | [gogogo.calionauta.com/_/](https://gogogo.calionauta.com/_/) |
 | **Durable workflow engine (DagNats)** | [gogogo.calionauta.com/dagnats/](https://gogogo.calionauta.com/dagnats/) |
 
-Log in with the seeded demo account (`demo@demo.app` / `demo`). The demo's
+Log in with the seeded demo account (`demo@demo.app` / `demo1234456`). The demo's
 `users` collection is **locked** — visitors can log in as the demo user but
 cannot create or delete accounts through the API or the dashboard (only the
 superuser can).

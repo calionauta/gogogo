@@ -1,4 +1,4 @@
-package main
+package installer
 
 // Manifest and plan tests: unit selection, prompt parsing, plan output.
 

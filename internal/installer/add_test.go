@@ -1,6 +1,7 @@
-package main
+package installer
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +117,7 @@ func TestAddUnitRefusesForeignTree(t *testing.T) {
 }
 
 func TestAddUnknownUnitFailsFast(t *testing.T) {
-	err := run([]string{"add", "nats", "--from", "/tmp", "--dir", "/tmp"}, devNull(t), devNull(t))
+	err := Run(context.Background(), []string{"add", "nats", "--from", "/tmp", "--dir", "/tmp"}, devNull(t), devNull(t))
 	if err == nil {
 		t.Fatal("expected error for non-offered unit nats")
 	}
