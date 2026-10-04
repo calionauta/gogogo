@@ -121,20 +121,14 @@ make dev</code></pre>
         <p class="off">Off: unset <code>GOAI_API_KEY</code></p>
       </div>
       <div class="card">
-        <p class="step">Offline edits that replay</p>
+        <p class="step">Offline-first sync</p>
         <p class="tech">Service Worker + Leaf Node</p>
-        <p>Mutations queue in IndexedDB and replay on reconnect; replays never duplicate.</p>
+        <p>Offline edits queue locally and replay on reconnect; replays never duplicate.</p>
         <p class="off">Off: <code>OFFLINE_SYNC_ENABLED=false</code></p>
       </div>
     </div>
-    <p class="group-label feature">Delete if you don't need it <span>(feature — package + wiring call)</span></p>
+    <p class="group-label feature">Optional extras <span>(feature — keep it or delete it)</span></p>
     <div class="grid-2">
-      <div class="card">
-        <p class="step">Todo reference app</p>
-        <p class="tech">PocketBase realtime</p>
-        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
-        <p class="off">Delete: <code>features/todo/</code></p>
-      </div>
       <div class="card">
         <p class="step">Collaborative whiteboard</p>
         <p class="tech">Loro CRDT + Rough.js</p>
@@ -142,9 +136,15 @@ make dev</code></pre>
         <p class="off">Delete: <code>features/whiteboard/</code></p>
       </div>
       <div class="card">
-        <p class="step">Native apps on the same backend</p>
-        <p class="tech">Wails v3 + gogpu/ui</p>
-        <p>Desktop shells over the same backend — plus a native window with no HTTP at all.</p>
+        <p class="step">Todo reference app</p>
+        <p class="tech">PocketBase realtime</p>
+        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
+        <p class="off">Delete: <code>features/todo/</code></p>
+      </div>
+      <div class="card">
+        <p class="step">Desktop apps on the same backend</p>
+        <p class="tech">Wails v3 · gogpu/ui</p>
+        <p>Wails ships a desktop app with offline edge sync; gogpu/ui is a pure-Go window with no webview and no HTTP.</p>
         <p class="off">Delete: <code>cmd/desktop/</code>, <code>cmd/gui/</code></p>
       </div>
     </div>
