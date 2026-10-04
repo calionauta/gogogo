@@ -193,7 +193,9 @@ func ensureCheckoutDir(ctx context.Context, opt options, stdin io.Reader, stdout
 				"(re-run with --yes to clone the template and scaffold)",
 			opt.dir)}
 	}
-	fmt.Fprintf(stdout, "gogogo: cloning %s into %s …\n", templateCloneURL, opt.dir)
+	if opt.format != planFormatJSON {
+		fmt.Fprintf(stdout, "gogogo: cloning %s into %s …\n", templateCloneURL, opt.dir)
+	}
 	if err := gitClone(ctx, opt.dir); err != nil {
 		return &ExitError{code: 1, msg: fmt.Sprintf(
 			"git clone failed (%v) — is git installed and the network up?\n"+

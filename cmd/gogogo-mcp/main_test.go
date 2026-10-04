@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -73,8 +75,7 @@ func TestCheckTreeRequiresDir(t *testing.T) {
 	}
 }
 
-func TestAdviseStackNeedsNothing(t *testing.T) {
-	// The guidance tool is read-only: no dir, no confirm, no changes.
+func TestAdviseStackNeedsNothing(t *testing.T) { // The guidance tool is read-only: no dir, no confirm, no changes.
 	res, _, err := handleAdvise(context.Background(), nil, adviseArgs{Need: "offline airplane mode"})
 	if err != nil {
 		t.Fatal(err)
@@ -140,4 +141,56 @@ func toolText(t *testing.T, res *mcp.CallToolResult) string {
 		t.Fatalf("non-text content: %T", res.Content[0])
 	}
 	return tc.Text
+}
+
+func TestTrimApplyEndToEnd(t *testing.T) {
+	// The mutating path for real: smallest compilable template tree in,
+	// rename + REAL tidy/build proof out, machine-readable envelope back.
+	// Breaks when arg mapping, apply, rename, or proof regresses.
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module github.com/calionauta/gogogo\n\ngo 1.27\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "cmd", "web", "main.go"),
+		[]byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res, _, err := handleTrimApply(context.Background(), nil, trimArgs{
+		Name: "mcp-app", Owner: "mcporg", Dir: dir, Confirm: true, Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("trim_apply: %v", err)
+	}
+	var env struct {
+		BuildOk bool `json:"buildOk"`
+		Plan    struct {
+			Module string `json:"module"`
+		} `json:"plan"`
+		Next struct {
+			Dir string `json:"dir"`
+		} `json:"next"`
+	}
+	if err := json.Unmarshal([]byte(toolText(t, res)), &env); err != nil {
+		t.Fatalf("trim_apply is not valid JSON: %v", err)
+	}
+	if !env.BuildOk {
+		t.Error("buildOk must be true for the compilable fixture")
+	}
+	if env.Plan.Module != "github.com/mcporg/mcp-app" {
+		t.Errorf("module = %q, want the renamed path", env.Plan.Module)
+	}
+	if env.Next.Dir != dir {
+		t.Errorf("next.dir = %q, want %q", env.Next.Dir, dir)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "module github.com/mcporg/mcp-app") {
+		t.Errorf("go.mod was not renamed on disk:\n%s", raw)
+	}
 }

@@ -28,8 +28,10 @@ var goVersionOut = func(ctx context.Context) (string, error) {
 
 // preflight fails fast — before any clone, trim, or confirm — when the
 // tools the apply path shells out to are missing or too old. Read-only
-// paths (plan preview, advise, --check) never call it.
-func preflight(ctx context.Context, w io.Writer, needGit, needGo bool) error {
+// paths (plan preview, advise, --check) never call it. quiet silences the
+// informational lines so --format json stays a single JSON document;
+// questions (clone/apply confirms) always print.
+func preflight(ctx context.Context, w io.Writer, needGit, needGo, quiet bool) error {
 	if needGit {
 		if err := lookGit(); err != nil {
 			return &ExitError{code: 1, msg: "gogogo: git not found — " +
@@ -52,7 +54,9 @@ func preflight(ctx context.Context, w io.Writer, needGit, needGo bool) error {
 					"(newer toolchains download themselves via GOTOOLCHAIN). "+
 					"Upgrade: %s", firstLine(raw), goInstallHint())}
 		}
-		fmt.Fprintf(w, "gogogo: %s — toolchain OK\n", firstLine(raw))
+		if !quiet {
+			fmt.Fprintf(w, "gogogo: %s — toolchain OK\n", firstLine(raw))
+		}
 	}
 	return nil
 }
