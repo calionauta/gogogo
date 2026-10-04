@@ -9,29 +9,46 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Print OIDC claims and attempt the exchange with full output
+      - name: Find the working exchange shape and print the real error
         env:
-          TS_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          TS_AUDIENCE: ${{ secrets.TS_AUDIENCE }}
+          CID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          AUD: ${{ secrets.TS_AUDIENCE }}
         run: |
-          set -x
-          echo "== audience secret is set? =="
-          [ -n "$TS_AUDIENCE" ] && echo "TS_AUDIENCE length: ${#TS_AUDIENCE}" || echo "TS_AUDIENCE EMPTY"
-          [ -n "$TS_CLIENT_ID" ] && echo "TS_CLIENT_ID length: ${#TS_CLIENT_ID}" || echo "TS_CLIENT_ID EMPTY"
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | jq -r .value)
+          echo "token bytes: ${#TOKEN}"
+          printf '%s' "$TOKEN" > /tmp/jwt.txt
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq -c '{sub,aud,iss,ref}'
 
-          echo "== requesting token with the configured audience =="
-          RESP=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$TS_AUDIENCE")
-          TOKEN=$(echo "$RESP" | jq -r .value)
-          echo "== claims =="
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+          echo "=== tag used by the workflow ==="
+          grep -n "tags:" .github/workflows/deploy.yml || true
 
-          echo "== manual token exchange (full response) =="
-          curl -sS -w "\nHTTP_STATUS=%{http_code}\n" \
-            -X POST "https://api.tailscale.com/api/v2/oauth/token-exchange" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "client_id=$TS_CLIENT_ID" \
-            --data-urlencode "id_token=$TOKEN" \
+          try() {
+            local label="$1"; shift
+            echo "--- $label ---"
+            curl -sS -o /tmp/resp.txt -w "status=%{http_code}\n" \
+              -X POST "https://api.tailscale.com/api/v2/oauth/token-exchange" \
+              -H "Content-Type: application/x-www-form-urlencoded" "$@"
+            head -c 400 /tmp/resp.txt; echo
+          }
+
+          # Shape A: documented (client_id + id_token)
+          try "A: client_id+id_token" \
+            --data-urlencode "client_id=$CID" \
+            --data-urlencode "id_token@/tmp/jwt.txt" \
             --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
-            --data-urlencode "audience=$TS_AUDIENCE" \
-            2>&1 | head -40
+            --data-urlencode "audience=$AUD"
+
+          # Shape B: RFC 8693 (subject_token)
+          try "B: subject_token" \
+            --data-urlencode "client_id=$CID" \
+            --data-urlencode "subject_token@/tmp/jwt.txt" \
+            --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:jwt" \
+            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+            --data-urlencode "audience=$AUD"
+
+          # Shape C: without audience
+          try "C: no audience" \
+            --data-urlencode "client_id=$CID" \
+            --data-urlencode "id_token@/tmp/jwt.txt" \
+            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange"
