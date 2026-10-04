@@ -47,37 +47,59 @@ func main() {
 	}
 }
 
+// toolDef is the single source of truth for the served surface: each
+// entry registers on the server, prints in --help, and is asserted in
+// tests (served count) and docs (README table via TestMcpReadmeListsTools).
+// Adding a tool means adding one entry — never hunting N call sites.
+type toolDef struct {
+	name string
+	desc string
+	add  func(s *mcp.Server, t *mcp.Tool)
+}
+
+var toolCatalog = []toolDef{
+	{
+		"capabilities_list",
+		"List every template capability (id, kind, summary, off-switch). Start here.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
+	},
+	{
+		"trim_plan",
+		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). Changes nothing.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
+	},
+	{
+		"trim_apply",
+		"Scaffold/trim a checkout (rename, trim, prove with build). Requires confirm:true.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
+	},
+	{
+		"check_tree",
+		"Verify installer markers without changing anything (drift gate).",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCheckTree) },
+	},
+	{
+		"add_unit",
+		"Add one template unit to a checkout (deps, rebase, proof). Requires confirm:true.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAddUnit) },
+	},
+	{
+		"advise_stack",
+		"Opinions, not changes: which units to keep for a use-case " +
+			"and how each switches off. Empty need returns the full map; " +
+			"no preset matched means decide from the capabilities table " +
+			"or retry with broader terms. Start here when deciding.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAdvise) },
+	},
+}
+
 // buildServer registers every tool. Shared by main and tests so the
 // served surface is exactly the tested surface.
 func buildServer() *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "gogogo", Version: version}, nil)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "capabilities_list",
-		Description: "List every template capability (id, kind, summary, off-switch). Start here.",
-	}, handleCapabilitiesList)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trim_plan",
-		Description: "Preview scaffolding/trimming a checkout (validates ids, shows consequences). Changes nothing.",
-	}, handleTrimPlan)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trim_apply",
-		Description: "Scaffold/trim a checkout (rename, trim, prove with build). Requires confirm:true.",
-	}, handleTrimApply)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "check_tree",
-		Description: "Verify installer markers without changing anything (drift gate).",
-	}, handleCheckTree)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "add_unit",
-		Description: "Add one template unit to a checkout (deps, rebase, proof). Requires confirm:true.",
-	}, handleAddUnit)
-	mcp.AddTool(server, &mcp.Tool{
-		Name: "advise_stack",
-		Description: "Opinions, not changes: which units to keep for a use-case " +
-			"and how each switches off. Empty need returns the full map; " +
-			"no preset matched means decide from the capabilities table " +
-			"or retry with broader terms. Start here when deciding.",
-	}, handleAdvise)
+	for _, d := range toolCatalog {
+		d.add(server, &mcp.Tool{Name: d.name, Description: d.desc})
+	}
 	return server
 }
 
@@ -111,12 +133,15 @@ type adviseArgs struct {
 	Format string `json:"format" jsonschema:"text or json (default json for tools)"`
 }
 
-// printHelp documents tools and client wiring for humans.
+// printHelp documents tools and client wiring for humans. The tool list
+// renders from the catalog so it cannot drift from the served surface.
 func printHelp(w *os.File) {
-	fmt.Fprintln(w, `gogogo-mcp — gogogo installer as MCP tools (stdio).
-
-Tools: capabilities_list, trim_plan, trim_apply, add_unit, check_tree, advise_stack.
-Destructive tools require confirm:true (preview first). advise_stack changes nothing.
+	fmt.Fprintln(w, "gogogo-mcp — gogogo installer as MCP tools (stdio).")
+	fmt.Fprintln(w, "\nTools:")
+	for _, d := range toolCatalog {
+		fmt.Fprintf(w, "  %s — %s\n", d.name, d.desc)
+	}
+	fmt.Fprintln(w, `Destructive tools require confirm:true (preview first). advise_stack changes nothing.
 
 Claude Code / Cursor / BB client config:
   {"mcpServers": {"gogogo": {"command": "/path/to/gogogo-mcp"}}}

@@ -219,6 +219,8 @@ signoff: ci-local
 
 .PHONY: ci-local signoff
 
+.PHONY: site site-check
+
 deps:
 	@go mod tidy
 

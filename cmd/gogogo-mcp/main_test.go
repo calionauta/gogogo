@@ -94,9 +94,9 @@ func TestAdviseStackNeedsNothing(t *testing.T) { // The guidance tool is read-on
 	}
 }
 
-func TestProtocolListsSixTools(t *testing.T) {
+func TestProtocolListsCatalogTools(t *testing.T) {
 	// End-to-end over in-memory transports: the served surface is
-	// exactly six tools, callable through the MCP protocol.
+	// exactly the catalog, callable through the MCP protocol.
 	ctx := context.Background()
 	server := buildServer()
 	clientTrans, serverTrans := mcp.NewInMemoryTransports()
@@ -115,12 +115,12 @@ func TestProtocolListsSixTools(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 6 {
+	if len(res.Tools) != len(toolCatalog) {
 		names := []string{}
 		for _, tool := range res.Tools {
 			names = append(names, tool.Name)
 		}
-		t.Fatalf("want 6 tools, got %d: %v", len(res.Tools), names)
+		t.Fatalf("want %d tools, got %d: %v", len(toolCatalog), len(res.Tools), names)
 	}
 	call, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "capabilities_list"})
 	if err != nil {
@@ -174,8 +174,8 @@ func TestTrimApplyEndToEnd(t *testing.T) {
 			Dir string `json:"dir"`
 		} `json:"next"`
 	}
-	if err := json.Unmarshal([]byte(toolText(t, res)), &env); err != nil {
-		t.Fatalf("trim_apply is not valid JSON: %v", err)
+	if uerr := json.Unmarshal([]byte(toolText(t, res)), &env); uerr != nil {
+		t.Fatalf("trim_apply is not valid JSON: %v", uerr)
 	}
 	if !env.BuildOk {
 		t.Error("buildOk must be true for the compilable fixture")
@@ -192,5 +192,20 @@ func TestTrimApplyEndToEnd(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), "module github.com/mcporg/mcp-app") {
 		t.Errorf("go.mod was not renamed on disk:\n%s", raw)
+	}
+}
+
+func TestMcpReadmeListsTools(t *testing.T) {
+	// Docs stay truthful: every served tool must appear backticked in the
+	// module README's tools table, or humans read about a surface the
+	// docs never explain.
+	raw, err := os.ReadFile("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range toolCatalog {
+		if !strings.Contains(string(raw), "`"+d.name+"`") {
+			t.Errorf("README.md never mentions tool %q", d.name)
+		}
 	}
 }

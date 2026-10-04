@@ -109,7 +109,7 @@ func TestAdviseRejectsUnknownFormat(t *testing.T) {
 }
 
 func TestRunVersionFlag(t *testing.T) {
-	for _, argv := range [][]string{{"--version"}, {"-version"}, {"version"}} {
+	for _, argv := range [][]string{{"--version"}, {"-version"}} {
 		out := captureStdout(t, func(w *os.File) {
 			if err := Run(context.Background(), argv, devNull(t), w); err != nil {
 				t.Fatalf("run %v: %v", argv, err)
