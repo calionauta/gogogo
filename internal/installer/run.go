@@ -208,7 +208,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 		return err
 	}
 	defer func() { _ = devNull.Close() }()
-	proveErr := prove(context.Background(), opt.dir, drop, devNull)
+	proveErr := prove(ctx, opt.dir, drop, devNull)
 	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil}
 	if proveErr != nil {
 		env.BuildErr = proveErr.Error()

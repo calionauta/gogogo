@@ -23,7 +23,3 @@ func main() {
 		os.Exit(installer.ExitCode(err))
 	}
 }
-
-func usage(w *os.File, fs *flag.FlagSet) {
-	installer.PrintUsage(w, fs)
-}

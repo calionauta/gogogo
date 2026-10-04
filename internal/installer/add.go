@@ -255,7 +255,6 @@ func requireScaffold(root string) error {
 		if err != nil {
 			return &ExitError{code: 1, msg: err.Error()}
 		}
-		//nolint:gosec // G703 path validated by joinRoot above (no escape).
 		if _, err := os.Stat(p); err != nil {
 			return &ExitError{code: 1, msg: "not a gogogo-scaffolded checkout (missing " + f + ")"}
 		}
@@ -962,7 +961,7 @@ func executeAdd(ctx context.Context, opt addOptions, stdin io.Reader, stdout io.
 		}
 		receipts = append(receipts, rc)
 	}
-	proveErr := prove(context.Background(), opt.dir, opt.units, io.Discard)
+	proveErr := prove(ctx, opt.dir, opt.units, io.Discard)
 	if opt.format == planFormatJSON {
 		env := addEnvelope{
 			Unit: opt.unitID, From: opt.from, Dir: opt.dir,
