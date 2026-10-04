@@ -197,15 +197,17 @@ h1 {
 
 .copy-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 18px;
+  right: 20px;
   font-size: 12px;
-  padding: 4px 10px;
+  line-height: 1;
+  padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
   color: var(--ink-faint);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .copy-btn:hover { color: var(--ink); border-color: #d3d6dd; }
