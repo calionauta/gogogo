@@ -75,9 +75,11 @@ var All = []Capability{
 	{
 		ID:      "routeutil",
 		Kind:    KindCore,
-		Summary: "shared routing helper (leaf: net/http + PocketBase core types)",
+		Summary: "shared route registration (per-method, never Router.Any)",
 		Dirs:    []string{"internal/routeutil"},
-		Note:    "Core: router and credits routes share it; removal breaks both.",
+		Note: "Core: Router.Any() registers a method-less pattern, which conflicts " +
+			"with the app's own GET / and panics at ServeMux build time. Every " +
+			"proxied route registers through here so a method list exists once.",
 	},
 	{
 		ID:      "database",

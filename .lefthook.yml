@@ -8,8 +8,13 @@
 pre-commit:
   parallel: true
   jobs:
+    # A file can only be too big if a .go file changed. Without this glob the
+    # job ran on every commit — a docs-only or CSS-only commit was blocked by a
+    # size violation in a file it did not touch, which trains people to bypass
+    # the hook with LEFTHOOK_EXCLUDE=.
     - name: file-sizes
       run: .githooks/check-sizes.sh
+      glob: "*.go"
 
     - name: fmt-gofumpt
       run: bin/check-fmt.sh
