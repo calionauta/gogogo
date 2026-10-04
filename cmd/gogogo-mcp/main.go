@@ -106,31 +106,31 @@ func buildServer() *mcp.Server {
 // --- tool argument shapes (JSON in, validated like CLI flags) ---
 
 type dirArgs struct {
-	Dir string `json:"dir" jsonschema:"absolute path of the target checkout (required)"`
+	Dir string `json:"dir,omitempty" jsonschema:"absolute path of the target checkout (required)"`
 }
 
 type trimArgs struct {
-	Name     string `json:"name" jsonschema:"new project name, e.g. my-app (required)"`
-	Owner    string `json:"owner" jsonschema:"GitHub owner for the module path (default calionauta)"`
-	Dir      string `json:"dir" jsonschema:"target checkout directory (default ./<name>)"`
-	Plugins  string `json:"plugins" jsonschema:"comma-separated plugins to KEEP (default all, none drops all)"`
-	Features string `json:"features" jsonschema:"comma-separated features to KEEP (default all, none drops all)"`
-	Format   string `json:"format" jsonschema:"text or json (default json for tools)"`
-	Confirm  bool   `json:"confirm" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
+	Name     string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
+	Owner    string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
+	Dir      string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
+	Plugins  string `json:"plugins,omitempty" jsonschema:"comma-separated plugins to KEEP (default all, none drops all)"`
+	Features string `json:"features,omitempty" jsonschema:"comma-separated features to KEEP (default all, none drops all)"`
+	Format   string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm  bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
 }
 
 type addArgs struct {
-	Unit    string `json:"unit" jsonschema:"installer unit id, e.g. whiteboard (required)"`
-	From    string `json:"from" jsonschema:"pristine template checkout to copy from (required)"`
-	Dir     string `json:"dir" jsonschema:"target project checkout (required)"`
-	Format  string `json:"format" jsonschema:"text or json (default json for tools)"`
-	Confirm bool   `json:"confirm" jsonschema:"must be true (preview with dry-run first)"`
-	DryRun  bool   `json:"dryRun" jsonschema:"print the plan and stop when true"`
+	Unit    string `json:"unit,omitempty" jsonschema:"installer unit id, e.g. whiteboard (required)"`
+	From    string `json:"from,omitempty" jsonschema:"pristine template checkout to copy from (required)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"target project checkout (required)"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true (preview with dry-run first)"`
+	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
 }
 
 type adviseArgs struct {
-	Need   string `json:"need" jsonschema:"use-case in your words (empty lists everything)"`
-	Format string `json:"format" jsonschema:"text or json (default json for tools)"`
+	Need   string `json:"need,omitempty" jsonschema:"use-case in your words (empty lists everything)"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 }
 
 // printHelp documents tools and client wiring for humans. The tool list

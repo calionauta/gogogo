@@ -124,13 +124,17 @@ var adviseRules = []string{
 }
 
 // adviseCap is one registry capability with its installer mapping resolved.
+// Dirs/Files are the owned paths: what to copy when the target is a foreign
+// (non-scaffolded) codebase that `add` refuses.
 type adviseCap struct {
-	ID         string `json:"id"`
-	Kind       string `json:"kind"`
-	Summary    string `json:"summary"`
-	Trim       string `json:"trim"`
-	RuntimeOff string `json:"runtimeOff,omitempty"`
-	Note       string `json:"note,omitempty"`
+	ID         string   `json:"id"`
+	Kind       string   `json:"kind"`
+	Summary    string   `json:"summary"`
+	Trim       string   `json:"trim"`
+	RuntimeOff string   `json:"runtimeOff,omitempty"`
+	Note       string   `json:"note,omitempty"`
+	Dirs       []string `json:"dirs,omitempty"`
+	Files      []string `json:"files,omitempty"`
 }
 
 // adviseDoc is the full guidance document (text and JSON share it).
@@ -163,7 +167,11 @@ func buildAdvise(need string) adviseDoc {
 	}
 	doc := adviseDoc{Rules: adviseRules, FirstRun: buildNextSteps("<dir>")}
 	for _, c := range capabilities.All {
-		ac := adviseCap{ID: c.ID, Kind: string(c.Kind), Summary: c.Summary, RuntimeOff: c.RuntimeOff, Note: c.Note}
+		ac := adviseCap{
+			ID: c.ID, Kind: string(c.Kind), Summary: c.Summary,
+			RuntimeOff: c.RuntimeOff, Note: c.Note,
+			Dirs: c.Dirs, Files: c.Files,
+		}
 		if unit, ok := owners[c.ID]; ok {
 			if unitKind[unit] == capabilities.KindFeature {
 				ac.Trim = "--features " + unit
@@ -262,6 +270,10 @@ func Advise(need, format string) (string, error) {
 			fmt.Fprintf(&b, " | off: %s", c.RuntimeOff)
 		}
 		b.WriteString("\n")
+		if len(c.Dirs)+len(c.Files) > 0 {
+			fmt.Fprintf(&b, "  %-14s         copy: %s\n", "",
+				strings.Join(append(c.Dirs, c.Files...), ", "))
+		}
 	}
 	n := doc.FirstRun
 	b.WriteString("\nfirst run (defaults; PORT overrides the port):\n")

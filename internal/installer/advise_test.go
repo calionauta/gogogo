@@ -19,9 +19,10 @@ func TestAdviseJSONListsEveryCapability(t *testing.T) {
 			Name string `json:"name"`
 		} `json:"presets"`
 		Capabilities []struct {
-			ID         string `json:"id"`
-			Trim       string `json:"trim"`
-			RuntimeOff string `json:"runtimeOff"`
+			ID         string   `json:"id"`
+			Trim       string   `json:"trim"`
+			RuntimeOff string   `json:"runtimeOff"`
+			Dirs       []string `json:"dirs"`
 		} `json:"capabilities"`
 		FirstRun struct {
 			Login string `json:"login"`
@@ -55,13 +56,24 @@ func TestAdviseJSONListsEveryCapability(t *testing.T) {
 		t.Errorf("llm trim = %q, want the not-a-unit marker", trim)
 	}
 	found := false
+	wbDirs := false
 	for _, c := range doc.Capabilities {
 		if c.ID == "nats" && strings.Contains(c.RuntimeOff, "NATS_ENABLED=false") {
 			found = true
 		}
+		if c.ID == "whiteboard" {
+			for _, d := range c.Dirs {
+				if d == "features/whiteboard" {
+					wbDirs = true
+				}
+			}
+		}
 	}
 	if !found {
 		t.Error("nats capability lost its NATS_ENABLED=false off switch")
+	}
+	if !wbDirs {
+		t.Error("whiteboard advise lost its owned dirs (brownfield copy guidance)")
 	}
 }
 
