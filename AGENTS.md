@@ -26,7 +26,7 @@ Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (ripwi
 | `make test` | Race tests (`-p 1` for DagNats engine stability); discouraged locally — the remote CI runs them |
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` via datastar-lint (`-only-errors` keeps intentional custom attrs) |
-| `make css` / `make css-check` | Rebuild Tailwind/DaisyUI bundle; `css-check` compares against HEAD (used in `ci-local`) |
+| `make css` / `make css-check` | Rebuild Tailwind/DaisyUI bundle (scans `features/`, `web/`, `internal/`); `css-check` compares against HEAD (used in `ci-local`) |
 | `make css-basecoat` | Rebuild the Basecoat skin bundle (`src/css/basecoat-input.css` → `web/resources/static/basecoat.min.css`) |
 | `make css-all` | Rebuild every skin's CSS bundle (DaisyUI + Basecoat). Morpheus ships vendorized, no rebuild needed |
 | `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + **check-scope** + golangci-lint + race tests + build |
@@ -76,6 +76,8 @@ All blocking quality gates live at **git level**, managed by [lefthook](https://
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
 Agent-level hooks (pi.dev `hooks.yaml`) keep ONLY what git hooks cannot do: post-build info hints and the no-CI signoff fallback. Never re-add commit/push gates there for this repo — they would run twice.
+
+**CI scope (which push runs what).** `docs/**` and `site/**` are not part of the application, so CI, Desktop and Deploy all skip them; only `pages.yml` runs, to publish the site. The property that makes this safe is that `src/css/input.css` scans **only** `features/`, `web/` and `internal/` (`source(none)` + explicit `@source` globs) — so a landing-page edit cannot change `web/resources/static/app.min.css`, which is embedded in the binary. If you ever add a scan root, add it here too or a `site/**` push will ship a stale bundle. `deploy.yml` uses an allow-list (`paths`) rather than a deny-list so a new top-level directory cannot silently start deploying; `ci.yml`/`desktop.yml` use `paths-ignore` because the right default for a test workflow is "run unless it is documentation".
 
 **Agent rule:** When the user asks to trim the project, never delete a `removal=core` file — always ask first. Delete `removal=feature` and `removal=plugin` files freely, after reading the inline description (it lists what to delete in `router/router.go` and `cmd/web/`).
 
@@ -267,12 +269,16 @@ gate (subset of `make ci-local` without build verification). Use
   healthy — same wall clock, but local fix-ups don't propagate.
 - **Touching a class that isn't real CSS** (e.g. writing `p-1`
   in test data, JSON examples, or markdown prose) — Tailwind's
-  content scanner reads `.templ`, `.go`, and via the
-  `@import "tailwindcss" source(...)` directive, anything that
-  matches the source globs. A `class="...p-1..."` accidentally
-  emitted as a Tailwind utility creates spurious CSS in
-  `app.min.css` and fails `css-check`. Run `make css` during T2
-  for any change that might introduce class-shaped tokens.
+  content scanner reads the globs declared in `src/css/input.css`
+  (`features/`, `web/`, `internal/`; `source(none)` disables the
+  automatic root scan). A `class="...p-1..."` accidentally emitted
+  as a Tailwind utility in one of those trees creates spurious CSS in
+  `app.min.css` and fails `css-check`. Run `make css` during T2 for
+  any change that might introduce class-shaped tokens.
+  `docs/` and `site/` are outside the scan on purpose: they are not
+  application UI. `site/index.html` loads its own `styles.css` and
+  uses zero Tailwind utilities, so a landing-page edit cannot change
+  the embedded bundle — which is why CI and deploy can skip `site/**`.
 
 ## Architecture (concise)
 

@@ -2,7 +2,9 @@
 
 The AI Suggest and Queue/Retry demos are wired through
 [GoAI](https://github.com/zendev-sh/goai) and read their configuration from the
-environment (or your age-encrypted secrets file). The optional
+environment, which in local development is populated by the age-encrypted
+secrets file (`~/.secrets/<project>.env.age` — see
+[Secrets setup](getting-started.md#secrets-setup)). The optional
 [`ai-credits`](https://github.com/calionauta/ai-credits) plugin adds billing on
 top.
 

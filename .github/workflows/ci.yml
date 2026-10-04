@@ -2,11 +2,15 @@ name: CI
 on:
   push:
     branches: [master]
-    # Docs and site changes are validated by pages.yml (site-check: links +
-    # anchors) and the pre-commit hooks. They cannot break the Go build, so a
-    # full lint + race-test + build run is wasted work on every README edit.
-    # paths-ignore is right here (unlike deploy.yml's allow-list): CI should
-    # run for anything that is not documentation, including new directories.
+    # docs/ and site/ are not part of the application and cannot affect the Go
+    # build or the embedded CSS:
+    #   - docs/*.md is validated by pages.yml (site-check: links + anchors)
+    #     and the pre-commit hooks.
+    #   - site/ is the published landing page + docs generator. It loads its own
+    #     ./styles.css and uses zero Tailwind utilities, and src/css/input.css no
+    #     longer scans it (source(none) + explicit @source globs), so a landing
+    #     edit cannot change web/resources/static/app.min.css.
+    # That is what makes it safe to skip the full lint + race-test + build run.
     paths-ignore:
       - "docs/**"
       - "site/**"

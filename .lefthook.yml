@@ -26,6 +26,10 @@ pre-commit:
       run: bin/check-datastar.sh
       glob: "*.{templ,go}"
 
+    # src/css/input.css scans features/, web/ and internal/ only (source(none) +
+    # explicit @source globs), so these are the only extensions that can change
+    # the bundle. site/ is deliberately absent: the landing page has its own
+    # stylesheet and does not use the Tailwind bundle.
     - name: css-check
       run: bin/check-css.sh
       glob: "*.{templ,go,css}"

@@ -50,16 +50,19 @@ on:
   push:
     branches: [master]
     paths:
-      # Source
+      # Source. "**.go"/"**.templ" are safe (no site/ or docs/ Go code), but a
+      # bare "**.css" would also match site/styles.css — the landing page's own
+      # stylesheet, which is not embedded in the binary — and trigger a
+      # production restart for a landing edit. CSS is enumerated per directory
+      # instead.
       - "**.go"
       - "**.templ"
-      - "**.css"
       - "go.mod"
       - "go.sum"
       - "package.json"
       - "package-lock.json"
-      # Trees that ship in the binary or its build
       - "src/css/**"
+      - "web/**/*.css"
       - "web/**"
       - "db/**"
       - "config/**"

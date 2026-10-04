@@ -130,21 +130,76 @@ onboarding — follows this exact shape.
 
 ## Secrets setup
 
-Secrets live in `~/.secrets/<service>.env`, mode 600, decrypted at boot with
-[age](https://age-encryption.org). The Todo example wires an
-`ADMIN_UNLOCK_TOKEN` master-password path end-to-end.
+Secrets are read from the environment. For local development there is a helper
+that keeps them encrypted at rest with [age](https://age-encryption.org) and
+decrypts them into the process environment at boot. **Production does not use
+age** — see [Production](#production-secrets-come-from-github) below.
+
+### Two files, two roles
+
+The helper writes two files in `~/.secrets/`. They are not interchangeable, and
+only one of them is read by the app:
+
+| File | Mode | Role |
+|------|------|------|
+| `<project>.env.age` | 600 | **Encrypted. This is the file the app reads at boot.** |
+| `<project>.env` | 600 | Plaintext working copy. Source for `--reencrypt`. Not read by the app. |
+| `key.txt` | 600 | The age identity (secret key). Never committed. |
+
+The directory itself is mode 700.
 
 ```bash
 bin/init-secrets
-# Generates ~/.secrets/key.txt (mode 600), writes a template at
-# ~/.secrets/<project>.env, and encrypts it to <project>.env.age — the file
-# the app reads at boot. Then add the printed export to your shell profile:
+# Generates ~/.secrets/key.txt, writes a template at ~/.secrets/<project>.env,
+# and encrypts it to <project>.env.age. Then add the printed export to your
+# shell profile:
 export AGE_SECRET_KEY=AGE-SECRET-KEY-1...
 ```
 
-After editing `<project>.env`, re-encrypt with `bin/init-secrets --reencrypt`.
-The script needs the `age` CLI, or Go (it falls back to `scripts/agehelper`,
-which uses the same `filippo.io/age` library the app already depends on).
+Edit `<project>.env`, then re-encrypt:
+
+```bash
+bin/init-secrets --reencrypt
+```
+
+`secrets.Load()` runs from `config.Load()`, before anything else reads the
+environment: it decrypts `<project>.env.age`, parses `KEY=value` lines, and
+re-exports them with `os.Setenv` so the rest of the app sees them via
+`os.Getenv`. The project name must match what the app derives from `APP_NAME`
+(or the binary name) — otherwise it looks for a different file and boots with no
+secrets.
+
+> **The plaintext trade-off.** Keeping `<project>.env` in plaintext is what makes
+> `--reencrypt` possible without an editor that understands the encrypted
+> format. It is protected by mode 600 inside a mode 700 directory, and it never
+> goes to git (`.gitignore` covers `.env`). If you would rather never have
+> plaintext on disk, delete the working copy after encrypting and edit by
+> decrypting to a temp file — or use
+> [SOPS](https://github.com/getsops/sops), which edits the encrypted file
+> in place. SOPS is deliberately not a dependency here: it is a large module
+> and its `dotenv` store has known round-trip bugs with multi-line values
+> ([#965](https://github.com/getsops/sops/issues/965),
+> [#1435](https://github.com/getsops/sops/issues/1435)).
+
+`bin/init-secrets` uses the `age` CLI when installed, and otherwise falls back to
+`scripts/agehelper`, which uses the same `filippo.io/age` library the app
+already depends on — so Go alone is enough.
+
+### Production: secrets come from GitHub
+
+**age is a local-development mechanism only.** In production the secrets file is
+rendered on every deploy from GitHub Actions secrets and consumed by the
+container through Compose's `env_file` — the encrypted file is not involved.
+
+```
+GitHub Actions secrets
+  → written to /home/deploy/services/<app>/secrets/<app>.env (mode 600, umask 077)
+  → read by the container via deploy/docker-compose.prod.yml: env_file
+```
+
+So there is no age key to manage on the server, and nothing to rotate there: the
+runner is the vault. `AGE_SECRET_KEY` is only needed on a machine doing local
+development.
 
 Full env-var reference in [Configuration](configuration.md).
 

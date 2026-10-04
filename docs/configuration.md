@@ -5,8 +5,12 @@ Every environment variable and runtime constant lives in one place:
 
 ## Environment variables
 
-Secrets can come from the environment directly, or from an age-encrypted file
-in `~/.secrets/`. See [Getting started](getting-started.md#secrets-setup).
+Secrets can come from the environment directly, or — for local development —
+from an age-encrypted file in `~/.secrets/` decrypted into the process
+environment at boot. Production does not use age: the secrets file is rendered
+from GitHub Actions secrets on every deploy. Full explanation, including the
+two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
+[Getting started → Secrets setup](getting-started.md#secrets-setup).
 
 ### Core
 
