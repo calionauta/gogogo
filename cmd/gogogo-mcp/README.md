@@ -28,6 +28,7 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | Tool | Params | Effect |
 |---|---|---|
 | `capabilities_list` | — | Full registry JSON (start here) |
+| `advise_stack` | `need?`, `format?` | Opinions, not changes: use-case → keep/drop + off switches + Go/Zig rule |
 | `trim_plan` | `name`, `owner?`, `dir?`, `plugins?`, `features?`, `format?` | Validates ids, shows consequences. Changes nothing |
 | `trim_apply` | trim_plan params + `confirm: true` | Rename + trim + tidy + build proof. Refuses without `confirm:true` |
 | `check_tree` | `dir` | `CHECK-OK`/`CHECK-FAIL` drift verdict, changes nothing |

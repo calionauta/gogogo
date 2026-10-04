@@ -52,8 +52,8 @@ func unitOneLiner(u trimUnit) string {
 }
 
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
-	if len(args) > 0 && args[0] == "add" {
-		return runAdd(ctx, args[1:], stdin, stdout)
+	if handled, err := runSubcommand(ctx, args, stdin, stdout); handled {
+		return err
 	}
 	opt, _, err := loadOptions(args, stdin, stdout)
 	if err != nil {
@@ -97,6 +97,21 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		return applyAndProveJSON(ctx, opt, drop, stdout, plan)
 	}
 	return applyAndProve(ctx, opt, drop, stdout)
+}
+
+// runSubcommand dispatches the mutating/guiding subcommands, keeping Run's
+// own complexity under the gocyclo gate. It reports whether argv named one.
+func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) (bool, error) {
+	if len(args) == 0 {
+		return false, nil
+	}
+	switch args[0] {
+	case "add":
+		return true, runAdd(ctx, args[1:], stdin, stdout)
+	case "advise":
+		return true, runAdvise(args[1:], stdout)
+	}
+	return false, nil
 }
 
 // loadOptions parses flags, runs the interactive form when needed, and
@@ -184,8 +199,45 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := prove(ctx, opt.dir, drop, stdout); err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, "gogogo: done — open the checkout and run `make dev`")
+	printNextSteps(stdout, opt.dir)
 	return nil
+}
+
+// nextSteps is the printed + machine-readable handoff after a successful
+// scaffold. The installer runs from an ephemeral `go run @latest` module,
+// so it cannot own the new project's dev loop (Air, ports, browser) —
+// instead it ends with the exact commands. PORT is the scaffolded app's
+// default; the binary reads it at boot.
+type nextSteps struct {
+	Dir   string `json:"dir"`
+	Dev   string `json:"dev"`
+	App   string `json:"app"`
+	Todo  string `json:"todo"`
+	Login string `json:"login"`
+	Admin string `json:"admin"`
+	Flows string `json:"workflows"`
+}
+
+func buildNextSteps(dir string) nextSteps {
+	return nextSteps{
+		Dir:   dir,
+		Dev:   "cd " + dir + " && make dev",
+		App:   "http://localhost:8080 (PORT overrides)",
+		Todo:  "http://localhost:8080/todo",
+		Login: "demo@demo.app / demo1234456 (prefilled on the sign-in form)",
+		Admin: "http://localhost:8080/_/ (PocketBase — create the superuser on first visit)",
+		Flows: "http://localhost:8080/dagnats/ (DagNats console)",
+	}
+}
+
+func printNextSteps(w io.Writer, dir string) {
+	n := buildNextSteps(dir)
+	fmt.Fprintln(w, "gogogo: done — next:")
+	fmt.Fprintf(w, "  %s\n", n.Dev)
+	fmt.Fprintf(w, "  app:       %s\n", n.App)
+	fmt.Fprintf(w, "  login:     %s\n", n.Login)
+	fmt.Fprintf(w, "  admin:     %s\n", n.Admin)
+	fmt.Fprintf(w, "  workflows: %s\n", n.Flows)
 }
 
 // applyAndProveJSON is the machine-readable apply path: one envelope at
@@ -209,7 +261,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	}
 	defer func() { _ = devNull.Close() }()
 	proveErr := prove(ctx, opt.dir, drop, devNull)
-	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil}
+	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir)}
 	if proveErr != nil {
 		env.BuildErr = proveErr.Error()
 	}
@@ -331,13 +383,13 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo --check --dir ./my-app
 
-  Add a unit to an existing checkout (deps cascade automatically):
+  Add a unit to an existing scaffolded checkout (deps cascade automatically):
 
     go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
 
-  Add a unit to an existing checkout (evolve, not just scaffold):
+  Opinions, not changes (for LLMs deciding what to use — reads nothing, changes nothing):
 
-    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
+    go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
 
   What it does, in order:
     1. shows the trim plan with every consequence (never silent),
@@ -367,6 +419,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Agent contract: --format json emits stable field names.
   --dry-run prints the plan; apply prints one envelope
   {plan, receipt{units[{id, dirsRemoved, filesRemoved,
-  stripsApplied, stripsMissed}]}, buildOk, buildError}.
+  stripsApplied, stripsMissed}]}, buildOk, buildError,
+  next{dir, dev, app, todo, login, admin, workflows}}.
   Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed.`)
 }

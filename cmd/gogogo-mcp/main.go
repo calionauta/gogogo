@@ -27,6 +27,10 @@ import (
 
 const version = "v0.1.0"
 
+// defaultFormat is the tool transport default: machines get JSON,
+// humans get text on the CLI.
+const defaultFormat = "json"
+
 func main() {
 	showHelp := flag.Bool("help", false, "print tools and client config, then exit")
 	flag.Parse()
@@ -65,6 +69,11 @@ func buildServer() *mcp.Server {
 		Name:        "add_unit",
 		Description: "Add one template unit to a checkout (deps, rebase, proof). Requires confirm:true.",
 	}, handleAddUnit)
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "advise_stack",
+		Description: "Opinions, not changes: which units to keep for a use-case " +
+			"and how each switches off. Start here when deciding.",
+	}, handleAdvise)
 	return server
 }
 
@@ -93,12 +102,17 @@ type addArgs struct {
 	DryRun  bool   `json:"dryRun" jsonschema:"print the plan and stop when true"`
 }
 
+type adviseArgs struct {
+	Need   string `json:"need" jsonschema:"use-case in your words (empty lists everything)"`
+	Format string `json:"format" jsonschema:"text or json (default json for tools)"`
+}
+
 // printHelp documents tools and client wiring for humans.
 func printHelp(w *os.File) {
 	fmt.Fprintln(w, `gogogo-mcp — gogogo installer as MCP tools (stdio).
 
-Tools: capabilities_list, trim_plan, trim_apply, add_unit, check_tree.
-Destructive tools require confirm:true (preview first).
+Tools: capabilities_list, trim_plan, trim_apply, add_unit, check_tree, advise_stack.
+Destructive tools require confirm:true (preview first). advise_stack changes nothing.
 
 Claude Code / Cursor / BB client config:
   {"mcpServers": {"gogogo": {"command": "/path/to/gogogo-mcp"}}}
@@ -135,7 +149,7 @@ func trimCLIArgs(a trimArgs, extra ...string) []string {
 	}
 	format := a.Format
 	if format == "" {
-		format = "json"
+		format = defaultFormat
 	}
 	args = append(args, "--format", format, "--no-tui")
 	return append(args, extra...)
@@ -179,7 +193,7 @@ func handleAddUnit(
 	}
 	format := args.Format
 	if format == "" {
-		format = "json"
+		format = defaultFormat
 	}
 	cli := []string{"add", args.Unit, "--from", args.From, "--dir", args.Dir, "--format", format, "--no-tui"}
 	if args.DryRun {
@@ -193,6 +207,20 @@ func handleAddUnit(
 	var buf bytes.Buffer
 	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
+}
+
+func handleAdvise(
+	_ context.Context, _ *mcp.CallToolRequest, args adviseArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	out, err := installer.Advise(args.Need, format)
+	if err != nil {
+		return nil, nil, err
+	}
+	return textResult(out), nil, nil
 }
 
 // runResult maps installer outcomes to tool results: exit-2 proof failures

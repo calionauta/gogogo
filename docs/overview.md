@@ -67,7 +67,7 @@ full dependency picture.
 
 A running deployment of this exact template is live at
 **[gogogo.calionauta.com](https://gogogo.calionauta.com/)** — log in with the
-seeded demo account (`demo@demo.app` / `demo`). The PocketBase admin dashboard
+seeded demo account (`demo@demo.app` / `demo1234456`). The PocketBase admin dashboard
 is at [`/_/`](https://gogogo.calionauta.com/_/) and the DagNats workflow console
 at [`/dagnats/`](https://gogogo.calionauta.com/dagnats/). What each surface
 gives you: [Admin & Dashboard](admin-dashboard.md).

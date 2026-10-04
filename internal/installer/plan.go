@@ -133,6 +133,7 @@ type envelope struct {
 	Receipt  Receipt      `json:"receipt"`
 	BuildOk  bool         `json:"buildOk"`
 	BuildErr string       `json:"buildError,omitempty"`
+	Next     nextSteps    `json:"next"`
 }
 
 func printEnvelopeJSON(w io.Writer, e envelope) error {

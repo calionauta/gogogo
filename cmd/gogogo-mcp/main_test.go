@@ -73,9 +73,29 @@ func TestCheckTreeRequiresDir(t *testing.T) {
 	}
 }
 
-func TestProtocolListsFiveTools(t *testing.T) {
+func TestAdviseStackNeedsNothing(t *testing.T) {
+	// The guidance tool is read-only: no dir, no confirm, no changes.
+	res, _, err := handleAdvise(context.Background(), nil, adviseArgs{Need: "offline airplane mode"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := toolText(t, res)
+	var doc struct {
+		Presets []struct {
+			Name string `json:"name"`
+		} `json:"presets"`
+	}
+	if err := json.Unmarshal([]byte(text), &doc); err != nil {
+		t.Fatalf("advise_stack is not valid JSON: %v", err)
+	}
+	if len(doc.Presets) == 0 || doc.Presets[0].Name != "offline-first" {
+		t.Errorf("offline need did not surface offline-first: %v", doc.Presets)
+	}
+}
+
+func TestProtocolListsSixTools(t *testing.T) {
 	// End-to-end over in-memory transports: the served surface is
-	// exactly five tools, callable through the MCP protocol.
+	// exactly six tools, callable through the MCP protocol.
 	ctx := context.Background()
 	server := buildServer()
 	clientTrans, serverTrans := mcp.NewInMemoryTransports()
@@ -94,12 +114,12 @@ func TestProtocolListsFiveTools(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 5 {
+	if len(res.Tools) != 6 {
 		names := []string{}
 		for _, tool := range res.Tools {
 			names = append(names, tool.Name)
 		}
-		t.Fatalf("want 5 tools, got %d: %v", len(res.Tools), names)
+		t.Fatalf("want 6 tools, got %d: %v", len(res.Tools), names)
 	}
 	call, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "capabilities_list"})
 	if err != nil {
