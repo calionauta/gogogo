@@ -72,7 +72,9 @@ func buildServer() *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "advise_stack",
 		Description: "Opinions, not changes: which units to keep for a use-case " +
-			"and how each switches off. Start here when deciding.",
+			"and how each switches off. Empty need returns the full map; " +
+			"no preset matched means decide from the capabilities table " +
+			"or retry with broader terms. Start here when deciding.",
 	}, handleAdvise)
 	return server
 }

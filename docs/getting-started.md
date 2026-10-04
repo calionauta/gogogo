@@ -91,6 +91,14 @@ rules (Go-first with the profiled-kernel Zig exception, runtime switches
 before trim, upstream-first). The MCP server exposes the same document as
 `advise_stack` — agents deciding what to use start there, not at `trim_plan`.
 
+Strategy for LLMs: empty `--need` returns the full map (cheapest correct
+first call — the document is small). A filtered call that matches nothing
+is not a dead end: the capabilities table is always complete, so decide
+from it or retry with broader terms. Keyword matching is deliberately
+dumb (exact or ≥4-char prefix) — phrase the need with template vocabulary
+(`whiteboard`, `dagnats`, `offline`, `credits`) when a first attempt
+misses. Then preview with `trim_plan --dry-run` before any `trim_apply`.
+
 ## 0c. Adding to an existing project
 
 Two cases, sharply different:

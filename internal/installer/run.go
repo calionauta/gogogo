@@ -391,6 +391,10 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
 
+  Strategy: empty --need returns the full map (presets + every
+  capability); a need that matches nothing prints the preset names to
+  retry with — or decide straight from the capabilities table.
+
   What it does, in order:
     1. shows the trim plan with every consequence (never silent),
     2. deletes skipped plugins/features with their wiring calls,
