@@ -66,8 +66,14 @@ pre code { background: none; padding: 0; color: inherit; font-size: 14px; }
   border-bottom: 1px solid var(--line);
 }
 
-.brand { display: block; line-height: 0; }
-.brand img { width: 120px; height: auto; display: block; }
+.brand {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1;
+}
 
 .links {
   display: flex;
