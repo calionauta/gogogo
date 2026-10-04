@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 
@@ -14,18 +15,22 @@ import (
 
 // advisePreset is one use-case → stack opinion. Keep/Drop name installer
 // unit ids (or core/runtime markers an LLM should not try to trim);
-// Note carries the one line that saves a wrong decision.
+// Note carries the one line that saves a wrong decision. Idea is the
+// portable mechanism for non-Go codebases (same preset, pattern only).
 type advisePreset struct {
 	Name  string   `json:"name"`
 	Match []string `json:"-"`
 	Keep  []string `json:"keep"`
 	Drop  []string `json:"drop,omitempty"`
 	Note  string   `json:"note"`
+	Idea  string   `json:"idea"`
+	Copy  []string `json:"copy,omitempty"`
 }
 
 var advisePresets = []advisePreset{
 	{
 		Name: "realtime-collab",
+		Idea: "presence plus shared state over a persistent connection, converged with a CRDT",
 		Match: []string{
 			"realtime", "collaborat", "canvas", unitWhiteboard,
 			"presence", "cursor", "multi-user", "multiplayer", "shared",
@@ -37,6 +42,7 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name: "background-jobs",
+		Idea: "durable queue with retry and backoff; progress streamed to the originator",
 		Match: []string{
 			"background", "job", "queue", "async", "email",
 			"export", "retry", "worker", "cron", "scheduled",
@@ -47,6 +53,7 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name: "durable-workflows",
+		Idea: "event-sourced steps with replay; every step idempotent",
 		Match: []string{
 			"workflow", "durable", "saga", "onboarding",
 			unitDagnats, "steps", "orchestrat",
@@ -57,6 +64,7 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name: "offline-first",
+		Idea: "local-first writes queued in an outbox, replayed with idempotency keys",
 		Match: []string{
 			"offline", "flaky", "airplane", "outbox", "sync",
 			"reconnect", "pwa",
@@ -71,6 +79,7 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name: "ai-features",
+		Idea: "async LLM calls off the request path; usage metered per key",
 		Match: []string{
 			"ai", "llm", "suggest", "chatbot", "agent", "byok",
 			unitCredits, "openai", "anthropic",
@@ -82,18 +91,21 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name:  "admin-inspect",
+		Idea:  "read-only env and data views behind auth",
 		Match: []string{"admin", "config", "inspect", "dashboard", "observab"},
 		Keep:  []string{unitConfigView},
 		Note:  "Surfaces: /config (auth-gated env view), /_/ (PocketBase admin), /dagnats/ (workflow console).",
 	},
 	{
 		Name:  "marketing-site",
+		Idea:  "static public pages, no auth, no app state",
 		Match: []string{unitLanding, "marketing", "homepage", "site", "hero"},
 		Keep:  []string{unitLanding},
 		Note:  "Public GET / with no auth. Brand lives here; /todo is the app behind it.",
 	},
 	{
 		Name:  "quiet-api",
+		Idea:  "delete the demo surfaces; keep auth, queue, router",
 		Match: []string{"api", "headless", "backend", "minimal", "embed", "library"},
 		Keep:  []string{"(core only — auth middleware, queue, router)"},
 		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitSkinsExtra},
@@ -101,6 +113,7 @@ var advisePresets = []advisePreset{
 	},
 	{
 		Name:  "sound-feedback",
+		Idea:  "tiny client-side cues with mute and reduced-motion respect",
 		Match: []string{"sound", "audio", "feedback", "cue", "toggle"},
 		Keep:  []string{unitSounds},
 		Note:  "Zero-test client-side plugin; removal checklist is in its SCOPE doc. Mute toggle + reduced-motion included.",
@@ -139,10 +152,104 @@ type adviseCap struct {
 
 // adviseDoc is the full guidance document (text and JSON share it).
 type adviseDoc struct {
+	Scope        string         `json:"scope"`
+	Stack        string         `json:"stack,omitempty"`
 	Rules        []string       `json:"rules"`
 	Presets      []advisePreset `json:"presets"`
-	Capabilities []adviseCap    `json:"capabilities"`
-	FirstRun     nextSteps      `json:"firstRun"`
+	Capabilities []adviseCap    `json:"capabilities,omitempty"`
+	FirstRun     *nextSteps     `json:"firstRun,omitempty"`
+}
+
+// foreignRules replace the template rules when the need names a non-Go
+// stack: nothing here installs there, so trim mechanics stay silent.
+var foreignRules = []string{
+	"Copy the pattern, not the code: owned dirs below are the reference " +
+		"implementation to read, not packages to install.",
+	"This tool does not track other ecosystems — check their docs for " +
+		"the managed option before building it yourself.",
+}
+
+// Stack labels shared between the dotted and whole-word maps (one
+// spelling per ecosystem: goconst-quiet by construction).
+const (
+	stackNode     = "Node.js"
+	stackPython   = "Python"
+	stackRust     = "Rust"
+	scopePatterns = "patterns"
+	scopeTemplate = "template"
+)
+
+// foreignStack maps dotted-first signals (split away by word tokenizing)
+// to ecosystem labels. A Go mention anywhere wins (see detectStack):
+// mixed codebases get template advice for the Go side.
+var foreignDotted = map[string]string{
+	"next.js": "Next.js",
+	"node.js": stackNode,
+	"vue.js":  "Vue",
+}
+
+// foreignWords maps whole-word signals to ecosystem labels. Short words
+// stay exact-only via the shared prefix rule (airplane/ai precedent);
+// "java" is deliberately absent (javascript false-positives) — spring
+// and kotlin carry the JVM signal instead.
+var foreignWords = map[string]string{
+	"nextjs": "Next.js", "react": "React", "remix": "React",
+	"vue": "Vue", "nuxt": "Vue", "svelte": "Svelte", "sveltekit": "Svelte",
+	"astro": "Astro", "angular": "Angular", "node": stackNode,
+	"nodejs": stackNode, "express": stackNode, "fastify": stackNode,
+	"nestjs": stackNode, "hono": stackNode, "bun": "Bun", "deno": "Deno",
+	"typescript": "TypeScript", "javascript": "JavaScript",
+	"python": stackPython, "django": stackPython, "flask": stackPython,
+	"fastapi": stackPython, "streamlit": stackPython,
+	"rust": stackRust, "axum": stackRust, "actix": stackRust, "tauri": stackRust,
+	"ruby": "Ruby", "rails": "Ruby", "php": "PHP", "laravel": "PHP",
+	"spring": "Java/Kotlin", "kotlin": "Java/Kotlin",
+	"flutter": "Flutter", "dart": "Flutter", "dotnet": "C#/.NET",
+	"csharp": "C#/.NET",
+}
+
+// goSignals keep template-scoped answers when the need names Go anywhere
+// ("Go API serving a Next.js frontend" is still a Go backend question).
+var goSignals = []string{
+	"go", "golang", "templ", "gogogo", "gin", "fiber",
+	"pocketbase", "dagnats", "goqite",
+}
+
+// needWords tokenizes a need the same way preset matching does.
+func needWords(need string) []string {
+	return strings.FieldsFunc(strings.ToLower(need), func(r rune) bool {
+		return r < 'a' || r > 'z'
+	})
+}
+
+// detectStack names a non-Go ecosystem when the need signals one without
+// any Go signal. Empty means template scope (Go or unknown: advise owns it).
+func detectStack(need string) string {
+	lowered := strings.ToLower(need)
+	words := needWords(need)
+	inWords := func(kw string) bool {
+		for _, w := range words {
+			if w == kw || (len(kw) >= 4 && strings.HasPrefix(w, kw)) ||
+				(len(w) >= 4 && strings.HasPrefix(kw, w)) {
+				return true
+			}
+		}
+		return false
+	}
+	if slices.ContainsFunc(goSignals, inWords) {
+		return ""
+	}
+	for dotted, label := range foreignDotted {
+		if strings.Contains(lowered, dotted) {
+			return label
+		}
+	}
+	for kw, label := range foreignWords {
+		if inWords(kw) {
+			return label
+		}
+	}
+	return ""
 }
 
 // capUnit inverts unitCaps: capability id → owning installer unit.
@@ -156,16 +263,71 @@ func capUnit() map[string]string {
 	return out
 }
 
+// presetCopyDirs resolves a preset's Keep entries to owned repo paths:
+// unit ids expand to their capabilities' dirs+files (sorted, deduped),
+// core/runtime markers contribute nothing (no code to copy).
+func presetCopyDirs(p advisePreset) []string {
+	byUnit := map[string]trimUnit{}
+	for _, u := range manifestUnits {
+		byUnit[u.id] = u
+	}
+	byID := capabilities.ByID()
+	seen := map[string]bool{}
+	var out []string
+	add := func(paths ...string) {
+		for _, d := range paths {
+			if !seen[d] {
+				seen[d] = true
+				out = append(out, d)
+			}
+		}
+	}
+	for _, keep := range p.Keep {
+		u, ok := byUnit[keep]
+		if !ok {
+			continue
+		}
+		for _, id := range u.caps() {
+			if c, ok := byID[id]; ok {
+				add(c.Dirs...)
+				add(c.Files...)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // buildAdvise resolves the registry into guidance, filtering presets by
 // need (empty need returns every preset, most useful first is meaningless
-// without a query — manifest order wins).
+// without a query — manifest order wins). A non-Go stack switches the
+// scope to patterns: no trim mechanics, no capability table, owned paths
+// as copy reference.
 func buildAdvise(need string) adviseDoc {
 	owners := capUnit()
 	unitKind := map[string]capabilities.Kind{}
 	for _, u := range manifestUnits {
 		unitKind[u.id] = u.meta().kind
 	}
-	doc := adviseDoc{Rules: adviseRules, FirstRun: buildNextSteps("<dir>")}
+	matched := matchPresets(need)
+	// Annotate copies, never the shared registry: matchPresets returns
+	// the global slice for empty needs.
+	annotated := make([]advisePreset, len(matched))
+	for i := range matched {
+		annotated[i] = matched[i]
+		annotated[i].Copy = presetCopyDirs(matched[i])
+	}
+	matched = annotated
+	if stack := detectStack(need); stack != "" {
+		return adviseDoc{
+			Scope: scopePatterns, Stack: stack,
+			Rules: foreignRules, Presets: matched,
+		}
+	}
+	doc := adviseDoc{
+		Scope: scopeTemplate, Rules: adviseRules,
+		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>"); return &n }(),
+	}
 	for _, c := range capabilities.All {
 		ac := adviseCap{
 			ID: c.ID, Kind: string(c.Kind), Summary: c.Summary,
@@ -227,6 +389,32 @@ func matchPresets(need string) []advisePreset {
 	return presets
 }
 
+// renderForeign is the patterns-scope text: no trim mechanics, no
+// capability table — the portable idea plus copy reference per preset.
+// Split out so Advise stays under the gocyclo gate.
+func renderForeign(doc adviseDoc) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "stack detected: %s — advise knows the gogogo (Go) "+
+		"template only.\nUnits below are NOT installable here; take the "+
+		"pattern, copy the idea.\n\n", doc.Stack)
+	b.WriteString("rules:\n")
+	for _, r := range doc.Rules {
+		fmt.Fprintf(&b, "  - %s\n", r)
+	}
+	b.WriteString("\npresets (use-case → portable pattern + reference paths):\n")
+	if len(doc.Presets) == 0 {
+		b.WriteString("  no preset matched — describe the use-case with " +
+			"plain verbs (realtime, jobs, offline, AI).\n")
+	}
+	for _, p := range doc.Presets {
+		fmt.Fprintf(&b, "  %s: %s\n", p.Name, p.Idea)
+		if len(p.Copy) > 0 {
+			fmt.Fprintf(&b, "    reference: %s\n", strings.Join(p.Copy, ", "))
+		}
+	}
+	return b.String()
+}
+
 // Advise renders guidance for need in text|json. Pure: reads the registry,
 // touches nothing. LLMs call this when they want opinions, not changes.
 func Advise(need, format string) (string, error) {
@@ -243,6 +431,9 @@ func Advise(need, format string) (string, error) {
 	}
 	var b strings.Builder
 	b.WriteString("gogogo advise — opinions, not changes (nothing was installed):\n\n")
+	if doc.Scope == scopePatterns {
+		return renderForeign(doc), nil
+	}
 	b.WriteString("rules:\n")
 	for _, r := range doc.Rules {
 		fmt.Fprintf(&b, "  - %s\n", r)
