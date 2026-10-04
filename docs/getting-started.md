@@ -14,6 +14,8 @@ cd my-app && make dev
 
 No checkout needed: when the directory is missing the installer clones
 the template into it first (asks, or `--yes` to proceed unattended).
+No Go on this machine? Use the [binary release](../README.md#cli--mcp-agent-paths)
+instead of `go run` — same installer, no toolchain needed to run it.
 What it asks (4 questions):
 
 1. **Project name** (`my-app`) — validates like `make rename` does.

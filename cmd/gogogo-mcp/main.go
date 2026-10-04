@@ -25,7 +25,9 @@ import (
 	"github.com/calionauta/gogogo/internal/installer"
 )
 
-const version = "v0.1.0"
+// version is the release tag. Set via -ldflags -X main.version=...;
+// plain `go build` leaves the dev default.
+var version = "dev"
 
 // defaultFormat is the tool transport default: machines get JSON,
 // humans get text on the CLI.

@@ -43,6 +43,11 @@ func ExitCode(err error) int {
 	return 1
 }
 
+// Version is the release tag (v-prefixed). Set via -ldflags:
+// -X github.com/calionauta/gogogo/internal/installer.Version=...
+// Plain `go build` leaves the dev default.
+var Version = "dev"
+
 func unitOneLiner(u trimUnit) string {
 	byID := capabilities.ByID()
 	if c, ok := byID[u.caps()[0]]; ok {
@@ -52,6 +57,10 @@ func unitOneLiner(u trimUnit) string {
 }
 
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
+	if len(args) > 0 && (args[0] == "--version" || args[0] == "-version" || args[0] == "version") {
+		fmt.Fprintln(stdout, "gogogo "+Version)
+		return nil
+	}
 	if handled, err := runSubcommand(ctx, args, stdin, stdout); handled {
 		return err
 	}
@@ -63,16 +72,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	drop := planTrim(keep)
 	plan := buildPlan(opt.name, opt.owner, opt.dir, keep, drop, opt.dryRun)
 	if opt.check {
-		if err := requireCheckoutDir(opt); err != nil {
-			return err
-		}
-		if failed := printCheck(stdout, checkTree(opt.dir)); failed > 0 {
-			return &ExitError{code: 1, msg: fmt.Sprintf(
-				"%d unit(s) cannot apply cleanly here — manifest drift "+
-					"or already-trimmed tree (see CHECK-FAIL lines above)", failed)}
-		}
-		fmt.Fprintln(stdout, "gogogo: check OK — every unit applies cleanly here")
-		return nil
+		return runCheck(opt, stdout)
 	}
 	if opt.format == planFormatJSON {
 		if opt.dryRun {
@@ -86,6 +86,28 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			return nil
 		}
 	}
+	return runApply(ctx, opt, drop, plan, stdin, stdout)
+}
+
+// runCheck is the read-only drift gate: strict dir, no mutation, no tools.
+func runCheck(opt options, stdout io.Writer) error {
+	if err := requireCheckoutDir(opt); err != nil {
+		return err
+	}
+	if failed := printCheck(stdout, checkTree(opt.dir)); failed > 0 {
+		return &ExitError{code: 1, msg: fmt.Sprintf(
+			"%d unit(s) cannot apply cleanly here — manifest drift "+
+				"or already-trimmed tree (see CHECK-FAIL lines above)", failed)}
+	}
+	fmt.Fprintln(stdout, "gogogo: check OK — every unit applies cleanly here")
+	return nil
+}
+
+// runApply is the mutating tail: preflight, clone-if-missing, confirm,
+// then trim + prove. Separated so Run stays under the gocyclo gate.
+func runApply(ctx context.Context, opt options, drop []trimUnit,
+	plan scaffoldPlan, stdin io.Reader, stdout io.Writer,
+) error {
 	if err := preflight(ctx, stdout, true, true); err != nil {
 		return err
 	}
@@ -410,7 +432,7 @@ func Units() []UnitView {
 }
 
 func PrintUsage(w io.Writer, fs *flag.FlagSet) {
-	fmt.Fprintln(w, `gogogo — scaffold a project from gogogo.
+	fmt.Fprintln(w, `gogogo `+Version+` — scaffold a project from gogogo.
 
   Interactive (humans: 4 questions, then a plan to confirm):
 
