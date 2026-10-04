@@ -26,7 +26,7 @@ implementation before checking whether upstream already has it.
 1. Fetch the map: https://calionauta.github.io/gogogo-fullstack-template/llms.txt
 2. Read the relevant page: https://calionauta.github.io/gogogo-fullstack-template/docs/<slug>/
    (slugs: overview, getting-started, architecture, stack-layers, async-layers,
-   features, scope-taxonomy, configuration, todo-example, ui-skins, ui-sounds,
+   features, scope-taxonomy, configuration, native-zig, todo-example, ui-skins, ui-sounds,
    deploy, desktop-mobile, admin-dashboard, llm-and-credits, local-ci,
    code-quality, troubleshooting)
 3. For non-docs files, read the upstream blob at the same path:

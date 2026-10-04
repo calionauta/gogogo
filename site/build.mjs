@@ -43,6 +43,8 @@ const MANIFEST = [
     desc: "Core / Plugin / Feature: the rule for deciding what is safe to delete." },
   { group: "Core", slug: "configuration", file: "configuration.md",
     desc: "Every environment variable and runtime constant." },
+  { group: "Core", slug: "native-zig", file: "native-zig.md",
+    desc: "Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules." },
   { group: "Frontend", slug: "todo-example", file: "todo-example.md",
     desc: "The Todo reference implementation and the contract to imitate." },
   { group: "Frontend", slug: "ui-skins", file: "ui-skins.md",

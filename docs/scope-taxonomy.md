@@ -128,3 +128,4 @@ the usual culprit.
 
 - [Architecture](architecture.md)
 - [Features](features.md)
+- [Native boundary](native-zig.md) — why `native` is an implementation boundary, not a fourth layer.

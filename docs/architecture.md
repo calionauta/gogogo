@@ -107,8 +107,16 @@ and the lefthook pre-commit runs it whenever staged files match
 
 See [Scope taxonomy](scope-taxonomy.md) for the full rules.
 
+> **Native boundary (not a layer).** `native` is a reserved implementation
+> boundary, not a fourth SCOPE value. There is no Zig code or toolchain in
+> this repo. If a justified case ever arrives, the Go API lives in its normal
+> package with the usual SCOPE and Zig sources stay inside it behind a small
+> C ABI — see [Native boundary](native-zig.md). Do not create a top-level
+> `native/` directory speculatively.
+
 ## Related
 
 - [Stack in layers, not silos](stack-layers.md) — what each dependency is for.
 - [Six async layers](async-layers.md) — the realtime and async topology.
 - [Configuration](configuration.md) — where constants live and why.
+- [Native boundary](native-zig.md) — Go-first policy and the Zig escape hatch.
