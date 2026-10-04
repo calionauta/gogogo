@@ -187,15 +187,14 @@ It is the only command you need on day one.
 
 ## Prerequisites
 
-- **curl + git** — the only hard requirements. Everything else the
-  installer brings or verifies.
-- **Go** — any release ≥ 1.21 (newer toolchains download themselves via
-  `GOTOOLCHAIN=auto`). Missing entirely? `install.sh` bootstraps a
-  user-space toolchain (`~/.local/go`, no sudo, existing installs
-  untouched) — or install from https://go.dev/dl/.
+- **Via `go run` (above): Go + git.** Any Go ≥ 1.21 — newer toolchains
+  download themselves (`GOTOOLCHAIN=auto`).
+- **Via binary (`install.sh`): curl + git.** The script bootstraps a
+  user-space Go toolchain (`~/.local/go`, no sudo, existing installs
+  untouched) when none is found — or install from https://go.dev/dl/.
 
-The installer verifies tools before touching anything and fails fast with
-the exact install command when something is missing. `make setup` (optional
+Either way the installer verifies tools before touching anything and fails
+fast with the exact install command when something is missing. `make setup` (optional
 but recommended) — activates the lefthook git hooks so
 formatting, lint, and the CSS staleness check run on every commit. Requires
 `go install github.com/evilmartians/lefthook@latest`.

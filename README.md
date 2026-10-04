@@ -95,8 +95,9 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 # make dev                         # run
 ```
 
-curl + git are the only hard requirements — the installer brings (or
-verifies) everything else, Go toolchain included. Open `http://localhost:8080`
+This command needs Go and git (checked up front) — or curl + git via the
+binary install in [CLI & MCP](#cli--mcp-agent-paths) below, where
+`install.sh` bootstraps Go when missing. Open `http://localhost:8080`
 for the landing page, then `http://localhost:8080/todo` for the demo
 (sign in with the seeded `demo@demo.app` / `demo1234456`).
 
