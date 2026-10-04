@@ -41,11 +41,8 @@ builds:
 # install.sh (no per-tool asset hunting).
 archives:
   - id: bundle
-    builds: [gogogo, gogogo-mcp]
+    ids: [gogogo, gogogo-mcp]
     name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
-    format_overrides:
-      - goos: windows
-        format: zip
 
 checksum:
   name_template: "SHA256SUMS.txt"
