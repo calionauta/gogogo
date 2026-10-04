@@ -214,7 +214,8 @@ Full command reference: [getting-started](docs/getting-started.md#commands).
 
 Humans get the guided installer above. Agents get the same engine
 (`internal/installer`) through two scripted paths — opinions first,
-preview second, mutation last:
+preview second, mutation last. Full guides live in their own section:
+[docs/cli.md](docs/cli.md) and [docs/mcp.md](docs/mcp.md).
 
 | Path | Use when | Entry point |
 |---|---|---|
