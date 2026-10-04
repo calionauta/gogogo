@@ -64,8 +64,22 @@ func (s *Service) RegisterRoutes(se *core.ServeEvent) {
 	})
 
 	// BYOK relay: pass-through to the user's provider with their key.
+	//
+	// Registered per method, NOT with r.Any("/api/byok/*"). Any() registers an
+	// empty method, which becomes a method-less pattern in Go 1.22+ ServeMux and
+	// conflicts with the app's own `GET /`:
+	//
+	//   pattern "/api/byok/*" conflicts with pattern "GET /":
+	//   /api/byok/* matches more methods than GET /, but has a more specific
+	//   path pattern
+	//
+	// That panics at route-registration time, so the process dies on startup.
+	// It was latent only because this block is skipped when Relay is nil, and
+	// Relay is nil unless BYOK is configured — i.e. it would have taken
+	// production down the first time someone enabled BYOK. Enumerating methods
+	// keeps every pattern method-scoped, so there is nothing to conflict.
 	if s.Relay != nil {
-		r.Any("/api/byok/*", func(c *core.RequestEvent) error {
+		relay := func(c *core.RequestEvent) error {
 			uid, ok := authedUserID(c)
 			if !ok {
 				return c.JSON(http.StatusUnauthorized, map[string]any{jsonErrKey: unauthorizedMsg})
@@ -73,7 +87,18 @@ func (s *Service) RegisterRoutes(se *core.ServeEvent) {
 			c.Request.Header.Set("X-Auth-User", uid)
 			s.Relay.ServeHTTP(c.Response, c.Request)
 			return nil
-		})
+		}
+		for _, method := range []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		} {
+			r.Route(method, "/api/byok/*", relay)
+		}
 	}
 
 	// Stripe top-up: checkout (authed) + webhook (signed, public). Both

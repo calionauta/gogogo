@@ -53,12 +53,28 @@ func mountDagNatsDashboard(se *core.ServeEvent, upstream string) {
 		ModifyResponse: rewriteDagNatsPaths,
 	}
 
-	// Any(), not GET(): the DagNats console is a full CRUD app. Creating a
-	// trigger, editing a workflow, cancelling a run and deleting a schedule all
-	// issue POST/PUT/PATCH/DELETE. The upstream mux registers those with
-	// `mux.Handle` (method-agnostic), so a GET-only proxy in front of it turns
-	// every write into a 404 — the console renders fine and only breaks the
-	// moment you try to change something.
+	// Register each method explicitly — NOT Router.Any().
+	//
+	// The DagNats console is a full CRUD app: creating a trigger, editing a
+	// workflow, cancelling a run and deleting a schedule all issue
+	// POST/PUT/PATCH/DELETE, while the pages and assets are GET. The upstream
+	// DagNats mux registers its handlers with `mux.Handle` (method-agnostic), so
+	// a GET-only proxy in front of it turned every write into a 404 — exactly
+	// the `create failed: 404 The requested resource wasn't found.` seen in the
+	// UI. That was the bug this fixes.
+	//
+	// But Router.Any() is NOT the fix. It registers the route with an empty
+	// method, which becomes a method-less pattern in Go 1.22+ ServeMux, and
+	// such a pattern conflicts with the app's own `GET /`:
+	//
+	//   pattern "GET /" conflicts with pattern "/dagnats/{path...}":
+	//   GET / matches fewer methods than /dagnats/{path...}, but has a more
+	//   general path pattern
+	//
+	// That panic happens at route-registration time, so the binary crashes on
+	// startup and the container restart-loops. Enumerating methods keeps every
+	// pattern method-scoped, so `GET /` and `GET /dagnats/{path...}` are simply
+	// two GET patterns and the more specific one wins — no conflict.
 	handler := func(c *core.RequestEvent) error {
 		// Buffer the body before handing it to the proxy. PocketBase wraps the
 		// request body in its RereadableReadCloser, whose Read() rewinds itself
@@ -90,8 +106,19 @@ func mountDagNatsDashboard(se *core.ServeEvent, upstream string) {
 		return nil
 	}
 
-	se.Router.Any("/dagnats", handler)
-	se.Router.Any("/dagnats/{path...}", handler)
+	// Register each method explicitly
+	for _, method := range []string{
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodOptions,
+	} {
+		se.Router.Route(method, "/dagnats", handler)
+		se.Router.Route(method, "/dagnats/{path...}", handler)
+	}
 }
 
 // maxProxyBody caps how much of a request body the DagNats proxy will buffer.
