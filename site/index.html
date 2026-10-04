@@ -181,10 +181,13 @@ make dev</code></pre>
     </div>
     <p class="fine center">Every dependency with the reasoning behind it:
     <a href="./docs/stack-layers/">stack layers →</a></p>
-    <p class="fine center">Go is the product language — your app stays Go. For the rare
-    genuinely-native need (a proven hot kernel, a codec, an OS integration), the
-    <a href="./docs/native-zig/">native boundary</a> doc spells out when Zig is
-    justified and how to keep it small, isolated, and removable.</p>
+    <div class="exception">
+      <p class="exception-rule">Go for everything. Zig only as an exception.</p>
+      <p class="exception-when">Zig enters in one case: a <strong>proven</strong>
+      native need — a profiled hot kernel, a codec, an OS integration.
+      Everything else stays Go.</p>
+      <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
+    </div>
   </section>
 
   <section id="features" class="section">
