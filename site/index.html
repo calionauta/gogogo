@@ -38,7 +38,7 @@
       offline sync and an LLM client — in one self-contained Go binary.</p>
       <p class="lede-sub">No Docker. No Redis. No Postgres. No JS build step.</p>
       <div class="cta-row">
-        <a class="btn primary" href="#start">Use this template</a>
+        <a class="btn primary" href="#start">Get started</a>
         <a class="btn" href="./docs/">Read the docs</a>
         <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
       </div>
@@ -109,12 +109,6 @@ make dev</code></pre>
         <p class="off">Off: <code>NATS_ENABLED=false</code></p>
       </div>
       <div class="card">
-        <p class="step">Three UI skins, one binary</p>
-        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
-        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>.</p>
-        <p class="off">Off: <code>UI_SKIN=daisyui</code></p>
-      </div>
-      <div class="card">
         <p class="step">AI features on any provider</p>
         <p class="tech">GoAI + ai-credits</p>
         <p>Injectable LLM interface, plus optional credits and BYOK billing.</p>
@@ -126,6 +120,12 @@ make dev</code></pre>
         <p>Offline edits queue locally and replay on reconnect; replays never duplicate.</p>
         <p class="off">Off: <code>OFFLINE_SYNC_ENABLED=false</code></p>
       </div>
+      <div class="card">
+        <p class="step">Three UI skins, one binary</p>
+        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
+        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>.</p>
+        <p class="off">Off: <code>UI_SKIN=daisyui</code></p>
+      </div>
     </div>
     <p class="group-label feature">Optional extras <span>(feature — keep it or delete it)</span></p>
     <div class="grid-2">
@@ -136,16 +136,16 @@ make dev</code></pre>
         <p class="off">Delete: <code>features/whiteboard/</code></p>
       </div>
       <div class="card">
-        <p class="step">Todo reference app</p>
-        <p class="tech">PocketBase realtime</p>
-        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
-        <p class="off">Delete: <code>features/todo/</code></p>
-      </div>
-      <div class="card">
         <p class="step">Desktop apps on the same backend</p>
         <p class="tech">Wails v3 · gogpu/ui</p>
         <p>Wails ships a desktop app with offline edge sync; gogpu/ui is a pure-Go window with no webview and no HTTP.</p>
         <p class="off">Delete: <code>cmd/desktop/</code>, <code>cmd/gui/</code></p>
+      </div>
+      <div class="card">
+        <p class="step">Todo reference app</p>
+        <p class="tech">PocketBase realtime</p>
+        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
+        <p class="off">Delete: <code>features/todo/</code></p>
       </div>
     </div>
     <p class="fine center">Every dependency with the reasoning behind it:
@@ -237,7 +237,7 @@ make dev</code></pre>
 
   <section id="start" class="section cta-section">
     <p class="kicker">Start here</p>
-    <h2>Answer four questions. Ship it.</h2>
+    <h2>Scaffold it. Run it. Ship it.</h2>
     <p class="section-lede">The installer scaffolds your repo from this template,
     renames it, and trims the plugins and features you skip. Nothing to install first
     except Go.</p>
@@ -269,8 +269,8 @@ make dev</code></pre>
       </div>
     </div>
     <div class="cta-row center">
-      <a class="btn primary" href="https://github.com/calionauta/gogogo" rel="noopener">Use this template</a>
-      <a class="btn" href="./docs/getting-started/">Getting started</a>
+      <a class="btn primary" href="./docs/getting-started/">Start with the installer</a>
+      <a class="btn" href="https://github.com/calionauta/gogogo" rel="noopener">Use this template</a>
       <a class="btn" href="./docs/">All docs</a>
     </div>
   </section>
