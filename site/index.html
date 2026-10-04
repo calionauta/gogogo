@@ -48,8 +48,8 @@
       <div class="install-block">
         <p class="install-label">Start with the installer</p>
         <pre><code>go run github.com/calionauta/gogogo/cmd/gogogo@latest --run</code></pre>
-        <p class="install-note">Only curl and git — the installer brings or
-        checks the rest (Go included). <a href="./docs/getting-started/">Getting started →</a></p>
+        <p class="install-note">Needs curl and git — that's it. The command
+        does the rest. <a href="./docs/getting-started/">Getting started →</a></p>
       </div>
     </div>
   </section>
@@ -57,9 +57,13 @@
   <section class="section agent-band">
     <p class="kicker">Built for agent-built software</p>
     <p class="exception-rule">You decide what to build. Agents handle the how.</p>
-    <p class="exception-sub">Deterministic stack, SCOPE on every file, linting
-    tuned for AI-written code, docs as the single source of truth — no
-    babysitting the stream. Still shaping the what?
+    <ul class="agent-points">
+      <li><strong>Deterministic stack</strong> — the same choices in every project</li>
+      <li><strong>SCOPE on every file</strong> — agents know what is safe to delete</li>
+      <li><strong>Lint tuned for AI-written code</strong> — no babysitting the stream</li>
+      <li><strong>Docs as the single source of truth</strong> — prose changes with code, same commit</li>
+    </ul>
+    <p class="exception-sub">Still shaping the <em>what</em>?
     <a href="https://calionauta.github.io/stelow/">Stelow</a> is the product
     layer before code.</p>
   </section>
@@ -299,8 +303,51 @@
 </main>
 
 <footer class="foot">
-  <p>Made with intent to be useful, not to be right.</p>
+  <p>Made by <a href="http://github.com/calionauta">calionauta</a> with 🖤 from Brazil.</p>
 </footer>
+
+<script>
+(function () {
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+    } else {
+      fallback();
+    }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      done();
+    }
+  }
+  document.querySelectorAll(".install-block pre").forEach(function (pre) {
+    var code = pre.querySelector("code");
+    if (!code) return;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy-btn";
+    btn.textContent = "copy";
+    btn.setAttribute("aria-label", "Copy command to clipboard");
+    btn.addEventListener("click", function () {
+      copyText(code.innerText, function () {
+        btn.textContent = "copied";
+        btn.classList.add("copied");
+        setTimeout(function () {
+          btn.textContent = "copy";
+          btn.classList.remove("copied");
+        }, 1400);
+      });
+    });
+    pre.appendChild(btn);
+  });
+})();
+</script>
 
 </body>
 </html>
