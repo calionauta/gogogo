@@ -1,6 +1,7 @@
-package main
+package installer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -317,8 +318,14 @@ func TestManifestUnitsMatchRegistry(t *testing.T) { // Single source of truth, e
 func TestReadmeDocumentsUnits(t *testing.T) {
 	// Docs stay truthful: every installer unit id must appear backticked
 	// in cmd/gogogo/README.md, or humans read about a unit that the
-	// docs never explain.
-	raw, err := os.ReadFile("README.md")
+	// docs never explain. Resolved from the repo root so the test runs
+	// wherever the package lives.
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Skip("runtime.Caller unavailable")
+	}
+	readme := filepath.Join(filepath.Dir(file), "..", "..", "cmd", "gogogo", "README.md")
+	raw, err := os.ReadFile(readme)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,7 +533,7 @@ func TestRunNoTUIWithoutYesChangesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := captureStdout(t, func(w *os.File) {
-		err := run([]string{
+		err := Run(context.Background(), []string{
 			"--name", "my-app", "--no-tui", "--dir", dir,
 		}, devNull(t), w)
 		if err != nil {
@@ -545,7 +552,7 @@ func TestRunNoTUIWithoutYesChangesNothing(t *testing.T) {
 func TestPlanJSONEncodesEmptySlices(t *testing.T) {
 	// Agent contract stability: empty collections encode as [] never null.
 	out := captureStdout(t, func(w *os.File) {
-		err := run([]string{
+		err := Run(context.Background(), []string{
 			"--name", "my-app", "--no-tui", "--dry-run", "--format", "json",
 			"--dir", "./my-app",
 		}, devNull(t), w)
@@ -574,7 +581,7 @@ func TestPlanJSONEncodesEmptySlices(t *testing.T) {
 func TestRunDryRunJSONPlan(t *testing.T) { // The agent contract: --dry-run --format json parses and carries
 	// drop ids with their warnings.
 	out := captureStdout(t, func(w *os.File) {
-		err := run([]string{
+		err := Run(context.Background(), []string{
 			"--name", "my-app", "--owner", "myorg",
 			"--plugins", "sounds", "--features", "sounds",
 			"--no-tui", "--dry-run", "--format", "json",
@@ -626,7 +633,7 @@ func TestRunDryRunJSONPlan(t *testing.T) { // The agent contract: --dry-run --fo
 
 func TestRunHelpMentionsContract(t *testing.T) {
 	out := captureStdout(t, func(w *os.File) {
-		_ = run([]string{"--help"}, devNull(t), w)
+		_ = Run(context.Background(), []string{"--help"}, devNull(t), w)
 	})
 	for _, want := range []string{
 		"Trim units:", "Agent contract:", "Exit codes:",

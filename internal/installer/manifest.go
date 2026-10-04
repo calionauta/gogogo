@@ -1,4 +1,5 @@
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: trim/add unit mechanics (strips, drops, anchors)
+package installer
 
 import (
 	"os"
@@ -404,7 +405,7 @@ func applyTrim(root string, drop []trimUnit, rc *Receipt) error {
 	for _, u := range drop {
 		for _, id := range u.caps() {
 			if _, ok := byID[id]; !ok {
-				return &exitError{code: 1, msg: "unknown capability " + id}
+				return &ExitError{code: 1, msg: "unknown capability " + id}
 			}
 		}
 		unit := UnitReceipt{ID: u.id, StripsMissed: []string{}}

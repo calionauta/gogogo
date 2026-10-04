@@ -1,9 +1,10 @@
-package main
+// SCOPE:layer=infra,removal=plugin — installer engine: interactive form, numbered menus, keep-set parsing
+package installer
 
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"io"
 	"regexp"
 	"sort"
 	"strconv"
@@ -42,7 +43,7 @@ type formResult struct {
 // a future Charm Huh form would ask, in the same order, so the upgrade only
 // swaps the renderer. Closed-choice questions render a numbered menu (stable
 // order = manifest order): humans answer with numbers, ids, or both.
-func promptForm(stdin *os.File, stdout *os.File) (formResult, error) {
+func promptForm(stdin io.Reader, stdout io.Writer) (formResult, error) {
 	in := bufio.NewScanner(stdin)
 	ask := func(label, def string) string {
 		if def != "" {
@@ -79,7 +80,7 @@ func promptForm(stdin *os.File, stdout *os.File) (formResult, error) {
 // until the answer parses. Returns a parseKeep-ready string: "" (keep all),
 // "none" (drop all), or comma-joined unit ids. Numbers are 1-based positions
 // in the menu shown above them — never stored, never passed to flags.
-func askKeep(in *bufio.Scanner, stdout *os.File, dimension string, kind capabilities.Kind) (string, error) {
+func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabilities.Kind) (string, error) {
 	var options []string
 	summaries := map[string]string{}
 	byID := capabilities.ByID()
