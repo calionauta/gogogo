@@ -77,15 +77,14 @@ module path would stay `github.com/calionauta/gogogo` and
 deploys would target the template's server directory.
 
 ```bash
-# 1. Scaffold with the installer (clones the template when needed; asks
-#    name, owner, plugins, features; renames, trims what you skip, writes
-#    AGENTS.md with the upstream-first rule, then `make dev` takes this
-#    terminal — Ctrl-C stops dev)
-go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
+# 1. Scaffold with the installer: one command installs (binaries +
+#    Go toolchain when missing), asks name/owner/plugins/features, renames,
+#    trims what you skip, writes AGENTS.md, then `make dev` takes this
+#    terminal — Ctrl-C stops dev. Needs curl + git, nothing else.
+curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
 
-# Without --run (or manual fallback below) the installer prints the
-# next commands instead of taking the terminal:
-# cd my-app && make dev
+# With Go already installed, the equivalent without curl|sh:
+# go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
 # Manual fallback (no installer):
 # gh repo create my-app --template calionauta/gogogo --clone
@@ -231,13 +230,8 @@ Destructive paths refuse without explicit confirmation (`--yes` /
 No Go on this machine? Tagged releases ship static binaries (`gogogo` +
 `gogogo-mcp`, checksummed) — and `install.sh` bootstraps a user-space Go
 toolchain when none is found (`~/.local/go`, no sudo, existing installs
-untouched). After that, Go is only required inside the scaffolded project,
-and the installer checks it up front:
-
-```bash
-curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
-gogogo --run   # same one-line install, no Go needed to run it
-```
+untouched). Same one-liner as the quick start above (it is the quick
+start — append anything after `--run` and it reaches `gogogo`):
 
 ## Before you push
 

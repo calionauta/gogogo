@@ -7,7 +7,11 @@
 #   curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
 #
 # Env: BIN_DIR (install dir), REPO (owner/repo), GOGOGO_VERSION (pin, e.g. v0.32.0),
-#      GO_DIR (toolchain dir, default ~/.local/go), SKIP_GO_BOOTSTRAP=1 (offline/tests).
+#      GO_DIR (toolchain dir, default ~/.local/go), SKIP_GO_BOOTSTRAP=1 (offline/tests),
+#      GOGOGO_BIN (override the installed binary, for tests).
+#
+# One-line install + scaffold + dev (humans only — takes the terminal):
+#   curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run
 #
 # Needs on this machine: sh, curl, tar (+gzip), uname, mktemp, and
 # sha256sum or shasum. Checked up front with a precise error.
@@ -104,3 +108,18 @@ if [ "${SKIP_GO_BOOTSTRAP:-0}" != "1" ] && ! command -v go >/dev/null 2>&1; then
 fi
 
 "$BIN_DIR/gogogo" --version
+
+# One-line mode: after installing, become the scaffold (`--run` takes the
+# terminal via /dev/tty because stdin here is the download pipe, not the
+# keyboard). Humans only — agents use the printed path, never this.
+if [ "${1:-}" = "--run" ]; then
+  shift
+  # Probe with an external command: a failed redirect on a special
+  # builtin aborts POSIX sh outright instead of tripping `if`.
+  if ! tty -s </dev/tty >/dev/null 2>&1; then
+    echo "install.sh: --run needs an interactive terminal (no pipe/CI)" >&2
+    exit 1
+  fi
+  GOGO_BIN="${GOGOGO_BIN:-$BIN_DIR/gogogo}"
+  exec "$GOGO_BIN" --run "$@" </dev/tty
+fi

@@ -45,9 +45,9 @@
       <img src="./assets/logo.png" alt="gogogo" width="677" height="369">
       <div class="install-block">
         <p class="install-label">Start with the installer</p>
-        <pre><code>go run github.com/calionauta/gogogo/cmd/gogogo@latest --run</code></pre>
-        <p class="install-note">Needs Go and git — verified up front. No Go?
-        <code>install.sh</code> bootstraps it. <a href="./docs/getting-started/">Getting started →</a></p>
+        <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run</code></pre>
+        <p class="install-note">Needs curl and git — that's it. The command
+        does the rest. <a href="./docs/getting-started/">Getting started →</a></p>
       </div>
     </div>
   </section>
@@ -303,7 +303,7 @@
     renames it, and trims the plugins and features you skip. Nothing to install first
     except Go.</p>
     <div class="install-block wide">
-      <pre><code>go run github.com/calionauta/gogogo/cmd/gogogo@latest --run</code></pre>
+      <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run</code></pre>
     </div>
     <div class="cta-row center">
       <a class="btn primary" href="./docs/getting-started/">Start with the installer</a>
