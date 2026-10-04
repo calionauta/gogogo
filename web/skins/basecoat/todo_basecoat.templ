@@ -436,7 +436,9 @@ templ TodoListRegion(signals todo.Signals) {
 			<div class="empty" id="todo-empty-state">
 				<header>
 					<h3>No todos here yet.</h3>
-					<p>Add one above to get started, or click "Run durable workflow" in the sidebar to auto-create examples.</p>
+					if signals.DagNatsEnabled {
+						<p>Add one above to get started, or click "Run durable workflow" in the sidebar to auto-create examples.</p>
+					}
 				</header>
 			</div>
 		}

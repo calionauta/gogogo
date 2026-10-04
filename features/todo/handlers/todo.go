@@ -121,6 +121,17 @@ type OnboardingResumer interface {
 	ResumeOnboarding(user string)
 }
 
+// dagnatsUIEnabled reports whether the durable-workflow UI should render.
+// It is registration truth, not config truth: the tab, button, and hints
+// show only when the engine is enabled AND the onboarding routes were
+// actually registered (RegisterOnboardingRoutes sets h.onboarding). After
+// the installer trims the dagnats unit, h.onboarding stays nil and the UI
+// degrades to the queue + AI tabs with no dead button — same as
+// DAGNATS_ENABLED=false.
+func (h *TodoHandler) dagnatsUIEnabled() bool {
+	return h.cfg != nil && h.cfg.DagNats.Enabled && h.onboarding != nil
+}
+
 // New constructs a TodoHandler. Used by both production wiring (router.Init)
 // and integration tests (testFixture).
 func New(app *pocketbase.PocketBase, q *queue.Queue, cfg *config.Config) *TodoHandler {
@@ -319,7 +330,7 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 		ItemCount:        len(todos),
 		LLMEnabled:       h.llmEnabled(),
 		SimulatedLLM:     h.simulatedLLMEnabled(),
-		DagNatsEnabled:   h.cfg.DagNats.Enabled,
+		DagNatsEnabled:   h.dagnatsUIEnabled(),
 		ConnectedClients: h.q.Hub().CountUserClients(),
 		Suggestions:      []string{},
 		SuggestErr:       "",
