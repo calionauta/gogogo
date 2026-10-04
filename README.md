@@ -11,9 +11,9 @@
   <a href="https://github.com/calionauta/gogogo/actions">CI</a>
 </p>
 
-> **Built to be useful.** Every decision favors practical outcomes over abstract
-> ideals. The stack optimizes for simplicity, consistency, and shipping software
-> with minimal friction.
+> **Your stack is ready. Come build.** Every decision favors practical outcomes
+> over abstract ideals. The stack optimizes for simplicity, consistency, and
+> shipping software with minimal friction.
 
 Every web project starts with the same conversation — pick a database, auth,
 router, reactive frontend, task queue… — and the project stalls at the
