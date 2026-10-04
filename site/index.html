@@ -18,8 +18,8 @@
     <img src="./assets/logo.png" alt="gogogo" width="120" height="65">
   </a>
   <nav class="links" aria-label="Primary">
-    <a href="#layers">Layers</a>
     <a href="#stack">Stack</a>
+    <a href="#layers">Layers</a>
     <a href="#features">Features</a>
     <a href="./docs/">Docs</a>
     <a class="btn small" href="#start">Get started</a>
@@ -60,123 +60,67 @@ make dev</code></pre>
     </div>
   </section>
 
-  <section id="layers" class="section">
-    <p class="kicker">What makes it different</p>
-    <h2>Most templates make you pick <em>one</em> async strategy.<br>This one ships six.</h2>
-    <p class="section-lede">Every web app eventually needs a queue, a workflow runtime, a
-    collaboration layer, and a realtime layer. They solve different problems, so
-    gogogo compiles all of them into one build — and lets you switch each off with a
-    single environment variable when you don't need it.</p>
-
-    <div class="layers">
-      <div class="layer">
-        <p class="layer-name">goqite</p>
-        <p class="layer-what">background jobs + SSE hub</p>
-        <p class="layer-why">Always on. Work that takes more than ~50ms goes here instead of blocking a request.</p>
-      </div>
-      <div class="layer">
-        <p class="layer-name">DagNats</p>
-        <p class="layer-what">durable multi-step workflows</p>
-        <p class="layer-why">Declarative JSON over JetStream. Kill the server mid-run; it resumes at the last incomplete step.</p>
-      </div>
-      <div class="layer">
-        <p class="layer-name">Loro CRDT</p>
-        <p class="layer-what">conflict-free collaborative state</p>
-        <p class="layer-why">Offline edits merge with no last-write-wins data loss. Ops converge idempotently.</p>
-      </div>
-      <div class="layer">
-        <p class="layer-name">PB realtime</p>
-        <p class="layer-what">record-change push</p>
-        <p class="layer-why">PocketBase's native channel, scoped per user by the collection's own access rules.</p>
-      </div>
-      <div class="layer">
-        <p class="layer-name">SSE Hub</p>
-        <p class="layer-what">ephemeral signals</p>
-        <p class="layer-why">Toasts, client counts, workflow progress — over Datastar's SSE protocol, not database-shaped.</p>
-      </div>
-      <div class="layer">
-        <p class="layer-name">JetStream</p>
-        <p class="layer-what">cross-instance broadcast</p>
-        <p class="layer-why">Run two or more instances behind a load balancer and records converge. Safe to enable on one.</p>
-      </div>
-    </div>
-
-    <p class="fine center">Six layers, one <code>make build</code>. No build tags, no
-    stub files, no matrix. <a href="./docs/async-layers/">Read the async layers doc →</a></p>
-  </section>
-
   <section id="stack" class="section">
     <p class="kicker">In the box</p>
     <h2>Every choice already made.</h2>
     <p class="section-lede">Eleven decisions you would otherwise make in the first
     week — picked, wired together, and explained. Each one is documented with its
     trade-offs in <a href="./docs/stack-layers/">stack layers</a>.</p>
-    <div class="stack-grid">
-      <div class="stack-card">
-        <p class="stack-cat">Database · auth · API</p>
-        <p class="stack-pick">PocketBase</p>
-        <p class="stack-why">Embedded SQLite with zero-config auth, REST and an admin UI
-        at <code>/_/</code>. No separate service to run.</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">Database, auth and API — zero config</p>
+        <p class="tech">PocketBase · embedded SQLite</p>
+        <p>Auth, REST, file storage and an admin UI at <code>/_/</code>. No separate service to run.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Templating</p>
-        <p class="stack-pick">Templ</p>
-        <p class="stack-why">Type-safe Go components, generated at build time. A broken
-        template is a compile error.</p>
+      <div class="card">
+        <p class="step">Templates that fail at compile time</p>
+        <p class="tech">Templ</p>
+        <p>Type-safe Go components, generated at build time. A broken template is a compile error.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Reactive UI</p>
-        <p class="stack-pick">Datastar over SSE</p>
-        <p class="stack-why">Server-rendered HTML with a ~12&nbsp;KiB client. No JS
-        framework, no bundler.</p>
+      <div class="card">
+        <p class="step">Reactive UI with no JS framework</p>
+        <p class="tech">Datastar over SSE</p>
+        <p>Server-rendered HTML with a ~12&nbsp;KiB client. No bundler, no hydration.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">CSS · skins</p>
-        <p class="stack-pick">DaisyUI v5 + Tailwind v4</p>
-        <p class="stack-why">Three skins compiled in, switchable at runtime with
-        <code>UI_SKIN</code> or <code>?skin=</code>.</p>
+      <div class="card">
+        <p class="step">Three UI skins in one binary</p>
+        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
+        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>. Tailwind v4 underneath.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Task queue</p>
-        <p class="stack-pick">goqite + SSE Hub</p>
-        <p class="stack-why">Background jobs with retry and backoff, streamed to the
-        browser. No Redis.</p>
+      <div class="card">
+        <p class="step">Background jobs with retry</p>
+        <p class="tech">goqite + SSE Hub</p>
+        <p>Exponential backoff with jitter, streamed to the browser. No Redis.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Durable workflows</p>
-        <p class="stack-pick">DagNats</p>
-        <p class="stack-why">Multi-step workflows as declarative JSON over JetStream.
-        Kill the process mid-run and it resumes.</p>
+      <div class="card">
+        <p class="step">Durable multi-step workflows</p>
+        <p class="tech">DagNats over JetStream</p>
+        <p>Declarative JSON. Kill the process mid-run and it resumes where it left off.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Collaboration</p>
-        <p class="stack-pick">Loro CRDT + Rough.js</p>
-        <p class="stack-why">Conflict-free shared state that merges offline edits with
-        no last-write-wins loss.</p>
+      <div class="card">
+        <p class="step">Shared state that merges offline edits</p>
+        <p class="tech">Loro CRDT + Rough.js</p>
+        <p>Conflict-free collaboration with no last-write-wins data loss.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">LLM</p>
-        <p class="stack-pick">GoAI</p>
-        <p class="stack-why">Any OpenAI-compatible provider behind an injectable
-        interface, plus optional credits and BYOK billing.</p>
+      <div class="card">
+        <p class="step">AI features on any provider</p>
+        <p class="tech">GoAI + ai-credits</p>
+        <p>Injectable LLM interface, plus optional credits and BYOK billing.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Secrets</p>
-        <p class="stack-pick">age + <code>~/.secrets/</code></p>
-        <p class="stack-why">Encrypted at rest, decrypted at boot. No vault, no
-        cloud dependency.</p>
+      <div class="card">
+        <p class="step">Secrets encrypted at rest</p>
+        <p class="tech">age + <code>~/.secrets/</code></p>
+        <p>Decrypted at boot. No vault, no cloud dependency.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Desktop · mobile</p>
-        <p class="stack-pick">Wails v3 + gogpu/ui</p>
-        <p class="stack-why">Native shells over the same backend, and a native window
-        with no HTTP at all.</p>
+      <div class="card">
+        <p class="step">Native apps on the same backend</p>
+        <p class="tech">Wails v3 + gogpu/ui</p>
+        <p>Desktop shells over the same backend — plus a native window with no HTTP at all.</p>
       </div>
-      <div class="stack-card">
-        <p class="stack-cat">Linting</p>
-        <p class="stack-pick">golangci-lint (27) + datastar-lint</p>
-        <p class="stack-why">Tuned for LLM-authored code: unchecked errors, context
-        leaks, lost propagation.</p>
+      <div class="card">
+        <p class="step">Linting tuned for AI-written code</p>
+        <p class="tech">golangci-lint (27) + datastar-lint</p>
+        <p>Unchecked errors, context leaks, lost propagation — caught before review.</p>
       </div>
     </div>
     <p class="fine center">Every dependency with the reasoning behind it:
@@ -188,6 +132,51 @@ make dev</code></pre>
       Everything else stays Go.</p>
       <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
     </div>
+  </section>
+
+  <section id="layers" class="section">
+    <p class="kicker">What makes it different</p>
+    <h2>Most templates make you pick <em>one</em> async strategy.<br>This one ships six.</h2>
+    <p class="section-lede">Every web app eventually needs a queue, a workflow runtime, a
+    collaboration layer, and a realtime layer. They solve different problems, so
+    gogogo compiles all of them into one build — and lets you switch each off with a
+    single environment variable when you don't need it.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">Background jobs that update the UI</p>
+        <p class="tech">goqite + SSE Hub</p>
+        <p>Always on. Work longer than ~50ms goes here instead of blocking a request — progress streams back to the browser.</p>
+      </div>
+      <div class="card">
+        <p class="step">Workflows that survive a restart</p>
+        <p class="tech">DagNats over JetStream</p>
+        <p>Declarative JSON. Kill the server mid-run; it resumes at the last incomplete step.</p>
+      </div>
+      <div class="card">
+        <p class="step">Collaboration without data loss</p>
+        <p class="tech">Loro CRDT</p>
+        <p>Offline edits merge with no last-write-wins loss. Ops converge idempotently.</p>
+      </div>
+      <div class="card">
+        <p class="step">Live record updates, scoped per user</p>
+        <p class="tech">PocketBase realtime</p>
+        <p>The collection's own access rules decide who sees what — no extra channel to secure.</p>
+      </div>
+      <div class="card">
+        <p class="step">Ephemeral UI signals</p>
+        <p class="tech">SSE Hub over Datastar</p>
+        <p>Toasts, client counts, workflow progress — signals, not database-shaped events.</p>
+      </div>
+      <div class="card">
+        <p class="step">Broadcast across instances</p>
+        <p class="tech">NATS JetStream</p>
+        <p>Run two or more instances behind a load balancer and records converge. Safe to enable on one.</p>
+      </div>
+    </div>
+
+    <p class="fine center">Six layers, one <code>make build</code>. No build tags, no
+    stub files, no matrix. <a href="./docs/async-layers/">Read the async layers doc →</a></p>
   </section>
 
   <section id="features" class="section">
