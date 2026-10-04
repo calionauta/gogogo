@@ -26,10 +26,21 @@
 
 @source "../../features/**/*.templ";
 @source "../../features/**/*.go";
+@source not "../../features/**/*_templ.go";
 @source "../../web/**/*.templ";
 @source "../../web/**/*.go";
+@source not "../../web/**/*_templ.go";
 @source "../../internal/**/*.go";
 @source "../../internal/**/*.templ";
+
+/* internal/installer is the `gogogo` CLI: it trims and re-adds capability
+   units in a checkout. It renders no HTML and only NAMES classes as data —
+   e.g. the string `class="app-nav-brand"` it looks for when removing a line.
+   Tailwind reads .go as plain text, so the CLI's prose became CSS: the
+   user-facing message "review the diff" in add.go emitted DaisyUI's .diff
+   block. Every class that package names is defined in a .templ file that is
+   scanned, so excluding it loses nothing. */
+@source not "../../internal/installer/**";
 
 @plugin "daisyui" {
   themes: light --default, dark;
