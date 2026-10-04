@@ -297,6 +297,22 @@ h1 {
   color: var(--ink-soft);
 }
 
+.exception {
+  margin: 26px auto 0;
+  max-width: 640px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--bg-tint);
+  padding: 18px 22px;
+}
+
+.exception-rule { margin: 0 0 6px; font-weight: 700; font-size: 17px; }
+
+.exception-when { margin: 0 0 10px; font-size: 14.5px; color: var(--ink-soft); }
+
+.exception .fine { margin: 0; }
+
 /* ---------- table (kept for other sections) ---------- */
 
 .table-wrap {
