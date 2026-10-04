@@ -1,0 +1,57 @@
+# GoReleaser v2 — prebuilt installer binaries (gogogo CLI + gogogo-mcp).
+#
+# Trigger: push a v* tag (see .github/workflows/release.yml). Nothing runs
+# on normal pushes. Both binaries are pure Go (CGO_ENABLED=0), so the full
+# OS × arch matrix cross-compiles from one Linux runner.
+#
+# Deliberately v1-minimal: release archives + SHA256SUMS. No Homebrew
+# (needs a tap repo), no cosign (keyless adds a sigstore dependency) —
+# revisit when installs justify it.
+version: 2
+
+project_name: gogogo
+
+builds:
+  - id: gogogo
+    main: ./cmd/gogogo
+    binary: gogogo
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/calionauta/gogogo/internal/installer.Version={{.Version}}
+
+  - id: gogogo-mcp
+    dir: cmd/gogogo-mcp
+    main: .
+    binary: gogogo-mcp
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+
+# One archive per platform carrying both binaries: a single download for
+# install.sh (no per-tool asset hunting).
+archives:
+  - id: bundle
+    ids: [gogogo, gogogo-mcp]
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: "SHA256SUMS.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^site:"

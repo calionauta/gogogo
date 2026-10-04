@@ -108,6 +108,19 @@ func TestAdviseRejectsUnknownFormat(t *testing.T) {
 	}
 }
 
+func TestRunVersionFlag(t *testing.T) {
+	for _, argv := range [][]string{{"--version"}, {"-version"}, {"version"}} {
+		out := captureStdout(t, func(w *os.File) {
+			if err := Run(context.Background(), argv, devNull(t), w); err != nil {
+				t.Fatalf("run %v: %v", argv, err)
+			}
+		})
+		if !strings.HasPrefix(out, "gogogo ") {
+			t.Errorf("run %v = %q, want the version line", argv, out)
+		}
+	}
+}
+
 func TestRunAdviseDispatch(t *testing.T) {
 	out := captureStdout(t, func(w *os.File) {
 		args := []string{"advise", "--need", "AI chatbot", "--format", "json"}
