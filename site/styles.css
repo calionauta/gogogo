@@ -187,7 +187,24 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
-.install-block pre { border-radius: 0; }
+.install-block pre { border-radius: 0; position: relative; }
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.copy-btn:hover { color: var(--ink); border-color: #d3d6dd; }
+
+.copy-btn.copied { color: var(--accent); border-color: var(--accent); }
 
 .install-note {
   margin: 0;
@@ -228,6 +245,19 @@ h1 {
 .exception-band { text-align: center; }
 
 .agent-band { text-align: center; }
+
+.agent-points {
+  list-style: none;
+  margin: 0 auto 16px;
+  padding: 0;
+  max-width: 560px;
+  text-align: left;
+  display: grid;
+  gap: 8px;
+  color: var(--ink-soft);
+}
+
+.agent-points strong { color: var(--ink); }
 
 .exception-rule {
   margin: 0 0 10px;
@@ -435,7 +465,6 @@ td:nth-child(2) { color: var(--ink-soft); }
 .meta p { margin: 0 0 8px; }
 
 .foot {
-  border-top: 1px solid var(--line);
   padding: 30px 24px;
   text-align: center;
   font-size: 14px;
