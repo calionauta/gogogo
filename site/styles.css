@@ -306,20 +306,28 @@ td:nth-child(2) { color: var(--ink-soft); }
 .card p:last-child { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
 
 .group-label {
-  margin: 26px 0 12px;
-  font-size: 12px;
+  margin: 28px 0 12px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  color: var(--ink);
 }
 
-.group-label span { color: var(--ink-faint); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.group-label::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 9px;
+}
 
-.group-label.core { color: var(--accent); }
+.group-label.core::before { background: var(--accent); }
 
-.group-label.plugin { color: #a97a17; }
+.group-label.plugin::before { background: #c9962c; }
 
-.group-label.feature { color: #3f7a54; }
+.group-label.feature::before { background: #5a9e6f; }
+
+.group-label span { font-size: 13.5px; font-weight: 400; color: var(--ink-faint); }
 
 .card p.off:last-child {
   margin: 10px 0 0;
