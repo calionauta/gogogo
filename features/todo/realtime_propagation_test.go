@@ -333,7 +333,7 @@ func bootLiveServer(t *testing.T) (string, func()) {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "gogogo_live")
 	build := exec.CommandContext(context.Background(), "go", "build",
-		"-o", bin, "github.com/calionauta/gogogo-fullstack-template/cmd/web")
+		"-o", bin, "github.com/calionauta/gogogo/cmd/web")
 	build.Stderr = os.Stderr
 	if out, err := build.Output(); err != nil {
 		t.Fatalf("build live binary: %v\n%s", err, out)

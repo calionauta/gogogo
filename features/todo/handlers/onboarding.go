@@ -14,11 +14,11 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/datastar"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/internal/dagnats"
+	"github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // OnboardingHandler exposes the DagNats onboarding workflow over HTTP.

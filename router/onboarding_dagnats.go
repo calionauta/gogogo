@@ -5,10 +5,10 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/todo/handlers"
+	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // registerOnboarding wires the DagNats onboarding workflow into the

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 func TestValidateName(t *testing.T) {
@@ -19,7 +19,7 @@ func TestValidateName(t *testing.T) {
 			t.Errorf("validateName(%q) = %v, want nil", ok, err)
 		}
 	}
-	for _, bad := range []string{"", "-app", "my app", "gogogo-fullstack-template"} {
+	for _, bad := range []string{"", "-app", "my app", "gogogo"} {
 		if err := validateName(bad); err == nil {
 			t.Errorf("validateName(%q) = nil, want error", bad)
 		}
@@ -191,7 +191,7 @@ func TestStripLandingBlock(t *testing.T) {
 	// Phase 2 Init shape: one bare call line per capability, no
 	// unit-specific comments (guidance lives in SCOPE headers).
 	give := "import (\n" +
-		"\t\"github.com/calionauta/gogogo-fullstack-template/features/landing\"\n" +
+		"\t\"github.com/calionauta/gogogo/features/landing\"\n" +
 		")\n" +
 		"\t\tlanding.New(cfg).RegisterRoutes(se)\n" +
 		"\n" +
@@ -479,7 +479,7 @@ func TestStripWhiteboardRemovesCallLineAndDesktopPhaseC(t *testing.T) {
 		t.Fatal(err)
 	}
 	dgive := "import (\n\t\"context\"\n\t\"time\"\n\n" +
-		"\t\"github.com/calionauta/gogogo-fullstack-template/internal/collab\"\n)\n" +
+		"\t\"github.com/calionauta/gogogo/internal/collab\"\n)\n" +
 		"\t// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.\n" +
 		"\tif js != nil && nats.Conn() != nil {\n" +
 		"\t\tpub := collab.NewPublisher(nats.Conn())\n" +
@@ -703,9 +703,9 @@ func TestStripSkinsExtraDropsBlankImports(t *testing.T) {
 		t.Fatal(err)
 	}
 	give := "import (\n" +
-		"\t_ \"github.com/calionauta/gogogo-fullstack-template/web/skins/basecoat\"\n" +
-		"\t_ \"github.com/calionauta/gogogo-fullstack-template/web/skins/daisyui\"\n" +
-		"\t_ \"github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus\"\n" +
+		"\t_ \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
+		"\t_ \"github.com/calionauta/gogogo/web/skins/daisyui\"\n" +
+		"\t_ \"github.com/calionauta/gogogo/web/skins/morpheus\"\n" +
 		")\n"
 	p := filepath.Join(compDir, "skin_imports.go")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
@@ -730,7 +730,7 @@ func TestStripSoundsDropsCallSites(t *testing.T) {
 	if err := os.MkdirAll(authDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "import \"github.com/calionauta/gogogo-fullstack-template/features/sounds\"\n" +
+	give := "import \"github.com/calionauta/gogogo/features/sounds\"\n" +
 		"\n" +
 		"\t\t\t@sounds.SoundToggle()\n" +
 		"\t\t\t@sounds.SoundAssets()\n" +
@@ -813,8 +813,8 @@ func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	todoGive := "import (\n" +
-		"\tmorpheus \"github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus\"\n" +
-		"\tbasecoat \"github.com/calionauta/gogogo-fullstack-template/web/skins/basecoat\"\n" +
+		"\tmorpheus \"github.com/calionauta/gogogo/web/skins/morpheus\"\n" +
+		"\tbasecoat \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
 		")\n" +
 		"\tif skinName == SkinMorpheus {\n" +
 		"\t\treturn morpheus.TodoPage(signals).Render(ctx, w)\n" +
@@ -872,7 +872,7 @@ func TestCheckTreeReportsMissingMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 	give := "import (\n" +
-		"\t\"github.com/calionauta/gogogo-fullstack-template/features/landing\"\n" +
+		"\t\"github.com/calionauta/gogogo/features/landing\"\n" +
 		")\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "router.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)

@@ -14,7 +14,7 @@ import (
 )
 
 // Demo credentials seeded on first run. The owner of a deployed
-// gogogo-fullstack-template MUST override these or disable the seed before
+// gogogo MUST override these or disable the seed before
 // exposing the app to the internet. Left as exported vars so a
 // downstream project can swap them from cmd/web/main.go.
 var (

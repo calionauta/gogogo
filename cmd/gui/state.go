@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // windowState is the single state object the native window mutates.

@@ -19,7 +19,7 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // UI metrics: every widget size in one place so a visual pass touches

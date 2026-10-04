@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 func TestCRDTStore_CrossProcessConvergence(t *testing.T) {

@@ -15,10 +15,10 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/internal/components"
-	"github.com/calionauta/gogogo-fullstack-template/web/skins"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 func TodoPage(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) templ.Component {

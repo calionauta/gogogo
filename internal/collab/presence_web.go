@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // WebPresence provides ephemeral multi-user cursor/presence for the

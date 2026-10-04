@@ -16,8 +16,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store/crdtstore"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/features/store/crdtstore"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // WireCRDTStoreTransport attaches a JetStream transport to a CRDTStore

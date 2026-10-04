@@ -11,7 +11,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // TestPresence_SSEBridgeE2E is the browser-side e2e guard for the central

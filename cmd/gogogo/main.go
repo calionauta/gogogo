@@ -1,4 +1,4 @@
-// Command gogogo scaffolds a new project from gogogo-fullstack-template.
+// Command gogogo scaffolds a new project from gogogo.
 //
 // It asks four questions (project name, GitHub owner, plugins, features),
 // shows exactly what it will delete and what breaks, then (on confirmation)
@@ -22,7 +22,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 type options struct {
@@ -64,11 +64,11 @@ func exitCode(err error) int {
 }
 
 func usage(w *os.File, fs *flag.FlagSet) {
-	fmt.Fprintln(w, `gogogo — scaffold a project from gogogo-fullstack-template.
+	fmt.Fprintln(w, `gogogo — scaffold a project from gogogo.
 
   Interactive (humans: 4 questions, then a plan to confirm):
 
-    go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+    go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
   Scripted (agents: always pin --yes; preview with --dry-run first):
 
@@ -230,7 +230,7 @@ func requireCheckoutDir(opt options) error {
 	if _, err := os.Stat(opt.dir); err != nil {
 		return &exitError{code: 1, msg: fmt.Sprintf(
 			"directory %s not found — clone the template first:\n"+
-				"  gh repo create %s --template calionauta/gogogo-fullstack-template --clone\n"+
+				"  gh repo create %s --template calionauta/gogogo --clone\n"+
 				"  (or: git clone <url> %s, then re-run with --dir %s --yes)",
 			opt.dir, opt.name, opt.dir, opt.dir)}
 	}

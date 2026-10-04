@@ -9,12 +9,12 @@ import (
 	"github.com/a-h/templ"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/store/pbstore"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
-	basecoat "github.com/calionauta/gogogo-fullstack-template/web/skins/basecoat"
-	morpheus "github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/store/pbstore"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/components"
+	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
+	morpheus "github.com/calionauta/gogogo/web/skins/morpheus"
 )
 
 // ErrNoOwner is returned by RequireOwner when the request carries no

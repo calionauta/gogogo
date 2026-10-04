@@ -9,11 +9,11 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/internal/components"
-	"github.com/calionauta/gogogo-fullstack-template/web/skins"
-	"github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus/neolib"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/web/skins/morpheus/neolib"
 )
 
 // TodoPage renders the full Morpheus-skinned todo page using <neo-*>

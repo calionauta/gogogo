@@ -16,10 +16,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/store/crdtstore"
-	"github.com/calionauta/gogogo-fullstack-template/internal/server"
-	"github.com/calionauta/gogogo-fullstack-template/router"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/store/crdtstore"
+	"github.com/calionauta/gogogo/internal/server"
+	"github.com/calionauta/gogogo/router"
 )
 
 // Build metadata — overwritten at build time via LDFLAGS

@@ -15,7 +15,7 @@ import (
 
 	"github.com/calionauta/ai-credits/credits"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
+	"github.com/calionauta/gogogo/internal/llm"
 )
 
 // Compile-time check that *Service satisfies the internal/llm metering seam.

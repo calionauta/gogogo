@@ -1,11 +1,11 @@
 # `cmd/gogogo` — guided installer for this template
 
-Scaffold a new project from `gogogo-fullstack-template` without hand-rename
+Scaffold a new project from `gogogo` without hand-rename
 drift and without dead code left behind.
 
 ```bash
 # Interactive (4 questions: name, owner, plugins, features)
-go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
 # Scripted
 go run ./cmd/gogogo --name my-app --owner myorg \
@@ -30,7 +30,7 @@ go run ./cmd/gogogo --name my-app --owner myorg \
 
 ```bash
 # Humans: 4 questions, plan printed, confirm [y/N] before anything changes.
-go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
 # Agents, step 1 — preview as JSON (changes nothing, exit 0):
 go run ./cmd/gogogo --name my-app --owner myorg \

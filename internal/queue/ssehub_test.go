@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 )
 
 // TestNewSSEHub_DefaultReplaySize asserts the documented default

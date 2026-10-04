@@ -13,11 +13,11 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
+	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 func (h *TodoHandler) handleList(c *core.RequestEvent) error {

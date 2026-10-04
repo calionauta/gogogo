@@ -14,9 +14,9 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/credits"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/credits"
+	"github.com/calionauta/gogogo/features/todo/handlers"
 )
 
 func registerCredits(cfg *config.Config) *credits.Service {

@@ -7,9 +7,9 @@
 package config
 
 import (
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
-	"github.com/calionauta/gogogo-fullstack-template/internal/components"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
 )
 
 // Page renders the full document. The shell mirrors the layouts in
@@ -27,7 +27,7 @@ templ Page(data PageData, userEmail string, buildLabel string, buildCommit strin
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Config — gogogo-fullstack-template</title>
+			<title>Config — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()

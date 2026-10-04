@@ -1,4 +1,4 @@
-# Lefthook config — gogogo-fullstack-template
+# Lefthook config — gogogo
 # Run `make setup` to activate hooks (installs wrappers into .githooks/).
 # Install lefthook: go install github.com/evilmartians/lefthook@latest
 #

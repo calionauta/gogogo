@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm/fakeserver"
+	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/llm/fakeserver"
 )
 
 // TestFakeserver_HappyPath proves the canned response round-trips.

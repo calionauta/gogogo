@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // TodoItem renders a single todo row. Important wiring notes:

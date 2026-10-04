@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // fakePublisher implements crdtstore.DocPublisher by recording every

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // collectRetryFeedback scans an SSE transcript for Datastar `lastRetry`

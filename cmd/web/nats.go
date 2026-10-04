@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // startNATS boots the embedded NATS server (when NATS is enabled) and

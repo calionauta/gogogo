@@ -31,9 +31,9 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
-	"github.com/calionauta/gogogo-fullstack-template/internal/components"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
 )
 
 // Index renders the landing page. userEmail is empty for guests
@@ -61,7 +61,7 @@ func Index(userEmail string, buildLabel string, buildCommit string) templ.Compon
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>gogogo-fullstack-template</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -85,7 +85,7 @@ func Index(userEmail string, buildLabel string, buildCommit string) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"/static/logo.png\" alt=\"gogogo-fullstack-template\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"/todo\" class=\"btn btn-primary btn-lg\" data-variant=\"primary\">Access demo site</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"/static/logo.png\" alt=\"gogogo\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"/todo\" class=\"btn btn-primary btn-lg\" data-variant=\"primary\">Access demo site</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

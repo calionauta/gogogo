@@ -18,8 +18,8 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	appcfg "github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	appcfg "github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/auth"
 )
 
 // Handler serves the /config page. It holds the same *config.Config

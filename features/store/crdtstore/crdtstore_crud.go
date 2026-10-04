@@ -9,8 +9,8 @@ import (
 
 	"github.com/aholstenson/loro-go"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // listFilter values for CRDTStore.List. Defined as constants so

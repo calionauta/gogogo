@@ -1,4 +1,4 @@
-APP_NAME    := gogogo-fullstack-template
+APP_NAME    := gogogo
 APP_DIR     := cmd/web
 PORT        ?= 8080
 VERSION     := $(shell v=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); echo $${v:-dev})
@@ -138,7 +138,7 @@ css-check: css-all
 fmt:
 	@echo "→ Checking formatting (gofumpt + goimports)..."
 	@test -z "$$(gofumpt -l .)" || (echo "  ❌ gofumpt issues:"; gofumpt -l .; exit 1)
-	@test -z "$$(goimports -l -local github.com/calionauta/gogogo-fullstack-template $$(find . -name '*.go' ! -name '*_templ.go'))" || (echo "  ❌ goimports issues"; goimports -l -local github.com/calionauta/gogogo-fullstack-template $$(find . -name '*.go' ! -name '*_templ.go'); exit 1)
+	@test -z "$$(goimports -l -local github.com/calionauta/gogogo $$(find . -name '*.go' ! -name '*_templ.go'))" || (echo "  ❌ goimports issues"; goimports -l -local github.com/calionauta/gogogo $$(find . -name '*.go' ! -name '*_templ.go'); exit 1)
 	@echo "  ✅ formatting clean"
 
 # datastar-lint checks .templ files for Datastar anti-patterns. Runs with
@@ -227,7 +227,7 @@ setup:
 
 # Rename the project identity (module path, binary, container, titles, deploy
 # paths). This repo is a GitHub template, so a fresh copy still says
-# gogogo-fullstack-template everywhere — ~360 occurrences across ~130 files.
+# gogogo everywhere — ~360 occurrences across ~130 files.
 # Doing that by hand invites a half-renamed tree that compiles but deploys to
 # the wrong directory, so the script does the whole pass and then builds to
 # prove it. See scripts/rename-project.py for exactly what is and is not touched.

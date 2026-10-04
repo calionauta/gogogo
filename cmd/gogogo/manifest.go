@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // Unit ids offered by the installer. Most map 1:1 to a capability;

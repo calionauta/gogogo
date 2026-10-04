@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm/fakeserver"
+	"github.com/calionauta/gogogo/internal/llm/fakeserver"
 )
 
 // TestChatSuggest_AISuggestPath verifies the real "AI Suggest" pathway

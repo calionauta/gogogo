@@ -7,7 +7,7 @@ import (
 
 	"github.com/zendev-sh/goai/provider"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
+	"github.com/calionauta/gogogo/internal/llm"
 )
 
 func TestBillerNoUserFailsClosed(t *testing.T) {

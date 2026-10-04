@@ -9,9 +9,9 @@ import (
 	"github.com/danmestas/dagnats/server"
 	"github.com/danmestas/dagnats/worker"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/internal/dagnats"
+	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // TestOnboarding_ResumeSignalsRun is the end-to-end regression guard

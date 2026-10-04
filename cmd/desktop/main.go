@@ -22,10 +22,10 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/internal/collab"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/server"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/server"
 )
 
 //nolint:gocyclo,gocognit // extracting NATS+Collab would add abstraction over single-use setup

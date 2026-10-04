@@ -8,7 +8,7 @@ still works and is documented below as the fallback.
 ## 0. Recommended: the installer
 
 ```bash
-go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+go run github.com/calionauta/gogogo/cmd/gogogo@latest
 cd my-app
 make dev
 ```
@@ -65,13 +65,13 @@ see `cmd/gogogo/README.md`.
 ```bash
 # GitHub UI: click "Use this template" -> "Create a new repository"
 # or from the CLI:
-gh repo create my-app --template calionauta/gogogo-fullstack-template --clone
+gh repo create my-app --template calionauta/gogogo --clone
 cd my-app
 ```
 
 ## 2. Rename the project
 
-A fresh copy still says `gogogo-fullstack-template` in ~360 places across ~130
+A fresh copy still says `gogogo` in ~360 places across ~130
 files (module path, binary name, container, titles, deploy paths). One command
 rewrites all of it and then builds to prove it worked:
 

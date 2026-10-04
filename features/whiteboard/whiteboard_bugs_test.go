@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/collab"
+	"github.com/calionauta/gogogo/internal/collab"
 )
 
 // TestWhiteboard_PresenceToleratesStringCoords is the regression guard for
