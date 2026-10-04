@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -21,14 +20,11 @@ const (
 
 var goVersionRe = regexp.MustCompile(`go(\d+)\.(\d+)`)
 
-// Seams for tests (no exec in unit tests).
-var (
-	lookGit      = func() error { _, err := exec.LookPath("git"); return err }
-	goVersionOut = func(ctx context.Context) (string, error) {
-		out, err := runIn(ctx, ".", "go", "version")
-		return string(out), err
-	}
-)
+// goVersionOut is a seam for tests (no exec in unit tests).
+var goVersionOut = func(ctx context.Context) (string, error) {
+	out, err := runIn(ctx, ".", "go", "version")
+	return string(out), err
+}
 
 // preflight fails fast — before any clone, trim, or confirm — when the
 // tools the apply path shells out to are missing or too old. Read-only

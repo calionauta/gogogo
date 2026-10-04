@@ -8,10 +8,13 @@ still works and is documented below as the fallback.
 ## 0. Recommended: the installer
 
 ```bash
-go run github.com/calionauta/gogogo/cmd/gogogo@latest
-cd my-app && make dev
+go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 ```
 
+One line: answers 4 questions, clones the template when the directory is
+missing, scaffolds, proves, and hands the terminal to `make dev` (Ctrl-C
+stops dev). Without `--run` the installer prints `cd <name> && make dev`
+instead — agents must use that path (`--run` never returns).
 No checkout needed: when the directory is missing the installer clones
 the template into it first (asks, or `--yes` to proceed unattended).
 No Go on this machine? Use the [binary release](../README.md#cli--mcp-agent-paths)

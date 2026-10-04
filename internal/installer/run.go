@@ -25,6 +25,7 @@ type options struct {
 	yes      bool
 	dryRun   bool
 	check    bool
+	run      bool
 	format   string
 }
 
@@ -89,41 +90,6 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	return runApply(ctx, opt, drop, plan, stdin, stdout)
 }
 
-// runCheck is the read-only drift gate: strict dir, no mutation, no tools.
-func runCheck(opt options, stdout io.Writer) error {
-	if err := requireCheckoutDir(opt); err != nil {
-		return err
-	}
-	if failed := printCheck(stdout, checkTree(opt.dir)); failed > 0 {
-		return &ExitError{code: 1, msg: fmt.Sprintf(
-			"%d unit(s) cannot apply cleanly here — manifest drift "+
-				"or already-trimmed tree (see CHECK-FAIL lines above)", failed)}
-	}
-	fmt.Fprintln(stdout, "gogogo: check OK — every unit applies cleanly here")
-	return nil
-}
-
-// runApply is the mutating tail: preflight, clone-if-missing, confirm,
-// then trim + prove. Separated so Run stays under the gocyclo gate.
-func runApply(ctx context.Context, opt options, drop []trimUnit,
-	plan scaffoldPlan, stdin io.Reader, stdout io.Writer,
-) error {
-	if err := preflight(ctx, stdout, true, true); err != nil {
-		return err
-	}
-	if err := ensureCheckoutDir(ctx, opt, stdin, stdout); err != nil {
-		return err
-	}
-	if !opt.yes && !confirm(stdout, stdin, len(drop)) {
-		fmt.Fprintln(stdout, "gogogo: aborted — nothing changed (re-run with --yes to skip this prompt)")
-		return nil
-	}
-	if opt.format == planFormatJSON {
-		return applyAndProveJSON(ctx, opt, drop, stdout, plan)
-	}
-	return applyAndProve(ctx, opt, drop, stdout)
-}
-
 // runSubcommand dispatches the mutating/guiding subcommands, keeping Run's
 // own complexity under the gocyclo gate. It reports whether argv named one.
 func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) (bool, error) {
@@ -153,6 +119,8 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
 	fs.BoolVar(&opt.dryRun, "dry-run", false, "print the plan and stop; changes nothing")
 	fs.BoolVar(&opt.check, "check", false, "verify manifest markers against --dir, change nothing (drift gate)")
+	fs.BoolVar(&opt.run, "run", false, "hand over to `make dev` after a "+
+		"successful proof (takes this terminal; Ctrl-C stops dev; humans only)")
 	fs.StringVar(&opt.format, "format", planFormatText, "plan format: text|json")
 	fs.Usage = func() { PrintUsage(stdout, fs) }
 	fs.SetOutput(stdout)
@@ -267,14 +235,17 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 		return err
 	}
 	printNextSteps(stdout, opt.dir)
+	if opt.run {
+		return handoff(opt.dir, stdout)
+	}
 	return nil
 }
 
 // nextSteps is the printed + machine-readable handoff after a successful
-// scaffold. The installer runs from an ephemeral `go run @latest` module,
-// so it cannot own the new project's dev loop (Air, ports, browser) —
-// instead it ends with the exact commands. PORT is the scaffolded app's
-// default; the binary reads it at boot.
+// scaffold. Without --run the installer ends with the exact commands: it
+// runs from an ephemeral `go run @latest` module and a child process
+// cannot cd its parent, so `cd <dir> && make dev` is printed, not run.
+// PORT is the scaffolded app's default; the binary reads it at boot.
 type nextSteps struct {
 	Dir   string `json:"dir"`
 	Dev   string `json:"dev"`
@@ -335,7 +306,13 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	if err := printEnvelopeJSON(stdout, env); err != nil {
 		return err
 	}
-	return proveErr
+	if proveErr != nil {
+		return proveErr
+	}
+	if opt.run {
+		return handoff(opt.dir, stdout)
+	}
+	return nil
 }
 
 func confirm(stdout io.Writer, stdin io.Reader, nDrop int) bool {
@@ -471,6 +448,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
     6. proves it: templ generate (when .templ edited) + go mod tidy +
        go build ./cmd/web, then prints the exact next commands
        (cd <dir> && make dev — a child process cannot cd its parent).
+       With --run it skips the printing and becomes dev itself: execs
+       make dev in the new checkout (humans only; agents must not).
 
   Units (id, kind). Kind follows the servant principle, not the directory:
   a plugin serves other capabilities (sounds, skins, credits serve pages);

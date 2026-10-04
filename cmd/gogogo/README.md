@@ -4,10 +4,11 @@ Scaffold a new project from `gogogo` without hand-rename
 drift and without dead code left behind.
 
 ```bash
-# Interactive (4 questions: name, owner, plugins, features)
-go run github.com/calionauta/gogogo/cmd/gogogo@latest
+# Interactive (4 questions: name, owner, plugins, features), then hands
+# the terminal to `make dev` in the new checkout (Ctrl-C stops dev).
+go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
-# Scripted
+# Scripted (agents must NOT use --run: it never returns)
 go run ./cmd/gogogo --name my-app --owner myorg \
   --plugins dagnats,nats,llm --features todo,landing,config --no-tui
 ```
@@ -29,8 +30,9 @@ go run ./cmd/gogogo --name my-app --owner myorg \
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:
 
 ```bash
-# Humans: 4 questions, plan printed, confirm [y/N] before anything changes.
-go run github.com/calionauta/gogogo/cmd/gogogo@latest
+# Humans: 4 questions, plan printed, confirm [y/N], then `make dev`
+# takes this terminal (Ctrl-C stops dev).
+go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
 
 # Agents, step 1 — preview as JSON (changes nothing, exit 0):
 go run ./cmd/gogogo --name my-app --owner myorg \
