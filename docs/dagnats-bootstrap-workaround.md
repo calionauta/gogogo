@@ -127,6 +127,24 @@ upstream is three lines: return an empty slice when
 `errors.Is(err, jetstream.ErrNoKeysFound)`, matching what the rest of the
 package already does.
 
+**Upstream report:** [danmestas/dagnats#745](https://github.com/danmestas/dagnats/pull/745)
+— a PR with that fix plus a regression test. It also documents the blast
+radius: four console actions guard on the same call (`create`, `update`,
+`delete`, `toggle`), and the reason the maintainer never hit it (the CLI and
+`workflow register` write through `CreateTrigger` or straight to the KV, so
+neither touches the raising call).
+
+### When #745 is merged and released
+
+1. Bump `github.com/danmestas/dagnats` in `go.mod` to the release containing it.
+2. Run the two-step test above with the workaround **disabled**
+   (`DAGNATS_TRIGGER_BOOTSTRAP=false`). If the create succeeds, the bug is gone.
+3. Remove the workaround in the same commit as the bump — see the three edits
+   above. Do not leave it for a follow-up; a workaround that outlives its bug
+   reads as a requirement to the next person.
+4. Drop the row from the workaround table in `AGENTS.md`.
+5. Record the re-check in the bump commit body, whether or not it was needed.
+
 ## Related
 
 - [Async layers](async-layers.md) — where DagNats sits among the six layers.

@@ -125,9 +125,14 @@ self-contained, documented, disable-able at runtime, and **must be
 re-checked whenever that dependency is upgraded** — a workaround that
 outlives its bug is dead weight that misleads the next reader.
 
-| Workaround | Dependency | Re-evaluate when | Details |
-|---|---|---|---|
-| `internal/dagnats/trigger_bootstrap.go` — seeds one disabled placeholder trigger so the DagNats console can create the first trigger | DagNats v0.0.24 | any DagNats bump | [docs/dagnats-bootstrap-workaround.md](docs/dagnats-bootstrap-workaround.md) |
+| Workaround | Dependency | Upstream | Re-evaluate when | Details |
+|---|---|---|---|---|
+| `internal/dagnats/trigger_bootstrap.go` — seeds one disabled placeholder trigger so the DagNats console can create the first trigger | DagNats v0.0.24 | [danmestas/dagnats#745](https://github.com/danmestas/dagnats/pull/745) (fix PR, open) | any DagNats bump | [docs/dagnats-bootstrap-workaround.md](docs/dagnats-bootstrap-workaround.md) |
+
+Check the upstream link before assuming the workaround is still needed. When
+the fix is merged and released, the dependency bump and the removal belong in
+the **same commit** — see the removal steps in that workaround's doc — and the
+row comes out of this table.
 
 When you bump a dependency listed above:
 
