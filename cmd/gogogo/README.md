@@ -76,7 +76,7 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
 | `go run ./cmd/gogogo` stdlib-only in the main module (this) | **Chosen**: `go run` needs nothing but Go, zero new dependencies, fully testable, and the trim engine is the same one a future TUI would call. `--no-tui` flag shape already matches the scripted path. Prebuilt binaries (GoReleaser, same engine) cover Go-less machines. |
 | `gh extension` / `make init` wrapper | Rejected as primary (needs `gh` + extension install); `make init` may wrap this CLI later for discoverability. |
 
-## Safe trim subset (v0.1)
+## Safe trim subset
 
 The installer only deletes what it can decouple without breaking the build.
 Capability metadata (kinds, warnings, owned paths, runtime switches) comes
