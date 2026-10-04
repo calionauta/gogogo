@@ -38,8 +38,8 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 			<button
 				type="button"
 				class="app-theme-toggle"
-				aria-label="Alternar tema"
-				title="Alternar tema claro/escuro"
+				aria-label="Toggle theme"
+				title="Toggle light/dark theme"
 				data-on:click="var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)"
 			 data-variant="ghost">
 				<iconify-icon icon="material-symbols:dark-mode" class="text-lg theme-toggle-icon icon-dark-mode"></iconify-icon>

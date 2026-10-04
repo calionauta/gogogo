@@ -29,7 +29,9 @@ templ TodoListRegion(signals todo.Signals) {
 			<div id="todo-empty-state" style="padding: 2rem 0; text-align: center; color: var(--neo-color-muted-foreground, #78716c);">
 				<svg xmlns="http://www.w3.org/2000/svg" style="width:2rem;height:2rem;opacity:0.3;display:inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
 				<p style="margin: 0.5rem 0 0;">No todos here yet.</p>
-				<p style="font-size: 0.75rem; margin-top: 0.25rem;">Add one above to get started, or click "Run durable workflow" in the sidebar.</p>
+				if signals.DagNatsEnabled {
+					<p style="font-size: 0.75rem; margin-top: 0.25rem;">Add one above to get started, or click "Run durable workflow" in the sidebar.</p>
+				}
 			</div>
 		}
 		for _, item := range signals.Todos {

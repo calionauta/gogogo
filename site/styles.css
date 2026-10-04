@@ -345,9 +345,18 @@ td:nth-child(2) { color: var(--ink-soft); }
 }
 
 .card .step {
-  margin: 0 0 8px;
+  margin: 0 0 2px;
   font-weight: 600;
   font-size: 15px;
+}
+
+.card .tech {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 .card p:last-child { margin: 0; font-size: 14.5px; color: var(--ink-soft); }

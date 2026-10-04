@@ -1,22 +1,24 @@
 # Features
 
-Every capability is always compiled. What you get out of the box:
+Every capability is always compiled. The headline is the **feature**; the
+second column names the **technology** that powers it.
 
-| Capability | Runtime opt-out | What it does |
-|-----------|----------------|--------------|
-| **Todo app + PocketBase realtime** | — | DB actions (create/toggle/delete) stream through PocketBase realtime, per-user scoped via the `owner` rule. SSE Hub for ephemeral signals (toasts, clients count, AI suggest) |
-| **Queue + retry** | — | `goqite` background jobs + `retry-go` (the "Queue + Retry" demo). Stepper UI streamed via SSE; uses signal-set `techStep` / `techPhase` |
-| **AI Suggest** | `GOAI_API_KEY` unset | GoAI call from the todo UI; button hidden when no key. Stepper UI streamed via SSE; uses signal-set `aiStep` / `aiPhase` (kept independent from Queue + Retry's stepper signals) |
-| **AI credits + BYOK** | `CREDITS_ENABLED=false` | Optional [ai-credits](https://github.com/calionauta/ai-credits) plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
-| **Collaborative whiteboard** | — | Loro CRDT + Rough.js canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots |
-| **UI skins (pluggable)** | `UI_SKIN` | DaisyUI v5 (default), BasecoatUI (shadcn-style OKLCH tokens), or Morpheus (vendorized web components). Switch at runtime via `UI_SKIN` env var or `?skin=` query. See [UI skins](ui-skins.md) |
-| **Landing page** | — | Public marketing page on `GET /` (project tagline + a single CTA). Does **not** require auth and does **not** read the database. The todo demo lives at `/todo` |
-| **Read-only config view** | — | Auth-gated `GET /config` shows what the binary has decided to do: env-decrypted values, masked secrets, runtime constants. Never mutates state |
-| **Pluggable persistence** | `ENTITY_STORE` | `pb` (default: PocketBase records + admin UI works) or `crdt` (Loro per-owner doc + JetStream cross-instance transport). Same `EntityStore[T]` interface, swapped via one env var |
-| **Multi-instance realtime** | `NATS_ENABLED=false` | NATS JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
-| **Durable workflows** | `DAGNATS_ENABLED=false` | DagNats JSON workflows — HTTP API on `:8090`, durable state on JetStream `:4222` (e.g. `WelcomeOnboarding`) |
-| **Desktop-edge sync** | `NATS_LEAFNODE_URL` unset | Leaf-Node JetStream replication of Loro updates for desktop/edge clients |
-| **Hybrid offline sync** | `OFFLINE_SYNC_ENABLED=false` | Disables the NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via NATS JetStream and the server's CrudConsumer writes to PocketBase; web clients use Service Worker + Background Sync. Set to `false` for always-online deployments and zero code paths are traversed |
+| Feature | Powered by | Runtime opt-out | What it does |
+|---|---|---|---|
+| **Auth** | PocketBase | — (middleware stays; login UI removable) | Cookie sessions, demo login, per-request user loading |
+| **Todo app + realtime** | PocketBase realtime + SSE Hub | — | DB actions (create/toggle/delete) stream per-user via the `owner` rule. SSE Hub carries ephemeral signals (toasts, clients count, AI suggest) |
+| **Background jobs + retry** | `goqite` + `retry-go` | — | Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`) |
+| **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase` |
+| **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
+| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots |
+| **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
+| **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
+| **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` | NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync |
+| **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI + Morpheus | `UI_SKIN` | DaisyUI (default), BasecoatUI (shadcn-style OKLCH tokens), or Morpheus (vendorized web components). Switch via env var or `?skin=`. See [UI skins](ui-skins.md) |
+| **Pluggable persistence** | `pb` / `crdt` EntityStore | `ENTITY_STORE` | `pb` (default: PocketBase records + admin UI works) or `crdt` (Loro per-owner doc + JetStream transport). Same `EntityStore[T]` interface |
+| **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset | Leaf-Node JetStream replication of Loro updates for desktop/edge clients |
+| **Landing page** | Templ | — | The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo` |
+| **Read-only config view** | Templ | — | Auth-gated `GET /config`: env-decrypted values, masked secrets, runtime constants. Never mutates state |
 
 ## Adding a new feature
 

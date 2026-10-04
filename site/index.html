@@ -48,14 +48,14 @@
     <div class="hero-art">
       <img src="./assets/logo.png" alt="gogogo-fullstack-template" width="677" height="369">
       <div class="install-block">
-        <p class="install-label">Start from the template</p>
-        <pre><code>gh repo create my-app --template \
-  calionauta/gogogo-fullstack-template --clone
+        <p class="install-label">Start with the installer</p>
+        <pre><code>go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+# answers 4 questions, scaffolds my-app, trims what you skip
 cd my-app
-make rename NAME=my-app
 make dev</code></pre>
-        <p class="install-note">Go 1.27+ is the only prerequisite. Every project name,
-        module path and deploy path follows from <code>make rename</code>.</p>
+        <p class="install-note">Go 1.27+ is the only prerequisite. Prefers the
+        guided installer; manual <code>gh repo create --template</code> +
+        <code>make rename</code> still works — see <a href="./docs/getting-started/">getting started</a>.</p>
       </div>
     </div>
   </section>
@@ -186,51 +186,66 @@ make dev</code></pre>
   <section id="features" class="section">
     <p class="kicker">Out of the box</p>
     <h2>Capabilities, and how to switch each one off.</h2>
-    <p class="section-lede">Every capability is always compiled. Infrastructure opts out
+    <p class="section-lede">Every capability is always compiled. The headline is the
+    <strong>feature</strong> you keep or delete; the quiet label underneath names the
+    <strong>technology</strong> that powers it. Infrastructure opts out
     with an environment variable; product features opt out by deleting a package and its
-    one wiring call.</p>
+    one wiring call. The installer asks which ones you want and trims the rest.</p>
     <div class="grid-2">
       <div class="card">
-        <p class="step">Todo app + realtime</p>
-        <p>Full CRUD. Database actions stream through PocketBase realtime, scoped per
-        user by the collection's access rule. Toasts, client count, and AI suggestions
-        ride the SSE Hub.</p>
+        <p class="step">Auth</p>
+        <p class="tech">Powered by PocketBase</p>
+        <p>Cookie sessions, demo login, and per-request user loading. Middleware stays;
+        the login UI is removable.</p>
       </div>
       <div class="card">
-        <p class="step">Queue + retry</p>
-        <p>Background jobs with exponential backoff and jitter. SSE-aware: a retry emits
+        <p class="step">Todo app + realtime</p>
+        <p class="tech">Powered by PocketBase realtime + SSE Hub</p>
+        <p>Full CRUD. Database actions stream per user through the collection's access rule. Toasts, client count, and AI suggestions
+        ride the ephemeral SSE Hub.</p>
+      </div>
+      <div class="card">
+        <p class="step">Background jobs + retry</p>
+        <p class="tech">Powered by goqite + retry-go</p>
+        <p>Jobs with exponential backoff and jitter. A retry emits
         a <code>lastRetry</code> signal so the UI can show "retrying…".</p>
       </div>
       <div class="card">
         <p class="step">Durable workflows</p>
-        <p><code>WelcomeOnboarding</code> creates example todos through DagNats. Stop the
-        process mid-run and restart — it picks up where it left off.</p>
+        <p class="tech">Powered by DagNats over JetStream</p>
+        <p><code>WelcomeOnboarding</code> creates example todos as declarative JSON. Stop the
+        process mid-run and restart — it picks up where it left off. Off with <code>DAGNATS_ENABLED=false</code>.</p>
       </div>
       <div class="card">
         <p class="step">Collaborative whiteboard</p>
-        <p>Loro CRDT canvas with Rough.js, presence cursors, offline outbox replay, and
+        <p class="tech">Powered by Loro CRDT + Rough.js + NATS</p>
+        <p>Conflict-free canvas with presence cursors, offline outbox replay, and
         PocketBase-persisted snapshots.</p>
       </div>
       <div class="card">
         <p class="step">Hybrid offline sync</p>
-        <p>A Service Worker queues mutations in IndexedDB and replays them on reconnect;
-        the desktop build does it with a NATS Leaf Node. Server-side idempotency means
-        replays never duplicate.</p>
+        <p class="tech">Powered by Service Worker + NATS Leaf Node + idempotency</p>
+        <p>Web clients queue mutations in IndexedDB and replay on reconnect;
+        desktop edges replicate over NATS. Server-side idempotency means
+        replays never duplicate. Off with <code>OFFLINE_SYNC_ENABLED=false</code>.</p>
       </div>
       <div class="card">
         <p class="step">Three pluggable skins</p>
+        <p class="tech">Powered by DaisyUI + Basecoat + Morpheus</p>
         <p>DaisyUI (default), Basecoat, and Morpheus — all compiled into the same binary,
-        switchable per process or per request.</p>
+        switchable per process (<code>UI_SKIN</code>) or per request (<code>?skin=</code>).</p>
       </div>
       <div class="card">
-        <p class="step">AI credits + BYOK</p>
-        <p>Optional billing that shares PocketBase's SQLite file: reserve/settle ledger,
-        monthly entitlements, Stripe top-ups, and encrypted per-user keys.</p>
+        <p class="step">AI suggest + credits</p>
+        <p class="tech">Powered by GoAI + ai-credits (BYOK)</p>
+        <p>Todo suggestions behind an injectable LLM interface, optionally metered with a
+        reserve/settle ledger, monthly entitlements, and encrypted per-user keys. Off when no key is set.</p>
       </div>
       <div class="card">
         <p class="step">Admin surfaces</p>
-        <p>PocketBase's admin UI at <code>/_/</code>, a read-only config view at
-        <code>/config</code>, and the DagNats workflow console — all from one binary.</p>
+        <p class="tech">Powered by PocketBase admin + config view + DagNats console</p>
+        <p>Admin UI at <code>/_/</code>, read-only config at
+        <code>/config</code>, and the workflow console — all from one binary.</p>
       </div>
     </div>
     <p class="fine center">Every capability with its opt-out:
@@ -269,29 +284,28 @@ make dev</code></pre>
 
   <section id="start" class="section cta-section">
     <p class="kicker">Start here</p>
-    <h2>Copy it. Rename it. Ship it.</h2>
-    <p class="section-lede">One command creates your project from this template,
-    one renames it. Nothing to install first.</p>
+    <h2>Answer four questions. Ship it.</h2>
+    <p class="section-lede">The installer scaffolds your repo from this template,
+    renames it, and trims the plugins and features you skip. Nothing to install first
+    except Go.</p>
     <div class="install-block wide">
-      <pre><code>gh repo create my-app --template \
-  calionauta/gogogo-fullstack-template --clone
+      <pre><code>go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
 cd my-app
-make rename NAME=my-app
 make dev</code></pre>
     </div>
     <div class="steps">
       <div class="step-card">
         <p class="step-n">1</p>
-        <p class="step-t">Create your repo</p>
-        <p class="step-d">A copy of the template, ready to commit to — not a fork,
-        so it starts with a clean history.</p>
+        <p class="step-t">Name your project</p>
+        <p class="step-d">Project name + GitHub owner. Sets the module path, binary,
+        container and deploy directory — then compiles, so a half-renamed tree
+        can't slip through.</p>
       </div>
       <div class="step-card">
         <p class="step-n">2</p>
-        <p class="step-t">Rename it</p>
-        <p class="step-d">Sets the module path, binary, container and deploy
-        directory to your project name — then compiles, so a half-renamed tree
-        can't slip through.</p>
+        <p class="step-t">Pick plugins + features</p>
+        <p class="step-d">Durable workflows, whiteboard, landing, config view,
+        credits, sounds, extra skins. What you skip is deleted with its wiring call, not left as dead code.</p>
       </div>
       <div class="step-card">
         <p class="step-n">3</p>

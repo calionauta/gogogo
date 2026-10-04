@@ -13,8 +13,8 @@ load-bearing.
 | Annotation | Meaning | You would… |
 |------------|---------|-----------|
 | `SCOPE:core` 🔴 | Binary does not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
-| `SCOPE:plugin` 🟡 | Binary works but loses a capability. Swap or delete with its wiring call. | Swap for another implementation, or delete the package + wiring call (e.g. `router.Init`, `cmd/web/main.go`). |
-| `SCOPE:feature` 🟢 | A demo/add-on. | Keep as a reference while building your own, then remove. |
+| `SCOPE:plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `router.Init`, `cmd/web/main.go`). |
+| `SCOPE:feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
 
 ## The two-axis annotation form
 
@@ -60,6 +60,17 @@ and `cmd/web/`.
 3. Remove the wiring call from `router/router.go` → `Init()`.
 4. If it was a plugin, also remove the `start*` call in `cmd/web/main.go`.
 5. Run `make check-scope && go build ./cmd/web` to catch anything left behind.
+
+## Graceful degradation (UI rule)
+
+Optional capabilities with UI must degrade through **signals, never 404s**:
+the tab/button/hint renders only when a `todo.Signals` bool is true, and
+that bool is registration truth (`config enabled && handler wired`), not
+config truth. Precedents: `DagNatsEnabled` (tab + container + empty-state
+hints across all three skins), `LLMEnabled` (AI tab). When you add a
+removable capability with UI: add the signal, gate every skin, record it
+as `UISignal` in `internal/capabilities` — the conformance test fails if
+the field or a `.templ` reader goes missing.
 
 ## What ships as what
 

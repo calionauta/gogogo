@@ -106,8 +106,10 @@ type Signals struct {
 	// the first mutation.
 	LastItemSource string `json:"lastItemSource"`
 
-	// DagNatsEnabled reflects whether the DagNats engine is compiled in
-	// (always, in the unified build) AND started with DAGNATS_ENABLED=true.
+	// DagNatsEnabled reflects whether the durable-workflow UI should
+	// render: the engine is enabled AND the onboarding routes were
+	// registered at boot (see TodoHandler.dagnatsUIEnabled). False both
+	// when DAGNATS_ENABLED=false and when the dagnats unit was trimmed.
 	// When true, the UI renders the "Run durable workflow" button.
 	DagNatsEnabled bool `json:"dagNatsEnabled"`
 

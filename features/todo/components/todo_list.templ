@@ -475,7 +475,9 @@ templ TodoListRegion(signals todo.Signals) {
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
 				</svg>
 				<p>No todos here yet.</p>
-				<p class="text-xs mt-1">Add one above to get started, or click "Run durable workflow" in the sidebar to auto-create examples.</p>
+				if signals.DagNatsEnabled {
+					<p class="text-xs mt-1">Add one above to get started, or click "Run durable workflow" in the sidebar to auto-create examples.</p>
+				}
 			</div>
 		}
 		for _, item := range signals.Todos {

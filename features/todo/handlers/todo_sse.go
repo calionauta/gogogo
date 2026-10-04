@@ -79,7 +79,7 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 		ItemCount:        len(todos),
 		LLMEnabled:       h.llmEnabled(),
 		SimulatedLLM:     h.simulatedLLMEnabled(),
-		DagNatsEnabled:   h.cfg.DagNats.Enabled,
+		DagNatsEnabled:   h.dagnatsUIEnabled(),
 		ConnectedClients: h.q.Hub().Stats().Clients,
 		ClientID:         clientID,
 		SidebarTab:       "queue",
