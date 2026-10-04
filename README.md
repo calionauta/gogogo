@@ -227,9 +227,10 @@ Destructive paths refuse without explicit confirmation (`--yes` /
 [getting-started §0b–0c](docs/getting-started.md#0b-opinions-before-changes-advise).
 
 No Go on this machine? Tagged releases ship static binaries (`gogogo` +
-`gogogo-mcp`, checksummed) — no toolchain needed for the installer itself
-(Go is still required inside the scaffolded project, and the installer
-checks it up front):
+`gogogo-mcp`, checksummed) — and `install.sh` bootstraps a user-space Go
+toolchain when none is found (`~/.local/go`, no sudo, existing installs
+untouched). After that, Go is only required inside the scaffolded project,
+and the installer checks it up front:
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
