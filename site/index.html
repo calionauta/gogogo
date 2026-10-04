@@ -38,7 +38,7 @@
       offline sync and an LLM client — in one self-contained Go binary.</p>
       <p class="lede-sub">No Docker. No Redis. No Postgres. No JS build step.</p>
       <div class="cta-row">
-        <a class="btn primary" href="#start">Use this template</a>
+        <a class="btn primary" href="#start">Get started</a>
         <a class="btn" href="./docs/">Read the docs</a>
         <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
       </div>
@@ -64,8 +64,9 @@ make dev</code></pre>
     <h2>Every choice already made.</h2>
     <p class="section-lede">Decisions you would otherwise make in the first
     week — picked, wired together, explained, and grouped by how each one
-    leaves your build: always in, switched off, or deleted. Each one is
-    documented with its trade-offs in
+    leaves your build: always in, switched off, or deleted (the
+    <a href="./docs/scope-taxonomy/">core / plugin / feature</a> rule). Each
+    one is documented with its trade-offs in
     <a href="./docs/stack-layers/">stack layers</a>.</p>
     <p class="group-label core">Always in <span>(core — customize, never remove)</span></p>
     <div class="grid-2">
@@ -109,32 +110,26 @@ make dev</code></pre>
         <p class="off">Off: <code>NATS_ENABLED=false</code></p>
       </div>
       <div class="card">
-        <p class="step">Three UI skins, one binary</p>
-        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
-        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>.</p>
-        <p class="off">Off: <code>UI_SKIN=daisyui</code></p>
-      </div>
-      <div class="card">
         <p class="step">AI features on any provider</p>
         <p class="tech">GoAI + ai-credits</p>
         <p>Injectable LLM interface, plus optional credits and BYOK billing.</p>
         <p class="off">Off: unset <code>GOAI_API_KEY</code></p>
       </div>
       <div class="card">
-        <p class="step">Offline edits that replay</p>
+        <p class="step">Offline-first sync</p>
         <p class="tech">Service Worker + Leaf Node</p>
-        <p>Mutations queue in IndexedDB and replay on reconnect; replays never duplicate.</p>
+        <p>Offline edits queue locally and replay on reconnect; replays never duplicate.</p>
         <p class="off">Off: <code>OFFLINE_SYNC_ENABLED=false</code></p>
       </div>
-    </div>
-    <p class="group-label feature">Delete if you don't need it <span>(feature — package + wiring call)</span></p>
-    <div class="grid-2">
       <div class="card">
-        <p class="step">Todo reference app</p>
-        <p class="tech">PocketBase realtime</p>
-        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
-        <p class="off">Delete: <code>features/todo/</code></p>
+        <p class="step">Three UI skins, one binary</p>
+        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
+        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>.</p>
+        <p class="off">Off: <code>UI_SKIN=daisyui</code></p>
       </div>
+    </div>
+    <p class="group-label feature">Optional extras <span>(feature — keep it or delete it)</span></p>
+    <div class="grid-2">
       <div class="card">
         <p class="step">Collaborative whiteboard</p>
         <p class="tech">Loro CRDT + Rough.js</p>
@@ -142,21 +137,17 @@ make dev</code></pre>
         <p class="off">Delete: <code>features/whiteboard/</code></p>
       </div>
       <div class="card">
-        <p class="step">Native apps on the same backend</p>
-        <p class="tech">Wails v3 + gogpu/ui</p>
-        <p>Desktop shells over the same backend — plus a native window with no HTTP at all.</p>
+        <p class="step">Desktop apps on the same backend</p>
+        <p class="tech">Wails v3 · gogpu/ui</p>
+        <p>Wails ships a desktop app with offline edge sync; gogpu/ui is a pure-Go window with no webview and no HTTP.</p>
         <p class="off">Delete: <code>cmd/desktop/</code>, <code>cmd/gui/</code></p>
       </div>
-    </div>
-    <p class="fine center">Every dependency with the reasoning behind it:
-    <a href="./docs/stack-layers/">stack layers →</a>
-    How trimming works: <a href="./docs/scope-taxonomy/">scope taxonomy →</a></p>
-    <div class="exception">
-      <p class="exception-rule">Go for everything. Zig only as an exception.</p>
-      <p class="exception-when">Zig enters in one case: a <strong>proven</strong>
-      native need — a profiled hot kernel, a codec, an OS integration.
-      Everything else stays Go.</p>
-      <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
+      <div class="card">
+        <p class="step">Todo reference app</p>
+        <p class="tech">PocketBase realtime</p>
+        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
+        <p class="off">Delete: <code>features/todo/</code></p>
+      </div>
     </div>
   </section>
 
@@ -235,9 +226,18 @@ make dev</code></pre>
     hook. <a href="./docs/scope-taxonomy/">Scope taxonomy →</a></p>
   </section>
 
+  <section class="section exception-band">
+    <p class="kicker">The exception</p>
+    <p class="exception-rule">Go for everything. Zig only as an exception.</p>
+    <p class="exception-sub">Zig enters in one case: a <strong>proven</strong>
+    native need — a profiled hot kernel, a codec, an OS integration.
+    Everything else stays Go.</p>
+    <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
+  </section>
+
   <section id="start" class="section cta-section">
     <p class="kicker">Start here</p>
-    <h2>Answer four questions. Ship it.</h2>
+    <h2>Scaffold it. Run it. Ship it.</h2>
     <p class="section-lede">The installer scaffolds your repo from this template,
     renames it, and trims the plugins and features you skip. Nothing to install first
     except Go.</p>
@@ -269,8 +269,8 @@ make dev</code></pre>
       </div>
     </div>
     <div class="cta-row center">
-      <a class="btn primary" href="https://github.com/calionauta/gogogo" rel="noopener">Use this template</a>
-      <a class="btn" href="./docs/getting-started/">Getting started</a>
+      <a class="btn primary" href="./docs/getting-started/">Start with the installer</a>
+      <a class="btn" href="https://github.com/calionauta/gogogo" rel="noopener">Use this template</a>
       <a class="btn" href="./docs/">All docs</a>
     </div>
   </section>

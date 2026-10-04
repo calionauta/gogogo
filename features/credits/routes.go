@@ -12,6 +12,8 @@ import (
 	"net/http"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/calionauta/gogogo/internal/routeutil"
 )
 
 const (
@@ -88,17 +90,10 @@ func (s *Service) RegisterRoutes(se *core.ServeEvent) {
 			s.Relay.ServeHTTP(c.Response, c.Request)
 			return nil
 		}
-		for _, method := range []string{
-			http.MethodGet,
-			http.MethodHead,
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodPatch,
-			http.MethodDelete,
-			http.MethodOptions,
-		} {
-			r.Route(method, "/api/byok/*", relay)
-		}
+		// Register per method, never with r.Any(): a method-less pattern
+		// conflicts with the app's `GET /` and panics at startup. See
+		// internal/routeutil.
+		routeutil.RegisterAll(r, []string{"/api/byok/*"}, relay)
 	}
 
 	// Stripe top-up: checkout (authed) + webhook (signed, public). Both
