@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // NAME_RE mirrors scripts/rename-project.py: the name becomes a Go module
@@ -25,7 +25,7 @@ func validateName(name string) error {
 			name,
 		)
 	}
-	if name == "gogogo-fullstack-template" {
+	if name == "gogogo" {
 		return fmt.Errorf("nothing to do — that is the template name itself")
 	}
 	return nil

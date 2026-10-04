@@ -10,7 +10,7 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/calionauta/gogogo-fullstack-template/web/skins"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 func init() {

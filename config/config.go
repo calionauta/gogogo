@@ -51,7 +51,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/secrets"
+	"github.com/calionauta/gogogo/internal/secrets"
 )
 
 // ── Runtime constants ──
@@ -365,7 +365,7 @@ const defaultDagNatsNATSPort = 4222
 func defaultAppName() string {
 	exe, err := os.Executable()
 	if err != nil || exe == "" {
-		return "gogogo-fullstack-template"
+		return "gogogo"
 	}
 	base := exe
 	for i := len(exe) - 1; i >= 0; i-- {
@@ -375,7 +375,7 @@ func defaultAppName() string {
 		}
 	}
 	if base == "" {
-		return "gogogo-fullstack-template"
+		return "gogogo"
 	}
 	return base
 }

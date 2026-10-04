@@ -17,7 +17,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 )
 
 // ageSecretKey is the constant field name shown on the /config

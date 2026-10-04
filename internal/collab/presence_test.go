@@ -7,7 +7,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // TestPresence_TwoPeersConverge is the Phase C presence regression guard:

@@ -14,7 +14,7 @@
 //
 // The project name is passed in by the caller (config.Load) and is
 // derived from APP_NAME env or the binary name. There is no implicit
-// "gogogo-fullstack-template" name baked in — a user who renames their project
+// "gogogo" name baked in — a user who renames their project
 // gets a separate secrets file.
 package secrets
 

@@ -57,8 +57,8 @@ import (
 	"github.com/aholstenson/loro-go"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // itemsContainerName is the LoroMap root that holds every todo for a

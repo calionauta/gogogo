@@ -30,10 +30,10 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/internal/collab"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 const (

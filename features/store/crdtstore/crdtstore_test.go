@@ -35,8 +35,8 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // userSeq gives every test user a unique email.

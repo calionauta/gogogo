@@ -16,7 +16,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // JetStreamLike is the shape startNATS returns. On jetstream builds it
@@ -119,7 +119,7 @@ func (b *JetStreamBroadcaster) Subscribe(hub *queue.SSEHub) {
 		}
 		hub.Broadcast(msg.Data)
 		_ = msg.Ack()
-	}, natsio.Durable("gogogo-fullstack-template-todos"), natsio.ManualAck())
+	}, natsio.Durable("gogogo-todos"), natsio.ManualAck())
 	if err != nil {
 		slog.Error("realtime: subscribe failed", "error", err)
 		return

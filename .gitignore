@@ -1,7 +1,7 @@
 # Binary
 cali-go-stack
 tmp/
-gogogo-fullstack-template
+gogogo
 
 # NOTE: a global ~/.gitignore_global commonly ignores `bin/`. The repo tracks
 # its own scripts under bin/ (check-*.sh, datastar-lint, init-secrets), so add
@@ -53,7 +53,7 @@ node_modules/
 # Root-level logo is a social-card asset (1024px), not for the README — see web/resources/static/logo.png
 /logo.png
 app
-gogogo-fullstack-template
+gogogo
 coverage.html
 coverage.out
 

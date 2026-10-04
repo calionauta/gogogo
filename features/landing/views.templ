@@ -12,9 +12,9 @@
 package landing
 
 import (
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
-	"github.com/calionauta/gogogo-fullstack-template/internal/components"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
 )
 
 // Index renders the landing page. userEmail is empty for guests
@@ -27,7 +27,7 @@ templ Index(userEmail string, buildLabel string, buildCommit string) {
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>gogogo-fullstack-template</title>
+			<title>gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()
@@ -70,7 +70,7 @@ templ Index(userEmail string, buildLabel string, buildCommit string) {
 			<main class="landing-hero">
 				<div class="landing-card">
 					<header class="text-center mb-6">
-						<img class="landing-logo" src="/static/logo.png" alt="gogogo-fullstack-template"/>
+						<img class="landing-logo" src="/static/logo.png" alt="gogogo"/>
 					</header>
 
 					<section class="landing-about mb-8">

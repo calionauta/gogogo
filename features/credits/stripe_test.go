@@ -16,7 +16,7 @@ import (
 	paymentcore "github.com/calionauta/ai-credits/payments"
 	stripecredits "github.com/calionauta/ai-credits/stripe"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 )
 
 func stripeTestService(t *testing.T) (*Service, *paymentcore.Purchase) {

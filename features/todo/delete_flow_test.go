@@ -10,7 +10,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // TestIntegration_DeleteConfirmModalFlow verifies the two-step delete:

@@ -11,7 +11,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	appcfg "github.com/calionauta/gogogo-fullstack-template/config"
+	appcfg "github.com/calionauta/gogogo/config"
 )
 
 // Handler serves the landing page. State is limited to build

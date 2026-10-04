@@ -11,9 +11,9 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // handleSuggest enqueues a "suggest" background job instead of calling the

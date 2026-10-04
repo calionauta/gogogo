@@ -56,10 +56,10 @@ import (
 	"github.com/gogpu/ui/widget"
 	"github.com/pocketbase/pocketbase"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/db"
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/store/pbstore"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/db"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/store/pbstore"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )

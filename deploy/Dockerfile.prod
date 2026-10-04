@@ -74,7 +74,7 @@ COPY --from=builder /out/etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # its own embedded NATS and stores durable workflow state in DAGNATS_STORE_DIR
 # (default data/dagnats), separate from the main PocketBase SQLite file.
 # — no separate data dir is created and no extra writable path is needed.
-WORKDIR /var/lib/gogogo-fullstack-template/data
+WORKDIR /var/lib/gogogo/data
 
 # Go's runtime expects /tmp to be writable (e.g. for memory-mapped
 # file backings in some stdlib paths). scratch has no /tmp, so

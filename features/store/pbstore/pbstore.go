@@ -27,8 +27,8 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // PBStore is the PocketBase-backed implementation of EntityStore[*todo.Todo].

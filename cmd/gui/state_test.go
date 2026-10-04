@@ -9,9 +9,9 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/db"
-	"github.com/calionauta/gogogo-fullstack-template/features/store/pbstore"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/db"
+	"github.com/calionauta/gogogo/features/store/pbstore"
 )
 
 // The POC's whole claim is that the backend is reachable without HTTP.

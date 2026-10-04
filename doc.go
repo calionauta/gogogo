@@ -8,6 +8,6 @@
 //
 // The package name intentionally has no underscore: golangci-lint's
 // revive linter rejects underscore-separated package names, and the
-// module import path (github.com/calionauta/gogogo-fullstack-template)
+// module import path (github.com/calionauta/gogogo)
 // is independent of the package name, so renaming is safe.
 package gogogofullstacktemplate

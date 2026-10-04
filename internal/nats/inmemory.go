@@ -6,7 +6,7 @@ package nats
 import (
 	"context"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // InMemoryBroadcaster fans out todo updates via the SSE Hub's Broadcast

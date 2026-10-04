@@ -10,9 +10,9 @@
 package whiteboard
 
 import (
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
-	"github.com/calionauta/gogogo-fullstack-template/internal/components"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
 )
 
 // BoardMeta is a list-row summary of a saved whiteboard.
@@ -31,7 +31,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Whiteboards — gogogo-fullstack-template</title>
+			<title>Whiteboards — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 				<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()
@@ -116,7 +116,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Whiteboard { docID } — gogogo-fullstack-template</title>
+			<title>Whiteboard { docID } — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 				<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()

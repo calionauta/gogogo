@@ -1,4 +1,4 @@
-# docker-compose.prod.yml — production deployment for gogogo-fullstack-template.
+# docker-compose.prod.yml — production deployment for gogogo.
 # Used by:
 #   - GitHub Actions deploy workflow (via ssh-action on the server)
 #   - The on-server script scripts/deploy-prod.sh
@@ -7,15 +7,15 @@
 # Secrets come from secrets/${APP_NAME}.env (mode 600, regenerated
 # every deploy from GitHub Actions secrets — never committed).
 
-name: gogogo-fullstack-template
+name: gogogo
 
 services:
-  gogogo-fullstack-template:
+  gogogo:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.prod
-    image: gogogo-fullstack-template:prod
-    container_name: gogogo-fullstack-template
+    image: gogogo:prod
+    container_name: gogogo
     restart: unless-stopped
     user: "65532:65532"
     ports:
@@ -23,12 +23,12 @@ services:
     environment:
       # Non-secret env (from .env) — defaults baked in but can be overridden
       # in the .env file.
-      APP_NAME: ${APP_NAME:-gogogo-fullstack-template}
+      APP_NAME: ${APP_NAME:-gogogo}
       APP_URL: ${APP_URL:-https://fullstack.example.com}
       HOST: 0.0.0.0
       PORT: "8080"
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      DATA_DIR: /var/lib/gogogo-fullstack-template/data
+      DATA_DIR: /var/lib/gogogo/data
       # LLM (these three lines are wired by the GH Action deploy;
       # GOAI_API_KEY + GOAI_BASE_URL + GOAI_MODEL come from the
       # secrets env_file below, never committed). GOAI_BASE_URL /
@@ -37,14 +37,14 @@ services:
       GOAI_MODEL: ${GOAI_MODEL:-llama-3.1-8b-instant}
       # Realtime — binary built with -tags jetstream.
       NATS_ENABLED: "true"
-      NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/nats
+      NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo}/data/nats
       # Durable workflow — build with -tags dagnats. DagNats boots its
       # own embedded NATS and its HTTP API/console on DAGNATS_HTTP_ADDR
       # (default 127.0.0.1:8090). Under -tags "jetstream dagnats" it owns
       # the same NATS the realtime broadcaster uses (single-NATS).
       DAGNATS_ENABLED: "true"
       DAGNATS_HTTP_ADDR: "127.0.0.1:8090"
-      DAGNATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/dagnats
+      DAGNATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo}/data/dagnats
       WORKFLOW_EXECUTOR_ID: local
       # Demo affordance: the keyless "Suggest (simulated)" button
       # uses an in-process fake LLM that scripts 500 -> 200 + delay
@@ -54,7 +54,7 @@ services:
       # is rendered independently when that key is set.
       SIMULATE_LLM: ${SIMULATE_LLM:-true}
     env_file:
-      - /home/deploy/.secrets/gogogo-fullstack-template.env
+      - /home/deploy/.secrets/gogogo.env
     volumes:
       # Bind mount (not Docker volume) so operators can inspect/back up
       # the SQLite WAL files without docker exec (see scripts/db-tools/).
@@ -65,7 +65,7 @@ services:
       # grants container uid 65532 write access. The container target
       # stays /var/lib/<APP_NAME>/data — that is what the app's DATA_DIR
       # env points at, so the in-container path is unchanged.
-      - /home/deploy/services/${APP_NAME:-gogogo-fullstack-template}/data:/var/lib/${APP_NAME:-gogogo-fullstack-template}/data
+      - /home/deploy/services/${APP_NAME:-gogogo}/data:/var/lib/${APP_NAME:-gogogo}/data
     healthcheck:
       # Exec form (no shell) — the image is scratch, so wget/curl and
       # CMD-SHELL are unavailable. `/app health` is a built-in

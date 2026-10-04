@@ -10,7 +10,7 @@ import (
 	"github.com/aholstenson/loro-go"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // doc returns the LoroDoc for ownerID, lazily creating it and rebuilding
