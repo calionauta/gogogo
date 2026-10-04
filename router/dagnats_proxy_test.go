@@ -58,6 +58,12 @@ func stubUpstream(t *testing.T) (*httptest.Server, *stubCalls) {
 // proxyFixture builds the mux the same way router.Init does — a PocketBase
 // router with the DagNats proxy mounted — and serves it over httptest.
 //
+// It also registers `GET /`, because that is what the real app does
+// (features/landing) and registering only the proxy would hide the failure mode
+// that took production down: a method-less pattern from Router.Any() conflicts
+// with the method-scoped `GET /` at ServeMux build time, panicking at startup.
+// Building the mux here means that conflict fails a test instead of a deploy.
+//
 // The router is constructed directly rather than through app.OnServe():
 // OnServe only fires during app.Start(), and these tests assert routing, so
 // they do not need the HTTP server or the hook chain.
@@ -82,6 +88,11 @@ func proxyFixture(t *testing.T, upstream string) *httptest.Server {
 			return e, nil
 		},
 	)
+
+	// The app's own root route. Present so the mux is built under the same
+	// constraints as production.
+	r.GET("/", func(*core.RequestEvent) error { return nil })
+
 	approuter.MountDagNatsDashboardForTest(
 		&core.ServeEvent{App: app, Router: r},
 		upstream,
