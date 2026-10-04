@@ -14,25 +14,27 @@ VERSION="${GOGOGO_VERSION:-latest}"
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 case "$OS" in
-  Linux) OS="Linux" ;;
-  Darwin) OS="Darwin" ;;
-  *) echo "install.sh: unsupported OS $OS (Linux/Darwin only)" >&2; exit 1 ;;
+  Linux) OS="linux" ;;
+  Darwin) OS="darwin" ;;
+  *) echo "install.sh: unsupported OS $OS (linux/darwin only)" >&2; exit 1 ;;
 esac
 case "$ARCH" in
-  x86_64|amd64) ARCH="x86_64" ;;
+  x86_64|amd64) ARCH="amd64" ;;
   arm64|aarch64) ARCH="arm64" ;;
-  *) echo "install.sh: unsupported arch $ARCH (x86_64/arm64 only)" >&2; exit 1 ;;
+  *) echo "install.sh: unsupported arch $ARCH (amd64/arm64 only)" >&2; exit 1 ;;
 esac
 
-# GoReleaser names: gogogo-<Version>-<Os>-<Arch>.tar.gz, checksum SHA256SUMS.txt.
-# NOTE: GoReleaser's {{.Os}}/{{.Arch}} render "Linux/x86_64", "Darwin/arm64".
+# Release assets are named gogogo-<Version>-<Os>-<Arch>.tar.gz, e.g.
+# gogogo-0.32.0-linux-amd64.tar.gz (GoReleaser strips the leading v,
+# Os/Arch are raw GOOS/GOARCH). Checksum file: SHA256SUMS.txt.
 if [ "$VERSION" = "latest" ]; then
   TAG="$(curl -sSfL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" | sed 's/.*\///')"
 else
   TAG="$VERSION"
 fi
+VER="$(printf '%s' "$TAG" | sed 's/^v//')"
 BASE="https://github.com/$REPO/releases/download/$TAG"
-TARBALL="gogogo-$TAG-$OS-$ARCH.tar.gz"
+TARBALL="gogogo-$VER-$OS-$ARCH.tar.gz"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT INT TERM
