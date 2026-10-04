@@ -50,6 +50,41 @@ Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (ripwi
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
 - **Prefer Datastar attributes** (`data-on:*`, signals, expressions, `__window`/`__document` modifiers) over vanilla JS for client-side logic. Inline JS only when unavoidable, kept adjacent to the markup (locality of behavior).
 
+## Go-first / Zig escape hatch (read before proposing native code)
+
+Go is the product language (~95-99%+ of the app: HTTP, auth, SQLite, jobs,
+realtime, LLM, UI). Zig is an exceptional native implementation tool, not a
+second application language. There is no Zig code or toolchain in this repo
+today — do not add one without a concrete, benchmarked use case.
+
+- **Default to Go.** Normal product logic and all HTTP/auth/database/
+  realtime/job/LLM/UI integration stays in Go using stdlib, existing gogogo
+  capabilities, or an established Go dependency.
+- **Banned justifications:** "Zig is faster", "manual memory management",
+  "more low-level", "could be optimized", "looks like SIMD", preference,
+  avoiding a normal Go dep, hypothetical future performance.
+- **Go SIMD first.** Current Go has experimental `simd` / `simd/archsimd` —
+  "we need SIMD" alone never justifies Zig. Prototype in Go, profile,
+  benchmark, then compare.
+- **Evidence required.** Performance-driven native work needs a Go baseline
+  benchmark + profile showing Go is the bottleneck and a measurable expected
+  benefit. No evidence, no Zig.
+- **Isolation.** One small stateless kernel, one owning Go package
+  (`internal/<thing>/` with normal SCOPE; Zig sources inside it, never a
+  top-level `native/` forest), small C ABI, explicit who-allocates/who-frees
+  ownership, pure-Go fallback that ships from day one, removable in minutes.
+  Never let Zig types/allocators leak into Go, and never make unrelated
+  features depend on it. A feature keeps its Go implementation with an
+  optional tiny native kernel — never rewrite a subsystem in Zig for one hot
+  function.
+- **Stdlib first, no frameworks.** Prefer Zig stdlib over third-party Zig
+  packages; avoid Zig frameworks; a mature C library may be wrapped via a
+  thin Zig boundary, never rewritten without reason. No speculative native
+  infrastructure, no refactors of normal Go code into Zig for purity.
+- **Full procedure:** follow [docs/native-zig.md](docs/native-zig.md)
+  (decision tree, justification template, boundary, testing, build/CI,
+  removal). Vague "use Zig when appropriate" proposals are rejected.
+
 ## SCOPE annotations (read before editing)
 
 Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its SCOPE on **two orthogonal axes**:
@@ -108,7 +143,7 @@ blocking: they exist to keep a surface usable, not to fail a build.
 
 ## Docs stay truthful
 
-`docs/*.md` (18 pages) is the **single source of truth** for how this project
+`docs/*.md` (20 pages) is the **single source of truth** for how this project
 behaves; `README.md` links to it and the site publishes it. A doc that describes
 code the repo no longer has is a *second* source of truth, read by the next
 person who goes looking for why reality differs. Treat prose as part of the
