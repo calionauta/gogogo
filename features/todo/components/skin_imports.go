@@ -4,7 +4,7 @@
 package components
 
 import (
-	_ "github.com/calionauta/gogogo-fullstack-template/web/skins/basecoat"
-	_ "github.com/calionauta/gogogo-fullstack-template/web/skins/daisyui"
-	_ "github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus"
+	_ "github.com/calionauta/gogogo/web/skins/basecoat"
+	_ "github.com/calionauta/gogogo/web/skins/daisyui"
+	_ "github.com/calionauta/gogogo/web/skins/morpheus"
 )

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# desktop-build.sh — Build the gogogo-fullstack-template as a native
+# desktop-build.sh — Build the gogogo as a native
 # desktop app (Wails v3), Android APK, macOS .app, or CROSS-PLATFORM
 # preview binaries via the wails-cross Docker image (Zig + macOS SDK).
 #
@@ -45,7 +45,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/build"
-APP_NAME="${APP_NAME:-gogogo-fullstack-template}"
+APP_NAME="${APP_NAME:-gogogo}"
 TARGET="${1:-native}"
 
 # ── Color helpers ──

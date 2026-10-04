@@ -1,4 +1,4 @@
-// gogogo-fullstack-template docs site builder — zero dependencies (node stdlib only).
+// gogogo docs site builder — zero dependencies (node stdlib only).
 //
 // Inputs:  docs/**/*.md listed in the MANIFEST below (explicit list = stable slugs).
 // Outputs: site/docs/<slug>/index.html, site/docs/index.html, site/llms.txt,
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DOCS = join(ROOT, "docs");
 const OUT = join(ROOT, "site");
-const NAME = "gogogo-fullstack-template";
+const NAME = "gogogo";
 const BASE = `https://calionauta.github.io/${NAME}`;
 
 // emitting page context for link rewriting (set per page in build())

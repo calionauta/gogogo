@@ -1,5 +1,23 @@
 # Deploy to your own box
 
+> **Renaming the repository or the GitHub owner breaks the deploy until you
+> re-authorize it.** The CI runner authenticates to Tailscale with a GitHub
+> OIDC token, and that token's `sub` claim embeds the repository's *name*
+> (`repo:<owner>/<name>:...`). Renaming the repo, transferring it, or moving it
+> to another owner changes the claim, the existing federated identity no longer
+> matches, and every deploy fails with:
+>
+> ```
+> failed to exchange JWT for access token: 403 Unauthorized
+> Visit https://login.tailscale.com/admin/settings/trust-credentials/view/***
+> ```
+>
+> The failure looks like a broken secret but nothing on the GitHub side changed.
+> Fix it by editing the federated identity's subject in the Tailscale admin
+> console to match the new name, or by creating a new one and updating
+> `TS_OAUTH_CLIENT_ID` / `TS_AUDIENCE`. Run `make rename` *before* wiring the
+> deploy, not after.
+
 The default workflow is **copy the template + `make rename` + `make dev`** for
 local work. For a permanent
 deployment, the project ships a production deploy workflow that publishes to a
@@ -13,16 +31,16 @@ shares the same shape — siblings differ only by name:
 
 ```
 /home/deploy/services/
-└── gogogo-fullstack-template/                ← this project
+└── gogogo/                ← this project
     ├── bin/
-    │   ├── gogogo-fullstack-template          ← current binary (chmod 755)
-    │   └── gogogo-fullstack-template.previous ← prior binary, kept for fast rollback
+    │   ├── gogogo          ← current binary (chmod 755)
+    │   └── gogogo.previous ← prior binary, kept for fast rollback
     ├── compose/
     │   └── docker-compose.prod.yml
     ├── env/
     │   └── .env                     ← non-secret env (DATABASE_URL, APP_URL, ...)
     ├── secrets/
-    │   └── gogogo-fullstack-template.env   ← mode 600, regenerated every deploy from GH Secrets
+    │   └── gogogo.env   ← mode 600, regenerated every deploy from GH Secrets
     ├── data/
     │   └── pb_data/                 ← persistent volume, survives restarts
     ├── repo/                        ← git clone of this repo (source for env/.env + deploy-prod.sh)
@@ -69,15 +87,15 @@ shares the same shape — siblings differ only by name:
    reference box; adjust `GOARCH`/`CC` for your host).
 3. Uploads that binary as an artifact, then brings up Tailscale in the runner
    (OIDC workload identity, scoped to the run).
-4. SCPs the binary to the server as `gogogo-fullstack-template.new`, plus the
+4. SCPs the binary to the server as `gogogo.new`, plus the
    compose file to `compose/docker-compose.prod.yml`.
 5. Writes the secrets file
-   (`/home/deploy/services/gogogo-fullstack-template/secrets/gogogo-fullstack-template.env`)
+   (`/home/deploy/services/gogogo/secrets/gogogo.env`)
    with mode 600, rendered from GitHub Actions secrets.
 6. SSHes in, ensures the directory tree exists, and runs
    `scripts/deploy-prod.sh`, which:
-   - atomically renames `gogogo-fullstack-template.new` →
-     `gogogo-fullstack-template` and keeps the old binary as `.previous`,
+   - atomically renames `gogogo.new` →
+     `gogogo` and keeps the old binary as `.previous`,
    - restarts the container with
      `docker compose -f deploy/docker-compose.prod.yml up -d --wait` — `--wait`
      blocks until the compose healthcheck passes, rather than polling a fixed

@@ -1,11 +1,19 @@
 # Binary
 cali-go-stack
 tmp/
-gogogo-fullstack-template
+/gogogo
 
-# NOTE: a global ~/.gitignore_global commonly ignores `bin/`. The repo tracks
-# its own scripts under bin/ (check-*.sh, datastar-lint, init-secrets), so add
-# them with `git add -f bin/<script>` when the global rule hides them.
+# The repo tracks its own helper scripts under bin/ (check-*.sh, datastar-lint,
+# init-secrets, setup-hooks.sh). A global ~/.gitignore_global commonly ignores
+# `bin/`, and that rule silently wins over `git add` — a script referenced by
+# .lefthook.yml once failed to be committed because of it, leaving the hook
+# pointing at a file that did not exist in the repo.
+#
+# `git add -f` works but depends on remembering every time. These negations
+# un-ignore the directory for this repo, so the normal `git add` path is
+# correct by default. Nothing else belongs in bin/ at the root.
+!bin/
+!bin/**
 
 # Environment
 .env
@@ -52,8 +60,8 @@ node_modules/
 
 # Root-level logo is a social-card asset (1024px), not for the README — see web/resources/static/logo.png
 /logo.png
-app
-gogogo-fullstack-template
+/app
+/gogogo
 coverage.html
 coverage.out
 

@@ -8,7 +8,7 @@ package auth
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/calionauta/gogogo-fullstack-template/features/sounds"
+import "github.com/calionauta/gogogo/features/sounds"
 
 // Navbar is the top bar rendered on every authenticated page.
 // Shows the app name on the left, a user dropdown on the right with
@@ -215,7 +215,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in — gogogo-fullstack-template</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,7 +231,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo-fullstack-template</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

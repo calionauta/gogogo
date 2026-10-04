@@ -17,7 +17,7 @@ const binarySniffLen = 8192
 // skips generated site/docs output. Operates on tracked files when inside a
 // git checkout, otherwise walks the tree skipping .git.
 func renameTree(root, newName, newOwner string) error {
-	const oldName = "gogogo-fullstack-template"
+	const oldName = "gogogo"
 	const oldOwner = "calionauta"
 	oldModule := "github.com/" + oldOwner + "/" + oldName
 	newModule := "github.com/" + newOwner + "/" + newName

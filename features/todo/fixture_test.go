@@ -11,13 +11,13 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/db"
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/db"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/todo/handlers"
+	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/queue"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )

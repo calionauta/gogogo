@@ -1,14 +1,14 @@
-# gogogo-fullstack-template
+# gogogo
 
 <p align="center">
-  <img src="web/resources/static/logo.png" alt="gogogo-fullstack-template" width="420">
+  <img src="web/resources/static/logo.png" alt="gogogo" width="420">
 </p>
 
 <p align="center">
-  <a href="https://calionauta.github.io/gogogo-fullstack-template/">Landing page</a> ·
-  <a href="https://calionauta.github.io/gogogo-fullstack-template/docs/">Docs</a> ·
-  <a href="https://github.com/calionauta/gogogo-fullstack-template/releases">Releases</a> ·
-  <a href="https://github.com/calionauta/gogogo-fullstack-template/actions">CI</a>
+  <a href="https://calionauta.github.io/gogogo/">Landing page</a> ·
+  <a href="https://calionauta.github.io/gogogo/docs/">Docs</a> ·
+  <a href="https://github.com/calionauta/gogogo/releases">Releases</a> ·
+  <a href="https://github.com/calionauta/gogogo/actions">CI</a>
 </p>
 
 > **Built to be useful.** Every decision favors practical outcomes over abstract
@@ -24,7 +24,7 @@ change or remove each piece.
 ## 📖 Docs (single source of truth)
 
 The manual lives on the site, not in this file:
-**[calionauta.github.io/gogogo-fullstack-template/docs/](https://calionauta.github.io/gogogo-fullstack-template/docs/)**
+**[calionauta.github.io/gogogo/docs/](https://calionauta.github.io/gogogo/docs/)**
 
 <details>
 <summary>Page index (20 pages)</summary>
@@ -49,17 +49,17 @@ in this repo.
 
 This repo is a **GitHub template** — click **Use this template** to get your own
 copy, then rename it. Do not build inside a clone of the template itself: your
-module path would stay `github.com/calionauta/gogogo-fullstack-template` and
+module path would stay `github.com/calionauta/gogogo` and
 deploys would target the template's server directory.
 
 ```bash
 # 1. Scaffold with the installer (asks name, owner, plugins, features;
 #    renames, trims what you skip, writes AGENTS.md with the upstream-first rule)
-go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+go run github.com/calionauta/gogogo/cmd/gogogo@latest
 cd my-app
 
 # Manual fallback (no installer):
-# gh repo create my-app --template calionauta/gogogo-fullstack-template --clone
+# gh repo create my-app --template calionauta/gogogo --clone
 # cd my-app
 # make rename NAME=my-app          # add OWNER=myorg if not under calionauta
 # make site                        # regenerate the published docs
@@ -199,7 +199,7 @@ a Go + NATS + Datastar + Templ + DaisyUI application starter.
 
 MIT — see [LICENSE](LICENSE). Open to feedback, PRs, and adaptations. If
 something doesn't make sense, if the stack doesn't fit your problem, or if you
-have a better idea, [open an issue](https://github.com/calionauta/gogogo-fullstack-template/issues).
+have a better idea, [open an issue](https://github.com/calionauta/gogogo/issues).
 
 ---
 

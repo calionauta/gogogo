@@ -1,4 +1,4 @@
-# gogogo-fullstack-template
+# gogogo
 ## writing style guidelines
 
 1. style classifications

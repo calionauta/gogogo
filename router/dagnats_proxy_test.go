@@ -21,7 +21,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
 
-	approuter "github.com/calionauta/gogogo-fullstack-template/router"
+	approuter "github.com/calionauta/gogogo/router"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )

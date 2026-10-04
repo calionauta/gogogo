@@ -1,13 +1,13 @@
-# gogogo-fullstack-template
+# gogogo
 
 > Full-stack Go web app template — back-end + front-end + DB + auth + LLM + deploy in one binary.
 
 ## Project Overview
 
 Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream.
-Module: `github.com/calionauta/gogogo-fullstack-template`
+Module: `github.com/calionauta/gogogo`
 
-**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, and tunnel hostname all share the project name. This repo is a GitHub **template** (`is_template: true`), so a fresh copy still carries `gogogo-fullstack-template` in ~360 places across ~130 files. Never rename by hand — preferred path is the guided installer (`go run ./cmd/gogogo`, see `cmd/gogogo/README.md`: asks name/owner/plugins/features, renames, trims what you skip, writes the new repo's `AGENTS.md` with the upstream-first rule). Manual fallback stays: `make rename NAME=my-app [OWNER=myorg]` (`scripts/rename-project.py`), which rewrites the module path and every reference, then runs `go build ./cmd/web` to prove it. It deliberately skips generated `site/docs/` (regenerate with `make site`) and shields sibling repos under the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) from the owner substitution.
+**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, and tunnel hostname all share the project name. This repo is a GitHub **template** (`is_template: true`), so a fresh copy still carries `gogogo` in ~360 places across ~130 files. Never rename by hand — preferred path is the guided installer (`go run ./cmd/gogogo`, see `cmd/gogogo/README.md`: asks name/owner/plugins/features, renames, trims what you skip, writes the new repo's `AGENTS.md` with the upstream-first rule). Manual fallback stays: `make rename NAME=my-app [OWNER=myorg]` (`scripts/rename-project.py`), which rewrites the module path and every reference, then runs `go build ./cmd/web` to prove it. It deliberately skips generated `site/docs/` (regenerate with `make site`) and shields sibling repos under the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) from the owner substitution.
 
 **Upstream-first (generated projects must keep this):** every repo scaffolded by `cmd/gogogo` carries an `AGENTS.md` rule requiring agents to check the upstream template (via `site/llms.txt` map + `site/docs/<slug>/` pages, or the GitHub blob for non-docs files) BEFORE creating a feature or installing a library. Reuse what exists (Todo is the reference; SCOPE says what is safe to delete). Only add a new dependency when no upstream page covers the need.
 

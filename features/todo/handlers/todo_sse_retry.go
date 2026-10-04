@@ -7,8 +7,8 @@ import (
 
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	ic "github.com/calionauta/gogogo-fullstack-template/internal/components"
-	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
+	ic "github.com/calionauta/gogogo/internal/components"
+	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 )
 
 const (

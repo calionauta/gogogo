@@ -9,7 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )

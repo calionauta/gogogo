@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 )
 
 // TestBuildPageData_MasksEncryptionKey asserts that the literal

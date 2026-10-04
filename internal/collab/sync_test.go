@@ -7,7 +7,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // fakePersister records snapshots by docID so the test can assert the

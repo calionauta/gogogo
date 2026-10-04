@@ -4,11 +4,11 @@
 # run any number of times and converges to the deployed state.
 #
 # Layout (managed by the deploy workflow):
-#   /home/deploy/services/gogogo-fullstack-template/
-#     bin/gogogo-fullstack-template        (chmod 755, replaced on every deploy)
+#   /home/deploy/services/gogogo/
+#     bin/gogogo        (chmod 755, replaced on every deploy)
 #     compose/docker-compose.prod.yml   (replaced on every deploy)
 #     env/.env                  (committed to repo, no secrets)
-#     secrets/gogogo-fullstack-template.env  (mode 600, regenerated every deploy
+#     secrets/gogogo.env  (mode 600, regenerated every deploy
 #                                   from GH Secrets; never committed)
 #     data/pb_data/             (gitignored, persistent volume)
 #
@@ -20,11 +20,11 @@
 # This script is the second half of the deploy: the GH Action does
 # the build + scp; this script restarts the container. We split it
 # so the operator can also run it manually (e.g. for fast rollback
-# to the previous binary which is kept as `gogogo-fullstack-template.previous`).
+# to the previous binary which is kept as `gogogo.previous`).
 
 set -euo pipefail
 
-PROJECT="gogogo-fullstack-template"
+PROJECT="gogogo"
 APP_DIR="/home/deploy/services/${PROJECT}"
 BIN_DIR="${APP_DIR}/bin"
 COMPOSE_DIR="${APP_DIR}/compose"
@@ -46,7 +46,7 @@ COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.prod.yml"
 cd "${APP_DIR}"
 
 # ── 1. Atomic binary swap ──
-# We keep the previous binary as `gogogo-fullstack-template.previous` so an
+# We keep the previous binary as `gogogo.previous` so an
 # operator can roll back with one `ln -sf` if the new binary
 # crashes on startup.
 if [ -f "${BIN_DIR}/${PROJECT}" ] && [ -f "${BIN_DIR}/${PROJECT}.new" ]; then
@@ -125,7 +125,7 @@ cd "${REPO_DIR}"
 echo "→ docker compose build + up -d (context: ${REPO_DIR})"
 # Read the build metadata locally so the Dockerfile.prod ARG defaults
 # are overridden with the real values, not "dev"/"unknown"/"" (the
-# CI-built binary at bin/gogogo-fullstack-template is the artifact
+# CI-built binary at bin/gogogo is the artifact
 # that gets the canonical stamp; this is the fallback path if the
 # CI-built binary is missing).
 BUILD_VERSION="$(cd "${REPO_DIR}" && git describe --tags --abbrev=0 2>/dev/null | sed "s/^v//" || echo dev)"

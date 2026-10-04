@@ -1,7 +1,7 @@
 // SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
 package handlers
 
-import "github.com/calionauta/gogogo-fullstack-template/internal/queue"
+import "github.com/calionauta/gogogo/internal/queue"
 
 // todoUpdateJob builds the queue.Job envelope for SSE-hub todo events.
 // Record mutations (create/toggle/delete) now propagate through

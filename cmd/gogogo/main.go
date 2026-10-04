@@ -1,4 +1,4 @@
-// Command gogogo scaffolds a new project from gogogo-fullstack-template.
+// Command gogogo scaffolds a new project from gogogo.
 //
 // It asks four questions (project name, GitHub owner, plugins, features),
 // shows exactly what it will delete and what breaks, then (on confirmation)
@@ -18,11 +18,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 type options struct {
@@ -64,11 +65,11 @@ func exitCode(err error) int {
 }
 
 func usage(w *os.File, fs *flag.FlagSet) {
-	fmt.Fprintln(w, `gogogo — scaffold a project from gogogo-fullstack-template.
+	fmt.Fprintln(w, `gogogo — scaffold a project from gogogo.
 
   Interactive (humans: 4 questions, then a plan to confirm):
 
-    go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+    go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
   Scripted (agents: always pin --yes; preview with --dry-run first):
 
@@ -81,6 +82,14 @@ func usage(w *os.File, fs *flag.FlagSet) {
   checkout without changing anything:
 
     go run ./cmd/gogogo --check --dir ./my-app
+
+  Add a unit to an existing checkout (deps cascade automatically):
+
+    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
+
+  Add a unit to an existing checkout (evolve, not just scaffold):
+
+    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
 
   What it does, in order:
     1. shows the trim plan with every consequence (never silent),
@@ -124,6 +133,9 @@ func unitOneLiner(u trimUnit) string {
 }
 
 func run(args []string, stdin *os.File, stdout *os.File) error {
+	if len(args) > 0 && args[0] == "add" {
+		return runAdd(args[1:], stdin, stdout)
+	}
 	opt, _, err := loadOptions(args, stdin, stdout)
 	if err != nil {
 		return err
@@ -230,7 +242,7 @@ func requireCheckoutDir(opt options) error {
 	if _, err := os.Stat(opt.dir); err != nil {
 		return &exitError{code: 1, msg: fmt.Sprintf(
 			"directory %s not found — clone the template first:\n"+
-				"  gh repo create %s --template calionauta/gogogo-fullstack-template --clone\n"+
+				"  gh repo create %s --template calionauta/gogogo --clone\n"+
 				"  (or: git clone <url> %s, then re-run with --dir %s --yes)",
 			opt.dir, opt.name, opt.dir, opt.dir)}
 	}
@@ -315,7 +327,7 @@ const (
 
 // prove runs templ generate (only when .templ files were edited in place),
 // go mod tidy, and the build. A failing proof exits 2 with compiler output.
-func prove(dir string, drop []trimUnit, stdout *os.File) error {
+func prove(dir string, drop []trimUnit, stdout io.Writer) error {
 	if needsTemplGen(drop) {
 		fmt.Fprintln(stdout, "gogogo: prove: go tool templ generate …")
 		if out, err := runIn(dir, "go", "tool", "templ", "generate"); err != nil {

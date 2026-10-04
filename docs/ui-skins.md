@@ -21,7 +21,7 @@ via query string, or interactively via the `SkinSelector` widget in the navbar.
 
 ## Three ways to switch
 
-1. **Env var (process-wide).** `UI_SKIN=basecoat ./gogogo-fullstack-template`
+1. **Env var (process-wide).** `UI_SKIN=basecoat ./gogogo`
    switches the active skin for the lifetime of the binary.
 2. **Query string (per request).** Append `?skin=morpheus` to any route; the
    skin dispatcher reads it and renders that skin's assets without restart.

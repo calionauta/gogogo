@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/calionauta/gogogo/internal/routeutil"
 )
 
 // mountDagNatsDashboard reverse-proxies the DagNats engine's own HTTP
@@ -106,19 +108,12 @@ func mountDagNatsDashboard(se *core.ServeEvent, upstream string) {
 		return nil
 	}
 
-	// Register each method explicitly
-	for _, method := range []string{
-		http.MethodGet,
-		http.MethodHead,
-		http.MethodPost,
-		http.MethodPut,
-		http.MethodPatch,
-		http.MethodDelete,
-		http.MethodOptions,
-	} {
-		se.Router.Route(method, "/dagnats", handler)
-		se.Router.Route(method, "/dagnats/{path...}", handler)
-	}
+	// Register per method, never with Router.Any() — see
+	// internal/routeutil for why Any() panics at startup here.
+	routeutil.RegisterAll(se.Router,
+		[]string{"/dagnats", "/dagnats/{path...}"},
+		handler,
+	)
 }
 
 // maxProxyBody caps how much of a request body the DagNats proxy will buffer.

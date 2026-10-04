@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
+	"github.com/calionauta/gogogo/internal/dagnats"
 )
 
 // TestConnectExisting_SingleNATS proves the single-NATS convention: when

@@ -1,11 +1,11 @@
 # `cmd/gogogo` — guided installer for this template
 
-Scaffold a new project from `gogogo-fullstack-template` without hand-rename
+Scaffold a new project from `gogogo` without hand-rename
 drift and without dead code left behind.
 
 ```bash
 # Interactive (4 questions: name, owner, plugins, features)
-go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
 # Scripted
 go run ./cmd/gogogo --name my-app --owner myorg \
@@ -30,7 +30,7 @@ go run ./cmd/gogogo --name my-app --owner myorg \
 
 ```bash
 # Humans: 4 questions, plan printed, confirm [y/N] before anything changes.
-go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
 # Agents, step 1 — preview as JSON (changes nothing, exit 0):
 go run ./cmd/gogogo --name my-app --owner myorg \
@@ -48,6 +48,14 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   changing anything (drift gate; `CHECK-OK`/`CHECK-FAIL` lines, exit 1 on
   drift). The same check runs in-process as `TestCheckTreeAgainstRepoRoot`,
   so CI fails when a source edit moves a marker.
+- `add <unit> --from TEMPLATE --dir PROJECT` reverses a trim (or ports a
+  unit into an evolved codebase): resolves `DependsOn` first (e.g. adding
+  whiteboard pulls sounds), copies owned paths, re-inserts call lines +
+  imports + spans at the anchor table, rebases the template module path
+  to the target's, then the same tidy+build proof. Imports restore only
+  where used (no unused-import breakage). `.templ` call sites and the
+  navbar brand stay manual (warned). Refuses non-scaffolded trees.
+  Refuses non-scaffolded trees instead of guessing.
 - Interactive menus are numbered (stable manifest order) and accept
   numbers, ids, or both; invalid answers re-ask. Scripted flags take ids
   only — numbers never cross the CLI boundary (positional = fragile).

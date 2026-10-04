@@ -7,8 +7,8 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/collab"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // registerCollabSync wires the Loro CRDT SyncWorker using the shared

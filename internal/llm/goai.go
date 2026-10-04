@@ -1,7 +1,7 @@
 // SCOPE:layer=infra,removal=plugin — GoAI LLM client (used by Suggest)
 // To remove: delete internal/llm/ + features/todo/handlers/llm_suggest.go.
 // Package llm wires the GoAI SDK (github.com/zendev-sh/goai) into the
-// gogogo-fullstack-template template. The Client is configured via env so the
+// gogogo template. The Client is configured via env so the
 // same binary can talk to any OpenAI-compatible provider: Groq,
 // OpenRouter, Together, Cloudflare, Ollama (via OpenAI-compat shim),
 // or a self-hosted vLLM.
@@ -37,7 +37,7 @@ import (
 	"github.com/zendev-sh/goai/provider"
 	"github.com/zendev-sh/goai/provider/compat"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm/fakeserver"
+	"github.com/calionauta/gogogo/internal/llm/fakeserver"
 )
 
 // ErrNoAPIKey is returned by Chat/ChatStream when the client was built

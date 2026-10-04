@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // TestLayoutRendersSSEOpener is a regression guard for the realtime

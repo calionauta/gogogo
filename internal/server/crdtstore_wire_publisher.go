@@ -19,8 +19,8 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/store/crdtstore"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/features/store/crdtstore"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // hubPublisher implements crdtstore.DocPublisher by fanning out to

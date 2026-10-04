@@ -8,7 +8,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/internal/nats"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
@@ -63,7 +63,7 @@ func TestCrudConsumerCreate(t *testing.T) {
 	if pub == nil {
 		t.Fatal("NewCrudPublisher returned nil")
 	}
-	consumer := nats.NewCrudConsumer(app, js, "gogogo-fullstack-template")
+	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() {
 		if runErr := consumer.Run(ctx); runErr != nil {
@@ -135,7 +135,7 @@ func TestCrudConsumerToggle(t *testing.T) {
 	}
 
 	pub := nats.NewCrudPublisher(js)
-	consumer := nats.NewCrudConsumer(app, js, "gogogo-fullstack-template")
+	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() { _ = consumer.Run(ctx) }()
 	time.Sleep(200 * time.Millisecond)
@@ -188,7 +188,7 @@ func TestCrudConsumerDelete(t *testing.T) {
 	_ = app.Save(rec)
 
 	pub := nats.NewCrudPublisher(js)
-	consumer := nats.NewCrudConsumer(app, js, "gogogo-fullstack-template")
+	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() { _ = consumer.Run(ctx) }()
 	time.Sleep(200 * time.Millisecond)
@@ -243,7 +243,7 @@ func TestCrudConsumerClearCompleted(t *testing.T) {
 	}
 
 	pub := nats.NewCrudPublisher(js)
-	consumer := nats.NewCrudConsumer(app, js, "gogogo-fullstack-template")
+	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() { _ = consumer.Run(ctx) }()
 	time.Sleep(200 * time.Millisecond)

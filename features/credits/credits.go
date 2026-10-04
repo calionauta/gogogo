@@ -23,7 +23,7 @@ import (
 	paymentcore "github.com/calionauta/ai-credits/payments"
 	stripecredits "github.com/calionauta/ai-credits/stripe"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 )
 
 // Service bundles the credits engine plus the app-facing deps handlers need.

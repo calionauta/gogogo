@@ -3,7 +3,7 @@ package handlers
 import (
 	"testing"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo/config"
 )
 
 type stubResumer struct{}

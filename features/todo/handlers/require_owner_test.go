@@ -7,7 +7,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo/features/todo"
 )
 
 // A nil event or an event without auth must fail closed with

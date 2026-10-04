@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/calionauta/gogogo-fullstack-template/internal/capabilities"
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // Unit ids offered by the installer. Most map 1:1 to a capability;
@@ -116,11 +116,15 @@ func (u trimUnit) caps() []string {
 // When endIsClosingBrace is set, endMarker is ignored: the strip runs from
 // the startMarker line through the next line that equals endBrace exactly
 // (used for `if ... {` blocks whose closing brace has stable indentation).
+// addBefore/addAfter optionally pin where `gogogo add` re-inserts the
+// extracted span. Empty means the path default in addSpans.
 type stripRule struct {
 	startMarker        string
 	endMarker          string
 	endIsClosingBrace  bool
 	endBrace           string
+	addBefore          string
+	addAfter           string
 	alsoDeleteContains []string
 }
 
@@ -189,7 +193,17 @@ var manifestUnits = []trimUnit{
 			},
 		},
 		mainStrips: []stripRule{
-			{startMarker: "startDagNats(cfg, pb, todoH)", endMarker: "defer shutdownDagNats()"},
+			{
+				startMarker: "startDagNats(cfg, pb, todoH)",
+				endMarker:   "defer shutdownDagNats()",
+				addAfter:    mainCallsAnchor,
+			},
+			{
+				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",
+				endIsClosingBrace: true,
+				endBrace:          "\t}",
+				addBefore:         "\t// Phase 2: wire the CRDTStore JetStream transport when the chosen",
+			},
 		},
 		goModDrops: []string{"github.com/danmestas/dagnats"},
 	},
@@ -292,17 +306,17 @@ var manifestUnits = []trimUnit{
 				substrs: []string{skinBasecoatImport, skinMorpheusImport},
 			},
 			{
-				path:    "features/todo/handlers/todo.go",
+				path:    todoGoFile,
 				substrs: []string{skinBasecoatImport, skinMorpheusImport},
 			},
 			{
-				path:    "features/todo/handlers/todo_repo.go",
+				path:    todoRepoFile,
 				substrs: []string{skinBasecoatImport, skinMorpheusImport},
 			},
 		},
 		extraStrips: []fileStrip{
 			{
-				path: "features/todo/handlers/todo.go",
+				path: todoGoFile,
 				rules: []stripRule{
 					{
 						startMarker:       "\tif skinName == SkinMorpheus {",
@@ -317,7 +331,7 @@ var manifestUnits = []trimUnit{
 				},
 			},
 			{
-				path: "features/todo/handlers/todo_repo.go",
+				path: todoRepoFile,
 				rules: []stripRule{
 					{
 						startMarker: "\tcase SkinMorpheus:",

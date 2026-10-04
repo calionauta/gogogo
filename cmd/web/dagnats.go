@@ -11,10 +11,10 @@ import (
 
 	"github.com/pocketbase/pocketbase"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
-	appdagnats "github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
-	appnats "github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/todo/handlers"
+	appdagnats "github.com/calionauta/gogogo/internal/dagnats"
+	appnats "github.com/calionauta/gogogo/internal/nats"
 )
 
 var dagNatsServer *server.Server

@@ -13,12 +13,12 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/auth"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
-	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/components"
+	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {

@@ -3,9 +3,9 @@ package main
 import (
 	"testing"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/dagnats"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // TestStartNATS_SingleNATSWithDagNats is the regression guard

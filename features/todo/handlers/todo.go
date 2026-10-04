@@ -22,18 +22,18 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/gogogo-fullstack-template/config"
-	"github.com/calionauta/gogogo-fullstack-template/features/store"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
-	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
-	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
-	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
-	morpheus "github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus"
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/store"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/components"
+	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/queue"
+	morpheus "github.com/calionauta/gogogo/web/skins/morpheus"
 
 	// basecoat skin imported via features/todo/components/skin_imports.go
-	basecoat "github.com/calionauta/gogogo-fullstack-template/web/skins/basecoat"
+	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
 // HTTP status codes used by the handlers. Centralized so the lint
@@ -346,7 +346,7 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 	// Morpheus uses a web component layout (neo.*).
 	if skinName == SkinMorpheus {
 		return morpheus.TodoPage(
-			"Todos — gogogo-fullstack-template",
+			"Todos — gogogo",
 			signals, userEmail,
 			h.cfg.BuildLabel, h.cfg.BuildCommit,
 			h.cfg.OfflineSync.Enabled,
@@ -355,7 +355,7 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 	}
 	if skinName == SkinBasecoat {
 		return basecoat.TodoPage(
-			"Todos — gogogo-fullstack-template",
+			"Todos — gogogo",
 			signals, userEmail,
 			h.cfg.BuildLabel, h.cfg.BuildCommit,
 			h.cfg.OfflineSync.Enabled,
@@ -363,7 +363,7 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 		).Render(c.Request.Context(), c.Response)
 	}
 	return components.Layout(
-		"Todos — gogogo-fullstack-template",
+		"Todos — gogogo",
 		signals, userEmail,
 		h.cfg.BuildLabel, h.cfg.BuildCommit,
 		h.cfg.OfflineSync.Enabled,

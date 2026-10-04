@@ -12,7 +12,7 @@ import (
 const agentsTemplate = `# AGENTS — upstream-first rule
 
 This project (__PROJECT__) was scaffolded from
-[calionauta/gogogo-fullstack-template](https://github.com/calionauta/gogogo-fullstack-template).
+[calionauta/gogogo](https://github.com/calionauta/gogogo).
 
 ## Before creating a feature or installing a library, check upstream first
 
@@ -23,14 +23,14 @@ NATS Leaf Node + idempotency), three UI skins, AI suggest + credits/BYOK
 (GoAI + ai-credits), and admin surfaces. Do NOT add a dependency or a parallel
 implementation before checking whether upstream already has it.
 
-1. Fetch the map: https://calionauta.github.io/gogogo-fullstack-template/llms.txt
-2. Read the relevant page: https://calionauta.github.io/gogogo-fullstack-template/docs/<slug>/
+1. Fetch the map: https://calionauta.github.io/gogogo/llms.txt
+2. Read the relevant page: https://calionauta.github.io/gogogo/docs/<slug>/
    (slugs: overview, getting-started, architecture, stack-layers, async-layers,
    features, scope-taxonomy, configuration, native-zig, todo-example, ui-skins, ui-sounds,
    deploy, desktop-mobile, admin-dashboard, llm-and-credits, local-ci,
    code-quality, troubleshooting)
 3. For non-docs files, read the upstream blob at the same path:
-   https://github.com/calionauta/gogogo-fullstack-template/blob/master/<path>
+   https://github.com/calionauta/gogogo/blob/master/<path>
 4. Reuse the upstream pattern (Todo is the reference implementation; SCOPE
    annotations say what is safe to delete). Only add a new library when no
    upstream page covers the need — and document why in the commit message.
