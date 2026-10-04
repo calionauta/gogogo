@@ -86,6 +86,9 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			return nil
 		}
 	}
+	if err := preflight(ctx, stdout, true, true); err != nil {
+		return err
+	}
 	if err := ensureCheckoutDir(ctx, opt, stdin, stdout); err != nil {
 		return err
 	}

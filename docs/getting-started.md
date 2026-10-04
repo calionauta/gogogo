@@ -182,11 +182,15 @@ It is the only command you need on day one.
 
 ## Prerequisites
 
-- **Go 1.27+** — the only hard requirement. Everything else the Makefile
-  installs or vendors.
-- `make setup` (optional but recommended) — activates the lefthook git hooks so
-  formatting, lint, and the CSS staleness check run on every commit. Requires
-  `go install github.com/evilmartians/lefthook@latest`.
+- **Go** — any release ≥ 1.21. Newer toolchains download themselves
+  (`GOTOOLCHAIN=auto`), so the template's 1.27 is satisfied automatically.
+- **git** — the installer clones the template when the directory is missing.
+
+The installer verifies both before touching anything and fails fast with
+the exact install command when something is missing. `make setup` (optional
+but recommended) — activates the lefthook git hooks so
+formatting, lint, and the CSS staleness check run on every commit. Requires
+`go install github.com/evilmartians/lefthook@latest`.
 
 There is no build-tag matrix. `make build` and `go build ./cmd/web` compile
 everything — the unified build era means you never pass `-tags`.
