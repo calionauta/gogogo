@@ -1,0 +1,25 @@
+name: diag-oidc
+# TEMPORARY diagnostic. Deleted after use.
+on:
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reproduce the exchange exactly as tailscale-client-go-v2 does
+        env:
+          CID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          AUD: ${{ secrets.TS_AUDIENCE }}
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | jq -r .value)
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq -c '{sub,ref}'
+          echo "=== the real error for the correct request shape ==="
+          curl -sS -w "\nHTTP_STATUS=%{http_code}\n" \
+            -X POST "https://api.tailscale.com/api/v2/oauth/token-exchange" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "client_id=$CID" \
+            --data-urlencode "jwt=$TOKEN"
