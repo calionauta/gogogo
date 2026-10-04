@@ -67,6 +67,40 @@ make dev</code></pre>
     layer before code.</p>
   </section>
 
+  <section id="agents" class="section">
+    <p class="kicker">For agents</p>
+    <h2>Two ways in, both scripted.</h2>
+    <p class="section-lede">Humans get the guided installer. Agents get the
+    same engine through a CLI built for scripts and an MCP server built for
+    tool calls — opinions first, preview second, mutation last.</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">opinions, then a plan, then a receipt</p>
+        <p class="tech">CLI · <code>cmd/gogogo</code></p>
+        <p><code>advise</code> answers which units fit the use-case (nothing
+        changes). <code>--dry-run --format json</code> previews the trim as
+        one document. <code>--yes</code> applies it and proves with
+        <code>tidy + build</code>. Same binary drives both.</p>
+        <p class="off">Pin <code>--no-tui --yes</code> · never delete on an assumption</p>
+      </div>
+      <div class="card">
+        <p class="step">the installer as MCP tools</p>
+        <p class="tech"><code>cmd/gogogo-mcp</code> · stdio, no port, no deploy</p>
+        <p>Six tools over the same engine: <code>advise_stack</code>,
+        <code>capabilities_list</code>, <code>trim_plan</code>,
+        <code>trim_apply</code>, <code>check_tree</code>,
+        <code>add_unit</code>. Destructive ones refuse without
+        <code>confirm:true</code>.</p>
+        <p class="off">One JSON block in your client config</p>
+      </div>
+    </div>
+    <div class="install-block wide">
+      <pre><code>{ "mcpServers": { "gogogo": { "command": "/path/to/gogogo-mcp" } } }</code></pre>
+    </div>
+    <p class="fine center">Agent contract and strategies: <a href="./docs/getting-started/">getting started §0b–0c</a> ·
+    tool catalog: <a href="https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp" rel="noopener">cmd/gogogo-mcp</a></p>
+  </section>
+
   <section id="stack" class="section">
     <p class="kicker">In the box</p>
     <h2>Every choice already made.</h2>
