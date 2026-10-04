@@ -254,15 +254,25 @@ jobs:
           chmod 0600 ~/.ssh/config
           APP_NAME="${{ env.APP_NAME }}"
           APP_DIR="/home/deploy/services/${APP_NAME}"
-          SECRETS_DIR="${APP_DIR}/secrets"
+          # The compose file's env_file points at this path. Keep the two in
+          # sync: commit d2b2fec moved the compose side to ~/.secrets/ (the
+          # server convention) but left this render going to <APP_DIR>/secrets/,
+          # so the file landed where nothing read it and `docker compose up`
+          # failed with "env file /home/deploy/.secrets/<app>.env not found" —
+          # which the deploy script reported only as a healthcheck timeout.
+          SECRETS_DIR="/home/deploy/.secrets"
           ssh $DEPLOY_HOST "set -euo pipefail
             # Free disk space before writing anything
             docker system prune -af --filter 'until=24h' 2>/dev/null || true
             docker builder prune -af 2>/dev/null || true
-            # Create full app layout so SCP destination dirs exist before upload
-            for d in bin compose env scripts secrets data/pb_data; do
+            # Application layout (SCP destinations must exist first)
+            for d in bin compose env scripts data/pb_data; do
               mkdir -p \"${APP_DIR}/\${d}\"
             done
+            # Convention rule 4: secrets live in ~/.secrets/, 0700, read by the
+            # compose env_file.
+            mkdir -p \"$SECRETS_DIR\"
+            chmod 0700 \"$SECRETS_DIR\"
             umask 077
             cat > \"$SECRETS_DIR/${APP_NAME}.env.tmp\" <<EOF2
           GOAI_API_KEY=$GOAI_API_KEY
