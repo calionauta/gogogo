@@ -2,8 +2,27 @@ name: CI
 on:
   push:
     branches: [master]
+    # Docs and site changes are validated by pages.yml (site-check: links +
+    # anchors) and the pre-commit hooks. They cannot break the Go build, so a
+    # full lint + race-test + build run is wasted work on every README edit.
+    # paths-ignore is right here (unlike deploy.yml's allow-list): CI should
+    # run for anything that is not documentation, including new directories.
+    paths-ignore:
+      - "docs/**"
+      - "site/**"
+      - "**.md"
+      - "LICENSE"
+      - ".stelow/**"
+      - ".gitignore"
   pull_request:
     branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - "site/**"
+      - "**.md"
+      - "LICENSE"
+      - ".stelow/**"
+      - ".gitignore"
   workflow_dispatch:
 concurrency:
   # Cancel in-progress runs when a newer commit lands on the same ref (push+

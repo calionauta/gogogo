@@ -1,7 +1,15 @@
 # deploy.yml — production deploy to the user's own server
 # (calionauta/fullstack.example.com via Tailscale).
 #
-# Trigger: every push to master. The workflow:
+# Trigger: a push to master that changes something the app is BUILT from.
+#
+# This used to be every push, which meant a README edit rebuilt the image,
+# restarted the container and briefly took production down. The filter is an
+# allow-list (paths, not paths-ignore) on purpose: a new top-level directory
+# cannot silently start deploying, because a path that matters has to be added
+# here explicitly. Docs, site/ and *.md are therefore excluded by construction.
+#
+# What the workflow does when it does run:
 #   1. Builds the project (lint + test + race + CSS build)
 #   2. Builds the production Docker image (linux/amd64 scratch)
 #   3. Brings up Tailscale in the GH runner (OAuth, scoped to this run)
@@ -41,6 +49,29 @@ name: Deploy to production
 on:
   push:
     branches: [master]
+    paths:
+      # Source
+      - "**.go"
+      - "**.templ"
+      - "**.css"
+      - "go.mod"
+      - "go.sum"
+      - "package.json"
+      - "package-lock.json"
+      # Trees that ship in the binary or its build
+      - "src/css/**"
+      - "web/**"
+      - "db/**"
+      - "config/**"
+      - "router/**"
+      - "features/**"
+      - "internal/**"
+      - "cmd/**"
+      # Deploy plumbing
+      - "deploy/**"
+      - "scripts/deploy-prod.sh"
+      - "Makefile"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 env:

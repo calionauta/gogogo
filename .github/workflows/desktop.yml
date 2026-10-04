@@ -3,8 +3,24 @@ name: Desktop
 on:
   pull_request:
     branches: [master]
+    # The desktop shell compiles cmd/desktop and its Wails deps. Documentation
+    # and site changes cannot affect it, so skip the ~3min GTK/WebKit build.
+    paths-ignore:
+      - "docs/**"
+      - "site/**"
+      - "**.md"
+      - "LICENSE"
+      - ".stelow/**"
+      - ".gitignore"
   push:
     branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - "site/**"
+      - "**.md"
+      - "LICENSE"
+      - ".stelow/**"
+      - ".gitignore"
   workflow_dispatch:
 
 permissions:
