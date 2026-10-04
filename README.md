@@ -53,15 +53,18 @@ module path would stay `github.com/calionauta/gogogo-fullstack-template` and
 deploys would target the template's server directory.
 
 ```bash
-# 1. Create your repo (or click "Use this template" on GitHub)
-gh repo create my-app --template calionauta/gogogo-fullstack-template --clone
+# 1. Scaffold with the installer (asks name, owner, plugins, features;
+#    renames, trims what you skip, writes AGENTS.md with the upstream-first rule)
+go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
 cd my-app
 
-# 2. Rename the project — rewrites ~360 references, then builds to prove it
-make rename NAME=my-app          # add OWNER=myorg if not under calionauta
-make site                        # regenerate the published docs
+# Manual fallback (no installer):
+# gh repo create my-app --template calionauta/gogogo-fullstack-template --clone
+# cd my-app
+# make rename NAME=my-app          # add OWNER=myorg if not under calionauta
+# make site                        # regenerate the published docs
 
-# 3. Run
+# 2. Run
 make dev
 ```
 

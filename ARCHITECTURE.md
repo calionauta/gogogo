@@ -40,8 +40,8 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | **Landing page** | `features/landing/` | 🟢 FEATURE | `landing.New(cfg).RegisterRoutes(se)` (registered on `se.Router` directly) | Delete package + remove call. The todo demo is at `/todo`; root becomes 404 or your replacement. |
 | **Read-only config view** | `features/config/` | 🟢 FEATURE | `config.New(cfg).RegisterRoutes(se)` (registered on `se.Router` directly) | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go` before render. |
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH.RegisterRoutes(se)` | Delete package + remove block |
-| **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `registerWhiteboard(se, q)` | Delete both + `whiteboard.js` + remove call |
-| **Onboarding** | `features/todo/handlers/onboarding.go` + `internal/dagnats/` | 🟢 FEATURE | `registerOnboarding(...)` | Delete both + remove call |
+| **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `registerWhiteboardStack(se, q, cfg)` (hub + routes + collab sync in one call) | Delete both dirs + `router/whiteboard.go` + `router/collab_jetstream.go` + remove call |
+| **Onboarding** | `features/todo/handlers/onboarding.go` + `internal/dagnats/` | 🟢 FEATURE | `registerOnboarding(app, q, se, broadcaster, todoH, cfg)` (no-ops when `DAGNATS_ENABLED=false`) | Delete both + remove call |
 | **EntityStore (persistence)** | `features/store/` (interface) + `features/store/pbstore/` (default impl) + `features/store/crdtstore/` (alternative) | 🟡 PLUGIN | `todoH.SetStore(pbstore.New(app, "todos"))` | Drop the `SetStore` call from `router.Init`; handler's lazy fallback (`h.st()`) rebuilds a PBStore. Switch strategy at runtime via `ENTITY_STORE=crdt` (see `config/config.go`). |
 
 > **⚠️ Auth is a mixed package.** The **login UI** (login page, navbar) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.

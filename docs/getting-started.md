@@ -1,12 +1,66 @@
 # Getting started
 
-This repository is a **GitHub template**. Start a project from it with the
-green **Use this template** button (or the CLI), then rename it — do not work
-inside a clone of the template itself, or your module path stays
-`github.com/calionauta/gogogo-fullstack-template` and every deploy goes to the
-template's server directory.
+This repository is a **GitHub template**. The recommended path is the guided
+installer — it asks for a project name, clones the template, renames it, and
+trims the plugins/features you skip. Manual `gh repo create` + `make rename`
+still works and is documented below as the fallback.
 
-## 1. Create your repository
+## 0. Recommended: the installer
+
+```bash
+go run github.com/calionauta/gogogo-fullstack-template/cmd/gogogo@latest
+cd my-app
+make dev
+```
+
+What it asks (4 questions):
+
+1. **Project name** (`my-app`) — validates like `make rename` does.
+2. **GitHub owner** — for the module path (`github.com/<owner>/<name>`).
+3. **Plugins** — numbered menu from the registry (`dagnats`,
+   `credits`, `sounds`, `skins-extra` with one-line summaries). Answer
+   with numbers (`1,3`), ids, or both; empty keeps all, `none` drops all.
+   Unknown answers re-ask instead of mis-trimming. Plugin answers match
+   plugin-kind units only.
+4. **Features** — same numbered-menu shape (`whiteboard`, `landing`,
+   `config-view`). The todo demo is never offered (it is the
+   reference implementation). Realtime (NATS), LLM, and offline sync are
+   not installer units: they disable at runtime via env
+   (`NATS_ENABLED=false`, unset `GOAI_API_KEY`,
+   `OFFLINE_SYNC_ENABLED=false`).
+
+What it does, in order: shows the trim plan with every consequence (never
+silent), and on confirmation deletes what you skipped, renames (same rules
+as `scripts/rename-project.py`), writes `AGENTS.md`, then proves it with
+`go tool templ generate` (when `.templ` changed) + `go mod tidy` +
+`go build ./cmd/web`. (`gh repo create --template --clone` first if you
+don't have a checkout yet — the installer edits an existing directory.)
+Trim details: [Scope taxonomy](scope-taxonomy.md#removing-a-component).
+
+Non-interactive (CI/scripted) — preview first, then pin `--yes`:
+
+```bash
+go run ./cmd/gogogo --name my-app --owner myorg \
+  --plugins dagnats,credits,sounds --features whiteboard,landing,config-view \
+  --no-tui --dry-run --format json --dir ./my-app
+go run ./cmd/gogogo --name my-app --owner myorg \
+  --plugins dagnats,credits,sounds --features whiteboard,landing,config-view \
+  --no-tui --yes --dir ./my-app
+```
+
+IDs must match `cmd/gogogo --help` (unknown ids fail fast instead of
+silently keeping everything). Use `none` to drop a whole dimension.
+
+`--no-tui` without `--yes` prints the plan and stops — the installer never
+deletes on an assumption. Exit codes: 0 ok/plan-only, 1 usage error,
+2 proof build failed.
+
+TUI tech: the installer is stdlib-only today so `go run` needs nothing else.
+The interactive form is structured so it can move to Charm `Huh` + `Bubbletea`
+(a 2026-standard, performative Go TUI stack) without changing the trim engine —
+see `cmd/gogogo/README.md`.
+
+## 1. Manual fallback: create your repository
 
 ```bash
 # GitHub UI: click "Use this template" -> "Create a new repository"
