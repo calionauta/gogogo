@@ -1,17 +1,37 @@
 name: diag-oidc
-# TEMPORARY diagnostic: print the OIDC claims GitHub emits for this repo, so the
-# Tailscale federated identity subject can be matched exactly. Deleted after use.
+# TEMPORARY diagnostic. Deleted after use.
 on:
   workflow_dispatch:
 permissions:
   id-token: write
   contents: read
 jobs:
-  claims:
+  diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Print OIDC claims
+      - name: Print OIDC claims and attempt the exchange with full output
+        env:
+          TS_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_AUDIENCE: ${{ secrets.TS_AUDIENCE }}
         run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=diag" | jq -r .value)
+          set -x
+          echo "== audience secret is set? =="
+          [ -n "$TS_AUDIENCE" ] && echo "TS_AUDIENCE length: ${#TS_AUDIENCE}" || echo "TS_AUDIENCE EMPTY"
+          [ -n "$TS_CLIENT_ID" ] && echo "TS_CLIENT_ID length: ${#TS_CLIENT_ID}" || echo "TS_CLIENT_ID EMPTY"
+
+          echo "== requesting token with the configured audience =="
+          RESP=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$TS_AUDIENCE")
+          TOKEN=$(echo "$RESP" | jq -r .value)
+          echo "== claims =="
           echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+
+          echo "== manual token exchange (full response) =="
+          curl -sS -w "\nHTTP_STATUS=%{http_code}\n" \
+            -X POST "https://api.tailscale.com/api/v2/oauth/token-exchange" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "client_id=$TS_CLIENT_ID" \
+            --data-urlencode "id_token=$TOKEN" \
+            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+            --data-urlencode "audience=$TS_AUDIENCE" \
+            2>&1 | head -40
