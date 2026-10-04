@@ -8,7 +8,7 @@ import (
 )
 
 func TestPreflightSkipsNothingNeeded(t *testing.T) {
-	if err := preflight(context.Background(), devNull(t), false, false); err != nil {
+	if err := preflight(context.Background(), devNull(t), false, false, false); err != nil {
 		t.Fatalf("no requirements should always pass: %v", err)
 	}
 }
@@ -17,7 +17,7 @@ func TestPreflightGitMissing(t *testing.T) {
 	old := lookGit
 	defer func() { lookGit = old }()
 	lookGit = func() error { return errors.New("exec: git not in PATH") }
-	err := preflight(context.Background(), devNull(t), true, false)
+	err := preflight(context.Background(), devNull(t), true, false, false)
 	if err == nil || !strings.Contains(err.Error(), "git not found") {
 		t.Fatalf("expected a git-not-found refusal, got %v", err)
 	}
@@ -30,7 +30,7 @@ func TestPreflightGoMissing(t *testing.T) {
 	goVersionOut = func(_ context.Context) (string, error) {
 		return "", errors.New("exec: go not in PATH")
 	}
-	err := preflight(context.Background(), devNull(t), true, true)
+	err := preflight(context.Background(), devNull(t), true, true, false)
 	if err == nil || !strings.Contains(err.Error(), "go not found") {
 		t.Fatalf("expected a go-not-found refusal, got %v", err)
 	}
@@ -42,7 +42,7 @@ func TestPreflightGoTooOld(t *testing.T) {
 	goVersionOut = func(_ context.Context) (string, error) {
 		return "go version go1.20.14 linux/amd64\n", nil
 	}
-	err := preflight(context.Background(), devNull(t), false, true)
+	err := preflight(context.Background(), devNull(t), false, true, false)
 	if err == nil || !strings.Contains(err.Error(), "too old") {
 		t.Fatalf("expected a too-old refusal, got %v", err)
 	}
@@ -55,11 +55,26 @@ func TestPreflightGoCurrentPasses(t *testing.T) {
 		return "go version go1.23.4 linux/amd64\n", nil
 	}
 	var out strings.Builder
-	if err := preflight(context.Background(), &out, false, true); err != nil {
+	if err := preflight(context.Background(), &out, false, true, false); err != nil {
 		t.Fatalf("current go should pass: %v", err)
 	}
 	if !strings.Contains(out.String(), "toolchain OK") {
 		t.Error("pass should narrate the accepted toolchain")
+	}
+}
+
+func TestPreflightQuietSuppressesNarration(t *testing.T) {
+	old := goVersionOut
+	defer func() { goVersionOut = old }()
+	goVersionOut = func(_ context.Context) (string, error) {
+		return "go version go1.23.4 linux/amd64\n", nil
+	}
+	var out strings.Builder
+	if err := preflight(context.Background(), &out, false, true, true); err != nil {
+		t.Fatalf("quiet pass should succeed: %v", err)
+	}
+	if out.String() != "" {
+		t.Errorf("quiet preflight must print nothing, got %q", out.String())
 	}
 }
 

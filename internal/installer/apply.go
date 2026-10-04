@@ -26,7 +26,7 @@ func runCheck(opt options, stdout io.Writer) error {
 func runApply(ctx context.Context, opt options, drop []trimUnit,
 	plan scaffoldPlan, stdin io.Reader, stdout io.Writer,
 ) error {
-	if err := preflight(ctx, stdout, true, true); err != nil {
+	if err := preflight(ctx, stdout, true, true, opt.format == planFormatJSON); err != nil {
 		return err
 	}
 	if opt.run {
