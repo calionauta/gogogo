@@ -18,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -82,6 +83,14 @@ func usage(w *os.File, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo --check --dir ./my-app
 
+  Add a unit to an existing checkout (deps cascade automatically):
+
+    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
+
+  Add a unit to an existing checkout (evolve, not just scaffold):
+
+    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
+
   What it does, in order:
     1. shows the trim plan with every consequence (never silent),
     2. deletes skipped plugins/features with their wiring calls,
@@ -124,6 +133,9 @@ func unitOneLiner(u trimUnit) string {
 }
 
 func run(args []string, stdin *os.File, stdout *os.File) error {
+	if len(args) > 0 && args[0] == "add" {
+		return runAdd(args[1:], stdin, stdout)
+	}
 	opt, _, err := loadOptions(args, stdin, stdout)
 	if err != nil {
 		return err
@@ -315,7 +327,7 @@ const (
 
 // prove runs templ generate (only when .templ files were edited in place),
 // go mod tidy, and the build. A failing proof exits 2 with compiler output.
-func prove(dir string, drop []trimUnit, stdout *os.File) error {
+func prove(dir string, drop []trimUnit, stdout io.Writer) error {
 	if needsTemplGen(drop) {
 		fmt.Fprintln(stdout, "gogogo: prove: go tool templ generate …")
 		if out, err := runIn(dir, "go", "tool", "templ", "generate"); err != nil {

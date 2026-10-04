@@ -253,6 +253,7 @@ var All = []Capability{
 		Offered: true,
 		DependsOn: []string{
 			"collab",
+			"sounds",
 		},
 		Dirs: []string{"features/whiteboard"},
 		Files: []string{
@@ -267,6 +268,9 @@ var All = []Capability{
 		Kind:    KindFeature,
 		Summary: "public marketing page on GET /",
 		Offered: true,
+		DependsOn: []string{
+			"sounds",
+		},
 		Dirs:    []string{"features/landing"},
 		Warns: []string{
 			"GET / will 404 (landing owned the only root route); " +
@@ -278,6 +282,9 @@ var All = []Capability{
 		Kind:    KindFeature,
 		Summary: "auth-gated read-only /config view",
 		Offered: true,
+		DependsOn: []string{
+			"sounds",
+		},
 		Dirs:    []string{"features/config"},
 		Warns: []string{
 			"The navbar Config link is stripped automatically.",
