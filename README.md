@@ -94,7 +94,7 @@ make dev
 
 Go 1.27+ is the only prerequisite. Open `http://localhost:8080` for the landing
 page, then `http://localhost:8080/todo` for the demo (sign in with the seeded
-`demo@demo.app` / `demo`).
+`demo@demo.app` / `demo1234456`).
 
 > `make rename` only rewrites **this** project's identity. Sibling repos under
 the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) are real
@@ -189,7 +189,7 @@ Full taxonomy and per-package removal table:
 | **Live PocketBase admin** | [gogogo.calionauta.com/_/](https://gogogo.calionauta.com/_/) |
 | **Durable workflow console (DagNats)** | [gogogo.calionauta.com/dagnats/](https://gogogo.calionauta.com/dagnats/) |
 
-Sign in with `demo@demo.app` / `demo`. The demo's `users` collection is locked —
+Sign in with `demo@demo.app` / `demo1234456`. The demo's `users` collection is locked —
 you can log in as the demo user but cannot create or delete accounts through the
 API or the dashboard (only the superuser can).
 
@@ -205,6 +205,23 @@ make site          # Rebuild the docs site from docs/*.md
 ```
 
 Full command reference: [getting-started](docs/getting-started.md#commands).
+
+## CLI & MCP (agent paths)
+
+Humans get the guided installer above. Agents get the same engine
+(`internal/installer`) through two scripted paths — opinions first,
+preview second, mutation last:
+
+| Path | Use when | Entry point |
+|---|---|---|
+| `advise` | deciding what to keep (use-case → keep/drop + off-switches + Go/Zig rule). Changes nothing | `go run ./cmd/gogogo advise --need "..." --format json` |
+| trim `--dry-run` | previewing the scaffold as one JSON document | `--no-tui --dry-run --format json` (add `--yes` to apply) |
+| `add` / `--check` | restoring a unit into a scaffolded checkout / verifying markers | `add <unit> --from <pristine> --dir <proj> [--dry-run\|--yes]` |
+| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`, `check_tree`, `add_unit`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
+
+Destructive paths refuse without explicit confirmation (`--yes` /
+`confirm:true`). Strategy and the foreign-codebase boundary:
+[getting-started §0b–0c](docs/getting-started.md#0b-opinions-before-changes-advise).
 
 ## Before you push
 
