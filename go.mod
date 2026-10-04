@@ -25,7 +25,6 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24
 	github.com/zendev-sh/goai v0.10.3
 	maragu.dev/goqite v0.4.0
-	modernc.org/sqlite v1.59.0
 )
 
 require (
@@ -110,7 +109,8 @@ require (
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.75.7 // indirect
+	modernc.org/libc v1.74.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.57.0 // indirect
 )

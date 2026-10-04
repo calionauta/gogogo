@@ -53,15 +53,51 @@ func mountDagNatsDashboard(se *core.ServeEvent, upstream string) {
 		ModifyResponse: rewriteDagNatsPaths,
 	}
 
-	se.Router.GET("/dagnats", func(c *core.RequestEvent) error {
+	// Any(), not GET(): the DagNats console is a full CRUD app. Creating a
+	// trigger, editing a workflow, cancelling a run and deleting a schedule all
+	// issue POST/PUT/PATCH/DELETE. The upstream mux registers those with
+	// `mux.Handle` (method-agnostic), so a GET-only proxy in front of it turns
+	// every write into a 404 — the console renders fine and only breaks the
+	// moment you try to change something.
+	handler := func(c *core.RequestEvent) error {
+		// Buffer the body before handing it to the proxy. PocketBase wraps the
+		// request body in its RereadableReadCloser, whose Read() rewinds itself
+		// at EOF to allow multiple reads. httputil.ReverseProxy streams the body
+		// to the Transport, which reads until EOF — so it sees the payload,
+		// hits the automatic rewind, and reads it a SECOND time. The Transport
+		// then writes twice ContentLength bytes and aborts with
+		// "ContentLength=N with Body length 2N", surfacing as a 502 on every
+		// POST/PUT/PATCH. (Verified: a GET passes, a POST with a 13-byte body
+		// fails with ContentLength=13, Body length=26.) Replacing the body with
+		// a plain bytes.Reader detaches it from that wrapper, so the proxy sees
+		// exactly the bytes the client sent.
+		//
+		// Buffering is bounded to maxProxyBody: the console API carries small
+		// JSON payloads (trigger config, workflow definition). A body larger
+		// than the cap is rejected rather than silently truncated.
+		if c.Request.Body != nil {
+			body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxProxyBody+1))
+			if err != nil {
+				return c.String(http.StatusBadRequest, "dagnats proxy: unreadable body")
+			}
+			if int64(len(body)) > maxProxyBody {
+				return c.String(http.StatusRequestEntityTooLarge, "dagnats proxy: body too large")
+			}
+			c.Request.Body = io.NopCloser(bytes.NewReader(body))
+			c.Request.ContentLength = int64(len(body))
+		}
 		proxy.ServeHTTP(c.Response, c.Request)
 		return nil
-	})
-	se.Router.GET("/dagnats/{path...}", func(c *core.RequestEvent) error {
-		proxy.ServeHTTP(c.Response, c.Request)
-		return nil
-	})
+	}
+
+	se.Router.Any("/dagnats", handler)
+	se.Router.Any("/dagnats/{path...}", handler)
 }
+
+// maxProxyBody caps how much of a request body the DagNats proxy will buffer.
+// The console API sends small JSON documents; 8 MiB is far above any real
+// payload while keeping a malicious or runaway client from pinning memory.
+const maxProxyBody = 8 << 20
 
 // dagNatsAbsPrefixes are the absolute paths the DagNats SPA emits that
 // must be re-prefixed with /dagnats so they resolve through the proxy.

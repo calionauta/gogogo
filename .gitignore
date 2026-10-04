@@ -67,7 +67,17 @@ stelow.json
 gogogo-desktop
 gogogo-gui
 
-# Investigation spikes (local only, never commit)
+# Investigation spikes (local only, never commit).
+#
+# IMPORTANT: keep a go.mod inside spikes/ (also gitignored) so the directory is
+# its own module. Without it, spikes/ is part of the main module on any machine
+# that has it checked out, and a spike importing a package the app does not use
+# promotes that package to a DIRECT requirement of the app's go.mod. Since CI
+# never sees spikes/, `go mod tidy` then disagrees between local and CI and the
+# pre-commit mod-tidy hook can never pass. Minimal contents:
+#
+#     module spikes
+#     go 1.27
 spikes/
 
 # Python tooling artifacts (migrate-scope.py and check-scope checks the
