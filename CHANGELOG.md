@@ -1,3 +1,24 @@
+## [0.31.0] - 2026-10-04
+
+### Added
+
+- **Guided installer (`cmd/gogogo`).** Interactive (numbered plugin/feature menus with a repair loop) and scripted (`--dry-run`, `--format json`, `--yes`, `--check`) scaffolding: rename, trim of 7 plugin/feature units with their wiring calls, `AGENTS.md` with the upstream-first rule, and a `templ generate` + `go mod tidy` + `go build ./cmd/web` proof. Unknown unit ids fail fast; `--no-tui` without `--yes` never applies.
+- **`internal/capabilities` registry.** Single source of truth for ids, kinds, runtime switches, owned paths, and UI signals — consumed by the installer, `--help`, and the JSON plan. Conformance tests fail on drift (unowned packages, unknown deps, missing files, unwired UI signals).
+- **Registration-driven workflow UI.** The workflow tab, button, and empty-state hints render only when the onboarding routes are actually registered (`dagnatsUIEnabled`), so trimming `dagnats` and `DAGNATS_ENABLED=false` converge on the same UI with no dead button.
+- **Drift gate (`--check`).** Verifies every installer marker against a checkout without changing anything (`CHECK-OK`/`CHECK-FAIL`, exit 1 on drift); the same check runs in-process so CI fails when a source edit moves a marker.
+- **Kind split (`plugin` vs `feature`) by the servant principle.** A plugin serves other capabilities; a feature is a terminal user surface. Plugin answers match plugin-kind units, feature answers match feature-kind units; `none` drops a whole dimension.
+
+### Changed
+
+- **`router.Init` is a flat list of one call per capability.** Guards moved inside callees (`registerOnboarding`, `registerWhiteboardStack`); trimming is a single-line drop. No behavior change.
+- **Landing page and docs lead with the installer.** Capabilities highlight features over lib names; `make rename` stays as the documented manual fallback.
+- **Docs stay truthful additions.** `scope-taxonomy.md` gains the servant-principle definitions and the graceful-degradation UI rule; `ARCHITECTURE.md` wiring cells match the new call shapes.
+
+### Verification
+
+- 30 installer tests + 7 registry tests green, `golangci-lint` zero issues, `check-scope` and `site --check` green.
+- Trim proof end-to-end on throwaway checkouts (drop-all, partial, keep-all): `buildOk: True`, zero missed strips, `go vet` clean, component render tests green inside the trimmed tree.
+
 ## [0.30.0] - 2026-10-03
 
 ### Added
