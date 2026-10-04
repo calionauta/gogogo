@@ -221,81 +221,9 @@ h1 {
   max-width: 68ch;
 }
 
-/* ---------- layers ---------- */
-
-.layers {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(255px, 100%), 1fr));
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 22px;
-}
-
-.layer { background: var(--bg); padding: 22px; }
-
-.layer-name {
-  margin: 0 0 3px;
-  font: 600 15px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.layer-what {
-  margin: 0 0 10px;
-  font-size: 14px;
-  color: var(--accent-ink);
-}
-
-.layer-why { margin: 0; font-size: 14px; color: var(--ink-soft); }
-
-/* ---------- stack grid ---------- */
-
-/* Replaces an 11-row x 3-col table. The table made every choice the same
-   visual weight, so the reader had to read all of it to find anything. Here the
-   choice is the headline of its card, the category is a quiet label above it,
-   and the reasoning is one line below — so the eye can scan just the names. */
-.stack-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(270px, 100%), 1fr));
-  gap: 16px;
-  margin-bottom: 22px;
-}
-
-.stack-card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 18px 20px;
-  background: var(--bg);
-  transition: border-color .15s;
-}
-
-.stack-card:hover { border-color: var(--ink-faint); }
-
-.stack-cat {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
-
-.stack-pick {
-  margin: 0 0 8px;
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.stack-pick code { font-size: 15px; }
-
-.stack-why {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--ink-soft);
-}
+/* ---------- stack + layers cards ---------- */
+/* Both sections reuse the shared .card component (.grid-2): benefit title,
+   lib subtitle, one-line reasoning — one eye-path across the whole page. */
 
 .exception {
   margin: 26px auto 0;
