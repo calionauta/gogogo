@@ -22,22 +22,22 @@ const (
 // conformance test fails when a package under internal/ or features/ is
 // owned by nobody, and cmd/gogogo refuses unknown ids.
 type Capability struct {
-	ID         string
-	Kind       Kind
-	Summary    string
-	RuntimeOff string
-	Offered    bool
-	Reason     string
-	DependsOn  []string
+	ID         string   `json:"id"`
+	Kind       Kind     `json:"kind"`
+	Summary    string   `json:"summary"`
+	RuntimeOff string   `json:"runtimeOff,omitempty"`
+	Offered    bool     `json:"offered"`
+	Reason     string   `json:"reason,omitempty"`
+	DependsOn  []string `json:"dependsOn,omitempty"`
 	// UISignal names the todo.Signals bool field that hides this
 	// capability's UI ("" when the capability has no gated UI). The
 	// conformance test asserts the field exists and at least one .templ
 	// reads it: no dead buttons after trim, by construction.
-	UISignal string
-	Dirs     []string
-	Files    []string
-	Warns    []string
-	Note     string
+	UISignal string   `json:"uiSignal,omitempty"`
+	Dirs     []string `json:"dirs,omitempty"`
+	Files    []string `json:"files,omitempty"`
+	Warns    []string `json:"warnings,omitempty"`
+	Note     string   `json:"note,omitempty"`
 }
 
 // All is the full capability map. Installer units cover a subset (see
@@ -47,8 +47,8 @@ var All = []Capability{
 	{
 		ID:      "capabilities",
 		Kind:    KindPlugin,
-		Summary: "capability registry (installer + docs source of truth)",
-		Dirs:    []string{"internal/capabilities"},
+		Summary: "capability registry + installer engine (CLI and MCP share it)",
+		Dirs:    []string{"internal/capabilities", "internal/installer"},
 		Note:    "Meta-capability: deleting it breaks cmd/gogogo, not the web binary.",
 	},
 	{
