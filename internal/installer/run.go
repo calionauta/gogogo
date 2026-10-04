@@ -58,7 +58,7 @@ func unitOneLiner(u trimUnit) string {
 }
 
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
-	if len(args) > 0 && (args[0] == "--version" || args[0] == "-version" || args[0] == "version") {
+	if len(args) > 0 && (args[0] == "--version" || args[0] == "-version") {
 		fmt.Fprintln(stdout, "gogogo "+Version)
 		return nil
 	}
@@ -415,6 +415,10 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
   Interactive (humans: 4 questions, then a plan to confirm):
 
+    go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
+
+  Interactive without takeover (prints cd <dir> && make dev at the end):
+
     go run github.com/calionauta/gogogo/cmd/gogogo@latest
 
   Scripted (agents: always pin --yes; preview with --dry-run first):
@@ -442,8 +446,8 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   retry with — or decide straight from the capabilities table.
 
   What it does, in order:
-    1. clones the template into --dir when it is missing (with consent),
-    2. shows the trim plan with every consequence (never silent),
+    1. shows the trim plan with every consequence (never silent),
+    2. clones the template into --dir when it is missing (with consent),
     3. deletes skipped plugins/features with their wiring calls,
     4. renames the module path + every reference (rename-project.py rules),
     5. writes AGENTS.md with the upstream-first rule,

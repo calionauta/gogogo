@@ -16,14 +16,19 @@ go run ./cmd/gogogo --name my-app --owner myorg \
 ## What it does, in order
 
 1. Shows the trim plan with every consequence (never silent).
-2. Deletes skipped plugins/features with their wiring calls.
-3. Renames it (same rules as `scripts/rename-project.py`: module path first,
+2. Clones the template into `--dir` when it is missing (asks, or `--yes`
+   to proceed unattended).
+3. Deletes skipped plugins/features with their wiring calls.
+4. Renames it (same rules as `scripts/rename-project.py`: module path first,
    bare name second, Pages host only on `--owner` change; shields `ai-credits`,
    `datastar-lint`, `pi-leakguard`; skips generated `site/docs/`).
-4. Trims what you skipped (see below), then `go mod tidy`, `make templ`,
+5. Trims what you skipped (see below), then `go mod tidy`, `make templ`,
    proof `go build ./cmd/web`.
-5. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
+6. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
    template before they add a dependency or a feature.
+7. Prints `cd <dir> && make dev` — or, with `--run`, becomes dev itself
+   by execing `make dev` in the new checkout (humans only; never returns,
+   so agents must not use it).
 
 ## CLI contract (humans + agents)
 
