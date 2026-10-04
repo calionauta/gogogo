@@ -187,11 +187,14 @@ It is the only command you need on day one.
 
 ## Prerequisites
 
-- **Go** — any release ≥ 1.21. Newer toolchains download themselves
-  (`GOTOOLCHAIN=auto`), so the template's 1.27 is satisfied automatically.
-- **git** — the installer clones the template when the directory is missing.
+- **curl + git** — the only hard requirements. Everything else the
+  installer brings or verifies.
+- **Go** — any release ≥ 1.21 (newer toolchains download themselves via
+  `GOTOOLCHAIN=auto`). Missing entirely? `install.sh` bootstraps a
+  user-space toolchain (`~/.local/go`, no sudo, existing installs
+  untouched) — or install from https://go.dev/dl/.
 
-The installer verifies both before touching anything and fails fast with
+The installer verifies tools before touching anything and fails fast with
 the exact install command when something is missing. `make setup` (optional
 but recommended) — activates the lefthook git hooks so
 formatting, lint, and the CSS staleness check run on every commit. Requires

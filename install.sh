@@ -1,10 +1,13 @@
 #!/bin/sh
 # install.sh — installs the gogogo installer + MCP server from the latest
 # GitHub release into $BIN_DIR (default ~/.local/bin). Verifies SHA256.
+# With no Go toolchain on the machine, bootstraps one into ~/.local/go
+# (user-space, no sudo, existing installs never touched).
 #
 #   curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
 #
-# Env: BIN_DIR (install dir), REPO (owner/repo), GOGOGO_VERSION (pin, e.g. v0.32.0).
+# Env: BIN_DIR (install dir), REPO (owner/repo), GOGOGO_VERSION (pin, e.g. v0.32.0),
+#      GO_DIR (toolchain dir, default ~/.local/go), SKIP_GO_BOOTSTRAP=1 (offline/tests).
 set -eu
 
 REPO="${REPO:-calionauta/gogogo}"
@@ -60,4 +63,33 @@ case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) echo "note: $BIN_DIR is not on PATH — add: export PATH=\"\$BIN_DIR:\$PATH\"" ;;
 esac
+
+# Go bootstrap: the scaffold proof (tidy+build) and `make dev` need a
+# toolchain, so a Go-less machine would stall right after install.
+# Present installs are never touched; only a missing `go` triggers a
+# user-space toolchain (rustup-style, ~/.local/go + a $BIN_DIR symlink,
+# so the same PATH export covers both).
+if [ "${SKIP_GO_BOOTSTRAP:-0}" != "1" ] && ! command -v go >/dev/null 2>&1; then
+  GO_DIR="${GO_DIR:-$HOME/.local/go}"
+  if [ -x "$GO_DIR/bin/go" ]; then
+    echo "go: using existing user-space toolchain at $GO_DIR"
+  else
+    GO_VERSION="$(curl -sSfL 'https://go.dev/dl/?mode=json' |
+      grep -o '"version": *"go[0-9][0-9.]*"' | head -n 1 |
+      sed 's/.*go//;s/"//g')"
+    if [ -z "$GO_VERSION" ]; then
+      echo "install.sh: could not resolve a Go version (offline?) — install Go from https://go.dev/dl/, then run: gogogo --run" >&2
+      exit 1
+    fi
+    echo "go: no toolchain found — bootstrapping go$GO_VERSION into $GO_DIR …"
+    mkdir -p "$GO_DIR"
+    curl -sSfL -o "$TMP/go.tgz" "https://go.dev/dl/go$GO_VERSION.$OS-$ARCH.tar.gz"
+    tar -xzf "$TMP/go.tgz" -C "$TMP"
+    rm -rf "$GO_DIR"
+    mv "$TMP/go" "$GO_DIR"
+    ln -sf "$GO_DIR/bin/go" "$BIN_DIR/go"
+    echo "go: bootstrapped $($BIN_DIR/go version) (symlinked at $BIN_DIR/go)"
+  fi
+fi
+
 "$BIN_DIR/gogogo" --version
