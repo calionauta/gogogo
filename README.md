@@ -250,7 +250,3 @@ a Go + NATS + Datastar + Templ + DaisyUI application starter.
 MIT — see [LICENSE](LICENSE). Open to feedback, PRs, and adaptations. If
 something doesn't make sense, if the stack doesn't fit your problem, or if you
 have a better idea, [open an issue](https://github.com/calionauta/gogogo/issues).
-
----
-
-Made with intent to be useful, not to be right.
