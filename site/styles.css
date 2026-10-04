@@ -252,9 +252,12 @@ h1 {
 
 .exception-band { text-align: center; }
 
-.agent-band { text-align: center; }
-
-.agent-band .grid-2 { text-align: left; }
+.subhead {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 34px 0 16px;
+}
 
 .card.slim { padding: 16px 18px 15px; }
 
