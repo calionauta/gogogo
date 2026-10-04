@@ -120,9 +120,27 @@ func TestAdviseForeignStackPatternsOnly(t *testing.T) {
 }
 
 func TestAdviseGoMentionWins(t *testing.T) {
-	doc := buildAdvise("Go API serving a Next.js frontend with background jobs")
+	doc := buildAdvise("golang API serving a Next.js frontend with background jobs")
 	if doc.Scope != "template" {
-		t.Errorf("mixed stack with Go must stay template-scoped, got %q", doc.Scope)
+		t.Errorf("mixed stack with golang must stay template-scoped, got %q", doc.Scope)
+	}
+}
+
+func TestAdviseVerbGoDoesNotForceTemplate(t *testing.T) {
+	// "go" the English verb must not hijack an explicit foreign stack.
+	doc := buildAdvise("I want to go with Next.js for realtime")
+	if doc.Scope != "patterns" || doc.Stack != "Next.js" {
+		t.Errorf("verb-go + Next.js must be patterns/Next.js, got %q/%q", doc.Scope, doc.Stack)
+	}
+}
+
+func TestAdviseMultiStackIsDeterministic(t *testing.T) {
+	// Slice order is priority order: same answer every run.
+	for range 5 {
+		doc := buildAdvise("React frontend on Django backend")
+		if doc.Stack != "React" {
+			t.Fatalf("stack = %q, want React (first match wins)", doc.Stack)
+		}
 	}
 }
 
