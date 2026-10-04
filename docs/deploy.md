@@ -1,5 +1,23 @@
 # Deploy to your own box
 
+> **Renaming the repository or the GitHub owner breaks the deploy until you
+> re-authorize it.** The CI runner authenticates to Tailscale with a GitHub
+> OIDC token, and that token's `sub` claim embeds the repository's *name*
+> (`repo:<owner>/<name>:...`). Renaming the repo, transferring it, or moving it
+> to another owner changes the claim, the existing federated identity no longer
+> matches, and every deploy fails with:
+>
+> ```
+> failed to exchange JWT for access token: 403 Unauthorized
+> Visit https://login.tailscale.com/admin/settings/trust-credentials/view/***
+> ```
+>
+> The failure looks like a broken secret but nothing on the GitHub side changed.
+> Fix it by editing the federated identity's subject in the Tailscale admin
+> console to match the new name, or by creating a new one and updating
+> `TS_OAUTH_CLIENT_ID` / `TS_AUDIENCE`. Run `make rename` *before* wiring the
+> deploy, not after.
+
 The default workflow is **copy the template + `make rename` + `make dev`** for
 local work. For a permanent
 deployment, the project ships a production deploy workflow that publishes to a
