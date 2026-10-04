@@ -20,7 +20,6 @@
   <nav class="links" aria-label="Primary">
     <a href="#stack">Stack</a>
     <a href="#layers">Layers</a>
-    <a href="#features">Features</a>
     <a href="./docs/">Docs</a>
     <a class="btn small" href="#start">Get started</a>
     <a class="icon-link" href="https://github.com/calionauta/gogogo-fullstack-template" rel="noopener" aria-label="gogogo on GitHub">
@@ -63,68 +62,95 @@ make dev</code></pre>
   <section id="stack" class="section">
     <p class="kicker">In the box</p>
     <h2>Every choice already made.</h2>
-    <p class="section-lede">Eleven decisions you would otherwise make in the first
-    week — picked, wired together, and explained. Each one is documented with its
-    trade-offs in <a href="./docs/stack-layers/">stack layers</a>.</p>
+    <p class="section-lede">Decisions you would otherwise make in the first
+    week — picked, wired together, explained, and grouped by how each one
+    leaves your build: always in, switched off, or deleted. Each one is
+    documented with its trade-offs in
+    <a href="./docs/stack-layers/">stack layers</a>.</p>
+    <p class="group-label core">Always in <span>(core — customize, never remove)</span></p>
     <div class="grid-2">
       <div class="card">
         <p class="step">Database, auth and API — zero config</p>
         <p class="tech">PocketBase · embedded SQLite</p>
         <p>Auth, REST, file storage and an admin UI at <code>/_/</code>. No separate service to run.</p>
-      </div>
-      <div class="card">
-        <p class="step">Templates that fail at compile time</p>
-        <p class="tech">Templ</p>
-        <p>Type-safe Go components, generated at build time. A broken template is a compile error.</p>
+        <p class="off">Always in</p>
       </div>
       <div class="card">
         <p class="step">Reactive UI with no JS framework</p>
-        <p class="tech">Datastar over SSE</p>
-        <p>Server-rendered HTML with a ~12&nbsp;KiB client. No bundler, no hydration.</p>
-      </div>
-      <div class="card">
-        <p class="step">Three UI skins in one binary</p>
-        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
-        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>. Tailwind v4 underneath.</p>
+        <p class="tech">Templ + Datastar over SSE</p>
+        <p>Type-safe templates generated at build time, ~12&nbsp;KiB client. A broken template is a compile error.</p>
+        <p class="off">Always in</p>
       </div>
       <div class="card">
         <p class="step">Background jobs with retry</p>
         <p class="tech">goqite + SSE Hub</p>
         <p>Exponential backoff with jitter, streamed to the browser. No Redis.</p>
-      </div>
-      <div class="card">
-        <p class="step">Durable multi-step workflows</p>
-        <p class="tech">DagNats over JetStream</p>
-        <p>Declarative JSON. Kill the process mid-run and it resumes where it left off.</p>
-      </div>
-      <div class="card">
-        <p class="step">Shared state that merges offline edits</p>
-        <p class="tech">Loro CRDT + Rough.js</p>
-        <p>Conflict-free collaboration with no last-write-wins data loss.</p>
-      </div>
-      <div class="card">
-        <p class="step">AI features on any provider</p>
-        <p class="tech">GoAI + ai-credits</p>
-        <p>Injectable LLM interface, plus optional credits and BYOK billing.</p>
+        <p class="off">Always in</p>
       </div>
       <div class="card">
         <p class="step">Secrets encrypted at rest</p>
         <p class="tech">age + <code>~/.secrets/</code></p>
         <p>Decrypted at boot. No vault, no cloud dependency.</p>
+        <p class="off">Always in</p>
+      </div>
+    </div>
+    <p class="group-label plugin">Switch off <span>(plugin — env var, keeps compiling)</span></p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">Durable multi-step workflows</p>
+        <p class="tech">DagNats over JetStream</p>
+        <p>Declarative JSON. Kill the process mid-run and it resumes where it left off.</p>
+        <p class="off">Off: <code>DAGNATS_ENABLED=false</code></p>
+      </div>
+      <div class="card">
+        <p class="step">Broadcast across instances</p>
+        <p class="tech">NATS JetStream</p>
+        <p>Two or more instances behind a load balancer converge. Safe to enable on one.</p>
+        <p class="off">Off: <code>NATS_ENABLED=false</code></p>
+      </div>
+      <div class="card">
+        <p class="step">Three UI skins, one binary</p>
+        <p class="tech">DaisyUI v5 · Basecoat · Morpheus</p>
+        <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>.</p>
+        <p class="off">Off: <code>UI_SKIN=daisyui</code></p>
+      </div>
+      <div class="card">
+        <p class="step">AI features on any provider</p>
+        <p class="tech">GoAI + ai-credits</p>
+        <p>Injectable LLM interface, plus optional credits and BYOK billing.</p>
+        <p class="off">Off: unset <code>GOAI_API_KEY</code></p>
+      </div>
+      <div class="card">
+        <p class="step">Offline edits that replay</p>
+        <p class="tech">Service Worker + Leaf Node</p>
+        <p>Mutations queue in IndexedDB and replay on reconnect; replays never duplicate.</p>
+        <p class="off">Off: <code>OFFLINE_SYNC_ENABLED=false</code></p>
+      </div>
+    </div>
+    <p class="group-label feature">Delete if you don't need it <span>(feature — package + wiring call)</span></p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">Todo reference app</p>
+        <p class="tech">PocketBase realtime</p>
+        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
+        <p class="off">Delete: <code>features/todo/</code></p>
+      </div>
+      <div class="card">
+        <p class="step">Collaborative whiteboard</p>
+        <p class="tech">Loro CRDT + Rough.js</p>
+        <p>Presence cursors, offline outbox, PocketBase-persisted snapshots.</p>
+        <p class="off">Delete: <code>features/whiteboard/</code></p>
       </div>
       <div class="card">
         <p class="step">Native apps on the same backend</p>
         <p class="tech">Wails v3 + gogpu/ui</p>
         <p>Desktop shells over the same backend — plus a native window with no HTTP at all.</p>
-      </div>
-      <div class="card">
-        <p class="step">Linting tuned for AI-written code</p>
-        <p class="tech">golangci-lint (27) + datastar-lint</p>
-        <p>Unchecked errors, context leaks, lost propagation — caught before review.</p>
+        <p class="off">Delete: <code>cmd/desktop/</code>, <code>cmd/gui/</code></p>
       </div>
     </div>
     <p class="fine center">Every dependency with the reasoning behind it:
-    <a href="./docs/stack-layers/">stack layers →</a></p>
+    <a href="./docs/stack-layers/">stack layers →</a>
+    How trimming works: <a href="./docs/scope-taxonomy/">scope taxonomy →</a></p>
     <div class="exception">
       <p class="exception-rule">Go for everything. Zig only as an exception.</p>
       <p class="exception-when">Zig enters in one case: a <strong>proven</strong>
@@ -177,75 +203,6 @@ make dev</code></pre>
 
     <p class="fine center">Six layers, one <code>make build</code>. No build tags, no
     stub files, no matrix. <a href="./docs/async-layers/">Read the async layers doc →</a></p>
-  </section>
-
-  <section id="features" class="section">
-    <p class="kicker">Out of the box</p>
-    <h2>Capabilities, and how to switch each one off.</h2>
-    <p class="section-lede">Every capability is always compiled. The headline is the
-    <strong>feature</strong> you keep or delete; the quiet label underneath names the
-    <strong>technology</strong> that powers it. Infrastructure opts out
-    with an environment variable; product features opt out by deleting a package and its
-    one wiring call. The installer asks which ones you want and trims the rest.</p>
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">Auth</p>
-        <p class="tech">Powered by PocketBase</p>
-        <p>Cookie sessions, demo login, and per-request user loading. Middleware stays;
-        the login UI is removable.</p>
-      </div>
-      <div class="card">
-        <p class="step">Todo app + realtime</p>
-        <p class="tech">Powered by PocketBase realtime + SSE Hub</p>
-        <p>Full CRUD. Database actions stream per user through the collection's access rule. Toasts, client count, and AI suggestions
-        ride the ephemeral SSE Hub.</p>
-      </div>
-      <div class="card">
-        <p class="step">Background jobs + retry</p>
-        <p class="tech">Powered by goqite + retry-go</p>
-        <p>Jobs with exponential backoff and jitter. A retry emits
-        a <code>lastRetry</code> signal so the UI can show "retrying…".</p>
-      </div>
-      <div class="card">
-        <p class="step">Durable workflows</p>
-        <p class="tech">Powered by DagNats over JetStream</p>
-        <p><code>WelcomeOnboarding</code> creates example todos as declarative JSON. Stop the
-        process mid-run and restart — it picks up where it left off. Off with <code>DAGNATS_ENABLED=false</code>.</p>
-      </div>
-      <div class="card">
-        <p class="step">Collaborative whiteboard</p>
-        <p class="tech">Powered by Loro CRDT + Rough.js + NATS</p>
-        <p>Conflict-free canvas with presence cursors, offline outbox replay, and
-        PocketBase-persisted snapshots.</p>
-      </div>
-      <div class="card">
-        <p class="step">Hybrid offline sync</p>
-        <p class="tech">Powered by Service Worker + NATS Leaf Node + idempotency</p>
-        <p>Web clients queue mutations in IndexedDB and replay on reconnect;
-        desktop edges replicate over NATS. Server-side idempotency means
-        replays never duplicate. Off with <code>OFFLINE_SYNC_ENABLED=false</code>.</p>
-      </div>
-      <div class="card">
-        <p class="step">Three pluggable skins</p>
-        <p class="tech">Powered by DaisyUI + Basecoat + Morpheus</p>
-        <p>DaisyUI (default), Basecoat, and Morpheus — all compiled into the same binary,
-        switchable per process (<code>UI_SKIN</code>) or per request (<code>?skin=</code>).</p>
-      </div>
-      <div class="card">
-        <p class="step">AI suggest + credits</p>
-        <p class="tech">Powered by GoAI + ai-credits (BYOK)</p>
-        <p>Todo suggestions behind an injectable LLM interface, optionally metered with a
-        reserve/settle ledger, monthly entitlements, and encrypted per-user keys. Off when no key is set.</p>
-      </div>
-      <div class="card">
-        <p class="step">Admin surfaces</p>
-        <p class="tech">Powered by PocketBase admin + config view + DagNats console</p>
-        <p>Admin UI at <code>/_/</code>, read-only config at
-        <code>/config</code>, and the workflow console — all from one binary.</p>
-      </div>
-    </div>
-    <p class="fine center">Every capability with its opt-out:
-    <a href="./docs/features/">features →</a></p>
   </section>
 
   <section id="scope" class="section">
