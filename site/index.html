@@ -35,10 +35,9 @@
     <div class="hero-copy">
       <p class="kicker">Full-stack Go · one binary · zero external services</p>
       <h1>The stack you keep<br>re-deciding, decided.</h1>
-      <p class="lede">Database, auth, REST, admin UI, task queue, realtime, durable
-      workflows, CRDT collaboration, offline sync, and an LLM client — compiled into
-      a single self-contained binary. No Docker. No Redis. No Postgres. No JS build
-      step. Copy the template, rename it, ship it.</p>
+      <p class="lede">Database, auth, realtime, background jobs, durable workflows,
+      offline sync and an LLM client — in one self-contained Go binary.</p>
+      <p class="lede-sub">No Docker. No Redis. No Postgres. No JS build step.</p>
       <div class="cta-row">
         <a class="btn primary" href="#start">Use this template</a>
         <a class="btn" href="./docs/">Read the docs</a>
@@ -109,25 +108,78 @@ make dev</code></pre>
   <section id="stack" class="section">
     <p class="kicker">In the box</p>
     <h2>Every choice already made.</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
-        <tbody>
-          <tr><td>Database, auth, API</td><td>PocketBase (embedded SQLite)</td><td>Zero-config auth, REST, and an admin UI at <code>/_/</code></td></tr>
-          <tr><td>Templating</td><td>Templ</td><td>Type-safe Go components, generated at build time</td></tr>
-          <tr><td>Reactive UI</td><td>Datastar over SSE</td><td>Server-rendered HTML, ~12&nbsp;KiB client, no JS framework build</td></tr>
-          <tr><td>CSS / skins</td><td>DaisyUI v5 + Tailwind v4 (pluggable)</td><td>Three skins compiled in; switch at runtime with <code>UI_SKIN</code> or <code>?skin=</code></td></tr>
-          <tr><td>Task queue</td><td>goqite + SSE Hub</td><td>Background jobs streamed to the browser. No Redis</td></tr>
-          <tr><td>Durable workflows</td><td>DagNats</td><td>Multi-step workflows as declarative JSON over NATS JetStream</td></tr>
-          <tr><td>Collaboration</td><td>Loro CRDT + Rough.js</td><td>Conflict-free whiteboard state, offline-first</td></tr>
-          <tr><td>LLM</td><td>GoAI (any OpenAI-compatible provider)</td><td>Behind an injectable interface — plus optional AI credits and BYOK billing</td></tr>
-          <tr><td>Secrets</td><td>age + <code>~/.secrets/</code></td><td>Local encryption. No vault, no cloud</td></tr>
-          <tr><td>Desktop / mobile</td><td>Wails v3 + gogpu/ui</td><td>Native shells over the same backend, and a no-HTTP frontend</td></tr>
-          <tr><td>Linting</td><td>golangci-lint (27) + datastar-lint</td><td>Written for LLM-authored code — unchecked errors, context leaks, lost context propagation</td></tr>
-        </tbody>
-      </table>
+    <p class="section-lede">Eleven decisions you would otherwise make in the first
+    week — picked, wired together, and explained. Each one is documented with its
+    trade-offs in <a href="./docs/stack-layers/">stack layers</a>.</p>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <p class="stack-cat">Database · auth · API</p>
+        <p class="stack-pick">PocketBase</p>
+        <p class="stack-why">Embedded SQLite with zero-config auth, REST and an admin UI
+        at <code>/_/</code>. No separate service to run.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Templating</p>
+        <p class="stack-pick">Templ</p>
+        <p class="stack-why">Type-safe Go components, generated at build time. A broken
+        template is a compile error.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Reactive UI</p>
+        <p class="stack-pick">Datastar over SSE</p>
+        <p class="stack-why">Server-rendered HTML with a ~12&nbsp;KiB client. No JS
+        framework, no bundler.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">CSS · skins</p>
+        <p class="stack-pick">DaisyUI v5 + Tailwind v4</p>
+        <p class="stack-why">Three skins compiled in, switchable at runtime with
+        <code>UI_SKIN</code> or <code>?skin=</code>.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Task queue</p>
+        <p class="stack-pick">goqite + SSE Hub</p>
+        <p class="stack-why">Background jobs with retry and backoff, streamed to the
+        browser. No Redis.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Durable workflows</p>
+        <p class="stack-pick">DagNats</p>
+        <p class="stack-why">Multi-step workflows as declarative JSON over JetStream.
+        Kill the process mid-run and it resumes.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Collaboration</p>
+        <p class="stack-pick">Loro CRDT + Rough.js</p>
+        <p class="stack-why">Conflict-free shared state that merges offline edits with
+        no last-write-wins loss.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">LLM</p>
+        <p class="stack-pick">GoAI</p>
+        <p class="stack-why">Any OpenAI-compatible provider behind an injectable
+        interface, plus optional credits and BYOK billing.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Secrets</p>
+        <p class="stack-pick">age + <code>~/.secrets/</code></p>
+        <p class="stack-why">Encrypted at rest, decrypted at boot. No vault, no
+        cloud dependency.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Desktop · mobile</p>
+        <p class="stack-pick">Wails v3 + gogpu/ui</p>
+        <p class="stack-why">Native shells over the same backend, and a native window
+        with no HTTP at all.</p>
+      </div>
+      <div class="stack-card">
+        <p class="stack-cat">Linting</p>
+        <p class="stack-pick">golangci-lint (27) + datastar-lint</p>
+        <p class="stack-why">Tuned for LLM-authored code: unchecked errors, context
+        leaks, lost propagation.</p>
+      </div>
     </div>
-    <p class="fine center">Full table with every dependency and the reasoning:
+    <p class="fine center">Every dependency with the reasoning behind it:
     <a href="./docs/stack-layers/">stack layers →</a></p>
   </section>
 

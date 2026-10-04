@@ -447,9 +447,11 @@ make desktop-cross        # all three into build/cross/; darwin is UNSIGNED (tes
 
 Cross (`wails-cross`) is for previews without 3 native runners — release
 binaries still come from native runners (macOS signing can't cross).
-Version pin rule: `go.mod` (wails/v3) + `Makefile` (`WAILS_VERSION`) +
-`scripts/desktop-build.sh` (`WAILS_VERSION`) + `.github/workflows/desktop.yml`
-must carry the same beta — bump together.
+Version pin rule: `go.mod` (wails/v3), `Makefile` (`WAILS_VERSION`) and
+`.github/workflows/desktop.yml` (the `go install` line) must carry the same
+beta — bump together. `scripts/desktop-build.sh` no longer pins it: the native
+path is a plain `go build` and the cross path calls Docker directly, so the CLI
+version does not affect either.
 
 The desktop binary shares 100% of the backend. With `NATS_LEAFNODE_URL` set, it becomes a NATS Leaf Node syncing JetStream with the server (offline edits replay on reconnect). See `scripts/desktop-build.sh` for full docs.
 
