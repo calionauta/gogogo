@@ -87,6 +87,52 @@ func TestAdviseNeedMatchesOfflinePresetFirst(t *testing.T) {
 	}
 }
 
+func TestAdviseForeignStackPatternsOnly(t *testing.T) {
+	// A Next.js need must NOT recommend installable Go units.
+	doc := buildAdvise("Next.js dashboard with realtime cursors")
+	if doc.Scope != "patterns" {
+		t.Fatalf("scope = %q, want patterns", doc.Scope)
+	}
+	if doc.Stack != "Next.js" {
+		t.Errorf("stack = %q, want Next.js", doc.Stack)
+	}
+	if len(doc.Capabilities) != 0 {
+		t.Errorf("foreign scope must omit the Go capability table, got %d rows", len(doc.Capabilities))
+	}
+	if doc.FirstRun != nil {
+		t.Error("foreign scope must omit scaffold first-run")
+	}
+	if len(doc.Presets) == 0 || doc.Presets[0].Name != "realtime-collab" {
+		t.Fatalf("realtime need did not surface realtime-collab: %+v", doc.Presets)
+	}
+	if doc.Presets[0].Idea == "" {
+		t.Error("foreign preset must carry the portable idea")
+	}
+	found := false
+	for _, d := range doc.Presets[0].Copy {
+		if d == "features/whiteboard" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("foreign preset copy dirs missing whiteboard reference: %v", doc.Presets[0].Copy)
+	}
+}
+
+func TestAdviseGoMentionWins(t *testing.T) {
+	doc := buildAdvise("Go API serving a Next.js frontend with background jobs")
+	if doc.Scope != "template" {
+		t.Errorf("mixed stack with Go must stay template-scoped, got %q", doc.Scope)
+	}
+}
+
+func TestAdviseEmptyNeedIsTemplate(t *testing.T) {
+	doc := buildAdvise("")
+	if doc.Scope != "template" || doc.FirstRun == nil {
+		t.Errorf("empty need must be full template scope, got %+v", doc.Scope)
+	}
+}
+
 func TestAdviseNeedWithNoMatchReturnsNone(t *testing.T) {
 	if got := buildAdvise("quantum toaster firmware"); len(got.Presets) != 0 {
 		t.Errorf("nonsense need matched %d presets, want 0", len(got.Presets))

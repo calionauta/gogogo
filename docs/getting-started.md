@@ -105,7 +105,9 @@ before trim, upstream-first). The MCP server exposes the same document as
 Strategy for LLMs: empty `--need` returns the full map (cheapest correct
 first call — the document is small). A filtered call that matches nothing
 is not a dead end: the capabilities table is always complete, so decide
-from it or retry with broader terms. Keyword matching is deliberately
+from it or retry with broader terms. Name your stack: a non-Go codebase
+(Next.js, Python, Rust…) gets patterns plus reference paths — units are
+not installable there and advise says so instead of recommending them. Keyword matching is deliberately
 dumb (exact or ≥4-char prefix) — phrase the need with template vocabulary
 (`whiteboard`, `dagnats`, `offline`, `credits`) when a first attempt
 misses. Then preview with `trim_plan --dry-run` before any `trim_apply`.
