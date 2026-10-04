@@ -9,10 +9,11 @@ still works and is documented below as the fallback.
 
 ```bash
 go run github.com/calionauta/gogogo/cmd/gogogo@latest
-cd my-app
-make dev
+cd my-app && make dev
 ```
 
+No checkout needed: when the directory is missing the installer clones
+the template into it first (asks, or `--yes` to proceed unattended).
 What it asks (4 questions):
 
 1. **Project name** (`my-app`) — validates like `make rename` does.
@@ -30,11 +31,14 @@ What it asks (4 questions):
    `OFFLINE_SYNC_ENABLED=false`).
 
 What it does, in order: shows the trim plan with every consequence (never
-silent), and on confirmation deletes what you skipped, renames (same rules
+silent), and on confirmation clones the template when the directory is
+missing, deletes what you skipped, renames (same rules
 as `scripts/rename-project.py`), writes `AGENTS.md`, then proves it with
 `go tool templ generate` (when `.templ` changed) + `go mod tidy` +
-`go build ./cmd/web`. (`gh repo create --template --clone` first if you
-don't have a checkout yet — the installer edits an existing directory.)
+`go build ./cmd/web`, and prints the exact next commands
+(`cd <name> && make dev` — a child process cannot `cd` its parent, which
+is why every scaffolder from `create-vite` to `create-t3-app` prints the
+`cd` instead of doing it).
 Trim details: [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 
 Non-interactive (CI/scripted) — preview first, then pin `--yes`:

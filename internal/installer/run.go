@@ -86,7 +86,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			return nil
 		}
 	}
-	if err := requireCheckoutDir(opt); err != nil {
+	if err := ensureCheckoutDir(ctx, opt, stdin, stdout); err != nil {
 		return err
 	}
 	if !opt.yes && !confirm(stdout, stdin, len(drop)) {
@@ -170,17 +170,59 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	return opt, fs, nil
 }
 
-// requireCheckoutDir stops early when v0.1 has nothing to operate on: the
-// installer edits an existing checkout, it does not clone one.
+// templateCloneURL is the only network source the installer pulls: a
+// public template checkout to scaffold from when --dir is missing.
+const templateCloneURL = "https://github.com/calionauta/gogogo"
+
+// requireCheckoutDir is the strict gate for read-only paths (--check):
+// nothing is created, so a missing directory is a plain error.
 func requireCheckoutDir(opt options) error {
 	if _, err := os.Stat(opt.dir); err != nil {
 		return &ExitError{code: 1, msg: fmt.Sprintf(
-			"directory %s not found — clone the template first:\n"+
-				"  gh repo create %s --template calionauta/gogogo --clone\n"+
-				"  (or: git clone <url> %s, then re-run with --dir %s --yes)",
-			opt.dir, opt.name, opt.dir, opt.dir)}
+			"directory %s not found — nothing to check "+
+				"(scaffold it first: go run github.com/calionauta/gogogo/cmd/gogogo@latest --yes)",
+			opt.dir)}
 	}
 	return nil
+}
+
+// ensureCheckoutDir is the apply-path gate: an existing directory is used
+// as-is, a missing one is cloned from the template with explicit consent
+// (--yes, or an interactive [y/N]). Cloning rides on the same consent
+// model as trimming: never on an assumption.
+func ensureCheckoutDir(ctx context.Context, opt options, stdin io.Reader, stdout io.Writer) error {
+	if _, err := os.Stat(opt.dir); err == nil {
+		return nil
+	}
+	if !opt.yes && !confirmClone(stdout, stdin, opt.dir) {
+		return &ExitError{code: 1, msg: fmt.Sprintf(
+			"directory %s not found — aborted, nothing cloned "+
+				"(re-run with --yes to clone the template and scaffold)",
+			opt.dir)}
+	}
+	fmt.Fprintf(stdout, "gogogo: cloning %s into %s …\n", templateCloneURL, opt.dir)
+	if err := gitClone(ctx, opt.dir); err != nil {
+		return &ExitError{code: 1, msg: fmt.Sprintf(
+			"git clone failed (%v) — is git installed and the network up?\n"+
+				"manual fallback: git clone %s %s, then re-run with --dir %s --yes",
+			err, templateCloneURL, opt.dir, opt.dir)}
+	}
+	return nil
+}
+
+// confirmClone asks one question with a safe default (no).
+func confirmClone(stdout io.Writer, stdin io.Reader, dir string) bool {
+	fmt.Fprintf(stdout, "Directory %s not found — clone the template into it and continue? [y/N]: ", dir)
+	var answer [8]byte
+	n, _ := stdin.Read(answer[:])
+	resp := strings.ToLower(strings.TrimSpace(string(answer[:n])))
+	return resp == "y" || resp == "yes"
+}
+
+// gitClone is a seam for tests (no network in unit tests).
+var gitClone = func(ctx context.Context, dir string) error {
+	_, err := runIn(ctx, ".", "git", "clone", "--depth", "1", templateCloneURL, dir)
+	return err
 }
 
 // applyAndProve trims, renames, writes AGENTS.md, and proves the result.
@@ -396,12 +438,14 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   retry with — or decide straight from the capabilities table.
 
   What it does, in order:
-    1. shows the trim plan with every consequence (never silent),
-    2. deletes skipped plugins/features with their wiring calls,
-    3. renames the module path + every reference (rename-project.py rules),
-    4. writes AGENTS.md with the upstream-first rule,
-    5. proves it: templ generate (when .templ edited) + go mod tidy +
-       go build ./cmd/web.
+    1. clones the template into --dir when it is missing (with consent),
+    2. shows the trim plan with every consequence (never silent),
+    3. deletes skipped plugins/features with their wiring calls,
+    4. renames the module path + every reference (rename-project.py rules),
+    5. writes AGENTS.md with the upstream-first rule,
+    6. proves it: templ generate (when .templ edited) + go mod tidy +
+       go build ./cmd/web, then prints the exact next commands
+       (cd <dir> && make dev — a child process cannot cd its parent).
 
   Units (id, kind). Kind follows the servant principle, not the directory:
   a plugin serves other capabilities (sounds, skins, credits serve pages);

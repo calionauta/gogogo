@@ -77,19 +77,18 @@ module path would stay `github.com/calionauta/gogogo` and
 deploys would target the template's server directory.
 
 ```bash
-# 1. Scaffold with the installer (asks name, owner, plugins, features;
-#    renames, trims what you skip, writes AGENTS.md with the upstream-first rule)
+# 1. Scaffold with the installer (clones the template when needed; asks
+#    name, owner, plugins, features; renames, trims what you skip, writes
+#    AGENTS.md with the upstream-first rule, then prints the next commands)
 go run github.com/calionauta/gogogo/cmd/gogogo@latest
-cd my-app
+cd my-app && make dev
 
 # Manual fallback (no installer):
 # gh repo create my-app --template calionauta/gogogo --clone
 # cd my-app
 # make rename NAME=my-app          # add OWNER=myorg if not under calionauta
 # make site                        # regenerate the published docs
-
-# 2. Run
-make dev
+# make dev                         # run
 ```
 
 Go 1.27+ is the only prerequisite. Open `http://localhost:8080` for the landing
