@@ -905,11 +905,22 @@ func TestCheckTreeAgainstRepoRoot(t *testing.T) {
 	// The drift gate itself, running in CI: the manifest must match the
 	// pristine template checkout. If a source edit moves a marker without
 	// updating cmd/gogogo, this fails naming the unit + marker.
+	// Skipped wholesale in evolved trees: once any owned path is gone
+	// the tree was trimmed, and marker absence there means "removed by
+	// design" or "manual follow-up pending" (e.g. sounds call sites) —
+	// not drift. Use `gogogo --check` for a human-readable verdict there.
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Skip("runtime.Caller unavailable")
 	}
 	root := filepath.Join(filepath.Dir(file), "..", "..")
+	for _, c := range capabilities.All {
+		for _, p := range append(append([]string{}, c.Dirs...), c.Files...) {
+			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(p))); err != nil {
+				t.Skipf("evolved tree (missing %s): drift gate applies to pristine checkouts", p)
+			}
+		}
+	}
 	var failed []string
 	for _, uc := range checkTree(root) {
 		if len(uc.Problems) > 0 {
@@ -918,6 +929,53 @@ func TestCheckTreeAgainstRepoRoot(t *testing.T) {
 	}
 	if len(failed) > 0 {
 		t.Errorf("manifest drifted from source:\n%s", strings.Join(failed, "\n"))
+	}
+}
+
+// trimmedAway reports whether every owned path of the given capabilities
+// is absent from root: the unit was fully trimmed and its check problems
+// are expected, not drift.
+func trimmedAway(root string, capIDs []string) bool {
+	byID := capabilities.ByID()
+	anyOwned := false
+	for _, id := range capIDs {
+		c, ok := byID[id]
+		if !ok {
+			return false
+		}
+		for _, d := range c.Dirs {
+			anyOwned = true
+			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(d))); err == nil {
+				return false
+			}
+		}
+		for _, f := range c.Files {
+			anyOwned = true
+			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(f))); err == nil {
+				return false
+			}
+		}
+	}
+	return anyOwned
+}
+
+func TestCheckTreeSkipsTrimmedUnits(t *testing.T) {
+	// In a scaffolded project (trim already applied), fully-trimmed
+	// units must be skipped, not failed: their paths are gone by design.
+	// Only markers missing from PRESENT files count as drift.
+	dir := t.TempDir()
+	if !trimmedAway(dir, []string{"landing"}) {
+		t.Errorf("empty tree: landing should count as trimmed away")
+	}
+	present := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(present, "features", "landing"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if trimmedAway(present, []string{"landing"}) {
+		t.Errorf("present landing dir should not count as trimmed away")
+	}
+	if trimmedAway(present, []string{"no-such-cap"}) {
+		t.Errorf("unknown capability must not count as trimmed away")
 	}
 }
 

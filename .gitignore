@@ -1,7 +1,7 @@
 # Binary
 cali-go-stack
 tmp/
-gogogo
+/gogogo
 
 # The repo tracks its own helper scripts under bin/ (check-*.sh, datastar-lint,
 # init-secrets, setup-hooks.sh). A global ~/.gitignore_global commonly ignores
@@ -60,8 +60,8 @@ node_modules/
 
 # Root-level logo is a social-card asset (1024px), not for the README — see web/resources/static/logo.png
 /logo.png
-app
-gogogo
+/app
+/gogogo
 coverage.html
 coverage.out
 

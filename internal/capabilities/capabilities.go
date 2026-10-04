@@ -192,7 +192,7 @@ var All = []Capability{
 			"`go mod tidy` drops stripe-go too.",
 	},
 	{
-		ID:      "sounds",
+		ID:      depSounds,
 		Kind:    KindPlugin,
 		Summary: "UI sound feedback (cuelume, vendored)",
 		Offered: true,
@@ -253,6 +253,7 @@ var All = []Capability{
 		Offered: true,
 		DependsOn: []string{
 			"collab",
+			depSounds,
 		},
 		Dirs: []string{"features/whiteboard"},
 		Files: []string{
@@ -267,7 +268,10 @@ var All = []Capability{
 		Kind:    KindFeature,
 		Summary: "public marketing page on GET /",
 		Offered: true,
-		Dirs:    []string{"features/landing"},
+		DependsOn: []string{
+			depSounds,
+		},
+		Dirs: []string{"features/landing"},
 		Warns: []string{
 			"GET / will 404 (landing owned the only root route); " +
 				"the navbar brand is retargeted to /todo, which is kept.",
@@ -278,12 +282,19 @@ var All = []Capability{
 		Kind:    KindFeature,
 		Summary: "auth-gated read-only /config view",
 		Offered: true,
-		Dirs:    []string{"features/config"},
+		DependsOn: []string{
+			depSounds,
+		},
+		Dirs: []string{"features/config"},
 		Warns: []string{
 			"The navbar Config link is stripped automatically.",
 		},
 	},
 }
+
+// depSounds is the shared soft dependency of UI pages: their .templ
+// files import the sounds package for SoundAssets.
+const depSounds = "sounds"
 
 // ByID indexes All by capability id.
 func ByID() map[string]Capability {
