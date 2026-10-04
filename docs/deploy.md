@@ -18,6 +18,32 @@
 > `TS_OAUTH_CLIENT_ID` / `TS_AUDIENCE`. Run `make rename` *before* wiring the
 > deploy, not after.
 
+> **Renaming also leaves the server in a state the deploy cannot fix by
+> itself.** Two artefacts on the box carry the old name, and both must be
+> cleared by hand once, after the rename:
+>
+> 1. **The container.** The old container (`<old-name>`) keeps holding the
+>    published port, so the new one (`<new-name>`) fails to start with
+>    `Bind for 127.0.0.1:8080 failed: port is already allocated`. The deploy
+>    script reports that only as a healthcheck timeout, and the run still exits
+>    green — so it looks like a success while the previous container keeps
+>    serving. Remove it: `docker rm -f <old-name>`.
+> 2. **The secrets file.** The compose `env_file` and the CI render target must
+>    agree on `~/.secrets/<app>.env`. If they disagree you get
+>    `env file /home/deploy/.secrets/<app>.env not found`, again masked as a
+>    timeout. `make rename` renames the *repository*; it cannot rename a file on
+>    a machine it has never seen.
+>
+> Both failures share a nasty property: **the deploy exits 0 and the site stays
+> up on the old container.** Verify a deploy actually landed by checking the
+> running container's uptime, not the workflow's conclusion:
+>
+> ```bash
+> ssh $DEPLOY_HOST 'docker inspect <app> --format "{{.State.StartedAt}} {{.State.Health.Status}}"'
+> ```
+>
+> A `StartedAt` older than the workflow run means the deploy did not apply.
+
 The default workflow is **copy the template + `make rename` + `make dev`** for
 local work. For a permanent
 deployment, the project ships a production deploy workflow that publishes to a
