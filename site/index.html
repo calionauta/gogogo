@@ -69,13 +69,13 @@ make dev</code></pre>
 
   <section id="agents" class="section">
     <p class="kicker">For agents</p>
-    <h2>Two ways in, both scripted.</h2>
+    <h2>Humans type. Agents call.</h2>
     <p class="section-lede">Humans get the guided installer. Agents get the
     same engine through a CLI built for scripts and an MCP server built for
     tool calls — opinions first, preview second, mutation last.</p>
     <div class="grid-2">
       <div class="card">
-        <p class="step">opinions, then a plan, then a receipt</p>
+        <p class="step">The full installer as scriptable commands</p>
         <p class="tech">CLI · <code>cmd/gogogo</code></p>
         <p><code>advise</code> answers which units fit the use-case (nothing
         changes). <code>--dry-run --format json</code> previews the trim as
@@ -84,7 +84,7 @@ make dev</code></pre>
         <p class="off">Pin <code>--no-tui --yes</code> · never delete on an assumption</p>
       </div>
       <div class="card">
-        <p class="step">the installer as MCP tools</p>
+        <p class="step">The same installer as agent tools</p>
         <p class="tech"><code>cmd/gogogo-mcp</code> · stdio, no port, no deploy</p>
         <p>Six tools over the same engine: <code>advise_stack</code>,
         <code>capabilities_list</code>, <code>trim_plan</code>,
