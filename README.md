@@ -29,13 +29,37 @@ The manual lives on the site, not in this file:
 <details>
 <summary>Page index (20 pages)</summary>
 
-| Group | Pages |
-|---|---|
-| **Get started** | [overview](docs/overview.md) · [getting-started](docs/getting-started.md) |
-| **Core** | [architecture](docs/architecture.md) · [stack-layers](docs/stack-layers.md) · [async-layers](docs/async-layers.md) · [features](docs/features.md) · [scope-taxonomy](docs/scope-taxonomy.md) · [configuration](docs/configuration.md) · [native-zig](docs/native-zig.md) |
-| **Frontend** | [todo-example](docs/todo-example.md) · [ui-skins](docs/ui-skins.md) · [ui-sounds](docs/ui-sounds.md) |
-| **Ship** | [deploy](docs/deploy.md) · [desktop-mobile](docs/desktop-mobile.md) · [admin-dashboard](docs/admin-dashboard.md) · [llm-and-credits](docs/llm-and-credits.md) |
-| **Operate** | [local-ci](docs/local-ci.md) · [code-quality](docs/code-quality.md) · [troubleshooting](docs/troubleshooting.md) |
+One-liners mirror the docs site manifest (`site/build.mjs`).
+
+**Get started**
+- [overview](docs/overview.md) — what gogogo is, who it is for, and the six async layers it ships.
+- [getting-started](docs/getting-started.md) — clone, run, first five minutes, and the commands you need.
+
+**Core**
+- [architecture](docs/architecture.md) — directory layout, dependency direction, entry points, and route wiring gotchas.
+- [stack-layers](docs/stack-layers.md) — every dependency and why it is in the box.
+- [async-layers](docs/async-layers.md) — the six async layers, PB realtime vs SSE Hub, cross-instance and offline sync.
+- [features](docs/features.md) — every capability and its runtime opt-out.
+- [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
+- [configuration](docs/configuration.md) — every environment variable and runtime constant.
+- [native-zig](docs/native-zig.md) — Go-first policy: why Zig is an exceptional native boundary, plus the agent decision procedure.
+
+**Frontend**
+- [todo-example](docs/todo-example.md) — the Todo reference implementation and the contract to imitate.
+- [ui-skins](docs/ui-skins.md) — pluggable DaisyUI / Basecoat / Morpheus skins and the plugin contract.
+- [ui-sounds](docs/ui-sounds.md) — vendored cuelume sound feedback and its accessibility contract.
+
+**Ship**
+- [deploy](docs/deploy.md) — server layout, first-time setup, deploy workflow, build pipeline and version badge.
+- [desktop-mobile](docs/desktop-mobile.md) — Wails v3 desktop/mobile, edge sync, and the native window PoC.
+- [admin-dashboard](docs/admin-dashboard.md) — admin surfaces, the two-cookie rule, and the DagNats console.
+- [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
+
+**Operate**
+- [local-ci](docs/local-ci.md) — the five-tier feedback loop and make signoff.
+- [code-quality](docs/code-quality.md) — the 27 linters, how to scope them, and the Datastar-specific rules.
+- [troubleshooting](docs/troubleshooting.md) — symptoms and where they actually come from.
+- [dagnats-bootstrap-workaround](docs/dagnats-bootstrap-workaround.md) — the upstream DagNats bug behind the trigger console, and the removable seed that works around it.
 
 Plus [ARCHITECTURE.md](ARCHITECTURE.md) — the canonical annotated dependency
 graph, and [AGENTS.md](AGENTS.md) — the working rules for human and AI agents
