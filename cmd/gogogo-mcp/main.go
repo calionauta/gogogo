@@ -60,7 +60,7 @@ type toolDef struct {
 var toolCatalog = []toolDef{
 	{
 		"capabilities_list",
-		"List every template capability (id, kind, summary, off-switch). Start here.",
+		"Raw registry JSON: every template capability with id, kind, summary, and off-switch.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
