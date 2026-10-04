@@ -8,9 +8,10 @@
 #     bin/gogogo        (chmod 755, replaced on every deploy)
 #     compose/docker-compose.prod.yml   (replaced on every deploy)
 #     env/.env                  (committed to repo, no secrets)
-#     secrets/gogogo.env  (mode 600, regenerated every deploy
-#                                   from GH Secrets; never committed)
 #     data/pb_data/             (gitignored, persistent volume)
+#   /home/deploy/.secrets/gogogo.env  (mode 600, rendered every deploy from
+#                                   GH Secrets; the compose env_file points
+#                                   here. Never committed.)
 #
 # We use the services/ dir under the home (not /opt/) because the deploy user does not
 # have passwordless sudo; /opt is root-owned. services/ in the home is writable
@@ -28,7 +29,11 @@ PROJECT="gogogo"
 APP_DIR="/home/deploy/services/${PROJECT}"
 BIN_DIR="${APP_DIR}/bin"
 COMPOSE_DIR="${APP_DIR}/compose"
-SECRETS_DIR="${APP_DIR}/secrets"
+# Secrets: rendered by the deploy workflow at ~/.secrets/<app>.env, which is
+# where deploy/docker-compose.prod.yml points its env_file. This used to be
+# <APP_DIR>/secrets/<app>.env and the two sides disagreed after the rename;
+# keep this path in sync with the compose file.
+SECRETS_DIR="/home/deploy/.secrets"
 SECRETS_FILE="${SECRETS_DIR}/${PROJECT}.env"
 # Bind mount location for PocketBase SQLite WAL files. Must match
 # the host path inside deploy/docker-compose.prod.yml.
@@ -44,6 +49,7 @@ DATA_DIR="/home/deploy/services/${PROJECT}/data"
 COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.prod.yml"
 
 cd "${APP_DIR}"
+
 
 # ── 1. Atomic binary swap ──
 # We keep the previous binary as `gogogo.previous` so an
@@ -136,21 +142,72 @@ docker compose -f deploy/docker-compose.prod.yml build "${PROJECT}" \
     --build-arg "COMMIT=${BUILD_COMMIT}" \
     --build-arg "BUILDTIME=${BUILD_TIME}"
 
-# ── 7. Start with zero-downtime approach ──
-# Without blue-green infra, the brief (2-5s) gap between stopping the
-# old container and the new one responding causes Caddy to return
-# "Bad Gateway". Using --wait ensures docker compose waits for the
-# healthcheck to pass before returning, minimising the window.
-# In a future iteration this can be replaced with a proper blue-green
-# swap (start new on a secondary port, healthcheck, flip Caddy upstream,
-# stop old).
-echo "→ Starting new container (waiting for healthcheck)..."
-docker compose -f deploy/docker-compose.prod.yml up -d --wait "${PROJECT}" 2>&1 || {
-    echo "⚠️  --wait timed out. Checking container logs..."
-    docker compose -f "${COMPOSE_FILE}" logs --tail 30 "${PROJECT}" || true
-}
+# Captured before the roll so step 8 can tell whether the container was
+# recreated by THIS run or is a survivor from an earlier one.
+ROLL_START_EPOCH="$(date -u +%s)"
 
-# ── 8. Report status ──
+# ── 7. Roll the container ──
+# Without blue-green infra, the brief (2-5s) gap between stopping the
+# old container and the new one responding makes the tunnel return a
+# Bad Gateway. `--wait` blocks until the compose healthcheck passes,
+# which narrows that window. A proper blue-green swap (start the new
+# container on a secondary port, healthcheck it, flip the Caddy
+# upstream, stop the old) is the real fix and is left for later.
+#
+# This step MUST fail the script when it fails. It previously read:
+#
+#   docker compose ... up -d --wait ... || {
+#       echo "⚠️ --wait timed out..."
+#       docker compose ... logs ... || true
+#   }
+#
+# A `cmd || { ... }` list is exempt from `set -e`, and the block ended
+# with `|| true`, so the whole compound returned 0. Every failure —
+# "Bind for 127.0.0.1:8080 failed: port is already allocated", a missing
+# env_file, a crash on boot — printed a ⚠️ warning and then reported a
+# SUCCESSFUL deploy while the previous container kept serving. That
+# happened three times in one afternoon and made a green workflow
+# worthless as a signal. Diagnosis still runs; only the exit code changed.
+echo "→ Starting new container (waiting for healthcheck)..."
+if ! docker compose -f deploy/docker-compose.prod.yml up -d --wait "${PROJECT}" 2>&1; then
+    echo "✗ Container failed to start. Diagnosing..."
+    # These are diagnostic reads: they must not mask the failure above, so
+    # their own failures are intentionally ignored.
+    docker compose -f "${COMPOSE_FILE}" ps "${PROJECT}" || true
+    docker compose -f "${COMPOSE_FILE}" logs --tail 40 "${PROJECT}" || true
+    echo "✗ Deploy did NOT apply — the previous container is still serving."
+    exit 1
+fi
+
+# ── 8. Verify it landed ──
+# Step 7 already fails the run when compose fails. This is the second
+# net: a container that exists and is healthy is not the same as a deploy
+# that applied, because the old container can still be the one serving.
+#
+# Health is a hard requirement. A start time older than this run is a
+# warning, not a failure: `docker compose up -d` legitimately does nothing
+# when the service is already up to date, and failing there would make the
+# check cry wolf on a no-op deploy. It is reported loudly because it means
+# the binary swap in step 1 did not reach a new container.
+echo "→ Verifying the running container..."
+ACTUAL_HEALTH="$(docker inspect "${PROJECT}" --format '{{.State.Health.Status}}' 2>/dev/null || echo unknown)"
+ACTUAL_STARTED="$(docker inspect "${PROJECT}" --format '{{.State.StartedAt}}' 2>/dev/null || echo unknown)"
+if [ "${ACTUAL_HEALTH}" != "healthy" ]; then
+    echo "✗ Container ${PROJECT} reports health=${ACTUAL_HEALTH}, expected healthy"
+    docker compose -f "${COMPOSE_FILE}" logs --tail 40 "${PROJECT}" || true
+    exit 1
+fi
+STARTED_EPOCH="$(date -u -d "${ACTUAL_STARTED}" +%s 2>/dev/null || echo 0)"
+if [ "${STARTED_EPOCH}" -gt 0 ] && [ "${STARTED_EPOCH}" -lt "${ROLL_START_EPOCH}" ]; then
+    echo "⚠️  ${PROJECT} is healthy but was NOT recreated by this run"
+    echo "    (started ${ACTUAL_STARTED}, this deploy began after that)."
+    echo "    compose considered it up to date, so the new binary may not be live."
+    echo "    Confirm with: docker inspect ${PROJECT} --format '{{.Image}}'"
+else
+    echo "✓ ${PROJECT} healthy, recreated by this run (started ${ACTUAL_STARTED})"
+fi
+
+# ── 9. Report status ──
 
 echo "→ Service status:"
 docker compose -f "${COMPOSE_FILE}" ps "${PROJECT}" || true

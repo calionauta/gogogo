@@ -92,7 +92,35 @@ console — see [Admin & Dashboard](admin-dashboard.md#dagnats-console).
 
 ## The deploy says green but the live app is old
 
-Byte-diff an embedded asset:
+**Start here — check whether the container was actually recreated:**
+
+```bash
+ssh "$DEPLOY_HOST" 'docker inspect gogogo \
+  --format "started={{.State.StartedAt}} health={{.State.Health.Status}} image={{.Config.Image}}"'
+```
+
+A `started` older than the workflow run means the deploy did **not** apply, no
+matter what the run concluded. This is the check that matters: `deploy-prod.sh`
+used to swallow every `docker compose up` failure behind a `cmd || { ... }`
+list (exempt from `set -e`) ending in `|| true`, so the script exited 0 and the
+workflow reported **success** while the previous container kept serving. It
+happened three times in one afternoon. Step 7 now exits non-zero and step 8
+verifies health, so a green run should mean it landed — but the uptime check is
+still the cheapest proof, and it is what to reach for when a fix "did not
+work".
+
+The two known causes of a silent no-apply, both from a repository rename:
+
+- **A stale container holds the port.** The container name changed, so compose
+  created a *new* container instead of replacing the old one, and the new one
+  died with `Bind for 127.0.0.1:8080 failed: port is already allocated`. Both sat
+  side by side. Fix: `docker rm -f <old-name> <new-name>` and re-deploy.
+- **The secrets file went somewhere the compose does not read.** The render
+  target and the compose `env_file` disagreed, giving
+  `env file /home/deploy/.secrets/<app>.env not found`. Both sides now use
+  `/home/deploy/.secrets/<app>.env`.
+
+To compare what is *served* against the repo:
 
 ```bash
 diff <(curl -s https://<host>/static/app.min.css) \
@@ -100,8 +128,12 @@ diff <(curl -s https://<host>/static/app.min.css) \
 ```
 
 For the version badge, compare what the navbar renders against the tag you
-built. There is no `/api/version` endpoint — a request for one returns 404, so
-do not use it as a health check:
+built. Note that the badge alone cannot prove which commit is live: the deploy
+derives `VERSION` from `git describe --tags`, so a commit without a tag reports
+the *previous* tag. Prefer the container's start time.
+
+There is no `/api/version` endpoint — a request for one returns 404, so do not
+use it as a health check:
 
 ```bash
 # what the repo says the current tag is
@@ -111,19 +143,38 @@ VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
 curl -s https://<host>/ | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1
 ```
 
-A mismatch means the deploy did not run or the tunnel is serving a cached
-response. Static assets are served with `Cache-Control: public, max-age=0,
-must-revalidate` and a content-hash ETag, so a stale CSS in the browser means a
-stale deploy, not a cache.
+A mismatch with `started` unchanged means the container is stale. Static assets
+are served with `Cache-Control: public, max-age=0, must-revalidate` and a
+content-hash ETag, so a stale CSS in the browser means a stale deploy, not a
+cache.
 
 ## The deploy workflow fails on the server
 
-Two known gotchas:
+Known gotchas:
 
 - **Permission denied writing the container dir.** The `deploy` user is not
   root — grant access with `setfacl`/`chmod`, never `chown`.
 - **`git pull --ff-only` aborts.** Never `scp` into the server's repo clone; the
   deploy workflow pushes to a fresh checkout instead.
+- **`403 Unauthorized` from Tailscale during "Bring up Tailscale".** The runner
+  authenticates with a GitHub OIDC token whose `sub` claim embeds the
+  repository *name*. Renaming the repo (or the owner) invalidates the federated
+  identity, so every deploy fails at login — while `TS_OAUTH_CLIENT_ID` and
+  `TS_AUDIENCE` look untouched in GitHub. Fix on the Tailscale side: update the
+  credential's subject, or create a new credential and re-set both secrets.
+  Full write-up at the top of [Deploy](deploy.md).
+- **Renaming the repo also leaves server-side artefacts behind** that no deploy
+  can fix by itself: the old container holding the port, and the secrets path.
+  See the rename callout in [Deploy](deploy.md).
+
+**Reading the logs of a run that succeeded.** `gh run view <id> --log-failed`
+prints nothing useful when the run concluded successfully but the deploy did not
+apply — there is no failed step to show. Use the full log and read the deploy
+step:
+
+```bash
+gh run view <id> --log | grep -iE "Starting new container|port is already|env file|timed out"
+```
 
 ## Related
 
