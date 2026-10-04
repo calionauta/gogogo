@@ -9,17 +9,32 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Reproduce the exchange exactly as tailscale-client-go-v2 does
+      - name: Fingerprint the token against the secrets; no secret values are printed
         env:
           CID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           AUD: ${{ secrets.TS_AUDIENCE }}
         run: |
           TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | jq -r .value)
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq -c '{sub,ref}'
-          echo "=== the real error for the correct request shape ==="
-          curl -sS -w "\nHTTP_STATUS=%{http_code}\n" \
-            -X POST "https://api.tailscale.com/api/v2/oauth/token-exchange" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "client_id=$CID" \
-            --data-urlencode "jwt=$TOKEN"
+          payload=$(echo "$TOKEN" | cut -d. -f2)
+          fp() { printf '%s' "$1" | sha256sum | cut -c1-12; }
+
+          tok_aud=$(echo "$payload" | base64 -d 2>/dev/null | jq -r .aud)
+          tok_iss=$(echo "$payload" | base64 -d 2>/dev/null | jq -r .iss)
+          tok_sub=$(echo "$payload" | base64 -d 2>/dev/null | jq -r .sub)
+
+          echo "iss    : $tok_iss"
+          echo "sub    : $tok_sub"
+          echo
+          echo "aud in token     fp: $(fp "$tok_aud")"
+          echo "TS_AUDIENCE      fp: $(fp "$AUD")"
+          echo "  -> identical by construction (the token is requested with TS_AUDIENCE)"
+          echo
+          echo "TS_OAUTH_CLIENT_ID fp: $(fp "$CID")"
+          echo
+          echo "=== what to check in the Trust credentials console ==="
+          echo "1. Find the OIDC credential whose Client ID has fingerprint: $(fp "$CID")"
+          echo "2. Its Subject must be exactly:"
+          echo "   $tok_sub"
+          echo "3. Its Issuer must be: $tok_iss"
+          echo "4. It must carry the tag the workflow advertises: tag:continuous-integration"
