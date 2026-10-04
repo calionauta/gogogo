@@ -13,7 +13,8 @@ import (
 
 	"github.com/calionauta/gogogo-fullstack-template/config"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
-	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
+	appdagnats "github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
+	appnats "github.com/calionauta/gogogo-fullstack-template/internal/nats"
 )
 
 var dagNatsServer *server.Server
@@ -21,6 +22,12 @@ var dagNatsServer *server.Server
 const (
 	dagnatsNATSPort = 4222     // fixed conventional port — shared with the realtime broadcaster
 	dagnatsMaxStore = 10 << 30 // 10 GiB JetStream store cap (required by dagnats)
+
+	// onboardingWorkflowID is the name the onboarding workflow registers
+	// under (internal/dagnats/workflow.go, "name": "onboarding"). The
+	// bootstrap seed references it so the placeholder trigger points at a
+	// workflow that actually exists.
+	onboardingWorkflowID = "onboarding"
 )
 
 // startDagNats boots the DagNats durable-workflow engine in the same
@@ -42,7 +49,7 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 		return
 	}
 
-	srv := dagnats.NewServer(cfg.DagNats.StoreDir, cfg.DagNats.HTTPAddr,
+	srv := appdagnats.NewServer(cfg.DagNats.StoreDir, cfg.DagNats.HTTPAddr,
 		dagnatsNATSPort, dagnatsMaxStore,
 	)
 	dagNatsServer = srv
@@ -140,9 +147,9 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 // retrying until the DagNats REST API is reachable (it boots after
 // srv.Run binds the port).
 func registerOnboardingWorkflowWithRetry(httpAddr string) {
-	client := dagnats.NewClient("http://" + httpAddr)
+	client := appdagnats.NewClient("http://" + httpAddr)
 	for range 30 {
-		if err := client.RegisterWorkflow(context.Background(), []byte(dagnats.OnboardingWorkflowJSON)); err != nil {
+		if err := client.RegisterWorkflow(context.Background(), []byte(appdagnats.OnboardingWorkflowJSON)); err != nil {
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
@@ -158,5 +165,25 @@ func shutdownDagNats() {
 		// is wired internally — closing the process triggers graceful
 		// drain via the server's own signal handling.
 		dagNatsServer = nil
+	}
+}
+
+// ensureTriggerBootstrap seeds the engine's trigger KV bucket so the
+// trigger console is usable on a fresh install. WORKAROUND — see
+// internal/dagnats/trigger_bootstrap.go for the upstream bug this papers
+// over, and docs/dagnats-bootstrap-workaround.md for the removal steps.
+//
+// Deliberately non-fatal: if this fails the trigger UI stays broken, but
+// the app must still boot. The wrapped function is a no-op once the bucket
+// has any key, so this is cheap on every boot after the first.
+func ensureTriggerBootstrap() {
+	nc := appnats.NC
+	if nc == nil {
+		log.Printf("dagnats bootstrap: no NATS connection; skipping trigger seed")
+		return
+	}
+	err := appdagnats.EnsureTriggerBucket(nc, onboardingWorkflowID)
+	if err != nil {
+		log.Printf("WARN: dagnats bootstrap skipped: %v", err)
 	}
 }

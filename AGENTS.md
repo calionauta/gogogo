@@ -81,6 +81,29 @@ Agent-level hooks (pi.dev `hooks.yaml`) keep ONLY what git hooks cannot do: post
 
 **Agent rule:** When the user asks to trim the project, never delete a `removal=core` file — always ask first. Delete `removal=feature` and `removal=plugin` files freely, after reading the inline description (it lists what to delete in `router/router.go` and `cmd/web/`).
 
+## Upstream workarounds (re-evaluate on every dependency bump)
+
+The template carries workarounds for bugs in dependencies. Each one is
+self-contained, documented, disable-able at runtime, and **must be
+re-checked whenever that dependency is upgraded** — a workaround that
+outlives its bug is dead weight that misleads the next reader.
+
+| Workaround | Dependency | Re-evaluate when | Details |
+|---|---|---|---|
+| `internal/dagnats/trigger_bootstrap.go` — seeds one disabled placeholder trigger so the DagNats console can create the first trigger | DagNats v0.0.24 | any DagNats bump | [docs/dagnats-bootstrap-workaround.md](docs/dagnats-bootstrap-workaround.md) |
+
+When you bump a dependency listed above:
+
+1. Run the re-evaluation test in that workaround's doc (each one has a
+   concrete pass/fail check).
+2. If upstream fixed it, remove the workaround in the same commit as the
+   bump, using the removal steps in the doc.
+3. If it is still needed, say so in the commit body — that is the record
+   that the re-check happened.
+
+Never add a second workaround for the same bug, and never make one
+blocking: they exist to keep a surface usable, not to fail a build.
+
 ## Docs stay truthful
 
 `docs/*.md` (18 pages) is the **single source of truth** for how this project

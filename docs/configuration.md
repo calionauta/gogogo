@@ -41,6 +41,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console |
 | `DAGNATS_NATS_PORT` | `4222` | Shared embedded JetStream port (DagNats boots it; the whiteboard SyncWorker attaches) |
 | `DAGNATS_STORE_DIR` | under `DATA_DIR` | DagNats store directory |
+| `DAGNATS_TRIGGER_BOOTSTRAP` | `true` | Seed one disabled placeholder trigger when the trigger bucket is empty. **Workaround for an upstream DagNats v0.0.24 bug** — without it the trigger console cannot create the first trigger. See [the workaround page](dagnats-bootstrap-workaround.md) before disabling or removing. |
 
 ### Persistence
 

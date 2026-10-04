@@ -98,6 +98,19 @@ func run() error {
 	js := startNATS(cfg)
 	_ = js // startNATS has the side-effect of wiring the global broadcaster
 
+	// WORKAROUND (upstream DagNats v0.0.24 bug): the trigger console cannot
+	// create the FIRST trigger because listing an empty bucket returns
+	// ErrNoKeysFound, which it reports as a 500 before writing anything.
+	// Seeding one disabled placeholder makes the bucket non-empty, so the
+	// console works. Runs after startNATS because that is what connects to
+	// the engine's NATS. Never fatal: a failure here means the trigger UI
+	// stays broken, not that the app is unusable. Set
+	// DAGNATS_TRIGGER_BOOTSTRAP=false to skip, and see
+	// docs/dagnats-bootstrap-workaround.md for removal steps.
+	if cfg.DagNats.Enabled && cfg.DagNats.TriggerBootstrap {
+		ensureTriggerBootstrap()
+	}
+
 	// Phase 2: wire the CRDTStore JetStream transport when the chosen
 	// store is a *crdtstore.CRDTStore and JetStream is available. The
 	// router exposes the concrete type via a package var; we install

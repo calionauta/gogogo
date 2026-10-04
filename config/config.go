@@ -22,6 +22,9 @@
 //	DAGNATS_ENABLED     (default: true)  — enable DagNats workflows
 //	DAGNATS_HTTP_ADDR   (default: "127.0.0.1:8090")
 //	DAGNATS_NATS_PORT   (default: 4222)
+//	DAGNATS_TRIGGER_BOOTSTRAP (default: true) — workaround for an upstream
+//	                    DagNats v0.0.24 bug; see internal/dagnats/trigger_bootstrap.go.
+//	                    Set false to disable once upstream is fixed.
 //	CREDITS_ENABLED     (default: false) — enable ai-credits managed/BYOK billing
 //	CREDITS_ENC_KEY     (default: "") — 32 raw bytes or 64 hex chars for BYOK key storage
 //	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
@@ -120,6 +123,19 @@ type Config struct {
 		HTTPAddr string // HTTP/API/console listen addr (separate port from the app)
 		NATSPort int    // NATS port the engine owns (default 4222; the realtime broadcaster connects here)
 		StoreDir string
+
+		// TriggerBootstrap seeds the engine's trigger KV bucket with one
+		// disabled placeholder trigger on first boot. WORKAROUND for a
+		// DagNats v0.0.24 bug: its console cannot create the FIRST trigger
+		// because listing an empty bucket returns ErrNoKeysFound, which the
+		// console reports as a 500 before it writes anything. Default true
+		// because without it the trigger UI is unusable on a fresh install.
+		//
+		// Re-evaluate on every DagNats upgrade: if upstream stops returning
+		// the raw error, delete internal/dagnats/trigger_bootstrap.go, this
+		// field, and the call site in cmd/web/dagnats.go. See
+		// docs/dagnats-bootstrap-workaround.md.
+		TriggerBootstrap bool
 	}
 
 	// OfflineSync controls the hybrid offline-sync-online strategy.
@@ -248,6 +264,7 @@ func Load() *Config {
 	cfg.DagNats.HTTPAddr = getEnv("DAGNATS_HTTP_ADDR", "127.0.0.1:8090")
 	cfg.DagNats.NATSPort = envInt("DAGNATS_NATS_PORT", defaultDagNatsNATSPort)
 	cfg.DagNats.StoreDir = getEnv("DAGNATS_STORE_DIR", "data/dagnats")
+	cfg.DagNats.TriggerBootstrap = envBool("DAGNATS_TRIGGER_BOOTSTRAP", true)
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
