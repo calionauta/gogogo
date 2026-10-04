@@ -357,6 +357,9 @@ func runAdd(ctx context.Context, args []string, stdin io.Reader, stdout io.Write
 // executeAdd applies units, proves, and reports (text plan already shown,
 // JSON envelope here).
 func executeAdd(ctx context.Context, opt addOptions, stdin io.Reader, stdout io.Writer) error {
+	if err := guardMutable(opt.dir, opt.from); err != nil {
+		return err
+	}
 	if err := preflight(ctx, stdout, false, true, opt.format == planFormatJSON); err != nil {
 		return err
 	}

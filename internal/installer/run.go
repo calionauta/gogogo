@@ -26,6 +26,7 @@ type options struct {
 	dryRun   bool
 	check    bool
 	run      bool
+	updateCh bool
 	format   string
 }
 
@@ -68,6 +69,9 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	opt, _, err := loadOptions(args, stdin, stdout)
 	if err != nil {
 		return err
+	}
+	if opt.updateCh {
+		return printUpdateCheck(ctx, stdout)
 	}
 	keep := parseKeep(opt.plugins, opt.features)
 	drop := planTrim(keep)
@@ -119,6 +123,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
 	fs.BoolVar(&opt.dryRun, "dry-run", false, "print the plan and stop; changes nothing")
 	fs.BoolVar(&opt.check, "check", false, "verify manifest markers against --dir, change nothing (drift gate)")
+	fs.BoolVar(&opt.updateCh, "check-update", false, "compare this binary against the latest release, change nothing")
 	fs.BoolVar(&opt.run, "run", false, "hand over to `make dev` after a "+
 		"successful proof (takes this terminal; Ctrl-C stops dev; humans only)")
 	fs.StringVar(&opt.format, "format", planFormatText, "plan format: text|json")
@@ -135,6 +140,13 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 		opt.noTUI = true
 		if opt.name == "" {
 			opt.name = "check"
+		}
+	}
+	if opt.updateCh {
+		// --check-update never prompts either: pure network read.
+		opt.noTUI = true
+		if opt.name == "" {
+			opt.name = "check-update"
 		}
 	}
 	if !opt.noTUI && opt.name == "" {
