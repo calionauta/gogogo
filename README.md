@@ -79,9 +79,13 @@ deploys would target the template's server directory.
 ```bash
 # 1. Scaffold with the installer (clones the template when needed; asks
 #    name, owner, plugins, features; renames, trims what you skip, writes
-#    AGENTS.md with the upstream-first rule, then prints the next commands)
-go run github.com/calionauta/gogogo/cmd/gogogo@latest
-cd my-app && make dev
+#    AGENTS.md with the upstream-first rule, then `make dev` takes this
+#    terminal — Ctrl-C stops dev)
+go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
+
+# Without --run (or manual fallback below) the installer prints the
+# next commands instead of taking the terminal:
+# cd my-app && make dev
 
 # Manual fallback (no installer):
 # gh repo create my-app --template calionauta/gogogo --clone
@@ -229,6 +233,7 @@ checks it up front):
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh
+gogogo --run   # same one-line install, no Go needed to run it
 ```
 
 ## Before you push
