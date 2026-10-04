@@ -73,6 +73,15 @@ var All = []Capability{
 		Note:    "Core: cmd/web and cmd/desktop both boot through it.",
 	},
 	{
+		ID:      "routeutil",
+		Kind:    KindCore,
+		Summary: "shared route registration (per-method, never Router.Any)",
+		Dirs:    []string{"internal/routeutil"},
+		Note: "Core: Router.Any() registers a method-less pattern, which conflicts " +
+			"with the app's own GET / and panics at ServeMux build time. Every " +
+			"proxied route registers through here so a method list exists once.",
+	},
+	{
 		ID:      "database",
 		Kind:    KindCore,
 		Summary: "PocketBase setup + collection seeds",
