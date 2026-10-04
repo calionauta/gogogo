@@ -61,3 +61,16 @@ func registerWhiteboard(se *core.ServeEvent, _ *queue.Queue, hub *queue.SSEHub, 
 	h.RegisterRoutes(se)
 	return docs
 }
+
+// registerWhiteboardStack wires the whole whiteboard bundle in one call:
+// a dedicated SSEHub (separate from the todo hub so shape/presence events
+// never reach todo clients and vice-versa), the whiteboard routes with
+// their shared DocStore, and the collab sync worker that persists docs.
+// Delete with features/whiteboard/ + internal/collab/:
+// drop this call line from Init and delete this file plus
+// router/collab_jetstream.go.
+func registerWhiteboardStack(se *core.ServeEvent, q *queue.Queue, cfg *config.Config) {
+	whiteboardHub := queue.NewSSEHub()
+	docs := registerWhiteboard(se, q, whiteboardHub, cfg)
+	registerCollabSync(se, docs)
+}

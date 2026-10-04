@@ -173,30 +173,13 @@ func Init(
 		}
 		// Remove todos: delete this block + delete features/todo/ + delete db/pocketbase.go seed
 
-		// Onboarding: DagNats durable workflow (WelcomeOnboarding).
-		// Dependencies: DagNats running on :8090, TodoHandler, NATS broadcaster.
-		// Guarded by DagNats.Enabled so the reverse-proxy routes aren't
-		// registered when DagNats is disabled (avoids zombie 502 routes).
-		if cfg.DagNats.Enabled {
-			registerOnboarding(app, q, se, broadcaster, todoH, cfg.DagNats.HTTPAddr)
-			// Remove onboarding: delete this block + delete features/todo/handlers/onboarding.go + delete internal/dagnats/
-		}
-
-		// Whiteboard: collaborative canvas (Loro CRDT + Rough.js + SSE hub
-		// + NATS sync). Dependencies: SSE Hub, PocketBase whiteboards,
-		// NATS sync worker.
-		// Uses a SEPARATE SSEHub from the todo feature so shapes and presence
-		// events never reach todo clients (and vice-versa).
-		// Creates the shared DocStore used by both WebSyncWorker and SyncWorker.
-		whiteboardHub := queue.NewSSEHub()
-		docs := registerWhiteboard(se, q, whiteboardHub, cfg)
-		// Remove whiteboard: delete this line + delete features/whiteboard/
-		// + delete internal/collab/
-
-		// Collab sync: subscribes app.sync.> on NATS, persists whiteboard docs.
-		// Uses the same DocStore as the whiteboard handler (shared convergence).
-		registerCollabSync(se, docs)
-		// Remove collab sync: delete this line + delete internal/collab/sync.go
+		// Optional capabilities: one call each, guards live inside the
+		// callee (not here). Trimming one is: delete its package dir(s),
+		// drop its call line below (+ its import when it becomes unused),
+		// go mod tidy. Removal checklists live in each file's SCOPE
+		// header and in internal/capabilities (single source of truth).
+		registerOnboarding(app, q, se, broadcaster, todoH, cfg)
+		registerWhiteboardStack(se, q, cfg)
 
 		// NATS CRUD consumer: subscribes app.crud.todo.> and writes todo
 		// operations to PocketBase. This is the server-side counterpart
@@ -210,27 +193,8 @@ func Init(
 		}
 		// Remove crud consumer: delete this line + delete internal/nats/crudproxy.go
 
-		// Landing page (public, GET /). Routes the marketing hero
-		// before any auth-protected routes so guest users see the
-		// README-sourced about copy and a CTA to /todo.
-		// Remove landing: delete this line + delete features/landing/
 		landing.New(cfg).RegisterRoutes(se)
-
-		// Config (read-only, GET /config). Operator-facing view of
-		// the running config with secret-shaped fields masked. Gated
-		// internally by RequireAuthOrRedirect so anonymous users are
-		// bounced to /login. Per the CAL-3 decision any logged-in
-		// user can view; superuser is NOT required.
-		// Remove config: delete this line + delete features/config/
 		cfgfeature.New(cfg).RegisterRoutes(se)
-
-		// AI credits + BYOK (optional). Only registered when
-		// CREDITS_ENABLED=true; when off, no-ops. When enabled, the credits
-		// Service also becomes the llm.Biller on the todo Client(s) so the
-		// real Suggest LLM calls are metered end-to-end.
-		// Remove credits: delete this block + delete features/credits/
-		// + delete credits.go helpers + delete config Credits fields
-		// + delete go.mod require/replace.
 		wireCredits(cfg, se, todoH)
 
 		return se.Next()

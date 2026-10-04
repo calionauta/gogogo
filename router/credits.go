@@ -46,7 +46,8 @@ func registerCreditsRoutes(cfg *config.Config, se *core.ServeEvent) *credits.Ser
 // wireCredits mounts the credits routes (if enabled) and, when the service
 // exists, installs it as the llm.Biller on the todo Client(s) so the real
 // Suggest LLM calls are metered. Extracted from router.Init to keep Init's
-// cognitive complexity under the ceiling.
+// cognitive complexity under the ceiling. Delete with features/credits/ +
+// router/credits.go: drop the wireCredits call line from Init.
 func wireCredits(cfg *config.Config, se *core.ServeEvent, todoH *handlers.TodoHandler) {
 	svc := registerCreditsRoutes(cfg, se)
 	if svc == nil || todoH == nil {

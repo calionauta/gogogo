@@ -5,6 +5,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
+	"github.com/calionauta/gogogo-fullstack-template/config"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
@@ -20,11 +21,18 @@ func registerOnboarding(
 	se *core.ServeEvent,
 	broadcaster nats.TodoBroadcaster,
 	todoH *handlers.TodoHandler,
-	dagNatsAddr string,
+	cfg *config.Config,
 ) {
+	// Guarded here (not at the call site) so Init stays a flat list of
+	// one call per capability: when disabled, no routes are registered
+	// and the console proxy stays unmounted (avoids zombie 502 routes).
+	if !cfg.DagNats.Enabled {
+		return
+	}
 	if todoH == nil {
 		return
 	}
+	dagNatsAddr := cfg.DagNats.HTTPAddr
 	// DagNats listens on its own port (cfg.DagNats.HTTPAddr, default
 	// 127.0.0.1:8090), separate from the app. The handler client
 	// targets that addr, which comes from config (single source of truth).
