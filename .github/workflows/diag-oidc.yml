@@ -9,46 +9,32 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - name: Find the working exchange shape and print the real error
+      - name: Check client ID and audience consistency
         env:
           CID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           AUD: ${{ secrets.TS_AUDIENCE }}
         run: |
-          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD" | jq -r .value)
-          echo "token bytes: ${#TOKEN}"
-          printf '%s' "$TOKEN" > /tmp/jwt.txt
-          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq -c '{sub,aud,iss,ref}'
+          set -e
+          echo "CID length: ${#CID}"
+          echo "AUD length: ${#AUD}"
 
-          echo "=== tag used by the workflow ==="
-          grep -n "tags:" .github/workflows/deploy.yml || true
+          # Tailscale generates the audience as: api.tailscale.com/<client ID>
+          PREFIX="api.tailscale.com/"
+          EXPECTED="${PREFIX}${CID}"
 
-          try() {
-            local label="$1"; shift
-            echo "--- $label ---"
-            curl -sS -o /tmp/resp.txt -w "status=%{http_code}\n" \
-              -X POST "https://api.tailscale.com/api/v2/oauth/token-exchange" \
-              -H "Content-Type: application/x-www-form-urlencoded" "$@"
-            head -c 400 /tmp/resp.txt; echo
-          }
+          echo "AUD starts with '${PREFIX}': $([ "${AUD#$PREFIX}" != "$AUD" ] && echo yes || echo no)"
+          echo "AUD == api.tailscale.com/CID : $([ "$AUD" = "$EXPECTED" ] && echo YES || echo NO)"
 
-          # Shape A: documented (client_id + id_token)
-          try "A: client_id+id_token" \
-            --data-urlencode "client_id=$CID" \
-            --data-urlencode "id_token@/tmp/jwt.txt" \
-            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
-            --data-urlencode "audience=$AUD"
+          # Fingerprints so nothing secret is printed but the pair is comparable.
+          fp() { printf '%s' "$1" | sha256sum | cut -c1-16; }
+          echo "CID fingerprint: $(fp "$CID")"
+          echo "AUD fingerprint: $(fp "$AUD")"
+          echo "EXPECTED fingerprint: $(fp "$EXPECTED")"
 
-          # Shape B: RFC 8693 (subject_token)
-          try "B: subject_token" \
-            --data-urlencode "client_id=$CID" \
-            --data-urlencode "subject_token@/tmp/jwt.txt" \
-            --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:jwt" \
-            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
-            --data-urlencode "audience=$AUD"
-
-          # Shape C: without audience
-          try "C: no audience" \
-            --data-urlencode "client_id=$CID" \
-            --data-urlencode "id_token@/tmp/jwt.txt" \
-            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange"
+          if [ "$AUD" = "$EXPECTED" ]; then
+            echo "RESULT: client ID and audience are a MATCHING PAIR (same federated identity)"
+          else
+            echo "RESULT: MISMATCH — the audience does not belong to this client ID."
+            echo "        A new federated identity was probably created instead of"
+            echo "        editing the existing one, leaving one of the two secrets stale."
+          fi
