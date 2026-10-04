@@ -55,8 +55,8 @@
 cd my-app
 make rename NAME=my-app
 make dev</code></pre>
-        <p class="install-note">Go 1.27+ is the only prerequisite. <code>make rename</code>
-        rewrites the module path and every project reference, then builds to prove it.</p>
+        <p class="install-note">Go 1.27+ is the only prerequisite. Every project name,
+        module path and deploy path follows from <code>make rename</code>.</p>
       </div>
     </div>
   </section>
@@ -218,18 +218,36 @@ make dev</code></pre>
   <section id="start" class="section cta-section">
     <p class="kicker">Start here</p>
     <h2>Copy it. Rename it. Ship it.</h2>
+    <p class="section-lede">One command creates your project from this template,
+    one renames it. Nothing to install first.</p>
     <div class="install-block wide">
       <pre><code>gh repo create my-app --template \
   calionauta/gogogo-fullstack-template --clone
 cd my-app
 make rename NAME=my-app
 make dev</code></pre>
-      <p class="install-note">A fresh copy still carries the template's name in
-      ~360 places across ~130 files. <code>make rename</code> rewrites all of them
-      and then compiles, so a half-renamed tree cannot slip through. Then open
-      <code>localhost:8080</code> for the landing page and
-      <code>localhost:8080/todo</code> for the demo (<code>demo@demo.app</code> /
-      <code>demo</code>).</p>
+    </div>
+    <div class="steps">
+      <div class="step-card">
+        <p class="step-n">1</p>
+        <p class="step-t">Create your repo</p>
+        <p class="step-d">A copy of the template, ready to commit to — not a fork,
+        so it starts with a clean history.</p>
+      </div>
+      <div class="step-card">
+        <p class="step-n">2</p>
+        <p class="step-t">Rename it</p>
+        <p class="step-d">Sets the module path, binary, container and deploy
+        directory to your project name — then compiles, so a half-renamed tree
+        can't slip through.</p>
+      </div>
+      <div class="step-card">
+        <p class="step-n">3</p>
+        <p class="step-t">Run it</p>
+        <p class="step-d">Live reload on <code>localhost:8080</code>. The demo is at
+        <code>/todo</code> — sign in as <code>demo@demo.app</code> /
+        <code>demo</code>.</p>
+      </div>
     </div>
     <div class="cta-row center">
       <a class="btn primary" href="https://github.com/calionauta/gogogo-fullstack-template" rel="noopener">Use this template</a>
