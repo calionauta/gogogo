@@ -47,6 +47,25 @@ func BenchmarkCodec(b *testing.B) {
 
 Keep a Go baseline bench before any SIMD/Zig claim. Emit `t.Attr("key","value")` / `ArtifactDir` where CI needs structured output.
 
+## Test flakiness: it is almost always resource contention
+
+Before re-running a red test, suspect contention, not randomness:
+
+- **A timeout shorter than a blocking dependency's own timeout.** SQLite's
+  `busy_timeout` (10s here) is how long a writer WAITS for the lock; a request
+  or test timeout below it cancels while the DB is still legitimately waiting.
+  Keep test/request timeouts above `busy_timeout` + handler overhead.
+- **Orphan processes holding ports.** A previous `go run`/`make ci-local`
+  binary still bound to `:18099`/`:8099` makes the next run fail
+  nondeterministically. Check `pgrep -fl "web|gogogo"` and `lsof -ti :8099`
+  before blaming the code; kill with `pkill -x web`.
+- **`make ci-local` runs the browser smoke** after the build; if the build's
+  temp binary was cleaned between runs, the smoke fails with `ENOENT`. Run
+  `make smoke` or the gate itself, not the node script against a stale path.
+- Under a loaded machine (parallel builds, other suites) the whole `-race -p 1`
+  sweep is slower and these windows widen. That is why the fixes above target
+  the timeouts rather than retries.
+
 ## Template seams (no VCR, no mock server)
 
 1. Pure functions: unit-test directly.
