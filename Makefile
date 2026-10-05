@@ -196,6 +196,23 @@ ci-local: templ datastar-lint css-check check-scope
 	@rm -f /tmp/gogogo-ci-local-web
 	@echo "✅ ci-local passed"
 
+# Fast local gate: the same cheap-but-decisive checks as ci-local (templ,
+# datastar-lint, css-check, check-scope, scoped lint) PLUS race tests for ONLY
+# the packages your change touches. Skips the full test sweep and the browser
+# smoke. Use it every few edits; run the full `ci-local` (and `make signoff`)
+# before pushing.
+#
+# Why: the full suite is dominated by features/todo (~90s+, >60% of the run),
+# so a CSS or installer tweak would otherwise pay for the whole suite. This
+# narrows on the changed packages, falling back to all packages when a shared
+# file (go.mod, config/, db/) changed.
+ci-local-fast: templ datastar-lint css-check check-scope
+	@echo "→ lint (golangci-lint, scoped to changed packages)"
+	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
+	@echo "→ tests (race, changed packages only)"
+	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else go test -race -p 1 $$PKGS -count=1; fi
+	@echo "✅ ci-local-fast passed (full gate before push: make ci-local)"
+
 # smoke boots the built binary in a headless browser, fails on uncaught client
 # errors, and exercises offline todo add/delete through IndexedDB + reconnect
 # replay. This catches both script-rendering and offline-queue regressions.
@@ -217,7 +234,7 @@ signoff: ci-local
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
-.PHONY: ci-local signoff
+.PHONY: ci-local ci-local-fast signoff
 
 .PHONY: site site-check
 

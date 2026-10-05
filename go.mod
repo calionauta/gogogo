@@ -24,6 +24,7 @@ require (
 	github.com/stripe/stripe-go/v80 v80.2.1
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24
 	github.com/zendev-sh/goai v0.10.3
+	go.uber.org/goleak v1.3.0
 	maragu.dev/goqite v0.4.0
 )
 

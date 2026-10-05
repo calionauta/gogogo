@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/calionauta/ai-credits/credits"
@@ -42,7 +43,8 @@ type Service struct {
 
 	// started guards Start against double-launch; the workers are
 	// long-lived and must be started exactly once per process.
-	started sync.Once
+	started     sync.Once
+	startedFlag atomic.Bool
 }
 
 // New builds the credits engine on the app's SQLite DB file (a fresh
@@ -150,6 +152,7 @@ func New(cfg *config.Config) (*Service, error) {
 // than once; only the first call starts the workers.
 func (s *Service) Start(ctx context.Context) {
 	s.started.Do(func() {
+		s.startedFlag.Store(true)
 		if s.Payments != nil {
 			go func() {
 				w := paymentcore.NewWorker(s.Payments,
@@ -162,6 +165,10 @@ func (s *Service) Start(ctx context.Context) {
 		}
 	})
 }
+
+// startedFired reports whether Start has launched the workers, so tests can
+// observe the lifecycle without counting goroutines.
+func (s *Service) startedFired() bool { return s.startedFlag.Load() }
 
 // settlementInterval is the cadence of the settlement-outbox drain. Tests pass
 // their own interval to settlementLoop, so this stays a const (no mutable

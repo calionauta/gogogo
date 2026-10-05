@@ -53,7 +53,13 @@ type Queue struct {
 // returns a ready-to-use Queue with a fresh SSEHub and HandlerRegistry.
 func New(cfg *config.Config) (*Queue, error) {
 	dbPath := cfg.DataDir + "/queue.db"
-	db, err := sql.Open("sqlite3", dbPath)
+	// busy_timeout must be set in the DSN (a PRAGMA statement is not applied
+	// by the driver on open), matching the app DB's DSN in db/pocketbase.go.
+	// Without it a concurrent writer gets SQLITE_BUSY immediately instead of
+	// waiting for the lock, so queue writes fail spuriously under contention.
+	// journal_mode(WAL) lets readers proceed while a writer holds the lock.
+	db, err := sql.Open("sqlite3",
+		"file:"+dbPath+"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, fmt.Errorf("queue: open sqlite at %s: %w", dbPath, err)
 	}
