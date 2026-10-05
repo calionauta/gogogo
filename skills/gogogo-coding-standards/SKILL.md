@@ -33,11 +33,14 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 Full table: `references/go-concurrency-deltas.md`.
 
 - Owner + exit + wait for every `go`. Use `wg.Go` (Go 1.25), never `Add` inside the goroutine.
+- **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to `se.App.OnTerminate` (see `router/credits.go`). A worker started in `New` on `Background` can never be stopped.
+- Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/todo/handlers/onboarding.go`.
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
 - Every long `select` has `<-ctx.Done()`. No `time.After` in hot loops (`NewTimer` + `Reset`).
 - Mutex zero value, unexported `mu`, short sections, never across I/O. Counters/flags: typed `atomic.*`.
-- Tests: `goleak` for leaks, `synctest.Test`/`Wait`/`Sleep` for timers. Prod leaks: `goroutineleak` pprof (GA 1.27), not a test substitute.
+- Writes into a tree you don't fully control: `os.Root` (`os.OpenRoot`), not a lexical path check — a planted symlink defeats `filepath.Join` + `HasPrefix`. See `internal/installer/tree.go`.
+- Tests: `goleak` for leaks (never `runtime.NumGoroutine()`), `synctest.Test`/`Wait`/`Sleep` for timers. Prod leaks: `goroutineleak` pprof (GA 1.27), not a test substitute.
 
 ## Performance
 
@@ -52,7 +55,8 @@ Full runbook: `references/go-perf.md`.
 
 Full strategy: `references/go-testing.md`.
 
-- Always `go test -race ./...` scoped; full gate `make ci-local` (= CI) before push, `make signoff` stamps.
+- Always `go test -race ./...` scoped; `make ci-local-fast` while iterating (changed packages only), full `make ci-local` (= CI) before push, `make signoff` stamps.
+- **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
 - PB/SQLite: temp-dir instance + `Bootstrap()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
 - `B.Loop` style for benchmarks (1.26 inlining fix). `AllocsPerRun` panics under `-parallel`.

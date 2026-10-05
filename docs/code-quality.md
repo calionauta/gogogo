@@ -142,6 +142,21 @@ Use it for timers, tickers, and retry backoffs; use `-race` for data races.
 `t.Context()` (Go 1.24+) is the default context in tests — it is cancelled at
 cleanup, so it is already the right parent for a test goroutine.
 
+**Assert leaks with `goleak`, never `runtime.NumGoroutine()`.** The count is
+process-global and races sibling tests (it can even go *down* mid-test). Use
+`defer goleak.VerifyNone(t, goleak.IgnoreCurrent())`, plus
+`goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener")` when the test
+opens a DB. See `features/credits/lifecycle_test.go`.
+
+**Timeouts must exceed SQLite's `busy_timeout`.** The repo sets
+`busy_timeout(10000)` on the DB DSN, so a writer blocks up to 10s for the lock.
+A test or request timeout shorter than that cancels the request while the
+database is still legitimately waiting — an intermittent `context deadline
+exceeded` that looks like flakiness and is really lock contention
+(`features/todo/crud_test.go` uses 20s). Every SQLite DSN needs `busy_timeout`
++ `journal_mode(WAL)` **in the DSN**; a `PRAGMA` statement does not cover pooled
+connections (`internal/queue/goqite.go` once omitted it).
+
 **Allocating and formatting.** `strconv.Itoa`/`FormatInt` are several times
 cheaper than `fmt.Sprintf` on the hot path — reach for `strconv` when the
 argument is a single value, and reserve `fmt` for formatting that actually

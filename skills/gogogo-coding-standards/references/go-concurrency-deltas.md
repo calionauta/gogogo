@@ -72,3 +72,73 @@ case <-t.C:
 | Prod | `goroutineleak` pprof (exp 1.26 `GOEXPERIMENT=goroutineleakprofile`, **GA 1.27**: `runtime/pprof` + `/debug/pprof/goroutineleak`) | diagnose deployed leaks via reachability; misses globals/runnable-reachable blocks |
 
 `go test -race ./...` always. No goroutines in `init()`.
+
+## Lifecycle: constructors build, callers start (and stop)
+
+A constructor must not spawn background work. If `New` starts a worker bound to
+`context.Background()`, no caller can ever stop it — that is a leak by design.
+Split construction from startup and let the OWNER bind the lifetime:
+
+```go
+// constructor: state only, no goroutines
+func New(cfg *Config) (*Service, error) { ... }
+
+// starter: the caller passes a ctx it can cancel
+func (s *Service) Start(ctx context.Context) {
+    s.started.Do(func() {           // idempotent — wiring may run twice in tests
+        go s.loop(ctx)
+    })
+}
+
+func (s *Service) loop(ctx context.Context) {
+    t := time.NewTicker(interval)
+    defer t.Stop()
+    for {
+        select {
+        case <-ctx.Done():          // every long-lived loop has an exit
+            return
+        case <-t.C:
+            drain(ctx)              // pass ctx, never context.Background()
+        }
+    }
+}
+```
+
+Wire the cancel at the router, exactly like the repo does
+(`router/credits.go`, `router/collab_jetstream.go`, `router/realtime_jet.go`):
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+se.App.OnTerminate().BindFunc(func(e *core.TerminateEvent) error {
+    cancel()
+    return e.Next()
+})
+svc.Start(ctx)
+```
+
+**Durable work survives the client — so do not use `c.Request.Context()`.**
+A workflow poll that must keep running after the browser navigates away
+derives from `context.Background()`, then ties itself to app shutdown with a
+`done chan struct{}` (closed once via `sync.Once`) rather than a stored
+`context.Context` (which `containedctx` rejects anyway). See
+`features/todo/handlers/onboarding.go`.
+
+### Confine writes to a tree with `os.Root` (Go 1.24+)
+
+A lexical guard (`filepath.Join` + `strings.HasPrefix`) blocks `../` but NOT a
+symlink planted INSIDE the tree: with `root/evil -> /etc`, `root/evil/x` passes
+the check and the write escapes. `os.Root` resolves each path against the
+directory handle in the kernel and refuses a symlink that leaves the root:
+
+```go
+r, err := os.OpenRoot(dir)   // once
+if err != nil { return err }
+defer r.Close()
+r.WriteFile("sub/file.go", data, 0o644)  // names are root-relative
+r.MkdirAll("sub", 0o755)
+r.Remove("old.go")
+```
+
+Use it whenever you write into a path derived from untrusted or user-supplied
+tree content (installer/CLI, unpacking). Keep the lexical check too, as
+defense in depth. See `internal/installer/tree.go`.

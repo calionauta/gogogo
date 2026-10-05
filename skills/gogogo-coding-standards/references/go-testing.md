@@ -5,12 +5,32 @@ Enforced by: `thelper`, `testifylint`, `sloglint` + `make ci-local` (race, `-p 1
 ## Tiers
 
 - T3 scoped: `go test -race -count=1 <changed-pkg>`.
+- T3.5 fast gate: `make ci-local-fast` — cheap checks + race tests for the changed packages only (~2-30s). Use while iterating.
 - T4 gate: `make ci-local` (templ + datastar-lint + css-check + check-scope + lint + `go test -race -p 1` + build + smoke). T5: `make signoff` stamps.
+
+## SQLite timeouts: the flake that looks like noise
+
+The integration tests hit a real SQLite file, and SQLite serializes writers. Its
+`busy_timeout` (10s in this repo's DSN — `db/pocketbase.go`, `internal/queue/goqite.go`)
+is how long a writer BLOCKS waiting for the lock before giving up. A test/request
+timeout SHORTER than `busy_timeout` cancels the request while the database is
+still legitimately waiting, producing an intermittent
+`context deadline exceeded` that looks like flakiness and is not:
+
+- `requestTimeout` (test HTTP client) **must exceed** `busy_timeout` + handler
+  overhead. See `features/todo/crud_test.go` (20s vs 10s).
+- Every SQLite DSN needs `busy_timeout` + `journal_mode(WAL)` **in the DSN**
+  (a `PRAGMA` statement does not cover pooled connections). `internal/queue/goqite.go`
+  once opened without it, so concurrent queue writes failed with `SQLITE_BUSY`
+  instead of waiting.
+- Prove it mechanically, don't guess: hold a write transaction, then run a
+  second connection with the short timeout → `database is locked`; with the long
+  one → success. That is the causal proof.
 
 ## Concurrency tests
 
-- `goleak.VerifyTestMain(m)` or `defer goleak.VerifyNone(t)` in packages that spawn goroutines.
-- `synctest.Test(t, func(t *testing.T) {...})` + `synctest.Wait()` for timer/async code (fake clock). `Run` is gone (1.26); use `Test`. `synctest.Sleep(d)` = sleep + settle. `httptest.NewTestServer` (1.27) gives an in-memory fake network that works with synctest — prefer it over real ports.
+- `goleak.VerifyTestMain(m)` or `defer goleak.VerifyNone(t)` in packages that spawn goroutines. **Never assert on `runtime.NumGoroutine()`**: it is process-global and races sibling tests (observed counts going DOWN mid-test). Add `goleak.IgnoreCurrent()` and, for a test DB, `goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener")`. Used in `features/credits/lifecycle_test.go`, `internal/queue/ssehub_test.go`.
+- `synctest.Test(t, func(t *testing.T) {...})` + `synctest.Wait()` for timer/async code (fake clock). `Run` is gone (1.26); use `Test`. `synctest.Sleep(d)` = sleep + settle. `httptest.NewTestServer` (1.27) gives an in-memory fake network that works with synctest — prefer it over real ports. See `features/credits/settlement_synctest_test.go`.
 - `AllocsPerRun` panics under parallel tests by design; isolate it.
 
 ## Benchmarks
