@@ -17,6 +17,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/calionauta/ai-credits/credits"
@@ -38,6 +39,10 @@ type Service struct {
 	Now      func() time.Time
 	Payments *paymentcore.Service
 	Stripe   *stripecredits.Adapter
+
+	// started guards Start against double-launch; the workers are
+	// long-lived and must be started exactly once per process.
+	started sync.Once
 }
 
 // New builds the credits engine on the app's SQLite DB file (a fresh
@@ -132,23 +137,60 @@ func New(cfg *config.Config) (*Service, error) {
 		Payments: paymentSvc,
 		Stripe:   stripeSvc,
 	}
-	// Wire background workers: payments retry + settlement outbox (KISS: fire-and-forget, context.Background)
-	if paymentSvc != nil {
-		go func() {
-			w := paymentcore.NewWorker(paymentSvc, paymentcore.WorkerConfig{Interval: 10 * time.Second})
-			w.Run(context.Background())
-		}()
-	}
-	if svc != nil {
-		go func() {
-			ticker := time.NewTicker(time.Minute)
-			defer ticker.Stop()
-			for range ticker.C {
-				_ = svc.ProcessSettlementOutbox(context.Background(), 100)
-			}
-		}()
-	}
 	return svcOut, nil
+}
+
+// Start launches the background workers (payments retry + settlement outbox).
+// It is deliberately separate from New so the CALLER owns the lifetime: the
+// router passes a context cancelled by the app's OnTerminate hook, so shutdown
+// stops both loops instead of leaking goroutines bound to context.Background().
+//
+// Both workers honour ctx cancellation — payments.Worker.Run selects on
+// ctx.Done(), and the settlement ticker below does the same. Safe to call more
+// than once; only the first call starts the workers.
+func (s *Service) Start(ctx context.Context) {
+	s.started.Do(func() {
+		if s.Payments != nil {
+			go func() {
+				w := paymentcore.NewWorker(s.Payments,
+					paymentcore.WorkerConfig{Interval: 10 * time.Second})
+				w.Run(ctx)
+			}()
+		}
+		if s.Credits != nil {
+			go s.runSettlementOutbox(ctx)
+		}
+	})
+}
+
+// settlementInterval is the cadence of the settlement-outbox drain. Tests pass
+// their own interval to settlementLoop, so this stays a const (no mutable
+// package global).
+const settlementInterval = time.Minute
+
+// runSettlementOutbox drains the settlement outbox on a ticker until ctx is
+// cancelled. Split from Start so tests can drive the exact production loop.
+func (s *Service) runSettlementOutbox(ctx context.Context) {
+	settlementLoop(ctx, settlementInterval, func(ctx context.Context) {
+		_ = s.Credits.ProcessSettlementOutbox(ctx, 100)
+	})
+}
+
+// settlementLoop runs tick every interval until ctx is cancelled, calling
+// drain on each tick. The select on ctx.Done() is what makes shutdown prompt;
+// without it the goroutine outlives the process that started it. Kept free of
+// Service fields so testing/synctest can drive it with virtual time.
+func settlementLoop(ctx context.Context, tick time.Duration, drain func(context.Context)) {
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			drain(ctx)
+		}
+	}
 }
 
 // defaultBaseURL matches the internal/llm default when GOAI_BASE_URL is unset.

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -80,7 +81,7 @@ func assertFilter(t *testing.T, client *http.Client, base, filter string) {
 	}
 	bSeen := 0
 	for i := 1; i <= 5; i++ {
-		if strings.Contains(body, "O"+itoaLocal(i)) {
+		if strings.Contains(body, "O"+strconv.Itoa(i)) {
 			bSeen++
 		}
 	}
@@ -183,7 +184,7 @@ func seedOtherUserWithTodos(app core.App, email, prefix string, n int) error {
 	}
 	for i := 1; i <= n; i++ {
 		rec := core.NewRecord(todos)
-		rec.Set(titleField, prefix+itoaLocal(i))
+		rec.Set(titleField, prefix+strconv.Itoa(i))
 		rec.Set("completed", false)
 		rec.Set("owner", user.Id)
 		if err := app.Save(rec); err != nil {
@@ -191,26 +192,4 @@ func seedOtherUserWithTodos(app core.App, email, prefix string, n int) error {
 		}
 	}
 	return nil
-}
-
-func itoaLocal(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		b[i] = '-'
-	}
-	return string(b[i:])
 }

@@ -2,18 +2,17 @@
 package installer
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 )
 
-func addRouterCalls(root string, u trimUnit, rc *AddReceipt) error {
+func addRouterCalls(t *treeFS, root string, u trimUnit, rc *AddReceipt) error {
 	calls := routerCallLines(u)
 	if len(calls) == 0 {
 		return nil
 	}
 	p := filepath.Join(root, "router", "router.go")
-	raw, err := os.ReadFile(p)
+	raw, err := t.ReadFile(p)
 	if err != nil {
 		return err
 	}
@@ -47,8 +46,7 @@ func addRouterCalls(root string, u trimUnit, rc *AddReceipt) error {
 	lines = append(lines[:anchor], append(insert, lines[anchor:]...)...)
 	rc.LinesInserted += len(insert)
 	rc.touch("router/router.go")
-	//nolint:gosec // G306 scaffolded repo files are 0644 tracked sources, same as a git checkout.
-	return os.WriteFile(p, []byte(strings.Join(lines, "\n")), scaffoldFileMode)
+	return t.WriteFile(p, []byte(strings.Join(lines, "\n")), scaffoldFileMode)
 }
 
 // routerCallLines are the exact Init call lines a unit owns: explicit

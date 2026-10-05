@@ -7,6 +7,8 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -15,4 +17,11 @@ import (
 // unexported because it is wiring detail, not API.
 func MountDagNatsDashboardForTest(se *core.ServeEvent, upstream string) {
 	mountDagNatsDashboard(se, upstream)
+}
+
+// RewriteDagNatsPathsForTest exposes the response-body rewriter so its
+// Content-Length contract (header must equal the rewritten byte length) can be
+// asserted directly.
+func RewriteDagNatsPathsForTest(resp *http.Response) error {
+	return rewriteDagNatsPaths(resp)
 }

@@ -29,13 +29,18 @@ func renameTree(root, newName, newOwner string) error {
 		"github.com/calionauta/pi-leakguard",
 	}
 
+	t, err := openTree(root)
+	if err != nil {
+		return err
+	}
+	defer t.Close()
 	files, err := collectRenameFiles(root)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range files {
-		if err := rewriteRenameFile(p, oldModule, newModule, oldOwner, oldName, newOwner, newName, foreign); err != nil {
+		if err := rewriteRenameFile(t, p, oldModule, newModule, oldOwner, oldName, newOwner, newName, foreign); err != nil {
 			return err
 		}
 	}
@@ -71,11 +76,12 @@ func collectRenameFiles(root string) ([]string, error) {
 }
 
 func rewriteRenameFile(
+	t *treeFS,
 	path, oldModule, newModule string,
 	oldOwner, oldName, newOwner, newName string,
 	foreign []string,
 ) error {
-	raw, err := os.ReadFile(path)
+	raw, err := t.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
@@ -102,8 +108,7 @@ func rewriteRenameFile(
 		text = strings.ReplaceAll(text, token, repo)
 	}
 	if text != orig {
-		//nolint:gosec // G306 scaffolded repo files are 0644 tracked sources, same as a git checkout.
-		if err := os.WriteFile(path, []byte(text), scaffoldFileMode); err != nil {
+		if err := t.WriteFile(path, []byte(text), scaffoldFileMode); err != nil {
 			return err
 		}
 	}

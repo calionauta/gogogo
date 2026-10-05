@@ -258,7 +258,9 @@ func (h *SSEHub) BroadcastExcept(data []byte, excludeClientID string) {
 func (h *SSEHub) Broadcast(data []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	slog.Info("ssehub: Broadcast", "clients", len(h.clients))
+	// Debug, not Info: Broadcast runs on every fan-out (hot path), so an Info
+	// line here would flood production logs with one entry per event.
+	slog.Debug("ssehub: Broadcast", "clients", len(h.clients))
 	for id, ch := range h.clients {
 		select {
 		case ch <- data:

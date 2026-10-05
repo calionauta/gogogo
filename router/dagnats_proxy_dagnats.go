@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -172,28 +173,6 @@ func rewriteDagNatsPaths(resp *http.Response) error {
 	})
 	resp.Body = io.NopCloser(bytes.NewReader([]byte(rewritten)))
 	resp.ContentLength = int64(len(rewritten))
-	resp.Header.Set("Content-Length", itoa(len(rewritten)))
+	resp.Header.Set("Content-Length", strconv.Itoa(len(rewritten)))
 	return nil
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		b[i] = '-'
-	}
-	return string(b[i:])
 }

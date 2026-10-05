@@ -81,6 +81,84 @@ Morpheus skin's `data-neo-*` attributes, for example) do not fail the gate.
 Add genuinely intentional attributes to `.datastar-lint.yaml` under
 `attributes.allowed`.
 
+## Concurrency and resources
+
+These are the mistakes `go test -race` alone does not catch (a leak is not a
+race). Each has bitten this template; each now has a rule and, where useful, a
+linter or a test.
+
+**Background goroutines need a shutdown path.** A `go func()` that loops on
+`time.NewTicker` with no exit case survives process shutdown and leaks for the
+life of the parent — and if it is started once per request, it leaks per
+request. Every long-lived loop selects on a cancellation signal:
+
+```go
+for {
+    select {
+    case <-ctx.Done():  // required
+        return
+    case <-ticker.C:
+        work(ctx)       // pass ctx, not context.Background()
+    }
+}
+```
+
+- Bind the lifetime at WIRING time, not per request. In the router the shape
+  is `ctx, cancel := context.WithCancel(context.Background())` +
+  `se.App.OnTerminate().BindFunc(func(e *core.TerminateEvent) error { cancel(); return e.Next() })`,
+  then hand `ctx` to the worker. See `router/collab_jetstream.go`,
+  `router/realtime_jet.go`, and `router/credits.go`.
+- **Never** store `context.Context` in a struct: the `containedctx` linter
+  rejects it, and it is the usual cause of a context outliving its scope. Pass
+  `ctx` as a parameter or hold a `done chan struct{}` + `sync.Once` (see
+  `internal/queue.WorkerPool`, `OnboardingHandler.shutdown`).
+- A loop that must survive the client (a durable workflow poll) still must NOT
+  use `c.Request.Context()`. Derive from `context.Background()` and cancel on
+  app termination, as `OnboardingHandler` does.
+- `errgroup` is the right tool when fanning out N tasks that should fail
+  together: `g, ctx := errgroup.WithContext(ctx)` then `g.Go(func() error {...})`.
+  Do not hand-roll `WaitGroup` + error channel.
+
+**Channels.** A buffer of 0 or 1 around a producer that must not block is a
+deadlock waiting to happen; the SSE hub buffers per client
+(`config.DefaultClientQueueSize`) and drops on a full channel rather than
+blocking the worker pool (`internal/queue/ssehub.go`). Drop deliberately and
+log it — never block a shared producer on one slow consumer.
+
+**Test concurrency deterministically with `testing/synctest` (Go 1.24+).**
+It runs the code in a bubble where `time` is virtual: a 1-minute ticker fires
+instantly, and a leaked goroutine fails the test as a deadlock instead of
+hanging CI. See `features/credits/settlement_synctest_test.go`:
+
+```go
+synctest.Test(t, func(t *testing.T) {
+    go settlementLoop(ctx, time.Minute, drain)
+    synctest.Sleep(time.Minute) // virtual — no real wait
+    synctest.Wait()             // blocks until the bubble is quiescent
+})
+```
+
+Use it for timers, tickers, and retry backoffs; use `-race` for data races.
+`t.Context()` (Go 1.24+) is the default context in tests — it is cancelled at
+cleanup, so it is already the right parent for a test goroutine.
+
+**Allocating and formatting.** `strconv.Itoa`/`FormatInt` are several times
+cheaper than `fmt.Sprintf` on the hot path — reach for `strconv` when the
+argument is a single value, and reserve `fmt` for formatting that actually
+needs verbs. Preallocate when the size is known: `make([]T, 0, n)` and
+`make(map[K]V, n)`. Build strings in a loop with `strings.Builder`, never with
+`+=` (each `+=` reallocates and copies the whole string). Do not chase struct
+field alignment: `fieldalignment` is intentionally disabled, because padding
+the struct hurts readability more than it saves on modern hardware.
+
+**Confining file writes to a directory tree.** When writing into a path that
+may come from an untrusted or user-controlled tree, a lexical check
+(`filepath.Join` + `HasPrefix`) is not enough — a symlink planted inside the
+tree passes it and the write escapes. Use `os.Root` (Go 1.24+):
+`r, _ := os.OpenRoot(dir)` then `r.WriteFile(rel, ...)`, `r.MkdirAll(rel, ...)`.
+Every operation is resolved against the directory handle and a symlink that
+would leave the root is refused. See `internal/installer/tree.go`.
+
 ## File size limits
 
 The pre-commit hook runs a `file-sizes` check. Large files are a smell in this

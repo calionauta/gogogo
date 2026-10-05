@@ -34,6 +34,59 @@ type OnboardingHandler struct {
 
 	mu          sync.Mutex
 	activeRunID string // the run currently awaiting the first-todo signal
+
+	// done is closed on app shutdown. Poll goroutines select on it so they
+	// exit promptly; the durable DagNats workflow itself is unaffected. A
+	// channel (not a stored context.Context) keeps this struct free of
+	// embedded context, matching internal/queue.WorkerPool and the
+	// containedctx lint rule.
+	done chan struct{}
+	// shutdownOnce guards close(done) so a late/duplicate OnTerminate cannot
+	// double-close and panic.
+	shutdownOnce sync.Once
+}
+
+// shutdown closes the done channel exactly once, waking every poll goroutine.
+// Safe to call from OnTerminate and from tests.
+func (h *OnboardingHandler) shutdown() {
+	h.shutdownOnce.Do(func() {
+		if h.done != nil {
+			close(h.done)
+		}
+	})
+}
+
+// shutdownCtx returns a context cancelled when the app shuts down (or when
+// parent is done), plus its cancel func. It is the bridge between the struct's
+// done channel and the context-taking client calls, so goroutines stop on
+// shutdown without storing a context on the struct. Never returns nil.
+func (h *OnboardingHandler) shutdownCtx(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	if h.done == nil {
+		return ctx, cancel
+	}
+	go func() {
+		select {
+		case <-h.done:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, cancel
+}
+
+// shutdownStopped reports whether shutdown has run, so callers (and tests) can
+// observe the state without reaching into the channel directly.
+func (h *OnboardingHandler) shutdownStopped() bool {
+	if h.done == nil {
+		return false
+	}
+	select {
+	case <-h.done:
+		return true
+	default:
+		return false
+	}
 }
 
 // RegisterOnboardingRoutes wires the onboarding HTTP routes into the
@@ -56,6 +109,17 @@ func RegisterOnboardingRoutes(
 		app:         app,
 		client:      dagnats.NewClient(baseURL),
 		broadcaster: broadcaster,
+		done:        make(chan struct{}),
+	}
+	// Stop in-flight poll goroutines on app termination. Registered once at
+	// wiring time (not per request) so the lifetime is the process's: the
+	// durable workflow keeps advancing after the client navigates away, but
+	// nothing outlives the process.
+	if app != nil {
+		app.OnTerminate().BindFunc(func(e *core.TerminateEvent) error {
+			h.shutdown()
+			return e.Next()
+		})
 	}
 	// Link into TodoHandler so the create path can reach it via the
 	// OnboardingResumer interface and resume the durable run when the
@@ -131,18 +195,23 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 	// publish a synthetic "Step 1/6" here, because the first poll tick
 	// detects the greet step and publishes it naturally. Publishing
 	// from BOTH places creates a duplicate toast.
+	// The run input carries the owner AND the example todo titles. The titles
+	// travel in the input (not step config) because DagNats never delivers
+	// per-step `config` to workers — the input/output chain is the durable
+	// channel, and the root step threads it forward to the create-todo steps.
+	//
+	// ctx is derived from Background, NOT c.Request.Context(): the durable
+	// workflow must survive the client disconnecting. shutdownCtx still ties
+	// it to app shutdown so the goroutine cannot outlive the process.
 	go func() {
-		// The run input carries the owner AND the example todo titles.
-		// The titles travel in the input (not step config) because
-		// DagNats never delivers per-step `config` to workers — the
-		// input/output chain is the durable channel, and the root
-		// step threads it forward to the create-todo steps.
-		runID, err := h.client.StartRun(context.Background(), "onboarding",
+		ctx, cancel := h.shutdownCtx(context.Background())
+		defer cancel()
+		runID, err := h.client.StartRun(ctx, "onboarding",
 			map[string]any{"user": user, "todos": dagnats.ExampleTodoTexts})
 		if err != nil {
 			slog.Error("onboarding: start failed", "user", user, "error", err)
 			if h.broadcaster != nil {
-				_ = h.broadcaster.PublishTodoUpdate(context.Background(),
+				_ = h.broadcaster.PublishTodoUpdate(ctx,
 					todoUpdateJob("workflow-error", "remote", "", err.Error(), false))
 			}
 			return
@@ -184,7 +253,8 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 
 //nolint:gocyclo // extracting the completed catch-up loop would add abstraction over single-use sim
 func (h *OnboardingHandler) pollRun(runID string) {
-	ctx := context.Background()
+	ctx, cancel := h.shutdownCtx(context.Background())
+	defer cancel()
 	timeout := time.After(onbPollTimeout)
 	ticker := time.NewTicker(onbPollInterval)
 	defer ticker.Stop()
@@ -199,6 +269,10 @@ func (h *OnboardingHandler) pollRun(runID string) {
 
 	for {
 		select {
+		case <-ctx.Done():
+			// App shutting down: stop polling without emitting a
+			// misleading "timed out" toast.
+			return
 		case <-timeout:
 			// Give up: re-enable the button so the user isn't stuck.
 			h.publishProgress(ctx, 0, 0, "idle", "Onboarding timed out")
