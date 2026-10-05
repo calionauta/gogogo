@@ -8,9 +8,12 @@ Enforced by: `thelper`, `testifylint`, `sloglint` + `make ci-local` (race, `-p 1
 - T3.5 fast gate: `make ci-local-fast` — cheap checks + race tests for the changed packages only (~2-30s). Use while iterating.
 - T4 gate: `make ci-local` (templ + datastar-lint + css-check + check-scope + lint + race tests + build + smoke). T5: `make signoff` stamps.
 
-The suite runs in two parallel groups (`scripts/test-web.sh`): only the
-packages that boot the DagNats engine need `-p 1`; the rest run at default
-parallelism concurrently. Measured ~2m10 vs ~4m15 for one serial sweep.
+The suite runs in parallel across packages (`scripts/test-web.sh`). It used to
+force `-p 1` "for DagNats engine stability" — the real cause was that engine
+tests bound FIXED ports and two packages grabbed the same 18099 (`address
+already in use`). They now bind ephemeral ports (`127.0.0.1:0`) and read the
+address back from `srv.HTTPAddr()`: ~1m50 vs ~4m15, no serialization needed.
+NATS ports stay fixed (the test must name them to connect) but are distinct.
 When constructing coverage across packages, keep `-p 1` (a single
 `coverage.out` needs one invocation).
 
@@ -36,6 +39,7 @@ still legitimately waiting, producing an intermittent
 ## Concurrency tests
 
 - `goleak.VerifyTestMain(m)` or `defer goleak.VerifyNone(t)` in packages that spawn goroutines. **Never assert on `runtime.NumGoroutine()`**: it is process-global and races sibling tests (observed counts going DOWN mid-test). Add `goleak.IgnoreCurrent()` and, for a test DB, `goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener")`. Used in `features/credits/lifecycle_test.go`, `internal/queue/ssehub_test.go`.
+- **Ports in tests must be ephemeral.** Bind `127.0.0.1:0` (and NATS `-1`) and read the real address back from the server's accessor. A fixed port lets a test in another package steal it under `-p N` — `address already in use` — which looks like "the engine needs `-p 1`" but is a collision. Engine tests did exactly this with 18099 and it cost the suite its parallelism for months. When a port genuinely must be fixed (a client has to name the NATS port), give each package a **distinct** one.
 - `synctest.Test(t, func(t *testing.T) {...})` + `synctest.Wait()` for timer/async code (fake clock). `Run` is gone (1.26); use `Test`. `synctest.Sleep(d)` = sleep + settle. `httptest.NewTestServer` (1.27) gives an in-memory fake network that works with synctest — prefer it over real ports. See `features/credits/settlement_synctest_test.go`.
 - `AllocsPerRun` panics under parallel tests by design; isolate it.
 

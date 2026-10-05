@@ -16,13 +16,15 @@ import (
 // and returns a ready Client. It is the same wiring cmd/web uses, so the
 // test exercises the real integration contract (REST register + run +
 // signal), not a mock.
-func startTestServer(t *testing.T, httpAddr, dataDir string) *Client {
+func startTestServer(t *testing.T, dataDir string) *Client {
 	t.Helper()
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		t.Fatalf("mkdir data dir: %v", err)
 	}
 
-	srv := NewServer(dataDir, httpAddr,
+	// HTTP on an ephemeral port (`:0`) so parallel packages cannot clash on a
+	// fixed port; the real address is read back once the engine is ready.
+	srv := NewServer(dataDir, "127.0.0.1:0",
 		-1,      // ephemeral (nats-server: -1 = random port; 0 = no listener)
 		256<<20, // 256 MiB; the onboarding workflow persists almost nothing.
 	)
@@ -58,6 +60,7 @@ func startTestServer(t *testing.T, httpAddr, dataDir string) *Client {
 		}
 	})
 
+	httpAddr := waitForAddr(t, srv)
 	client := NewClient("http://" + httpAddr)
 	// Register the workflow, retrying until the API is up. Under -race
 	// the engine boots slower, so allow up to ~20s.
@@ -71,9 +74,23 @@ func startTestServer(t *testing.T, httpAddr, dataDir string) *Client {
 	return nil
 }
 
+// waitForAddr blocks until the engine reports the address it bound.
+func waitForAddr(t *testing.T, srv *server.Server) string {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if addr := srv.HTTPAddr(); addr != "" {
+			return addr
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("dagnats never reported a bound HTTP address")
+	return ""
+}
+
 func TestOnboardingWorkflow_RegistersAndRuns(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "dagnats-test")
-	client := startTestServer(t, "127.0.0.1:18091", dir)
+	client := startTestServer(t, dir)
 	ctx := context.Background()
 
 	runID, err := client.StartRun(ctx, "onboarding", map[string]any{"user": "tester"})

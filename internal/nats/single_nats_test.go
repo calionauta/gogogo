@@ -8,13 +8,25 @@ import (
 )
 
 // TestConnectExisting_SingleNATS proves the single-NATS convention: when
-// DagNats owns the embedded NATS on :4222, the realtime broadcaster
-// connects to that existing server (via ConnectExisting) instead of
-// starting a second one. A published update must round-trip through the
-// shared JetStream, confirming the broadcaster and DagNats share one NATS.
+// DagNats owns an embedded NATS, the realtime broadcaster connects to that
+// existing server (via ConnectExisting) instead of starting a second one. A
+// published update must round-trip through the shared JetStream, confirming
+// the broadcaster and DagNats share one NATS.
+//
+// Ports are EPHEMERAL (HTTP `:0`, NATS `-1`): a fixed HTTP port here used to
+// collide with the same 18099 in features/todo/handlers under `-p N`, which is
+// what forced both packages to run serially. The client is built from the
+// address the engine actually bound (srv.HTTPAddr()).
 func TestConnectExisting_SingleNATS(t *testing.T) {
-	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:18099", 4222, 1<<30)
+	// HTTP is ephemeral (`:0`) to avoid the fixed-port clash with the
+	// features/todo/handlers test that also used 18099 — that collision, not
+	// the engine, forced `-p 1`. NATS stays on a fixed port because this test
+	// must name it to ConnectExisting; 4222 is distinct from the handlers
+	// test's 4224, so there is no clash.
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:0", 4222, 1<<30)
 	go func() { _ = srv.Run() }()
+	defer srv.Stop()
+
 	// ConnectExisting uses RetryOnFailedConnect, so it blocks until the
 	// engine's NATS is reachable — no polling loop needed here.
 	if err := ConnectExisting("127.0.0.1:4222"); err != nil {

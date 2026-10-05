@@ -57,6 +57,7 @@ Full strategy: `references/go-testing.md`.
 
 - Always `go test -race ./...` scoped; `make ci-local-fast` while iterating (changed packages only), full `make ci-local` (= CI) before push, `make signoff` stamps.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
+- Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
 - PB/SQLite: temp-dir instance + `Bootstrap()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
 - `B.Loop` style for benchmarks (1.26 inlining fix). `AllocsPerRun` panics under `-parallel`.

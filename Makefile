@@ -77,16 +77,16 @@ clean:
 	@find . -name '*.log' -delete
 
 test:
-	# The DagNats engine (embedded NATS + durable workflows) starves when its
-	# packages run in parallel under -race, so THOSE packages stay -p 1 — but
-	# only those. scripts/test-web.sh splits the suite: engine packages
-	# serialize while everything else runs at default parallelism, at the same
-	# time. Roughly half the wall-clock of one blanket `-p 1` sweep, same
-	# coverage. cmd/desktop is a separate Wails target (needs GTK/WebKit libs
-	# only on desktop build hosts); web-packages.sh excludes it as CI does.
+	# Plain parallel run across packages (scripts/test-web.sh). It used to be
+	# `-p 1` because the DagNats tests bound FIXED ports and two packages
+	# grabbed the same 18099; that looked like engine starvation but was a
+	# port collision. All DagNats tests now bind ephemeral HTTP ports and read
+	# the address back, so nothing needs serializing: ~110s vs ~255s.
+	# cmd/desktop is a separate Wails target (needs GTK/WebKit libs only on
+	# desktop build hosts); web-packages.sh excludes it as CI does.
 	@bash scripts/test-web.sh -race -count=1
 
-# test-fast is the tight TDD loop. Same split as `test` but drops -race,
+# test-fast is the tight TDD loop. Same run as `test` but drops -race,
 # which is the dominant cost of the full gate. Use it for red/green
 # iteration; run `test` (or `make ci-local`) before commit.
 test-fast:
@@ -179,13 +179,12 @@ deadcode:
 # generated CSS is up to date. make setup installs the blocking
 # pre-commit hook that enforces the same gate on every commit.
 # ci-local runs the same quality gate as CI but locally, so you can
-# catch issues before pushing. Runs lint, tests (engine packages serialized,
-# the rest in parallel — see scripts/test-web.sh), and a single unified build
-# — no more tag matrix.
+# catch issues before pushing. Runs lint, tests (parallel across packages —
+# see scripts/test-web.sh), and a single unified build — no more tag matrix.
 ci-local: templ datastar-lint css-check check-scope
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
-	@echo "→ tests (engine serialized, rest parallel)"
+	@echo "→ tests (parallel across packages)"
 	@bash scripts/test-web.sh -race -count=1
 	@echo "→ build (single build, reused by the smoke test)"
 	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
@@ -275,8 +274,6 @@ coverage:
 	@echo "→ Running tests with coverage..."
 	# -p 1 here on purpose: a single coverage.out needs every package's profile
 	# merged, and `go test` with -coverprofile writes one file per invocation.
-	# The parallel split in scripts/test-web.sh would need -coverprofile per
-	# group + `go tool covdata` merge; not worth it for an informational target.
 	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1 -coverprofile=coverage.out -covermode=atomic
 	@go tool cover -func=coverage.out | sort -k3 -r | head -30
 	@echo "---"

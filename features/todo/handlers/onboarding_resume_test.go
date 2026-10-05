@@ -24,18 +24,22 @@ import (
 // If someone breaks the signal name ("first-todo"), the
 // runID plumbing (activeRunID), or the ResumeOnboarding wiring,
 // this test fails instead of hanging silently in production.
+//
+// The engine binds an EPHEMERAL HTTP port (`127.0.0.1:0`) and the test reads
+// the real address back from srv.HTTPAddr(). A fixed port here collided with
+// internal/nats's test, which used the same 18099 — that clash (not CPU, not
+// an engine limitation) is why these packages had to run under `-p 1`. NATS
+// itself already used -1 (random), so only the HTTP side needed fixing.
 func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 	hub := queue.NewSSEHub()
 	broadcaster := nats.NewInMemoryBroadcaster(hub)
 
+	// Boot a real DagNats server; NATS on an ephemeral port too (-1).
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:0", -1, 1<<30)
+
 	h := &OnboardingHandler{
-		client:      dagnats.NewClient("http://127.0.0.1:18099"),
 		broadcaster: broadcaster,
 	}
-
-	// Boot a real DagNats server on the conventional NATS port (same
-	// wiring cmd/web/dagnats.go uses).
-	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:18099", 4224, 1<<30)
 
 	// Register the same task handlers the real app registers in
 	// cmd/web/dagnats.go (names must match OnboardingWorkflowJSON).
@@ -65,7 +69,12 @@ func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 			t.Logf("dagnats test server stopped: %v", err)
 		}
 	})
-	waitForDagNatsReady(t, "127.0.0.1:18099")
+
+	// Wait until the engine reports its bound address, then point the client
+	// at it. HTTPAddr() is empty until ready, so this doubles as readiness.
+	httpAddr := waitForEphemeralAddr(t, srv)
+	h.client = dagnats.NewClient("http://" + httpAddr)
+	waitForDagNatsReady(t, httpAddr)
 
 	ctx := context.Background()
 	registerOnboardingWorkflow(t, h.client)
@@ -98,6 +107,23 @@ func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 	}
 	t.Fatal("onboarding run did not complete after ResumeOnboarding signal")
+}
+
+// waitForEphemeralAddr blocks until the engine reports the address it actually
+// bound (HTTPAddr() is empty until the server is ready) and returns it. This is
+// what lets the test use `127.0.0.1:0` instead of a fixed port that could
+// collide with a test in another package.
+func waitForEphemeralAddr(t *testing.T, srv *server.Server) string {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if addr := srv.HTTPAddr(); addr != "" {
+			return addr
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("dagnats never reported a bound HTTP address")
+	return ""
 }
 
 func waitForDagNatsReady(t *testing.T, httpAddr string) {

@@ -32,7 +32,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
 | `make check-scope` | Assert `// SCOPE:layer=…,removal=…` on every `internal/`+`features/` file |
-| `make test` | Race tests `-p 1` (DagNats stability); CI runs them — prefer scoped tests locally |
+| `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + check-scope + lint + race tests + build. If green, push. (`make check` was removed — redundant subset.) |
 | `make signoff` | `ci-local` + advisory `gh signoff` stamp before push |
 | `make setup` | Activate lefthook git hooks (`core.hooksPath=.githooks`) |

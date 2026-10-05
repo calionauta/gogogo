@@ -50,7 +50,7 @@ push/merge, or (b) the change touches an area the next tier checks.
 
 ### Why the full gate is slow, and the fast sibling
 
-The full run is dominated by `go test -race -p 1`, and within it by
+The full run is dominated by `go test -race`, and within it by
 `features/todo` (a real PocketBase + goqite + SSE fixture per test, ~90s, over
 60% of the suite). Everything else is cheap: templ ~1s, css-check ~5s,
 check-scope <1s, lint ~10s, Playwright ~3s when cached.
@@ -67,17 +67,22 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
-### Tests run in two parallel groups, not one serial sweep
+### Tests run in parallel across packages
 
-The test step is no longer a blanket `-p 1`. Only the packages that boot the
-DagNats engine (NATS + durable workflows) need serializing; everything else has
-no such constraint. `scripts/test-web.sh` detects the engine packages, runs
-those `-p 1` in the foreground, and runs every other package at default
-parallelism **at the same time** — so the parallel group hides under the
-engine's wall-clock. Measured **~2m10 vs ~4m15** for the naive `-p 1` sweep,
-with identical coverage (verified stable under load and at `GOMAXPROCS=4`, the
-CI runner's size). `make coverage` keeps `-p 1` because a single `coverage.out`
-requires every package in one invocation.
+The suite used to run as one `-p 1` sweep "for DagNats engine stability". That
+diagnosis was wrong: the engine packages bound **fixed ports** (18091/18097/
+18098/18099) and two packages grabbed the same 18099, so under `-p N` one lost
+the bind with `address already in use`. It read as starvation; it was a port
+collision.
+
+Every DagNats test now binds an **ephemeral** HTTP port (`127.0.0.1:0`) and
+reads the real address back from `srv.HTTPAddr()`. Nothing needs serializing:
+`scripts/test-web.sh` is now a plain parallel run — measured **~1m50 vs ~4m15**
+for the old sweep (verified stable across repeated runs and at `GOMAXPROCS=2`
+and `=4`). Two tests must still use a fixed NON-HTTP port: NATS itself, because
+the test has to name it to connect; those are distinct (4222 vs 4223 vs 4224 vs
+14222) so they do not clash. `make coverage` keeps `-p 1`: a single
+`coverage.out` needs every package in one invocation.
 
 T2 must be green before T3 — lint and format errors fail the build downstream,
 so running tests on a known-linted codebase saves re-runs.

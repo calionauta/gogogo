@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 
@@ -26,6 +27,24 @@ import (
 	"github.com/calionauta/gogogo/web/resources"
 )
 
+// noBrowserEnv, when "1", suppresses PocketBase's first-run installer so it
+// does not launch a browser (see suppressInstaller).
+const noBrowserEnv = "GOGOGO_NO_BROWSER"
+
+// suppressInstaller clears the ServeEvent's InstallerFunc so PocketBase skips
+// apis.DefaultInstallerFunc — which mints a pbinstall token and calls
+// osutils.LaunchURL, opening a browser tab on the machine running the process.
+// A test booting the real binary with a throwaway DATA_DIR hits this every run.
+func suppressInstaller(app *pocketbase.PocketBase) {
+	app.OnServe().Bind(&hook.Handler[*core.ServeEvent]{
+		Priority: 100, // after apis/serve.go assigns the default, before it reads
+		Func: func(se *core.ServeEvent) error {
+			se.InstallerFunc = nil
+			return se.Next()
+		},
+	})
+}
+
 // Init registers custom routes on PocketBase's serve event.
 // Call before pb.Start(). Pass todoH as the
 // same handler instance the caller used for RegisterHandlers so the
@@ -37,6 +56,19 @@ func Init(
 	js nats.JetStreamLike,
 	todoH *handlers.TodoHandler,
 ) {
+	// Suppress PocketBase's first-run installer when this process is not meant
+	// to be administered interactively. The default installer (apis/
+	// DefaultInstallerFunc) mints a pbinstall token and calls
+	// osutils.LaunchURL — which OPENS A BROWSER on whatever machine runs the
+	// process. Tests boot the real binary with a throwaway DATA_DIR, so every
+	// run popped a browser tab pointing at a server that had not bound yet
+	// ("127.0.0.1 refused to connect"). GOGOGO_NO_BROWSER=1 (set by the test
+	// harness) skips it; the superuser can still be created with
+	// `web superuser upsert EMAIL PASS`.
+	if os.Getenv(noBrowserEnv) == "1" {
+		suppressInstaller(app)
+	}
+
 	app.OnServe().Bind(&hook.Handler[*core.ServeEvent]{
 		Priority: -100,
 		Func: func(se *core.ServeEvent) error {

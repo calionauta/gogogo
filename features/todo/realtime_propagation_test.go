@@ -350,6 +350,11 @@ func bootLiveServer(t *testing.T) (string, func()) {
 		"ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		"DAGNATS_ENABLED=false",
 		"NATS_ENABLED=false",
+		// A throwaway DATA_DIR has no superuser, so PocketBase would run its
+		// first-run installer and call LaunchURL — popping a browser tab on
+		// the developer's machine pointing at a server that has not bound
+		// yet. Suppress it (router.Init honors this).
+		"GOGOGO_NO_BROWSER=1",
 	}
 	proc := exec.CommandContext(context.Background(), bin, "serve", "--http", "127.0.0.1:"+strconv.Itoa(port))
 	proc.Env = append(os.Environ(), env...)

@@ -9,8 +9,19 @@ package router
 import (
 	"net/http"
 
+	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// SuppressInstallerForTest exposes suppressInstaller so the installer
+// suppression can be asserted with a bare app, without booting a full
+// router.Init (which needs a config, queue and handlers).
+func SuppressInstallerForTest(app *pocketbase.PocketBase) {
+	suppressInstaller(app)
+}
+
+// NoBrowserEnvForTest exposes the env var name so a test does not hardcode it.
+const NoBrowserEnvForTest = noBrowserEnv
 
 // MountDagNatsDashboardForTest exposes mountDagNatsDashboard so the proxy's
 // routing can be asserted from an external test package. The function is

@@ -13,8 +13,11 @@ pkill -x web
 lsof -ti :18099 | xargs kill
 ```
 
-Then re-run. `make test` serializes packages with `-p 1` for DagNats engine
-stability, but a leftover process on the port defeats that.
+Then re-run. Two things can put a stale listener on `:18099`/`:4224`: a
+leftover `go run`/`web` binary, or **two packages binding the same fixed port**
+under `-p N`. The suite no longer has the second problem — every DagNats test
+binds an ephemeral HTTP port now (see `docs/local-ci.md`), so this is almost
+always the orphan-process case.
 
 ## The commit was aborted but every hook job showed green
 
