@@ -67,6 +67,32 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+### Why the browser smoke test stays on Playwright
+
+The browser engine was re-evaluated (2026-10) because `scripts/smoke.mjs` costs
+~8.9s. Two lighter candidates were measured against the real server, and both
+were rejected for a *capability* reason, not a speed one:
+
+| | Playwright | ghostchrome | Lightpanda |
+|---|---|---|---|
+| `navigator.serviceWorker` | ✅ | ✅ | ❌ `undefined` |
+| `caches` (Cache Storage) | ✅ | ✅ | ❌ `undefined` |
+| offline emulation | `context.setOffline()` | ❌ no command | ❌ |
+| warm command latency | ~1.3s (Node per call) | ~0.03s | ~0.1s |
+| full smoke run | 8.9s | — | — |
+
+Lightpanda has no `serviceWorker` and no Cache Storage — its own README
+`Status` list omits both — so the offline path (Service Worker + IndexedDB
+outbox + replay on reconnect) cannot run at all. ghostchrome drives real
+Chrome and is ~300× faster per call, but exposes **no** offline-emulation verb,
+and `scripts/smoke.mjs` calls `context.setOffline(true)` seven times; it is
+also a CLI, not a library, so it cannot assert in-page JS state.
+
+The cost is not the problem anyway: 8.9s is ~5% of `ci-local` next to
+`features/todo`'s 150s. Switching would trade the coverage that makes the test
+worth running for a number nobody is waiting on. Re-evaluate only if the smoke
+test grows past ~30s, or if a candidate ships offline emulation.
+
 ### Tests run in parallel across packages
 
 The suite used to run as one `-p 1` sweep "for DagNats engine stability". That
