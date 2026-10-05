@@ -37,3 +37,22 @@ Nothing today. When the first kernel passes the gate, vendor exactly one pinned 
 | 0.17.x | `zigcc/skills --skill zig-0.17` | 0.16 + 0.17 migration notes |
 
 Never float latest, never vendor two versions, never use a 0.17-dev snapshot for stable work. Style: add `zig-tiger-style` only alongside the pinned version skill.
+
+## API truth vs. style guidance (read before trusting any Zig skill)
+
+**There is no official Zig skill published by the Zig team.** `ziglang.org`
+ships release notes and the language reference, nothing agent-shaped. So a
+third-party skill is *never* the source of truth for an API — it is a snapshot
+of someone's reading of one release, and Zig breaks APIs between releases more
+than most languages.
+
+| Source | Status | Use it for |
+|---|---|---|
+| **ZLS** ([zigtools/zls](https://github.com/zigtools/zls)) | community-maintained (the `zigtools` org, not `ziglang`), and the tooling the Zig community points at; releases are version-matched to Zig | **API truth.** Diagnostics, completions, go-to-definition, hover. If ZLS disagrees with a skill, ZLS wins — it reads the actual compiler. |
+| `zig env` + `<lib_dir>/../doc/langref.html` + `.std_dir` sources | ships with the toolchain | **API truth for the pinned version.** Local and exact. |
+| `zigcc/skills` (the table above) | **community project** — zigcc is the Chinese-language Zig community at ziglang.cc, not `ziglang` | **Style and orientation.** Idioms, migration shape, what to expect to have changed. Verify every signature against ZLS before writing it. |
+| `nzrsky/zig-skills`, `full-stack-skills/zig-skills`, similar | individual / AI-org projects | Same as above with less track record. Prefer `zigcc/skills` when pinning a version skill. |
+
+Concretely: when an agent writes a Zig call, it confirms the signature with ZLS
+or the local std sources. A vendored skill shortens the search; it does not end
+it. If the host exposes ZLS over MCP, prefer that over any skill text.

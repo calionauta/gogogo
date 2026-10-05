@@ -78,6 +78,7 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 - Zero Zig in tree today. No vendored Zig skill until the first kernel passes the gate.
 - Bans: "Zig is faster", manual memory, low-level, speculation, preference, avoiding a Go dep.
 - When vendoring: exactly 1 pinned skill matching the toolchain (`zig-0.16` or `0.17`), never floating latest.
+- **API truth is ZLS, never a skill.** No Zig-team skill exists; `zigcc/skills` is a community project. Confirm signatures with ZLS or the local std sources (`zig env`) before writing a call.
 
 ## Enforcement (authoritative)
 
