@@ -58,6 +58,29 @@ case <-t.C:
 }
 ```
 
+In a `for {}` loop this matters more: `time.After` allocates a new Timer every
+idle tick. Keep one timer and `Reset` it — `internal/queue/workers.go` had this
+bug (4 workers x ~1/s, one allocation each, forever):
+
+```go
+idle := time.NewTimer(d)
+defer idle.Stop()
+for {
+    // ... work ...
+    if idleAgain {
+        idle.Reset(d)
+        select {
+        case <-ctx.Done():
+            return
+        case <-idle.C:
+        }
+    }
+}
+```
+
+Before `Reset` on a timer whose channel may still hold a value, drain it:
+`if !t.Stop() { select { case <-t.C: default: } }`.
+
 ## Mutex vs atomic
 
 - `sync.Mutex`/`RWMutex` zero value is valid; keep as unexported `mu`, never embed. Short sections, never across I/O.
