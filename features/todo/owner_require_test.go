@@ -231,34 +231,15 @@ func TestIntegration_AnonymousStreamSeesNoTodos(t *testing.T) {
 	stream := openSSEWithCtx(ctx, t, base, "anon-leak-probe")
 	defer func() { _ = stream.Body.Close() }()
 
-	// Collect ~2s of stream bytes: the initial MergeSignals (with the
-	// todo list) arrive immediately; the heartbeat/client broadcasts
-	// that follow carry no titles.
-	type chunk struct {
-		n   int
-		err error
-	}
-	buf := make([]byte, 0, 65536)
-	tmp := make([]byte, 4096)
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		done := make(chan chunk, 1)
-		go func() {
-			n, err := stream.Body.Read(tmp)
-			done <- chunk{n, err}
-		}()
-		select {
-		case c := <-done:
-			if c.n > 0 {
-				buf = append(buf, tmp[:c.n]...)
-			}
-		case <-time.After(500 * time.Millisecond):
-		}
-		if strings.Contains(string(buf), `"itemCount"`) {
-			break
-		}
-	}
-	body := string(buf)
+	// Collect up to ~2s of stream bytes: the initial MergeSignals (with the
+	// todo list) arrives immediately; the heartbeat/client broadcasts that
+	// follow carry no titles. pumpSSEUntil enforces the window even while a
+	// read is parked, so this returns as soon as `itemCount` appears. The
+	// previous hand-rolled loop spawned a goroutine per Read attempt (one
+	// leaked per 500ms tick) to get the same guarantee.
+	body := pumpSSEUntil(t, stream, 2*time.Second, func(s string) bool {
+		return strings.Contains(s, `"itemCount"`)
+	})
 
 	if strings.Contains(body, "someone-private") {
 		t.Errorf("anonymous stream leaked another user's todo title")

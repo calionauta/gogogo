@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -15,6 +16,28 @@ import (
 	"testing"
 	"time"
 )
+
+// freeTCPPortForTest reserves an ephemeral TCP port and releases it, returning
+// the number for the child binary to bind. There is a small window between the
+// close here and the child's bind, but that is far narrower than the collision
+// a hardcoded port causes whenever anything else already holds it.
+func freeTCPPortForTest() (int, error) {
+	var lc net.ListenConfig
+	l, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	addr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		_ = l.Close()
+		return 0, fmt.Errorf("listener addr %T is not *net.TCPAddr", l.Addr())
+	}
+	port := addr.Port
+	if closeErr := l.Close(); closeErr != nil {
+		return 0, closeErr
+	}
+	return port, nil
+}
 
 // Seeded demo credentials (db/seed.go). /todo is auth-gated: without a session
 // it 303-redirects to /login, so any assertion about its HTML must run against
@@ -68,7 +91,12 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		t.Fatalf("build binary: %v\n%s", err, build.Stderr)
 	}
 
-	port := 18199
+	// Ephemeral port: a hardcoded one collides with anything else on the
+	// machine (a stray dev server, a parallel test package).
+	port, portErr := freeTCPPortForTest()
+	if portErr != nil {
+		t.Fatalf("reserve port: %v", portErr)
+	}
 	dataDir := filepath.Join(dir, "data")
 	// The queue boots before PocketBase creates --dir, and it opens
 	// DATABASE_PATH eagerly; a missing parent dir fails with "unable to open
@@ -98,9 +126,12 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		// another test package, a stray dev server — already holds them.
 		"NATS_ENABLED=false",
 		"DAGNATS_ENABLED=false",
-		// Belt-and-suspenders: router.Init already suppresses the first-run
-		// installer for a non-TTY process, but an explicit flag means a future
-		// change to that heuristic cannot start popping browser tabs again.
+		// Not belt-and-suspenders: the child's TTY status is inherited from
+		// whatever ran `go test`, so `make test` from a real terminal would
+		// otherwise let router.Init's interactive() detection pass and open a
+		// browser tab. An explicit flag is what makes this deterministic
+		// regardless of how the suite was invoked. Note it must come AFTER
+		// os.Environ() to win over any inherited value.
 		"GOGOGO_NO_BROWSER=1",
 	)
 	if err := cmd.Start(); err != nil {

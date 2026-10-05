@@ -43,23 +43,19 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 	// Wait for the "suggestions" signal to arrive with 3 items. The
 	// fake's 500→200 + delay means this lands after a retry + a slow
 	// response, so we allow a generous timeout.
+	//
+	// The predicate waits for the TERMINAL state, not just the suggestions
+	// signal: the signal lands first and the success toast follows a beat
+	// later, so stopping at the signal alone would return a transcript that
+	// still lacks the toast the assertions below require.
+	//
+	// It also must parse each event's signals payload rather than the raw
+	// transcript — a transcript is `event:`/`data:` lines and each payload
+	// is prefixed with `signals `, so unmarshalling the transcript (or a
+	// raw payload) always fails and the predicate would never fire, silently
+	// burning the whole timeout. See sseSignalPayloads.
 	full := pumpSSEUntil(t, stream, 14*time.Second, func(s string) bool {
-		if !strings.Contains(s, "\""+signalSuggestions+"\"") {
-			return false
-		}
-		var patch map[string]json.RawMessage
-		if err := json.Unmarshal([]byte(s), &patch); err != nil {
-			return false
-		}
-		raw, ok := patch[signalSuggestions]
-		if !ok {
-			return false
-		}
-		var sugg []string
-		if err := json.Unmarshal(raw, &sugg); err != nil {
-			return false
-		}
-		return len(sugg) == 3
+		return lastSuggestionsCount(s) == 3 && strings.Contains(s, "Got 3 suggestions")
 	})
 	if !strings.Contains(full, "\""+signalSuggestions+"\"") {
 		t.Fatalf("suggest-simulated: suggestions never arrived: %s", tailString(full, 600))
@@ -77,6 +73,35 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 	if !strings.Contains(full, "\"aiPending\":false") {
 		t.Fatalf("suggest-simulated: aiPending not cleared on success: %s", tailString(full, 600))
 	}
+}
+
+// lastSuggestionsCount returns the length of the most recent `suggestions`
+// signal in the transcript, or -1 when no such signal has arrived yet.
+//
+// Parsing the signals payload requires sseSignalPayloads: the transcript is
+// `event:`/`data:` lines, and each payload additionally carries a `signals `
+// prefix, so neither is JSON on its own.
+func lastSuggestionsCount(transcript string) int {
+	count := -1
+	for _, payload := range sseSignalPayloads(transcript) {
+		if !strings.Contains(payload, "\""+signalSuggestions+"\"") {
+			continue
+		}
+		var patch map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(payload), &patch); err != nil {
+			continue
+		}
+		raw, ok := patch[signalSuggestions]
+		if !ok {
+			continue
+		}
+		var sugg []string
+		if err := json.Unmarshal(raw, &sugg); err != nil {
+			continue
+		}
+		count = len(sugg)
+	}
+	return count
 }
 
 // TestIntegration_SuggestSimulatedShowsRetryFeedback asserts the worker's

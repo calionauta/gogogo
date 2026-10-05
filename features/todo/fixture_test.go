@@ -1,6 +1,7 @@
 package todo_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/db"
@@ -79,6 +81,20 @@ func buildFixture(t *testing.T, simClient *llm.Client) (
 		t.Fatalf("create todos collection: %v", collErr)
 	}
 
+	// Drop the users password field's bcrypt cost to the minimum. The v0.23
+	// migration sets bcrypt.DefaultCost (10), and under -race that single
+	// hash costs ~1.0s (vs ~94ms without the detector, ~28ms at cost 4). The
+	// fixture seeds a demo user on every one of its ~38 call sites, so the
+	// default cost alone was ~39s of the package's runtime. Cost is a
+	// per-collection field (core.PasswordField.Cost), not a global, so this
+	// changes nothing outside the test app — and the hash is still a real
+	// bcrypt hash, so password validation is genuinely exercised.
+	if costErr := lowerPasswordCost(app); costErr != nil {
+		mustReset(t, app)
+		os.RemoveAll(tmpDir)
+		t.Fatalf("lower password cost: %v", costErr)
+	}
+
 	q, err := queue.New(cfg)
 	if err != nil {
 		mustReset(t, app)
@@ -116,7 +132,6 @@ func buildFixture(t *testing.T, simClient *llm.Client) (
 
 	// Bind the auth cookie middleware BEFORE routes so every route
 	// (todo + auth) populates c.Auth from the gogogo_auth cookie.
-	auth.CookieSecure = false
 	r.BindFunc(auth.LoadAuthFromCookie)
 
 	// Wire todo + auth routes onto the same router. Order matters:
@@ -240,6 +255,23 @@ func readBody(t *testing.T, resp *http.Response) string {
 		}
 	}
 	return string(buf)
+}
+
+// lowerPasswordCost drops the users password field's bcrypt cost to the
+// minimum so the per-test demo-user seed is not the dominant cost of the
+// package. See the call site for the measurements. The cost lives on the
+// collection's password field, so this is scoped to the test app.
+func lowerPasswordCost(app core.App) error {
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		return err
+	}
+	pw, ok := col.Fields.GetByName("password").(*core.PasswordField)
+	if !ok {
+		return fmt.Errorf("users.password is %T, want *core.PasswordField", col.Fields.GetByName("password"))
+	}
+	pw.Cost = bcrypt.MinCost
+	return app.Save(col)
 }
 
 // seedDemoUserInline runs the demo-user seed synchronously so tests

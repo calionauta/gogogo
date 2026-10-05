@@ -41,11 +41,12 @@ const noBrowserEnv = "GOGOGO_NO_BROWSER"
 // automated context it pops a tab the developer did not ask for, pointing at a
 // server that may not have bound yet ("127.0.0.1 refused to connect").
 //
-// Both stdin and stdout must be character devices. Checking stdin catches the
-// test/CI case (pipes, `/dev/null`, sockets); checking stdout catches a daemon
-// started with stdin inherited from the shell but output redirected to a log.
-// One-liner automation that uses a PTY still gets the old behaviour, which is
-// why GOGOGO_NO_BROWSER exists as an explicit override.
+// Both stdin and stdout must be character devices, and stdin must additionally
+// be a real terminal rather than a character device like /dev/null. Checking
+// stdin catches the test/CI case (pipes, `/dev/null`, sockets); checking stdout
+// catches a daemon started with stdin inherited from the shell but output
+// redirected to a log. One-liner automation that uses a PTY still gets the old
+// behaviour, which is why GOGOGO_NO_BROWSER exists as an explicit override.
 func interactive() bool {
 	if os.Getenv(noBrowserEnv) == "1" {
 		return false
@@ -53,15 +54,28 @@ func interactive() bool {
 	if os.Getenv(noBrowserEnv) == "0" {
 		return true
 	}
-	return isCharDevice(os.Stdin) && isCharDevice(os.Stdout)
+	return isTerminal(os.Stdin) && isTerminal(os.Stdout)
 }
 
-func isCharDevice(f *os.File) bool {
+// isTerminal reports whether f is an interactive terminal (a TTY), as opposed
+// to a pipe, a socket, a regular file, or /dev/null.
+//
+// os.ModeCharDevice alone is NOT enough: /dev/null is a character device, so a
+// bare mode-bit check reports "a terminal" for `< /dev/null > /dev/null 2>&1`
+// — exactly the background-daemon shape that must never pop a browser. Stat'ing
+// os.DevNull and comparing file identity closes that hole without a dependency.
+func isTerminal(f *os.File) bool {
 	info, err := f.Stat()
 	if err != nil {
 		return false
 	}
-	return info.Mode()&os.ModeCharDevice != 0
+	if info.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	if devNull, nullErr := os.Stat(os.DevNull); nullErr == nil && os.SameFile(info, devNull) {
+		return false
+	}
+	return true
 }
 
 // suppressInstaller clears the ServeEvent's InstallerFunc so PocketBase skips

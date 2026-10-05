@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -17,6 +19,32 @@ import (
 	"testing"
 	"time"
 )
+
+// freeTCPPort reserves an ephemeral TCP port and releases it, returning the
+// number for a child process to bind.
+//
+// There is an unavoidable window between the close here and the child's bind,
+// but it is far smaller than the fix it replaces: a hardcoded port collides
+// with anything already listening (a stray dev server, another test package),
+// which is a real and recurring failure. Passing PORT=0 is not an option — the
+// binary's start banner prints the literal "0", not the port it actually bound.
+func freeTCPPort() (int, error) {
+	var lc net.ListenConfig
+	l, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	addr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		_ = l.Close()
+		return 0, fmt.Errorf("listener addr %T is not *net.TCPAddr", l.Addr())
+	}
+	port := addr.Port
+	if closeErr := l.Close(); closeErr != nil {
+		return 0, closeErr
+	}
+	return port, nil
+}
 
 // TestCrossSessionCreatePropagates is the regression guard for the exact
 // bug the user hit: creating a todo in one tab must surface in another
@@ -340,7 +368,14 @@ func bootLiveServer(t *testing.T) (string, func()) {
 	}
 
 	tmpDir := t.TempDir()
-	port := 8291
+	// Ephemeral port. This was hardcoded to 8291, which made the test fail
+	// whenever anything else on the machine held it — the same fixed-port
+	// flake class already fixed for the DagNats tests. Binding 0 and reading
+	// the real port back from the banner removes the collision entirely.
+	port, portErr := freeTCPPort()
+	if portErr != nil {
+		t.Fatalf("reserve port: %v", portErr)
+	}
 	env := []string{
 		"ENVIRONMENT=development",
 		"HOST=127.0.0.1",
@@ -352,12 +387,17 @@ func bootLiveServer(t *testing.T) (string, func()) {
 		"NATS_ENABLED=false",
 		// A throwaway DATA_DIR has no superuser, so PocketBase would run its
 		// first-run installer and call LaunchURL — popping a browser tab on
-		// the developer's machine pointing at a server that has not bound
-		// yet. Suppress it (router.Init honors this).
+		// the developer's machine. router.Init suppresses that for a non-TTY
+		// child, and this flag makes it unconditional: the child's TTY status
+		// is inherited from whatever ran `go test`, so relying on detection
+		// alone would let `go test` from a real terminal through.
 		"GOGOGO_NO_BROWSER=1",
 	}
 	proc := exec.CommandContext(context.Background(), bin, "serve", "--http", "127.0.0.1:"+strconv.Itoa(port))
-	proc.Env = append(os.Environ(), env...)
+	// Build the env from scratch rather than appending to os.Environ(): an
+	// inherited GOGOGO_NO_BROWSER=0 (or an ENVIRONMENT/PORT override) would
+	// silently re-enable the browser launch this test exists to avoid.
+	proc.Env = env
 	proc.Stderr = os.Stderr
 	if err := proc.Start(); err != nil {
 		t.Fatalf("start live server: %v", err)

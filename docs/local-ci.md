@@ -51,9 +51,10 @@ push/merge, or (b) the change touches an area the next tier checks.
 ### Why the full gate is slow, and the fast sibling
 
 The full run is dominated by `go test -race`, and within it by
-`features/todo` (a real PocketBase + goqite + SSE fixture per test, ~90s, over
+`features/todo` (a real PocketBase + goqite + SSE fixture per test, ~70s, over
 60% of the suite). Everything else is cheap: templ ~1s, css-check ~5s,
-check-scope <1s, lint ~10s, Playwright ~3s when cached.
+check-scope <1s, lint ~10s, Playwright ~3s when cached. Measured `ci-local`:
+**~110s** end to end.
 
 `make ci-local-fast` runs the same cheap-but-decisive checks
 (`templ`, `datastar-lint`, `css-check`, `check-scope`) plus **scoped** lint and
@@ -89,9 +90,42 @@ and `scripts/smoke.mjs` calls `context.setOffline(true)` seven times; it is
 also a CLI, not a library, so it cannot assert in-page JS state.
 
 The cost is not the problem anyway: 8.9s is ~5% of `ci-local` next to
-`features/todo`'s 150s. Switching would trade the coverage that makes the test
+`features/todo`'s ~70s. Switching would trade the coverage that makes the test
 worth running for a number nobody is waiting on. Re-evaluate only if the smoke
 test grows past ~30s, or if a candidate ships offline emulation.
+
+### Two test-harness footguns that masqueraded as slowness
+
+Both were found while investigating why `features/todo` took 148s. Neither was
+really a performance problem — each was a bug that made a test wait for
+something it would never get, or for longer than it asked.
+
+**1. A parked `Read` ignores the deadline.** An SSE pump written as
+
+```go
+for time.Now().Before(deadline) {
+    n, err := stream.Body.Read(buf) // blocks until the next event
+    ...
+}
+```
+
+does not honour `deadline`: the condition is only re-checked *after* a Read
+returns, so a silent stream waits one full heartbeat
+(`config.DefaultSSEHeartbeatInterval`, 15s) regardless of the window asked for.
+A caller requesting 6s got 15.5s. The fix is to read in a goroutine and
+`select` on a timer, closing the body on expiry so the reader unblocks — see
+`pumpSSEUntil` in `features/todo/sse_test.go`, guarded by
+`TestPumpSSEUntil_HonorsDeadlineWhileReadParked`.
+
+**2. Parsing the SSE transcript as JSON.** A transcript is `event:`/`data:`
+lines, and each Datastar payload additionally carries a literal `signals `
+prefix (`datastar.SignalsDatalineLiteral`). So both
+`json.Unmarshal(transcript, …)` and `json.Unmarshal(payload, …)` always fail —
+and a predicate built on them can never fire, silently burning its entire
+timeout. Use `sseSignalPayloads`, which strips both layers.
+
+Both bugs inflate wall-clock while looking like a slow suite, so the fix is a
+helper with the guarantee, not a shorter timeout.
 
 ### Tests run in parallel across packages
 

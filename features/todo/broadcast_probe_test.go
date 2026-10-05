@@ -7,6 +7,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -59,8 +60,18 @@ func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
 			strings.Contains(s, `"event":"toggled"`) ||
 			strings.Contains(s, `"event":"deleted"`)
 	}
-	fullA := pumpSSEUntil(t, streamA, 6*time.Second, recordEvent)
-	fullB := pumpSSEUntil(t, streamB, 6*time.Second, recordEvent)
+	// Negative assertion: there is no event to short-circuit on, so both
+	// streams are drained for the full window (pumpSSEFor states that
+	// intent). The two drains are independent, so they run concurrently —
+	// serially this was 6s + 6s of dead time for one negative assertion.
+	var (
+		wg           sync.WaitGroup
+		fullA, fullB string
+	)
+	wg.Add(2)
+	go func() { defer wg.Done(); fullA = pumpSSEFor(t, streamA, sseAbsenceWindow) }()
+	go func() { defer wg.Done(); fullB = pumpSSEFor(t, streamB, sseAbsenceWindow) }()
+	wg.Wait()
 
 	if recordEvent(fullA) {
 		t.Fatalf("origin client wrongly received a record event via the hub "+

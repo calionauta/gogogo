@@ -83,16 +83,27 @@ func TestInteractive_EnvOverride(t *testing.T) {
 	}
 }
 
-// TestIsCharDevice_RegularFileIsNot guards the predicate itself: a regular
-// file must not count as a terminal, which is the whole point of checking the
-// mode bit rather than mere Stat() success.
-func TestIsCharDevice_RegularFileIsNot(t *testing.T) {
+// TestIsTerminal_NonTerminalsAreRejected guards the predicate itself. A regular
+// file and /dev/null must both be rejected: /dev/null in particular is a
+// character device, so a bare mode-bit check would call it a terminal and let a
+// background daemon with `< /dev/null` open a browser.
+func TestIsTerminal_NonTerminalsAreRejected(t *testing.T) {
 	f, err := os.CreateTemp(t.TempDir(), "notatty")
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
 	defer f.Close()
-	if approuter.IsCharDeviceForTest(f) {
-		t.Fatal("a regular file must not be reported as a character device")
+	if approuter.IsTerminalForTest(f) {
+		t.Fatal("a regular file must not be reported as a terminal")
+	}
+
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatalf("open %s: %v", os.DevNull, err)
+	}
+	defer devNull.Close()
+	if approuter.IsTerminalForTest(devNull) {
+		t.Fatalf("%s is a character device but NOT a terminal; treating it as one\n"+
+			"lets a background daemon open a browser", os.DevNull)
 	}
 }

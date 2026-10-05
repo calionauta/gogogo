@@ -1,3 +1,24 @@
+## [0.31.1] - 2026-10-05
+
+### Fixed
+
+- **A browser tab opened on every run that spawns the real binary.** PocketBase's first-run installer mints a `pbinstall` token and calls `osutils.LaunchURL`; a test booting the binary with a throwaway `DATA_DIR` has no superuser, so it fired every time — usually pointing at a server that had not bound, hence the "127.0.0.1 refused to connect" tab. `router.Init` suppressed it only when `interactive()` was false, but a child inherits the parent's TTY: `make test` from a real terminal made the child look interactive too. `isCharDevice` was also the wrong predicate — `/dev/null` is a character device — so `< /dev/null > /dev/null` passed as a terminal. Now `isTerminal` rejects `/dev/null` explicitly, and every test that spawns the binary sets `GOGOGO_NO_BROWSER=1` in an env built from scratch (an inherited `=0` no longer wins).
+- **The SSE test pump did not honour its timeout.** `pumpSSEUntil` checked its deadline only between `Body.Read` calls, and `Read` blocks until the next event — so a caller asking for a 6s window waited one full heartbeat (15s). `TestTodoRecordsNotBroadcastViaHub` took 15.5s for a 6s negative assertion. The read now runs in a goroutine with a timer select that closes the body on expiry.
+- **An SSE predicate that could never fire burned its whole timeout.** `TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult` unmarshalled the raw SSE transcript as JSON, which is `event:`/`data:` lines and carries a `signals ` prefix on each payload, so `json.Unmarshal` always failed: the test waited the full 14s and passed on a later assertion. Now parses via `sseSignalPayloads`. 15.5s → 5.0s.
+- **A data race in the todo fixture.** Four test fixtures assigned `auth.CookieSecure = false` — its zero value, so a no-op write — which is a genuine race as soon as two tests in a package overlap (surfaced on the first attempt to add `t.Parallel()`). The assignments are deleted and the constraint documented on the variable: set shared state once in `TestMain`, never in a fixture.
+- **Two more fixed ports in tests.** `bootLiveServer` hardcoded `8291` and `cmd/web/smoke_test.go` hardcoded `18199` — the same collision class already fixed for the DagNats tests. Both now reserve an ephemeral port.
+
+### Changed
+
+- **`features/todo` race suite: 148s → ~70s**, and `make ci-local` to ~110s, with no change in coverage and zero races. `owner_require_test.go`'s per-Read goroutine loop (one leaked goroutine per 500ms tick) now uses the shared pump.
+- **New ruleguard rule `BlockingReadBehindDeadline`** flags a `Body.Read` inside a `for time.Now().Before(deadline)` loop in tests — the construct above, made mechanical instead of prose.
+
+### Verification
+
+- `make ci-local` green (templ + datastar-lint + css-check + check-scope + golangci-lint + race tests + build + Playwright smoke)
+- Red-proofs: reverting `isTerminal` fails `TestIsTerminal_NonTerminalsAreRejected`; reverting `pumpSSEUntil` makes `TestPumpSSEUntil_HonorsDeadlineWhileReadParked` hang; the new ruleguard rule fires on the bad loop and stays silent on the fixed helper
+- A `PATH` shim intercepting `open` records zero browser launches across the full `ci-local`
+
 ## [0.31.0] - 2026-10-04
 
 ### Added

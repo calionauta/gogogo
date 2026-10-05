@@ -30,9 +30,10 @@ func InteractiveForTest() bool {
 	return interactive()
 }
 
-// IsCharDeviceForTest exposes isCharDevice for the same reason.
-func IsCharDeviceForTest(f *os.File) bool {
-	return isCharDevice(f)
+// IsTerminalForTest exposes isTerminal so the predicate that gates
+// browser-launching can be asserted directly.
+func IsTerminalForTest(f *os.File) bool {
+	return isTerminal(f)
 }
 
 // MountDagNatsDashboardForTest exposes mountDagNatsDashboard so the proxy's
