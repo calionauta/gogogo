@@ -67,10 +67,20 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+### Tests run in two parallel groups, not one serial sweep
+
+The test step is no longer a blanket `-p 1`. Only the packages that boot the
+DagNats engine (NATS + durable workflows) need serializing; everything else has
+no such constraint. `scripts/test-web.sh` detects the engine packages, runs
+those `-p 1` in the foreground, and runs every other package at default
+parallelism **at the same time** — so the parallel group hides under the
+engine's wall-clock. Measured **~2m10 vs ~4m15** for the naive `-p 1` sweep,
+with identical coverage (verified stable under load and at `GOMAXPROCS=4`, the
+CI runner's size). `make coverage` keeps `-p 1` because a single `coverage.out`
+requires every package in one invocation.
+
 T2 must be green before T3 — lint and format errors fail the build downstream,
-so running tests on a known-linted codebase saves re-runs. The `-p 1` in
-`make test` is unnecessary at the T3 tier because DagNats FD starvation only
-matters when running **across** packages.
+so running tests on a known-linted codebase saves re-runs.
 
 **The order:** edit → `make ci-local` (while iterating) → `git commit -F /tmp/msg`
 → `make signoff` → `git push origin master`.

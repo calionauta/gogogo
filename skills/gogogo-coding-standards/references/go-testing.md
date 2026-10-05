@@ -6,7 +6,13 @@ Enforced by: `thelper`, `testifylint`, `sloglint` + `make ci-local` (race, `-p 1
 
 - T3 scoped: `go test -race -count=1 <changed-pkg>`.
 - T3.5 fast gate: `make ci-local-fast` — cheap checks + race tests for the changed packages only (~2-30s). Use while iterating.
-- T4 gate: `make ci-local` (templ + datastar-lint + css-check + check-scope + lint + `go test -race -p 1` + build + smoke). T5: `make signoff` stamps.
+- T4 gate: `make ci-local` (templ + datastar-lint + css-check + check-scope + lint + race tests + build + smoke). T5: `make signoff` stamps.
+
+The suite runs in two parallel groups (`scripts/test-web.sh`): only the
+packages that boot the DagNats engine need `-p 1`; the rest run at default
+parallelism concurrently. Measured ~2m10 vs ~4m15 for one serial sweep.
+When constructing coverage across packages, keep `-p 1` (a single
+`coverage.out` needs one invocation).
 
 ## SQLite timeouts: the flake that looks like noise
 

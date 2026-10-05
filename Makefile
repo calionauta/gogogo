@@ -77,22 +77,20 @@ clean:
 	@find . -name '*.log' -delete
 
 test:
-	# DagNats boots an embedded NATS + durable-workflow engine per package
-	# that tests it; running those packages in parallel under -race starves
-	# the engine and causes flaky timeouts. -p 1 serializes packages so the
-	# engine always gets enough CPU to complete runs within the test timeout.
-	# cmd/desktop is a separate Wails target (needs GTK/WebKit libs only on
-	# desktop build hosts); exclude it exactly as CI does.
-	@PKGS=$$(bash scripts/web-packages.sh); \
-		go test -race -p 1 $$PKGS -count=1
+	# The DagNats engine (embedded NATS + durable workflows) starves when its
+	# packages run in parallel under -race, so THOSE packages stay -p 1 — but
+	# only those. scripts/test-web.sh splits the suite: engine packages
+	# serialize while everything else runs at default parallelism, at the same
+	# time. Roughly half the wall-clock of one blanket `-p 1` sweep, same
+	# coverage. cmd/desktop is a separate Wails target (needs GTK/WebKit libs
+	# only on desktop build hosts); web-packages.sh excludes it as CI does.
+	@bash scripts/test-web.sh -race -count=1
 
-# test-fast is the tight TDD loop. It keeps -p 1 (so the DagNats
-# embedded-engine stability holds) but drops -race, which is the
-# dominant cost of the full gate (~5min -> ~1min). Use it for
-# red/green iteration; run `test` (or `make ci-local`) before commit.
+# test-fast is the tight TDD loop. Same split as `test` but drops -race,
+# which is the dominant cost of the full gate. Use it for red/green
+# iteration; run `test` (or `make ci-local`) before commit.
 test-fast:
-	@PKGS=$$(bash scripts/web-packages.sh); \
-		go test -p 1 $$PKGS -count=1
+	@bash scripts/test-web.sh -count=1
 
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
 # v5). Idempotent. Run once after cloning; CI calls this in the
@@ -181,13 +179,14 @@ deadcode:
 # generated CSS is up to date. make setup installs the blocking
 # pre-commit hook that enforces the same gate on every commit.
 # ci-local runs the same quality gate as CI but locally, so you can
-# catch issues before pushing. Runs lint, tests (-p 1 for DagNats
-# engine stability), and a single unified build — no more tag matrix.
+# catch issues before pushing. Runs lint, tests (engine packages serialized,
+# the rest in parallel — see scripts/test-web.sh), and a single unified build
+# — no more tag matrix.
 ci-local: templ datastar-lint css-check check-scope
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
-	@echo "→ tests (unified, -p 1 for DagNats engine stability)"
-	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1
+	@echo "→ tests (engine serialized, rest parallel)"
+	@bash scripts/test-web.sh -race -count=1
 	@echo "→ build (single build, reused by the smoke test)"
 	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
 	@echo "→ browser smoke test (Playwright)"
@@ -210,7 +209,7 @@ ci-local-fast: templ datastar-lint css-check check-scope
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
-	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else go test -race -p 1 $$PKGS -count=1; fi
+	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else go test -race -count=1 $$PKGS; fi
 	@echo "✅ ci-local-fast passed (full gate before push: make ci-local)"
 
 # smoke boots the built binary in a headless browser, fails on uncaught client
@@ -274,6 +273,10 @@ docker-image: templ
 
 coverage:
 	@echo "→ Running tests with coverage..."
+	# -p 1 here on purpose: a single coverage.out needs every package's profile
+	# merged, and `go test` with -coverprofile writes one file per invocation.
+	# The parallel split in scripts/test-web.sh would need -coverprofile per
+	# group + `go tool covdata` merge; not worth it for an informational target.
 	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1 -coverprofile=coverage.out -covermode=atomic
 	@go tool cover -func=coverage.out | sort -k3 -r | head -30
 	@echo "---"

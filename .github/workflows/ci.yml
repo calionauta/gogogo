@@ -94,14 +94,12 @@ jobs:
       - name: CSS build
         run: make css
       - name: Test
-        # DagNats boots an embedded NATS + workflow engine per package under
-        # test; under -race, parallel packages starve the engine and cause
-        # flaky timeouts. Serialize packages (-p 1).
-        # Skip cmd/desktop: it is a Wails build that needs GTK/WebKit dev
-        # libraries only present on the desktop build runners, not here.
-        run: |
-          PKGS=$(bash scripts/web-packages.sh)
-          go test -race -p 1 $PKGS -v -count=1
+        # The DagNats engine starves when its packages run in parallel under
+        # -race, so those packages stay -p 1; everything else runs in parallel
+        # at the same time (scripts/test-web.sh) — same coverage, roughly half
+        # the wall-clock. Skip cmd/desktop: it is a Wails build needing
+        # GTK/WebKit dev libraries only present on the desktop runners.
+        run: bash scripts/test-web.sh -race -count=1 -v
       - name: Build
         run: go build -o /dev/null ./cmd/web/
       - name: Deadcode (advisory)
