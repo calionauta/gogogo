@@ -38,6 +38,9 @@ Formats default to `json` on this transport (humans get text on the CLI).
 Mutating tools return the same envelopes the CLI prints, including
 `buildOk:false` with compiler output instead of silence.
 
+Generated code follows `skills/gogogo-coding-standards/SKILL.md`
+(Go rules; `advise_stack` output cites it).
+
 ## Security notes (read before enabling)
 
 These tools delete files, rewrite imports, run `go mod tidy`, and execute

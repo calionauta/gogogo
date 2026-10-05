@@ -26,6 +26,8 @@ go run ./cmd/gogogo --name my-app --owner myorg \
    proof `go build ./cmd/web`.
 6. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
    template before they add a dependency or a feature.
+   Generated code follows `skills/gogogo-coding-standards/SKILL.md`
+   (same Go rules `advise` cites).
 7. Prints `cd <dir> && make dev` — or, with `--run`, becomes dev itself
    by execing `make dev` in the new checkout (humans only; never returns,
    so agents must not use it).

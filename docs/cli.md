@@ -34,6 +34,8 @@ with the same flags (always tracks the latest commit; releases pin a version).
 - `add`/`trim` only touch scaffolded checkouts (`router/router.go` +
   `go.mod` must exist) — foreign Go codebases get guidance (`advise`),
   not merging.
+- Generated code follows `skills/gogogo-coding-standards/SKILL.md`
+  (Go rules; `advise` output cites it).
 
 Engine internals (alternatives analysis, trim tables, flag matrix):
 [`cmd/gogogo`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo).
