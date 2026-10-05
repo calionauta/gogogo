@@ -4,6 +4,7 @@ package installer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,7 +43,7 @@ func latestTag(ctx context.Context, client *http.Client, api, owner, repo string
 		return "", err
 	}
 	if doc.Tag == "" {
-		return "", fmt.Errorf("releases API: empty tag_name")
+		return "", errors.New("releases API: empty tag_name")
 	}
 	return doc.Tag, nil
 }

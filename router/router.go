@@ -27,9 +27,42 @@ import (
 	"github.com/calionauta/gogogo/web/resources"
 )
 
-// noBrowserEnv, when "1", suppresses PocketBase's first-run installer so it
-// does not launch a browser (see suppressInstaller).
+// noBrowserEnv, when "1", force-suppresses PocketBase's first-run installer
+// regardless of TTY detection (see suppressInstaller).
 const noBrowserEnv = "GOGOGO_NO_BROWSER"
+
+// interactive reports whether this process was started to be administered by a
+// human at a terminal, as opposed to by a test, a CI job, or a container
+// healthcheck.
+//
+// PocketBase's default installer mints a pbinstall token and calls
+// osutils.LaunchURL, which OPENS A BROWSER on whatever machine runs the
+// process. That is only desirable for a real first run at a terminal; in every
+// automated context it pops a tab the developer did not ask for, pointing at a
+// server that may not have bound yet ("127.0.0.1 refused to connect").
+//
+// Both stdin and stdout must be character devices. Checking stdin catches the
+// test/CI case (pipes, `/dev/null`, sockets); checking stdout catches a daemon
+// started with stdin inherited from the shell but output redirected to a log.
+// One-liner automation that uses a PTY still gets the old behaviour, which is
+// why GOGOGO_NO_BROWSER exists as an explicit override.
+func interactive() bool {
+	if os.Getenv(noBrowserEnv) == "1" {
+		return false
+	}
+	if os.Getenv(noBrowserEnv) == "0" {
+		return true
+	}
+	return isCharDevice(os.Stdin) && isCharDevice(os.Stdout)
+}
+
+func isCharDevice(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
 
 // suppressInstaller clears the ServeEvent's InstallerFunc so PocketBase skips
 // apis.DefaultInstallerFunc — which mints a pbinstall token and calls
@@ -56,16 +89,11 @@ func Init(
 	js nats.JetStreamLike,
 	todoH *handlers.TodoHandler,
 ) {
-	// Suppress PocketBase's first-run installer when this process is not meant
-	// to be administered interactively. The default installer (apis/
-	// DefaultInstallerFunc) mints a pbinstall token and calls
-	// osutils.LaunchURL — which OPENS A BROWSER on whatever machine runs the
-	// process. Tests boot the real binary with a throwaway DATA_DIR, so every
-	// run popped a browser tab pointing at a server that had not bound yet
-	// ("127.0.0.1 refused to connect"). GOGOGO_NO_BROWSER=1 (set by the test
-	// harness) skips it; the superuser can still be created with
-	// `web superuser upsert EMAIL PASS`.
-	if os.Getenv(noBrowserEnv) == "1" {
+	// Suppress PocketBase's first-run installer unless a human is running this
+	// at a terminal. See interactive() for why non-TTY (tests, CI, containers)
+	// must never trigger a browser launch. The superuser can always be created
+	// non-interactively with `web superuser upsert EMAIL PASS`.
+	if !interactive() {
 		suppressInstaller(app)
 	}
 

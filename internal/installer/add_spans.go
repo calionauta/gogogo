@@ -5,6 +5,7 @@
 package installer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -127,5 +128,5 @@ func findAnchor(dstLines []string, anchor spanAnchor) (int, error) {
 			return i + 1, nil
 		}
 	}
-	return -1, fmt.Errorf("cannot locate insertion anchor (evolved file?)")
+	return -1, errors.New("cannot locate insertion anchor (evolved file?)")
 }

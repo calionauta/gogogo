@@ -20,6 +20,7 @@ require (
 	github.com/ncruces/go-sqlite3 v0.35.5
 	github.com/pocketbase/dbx v1.12.0
 	github.com/pocketbase/pocketbase v0.40.4
+	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/starfederation/datastar-go v1.2.2
 	github.com/stripe/stripe-go/v80 v80.2.1
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24

@@ -1,10 +1,14 @@
 # Code quality
 
-The template ships a strict `golangci-lint` configuration (27 linters)
+The template ships a strict `golangci-lint` configuration (31 linters)
 designed to catch the kinds of mistakes LLMs make most often: unchecked errors,
 insecure patterns, broken context propagation, resource leaks, and inconsistent
 error wrapping. The goal is not to block development but to redirect agents
 toward correct Go idioms automatically.
+
+Rules the project learned by hand live in `rules/rules.go` and are loaded by
+`gocritic`'s `ruleguard` check (see [Custom rules](#custom-rules-ruleguard)
+below) — prose guidance that a linter can enforce is enforced instead.
 
 ## What the linters enforce
 
@@ -12,10 +16,10 @@ toward correct Go idioms automatically.
 |----------|---------|-----------------|
 | Correctness | `govet`, `staticcheck`, `errcheck`, `ineffassign`, `unused` | Shadowed variables, dead code, unchecked returns |
 | Error handling | `errorlint`, `nilerr`, `gosec` | Wrong `%w` formatting, returning nil inside an error path, hardcoded credentials |
-| Resource safety | `bodyclose`, `noctx` | HTTP bodies and contexts not closed or propagated |
+| Resource safety | `bodyclose`, `noctx`, `fatcontext`, `prealloc` | HTTP bodies and contexts not closed or propagated, nested `context.With*` inside loops, slices grown without a capacity hint |
 | Test quality | `thelper`, `testifylint`, `sloglint`, `containedctx` | Missing `t.Helper()`, `assert` vs `require` misuse, context embedded in structs |
 | Complexity | `gocyclo`, `gocognit`, `funlen` | Functions too long or too nested to hold in working memory |
-| Style | `revive`, `gocritic`, `tagliatelle`, `goconst`, `dupl`, `lll`, `modernize` | Non-idiomatic patterns, magic numbers, duplicated code, long lines |
+| Style | `revive`, `gocritic`, `tagliatelle`, `goconst`, `dupl`, `lll`, `modernize`, `perfsprint`, `usestdlibvars` | Non-idiomatic patterns, magic numbers, duplicated code, long lines, slow `fmt.Sprintf`, literal `"200"`/`"GET"` instead of `http.StatusOK`/`http.MethodGet` |
 | Formatting | `gofumpt` + `goimports` (formatters, not linters) | Compulsory consistent layout and import ordering |
 
 The configuration lives in `.golangci.yml` at the project root — read it if you
@@ -28,7 +32,7 @@ approach had a deeper issue.**
 
 | Command | What it checks |
 |---|---|
-| `make lint` | `go vet` + `golangci-lint` (27 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
+| `make lint` | `go vet` + `golangci-lint` (31 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
 | `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
 | `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → golangci-lint → race tests → build |
@@ -48,6 +52,35 @@ packages you touched. Always scope:
 ```bash
 golangci-lint run ./features/todo/... ./router/...
 ```
+
+## Custom rules (ruleguard)
+
+Some footguns are project-specific — no off-the-shelf linter covers them, so
+instructing an agent about them in prose is the only alternative. Instead they
+are encoded in **`rules/rules.go`** and loaded by `gocritic`'s built-in
+`ruleguard` engine (`.golangci.yml` →
+`linters.settings.gocritic.settings.ruleguard.rules`). CI fails on a hit, so
+the rule is enforced rather than merely documented.
+
+The current rule flags `<-time.After(...)` used directly as a `select` case:
+each evaluation allocates a `*time.Timer` that is not reclaimed until it fires,
+so in a loop every iteration another case wins leaks a timer for its full
+duration. The correct idiom is one `time.NewTimer` hoisted above the loop and
+`Reset` each iteration (`internal/queue/workers.go` is the reference fix).
+Matching the *receive* form rather than any `time.After` call keeps the
+legitimate one-shot `timeout := time.After(d)` above a loop unflagged.
+
+Adding a rule:
+
+- Patterns are **expressions**, not statements — `select { case ... }` does not
+  parse. Match the call and constrain with `.Where()` when context matters.
+- The file needs the `//go:build ruleguard` tag; `github.com/quasilyte/go-ruleguard/dsl`
+  is a build-time dependency declared in `go.mod`.
+- **Never duplicate a stock linter** — `perfsprint` already covers
+  `fmt.Sprintf` → `strconv`, so a rule for it would be pure noise.
+- Keep the set small. A rule with false positives teaches people to ignore the
+  linter. Verify a new rule against the real tree (`golangci-lint run ./...`)
+  before committing it.
 
 Full-repo lint is reserved for `make lint` and `make ci-local`.
 

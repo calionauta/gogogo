@@ -81,6 +81,11 @@ for {
 Before `Reset` on a timer whose channel may still hold a value, drain it:
 `if !t.Stop() { select { case <-t.C: default: } }`.
 
+This one is **linter-enforced**: `rules/rules.go` (ruleguard, loaded by
+`gocritic`) flags `<-time.After(...)` as a select case, so the next occurrence
+fails CI instead of shipping. A hoisted one-shot `timeout := time.After(d)` is
+intentionally not flagged.
+
 ## Mutex vs atomic
 
 - `sync.Mutex`/`RWMutex` zero value is valid; keep as unexported `mu`, never embed. Short sections, never across I/O.

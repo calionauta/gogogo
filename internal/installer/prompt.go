@@ -3,6 +3,7 @@ package installer
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -27,7 +28,7 @@ func validateName(name string) error {
 		)
 	}
 	if name == "gogogo" {
-		return fmt.Errorf("nothing to do — that is the template name itself")
+		return errors.New("nothing to do — that is the template name itself")
 	}
 	return nil
 }
@@ -162,7 +163,7 @@ func parseSelection(input string, options []string) (ids []string, all bool, err
 }
 
 func selectionError(tok string, options []string) error {
-	var numbered []string
+	numbered := make([]string, 0, len(options))
 	for i, id := range options {
 		numbered = append(numbered, fmt.Sprintf("%d=%s", i+1, id))
 	}

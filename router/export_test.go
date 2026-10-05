@@ -8,6 +8,7 @@ package router
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -22,6 +23,17 @@ func SuppressInstallerForTest(app *pocketbase.PocketBase) {
 
 // NoBrowserEnvForTest exposes the env var name so a test does not hardcode it.
 const NoBrowserEnvForTest = noBrowserEnv
+
+// InteractiveForTest exposes interactive so the non-TTY suppression decision
+// can be asserted without booting a server.
+func InteractiveForTest() bool {
+	return interactive()
+}
+
+// IsCharDeviceForTest exposes isCharDevice for the same reason.
+func IsCharDeviceForTest(f *os.File) bool {
+	return isCharDevice(f)
+}
 
 // MountDagNatsDashboardForTest exposes mountDagNatsDashboard so the proxy's
 // routing can be asserted from an external test package. The function is

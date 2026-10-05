@@ -84,7 +84,8 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 | Check | Command |
 |---|---|
 | Format | `golangci-lint` gate (not bare `gofumpt`; versions differ) |
-| Lint scoped | `golangci-lint run <changed-pkgs>` (27 linters, `.golangci.yml`) |
+| Lint scoped | `golangci-lint run <changed-pkgs>` (31 linters, `.golangci.yml`) |
+| Custom rules | `rules/rules.go` via `ruleguard` (`.golangci.yml` → `gocritic.settings.ruleguard`) — project footguns, CI-blocking |
 | Templ | `make templ && make datastar-lint` (when `.templ` changed) |
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
 | Tests | `go test -race -p 1 <pkgs>`; full `make ci-local`; stamp `make signoff` |

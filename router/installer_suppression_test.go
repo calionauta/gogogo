@@ -52,3 +52,47 @@ func TestNoBrowserEnv_IsTheDocumentedKey(t *testing.T) {
 	}
 	os.Unsetenv(approuter.NoBrowserEnvForTest)
 }
+
+// TestInteractive_NonTTYSuppresses is the regression guard for the second half
+// of the browser-tab bug: the env var alone was not enough, because two
+// harnesses (cmd/web/smoke_test.go and scripts/smoke.mjs) spawned the binary
+// without setting it. `go test` runs with a non-TTY stdin/stdout, so
+// interactive() must report false here without any env var being set — which
+// is exactly the condition under which a spawned test binary must not open a
+// browser.
+//
+// Red-proof: invert the final return of interactive() (report true
+// unconditionally) and this test fails on the `interactive()` assertion.
+func TestInteractive_NonTTYSuppresses(t *testing.T) {
+	t.Setenv(approuter.NoBrowserEnvForTest, "")
+	if approuter.InteractiveForTest() {
+		t.Fatal("interactive() = true under `go test` (non-TTY); a spawned test binary would open a browser")
+	}
+}
+
+// TestInteractive_EnvOverride pins both explicit overrides so a refactor that
+// drops them is caught.
+func TestInteractive_EnvOverride(t *testing.T) {
+	t.Setenv(approuter.NoBrowserEnvForTest, "1")
+	if approuter.InteractiveForTest() {
+		t.Fatal("GOGOGO_NO_BROWSER=1 must force non-interactive")
+	}
+	t.Setenv(approuter.NoBrowserEnvForTest, "0")
+	if !approuter.InteractiveForTest() {
+		t.Fatal("GOGOGO_NO_BROWSER=0 must force interactive (escape hatch for PTY-less automation)")
+	}
+}
+
+// TestIsCharDevice_RegularFileIsNot guards the predicate itself: a regular
+// file must not count as a terminal, which is the whole point of checking the
+// mode bit rather than mere Stat() success.
+func TestIsCharDevice_RegularFileIsNot(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "notatty")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer f.Close()
+	if approuter.IsCharDeviceForTest(f) {
+		t.Fatal("a regular file must not be reported as a character device")
+	}
+}

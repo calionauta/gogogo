@@ -109,7 +109,7 @@ func TestIntegration_DeleteEmitsInfoToast(t *testing.T) {
 		t.Fatalf("delete: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("delete status=%d", resp.StatusCode)
 	}
 	body := readBody(t, resp)

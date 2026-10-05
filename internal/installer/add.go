@@ -4,6 +4,7 @@ package installer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -406,7 +407,7 @@ func parseAddArgs(args []string, stdout io.Writer) (addOptions, error) {
 	names = append(names, fs.Args()...)
 	if len(names) != 1 {
 		fs.Usage()
-		return opt, fmt.Errorf("usage: gogogo add <unit> --from TEMPLATE --dir PROJECT")
+		return opt, errors.New("usage: gogogo add <unit> --from TEMPLATE --dir PROJECT")
 	}
 	opt.unitID = names[0]
 	units, err := addClosure(names[0])
@@ -416,7 +417,7 @@ func parseAddArgs(args []string, stdout io.Writer) (addOptions, error) {
 	opt.units = units
 	if opt.from == "" || opt.dir == "" {
 		fs.Usage()
-		return opt, fmt.Errorf("--from and --dir are both required")
+		return opt, errors.New("--from and --dir are both required")
 	}
 	if _, err := os.Stat(opt.from); err != nil {
 		return opt, &ExitError{code: 1, msg: "template source not found: " + opt.from}

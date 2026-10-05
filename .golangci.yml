@@ -28,6 +28,10 @@ linters:
     - bodyclose       # HTTP response body must be closed
     - testifylint     # testify assert vs require checks
     - gocognit        # cognitive complexity (readability, not paths)
+    - perfsprint      # fmt.Sprintf -> faster strconv/string concat (hot paths)
+    - prealloc        # slice declarations that could be pre-allocated
+    - fatcontext      # nested context.With* inside loops/function literals
+    - usestdlibvars   # use stdlib constants (http.MethodGet, time.RFC3339, ...)
     # Note: stylecheck's ST* analyzers are bundled into `staticcheck` in
     # golangci-lint v2, so enabling staticcheck (above) already covers
     # them. `gofumpt` is a formatter, configured under `formatters:` below.
@@ -37,6 +41,15 @@ linters:
       check-blank: false    # blank identifier (_ = expr()) is idiomatic Go for intentional error discard
     gosec:
       severity: medium
+    gocritic:
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          # rules/rules.go holds project-specific concurrency rules. It needs
+          # the `//go:build ruleguard` tag and is loaded ONLY by gocritic; the
+          # `dsl` import is a build-time dependency (go.mod `tool`).
+          rules: "rules/rules.go"
     govet:
       enable-all: true
       disable:

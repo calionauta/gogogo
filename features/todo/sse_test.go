@@ -45,7 +45,7 @@ func TestIntegration_CreateRendersInList(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status=%d", resp.StatusCode)
 	}
 	body := readBody(t, resp)
@@ -102,7 +102,7 @@ func extractJSONString(s string) (string, bool) {
 // when the caller needs to share the context across multiple calls.
 func openSSEWithCtx(ctx context.Context, t *testing.T, base, clientID string) *http.Response {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, "GET", base+"/api/todos/stream?clientID="+clientID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/todos/stream?clientID="+clientID, nil)
 	if err != nil {
 		t.Fatalf("build SSE request: %v", err)
 	}
@@ -110,7 +110,7 @@ func openSSEWithCtx(ctx context.Context, t *testing.T, base, clientID string) *h
 	if err != nil {
 		t.Fatalf("open SSE: %v", err)
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
 		t.Fatalf("SSE status=%d", resp.StatusCode)
 	}
@@ -124,7 +124,7 @@ func openSSEWithCtx(ctx context.Context, t *testing.T, base, clientID string) *h
 // LoadAppAuth) rather than the unscoped DefaultClient stream.
 func openSSEWithClient(ctx context.Context, t *testing.T, client *http.Client, base, clientID string) *http.Response {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, "GET", base+"/api/todos/stream?clientID="+clientID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/todos/stream?clientID="+clientID, nil)
 	if err != nil {
 		t.Fatalf("build SSE request: %v", err)
 	}
@@ -132,7 +132,7 @@ func openSSEWithClient(ctx context.Context, t *testing.T, client *http.Client, b
 	if err != nil {
 		t.Fatalf("open SSE: %v", err)
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
 		t.Fatalf("SSE status=%d", resp.StatusCode)
 	}

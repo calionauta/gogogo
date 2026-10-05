@@ -3,6 +3,7 @@ package todo_test
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -35,7 +36,7 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 		t.Fatalf("suggest-simulated: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("suggest-simulated status=%d", resp.StatusCode)
 	}
 

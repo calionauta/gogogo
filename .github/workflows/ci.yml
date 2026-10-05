@@ -70,7 +70,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.13.2
+          version: v2.14.0
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
           # unavailable on the ubuntu runner; lint the web-facing packages only.
@@ -103,6 +103,14 @@ jobs:
         run: bash scripts/test-web.sh -race -count=1 -v
       - name: Build
         run: go build -o /dev/null ./cmd/web/
+      - name: Binary boot smoke test
+        # Boots the REAL compiled binary and asserts the raw SSE transport
+        # contract (GET /api/todos/stream -> 200 + text/event-stream) plus the
+        # rendered #sse-opener wiring. This is the half the Playwright smoke
+        # below does not cover: it validates the endpoint itself, not just that
+        # a browser renders. Gated behind RUN_SMOKE=1 so `go test ./...` stays
+        # port-free for developers.
+        run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
       - name: Deadcode (advisory)
         # Matches bin/check-deadcode.sh: advisory only, scoped to the
         # packages that are meant to be wired-up, so intentionally-unused

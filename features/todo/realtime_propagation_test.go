@@ -55,7 +55,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 	// PocketBase assigns its own clientId and echoes it in PB_CONNECT —
 	// that is the id the subscribe call must use (the URL clientId is
 	// ignored), mirroring the browser's subscribe(msg.clientId).
-	req, err := http.NewRequestWithContext(ctx, "GET",
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		base+"/api/realtime?clientId=cross-session-sub", nil)
 	if err != nil {
 		t.Fatalf("build request: %v", err)
@@ -65,7 +65,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 		t.Fatalf("open realtime SSE: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("realtime SSE status=%d", resp.StatusCode)
 	}
 
@@ -373,7 +373,7 @@ func bootLiveServer(t *testing.T) (string, func()) {
 		resp, e := http.DefaultClient.Do(healthReq)
 		if e == nil {
 			resp.Body.Close()
-			if resp.StatusCode == 200 {
+			if resp.StatusCode == http.StatusOK {
 				return base, func() { _ = proc.Process.Kill(); _, _ = proc.Process.Wait() }
 			}
 		}

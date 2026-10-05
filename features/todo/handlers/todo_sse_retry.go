@@ -76,7 +76,7 @@ func retryToastMessage(p retryEvent) (msg, kind string) {
 	}
 	switch p.Status {
 	case retryStatusSuccess:
-		return fmt.Sprintf("%s: completed", verb), retryStatusSuccess
+		return verb + ": completed", retryStatusSuccess
 	default:
 		msg = fmt.Sprintf("%s: attempt %d failed", verb, p.Attempt)
 		if p.Error != "" {

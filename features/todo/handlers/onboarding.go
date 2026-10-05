@@ -327,7 +327,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 		case onbStatusFailed:
 			cur, detail := onboardingFailedStep(steps)
 			h.publishProgress(ctx, cur, total, onbPhaseError,
-				fmt.Sprintf("Onboarding failed: %s", detail))
+				"Onboarding failed: "+detail)
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
 					todoUpdateJob("workflow-error", "remote", "", detail, false))

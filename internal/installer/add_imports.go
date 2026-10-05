@@ -6,6 +6,7 @@
 package installer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -246,7 +247,7 @@ func mergeSingleImports(lines []string, imp string) ([]string, error) {
 		}
 	}
 	if pkgIdx == -1 {
-		return nil, fmt.Errorf("no package clause found")
+		return nil, errors.New("no package clause found")
 	}
 	paths := []string{imp}
 	for _, i := range singles {

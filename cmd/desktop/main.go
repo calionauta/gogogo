@@ -119,7 +119,7 @@ func main() {
 
 	// Reverse proxy: the Wails webview loads http://localhost:<port>
 	// (where PocketBase serves the UI) through this handler.
-	target, err := url.Parse(fmt.Sprintf("http://%s", addr))
+	target, err := url.Parse("http://" + addr)
 	if err != nil {
 		//nolint:gocritic // log.Fatalf is intentional — main() exits here.
 		log.Fatalf("parse target url: %v", err)

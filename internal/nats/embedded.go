@@ -4,6 +4,7 @@ package nats
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -58,7 +59,7 @@ func StartEmbedded(storeDir string) error {
 	// the broadcaster falls back to in-memory.
 	const natsReadyTimeout = 10 * time.Second
 	if !ns.ReadyForConnections(natsReadyTimeout) {
-		return fmt.Errorf("nats: embedded server never became ready")
+		return errors.New("nats: embedded server never became ready")
 	}
 	if err := waitForJetStream(js, natsReadyTimeout); err != nil {
 		return err
@@ -114,7 +115,7 @@ func StartLeafNode(storeDir, centralURL string) error {
 	JS = js
 
 	if !ns.ReadyForConnections(10 * time.Second) {
-		return fmt.Errorf("nats: leaf node server never became ready")
+		return errors.New("nats: leaf node server never became ready")
 	}
 	if err := waitForJetStream(js, 10*time.Second); err != nil {
 		return err

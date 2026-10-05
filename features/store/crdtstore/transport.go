@@ -20,6 +20,7 @@ package crdtstore
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"log/slog"
@@ -99,7 +100,7 @@ func (t *CRDTTransport) Publish(_ context.Context, op Op) error {
 		return nil // single-process mode: no transport
 	}
 	if op.ID == "" || op.OwnerID == "" {
-		return fmt.Errorf("crdtstore transport: op ID and owner ID required")
+		return errors.New("crdtstore transport: op ID and owner ID required")
 	}
 	if op.PublisherID == "" {
 		op.PublisherID = t.cfg.PublisherID
