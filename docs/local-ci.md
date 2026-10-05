@@ -44,8 +44,28 @@ push/merge, or (b) the change touches an area the next tier checks.
 | **T1** format + build | `gofumpt -l -d <files>` + `go build ./...` | ~10s | Format drift, compile errors |
 | **T2** lint scoped | `go vet` + `golangci-lint run <changed-glob>` + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
-| **T4** full local gate | `make ci-local` | ~60–180s | Full pre-push check (= CI) |
-| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~60–180s | Same as T4, plus it commits the verification to git |
+| **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
+| **T4** full local gate | `make ci-local` | ~60–240s | Full pre-push check (= CI) |
+| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~60–240s | Same as T4, plus it commits the verification to git |
+
+### Why the full gate is slow, and the fast sibling
+
+The full run is dominated by `go test -race -p 1`, and within it by
+`features/todo` (a real PocketBase + goqite + SSE fixture per test, ~90s, over
+60% of the suite). Everything else is cheap: templ ~1s, css-check ~5s,
+check-scope <1s, lint ~10s, Playwright ~3s when cached.
+
+`make ci-local-fast` runs the same cheap-but-decisive checks
+(`templ`, `datastar-lint`, `css-check`, `check-scope`) plus **scoped** lint and
+race tests, narrowed by `scripts/changed-packages.sh` to the packages your
+diff actually touches. Measured: **~2s** for a CSS-only change, **~10s** for a
+single-package Go change, versus ~240s full. It falls back to all packages when
+a shared file moves (`go.mod`, `config/`, `db/`, `internal/capabilities/`) or
+when nothing changed.
+
+Use it while iterating; the full `ci-local` (and `make signoff`) remain the
+authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
+just stops a CSS tweak from paying for the todo suite.
 
 T2 must be green before T3 — lint and format errors fail the build downstream,
 so running tests on a known-linted codebase saves re-runs. The `-p 1` in

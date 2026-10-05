@@ -299,6 +299,9 @@ help:
 	@echo "  deadcode       Scan for dead code"
 
 	@echo "  css            Build app.min.css from src/css/input.css (Tailwind v4 + DaisyUI v5)"
+	@echo "  ci-local       Full pre-push gate (= CI): lint, race tests, build, browser smoke"
+	@echo "  ci-local-fast  Fast gate: cheap checks + race tests for changed packages only (~2-30s)"
+	@echo "  signoff        ci-local + gh signoff stamp (safe to push)"
 	@echo "  css-install    Install CSS build dependencies (npm)"
 	@echo "  dev            Live reload with Air"
 	@echo "  templ          Generate Templ components"

@@ -34,8 +34,7 @@ files=$(
 )
 
 if [ -z "$files" ]; then
-  echo "changed-packages: no changes detected, falling back to all packages" >&2
-  all_packages
+  echo "changed-packages: no changes detected" >&2
   exit 0
 fi
 
