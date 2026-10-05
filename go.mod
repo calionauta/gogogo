@@ -26,6 +26,7 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24
 	github.com/zendev-sh/goai v0.10.3
 	go.uber.org/goleak v1.3.0
+	gopkg.in/yaml.v3 v3.0.1
 	maragu.dev/goqite v0.4.0
 )
 
@@ -110,7 +111,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.74.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect

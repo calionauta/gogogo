@@ -62,6 +62,10 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
+      - name: Check SKILL.md frontmatter
+        # A skill's YAML frontmatter is parsed by the skill HOST, never by this
+        # build — so a syntax error ships silently. Real YAML parser, not regex.
+        run: go run ./cmd/check-skill-frontmatter
       - name: Datastar-lint
         run: |
           go install github.com/calionauta/datastar-lint@latest

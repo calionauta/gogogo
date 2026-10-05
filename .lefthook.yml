@@ -27,6 +27,14 @@ pre-commit:
       run: go run ./cmd/check-scope
       glob: "{internal,features}/**/*.go"
 
+    # A SKILL.md's frontmatter is parsed by the skill HOST (Claude Code, pi),
+    # never by this repo's build — so an unquoted ": " in the description
+    # ships silently and surfaces as "Error in user YAML" in the host UI.
+    # Validated with a real YAML parser, not a regex.
+    - name: skill-frontmatter
+      run: go run ./cmd/check-skill-frontmatter
+      glob: "**/SKILL.md"
+
     - name: datastar-lint
       run: bin/check-datastar.sh
       glob: "*.{templ,go}"

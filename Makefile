@@ -10,7 +10,7 @@ LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMM
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup rename help smoke gui run-gui lint-gui
+.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui
 
 all: build
 
@@ -170,6 +170,15 @@ check-scope:
 	@go run ./cmd/check-scope
 	@echo "✅ SCOPE annotations present"
 
+# check-skill-frontmatter validates every SKILL.md frontmatter with a real
+# YAML parser. The repo's build never reads that YAML — the skill *host* does —
+# so an unquoted ": " in a description ships silently and only shows up as
+# "Error in user YAML" in the host UI. This gate is what stops it.
+check-skill-frontmatter:
+	@echo "→ check-skill-frontmatter (SKILL.md frontmatter linter)..."
+	@go run ./cmd/check-skill-frontmatter
+	@echo "✅ SKILL.md frontmatter valid"
+
 deadcode:
 	@which deadcode >/dev/null 2>&1 && PKGS=$$(bash scripts/web-packages.sh) && deadcode -test $$PKGS || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"
 
@@ -181,7 +190,7 @@ deadcode:
 # ci-local runs the same quality gate as CI but locally, so you can
 # catch issues before pushing. Runs lint, tests (parallel across packages —
 # see scripts/test-web.sh), and a single unified build — no more tag matrix.
-ci-local: templ datastar-lint css-check check-scope
+ci-local: templ datastar-lint css-check check-scope check-skill-frontmatter
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (parallel across packages)"
@@ -204,7 +213,7 @@ ci-local: templ datastar-lint css-check check-scope
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: templ datastar-lint css-check check-scope
+ci-local-fast: templ datastar-lint css-check check-scope check-skill-frontmatter
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
@@ -296,6 +305,7 @@ help:
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
+	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"
 
 	@echo "  css            Build app.min.css from src/css/input.css (Tailwind v4 + DaisyUI v5)"
