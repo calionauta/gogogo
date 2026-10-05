@@ -66,7 +66,7 @@ const MANIFEST = [
   { group: "Operate", slug: "local-ci", file: "local-ci.md",
     desc: "The five-tier feedback loop and make signoff." },
   { group: "Operate", slug: "code-quality", file: "code-quality.md",
-    desc: "The 27 linters, how to scope them, and the Datastar-specific rules." },
+    desc: "The 31 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
   { group: "Operate", slug: "troubleshooting", file: "troubleshooting.md",
     desc: "Symptoms and where they actually come from." },
   { group: "Operate", slug: "dagnats-bootstrap-workaround",

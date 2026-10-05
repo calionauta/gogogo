@@ -136,6 +136,6 @@ no-op when lefthook is not installed).
 
 ## Related
 
-- [Code quality](code-quality.md) — the 27 linters and how to run them scoped.
+- [Code quality](code-quality.md) — the 31 linters and how to run them scoped.
 - [Troubleshooting](troubleshooting.md) — when the gate is green but behavior isn't.
 - [Deploy](deploy.md) — what happens after the push.

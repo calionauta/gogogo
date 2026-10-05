@@ -50,7 +50,7 @@ Read-only tools need nothing else. Mutating tools fail closed without
 `confirm:true` — preview with `trim_plan` (or `dryRun:true`) first, then
 apply. Formats default to `json` on this transport.
 
-Generated code follows `skills/gogogo-coding-standards/SKILL.md`
+Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
 (Go rules; `advise_stack` output cites it).
 
 ## Pattern

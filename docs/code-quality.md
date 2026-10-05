@@ -10,6 +10,13 @@ Rules the project learned by hand live in `rules/rules.go` and are loaded by
 `gocritic`'s `ruleguard` check (see [Custom rules](#custom-rules-ruleguard)
 below) — prose guidance that a linter can enforce is enforced instead.
 
+The rules an **agent** is meant to load — Go idioms, concurrency, testing, the
+Zig gate — live in
+[`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
+(install with `npx skills add calionauta/gogogo`). Its frontmatter is validated
+by `make check-skill-frontmatter`, because the skill *host* parses that YAML and
+this repo's build never does.
+
 ## What the linters enforce
 
 | Category | Linters | What they catch |
