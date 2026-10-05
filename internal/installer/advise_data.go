@@ -108,6 +108,9 @@ var adviseRules = []string{
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
 		"reference implementation.",
+	"Go coding standards live in skills/gogogo-coding-standards/SKILL.md " +
+		"(universal principles delegated to stelow-workflow-coding-standards); " +
+		"audit new deps with `go mod why` + `govulncheck ./...` before adding.",
 }
 
 // foreignRules replace the template rules when the need names a non-Go

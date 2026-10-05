@@ -4,573 +4,72 @@
 
 ## Project Overview
 
-Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream.
-Module: `github.com/calionauta/gogogo`
+Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream. Module: `github.com/calionauta/gogogo`
 
-**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, and tunnel hostname all share the project name. This repo is a GitHub **template** (`is_template: true`), so a fresh copy still carries `gogogo` in ~360 places across ~130 files. Never rename by hand — preferred path is the guided installer (`go run ./cmd/gogogo`, see `cmd/gogogo/README.md`: asks name/owner/plugins/features, renames, trims what you skip, writes the new repo's `AGENTS.md` with the upstream-first rule). Manual fallback stays: `make rename NAME=my-app [OWNER=myorg]` (`scripts/rename-project.py`), which rewrites the module path and every reference, then runs `go build ./cmd/web` to prove it. It deliberately skips generated `site/docs/` (regenerate with `make site`) and shields sibling repos under the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) from the owner substitution.
+**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, tunnel hostname share the project name. Fresh clones carry `gogogo` in ~360 places across ~130 files — never rename by hand. Use `go run ./cmd/gogogo` (guided; see `cmd/gogogo/README.md`) or `make rename NAME=my-app [OWNER=myorg]`.
 
-**Upstream-first (generated projects must keep this):** every repo scaffolded by `cmd/gogogo` carries an `AGENTS.md` rule requiring agents to check the upstream template (via `site/llms.txt` map + `site/docs/<slug>/` pages, or the GitHub blob for non-docs files) BEFORE creating a feature or installing a library. Reuse what exists (Todo is the reference; SCOPE says what is safe to delete). Only add a new dependency when no upstream page covers the need.
+**Upstream-first (generated projects keep this):** check the upstream template (`site/llms.txt` + `site/docs/<slug>/`, or the GitHub blob) BEFORE creating a feature or installing a library. Reuse what exists (Todo is the reference; SCOPE says what is safe to delete). New dependency only when no upstream page covers the need.
 
-**Unified build.** `go build ./cmd/web` or `make build` compiles **everything** — no build tags. Every feature (queue, workflows, realtime, whiteboard, onboarding) is always included. Opt out at runtime via env vars like `NATS_ENABLED=false`, `DAGNATS_ENABLED=false`.
+**Unified build.** `go build ./cmd/web` compiles everything, no build tags. Opt out at runtime (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
 
 ## Stack (exact versions)
 
 Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sqlite3) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | NATS JetStream | age v1.3.2 | uuid v1.6.0
 
-Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (ripwire orient-first, cymbal-first search). Install via `npx skills add .../cali-coding-go-standards`.
+## Skills
+
+- `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, Zig gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles delegated to [`stelow-workflow-coding-standards`](https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards).
+- `cali-code-navigation` — ripwire orient-first navigation. Use when landing cold in unfamiliar code or tracing callers.
+- `/skill:cali-ops-deploy-github-tailscale` — server layout, deploy user, secret tables.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `make dev` | Air live reload (gofumpt + vet + golangci-lint info) |
-| `make build` | Unified build — `go build` ONLY (no lint, no tests) |
-| `make test` | Race tests (`-p 1` for DagNats engine stability); discouraged locally — the remote CI runs them |
+| `make dev` | Air live reload |
+| `make build` | Unified build, no lint/tests |
 | `make templ` | Generate Templ |
-| `make datastar-lint` | Lint `.templ` via datastar-lint (`-only-errors` keeps intentional custom attrs) |
-| `make css` / `make css-check` | Rebuild Tailwind/DaisyUI bundle (scans `features/`, `web/`, `internal/`); `css-check` compares against HEAD (used in `ci-local`) |
-| `make css-basecoat` | Rebuild the Basecoat skin bundle (`src/css/basecoat-input.css` → `web/resources/static/basecoat.min.css`) |
-| `make css-all` | Rebuild every skin's CSS bundle (DaisyUI + Basecoat). Morpheus ships vendorized, no rebuild needed |
-| `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + **check-scope** + golangci-lint + race tests + build |
-| `make check-scope` | Assert every `internal/` and `features/` `.go` file carries `// SCOPE:layer=…,removal=…` in its leading doc group. Run after adding files in those trees. |
-| `make signoff` | `ci-local` + `gh signoff` stamp (advisory on push-to-master) |
-| `make setup` | Activate git hooks via lefthook (sets `core.hooksPath=.githooks`, regenerates wrappers; pre-push adds `govulncheck`) |
-
-> **`make check` was removed.** It was a subset of `make ci-local` (no
-> build verification, smaller lint set). The single source of truth
-> for "is the gate green" is `make ci-local`.
+| `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
+| `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
+| `make check-scope` | Assert `// SCOPE:layer=…,removal=…` on every `internal/`+`features/` file |
+| `make test` | Race tests `-p 1` (DagNats stability); CI runs them — prefer scoped tests locally |
+| `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + check-scope + lint + race tests + build. If green, push. (`make check` was removed — redundant subset.) |
+| `make signoff` | `ci-local` + advisory `gh signoff` stamp before push |
+| `make setup` | Activate lefthook git hooks (`core.hooksPath=.githooks`) |
 
 ## Don'ts
 
-- NO HTMX/Alpine — use Datastar. NO `fmt.Sprintf` for HTML — use Templ.
-- NO raw CSS class when a DaisyUI component exists (for the DaisyUI skin; the Basecoat / Morpheus skins use their own component vocabulary — read the skin's own docs). NO `log` — use `log/slog`.
-- Driver is `ncruces/go-sqlite3` — never switch to PocketBase's bundled modernc as the active driver. (modernc is still pulled in by PocketBase but registers `sqlite` and stays unused; ncruces registers `sqlite3` and is what every query uses.) NO removing goqite when adding JetStream; they solve different problems.
-- NO manual `id` on PocketBase records (PK Max=15, `^[a-z0-9]+$`).
-- NO Datastar `PatchElements` whose top-level element lacks `id` + `WithSelector` (client throws `PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch` paired with a selector.
+- NO HTMX/Alpine (Datastar), NO `fmt.Sprintf` HTML (Templ), NO `log` (`log/slog`).
+- Driver is `ncruces/go-sqlite3` (registers `sqlite3`) — never switch to PocketBase's bundled modernc (`sqlite`, unused). NO removing goqite for JetStream; different problems.
+- NO manual `id` on PocketBase records (PK max 15, `^[a-z0-9]+$`).
+- NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
-- **Prefer Datastar attributes** (`data-on:*`, signals, expressions, `__window`/`__document` modifiers) over vanilla JS for client-side logic. Inline JS only when unavoidable, kept adjacent to the markup (locality of behavior).
+- Prefer Datastar attributes over vanilla JS; inline JS only adjacent to the markup.
+- NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs), NO `go build -tags "<stale>"` (unified-build era has no tags).
 
-## Go-first / Zig escape hatch (read before proposing native code)
+## Go-first / Zig (summary; normative: `docs/native-zig.md`)
 
-Go is the product language (~95-99%+ of the app: HTTP, auth, SQLite, jobs,
-realtime, LLM, UI). Zig is an exceptional native implementation tool, not a
-second application language. There is no Zig code or toolchain in this repo
-today — do not add one without a concrete, benchmarked use case.
+Go is the product language (~95-99%). Zero Zig code/toolchain in tree — do not add without a benchmarked case. Bans: "Zig is faster", manual memory, "low-level", "could be optimized", "looks like SIMD", preference, avoiding a Go dep, future perf. Go SIMD (`simd`/`archsimd`, `GOEXPERIMENT=simd`) first; perf work needs a Go baseline bench + profile proving Go is the bottleneck. Kernel rules: one package, small C ABI, caller-owned buffers, pure-Go fallback day one, removable in minutes. Vague "use Zig when appropriate" is rejected — follow the doc's decision procedure.
 
-- **Default to Go.** Normal product logic and all HTTP/auth/database/
-  realtime/job/LLM/UI integration stays in Go using stdlib, existing gogogo
-  capabilities, or an established Go dependency.
-- **Banned justifications:** "Zig is faster", "manual memory management",
-  "more low-level", "could be optimized", "looks like SIMD", preference,
-  avoiding a normal Go dep, hypothetical future performance.
-- **Go SIMD first.** Current Go has experimental `simd` / `simd/archsimd` —
-  "we need SIMD" alone never justifies Zig. Prototype in Go, profile,
-  benchmark, then compare.
-- **Evidence required.** Performance-driven native work needs a Go baseline
-  benchmark + profile showing Go is the bottleneck and a measurable expected
-  benefit. No evidence, no Zig.
-- **Isolation.** One small stateless kernel, one owning Go package
-  (`internal/<thing>/` with normal SCOPE; Zig sources inside it, never a
-  top-level `native/` forest), small C ABI, explicit who-allocates/who-frees
-  ownership, pure-Go fallback that ships from day one, removable in minutes.
-  Never let Zig types/allocators leak into Go, and never make unrelated
-  features depend on it. A feature keeps its Go implementation with an
-  optional tiny native kernel — never rewrite a subsystem in Zig for one hot
-  function.
-- **Stdlib first, no frameworks.** Prefer Zig stdlib over third-party Zig
-  packages; avoid Zig frameworks; a mature C library may be wrapped via a
-  thin Zig boundary, never rewritten without reason. No speculative native
-  infrastructure, no refactors of normal Go code into Zig for purity.
-- **Full procedure:** follow [docs/native-zig.md](docs/native-zig.md)
-  (decision tree, justification template, boundary, testing, build/CI,
-  removal). Vague "use Zig when appropriate" proposals are rejected.
+## SCOPE
 
-## SCOPE annotations (read before editing)
+Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>` (`docs/scope-taxonomy.md`). Enforced by `make check-scope` + pre-commit. Trim rule: never delete `removal=core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).
 
-Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its SCOPE on **two orthogonal axes**:
+## Hooks
 
-```
-// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <short description>
-```
+Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt · mod-tidy · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T4 `ci-local` → T5 `signoff`, then push.
 
-| Axis | Values | Means |
-|------|--------|-------|
-| `layer` | `infra` · `feature` | Where it lives / what kind of code. `infra` for cross-cutting plumbing in `internal/`; `feature` for product-level code in `features/`. Some packages in `features/` (e.g. `features/auth`, `features/store`) carry `infra` semantics for individual files. |
-| `removal` | `core` · `plugin` · `feature` | What happens if you delete it. `core` = binary won't compile / won't boot. `plugin` = binary works but loses a capability. `feature` = pure demo; deleting the package + wiring call is the expected use. |
+## Gotchas (details in docs)
 
-The two-axis scheme eliminates the prior ambiguity where `SCOPE:core - REMOVE if not using NATS` and `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same label but meant different things. With the new axes, the first becomes `layer=infra,removal=plugin` (binary works without it) and the second stays `layer=infra,removal=core` (binary breaks without it).
-
-**Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target, and the lefthook pre-commit runs it whenever staged files match `{internal,features}/**/*.go`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent).
-
-## Hooks — lefthook (`.lefthook.yml`)
-
-All blocking quality gates live at **git level**, managed by [lefthook](https://github.com/evilmartians/lefthook). Activate with `make setup`; wrappers are committed in `.githooks/` (graceful no-op when the binary is missing). Helper scripts live in `bin/check-*.sh`.
-
-| Hook | Jobs | When |
-|------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy (`-diff`, race-safe) · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory) | every commit; glob-filtered jobs skip when nothing relevant is staged |
-| `pre-push` | govulncheck · deadcode (**light** — the heavy T4 gate runs in CI, in parallel with your push; see the note in `.lefthook.yml`) | every push |
-| `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
-
-Agent-level hooks (pi.dev `hooks.yaml`) keep ONLY what git hooks cannot do: post-build info hints and the no-CI signoff fallback. Never re-add commit/push gates there for this repo — they would run twice.
-
-**CI scope (which push runs what).** `docs/**` and `site/**` are not part of the application, so CI, Desktop and Deploy all skip them; only `pages.yml` runs, to publish the site. The property that makes this safe is that `src/css/input.css` scans **only** `features/`, `web/` and `internal/` (`source(none)` + explicit `@source` globs) — so a landing-page edit cannot change `web/resources/static/app.min.css`, which is embedded in the binary. If you ever add a scan root, add it here too or a `site/**` push will ship a stale bundle. `deploy.yml` uses an allow-list (`paths`) rather than a deny-list so a new top-level directory cannot silently start deploying; `ci.yml`/`desktop.yml` use `paths-ignore` because the right default for a test workflow is "run unless it is documentation".
-
-**Agent rule:** When the user asks to trim the project, never delete a `removal=core` file — always ask first. Delete `removal=feature` and `removal=plugin` files freely, after reading the inline description (it lists what to delete in `router/router.go` and `cmd/web/`).
-
-## Upstream workarounds (re-evaluate on every dependency bump)
-
-The template carries workarounds for bugs in dependencies. Each one is
-self-contained, documented, disable-able at runtime, and **must be
-re-checked whenever that dependency is upgraded** — a workaround that
-outlives its bug is dead weight that misleads the next reader.
-
-| Workaround | Dependency | Upstream | Re-evaluate when | Details |
-|---|---|---|---|---|
-| `internal/dagnats/trigger_bootstrap.go` — seeds one disabled placeholder trigger so the DagNats console can create the first trigger | DagNats v0.0.24 | [danmestas/dagnats#745](https://github.com/danmestas/dagnats/pull/745) (fix PR, open) | any DagNats bump | [docs/dagnats-bootstrap-workaround.md](docs/dagnats-bootstrap-workaround.md) |
-
-Check the upstream link before assuming the workaround is still needed. When
-the fix is merged and released, the dependency bump and the removal belong in
-the **same commit** — see the removal steps in that workaround's doc — and the
-row comes out of this table.
-
-When you bump a dependency listed above:
-
-1. Run the re-evaluation test in that workaround's doc (each one has a
-   concrete pass/fail check).
-2. If upstream fixed it, remove the workaround in the same commit as the
-   bump, using the removal steps in the doc.
-3. If it is still needed, say so in the commit body — that is the record
-   that the re-check happened.
-
-Never add a second workaround for the same bug, and never make one
-blocking: they exist to keep a surface usable, not to fail a build.
-
-## Docs stay truthful
-
-`docs/*.md` (20 pages) is the **single source of truth** for how this project
-behaves; `README.md` links to it and the site publishes it. A doc that describes
-code the repo no longer has is a *second* source of truth, read by the next
-person who goes looking for why reality differs. Treat prose as part of the
-change, not as follow-up work.
-
-- **A behaviour change updates the doc in the SAME commit.** Not the next one.
-  This mirrors stelow's "Docs stay truthful" and bb-plugin-stelow's "a feature
-  without an entry does not exist".
-- **Never edit `site/docs/`** — it is generated from `docs/*.md` by
-  `site/build.mjs`. Edit the markdown, then run `make site`. `site/index.html`,
-  `site/styles.css` and `site/assets/` ARE hand-written and are edited directly.
-- **Derived facts have one source, and the doc describes rather than redefines
-  it.** Env vars and defaults: `config/config.go`. Routes: `router/router.go`.
-  Commands: the `Makefile`. Constants: the table below. When those change, the
-  doc is the thing that is now wrong.
-- **What counts as a behaviour change:** a new/removed env var or default, a
-  route, a command or Make target, a CI/deploy step, a dependency version, a
-  capability and its opt-out, a file that moves between SCOPE layers. Renames,
-  internal refactors and test-only edits are not.
-- **`make site-check` must stay green** — it validates every internal link and
-  heading anchor across the 18 pages, and CI runs it before publishing.
-- **Docs stay readable.** One idea per paragraph: a paragraph reaching for
-  its second "and" becomes bullets. Enumerations (steps, commands, options,
-  flags) are always lists or tables, never sentences. Never repeat what a
-  neighboring section already says — link to it. Around a snippet, keep
-  each prose block under two lines; the snippet carries the detail.
-
-**Enforcement (advisory).** `bin/check-docs-staleness.sh` runs in the
-pre-commit hook. It prints the changed behaviour-carrying files plus the page(s)
-most likely to need the edit when nothing under `docs/` is staged. It **always
-exits 0** on purpose: a rename or a test change legitimately touches Go without
-touching prose, and a blocking gate would only teach people to bypass it. The
-signal is the point — read it and judge.
-
-**Why this exists:** a veracity audit of these docs found 15 claims that were
-true of the old README and false of the code (the deploy directory, the CI's
-build strategy, an `/api/version` endpoint that has never existed). No check
-caught any of them, because nothing connected the prose to the source. This
-section and the script are that connection.
-
-## Testing discipline (learned the hard way)
-
-Lessons from v0.18.0 (offline-add + CI flake) — see CHANGELOG.md.
-
-- **One unified build, no feature build tags.** `go build ./cmd/web` (or `make build`) compiles everything with no `-tags`. `ncruces/go-sqlite3` is the always-on driver (registered as `sqlite3`); PocketBase also bundles `modernc.org/sqlite` but it registers `sqlite` and stays unused, so tests need no special tag. Tests bootstrap PocketBase via `app.Bootstrap()` with our `DBConnect` (ncruces `sqlite3`) and just run — no `Bootstrap` panic, no tag matrix to forget.
-- **Avoid package-level mutable globals.** `var NS/NC/JS *Foo` set by `StartX()` and torn down by `Stop()` leak across `-p 1` packages when `Stop` doesn't nil them. Either nil on entry/exit or, better, return a struct. See `internal/nats/embedded.go` for the belt-and-suspenders nil-out.
-- **Pre-commit MUST rebuild `.templ` AND CSS.** Editing a `.templ` without `make templ && make css` leaves `web/resources/static/app.min.css` stale. `css-check` passes by inertia when nobody rebuilt, masking the staleness until a real diff appears.
-- **Local feedback is T1–T4; sign locally before push.** See the Feedback loop section below. The cheapest reliable pre-push gate is `make signoff` (= T4 + `gh signoff` stamp). It catches ~95%% of issues in <3min locally — race detector races, lint, format drift, CSS staleness, sync.Once misuse, etc — without waiting for a 5min CI round trip. The remote CI then becomes a parallel validator + auto-deploy tool, not the primary gatekeeper.
-- **Confirm live deployment by byte-diffing an embedded asset.** `diff <(curl https://<host>/static/<asset>) <(repo <asset>)` is the cheapest proof the running binary matches the latest commit. Use for any "is the fix actually live?" question.
-- **`git stash drop` is destructive** — it removes the ref without applying. Use `git stash pop` (apply + remove) or, before any stash drop, snapshot working changes to a `wip-*` branch.
-- **Heredoc commit/tag messages**: prefer `git commit -F - <<'EOF' ... EOF` (quoted EOF = literal body) or `git tag -F /tmp/msg`. Avoid `git commit -m "$(cat <<'EOF' ... EOF)"` — bash quoting through the outer `"` + `$()` can fail parse on apostrophes/backticks in the body.
-- **Orphan `web` processes break tests.** If DagNats onboarding tests fail with `failed to register onboarding workflow`, an old `go run`/`web` binary is likely still holding `:18099`/`:4224` — kill it: `pkill -x web` or `lsof -ti :18099 | xargs kill`.
-
-## Feedback loop (4 tiers, cheapest first)
-
-Cascade up the tiers as confidence grows. Each tier catches a
-different failure class; lower tiers are ~10x cheaper, so promote
-only when (a) about to push/merge, or (b) the change touches an
-area the next tier checks.
-
-### T1 — format + build (~10s)
-
-```bash
-gofumpt -l -d <changed-files>   # format drift (<1s)
-go build ./...                  # compile errors (~5-10s)
-```
-
-Catches formatting drift and compilation errors. Run every few
-minutes during active editing. Replaces the old habit of running
-`make build` repeatedly — `make build` only runs `go build`, not
-formatting or lint, so it misses drift that T1 catches.
-
-### T2 — lint + datastar + format + sizes + deadcode (~15-20s)
-
-```bash
-go vet ./...                                              # stdlib vet
-golangci-lint run <changed-glob>                          # 27 linters, scoped
-make templ && make datastar-lint                          # only when .templ changed
-make fmt                                                  # gofumpt + goimports, full repo
-make check-sizes && make deadcode                         # binary size + deadcode scan
-```
-
-Catches shadow, mnd, nolintlint, revive, staticcheck — same
-config as CI but scoped to the packages you touched. ~15-20s for
-scoped lint. Datastar-lint only applies to `.templ` changes;
-sizes + deadcode + full-repo fmt catch the slow-moving drift.
-
-**T2 must be green before T3.** Lint and format errors fail the
-build downstream; running tests on a known-linted codebase saves
-re-runs.
-
-### T3 — scoped tests (~5-30s)
-
-```bash
-go test -race -count=1 -short <changed-glob>
-```
-
-Package-level only. `-race` catches data races. `-short` skips
-long-running tests when present. Use after T2 is green on a
-specific fix. The `-p 1` from `make test` is unnecessary at this
-tier because DagNats FD starvation only matters when running ACROSS
-packages.
-
-### T4 — full pre-push gate (`make ci-local`, ~60-180s)
-
-```bash
-make ci-local
-# templ + datastar-lint + css-check + golangci-lint +
-# go test -race -p 1 ./... -count=1 + go build
-```
-
-The single source of truth for "is the gate green". Run right
-before `git add` + `git push`. If this is green, push — the
-remote CI runs the same gate plus deploy. Same checks as the
-remote CI's lint job.
-
-### T5 — local signoff (~60-180s, replaces waiting on CI)
-
-```bash
-make signoff
-# = make ci-local + "gh signoff -f" stamp on HEAD
-```
-
-A advisory stamp saying "this commit has the same checks CI runs,
-locally verified". After `make signoff` succeeds, you can push
-without holding your breath for CI to discover a race or syntax
-issue. The remote CI still runs the same gate as a parallel
-validator and to drive the auto-deploy step — signoff does
-**not** skip CI.
-
-Why bother when CI also runs? Because each CI round trip is
-~3–5min wall-clock waiting on queue + runners + remote logs —
-cumulative across many small commits. `make signoff` catches
-~95%% of issues (race detector on `TestXxx`, lint warnings,
-format drift, CSS staleness, sync.Once wrong placement,
-Dockerfile `ARG` inline placement, etc.) in that same 3min
-window but locally, so you find them, fix them, re-signoff, push.
-
-The order is: **commit locally → `make signoff` → `git push
-origin master`**. If signoff green lights you, push is a
-single-arg action, not a “hope CI likes it” gamble.
-
-The remote CI is also the source of truth for **test execution**
-in general — re-running the full test suite locally wastes time
-that the parallel CI run is doing for you. Only re-run locally if
-remote CI is broken or you're reproducing a CI-specific failure.
-
-### Make check removed
-
-`make check` was removed from the Makefile — it was a redundant
-gate (subset of `make ci-local` without build verification). Use
-`make ci-local` instead.
-
-### Make target audit (what still earns its place)
-
-| Target             | Status   | Why                                                                                  |
-|--------------------|----------|-------------------------------------------------------------------------------------|
-| `make build`       | keep     | `go build` of the unified binary. The fast "is it compileable?" check.               |
-| `make templ`       | keep     | Regenerates `_templ.go` from `.templ` source.                                       |
-| `make css`         | keep     | Rebuilds `app.min.css` from `src/css/input.css`.                                     |
-| `make css-check`   | keep     | Diff vs HEAD; fails ci-local if stale.                                               |
-| `make datastar-lint` | keep   | Catches Datastar anti-patterns in `.templ`.                                           |
-| `make fmt`         | keep     | Full-repo gofumpt + goimports (CI gate).                                             |
-| `make lint`        | keep     | Full-repo vet + golangci-lint (used by `make check`-equivalent flows; slow).         |
-| `make test`        | keep     | Race tests; the remote CI uses this directly.                                         |
-| `make check-sizes` | keep     | Binary size budget check.                                                              |
-| `make check-scope` | keep     | SCOPE annotation linter (`cmd/check-scope`). Runs as part of `ci-local`.             |
-| `make deadcode`    | keep     | Deadcode scan.                                                                        |
-| `make ci-local`    | **canonical gate** | The pre-push gate. Replaces `make check`.                              |
-| `make check`       | **removed** | Redundant subset of `ci-local`. Promote `ci-local`.                               |
-| `make signoff`     | **promoted** | `ci-local` + `gh signoff` advisory stamp. Default pre-push gate; catches ~95%% of issues locally in <3min. |
-| `make setup`       | keep     | Lefthook activation (`core.hooksPath` + wrapper regen).                                 |
-| `make desktop`     | keep     | Wails v3 desktop shell.                                                              |
-| `make dev`         | keep     | Air live reload.                                                                       |
-
-### Anti-patterns (do not do this)
-
-- **`make check`** — removed; use `make ci-local`.
-- **`make test` between every commit** — same wall clock as
-  `ci-local` minus the other checks. Use `ci-local` for the
-  full pass; use T3 scoped `go test -race` for fast package
-  feedback.
-- **Skipping T1** — format drift piles up silently.
-- **`golangci-lint run ./...`** (whole repo) for small changes —
-  always scope to the changed packages (full-repo is ~10x
-  slower).
-- **Running the full test suite locally** when remote CI is
-  healthy — same wall clock, but local fix-ups don't propagate.
-- **Touching a class that isn't real CSS** (e.g. writing `p-1`
-  in test data, JSON examples, or markdown prose) — Tailwind's
-  content scanner reads the globs declared in `src/css/input.css`
-  (`features/`, `web/`, `internal/`; `source(none)` disables the
-  automatic root scan). A `class="...p-1..."` accidentally emitted
-  as a Tailwind utility in one of those trees creates spurious CSS in
-  `app.min.css` and fails `css-check`. Run `make css` during T2 for
-  any change that might introduce class-shaped tokens.
-  `docs/` and `site/` are outside the scan on purpose: they are not
-  application UI. `site/index.html` loads its own `styles.css` and
-  uses zero Tailwind utilities, so a landing-page edit cannot change
-  the embedded bundle — which is why CI and deploy can skip `site/**`.
-
-## Architecture (concise)
-
-```
-cmd/web/                 🔴 CORE  Entry point (PB + goqite + SSE Hub + DagNats + NATS)
-cmd/gui/                   🟢 FEATURE  gogpu/ui native window PoC (same backend, no HTTP)
-config/                  🔴 CORE  Env config
-db/                      🔴 CORE  PocketBase + collection seeds
-internal/
-  secrets/               🔴 CORE  age-decrypted env loader
-  queue/                 🔴 CORE  goqite + SSE Hub + workers + retry + handler registry
-  datastar/              🟡 PLUGIN  Datastar rendering helpers
-  nats/                  🟡 PLUGIN  NATS JetStream + embedded server
-  dagnats/               🟡 PLUGIN  DagNats durable workflow client
-  llm/                   🟡 PLUGIN  GoAI LLM client
-  collab/                🟡 PLUGIN  Loro CRDT + DocStore + sync workers
-  components/             🟡 PLUGIN  Shared UI helpers (Toast + OfflineBanner)
-features/
-  store/                 🟡 PLUGIN  EntityStore interface (PB + CRDT strategies). Select via `ENTITY_STORE`.
-  auth/                  🔴/🟢 CORE (middleware) / FEATURE (UI)
-  app/                   🔴 CORE  AppContext (cross-cutting deps bundle)
-  landing/               🟢 FEATURE  Public marketing hero on GET /
-  config/                🟢 FEATURE  Auth-gated read-only /config view (masked secrets)
-  todo/                  🟢 FEATURE  Todo MVC example (keep as reference, remove when done)
-  whiteboard/            🟢 FEATURE  Collaborative canvas (remove if not needed)
-  sounds/                🟡 PLUGIN  UI sound feedback (cuelume, vendored MIT): navbar mute toggle + a11y glue (reduced-motion, persistent pref). Remove via the checklist in its SCOPE doc.
-web/
-  resources/             🔴 CORE  Embedded static assets (app.min.css, basecoat.min.css, sw.js, theme.js)
-  skins/                 🟡 PLUGIN  Pluggable UI skin registry (daisyui + basecoat + morpheus). Active via `UI_SKIN` / `?skin=`.
-router/                  🔴 CORE  Route wiring
-```
-
-**Three complementary async layers:** `goqite` (jobs+SSE) · `dagnats` (durable workflows) · `JetStream` (cross-instance realtime). They coexist in the same binary; all three are always compiled.
-
-**Routing (read before touching `router.Init`):** PocketBase `RouterGroup` compiles to stdlib `http.ServeMux` (Go 1.22+ subtree matching — `GET /` swallows unregistered subpaths). Register all routes DIRECTLY on `se.Router` inside the OnServe hook (nested `OnServe().BindFunc` never fires). App cookie is `gogogo_auth` (NOT `pb_auth`) — the two cookies are intentional: PocketBase keeps admin (`_superusers`) and regular users as SEPARATE auth namespaces, so sharing `pb_auth` clobbers the admin session in the same browser (known PB gotcha, issues #5050/#1780). Run the admin UI on a separate origin/port (`:8090/_/`) so even `pb_auth` never collides. Serve static assets via EXACT `/static/<file>` routes (PB catch-all shadows wildcards). Static assets are served by `resources.AssetHandler` with `Cache-Control: public, max-age=0, must-revalidate` + a content-hash ETag (embed.FS has no mtime, so `http.FileServer`'s size-based ETag would collide) — clients/CDNs revalidate via `If-None-Match` → 304, so a deploy can never serve stale CSS/JS (Cloudflare was caching old assets for up to 4h). Full routing war-stories: see `ARCHITECTURE.md`.
-
-## Realtime transport decision
-
-**Todo records** (create/toggle/delete) flow through **PocketBase realtime** — the realtime SSE lives at `/api/realtime`, is authenticated by the app's `LoadAuthFromCookie` middleware (reads `gogogo_auth`), and the collection's `ListRule`/`ViewRule` (`@request.auth.id != '' && owner = @request.auth.id`) make delivery **per-user scoped**. Each subscribed client re-fetches `/api/todos/fragment` and morphs `#todo-list` on a `todos` event. This is the mechanism for DB actions — do NOT add a parallel SSE-hub re-render for todo mutations.
-
-**The SSE hub (`/api/todos/stream`)** is reserved for **ephemeral signals only**: the live clients count, LLM suggest feedback, and DagNats workflow progress. It also carries the **originating client's** synchronous patch on its own mutation POST. It does NOT broadcast record mutations to other clients.
-
-**Whiteboard** uses **SSEHub + NATS** — shapes are dual-broadcast: in-process via the SSE Hub (same-process tabs) and over NATS via the SyncWorker (cross-instance convergence). Presence cursors use the same SSE Hub with exclude-origin fan-out. Clients are **offline-first**: Loro CRDT merges late/replayed ops on reconnect (outbox in `whiteboard.js`).
-
-**NATS JetStream** is used by DagNats (workflow engine state), the whiteboard SyncWorker (cross-instance doc sync), and the optional desktop-edge Leaf Node. The todo broadcaster uses an in-memory fan-out by default (can be wired to JetStream for multi-instance deployments).
-
-## Local CI (gh-signoff) — T5 of the feedback loop
-
-CI runs on push to `master` then deploys. Run the **same gate locally** to avoid broken pushes:
-
-```bash
-gh extension install basecamp/gh-signoff  # one-time
-make signoff                              # ci-local + gh signoff -f
-```
-
-`make signoff` is T5 in the feedback loop (see above): it runs T4
-(`ci-local`) and stamps HEAD as locally-verified. Once the stamp
-is on the commit, the push is safe in the sense that "this code
-builds, tests, lints, and matches CI". The remote CI then runs
-the same checks as a parallel validator + drives the auto-deploy
-step; signoff does not skip CI.
-
-Uses golangci-lint (not standalone gofumpt) as the formatter
-gate — gofumpt can be a newer release than golangci-lint
-bundles, causing false positives. Signoff is **advisory**
-(push-to-master flow, not PR merge) — do NOT `gh signoff
-install`.
-
-### Pre-push workflow: signoff local, then push
-
-Remote CI + deploy is slow on every push to `master`. The chain
-below turns a push from "hope CI likes it" into a confirmation:
-
-1. Work locally, commit with `git commit -F /tmp/msg`.
-2. `make signoff` (1–3min locally).
-3. If it returns successfully, **push without asking**.
-4. CI will validate in parallel and deploy on success.
-
-Watch-outs across recent releases:
-
-- Race detector on tests (e.g. v0.21.3 sync.Once fix) — caught
-  by T3/T5, **not** by `make build`. Always run T5 before push.
-- Dockerfile syntax (e.g. v0.21.4 inline-ARG bug) — the container
-  build is what fails, not Go. T5 catches this only if `docker
-  buildx build` is reachable locally; on Mac without the
-  aarch64 toolchain, only CI catches it. The CHANGELOG pins
-  when this hits.
-- `go build -tags "<stale>"` (e.g. -tags jetstream dagnats after
-  the unified-build era) silently succeeds — T2 shows nothing,
-  T4 does nothing, T5 does nothing. CI does nothing. The
-  `git push` succeeds but the runtime drift is silent. No
-  catching mechanism today; review tags when editing startup
-  comments.
-
-## Deploy
-
-Push-to-`master` triggers `.github/workflows/deploy.yml` (Tailscale OIDC + Docker to single server). Server layout/deploy-user/secret tables: see `/skill:cali-ops-deploy-github-tailscale`. Two gotchas: (1) grant container write via `setfacl`/`chmod`, NEVER `chown` (non-root deploy user); (2) never `scp` into the server's repo clone — `git pull --ff-only` aborts. Scratch image healthcheck: `CMD [\"/app\",\"health\"]` (no `wget`/`curl`/`CMD-SHELL`).
-
-## Skins (pluggable DaisyUI / Basecoat / Morpheus)
-
-HTML UI uses the active skin. DaisyUI v5 is the default; the Basecoat and Morpheus skins ship their own component vocabulary. The active skin is read from `config.Skin` (env `UI_SKIN`, default `"daisyui"`) and can be overridden per request via the `?skin=` query string. The navbar exposes a `SkinSelector` widget that updates the query param and reloads.
-
-**Per-skin rules:**
-
-- **DaisyUI (default).** Use DaisyUI v5 components (read https://daisyui.com/llms.txt). Load `/static/app.min.css` (built by `npm run build`, regenerated in Dockerfile). NEVER `daisyui.min.css` (v4 relic, breaks v5 markup).
-- **Basecoat.** Native Basecoat components + shadcn-style OKLCH tokens. Native Basecoat JS runtime (`basecoat.initAll`) is debounced via `requestAnimationFrame` to be friendly with Datastar DOM morphing — do NOT call `basecoat.initAll` from inline page scripts (Datastar will re-morph and lose the JS-attached event handlers).
-- **Morpheus.** Vendorized web-components bundle (SHA-pinned, `web/skins/morpheus/VENDOR_SHA`); the bundle lives at `/static/morpheus/bundle.js`. Components are pure web components, NOT DaisyUI — read the morpheus neolib templates under `web/skins/morpheus/neolib/` before reusing them.
-
-**Plugin contract** (`web/skins/skin.go`): every skin is a `Skin{Name, Assets}` value registered at init via blank imports in `features/todo/components/skin_imports.go`. The dispatcher falls back to DaisyUI when the env value is unknown, logging a warning. Adding a fourth skin is: create `web/skins/<name>/`, register it from the import file, add a `make css-<name>` target.
-
-**Removing all skins.** Delete `web/skins/`, drop the blank imports in `features/todo/components/skin_imports.go`, drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered.
-
-## Key config constants (single source of truth)
-
-| Constant | File | Default | Purpose |
-|----------|------|---------|---------|
-| `DefaultReplayBufferSize` | `config/config.go` | 64 | Per-client replay ring-buffer length |
-| `DefaultClientQueueSize` | `config/config.go` | 64 | Per-client SSE channel buffer |
-| `DefaultSSEHeartbeatInterval` | `config/config.go` | 15s | SSE heartbeat to detect disconnection |
-| `OfflineSync.Enabled` | `config/config.go` | `true` (opt-out: `OFFLINE_SYNC_ENABLED=false`) | Toggle hybrid offline sync |
-| `EntityStore` | `config/config.go` | `"pb"` (alt: `crdt`) | Pluggable persistence strategy. Set via `ENTITY_STORE` |
-| `Skin` | `config/config.go` | `"daisyui"` (alt: `basecoat`, `morpheus`) | Active UI skin. Set via `UI_SKIN` or `?skin=` query |
-| `BuildLabel` | `config/config.go` | `"dev"` | Git tag baked into the binary via `-ldflags="-X main.Version=..."`; surfaced on the navbar version badge |
-| `BuildCommit` | `config/config.go` | `"unknown"` | Short git SHA baked into the binary via `-ldflags="-X main.CommitHash=..."`; surfaced alongside `BuildLabel` |
-
-**One place for all configs:** `config/config.go`. Runtime constants that are package-specific (e.g. `DefaultBaseURL` in `internal/llm/goai.go`) stay cohesionated — but all env vars are documented in config.go's comment block.
-
-## Removing features & tests by SCOPE
-
-When you remove a feature or plugin component, tests come along naturally:
-
-| If you remove… | Delete these packages | These test files go with them automatically |
-|----------------|----------------------|----------------------------------------------|
-| **Todo** (feature) | `features/todo/` | `features/todo/*_test.go` ✅ |
-| **Whiteboard** (feature) | `features/whiteboard/` (including its `static/` subdir), `internal/collab/` | `features/whiteboard/*_test.go`, `internal/collab/*_test.go` ✅ |
-| **DagNats** (plugin) | `internal/dagnats/`, `router/onboarding_dagnats.go` | `internal/dagnats/*_test.go`, `features/todo/onboarding_e2e_test.go` ⚠️ check cross-package deps |
-| **NATS** (plugin) | `internal/nats/` | `internal/nats/*_test.go`, `internal/collab/*_test.go` ⚠️ collab may depend on NATS |
-| **OfflineSync** (opt-out) | `config/config.go` (+ `sw.js`) | `internal/nats/crudproxy_test.go` ✅ (covers create/toggle/delete/clear_completed e2e with JetStream). Remove `sw.js` + SW registration from templ files + delete crudproxy.go |
-| **LLM** (plugin) | `internal/llm/` | `internal/llm/*_test.go`, `features/todo/suggest_test.go` ⚠️ |
-| **EntityStore** (plugin) | `features/store/pbstore/` | `features/store/pbstore/*_test.go` (future). Drop `todoH.SetStore(pbstore.New(app, "todos"))` from `router.Init`; the handler's lazy fallback (`h.st()` in `todo_repo.go`) will rebuild a PBStore on first use. Remove `features/store/pbstore/` to use a different strategy (e.g. the future CRDTStore). |
-| **Idempotency** (plugin) | `db/idempotency_hook.go` + `db/idempotency_seed.go` | `db/idempotency_hook_test.go` ✅. Remove both files, drop `RegisterIdempotencyHook(app)` and `enableTodosIdempotency(col)` from `db/seed.go`, and remove the hidden `name="idem_key"` input from `createForm`. |
-| **Sounds** (plugin) | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | none — pure client-side, no test deps. The installer strips `@sounds.*` call sites + imports from all 5 layouts and re-runs `templ generate` automatically. Manual fallback: drop `@sounds.SoundAssets()` from the page layouts (todo, landing, config, auth LoginPage, whiteboard) and `@sounds.SoundToggle()` from the navbar (`features/auth/views.templ`), then `make templ`. Full checklist in the `features/sounds/sounds.go` SCOPE doc. |
-
-**Rule of thumb:** `go test ./...` after deleting a package. If a compilation error mentions the deleted package in a test file, delete that test file too. Cross-package tests (like `features/todo/onboarding_e2e_test.go` depending on `internal/dagnats`) will fail to compile — that's your checklist.
-
-**Installer owns the safe subset.** `cmd/gogogo` trims exactly: `dagnats`, `whiteboard` (+`internal/collab`), `landing`, `config-view`, `credits`, `sounds`, `skins-extra` — each with its wiring strip in `router/router.go` / `cmd/web/main.go` / `cmd/desktop/main.go` / `.templ` layouts plus `go.mod` drops, proven by `go build ./cmd/web`. Capability metadata (ids, kinds, runtime switches, owned paths) lives in `internal/capabilities` — the single source of truth both the installer and the conformance tests read. It prints every consequence (dead UI, behavior changes) before deleting and exposes the plan as JSON (`--dry-run --format json`, single envelope with strip receipts on apply); `--no-tui` without `--yes` never applies. See `cmd/gogogo/README.md` for the alternatives analysis (why stdlib-only v0.1, where Charm Huh/Bubbletea would plug in). `todo`, `auth`, `queue`, core `nats`, and `llm` are NOT offered: todo is the reference to remove manually later, auth/queue are core, nats/llm disable at runtime via env.
-
-## Desktop builds
-
-The desktop shell (`cmd/desktop`) is a **separate build target**, not part of
-the default web build/test loop. It pulls in Wails v3, which requires GTK + WebKit dev
-libs (`libgtk-4-dev libwebkitgtk-6.0-dev`) that only exist on desktop build hosts — so
-`make build`, `make test`, and `go build ./...`/`go test ./...` from the repo root
-exclude `cmd/desktop` (same exclusion CI applies). To build it, run `make desktop`
-(or `./scripts/desktop-build.sh`) on a machine with those libraries installed.
-
-```bash
-# One-time: install Wails v3 CLI (pin must match go.mod)
-# go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.24
-
-# Build for current platform (fast native gate)
-./scripts/desktop-build.sh
-
-# Build Android APK (requires SDK + NDK + JDK 21)
-./scripts/desktop-build.sh android
-
-# Build macOS .app bundle
-./scripts/desktop-build.sh package
-
-# Cross-platform previews via wails-cross (opt-in, needs Docker, ~800MB one-time)
-./scripts/desktop-build.sh cross-windows  # or cross-darwin | cross-linux | cross-universal
-make desktop-cross        # all three into build/cross/; darwin is UNSIGNED (test only)
-```
-
-Cross (`wails-cross`) is for previews without 3 native runners — release
-binaries still come from native runners (macOS signing can't cross).
-Version pin rule: `go.mod` (wails/v3), `Makefile` (`WAILS_VERSION`) and
-`.github/workflows/desktop.yml` (the `go install` line) must carry the same
-beta — bump together. `scripts/desktop-build.sh` no longer pins it: the native
-path is a plain `go build` and the cross path calls Docker directly, so the CLI
-version does not affect either.
-
-The desktop binary shares 100% of the backend. With `NATS_LEAFNODE_URL` set, it becomes a NATS Leaf Node syncing JetStream with the server (offline edits replay on reconnect). See `scripts/desktop-build.sh` for full docs.
-
-## Native GUI PoC (`cmd/gui`)
-
-gogpu/ui window over the same backend (PocketBase + `EntityStore`, no HTTP). Like `cmd/desktop`, a **separate target**: excluded from `web-packages.sh` (web CI), validated by the `gui-poc` job in `.github/workflows/desktop.yml` (`gofumpt` + `vet` + `govulncheck` + `go test -race ./cmd/gui/` + `CGO_ENABLED=0` build, all headless). Local: `make gui` (test + build), `make run-gui` (needs DISPLAY/GPU). Full lint is manual by design (CI weight): `make lint-gui` before committing any `cmd/gui` change — keep it at zero issues.
-
-Rules: UI tree only on the UI thread (`uiMu` serializes `SetRoot`); background poll produces data under `stateMu`, views read `snapshot()` copies; lock order always `uiMu→stateMu`. Online-only (no outbox/replay); native `add()` does NOT trigger `ResumeOnboarding` (trigger lives in the HTTP layer). Remove: delete `cmd/gui/`, drop the `gui` Makefile target + `gui-poc` job (no script change needed — already excluded).
-
-## Testing
-
-Temp-dir PocketBase + Bootstrap + real SQLite; `httptest.NewServer` over a real router; assert against DB. LLM fakes via `internal/llm/fakeserver` (transport) or injected stubs (business logic). `go test -race -p 1 ./...` (serialized packages for DagNats engine stability).
-
-**Test types we write:** `test-behavior` (httptest over a real router, browser/e2e for user-facing flows), `test-unit` (pure logic), `test-integration` (real DB/API/queue seams), `test-security` (auth/payment/data). `make coverage` is informational — never a gate, and never a target to chase.
-
-**NO mutation testing.** Do not add mutation tooling (go-mutate, gremlins, Stryker, mutmut, PIT), do not create `test-mutation` scopes, and do not set mutation-score targets — not 50%, not 70%, not any. The evidence (Hamidi et al. 2026; Just et al.; SWE-Mutation, ACL 2026) is that full mutation tooling barely beats coverage on real faults while oracles stay the bottleneck, and per-PR mutation gates cost hours of CI for ~33% unproductive mutants.
-
-**The one keeper: hand-mutation as a red-proof.** When a test must prove it would actually catch a defect, temporarily invert or remove the guarded behavior, confirm the test fails, then revert. No tooling, no CI minutes. A test that stays green on broken code is rejected — that check is mandatory for critical invariants. Never leave an intentionally mutated line committed.
-
----
+- **Routing:** register DIRECTLY on `se.Router` inside OnServe (nested `OnServe().BindFunc` never fires; `GET /` swallows subpaths). Cookie is `gogogo_auth`, NOT `pb_auth` (PB admin/users are separate namespaces — sharing clobbers the admin session); admin UI on separate origin `:8090/_/`. Static assets via EXACT `/static/<file>` routes with content-hash ETag (`ARCHITECTURE.md`, `docs/architecture.md`).
+- **Realtime:** todo mutations flow through PB realtime (`/api/realtime`, per-user rules) + fragment re-fetch — do NOT add a parallel SSE-hub re-render. SSE hub (`/api/todos/stream`) is ephemeral signals only. Whiteboard: SSEHub + NATS, Loro offline-first (`docs/async-layers.md`).
+- **Templ/CSS:** `make templ && make css` after `.templ` edits. `site/`+`docs/` are outside the Tailwind scan — landing edits can't stale the bundle (`docs/code-quality.md`).
+- **Tests:** temp-dir PB + `Bootstrap()` + real SQLite over `httptest`; orphan `web` procs hold `:18099`/`:4224` — `pkill -x web` (`docs/troubleshooting.md`).
+- **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
+- **Deploy:** push-to-`master` → CI gate → deploy. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone (`git pull --ff-only`). Scratch healthcheck: `CMD ["/app","health"]` (`docs/deploy.md`).
+- **Skins:** default DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Basecoat/Morpheus have their own vocab — read `docs/ui-skins.md` first.
+- **Config:** single source `config/config.go` (`docs/configuration.md`). **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
 
 ## No AI attribution in commits or release notes
 
-Claude or any AI assistant does NOT co-author anything in this
-repository. The user writes every commit, release note, PR
-description, blog post, and CHANGELOG entry.
-
-**Rules for any drafting task:**
-
-- **Never** add `Co-Authored-By: Claude ...` or any AI model trailer
-  to a commit message, PR description, release notes, blog post, or
-  CHANGELOG entry. The model did not co-author; the trailer falsely
-  credits it.
-- **Never** add an explicit human `Co-Authored-By` trailer to release
-  notes either — release notes are part of the artifact, not
-  meta-commentary.
-- When drafting a `/tmp/msg.txt` (commit message) or
-  `/tmp/notes.txt` (release body), the file ends at the last
-  meaningful sentence. Do not append attribution lines.
-
-**Why this matters:** the trailer would spread AI crediting into
-commit history and release pages where every reader of the public
-repo sees it. The model has no standing to claim co-authorship of a
-release the user did not design, edit, and approve end-to-end.
+Claude or any AI assistant does NOT co-author anything here. Never add `Co-Authored-By: Claude` (or any model) or human trailers to commits, PRs, release notes, blog posts, CHANGELOG. Draft files (`/tmp/msg.txt`, `/tmp/notes.txt`) end at the last meaningful sentence.
