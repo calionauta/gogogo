@@ -1,3 +1,108 @@
+## [0.36.0] - 2026-10-06
+
+A correctness and UI-surface release. Three data-integrity bugs in the
+collaborative-document layer are fixed — a cold-miss op could discard every
+shape on a board, the doc cache grew without limit, and a stale op could
+silently overwrite a newer edit to the same shape. The Basecoat skin is
+repaired (it had been rendering without most of its CSS) and the Morpheus skin
+is removed. Adds a versioned, drift-checked dependency on the vendored stelow
+coding standards.
+
+### Added
+
+- **The vendored stelow standards can now be refreshed with one reviewed command, and the update is proposed as a PR rather than committed silently.** Three layers, each with a distinct job:
+
+  | Layer | Mechanism | Role |
+  |---|---|---|
+  | 1. Detect | `bin/check-stelow-drift.sh` (advisory pre-commit; `--strict` via `make check-stelow-drift`) | Warns locally when the vendored copy or the pin is off |
+  | 2. Report | `.github/workflows/stelow-drift.yml` (weekly) | Fails its own run when upstream has moved |
+  | 3. Fix | `scripts/refresh-stelow.sh`, proposed by `.github/workflows/stelow-auto-bump.yml` (weekly) | Opens a PR against the new pin |
+
+  `scripts/refresh-stelow.sh` fetches each file from
+  `raw.githubusercontent.com/<repo>/<sha>/<path>`, which returns
+  byte-identical content **without cloning the stelow repo** and without
+  spending GitHub API rate budget on content. It resolves a branch or an
+  explicit commit, discovers the upstream file list (API tree → local clone →
+  local files, warning loudly in the last case because only the upstream tree
+  can reveal a *new* reference), fetches and verifies, installs, bumps
+  `UPSTREAM_SHA`, and re-runs the strict drift check. Any fetch failure aborts
+  before touching the tree, so a partial upstream change cannot land.
+
+  The update lands as a **PR, never an auto-commit**: the vendored copy is
+  normative — it is the universal coding principles this template enforces — and
+  a silent commit would change the rules the project holds itself to with nobody
+  reading the diff. This mirrors the existing "human must approve all AGENTS.md
+  changes" rule.
+
+### Removed
+
+- **The Morpheus skin is gone.** It was added in v0.24.0 as a third UI skin and
+  shipped since, but its upstream is a two-month-old alpha (created 2026-07-07,
+  22 stars) and its layout classes resolved to nothing: `cal14-grid`,
+  `cal14-left`, `cal14-right` and `neo-tab-active` had zero definitions in any
+  stylesheet, and `morpheus.css` was only `--neo-*` design tokens — the
+  components themselves are shadow-DOM `<neo-*>` elements styled inside their own
+  boundary, so the utility classes in the template silently did nothing. That is
+  why the skin looked broken rather than merely stylistically different.
+
+  Removed rather than rewritten: `web/skins/morpheus/` (the vendored bundle and
+  its `neolib/` component set), `web/resources/static/morpheus/`, the
+  `SkinMorpheus` constant, the `_ "…/web/skins/morpheus"` registration, the
+  `handleIndex` / `renderTodoListRegion` dispatch branches, the `skins-extra`
+  trim-unit entries, and the Morpheus leg of the Playwright skin sweep. An
+  unknown `UI_SKIN` or `?skin=` value still falls back to DaisyUI, so a
+  bookmarked `?skin=morpheus` URL degrades to the default skin rather than
+erroring. DaisyUI remains the default; Basecoat remains the supported option.
+
+### Fixed
+
+- **A whiteboard op could be applied to an empty document, silently discarding every shape drawn before it.** `DocStore` only ever *added* docs and never rehydrated on a miss, so a request for a doc this process had not loaded started from `NewDoc(id)` — empty — applied the op, and then persisted that resolved snapshot over the good one. The reachable production path is exactly the offline-replay flow: after a server restart the service worker serves the board page from cache, the SSE stream connects (loading nothing), and the client's IndexedDB outbox then replays an op into the empty doc. The store now rehydrates from the `Persister` **before** publishing the doc into the map (so no concurrent caller can observe a half-loaded doc), and both `NewWebSyncWorker` and `NewSyncWorker` wire the persister in — the NATS side needed it too, since a cross-instance update for a non-resident doc had the same failure. Red-proofed: with rehydration disabled, the new test fails with `prior shapes were discarded`.
+
+- **`DocStore` grew without limit.** One `LoroDoc` per `docID` was retained for the process lifetime, each holding a full op log, with no delete or evict path anywhere in the package. A whiteboard server accumulated a doc for every board ever touched. It is now a bounded LRU (`DefaultMaxDocs` = 256, `DefaultIdleTTL` = 5 min) with an explicit `Evict`, and `crdtstore`'s per-owner `docs` map (same unbounded shape, one doc per owner) got the same treatment.
+
+  The TTL floor is what makes eviction correct without reference counting: a single request mutates a doc for microseconds, so a doc idle for minutes cannot be mid-mutation. Without it an LRU could evict a doc between the `GetOrCreate` and the `ApplyOp` of the same request, putting two concurrent ops on two different `Doc` instances and losing one. A doc in active use is therefore **never** evicted even when that briefly exceeds the cap — exceeding the cap is the correct trade. Both properties are pinned by tests, and the bound test is red-proofed.
+
+- **A stale op can no longer overwrite a newer edit to the same shape.** The store is a `LoroMap`, where writing an existing key is last-writer-wins: every replica agrees deterministically on *which* write survives, but the other edit is lost with **no signal to anyone**. For a canvas that is the wrong trade — a user who moves a shape and watches it snap back has no way to know a peer also moved it. Shapes now carry a server-assigned `Version` and clients send back the revision they last saw as `ShapeOp.BaseVersion`; a write based on a superseded revision is refused with **409 + the current shape list**, so the browser resyncs and the edit can be re-applied against the newer base instead of vanishing. The check and the write happen under one lock hold, so two concurrent ops cannot both pass it. The version is persisted (it survives a snapshot round-trip), and a rejected op is neither persisted nor broadcast. Red-proofed: disabling the check makes both conflict tests fail with `want ErrShapeConflict`.
+
+  Scope, stated plainly: the canvas today only *adds* shapes, so this was not yet reachable from the UI — it becomes load-bearing as soon as shapes can be moved or resized. Two consequences worth knowing: a replayed duplicate `add` is now a **409 rather than a silent no-op** (the safer answer, and the state is still unchanged), and `clear` still takes no version because it cannot conflict.
+
+- **Two claims about the CRDT's concurrency behaviour were measured and refuted; the measurements are now pinned as regression tests.** A replayed `clear` does **not** wipe concurrent additions (a clear of key `x` concurrent with an add of key `y` converges to `{y}`), and `add`/`clear` replays **are** state-idempotent. Measurement method matters here: compare **resolved state**, never `EncodeSnapshot()` bytes — snapshot bytes are not stable for the same logical state because Loro records every op, so a byte comparison reports "not idempotent" for a genuinely idempotent operation. The one real hazard found this way — a stale offline op silently clobbering a newer write — is fixed above, and its regression test asserts the rejection rather than the old behaviour.
+
+- **The Basecoat skin was missing most of its CSS, and the cause was the scan
+  roots, not the class names.** `src/css/basecoat-input.css` declared its inputs
+  as `@import "tailwindcss" source("../../features/") source("../../web/")` —
+  Tailwind v4's `source()` takes *directories*, not recursive globs, so
+  `web/skins/basecoat/*.templ` and `features/todo/components/*.templ`
+  contributed nothing to the bundle. Every layout utility those templates rely
+  on (`grid-cols-3`, `p-0`, `py-2`, `space-y-3`, `lg:grid-cols-5`, …) was simply
+  absent, which is why the skin looked broken while its class names were in fact
+  correct. Replaced with `source(none)` plus explicit `@source` globs that
+  mirror `src/css/input.css` **exactly**, so a class that works under DaisyUI
+  cannot silently vanish under Basecoat.
+
+- **Basecoat had no stepper, so the async-demo progress was invisible.** The
+  demo panels render `<li class="step">` and toggle `step-primary` /
+  `step-success` / `step-error` through Datastar `data-class`. Those names are
+  DaisyUI's `.steps` component; Basecoat ships no equivalent, so every state
+  class resolved to nothing and the list rendered as static text that never
+  changed. The three state utilities are now defined in
+  `src/css/basecoat-input.css`, which keeps the state wiring in the templates as
+  the single source of truth instead of forking the markup per skin.
+
+- **`data-variant="accent"` silently opted out of Basecoat's styling.** Basecoat
+  has no `accent` variant, and its default rules are written as
+  `.badge:not([data-variant])` — so *any* unrecognised variant value excludes
+  the element from the default rule rather than falling back to it. The DagNats
+  badge and the “Run durable workflow” button rendered unstyled. Both now use
+  `data-variant="secondary"`.
+
+- **`make css-install` did not check `basecoat-css`.** The version guard that
+  reinstalls when `node_modules` drifts from `package-lock.json` covered
+  `tailwindcss`, `@tailwindcss/cli` and `daisyui` but not `basecoat-css`, so a
+  stale Basecoat could emit a bundle differing from the committed one and fail
+  `css-check` with no source change — the exact false alarm the guard exists to
+  prevent.
+
 ## [0.35.0] - 2026-10-06
 
 Performance, correctness and CI-parity work on the test gate and three
