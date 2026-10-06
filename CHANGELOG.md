@@ -6,7 +6,7 @@ knob is `DAGNATS_GREET_PACING`.
 
 ### Changed
 
-- **The test suite is ~47% faster (75.5s → ~40s wall) without weakening what it checks.** The cost was not the tests but latency the production code made them wait out: four demonstration/backoff delays (~20s), a 6s negative-assertion window, and a bcrypt cost of 10 that made every fixture login cost ~960ms under `-race`. Fixed by making pacing injectable (`Queue.SetRetry`, `(*TodoHandler).SetRetryDemoDelay`, `llm.NewSimulatedWithDelay`) with production defaults untouched, plus event-driven waits. `t.Parallel()` on `features/todo`, `features/whiteboard`, `internal/queue`, `internal/nats` and `features/store/crdtstore` (per-test fixtures were already isolated) added the rest.
+- **The test suite is ~44% faster (75.5s → ~42s wall, measured 40.6–45.2s across runs) without weakening what it checks.** The cost was not the tests but latency the production code made them wait out: four demonstration/backoff delays (~20s), a 6s negative-assertion window, and a bcrypt cost of 10 that made every fixture login cost ~960ms under `-race`. Fixed by making pacing injectable (`Queue.SetRetry`, `(*TodoHandler).SetRetryDemoDelay`, `llm.NewSimulatedWithDelay`) with production defaults untouched, plus event-driven waits. `t.Parallel()` on `features/todo`, `features/whiteboard`, `internal/queue`, `internal/nats` and `features/store/crdtstore` (per-test fixtures were already isolated) added the rest.
 - **`make ci-local` now runs `check-generated`, `install-sh-guard` and the binary boot smoke test**, so the local gate matches the remote one step-for-step. `docs/local-ci.md` documents the parity table so the next drift is visible instead of silent.
 
 ### Added
