@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -106,6 +107,11 @@ type TodoHandler struct {
 	// path; st() only fills h.stFallback.
 	stOnce     sync.Once
 	stFallback store.EntityStore[todo.Todo]
+
+	// retryDemoDelay overrides the retry demo's per-attempt pacing, which
+	// exists only so a human can watch the stepper light up. Zero means the
+	// demonstration default. Set via SetRetryDemoDelay.
+	retryDemoDelay time.Duration
 }
 
 // OnboardingResumer is the capability the create path needs from the

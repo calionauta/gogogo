@@ -119,10 +119,17 @@ const simulatedResponseDelay = 1500 * time.Millisecond
 // per-attempt toasts — that's the behavior we want to showcase.
 //
 // The caller owns the lifecycle; call Close() to shut the fake server down.
-func NewSimulated() *Client {
+func NewSimulated() *Client { return NewSimulatedWithDelay(simulatedResponseDelay) }
+
+// NewSimulatedWithDelay is NewSimulated with the demonstration pacing dialed
+// down. The only reason the delay exists is so a HUMAN watching the demo sees
+// the "got 3 suggestions" toast land after the "retrying…" one; a test asserts
+// the ORDER of those events, not the wall-clock gap between them, and would
+// otherwise sit through 1.5s per suggest call. Tests use a few milliseconds.
+func NewSimulatedWithDelay(delay time.Duration) *Client {
 	srv := fakeserver.NewServer(
 		fakeserver.WithStatusSequence(500, 200),
-		fakeserver.WithResponseDelay(simulatedResponseDelay),
+		fakeserver.WithResponseDelay(delay),
 		fakeserver.WithResponse(`["Review the pull request","Write the meeting notes","Ping the on-call engineer"]`),
 	)
 	return &Client{
