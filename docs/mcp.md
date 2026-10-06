@@ -39,7 +39,7 @@ where `install.sh` puts it):
 
 | Tool | Changes anything? | What it does |
 |---|---|---|
-| `advise_stack` | No | Opinions: which units fit a use-case, off-switches, Go/Zig rule. Answers in one of three scopes — see below. Start here |
+| `advise_stack` | No | Opinions: which units fit a use-case, off-switches, Go/Zig rule. Optional `dir` adds the same probe as the CLI's `--dir`. Answers in one of three scopes — see below. Start here |
 | `capabilities_list` | No | Full capability registry JSON |
 | `trim_plan` | No | Preview a scaffold/trim (validates ids, shows consequences) |
 | `trim_apply` | Yes (`confirm:true`) | Rename + trim + tidy + build proof |

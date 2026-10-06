@@ -15,6 +15,24 @@ Go + template rules only. Universal principles (KISS, DRY, LoB/SoC, YAGNI, sizes
 
 Activate when: editing any `.go` file, spawning a goroutine, creating a channel, touching `context.Context`, running `golangci-lint`/`go test`, touching `.templ`, profiling, or proposing SIMD/Zig. Do not activate for copy writing, landing-page CSS, or release notes.
 
+## Start here (this file is long; read only what you need)
+
+| Your task | Section |
+|---|---|
+| Writing or reviewing ordinary Go | **Core Go Rules** |
+| Goroutines, channels, `context`, shutdown, lifecycle | **Concurrency (deltas)** + `references/go-concurrency-deltas.md` |
+| Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
+| Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
+| A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
+| Lint failing, adding a rule, CI red | **Enforcement** |
+| Proposing Zig | **Zig Gate** + `references/zig-gate.md` |
+
+Universal principles (KISS, DRY, LoB/SoC, YAGNI, file/function sizes) are NOT
+repeated here — they live in
+[`stelow-workflow-coding-standards`](https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards),
+with the Go override stated under **Core Go Rules**. Everything below is the
+delta this project adds on top.
+
 ## Core Go Rules
 
 1. Errors are values: handle at call site, wrap with `%w`. See `errorlint`, `nilerr` in `.golangci.yml`.
@@ -106,15 +124,16 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 
 ### Working with the linters (three layers, in the order they fire)
 
-**1. `golangci-lint` — the 31-linter baseline.** Config is `.golangci.yml`; it is the
-single source for which linters run. Do NOT run `golangci-lint run ./...` for a
-small change — scope it (`golangci-lint run <changed-pkgs>`); the full repo is
-~10x slower. Linters are grouped by role:
+**1. `golangci-lint` — the baseline.** `.golangci.yml` is the single source for
+which linters run and how they are configured; **read it, do not trust a list in
+prose** (this file used to spell out the membership by role, and it drifted).
+Do NOT run `golangci-lint run ./...` for a small change — scope it
+(`golangci-lint run <changed-pkgs>`); the full repo is much slower.
 
-- **correctness** (`errcheck`, `govet` with `enable-all`, `staticcheck`, `ineffassign`, `nilerr`, `errorlint`)
-- **concurrency/lifecycle** (`containedctx`, `contextcheck`, `noctx`, `gocritic`, `thelper`)
-- **security** (`gosec`)
-- **style/size** (`revive`, `dupl`, `funlen`, `gocyclo`, `lll`, `mnd`, `goconst`, `tagliatelle`, `modernize`, `perfsprint`, `usestdlibvars`)
+```bash
+golangci-lint help linters                      # everything available
+golangci-lint linters | grep -A1 '^enabled'     # what this config turns on
+```
 
 Adding a linter: enable it under `linters.enable` in `.golangci.yml`, then run
 `golangci-lint run <pkgs>` and fix what it reports **before** committing — a
@@ -126,17 +145,31 @@ the intent.
 `gocritic` (`settings.gocritic.settings.ruleguard.rules`), so it runs inside the
 same `golangci-lint` pass and is CI-blocking. Use it for a footgun that no stock
 linter covers — i.e. something this project got wrong at least once. Current
-rules: `TimeAfterInSelect` (timer leak in a loop) and
-`BlockingReadBehindDeadline` (a parked `Read` outliving its deadline).
+rules (see the file for the full text and the reasoning behind each):
 
-Writing one — the DSL has three traps that all fail silently or confusingly:
+- `TimeAfterInSelect` — a timer allocated per loop iteration
+- `BlockingReadBehindDeadline` — a parked `Read` outliving its deadline
+- `TickerLoopWithoutExit` / `TickerLoopWithoutExitCall` — `for range <ticker>.C`
+  has no exit (`defer t.Stop()` stops the ticker, not the goroutine on it).
+  Two functions because one match arm cannot cover both receiver shapes
+  (`ticker.C` vs `time.NewTicker(d).C`) — see the traps below.
+
+Writing one — the DSL has traps that all fail silently or confusingly, so
+verify with a probe file before trusting the rule:
 
 - Variadic group is `$*name`, **not** `$$$name` (does not parse). It needs a
   name because `Where()` refers to it.
 - A metavariable cannot be a selector receiver: `$x.Read($*_)` does not parse;
   `$x.Read($_)` does.
+- **Only the FIRST `m.Match` in a rule function is applied.** Two patterns need
+  two functions, not two calls — and a single-arm version can look obviously
+  correct while silently missing half the cases.
 - Patterns match **expressions**, not statements — `for`/`select` bodies need the
   `$*body` form shown above, and `m.File().Text` does not exist.
+- A rule that matches nothing is indistinguishable from a rule that is broken:
+  confirm it fires on a deliberately bad fixture, then confirm it stays quiet on
+  the corrected code. A **typecheck error anywhere in the package also
+  suppresses every ruleguard result**, which reads as "the rule never fires".
 
 A rule that fails to load surfaces in `golangci-lint` as the generic
 `ruleguard: execution error: used Run() with an empty rule set`, which does not
@@ -191,7 +224,7 @@ warnings print and exit 0.
 ## Edge Cases
 
 - `_templ.go` files: excluded from `funlen`/`gocyclo`/`dupl`/`lll` (generated).
-- `_test.go`: excluded from `goconst`/`mnd`/`funlen`/`gocyclo`/`bodyclose` (do not close httptest bodies).
+- `_test.go`: excluded from `goconst`/`mnd`/`funlen`/`gocyclo`/`bodyclose` (do not close httptest bodies) and `forbidigo` (a test legitimately sleeps to assert absence, pace a fixture, or let a watcher catch up). Read the exclusion list from `.golangci.yml` rather than trusting this line — it is the single source and this prose has drifted before.
 - Morpheus `data-neo-*` attrs: intentional, keep `-only-errors`; add truly shared ones to `.datastar-lint.yaml`.
 - `site/**`, `docs/**`: not scanned by Tailwind, not deployed in binary. Never gate them with `css-check`.
 - `cmd/desktop`, `cmd/gui`: separate targets, excluded from web gate (`scripts/web-packages.sh`). Full lint manual (`make lint-gui`).

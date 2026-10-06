@@ -60,27 +60,41 @@ type toolDef struct {
 var toolCatalog = []toolDef{
 	{
 		"capabilities_list",
-		"Raw registry JSON: every template capability with id, kind, summary, and off-switch.",
+		"Raw registry JSON: every template capability with id, kind, summary, and " +
+			"off-switch. Registry only — takes no path, so it answers from any " +
+			"directory. Use it to look up an id/off-switch; use advise_stack to " +
+			"decide WHICH ones apply.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
 		"trim_plan",
-		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). Changes nothing.",
+		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). " +
+			"Changes nothing. Requires a gogogo checkout at `dir` unless it does not " +
+			"exist yet (then it previews the clone) — on an unrelated project it " +
+			"cannot preview anything, so call advise_stack for guidance instead.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
 	},
 	{
 		"trim_apply",
-		"Scaffold/trim a checkout (rename, trim, prove with build). Requires confirm:true.",
+		"Scaffold/trim a checkout (rename, trim, prove with build). Requires " +
+			"confirm:true. Mutates the target tree; only for a gogogo checkout or a " +
+			"path to scaffold into.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimApply) },
 	},
 	{
 		"check_tree",
-		"Verify installer markers without changing anything (drift gate).",
+		"Verify installer markers without changing anything (drift gate). Requires " +
+			"a gogogo checkout at `dir`: it compares the trim manifest against the " +
+			"tree. On a project that is not a gogogo checkout it returns a single " +
+			"'not a gogogo checkout' failure rather than a marker inventory — do not " +
+			"read that as the project being broken.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCheckTree) },
 	},
 	{
 		"add_unit",
-		"Add one template unit to a checkout (deps, rebase, proof). Requires confirm:true.",
+		"Add one template unit to a checkout (deps, rebase, proof). Requires " +
+			"confirm:true, and needs BOTH `dir` (a gogogo checkout) and `from` " +
+			"(a pristine template copy to copy the unit's files from).",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAddUnit) },
 	},
 	{
@@ -138,6 +152,7 @@ type addArgs struct {
 type adviseArgs struct {
 	Need   string `json:"need,omitempty" jsonschema:"use-case in your words (empty lists everything)"`
 	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Dir    string `json:"dir,omitempty" jsonschema:"optional: also check this path, so the answer can say it is not a gogogo checkout (omitted = the answer depends on need alone)"`
 }
 
 // printHelp documents tools and client wiring for humans. The tool list
@@ -252,7 +267,7 @@ func handleAdvise(
 	if format == "" {
 		format = defaultFormat
 	}
-	out, err := installer.Advise(args.Need, format)
+	out, err := installer.Advise(args.Need, format, args.Dir)
 	if err != nil {
 		return nil, nil, err
 	}

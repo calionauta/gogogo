@@ -158,6 +158,28 @@ var stdlibRules = []string{
 		"wait.",
 }
 
+// notCheckoutRules replace the template rules when --dir points at something
+// that is NOT a gogogo checkout. Distinct from stdlibRules because the cause is
+// different: the need did not rule the template out, the PATH did — there is no
+// trim manifest to act on, so the advice is about what can still be reused
+// rather than about dependencies.
+var notCheckoutRules = []string{
+	"The path given with --dir is not a gogogo checkout (no cmd/web/main.go " +
+		"or internal/installer/run.go), so the capability table and the trim " +
+		"tooling do not apply to it. Nothing was installed and nothing changed.",
+	"To get the template: scaffold a project with this tool, or `npx skills " +
+		"add calionauta/gogogo` to read the Go standards " +
+		"(https://github.com/calionauta/gogogo — Go idioms plus the " +
+		"concurrency, testing and profiling deltas the template holds itself " +
+		"to). The parts that apply without the template are " +
+		"references/go-concurrency-deltas.md and the Core Go Rules and Testing " +
+		"sections; universal principles (KISS/DRY/YAGNI, sizes) are delegated " +
+		"to stelow-workflow-coding-standards.",
+	"To adopt ONE capability in an existing project, read its dirs/files (given " +
+		"per capability in the registry) and copy the pattern — `add` only " +
+		"merges into a scaffolded checkout.",
+}
+
 // Stack labels shared below (one spelling per ecosystem: goconst-quiet
 // by construction).
 const (
@@ -182,12 +204,22 @@ const (
 	stackZig      = "Zig"
 	scopePatterns = "patterns"
 	scopeTemplate = "template"
-	// scopeGoStdlib is the third answer shape: a Go need whose own
-	// constraints rule the template out (stdlib-only, no dependencies).
-	// The capability table is not merely unhelpful there, it is
-	// inapplicable — every capability ships a dependency the need forbids —
-	// so the document is a few rules plus a pointer to the Go standards.
+	// scopeGoStdlib is the third answer shape: the template does not apply.
+	// Two conditions produce it, distinguished by `reason`:
+	//   reasonStdlibOnly  — a Go need whose own constraint forbids dependencies
+	//   reasonNotCheckout — --dir points at something that is not a gogogo tree
+	// Both mean "the capability table is useless here", but they call for
+	// different next steps, so they share the scope and split on Reason.
 	scopeGoStdlib = "go-standards"
+
+	reasonStdlibOnly  = "stdlib-only"
+	reasonNotCheckout = "not-a-gogogo-checkout"
+
+	// treeUnknown / treeNotCheckout / treeCheckout are the three values of the
+	// `tree` field, so a reader can always tell whether a path was examined.
+	treeUnknown     = ""
+	treeNotCheckout = "not-a-gogogo-checkout"
+	treeCheckout    = "gogogo-checkout"
 )
 
 // stdlibSignals are the constraints that make the template unusable for a Go

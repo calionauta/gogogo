@@ -43,8 +43,17 @@ type adviseCap struct {
 
 // adviseDoc is the full guidance document (text and JSON share it).
 type adviseDoc struct {
-	Scope        string         `json:"scope"`
-	Stack        string         `json:"stack,omitempty"`
+	Scope string `json:"scope"`
+	Stack string `json:"stack,omitempty"`
+	// Tree records what the optional --dir probe found, so a reader can tell
+	// "I was told this is a gogogo checkout" from "nobody looked". Empty
+	// means no path was given — the answer is about the need alone.
+	Tree string `json:"tree,omitempty"`
+	// Reason names WHY a non-template scope was chosen, so the caller does not
+	// have to infer it from the rules. Two conditions share the go-standards
+	// scope (the need forbids dependencies; the path is not a checkout) and
+	// they call for different next steps.
+	Reason       string         `json:"reason,omitempty"`
 	Rules        []string       `json:"rules"`
 	Presets      []advisePreset `json:"presets"`
 	Capabilities []adviseCap    `json:"capabilities,omitempty"`
@@ -139,12 +148,25 @@ func presetCopyDirs(p advisePreset) []string {
 	return out
 }
 
-// buildAdvise resolves the registry into guidance, filtering presets by
+// buildAdvise is buildAdviseIn with no path: the pure, need-only answer.
+// Kept as the entry point every existing caller and test uses, so the
+// default output is unchanged byte-for-byte by the --dir feature.
+func buildAdvise(need string) adviseDoc {
+	return buildAdviseIn(need, "")
+}
+
+// buildAdviseIn resolves the registry into guidance, filtering presets by
 // need (empty need returns every preset, most useful first is meaningless
 // without a query — manifest order wins). A non-Go stack switches the
 // scope to patterns: no trim mechanics, no capability table, owned paths
 // as copy reference.
-func buildAdvise(need string) adviseDoc {
+//
+// dir is optional and opt-in. Empty keeps the answer a pure function of need
+// — the tool still reads nothing unless asked. When dir IS given, the probe is
+// one stat call: the capability table is only meaningful inside a gogogo
+// checkout, so outside one the answer says so instead of listing 24 units the
+// reader cannot use.
+func buildAdviseIn(need, dir string) adviseDoc {
 	owners := capUnit()
 	unitKind := map[string]capabilities.Kind{}
 	for _, u := range manifestUnits {
@@ -161,8 +183,18 @@ func buildAdvise(need string) adviseDoc {
 	matched = annotated
 	if stack := detectStack(need); stack != "" {
 		return adviseDoc{
-			Scope: scopePatterns, Stack: stack,
+			Scope: scopePatterns, Stack: stack, Tree: probeTree(dir),
 			Rules: foreignRules, Presets: matched,
+		}
+	}
+	// The path outranks the need's wording: if the caller points at a tree
+	// that is not a gogogo checkout, the capability table is inapplicable
+	// whatever the need says. Checked after detectStack because a non-Go
+	// stack already has the shorter, correct answer.
+	if dir != "" && !looksLikeTemplate(dir) {
+		return adviseDoc{
+			Scope: scopeGoStdlib, Reason: reasonNotCheckout,
+			Tree: treeNotCheckout, Presets: matched, Rules: notCheckoutRules,
 		}
 	}
 	// A Go need that constrains itself to the standard library cannot use
@@ -171,10 +203,13 @@ func buildAdvise(need string) adviseDoc {
 	// standards pointer instead. Checked AFTER detectStack so an explicit
 	// non-Go stack still wins: "Rust, no dependencies" is a Rust need.
 	if wantsStdlibOnly(need) {
-		return adviseDoc{Scope: scopeGoStdlib, Rules: stdlibRules}
+		return adviseDoc{
+			Scope: scopeGoStdlib, Reason: reasonStdlibOnly,
+			Tree: probeTree(dir), Rules: stdlibRules,
+		}
 	}
 	doc := adviseDoc{
-		Scope: scopeTemplate, Rules: adviseRules,
+		Scope: scopeTemplate, Tree: probeTree(dir), Rules: adviseRules,
 		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>", nil); return &n }(),
 	}
 	for _, c := range capabilities.All {
@@ -262,12 +297,24 @@ func renderForeign(doc adviseDoc) string {
 
 // renderStdlib is the go-standards-scope text: no capability table, no trim
 // mechanics, no presets — just the rules that survive without the template.
+//
+// It renders doc.Rules rather than a fixed list, because two different
+// conditions reach this scope (the need forbids dependencies, or --dir is not a
+// checkpoint) and each ships its own rule set. Printing the header from
+// doc.Reason keeps the explanation matched to the cause.
 // Split out so Advise stays under the gocyclo gate, like renderForeign.
 func renderStdlib(doc adviseDoc) string {
 	var b strings.Builder
-	b.WriteString("stdlib-only Go — the gogogo template does not apply here.\n" +
-		"No capability is installable: each one adds or belongs to a dependency\n" +
-		"this need forbids, so the registry is omitted rather than shown empty.\n\n")
+	switch doc.Reason {
+	case reasonNotCheckout:
+		b.WriteString("the path is not a gogogo checkout — the template does not apply here.\n" +
+			"No capability is installable into it: this tool trims and extends its own scaffold,\n" +
+			"not an arbitrary project.\n\n")
+	default:
+		b.WriteString("stdlib-only Go — the gogogo template does not apply here.\n" +
+			"No capability is installable: each one adds or belongs to a dependency\n" +
+			"this need forbids, so the registry is omitted rather than shown empty.\n\n")
+	}
 	b.WriteString("rules:\n")
 	for _, r := range doc.Rules {
 		fmt.Fprintf(&b, "  - %s\n", r)
@@ -275,13 +322,29 @@ func renderStdlib(doc adviseDoc) string {
 	return b.String()
 }
 
-// Advise renders guidance for need in text|json. Pure: reads the registry,
-// touches nothing. LLMs call this when they want opinions, not changes.
-func Advise(need, format string) (string, error) {
+// probeTree reports what the optional --dir check found, or "" when no path
+// was given. It is the ONLY thing in this file that touches the filesystem,
+// and only when the caller opts in with a path — so `advise --need X` remains
+// a pure function of its input.
+func probeTree(dir string) string {
+	if dir == "" {
+		return treeUnknown
+	}
+	if looksLikeTemplate(dir) {
+		return treeCheckout
+	}
+	return treeNotCheckout
+}
+
+// Advise renders guidance for need in text|json. With dir empty it reads the
+// registry and touches nothing else, exactly as before; dir is an opt-in probe
+// that lets the answer say "this path is not a gogogo checkout" instead of
+// listing capabilities the caller cannot use there.
+func Advise(need, format, dir string) (string, error) {
 	if format != planFormatText && format != planFormatJSON {
 		return "", fmt.Errorf("unknown --format %q (want text|json)", format)
 	}
-	doc := buildAdvise(need)
+	doc := buildAdviseIn(need, dir)
 	if format == planFormatJSON {
 		raw, err := json.MarshalIndent(doc, "", "  ")
 		if err != nil {
@@ -343,11 +406,14 @@ func runAdvise(args []string, stdout io.Writer) error {
 	need := fs.String("need", "",
 		"your use-case in a few words (empty lists every preset)")
 	format := fs.String("format", planFormatText, "output format: text|json")
+	dir := fs.String("dir", "",
+		"optional: check this path too, so the answer can say it is not a "+
+			"gogogo checkout (omitted = the answer depends on --need alone)")
 	fs.SetOutput(stdout)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	out, err := Advise(*need, *format)
+	out, err := Advise(*need, *format, *dir)
 	if err != nil {
 		return err
 	}
