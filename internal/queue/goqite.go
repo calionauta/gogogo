@@ -51,6 +51,13 @@ type Queue struct {
 	// retry overrides WorkerPool's default backoff. Nil means
 	// DefaultRetryConfig. Set via SetRetry before StartWorkers.
 	retry *RetryConfig
+
+	// workers is the pool StartWorkers created. Close() stops it, so the
+	// caller does not have to hold onto the return value to shut the pool
+	// down — before this, `StartWorkers()`'s result was routinely discarded
+	// and WorkerPool.Stop() was therefore unreachable from production
+	// shutdown (workers kept running against a closed database).
+	workers *WorkerPool
 }
 
 // New opens a SQLite-backed goqite queue, applies the schema, and
@@ -144,6 +151,7 @@ func (q *Queue) StartWorkers() *WorkerPool {
 		wp.SetRetry(*q.retry)
 	}
 	wp.Start()
+	q.workers = wp
 	return wp
 }
 
@@ -155,7 +163,19 @@ func (q *Queue) Registry() *HandlerRegistry { return q.reg }
 
 // Close drains in-flight workers via the SSE hub and shuts down the
 // underlying database. After Close, Receive/Delete return ErrQueueClosed.
+// Close stops the worker pool (when StartWorkers was called), then releases the
+// queue handle and the database.
+//
+// Stopping the pool FIRST matters: the workers loop on the queue and the DB, so
+// closing the database out from under them leaves them logging receive errors
+// against a nil/dead handle instead of exiting. WorkerPool.Stop waits for every
+// worker goroutine, which is also what makes this a bounded shutdown rather than
+// a race with the process exiting.
 func (q *Queue) Close() {
+	if q.workers != nil {
+		q.workers.Stop()
+		q.workers = nil
+	}
 	q.q = nil
 	if q.db != nil {
 		_ = q.db.Close()

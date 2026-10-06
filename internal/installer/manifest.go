@@ -190,10 +190,42 @@ func stripFileCounted(t *treeFS, path string, rules []stripRule, rc *UnitReceipt
 			kept = append(kept, l)
 		}
 	}
+	// Collapse the blank runs the removals leave behind, then re-terminate the
+	// file with exactly one newline. A strip takes out whole lines but not the
+	// blank line that separated them from their neighbours, so a removal whose
+	// surrounding blocks were already blank-separated leaves two or three
+	// consecutive empties — which gofmt flags, and every scaffolded project
+	// inherits that from `make fmt`. Collapsing here keeps the engine generic
+	// rather than teaching each strip rule about whitespace. Applied
+	// unconditionally: it cannot make gofmt-valid Go invalid, since gofmt
+	// itself collapses blank runs. The trailing newline has to be re-added
+	// because the collapse drops trailing blanks, and a source file that ends
+	// without a final newline is itself a gofmt violation.
+	kept = collapseBlankRuns(kept)
 	// NOTE: a dagnats-specific blank use (`_ = todoH`) is inserted by
 	// applyTrim (dagnats unit), not here — stripFileCounted stays generic.
-	out := strings.Join(kept, "\n")
+	out := strings.Join(kept, "\n") + "\n"
 	return t.WriteFile(path, []byte(out), scaffoldFileMode)
+}
+
+// collapseBlankRuns reduces any run of two or more consecutive empty lines to
+// one. Trailing blanks at EOF are dropped entirely, so a file whose tail was
+// stripped does not end with stray newlines.
+func collapseBlankRuns(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	blank := false
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			blank = true
+			continue
+		}
+		if blank && len(out) > 0 {
+			out = append(out, "")
+		}
+		blank = false
+		out = append(out, l)
+	}
+	return out
 }
 
 // shortPath keeps receipts readable: last two path segments at most.

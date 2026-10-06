@@ -26,7 +26,11 @@ func TestPresence_SSEBridgeE2E(t *testing.T) {
 		t.Fatalf("nats start: %v", err)
 	}
 	t.Cleanup(h.Close)
-	nc, err := natsio.Connect(nats.ClientURL())
+	// Dial THIS test's own handle, not the package-level current handle:
+	// nats.ClientURL() reads the current handle, which a parallel test's
+	// StartEmbedded can replace between our start and this line, so the test
+	// would connect to a sibling's server (or none). h.URL() cannot.
+	nc, err := natsio.Connect(h.URL())
 	if err != nil {
 		t.Fatalf("nats connect: %v", err)
 	}

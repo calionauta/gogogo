@@ -99,3 +99,52 @@ func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 	}
 	t.Logf("Stop() with a failing queue returned in %v", elapsed)
 }
+
+// TestQueueCloseStopsWorkers is the regression guard for a shutdown path that
+// was unreachable in production.
+//
+// internal/server/boot.go called `workersLocal := q.StartWorkers(); _ = workersLocal`
+// — the pool was assigned to a discarded local, so WorkerPool.Stop() could
+// never be called. q.Close() only nilled the queue handle and closed the DB,
+// leaving every worker goroutine looping against a dead database. The fix
+// stores the pool on the Queue, so Close() always stops it; this asserts the
+// observable contract (Close returns, and it returns promptly even with a live
+// worker loop).
+func TestQueueCloseStopsWorkers(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	q, err := New(&config.Config{DataDir: dir})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	pool := q.StartWorkers()
+	if pool == nil {
+		t.Fatal("StartWorkers returned nil")
+	}
+	// Close must own the pool: a caller that discards the return value (as
+	// boot.go did) still gets a stopped pool.
+	if q.workers == nil {
+		t.Fatal("StartWorkers did not record the pool on the Queue — Close cannot stop it")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		q.Close()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("q.Close() did not return within 5s — workers are not being stopped")
+	}
+
+	if q.workers != nil {
+		t.Error("Close left the worker pool set")
+	}
+	// Stopping twice must stay safe (Close can be reached from more than one
+	// deferred path).
+	q.Close()
+}

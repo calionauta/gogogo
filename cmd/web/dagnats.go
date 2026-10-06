@@ -244,12 +244,29 @@ func registerOnboardingWorkflowWithRetry(ctx context.Context, httpAddr string) {
 	log.Printf("WARN: dagnats workflow register failed after retries")
 }
 
+// shutdownDagNats stops the DagNats engine if this process started one.
+//
+// It used to only nil the pointer, with a comment claiming "the engine's
+// Shutdown is wired internally — closing the process triggers graceful drain
+// via the server's own signal handling". That was not true, and the way it
+// failed is subtle: DagNats installs its OWN signal.Notify for
+// SIGINT/SIGTERM (server.waitAndShutdown), exactly as PocketBase does in
+// pb.Start/Execute. On a SIGTERM the Go runtime delivers the signal to EVERY
+// registered channel, so both handlers run concurrently, and DagNats' shutdown
+// path completes (and the process exits) before pb.Start() returns and our
+// deferred cleanups run — so `q.Close()` (queue workers, SQLite handle) was
+// simply skipped. Observed with the real binary: the log ends at
+// "• stopping orchestrator..." and "queue workers stopped" never appears.
+//
+// Calling Stop() here makes ours the deterministic owner: it closes the
+// engine's stopCh, so its Run() performs the drain through the normal
+// stopCh path instead of racing a signal handler. Stop is idempotent and
+// safe to call after the engine already stopped.
 func shutdownDagNats() {
-	if dagNatsServer != nil {
-		// server.Run blocks until context cancel; the engine's Shutdown
-		// is wired internally — closing the process triggers graceful
-		// drain via the server's own signal handling.
-		dagNatsServer = nil
+	srv := dagNatsServer
+	dagNatsServer = nil
+	if srv != nil {
+		srv.Stop()
 	}
 }
 

@@ -84,8 +84,11 @@ func Run(cfg *config.Config, js nats.JetStreamLike) (
 		todoH.SetSimulatedLLMClient(llm.NewSimulated())
 	}
 
-	workersLocal := q.StartWorkers()
-	_ = workersLocal
+	// StartWorkers stores the pool on q, so q.Close() stops it. The return
+	// value is deliberately not held: shutdown goes through the queue so a
+	// caller cannot forget it (which is exactly what happened — the pool was
+	// assigned to a discarded local and Stop() was unreachable).
+	q.StartWorkers()
 
 	router.Init(pb, q, cfg, js, todoH)
 

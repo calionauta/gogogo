@@ -91,17 +91,42 @@ func TestCollab_LeafNodeE2E(t *testing.T) {
 		t.Fatal("leaf node never attached to central")
 	}
 
+	// Attachment is necessary but NOT sufficient: the edge may publish before
+	// the worker's app.sync.> interest has propagated to central, in which case
+	// the leaf has nothing to forward the message to and the update is silently
+	// dropped. Observed exactly that as "leaf-node update was not replicated to
+	// central + persisted" after the full 15s deadline, but only under load
+	// (16s vs the usual 2.3s for this package), which made it read as an
+	// infrastructure flake rather than a missing wait.
+	//
+	// Do NOT try to detect readiness by counting central's subscriptions:
+	// `NumSubscriptions()` is already 63+ from the server's own JetStream and
+	// leaf plumbing, so any `> 0` test is trivially true (verified). Re-publish
+	// instead — a Loro update is an idempotent CRDT delta, so applying it twice
+	// converges to the same snapshot, and repeatedly publishing until the
+	// worker persists removes every timing assumption. This is strictly
+	// stronger than waiting for a propagation signal we do not have.
+
 	// 4) Edge publishes a Loro update on the leaf connection.
 	edgeDoc := NewDoc("e2e-doc")
 	update, err := edgeDoc.EncodeUpdate(nil)
 	if err != nil {
 		t.Fatalf("encode update: %v", err)
 	}
-	if err := leafNC.Publish("app.sync.e2e-doc", update); err != nil {
-		t.Fatalf("leaf publish: %v", err)
+	publish := func() {
+		t.Helper()
+		if pubErr := leafNC.Publish("app.sync.e2e-doc", update); pubErr != nil {
+			t.Fatalf("leaf publish: %v", pubErr)
+		}
 	}
+	publish()
 
 	// 5) Central worker must persist it (leaf replicated to central).
+	//
+	// Re-publish each round rather than sending once and waiting: the first
+	// attempt can still be dropped if the worker's interest has not reached the
+	// leaf yet, and a single send with a 15s wait cannot recover from that. The
+	// update is an idempotent CRDT delta, so repeated delivery is harmless.
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
 		if len(fp.get("e2e-doc")) > 0 {
@@ -112,6 +137,7 @@ func TestCollab_LeafNodeE2E(t *testing.T) {
 			return
 		}
 		time.Sleep(200 * time.Millisecond)
+		publish()
 	}
 	t.Fatal("leaf-node update was not replicated to central + persisted")
 }
