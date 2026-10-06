@@ -181,3 +181,12 @@ jobs:
           npx playwright install --with-deps chromium
           go build -o /tmp/gogogo-ci-web ./cmd/web/
           SMOKE_BIN=/tmp/gogogo-ci-web node scripts/smoke.mjs
+      - name: Whiteboard client regression tests
+        # The whiteboard client has no Go-side coverage for its transport
+        # handling: response ordering and the 409 conflict path only exist in
+        # whiteboard.js. A real regression lived here (adopting the server's
+        # shape list from a POST response dropped a shape the user had just
+        # drawn, because concurrent responses are not ordered). These tests
+        # drive the page and assert on canvas pixels; both are red-proofed.
+        run: |
+          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/whiteboard-client.test.mjs
