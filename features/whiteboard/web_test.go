@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
@@ -64,6 +66,20 @@ func webFixture(t *testing.T) (string, *collab.MemoryPersister, func()) {
 	if bErr := app.Bootstrap(); bErr != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("Bootstrap: %v", bErr)
+	}
+
+	// Drop the users password field's bcrypt cost to the minimum. The seeded
+	// password is hashed at bcrypt.DefaultCost (10), which under -race costs
+	// ~1.0s to VERIFY — and this fixture logs in once or twice per test, so
+	// the default cost alone was ~12s of this package's runtime. Cost is a
+	// per-collection field (core.PasswordField.Cost), not a global, so this
+	// changes nothing outside the test app; the hash is still a real bcrypt
+	// hash, so password validation is genuinely exercised. Same fix, same
+	// reasoning as features/todo/fixture_test.go.
+	if costErr := lowerPasswordCost(app); costErr != nil {
+		mustReset(t, app)
+		os.RemoveAll(tmpDir)
+		t.Fatalf("lower password cost: %v", costErr)
 	}
 
 	q, err := queue.New(cfg)
@@ -155,6 +171,23 @@ func mustReset(t *testing.T, app core.App) {
 	}
 }
 
+// lowerPasswordCost drops the users password field's bcrypt cost to the
+// minimum so password verification is not the single most expensive operation
+// in the suite. Mirrors features/todo/fixture_test.go — the cost is per
+// collection, so this is inert outside the test app.
+func lowerPasswordCost(app core.App) error {
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		return err
+	}
+	pw, ok := col.Fields.GetByName("password").(*core.PasswordField)
+	if !ok {
+		return fmt.Errorf("users.password is %T, want *core.PasswordField", col.Fields.GetByName("password"))
+	}
+	pw.Cost = bcrypt.MinCost
+	return app.Save(col)
+}
+
 func openWBStream(t *testing.T, client *http.Client, baseURL, docID, clientID string) *wbStream {
 	t.Helper()
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
@@ -209,6 +242,17 @@ func (s *wbStream) close() {
 	_ = s.resp.Body.Close()
 }
 
+// wbWaitBudget bounds every "wait until the peer sees it" assertion. It is a
+// DEADLINE, not a wait: a passing poll returns on the first matching event
+// (single-digit milliseconds, because the SSE hub delivers in-process), and
+// only a genuine failure ever pays the full budget. Before this, each such
+// assertion slept a fixed 200-800ms window no matter how fast the event
+// arrived, which is where most of this package's ~48s went.
+const wbWaitBudget = 2 * time.Second
+
+// drain returns the events that arrive within an explicit fixed window,
+// discarding nothing. Reserve it for "assert an ABSENCE" checks, which
+// genuinely must wait out the window because no event can short-circuit them.
 func (s *wbStream) drain(window time.Duration) []string {
 	var out []string
 	timeout := time.After(window)
@@ -223,6 +267,46 @@ func (s *wbStream) drain(window time.Duration) []string {
 			return out
 		}
 	}
+}
+
+// waitFor reads events until one satisfies match, returning every event seen
+// (so a caller can assert on the whole transcript) or exhausting the budget.
+//
+// It polls in small slices so it can stop the moment the wanted event shows
+// up. Exhausting the budget is NOT a failure: the caller keeps its original
+// assertion, so this only ever makes a passing test fast — it cannot turn a
+// failing assertion into a passing one.
+func (s *wbStream) waitFor(budget time.Duration, match func(string) bool) []string {
+	deadline := time.Now().Add(budget)
+	var out []string
+	for time.Now().Before(deadline) {
+		progressed := len(out)
+		out = append(out, s.drain(5*time.Millisecond)...)
+		if len(out) == progressed && len(out) > 0 {
+			// Nothing new this slice; still inside the budget, keep polling.
+		}
+		for _, ev := range out {
+			if match(ev) {
+				return out
+			}
+		}
+	}
+	return out
+}
+
+// waitForEvent is waitFor for a single wanted substring.
+func (s *wbStream) waitForEvent(budget time.Duration, substr string) []string {
+	return s.waitFor(budget, func(ev string) bool { return strings.Contains(ev, substr) })
+}
+
+// settleJoin lets the server register both streams before the test acts.
+//
+// It waits for the stream's OWN authoritative "count" event (broadcast to all
+// clients on join) instead of a fixed sleep: once the connecting client has
+// its count event, the hub has it registered and the peer's count event with
+// it. Same guarantee, ~150-200ms cheaper per call.
+func (s *wbStream) settleJoin(budget time.Duration) {
+	_ = s.waitForEvent(budget, `"type":"count"`)
 }
 
 // TestWhiteboard_ShapeBroadcastAndPersist is the end-to-end regression
@@ -269,7 +353,8 @@ func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(150 * time.Millisecond)
+	streamA.settleJoin(wbWaitBudget)
+	streamB.settleJoin(wbWaitBudget)
 
 	// clientA creates a rectangle.
 	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{
@@ -288,8 +373,11 @@ func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	aEvents := streamA.drain(800 * time.Millisecond)
-	bEvents := streamB.drain(800 * time.Millisecond)
+	bEvents := streamB.waitFor(wbWaitBudget, func(ev string) bool { return shapesEventContains([]string{ev}, "s1") })
+	// The originator must NOT be echoed. An absence cannot be short-circuited,
+	// so it keeps its full window — but only after the peer proved delivery
+	// reached the hub, so it is provably delivered-or-not by then.
+	aEvents := streamA.drain(100 * time.Millisecond)
 
 	if !shapesEventContains(bEvents, "s1") {
 		t.Fatalf("PEER (clientB) did not receive the shape broadcast.\nB events:\n%s", debugEvents(bEvents))
@@ -341,7 +429,8 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(150 * time.Millisecond)
+	streamA.settleJoin(wbWaitBudget)
+	streamB.settleJoin(wbWaitBudget)
 
 	presence := collab.PresenceMsg{Type: "cursor", Doc: docID, User: "user-A", X: 0.5, Y: 0.5, TS: time.Now().UnixMilli()}
 	pbody, mErr := json.Marshal(presence)
@@ -355,8 +444,8 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	aEvents := streamA.drain(800 * time.Millisecond)
-	bEvents := streamB.drain(800 * time.Millisecond)
+	bEvents := streamB.waitFor(wbWaitBudget, func(ev string) bool { return presenceReceived([]string{ev}, "user-A") })
+	aEvents := streamA.drain(100 * time.Millisecond) // absence check: no short-circuit
 
 	if !presenceReceived(bEvents, "user-A") {
 		t.Fatalf("PEER (clientB) did not receive cursor presence from user-A.\nB events:\n%s", debugEvents(bEvents))
@@ -405,7 +494,8 @@ func TestWhiteboard_OfflineReplay(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(150 * time.Millisecond)
+	streamA.settleJoin(wbWaitBudget)
+	streamB.settleJoin(wbWaitBudget)
 
 	// clientB draws immediately (online peer).
 	bOp := collab.ShapeOp{Op: "add", Shape: collab.Shape{ID: "s-b", Type: "rect", X: 5, Y: 5, W: 40, H: 40, Color: "#000"}}
@@ -427,7 +517,11 @@ func TestWhiteboard_OfflineReplay(t *testing.T) {
 	if mErr2 != nil {
 		t.Fatalf("marshal aOp: %v", mErr2)
 	}
-	time.Sleep(200 * time.Millisecond) // simulate offline window
+	// The "offline window" is a correctness property here: the peer's op must
+	// land BEFORE the replayed one so ordering is actually exercised. Wait for
+	// B's shape to reach B's own stream, which proves it was merged and
+	// broadcast — a stronger guarantee than sleeping 200ms and hoping.
+	streamB.waitForEvent(wbWaitBudget, "s-b")
 
 	// clientA "reconnects" and flushes its buffered op.
 	updURL := baseURL + "/api/whiteboard/" + docID + "/update"
@@ -437,7 +531,7 @@ func TestWhiteboard_OfflineReplay(t *testing.T) {
 	}
 	respA.Body.Close()
 
-	bEvents := streamB.drain(800 * time.Millisecond)
+	bEvents := streamB.waitFor(wbWaitBudget, func(ev string) bool { return shapesEventContains([]string{ev}, "s-a") })
 	if !shapesEventContains(bEvents, "s-a") {
 		t.Fatalf("PEER did not receive the late (replayed) shape s-a.\nB events:\n%s", debugEvents(bEvents))
 	}

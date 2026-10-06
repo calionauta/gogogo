@@ -96,10 +96,12 @@ func TestWhiteboard_PeerCountAuthoritative(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(200 * time.Millisecond)
-
-	peersA := countPeersFromEvents(streamA.drain(400 * time.Millisecond))
-	peersB := countPeersFromEvents(streamB.drain(400 * time.Millisecond))
+	peersA := countPeersFromEvents(streamA.waitFor(wbWaitBudget, func(ev string) bool {
+		return len(countPeersFromEvents([]string{ev})) == 2
+	}))
+	peersB := countPeersFromEvents(streamB.waitFor(wbWaitBudget, func(ev string) bool {
+		return len(countPeersFromEvents([]string{ev})) == 2
+	}))
 
 	if len(peersA) != 2 {
 		t.Fatalf("clientA expected authoritative count of 2 peers, got %v", peersA)
@@ -218,9 +220,8 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(200 * time.Millisecond)
-	streamA.drain(200 * time.Millisecond) // drop join/leave noise
-	streamB.drain(200 * time.Millisecond)
+	streamA.settleJoin(wbWaitBudget)
+	streamB.settleJoin(wbWaitBudget)
 
 	body, err := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "wbA", X: 0.25, Y: 0.75, TS: 1})
 	if err != nil {
@@ -237,7 +238,10 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	evs := streamB.drain(2 * time.Second)
+	evs := streamB.waitFor(wbWaitBudget, func(ev string) bool {
+		_, ok := cursorFromEvents([]string{ev})
+		return ok
+	})
 	cur, ok := cursorFromEvents(evs)
 	if !ok {
 		t.Fatalf("clientB never received a cursor event from wbA; events=%s", tailEvents(evs, 400))
@@ -266,8 +270,7 @@ func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
 	docID := "doc-local-" + time.Now().Format("150405.000")
 	streamA := openWBStream(t, clientA, baseURL, docID, "wbA")
 	defer streamA.close()
-	time.Sleep(200 * time.Millisecond)
-	streamA.drain(200 * time.Millisecond)
+	streamA.settleJoin(wbWaitBudget)
 
 	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{
 		ID: "s-fix", Type: "rect", X: 10, Y: 10, W: 50, H: 50, Color: "#ff0000",
@@ -287,7 +290,8 @@ func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	evs := streamA.drain(2 * time.Second)
+	// Absence of an echo cannot short-circuit, so this keeps a real window.
+	evs := streamA.drain(200 * time.Millisecond)
 	sev, ok := shapesEventFromEvents(evs)
 	if ok {
 		for _, s := range sev.Shapes {
