@@ -22,6 +22,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 3. `ctx context.Context` first param on I/O/cancellable paths. Never store in struct (`containedctx`, `contextcheck`, `noctx` enforce).
 4. `log/slog` only. No `fmt.Print*`, no bare `log.Printf`.
 5. DI via constructors. No `init()` deps, no package-level service vars. No goroutines in `init()` — expose `Start`/`Stop`.
+   - **A service handle is the case this rule is really about.** `internal/nats` had three exported globals (`NS`, `NC`, `JS`): two concurrent starts wrote the same variables (a real data race) and any `Stop()` cleared state another caller was still using — which is also why its tests could not run in parallel. Return a handle (`*Handle, error`) with a `Close()` that frees only what it owns; keep at most ONE accessor behind a `sync.RWMutex` for call sites that genuinely cannot thread the value. Pattern: `references/go-testing.md`.
 6. Naming: short receivers (`s`, `h`), acronyms `userID`/`httpClient`, no stutter, document exports.
 7. No `any` in business logic. Generics or concrete types; `any` only at JSON/plugin boundary.
 8. Resources: `defer Close()` immediately. HTTP bodies closed on callers (`bodyclose`).

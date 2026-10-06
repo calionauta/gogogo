@@ -24,17 +24,23 @@ import (
 func newTestJetStream(t *testing.T) natsio.JetStreamContext {
 	t.Helper()
 	storeDir := t.TempDir()
-	if err := nats.StartEmbedded(storeDir); err != nil {
+	h, err := nats.StartEmbedded(storeDir)
+	if err != nil {
 		t.Fatalf("StartEmbedded: %v", err)
 	}
-	t.Cleanup(func() { nats.Stop() })
-	if nats.JS == nil {
+	// Close THIS test's own handle, not the package-level Stop(): a handle owns
+	// the server and connection it created, so one test's teardown can no longer
+	// reach into a neighbour's server. That shared Stop() is exactly why this
+	// package could not be parallel.
+	t.Cleanup(h.Close)
+	if h.JS == nil {
 		t.Fatal("embedded JetStream not available")
 	}
-	return nats.JS
+	return h.JS
 }
 
 func TestCRDTTransport_PublishWithoutJetStreamIsNoOp(t *testing.T) {
+	t.Parallel()
 	// nil JetStream = single-process mode. Publish should return nil
 	// without erroring.
 	tr := NewTransport(TransportConfig{JetStream: nil})
@@ -44,6 +50,7 @@ func TestCRDTTransport_PublishWithoutJetStreamIsNoOp(t *testing.T) {
 }
 
 func TestCRDTTransport_CrossProcessConvergence(t *testing.T) {
+	t.Parallel()
 	js := newTestJetStream(t)
 
 	// Two transports in the same process simulate two binary
@@ -141,6 +148,7 @@ func TestCRDTTransport_CrossProcessConvergence(t *testing.T) {
 }
 
 func TestCRDTTransport_InProcessLoopFilter(t *testing.T) {
+	t.Parallel()
 	js := newTestJetStream(t)
 	trA := NewTransport(TransportConfig{JetStream: js, PublisherID: "instance-A"})
 	trB := NewTransport(TransportConfig{JetStream: js, PublisherID: "instance-B"})
@@ -220,6 +228,7 @@ func TestCRDTTransport_InProcessLoopFilter(t *testing.T) {
 }
 
 func TestCRDTTransport_DuplicateIdDedup(t *testing.T) {
+	t.Parallel()
 	js := newTestJetStream(t)
 	trA := NewTransport(TransportConfig{JetStream: js, PublisherID: "instance-A"})
 	trB := NewTransport(TransportConfig{JetStream: js, PublisherID: "instance-B"})

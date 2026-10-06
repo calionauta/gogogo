@@ -35,7 +35,7 @@ func WireCRDTStoreTransport(ctx context.Context, store *crdtstore.CRDTStore) fun
 	if store == nil {
 		return func() {}
 	}
-	js := nats.JS
+	js := nats.JetStream()
 	if js == nil {
 		slog.Info("crdtstore transport: JetStream not available, running in single-process mode")
 		return func() {}

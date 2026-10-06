@@ -76,6 +76,7 @@ func (p *fakePublisher) Snapshot() []docEvent {
 }
 
 func TestCRDTStore_FullPipeline_BumpPublisherFires(t *testing.T) {
+	t.Parallel()
 	js := newTestJetStream(t)
 	// newTestJetStream sets up the embedded NATS + registers t.Cleanup.
 

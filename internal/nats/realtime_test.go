@@ -26,13 +26,15 @@ import (
 // regression removes the auto-subscribe, this test fails because the
 // published event would sit unread in JetStream.
 func TestJetStreamBroadcasterFanout(t *testing.T) {
-	if err := nats.StartEmbedded(t.TempDir()); err != nil {
+	t.Parallel()
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
 		t.Fatalf("start embedded nats: %v", err)
 	}
-	defer nats.Stop()
+	t.Cleanup(h.Close)
 
 	hub := queue.NewSSEHub()
-	b, err := nats.NewJetStreamBroadcaster(nats.JS, hub)
+	b, err := nats.NewJetStreamBroadcaster(h.JS, hub)
 	if err != nil {
 		t.Fatalf("new broadcaster: %v", err)
 	}

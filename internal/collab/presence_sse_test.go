@@ -21,10 +21,11 @@ import (
 // desktop edge would). The SSE response must carry the cursor event to the
 // browser client — proving the web UI will see live edge cursors.
 func TestPresence_SSEBridgeE2E(t *testing.T) {
-	if err := nats.StartEmbedded(t.TempDir()); err != nil {
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
 		t.Fatalf("nats start: %v", err)
 	}
-	defer nats.Stop()
+	t.Cleanup(h.Close)
 	nc, err := natsio.Connect(nats.ClientURL())
 	if err != nil {
 		t.Fatalf("nats connect: %v", err)

@@ -177,7 +177,7 @@ func shutdownDagNats() {
 // the app must still boot. The wrapped function is a no-op once the bucket
 // has any key, so this is cheap on every boot after the first.
 func ensureTriggerBootstrap() {
-	nc := appnats.NC
+	nc := appnats.Conn()
 	if nc == nil {
 		log.Printf("dagnats bootstrap: no NATS connection; skipping trigger seed")
 		return

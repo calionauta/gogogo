@@ -116,16 +116,35 @@ cost. Before adding `t.Parallel()` to a package, verify all three:
 - **no `t.Setenv`** anywhere in it (the testing package panics: "test using
   t.Setenv … can not use t.Parallel");
 - **no shared package global** written per test;
-- **no shared connection/server singleton.** This one is easy to miss:
-  `internal/nats`' `StartEmbedded` assigns the package globals
-  `NS/NC/JS = nil, nil, nil` and `Stop()` clears them, so two parallel tests
-  race (the detector points at `embedded.go`). `features/store/crdtstore`
-  shares one embedded NATS connection, and parallel tests tear it out from under
-  each other ("add stream: nats: connection closed"). Both need a per-test
-  handle before they can parallelize.
+- **no shared connection/server singleton.** `internal/nats` used to assign the
+  package globals `NS/NC/JS = nil, nil, nil` and clear them in `Stop()`, so two
+  parallel tests raced (the detector pointed at `embedded.go`) and each test's
+  teardown shut the server down under its neighbours ("add stream: nats:
+  connection closed" — one cause, two symptoms). Both packages are parallel now
+  because the globals became a returned `Handle` (see below).
+
+**The fix pattern for a package-level singleton** — it is mechanical, and this
+is how `internal/nats` and `features/store/crdtstore` were unblocked:
+
+1. Return a value from the constructor instead of assigning package state:
+   `func StartEmbedded(...) (*Handle, error)`. The caller owns it.
+2. Give it a method that releases only what it owns: `func (h *Handle) Close()`.
+   A `ConnectExisting` handle has `Server == nil` — it must not shut down a
+   server it did not start.
+3. Provide `Close` on the real resources, never a package-level `Stop()` that
+   clears shared state: closing a stale handle then cannot clear a newer one.
+4. Where a caller genuinely cannot thread the value (e.g. PocketBase `OnServe`
+   closures reading the connection long after boot returned), keep ONE
+   accessor behind a `sync.RWMutex` plus a current-pointer, and say in the doc
+   comment why that call site cannot hold the handle.
+
+The payoff is measurable, not cosmetic: `internal/nats` went from un-parallel
+(and racing) to `t.Parallel()` green, and `crdtstore` 17.5s → 7.9s.
 
 Do not add `t.Parallel()` to make a package look faster if it then fails: a new
 red under `-race` is a finding about the production code, not about the tests.
+The reverse also holds — if a package cannot be parallel because of a global,
+fix the global; do not settle for a serial test to keep CI green.
 
 ## SQLite timeouts: the flake that looks like noise
 

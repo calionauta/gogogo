@@ -36,18 +36,23 @@ func main() {
 	// instance as a Leaf Node so its JetStream streams replicate to/from
 	// the central server (offline edits replay on reconnect). Otherwise
 	// start a standalone embedded NATS for local realtime only.
-	var js nats.JetStreamLike
+	var (
+		js  nats.JetStreamLike
+		nat *nats.Handle
+	)
 	if cfg.NATS.LeafNodeURL != "" {
-		if err := nats.StartLeafNode(cfg.NATS.StoreDir, cfg.NATS.LeafNodeURL); err != nil {
+		h, err := nats.StartLeafNode(cfg.NATS.StoreDir, cfg.NATS.LeafNodeURL)
+		if err != nil {
 			log.Printf("WARN: leaf node start failed, falling back to standalone NATS: %v", err)
 		} else {
-			js = nats.JetStream()
+			nat, js = h, h.JS
 		}
 	} else if cfg.NATS.Enabled {
-		if err := nats.StartEmbedded(cfg.NATS.StoreDir); err != nil {
+		h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
+		if err != nil {
 			log.Printf("WARN: NATS start failed, in-memory broadcaster only: %v", err)
 		} else {
-			js = nats.JetStream()
+			nat, js = h, h.JS
 		}
 	}
 
@@ -64,8 +69,8 @@ func main() {
 	// (and the central SyncWorker persists them to PocketBase). When
 	// standalone, they fan out to local realtime subscribers. The doc
 	// edit below is a minimal end-to-end smoke of the publish path.
-	if js != nil && nats.Conn() != nil {
-		pub := collab.NewPublisher(nats.Conn())
+	if js != nil && nat != nil && nat.Conn != nil {
+		pub := collab.NewPublisher(nat.Conn)
 		demoDoc := collab.NewDoc("desktop-demo")
 		if pubErr := pub.PublishUpdate(demoDoc, nil); pubErr != nil {
 			log.Printf("WARN: collab publish failed: %v", pubErr)
@@ -77,7 +82,7 @@ func main() {
 		// doc so other edges / the browser see it live. A real whiteboard
 		// UI would call PublishCursor on pointer move; here we tick a demo
 		// cursor so the presence path is exercised end-to-end.
-		pres := collab.NewPresence(nats.Conn(), "desktop-demo", "desktop", 0, 0)
+		pres := collab.NewPresence(nat.Conn, "desktop-demo", "desktop", 0, 0)
 		presCtx, presCancel := context.WithCancel(context.Background())
 		defer presCancel()
 		go func() {

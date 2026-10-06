@@ -24,13 +24,15 @@ func startNATS(cfg *config.Config) nats.JetStreamLike {
 	}
 	if cfg.DagNats.Enabled {
 		addr := fmt.Sprintf("127.0.0.1:%d", cfg.DagNats.NATSPort)
-		if err := nats.ConnectExisting(addr); err != nil {
+		h, err := nats.ConnectExisting(addr)
+		if err != nil {
 			log.Printf("WARN: NATS connect to DagNats-owned server failed, falling back to in-memory broadcaster: %v", err)
 			return nil
 		}
-		return nats.JetStream()
+		return h.JS
 	}
-	if err := nats.StartEmbedded(cfg.NATS.StoreDir); err != nil {
+	h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
+	if err != nil {
 		// Don't take the whole app down if embedded NATS can't start
 		// (e.g. a read-only or full store dir). Fall back to the
 		// in-memory broadcaster so realtime still works within the
@@ -38,6 +40,5 @@ func startNATS(cfg *config.Config) nats.JetStreamLike {
 		log.Printf("WARN: NATS startup failed, falling back to in-memory broadcaster: %v", err)
 		return nil
 	}
-	js := nats.JetStream()
-	return js
+	return h.JS
 }
