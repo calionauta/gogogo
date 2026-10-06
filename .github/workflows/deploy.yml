@@ -55,7 +55,15 @@ on:
       # stylesheet, which is not embedded in the binary — and trigger a
       # production restart for a landing edit. CSS is enumerated per directory
       # instead.
+      #
+      # rules/rules.go is excluded for the same reason, and it is the one Go
+      # file that qualifies: it carries `//go:build ruleguard`, so it is compiled
+      # only by golangci-lint and never into the binary. A comment-only edit
+      # there restarted production before this exclusion (verified: a commit
+      # touching nothing else ran the full deploy). Enumerated below rather than
+      # relying on "**.go" with the false positive left in.
       - "**.go"
+      - "!rules/**"
       - "**.templ"
       - "go.mod"
       - "go.sum"
