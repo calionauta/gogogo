@@ -57,9 +57,12 @@ func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
 	_ = createResp.Body.Close()
 
 	recordEvent := func(s string) bool {
-		return strings.Contains(s, `"event":"created"`) ||
-			strings.Contains(s, `"event":"toggled"`) ||
-			strings.Contains(s, `"event":"deleted"`)
+		// MARKER THAT ACTUALLY MOVES: the hub path translates the record event
+		// into a remote-source full-list patch (streamTodo), so the raw
+		// `"event":"created"` string never reaches the wire. Assert the wire
+		// symptom instead.
+		return strings.Contains(s, `"lastItemSource":"remote"`) ||
+			strings.Contains(s, "selector #todo-list")
 	}
 	// Negative assertion: there is no event to short-circuit on, so both
 	// streams are drained for the full window (pumpSSEFor states that
