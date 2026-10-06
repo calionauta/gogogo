@@ -139,7 +139,10 @@ is how `internal/nats` and `features/store/crdtstore` were unblocked:
    comment why that call site cannot hold the handle.
 
 The payoff is measurable, not cosmetic: `internal/nats` went from un-parallel
-(and racing) to `t.Parallel()` green, and `crdtstore` 17.5s → 7.9s.
+(and racing) to `t.Parallel()` green at 8.4s → 4.0s isolated, and `crdtstore`
+17.5s → 7.1s (medians of 3 isolated runs). The package-level sum moved
+110.7s → ~93-106s, which is smaller than either package's isolated win because
+the suite already overlapped much of that work across packages.
 
 Do not add `t.Parallel()` to make a package look faster if it then fails: a new
 red under `-race` is a finding about the production code, not about the tests.
