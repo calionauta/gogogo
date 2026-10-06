@@ -67,3 +67,84 @@ func BlockingReadBehindDeadline(m dsl.Matcher) {
 		Where(m["body"].Contains(`$x.Read($_)`)).
 		Report(`Read blocks until the next event, so the surrounding "for time.Now().Before(deadline)" does not bound it — a silent stream waits one heartbeat past the deadline. Read in a goroutine and select on a timer (see pumpSSEUntil in features/todo/sse_test.go)`)
 }
+
+// TickerLoopWithoutExit flags `for range $t.C` — a ticker loop with no exit.
+//
+// This is the shape that leaked a goroutine in a sibling project measured
+// against this skill: a periodic-sync goroutine written as
+//
+//	go func() { t := time.NewTicker(...); defer t.Stop(); for range t.C { f.Sync() } }()
+//
+// `defer t.Stop()` stops the TICKER, which is the wrong resource: the
+// goroutine is already parked in `for range t.C` and nothing can wake it. It
+// is not a data race, so `-race` is silent; it is not a dead machine, so the
+// tests pass; only a goroutine-leak checker or a shutdown assertion sees it.
+// The correct shape selects on a cancellation source as well:
+//
+//	for { select { case <-ctx.Done(): return; case <-t.C: f() } }
+//
+// Scope: the repo has ZERO legitimate `for range t.C` (checked repo-wide — the
+// only two mentions are in comments explaining this very trap), so this is a
+// clean catch rather than a style preference. Helpers that DO want an
+// unbounded loop take a `done <-chan struct{}` and select; every ticker loop
+// in the tree (internal/nats/embedded.go waitForJetStream,
+// internal/collab/presence.go, features/credits) already does.
+//
+// A test that wants to observe the leak deliberately keeps the bad shape and
+// is exempt (see features/credits/lifecycle_test.go).
+// TickerLoopWithoutExit flags `for range <ticker>.C` — a periodic loop with no
+// exit.
+//
+// This is the shape that leaked a goroutine in a sibling project measured
+// against this skill: a periodic-sync goroutine written as
+//
+//	go func() { t := time.NewTicker(...); defer t.Stop(); for range t.C { f.Sync() } }()
+//
+// `defer t.Stop()` stops the TICKER, which is the wrong resource: the
+// goroutine is already parked in the range and nothing can wake it. It is not
+// a data race, so `-race` is silent; it is not a deadlock, so the tests pass;
+// only a goroutine-leak checker or a shutdown assertion sees it. The correct
+// shape selects on a cancellation source as well:
+//
+//	for { select { case <-ctx.Done(): return; case <-t.C: f() } }
+//
+// Scope: the repo has ZERO legitimate `for range <x>.C` (verified repo-wide —
+// the only occurrences are comments in this file), so every hit is the bug. A
+// plain `make(chan int)` range has no `.C` and is not matched.
+//
+// A test that wants to observe the leak deliberately keeps the bad shape and
+// is exempt (see features/credits/lifecycle_test.go).
+//
+// Split across two functions because ONE match arm cannot cover both receiver
+// shapes, and they must be separate rule functions rather than two m.Match
+// calls in one function (only the first is applied — verified against probe
+// files). This matters: the single-arm version looked correct and silently
+// missed half the bug.
+func TickerLoopWithoutExit(m dsl.Matcher) {
+	m.Match(`for range $x.C`).
+		Where(!m.File().Name.Matches(`_test\.go`)).
+		Report(`for range <ticker>.C has no exit: defer t.Stop() stops the ticker, not the goroutine parked on it, so nothing can wake it. Not a deadlock and not a race — which is why only a leak checker or a shutdown assertion sees it. Select on ctx.Done()/done as well (see internal/queue/workers.go waitOrStop, references/go-concurrency-deltas.md)`)
+}
+
+// TickerLoopWithoutExitCall is the second half of TickerLoopWithoutExit, for an
+// inline call receiver (`for range time.NewTicker(d).C`) which the identifier
+// arm does not reach. Separate function by necessity — see there.
+func TickerLoopWithoutExitCall(m dsl.Matcher) {
+	m.Match(`for range $f($*_).C`).
+		Where(!m.File().Name.Matches(`_test\.go`)).
+		Report(`for range <ticker>.C has no exit: defer t.Stop() stops the ticker, not the goroutine parked on it, so nothing can wake it. Not a deadlock and not a race — which is why only a leak checker or a shutdown assertion sees it. Select on ctx.Done()/done as well (see internal/queue/workers.go waitOrStop, references/go-concurrency-deltas.md)`)
+}
+
+// Deliberately NOT a rule here: `_ = x.Close()`.
+//
+// The bug that motivated it was a discarded HANDLE —
+// `workersLocal := q.StartWorkers(); _ = workersLocal` — and ruleguard cannot
+// express it: a two-statement sequence (`$r := $f(); _ = $r`) parses but never
+// fires (verified). The nearest single-statement proxy, `_ = $recv.Close()`,
+// was written and then REMOVED because it flags the idiomatic Go error-path
+// cleanup — `if err != nil { _ = db.Close(); return nil, err }`, three real
+// sites in features/credits/credits.go — so it would have taught people to
+// ignore the linter, which is exactly what this file's house rules forbid.
+//
+// `_ = $r` is not a lint target but a REVIEW target, and the skill carries it
+// as prose instead: go-concurrency-deltas.md, "store it on the owner".
