@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.35.0] - 2026-10-06
 
 Performance, correctness and CI-parity work on the test gate and three
 production shortcuts it exposed. No user-facing feature changes; the one new
