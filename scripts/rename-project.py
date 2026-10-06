@@ -4,8 +4,10 @@
 This repo is a GitHub *template* (`is_template: true`). Clicking "Use this
 template" gives you a copy that still says `gogogo-fullstack-template`
 everywhere: the Go module path, the binary name, the container name, the
-titles, the deploy paths. That is 363 occurrences across ~120 files, and doing
-it by hand invites a half-renamed tree that compiles but deploys to the wrong
+titles, the deploy paths. That is hundreds of occurrences across ~200 files
+(the exact count drifts as the template grows — this script prints the current
+one, so trust its output rather than a number written here), and doing it by
+hand invites a half-renamed tree that compiles but deploys to the wrong
 directory.
 
 This script does the whole substitution and then *proves* it worked by building.

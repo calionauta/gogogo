@@ -6,7 +6,7 @@
 
 Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream. Module: `github.com/calionauta/gogogo`
 
-**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, tunnel hostname share the project name. Fresh clones carry `gogogo` in ~360 places across ~130 files — never rename by hand. Use `go run ./cmd/gogogo` (guided; see `cmd/gogogo/README.md`) or `make rename NAME=my-app [OWNER=myorg]`.
+**Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, tunnel hostname share the project name. Fresh clones carry `gogogo` in ~670 places across ~200 files — never rename by hand (run `python3 scripts/rename-project.py --dry-run my-app` for the current count). Use `go run ./cmd/gogogo` (guided; see `cmd/gogogo/README.md`) or `make rename NAME=my-app [OWNER=myorg]`.
 
 **Upstream-first (generated projects keep this):** check the upstream template (`site/llms.txt` + `site/docs/<slug>/`, or the GitHub blob) BEFORE creating a feature or installing a library. Reuse what exists (Todo is the reference; SCOPE says what is safe to delete). New dependency only when no upstream page covers the need.
 
@@ -33,7 +33,9 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 | `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
 | `make check-scope` | Assert `// SCOPE:layer=…,removal=…` on every `internal/`+`features/` file |
 | `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
-| `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + check-scope + lint + race tests + build. If green, push. (`make check` was removed — redundant subset.) |
+| `make check-generated` | Fail if committed `_templ.go` does not match the `.templ` sources |
+| `make ci-local-fast` | Same cheap checks, but lint + tests scoped to changed packages |
+| `make ci-local` | **Single gate** (= CI): generated-templ + datastar-lint + css-check + check-scope + skill-frontmatter + install-sh + lint + race tests + build + binary-boot smoke + Playwright smoke. If green, push. (~82s; `make check` was removed — redundant subset.) |
 | `make signoff` | `ci-local` + advisory `gh signoff` stamp before push |
 | `make setup` | Activate lefthook git hooks (`core.hooksPath=.githooks`) |
 
@@ -58,7 +60,7 @@ Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SC
 
 ## Hooks
 
-Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt · mod-tidy · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T4 `ci-local` → T5 `signoff`, then push.
+Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt · mod-tidy · install-sh · scope-lint · skill-frontmatter · datastar-lint · generated-templ · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push.
 
 ## Gotchas (details in docs)
 

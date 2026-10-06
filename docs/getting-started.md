@@ -151,7 +151,7 @@ cd my-app
 
 ## 2. Rename the project
 
-A fresh copy still says `gogogo` in ~360 places across ~130
+A fresh copy still says `gogogo` in ~670 places across ~200
 files (module path, binary name, container, titles, deploy paths). One command
 rewrites all of it and then builds to prove it worked:
 
