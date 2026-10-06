@@ -47,8 +47,12 @@ pre-commit:
       run: bin/check-css.sh
       glob: "*.{templ,go,css}"
 
+    # scripts/lint-safe.sh sizes the run to the host's free RAM + cores: full
+    # repo only when there is headroom, otherwise changed packages, always
+    # memory-capped in a cgroup. Never `cache clean` (that re-type-checks the
+    # whole module cold and is what tips a shared host into swap).
     - name: golangci-lint
-      run: bash -c 'PKGS=$(bash scripts/web-packages.sh); golangci-lint run $PKGS --timeout 5m'
+      run: bash scripts/lint-safe.sh
       glob: "*.go"
 
     - name: agents-md-staleness

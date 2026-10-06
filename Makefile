@@ -159,6 +159,15 @@ lint:
 	@echo "→ golangci-lint (full, no --fast)..."
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 
+# lint-safe is the host-aware lint. It measures the machine at run time (free
+# RAM + cores) and sizes the run to what that evidence supports: full repo only
+# when there is headroom, otherwise changed packages; always memory-capped in a
+# cgroup when the platform offers one; never clears the cache. Prefer it over
+# `make lint` on any host that also runs other work (agents, production, a
+# co-tenant daemon). Rationale + overrides live in scripts/lint-safe.sh.
+lint-safe:
+	@bash scripts/lint-safe.sh
+
 check-sizes:
 	@mkdir -p .githooks
 	@[ -f .githooks/check-sizes.sh ] || bin/setup-hooks.sh >/dev/null 2>&1
@@ -307,6 +316,7 @@ help:
 	@echo "  test           Run tests with race detector"
 	@echo "  coverage       Run tests with coverage report (HTML)"
 	@echo "  lint           Run go vet + golangci-lint (full)"
+	@echo "  lint-safe      Host-aware lint: scoped + memory-capped (safe on shared hosts)"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"

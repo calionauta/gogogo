@@ -86,7 +86,7 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 | Check | Command |
 |---|---|
 | Format | `golangci-lint` gate (not bare `gofumpt`; versions differ) |
-| Lint scoped | `golangci-lint run <changed-pkgs>` (31 linters, `.golangci.yml`) |
+| Lint | `make lint-safe` — sizes to the host's free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Manual: `golangci-lint run <changed-pkgs>` (31 linters, `.golangci.yml`) |
 | Custom rules | `rules/rules.go` via `ruleguard` (`.golangci.yml` → `gocritic.settings.ruleguard`) — project footguns, CI-blocking |
 | Templ | `make templ && make datastar-lint` (when `.templ` changed) |
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
@@ -99,7 +99,10 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 **1. `golangci-lint` — the 31-linter baseline.** Config is `.golangci.yml`; it is the
 single source for which linters run. Do NOT run `golangci-lint run ./...` for a
 small change — scope it (`golangci-lint run <changed-pkgs>`); the full repo is
-~10x slower. Linters are grouped by role:
+~10x slower and ~2.6 GB heavier. On a host that also runs other work (agents,
+production, a co-tenant daemon), use `make lint-safe`: it measures free RAM and
+cores at run time, runs the full repo only when there is headroom, otherwise
+scopes to changed packages, and caps the run in a cgroup. Linters are grouped by role:
 
 - **correctness** (`errcheck`, `govet` with `enable-all`, `staticcheck`, `ineffassign`, `nilerr`, `errorlint`)
 - **concurrency/lifecycle** (`containedctx`, `contextcheck`, `noctx`, `gocritic`, `thelper`)
@@ -136,8 +139,11 @@ name the real parse error. Debug it in a scratch module instead:
 go run github.com/quasilyte/go-ruleguard/cmd/ruleguard@v0.4.5 -rules rules/rules.go .
 ```
 
-`golangci-lint` caches results, so run `golangci-lint cache clean` before
-believing a rule change had no effect.
+`golangci-lint` caches results. **Never run `golangci-lint cache clean` as part
+of the normal flow** — the cache is exactly what keeps a run cheap. A cold run
+re-type-checks the whole module, spikes memory (600 MB → 2 GB+ in practice), and
+is what tips a shared host into swap. Clear it **only** to debug a `ruleguard`
+rule change that appears to have had no effect.
 
 **3. `datastar-lint` — the Datastar surface** (`.templ` attributes + Go SDK
 calls). See `references/datastar.md`; the client-side rules `golangci-lint`
