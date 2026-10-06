@@ -113,7 +113,7 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 | Check | Command |
 |---|---|
 | Format | `golangci-lint` gate (not bare `gofumpt`; versions differ) |
-| Lint scoped | `golangci-lint run <changed-pkgs>` (33 linters, `.golangci.yml`) |
+| Lint | `make lint-safe` (or `bash scripts/lint-safe.sh`) — sizes to free RAM/cores, scopes to changed pkgs when tight, memory-capped; manual: `golangci-lint run <changed-pkgs>` (31 linters, `.golangci.yml`) |
 | Custom rules | `rules/rules.go` via `ruleguard` (`.golangci.yml` → `gocritic.settings.ruleguard`) — project footguns, CI-blocking |
 | Templ | `make templ && make datastar-lint` (when `.templ` changed) |
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
@@ -149,10 +149,11 @@ rules (see the file for the full text and the reasoning behind each):
 
 - `TimeAfterInSelect` — a timer allocated per loop iteration
 - `BlockingReadBehindDeadline` — a parked `Read` outliving its deadline
-- `TickerLoopWithoutExit` / `TickerLoopWithoutExitCall` — `for range <ticker>.C`
-  has no exit (`defer t.Stop()` stops the ticker, not the goroutine on it).
-  Two functions because one match arm cannot cover both receiver shapes
-  (`ticker.C` vs `time.NewTicker(d).C`) — see the traps below.
+- `TickerLoopWithoutExit` — `for range <ticker>.C` has no exit
+  (`defer t.Stop()` stops the ticker, not the goroutine on it). ONE arm covers
+  both receiver shapes (`ticker.C` and `time.NewTicker(d).C`); a second arm for
+  the call form is redundant AND makes golangci-lint under-report. Pin it with
+  `rules/rules_test.go`, not by reading the pattern.
 
 Writing one — the DSL has traps that all fail silently or confusingly, so
 verify with a probe file before trusting the rule:
@@ -179,8 +180,11 @@ name the real parse error. Debug it in a scratch module instead:
 go run github.com/quasilyte/go-ruleguard/cmd/ruleguard@v0.4.5 -rules rules/rules.go .
 ```
 
-`golangci-lint` caches results, so run `golangci-lint cache clean` before
-believing a rule change had no effect.
+`golangci-lint` caches results. **Never run `golangci-lint cache clean` as part
+of the normal flow** — the cache is what keeps a run cheap. A cold run
+re-type-checks the whole module, spikes memory, and is what tips a shared
+host into swap. Clear it **only** to debug a `ruleguard` rule change that
+appears to have had no effect.
 
 **3. `datastar-lint` — the Datastar surface** (`.templ` attributes + Go SDK
 calls). See `references/datastar.md`; the client-side rules `golangci-lint`

@@ -84,6 +84,16 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
+      - name: Check file size limits
+        # The 500-line file budget was enforced ONLY by the pre-commit hook,
+        # which `git commit --no-verify` (or LEFTHOOK_EXCLUDE) skips — so a
+        # huge file could reach main with every other check green. Same script
+        # the hook runs, so the two cannot disagree about the limit.
+        # Function length is NOT checked here: `funlen` already does it via
+        # golangci-lint, and it understands AST (it does not count lines inside
+        # string literals or generated code). Duplicating that in bash would
+        # create a second source of truth for the same rule.
+        run: .githooks/check-sizes.sh
       - name: Check SKILL.md frontmatter
         # A skill's YAML frontmatter is parsed by the skill HOST, never by this
         # build — so a syntax error ships silently. Real YAML parser, not regex.

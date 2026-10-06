@@ -193,6 +193,27 @@ linters:
         linters:
           - goconst
           - mnd
+      # NOT a blanket `funlen` exemption for tests. Function length is a real
+      # signal even in test files — a 300-line test function is unreadable and
+      # its failure does not name a stage, which is the cost the limit prevents.
+      # The three below are LINEAR setup (tempdir, config, app, transport: no
+      # branching, nothing hidden), where splitting would only move lines into
+      # helpers and add `t.Helper()` plumbing for no reader benefit. Exempted
+      # individually and WITH the reason, so a NEW long test fails CI instead of
+      # joining a silent blanket exemption.
+      #
+      # Measured at the time of writing (lines in the function):
+      #   TestCRDTStore_CrossProcessConvergence  127
+      #   TestRepro_CRDT_CreateStuckLoading      130
+      #   buildFixtureDagNats                    138
+      - path: features/store/crdtstore/integration_test\.go
+        linters:
+          - funlen
+      - path: features/todo/crdt_repro_test\.go
+        linters:
+          - funlen
+      - path: features/todo/onboarding_e2e_test\.go
+        linters:
           - funlen
       # E2E and integration tests are inherently complex; cyclomatic
       # complexity is a design concern, not a correctness risk.

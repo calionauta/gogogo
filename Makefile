@@ -224,7 +224,7 @@ check-generated: templ
 	fi
 	@echo "  ✓ generated templ files match their sources"
 
-ci-local: check-generated datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
+ci-local: check-generated check-sizes datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (parallel across packages)"
@@ -254,7 +254,7 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-generated datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
+ci-local-fast: check-generated check-sizes datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
