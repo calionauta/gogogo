@@ -10,7 +10,7 @@ LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMM
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui
+.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -203,18 +203,46 @@ deadcode:
 # ci-local runs the same quality gate as CI but locally, so you can
 # catch issues before pushing. Runs lint, tests (parallel across packages —
 # see scripts/test-web.sh), and a single unified build — no more tag matrix.
-ci-local: templ datastar-lint css-check check-scope check-skill-frontmatter
+# check-generated is the generated-artifact drift guard: regenerate the
+# checked-in artifacts and fail if any of them DIFFERS from what is committed.
+#
+# The `_templ.go` files are committed (71 of them) so a checkout builds without
+# the templ toolchain. That means editing a `.templ` and forgetting to commit
+# its regeneration ships a binary that renders the OLD markup — and both CI and
+# the browser smoke test pass anyway, because they build from the committed
+# `_templ.go`. This is the `css-check` mistake in a second place.
+#
+# Deterministic: `templ generate` is idempotent (verified — a second run
+# produces a byte-identical tree), unlike the Tailwind/Astro generators that
+# motivated disabling actions/cache.
+check-generated: templ
+	@if ! git diff --quiet --exit-code -- '*_templ.go'; then \
+		echo "  ❌ committed _templ.go does not match the .templ sources."; \
+		echo "     Run \`make templ\` and COMMIT the regenerated files."; \
+		git diff --stat -- '*_templ.go'; \
+		exit 1; \
+	fi
+	@echo "  ✓ generated templ files match their sources"
+
+ci-local: check-generated datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (parallel across packages)"
 	@bash scripts/test-web.sh -race -count=1
-	@echo "→ build (single build, reused by the smoke test)"
+	@echo "→ build (single build, reused by the smoke tests)"
 	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
+	@echo "→ binary boot smoke test (asserts the SSE transport contract)"
+	@RUN_SMOKE=1 SMOKE_BIN=/tmp/gogogo-ci-local-web go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
 	@echo "→ browser smoke test (Playwright)"
 	@npx playwright install chromium
 	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/smoke.mjs
 	@rm -f /tmp/gogogo-ci-local-web
 	@echo "✅ ci-local passed"
+
+# install-sh-guard is the install.sh bootstrap contract (never plant a `go`
+# entry in $BIN_DIR, keep the toolchain reachable). Cheap grep + `sh -n`.
+install-sh-guard:
+	@bash bin/check-install-sh.sh
 
 # Fast local gate: the same cheap-but-decisive checks as ci-local (templ,
 # datastar-lint, css-check, check-scope, scoped lint) PLUS race tests for ONLY
@@ -226,7 +254,7 @@ ci-local: templ datastar-lint css-check check-scope check-skill-frontmatter
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: templ datastar-lint css-check check-scope check-skill-frontmatter
+ci-local-fast: check-generated datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"

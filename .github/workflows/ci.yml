@@ -59,6 +59,21 @@ jobs:
           /usr/local/go/bin/go version
       - name: Generate templ
         run: go tool templ generate
+      - name: Check generated templ files are committed
+        # `_templ.go` is COMMITTED (so a checkout builds without the templ
+        # toolchain). Editing a .templ and forgetting to regenerate ships a
+        # binary rendering the OLD markup — and every other step here passes,
+        # because they all build from the committed _templ.go. Same class of
+        # bug as a stale CSS bundle. Cheap (one diff), so it stays in the
+        # fail-fast block. `templ generate` is idempotent, so this cannot flake.
+        run: |
+          if ! git diff --quiet --exit-code -- '*_templ.go'; then
+            echo "❌ committed _templ.go does not match the .templ sources."
+            echo "   Run 'make templ' and COMMIT the regenerated files."
+            git diff --stat -- '*_templ.go'
+            exit 1
+          fi
+          echo "✓ generated templ files match their sources"
       - name: Check install.sh bootstrap contract
         # install.sh is the first thing a new user runs and manipulates PATH.
         # Guards that it never plants a `go` entry in $BIN_DIR (which would
@@ -107,6 +122,23 @@ jobs:
           node-version: "20"
       - name: CSS build
         run: make css
+      - name: Check CSS bundle is committed
+        # `make css` writes web/resources/static/app.min.css, which is
+        # COMMITTED and embedded in the Go binary. Until now CI only BUILT it:
+        # a stale committed bundle passed every check, because the build
+        # overwrote it before anything compared. That is the same failure mode
+        # as unregenerated _templ.go, and it is what made a stale local
+        # node_modules surface as a phantom "css-check failed" with no source
+        # change. Source deps are pinned by package-lock.json + `npm ci`
+        # (make css-install verifies the installed versions match the lockfile),
+        # so this comparison is deterministic.
+        run: |
+          if ! git diff --quiet --exit-code -- web/resources/static/app.min.css web/resources/static/basecoat.min.css; then
+            echo "❌ committed CSS does not match src/css/*.  Run 'make css-all' and COMMIT."
+            git diff --stat -- web/resources/static/
+            exit 1
+          fi
+          echo "✓ CSS bundles match their sources"
       - name: Test
         # Plain parallel run: the DagNats tests used to bind fixed ports, and
         # two packages grabbed the same one, which forced `-p 1`. They now bind

@@ -153,6 +153,44 @@ so running tests on a known-linted codebase saves re-runs.
 The remote CI becomes a parallel validator and the auto-deploy driver, not the
 primary gatekeeper. If green locally, push without holding your breath.
 
+## What the local gate and the remote CI each actually run
+
+The claim above ("CI runs the same checks as `make ci-local`") is a contract,
+not a coincidence — and it silently broke twice. The two jobs are kept in sync
+by hand, so when a step is added to one, add it to the other:
+
+| Check | `make ci-local` | GitHub CI |
+|---|---|---|
+| templ generate | ✓ | ✓ |
+| generated `_templ.go` matches sources | ✓ `check-generated` | ✓ |
+| CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
+| SCOPE annotations | ✓ | ✓ |
+| SKILL.md frontmatter | ✓ | ✓ |
+| install.sh bootstrap contract | ✓ | ✓ |
+| datastar-lint | ✓ | ✓ |
+| golangci-lint (31 linters) | ✓ | ✓ |
+| govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
+| deadcode (advisory) | ✅ pre-push hook | ✓ |
+| `go test -race` (parallel, all pkgs) | ✓ | ✓ |
+| build + **binary** boot smoke | ✓ | ✓ |
+| browser smoke (Playwright) | ✓ | ✓ |
+
+**The generated-artifact checks are the ones that regressed.** `_templ.go`
+(71 files) and `web/resources/static/app.min.css` are both *committed and
+embedded in the binary*. Both CIs used to only **generate** them and then run
+every subsequent step against the freshly generated output — so a `.templ` (or
+`input.css`) edit whose regeneration was never committed passed lint, passed
+tests, passed both smoke tests, and shipped a binary rendering stale markup.
+Both now regenerate and **diff**, which is exactly what `css-check` does.
+
+This is deterministic, and that matters: the reason `actions/cache` is disabled
+in this repo (`skip-cache: true`, `cache: false`) is a *real, documented*
+history of flaky tar restores (`/usr/bin/tar` exit 2) aborting jobs — see
+commit `d50d0fb`, where caching was turned off deliberately rather than
+overlooked. Do not re-enable it to save seconds without reading that first;
+the CSS/templ diffs above add no such risk because they compare text, not
+extract archives.
+
 ## When CI goes red
 
 1. Read the failing log step (test, lint, css-check, build).
