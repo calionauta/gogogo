@@ -22,7 +22,15 @@ const clientIDSuffixFormat = "150405.000"
 // before concluding the event never arrives. One constant instead of a
 // literal per call site so the cost of every absence check is visible and
 // tunable in one place.
-const sseAbsenceWindow = 6 * time.Second
+//
+// 500ms, not seconds: the events these checks rule out (a record event
+// leaking onto the hub) travel an in-process, synchronous path —
+// handleCreate → broadcaster.PublishTodoUpdate → hub.Broadcast — so a
+// regression shows up in single-digit milliseconds. A negative assertion
+// cannot short-circuit and must genuinely wait out its window, which is why
+// this number is set to the delivery latency it guards with two orders of
+// magnitude of margin, not to "long enough to feel safe".
+const sseAbsenceWindow = 500 * time.Millisecond
 
 // TestIntegration_CreateEnqueuesNotification opens an SSE stream, creates
 // a todo via HTTP, and asserts the "todo_created" notification arrives

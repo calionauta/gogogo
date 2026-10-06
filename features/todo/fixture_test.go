@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
@@ -113,6 +114,12 @@ func buildFixture(t *testing.T, simClient *llm.Client) (
 	// and cross-tab sync silently fails.
 	h.SetBroadcaster(nats.NewInMemoryBroadcaster(q.Hub()))
 
+	// Collapse the retry backoff BEFORE the workers start. The default is
+	// 2s→30s; the retry tests assert the retry PATH (attempt count + SSE
+	// feedback), not how long it waited, and the default alone cost them
+	// ~4s each. Scoped to this test queue, so production keeps
+	// DefaultRetryConfig.
+	q.SetRetry(queue.RetryConfig{Attempts: 3, Delay: 25 * time.Millisecond, MaxDelay: 200 * time.Millisecond})
 	workers := q.StartWorkers()
 
 	// Seed the demo user so auth login has a target. testFixture is

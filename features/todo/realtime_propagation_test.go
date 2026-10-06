@@ -352,20 +352,52 @@ func TestRealtimeNoOrphanIIFE(t *testing.T) {
 	}
 }
 
-// bootLiveServer builds and runs the production binary (dev variant) as a
+// liveServerBin is the production binary built once per test binary by
+// TestMain. bootLiveServer used to shell out to `go build ./cmd/web` on every
+// call, which cost ~8.5s of the package's runtime for a binary SHARED by the
+// tests. Building once makes that a cost of the test binary, not of a test.
+var liveServerBin string
+
+// TestMain builds the production binary once for the tests that need to run the
+// real server. A build failure is fatal for the whole package, which is correct:
+// those tests cannot run without it, and `go build` failing is a broken package.
+func TestMain(m *testing.M) {
+	bin, err := buildLiveServerBinary()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "build live server binary: %v\n", err)
+		os.Exit(1)
+	}
+	liveServerBin = bin
+	code := m.Run()
+	_ = os.Remove(bin)
+	os.Exit(code)
+}
+
+func buildLiveServerBinary() (string, error) {
+	dir, err := os.MkdirTemp("", "gogogo-live-")
+	if err != nil {
+		return "", err
+	}
+	bin := filepath.Join(dir, "gogogo_live")
+	build := exec.Command("go", "build", "-o", bin, "github.com/calionauta/gogogo/cmd/web")
+	build.Stderr = os.Stderr
+	if out, buildErr := build.Output(); buildErr != nil {
+		return "", fmt.Errorf("go build: %w\n%s", buildErr, out)
+	}
+	return bin, nil
+}
+
+// bootLiveServer runs the prebuilt production binary (dev variant) as a
 // subprocess and waits for it to accept /health. Returns the base URL and a
 // cleanup that kills the process. This is the only faithful way to exercise
 // PocketBase realtime (/api/realtime), which the unit fixture does not
 // mount.
 func bootLiveServer(t *testing.T) (string, func()) {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "gogogo_live")
-	build := exec.CommandContext(context.Background(), "go", "build",
-		"-o", bin, "github.com/calionauta/gogogo/cmd/web")
-	build.Stderr = os.Stderr
-	if out, err := build.Output(); err != nil {
-		t.Fatalf("build live binary: %v\n%s", err, out)
+	if liveServerBin == "" {
+		t.Fatal("live server binary was not built (TestMain did not run)")
 	}
+	bin := liveServerBin
 
 	tmpDir := t.TempDir()
 	// Ephemeral port. This was hardcoded to 8291, which made the test fail

@@ -47,6 +47,10 @@ type Queue struct {
 	hub *SSEHub
 	reg *HandlerRegistry
 	db  *sql.DB
+
+	// retry overrides WorkerPool's default backoff. Nil means
+	// DefaultRetryConfig. Set via SetRetry before StartWorkers.
+	retry *RetryConfig
 }
 
 // New opens a SQLite-backed goqite queue, applies the schema, and
@@ -124,11 +128,21 @@ func (q *Queue) ReceiveAndWait(ctx context.Context, timeout time.Duration) (*goq
 // Hub returns the SSEHub for streaming to browser clients.
 func (q *Queue) Hub() *SSEHub { return q.hub }
 
+// SetRetry overrides the worker pool's retry backoff. Must be called
+// before StartWorkers; a nil/zero config leaves DefaultRetryConfig in
+// place. Production never calls this — it exists so a test that has to
+// exercise the retry PATH does not also have to sit through the real
+// 2s→4s backoff, which makes retry coverage cost seconds per test.
+func (q *Queue) SetRetry(cfg RetryConfig) { q.retry = &cfg }
+
 // StartWorkers launches workerCount goroutines that drain the queue
 // and dispatch through the HandlerRegistry. Returns the pool so
 // callers can stop it explicitly on shutdown.
 func (q *Queue) StartWorkers() *WorkerPool {
 	wp := NewWorkerPool(q.q, q.hub, q.reg, workerCount)
+	if q.retry != nil {
+		wp.SetRetry(*q.retry)
+	}
 	wp.Start()
 	return wp
 }
