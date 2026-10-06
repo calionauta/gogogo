@@ -1,5 +1,29 @@
-@import "tailwindcss" source("../../features/") source("../../web/");
+@import "tailwindcss" source(none);
 @import "basecoat-css/maia";
+
+/* The scan roots mirror src/css/input.css (the DaisyUI bundle) exactly.
+   The previous form -- `@import "tailwindcss" source("../../features/")
+   source("../../web/")` -- only scanned those two DIRECTORIES, not their
+   subtrees, so web/skins/basecoat/*.templ and features/todo/components/*.templ
+   contributed nothing: the Basecoat bundle was missing the layout utilities
+   those templates use (grid-cols-3, p-0, py-2, space-y-3, ...) as well as the
+   skin's own classes. That is why the skin looked broken even though its class
+   names were "correct".
+
+   `source(none)` plus explicit @source globs is the form that actually
+   recurses, and keeping the two stylesheets identical means a class that works
+   under DaisyUI cannot silently vanish under Basecoat. */
+@source "../../features/**/*.templ";
+@source "../../features/**/*.go";
+@source not "../../features/**/*_templ.go";
+@source "../../web/**/*.templ";
+@source "../../web/**/*.go";
+@source not "../../web/**/*_templ.go";
+@source "../../internal/**/*.go";
+@source "../../internal/**/*.templ";
+/* internal/installer is the CLI and renders no HTML -- see the long note in
+   input.css; the same reasoning applies here. */
+@source not "../../internal/installer/**";
 
 @theme inline {
   --color-background: oklch(1 0 0);
@@ -111,6 +135,49 @@
   border-top-color: transparent;
   border-radius: 9999px;
   animation: bc-spin 0.7s linear infinite;
+}
+/* ─── Stepper ───
+   The async-demo panels render their progress as a plain <ul> whose
+   <li class="step"> items toggle step-primary / step-success / step-error
+   via Datastar data-class. Under DaisyUI those names are the `.steps`
+   component; Basecoat ships no stepper, so every state class resolved to
+   nothing and the demo's progression was invisible — the list rendered as
+   static text that never changed colour. Defining the same class names here
+   keeps the state wiring (one source of truth in the templates) working
+   under both skins instead of forking the markup per skin. */
+@utility step {
+  position: relative;
+  padding-left: 1.25rem;
+  color: var(--color-muted-foreground);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.35em;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: currentColor;
+    opacity: 0.35;
+    transition: opacity 300ms ease-out;
+  }
+}
+@utility step-primary {
+  color: var(--color-primary);
+  font-weight: 600;
+
+  &::before { opacity: 1; }
+}
+@utility step-success {
+  color: var(--color-primary);
+
+  &::before { opacity: 1; }
+}
+@utility step-error {
+  color: var(--color-destructive);
+
+  &::before { opacity: 1; }
 }
 @keyframes bc-spin {
   to { transform: rotate(360deg); }

@@ -29,7 +29,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 				@TodoList(signals)
 			</main>
 			@deleteConfirmModal()
-			<div class="toast toast-end" data-show="$loading"></div>
+			<div class="toast" data-show="$loading"></div>
 			@sseOpener()
 			@pbRealtime()
 		</body>
@@ -215,7 +215,7 @@ templ queueRetryPanel(signals todo.Signals) {
 		Enqueues a hard-coded background job that fails twice then succeeds — exercising the queue + retry layer end-to-end (no LLM involved).
 	</p>
 
-	<ul class="steps steps-vertical w-full text-xs">
+	<ul class="w-full text-xs space-y-1">
 		<li class="step transition-all duration-500"
 			data-class={ "{'step-primary': $demoStep === 1, 'step-success': $demoStep >= 2}" }>
 			Enqueue hard-coded job (goqite)
@@ -244,7 +244,7 @@ templ queueRetryPanel(signals todo.Signals) {
 		</button>
 	</form>
 
-	<div class="alert alert-success text-xs py-2" data-show="$demoStep >= 3 && $techPhase !== 'error'" data-init__delay.4s="$demoStep = 0">
+	<div class="alert text-xs py-2" data-show="$demoStep >= 3 && $techPhase !== 'error'" data-init__delay.4s="$demoStep = 0">
 		<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
 		</svg>
@@ -272,7 +272,7 @@ templ aiSuggestPanel(signals todo.Signals) {
 		Asks the configured LLM (Groq via GoAI) for 3 todo suggestions. The request is queued (goqite) and retried (retry-go) like any slow, failure-prone call.
 	</p>
 
-	<ul class="steps steps-vertical w-full text-xs">
+	<ul class="w-full text-xs space-y-1">
 		<li class="step transition-all duration-500"
 			data-class={ "{'step-primary': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }>
 			Queue suggest job (goqite)
@@ -303,7 +303,7 @@ templ aiSuggestPanel(signals todo.Signals) {
 		</span>
 	</button>
 
-	<div class="alert alert-success text-xs py-2" data-show="$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'" data-init__delay.4s="$aiStep = 0">
+	<div class="alert text-xs py-2" data-show="$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'" data-init__delay.4s="$aiStep = 0">
 		<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 			<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
 		</svg>
@@ -325,10 +325,10 @@ templ durableWorkflowPanel(signals todo.Signals) {
 			</div>
 			<span class="text-xs font-semibold">Durable Workflow</span>
 		</div>
-		<span class="badge" data-variant="accent">DagNats</span>
+		<span class="badge" data-variant="secondary">DagNats</span>
 	</div>
 
-	<ul class="steps steps-vertical w-full text-xs">
+	<ul class="w-full text-xs space-y-1">
 		<li class="step transition-all duration-500"
 			data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 1)}" }>
 			1. Greeting
@@ -364,7 +364,7 @@ templ durableWorkflowPanel(signals todo.Signals) {
 		<span>Waiting for your next to-do. Add any task above to continue the workflow.</span>
 	</div>
 
-	<button type="button" class="btn w-full" data-variant="accent"
+	<button type="button" class="btn w-full" data-variant="secondary"
 		data-attr:disabled="$onboardingActive && !$workflowCompleted"
 		data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">
 		<span class="inline-flex items-center gap-2">
@@ -382,7 +382,7 @@ templ durableWorkflowPanel(signals todo.Signals) {
 	</button>
 
 	if signals.OnboardingActive && signals.WorkflowCompleted {
-		<div class="alert alert-success text-xs py-2">
+		<div class="alert text-xs py-2">
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 				<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
 			</svg>
@@ -461,7 +461,7 @@ templ SuggestionsList(suggestions []string) {
 		</div>
 		<div class="flex flex-wrap gap-2">
 			for _, s := range suggestions {
-				<button type="button" class="btn btn-xs" data-variant="secondary"
+				<button type="button" class="btn" data-size="xs" data-variant="secondary"
 					data-on:click={ "$newTitle = " + safeJSString(s) }>
 					{ s }
 				</button>
@@ -499,8 +499,8 @@ templ todoItem(item todo.Todo) {
 // delete confirmation. Driven by $confirmingDeleteId: empty = closed,
 // non-empty = open with the matching row's title.
 templ deleteConfirmModal() {
-	<dialog id="confirm-delete-modal" class="modal" data-on:close="$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false">
-		<div class="modal-box">
+	<dialog id="confirm-delete-modal" class="dialog" data-on:close="$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false">
+		<div>
 			<h3 class="font-bold text-lg text-destructive flex items-center gap-2">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
 					<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -511,12 +511,12 @@ templ deleteConfirmModal() {
 				This will permanently remove <span class="font-semibold" data-text="$confirmingDeleteTitle"></span>.
 				This can't be undone.
 			</p>
-			<div class="modal-action">
-				<button type="button" class="btn btn-sm" data-variant="ghost"
+			<footer class="flex justify-end gap-2 mt-4">
+				<button type="button" class="btn" data-size="sm" data-variant="ghost"
 					data-on:click="document.getElementById('confirm-delete-modal').close()">
 					Cancel
 				</button>
-				<button type="button" class="btn btn-sm" data-variant="destructive"
+				<button type="button" class="btn" data-size="sm" data-variant="destructive"
 					data-attr:disabled="$deleting"
 					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">
 					<span class="inline-flex items-center gap-2">
@@ -524,9 +524,9 @@ templ deleteConfirmModal() {
 						<span class="spinner" data-show="$deleting"></span>
 					</span>
 				</button>
-			</div>
+			</footer>
 		</div>
-		<form method="dialog" class="modal-backdrop">
+		<form method="dialog">
 			<button data-on:click="document.getElementById('confirm-delete-modal').close()">close</button>
 		</form>
 	</dialog>
