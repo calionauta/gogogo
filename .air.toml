@@ -24,12 +24,17 @@
   stop_on_error  = true
   # Post-build feedback runs after a successful Go build. Failures are
   # printed but do NOT block the rebuild (so dev loop stays fast).
-  # Run `make check` for the blocking full gate before committing.
+  #
+  # golangci-lint is deliberately NOT run here. A full-repo run peaks around
+  # 2.6 GB RSS; firing it on every save (this hook runs per rebuild) starves a
+  # shared/limited host and is the worst place to pay that cost. Lint belongs
+  # at the commit gate (lefthook -> scripts/lint-safe.sh) and the explicit
+  # pre-push gate (`make ci-local`), both of which size the run to the machine.
+  # Format + vet stay here: they are cheap and give immediate feedback.
   post_cmd = [
     "echo '━━━ post-build checks (info) ━━━'",
     "gofumpt -l . | head -20 | (read x && echo \"  ⚠ gofumpt: $x\" || echo '  ✓ gofumpt')",
     "go vet ./... >/tmp/air-vet.out 2>&1 && echo '  ✓ go vet' || echo '  ⚠ go vet (see /tmp/air-vet.out)'",
-    "which golangci-lint >/dev/null 2>&1 && (golangci-lint run ./... >/tmp/air-lint.out 2>&1 && echo '  ✓ golangci-lint' || echo '  ⚠ golangci-lint (see /tmp/air-lint.out)') || echo '  ⚠ golangci-lint not installed'",
   ]
 
 [log]

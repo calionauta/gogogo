@@ -42,7 +42,7 @@ push/merge, or (b) the change touches an area the next tier checks.
 | Tier | Command | Cost | Catches |
 |---|---|---|---|
 | **T1** format + build | `gofumpt -l -d <files>` + `go build ./...` | ~10s | Format drift, compile errors |
-| **T2** lint scoped | `go vet` + `golangci-lint run <changed-glob>` + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
+| **T2** lint scoped | `go vet` + `make lint-safe` (host-aware: scoped + memory-capped) + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
 | **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
 | **T4** full local gate | `make ci-local` | ~60–240s | Full pre-push check (= CI) |
@@ -185,7 +185,7 @@ no-op when lefthook is not installed).
 
 | Hook | Jobs | When |
 |------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · scope-lint · datastar-lint · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
