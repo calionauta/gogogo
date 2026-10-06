@@ -7,7 +7,18 @@ description: "Go backend standards for the gogogo template — PocketBase/SQLite
 
 Go + template rules only. Universal principles (KISS, DRY, LoB/SoC, YAGNI, sizes) live in `stelow-workflow-coding-standards` and are not repeated here.
 
-- Source: https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards
+- **Local copy (read this):** `../stelow-workflow-coding-standards/SKILL.md`, with its
+  `references/file-function-sizes.md` and `references/ci-enforcement.md` beside it.
+  Read the local path, not a URL: a skill's `references/` resolve only as relative
+  paths to a locally present skill, so a URL link cannot reach them.
+- Upstream: https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards
+- **Vendored, pinned, and checked.** The local copy is byte-identical to upstream
+  `main` at the commit in `../stelow-workflow-coding-standards/UPSTREAM_SHA`. Never
+  edit it in place — a local edit makes the pin a lie. `bin/check-stelow-drift.sh`
+  (advisory in pre-commit, `--strict` in the weekly `stelow-drift` workflow) fails
+  when the copy diverges from the pin or upstream has moved. To UPDATE it, run
+  `scripts/refresh-stelow.sh` (or `make refresh-stelow`) — never copy by hand; the
+  scheduled `stelow-auto-bump` workflow opens the bump as a PR.
 - Go override (copied, stable): max 100 lines/function, 500 lines/file. Universal default is 50/400.
 - This skill covers only what stelow does not: Go idioms, gogogo gates, Datastar, perf, Zig gate.
 
@@ -28,10 +39,10 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Proposing Zig | **Zig Gate** + `references/zig-gate.md` |
 
 Universal principles (KISS, DRY, LoB/SoC, YAGNI, file/function sizes) are NOT
-repeated here — they live in
-[`stelow-workflow-coding-standards`](https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards),
-with the Go override stated under **Core Go Rules**. Everything below is the
-delta this project adds on top.
+repeated here — they live in the vendored
+[`stelow-workflow-coding-standards`](../stelow-workflow-coding-standards/SKILL.md)
+(upstream: https://github.com/calionauta/stelow), with the Go override stated
+under **Core Go Rules**. Everything below is the delta this project adds on top.
 
 ## Core Go Rules
 
@@ -236,7 +247,7 @@ warnings print and exit 0.
 
 - `_templ.go` files: excluded from `funlen`/`gocyclo`/`dupl`/`lll` (generated).
 - `_test.go`: excluded from `goconst`/`mnd`/`funlen`/`gocyclo`/`bodyclose` (do not close httptest bodies) and `forbidigo` (a test legitimately sleeps to assert absence, pace a fixture, or let a watcher catch up). Read the exclusion list from `.golangci.yml` rather than trusting this line — it is the single source and this prose has drifted before.
-- Morpheus `data-neo-*` attrs: intentional, keep `-only-errors`; add truly shared ones to `.datastar-lint.yaml`.
+- cuelume `data-cuelume-*` attrs: intentional, keep `-only-errors`; add truly shared ones to `.datastar-lint.yaml`.
 - `site/**`, `docs/**`: not scanned by Tailwind, not deployed in binary. Never gate them with `css-check`.
 - `cmd/desktop`, `cmd/gui`: separate targets, excluded from web gate (`scripts/web-packages.sh`). Full lint manual (`make lint-gui`).
 - Go 1.27 `gofmt` alignment churn: expect a one-time whitespace diff on old files.

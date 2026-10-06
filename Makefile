@@ -105,7 +105,7 @@ test-fast:
 # without this, correctness of the whole CSS gate depends on a one-time
 # manual `npm ci` nobody remembers to run.
 css-install:
-	@if ! node -e 'const fs=require("fs");const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));const want=n=>lock.packages["node_modules/"+n]?.version;let bad=[];for(const n of ["tailwindcss","@tailwindcss/cli","daisyui"]){const w=want(n);let g;try{g=JSON.parse(fs.readFileSync("node_modules/"+n+"/package.json","utf8")).version}catch{}if(w&&g!==w)bad.push(n+" "+(g||"absent")+" -> "+w)}process.exit(bad.length?1:0)' 2>/dev/null; then \
+	@if ! node -e 'const fs=require("fs");const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));const want=n=>lock.packages["node_modules/"+n]?.version;let bad=[];for(const n of ["tailwindcss","@tailwindcss/cli","daisyui","basecoat-css"]){const w=want(n);let g;try{g=JSON.parse(fs.readFileSync("node_modules/"+n+"/package.json","utf8")).version}catch{}if(w&&g!==w)bad.push(n+" "+(g||"absent")+" -> "+w)}process.exit(bad.length?1:0)' 2>/dev/null; then \
 		echo "→ CSS deps missing or stale vs package-lock.json — installing (npm ci)..."; \
 		npm ci --silent; \
 		echo "  ✓ installed"; \
@@ -152,7 +152,7 @@ fmt:
 # backend SDK calls (sse.PatchElements and friends).
 #
 # -only-errors: real issues fail the gate; warnings (intentional custom attrs
-# like data-tool/data-doc-id/data-neo-*) are reported but do not block. Those go
+# like data-tool/data-doc-id/data-test) are reported but do not block. Those go
 # in .datastar-lint.yaml under attributes.allowed instead of being silenced.
 #
 # Scoped to ./features and ./internal so the every-save Air pre_cmd does not
@@ -200,6 +200,21 @@ check-skill-frontmatter:
 	@echo "→ check-skill-frontmatter (SKILL.md frontmatter linter)..."
 	@go run ./cmd/check-skill-frontmatter
 	@echo "✅ SKILL.md frontmatter valid"
+
+# check-stelow-drift verifies the vendored stelow-workflow-coding-standards copy
+# against its pinned upstream commit and against upstream main. Advisory by
+# default (never blocks a commit on a network call); the scheduled stelow-drift
+# workflow runs it with --strict.
+check-stelow-drift:
+	@echo "→ check-stelow-drift (vendored stelow standards vs upstream)..."
+	@bin/check-stelow-drift.sh --strict
+
+# refresh-stelow updates the vendored stelow-workflow-coding-standards copy to
+# upstream and bumps UPSTREAM_SHA, then re-runs the strict drift check. Fetches
+# each file from raw.githubusercontent at the target commit — no stelow clone
+# needed. Review with `git diff` before committing.
+refresh-stelow:
+	@scripts/refresh-stelow.sh $(ARGS)
 
 deadcode:
 	@which deadcode >/dev/null 2>&1 && PKGS=$$(bash scripts/web-packages.sh) && deadcode -test $$PKGS || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"

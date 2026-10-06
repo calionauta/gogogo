@@ -18,7 +18,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 
 ## Skills
 
-- `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, Zig gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles delegated to [`stelow-workflow-coding-standards`](https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards).
+- `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, Zig gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles live in the vendored `skills/stelow-workflow-coding-standards` (upstream [stelow](https://github.com/calionauta/stelow), pinned in its `UPSTREAM_SHA` — never edit the vendored copy in place). Drift: `bin/check-stelow-drift.sh` detects, `scripts/refresh-stelow.sh` fixes (a scheduled workflow opens the bump PR).
 - `cali-code-navigation` — ripwire orient-first navigation. Use when landing cold in unfamiliar code or tracing callers.
 - `/skill:cali-ops-deploy-github-tailscale` — server layout, deploy user, secret tables.
 
@@ -74,7 +74,7 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 - **Tests other packages share:** never write a package global in a fixture. `auth.CookieSecure` was assigned `false` (its zero value) by four fixtures — a latent race the moment two tests in a package overlap. Set such state once in `TestMain`, or not at all.
 - **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
 - **Deploy:** push-to-`master` → CI gate → deploy. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone (`git pull --ff-only`). Scratch healthcheck: `CMD ["/app","health"]` (`docs/deploy.md`).
-- **Skins:** default DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Basecoat/Morpheus have their own vocab — read `docs/ui-skins.md` first.
+- **Skins:** default DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Basecoat has its own vocab — read `docs/ui-skins.md` first.
 - **Config:** single source `config/config.go` (`docs/configuration.md`). **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
 
 ## No AI attribution in commits or release notes

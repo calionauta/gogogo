@@ -74,6 +74,17 @@ pre-commit:
       run: bin/check-agents-md.sh
       glob: "{AGENTS.md,go.mod,**/*.go,**/*.templ}"
 
+    # The universal coding principles are NOT written here — they are vendored
+    # from calionauta/stelow so the delegation resolves (a skill's references/
+    # are only reachable as relative paths to a locally installed skill). This
+    # keeps the vendored copy honest: warn when upstream has moved, and fail
+    # when the vendored files diverge from their pinned UPSTREAM_SHA. Advisory
+    # (always exits 0) at commit time — a hook must not block on a network call.
+    # The scheduled stelow-drift workflow runs it with --strict.
+    - name: stelow-drift
+      run: bin/check-stelow-drift.sh
+      glob: "{skills/stelow-workflow-coding-standards/**}"
+
     # Non-blocking by design (always exits 0): warns when a behaviour-carrying
     # file changes without a docs/ update. See the script header for why it
     # does not block.

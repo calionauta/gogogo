@@ -1,0 +1,144 @@
+name: stelow-auto-bump
+
+# Opens (or updates) a PR that refreshes the vendored
+# stelow-workflow-coding-standards copy when upstream has moved.
+#
+# Why a PR and not an auto-commit: the vendored copy is *normative* — the
+# universal coding principles this template enforces (KISS/DRY/LoB/SoC/YAGNI,
+# file/function sizes, the Go override) live in it. A silent auto-commit would
+# change the rules the project holds itself to with no human ever reading the
+# diff. A PR keeps the update one click away while making the rule change
+# visible, which is the same reasoning behind "human must approve all AGENTS.md
+# changes".
+#
+# This is the third of the three version policies:
+#   1. pin + drift check      — bin/check-stelow-drift.sh (advisory pre-commit)
+#   2. scheduled detection    — .github/workflows/stelow-drift.yml (weekly, strict)
+#   3. reviewed auto-bump     — this workflow
+#
+# It is a complement to stelow-drift.yml, not a replacement: that one FAILS
+# loudly on drift for a maintainer to see, this one PREPARES the fix. Both are
+# off the main CI path, so neither can block an unrelated change.
+
+on:
+  schedule:
+    # Tuesdays 09:23 UTC — a day after stelow-drift.yml, so the drift job has
+    # already reported and this one arrives with the remedy.
+    - cron: "23 9 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Needed so the branch can be pushed back.
+          persist-credentials: true
+
+      - name: Refresh the vendored copy from upstream
+        id: refresh
+        # The script fetches each file from raw.githubusercontent at the target
+        # commit, so no clone of the stelow repo is required. Under GitHub
+        # Actions the API is rate-limited but authenticated via GITHUB_TOKEN,
+        # which raises the ceiling well above one tree call per run.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          # --dry-run first so a run that changes nothing exits cleanly without
+          # creating a branch. The script exits 0 at the current pin.
+          if scripts/refresh-stelow.sh --dry-run | grep -q "already at"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already at upstream main — nothing to bump."
+            exit 0
+          fi
+          scripts/refresh-stelow.sh
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "PIN=$(tr -d '[:space:]' < skills/stelow-workflow-coding-standards/UPSTREAM_SHA)" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise the upstream diff
+        if: steps.refresh.outputs.changed == 'true'
+        id: summary
+        run: |
+          {
+            echo "## Refresh vendored stelow coding standards"
+            echo
+            echo "Pinned commit: \`${{ steps.refresh.outputs.PIN }}\`"
+            echo
+            echo "The universal coding principles in"
+            echo "\`skills/stelow-workflow-coding-standards/\` are **normative** for this"
+            echo "repo — read the diff before merging, since it changes the rules the"
+            echo "project enforces on itself."
+            echo
+            echo '```diff'
+            git --no-pager diff --stat -- skills/stelow-workflow-coding-standards/
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the bump PR
+        if: steps.refresh.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PIN="${{ steps.refresh.outputs.PIN }}"
+          BRANCH="chore/stelow-bump-${PIN:0:12}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # A fresh branch each time a NEW pin appears, so the PR body always
+          # describes exactly one upstream commit. An existing branch for this
+          # pin is reused (the workflow is idempotent across weekly runs).
+          git checkout -B "$BRANCH"
+          git add skills/stelow-workflow-coding-standards
+          if git diff --cached --quiet; then
+            echo "Nothing staged (docs-only upstream change?) — skipping PR."
+            exit 0
+          fi
+          git commit -F - <<EOF
+          chore(skills): bump vendored stelow coding standards to ${PIN:0:12}
+
+          Refreshes skills/stelow-workflow-coding-standards/ from
+          calionauta/stelow at $PIN and bumps UPSTREAM_SHA.
+
+          These are the universal coding principles the template enforces
+          (KISS/DRY/LoB/SoC/YAGNI, file/function sizes, the Go override), so
+          review the diff rather than merging blind.
+
+          Verified by bin/check-stelow-drift.sh --strict.
+          EOF
+
+          git push --force-with-lease origin "$BRANCH"
+
+          BODY=$(cat <<EOF
+          Automated refresh of the vendored **stelow-workflow-coding-standards**.
+
+          - **Upstream commit:** \`$PIN\`
+          - **Files:** \`skills/stelow-workflow-coding-standards/\` (SKILL.md, references/, UPSTREAM_SHA)
+
+          > ⚠️ This copy is **normative**: these are the universal coding principles
+          > this template holds itself to. Read the diff — it changes the rules.
+
+          The refresh ran \`bin/check-stelow-drift.sh --strict\` and it passed
+          (vendored bytes match the pin; the pin matches upstream \`main\`).
+
+          Opened by \`.github/workflows/stelow-auto-bump.yml\`.
+          EOF
+          )
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" --body "$BODY"
+            echo "Updated existing PR for $BRANCH."
+          else
+            gh pr create \
+              --title "chore(skills): bump vendored stelow coding standards to ${PIN:0:12}" \
+              --body "$BODY" \
+              --head "$BRANCH" \
+              --base "${GITHUB_REF_NAME}"
+          fi

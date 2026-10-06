@@ -1,0 +1,70 @@
+name: stelow-drift
+
+# Keeps the vendored copy of stelow-workflow-coding-standards honest.
+#
+# The universal coding principles this template holds itself to (KISS, DRY,
+# LoB/SoC, YAGNI, file/function sizes) are NOT written in this repo. They live
+# upstream in calionauta/stelow and are vendored into
+# skills/stelow-workflow-coding-standards/ so the delegation resolves at all —
+# a skill's references/ are only reachable as relative paths to a locally
+# installed skill, so a URL-only link could never reach
+# references/file-function-sizes.md.
+#
+# A vendored copy with no currency check silently becomes a fork: upstream fixes
+# land, this repo keeps enforcing the old rules, and the SKILL.md still claims
+# to delegate to "the" standards. This workflow is that check.
+#
+# Why scheduled rather than per-push: the finding is "upstream moved", which is
+# not caused by anything in a given push, and the check needs the network. It
+# runs weekly and can be triggered by hand.
+#
+# Note: this workflow does NOT gate CI. CI's paths-ignore skips **.md, and a
+# drift finding should not block an unrelated fix. It fails loudly on its own
+# run, which is where a maintainer will see it.
+
+on:
+  schedule:
+    # Mondays at 09:17 UTC — off the hour so it does not pile onto the
+    # midnight-UTC cron stampede.
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check vendored stelow standards against upstream
+        # --strict: a moved upstream (or a locally edited vendored file) exits
+        # non-zero. The script fetches nothing itself; it compares
+        # UPSTREAM_SHA + the vendored bytes against `git ls-remote` on main.
+        #
+        # STELOW_CLONE is left unset on purpose: the content check is skipped
+        # when no local clone exists, and the upstream comparison — which is the
+        # whole point here — still runs. That also keeps this job from cloning
+        # the whole stelow repo on every run.
+        run: bin/check-stelow-drift.sh --strict
+
+      - name: Summarize the refresh procedure on failure
+        if: failure()
+        run: |
+          {
+            echo "## Vendored stelow standards are stale"
+            echo
+            echo "Upstream \`calionauta/stelow\` has moved past the commit pinned in"
+            echo "\`skills/stelow-workflow-coding-standards/UPSTREAM_SHA\`."
+            echo
+            echo "Refresh it:"
+            echo
+            echo '```bash'
+            echo "git clone https://github.com/calionauta/stelow.git /tmp/stelow"
+            echo "SHA=\$(git -C /tmp/stelow rev-parse main)"
+            echo "cp -R /tmp/stelow/skills/stelow-workflow-coding-standards/{SKILL.md,references} skills/stelow-workflow-coding-standards/"
+            echo "echo \"\$SHA\" > skills/stelow-workflow-coding-standards/UPSTREAM_SHA"
+            echo "make check-stelow-drift   # verify"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
