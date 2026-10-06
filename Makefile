@@ -139,15 +139,19 @@ fmt:
 	@test -z "$$(goimports -l -local github.com/calionauta/gogogo $$(find . -name '*.go' ! -name '*_templ.go'))" || (echo "  ❌ goimports issues"; goimports -l -local github.com/calionauta/gogogo $$(find . -name '*.go' ! -name '*_templ.go'); exit 1)
 	@echo "  ✅ formatting clean"
 
-# datastar-lint checks .templ files for Datastar anti-patterns. Runs with
-# -only-errors so real issues fail the gate while intentional custom
-# attributes (e.g. data-tool/data-doc-id, read by our whiteboard JS) are
-# whitelisted via .datastar-lint.json instead of being flagged.
-# Scoped to ./features (where .templ live) so the every-save Air pre_cmd
-# does not walk node_modules.
+# datastar-lint checks the Datastar surface: .templ/.html attributes and Go
+# backend SDK calls (sse.PatchElements and friends).
+#
+# -only-errors: real issues fail the gate; warnings (intentional custom attrs
+# like data-tool/data-doc-id/data-neo-*) are reported but do not block. Those go
+# in .datastar-lint.yaml under attributes.allowed instead of being silenced.
+#
+# Scoped to ./features and ./internal so the every-save Air pre_cmd does not
+# walk node_modules. NOTE: a finding only fails this target when its severity is
+# ERROR — warnings alone exit 0.
 datastar-lint:
 	@echo "→ Running datastar-lint..."
-	@bin/datastar-lint -only-errors -r ./features
+	@bin/datastar-lint -only-errors -r ./features ./internal
 
 lint:
 	@echo "→ go vet..."

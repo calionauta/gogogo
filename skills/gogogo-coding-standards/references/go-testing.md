@@ -1,6 +1,8 @@
 # Go testing (template strategy)
 
-Enforced by: `thelper`, `testifylint`, `sloglint` + `make ci-local` (race, `-p 1` for DagNats engine stability).
+Enforced by: `thelper`, `testifylint`, `sloglint` + `make ci-local` (race, parallel across packages).
+
+> **No `-p 1` in the default gate.** `make test` runs `scripts/test-web.sh`, a plain parallel sweep. `-p 1` survives only in `make coverage`, for a different reason (one `coverage.out` needs a single invocation). If you see `-p 1` described as "DagNats engine stability" anywhere, it is stale — see the note below.
 
 ## Tiers
 
@@ -16,6 +18,34 @@ address back from `srv.HTTPAddr()`: ~1m50 vs ~4m15, no serialization needed.
 NATS ports stay fixed (the test must name them to connect) but are distinct.
 When constructing coverage across packages, keep `-p 1` (a single
 `coverage.out` needs one invocation).
+
+### Harness bugs that look like slow tests
+
+Four defects in this template's own test harness each read as "the suite is
+slow" and each cost real wall-clock. Check these before optimizing anything:
+
+- **A parked `Body.Read` ignores a wall-clock deadline.**
+  `for time.Now().Before(deadline) { stream.Body.Read(buf) }` only re-checks the
+  deadline between reads, and `Read` blocks until the next event — so a silent
+  SSE stream waits one full heartbeat (15s), not the window requested. A "6s"
+  negative assertion took 15.5s. Read in a goroutine and `select` on a timer,
+  closing the body on expiry to unblock the reader (`pumpSSEUntil`).
+- **An SSE transcript is not JSON.** It is `event:`/`data:` lines, and each
+  Datastar payload additionally carries a literal `signals ` prefix — so
+  `json.Unmarshal(transcript)` and `json.Unmarshal(payload)` both always fail.
+  A predicate built on either can never fire and silently burns its whole
+  timeout. Strip both layers first.
+- **A test asserting an ABSENCE cannot short-circuit**, so it must drain its
+  full window. Name that intent (`pumpSSEFor` + one `sseAbsenceWindow`
+  constant) instead of calling the normal wait — otherwise a deliberate absence
+  check is indistinguishable from a slow hang, and its timeout reads as a
+  performance bug.
+- **Never write a shared package global in a fixture.**
+  `auth.CookieSecure = false` was assigned by four fixtures. It is the zero
+  value, so the write was a no-op — and a genuine data race the moment two
+  tests in a package overlap. Set shared state once in `TestMain`, or not at all.
+
+Each of these was found by asking "why is this slow", not by reading the code.
 
 ## SQLite timeouts: the flake that looks like noise
 

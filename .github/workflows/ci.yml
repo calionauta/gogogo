@@ -67,8 +67,11 @@ jobs:
         # build — so a syntax error ships silently. Real YAML parser, not regex.
         run: go run ./cmd/check-skill-frontmatter
       - name: Datastar-lint
+        # Pinned, not @latest: a new release can raise a rule to ERROR severity
+        # and start failing the build with no code change here. Bump this
+        # deliberately, reading the release notes.
         run: |
-          go install github.com/calionauta/datastar-lint@latest
+          go install github.com/calionauta/datastar-lint@v0.12.0
           export PATH="$HOME/go/bin:$PATH"
           make datastar-lint
       - name: Lint
