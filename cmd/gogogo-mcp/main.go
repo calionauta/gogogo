@@ -88,7 +88,14 @@ var toolCatalog = []toolDef{
 		"Opinions, not changes: which units to keep for a use-case " +
 			"and how each switches off. Empty need returns the full map; " +
 			"no preset matched means decide from the capabilities table " +
-			"or retry with broader terms. Start here when deciding.",
+			"or retry with broader terms. Start here when deciding. " +
+			"Answers in one of three scopes: `template` (a gogogo-shaped need), " +
+			"`patterns` (a non-Go stack — take the idea, nothing installs), or " +
+			"`go-standards` (a Go need that forbids dependencies, e.g. " +
+			"stdlib-only: the template cannot apply). The Go coding standards " +
+			"it enforces are the gogogo-coding-standards skill — " +
+			"https://github.com/calionauta/gogogo (install: " +
+			"npx skills add calionauta/gogogo); it is not shipped in this binary.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAdvise) },
 	},
 }

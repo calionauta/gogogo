@@ -165,6 +165,14 @@ func buildAdvise(need string) adviseDoc {
 			Rules: foreignRules, Presets: matched,
 		}
 	}
+	// A Go need that constrains itself to the standard library cannot use
+	// any capability (each one is or pulls a dependency), so answering with
+	// the 24-entry table buries the useful part. Answer with the Go
+	// standards pointer instead. Checked AFTER detectStack so an explicit
+	// non-Go stack still wins: "Rust, no dependencies" is a Rust need.
+	if wantsStdlibOnly(need) {
+		return adviseDoc{Scope: scopeGoStdlib, Rules: stdlibRules}
+	}
 	doc := adviseDoc{
 		Scope: scopeTemplate, Rules: adviseRules,
 		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>", nil); return &n }(),
@@ -252,6 +260,21 @@ func renderForeign(doc adviseDoc) string {
 	return b.String()
 }
 
+// renderStdlib is the go-standards-scope text: no capability table, no trim
+// mechanics, no presets — just the rules that survive without the template.
+// Split out so Advise stays under the gocyclo gate, like renderForeign.
+func renderStdlib(doc adviseDoc) string {
+	var b strings.Builder
+	b.WriteString("stdlib-only Go — the gogogo template does not apply here.\n" +
+		"No capability is installable: each one adds or belongs to a dependency\n" +
+		"this need forbids, so the registry is omitted rather than shown empty.\n\n")
+	b.WriteString("rules:\n")
+	for _, r := range doc.Rules {
+		fmt.Fprintf(&b, "  - %s\n", r)
+	}
+	return b.String()
+}
+
 // Advise renders guidance for need in text|json. Pure: reads the registry,
 // touches nothing. LLMs call this when they want opinions, not changes.
 func Advise(need, format string) (string, error) {
@@ -270,6 +293,9 @@ func Advise(need, format string) (string, error) {
 	b.WriteString("gogogo advise — opinions, not changes (nothing was installed):\n\n")
 	if doc.Scope == scopePatterns {
 		return renderForeign(doc), nil
+	}
+	if doc.Scope == scopeGoStdlib {
+		return renderStdlib(doc), nil
 	}
 	b.WriteString("rules:\n")
 	for _, r := range doc.Rules {

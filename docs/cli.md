@@ -13,8 +13,7 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 
 | Command | Changes anything? | What it does |
 |---|---|---|
-| `gogogo advise --need "..."` | No | Which lib or language fits the use-case; how each capability switches off |
-| `gogogo --dry-run --format json` | No | The trim plan as one JSON document |
+| `gogogo advise --need "..."` | No | Which lib or language fits the use-case; how each capability switches off || `gogogo --dry-run --format json` | No | The trim plan as one JSON document |
 | `gogogo --yes` | Yes | Scaffold: clone when missing, trim, rename, prove the build |
 | `gogogo add <unit> --from <pristine> --dir <proj>` | Yes (`--yes`) | Bring a trimmed unit back (`--dry-run` previews) |
 | `gogogo --check --dir <proj>` | No | Marker drift verdict per unit |
@@ -36,6 +35,20 @@ with the same flags (always tracks the latest commit; releases pin a version).
   not merging.
 - Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
   (Go rules; `advise` output cites it).
+- `advise` answers in ONE of three scopes, chosen from `--need` alone:
+
+  | Scope | When | What you get |
+  |---|---|---|
+  | `template` | a gogogo-shaped need (Go, or no stack named) | the capability table + keep/drop presets |
+  | `patterns` | the need names a non-Go stack (Rust, Python, Next.js, Zig…) | the portable idea per preset; nothing installs |
+  | `go-standards` | a **Go** need that forbids dependencies ("stdlib only", "no deps", "single binary") | the Go-standards pointer; the capability table is omitted because every entry adds or belongs to a dependency the need rules out |
+
+  The third scope exists because answering a stdlib-only need with 24
+  dependency-bearing capabilities is worse than answering nothing: an agent
+  reading it recommends PocketBase for a task whose spec forbids it. A
+  non-Go stack still wins when both conditions hold ("Rust, no dependencies"
+  is a Rust need), since the constraint is about a language this tool does
+  not cover at all.
 
 Engine internals (alternatives analysis, trim tables, flag matrix):
 [`cmd/gogogo`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo).

@@ -118,9 +118,40 @@ func checkGoModDrops(read func(string) (string, bool), u trimUnit, uc *unitCheck
 	}
 }
 
+// looksLikeTemplate reports whether root has enough of the template's core
+// layout to be a gogogo checkout at all.
+//
+// checkTree's per-unit results are meaningful against a template tree (the CI
+// drift gate) or an already-trimmed one (every marker legitimately missing).
+// Against an unrelated Go project they are not just useless, they are
+// misleading: 68 CHECK-FAIL lines read as "this project is broken" when the
+// truth is "this is not a gogogo checkout". Two cheap probes tell them apart.
+func looksLikeTemplate(root string) bool {
+	for _, probe := range []string{
+		filepath.Join("cmd", "web", "main.go"),
+		filepath.Join("internal", "installer", "run.go"),
+	} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(probe))); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // printCheck renders unitCheck results in grep-able lines:
 // "CHECK-OK <id>" or "CHECK-FAIL <id> <problem>".
-func printCheck(w io.Writer, results []unitCheck) int {
+//
+// Returns the count of units with problems so the caller can decide the exit
+// code. A non-template tree is reported as ONE actionable line rather than
+// per-unit noise (see looksLikeTemplate).
+func printCheck(w io.Writer, results []unitCheck, root string) int {
+	if !looksLikeTemplate(root) {
+		fmt.Fprintf(w, "CHECK-FAIL (tree) not a gogogo checkout: %s has no "+
+			"cmd/web/main.go or internal/installer/run.go.\n"+
+			"  Nothing to verify — run this against a gogogo template or a "+
+			"project scaffolded from one.\n", root)
+		return 1
+	}
 	failed := 0
 	for _, uc := range results {
 		if len(uc.Problems) == 0 {

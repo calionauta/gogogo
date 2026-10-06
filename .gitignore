@@ -78,6 +78,13 @@ gogogo-gui
 # repo root. `go run` (what the Makefile targets use) never does.
 /check-skill-frontmatter
 /check-scope
+# cmd/gogogo-mcp is its OWN module, so building it from inside that directory
+# drops the binary THERE, not at the root — and the root-level rules above do
+# not match. Caught a 12MB artifact staged into a commit once.
+/cmd/gogogo-mcp/gogogo-mcp
+# Any other stray build output in a cmd/ package dir (same reason, defers to
+# the explicit entries above for the ones already named).
+/cmd/*/gogogo
 # `make desktop` (wails3) drops an untagged binary named after the app at the
 # repo root; ignore it by exact path so a `desktop/` source dir would be safe.
 /desktop
