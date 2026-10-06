@@ -7,7 +7,7 @@
 // so the guidance is enforced in CI instead of living only in prose a
 // contributor (or an LLM) may never read.
 //
-// House rules for this file:
+// House rules for this file: (filter probe)
 //   - One rule per footgun that was actually hit. Keep the set small; a rule
 //     with false positives teaches people to ignore the linter.
 //   - VERIFY THE RULE FIRES BEFORE TRUSTING IT. A rule that matches nothing is
