@@ -3,6 +3,7 @@ package nats
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 )
@@ -36,7 +37,11 @@ func UserJoin(roomID string, info UserInfo) error {
 		return err
 	}
 	subj := "presence." + roomID + ".join"
-	if err := NC.Publish(subj, event); err != nil {
+	nc := Conn()
+	if nc == nil {
+		return errors.New("nats: no connection — StartEmbedded/ConnectExisting was not called")
+	}
+	if err := nc.Publish(subj, event); err != nil {
 		slog.Warn("nats/presence: publish join failed", "room", roomID, "error", err)
 	}
 	return nil
@@ -58,7 +63,11 @@ func UserLeave(roomID, userID string) error {
 	if marshalErr != nil {
 		return marshalErr
 	}
-	if pubErr := NC.Publish("presence."+roomID+".leave", event); pubErr != nil {
+	nc := Conn()
+	if nc == nil {
+		return errors.New("nats: no connection — StartEmbedded/ConnectExisting was not called")
+	}
+	if pubErr := nc.Publish("presence."+roomID+".leave", event); pubErr != nil {
 		slog.Warn("nats/presence: publish leave failed", "room", roomID, "error", pubErr)
 	}
 	return nil

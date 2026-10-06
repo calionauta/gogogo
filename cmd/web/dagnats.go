@@ -17,6 +17,88 @@ import (
 	appnats "github.com/calionauta/gogogo/internal/nats"
 )
 
+// waitStep waits for d, returning early if ctx is cancelled first. Used for the
+// onboarding steps' human-visible pacing: the pause must never outlive a
+// shutdown, which a time.Sleep cannot honour.
+func waitStep(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// ctxForStep joins the two cancellation sources an onboarding step handler must
+// honour: the pool lifecycle (shutdown) and the engine's step context (step
+// abort).
+//
+// They are NOT the same thing here. DagNats derives the step context from the
+// message's trace headers — `observe.ExtractTraceContext` falls back to
+// context.Background() — so it carries trace propagation only and is NOT
+// cancelled when the server stops. Using it alone would make the pacing pause
+// uncancellable again, which is the bug this whole change set removes.
+//
+// context.AfterFunc (1.21+) propagates cancellation without leaking a
+// goroutine per step and without the parent's cancel func escaping, which
+// `containedctx` rightly objects to storing.
+func ctxForStep(lifecycle context.Context, step worker.TaskContext) context.Context {
+	stepCtx := step.Context()
+	if stepCtx == nil {
+		return lifecycle
+	}
+	ctx, cancel := context.WithCancel(stepCtx)
+	stop := context.AfterFunc(lifecycle, cancel)
+	context.AfterFunc(ctx, func() { stop() })
+	return ctx
+}
+
+// createOnboardingTodo is the onboarding-create-todo step body, extracted so
+// the context it persists with is an explicit parameter rather than something
+// the handler closure sources invisibly. It writes through the store, which is
+// an I/O boundary: the context is what makes that write cancellable, so it must
+// be a real one (see ctxForStep).
+//
+// The run input is {"user": ..., "todos": [...]}; greet (root) forwards it and
+// every downstream step's Input is its single dependency's output, so each
+// create-todo step receives the same shape with whatever todos remain. Titles
+// ride this input/output chain rather than step config because the engine's
+// live publish path still omits TaskPayload.Config (per-step `metadata` IS
+// delivered as of DagNats v0.0.22, but config never was).
+func createOnboardingTodo(ctx context.Context, todoH *handlers.TodoHandler, step worker.TaskContext) error {
+	var input struct {
+		User  string   `json:"user"`
+		Todos []string `json:"todos"`
+	}
+	if len(step.Input()) > 0 {
+		_ = json.Unmarshal(step.Input(), &input)
+	}
+	text := "Onboarding task"
+	if len(input.Todos) > 0 {
+		text, input.Todos = input.Todos[0], input.Todos[1:]
+	}
+	// Scoping the example todos to the owner that started the run is what makes
+	// them visible in the user's list (the list query filters by owner).
+	// Previously owner was hardcoded to "" so the todos were created owner-less
+	// and never surfaced.
+	if err := todoH.CreateTodoForOnboarding(ctx, text, input.User); err != nil {
+		log.Printf("dagnats: create todo failed: %v", err)
+		return step.Fail(err)
+	}
+	// Thread the remaining titles (and owner) forward so the next create-todo
+	// step picks up the next example todo.
+	out, err := json.Marshal(input)
+	if err != nil {
+		return step.Fail(err)
+	}
+	return step.Complete(out)
+}
+
 var dagNatsServer *server.Server
 
 const (
@@ -44,7 +126,8 @@ const (
 // is ConnectExisting (called by startNATS right after), which uses
 // nats.RetryOnFailedConnect to block until the engine's NATS is
 // reachable — no polling loop in our code.
-func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.TodoHandler) {
+func startDagNats(ctx context.Context, cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.TodoHandler) {
+	lifecycleCtx := ctx
 	if !cfg.DagNats.Enabled {
 		return
 	}
@@ -59,8 +142,18 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 	// refactoring Go never orphans an in-flight workflow.
 	shim := server.EmbeddedWorker(srv)
 	shim.Handle("onboarding-greet", func(ctx worker.TaskContext) error {
-		const greetDelay = 1500 * time.Millisecond
-		time.Sleep(greetDelay) // visible pace
+		// Pause so a human watching the stepper can read the "greeting" phase.
+		// Configurable (DAGNATS_GREET_PACING) because this is product latency,
+		// not a neutral demo detail — see config.DagNats.GreetPacing.
+		//
+		// Waited on a context that carries BOTH cancellation sources: the pool
+		// lifecycle (so a shutdown is prompt) and the step context (so the wait
+		// ends if the engine aborts the step). The step context alone is not
+		// enough — DagNats builds it from the message's trace headers, i.e. from
+		// context.Background(), so it is never cancelled on shutdown.
+		if err := waitStep(ctxForStep(lifecycleCtx, ctx), cfg.DagNats.GreetPacing); err != nil {
+			return ctx.Fail(err)
+		}
 		log.Printf("dagnats: onboarding greet")
 		// Thread the run input ({"user": ..., "todos": [...]}) through as
 		// this step's output so the downstream create-todo steps can read
@@ -86,43 +179,13 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 		// Pass the owner payload through to the create-todo steps.
 		return ctx.Complete(ctx.Input())
 	})
+	// The closure signature is fixed by worker.HandlerFunc (upstream), so it
+	// cannot itself take a context.Context. The work that needs one is a named
+	// method, which receives the lifecycle context explicitly — that keeps the
+	// dependency visible at the call site instead of hidden in a background
+	// context inside the closure.
 	shim.Handle("onboarding-create-todo", func(ctx worker.TaskContext) error {
-		// The run input is {"user": ..., "todos": [...]}; greet (root)
-		// forwards it, and every downstream step's Input is its single
-		// dependency's output, so each create-todo step receives the same
-		// shape with whatever todos remain. Titles ride this input/output
-		// chain rather than step config because the engine's live publish
-		// path still omits TaskPayload.Config (per-step `metadata` IS
-		// delivered as of DagNats v0.0.22, but config never was).
-		var input struct {
-			User  string   `json:"user"`
-			Todos []string `json:"todos"`
-		}
-		if len(ctx.Input()) > 0 {
-			_ = json.Unmarshal(ctx.Input(), &input)
-		}
-		text := ""
-		if len(input.Todos) > 0 {
-			text, input.Todos = input.Todos[0], input.Todos[1:]
-		}
-		if text == "" {
-			text = "Onboarding task"
-		}
-		// Scoping the example todos to the owner that started the run is
-		// what makes them visible in the user's list (the list query
-		// filters by owner). Previously owner was hardcoded to "" so the
-		// todos were created owner-less and never surfaced.
-		if err := todoH.CreateTodoForOnboarding(text, input.User); err != nil {
-			log.Printf("dagnats: create todo failed: %v", err)
-			return ctx.Fail(err)
-		}
-		// Thread the remaining titles (and owner) forward so the next
-		// create-todo step picks up the next example todo.
-		out, err := json.Marshal(input)
-		if err != nil {
-			return ctx.Fail(err)
-		}
-		return ctx.Complete(out)
+		return createOnboardingTodo(ctxForStep(lifecycleCtx, ctx), todoH, ctx)
 	})
 	shim.Handle("onboarding-finalize", func(ctx worker.TaskContext) error {
 		log.Printf("dagnats: onboarding finalized")
@@ -133,7 +196,7 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 	// always in sync with this binary. The REST API only comes up once
 	// srv.Run() binds the port, so do it in a retry loop that waits for
 	// the API to be reachable.
-	go registerOnboardingWorkflowWithRetry(cfg.DagNats.HTTPAddr)
+	go registerOnboardingWorkflowWithRetry(ctx, cfg.DagNats.HTTPAddr)
 
 	go func() {
 		if err := srv.Run(); err != nil {
@@ -146,11 +209,33 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 // registerOnboardingWorkflowWithRetry registers the onboarding workflow,
 // retrying until the DagNats REST API is reachable (it boots after
 // srv.Run binds the port).
-func registerOnboardingWorkflowWithRetry(httpAddr string) {
+//
+// The retry lives in a goroutine, so its context CANNOT be the request's or a
+// short-lived one — it is the process lifecycle context from run(). That gives
+// two things a context.Background() here did not:
+//
+//   - a shutdown cancels the in-flight request instead of leaving it to burn its
+//     own 10s client timeout, and
+//   - the backoff between attempts is a select on that context, so a shutdown is
+//     immediate rather than waiting out a bare time.Sleep.
+//
+// Attempts still cap out (the API may genuinely never come up because
+// DAGNATS_ENABLED was flipped, or the port is taken), so this is a bounded
+// best-effort registration, not an infinite loop.
+func registerOnboardingWorkflowWithRetry(ctx context.Context, httpAddr string) {
+	const (
+		attempts   = 30
+		retryDelay = 500 * time.Millisecond
+	)
 	client := appdagnats.NewClient("http://" + httpAddr)
-	for range 30 {
-		if err := client.RegisterWorkflow(context.Background(), []byte(appdagnats.OnboardingWorkflowJSON)); err != nil {
-			time.Sleep(500 * time.Millisecond)
+	for range attempts {
+		if err := client.RegisterWorkflow(ctx, []byte(appdagnats.OnboardingWorkflowJSON)); err != nil {
+			if ctx.Err() != nil {
+				return // shutting down — not a registration failure
+			}
+			if waitStep(ctx, retryDelay) != nil {
+				return // cancelled during the backoff
+			}
 			continue
 		}
 		log.Printf("dagnats: onboarding workflow registered")
@@ -159,12 +244,29 @@ func registerOnboardingWorkflowWithRetry(httpAddr string) {
 	log.Printf("WARN: dagnats workflow register failed after retries")
 }
 
+// shutdownDagNats stops the DagNats engine if this process started one.
+//
+// It used to only nil the pointer, with a comment claiming "the engine's
+// Shutdown is wired internally — closing the process triggers graceful drain
+// via the server's own signal handling". That was not true, and the way it
+// failed is subtle: DagNats installs its OWN signal.Notify for
+// SIGINT/SIGTERM (server.waitAndShutdown), exactly as PocketBase does in
+// pb.Start/Execute. On a SIGTERM the Go runtime delivers the signal to EVERY
+// registered channel, so both handlers run concurrently, and DagNats' shutdown
+// path completes (and the process exits) before pb.Start() returns and our
+// deferred cleanups run — so `q.Close()` (queue workers, SQLite handle) was
+// simply skipped. Observed with the real binary: the log ends at
+// "• stopping orchestrator..." and "queue workers stopped" never appears.
+//
+// Calling Stop() here makes ours the deterministic owner: it closes the
+// engine's stopCh, so its Run() performs the drain through the normal
+// stopCh path instead of racing a signal handler. Stop is idempotent and
+// safe to call after the engine already stopped.
 func shutdownDagNats() {
-	if dagNatsServer != nil {
-		// server.Run blocks until context cancel; the engine's Shutdown
-		// is wired internally — closing the process triggers graceful
-		// drain via the server's own signal handling.
-		dagNatsServer = nil
+	srv := dagNatsServer
+	dagNatsServer = nil
+	if srv != nil {
+		srv.Stop()
 	}
 }
 
@@ -177,7 +279,7 @@ func shutdownDagNats() {
 // the app must still boot. The wrapped function is a no-op once the bucket
 // has any key, so this is cheap on every boot after the first.
 func ensureTriggerBootstrap() {
-	nc := appnats.NC
+	nc := appnats.Conn()
 	if nc == nil {
 		log.Printf("dagnats bootstrap: no NATS connection; skipping trigger seed")
 		return

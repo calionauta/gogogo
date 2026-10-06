@@ -2,13 +2,19 @@
 package nats
 
 import (
+	"errors"
 	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
-// EnsureStream creates a stream if it doesn't exist.
+// EnsureStream creates a stream if it doesn't exist on the CURRENT handle's
+// JetStream. It returns an error when no handle has been started.
 func EnsureStream(name string, subjects []string, maxAge ...time.Duration) error {
+	js := JetStream()
+	if js == nil {
+		return errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
+	}
 	cfg := &nats.StreamConfig{
 		Name:      name,
 		Subjects:  subjects,
@@ -18,7 +24,7 @@ func EnsureStream(name string, subjects []string, maxAge ...time.Duration) error
 	if len(maxAge) > 0 {
 		cfg.MaxAge = maxAge[0]
 	}
-	_, err := JS.AddStream(cfg)
+	_, err := js.AddStream(cfg)
 	if err == nil {
 		return nil
 	}
@@ -26,8 +32,13 @@ func EnsureStream(name string, subjects []string, maxAge ...time.Duration) error
 	return err
 }
 
-// EnsureKeyValue creates a KV bucket if it doesn't exist.
+// EnsureKeyValue creates a KV bucket if it doesn't exist on the CURRENT
+// handle's JetStream.
 func EnsureKeyValue(bucket string, maxValueSize ...int32) (nats.KeyValue, error) {
+	js := JetStream()
+	if js == nil {
+		return nil, errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
+	}
 	cfg := &nats.KeyValueConfig{
 		Bucket:  bucket,
 		Storage: nats.FileStorage,
@@ -35,20 +46,28 @@ func EnsureKeyValue(bucket string, maxValueSize ...int32) (nats.KeyValue, error)
 	if len(maxValueSize) > 0 {
 		cfg.MaxValueSize = maxValueSize[0]
 	}
-	kv, err := JS.CreateKeyValue(cfg)
+	kv, err := js.CreateKeyValue(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return kv, nil
 }
 
-// PublishEvent publishes an event to a room stream.
+// PublishEvent publishes an event to a room stream on the CURRENT handle.
 func PublishEvent(roomID, eventType string, data []byte) error {
-	_, err := JS.Publish("room."+roomID+"."+eventType, data)
+	js := JetStream()
+	if js == nil {
+		return errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
+	}
+	_, err := js.Publish("room."+roomID+"."+eventType, data)
 	return err
 }
 
-// SubscribeRoom subscribes to all events for a room.
+// SubscribeRoom subscribes to all events for a room on the CURRENT handle.
 func SubscribeRoom(roomID string, handler func(msg *nats.Msg)) (*nats.Subscription, error) {
-	return JS.Subscribe("room."+roomID+".>", handler)
+	js := JetStream()
+	if js == nil {
+		return nil, errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
+	}
+	return js.Subscribe("room."+roomID+".>", handler)
 }

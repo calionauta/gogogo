@@ -18,6 +18,7 @@ import (
 // what forced both packages to run serially. The client is built from the
 // address the engine actually bound (srv.HTTPAddr()).
 func TestConnectExisting_SingleNATS(t *testing.T) {
+	t.Parallel()
 	// HTTP is ephemeral (`:0`) to avoid the fixed-port clash with the
 	// features/todo/handlers test that also used 18099 — that collision, not
 	// the engine, forced `-p 1`. NATS stays on a fixed port because this test
@@ -29,18 +30,21 @@ func TestConnectExisting_SingleNATS(t *testing.T) {
 
 	// ConnectExisting uses RetryOnFailedConnect, so it blocks until the
 	// engine's NATS is reachable — no polling loop needed here.
-	if err := ConnectExisting("127.0.0.1:4222"); err != nil {
+	h, err := ConnectExisting("127.0.0.1:4222")
+	if err != nil {
 		t.Fatalf("ConnectExisting failed to wire JS against DagNats-owned NATS: %v", err)
 	}
-	if JS == nil {
+	t.Cleanup(h.Close)
+	if h.JS == nil {
 		t.Fatal("ConnectExisting returned nil JS")
 	}
+	JS := h.JS
 
 	// The broadcaster's stream setup must succeed on the shared JetStream
 	// (no "no responders" — the engine's JetStream is the same instance).
 	const stream = "TODOS_SINGLE_NATS_TEST"
-	if err := EnsureStream(stream, []string{"todo.single.>"}); err != nil {
-		t.Fatalf("EnsureStream on shared NATS failed: %v", err)
+	if streamErr := EnsureStream(stream, []string{"todo.single.>"}); streamErr != nil {
+		t.Fatalf("EnsureStream on shared NATS failed: %v", streamErr)
 	}
 
 	sub, subErr := JS.SubscribeSync("todo.single.>")

@@ -45,22 +45,25 @@ push/merge, or (b) the change touches an area the next tier checks.
 | **T2** lint scoped | `go vet` + `make lint-safe` (host-aware: scoped + memory-capped) + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
 | **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
-| **T4** full local gate | `make ci-local` | ~60–240s | Full pre-push check (= CI) |
-| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~60–240s | Same as T4, plus it commits the verification to git |
+| **T4** full local gate | `make ci-local` | ~80s–4min | Full pre-push check (= CI) |
+| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~80s–4min | Same as T4, plus it commits the verification to git |
 
 ### Why the full gate is slow, and the fast sibling
 
-The full run is dominated by `go test -race`, and within it by
-`features/todo` (a real PocketBase + goqite + SSE fixture per test, ~70s, over
-60% of the suite). Everything else is cheap: templ ~1s, css-check ~5s,
-check-scope <1s, lint ~10s, Playwright ~3s when cached. Measured `ci-local`:
-**~110s** end to end.
+The full run is dominated by `go test -race`. It used to be dominated by a
+single package: `features/todo` (a real PocketBase + goqite + SSE fixture per
+test) was ~70s and over 60% of the suite. That fixture cost and the
+demonstration delays the tests waited out were both cut (see the 0.35 entry in
+[CHANGELOG.md](../CHANGELOG.md)), so the suite is now ~42s and `features/todo`
+~28s. Measured `ci-local`: **~82s** end to end. Everything else is cheap:
+templ ~0.7s, css-check ~2s, check-generated ~0.5s, check-scope ~0.25s, lint
+~3.5s, Playwright ~3s when cached.
 
 `make ci-local-fast` runs the same cheap-but-decisive checks
 (`templ`, `datastar-lint`, `css-check`, `check-scope`) plus **scoped** lint and
 race tests, narrowed by `scripts/changed-packages.sh` to the packages your
 diff actually touches. Measured: **~2s** for a CSS-only change, **~10s** for a
-single-package Go change, versus ~240s full. It falls back to all packages when
+single-package Go change, versus ~82s full. It falls back to all packages when
 a shared file moves (`go.mod`, `config/`, `db/`, `internal/capabilities/`) or
 when nothing changed.
 
@@ -89,8 +92,8 @@ Chrome and is ~300× faster per call, but exposes **no** offline-emulation verb,
 and `scripts/smoke.mjs` calls `context.setOffline(true)` seven times; it is
 also a CLI, not a library, so it cannot assert in-page JS state.
 
-The cost is not the problem anyway: 8.9s is ~5% of `ci-local` next to
-`features/todo`'s ~70s. Switching would trade the coverage that makes the test
+The cost is not the problem anyway: 8.9s is ~10% of `ci-local` next to
+`features/todo`'s ~28s. Switching would trade the coverage that makes the test
 worth running for a number nobody is waiting on. Re-evaluate only if the smoke
 test grows past ~30s, or if a candidate ships offline emulation.
 
@@ -153,6 +156,44 @@ so running tests on a known-linted codebase saves re-runs.
 The remote CI becomes a parallel validator and the auto-deploy driver, not the
 primary gatekeeper. If green locally, push without holding your breath.
 
+## What the local gate and the remote CI each actually run
+
+The claim above ("CI runs the same checks as `make ci-local`") is a contract,
+not a coincidence — and it silently broke twice. The two jobs are kept in sync
+by hand, so when a step is added to one, add it to the other:
+
+| Check | `make ci-local` | GitHub CI |
+|---|---|---|
+| templ generate | ✓ | ✓ |
+| generated `_templ.go` matches sources | ✓ `check-generated` | ✓ (also pre-commit, `**/*.templ`) |
+| CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
+| SCOPE annotations | ✓ | ✓ |
+| SKILL.md frontmatter | ✓ | ✓ |
+| install.sh bootstrap contract | ✓ | ✓ |
+| datastar-lint | ✓ | ✓ |
+| golangci-lint (33 linters) | ✓ | ✓ |
+| govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
+| deadcode (advisory) | ✅ pre-push hook | ✓ |
+| `go test -race` (parallel, all pkgs) | ✓ | ✓ |
+| build + **binary** boot smoke | ✓ | ✓ |
+| browser smoke (Playwright) | ✓ | ✓ |
+
+**The generated-artifact checks are the ones that regressed.** `_templ.go`
+(71 files) and `web/resources/static/app.min.css` are both *committed and
+embedded in the binary*. Both CIs used to only **generate** them and then run
+every subsequent step against the freshly generated output — so a `.templ` (or
+`input.css`) edit whose regeneration was never committed passed lint, passed
+tests, passed both smoke tests, and shipped a binary rendering stale markup.
+Both now regenerate and **diff**, which is exactly what `css-check` does.
+
+This is deterministic, and that matters: the reason `actions/cache` is disabled
+in this repo (`skip-cache: true`, `cache: false`) is a *real, documented*
+history of flaky tar restores (`/usr/bin/tar` exit 2) aborting jobs — see
+commit `d50d0fb`, where caching was turned off deliberately rather than
+overlooked. Do not re-enable it to save seconds without reading that first;
+the CSS/templ diffs above add no such risk because they compare text, not
+extract archives.
+
 ## When CI goes red
 
 1. Read the failing log step (test, lint, css-check, build).
@@ -196,6 +237,6 @@ no-op when lefthook is not installed).
 
 ## Related
 
-- [Code quality](code-quality.md) — the 31 linters and how to run them scoped.
+- [Code quality](code-quality.md) — the 33 linters and how to run them scoped.
 - [Troubleshooting](troubleshooting.md) — when the gate is green but behavior isn't.
 - [Deploy](deploy.md) — what happens after the push.

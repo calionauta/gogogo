@@ -42,6 +42,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `DAGNATS_NATS_PORT` | `4222` | Shared embedded JetStream port (DagNats boots it; the whiteboard SyncWorker attaches) |
 | `DAGNATS_STORE_DIR` | under `DATA_DIR` | DagNats store directory |
 | `DAGNATS_TRIGGER_BOOTSTRAP` | `true` | Seed one disabled placeholder trigger when the trigger bucket is empty. **Workaround for an upstream DagNats v0.0.24 bug** — without it the trigger console cannot create the first trigger. See [the workaround page](dagnats-bootstrap-workaround.md) before disabling or removing. |
+| `DAGNATS_GREET_PACING` | `1500ms` | How long the onboarding **greet** step pauses before completing. Exists only so a human watching the stepper can read the "greeting" phase — it is deliberate product latency, so tune it rather than delete it. A non-positive or unparseable value falls back to `1500ms`. Set `0`-ish (e.g. `1ms`) for automated runs. |
 
 ### Persistence
 

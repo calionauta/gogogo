@@ -24,6 +24,7 @@ import (
 // (peer B received the record via the hub). That behavior was the leak we
 // removed, so this test now asserts the hub carries no record event.
 func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -56,9 +57,12 @@ func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
 	_ = createResp.Body.Close()
 
 	recordEvent := func(s string) bool {
-		return strings.Contains(s, `"event":"created"`) ||
-			strings.Contains(s, `"event":"toggled"`) ||
-			strings.Contains(s, `"event":"deleted"`)
+		// MARKER THAT ACTUALLY MOVES: the hub path translates the record event
+		// into a remote-source full-list patch (streamTodo), so the raw
+		// `"event":"created"` string never reaches the wire. Assert the wire
+		// symptom instead.
+		return strings.Contains(s, `"lastItemSource":"remote"`) ||
+			strings.Contains(s, "selector #todo-list")
 	}
 	// Negative assertion: there is no event to short-circuit on, so both
 	// streams are drained for the full window (pumpSSEFor states that
@@ -87,6 +91,7 @@ func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
 // after a record change. It must render the list region (id="todo-list")
 // containing the current todos, and require auth.
 func TestTodoListFragment_ReturnsListRegion(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()

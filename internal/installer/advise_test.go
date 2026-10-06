@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestAdviseJSONListsEveryCapability(t *testing.T) {
-	out, err := Advise("", planFormatJSON)
+	out, err := Advise("", planFormatJSON, "")
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}
@@ -167,7 +168,7 @@ func TestAdviseShortKeywordsDoNotPrefixMatch(t *testing.T) {
 }
 
 func TestAdviseTextStatesGoFirstRule(t *testing.T) {
-	out, err := Advise("", planFormatText)
+	out, err := Advise("", planFormatText, "")
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}
@@ -179,7 +180,7 @@ func TestAdviseTextStatesGoFirstRule(t *testing.T) {
 }
 
 func TestAdviseRejectsUnknownFormat(t *testing.T) {
-	if _, err := Advise("", "yaml"); err == nil {
+	if _, err := Advise("", "yaml", ""); err == nil {
 		t.Error("Advise(yaml) should fail fast")
 	}
 }
@@ -214,5 +215,237 @@ func TestRunAdviseDispatch(t *testing.T) {
 	}
 	if len(doc.Presets) == 0 || doc.Presets[0].Name != "ai-features" {
 		t.Errorf("AI need did not surface ai-features first: %v", doc.Presets)
+	}
+}
+
+// TestAdviseStdlibOnlyGoScope covers the third answer shape.
+//
+// A Go need that constrains itself to the standard library cannot use any
+// capability (each is or pulls a dependency), so the 24-row table was both
+// useless and misleading: an LLM reading it would recommend PocketBase for a
+// task whose spec forbids it. The scope now says so explicitly instead.
+func TestAdviseStdlibOnlyGoScope(t *testing.T) {
+	cases := []string{
+		"TCP RESP key-value server in Go, stdlib only, concurrent clients",
+		"Go CLI, no dependencies",
+		"single binary Go service",
+		"pure go CSV parser",
+		"Go library, zero deps",
+		"dependency-free Go worker pool",
+		"Go, no external packages",
+		"vanilla go router",
+	}
+	for _, need := range cases {
+		t.Run(need, func(t *testing.T) {
+			doc := buildAdvise(need)
+			if doc.Scope != scopeGoStdlib {
+				t.Fatalf("scope = %q, want %q", doc.Scope, scopeGoStdlib)
+			}
+			// The whole point: no capability table and no scaffold steps, or
+			// the answer is as expensive as before and still misleading.
+			if len(doc.Capabilities) != 0 {
+				t.Errorf("stdlib scope must omit the capability table, got %d rows", len(doc.Capabilities))
+			}
+			if doc.FirstRun != nil {
+				t.Error("stdlib scope must omit scaffold first-run")
+			}
+			if len(doc.Rules) == 0 {
+				t.Fatal("stdlib scope must still give the caller opinions")
+			}
+			// It must name where the Go standards live, or the caller is left
+			// with an empty answer.
+			joined := strings.Join(doc.Rules, " ")
+			if !strings.Contains(joined, "gogogo-coding-standards") {
+				t.Errorf("stdlib scope must point at the Go standards, got: %s", joined)
+			}
+		})
+	}
+}
+
+// TestAdviseStdlibScopeDoesNotHijackTemplateNeeds is the reverse guard: the
+// new scope must not swallow needs the template actually answers. A misfire
+// here is worse than the original problem, because it would suppress the
+// capability table for someone who can use it.
+func TestAdviseStdlibScopeDoesNotHijackTemplateNeeds(t *testing.T) {
+	cases := []string{
+		"",
+		"offline-first todo with AI",
+		"realtime whiteboard",
+		"background jobs and email",
+		"durable workflow onboarding",
+		"todo app with file uploads",
+		"SaaS with credits and billing",
+		"crdt store with storage",
+		"golang API serving a Next.js frontend with background jobs",
+	}
+	for _, need := range cases {
+		t.Run(need, func(t *testing.T) {
+			if doc := buildAdvise(need); doc.Scope != scopeTemplate {
+				t.Errorf("scope = %q, want template for %q", doc.Scope, need)
+			}
+		})
+	}
+}
+
+// TestAdviseForeignStackBeatsStdlibConstraint pins the ordering decision.
+//
+// Both conditions can be true at once ("Rust server, no dependencies"). The
+// foreign-stack answer is the correct one: the constraint is about a language
+// this tool does not cover at all, so saying "nothing here applies" is right
+// while the Go-standards pointer would be actively wrong.
+func TestAdviseForeignStackBeatsStdlibConstraint(t *testing.T) {
+	cases := []struct{ need, stack string }{
+		{"Rust server, no dependencies", "Rust"},
+		{"TCP server in Python, stdlib only", "Python"},
+		{"Next.js app with no external deps", "Next.js"},
+		{"Zig kernel, zero dependencies", "Zig"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.need, func(t *testing.T) {
+			doc := buildAdvise(tc.need)
+			if doc.Scope != scopePatterns {
+				t.Fatalf("scope = %q, want %q", doc.Scope, scopePatterns)
+			}
+			if doc.Stack != tc.stack {
+				t.Errorf("stack = %q, want %q", doc.Stack, tc.stack)
+			}
+		})
+	}
+}
+
+// TestAdviseZigIsAForeignStack guards a gap this work surfaced: Zig is the
+// repo's own documented escape-hatch language (docs/native-zig.md) yet had no
+// stack signal, so "Zig, zero dependencies" fell through to a Go scope and was
+// answered with gogogo guidance.
+func TestAdviseZigIsAForeignStack(t *testing.T) {
+	for _, need := range []string{"Zig, zero dependencies", "zig kernel with no deps", "Zig TCP server stdlib only"} {
+		doc := buildAdvise(need)
+		if doc.Scope != scopePatterns || doc.Stack != "Zig" {
+			t.Errorf("%q → %q/%q, want patterns/Zig", need, doc.Scope, doc.Stack)
+		}
+	}
+}
+
+// TestAdviseStdlibTextNamesTheMismatch asserts the rendered text says WHY the
+// template does not apply, rather than returning a silent, near-empty answer.
+func TestAdviseStdlibTextNamesTheMismatch(t *testing.T) {
+	out, err := Advise("Go CLI, no dependencies", planFormatText, "")
+	if err != nil {
+		t.Fatalf("Advise: %v", err)
+	}
+	for _, want := range []string{"does not apply", "gogogo-coding-standards"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("text output missing %q:\n%s", want, out)
+		}
+	}
+	// The capability table must be gone, not rendered empty.
+	if strings.Contains(out, "capabilities (id, kind") {
+		t.Errorf("text output still prints the capability header:\n%s", out)
+	}
+}
+
+// TestAdviseDirProbeChangesTheAnswer covers the opt-in --dir signal.
+//
+// Without --dir the answer is a pure function of --need, and that stayed
+// byte-identical (verified against the previous revision). With it, a path that
+// is not a gogogo checkout must suppress the capability table even for a
+// template-shaped need — 24 units are not installable into an arbitrary
+// project, so listing them is the same misleading answer the stdlib scope was
+// introduced to stop.
+func TestAdviseDirProbeChangesTheAnswer(t *testing.T) {
+	notCheckout := t.TempDir()
+	writeFile(t, notCheckout+"/go.mod", "module example.com/ng\n\ngo 1.22\n")
+	writeFile(t, notCheckout+"/cmd/svc/main.go", "package main\n\nfunc main() {}\n")
+
+	t.Run("foreign path suppresses the capability table", func(t *testing.T) {
+		doc := buildAdviseIn("realtime whiteboard", notCheckout)
+		if doc.Scope != scopeGoStdlib {
+			t.Fatalf("scope = %q, want %q", doc.Scope, scopeGoStdlib)
+		}
+		if doc.Reason != reasonNotCheckout {
+			t.Errorf("reason = %q, want %q", doc.Reason, reasonNotCheckout)
+		}
+		if doc.Tree != treeNotCheckout {
+			t.Errorf("tree = %q, want %q", doc.Tree, treeNotCheckout)
+		}
+		if len(doc.Capabilities) != 0 {
+			t.Errorf("capability table must be omitted off-template, got %d rows", len(doc.Capabilities))
+		}
+		if doc.FirstRun != nil {
+			t.Error("scaffold first-run must be omitted off-template")
+		}
+		if len(doc.Rules) == 0 {
+			t.Error("must still explain why and what to do instead")
+		}
+	})
+
+	t.Run("no dir keeps the need-only answer", func(t *testing.T) {
+		doc := buildAdviseIn("realtime whiteboard", "")
+		if doc.Scope != scopeTemplate {
+			t.Fatalf("scope = %q, want template", doc.Scope)
+		}
+		if doc.Tree != treeUnknown {
+			t.Errorf("tree = %q, want empty (nobody looked)", doc.Tree)
+		}
+		if doc.Reason != "" {
+			t.Errorf("reason = %q, want empty on the template path", doc.Reason)
+		}
+	})
+
+	t.Run("the template's own tree still answers as template", func(t *testing.T) {
+		// A dir probe that finds a real checkout must NOT change the answer.
+		doc := buildAdviseIn("realtime whiteboard", templateRootDir(t))
+		if doc.Scope != scopeTemplate {
+			t.Fatalf("scope = %q, want template", doc.Scope)
+		}
+		if doc.Tree != treeCheckout {
+			t.Errorf("tree = %q, want %q", doc.Tree, treeCheckout)
+		}
+	})
+}
+
+// TestAdviseReasonDistinguishesTheTwoStdlibCauses pins the field that keeps the
+// two conditions from looking identical. Both produce scope=go-standards, but
+// "your need forbids dependencies" and "your path is not a checkout" call for
+// different next steps, so a caller branching on scope alone would be wrong.
+func TestAdviseReasonDistinguishesTheTwoStdlibCauses(t *testing.T) {
+	foreign := t.TempDir()
+	writeFile(t, foreign+"/go.mod", "module example.com/x\n\ngo 1.22\n")
+
+	byNeed := buildAdviseIn("Go CLI, no dependencies", "")
+	byPath := buildAdviseIn("realtime whiteboard", foreign)
+
+	if byNeed.Scope != byPath.Scope {
+		t.Fatalf("both conditions must share the scope, got %q vs %q", byNeed.Scope, byPath.Scope)
+	}
+	if byNeed.Reason != reasonStdlibOnly {
+		t.Errorf("need-driven reason = %q, want %q", byNeed.Reason, reasonStdlibOnly)
+	}
+	if byPath.Reason != reasonNotCheckout {
+		t.Errorf("path-driven reason = %q, want %q", byPath.Reason, reasonNotCheckout)
+	}
+	if byNeed.Reason == byPath.Reason {
+		t.Error("the two causes must be distinguishable")
+	}
+}
+
+// templateRootDir walks up from the test's working directory to the checkout
+// that contains cmd/web/main.go. Local to this file: it is the only place here
+// that needs the real tree rather than a temp copy.
+func templateRootDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "cmd", "web", "main.go")); statErr == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("walked to the filesystem root without finding cmd/web/main.go")
+		}
+		dir = parent
 	}
 }

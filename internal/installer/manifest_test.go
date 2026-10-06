@@ -141,12 +141,9 @@ func TestPromptFormRepairsInvalidAnswer(t *testing.T) {
 		raw, _ := io.ReadAll(pr)
 		done <- string(raw)
 	}()
-	res, err := promptForm(r, pw)
+	res := promptForm(r, pw)
 	_ = pw.Close()
 	transcript := <-done
-	if err != nil {
-		t.Fatalf("promptForm: %v", err)
-	}
 	if res.plugins != "dagnats" {
 		t.Errorf("plugins = %q, want dagnats", res.plugins)
 	}

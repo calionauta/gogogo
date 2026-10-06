@@ -62,6 +62,7 @@ func freeTCPPort() (int, error) {
 // early-returns when no durable run is active, so the test stays focused
 // on the realtime fan-out that regressed.
 func TestCrossSessionCreatePropagates(t *testing.T) {
+	t.Parallel()
 	base, cleanup := bootLiveServer(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -99,24 +100,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	var realClientID string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "event:PB_CONNECT" {
-			if scanner.Scan() {
-				data := scanner.Text()
-				if strings.HasPrefix(data, "data:") {
-					var m struct {
-						ClientID string `json:"clientId"`
-					}
-					if e := json.Unmarshal([]byte(strings.TrimPrefix(data, "data:")), &m); e == nil {
-						realClientID = m.ClientID
-					}
-				}
-			}
-			break
-		}
-	}
+	realClientID := pbConnectClientID(t, scanner)
 	if realClientID == "" {
 		t.Fatalf("never received PB_CONNECT with a clientId")
 	}
@@ -167,6 +151,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 // arrived. This runs on the custom-router fixture (no realtime needed) so
 // it is fast and a stable unit-level guard.
 func TestCrossSessionFragmentScoped(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -212,6 +197,7 @@ func TestCrossSessionFragmentScoped(t *testing.T) {
 // datastar-selector + datastar-mode headers. If these regress, resync would
 // either no-op (no selector) or blow away the page (whole-document morph).
 func TestRealtimeResyncFragmentMorphHeaders(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -245,6 +231,7 @@ func TestRealtimeResyncFragmentMorphHeaders(t *testing.T) {
 // action expects a context (el/cleanups) only the runtime synthesizes when
 // invoked via an attribute — so the other tab would never update.
 func TestRealtimeResyncWiringRendered(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -305,6 +292,7 @@ func TestRealtimeResyncWiringRendered(t *testing.T) {
 // does NOT contain the orphan })(); — which appears in RealtimeStream's
 // VALID IIFE but would be a syntax error in PbRealtimeRecords.
 func TestRealtimeNoOrphanIIFE(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -352,20 +340,52 @@ func TestRealtimeNoOrphanIIFE(t *testing.T) {
 	}
 }
 
-// bootLiveServer builds and runs the production binary (dev variant) as a
+// liveServerBin is the production binary built once per test binary by
+// TestMain. bootLiveServer used to shell out to `go build ./cmd/web` on every
+// call, which cost ~8.5s of the package's runtime for a binary SHARED by the
+// tests. Building once makes that a cost of the test binary, not of a test.
+var liveServerBin string
+
+// TestMain builds the production binary once for the tests that need to run the
+// real server. A build failure is fatal for the whole package, which is correct:
+// those tests cannot run without it, and `go build` failing is a broken package.
+func TestMain(m *testing.M) {
+	bin, err := buildLiveServerBinary()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "build live server binary: %v\n", err)
+		os.Exit(1)
+	}
+	liveServerBin = bin
+	code := m.Run()
+	_ = os.Remove(bin)
+	os.Exit(code)
+}
+
+func buildLiveServerBinary() (string, error) {
+	dir, err := os.MkdirTemp("", "gogogo-live-")
+	if err != nil {
+		return "", err
+	}
+	bin := filepath.Join(dir, "gogogo_live")
+	build := exec.CommandContext(context.Background(), "go", "build", "-o", bin, "github.com/calionauta/gogogo/cmd/web")
+	build.Stderr = os.Stderr
+	if out, buildErr := build.Output(); buildErr != nil {
+		return "", fmt.Errorf("go build: %w\n%s", buildErr, out)
+	}
+	return bin, nil
+}
+
+// bootLiveServer runs the prebuilt production binary (dev variant) as a
 // subprocess and waits for it to accept /health. Returns the base URL and a
 // cleanup that kills the process. This is the only faithful way to exercise
 // PocketBase realtime (/api/realtime), which the unit fixture does not
 // mount.
 func bootLiveServer(t *testing.T) (string, func()) {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "gogogo_live")
-	build := exec.CommandContext(context.Background(), "go", "build",
-		"-o", bin, "github.com/calionauta/gogogo/cmd/web")
-	build.Stderr = os.Stderr
-	if out, err := build.Output(); err != nil {
-		t.Fatalf("build live binary: %v\n%s", err, out)
+	if liveServerBin == "" {
+		t.Fatal("live server binary was not built (TestMain did not run)")
 	}
+	bin := liveServerBin
 
 	tmpDir := t.TempDir()
 	// Ephemeral port. This was hardcoded to 8291, which made the test fail
@@ -422,4 +442,41 @@ func bootLiveServer(t *testing.T) (string, func()) {
 	_ = proc.Process.Kill()
 	t.Fatalf("live server did not become healthy on %s within 60s", base)
 	return "", nil
+}
+
+// pbConnectClientID reads the SSE frame stream until the PB_CONNECT event and
+// returns the clientId PocketBase assigned.
+//
+// Extracted from the test body to flatten four levels of nesting into guard
+// clauses: the reader had `for` -> `if event` -> `if Scan` -> `if prefix` ->
+// `if unmarshal`, which nestif flagged at complexity 6. Each step below returns
+// as soon as it knows the answer.
+func pbConnectClientID(t *testing.T, scanner *bufio.Scanner) string {
+	t.Helper()
+
+	for !scanner.Scan() {
+		return "" // stream ended without the event
+	}
+	// Rewind-free scan: the caller's stream position is already past the
+	// headers, so walk forward until the PB_CONNECT frame.
+	for scanner.Scan() {
+		if strings.TrimSpace(scanner.Text()) != "event:PB_CONNECT" {
+			continue
+		}
+		if !scanner.Scan() {
+			return ""
+		}
+		data := scanner.Text()
+		if !strings.HasPrefix(data, "data:") {
+			return ""
+		}
+		var m struct {
+			ClientID string `json:"clientId"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(data, "data:")), &m); err != nil {
+			return ""
+		}
+		return m.ClientID
+	}
+	return ""
 }

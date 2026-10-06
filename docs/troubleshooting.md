@@ -79,6 +79,36 @@ nobody rebuilt — so if you bypassed the hooks, rebuild explicitly.
 > `@import "tailwindcss" source(...)` directive — a `class="…p-1…"` accidentally
 > emitted as a utility creates spurious CSS and fails `css-check`.
 
+### `css-check` fails with NO source change (and `make css` will not fix it)
+
+You edited nothing, `git status` is clean apart from
+`web/resources/static/app.min.css`, and rebuilding to an identical-looking
+bundle does not clear it. Cause: **a stale `node_modules`.**
+
+`package-lock.json` pins the exact Tailwind and DaisyUI versions, so the
+committed bundle is reproducible only against those versions. An older
+`node_modules` (left by a previous session, or restored from a backup) builds a
+bundle that differs in whitespace, ordering and component CSS — `git diff` looks
+like the whole file changed, and re-running `make css` cannot fix it because the
+version is wrong, not the content.
+
+```bash
+node -e 'console.log(require("node_modules/tailwindcss/package.json").version)'
+# compare against package-lock.json -> node_modules/tailwindcss.version
+make css-install   # reinstalls only when the versions disagree
+make css-check     # goes green
+```
+
+`make css-install` detects this itself (it compares the installed versions
+against the lockfile) and `bin/check-css.sh` builds through `make css`, so in
+practice this is self-healing. The reason to know it is that the FIRST symptom
+looks like a broken repo rather than a stale dependency, which is how a real
+tailwindcss 4.3.2-vs-4.3.3 mismatch got misread as "the committed CSS is
+stale".
+
+If the versions already match and it still fails, the bundle really is stale —
+rebuild, do not investigate the lockfile further.
+
 ## Realtime events arrive for other users, or not at all
 
 Two separate mechanisms, and mixing them up is the usual cause:

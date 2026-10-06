@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
@@ -42,7 +43,9 @@ func testFixture(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, *h
 // live and the full queue + retry + SSE path can be exercised keyless.
 func testFixtureSimulated(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, *handlers.TodoHandler, func()) {
 	t.Helper()
-	return buildFixture(t, llm.NewSimulated())
+	// A 5ms response delay instead of the demo's 1500ms: the tests assert the
+	// ORDER of the retry/suggest events, not the human-visible gap.
+	return buildFixture(t, llm.NewSimulatedWithDelay(5*time.Millisecond))
 }
 
 // buildFixture spins up a real PocketBase + goqite stack on temp dirs
@@ -113,7 +116,16 @@ func buildFixture(t *testing.T, simClient *llm.Client) (
 	// and cross-tab sync silently fails.
 	h.SetBroadcaster(nats.NewInMemoryBroadcaster(q.Hub()))
 
+	// Collapse the retry backoff BEFORE the workers start. The default is
+	// 2s→30s; the retry tests assert the retry PATH (attempt count + SSE
+	// feedback), not how long it waited, and the default alone cost them
+	// ~4s each. Scoped to this test queue, so production keeps
+	// DefaultRetryConfig.
+	q.SetRetry(queue.RetryConfig{Attempts: 3, Delay: 25 * time.Millisecond, MaxDelay: 200 * time.Millisecond})
 	workers := q.StartWorkers()
+	// Same reasoning for the demo's own per-attempt pacing (1500ms of pure
+	// human-watchability).
+	h.SetRetryDemoDelay(10 * time.Millisecond)
 
 	// Seed the demo user so auth login has a target. testFixture is
 	// shared by feature tests; existing todo tests don't exercise

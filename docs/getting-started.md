@@ -151,7 +151,7 @@ cd my-app
 
 ## 2. Rename the project
 
-A fresh copy still says `gogogo` in ~360 places across ~130
+A fresh copy still says `gogogo` in ~670 places across ~200
 files (module path, binary name, container, titles, deploy paths). One command
 rewrites all of it and then builds to prove it worked:
 
@@ -196,6 +196,9 @@ It is the only command you need on day one.
 - **Via binary (`install.sh`): curl + git.** The script bootstraps a
   user-space Go toolchain (`~/.local/go`, no sudo, existing installs
   untouched) when none is found — or install from https://go.dev/dl/.
+  It never links `go` into `~/.local/bin` (that directory is on your PATH, so
+  the link would shadow a system Go); it puts `~/.local/go/bin` on PATH for the
+  install itself and prints the one line to add to your shell.
 
 Either way the installer verifies tools before touching anything and fails
 fast with the exact install command when something is missing. `make setup` (optional
@@ -225,7 +228,7 @@ make build         # Build binary (unified: everything included)
 make dev           # Live reload with Air (also re-runs templ + vet)
 make templ         # Regenerate .templ Go files after a .templ edit
 make css           # Rebuild app.min.css from src/css/input.css
-make lint          # go vet + golangci-lint (31 linters), full repo
+make lint          # go vet + golangci-lint (33 linters), full repo
 make datastar-lint # Datastar attribute / signal anti-patterns in .templ
 make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
 make test          # Race tests, parallel across packages

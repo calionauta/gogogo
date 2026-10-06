@@ -15,6 +15,24 @@ Go + template rules only. Universal principles (KISS, DRY, LoB/SoC, YAGNI, sizes
 
 Activate when: editing any `.go` file, spawning a goroutine, creating a channel, touching `context.Context`, running `golangci-lint`/`go test`, touching `.templ`, profiling, or proposing SIMD/Zig. Do not activate for copy writing, landing-page CSS, or release notes.
 
+## Start here (this file is long; read only what you need)
+
+| Your task | Section |
+|---|---|
+| Writing or reviewing ordinary Go | **Core Go Rules** |
+| Goroutines, channels, `context`, shutdown, lifecycle | **Concurrency (deltas)** + `references/go-concurrency-deltas.md` |
+| Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
+| Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
+| A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
+| Lint failing, adding a rule, CI red | **Enforcement** |
+| Proposing Zig | **Zig Gate** + `references/zig-gate.md` |
+
+Universal principles (KISS, DRY, LoB/SoC, YAGNI, file/function sizes) are NOT
+repeated here — they live in
+[`stelow-workflow-coding-standards`](https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards),
+with the Go override stated under **Core Go Rules**. Everything below is the
+delta this project adds on top.
+
 ## Core Go Rules
 
 1. Errors are values: handle at call site, wrap with `%w`. See `errorlint`, `nilerr` in `.golangci.yml`.
@@ -22,6 +40,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 3. `ctx context.Context` first param on I/O/cancellable paths. Never store in struct (`containedctx`, `contextcheck`, `noctx` enforce).
 4. `log/slog` only. No `fmt.Print*`, no bare `log.Printf`.
 5. DI via constructors. No `init()` deps, no package-level service vars. No goroutines in `init()` — expose `Start`/`Stop`.
+   - **A service handle is the case this rule is really about.** `internal/nats` had three exported globals (`NS`, `NC`, `JS`): two concurrent starts wrote the same variables (a real data race) and any `Stop()` cleared state another caller was still using — which is also why its tests could not run in parallel. Return a handle (`*Handle, error`) with a `Close()` that frees only what it owns; keep at most ONE accessor behind a `sync.RWMutex` for call sites that genuinely cannot thread the value. Pattern: `references/go-testing.md`.
 6. Naming: short receivers (`s`, `h`), acronyms `userID`/`httpClient`, no stutter, document exports.
 7. No `any` in business logic. Generics or concrete types; `any` only at JSON/plugin boundary.
 8. Resources: `defer Close()` immediately. HTTP bodies closed on callers (`bodyclose`).
@@ -34,10 +53,15 @@ Full table: `references/go-concurrency-deltas.md`.
 
 - Owner + exit + wait for every `go`. Use `wg.Go` (Go 1.25), never `Add` inside the goroutine.
 - **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to `se.App.OnTerminate` (see `router/credits.go`). A worker started in `New` on `Background` can never be stopped.
+- **Whatever you start, you must make stoppable — and hold it.** A function that starts something long-lived owns its lifecycle: store the handle on the owner inside the starter (as `Queue.StartWorkers` does), not in a return value a caller can drop. `pool := Start(); _ = pool` is how a pool ran with no reachable `Stop()` while `Close()` shut the database out from under it.
+- **Only one component owns the process signal.** A dependency may register its own `signal.Notify` (DagNats does; so does PocketBase). The runtime delivers a signal to EVERY channel, so two handlers race and whichever finishes first ends the process — skipping the other's deferred cleanup. Drive shutdown yourself via the library's explicit `Stop()`, and never write "shutdown is handled internally" without reading the code that does it. Verify by the EFFECTS (the cleanup actually ran), never by exit code alone.
 - Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/todo/handlers/onboarding.go`.
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
 - Every long `select` has `<-ctx.Done()`. No `time.After` in hot loops (`NewTimer` + `Reset`).
+  - **`for range t.C` is an exit-free loop.** `defer t.Stop()` stops the TICKER, not the goroutine parked on it — nothing can wake it. Not a data race (so `-race` is silent) and not a dead machine (so tests pass); only a leak checker or a shutdown assertion sees it. Select on `ctx.Done()`/`done` as well. **Ruleguard-enforced** (`TickerLoopWithoutExit` in `rules/rules.go`) because the repo has zero legitimate uses.
+- **No bare `time.Sleep` in production code — it cannot be cancelled.** A sleep on a retry/backoff path blocks its goroutine through shutdown, and it is also unauditable latency in front of a user. `select` on `ctx.Done()` vs `time.After`/`time.NewTimer` instead; a `ticker` loop selects on `ctx.Done()`. Three real sites shipped this way (the queue worker's 1s receive-error backoff, the onboarding-greet pause and its register retry loop) and all three are now context waits. **`forbidigo` enforces this** (`.golangci.yml`, tests exempt) — so a new bare sleep fails CI rather than appearing in review.
+  - **Careful with the context you reach for.** A step/handler context supplied by a third-party engine is often trace-only: DagNats builds `TaskContext.Context()` from the message's trace headers, i.e. from `context.Background()`, so it is never cancelled on shutdown. Join it with your own lifecycle context (`context.AfterFunc`) rather than assuming it cancels. Check the constructor, not the parameter name.
 - Mutex zero value, unexported `mu`, short sections, never across I/O. Counters/flags: typed `atomic.*`.
 - Writes into a tree you don't fully control: `os.Root` (`os.OpenRoot`), not a lexical path check — a planted symlink defeats `filepath.Join` + `HasPrefix`. See `internal/installer/tree.go`.
 - Tests: `goleak` for leaks (never `runtime.NumGoroutine()`), `synctest.Test`/`Wait`/`Sleep` for timers. Prod leaks: `goroutineleak` pprof (GA 1.27), not a test substitute.
@@ -56,6 +80,9 @@ Full runbook: `references/go-perf.md`.
 Full strategy: `references/go-testing.md`.
 
 - Always `go test -race ./...` scoped; `make ci-local-fast` while iterating (changed packages only), full `make ci-local` (= CI) before push, `make signoff` stamps.
+- **A delay that exists for a HUMAN must be injectable, and a test must assert an event, not a gap.** Demonstration pacing (`"visible pace"`, 1.5s retry gaps, 2s retry backoff) is invisible to a test; leaving it hard-coded cost this suite ~20s. Expose `Set…Delay`/`With…Delay`, keep the production default, dial it down in the fixture. A fixed `time.Sleep` before an assertion is usually a poll in disguise — poll with a deadline; keep the sleep only for an ABSENCE check.
+- **Prove a negative assertion can fail before trusting it.** Inject the thing it forbids and confirm it goes red; a predicate matching a string the wire never carries is green forever and was already found once (`broadcast_probe_test.go`).
+- `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like PocketBase are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
@@ -86,28 +113,31 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 | Check | Command |
 |---|---|
 | Format | `golangci-lint` gate (not bare `gofumpt`; versions differ) |
-| Lint | `make lint-safe` — sizes to the host's free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Manual: `golangci-lint run <changed-pkgs>` (31 linters, `.golangci.yml`) |
+| Lint | `make lint-safe` — sizes to the host's free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Manual: `golangci-lint run <changed-pkgs>` (33 linters, `.golangci.yml`) |
 | Custom rules | `rules/rules.go` via `ruleguard` (`.golangci.yml` → `gocritic.settings.ruleguard`) — project footguns, CI-blocking |
 | Templ | `make templ && make datastar-lint` (when `.templ` changed) |
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
 | Tests | `go test -race <pkgs>`; full `make ci-local`; stamp `make signoff` |
 | Vuln/deadcode | pre-push `govulncheck`, `deadcode -test` |
+| Uninterruptible waits | `forbidigo` (no `time.Sleep` in production; tests exempt) |
 | Deps | `go mod tidy && git diff --exit-code go.mod go.sum`; audit adds with `go mod why` |
 
 ### Working with the linters (three layers, in the order they fire)
 
-**1. `golangci-lint` — the 31-linter baseline.** Config is `.golangci.yml`; it is the
-single source for which linters run. Do NOT run `golangci-lint run ./...` for a
-small change — scope it (`golangci-lint run <changed-pkgs>`); the full repo is
-~10x slower and ~2.6 GB heavier. On a host that also runs other work (agents,
-production, a co-tenant daemon), use `make lint-safe`: it measures free RAM and
-cores at run time, runs the full repo only when there is headroom, otherwise
-scopes to changed packages, and caps the run in a cgroup. Linters are grouped by role:
+**1. `golangci-lint` — the baseline.** `.golangci.yml` is the single source for
+which linters run and how they are configured; **read it, do not trust a list in
+prose** (this file used to spell out the membership by role, and it drifted).
+Do NOT run `golangci-lint run ./...` for a small change — scope it
+(`golangci-lint run <changed-pkgs>`); the full repo is ~10x slower and ~2.6 GB
+heavier. On a host that also runs other work (agents, production, a co-tenant
+daemon), use `make lint-safe`: it measures free RAM and cores at run time, runs
+the full repo only when there is headroom, otherwise scopes to changed packages,
+and caps the run in a cgroup.
 
-- **correctness** (`errcheck`, `govet` with `enable-all`, `staticcheck`, `ineffassign`, `nilerr`, `errorlint`)
-- **concurrency/lifecycle** (`containedctx`, `contextcheck`, `noctx`, `gocritic`, `thelper`)
-- **security** (`gosec`)
-- **style/size** (`revive`, `dupl`, `funlen`, `gocyclo`, `lll`, `mnd`, `goconst`, `tagliatelle`, `modernize`, `perfsprint`, `usestdlibvars`)
+```bash
+golangci-lint help linters                      # everything available
+golangci-lint linters | grep -A1 '^enabled'     # what this config turns on
+```
 
 Adding a linter: enable it under `linters.enable` in `.golangci.yml`, then run
 `golangci-lint run <pkgs>` and fix what it reports **before** committing — a
@@ -119,17 +149,33 @@ the intent.
 `gocritic` (`settings.gocritic.settings.ruleguard.rules`), so it runs inside the
 same `golangci-lint` pass and is CI-blocking. Use it for a footgun that no stock
 linter covers — i.e. something this project got wrong at least once. Current
-rules: `TimeAfterInSelect` (timer leak in a loop) and
-`BlockingReadBehindDeadline` (a parked `Read` outliving its deadline).
+rules (see the file for the full text and the reasoning behind each):
 
-Writing one — the DSL has three traps that all fail silently or confusingly:
+- `TimeAfterInSelect` — a timer allocated per loop iteration
+- `BlockingReadBehindDeadline` — a parked `Read` outliving its deadline
+- `TickerLoopWithoutExit` — `for range <ticker>.C` has no exit
+  (`defer t.Stop()` stops the ticker, not the goroutine on it). ONE arm covers
+  both receiver shapes (`ticker.C` and `time.NewTicker(d).C`), which was
+  measured rather than assumed: a second arm adds no diagnostic in either
+  ordering of a mixed file. Pin it with `rules/rules_test.go`, not by reading
+  the pattern.
+
+Writing one — the DSL has traps that all fail silently or confusingly, so
+verify with a probe file before trusting the rule:
 
 - Variadic group is `$*name`, **not** `$$$name` (does not parse). It needs a
   name because `Where()` refers to it.
 - A metavariable cannot be a selector receiver: `$x.Read($*_)` does not parse;
   `$x.Read($_)` does.
+- **Only the FIRST `m.Match` in a rule function is applied.** Two patterns need
+  two functions, not two calls — and a single-arm version can look obviously
+  correct while silently missing half the cases.
 - Patterns match **expressions**, not statements — `for`/`select` bodies need the
   `$*body` form shown above, and `m.File().Text` does not exist.
+- A rule that matches nothing is indistinguishable from a rule that is broken:
+  confirm it fires on a deliberately bad fixture, then confirm it stays quiet on
+  the corrected code. A **typecheck error anywhere in the package also
+  suppresses every ruleguard result**, which reads as "the rule never fires".
 
 A rule that fails to load surfaces in `golangci-lint` as the generic
 `ruleguard: execution error: used Run() with an empty rule set`, which does not
@@ -143,7 +189,9 @@ go run github.com/quasilyte/go-ruleguard/cmd/ruleguard@v0.4.5 -rules rules/rules
 of the normal flow** — the cache is exactly what keeps a run cheap. A cold run
 re-type-checks the whole module, spikes memory (600 MB → 2 GB+ in practice), and
 is what tips a shared host into swap. Clear it **only** to debug a `ruleguard`
-rule change that appears to have had no effect.
+rule change that appears to have had no effect — and note that a test which
+needs a fresh compile should point `GOLANGCI_LINT_CACHE` at its own directory
+instead (see `rules/rules_test.go`), so it never has to touch the shared one.
 
 **3. `datastar-lint` — the Datastar surface** (`.templ` attributes + Go SDK
 calls). See `references/datastar.md`; the client-side rules `golangci-lint`
@@ -187,7 +235,7 @@ warnings print and exit 0.
 ## Edge Cases
 
 - `_templ.go` files: excluded from `funlen`/`gocyclo`/`dupl`/`lll` (generated).
-- `_test.go`: excluded from `goconst`/`mnd`/`funlen`/`gocyclo`/`bodyclose` (do not close httptest bodies).
+- `_test.go`: excluded from `goconst`/`mnd`/`funlen`/`gocyclo`/`bodyclose` (do not close httptest bodies) and `forbidigo` (a test legitimately sleeps to assert absence, pace a fixture, or let a watcher catch up). Read the exclusion list from `.golangci.yml` rather than trusting this line — it is the single source and this prose has drifted before.
 - Morpheus `data-neo-*` attrs: intentional, keep `-only-errors`; add truly shared ones to `.datastar-lint.yaml`.
 - `site/**`, `docs/**`: not scanned by Tailwind, not deployed in binary. Never gate them with `css-check`.
 - `cmd/desktop`, `cmd/gui`: separate targets, excluded from web gate (`scripts/web-packages.sh`). Full lint manual (`make lint-gui`).
@@ -213,7 +261,7 @@ warnings print and exit 0.
 | File | What |
 |---|---|
 | `references/go-concurrency-deltas.md` | wg.Go, errgroup, channels, timers, goleak/synctest/goroutineleak |
-| `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate |
+| `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate, demonstration-delay latency |
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, PB strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
 | `references/zig-gate.md` | bans, decision, pin policy, what to vendor and when |

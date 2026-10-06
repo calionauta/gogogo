@@ -24,6 +24,7 @@ import (
 // /api/realtime connection and PB fans out record changes to the
 // authed subscriber). This test guards the bridge that enables it.
 func TestLoginIssuesPbAuthCookie(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()

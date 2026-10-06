@@ -70,10 +70,18 @@ func (h *TodoHandler) listTodos(c *core.RequestEvent, filter string) ([]todo.Tod
 // Fail-fast: an empty owner is rejected here (not written ownerless),
 // so a programming error surfaces as an error, not an invisible row.
 func (h *TodoHandler) saveTodo(c *core.RequestEvent, item *todo.Todo, owner, idemKey string) error {
+	return h.saveTodoCtx(ctxOf(c), item, owner, idemKey)
+}
+
+// saveTodoCtx is saveTodo for callers that have no *core.RequestEvent — the
+// durable-workflow steps, which run on a DagNats worker goroutine and would
+// otherwise have to fabricate a request (or silently write with a nil
+// context, which is what CreateTodoForOnboarding used to do).
+func (h *TodoHandler) saveTodoCtx(ctx context.Context, item *todo.Todo, owner, idemKey string) error {
 	if owner == "" {
 		return ErrNoOwner
 	}
-	out, err := h.st().Create(ctxOf(c), *item, owner, idemKey)
+	out, err := h.st().Create(ctx, *item, owner, idemKey)
 	if err != nil {
 		return fmt.Errorf("save todo: %w", err)
 	}

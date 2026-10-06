@@ -16,12 +16,14 @@ import (
 // is covered at the HTTP level in features/todo/owner_require_test.go,
 // which logs in for real and asserts tenant isolation end to end.
 func TestRequireOwnerRejectsNilEvent(t *testing.T) {
+	t.Parallel()
 	if _, err := RequireOwner(nil); !errors.Is(err, ErrNoOwner) {
 		t.Errorf("RequireOwner(nil) = %v, want ErrNoOwner", err)
 	}
 }
 
 func TestRequireOwnerRejectsUnauthenticatedEvent(t *testing.T) {
+	t.Parallel()
 	c := &core.RequestEvent{}
 	if _, err := RequireOwner(c); !errors.Is(err, ErrNoOwner) {
 		t.Errorf("RequireOwner(no auth) = %v, want ErrNoOwner", err)
@@ -33,6 +35,7 @@ func TestRequireOwnerRejectsUnauthenticatedEvent(t *testing.T) {
 // touching the store unscoped. A zero-value handler never reaches the
 // store here — the owner check runs first — so these need no app.
 func TestListTodosRejectsUnauthenticated(t *testing.T) {
+	t.Parallel()
 	var h TodoHandler
 	if _, err := h.listTodos(nil, "all"); !errors.Is(err, ErrNoOwner) {
 		t.Errorf("listTodos(nil) = %v, want ErrNoOwner", err)
@@ -40,6 +43,7 @@ func TestListTodosRejectsUnauthenticated(t *testing.T) {
 }
 
 func TestCountOwnedTodosRejectsUnauthenticated(t *testing.T) {
+	t.Parallel()
 	var h TodoHandler
 	if _, err := h.countOwnedTodos(nil); !errors.Is(err, ErrNoOwner) {
 		t.Errorf("countOwnedTodos(nil) = %v, want ErrNoOwner", err)
@@ -47,6 +51,7 @@ func TestCountOwnedTodosRejectsUnauthenticated(t *testing.T) {
 }
 
 func TestSaveTodoRejectsEmptyOwner(t *testing.T) {
+	t.Parallel()
 	var h TodoHandler
 	item := todo.Todo{Title: "ownerless"}
 	if err := h.saveTodo(nil, &item, "", "idem-key"); !errors.Is(err, ErrNoOwner) {

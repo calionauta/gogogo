@@ -148,15 +148,15 @@ func (h *OnboardingHandler) ResumeOnboarding(_ string) {
 		slog.Warn("onboarding: signal first-todo failed", "run", runID, "error", err)
 		if h.broadcaster != nil {
 			_ = h.broadcaster.PublishTodoUpdate(ctx,
-				todoUpdateJob("workflow-error", "remote", "", "resume failed: "+err.Error(), false))
+				todoUpdateJob("workflow-error", "resume failed: "+err.Error()))
 		}
 		return
 	}
 	slog.Info("onboarding: signalled first-todo", "run", runID)
 	if h.broadcaster != nil {
 		_ = h.broadcaster.PublishTodoUpdate(ctx,
-			todoUpdateJob("workflow-resumed", "remote", "",
-				"First todo captured — workflow resuming", false))
+			todoUpdateJob("workflow-resumed",
+				"First todo captured — workflow resuming"))
 	}
 }
 
@@ -212,7 +212,7 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 			slog.Error("onboarding: start failed", "user", user, "error", err)
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
-					todoUpdateJob("workflow-error", "remote", "", err.Error(), false))
+					todoUpdateJob("workflow-error", err.Error()))
 			}
 			return
 		}
@@ -278,7 +278,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 			h.publishProgress(ctx, 0, 0, "idle", "Onboarding timed out")
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
-					todoUpdateJob("workflow-timeout", "remote", "", "", false))
+					todoUpdateJob("workflow-timeout", ""))
 			}
 			return
 		case <-ticker.C:
@@ -321,7 +321,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 				fmt.Sprintf("Step %d/%d — Onboarding complete", total, total))
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
-					todoUpdateJob("workflow-completed", "remote", "", "", false))
+					todoUpdateJob("workflow-completed", ""))
 			}
 			return
 		case onbStatusFailed:
@@ -330,7 +330,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 				"Onboarding failed: "+detail)
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
-					todoUpdateJob("workflow-error", "remote", "", detail, false))
+					todoUpdateJob("workflow-error", detail))
 			}
 			return
 		default:

@@ -17,6 +17,7 @@ func (stubResumer) ResumeOnboarding(string) {}
 // stays nil and the UI degrades with no dead button — same as
 // DAGNATS_ENABLED=false.
 func TestDagnatsUIEnabled_RequiresRegistration(t *testing.T) {
+	t.Parallel()
 	enabled := &config.Config{}
 	enabled.DagNats.Enabled = true
 	disabled := &config.Config{}

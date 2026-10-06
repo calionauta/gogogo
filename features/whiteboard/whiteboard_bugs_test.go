@@ -26,6 +26,7 @@ import (
 // number-coords payload is accepted (200). The server must never 400 a
 // well-formed cursor just because a client (or a fork) stringified a number.
 func TestWhiteboard_PresenceToleratesStringCoords(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 
@@ -83,6 +84,7 @@ func TestWhiteboard_PresenceToleratesStringCoords(t *testing.T) {
 // doc both receive a "count" event whose peer set contains both of them
 // (size 2) — so they always agree on "2 online".
 func TestWhiteboard_PeerCountAuthoritative(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 
@@ -96,10 +98,12 @@ func TestWhiteboard_PeerCountAuthoritative(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(200 * time.Millisecond)
-
-	peersA := countPeersFromEvents(streamA.drain(400 * time.Millisecond))
-	peersB := countPeersFromEvents(streamB.drain(400 * time.Millisecond))
+	peersA := countPeersFromEvents(streamA.waitFor(func(ev string) bool {
+		return len(countPeersFromEvents([]string{ev})) == 2
+	}))
+	peersB := countPeersFromEvents(streamB.waitFor(func(ev string) bool {
+		return len(countPeersFromEvents([]string{ev})) == 2
+	}))
 
 	if len(peersA) != 2 {
 		t.Fatalf("clientA expected authoritative count of 2 peers, got %v", peersA)
@@ -117,13 +121,14 @@ func TestWhiteboard_PeerCountAuthoritative(t *testing.T) {
 // "badge shows '1 online' and then ANOTHER 'online' to the right" bug.
 // Asserts the board page renders exactly ONE "online" label.
 func TestWhiteboard_SingleOnlineLabel(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 	client := newWBClient(t)
 	login(t, client, baseURL)
 
 	docID := "doc-online-" + time.Now().Format("150405.000")
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/"+docID))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/"+docID))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
 	}
@@ -144,13 +149,14 @@ func TestWhiteboard_SingleOnlineLabel(t *testing.T) {
 // via theme.js binding the .theme-toggle button. Asserts the board page
 // renders the toggle button and references theme.js.
 func TestWhiteboard_ThemeToggleWired(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 	client := newWBClient(t)
 	login(t, client, baseURL)
 
 	docID := "doc-theme-" + time.Now().Format("150405.000")
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/"+docID))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/"+docID))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
 	}
@@ -207,6 +213,7 @@ func contains(xs []string, s string) bool {
 // asserts wbB's stream receives a "cursor" presence event carrying wbA's
 // coords — i.e. the pointer actually renders on the other tab.
 func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 	clientA := newWBClient(t)
@@ -218,9 +225,8 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	time.Sleep(200 * time.Millisecond)
-	streamA.drain(200 * time.Millisecond) // drop join/leave noise
-	streamB.drain(200 * time.Millisecond)
+	streamA.settleJoin()
+	streamB.settleJoin()
 
 	body, err := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "wbA", X: 0.25, Y: 0.75, TS: 1})
 	if err != nil {
@@ -237,7 +243,10 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	evs := streamB.drain(2 * time.Second)
+	evs := streamB.waitFor(func(ev string) bool {
+		_, ok := cursorFromEvents([]string{ev})
+		return ok
+	})
 	cur, ok := cursorFromEvents(evs)
 	if !ok {
 		t.Fatalf("clientB never received a cursor event from wbA; events=%s", tailEvents(evs, 400))
@@ -259,6 +268,7 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 // This test posts a shape from wbA and asserts wbA's OWN stream does NOT
 // receive a "shapes" event containing that shape id.
 func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 	clientA := newWBClient(t)
@@ -266,8 +276,7 @@ func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
 	docID := "doc-local-" + time.Now().Format("150405.000")
 	streamA := openWBStream(t, clientA, baseURL, docID, "wbA")
 	defer streamA.close()
-	time.Sleep(200 * time.Millisecond)
-	streamA.drain(200 * time.Millisecond)
+	streamA.settleJoin()
 
 	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{
 		ID: "s-fix", Type: "rect", X: 10, Y: 10, W: 50, H: 50, Color: "#ff0000",
@@ -287,7 +296,8 @@ func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	evs := streamA.drain(2 * time.Second)
+	// Absence of an echo cannot short-circuit, so this keeps a real window.
+	evs := streamA.drain(200 * time.Millisecond)
 	sev, ok := shapesEventFromEvents(evs)
 	if ok {
 		for _, s := range sev.Shapes {

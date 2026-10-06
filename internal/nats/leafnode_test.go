@@ -19,6 +19,7 @@ import (
 // share a JetStream domain); this test asserts the transport binding —
 // the leaf actually attaches — which is the part StartLeafNode owns.
 func TestLeafNode_ConnectsToCentral(t *testing.T) {
+	t.Parallel()
 	// Central server with a leaf-node listen port so the spoke can
 	// attach. Mirrors what the demo server must expose for desktop edge
 	// sync (a NATS_LEAFNODE_URL pointing at this port).
@@ -37,10 +38,11 @@ func TestLeafNode_ConnectsToCentral(t *testing.T) {
 		t.Fatal("central NATS not ready")
 	}
 
-	if err := StartLeafNode(t.TempDir(), "nats://127.0.0.1:19434"); err != nil {
+	h, err := StartLeafNode(t.TempDir(), "nats://127.0.0.1:19434")
+	if err != nil {
 		t.Fatalf("StartLeafNode: %v", err)
 	}
-	defer Stop()
+	t.Cleanup(h.Close)
 
 	// The leaf must have attached to the central. This is the core
 	// guard: a misconfigured remote leaves NumLeafNodes at 0 and the

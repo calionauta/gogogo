@@ -8,10 +8,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -106,6 +108,11 @@ type TodoHandler struct {
 	// path; st() only fills h.stFallback.
 	stOnce     sync.Once
 	stFallback store.EntityStore[todo.Todo]
+
+	// retryDemoDelay overrides the retry demo's per-attempt pacing, which
+	// exists only so a human can watch the stepper light up. Zero means the
+	// demonstration default. Set via SetRetryDemoDelay.
+	retryDemoDelay time.Duration
 }
 
 // OnboardingResumer is the capability the create path needs from the
@@ -161,9 +168,9 @@ func (h *TodoHandler) SetLLMMeter(m llm.Biller) {
 // DagNats onboarding worker (no-op when DAGNATS_ENABLED=false).
 // owner MUST be non-empty — saveTodo rejects "" fail-fast. Same
 // validation/save path as handleCreate, so rows render identically.
-func (h *TodoHandler) CreateTodoForOnboarding(title, owner string) error {
+func (h *TodoHandler) CreateTodoForOnboarding(ctx context.Context, title, owner string) error {
 	item := &todo.Todo{Title: title, Completed: false}
-	return h.saveTodo(nil, item, owner, "")
+	return h.saveTodoCtx(ctx, item, owner, "")
 }
 
 // llmEnabled reports whether the AI suggest pathway is live. Used

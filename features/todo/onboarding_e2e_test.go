@@ -131,7 +131,7 @@ func buildFixtureDagNats(t *testing.T) (
 		if text == "" {
 			text = "Onboarding task"
 		}
-		if createErr := h.CreateTodoForOnboarding(text, input.User); createErr != nil {
+		if createErr := h.CreateTodoForOnboarding(ctx.Context(), text, input.User); createErr != nil {
 			return ctx.Fail(createErr)
 		}
 		out, marshalErr := json.Marshal(input)
@@ -249,6 +249,7 @@ func registerOnboardingWorkflow(t *testing.T, client *dagnats.Client) {
 // production does — replacing the engine-only TestOnboarding_ResumeSignalsRun
 // (which drives the handler directly) with the full request/SSE path.
 func TestOnboarding_E2ERunsToCompletion(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, client, cleanup := buildFixtureDagNats(t)
 	defer cleanup()
 	_ = client

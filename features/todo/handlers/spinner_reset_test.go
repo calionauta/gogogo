@@ -34,6 +34,7 @@ func mustCtxReq(method, path string) *http.Request {
 // true it ALSO merges suggestPending=false. This test proves that
 // contract directly.
 func TestApplyTechStep_ResetsSpinnerOnDone(t *testing.T) {
+	t.Parallel()
 	h := &TodoHandler{}
 	rec := httptest.NewRecorder()
 	sse := sdk.NewSSE(rec, mustCtxReq(http.MethodPost, "/api/todos/retry-demo"))
@@ -55,6 +56,7 @@ func TestApplyTechStep_ResetsSpinnerOnDone(t *testing.T) {
 // non-terminal step (done=false) must NOT release the spinner, so the
 // button keeps spinning until the action truly finishes.
 func TestApplyTechStep_KeepsSpinnerWhileRunning(t *testing.T) {
+	t.Parallel()
 	h := &TodoHandler{}
 	rec := httptest.NewRecorder()
 	sse := sdk.NewSSE(rec, mustCtxReq(http.MethodPost, "/api/todos/retry-demo"))

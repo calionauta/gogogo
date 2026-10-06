@@ -24,9 +24,13 @@ import (
 // CRUD ops to their local NATS, Leaf Node replicates to the server,
 // and the consumer writes them to the server's PocketBase.
 func TestCrudConsumerCreate(t *testing.T) {
-	func() { _ = nats.StartEmbedded(t.TempDir()) }()
-	defer nats.Stop()
-	js := nats.JetStream()
+	t.Parallel()
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
+		t.Fatalf("StartEmbedded: %v", err)
+	}
+	t.Cleanup(h.Close)
+	js := h.JS
 	if js == nil {
 		t.Fatal("JetStream not available after StartEmbedded")
 	}
@@ -101,9 +105,13 @@ func TestCrudConsumerCreate(t *testing.T) {
 // TestCrudConsumerToggle verifies that publishing a toggle operation
 // via NATS updates an existing PocketBase record.
 func TestCrudConsumerToggle(t *testing.T) {
-	func() { _ = nats.StartEmbedded(t.TempDir()) }()
-	defer nats.Stop()
-	js := nats.JetStream()
+	t.Parallel()
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
+		t.Fatalf("StartEmbedded: %v", err)
+	}
+	t.Cleanup(h.Close)
+	js := h.JS
 
 	tmpDir, err := os.MkdirTemp("", "crud-toggle-*")
 	if err != nil {
@@ -157,9 +165,13 @@ func TestCrudConsumerToggle(t *testing.T) {
 
 // TestCrudConsumerDelete verifies delete operations via NATS.
 func TestCrudConsumerDelete(t *testing.T) {
-	func() { _ = nats.StartEmbedded(t.TempDir()) }()
-	defer nats.Stop()
-	js := nats.JetStream()
+	t.Parallel()
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
+		t.Fatalf("StartEmbedded: %v", err)
+	}
+	t.Cleanup(h.Close)
+	js := h.JS
 
 	tmpDir, err := os.MkdirTemp("", "crud-delete-*")
 	if err != nil {
@@ -203,9 +215,13 @@ func TestCrudConsumerDelete(t *testing.T) {
 
 // TestCrudConsumerClearCompleted verifies clear_completed via NATS.
 func TestCrudConsumerClearCompleted(t *testing.T) {
-	func() { _ = nats.StartEmbedded(t.TempDir()) }()
-	defer nats.Stop()
-	js := nats.JetStream()
+	t.Parallel()
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
+		t.Fatalf("StartEmbedded: %v", err)
+	}
+	t.Cleanup(h.Close)
+	js := h.JS
 
 	tmpDir, err := os.MkdirTemp("", "crud-clear-*")
 	if err != nil {
@@ -273,6 +289,7 @@ func TestCrudPublisherNilSafe(_ *testing.T) {
 // TestNewCrudPublisherReturnsNil verifies that NewCrudPublisher
 // returns nil when js is nil.
 func TestNewCrudPublisherReturnsNil(t *testing.T) {
+	t.Parallel()
 	pub := nats.NewCrudPublisher(nil)
 	if pub != nil {
 		t.Fatal("NewCrudPublisher(nil) should return nil")

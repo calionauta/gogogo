@@ -22,7 +22,15 @@ const clientIDSuffixFormat = "150405.000"
 // before concluding the event never arrives. One constant instead of a
 // literal per call site so the cost of every absence check is visible and
 // tunable in one place.
-const sseAbsenceWindow = 6 * time.Second
+//
+// 500ms, not seconds: the events these checks rule out (a record event
+// leaking onto the hub) travel an in-process, synchronous path —
+// handleCreate → broadcaster.PublishTodoUpdate → hub.Broadcast — so a
+// regression shows up in single-digit milliseconds. A negative assertion
+// cannot short-circuit and must genuinely wait out its window, which is why
+// this number is set to the delivery latency it guards with two orders of
+// magnitude of margin, not to "long enough to feel safe".
+const sseAbsenceWindow = 500 * time.Millisecond
 
 // TestIntegration_CreateEnqueuesNotification opens an SSE stream, creates
 // a todo via HTTP, and asserts the "todo_created" notification arrives
@@ -42,6 +50,7 @@ const sseAbsenceWindow = 6 * time.Second
 // todo immediately (no queue round-trip). Realtime fan-out to other
 // clients is handled by the broadcaster separately.
 func TestIntegration_CreateRendersInList(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := newTestCtx(t)
@@ -275,6 +284,7 @@ func doPostForm(ctx context.Context, client *http.Client, urlStr string, values 
 // Red-proof: revert pumpSSEUntil to the `for time.Now().Before(deadline) {
 // Read }` form and this fails (measured ~15s instead of ~250ms).
 func TestPumpSSEUntil_HonorsDeadlineWhileReadParked(t *testing.T) {
+	t.Parallel()
 	// A body that never produces a byte nor an error: every Read parks until
 	// the deadline fires and pumpSSEUntil closes it.
 	pr, pw := io.Pipe()

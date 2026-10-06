@@ -15,12 +15,17 @@ import (
 // each receive the other's cursor (and a join on subscribe), proving the
 // ephemeral cursor broadcast works end-to-end. No persistence involved.
 func TestPresence_TwoPeersConverge(t *testing.T) {
-	if err := nats.StartEmbedded(t.TempDir()); err != nil {
+	h, err := nats.StartEmbedded(t.TempDir())
+	if err != nil {
 		t.Fatalf("nats start: %v", err)
 	}
-	defer nats.Stop()
+	t.Cleanup(h.Close)
 
-	nc, err := natsio.Connect(nats.ClientURL())
+	// Dial THIS test's own handle, not the package-level current handle:
+	// nats.ClientURL() reads the current handle, which a parallel test's
+	// StartEmbedded can replace between our start and this line, so the test
+	// would connect to a sibling's server (or none). h.URL() cannot.
+	nc, err := natsio.Connect(h.URL())
 	if err != nil {
 		t.Fatalf("nats connect: %v", err)
 	}

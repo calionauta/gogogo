@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/features/todo"
-	"github.com/calionauta/gogogo/internal/nats"
 )
 
 func TestCRDTStore_CrossProcessConvergence(t *testing.T) {
+	t.Parallel()
 	js := newTestJetStream(t)
 	// newTestJetStream sets up the embedded NATS + registers t.Cleanup.
 
@@ -87,7 +87,7 @@ func TestCRDTStore_CrossProcessConvergence(t *testing.T) {
 	t.Cleanup(func() { _ = subB.Unsubscribe() })
 
 	// Give subscriptions a beat to settle.
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// A creates a todo.
 	var (
@@ -151,7 +151,3 @@ func TestCRDTStore_CrossProcessConvergence(t *testing.T) {
 		t.Errorf("storeB.Version(%s) = %d, want >= 2 (received 1 from A + 1 own)", ownerID, v)
 	}
 }
-
-// nats.JS is package-internal here; newTestJetStream is shared with
-// transport_test.go (declared there).
-var _ = nats.JS

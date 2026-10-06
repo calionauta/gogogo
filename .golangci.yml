@@ -32,10 +32,29 @@ linters:
     - prealloc        # slice declarations that could be pre-allocated
     - fatcontext      # nested context.With* inside loops/function literals
     - usestdlibvars   # use stdlib constants (http.MethodGet, time.RFC3339, ...)
+    - forbidigo       # no bare time.Sleep in production code (see settings below)
+    - unparam         # a parameter constant at every call site is a constant in disguise
     # Note: stylecheck's ST* analyzers are bundled into `staticcheck` in
     # golangci-lint v2, so enabling staticcheck (above) already covers
     # them. `gofumpt` is a formatter, configured under `formatters:` below.
   settings:
+    forbidigo:
+      # A bare time.Sleep in production is uncancellable: it holds its goroutine
+      # (and any wg.Wait draining it at shutdown) for its full duration. Three
+      # real sites shipped this way — the queue worker's receive-error backoff
+      # (1s, on every failing worker, delaying Stop()), the onboarding-greet
+      # demo pause, and that pause's own retry loop. All three became
+      # `select { ctx.Done(); timer.C }` waits. The rule now keeps a fourth from
+      # being written: needing an uninterruptible pause in production is itself
+      # the smell this catches.
+      #
+      # Tests are exempt (see exclusions): asserting on a fixed window is
+      # sometimes the only way to express "this must NOT happen".
+      forbid:
+        - pattern: 'time\.Sleep'
+          msg: "time.Sleep is uncancellable — it holds its goroutine through shutdown. Wait on a context instead: select { case <-ctx.Done(): ; case <-timer.C: }. See internal/queue/workers.go waitOrStop."
+      analyze-types: true
+      exclude-godoc-examples: true
     errcheck:
       check-type-assertions: true
       check-blank: false    # blank identifier (_ = expr()) is idiomatic Go for intentional error discard
@@ -174,6 +193,27 @@ linters:
         linters:
           - goconst
           - mnd
+      # NOT a blanket `funlen` exemption for tests. Function length is a real
+      # signal even in test files — a 300-line test function is unreadable and
+      # its failure does not name a stage, which is the cost the limit prevents.
+      # The three below are LINEAR setup (tempdir, config, app, transport: no
+      # branching, nothing hidden), where splitting would only move lines into
+      # helpers and add `t.Helper()` plumbing for no reader benefit. Exempted
+      # individually and WITH the reason, so a NEW long test fails CI instead of
+      # joining a silent blanket exemption.
+      #
+      # Measured at the time of writing (lines in the function):
+      #   TestCRDTStore_CrossProcessConvergence  127
+      #   TestRepro_CRDT_CreateStuckLoading      130
+      #   buildFixtureDagNats                    138
+      - path: features/store/crdtstore/integration_test\.go
+        linters:
+          - funlen
+      - path: features/todo/crdt_repro_test\.go
+        linters:
+          - funlen
+      - path: features/todo/onboarding_e2e_test\.go
+        linters:
           - funlen
       # E2E and integration tests are inherently complex; cyclomatic
       # complexity is a design concern, not a correctness risk.
@@ -185,6 +225,11 @@ linters:
       - path: _test\.go
         linters:
           - bodyclose
+      # forbidigo is a PRODUCTION rule (uncancellable sleeps). Tests legitimately
+      # sleep to assert absence, to pace a fixture, or to let a watcher catch up.
+      - path: _test\.go
+        linters:
+          - forbidigo
 formatters:
   enable:
     - gofumpt

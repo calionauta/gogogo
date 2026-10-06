@@ -45,6 +45,25 @@ func (h *TodoHandler) handleEnqueueRetryDemo(c *core.RequestEvent) error {
 // gives a perceptible beat between attempts without feeling sluggish.
 const retryDemoInitialDelay = 1500 * time.Millisecond
 
+// SetRetryDemoDelay overrides the demo's per-attempt pacing. The delay is
+// purely for a human watching the stepper light up; a test asserts the ORDER
+// of the attempts, not the gap between them. Production never calls this.
+// Non-positive values are ignored so a stray zero cannot make the demo instant.
+func (h *TodoHandler) SetRetryDemoDelay(d time.Duration) {
+	if d > 0 {
+		h.retryDemoDelay = d
+	}
+}
+
+// retryDemoPacing reports the delay to use for the retry demo, falling back
+// to the demonstration default when no override was set.
+func (h *TodoHandler) retryDemoPacing() time.Duration {
+	if h.retryDemoDelay > 0 {
+		return h.retryDemoDelay
+	}
+	return retryDemoInitialDelay
+}
+
 // jobTypeToast is the queue.Job type for toast notifications so
 // the literal isn't duplicated across handlers (goconst).
 const jobTypeToast = "toast"
@@ -72,7 +91,7 @@ func (h *TodoHandler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub,
 			return opErr
 		},
 		retry.Attempts(maxAttempts),
-		retry.Delay(retryDemoInitialDelay),
+		retry.Delay(h.retryDemoPacing()),
 		retry.MaxDelay(2500*time.Millisecond), //nolint:mnd // 2.5s retry cap: visible pacing
 		retry.Context(ctx),
 	)

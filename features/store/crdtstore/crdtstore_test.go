@@ -125,6 +125,7 @@ func newCRDTStore(t *testing.T) (*CRDTStore, *pocketbase.PocketBase, func()) {
 }
 
 func TestCRDTStore_EnsureSchemaCreatesCollection(t *testing.T) {
+	t.Parallel()
 	s, _, cleanup := newCRDTStore(t)
 	defer cleanup()
 	if err := s.EnsureSchema(); err != nil {
@@ -142,6 +143,7 @@ func TestCRDTStore_EnsureSchemaCreatesCollection(t *testing.T) {
 }
 
 func TestCRDTStore_CreateGetListUpdateDelete(t *testing.T) {
+	t.Parallel()
 	s, app, cleanup := newCRDTStore(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -226,6 +228,7 @@ func TestCRDTStore_CreateGetListUpdateDelete(t *testing.T) {
 }
 
 func TestCRDTStore_ClearCompleted(t *testing.T) {
+	t.Parallel()
 	s, app, cleanup := newCRDTStore(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -261,6 +264,7 @@ func TestCRDTStore_ClearCompleted(t *testing.T) {
 }
 
 func TestCRDTStore_RecordRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Root cause (found via investigation spikes in /spikes, gitignored):
 	// the write path keys the Loro items map by the TODO id (= idem_key,
 	// the client-generated id). Two read/prune paths instead used the
@@ -326,6 +330,7 @@ func TestCRDTStore_RecordRoundTrip(t *testing.T) {
 }
 
 func TestCRDTStore_EmptyOwnerReturnsEmpty(t *testing.T) {
+	t.Parallel()
 	s, _, cleanup := newCRDTStore(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -338,6 +343,7 @@ func TestCRDTStore_EmptyOwnerReturnsEmpty(t *testing.T) {
 }
 
 func TestCRDTStore_WatchSignals(t *testing.T) {
+	t.Parallel()
 	s, app, _ := newCRDTStore(t)
 	ctx := context.Background()
 	ownerID := newTestUser(t, app)

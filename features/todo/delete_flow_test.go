@@ -18,6 +18,7 @@ import (
 // POST /delete performs the removal and clears the signal. This is the
 // full client path the DaisyUI dialog drives.
 func TestIntegration_DeleteConfirmModalFlow(t *testing.T) {
+	t.Parallel()
 	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 

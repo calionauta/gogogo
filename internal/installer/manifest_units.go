@@ -194,9 +194,29 @@ var manifestUnits = []trimUnit{
 		},
 		mainStrips: []stripRule{
 			{
-				startMarker: "startDagNats(cfg, pb, todoH)",
+				startMarker: "startDagNats(lifecycleCtx, cfg, pb, todoH)",
 				endMarker:   "defer shutdownDagNats()",
 				addAfter:    mainCallsAnchor,
+				// The lifecycle context exists ONLY to bound DagNats boot work,
+				// so removing the engine leaves its declaration unused and the
+				// build fails on `declared and not used: lifecycleCtx`. Drop the
+				// declaration, its defer, and the comment block that documents
+				// them — otherwise the trim leaves an orphaned three-line comment
+				// explaining a variable that no longer exists.
+				alsoDeleteContains: []string{
+					"lifecycleCtx, stopLifecycle :=",
+					"defer stopLifecycle()",
+					"// lifecycleCtx bounds background boot work",
+					"// watchdogs) to the process lifetime",
+					"// stops promptly instead of burning its own timeouts.",
+					// The DagNats boot preamble documents the call this rule is
+					// removing; leaving it produces a comment describing an absent
+					// engine (and two stray blank lines, which gofmt then flags in
+					// the scaffolded checkout).
+					"// DagNats owns the embedded NATS on :4222 and must boot first so the",
+					"// realtime broadcaster can attach to it. It's always compiled; when",
+					"// DAGNATS_ENABLED=false it no-ops.",
+				},
 			},
 			{
 				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",

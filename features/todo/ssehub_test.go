@@ -8,6 +8,7 @@ import (
 )
 
 func TestSSEHubRegisterAndSend(t *testing.T) {
+	t.Parallel()
 	hub := queue.NewSSEHub()
 	ch := make(chan []byte, 10)
 
@@ -25,6 +26,7 @@ func TestSSEHubRegisterAndSend(t *testing.T) {
 }
 
 func TestSSEHubBufferThenReplay(t *testing.T) {
+	t.Parallel()
 	hub := queue.NewSSEHub()
 
 	// Send before register (goes to buffer)
@@ -45,6 +47,7 @@ func TestSSEHubBufferThenReplay(t *testing.T) {
 }
 
 func TestSSEHubBroadcast(t *testing.T) {
+	t.Parallel()
 	hub := queue.NewSSEHub()
 	ch1 := make(chan []byte, 10)
 	ch2 := make(chan []byte, 10)
@@ -66,6 +69,7 @@ func TestSSEHubBroadcast(t *testing.T) {
 }
 
 func TestSSEHubBackpressure(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	hub := queue.NewSSEHub()
 	// Full channel (capacity 1, already has message)
@@ -84,6 +88,7 @@ func TestSSEHubBackpressure(t *testing.T) {
 }
 
 func TestSSEHubUnregister(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	hub := queue.NewSSEHub()
 	ch := make(chan []byte, 10)
@@ -100,6 +105,7 @@ func TestSSEHubUnregister(t *testing.T) {
 // (excludeClientID) is skipped. This guards the userOf map initialization
 // bug where BroadcastToUser silently delivered to nobody.
 func TestSSEHubBroadcastToUser(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	hub := queue.NewSSEHub()
 	u1a := make(chan []byte, 10) // user u1, originator

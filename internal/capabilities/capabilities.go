@@ -133,7 +133,13 @@ var All = []Capability{
 			"router/export_test.go",
 			"features/todo/handlers/onboarding.go",
 			"features/todo/handlers/todo_update_job_dagnats.go",
+			// Both onboarding test files import internal/dagnats, so trimming
+			// the unit must remove them too — otherwise the proof build fails
+			// with a dangling import (`module .../internal/dagnats: not found`).
+			// onboarding_lifecycle_test.go was missing from this list and
+			// reproduced exactly that. See TestManifestCoversDagnatsImports.
 			"features/todo/handlers/onboarding_resume_test.go",
+			"features/todo/handlers/onboarding_lifecycle_test.go",
 			"features/todo/onboarding_e2e_test.go",
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",

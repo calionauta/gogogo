@@ -11,6 +11,19 @@ import (
 	"maragu.dev/goqite"
 )
 
+const (
+	// idleTick paces empty receives so a quiet queue is not polled in a tight
+	// loop. Named rather than inlined because it is a timing budget the pool
+	// pays per idle worker.
+	idleTick = 200 * time.Millisecond
+
+	// receiveErrorBackoff spaces out receive-error retries: a persistently
+	// failing queue (locked database, disk error) must not be hammered in a hot
+	// loop. It is a wait, not a sleep — see waitOrStop for why that distinction
+	// is load-bearing.
+	receiveErrorBackoff = time.Second
+)
+
 // WorkerPool drains the underlying goqite queue, dispatches each
 // message to a registered Handler (looked up via the HandlerRegistry),
 // wraps the handler invocation in RetryConfig.Do so transient failures
@@ -87,22 +100,62 @@ func (wp *WorkerPool) Stop() {
 	slog.Info("queue workers stopped")
 }
 
+// stopping reports whether the pool is shutting down, without blocking.
+//
+// Every wait in the worker loop checks this before doing anything else: a
+// cancelled pool context and a closed stopCh both mean "exit now", and the
+// shutdown path must never be mistaken for a queue failure (which would log an
+// error and take a backoff on the way out).
+func (wp *WorkerPool) stopping() bool {
+	select {
+	case <-wp.stopCh:
+		return true
+	case <-wp.ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// waitOrStop blocks until d elapses or the pool starts shutting down. It
+// returns true when the pool is stopping (the caller must return) and false
+// when the delay completed normally.
+//
+// This is the replacement for a bare `time.Sleep`: that sleep is
+// uncancellable, so Stop() — which cancels wp.ctx and then blocks in wg.Wait()
+// — had to wait out the full delay on every worker sitting in one.
+func (wp *WorkerPool) waitOrStop(t *time.Timer, d time.Duration) bool {
+	t.Reset(d)
+	select {
+	case <-wp.stopCh:
+		return true
+	case <-wp.ctx.Done():
+		return true
+	case <-t.C:
+		return false
+	}
+}
+
 func (wp *WorkerPool) worker(id int) {
 	defer wp.wg.Done()
 
-	// Reusable idle timer: a `time.After` inside the loop would allocate a new
-	// Timer on every idle tick (4 workers x ~1/s). Reset it instead.
-	idle := time.NewTimer(200 * time.Millisecond)
+	// Reusable timers: a `time.After` inside the loop would allocate a new Timer
+	// on every tick (4 workers x ~1/s). Reset them instead.
+	idle := time.NewTimer(idleTick)
 	if !idle.Stop() {
 		<-idle.C
 	}
 	defer idle.Stop()
 
+	backoff := time.NewTimer(receiveErrorBackoff)
+	if !backoff.Stop() {
+		<-backoff.C
+	}
+	defer backoff.Stop()
+
 	for {
-		select {
-		case <-wp.stopCh:
+		if wp.stopping() {
 			return
-		default:
 		}
 
 		q := wp.qGuard()
@@ -112,30 +165,23 @@ func (wp *WorkerPool) worker(id int) {
 
 		msg, err := q.ReceiveAndWait(wp.ctx, time.Second)
 		if err != nil {
-			select {
-			case <-wp.stopCh:
-				return
-			case <-wp.ctx.Done():
-				return // context cancelled (Stop) — no need to keep polling
-			default:
-				slog.Warn("queue worker: receive error", "worker_id", id, "error", err)
-				time.Sleep(time.Second)
-				continue
+			if wp.stopping() {
+				return // a teardown, not a queue failure
 			}
+			slog.Warn("queue worker: receive error", "worker_id", id, "error", err)
+			if wp.waitOrStop(backoff, receiveErrorBackoff) {
+				return
+			}
+			continue
 		}
 		if msg == nil {
 			// Idle: no message this second. Log at Debug — an Info line here is
 			// one entry per worker per idle second, forever.
 			slog.Debug("queue worker: idle", "worker_id", id)
-			idle.Reset(200 * time.Millisecond)
-			select {
-			case <-wp.stopCh:
+			if wp.waitOrStop(idle, idleTick) {
 				return
-			case <-wp.ctx.Done():
-				return
-			case <-idle.C:
-				continue
 			}
+			continue
 		}
 		slog.Debug("queue worker: received", "worker_id", id)
 

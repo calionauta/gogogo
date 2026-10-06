@@ -35,6 +35,7 @@ import (
 // never forwards the client's idem_key into item.ID, so every create
 // 500s in crdt mode — exactly the symptom the user reports.
 func TestRepro_CRDT_CreateStuckLoading(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "todo-crdt-int-*")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)

@@ -151,6 +151,54 @@ derives from `context.Background()`, then ties itself to app shutdown with a
 `context.Context` (which `containedctx` rejects anyway). See
 `features/todo/handlers/onboarding.go`.
 
+### Store the handle on its owner, or its lifecycle is unreachable
+
+`StartWorkers()` returned a pool and the caller did
+`workersLocal := q.StartWorkers(); _ = workersLocal`. The pool ran, nothing
+could stop it, and `Close()` closed the database out from under it. Separating
+construction from startup is only half the pattern — the OTHER half is that the
+owner must hold what it started:
+
+```go
+// before — the lifecycle is discarded the moment it is created
+ow := StartWorkers()
+_ = ow
+
+// after — the owner can always stop what it started
+q.workers = wp          // set inside Start, so a caller cannot forget
+func (q *Queue) Close() { if q.workers != nil { q.workers.Stop() }; ... }
+```
+
+Prefer storing it inside the starter (as above) over returning it for the
+caller to keep: a returned handle that nobody assigns is the bug, and a return
+value cannot enforce anything. Rule of thumb: **if a function starts something
+long-lived, it is responsible for making it stoppable.**
+
+### Only one component owns the process signal
+
+`shutdownDagNats` was a no-op that nilled a pointer, with a comment asserting
+the engine's shutdown "is wired internally". It was not, and the failure mode is
+worth knowing because nothing about it looks wrong in the code: **a library may
+register its own `signal.Notify` for SIGINT/SIGTERM** (DagNats does, in
+`server.waitAndShutdown`; so does PocketBase, in `pb.Start`/`Execute`). The Go
+runtime delivers a signal to EVERY registered channel, so both handlers run
+concurrently and whichever finishes teardown first ends the process — skipping
+the other's deferred cleanup entirely. Observed as: the log ends mid-shutdown
+and `queue workers stopped` (the repo's own cleanup) never prints.
+
+Two rules:
+
+1. **Before trusting an embedded library's shutdown, check whether it calls
+   `signal.Notify`** (and so does your host). If two components can see the same
+   signal, drive shutdown yourself from the one you control — call the library's
+   explicit `Stop()`/`Shutdown()` so its `Run()` drains through its normal path
+   instead of racing a signal handler. Never write "shutdown is handled
+   internally" without having read the code that does it.
+2. **Verify shutdown by its effects, not by an exit code.** `go test`, `-race`
+   and a clean `SIGTERM` exit all passed while the cleanups were being skipped.
+   The assertion that caught it was a log line printed by the code that was
+   supposed to run.
+
 ### Confine writes to a tree with `os.Root` (Go 1.24+)
 
 A lexical guard (`filepath.Join` + `strings.HasPrefix`) blocks `../` but NOT a

@@ -29,6 +29,60 @@ Profiles: `cpu`, `heap`, `allocs`, `goroutine`, `goroutineleak` (1.27 GA), `bloc
 - Green Tea GC: exp 1.25, default 1.26, SIMD-accelerated scan on new amd64. Expect 10–40% less GC CPU on GC-heavy workloads, ~1–4% total. No flag needed on 1.27.
 - cgo baseline ~30% cheaper (1.26). Still avoid cgo on hot paths.
 
+## 4b. A demonstration delay is product latency
+
+The most expensive performance bug in this repo was not in a hot path. It was
+**deliberate latency added to make a demo look good to a human**, and it had two
+costs at once:
+
+- four hard-coded demonstration delays (~20s of test wall-clock, since a test
+  waits them out but never asserts them)
+- and the same delay in front of every real user, on every request
+
+```go
+// before — unpaced, untestable, and paid in production
+const retryDemoInitialDelay = 1500 * time.Millisecond
+retry.Delay(retryDemoInitialDelay)
+```
+
+```go
+// after — the constant stays the default; a seam lets a caller override it
+func (h *TodoHandler) SetRetryDemoDelay(d time.Duration) {
+	if d > 0 {
+		h.retryDemoDelay = d   // zero value = keep the demonstration default
+	}
+}
+```
+
+**Rule.** Any delay whose only justification is human perception — "visible
+pace", "so the user can SEE the retry", a stepper that lights up one step at
+time, a toast that must land *after* another — is **product latency that happens
+to be intentional**, not a neutral test detail. Give it a named constant and an
+injection seam; never inline the literal. Then say which one it is:
+
+- **UX pacing** (wanted in production): default kept, seam exists so tests and
+  slow devices can dial it. `SetRetryDemoDelay`, `llm.NewSimulatedWithDelay`.
+- **Startup backoff** (wanted in production): `NewTimer`/`Reset` + `ctx.Done()`,
+  not a bare `time.Sleep` — see `cmd/web/dagnats.go`
+  `registerOnboardingWorkflowWithRetry`.
+- **Fixed test window** (never wanted in production): the delay should not exist;
+  poll for the event with a deadline instead.
+
+`gocritic`'s `ruleguard` also covers the loop variant (`TimeAfterInSelect`,
+`BlockingReadBehindDeadline` in `rules/rules.go`).
+
+Two corollaries, both learned the same way:
+
+- **A bare `time.Sleep` in production cannot be cancelled.** `sleep(1s)` on a
+error path blocks the goroutine through shutdown; wait on `ctx.Done()` or
+`time.After`, whichever fires first. (`forbidigo` can enforce this — see
+`.golangci.yml` — but only for call sites, and it flags legitimate ones, so it
+is opt-in per module.)
+- **A fixed test window is a poll in disguise.** "Give subscriptions a beat to
+  settle" (500ms) and "wait for delivery" (1s) are event waits; the event lands
+  in single-digit ms on an in-process broker. A negative assertion is the only
+  one that must pay its full window.
+
 ## 5. GOMAXPROCS: do not touch
 
 Container-aware default since Go 1.25 (cgroup bandwidth, periodic update; disabled if `GOMAXPROCS` set or `GODEBUG=containermaxprocs=0,updatemaxprocs=0`). Do not set manually, do not add `automaxprocs` without a measured case. `runtime.SetDefaultGOMAXPROCS` exists for re-enabling the default after an override.

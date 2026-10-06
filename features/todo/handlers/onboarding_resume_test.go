@@ -31,6 +31,7 @@ import (
 // an engine limitation) is why these packages had to run under `-p 1`. NATS
 // itself already used -1 (random), so only the HTTP side needed fixing.
 func TestOnboarding_ResumeSignalsRun(t *testing.T) {
+	t.Parallel()
 	hub := queue.NewSSEHub()
 	broadcaster := nats.NewInMemoryBroadcaster(hub)
 

@@ -36,7 +36,7 @@ func TestPreflightRunFailsWithoutAir(t *testing.T) {
 }
 
 func TestRunFlagParses(t *testing.T) {
-	opt, _, err := loadOptions(
+	opt, err := loadOptions(
 		[]string{"--name", "my-app", "--no-tui", "--run", "--dry-run"},
 		devNull(t), devNull(t))
 	if err != nil {

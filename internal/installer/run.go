@@ -66,7 +66,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	if handled, err := runSubcommand(ctx, args, stdin, stdout); handled {
 		return err
 	}
-	opt, _, err := loadOptions(args, stdin, stdout)
+	opt, err := loadOptions(args, stdin, stdout)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 
 // loadOptions parses flags, runs the interactive form when needed, and
 // validates the result. It never touches the filesystem.
-func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *flag.FlagSet, error) {
+func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, error) {
 	fs := flag.NewFlagSet("gogogo", flag.ContinueOnError)
 	opt := options{}
 	fs.StringVar(&opt.name, "name", "", "new project name (e.g. my-app)")
@@ -130,10 +130,10 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	fs.Usage = func() { PrintUsage(stdout, fs) }
 	fs.SetOutput(stdout)
 	if err := fs.Parse(args); err != nil {
-		return opt, fs, err
+		return opt, err
 	}
 	if opt.format != planFormatText && opt.format != planFormatJSON {
-		return opt, fs, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
+		return opt, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
 	}
 	if opt.check {
 		// --check never prompts and needs no project name: it reads.
@@ -150,10 +150,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 		}
 	}
 	if !opt.noTUI && opt.name == "" {
-		interactive, err := promptForm(stdin, stdout)
-		if err != nil {
-			return opt, fs, err
-		}
+		interactive := promptForm(stdin, stdout)
 		opt.name = interactive.name
 		opt.owner = interactive.owner
 		opt.plugins = interactive.plugins
@@ -161,18 +158,18 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	}
 	if opt.name == "" {
 		fs.Usage()
-		return opt, fs, errors.New("project name is required (--name my-app or interactive mode)")
+		return opt, errors.New("project name is required (--name my-app or interactive mode)")
 	}
 	if err := validateName(opt.name); err != nil {
-		return opt, fs, err
+		return opt, err
 	}
 	if err := checkKeepIDs(opt.plugins, opt.features); err != nil {
-		return opt, fs, err
+		return opt, err
 	}
 	if opt.dir == "" {
 		opt.dir = opt.name
 	}
-	return opt, fs, nil
+	return opt, nil
 }
 
 // templateCloneURL is the only network source the installer pulls: a
@@ -248,7 +245,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := prove(ctx, opt.dir, drop, stdout); err != nil {
 		return err
 	}
-	printNextSteps(stdout, opt.dir)
+	printNextSteps(stdout, opt.dir, drop)
 	if opt.run {
 		return handoff(opt.dir, stdout)
 	}
@@ -268,28 +265,6 @@ type nextSteps struct {
 	Login string `json:"login"`
 	Admin string `json:"admin"`
 	Flows string `json:"workflows"`
-}
-
-func buildNextSteps(dir string) nextSteps {
-	return nextSteps{
-		Dir:   dir,
-		Dev:   "cd " + dir + " && make dev",
-		App:   "http://localhost:8080 (PORT overrides)",
-		Todo:  "http://localhost:8080/todo",
-		Login: "demo@demo.app / demo1234456 (prefilled on the sign-in form)",
-		Admin: "http://localhost:8080/_/ (PocketBase — create the superuser on first visit)",
-		Flows: "http://localhost:8080/dagnats/ (DagNats console)",
-	}
-}
-
-func printNextSteps(w io.Writer, dir string) {
-	n := buildNextSteps(dir)
-	fmt.Fprintln(w, "gogogo: done — next:")
-	fmt.Fprintf(w, "  %s\n", n.Dev)
-	fmt.Fprintf(w, "  app:       %s\n", n.App)
-	fmt.Fprintf(w, "  login:     %s\n", n.Login)
-	fmt.Fprintf(w, "  admin:     %s\n", n.Admin)
-	fmt.Fprintf(w, "  workflows: %s\n", n.Flows)
 }
 
 // applyAndProveJSON is the machine-readable apply path: one envelope at
@@ -313,7 +288,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	}
 	defer func() { _ = devNull.Close() }()
 	proveErr := prove(ctx, opt.dir, drop, devNull)
-	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir)}
+	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, drop)}
 	if proveErr != nil {
 		env.BuildErr = proveErr.Error()
 	}

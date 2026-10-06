@@ -1,6 +1,8 @@
 // SCOPE:layer=infra,removal=plugin — installer engine: advise data (presets, rules, stack signals)
 package installer
 
+import "strings"
+
 var advisePresets = []advisePreset{
 	{
 		Name: "realtime-collab",
@@ -108,9 +110,14 @@ var adviseRules = []string{
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
 		"reference implementation.",
-	"Go coding standards live in skills/gogogo-coding-standards/SKILL.md " +
-		"(universal principles delegated to stelow-workflow-coding-standards); " +
-		"audit new deps with `go mod why` + `govulncheck ./...` before adding.",
+	"Go coding standards live in the gogogo-coding-standards skill " +
+		"(https://github.com/calionauta/gogogo — install: " +
+		"npx skills add calionauta/gogogo): Go idioms plus the concurrency, " +
+		"testing and profiling deltas this template holds itself to. " +
+		"Universal principles (KISS/DRY/YAGNI, sizes) are delegated to " +
+		"stelow-workflow-coding-standards — a pointer, not a runtime " +
+		"dependency. Audit new deps with `go mod why` + `govulncheck ./...` " +
+		"before adding.",
 }
 
 // foreignRules replace the template rules when the need names a non-Go
@@ -120,6 +127,57 @@ var foreignRules = []string{
 		"implementation to read, not packages to install.",
 	"This tool does not track other ecosystems — check their docs for " +
 		"the managed option before building it yourself.",
+}
+
+// stdlibRules replace the template rules when a GO need rules the template
+// out with its own constraint (stdlib-only, no dependencies, single
+// binary). The capability table is not merely unhelpful there — every
+// capability ships a dependency the need forbids — so this document is a
+// few opinions plus a pointer to the Go standards, and nothing else.
+//
+// Deliberately NOT silent about the mismatch: a caller that asked for
+// opinions must be told the template does not apply and why, or it will
+// assume the empty answer means "nothing to say".
+var stdlibRules = []string{
+	"This is a Go need whose own constraint (stdlib-only / no dependencies " +
+		"/ single binary) rules the gogogo template out: every capability " +
+		"would add or belongs to a dependency the need forbids. Nothing from " +
+		"this toolchain installs here — read the Go standards instead.",
+	"Go coding standards: skills/gogogo-coding-standards/SKILL.md in the " +
+		"gogogo repo (https://github.com/calionauta/gogogo). The parts that " +
+		"apply without the template are references/go-concurrency-deltas.md " +
+		"(goroutine ownership, lifecycle, context), the Core Go Rules and " +
+		"Testing sections, and stelow-workflow-coding-standards for the " +
+		"universal principles (KISS/DRY/YAGNI, 50/400 sizes; Go override " +
+		"100/500). Install either with `npx skills add calionauta/gogogo` " +
+		"— the skill is self-contained, and its delegation to stelow is a " +
+		"pointer, not a runtime dependency.",
+	"Still true without the template: `strconv` over `fmt` on hot paths, " +
+		"`log/slog` over `log`, errors wrapped with `%w` at the call site, " +
+		"`go test -race`, and no goroutine without an owner, an exit and a " +
+		"wait.",
+}
+
+// notCheckoutRules replace the template rules when --dir points at something
+// that is NOT a gogogo checkout. Distinct from stdlibRules because the cause is
+// different: the need did not rule the template out, the PATH did — there is no
+// trim manifest to act on, so the advice is about what can still be reused
+// rather than about dependencies.
+var notCheckoutRules = []string{
+	"The path given with --dir is not a gogogo checkout (no cmd/web/main.go " +
+		"or internal/installer/run.go), so the capability table and the trim " +
+		"tooling do not apply to it. Nothing was installed and nothing changed.",
+	"To get the template: scaffold a project with this tool, or `npx skills " +
+		"add calionauta/gogogo` to read the Go standards " +
+		"(https://github.com/calionauta/gogogo — Go idioms plus the " +
+		"concurrency, testing and profiling deltas the template holds itself " +
+		"to). The parts that apply without the template are " +
+		"references/go-concurrency-deltas.md and the Core Go Rules and Testing " +
+		"sections; universal principles (KISS/DRY/YAGNI, sizes) are delegated " +
+		"to stelow-workflow-coding-standards.",
+	"To adopt ONE capability in an existing project, read its dirs/files (given " +
+		"per capability in the registry) and copy the pattern — `add` only " +
+		"merges into a scaffolded checkout.",
 }
 
 // Stack labels shared below (one spelling per ecosystem: goconst-quiet
@@ -143,9 +201,69 @@ const (
 	stackJVM      = "Java/Kotlin"
 	stackFlutter  = "Flutter"
 	stackDotnet   = "C#/.NET"
+	stackZig      = "Zig"
 	scopePatterns = "patterns"
 	scopeTemplate = "template"
+	// scopeGoStdlib is the third answer shape: the template does not apply.
+	// Two conditions produce it, distinguished by `reason`:
+	//   reasonStdlibOnly  — a Go need whose own constraint forbids dependencies
+	//   reasonNotCheckout — --dir points at something that is not a gogogo tree
+	// Both mean "the capability table is useless here", but they call for
+	// different next steps, so they share the scope and split on Reason.
+	scopeGoStdlib = "go-standards"
+
+	reasonStdlibOnly  = "stdlib-only"
+	reasonNotCheckout = "not-a-gogogo-checkout"
+
+	// treeUnknown / treeNotCheckout / treeCheckout are the three values of the
+	// `tree` field, so a reader can always tell whether a path was examined.
+	treeUnknown     = ""
+	treeNotCheckout = "not-a-gogogo-checkout"
+	treeCheckout    = "gogogo-checkout"
 )
+
+// stdlibSignals are the constraints that make the template unusable for a Go
+// need. They are the counterpart of stackSignals: that one detects "this is
+// not Go at all", this one detects "this is Go, but not this template".
+//
+// Every entry must be checkable from the need's own wording — no inference
+// about the reader's intent — because the answer changes shape based on it.
+var stdlibSignals = []string{
+	"stdlib", "standard library", "std only",
+	"no dependencies", "no dependency", "no deps", "no external",
+	"dependency-free", "dependency free", "zero deps", "zero dependencies",
+	"single binary", "single executable", "single file",
+	"no packages", "no third-party", "no third party", "pure go", "vanilla go",
+}
+
+// wantsStdlibOnly reports whether need constrains itself to the standard
+// library (so nothing in the capability table can be used).
+//
+// Multi-word signals are matched as substrings of the normalized need, not as
+// tokens: "no dependencies" tokenizes to [no dependencies] and would never
+// match either word alone, while "dependency-free" splits on the hyphen.
+func wantsStdlibOnly(need string) bool {
+	words := needWords(need)
+	for _, s := range stdlibSignals {
+		if strings.Contains(s, " ") || strings.Contains(s, "-") {
+			if strings.Contains(needWordsJoined(need), s) {
+				return true
+			}
+			continue
+		}
+		if wordHit(words, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// needWordsJoined is need lowercased and whitespace-normalized, so a
+// multi-word signal can be found as a substring without a tokenizer that
+// would split it apart (needWords drops separators entirely).
+func needWordsJoined(need string) string {
+	return strings.Join(needWords(need), " ")
+}
 
 // stackSignal is one ordered detection rule: dotted substrings first
 // (tokenizing splits "next.js" apart), then whole words. Slice order is
@@ -198,6 +316,12 @@ var stackSignals = []stackSignal{
 	{"", "dart", stackFlutter},
 	{"", "dotnet", stackDotnet},
 	{"", "csharp", stackDotnet},
+	// Zig is this repo's documented escape hatch (docs/native-zig.md), so a
+	// Zig need is explicitly NOT a Go need. Without this signal "Zig, zero
+	// dependencies" fell through to the Go scopes and answered about the
+	// gogogo template.
+	{"", "zig", stackZig},
+	{"", "ziglang", stackZig},
 }
 
 // goSignals keep template-scoped answers when the need names Go
