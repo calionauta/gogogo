@@ -47,6 +47,60 @@ slow" and each cost real wall-clock. Check these before optimizing anything:
 
 Each of these was found by asking "why is this slow", not by reading the code.
 
+### Production pacing that tests sleep through
+
+The largest cost in this suite was not a harness bug at all — it was
+**demonstration pacing in production code that every test then waited out**. A
+delay added so a human can watch the UI (`"visible pace"`, `"so the user can
+SEE the retry"`) is invisible to a test, which only asserts the ORDER of events.
+Four such delays cost ~20s of suite wall-clock for zero coverage:
+
+| Delay | Purpose | Now |
+|---|---|---|
+| `retryDemoInitialDelay` 1500ms | stepper lights up one step at a time | `(*TodoHandler).SetRetryDemoDelay` |
+| `simulatedResponseDelay` 1500ms | the "got suggestions" toast lands *after* the "retrying…" one | `llm.NewSimulatedWithDelay` |
+| `Queue.RetryConfig` 2s→4s | producer-visible backoff | `Queue.SetRetry` |
+| `sseAbsenceWindow` 6s | "no record event leaked onto the hub" | 500ms (the leak path is in-process and synchronous) |
+
+**The rule:** a delay that exists for a human must be injectable — a
+`Set…Delay`/`With…Delay` seam with the production default unchanged — and the
+test fixture dials it down. Do not "fix" a slow test by shortening the
+constant: that changes what the demo does. And do not let a test assert the gap,
+then the seam is not a cheat but the only honest encoding of intent (assert
+order/eventually).
+
+Two corollaries the same investigation produced:
+
+- **A fixed `time.Sleep` before an assertion is almost always a poll in
+  disguise.** "Give subscriptions a beat to settle" (500ms) and "wait for
+delivery" (1s) are event waits; the event arrives in milliseconds on an
+  in-process broker. Poll for the condition with a deadline and the fast path
+  costs one slice. Keep a sleep ONLY when the assertion is an ABSENCE.
+- **Anything expensive and identical per test belongs in `TestMain`.**
+  `TestCrossSessionCreatePropagates` ran `go build ./cmd/web` per call (~8.5s)
+  for a binary shared by several tests.
+
+### `t.Parallel()` is the biggest single lever — audit before adding it
+
+Parallelizing `features/todo` (59 tests) took 42s → 17.7s: each test builds its
+own PocketBase + SQLite + goqite fixture (~660ms, of which ~490ms is PB's own
+`Bootstrap`), so the package's wall-clock was ~50 payings of a per-test fixed
+cost. Before adding `t.Parallel()` to a package, verify all three:
+
+- **no `t.Setenv`** anywhere in it (the testing package panics: "test using
+  t.Setenv … can not use t.Parallel");
+- **no shared package global** written per test;
+- **no shared connection/server singleton.** This one is easy to miss:
+  `internal/nats`' `StartEmbedded` assigns the package globals
+  `NS/NC/JS = nil, nil, nil` and `Stop()` clears them, so two parallel tests
+  race (the detector points at `embedded.go`). `features/store/crdtstore`
+  shares one embedded NATS connection, and parallel tests tear it out from under
+  each other ("add stream: nats: connection closed"). Both need a per-test
+  handle before they can parallelize.
+
+Do not add `t.Parallel()` to make a package look faster if it then fails: a new
+red under `-race` is a finding about the production code, not about the tests.
+
 ## SQLite timeouts: the flake that looks like noise
 
 The integration tests hit a real SQLite file, and SQLite serializes writers. Its

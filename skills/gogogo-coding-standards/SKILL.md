@@ -56,6 +56,8 @@ Full runbook: `references/go-perf.md`.
 Full strategy: `references/go-testing.md`.
 
 - Always `go test -race ./...` scoped; `make ci-local-fast` while iterating (changed packages only), full `make ci-local` (= CI) before push, `make signoff` stamps.
+- **A delay that exists for a HUMAN must be injectable, and a test must assert an event, not a gap.** Demonstration pacing (`"visible pace"`, 1.5s retry gaps, 2s retry backoff) is invisible to a test; leaving it hard-coded cost this suite ~20s. Expose `Set…Delay`/`With…Delay`, keep the production default, dial it down in the fixture. A fixed `time.Sleep` before an assertion is usually a poll in disguise — poll with a deadline; keep the sleep only for an ABSENCE check.
+- `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like PocketBase are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
