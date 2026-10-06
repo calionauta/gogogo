@@ -6,5 +6,4 @@ package components
 import (
 	_ "github.com/calionauta/gogogo/web/skins/basecoat"
 	_ "github.com/calionauta/gogogo/web/skins/daisyui"
-	_ "github.com/calionauta/gogogo/web/skins/morpheus"
 )

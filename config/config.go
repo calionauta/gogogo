@@ -33,7 +33,7 @@
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
 //	ENTITY_STORE         (default: "pb") — todo persistence strategy
 //	                       (see features/store/store.go)
-//	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui", "basecoat", "morpheus"
+//	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui" or "basecoat"
 //	                       (see web/skins/)
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──
@@ -176,8 +176,8 @@ type Config struct {
 	EntityStore string
 
 	// Skin selects the active UI skin. Default "daisyui" (the template's
-	// core theme). Other options: "basecoat" (shadcn-style) and "morpheus"
-	// (web components, pre-alpha). The skin is resolved at runtime by the
+	// core theme). Other option: "basecoat" (shadcn-style, community-
+	// supported — see docs/ui-skins.md). The skin is resolved at runtime by the
 	// skin dispatcher in web/skins/. All skins are compiled into the
 	// binary; there is no build-tag selection.
 	Skin string

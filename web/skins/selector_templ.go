@@ -12,7 +12,7 @@ import templruntime "github.com/a-h/templ/runtime"
 // It appears in the navbar and shows the current skin with a list
 // of available ones. Clicking a skin navigates to ?skin=<name>.
 // Uses inline styles with explicit fallback colors so it renders
-// correctly on every skin (daisyui, basecoat, morpheus) without
+// correctly on every skin (daisyui, basecoat) without
 // depending on any skin's CSS variables.
 func SkinSelector(current string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

@@ -26,7 +26,6 @@ import (
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
-	morpheus "github.com/calionauta/gogogo/web/skins/morpheus"
 
 	// basecoat skin imported via features/todo/components/skin_imports.go
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
@@ -48,7 +47,7 @@ const (
 // (handleList, handleListFragment, patchTodoListWithSelfOrigin) that
 // must morph #todo-list with HTML matching the skin the client is
 // currently rendering — without this, every filter click / mutation
-// swapped morpheus rows for DaisyUI rows (the bug behind CAL-14).
+// swapped basecoat rows for DaisyUI rows (the bug behind CAL-14).
 func (h *TodoHandler) resolveSkin(c *core.RequestEvent) string {
 	skinName := h.cfg.Skin
 	if c != nil && c.Request != nil {
@@ -57,7 +56,7 @@ func (h *TodoHandler) resolveSkin(c *core.RequestEvent) string {
 		}
 	}
 	switch skinName {
-	case SkinMorpheus, SkinBasecoat:
+	case SkinBasecoat:
 		return skinName
 	default:
 		return "daisyui"
@@ -344,16 +343,6 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 	// Dispatch to skin-specific template.
 	// DaisyUI uses the shared components.Layout.
 	// BasecoatUI uses its own template with shadcn-style HTML.
-	// Morpheus uses a web component layout (neo.*).
-	if skinName == SkinMorpheus {
-		return morpheus.TodoPage(
-			"Todos — gogogo",
-			signals, userEmail,
-			h.cfg.BuildLabel, h.cfg.BuildCommit,
-			h.cfg.OfflineSync.Enabled,
-			skinName,
-		).Render(c.Request.Context(), c.Response)
-	}
 	if skinName == SkinBasecoat {
 		return basecoat.TodoPage(
 			"Todos — gogogo",

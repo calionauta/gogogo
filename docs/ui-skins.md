@@ -1,29 +1,40 @@
 # UI skins
 
-Every page ships with a runtime-switchable UI skin. Three skins are compiled
-into the same binary; the active one is chosen per process via env, per request
-via query string, or interactively via the `SkinSelector` widget in the navbar.
+Every page ships with a runtime-switchable UI skin. Two skins are compiled into
+the same binary; the active one is chosen per process via env, per request via
+query string, or interactively via the `SkinSelector` widget in the navbar.
 
 | Skin | What it is | CSS / JS |
 |------|-----------|----------|
 | **DaisyUI** (default) | The reference UI. Server-rendered DaisyUI v5 components over TailwindCSS, morph-friendly with Datastar | `app.min.css` |
 | **Basecoat** | [BasecoatUI](https://basecoatui.com) (a shadcn-style component lib) with shadcn-inspired OKLCH `@theme inline` color tokens, native Basecoat JS runtime (`basecoat.initAll`) debounced via `requestAnimationFrame` for Datastar DOM morphing | `basecoat.min.css` + `basecoat.min.js` |
-| **[Morpheus](https://github.com/romshark/morpheus)** | Vendorized web-components bundle (SHA-pinned, `web/skins/morpheus/VENDOR_SHA`) that gives the todo demo a different visual treatment without DaisyUI | `morpheus/bundle.js` + theme CSS |
 
-> **⚠️ Basecoat and Morpheus are community-supported.** DaisyUI (the default) is
-> the polished, battle-tested skin that gets the most development attention.
-> Basecoat and Morpheus integrate correctly but may have rough edges in their
-> current state — CSS alignment nuances, missing component states (disabled,
-> focus, error), and less extensive Datastar morph testing.
+> **⚠️ Basecoat is community-supported.** DaisyUI (the default) is the polished,
+> battle-tested skin that gets the most development attention. Basecoat
+> integrates correctly but is the secondary skin: it is developed against a
+> third-party component library, so its class vocabulary is mapped onto the
+> shared templates rather than being the origin of them.
 >
 > **Contributions are welcome.** Every skin is a self-contained directory under
 > `web/skins/<name>/` — changes are scoped and safe.
+>
+> Both bundles are built from the same scan roots (`features/`, `web/`,
+> `internal/`), so a utility class that resolves under one skin resolves under
+> the other. The per-skin work is confined to class *vocabulary*: Basecoat has no
+> `.steps`, no `data-variant="accent"`, and no DaisyUI semantic colours, so the
+> skins differ in markup where the component model differs.
+>
+> A third skin (Morpheus, a web-components kit) shipped from v0.24.0 and was
+> removed: its upstream was a two-month-old alpha and its layout classes
+> (`cal14-grid`, `neo-tab-active`) had no CSS anywhere, so it rendered broken
+> rather than merely differently. The changelog entry records the full list of
+> what was deleted.
 
-## Three ways to switch
+## Two ways to switch
 
 1. **Env var (process-wide).** `UI_SKIN=basecoat ./gogogo`
    switches the active skin for the lifetime of the binary.
-2. **Query string (per request).** Append `?skin=morpheus` to any route; the
+2. **Query string (per request).** Append `?skin=basecoat` to any route; the
    skin dispatcher reads it and renders that skin's assets without restart.
 3. **Interactive selector.** The navbar exposes a `SkinSelector` that updates a
    query param and reloads.
@@ -35,7 +46,7 @@ registered at init time via blank imports in
 `features/todo/components/skin_imports.go`. The dispatcher falls back to
 DaisyUI when the env value is unknown, logging a warning.
 
-**Adding a fourth skin:** create `web/skins/<name>/`, register it from the
+**Adding a third skin:** create `web/skins/<name>/`, register it from the
 import file, add a `make css-<name>` target. See
 `web/skins/daisyui/skin.go` for the minimal reference implementation — assets
 only, no Templ templates (those stay in the feature).
@@ -46,8 +57,6 @@ only, no Templ templates (those stay in the feature).
 src/css/input.css          →  tailwindcss v4 CLI  →  web/resources/static/app.min.css        (DaisyUI bundle)
 src/css/basecoat-input.css →  tailwindcss v4 CLI  →  web/resources/static/basecoat.min.css  (Basecoat bundle)
                                                               │
-                              web/skins/morpheus/static/bundle.js                          (Morpheus, vendorized, SHA-pinned)
-                                                              │
                                                         //go:embed in the Go binary
 ```
 
@@ -56,8 +65,6 @@ make css         # DaisyUI (default)
 make css-basecoat # Basecoat
 make css-all     # every skin
 ```
-
-Morpheus ships vendorized and needs no rebuild.
 
 > Editing a `.templ` without `make templ && make css` leaves
 > `web/resources/static/app.min.css` stale. The pre-commit hook regenerates

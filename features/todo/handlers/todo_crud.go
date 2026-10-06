@@ -50,11 +50,10 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 	// the active-tab class and the visible rows update in lockstep.
 	//
 	// The list region must match the skin the client is currently
-	// rendering — a morpheus client must receive morpheus rows so the
-	// neo-checkbox / neo-button custom elements stay in their upgraded
-	// state across the morph. Dispatching here (instead of always
-	// returning the DaisyUI component) is what stops filter clicks from
-	// breaking the morpheus skin (CAL-14).
+	// rendering — a basecoat client must receive basecoat rows so the row
+	// markup stays in its upgraded state across the morph. Dispatching here
+	// (instead of always returning the DaisyUI component) is what stops
+	// filter clicks from breaking the basecoat skin (CAL-14).
 	skinName := h.resolveSkin(c)
 	signals := todo.Signals{
 		Todos: todos, Filter: filter, ItemCount: len(todos),
@@ -135,7 +134,7 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 //
 // skinName must match the skin the originating client is currently
 // rendering so the morph-patched rows match the surrounding chrome.
-// Without it a morpheus client receives DaisyUI rows after every
+// Without it a basecoat client receives DaisyUI rows after every
 // mutation (CAL-14).
 func (h *TodoHandler) patchTodoListWithSelfOrigin(
 	sse *sdk.ServerSentEventGenerator, todos []todo.Todo, skinName string,

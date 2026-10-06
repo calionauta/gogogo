@@ -67,7 +67,7 @@ Optional capabilities with UI must degrade through **signals, never 404s**:
 the tab/button/hint renders only when a `todo.Signals` bool is true, and
 that bool is registration truth (`config enabled && handler wired`), not
 config truth. Precedents: `DagNatsEnabled` (tab + container + empty-state
-hints across all three skins), `LLMEnabled` (AI tab). When you add a
+hints across every skin), `LLMEnabled` (AI tab). When you add a
 removable capability with UI: add the signal, gate every skin, record it
 as `UISignal` in `internal/capabilities` — the conformance test fails if
 the field or a `.templ` reader goes missing.

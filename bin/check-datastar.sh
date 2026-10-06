@@ -11,7 +11,7 @@
 # Exit code: datastar-lint exits 1 when a finding is an ERROR (e.g. a missing
 # PatchElements selector, or an UNKNOWN_ATTR_TYPO). Warnings do not block, and
 # this repo has ~100 of them from attributes that are intentional by design
-# (Morpheus `data-neo-*`, cuelume `data-cuelume-*`, `data-variant`) — so
+# (cuelume `data-cuelume-*`, `data-variant`, `data-on:*`) — so
 # `-only-errors` keeps every blocking check while staying quiet. Adding those to
 # .datastar-lint.yaml instead would silence a real typo of the same shape.
 set -uo pipefail

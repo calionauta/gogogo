@@ -7,7 +7,7 @@ teaches is visible here first — copy this shape when you add your own feature.
 
 - Full CRUD via PocketBase.
 - Reactive frontend with Datastar + the active skin (DaisyUI by default;
-  BasecoatUI / Morpheus switchable — see [UI skins](ui-skins.md)).
+  BasecoatUI switchable — see [UI skins](ui-skins.md)).
 - **Database actions stream through PocketBase realtime.** Todo
   `create`/`toggle`/`delete` fire PocketBase record events; each subscribed
   client re-fetches the fragment and morphs `#todo-list`. Delivery is per-user

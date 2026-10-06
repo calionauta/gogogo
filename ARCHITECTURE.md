@@ -66,7 +66,7 @@ These are the **plumbing layers**. Each is independently replaceable.
 | **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 PLUGIN | Imported by handlers | Replace with your own SSE rendering |
 | **Secrets** (age) | `internal/secrets/` | 🔴 CORE | `secrets.Load(appName)` in `config.Load()` | Remove call; env vars work without it |
 | **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | `llm.New(apiKey)` in `server.Run()` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
-| **UI skins** (pluggable) | `web/skins/` (`daisyui`, `basecoat`, `morpheus`) | 🟡 PLUGIN | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
+| **UI skins** (pluggable) | `web/skins/` (`daisyui`, `basecoat`) | 🟡 PLUGIN | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
 
 > **🔴 CORE** = keep or replace the whole stack.  
 > **🟡 PLUGIN** = you could remove it and still serve pages, but lose cross-instance broadcast, async jobs, etc.  
@@ -173,11 +173,10 @@ The same UI is rendered through one of three pluggable skins, compiled into the 
 |------|---------|-----------|------------|
 | **DaisyUI** (default) | `web/skins/daisyui/` | DaisyUI v5 components over TailwindCSS; morph-friendly with Datastar | `src/css/input.css` → `app.min.css` |
 | **Basecoat** | `web/skins/basecoat/` | BasecoatUI (shadcn-style) with shadcn-inspired OKLCH `@theme inline` tokens; native Basecoat JS runtime (`basecoat.initAll`) debounced via `requestAnimationFrame` for Datastar DOM morphing | `src/css/basecoat-input.css` → `basecoat.min.css` + `basecoat.min.js` |
-| **Morpheus** | `web/skins/morpheus/` | Vendorized web-components bundle (SHA-pinned, `VENDOR_SHA`); gives the todo demo a different visual treatment without DaisyUI | `morpheus/bundle.js` + `morpheus.css` + `theme-default.css` |
 
 **Plugin contract** (`web/skins/skin.go`). Every skin is a `Skin{Name, Assets}` value registered at init time via blank imports in `features/todo/components/skin_imports.go`. The dispatcher falls back to DaisyUI when the env value is unknown, logging a warning. Adding a fourth skin is: create `web/skins/<name>/`, register it from the import file, add a `make css-<name>` Makefile target.
 
-**Skin-aware SSE patches.** Morpheus uses web components, not DaisyUI; some fragments need to render with the matching skin's HTML (e.g. morpheus todo cards). The skin dispatcher threads the active skin name into the SSE patch so `MergeSignals` + `RenderAndPatch` produce skin-correct markup. See `web/skins/morpheus/todo_morpheus.templ`.
+**Skin-aware SSE patches.** Some fragments must render with the matching skin's HTML (e.g. Basecoat todo cards). The skin dispatcher threads the active skin name into the SSE patch so `MergeSignals` + `RenderAndPatch` produce skin-correct markup. See `web/skins/basecoat/todo_basecoat.templ`.
 
 **Removal.** Delete `web/skins/`, drop the blank imports in `features/todo/components/skin_imports.go`, drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered.
 
@@ -250,8 +249,8 @@ internal/                  Infrastructure
   secrets/                   age-decrypted secrets loader
 router/router.go            Route wiring (central dependency graph)
 web/
-  resources/static/          Embedded JS/CSS assets (app.min.css, basecoat.min.css, morpheus/, sw.js, theme.js)
-  skins/                     Pluggable UI skin registry (daisyui + basecoat + morpheus) 🟡 PLUGIN
+  resources/static/          Embedded JS/CSS assets (app.min.css, basecoat.min.css, sw.js, theme.js)
+  skins/                     Pluggable UI skin registry (daisyui + basecoat) 🟡 PLUGIN
 ```
 
 ### Routing notes

@@ -46,7 +46,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 
 **Frontend**
 - [todo-example](docs/todo-example.md) — the Todo reference implementation and the contract to imitate.
-- [ui-skins](docs/ui-skins.md) — pluggable DaisyUI / Basecoat / Morpheus skins and the plugin contract.
+- [ui-skins](docs/ui-skins.md) — pluggable DaisyUI / Basecoat skins and the plugin contract.
 - [ui-sounds](docs/ui-sounds.md) — vendored cuelume sound feedback and its accessibility contract.
 
 **Ship**
@@ -117,7 +117,7 @@ dependencies and are left alone.
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([native-zig](docs/native-zig.md)) |
 | **Zero-config database, auth and API** | [PocketBase](https://pocketbase.io) (embedded SQLite) | Zero-config auth, REST, file storage, and an admin UI at `/_/` — no separate service |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
-| **Three UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) + [Morpheus](https://github.com/romshark/morpheus) | Three skins compiled into one binary, switchable at runtime |
+| **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser. No Redis |
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
 | **Shared state that merges offline edits** | [Loro CRDT](https://github.com/aholstenson/loro-go) + [Rough.js](https://roughjs.com) | Conflict-free state with no last-write-wins data loss |

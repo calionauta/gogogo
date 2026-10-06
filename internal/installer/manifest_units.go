@@ -179,7 +179,6 @@ const routerGoFile = "router/router.go"
 // skins-extra is trimmed.
 const (
 	skinBasecoatImport = `web/skins/basecoat"`
-	skinMorpheusImport = `web/skins/morpheus"`
 	soundsImportSuffix = `features/sounds"`
 )
 
@@ -323,26 +322,21 @@ var manifestUnits = []trimUnit{
 		extraDrops: []fileDrop{
 			{
 				path:    "features/todo/components/skin_imports.go",
-				substrs: []string{skinBasecoatImport, skinMorpheusImport},
+				substrs: []string{skinBasecoatImport},
 			},
 			{
 				path:    todoGoFile,
-				substrs: []string{skinBasecoatImport, skinMorpheusImport},
+				substrs: []string{skinBasecoatImport},
 			},
 			{
 				path:    todoRepoFile,
-				substrs: []string{skinBasecoatImport, skinMorpheusImport},
+				substrs: []string{skinBasecoatImport},
 			},
 		},
 		extraStrips: []fileStrip{
 			{
 				path: todoGoFile,
 				rules: []stripRule{
-					{
-						startMarker:       "\tif skinName == SkinMorpheus {",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
-					},
 					{
 						startMarker:       "\tif skinName == SkinBasecoat {",
 						endIsClosingBrace: true,
@@ -353,10 +347,6 @@ var manifestUnits = []trimUnit{
 			{
 				path: todoRepoFile,
 				rules: []stripRule{
-					{
-						startMarker: "\tcase SkinMorpheus:",
-						endMarker:   "return morpheus.TodoListRegion(signals)",
-					},
 					{
 						startMarker: "\tcase SkinBasecoat:",
 						endMarker:   "return basecoat.TodoListRegion(signals)",

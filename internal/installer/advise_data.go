@@ -115,9 +115,12 @@ var adviseRules = []string{
 		"npx skills add calionauta/gogogo): Go idioms plus the concurrency, " +
 		"testing and profiling deltas this template holds itself to. " +
 		"Universal principles (KISS/DRY/YAGNI, sizes) are delegated to " +
-		"stelow-workflow-coding-standards — a pointer, not a runtime " +
-		"dependency. Audit new deps with `go mod why` + `govulncheck ./...` " +
-		"before adding.",
+		"stelow-workflow-coding-standards, which is vendored into the skill " +
+		"tree (skills/stelow-workflow-coding-standards/) and pinned to an " +
+		"upstream commit in its UPSTREAM_SHA — vendored rather than linked " +
+		"because a skill's references/ only resolve as relative paths to a " +
+		"locally present skill. Audit new deps with `go mod why` + " +
+		"`govulncheck ./...` before adding.",
 }
 
 // foreignRules replace the template rules when the need names a non-Go
@@ -150,8 +153,8 @@ var stdlibRules = []string{
 		"Testing sections, and stelow-workflow-coding-standards for the " +
 		"universal principles (KISS/DRY/YAGNI, 50/400 sizes; Go override " +
 		"100/500). Install either with `npx skills add calionauta/gogogo` " +
-		"— the skill is self-contained, and its delegation to stelow is a " +
-		"pointer, not a runtime dependency.",
+		"— both skills ship in the repo, stelow vendored under " +
+		"skills/stelow-workflow-coding-standards/.",
 	"Still true without the template: `strconv` over `fmt` on hot paths, " +
 		"`log/slog` over `log`, errors wrapped with `%w` at the call site, " +
 		"`go test -race`, and no goroutine without an owner, an exit and a " +
@@ -174,7 +177,8 @@ var notCheckoutRules = []string{
 		"to). The parts that apply without the template are " +
 		"references/go-concurrency-deltas.md and the Core Go Rules and Testing " +
 		"sections; universal principles (KISS/DRY/YAGNI, sizes) are delegated " +
-		"to stelow-workflow-coding-standards.",
+		"to stelow-workflow-coding-standards, which ships vendored in the " +
+		"repo under skills/stelow-workflow-coding-standards/.",
 	"To adopt ONE capability in an existing project, read its dirs/files (given " +
 		"per capability in the registry) and copy the pattern — `add` only " +
 		"merges into a scaffolded checkout.",

@@ -129,7 +129,7 @@ live in `.templ` markup rather than Go:
   stays local.
 
 The lint runs with `-only-errors` in CI so intentional custom attributes (the
-Morpheus skin's `data-neo-*` attributes, for example) do not fail the gate.
+cuelume's `data-cuelume-*` attributes, for example) do not fail the gate.
 Add genuinely intentional attributes to `.datastar-lint.yaml` under
 `attributes.allowed`.
 

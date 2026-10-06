@@ -235,11 +235,9 @@ func (h *TodoHandler) refreshTodoListPatch(sse *sdk.ServerSentEventGenerator, c 
 	// connection's URL — every client opening an SSE stream is
 	// expected to forward their current `?skin=` query param so the
 	// broadcast HTML matches the chrome they're rendering
-	// (morpheus.TodoListRegion for morpheus clients, basecoat for
-	// basecoat, components for DaisyUI). The morpheus and basecoat
-	// page templates already do this; without it the broadcast
-	// would replace the client's rows with mismatched HTML on
-	// every remote mutation (CAL-14).
+	// (basecoat.TodoListRegion for basecoat clients, components for
+	// DaisyUI). Without it the broadcast would replace the client's rows
+	// with mismatched HTML on every remote mutation (CAL-14).
 	todos, err := h.listTodos(c, "all")
 	if err != nil {
 		if errors.Is(err, ErrNoOwner) {

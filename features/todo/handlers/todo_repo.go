@@ -14,7 +14,6 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/features/todo/components"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
-	morpheus "github.com/calionauta/gogogo/web/skins/morpheus"
 )
 
 // ErrNoOwner is returned by RequireOwner when the request carries no
@@ -101,12 +100,12 @@ func (h *TodoHandler) countOwnedTodos(c *core.RequestEvent) (int, error) {
 }
 
 // renderTodoList builds the SSE-friendly HTML for the list region,
-// dispatching to the skin-specific list template so a morpheus (or
-// basecoat) client receives morpheus (or basecoat) HTML on every
-// patch — not the default DaisyUI rows. Without this, filter clicks
-// and CRUD mutations replace the morpheus card / neo-checkbox rows
-// with DaisyUI rows that no longer match the surrounding morpheus
-// chrome (CAL-14). Falls back to the shared DaisyUI component when
+// dispatching to the skin-specific list template so a basecoat
+// client receives basecoat HTML on every patch — not the default
+// DaisyUI rows. Without this, filter clicks and CRUD mutations
+// replace the basecoat card rows with DaisyUI rows that no longer
+// match the surrounding basecoat chrome (CAL-14). Falls back to the
+// shared DaisyUI component when
 // the skin is unrecognised so old behaviour is preserved for
 // anything we haven't taught about yet.
 func (h *TodoHandler) renderTodoList(todos []todo.Todo, skinName string) templ.Component {
@@ -123,8 +122,6 @@ func (h *TodoHandler) renderTodoList(todos []todo.Todo, skinName string) templ.C
 // template dispatch.
 func (h *TodoHandler) renderTodoListRegion(signals todo.Signals, skinName string) templ.Component {
 	switch skinName {
-	case SkinMorpheus:
-		return morpheus.TodoListRegion(signals)
 	case SkinBasecoat:
 		return basecoat.TodoListRegion(signals)
 	default:

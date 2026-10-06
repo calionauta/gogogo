@@ -208,7 +208,6 @@ func TestStripSkinsExtraDropsBlankImports(t *testing.T) {
 	give := "import (\n" +
 		"\t_ \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
 		"\t_ \"github.com/calionauta/gogogo/web/skins/daisyui\"\n" +
-		"\t_ \"github.com/calionauta/gogogo/web/skins/morpheus\"\n" +
 		")\n"
 	p := filepath.Join(compDir, "skin_imports.go")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
@@ -219,7 +218,7 @@ func TestStripSkinsExtraDropsBlankImports(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _ := os.ReadFile(p)
-	if strings.Contains(string(out), "basecoat") || strings.Contains(string(out), "morpheus") {
+	if strings.Contains(string(out), "basecoat") {
 		t.Errorf("skin blank imports survived trim:\n%s", out)
 	}
 	if !strings.Contains(string(out), "daisyui") {
@@ -316,19 +315,13 @@ func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	todoGive := "import (\n" +
-		"\tmorpheus \"github.com/calionauta/gogogo/web/skins/morpheus\"\n" +
 		"\tbasecoat \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
 		")\n" +
-		"\tif skinName == SkinMorpheus {\n" +
-		"\t\treturn morpheus.TodoPage(signals).Render(ctx, w)\n" +
-		"\t}\n" +
 		"\tif skinName == SkinBasecoat {\n" +
 		"\t\treturn basecoat.TodoPage(signals).Render(ctx, w)\n" +
 		"\t}\n" +
 		"\treturn components.Layout(signals).Render(ctx, w)\n"
 	repoGive := "\tswitch skinName {\n" +
-		"\tcase SkinMorpheus:\n" +
-		"\t\treturn morpheus.TodoListRegion(signals)\n" +
 		"\tcase SkinBasecoat:\n" +
 		"\t\treturn basecoat.TodoListRegion(signals)\n" +
 		"\tdefault:\n" +
@@ -347,7 +340,7 @@ func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	todoOut, _ := os.ReadFile(todoPath)
-	for _, dead := range []string{"morpheus", "basecoat", "SkinMorpheus", "SkinBasecoat"} {
+	for _, dead := range []string{"basecoat", "SkinBasecoat"} {
 		if strings.Contains(string(todoOut), dead) {
 			t.Errorf("todo.go still references %q after trim:\n%s", dead, todoOut)
 		}
@@ -356,7 +349,7 @@ func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 		t.Errorf("daisyui default was wrongly removed:\n%s", todoOut)
 	}
 	repoOut, _ := os.ReadFile(repoPath)
-	for _, dead := range []string{"morpheus", "basecoat"} {
+	for _, dead := range []string{"basecoat"} {
 		if strings.Contains(string(repoOut), dead) {
 			t.Errorf("todo_repo.go still references %q after trim:\n%s", dead, repoOut)
 		}

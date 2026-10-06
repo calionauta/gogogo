@@ -224,18 +224,17 @@ var All = []Capability{
 	{
 		ID:         "skins",
 		Kind:       KindPlugin,
-		Summary:    "pluggable UI skins (DaisyUI + Basecoat + Morpheus)",
+		Summary:    "pluggable UI skins (DaisyUI + Basecoat)",
 		RuntimeOff: "UI_SKIN=daisyui (runtime selection IS the off switch)",
 		Offered:    true,
-		Dirs:       []string{"web/skins/basecoat", "web/skins/morpheus"},
+		Dirs:       []string{"web/skins/basecoat"},
 		Warns: []string{
-			"?skin=basecoat|morpheus will fall back to DaisyUI " +
-				"with a warning log.",
+			"?skin=basecoat will fall back to DaisyUI with a " +
+				"warning log.",
 			"Static bundles stay embedded but unreferenced " +
-				"(web/resources/static/basecoat.min.*, " +
-				"web/resources/static/morpheus/): delete them with the " +
-				"`css-basecoat` Makefile target when css-check is green " +
-				"without them.",
+				"(web/resources/static/basecoat.min.*): delete them with " +
+				"the `css-basecoat` Makefile target when css-check is " +
+				"green without them.",
 		},
 		Note: "DaisyUI stays registered so the dispatcher fallback never fires.",
 	},

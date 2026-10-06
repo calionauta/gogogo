@@ -190,7 +190,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   // CAL-34 regression guard: the SW postMessage bridge in
   // internal/components/offline_banner.templ dispatches the event as
   // `gogogo:queued` (Datastar event-namespace separator is the colon).
-  // The morpheus + basecoat skins previously listened for
+  // The basecoat skin previously listened for
   // `gogogo__queued` (double underscore) — a typo that left $loading
   // stuck true after an offline add, blocking every follow-up submit.
   // Catch that here by asserting the rendered attribute uses the
@@ -223,7 +223,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     await titleInput.fill(title);
     // Submit via Enter on the input — works for every skin regardless
     // of whether the Add trigger is a native <button> (DaisyUI/Basecoat)
-    // or a <neo-button> web component (Morpheus). Clicking the neo-button
+    // or a data-variant button. Clicking the row button
     // doesn't always dispatch a native form-submit event in headless
     // Chromium, which is fine for users (they click too) but breaks the
     // headless harness; Enter on the input bypasses the question.
@@ -245,7 +245,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     }
 
     await context.setOffline(false);
-    // Row class differs per skin (DaisyUI/Morpheus use .todo-item, Basecoat
+    // Row class differs per skin (DaisyUI uses .todo-item, Basecoat
     // uses .item); every skin uses id="todo-<id>" for the row, and the
     // container is #todo-list (which itself starts with "todo-"). Scope by
     // id prefix, exclude the list container, and narrow by text for the
@@ -254,9 +254,9 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
       .locator('[id^="todo-"]:not(#todo-list)')
       .filter({ hasText: title });
     await row.waitFor({ state: "visible", timeout: 20000 });
-    // Wait for replay to drain the IndexedDB queue. The morpheus
+    // Wait for replay to drain the IndexedDB queue. The basecoat
     // skin's SSE patch is structurally different from the SW's
-    // optimistic row (DaisyUI-classed div vs. neo-button row), so the
+    // optimistic row (DaisyUI-classed div vs. basecoat row), so the
     // data-pending swap that DaisyUI gets is unreliable across skins.
     // The pending-count drain is the single source of truth for
     // "the server accepted the replay".
@@ -314,7 +314,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // Queue a delete offline too, then prove it replays and the UI converges.
     // The delete-confirm dialog auto-open behaviour varies per skin:
     //   - DaisyUI: the row button calls .showModal() inline.
-    //   - Basecoat/Morpheus: the row button only sets $confirmingDeleteId;
+    //   - Basecoat: the row button only sets $confirmingDeleteId;
     //     the dialog's open/close wiring is skin-specific. Keep this part
     //     of the sweep daisyui-only so the harness stays decoupled from
     //     pre-existing skin-specific dialog wiring; the CAL-34 contract
@@ -328,13 +328,12 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // The delete-button shape varies per skin:
     //   - DaisyUI: button[title="Delete todo"] (no aria-label)
     //   - Basecoat: button[aria-label="Delete"]
-    //   - Morpheus: neo-button[data-neo-dialog-trigger="confirm-delete-modal"]
     // The row locator above already targets the right row (filtered by
     // text), so scope the click to that row and match any of the three
     // shapes. The confirm-modal "Delete" button lives inside the
     // dialog, so scoping to the row keeps the locator unambiguous.
     await row.locator(
-      'button[aria-label*="Delete"], button[title*="Delete"], neo-button[data-neo-dialog-trigger="confirm-delete-modal"]',
+      'button[aria-label*="Delete"], button[title*="Delete"]',
     ).first().click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Delete", exact: true }).click();
@@ -558,7 +557,7 @@ try {
   // Each skin has its own `.templ`, and a typo in the offline-reset
   // listener (data-on:gogogo:queued__window vs. gogogo__queued) used
   // to slip through because the harness only covered daisyui.
-  const offlineSkins = ["daisyui", "basecoat", "morpheus"];
+  const offlineSkins = ["daisyui", "basecoat"];
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
     await verifySingleOnlineTodoSubmit(page, skin);

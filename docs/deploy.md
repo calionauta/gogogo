@@ -154,8 +154,6 @@ no JS runtime, and no CDN.
 src/css/input.css          →  tailwindcss v4 CLI  →  web/resources/static/app.min.css        (DaisyUI)
 src/css/basecoat-input.css →  tailwindcss v4 CLI  →  web/resources/static/basecoat.min.css  (Basecoat)
                                                               │
-                              web/skins/morpheus/static/bundle.js                          (Morpheus, vendorized)
-                                                              │
                                                         //go:embed in the Go binary
 ```
 

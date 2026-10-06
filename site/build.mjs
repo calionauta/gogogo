@@ -52,7 +52,7 @@ const MANIFEST = [
   { group: "Frontend", slug: "todo-example", file: "todo-example.md",
     desc: "The Todo reference implementation and the contract to imitate." },
   { group: "Frontend", slug: "ui-skins", file: "ui-skins.md",
-    desc: "Pluggable DaisyUI / Basecoat / Morpheus skins and the plugin contract." },
+    desc: "Pluggable DaisyUI / Basecoat skins and the plugin contract." },
   { group: "Frontend", slug: "ui-sounds", file: "ui-sounds.md",
     desc: "Vendored cuelume sound feedback and its accessibility contract." },
   { group: "Ship", slug: "deploy", file: "deploy.md",

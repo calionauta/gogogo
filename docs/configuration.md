@@ -28,7 +28,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `UI_SKIN` | `daisyui` | Active UI skin: `daisyui`, `basecoat`, or `morpheus`. Can also be overridden per request with `?skin=`. Unknown values fall back to DaisyUI with a warning. |
+| `UI_SKIN` | `daisyui` | Active UI skin: `daisyui` or `basecoat`. Can also be overridden per request with `?skin=`. Unknown values fall back to DaisyUI with a warning. |
 
 ### Realtime and workflows
 

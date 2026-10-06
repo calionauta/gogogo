@@ -102,7 +102,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `config-view` | `features/config/` | Drop 1 call line + `cfgfeature` import; navbar Config link stripped |
 | `credits` | `features/credits/`, `router/credits.go` | Drop 1 call line (`wireCredits`); drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
-| `skins-extra` | `web/skins/basecoat/`, `web/skins/morpheus/` | Blank imports dropped from `features/todo/components/skin_imports.go`; morpheus/basecoat dispatch branches + imports stripped from `features/todo/handlers/todo.go` + `todo_repo.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; static bundles stay embedded (manual follow-up with the `css-basecoat` target) |
+| `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch branch + import stripped from `features/todo/handlers/todo.go` + `todo_repo.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`

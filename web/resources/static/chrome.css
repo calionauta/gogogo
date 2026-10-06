@@ -1,6 +1,6 @@
 /* chrome.css — skin-agnostic top bar, user dropdown and transport banner.
    Loaded for EVERY skin (via auth.ThemeHead). Uses neutral class names so it
-   does not collide with DaisyUI/morpheus/basecoat and needs no Tailwind build.
+   does not collide with DaisyUI/basecoat and needs no Tailwind build.
    Dropdown/menu open via :hover / :focus-within — no JS dependency. */
 
 .app-nav {
