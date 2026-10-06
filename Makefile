@@ -95,13 +95,22 @@ test-fast:
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
 # v5). Idempotent. Run once after cloning; CI calls this in the
 # Docker build stage so contributors don't need to.
+#
+# It does NOT trust a bare `node_modules` directory. A stale tree (cloned
+# from an older lockfile, or left by an earlier session) has a DIFFERENT
+# Tailwind/DaisyUI version than package-lock.json, so `make css` emits a
+# bundle that differs from the committed one and `css-check` fails with no
+# source change — a false alarm that reads as "the repo is broken". Compare
+# the installed versions against the lockfile and reinstall on mismatch;
+# without this, correctness of the whole CSS gate depends on a one-time
+# manual `npm ci` nobody remembers to run.
 css-install:
-	@if [ ! -d node_modules ]; then \
-		echo "→ Installing CSS build dependencies (tailwindcss v4 + daisyui v5)..."; \
+	@if ! node -e 'const fs=require("fs");const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));const want=n=>lock.packages["node_modules/"+n]?.version;let bad=[];for(const n of ["tailwindcss","@tailwindcss/cli","daisyui"]){const w=want(n);let g;try{g=JSON.parse(fs.readFileSync("node_modules/"+n+"/package.json","utf8")).version}catch{}if(w&&g!==w)bad.push(n+" "+(g||"absent")+" -> "+w)}process.exit(bad.length?1:0)' 2>/dev/null; then \
+		echo "→ CSS deps missing or stale vs package-lock.json — installing (npm ci)..."; \
 		npm ci --silent; \
 		echo "  ✓ installed"; \
 	else \
-		echo "  ✓ node_modules present — skipping npm ci (run \`make css-install\` to force a clean reinstall)"; \
+		echo "  ✓ CSS deps match package-lock.json"; \
 	fi
 
 # css runs the Tailwind v4 CLI to build web/resources/static/app.min.css
