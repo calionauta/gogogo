@@ -51,6 +51,15 @@ import (
 // working directory, and a stray `package fixture` file inside this package
 // would break the build.
 //
+// KEEP THESE SUBTESTS SERIAL. Measured on the shared 8 GB host this repo is
+// developed on: the suite peaks at ~300 MB RSS and ~15s wall, which is one
+// golangci-lint invocation at a time (the subtest loop has no t.Parallel, and
+// each fixture's own cache is ~0.1 MB on disk). Adding t.Parallel here would run
+// N lints concurrently and multiply that: seven fixtures is ~2 GB of transient
+// RSS, on a box that also runs production. The serial loop is a deliberate
+// budget, not an oversight — if this ever needs to be faster, reduce the number
+// of fixtures rather than parallelising them.
+//
 // A missing `golangci-lint` SKIPS rather than fails, so `go test ./...` stays
 // usable where only the compiled binary runs. The rule is still guarded where
 // it matters: CI installs golangci-lint, and so does the pre-commit hook.
