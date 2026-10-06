@@ -47,6 +47,32 @@ slow" and each cost real wall-clock. Check these before optimizing anything:
 
 Each of these was found by asking "why is this slow", not by reading the code.
 
+### An assertion that can never fail is worse than no assertion
+
+Before optimizing a slow test, **prove the test is capable of failing.** A
+negative/absence assertion whose predicate matches a string that never reaches
+the wire is green forever — and it reads as coverage, so it survives review and
+hides the regression it was written for.
+
+```go
+// blind at ANY window: the hub path translates the event away before it is sent
+recordEvent := func(s string) bool {
+	return strings.Contains(s, `"event":"created"`)   // never on the wire
+}
+```
+
+`TestTodoRecordsNotBroadcastViaHub` had exactly this: `streamTodo` decodes
+`{event,id}` and emits a signals patch plus a full-list `#todo-list`
+replacement, so the raw event string is never sent. Re-introducing the removed
+`hub.Broadcast(...)` left it green at both a 6s and a 500ms window. Assert the
+**wire symptom** (`lastItemSource:"remote"`, or the `#todo-list` patch) and it
+fails in 1.5s.
+
+The cheap version of this check, whenever you write or touch a negative
+assertion: **inject the thing the test forbids, and confirm it fails.** If you
+cannot make it fail, it is not a test. Note this cuts the other way too — a
+shortened window will be blamed first when the real defect is the predicate.
+
 ### Production pacing that tests sleep through
 
 The largest cost in this suite was not a harness bug at all — it was

@@ -38,6 +38,7 @@ Full table: `references/go-concurrency-deltas.md`.
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
 - Every long `select` has `<-ctx.Done()`. No `time.After` in hot loops (`NewTimer` + `Reset`).
+- **No bare `time.Sleep` in production code — it cannot be cancelled.** A sleep on a retry/backoff path blocks its goroutine through shutdown, and it is also unauditable latency in front of a user. `select` on `ctx.Done()` vs `time.After`/`time.NewTimer` instead; a `ticker` loop selects on `ctx.Done()`. This is not theoretical: `internal/nats`'s exported service globals were the same class of shortcut, and `time.Sleep(time.Second)` on the queue worker's error path is real code today (`internal/queue/workers.go`).
 - Mutex zero value, unexported `mu`, short sections, never across I/O. Counters/flags: typed `atomic.*`.
 - Writes into a tree you don't fully control: `os.Root` (`os.OpenRoot`), not a lexical path check — a planted symlink defeats `filepath.Join` + `HasPrefix`. See `internal/installer/tree.go`.
 - Tests: `goleak` for leaks (never `runtime.NumGoroutine()`), `synctest.Test`/`Wait`/`Sleep` for timers. Prod leaks: `goroutineleak` pprof (GA 1.27), not a test substitute.
@@ -57,6 +58,7 @@ Full strategy: `references/go-testing.md`.
 
 - Always `go test -race ./...` scoped; `make ci-local-fast` while iterating (changed packages only), full `make ci-local` (= CI) before push, `make signoff` stamps.
 - **A delay that exists for a HUMAN must be injectable, and a test must assert an event, not a gap.** Demonstration pacing (`"visible pace"`, 1.5s retry gaps, 2s retry backoff) is invisible to a test; leaving it hard-coded cost this suite ~20s. Expose `Set…Delay`/`With…Delay`, keep the production default, dial it down in the fixture. A fixed `time.Sleep` before an assertion is usually a poll in disguise — poll with a deadline; keep the sleep only for an ABSENCE check.
+- **Prove a negative assertion can fail before trusting it.** Inject the thing it forbids and confirm it goes red; a predicate matching a string the wire never carries is green forever and was already found once (`broadcast_probe_test.go`).
 - `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like PocketBase are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
@@ -209,7 +211,7 @@ warnings print and exit 0.
 | File | What |
 |---|---|
 | `references/go-concurrency-deltas.md` | wg.Go, errgroup, channels, timers, goleak/synctest/goroutineleak |
-| `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate |
+| `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate, demonstration-delay latency |
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, PB strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
 | `references/zig-gate.md` | bans, decision, pin policy, what to vendor and when |
