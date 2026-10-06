@@ -24,7 +24,6 @@ on:
       - "LICENSE"
       - ".stelow/**"
       - ".gitignore"
-      - "rules/**"
       # rules/rules.go carries `//go:build ruleguard`, so it reaches only
       # golangci-lint — the desktop build uses plain `go build` and never
       # compiles it. Same reasoning as the deploy filter; measured there that a
