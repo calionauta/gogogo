@@ -145,7 +145,7 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	proj := t.TempDir()
 	src := "\tdefer shutdown()\n" +
 		"\n" +
-		"\tstartDagNats(cfg, pb, todoH)\n" +
+		"\tstartDagNats(lifecycleCtx, cfg, pb, todoH)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
 		"\tjs := startNATS(cfg)\n" +
@@ -179,7 +179,7 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	}
 	out, _ := os.ReadFile(filepath.Join(proj, "cmd", "web", "main.go"))
 	text := string(out)
-	boot := strings.Index(text, "startDagNats(cfg, pb, todoH)")
+	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, pb, todoH)")
 	nats := strings.Index(text, "js := startNATS(cfg)")
 	strap := strings.Index(text, "ensureTriggerBootstrap()")
 	phase2 := strings.Index(text, "// Phase 2: wire the CRDTStore")

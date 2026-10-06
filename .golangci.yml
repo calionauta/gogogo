@@ -32,10 +32,28 @@ linters:
     - prealloc        # slice declarations that could be pre-allocated
     - fatcontext      # nested context.With* inside loops/function literals
     - usestdlibvars   # use stdlib constants (http.MethodGet, time.RFC3339, ...)
+    - forbidigo       # no bare time.Sleep in production code (see settings below)
     # Note: stylecheck's ST* analyzers are bundled into `staticcheck` in
     # golangci-lint v2, so enabling staticcheck (above) already covers
     # them. `gofumpt` is a formatter, configured under `formatters:` below.
   settings:
+    forbidigo:
+      # A bare time.Sleep in production is uncancellable: it holds its goroutine
+      # (and any wg.Wait draining it at shutdown) for its full duration. Three
+      # real sites shipped this way — the queue worker's receive-error backoff
+      # (1s, on every failing worker, delaying Stop()), the onboarding-greet
+      # demo pause, and that pause's own retry loop. All three became
+      # `select { ctx.Done(); timer.C }` waits. The rule now keeps a fourth from
+      # being written: needing an uninterruptible pause in production is itself
+      # the smell this catches.
+      #
+      # Tests are exempt (see exclusions): asserting on a fixed window is
+      # sometimes the only way to express "this must NOT happen".
+      forbid:
+        - pattern: 'time\.Sleep'
+          msg: "time.Sleep is uncancellable — it holds its goroutine through shutdown. Wait on a context instead: select { case <-ctx.Done(): ; case <-timer.C: }. See internal/queue/workers.go waitCtx."
+      analyze-types: true
+      exclude-godoc-examples: true
     errcheck:
       check-type-assertions: true
       check-blank: false    # blank identifier (_ = expr()) is idiomatic Go for intentional error discard
@@ -185,6 +203,11 @@ linters:
       - path: _test\.go
         linters:
           - bodyclose
+      # forbidigo is a PRODUCTION rule (uncancellable sleeps). Tests legitimately
+      # sleep to assert absence, to pace a fixture, or to let a watcher catch up.
+      - path: _test\.go
+        linters:
+          - forbidigo
 formatters:
   enable:
     - gofumpt

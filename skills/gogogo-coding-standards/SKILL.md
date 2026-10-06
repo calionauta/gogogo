@@ -39,7 +39,8 @@ Full table: `references/go-concurrency-deltas.md`.
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
 - Every long `select` has `<-ctx.Done()`. No `time.After` in hot loops (`NewTimer` + `Reset`).
-- **No bare `time.Sleep` in production code — it cannot be cancelled.** A sleep on a retry/backoff path blocks its goroutine through shutdown, and it is also unauditable latency in front of a user. `select` on `ctx.Done()` vs `time.After`/`time.NewTimer` instead; a `ticker` loop selects on `ctx.Done()`. This is not theoretical: `internal/nats`'s exported service globals were the same class of shortcut, and `time.Sleep(time.Second)` on the queue worker's error path is real code today (`internal/queue/workers.go`).
+- **No bare `time.Sleep` in production code — it cannot be cancelled.** A sleep on a retry/backoff path blocks its goroutine through shutdown, and it is also unauditable latency in front of a user. `select` on `ctx.Done()` vs `time.After`/`time.NewTimer` instead; a `ticker` loop selects on `ctx.Done()`. Three real sites shipped this way (the queue worker's 1s receive-error backoff, the onboarding-greet pause and its register retry loop) and all three are now context waits. **`forbidigo` enforces this** (`.golangci.yml`, tests exempt) — so a new bare sleep fails CI rather than appearing in review.
+  - **Careful with the context you reach for.** A step/handler context supplied by a third-party engine is often trace-only: DagNats builds `TaskContext.Context()` from the message's trace headers, i.e. from `context.Background()`, so it is never cancelled on shutdown. Join it with your own lifecycle context (`context.AfterFunc`) rather than assuming it cancels. Check the constructor, not the parameter name.
 - Mutex zero value, unexported `mu`, short sections, never across I/O. Counters/flags: typed `atomic.*`.
 - Writes into a tree you don't fully control: `os.Root` (`os.OpenRoot`), not a lexical path check — a planted symlink defeats `filepath.Join` + `HasPrefix`. See `internal/installer/tree.go`.
 - Tests: `goleak` for leaks (never `runtime.NumGoroutine()`), `synctest.Test`/`Wait`/`Sleep` for timers. Prod leaks: `goroutineleak` pprof (GA 1.27), not a test substitute.
@@ -97,6 +98,7 @@ Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative)
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
 | Tests | `go test -race <pkgs>`; full `make ci-local`; stamp `make signoff` |
 | Vuln/deadcode | pre-push `govulncheck`, `deadcode -test` |
+| Uninterruptible waits | `forbidigo` (no `time.Sleep` in production; tests exempt) |
 | Deps | `go mod tidy && git diff --exit-code go.mod go.sum`; audit adds with `go mod why` |
 
 ### Working with the linters (three layers, in the order they fire)

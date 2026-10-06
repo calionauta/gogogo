@@ -22,6 +22,7 @@
 //	DAGNATS_ENABLED     (default: true)  — enable DagNats workflows
 //	DAGNATS_HTTP_ADDR   (default: "127.0.0.1:8090")
 //	DAGNATS_NATS_PORT   (default: 4222)
+//	DAGNATS_GREET_PACING (default: 1500ms) — onboarding-greet demo pause
 //	DAGNATS_TRIGGER_BOOTSTRAP (default: true) — workaround for an upstream
 //	                    DagNats v0.0.24 bug; see internal/dagnats/trigger_bootstrap.go.
 //	                    Set false to disable once upstream is fixed.
@@ -136,6 +137,19 @@ type Config struct {
 		// field, and the call site in cmd/web/dagnats.go. See
 		// docs/dagnats-bootstrap-workaround.md.
 		TriggerBootstrap bool
+
+		// GreetPacing is how long the onboarding-greet step pauses before
+		// completing. Its ONLY purpose is human-visible pacing: the onboarding
+		// stepper advances one step at a time, and a greet that returns
+		// instantly makes the "greeting" phase flash by unread.
+		//
+		// It is therefore product latency, not a neutral demo detail — it sits
+		// in front of every real onboarding run. Configured rather than
+		// hard-coded so a slow device, an automated run, or a test can dial it
+		// down without editing production code (tests substitute their own
+		// handler, but the knob documents the intent). Default 1500ms, or
+		// DAGNATS_GREET_PACING to override (e.g. "0s", "250ms").
+		GreetPacing time.Duration
 	}
 
 	// OfflineSync controls the hybrid offline-sync-online strategy.
@@ -265,6 +279,7 @@ func Load() *Config {
 	cfg.DagNats.NATSPort = envInt("DAGNATS_NATS_PORT", defaultDagNatsNATSPort)
 	cfg.DagNats.StoreDir = getEnv("DAGNATS_STORE_DIR", "data/dagnats")
 	cfg.DagNats.TriggerBootstrap = envBool("DAGNATS_TRIGGER_BOOTSTRAP", true)
+	cfg.DagNats.GreetPacing = envDuration("DAGNATS_GREET_PACING", defaultGreetPacing)
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
@@ -354,9 +369,29 @@ func envInt(key string, def int) int {
 	return n
 }
 
+// envDuration reads a duration env var ("250ms", "2s"), falling back to def
+// when unset or unparseable. A non-positive override is treated as unset:
+// zero would silently delete intentional pacing rather than tune it.
+func envDuration(key string, def time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return def
+	}
+	return d
+}
+
 // defaultDagNatsNATSPort is the conventional NATS port the DagNats engine
 // owns. The realtime broadcaster connects here (single-NATS convention).
 const defaultDagNatsNATSPort = 4222
+
+// defaultGreetPacing is the onboarding-greet pause. It exists purely so a human
+// watching the stepper can read the "greeting" phase; see DagNats.GreetPacing.
+// Long enough to be perceptible, short enough not to feel sluggish.
+const defaultGreetPacing = 1500 * time.Millisecond
 
 // defaultAppName falls back to the binary name when APP_NAME is unset
 // so the secrets file scope tracks whatever the project owner actually

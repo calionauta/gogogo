@@ -1,6 +1,7 @@
 package capabilities
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -211,5 +212,104 @@ func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exac
 		if !ok || !c.Offered {
 			t.Errorf("capability %q must exist and be offered", id)
 		}
+	}
+}
+
+// TestRegistryCoversDagnatsImports is the guard for a trim that leaves a
+// dangling import.
+//
+// Trimming a unit deletes its Dirs and Files. If a file that imports one of
+// those packages is NOT listed, it survives the trim and the proof build fails
+// with `module .../internal/dagnats: not found` — which is exactly what
+// happened: onboarding_lifecycle_test.go imports internal/dagnats but was
+// missing from the dagnats unit's Files, breaking `gogogo --trim dagnats`.
+//
+// The check is narrow and mechanical: for each unit owning a dir, no file that
+// imports that dir's package may live outside the unit's Files. It is scoped to
+// internal/dagnats today because that is the only dir whose package is imported
+// by files that a trim does not obviously own; widening it needs the import
+// graph, not a substring scan.
+func TestRegistryCoversDagnatsImports(t *testing.T) {
+	t.Parallel()
+
+	root := repoRoot(t)
+	rootFS, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rootFS.Close() }()
+
+	// The one package that trim units delete wholesale.
+	const pkgDir = "internal/dagnats"
+	const importPath = "github.com/calionauta/gogogo/internal/dagnats"
+
+	// This test file necessarily names the import path to do its job; it is not
+	// part of the shipped tree the trim proof builds.
+	self := "internal/capabilities/capabilities_test.go"
+
+	// The unit individual what owns pkgDir, and the set of files it deletes.
+	var owned map[string]bool
+	for _, c := range All {
+		if !slices.Contains(c.Dirs, pkgDir) {
+			continue
+		}
+		owned = make(map[string]bool, len(c.Files))
+		for _, f := range c.Files {
+			owned[f] = true
+		}
+	}
+	if owned == nil {
+		t.Fatalf("no capability owns %s — the dagnats unit changed shape", pkgDir)
+	}
+
+	// Scan the trees a trimmed checkout keeps: the unit's own imports can
+	// appear anywhere in cmd/, features/, internal/ or router/.
+	var offenders []string
+	for _, tree := range []string{"cmd", "features", "internal", "router"} {
+		walkErr := filepath.WalkDir(filepath.Join(root, tree), func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(path, ".go") {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			if strings.HasPrefix(rel, pkgDir+"/") {
+				return nil // the package itself goes with the unit
+			}
+			// root-scoped read (os.Root), not os.ReadFile(path): the skill
+			// requires os.OpenRoot for a walk into a tree not fully under our
+			// control, and gosec G122 flags the race-prone form.
+			f, openErr := rootFS.Open(rel)
+			if openErr != nil {
+				return openErr
+			}
+			body, readErr := io.ReadAll(f)
+			_ = f.Close()
+			if readErr != nil {
+				return readErr
+			}
+			if rel == self {
+				return nil
+			}
+			if strings.Contains(string(body), `"`+importPath+`"`) && !owned[rel] {
+				offenders = append(offenders, rel)
+			}
+			return nil
+		})
+		if walkErr != nil {
+			t.Fatal(walkErr)
+		}
+	}
+
+	if len(offenders) > 0 {
+		t.Errorf("%s is trimmed by a unit, but these files import it and are NOT "+
+			"in that unit's Files — trimming leaves a dangling import and fails the "+
+			"proof build:\n  %s",
+			pkgDir, strings.Join(offenders, "\n  "))
 	}
 }

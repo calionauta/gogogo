@@ -89,10 +89,16 @@ func run() error {
 	}
 	defer shutdown()
 
+	// lifecycleCtx bounds background boot work (workflow registration, DagNats
+	// watchdogs) to the process lifetime: a shutdown cancels it, so a retry loop
+	// stops promptly instead of burning its own timeouts.
+	lifecycleCtx, stopLifecycle := context.WithCancel(context.Background())
+	defer stopLifecycle()
+
 	// DagNats owns the embedded NATS on :4222 and must boot first so the
 	// realtime broadcaster can attach to it. It's always compiled; when
 	// DAGNATS_ENABLED=false it no-ops.
-	startDagNats(cfg, pb, todoH)
+	startDagNats(lifecycleCtx, cfg, pb, todoH)
 	defer shutdownDagNats()
 
 	js := startNATS(cfg)

@@ -167,7 +167,7 @@ func buildAdvise(need string) adviseDoc {
 	}
 	doc := adviseDoc{
 		Scope: scopeTemplate, Rules: adviseRules,
-		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>"); return &n }(),
+		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>", nil); return &n }(),
 	}
 	for _, c := range capabilities.All {
 		ac := adviseCap{

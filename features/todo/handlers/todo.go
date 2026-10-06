@@ -8,6 +8,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -167,9 +168,9 @@ func (h *TodoHandler) SetLLMMeter(m llm.Biller) {
 // DagNats onboarding worker (no-op when DAGNATS_ENABLED=false).
 // owner MUST be non-empty — saveTodo rejects "" fail-fast. Same
 // validation/save path as handleCreate, so rows render identically.
-func (h *TodoHandler) CreateTodoForOnboarding(title, owner string) error {
+func (h *TodoHandler) CreateTodoForOnboarding(ctx context.Context, title, owner string) error {
 	item := &todo.Todo{Title: title, Completed: false}
-	return h.saveTodo(nil, item, owner, "")
+	return h.saveTodoCtx(ctx, item, owner, "")
 }
 
 // llmEnabled reports whether the AI suggest pathway is live. Used

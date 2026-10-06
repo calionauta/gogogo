@@ -131,7 +131,7 @@ func buildFixtureDagNats(t *testing.T) (
 		if text == "" {
 			text = "Onboarding task"
 		}
-		if createErr := h.CreateTodoForOnboarding(text, input.User); createErr != nil {
+		if createErr := h.CreateTodoForOnboarding(ctx.Context(), text, input.User); createErr != nil {
 			return ctx.Fail(createErr)
 		}
 		out, marshalErr := json.Marshal(input)

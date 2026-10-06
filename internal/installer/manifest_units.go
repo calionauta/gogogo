@@ -194,9 +194,14 @@ var manifestUnits = []trimUnit{
 		},
 		mainStrips: []stripRule{
 			{
-				startMarker: "startDagNats(cfg, pb, todoH)",
+				startMarker: "startDagNats(lifecycleCtx, cfg, pb, todoH)",
 				endMarker:   "defer shutdownDagNats()",
 				addAfter:    mainCallsAnchor,
+				// The lifecycle context exists ONLY to bound DagNats boot work,
+				// so removing the engine leaves its declaration unused and the
+				// build fails on `declared and not used: lifecycleCtx`. Drop the
+				// declaration and its defer with the call they exist for.
+				alsoDeleteContains: []string{"lifecycleCtx, stopLifecycle :=", "defer stopLifecycle()"},
 			},
 			{
 				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",

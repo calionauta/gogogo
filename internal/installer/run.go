@@ -248,7 +248,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := prove(ctx, opt.dir, drop, stdout); err != nil {
 		return err
 	}
-	printNextSteps(stdout, opt.dir)
+	printNextSteps(stdout, opt.dir, drop)
 	if opt.run {
 		return handoff(opt.dir, stdout)
 	}
@@ -268,28 +268,6 @@ type nextSteps struct {
 	Login string `json:"login"`
 	Admin string `json:"admin"`
 	Flows string `json:"workflows"`
-}
-
-func buildNextSteps(dir string) nextSteps {
-	return nextSteps{
-		Dir:   dir,
-		Dev:   "cd " + dir + " && make dev",
-		App:   "http://localhost:8080 (PORT overrides)",
-		Todo:  "http://localhost:8080/todo",
-		Login: "demo@demo.app / demo1234456 (prefilled on the sign-in form)",
-		Admin: "http://localhost:8080/_/ (PocketBase — create the superuser on first visit)",
-		Flows: "http://localhost:8080/dagnats/ (DagNats console)",
-	}
-}
-
-func printNextSteps(w io.Writer, dir string) {
-	n := buildNextSteps(dir)
-	fmt.Fprintln(w, "gogogo: done — next:")
-	fmt.Fprintf(w, "  %s\n", n.Dev)
-	fmt.Fprintf(w, "  app:       %s\n", n.App)
-	fmt.Fprintf(w, "  login:     %s\n", n.Login)
-	fmt.Fprintf(w, "  admin:     %s\n", n.Admin)
-	fmt.Fprintf(w, "  workflows: %s\n", n.Flows)
 }
 
 // applyAndProveJSON is the machine-readable apply path: one envelope at
@@ -313,7 +291,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	}
 	defer func() { _ = devNull.Close() }()
 	proveErr := prove(ctx, opt.dir, drop, devNull)
-	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir)}
+	env := envelope{Plan: plan, Receipt: *rc, BuildOk: proveErr == nil, Next: buildNextSteps(opt.dir, drop)}
 	if proveErr != nil {
 		env.BuildErr = proveErr.Error()
 	}

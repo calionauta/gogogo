@@ -268,7 +268,7 @@ func TestStripDagnatsMainKeepsTodoHWired(t *testing.T) {
 	give := "\tdefer shutdown()\n" +
 		"\n" +
 		"\t// DagNats owns the embedded NATS on :4222 and must boot first.\n" +
-		"\tstartDagNats(cfg, pb, todoH)\n" +
+		"\tstartDagNats(lifecycleCtx, cfg, pb, todoH)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
 		"\tjs := startNATS(cfg)\n"
