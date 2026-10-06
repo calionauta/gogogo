@@ -42,6 +42,7 @@ approach had a deeper issue.**
 | Command | What it checks |
 |---|---|
 | `make lint` | `go vet` + `golangci-lint` (33 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
+| `make lint-safe` | Host-aware lint: sizes the run to free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Prefer over `make lint` on a shared host. |
 | `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
 | `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → golangci-lint → race tests → build |
@@ -61,6 +62,13 @@ packages you touched. Always scope:
 ```bash
 golangci-lint run ./features/todo/... ./router/...
 ```
+
+On a host that also runs other work (agents, production, a co-tenant daemon),
+use `make lint-safe` instead. It measures free RAM and cores at run time, runs
+the full repo only when there is headroom, otherwise scopes to the changed
+packages, and caps the run in a cgroup. It also **never** runs
+`golangci-lint cache clean` — the cache is what keeps a run cheap, and a cold
+run re-type-checks the whole module and spikes memory.
 
 ## Custom rules (ruleguard)
 
@@ -91,15 +99,17 @@ Adding a rule:
   linter. Verify a new rule against the real tree (`golangci-lint run ./...`)
   before committing it.
 
-Full-repo lint is reserved for `make lint` and `make ci-local`.
+Full-repo lint is reserved for `make lint` and `make ci-local`; on a
+memory-tight host prefer `make lint-safe`, which decides full vs scoped from
+the machine's free RAM.
 
 ## Git hooks
 
 The lefthook hooks (`make setup`) run `gofumpt`, `goimports`, `datastar-lint`, a
-CSS staleness check, `go mod tidy`, the SCOPE annotation linter, and
-`golangci-lint` on every commit — so formatting and lint violations never reach
-the remote. Jobs are glob-filtered (only run when matching files are staged) and
-executed in parallel.
+CSS staleness check, `go mod tidy`, the SCOPE annotation linter, and a
+host-aware `golangci-lint` (`scripts/lint-safe.sh`) on every commit — so
+formatting and lint violations never reach the remote. Jobs are glob-filtered
+(only run when matching files are staged) and executed in parallel.
 
 Run **`make signoff`** for the full gate before pushing. See
 [Local CI](local-ci.md) for the tier ladder and why it beats waiting on remote
