@@ -23,6 +23,13 @@ pre-commit:
     - name: mod-tidy
       run: bin/check-mod-tidy.sh
 
+    # install.sh is the first thing a new user runs and it manipulates PATH;
+    # it had no coverage at all. This guards the one contract that breaks
+    # silently: never plant a `go` entry in $BIN_DIR (it shadows system Go).
+    - name: install-sh
+      run: bin/check-install-sh.sh
+      glob: "install.sh"
+
     - name: scope-lint
       run: go run ./cmd/check-scope
       glob: "{internal,features}/**/*.go"

@@ -234,7 +234,9 @@ Destructive paths refuse without explicit confirmation (`--yes` /
 No Go on this machine? Tagged releases ship static binaries (`gogogo` +
 `gogogo-mcp`, checksummed) — and `install.sh` bootstraps a user-space Go
 toolchain when none is found (`~/.local/go`, no sudo, existing installs
-untouched). Same one-liner as the quick start above (it is the quick
+untouched). It does not symlink `go` into `~/.local/bin`: that directory is on
+your PATH, so the link would win over a system Go. It exports
+`~/.local/go/bin` for the install and prints the line to persist it. Same one-liner as the quick start above (it is the quick
 start — append anything after `--run` and it reaches `gogogo`):
 
 ## Before you push

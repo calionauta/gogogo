@@ -59,6 +59,13 @@ jobs:
           /usr/local/go/bin/go version
       - name: Generate templ
         run: go tool templ generate
+      - name: Check install.sh bootstrap contract
+        # install.sh is the first thing a new user runs and manipulates PATH.
+        # Guards that it never plants a `go` entry in $BIN_DIR (which would
+        # shadow a system Go) and that the bootstrapped toolchain is reachable.
+        # Cheap (grep + sh -n), so it stays at the top of the cheap fail-fast
+        # block.
+        run: bin/check-install-sh.sh
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope

@@ -82,12 +82,26 @@ esac
 # Go bootstrap: the scaffold proof (tidy+build) and `make dev` need a
 # toolchain, so a Go-less machine would stall right after install.
 # Present installs are never touched; only a missing `go` triggers a
-# user-space toolchain (rustup-style, ~/.local/go + a $BIN_DIR symlink,
-# so the same PATH export covers both).
+# user-space toolchain (rustup-style, into $GO_DIR).
+#
+# The toolchain is deliberately NOT symlinked into $BIN_DIR as `go`. $BIN_DIR
+# is on PATH by design (the two binaries live there), so a `go` symlink would
+# make `command -v go` resolve to the bootstrapped toolchain for the whole
+# shell — shadowing a system Go (e.g. /usr/local/go, installed later) and, in
+# a directory that may be shared, looking like the CLI itself. The toolchain
+# is instead reachable where the ecosystem already looks for it:
+#   - $GO_DIR/bin on PATH for an auto-updating shell (the export below and
+#     the README's);
+#   - $HOME/go/bin, which the toolchain's own default GOBIN/install target
+#     puts on PATH in ~/.profile via the `go env -w`-era convention.
+# An explicit PATH line beats a shadowing symlink: nothing else changes
+# meaning, and a later system Go stays authoritative.
 if [ "${SKIP_GO_BOOTSTRAP:-0}" != "1" ] && ! command -v go >/dev/null 2>&1; then
   GO_DIR="${GO_DIR:-$HOME/.local/go}"
+  bootstrapped_go=""
   if [ -x "$GO_DIR/bin/go" ]; then
     echo "go: using existing user-space toolchain at $GO_DIR"
+    bootstrapped_go="$GO_DIR/bin/go"
   else
     GO_VERSION="$(curl -sSfL 'https://go.dev/dl/?mode=json' |
       grep -o '"version": *"go[0-9][0-9.]*"' | head -n 1 |
@@ -102,8 +116,22 @@ if [ "${SKIP_GO_BOOTSTRAP:-0}" != "1" ] && ! command -v go >/dev/null 2>&1; then
     tar -xzf "$TMP/go.tgz" -C "$TMP"
     rm -rf "$GO_DIR"
     mv "$TMP/go" "$GO_DIR"
-    ln -sf "$GO_DIR/bin/go" "$BIN_DIR/go"
-    echo "go: bootstrapped $($BIN_DIR/go version) (symlinked at $BIN_DIR/go)"
+    bootstrapped_go="$GO_DIR/bin/go"
+    echo "go: bootstrapped $("$bootstrapped_go" version)"
+  fi
+
+  # Put it on THIS process's PATH, so a non-interactive `gogogo ...` exec
+  # (and --run's child, and `make dev`'s) can find it. Check reachability
+  # BEFORE prepending, or the check is trivially true.
+  already_on_path=0
+  case ":$PATH:" in
+    *":$GO_DIR/bin:"*) already_on_path=1 ;;
+  esac
+  PATH="$GO_DIR/bin:$PATH"
+  export PATH
+  if [ "$already_on_path" = "0" ]; then
+    echo "go: for future shells, add the toolchain once:"
+    echo "      echo 'export PATH=\"$GO_DIR/bin:\$PATH\"' >> ~/.profile   # or your shell rc"
   fi
 fi
 

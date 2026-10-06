@@ -196,6 +196,9 @@ It is the only command you need on day one.
 - **Via binary (`install.sh`): curl + git.** The script bootstraps a
   user-space Go toolchain (`~/.local/go`, no sudo, existing installs
   untouched) when none is found — or install from https://go.dev/dl/.
+  It never links `go` into `~/.local/bin` (that directory is on your PATH, so
+  the link would shadow a system Go); it puts `~/.local/go/bin` on PATH for the
+  install itself and prints the one line to add to your shell.
 
 Either way the installer verifies tools before touching anything and fails
 fast with the exact install command when something is missing. `make setup` (optional
