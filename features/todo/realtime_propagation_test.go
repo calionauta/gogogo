@@ -62,6 +62,7 @@ func freeTCPPort() (int, error) {
 // early-returns when no durable run is active, so the test stays focused
 // on the realtime fan-out that regressed.
 func TestCrossSessionCreatePropagates(t *testing.T) {
+	t.Parallel()
 	base, cleanup := bootLiveServer(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -167,6 +168,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 // arrived. This runs on the custom-router fixture (no realtime needed) so
 // it is fast and a stable unit-level guard.
 func TestCrossSessionFragmentScoped(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -212,6 +214,7 @@ func TestCrossSessionFragmentScoped(t *testing.T) {
 // datastar-selector + datastar-mode headers. If these regress, resync would
 // either no-op (no selector) or blow away the page (whole-document morph).
 func TestRealtimeResyncFragmentMorphHeaders(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -245,6 +248,7 @@ func TestRealtimeResyncFragmentMorphHeaders(t *testing.T) {
 // action expects a context (el/cleanups) only the runtime synthesizes when
 // invoked via an attribute — so the other tab would never update.
 func TestRealtimeResyncWiringRendered(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -305,6 +309,7 @@ func TestRealtimeResyncWiringRendered(t *testing.T) {
 // does NOT contain the orphan })(); — which appears in RealtimeStream's
 // VALID IIFE but would be a syntax error in PbRealtimeRecords.
 func TestRealtimeNoOrphanIIFE(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -379,7 +384,7 @@ func buildLiveServerBinary() (string, error) {
 		return "", err
 	}
 	bin := filepath.Join(dir, "gogogo_live")
-	build := exec.Command("go", "build", "-o", bin, "github.com/calionauta/gogogo/cmd/web")
+	build := exec.CommandContext(context.Background(), "go", "build", "-o", bin, "github.com/calionauta/gogogo/cmd/web")
 	build.Stderr = os.Stderr
 	if out, buildErr := build.Output(); buildErr != nil {
 		return "", fmt.Errorf("go build: %w\n%s", buildErr, out)

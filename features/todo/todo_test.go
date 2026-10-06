@@ -13,6 +13,7 @@ import (
 // --- Retry-Go Configuration Tests ---
 
 func TestDefaultRetryConfig(t *testing.T) {
+	t.Parallel()
 	cfg := queue.DefaultRetryConfig
 	if cfg.Attempts != 3 {
 		t.Fatalf("expected 3 attempts, got %d", cfg.Attempts)
@@ -26,6 +27,7 @@ func TestDefaultRetryConfig(t *testing.T) {
 }
 
 func TestRetrySucceedsOnFirstAttempt(t *testing.T) {
+	t.Parallel()
 	cfg := queue.DefaultRetryConfig
 	attempts := 0
 	err := cfg.DoSilent(context.Background(), func() error {
@@ -41,6 +43,7 @@ func TestRetrySucceedsOnFirstAttempt(t *testing.T) {
 }
 
 func TestRetryFailsAfterAllAttempts(t *testing.T) {
+	t.Parallel()
 	cfg := queue.RetryConfig{
 		Attempts: 2,
 		Delay:    10 * time.Millisecond,
@@ -60,6 +63,7 @@ func TestRetryFailsAfterAllAttempts(t *testing.T) {
 }
 
 func TestRetryRespectsContextCancellation(t *testing.T) {
+	t.Parallel()
 	cfg := queue.RetryConfig{
 		Attempts: 5,
 		Delay:    100 * time.Millisecond,
@@ -77,6 +81,7 @@ func TestRetryRespectsContextCancellation(t *testing.T) {
 }
 
 func TestRetrySupportsSSEFeedback(t *testing.T) {
+	t.Parallel()
 	hub := queue.NewSSEHub()
 	ch := make(chan []byte, 10)
 	hub.Register("test", "", ch)
@@ -116,6 +121,7 @@ func TestRetrySupportsSSEFeedback(t *testing.T) {
 // --- Todo Model Tests ---
 
 func TestTodoModelDefaults(t *testing.T) {
+	t.Parallel()
 	todo := Todo{
 		Title: "Write tests",
 	}
@@ -131,6 +137,7 @@ func TestTodoModelDefaults(t *testing.T) {
 }
 
 func TestSignals(t *testing.T) {
+	t.Parallel()
 	signals := Signals{
 		Todos:     []Todo{{ID: "1", Title: "Test", Completed: false}},
 		Filter:    "all",
@@ -150,6 +157,7 @@ func TestSignals(t *testing.T) {
 // --- HandlerRegistry Tests ---
 
 func TestHandlerRegistryDispatch(t *testing.T) {
+	t.Parallel()
 	reg := queue.NewHandlerRegistry()
 	called := 0
 	reg.Register("ping", func(_ context.Context, _ *queue.SSEHub, _ queue.Job) error {
@@ -172,6 +180,7 @@ func TestHandlerRegistryDispatch(t *testing.T) {
 }
 
 func TestHandlerRegistryDuplicatePanics(t *testing.T) {
+	t.Parallel()
 	reg := queue.NewHandlerRegistry()
 	reg.Register("dup", func(_ context.Context, _ *queue.SSEHub, _ queue.Job) error { return nil })
 	defer func() {
@@ -183,6 +192,7 @@ func TestHandlerRegistryDuplicatePanics(t *testing.T) {
 }
 
 func TestDecodeJobRoundTrip(t *testing.T) {
+	t.Parallel()
 	in := queue.Job{Type: "todo_created", ClientID: "client-42", Payload: []byte(`{"title":"eggs"}`)}
 	body, err := json.Marshal(in)
 	if err != nil {
@@ -198,6 +208,7 @@ func TestDecodeJobRoundTrip(t *testing.T) {
 }
 
 func TestDecodeJobRejectsBadJSON(t *testing.T) {
+	t.Parallel()
 	if _, err := queue.DecodeJob([]byte("not json")); err == nil {
 		t.Fatal("expected error on bad JSON")
 	}

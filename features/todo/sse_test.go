@@ -50,6 +50,7 @@ const sseAbsenceWindow = 500 * time.Millisecond
 // todo immediately (no queue round-trip). Realtime fan-out to other
 // clients is handled by the broadcaster separately.
 func TestIntegration_CreateRendersInList(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := newTestCtx(t)
@@ -283,6 +284,7 @@ func doPostForm(ctx context.Context, client *http.Client, urlStr string, values 
 // Red-proof: revert pumpSSEUntil to the `for time.Now().Before(deadline) {
 // Read }` form and this fails (measured ~15s instead of ~250ms).
 func TestPumpSSEUntil_HonorsDeadlineWhileReadParked(t *testing.T) {
+	t.Parallel()
 	// A body that never produces a byte nor an error: every Read parks until
 	// the deadline fires and pumpSSEUntil closes it.
 	pr, pw := io.Pipe()

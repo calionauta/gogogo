@@ -16,6 +16,7 @@ import (
 // 500 → 200 + delay), and the suggestions stream back over SSE. This
 // exercises the queue + retry + SSE pipeline end to end without a token.
 func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixtureSimulated(t)
 	defer cleanup()
 
@@ -108,6 +109,7 @@ func lastSuggestionsCount(transcript string) int {
 // retry layer streams per-attempt feedback as the fake LLM returns 500 on
 // the first call. This is the narration the user sees in the UI toasts.
 func TestIntegration_SuggestSimulatedShowsRetryFeedback(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixtureSimulated(t)
 	defer cleanup()
 

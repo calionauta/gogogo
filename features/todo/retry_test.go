@@ -72,6 +72,7 @@ func hasRetrySuccess(events []map[string]any) bool {
 // the HTTP → queue → worker → SSE pipeline is wired correctly with
 // exponential backoff + SSE feedback.
 func TestIntegration_RetryFeedbackExercisesSSE(t *testing.T) {
+	t.Parallel()
 	base, q, _, _, cleanup := testFixture(t)
 	defer cleanup()
 
@@ -169,6 +170,7 @@ func sseSignalIntMax(transcript, name string) int {
 // success branch in streamRetry stops firing, demoStep never reaches 3
 // and this test fails instead of shipping the stuck spinner.
 func TestIntegration_RetryDemoCompletesToStepThree(t *testing.T) {
+	t.Parallel()
 	base, q, _, _, cleanup := testFixture(t)
 	defer cleanup()
 

@@ -101,6 +101,7 @@ func firstTodoID(t *testing.T, app core.App, ownerEmail string) string {
 }
 
 func TestIntegration_AnonymousMutationsRedirectToLogin(t *testing.T) {
+	t.Parallel()
 	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 
@@ -150,6 +151,7 @@ func TestIntegration_AnonymousMutationsRedirectToLogin(t *testing.T) {
 }
 
 func TestIntegration_CrossUserMutationIsNotFound(t *testing.T) {
+	t.Parallel()
 	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 
@@ -218,6 +220,7 @@ func TestIntegration_CrossUserMutationIsNotFound(t *testing.T) {
 // todo scope must be EMPTY. Before the fix the stream listed every
 // user's todos unscoped.
 func TestIntegration_AnonymousStreamSeesNoTodos(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 

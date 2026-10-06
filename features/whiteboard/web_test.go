@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -280,15 +281,9 @@ func (s *wbStream) waitFor(budget time.Duration, match func(string) bool) []stri
 	deadline := time.Now().Add(budget)
 	var out []string
 	for time.Now().Before(deadline) {
-		progressed := len(out)
 		out = append(out, s.drain(5*time.Millisecond)...)
-		if len(out) == progressed && len(out) > 0 {
-			// Nothing new this slice; still inside the budget, keep polling.
-		}
-		for _, ev := range out {
-			if match(ev) {
-				return out
-			}
+		if slices.ContainsFunc(out, match) {
+			return out
 		}
 	}
 	return out

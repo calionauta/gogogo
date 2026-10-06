@@ -24,6 +24,7 @@ import (
 // (peer B received the record via the hub). That behavior was the leak we
 // removed, so this test now asserts the hub carries no record event.
 func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()
@@ -87,6 +88,7 @@ func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
 // after a record change. It must render the list region (id="todo-list")
 // containing the current todos, and require auth.
 func TestTodoListFragment_ReturnsListRegion(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := context.Background()

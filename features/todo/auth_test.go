@@ -14,6 +14,7 @@ import (
 // which served the todo page; after the landing-page refactor, /
 // is the public marketing hero and /todo is the app's index.)
 func TestIntegration_Auth_GuestIsRedirectedToLogin(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
@@ -46,6 +47,7 @@ func TestIntegration_Auth_GuestIsRedirectedToLogin(t *testing.T) {
 // returns a 200 HTML response containing the demo credentials
 // prefilled. The user just has to click the Sign in button.
 func TestIntegration_Auth_LoginFormIsShown(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
@@ -80,6 +82,7 @@ func TestIntegration_Auth_LoginFormIsShown(t *testing.T) {
 // refuses wrong credentials and re-renders the login form with an
 // error message — does NOT set the gogogo_auth cookie.
 func TestIntegration_Auth_BadPasswordIsRejected(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
@@ -117,6 +120,7 @@ func TestIntegration_Auth_BadPasswordIsRejected(t *testing.T) {
 // chain returned to find gogogo_auth. The Status assertion on the final
 // page proves the auth let us past the login wall.
 func TestIntegration_Auth_GoodCredentialsSetsCookie(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()

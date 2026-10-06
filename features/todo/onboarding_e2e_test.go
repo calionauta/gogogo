@@ -249,6 +249,7 @@ func registerOnboardingWorkflow(t *testing.T, client *dagnats.Client) {
 // production does — replacing the engine-only TestOnboarding_ResumeSignalsRun
 // (which drives the handler directly) with the full request/SSE path.
 func TestOnboarding_E2ERunsToCompletion(t *testing.T) {
+	t.Parallel()
 	base, _, _, _, client, cleanup := buildFixtureDagNats(t)
 	defer cleanup()
 	_ = client

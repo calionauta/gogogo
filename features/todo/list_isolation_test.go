@@ -26,6 +26,7 @@ import (
 // with their own todos directly in the DB, then asserts that
 // GET /api/todos?filter=all|active|completed only returns A's items.
 func TestIntegration_ListFiltersByOwner(t *testing.T) {
+	t.Parallel()
 	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 

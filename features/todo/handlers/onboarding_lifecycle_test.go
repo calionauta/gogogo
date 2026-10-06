@@ -17,6 +17,7 @@ import (
 // case in the select, shutdown would not stop the loop and this test would
 // time out.
 func TestOnboarding_PollRun_StopsOnAppShutdown(t *testing.T) {
+	t.Parallel()
 	// A handler whose client points at a closed port: GetRunRaw fails every
 	// tick, exercising the "transient engine error — keep polling" path. That
 	// is exactly the path that used to loop forever on a Background context.
@@ -51,6 +52,7 @@ func TestOnboarding_PollRun_StopsOnAppShutdown(t *testing.T) {
 // TestOnboarding_Shutdown_Idempotent pins that a duplicate OnTerminate (or a
 // test calling shutdown twice) cannot double-close the channel and panic.
 func TestOnboarding_Shutdown_Idempotent(t *testing.T) {
+	t.Parallel()
 	h := &OnboardingHandler{done: make(chan struct{})}
 	h.shutdown()
 	h.shutdown() // must not panic
@@ -63,6 +65,7 @@ func TestOnboarding_Shutdown_Idempotent(t *testing.T) {
 // TestOnboarding_ShutdownCtx_CancelOnShutdown proves the context bridge: a
 // context obtained from shutdownCtx is cancelled when the handler shuts down.
 func TestOnboarding_ShutdownCtx_CancelOnShutdown(t *testing.T) {
+	t.Parallel()
 	h := &OnboardingHandler{done: make(chan struct{})}
 	ctx, cancel := h.shutdownCtx(context.Background())
 	defer cancel()
@@ -81,6 +84,7 @@ func TestOnboarding_ShutdownCtx_CancelOnShutdown(t *testing.T) {
 // test-constructed handlers that never got a done channel: shutdownCtx must
 // still return a usable context, not panic or nil-deref.
 func TestOnboarding_ShutdownCtx_NilDoneIsSafe(t *testing.T) {
+	t.Parallel()
 	h := &OnboardingHandler{} // no done channel
 	ctx, cancel := h.shutdownCtx(context.Background())
 	defer cancel()
