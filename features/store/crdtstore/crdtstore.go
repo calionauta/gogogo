@@ -53,6 +53,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/aholstenson/loro-go"
 	"github.com/pocketbase/pocketbase/core"
@@ -83,6 +84,13 @@ type CRDTStore struct {
 
 	mu   sync.Mutex
 	docs map[string]*loro.LoroDoc // ownerID -> doc (lazy on first access)
+
+	// lastUsed drives LRU eviction of s.docs. Without a bound this map grew
+	// without limit: one LoroDoc per owner, retained for the process lifetime,
+	// each holding a full op log. Eviction is safe because doc() rebuilds the
+	// doc from the `todos` records on the next access — the PocketBase
+	// projection is the durable source, the doc is the merge workspace.
+	lastUsed map[string]time.Time
 
 	// transport is the cross-instance JetStream op publisher
 	// (optional). nil = single-process mode (publish is a no-op).
@@ -159,8 +167,9 @@ type watchSubscription struct {
 // before first use; call EnsureSchema() at startup.
 func New(app core.App) *CRDTStore {
 	return &CRDTStore{
-		app:  app,
-		docs: make(map[string]*loro.LoroDoc),
+		app:      app,
+		docs:     make(map[string]*loro.LoroDoc),
+		lastUsed: make(map[string]time.Time),
 	}
 }
 
@@ -366,3 +375,49 @@ func (s *CRDTStore) Close() error {
 // Adding a method here without implementing it would now be a compile
 // error instead of a runtime panic.
 var _ store.EntityStore[todo.Todo] = (*CRDTStore)(nil)
+
+// Bounds for the per-owner doc cache. Same reasoning as internal/collab's
+// DocStore: without these the map holds one LoroDoc per owner forever.
+const (
+	// defaultMaxOwnerDocs bounds how many owner docs stay resident.
+	defaultMaxOwnerDocs = 256
+	// defaultOwnerDocIdleTTL is the minimum idle time before an owner doc is
+	// evictable. The floor is what makes eviction safe: a single CRUD call
+	// touches a doc for microseconds, so a doc idle for minutes cannot be
+	// mid-mutation. Without it, evicting between the "get" and the "apply" of
+	// the same call would put two concurrent writes on two different Doc
+	// instances and silently lose one.
+	defaultOwnerDocIdleTTL = 5 * time.Minute
+)
+
+// evictIdleDocs drops owner docs until the cache is within the cap. Callers
+// must hold s.mu.
+//
+// Only docs idle for at least defaultOwnerDocIdleTTL are eligible, so a doc
+// in active use is never dropped even if that briefly exceeds the cap — losing
+// a concurrent write is worse than holding a doc a little longer. On the next
+// access the evicted owner's doc is rebuilt from its `todos` records by doc(),
+// so eviction costs a reload, not data.
+func (s *CRDTStore) evictIdleDocs() {
+	if len(s.docs) <= defaultMaxOwnerDocs {
+		return
+	}
+	cutoff := time.Now().Add(-defaultOwnerDocIdleTTL)
+	for ownerID, at := range s.lastUsed {
+		if len(s.docs) <= defaultMaxOwnerDocs {
+			return
+		}
+		if at.Before(cutoff) {
+			delete(s.docs, ownerID)
+			delete(s.lastUsed, ownerID)
+		}
+	}
+}
+
+// ResidentDocs reports how many owner docs are cached. Exposed for tests and
+// metrics.
+func (s *CRDTStore) ResidentDocs() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.docs)
+}

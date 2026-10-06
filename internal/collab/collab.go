@@ -91,6 +91,16 @@ func (d *Doc) StateVersion() *loro.VersionVector {
 // shape list after the op. Must be called with the doc mutex held by the
 // caller path; this method locks internally for safety.
 func (d *Doc) ApplyShapeOp(op ShapeOp) ([]Shape, error) {
+	shapes, err := d.applyShapeOpVersioned(op)
+	return shapes, err
+}
+
+// applyShapeOpVersioned applies a shape op under the doc mutex, enforcing the
+// optimistic-concurrency check. Split out so the read for the conflict check and
+// the write that follows happen under ONE lock hold — otherwise two concurrent
+// ops could both read the same stored version, both pass the check, and both
+// write, which is exactly the lost update the check exists to prevent.
+func (d *Doc) applyShapeOpVersioned(op ShapeOp) ([]Shape, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	shapesMap := d.loro.GetMap(loro.AsContainerId("shapes"))
@@ -103,6 +113,26 @@ func (d *Doc) ApplyShapeOp(op ShapeOp) ([]Shape, error) {
 				entry = *m
 			}
 		}
+
+		// Optimistic concurrency. The stored version is the authority on
+		// whether this op was written against current state.
+		stored := uint64(0)
+		if entry != nil {
+			stored = getU64(entry, "version")
+		}
+		if op.BaseVersion != stored {
+			// Stale op: the shape advanced (or already existed) since the
+			// client last saw it. Refuse the write and hand back the current
+			// server state so the client can re-apply against the newer base
+			// rather than lose the edit silently.
+			current, readErr := readShapes(shapesMap)
+			if readErr != nil {
+				return nil, readErr
+			}
+			return current, fmt.Errorf("%w: shape %q at version %d, op based on %d",
+				ErrShapeConflict, op.Shape.ID, stored, op.BaseVersion)
+		}
+
 		if entry == nil {
 			child, err := shapesMap.InsertMapContainer(op.Shape.ID, loro.NewLoroMap())
 			if err != nil {
@@ -110,7 +140,9 @@ func (d *Doc) ApplyShapeOp(op ShapeOp) ([]Shape, error) {
 			}
 			entry = child
 		}
-		if err := writeShape(entry, op.Shape); err != nil {
+		shape := op.Shape
+		shape.Version = stored + 1
+		if err := writeShape(entry, shape); err != nil {
 			return nil, err
 		}
 	case "clear":
@@ -172,6 +204,11 @@ func writeShape(m *loro.LoroMap, s Shape) error {
 	if err := m.InsertAny("author", s.Author); err != nil {
 		return err
 	}
+	// Version is persisted alongside the shape so the conflict check survives a
+	// restart (it is rehydrated from the snapshot, not held in memory).
+	if err := m.InsertAny("version", float64(s.Version)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -197,15 +234,16 @@ func readShapes(shapesMap *loro.LoroMap) ([]Shape, error) {
 			}
 		}
 		out = append(out, Shape{
-			ID:     id,
-			Type:   getStr(entry, "type"),
-			X:      getF64(entry, "x"),
-			Y:      getF64(entry, "y"),
-			W:      getF64(entry, "w"),
-			H:      getF64(entry, "h"),
-			Points: pts,
-			Color:  getStr(entry, "color"),
-			Author: getStr(entry, "author"),
+			ID:      id,
+			Type:    getStr(entry, "type"),
+			X:       getF64(entry, "x"),
+			Y:       getF64(entry, "y"),
+			W:       getF64(entry, "w"),
+			H:       getF64(entry, "h"),
+			Points:  pts,
+			Color:   getStr(entry, "color"),
+			Author:  getStr(entry, "author"),
+			Version: getU64(entry, "version"),
 		})
 	}
 	return out, nil
@@ -219,4 +257,15 @@ func getStr(m *loro.LoroMap, k string) string {
 func getF64(m *loro.LoroMap, k string) float64 {
 	v, _ := m.GetFloat64(k)
 	return v
+}
+
+// getU64 reads a version counter. It is stored as float64 because the Loro map
+// holds JSON-shaped scalars; versions are small and never exceed 2^53, so the
+// float64 round-trip is exact.
+func getU64(m *loro.LoroMap, k string) uint64 {
+	v, ok := m.GetFloat64(k)
+	if !ok || v < 0 {
+		return 0
+	}
+	return uint64(v)
 }

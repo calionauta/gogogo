@@ -17,6 +17,7 @@ package whiteboard
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -38,6 +39,13 @@ import (
 
 const (
 	whiteboardListLimit = 50
+
+	// wireShapes is BOTH the SSE event type and the JSON field name for a shape
+	// list. The browser switches on `msg.type === "shapes"` and then reads
+	// `msg.shapes` (see features/whiteboard/static/whiteboard.js), so the two are
+	// one contract — naming it once keeps the event type and the payload key from
+	// drifting apart.
+	wireShapes = "shapes"
 )
 
 // Handler serves the whiteboard routes. It holds the shared WebSyncWorker
@@ -270,7 +278,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 	h.broadcastPeerCount(docID)
 	// shapes immediately (in case it opened before any live update).
 	if shapes := h.worker.Shapes(docID); len(shapes) > 0 {
-		payload, err := json.Marshal(collab.WebShapesEvent{Type: "shapes", Doc: docID, From: "", Shapes: shapes})
+		payload, err := json.Marshal(collab.WebShapesEvent{Type: wireShapes, Doc: docID, From: "", Shapes: shapes})
 		if err != nil {
 			slog.Warn("whiteboard: marshal initial shapes", "error", err)
 		} else {
@@ -412,6 +420,17 @@ func (h *Handler) handleUpdate(c *core.RequestEvent) error {
 	}
 	shapes, err := h.worker.ApplyOp(docID, from, op)
 	if err != nil {
+		// A version conflict is the client's op being STALE, not a bad request.
+		// Answer 409 with the authoritative shapes so the client can re-apply
+		// its edit against the newer base and re-render. This is what turns a
+		// silent lost update into a recoverable one.
+		if errors.Is(err, collab.ErrShapeConflict) {
+			return c.JSON(http.StatusConflict, map[string]any{
+				"ok":       false,
+				"error":    "stale",
+				wireShapes: shapes,
+			})
+		}
 		return c.String(http.StatusBadRequest, "apply op: "+err.Error())
 	}
 	// Broadcast the resolved shapes to every OTHER client on the doc
@@ -427,7 +446,15 @@ func (h *Handler) handleUpdate(c *core.RequestEvent) error {
 	// so we do NOT call Broadcast again here — that would send duplicate
 	// events to peers.
 
-	return c.JSON(http.StatusOK, map[string]any{"ok": true, "count": len(shapes)})
+	// Return the authoritative list (including the version just assigned) so the
+	// client can carry the current version forward — a later edit must send it as
+	// baseVersion, and a client that never learned it would be rejected as stale
+	// on every attempt. `count` is kept for the existing tests/logs.
+	return c.JSON(http.StatusOK, map[string]any{
+		"ok":       true,
+		"count":    len(shapes),
+		wireShapes: shapes,
+	})
 }
 
 // handlePresence receives a cursor/presence event and broadcasts it to

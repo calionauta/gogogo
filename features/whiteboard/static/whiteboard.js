@@ -174,6 +174,29 @@
     // IndexedDB unavailable — fall back to in-memory only.
   });
 
+  // ---- conflict handling ----
+  // The server version-checks every shape write. A 409 means this op was based
+  // on a revision that has since advanced: another writer got there first. The
+  // response carries the authoritative shape list, so we adopt it (the same way
+  // a reconnect does) and drop the losing op. Without this the edit would either
+  // be applied blind — silently overwriting the peer — or retried forever.
+  //
+  // Dropping is the honest resolution for a canvas: the peer's newer position is
+  // kept, and our local optimistic render is corrected on the spot, so the user
+  // sees their shape snap to the winning position instead of believing their own
+  // move stuck.
+  function handleConflict(resp) {
+    if (resp.status !== 409) return false;
+    resp.json().then(function (body) {
+      if (body && body.shapes) {
+        shapes = body.shapes;
+        render();
+      }
+      console.warn("op rejected as stale (shape changed elsewhere); resynced");
+    }).catch(function () {});
+    return true;
+  }
+
   function flushOutbox() {
     if (flushing || outbox.length === 0) return;
     if (!navigator.onLine) return;
@@ -186,7 +209,15 @@
       return fetch(
         "/api/whiteboard/" + encodeURIComponent(docID) + "/update?clientID=" + encodeURIComponent(clientID),
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(op) }
-      ).catch(function (e) {
+      ).then(function (resp) {
+        // A stale replay must NOT be requeued: retrying it would either fail
+        // forever or, if it ever won, clobber the peer's newer edit.
+        if (handleConflict(resp)) return;
+        if (!resp.ok) {
+          outbox.push(op);
+          idbSaveOp(op).catch(function () {});
+        }
+      }).catch(function (e) {
         outbox.push(op);
         idbSaveOp(op).catch(function () {});
         console.warn("op replay failed, requeued and re-persisted", e);
@@ -207,7 +238,22 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(op),
       }
-    ).catch(function (e) {
+    ).then(function (resp) {
+      if (handleConflict(resp)) return;
+      // On success the server returns the authoritative list, including the
+      // version it assigned to the shape we just drew. Adopting it keeps our
+      // local copies carrying the current version, which is what a later edit
+      // must send as baseVersion. Without this, an edit built from a shape whose
+      // version we never learned would be rejected as stale on every attempt.
+      if (resp.ok) {
+        resp.json().then(function (body) {
+          if (body && body.shapes) {
+            shapes = body.shapes;
+            render();
+          }
+        }).catch(function () {});
+      }
+    }).catch(function (e) {
       outbox.push(op);
       idbSaveOp(op).catch(function () {});
       console.warn("op post failed, buffered and persisted for replay", e);

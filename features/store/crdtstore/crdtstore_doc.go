@@ -19,6 +19,7 @@ import (
 // must hold s.mu if multi-op.
 func (s *CRDTStore) doc(ownerID string) (*loro.LoroDoc, error) {
 	if d, ok := s.docs[ownerID]; ok {
+		s.lastUsed[ownerID] = time.Now()
 		return d, nil
 	}
 	d := loro.NewLoroDoc()
@@ -50,6 +51,8 @@ func (s *CRDTStore) doc(ownerID string) (*loro.LoroDoc, error) {
 		}
 	}
 	s.docs[ownerID] = d
+	s.lastUsed[ownerID] = time.Now()
+	s.evictIdleDocs()
 	return d, nil
 }
 

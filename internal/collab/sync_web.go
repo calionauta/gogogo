@@ -3,6 +3,7 @@ package collab
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 
 	natsio "github.com/nats-io/nats.go"
@@ -23,13 +24,48 @@ type Shape struct {
 	Points []float64 `json:"points,omitempty"` // pen: flat [x0,y0,x1,y1,...]
 	Color  string    `json:"color"`
 	Author string    `json:"author,omitempty"`
+
+	// Version is the server-assigned revision of this shape, monotonically
+	// increasing per shape. It is what makes a concurrent edit detectable
+	// instead of silent: a client sends back the Version it last saw as
+	// ShapeOp.BaseVersion, and the server refuses the write when a newer one
+	// already exists.
+	//
+	// This exists because the underlying store is a LoroMap, where a write to
+	// an existing key is last-writer-wins: every replica agrees deterministically
+	// on WHICH write survives, but the other edit is lost with no signal to
+	// anyone. For shapes drawn on a canvas that is the wrong trade — a user who
+	// moved a shape and watched it snap back has no way to know a peer also
+	// moved it. The version turns that silent loss into a visible conflict the
+	// client resolves by re-applying against the newer base.
+	Version uint64 `json:"version,omitempty"`
 }
 
 // ShapeOp is a single mutation a browser sends. Op is "add" | "clear".
 type ShapeOp struct {
 	Op    string `json:"op"`
 	Shape Shape  `json:"shape"`
+
+	// BaseVersion is the Shape.Version the client last observed for this
+	// shape's ID, and is the optimistic-concurrency check for an edit.
+	//
+	//   0  — the client believes this shape is NEW (it has never seen it).
+	//        An "add" for an ID that already exists is then a conflict rather
+	//        than an overwrite, which is what stops an offline replay from
+	//        clobbering a peer's later edit to the same shape.
+	//   >0 — the client is editing a shape it has seen at that revision. The
+	//        write is accepted only if the stored version still matches.
+	//
+	// A zero value on a brand-new shape is the common path (drawing), so the
+	// field costs nothing in the happy case.
+	BaseVersion uint64 `json:"baseVersion,omitempty"`
 }
+
+// ErrShapeConflict reports that an op's BaseVersion is stale: another writer
+// advanced the shape first. Callers return the current server state alongside
+// it so the client can re-apply its edit against the newer base instead of
+// guessing.
+var ErrShapeConflict = errors.New("collab: shape version conflict")
 
 // WebShapesEvent is the wire envelope broadcast to peers: the resolved
 // shapes list after applying an op. Clients re-render from it.
@@ -73,6 +109,11 @@ func NewWebSyncWorker(hub *queue.SSEHub, p Persister, docs *DocStore, nc *natsio
 	if docs == nil {
 		docs = NewDocStore()
 	}
+	// Teach the store where to rehydrate from. Without this a doc that is not
+	// resident (evicted, or never loaded on this process) would start EMPTY on
+	// the next op, and the resolved snapshot would then be persisted over the
+	// good one — discarding every shape drawn before.
+	docs.SetPersister(p)
 	return &WebSyncWorker{
 		hub:       hub,
 		persister: p,
@@ -136,6 +177,15 @@ func (w *WebSyncWorker) ApplyOp(docID, fromClientID string, op ShapeOp) ([]Shape
 	d := w.doc(docID)
 	shapes, err := d.ApplyShapeOp(op)
 	if err != nil {
+		// A conflict is not a server error: the client's op was refused
+		// because the shape advanced. shapes already carries the CURRENT
+		// server state (ApplyShapeOp returns it alongside the error) so the
+		// caller can hand the client a resync in the same response. Return
+		// before persisting/broadcasting — nothing changed, so there is
+		// nothing to persist and no peers to notify.
+		if errors.Is(err, ErrShapeConflict) {
+			return shapes, err
+		}
 		return nil, err
 	}
 	snapshot := d.EncodeSnapshot()

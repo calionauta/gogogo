@@ -31,6 +31,11 @@ func NewSyncWorker(nc *natsio.Conn, p Persister, docs *DocStore) *SyncWorker {
 	if docs == nil {
 		docs = NewDocStore()
 	}
+	// Same reason as NewWebSyncWorker: a NATS-delivered update for a doc that
+	// is not resident must merge into the PERSISTED state, not into an empty
+	// doc. Otherwise a cross-instance update after eviction (or on a process
+	// that never served that doc) would silently replace its contents.
+	docs.SetPersister(p)
 	return &SyncWorker{
 		nc:        nc,
 		persister: p,

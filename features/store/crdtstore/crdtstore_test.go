@@ -374,3 +374,87 @@ func TestCRDTStore_WatchSignals(t *testing.T) {
 		t.Fatal("did not receive second event")
 	}
 }
+
+// TestCRDTStore_EvictsIdleOwnerDocs is the regression test for unbounded growth
+// of the per-owner doc cache: s.docs held one LoroDoc per owner forever, each
+// with a full op log.
+//
+// It also pins the safety property that makes eviction correct: an evicted
+// owner's doc is REBUILT from its `todos` records on the next access, so
+// eviction costs a reload, never data. That is why eviction can be aggressive
+// without a reference count.
+func TestCRDTStore_EvictsIdleOwnerDocs(t *testing.T) {
+	s, app, cleanup := newCRDTStore(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	owner := newTestUser(t, app)
+	if _, err := s.Create(ctx, todo.Todo{ID: "keepme", Title: "survives eviction"}, owner, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Force the cached doc out of memory WITHOUT going through the idle path,
+	// so the test does not have to sleep for the TTL. This is the same state a
+	// TTL-based eviction leaves behind.
+	s.mu.Lock()
+	delete(s.docs, owner)
+	delete(s.lastUsed, owner)
+	s.mu.Unlock()
+
+	if got := s.ResidentDocs(); got != 0 {
+		t.Fatalf("ResidentDocs() = %d after manual eviction, want 0", got)
+	}
+
+	// The next access must rehydrate from the `todos` projection.
+	all, err := s.List(ctx, owner, "")
+	if err != nil {
+		t.Fatalf("List after eviction: %v", err)
+	}
+	if len(all) != 1 || all[0].ID != "keepme" {
+		t.Fatalf("after eviction List returned %d items (%v), want the 1 persisted todo",
+			len(all), all)
+	}
+	if got := s.ResidentDocs(); got != 1 {
+		t.Errorf("ResidentDocs() = %d after rehydration, want 1", got)
+	}
+}
+
+// TestCRDTStore_DocCacheBoundIsEnforced checks the cap actually bounds the map
+// when docs are idle, and that it does NOT drop docs that are still fresh (the
+// property that prevents losing a concurrent write).
+func TestCRDTStore_DocCacheBoundIsEnforced(t *testing.T) {
+	s, _, cleanup := newCRDTStore(t)
+	defer cleanup()
+
+	// Fresh docs (just touched) must never be evicted, even over the cap: a doc
+	// idle for less than the TTL could be mid-mutation.
+	for i := range defaultMaxOwnerDocs + 5 {
+		s.mu.Lock()
+		owner := "fresh-" + string(rune('a'+i%26)) + string(rune('a'+i/26))
+		s.docs[owner] = nil // resident marker; eviction only inspects lastUsed
+		s.lastUsed[owner] = time.Now()
+		s.mu.Unlock()
+	}
+	s.mu.Lock()
+	s.evictIdleDocs()
+	resident := len(s.docs)
+	s.mu.Unlock()
+	if resident != defaultMaxOwnerDocs+5 {
+		t.Errorf("resident = %d, want %d — a FRESH doc was evicted (would lose a concurrent write)",
+			resident, defaultMaxOwnerDocs+5)
+	}
+
+	// Now make them all idle and re-run: the cap must be enforced.
+	s.mu.Lock()
+	old := time.Now().Add(-2 * defaultOwnerDocIdleTTL)
+	for owner := range s.lastUsed {
+		s.lastUsed[owner] = old
+	}
+	s.evictIdleDocs()
+	resident = len(s.docs)
+	s.mu.Unlock()
+	if resident > defaultMaxOwnerDocs {
+		t.Errorf("resident = %d after idling, want <= %d (bound not enforced)",
+			resident, defaultMaxOwnerDocs)
+	}
+}
