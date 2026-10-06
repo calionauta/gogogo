@@ -9,8 +9,11 @@
 # same set where rendered UI lives. site/ and docs/ are outside it by design.
 #
 # Exit code: datastar-lint exits 1 when a finding is an ERROR (e.g. a missing
-# PatchElements selector). Warnings are reported but do not block — so only
-# ERROR-severity rules act as a gate.
+# PatchElements selector, or an UNKNOWN_ATTR_TYPO). Warnings do not block, and
+# this repo has ~100 of them from attributes that are intentional by design
+# (Morpheus `data-neo-*`, cuelume `data-cuelume-*`, `data-variant`) — so
+# `-only-errors` keeps every blocking check while staying quiet. Adding those to
+# .datastar-lint.yaml instead would silence a real typo of the same shape.
 set -uo pipefail
 
 if [ ! -x ./bin/datastar-lint ]; then
@@ -18,4 +21,4 @@ if [ ! -x ./bin/datastar-lint ]; then
   exit 0
 fi
 
-./bin/datastar-lint -r --analyzers html,go ./features/ ./web/ ./internal/
+./bin/datastar-lint -only-errors -r --analyzers html,go ./features/ ./web/ ./internal/
