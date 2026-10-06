@@ -8,7 +8,7 @@
 // contributor (or an LLM) may never read.
 //
 // House rules for this file:
-//   - One rule per footgun that was actually hit. Keep the set small; a rule
+//   - One rule per footgun   that was actually hit. Keep the set small; a rule
 //     with false positives teaches people to ignore the linter.
 //   - VERIFY THE RULE FIRES BEFORE TRUSTING IT. A rule that matches nothing is
 //     indistinguishable from a rule that is broken, and a broken rule fails
