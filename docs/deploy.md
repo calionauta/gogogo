@@ -172,6 +172,15 @@ make build
 The CI deploy cross-compiles with the same ldflags (`deploy.yml`, "Build prod
 binary"), so the badge on the running box matches the tag that produced it.
 
+> **Why the tag push deploys again.** The release flow is push → CI green → tag,
+> so the deploy triggered by the *push* runs before the tag exists and
+> `git describe --tags --abbrev=0` resolves to the **previous** tag — the box
+> would run the new code while reporting the old version. (Observed for real: the
+> v0.36.1 push deployed a binary labelled `0.36.0`.) `deploy.yml` therefore also
+> triggers on `tags: ["v*"]`, which re-deploys with the correct label. Tagging
+> before CI passes would avoid the second restart, but a red CI would then
+> already be on the tag — not a trade worth making.
+
 > The Dockerfile declares `ARG VERSION COMMIT BUILDTIME` at the stage top, **not
 > inline inside a `RUN` chain** — an inline `ARG` breaks the Buildkit parse.
 

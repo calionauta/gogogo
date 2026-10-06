@@ -83,6 +83,23 @@ on:
       - "scripts/deploy-prod.sh"
       - "Makefile"
       - ".github/workflows/deploy.yml"
+
+    # Tag pushes ALSO deploy, and this is what makes the version badge correct.
+    #
+    # The release flow is: push to master → CI must pass → tag → release. The
+    # master-push deploy therefore runs BEFORE the tag exists, so its
+    # `git describe --tags --abbrev=0` resolves to the PREVIOUS tag and the box
+    # reports the old version while running the new code. Verified against a real
+    # deploy log: the run for v0.36.1 printed
+    #   "→ Building calionauta/gogogo v0.36.0 (commit e4a2206)"
+    # for a commit that was tagged v0.36.1 minutes later.
+    #
+    # Re-deploying on the tag fixes the label, and the extra restart is the price
+    # of not tagging before CI has passed — which would be worse, since a red CI
+    # would already be on the tag. Note that GitHub does not evaluate path
+    # filters for tag pushes, so a tag always deploys regardless of the paths
+    # allow-list above.
+    tags: ["v*"]
   workflow_dispatch:
 
 env:
@@ -175,8 +192,11 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    # Only on master push or manual dispatch (not on PRs).
-    if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+    # Only on master push, a v* tag push, or manual dispatch (not on PRs).
+    # The tag arm is required, not cosmetic: a tag push sets github.ref to
+    # refs/tags/vX.Y.Z, so without it the job would be skipped and the deploy
+    # triggered by the tag would build nothing.
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     # Required for the Tailscale OIDC federated identity — the
     # runner needs to mint a JWT for the Tailscale IdP to verify.
     permissions:
