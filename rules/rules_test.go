@@ -29,18 +29,23 @@ import (
 // resolution, gocritic wiring, the load path) instead of a parallel harness that
 // could disagree with it.
 //
-// THE FIXTURE MUST BE A REAL MODULE. Two non-obvious requirements, each of
-// which produced a misleading "empty rule set" while this test was written:
+// TWO NON-OBVIOUS REQUIREMENTS, both measured. Each produced a misleading
+// failure while this test was written, and both read as "the rule is wrong"
+// rather than "the fixture is wrong":
 //
-//  1. It must require `github.com/quasilyte/go-ruleguard/dsl`, because
-//     rules.go imports it. Without the dependency, ruleguard cannot compile the
-//     rule file, load fails, and the only symptom is a generic
-//     `used Run() with an empty rule set` error — which reads as "the rule is
-//     wrong" rather than "the fixture cannot load it".
-//  2. The `rules:` path is resolved against the LINTED DIRECTORY, not the
-//     config file's directory. An absolute path pointing outside the module
-//     fails the same way. So the fixture copies `rules.go` into itself and
-//     refers to it relatively, which is also what the real `.golangci.yml` does.
+//  1. `rules:` is resolved against the LINTED DIRECTORY, not the config file's
+//     directory. A path pointing outside the module fails to load, and the
+//     symptom is the generic `used Run() with an empty rule set` — never a
+//     "file not found". So the fixture copies `rules.go` into itself and refers
+//     to it relatively, exactly as the real `.golangci.yml` does.
+//
+//     (`go-ruleguard/dsl` must also be resolvable, because rules.go imports it
+//     — that is why the fixture pins the same version go.mod does. WITH
+//     GOFLAGS=-mod=mod the module cache satisfies it even without a require
+//     line; WITHOUT -mod=mod, resolution fails and it is this same "empty rule
+//     set" error. Verified both ways, which is why runLint always sets
+//     GOFLAGS=-mod=mod.)
+//  2. `--config` must be an ABSOLUTE path (below).
 //
 // Fixtures live in a temp dir, not under `tmp/`: golangci-lint walks from the
 // working directory, and a stray `package fixture` file inside this package
@@ -192,19 +197,26 @@ func c(f func()) {
 // fires (or stays quiet).
 //
 // ON ASSERTING A MINIMUM, NOT A COUNT. golangci-lint does not always enumerate
-// every diagnostic the ruleguard engine produced. Measured on the two ticker
-// shapes: one shape alone reports 1, three identical loops report all 3, but a
-// call-chain loop FOLLOWED BY an identifier loop reports 1 of 2 while the
-// reverse order reports both. The ruleguard engine itself reports all of them
-// (checked by running `ruleguard` directly), so this is a limitation of the
-// golangci-lint issue pipeline, not of the rules.
+// every diagnostic the rule produced. Measured with the shipped single-arm
+// rule:
+//
+//   - one leak alone                  → 1 hit
+//   - three identical leaks           → 3 hits (fully enumerated)
+//   - a call-chain leak + an identifier leak in one file, either order → 1 hit
+//
+// (Pluralistic fixture text differs slightly between those loops, so a
+// same-source-text dedup is not the explanation; the count simply is not stable
+// for mixed shapes.) The ruleguard ENGINE reports all of them — checked by
+// running `ruleguard` directly on the same fixture — so this is the
+// golangci-lint issue pipeline, not the rule.
 //
 // What matters for enforcement is unaffected: a file containing any leak still
-// fails the linter (exit 1). So the guard asserts the guarantee that holds —
-// at least one hit for a leak, exactly zero for clean code — and the
-// "repeated leaks" fixture locks in the case that proves full enumeration is
-// possible. An exact-count assertion for the mixed file would be asserting a
-// golangci-lint bug.
+// fails the linter (exit 1), because one diagnostic is enough. So the guard
+// asserts what actually holds — at least one hit for a leak, exactly zero for
+// clean code — and the "repeated leaks" fixture pins the case where full
+// enumeration does happen, so a change that reduces it to 1 would be noticed.
+// Asserting an exact 2 for the mixed file would be asserting a golangci-lint
+// bug.
 func TestRulesFire(t *testing.T) {
 	bin, err := exec.LookPath("golangci-lint")
 	if err != nil {
@@ -238,6 +250,12 @@ func TestRulesFire(t *testing.T) {
 			// reads as zero hits, so surface it rather than reporting a miss.
 			if strings.Contains(out, "typecheck") {
 				t.Fatalf("fixture does not compile, so no rule could fire:\n%s", out)
+			}
+			// Same class: the linter never ran. Without this, a lock held by a
+			// concurrent `make lint` would look like "the rule does not fire".
+			if strings.Contains(out, "parallel golangci-lint is running") {
+				t.Fatalf("the linter refused to start (another instance holds the "+
+					"lock), so this is not a rule verdict:\n%s", out)
 			}
 
 			got := strings.Count(out, "ruleguard:")
@@ -336,19 +354,38 @@ func writeIn(t *testing.T, path, content string) {
 // while this test was written (a broken harness is indistinguishable from a
 // rule that never fires):
 //
-//  1. GOLANGCI_LINT_CACHE must point at a FRESH, ISOLATED directory (below).
-//     Rules are compiled and cached by path, and a stale entry for the same
-//     filename gets served — including a broken rule, which is how a red-proof
-//     here "passed" until the cache was cleared by hand.
-//     NOT `golangci-lint cache clean`: that is forbidden on the shared host this
-//     repo is developed on, because it destroys the cache every other run
-//     depends on for speed. An isolated cache per run is strictly better here:
-//     it is empty by construction, so there is nothing stale to invalidate.
-//  2. `--config <abs path>` is REQUIRED. With auto-discovery the ruleguard
-//     plugin does not compile, and the only symptom is zero diagnostics.
-//  3. `--allow-parallel-runners` is required, because golangci-lint holds a
-//     global /tmp/golangci-lint.lock and otherwise refuses to start while
-//     another instance runs (a leftover lock from a killed run is enough).
+//  1. GOLANGCI_LINT_CACHE points at a directory INSIDE the fixture. This is
+//     load-bearing for correctness, not tidiness: ruleguard's compiled rule is
+//     cached, and a WARM cache serves the previous revision of rules.go.
+//
+//     Measured, and it is the difference between a real guard and a decorative
+//     one. With a shared cache that a previous `go test ./rules/` had warmed,
+//     editing the rule to a pattern that cannot match STILL REPORTED a hit —
+//     the red-proof passed, i.e. it could not detect a broken rule at all. With
+//     a per-fixture cache the cache starts empty every run, so the rule on disk
+//     is always the rule that runs, and breaking it fails the suite as it
+//     should.
+//
+//     (A one-off shared run against a cold cache invalidates correctly, which
+//     is what makes this so easy to misdiagnose: it only rots once something
+//     has run before.)
+//
+//     NOT `golangci-lint cache clean`: forbidden on the shared host this repo is
+//     developed on, because it destroys the cache every other run depends on for
+//     speed. Pointing the cache elsewhere is not the same thing — it leaves the
+//     shared cache untouched.
+//
+//  2. `--config <abs path>` is REQUIRED. Verified: with auto-discovery the
+//     ruleguard plugin does not compile and the run reports zero diagnostics,
+//     with no error at all.
+//
+//  3. `--allow-parallel-runners` is required. Measured: while another instance
+//     holds /tmp/golangci-lint.lock, a plain run exits 3 with
+//     "parallel golangci-lint is running" on stderr — and because this helper
+//     only consumes stdout, that would surface as zero hits, i.e. as a rule that
+//     does not fire. Any concurrent `make lint` (a developer, or another agent
+//     in the same checkout) is enough to trigger it.
+//
 //  4. max-same-issues/max-issues-per-linter are disabled, since the defaults
 //     (3/50) collapse identical diagnostics.
 func runLint(t *testing.T, bin, dir string) string {

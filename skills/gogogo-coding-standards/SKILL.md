@@ -155,9 +155,10 @@ rules (see the file for the full text and the reasoning behind each):
 - `BlockingReadBehindDeadline` — a parked `Read` outliving its deadline
 - `TickerLoopWithoutExit` — `for range <ticker>.C` has no exit
   (`defer t.Stop()` stops the ticker, not the goroutine on it). ONE arm covers
-  both receiver shapes (`ticker.C` and `time.NewTicker(d).C`); a second arm for
-  the call form is redundant AND makes golangci-lint under-report. Pin it with
-  `rules/rules_test.go`, not by reading the pattern.
+  both receiver shapes (`ticker.C` and `time.NewTicker(d).C`), which was
+  measured rather than assumed: a second arm adds no diagnostic in either
+  ordering of a mixed file. Pin it with `rules/rules_test.go`, not by reading
+  the pattern.
 
 Writing one — the DSL has traps that all fail silently or confusingly, so
 verify with a probe file before trusting the rule:

@@ -85,15 +85,22 @@ func BlockingReadBehindDeadline(m dsl.Matcher) {
 //
 //	for { select { case <-ctx.Done(): return; case <-t.C: f() } }
 //
-// ONE ARM IS ENOUGH, and adding a second actively hurts. `for range $x.C`
-// matches both the identifier receiver (`for range t.C`) and the inline call
-// receiver (`for range time.NewTicker(d).C`) — verified by running the
-// ruleguard engine directly and through golangci-lint. A second arm for the
-// call form (`for range $f($*_).C`) is therefore redundant, and with two arms
-// present golangci-lint reports only ONE diagnostic for a file holding a
-// call-chain loop followed by an identifier loop (the reverse order reports
-// both). The rules_test.go guard covers both orders; this arm covers both
-// shapes.
+// ONE ARM IS ENOUGH. `for range $x.C` matches both the identifier receiver
+// (`for range t.C`) and the inline call receiver
+// (`for range time.NewTicker(d).C`) — verified through golangci-lint and by
+// running the ruleguard engine directly. A second arm for the call form is
+// therefore redundant, so there is none.
+//
+// It was removed after measurement rather than kept "for safety", and the
+// measurement is worth recording because it is counter-intuitive. With the
+// fixture in rules_test.go (a call-chain loop FOLLOWED BY an identifier loop in
+// one file), golangci-lint reports ONE diagnostic whether there are one or two
+// arms. The reverse order (identifier first) reports 2 with two arms and 1 with
+// one. So the second arm is not an improvement in either order — it adds a rule
+// to maintain for no extra diagnostic, and one arrangement where it is not
+// merely neutral. The enforcement is identical either way: a file with a leak
+// fails the linter (exit 1) as long as ONE diagnostic is emitted, which the
+// single arm guarantees.
 //
 // Scope: the repo has ZERO legitimate `for range <x>.C` (checked repo-wide — the
 // only occurrences are comments in this file), so this is a clean catch rather

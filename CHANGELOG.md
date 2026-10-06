@@ -31,11 +31,18 @@ knob is `DAGNATS_GREET_PACING`.
 
 - **`CreateTodoForOnboarding` wrote to the store through a nil context**, and a DagNats handler closure depended on a context that is trace-only (the engine derives it from the message headers, so it is never cancelled on shutdown) — both found by enabling the cancellation lint rather than suppressed.
 
+### Added
+
+- **`rules/rules_test.go` — a guard for the ruleguard rules.** A rule that matches nothing is indistinguishable from a broken rule, and a broken rule fails open, so CI stays green while the footgun ships. Seven fixtures run through the real `golangci-lint` against a minimal module, asserting a hit on each bad shape and silence on the corrected ones. Writing it showed that ONE match arm covers both ticker-receiver shapes, so the second arm (and its rule) was removed — it was not merely redundant: with two arms the linter reports only one diagnostic for a file holding a call-chain loop followed by an identifier loop. Red-proofed both ways.
+- **`make check-sizes` runs in `ci-local` and in CI.** The 500-line file budget was enforced only by the pre-commit hook, which `git commit --no-verify` skips: a 1871-line file passed every other check (verified).
+- **`funlen` now applies to test files**, with three individually-listed and commented exceptions for linear setup (127/130/138 lines) instead of a blanket exemption that hid four over-long functions. Function length is deliberately NOT enforced by a shell script — `funlen` already does it, and it understands AST, so a second implementation would be a second source of truth.
+- **`make lint-safe`** (merged from #72) — host-aware lint sizing, plus `scripts/changed-packages.sh`.
+
 ### Verification
 
 - `make ci-local` green end-to-end, including the binary boot smoke test and the Playwright browser smoke across all three skins
 - Red-proofs: the `forbidigo` rule fires on an injected `time.Sleep`; `check-generated` fails on a `.templ` edit with no regeneration; the new CSS diff fails on a stale bundle; `TestHandleConcurrentStartIsIndependent` reproduces the old globals race when the handles are shared; `TestWorkerStopIsPromptWhenQueueFails` fails (946ms) against the reintroduced sleep
-- 327 tests, 0 failures, 0 new skips; `golangci-lint` 0 issues with 32 linters
+- 387 tests, 0 failures, 0 new skips; `golangci-lint` 0 issues with 33 linters
 
 ## [0.34.0] - 2026-10-05
 
