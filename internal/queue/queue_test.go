@@ -11,6 +11,7 @@ import (
 )
 
 func TestQueueEnqueueAndReceive(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
 	if err != nil {
@@ -41,6 +42,7 @@ func TestQueueEnqueueAndReceive(t *testing.T) {
 }
 
 func TestQueueWorkerDispatchesToRegistry(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
 	if err != nil {
@@ -74,6 +76,7 @@ func TestQueueWorkerDispatchesToRegistry(t *testing.T) {
 }
 
 func TestQueueWorkerRetriesOnError(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
 	if err != nil {
@@ -116,6 +119,7 @@ func TestQueueWorkerRetriesOnError(t *testing.T) {
 }
 
 func TestQueueUnknownTypeHitsNotFoundHandler(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
 	if err != nil {
@@ -149,6 +153,7 @@ func TestQueueUnknownTypeHitsNotFoundHandler(t *testing.T) {
 }
 
 func TestQueueCloseIdempotent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
 	if err != nil {

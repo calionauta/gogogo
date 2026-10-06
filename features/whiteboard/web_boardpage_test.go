@@ -128,6 +128,7 @@ func readAll(resp *http.Response) string {
 // the doc id wrapped in quotes, not a templ.URL artifact like
 // "https://".
 func TestWhiteboard_BoardPageRendersValidDocID(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 
@@ -177,6 +178,7 @@ func TestWhiteboard_BoardPageRendersValidDocID(t *testing.T) {
 // returns a real 302 Location so the browser follows it to the new
 // board. This asserts the redirect lands on a valid /whiteboard/<id>.
 func TestWhiteboard_NewBoardRedirect(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 
@@ -209,6 +211,7 @@ func TestWhiteboard_NewBoardRedirect(t *testing.T) {
 // index pages passed auth.Navbar("") unconditionally, so the navbar
 // rendered the logged-out state. The fix passes c.Auth.Email().
 func TestWhiteboard_BoardPageShowsLoggedInNav(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 

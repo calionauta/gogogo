@@ -14,6 +14,7 @@ import (
 // TestNewSSEHub_DefaultReplaySize asserts the documented default
 // (64 slots) is the cap when no option overrides it.
 func TestNewSSEHub_DefaultReplaySize(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 	if h.maxBuffer != config.DefaultReplayBufferSize {
 		t.Fatalf("default buffer = %d, want %d",
@@ -25,6 +26,7 @@ func TestNewSSEHub_DefaultReplaySize(t *testing.T) {
 // contract: replay buffer 0 means events to unconnected clients
 // are dropped (no silent unbounded growth).
 func TestNewSSEHub_WithReplayBufferSizeZeroDisablesReplay(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub(WithReplayBufferSize(0))
 
 	// Send 5 events to a never-registered client. With buffer=0,
@@ -49,6 +51,7 @@ func TestNewSSEHub_WithReplayBufferSizeZeroDisablesReplay(t *testing.T) {
 // channel (and are not buffered); events sent while disconnected DO
 // buffer; re-register drains the buffer into the new channel.
 func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 
 	// Send 2 events to an unregistered client. Both go to the buffer.
@@ -76,6 +79,7 @@ func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
 // as a coarse sanity check that the simpler code path doesn't grow
 // goroutines unboundedly.
 func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
+	t.Parallel()
 	// goleak, not runtime.NumGoroutine: the count is process-global and races
 	// other tests' goroutines. This asserts the design invariant directly —
 	// replay is synchronous at Register(), so no goroutine outlives the loop.
@@ -96,6 +100,7 @@ func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
 // directly to the channel (not the buffer); only events to
 // unregistered clients fill the buffer.
 func TestSSEHub_Stats_ReflectsState(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 	c1 := make(chan []byte, 10) // large enough that Send doesn't block
 	c2 := make(chan []byte, 10)
@@ -123,6 +128,7 @@ func TestSSEHub_Stats_ReflectsState(t *testing.T) {
 // drop-handler hook fires for backpressure drops and is NOT
 // invoked on successful sends.
 func TestSSEHub_WithDropHandler_InvokedOnBackpressure(t *testing.T) {
+	t.Parallel()
 	var drops atomic.Int32
 	var lastReason atomic.Value
 	h := NewSSEHub(WithDropHandler(func(_ string, _ []byte, reason string) {
@@ -152,6 +158,7 @@ func TestSSEHub_WithDropHandler_InvokedOnBackpressure(t *testing.T) {
 // context shortcut: if the producer's context is already done, the
 // event is dropped without touching the buffer or the channel.
 func TestSSEHub_SendCtx_SkipsOnCanceledContext(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // already canceled
@@ -168,6 +175,7 @@ func TestSSEHub_SendCtx_SkipsOnCanceledContext(t *testing.T) {
 // when the buffer is full, the OLDEST event is dropped to make room
 // for the new one (not the newest).
 func TestSSEHub_BufferRing_DropsOldest(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub(WithReplayBufferSize(2))
 
 	h.Send("c", []byte("first"))  // buf = [first]
@@ -190,6 +198,7 @@ func TestSSEHub_BufferRing_DropsOldest(t *testing.T) {
 // documented contract: Broadcast only goes to REGISTERED clients.
 // Unregistered IDs are not even counted in the iteration.
 func TestSSEHub_Broadcast_SkipsUnregisteredClients(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 	ch := make(chan []byte, 10)
 	h.Register("only-connected", "", ch)
@@ -221,6 +230,7 @@ func TestSSEHub_Broadcast_SkipsUnregisteredClients(t *testing.T) {
 // connections) must be excluded so the todo feature's "X online"
 // counter does not inflate when users navigate between pages.
 func TestSSEHub_CountUserClients_ExcludesEmptyUserID(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 	c1 := make(chan []byte, 10)
 	c2 := make(chan []byte, 10)
@@ -246,6 +256,7 @@ func TestSSEHub_CountUserClients_ExcludesEmptyUserID(t *testing.T) {
 // This guards the userOf map initialization bug where BroadcastToUser
 // silently delivered to nobody because userOf was a nil map.
 func TestSSEHub_BroadcastToUser_ScopesByOwner(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 	u1a := make(chan []byte, 10) // user u1, originator
 	u1b := make(chan []byte, 10) // user u1, other tab
@@ -293,6 +304,7 @@ func TestSSEHub_BroadcastToUser_ScopesByOwner(t *testing.T) {
 //  2. Old handler deferred: UnregisterIfCurrent(c1, ch_old) → no-op
 //  3. ch_new still registered → client still receives events
 func TestSSEHub_UnregisterIfCurrent_PreventsStaleCleanup(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 
 	chOld := make(chan []byte, 10)
@@ -337,6 +349,7 @@ func TestSSEHub_UnregisterIfCurrent_PreventsStaleCleanup(t *testing.T) {
 // when there is NO reconnect, UnregisterIfCurrent behaves identically to
 // Unregister — the current channel matches and it is removed.
 func TestSSEHub_UnregisterIfCurrent_NormalCleanup(t *testing.T) {
+	t.Parallel()
 	h := NewSSEHub()
 
 	ch := make(chan []byte, 10)

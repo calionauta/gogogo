@@ -14,6 +14,7 @@ import (
 // (don't retry), 429/5xx/network → false (retry). These pin the contract the
 // worker RetryConfig.RetryIf relies on.
 func TestIsAuthErrorClassification(t *testing.T) {
+	t.Parallel()
 	apiErr := func(status int) error {
 		// Use a realistic JSON body so 4xx parses as a normal APIError
 		// (not the ContextOverflowError special-case that an empty/nil
@@ -46,6 +47,7 @@ func TestIsAuthErrorClassification(t *testing.T) {
 // RetryIf(429): a rate-limited call must actually be retried by Do, proving
 // the worker doesn't give up on 429.
 func TestRetryDoRetriesOn429(t *testing.T) {
+	t.Parallel()
 	cfg := RetryConfig{Attempts: 3, Delay: time.Millisecond, MaxDelay: 5 * time.Millisecond}
 	calls := 0
 	err := cfg.DoSilent(context.Background(), func() error {

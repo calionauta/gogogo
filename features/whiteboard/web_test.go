@@ -320,6 +320,7 @@ func (s *wbStream) settleJoin(budget time.Duration) {
 // This proves the full architecture without a browser: SSE transport +
 // CRDT convergence + persistence + no-echo broadcast to peers.
 func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
+	t.Parallel()
 	baseURL, persister, cleanup := webFixture(t)
 	defer cleanup()
 
@@ -397,6 +398,7 @@ func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
 // broadcast to peers (exclude-origin) so each client sees the others'
 // cursors but not an echo of its own.
 func TestWhiteboard_PresenceBroadcast(t *testing.T) {
+	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
 	defer cleanup()
 
@@ -462,6 +464,7 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 // delaying the POST), clientB draws in the meantime; then clientA's
 // delayed op arrives and must converge on the server and reach clientB.
 func TestWhiteboard_OfflineReplay(t *testing.T) {
+	t.Parallel()
 	baseURL, persister, cleanup := webFixture(t)
 	defer cleanup()
 

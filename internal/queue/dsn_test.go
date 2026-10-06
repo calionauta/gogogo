@@ -17,6 +17,7 @@ import (
 // Red-proof: with the old `sql.Open("sqlite3", dbPath)` the busy_timeout is 0
 // and this test fails.
 func TestGoqiteDSN_HasBusyTimeout(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite3",
 		"file:"+filepath.Join(t.TempDir(), "q.db")+
 			"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
@@ -47,6 +48,7 @@ func TestGoqiteDSN_HasBusyTimeout(t *testing.T) {
 // connections writing to the same goqite-style DB do not fail with a busy
 // error. With busy_timeout=0 the second write would error immediately.
 func TestGoqiteDSN_ConcurrentWritersDoNotFail(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "q.db")
 	dsn := "file:" + path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
 
