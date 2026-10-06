@@ -1,3 +1,24 @@
+## [0.36.2] - 2026-10-06
+
+Release-process fix found by auditing the v0.36.1 deploy rather than trusting it.
+
+### Fixed
+
+- **Production reported the wrong version: the box ran the new code while showing the old tag.** The release flow is push, CI green, tag, release, so the deploy triggered by the master **push** runs *before* the tag exists, and `git describe --tags --abbrev=0` therefore resolved to the **previous** tag. Verified against a real deploy log, not inferred: the run for v0.36.1 printed `Building calionauta/gogogo v0.36.0 (commit e4a2206)`, and the live box served `0.36.0` for a commit tagged `v0.36.1` minutes after the deploy started.
+
+  Two coupled defects, both fixed:
+  1. `deploy.yml` did not trigger on tags at all. Added `tags: ["v*"]` (nested under `push`; GitHub does not path-filter tag pushes, so a tag always deploys).
+  2. Even had it triggered, the deploy job's `if:` allowed only `refs/heads/master` or `workflow_dispatch`. A tag push sets `refs/tags/vX.Y.Z`, so the job would have been **skipped** and the tag-triggered deploy would have built nothing.
+
+  The extra restart is the deliberate price of not tagging before CI has passed; tagging first would avoid it but would put a red CI on the tag, which is worse. Proven end-to-end: a tag-triggered deploy for v0.36.1 now logs `Building calionauta/gogogo v0.36.1` and the live box reports `0.36.1`.
+
+- **`docs/deploy.md` asserted "the badge on the running box matches the tag that produced it"**, which was false for exactly the ordering above. Corrected with the observed evidence and the rationale for the second deploy.
+
+### Verification
+
+- Empirical, not assumed: re-triggered the deploy against the existing `v0.36.1` tag and read the build log (`Building v0.36.1`) and the live page (`0.36.1`) back. The fix was confirmed by observing the corrected behaviour, not by reading the YAML.
+- `make ci-local` green end-to-end; `make site-check` green
+
 ## [0.36.1] - 2026-10-06
 
 Post-release gap analysis on v0.36.0. One user-visible regression the release
