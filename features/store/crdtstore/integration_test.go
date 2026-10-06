@@ -87,7 +87,7 @@ func TestCRDTStore_CrossProcessConvergence(t *testing.T) {
 	t.Cleanup(func() { _ = subB.Unsubscribe() })
 
 	// Give subscriptions a beat to settle.
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// A creates a todo.
 	var (

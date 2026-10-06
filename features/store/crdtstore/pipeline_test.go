@@ -124,7 +124,7 @@ func TestCRDTStore_FullPipeline_BumpPublisherFires(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = subB.Unsubscribe() })
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Watch on A: this is what an SSE handler subscribes to in
 	// production (router.WireCRDTStorePublisher + Watch combined).

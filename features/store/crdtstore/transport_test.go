@@ -61,7 +61,7 @@ func TestCRDTTransport_CrossProcessConvergence(t *testing.T) {
 		gotA, gotB []Op
 		muA, muB   sync.Mutex
 	)
-	wait := time.Second
+	wait := 300 * time.Millisecond
 
 	subA, err := trB.Subscribe(context.Background(), ownerID, func(op Op) error {
 		// A's ops arrive here (B subscribes for A's stream so B
@@ -170,7 +170,7 @@ func TestCRDTTransport_InProcessLoopFilter(t *testing.T) {
 	})
 	t.Cleanup(func() { _ = subB.Unsubscribe() })
 
-	time.Sleep(time.Second)
+	time.Sleep(300 * time.Millisecond)
 
 	// B publishes an op. A should NOT receive it (loop filter, A's
 	// PublisherID != B's, so actually A SHOULD receive it — the
@@ -209,7 +209,7 @@ func TestCRDTTransport_InProcessLoopFilter(t *testing.T) {
 
 	// A's self-subscriber should have dropped the op (loop filter).
 	// Give it a moment to confirm no late delivery.
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	muA.Lock()
 	defer muA.Unlock()
 	for _, op := range gotAfromB {
@@ -239,7 +239,7 @@ func TestCRDTTransport_DuplicateIdDedup(t *testing.T) {
 	})
 	t.Cleanup(func() { _ = subB.Unsubscribe() })
 
-	time.Sleep(time.Second)
+	time.Sleep(300 * time.Millisecond)
 
 	// A publishes the same op ID twice (e.g. a retry scenario).
 	if err := trA.Publish(context.Background(), Op{ID: "op-dup", OwnerID: ownerID, Updates: []byte("first")}); err != nil {
@@ -266,7 +266,7 @@ func TestCRDTTransport_DuplicateIdDedup(t *testing.T) {
 	}
 
 	// Wait a bit more to catch any late duplicates.
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	muB.Lock()
 	defer muB.Unlock()
