@@ -73,8 +73,24 @@ The todo create form attaches a fresh `idem_key` UUID to every submit.
 existing record on a `(idem_key, owner)` match, so a Service Worker replay does
 not create a duplicate todo.
 
-The whiteboard avoids this entirely: Loro CRDT ops already carry unique IDs and
-converge idempotently on their own.
+The whiteboard needs no idempotency key for a different reason: a shape op is
+keyed by the shape's own id inside a LoroMap, so re-applying the same op resolves
+to the same state rather than creating a second row. Replay is therefore
+state-idempotent without a `(idem_key, owner)` match — measured, not assumed (see
+the CRDT concurrency tests in `internal/collab/`).
+
+What the map's last-writer-wins semantics did NOT give is a signal when two
+writers edited the **same** shape: every replica agreed deterministically on
+which write survived, but the loser was dropped silently. Shapes therefore carry
+a server-assigned `Version`, and a client sends back the revision it last saw as
+`ShapeOp.BaseVersion`. A write based on a superseded revision is refused with
+**409 + the current shape list**, so the browser resyncs and the edit can be
+re-applied instead of vanishing. A rejected op is neither persisted nor
+broadcast. `clear` takes no version because it cannot conflict.
+
+Note the scope: the canvas today only *adds* shapes, so this was not yet
+reachable from the UI — it becomes load-bearing as soon as shapes can be moved or
+resized.
 
 ## The opt-out rules
 

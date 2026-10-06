@@ -45,7 +45,8 @@ approach had a deeper issue.**
 | `make lint-safe` | Host-aware lint: sizes the run to free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Prefer over `make lint` on a shared host. |
 | `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
-| `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → golangci-lint → race tests → build |
+| `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → check-skill-frontmatter → install-sh-guard → check-sizes → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
+| `make check-stelow-drift` | Verifies the vendored `stelow-workflow-coding-standards` copy still matches its pinned upstream commit AND that upstream `main` has not moved. Advisory in pre-commit (never blocks on a network call); `--strict` here and in the weekly `stelow-drift` workflow. Update with `scripts/refresh-stelow.sh` — never by hand. |
 
 We deliberately keep `gofumpt` and `goimports` as **formatters** (not linters)
 so `golangci-lint run` never auto-formats your files — formatting is a separate

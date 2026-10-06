@@ -171,6 +171,7 @@ by hand, so when a step is added to one, add it to the other:
 | SKILL.md frontmatter | ✓ | ✓ |
 | install.sh bootstrap contract | ✓ | ✓ |
 | datastar-lint | ✓ | ✓ |
+| vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | golangci-lint (33 linters) | ✓ | ✓ |
 | govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
 | deadcode (advisory) | ✅ pre-push hook | ✓ |

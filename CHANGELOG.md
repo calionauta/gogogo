@@ -1,3 +1,21 @@
+## [0.36.1] - 2026-10-06
+
+Post-release gap analysis on v0.36.0. One user-visible regression the release
+introduced, plus documentation that had drifted from the code it describes.
+
+### Fixed
+
+- **A slow op response could drop a shape the user had just drawn.** Adopting the server's shape list from a POST response looked harmless — it carries the version the server assigned, which a later edit needs as `baseVersion` — but concurrent POST responses are **not ordered relative to each other**, so a late response for an older op could overwrite a newer local shape (draw X, draw Z, X's response lands last, Z disappears locally until the next SSE event). The list is only authoritative when it arrives over the SSE stream, which is a single ordered channel. Both the success path and the 409 path now take only what they need: the success path copies the assigned **version** onto the local shape in place, and the conflict path corrects only the **conflicting** shape rather than replacing the list mid-session. This is the same reasoning behind the server's no-echo broadcast.
+
+- **Doc drift: `docs/async-layers.md` overstated the whiteboard's replay safety.** It claimed the whiteboard "avoids this entirely: Loro CRDT ops already carry unique IDs and converge idempotently on their own". Measured, only half of that holds: replay is state-idempotent, but a duplicate `add` is now **refused** with 409, and the doc said nothing about the per-shape version contract or its scope. Rewritten to match the code.
+
+- **Doc drift: the gate lists were stale in three places.** `docs/local-ci.md`'s parity table is an explicit contract ("when a step is added to one, add it to the other") and did not mention `check-stelow-drift`; `docs/code-quality.md`'s `ci-local` chain was missing four steps it actually runs; `docs/stack-layers.md` enumerated 31 of the 33 enabled linters (`unparam` was absent) and did not list the two new maintenance workflows.
+
+### Verification
+
+- `make ci-local` green end-to-end (both smoke tests); `make site-check` green (22 pages, all anchors); `node --check` on the edited JS
+- Checked rather than assumed: the lefthook `stelow-drift` glob really fires (probed with a staged file), the vendored copy still matches its pin, no `morpheus`/`neo-*` references remain outside intentional history, the site output is gitignored and rebuilt in CI, the JS is served with a content-hash ETag so the edit cannot be cached stale, and all 33 linters now match `.golangci.yml` exactly
+
 ## [0.36.0] - 2026-10-06
 
 A correctness and UI-surface release. Three data-integrity bugs in the
@@ -56,6 +74,9 @@ erroring. DaisyUI remains the default; Basecoat remains the supported option.
 
 ### Fixed
 
+- **Split three files back under the 500-line budget** (`features/whiteboard/handler.go` 511 → `handler.go` 424 + `handler_peers.go`; `internal/collab/docstore_bounds_test.go` 507 → `docstore_bounds_test.go` + `shape_version_test.go`; `features/whiteboard/web_test.go` 548 → `web_test.go` + `web_conflict_test.go`). No behaviour change — same package, same tests. CI had caught this: `check-sizes` was a gate that had not been run locally before the first push, which is why the tag was moved onto the commit where CI passed.
+
+
 - **A whiteboard op could be applied to an empty document, silently discarding every shape drawn before it.** `DocStore` only ever *added* docs and never rehydrated on a miss, so a request for a doc this process had not loaded started from `NewDoc(id)` — empty — applied the op, and then persisted that resolved snapshot over the good one. The reachable production path is exactly the offline-replay flow: after a server restart the service worker serves the board page from cache, the SSE stream connects (loading nothing), and the client's IndexedDB outbox then replays an op into the empty doc. The store now rehydrates from the `Persister` **before** publishing the doc into the map (so no concurrent caller can observe a half-loaded doc), and both `NewWebSyncWorker` and `NewSyncWorker` wire the persister in — the NATS side needed it too, since a cross-instance update for a non-resident doc had the same failure. Red-proofed: with rehydration disabled, the new test fails with `prior shapes were discarded`.
 
 - **`DocStore` grew without limit.** One `LoroDoc` per `docID` was retained for the process lifetime, each holding a full op log, with no delete or evict path anywhere in the package. A whiteboard server accumulated a doc for every board ever touched. It is now a bounded LRU (`DefaultMaxDocs` = 256, `DefaultIdleTTL` = 5 min) with an explicit `Evict`, and `crdtstore`'s per-owner `docs` map (same unbounded shape, one doc per owner) got the same treatment.
@@ -102,6 +123,13 @@ erroring. DaisyUI remains the default; Basecoat remains the supported option.
   stale Basecoat could emit a bundle differing from the committed one and fail
   `css-check` with no source change — the exact false alarm the guard exists to
   prevent.
+
+### Verification
+
+- `make ci-local` green end-to-end, including the binary boot smoke test and the Playwright browser smoke across both skins; `make site-check` green (22 pages, all anchors)
+- Red-proofs for every fix in this release: disabling rehydration fails with `prior shapes were discarded`; disabling eviction fails with `store.Len() = 10, want <= 4` and `resident = 261, want <= 256`; disabling the version check fails with `want ErrShapeConflict`; a content mismatch in the vendored stelow copy prints **and** exits non-zero under `--strict`; `bin/check-stelow-drift.sh`'s round-trip to an older ref and back restores byte-identically
+- Two of this session's own claims were measured and **refuted** (a replayed `clear` does not wipe concurrent additions; `add`/`clear` replays are state-idempotent) and are pinned as regression tests
+- `golangci-lint` 0 issues with 33 linters, scoped to the touched packages (never the whole tree on a shared host)
 
 ## [0.35.0] - 2026-10-06
 
