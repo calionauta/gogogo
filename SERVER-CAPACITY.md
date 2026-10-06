@@ -1,209 +1,156 @@
 # SERVER-CAPACITY.md — runbook operacional (server.calionauta.com)
 
-> **Escopo:** T2 (isolamento de recursos) + T3 (capacidade). É material
-> **operacional e específico deste host** — não faz parte do contrato do template
-> gogogo. Fica na raiz em vez de `docs/` de propósito, para não virar página do
-> site (`site/build.mjs` publica `docs/*.md`).
+> **Escopo:** T2 (isolamento de recursos) + T3 (capacidade) para o host de deploy.
+> Material **operacional e específico deste host** — não faz parte do contrato do
+> template gogogo. Fica na raiz (não em `docs/`) para não virar página do site
+> (`site/build.mjs` publica `docs/*.md`).
 >
-> **Regra mestra:** o servidor não é máquina de lint. Quando precisar rodar,
-> rode escopado e com teto, via `make lint-safe` / `scripts/lint-safe.sh`.
+> **Regra mestra:** este host não é máquina de lint. Quando precisar rodar,
+> rode escopado e com teto via `make lint-safe` / `scripts/lint-safe.sh`.
 
 ---
 
-## 0. Diagnóstico em uma linha (evidência)
+## Status (2026-10-06)
 
-4 vCPU (Neoverse-N1) / 8 GB / disco 96% / swap 2 GB **100% usado** / load **36**.
-`golangci-lint` **full-repo** disparado por agente = **2,57 GB RSS**, concorrendo
-com `bb-daemon` (**3,7 GB**) + produção + `opencode`/`pi`. A soma passa dos 8 GB →
-swap → thrash → host para de responder. O `cache clean` agrava, mas **a rodada
-que derrubou não o usava** — a causa é *escopo*, não runtime.
+| Item | Estado | Detalhe |
+|---|---|---|
+| Matar o lint desgovernado | ✅ feito | 2 rodadas full-repo mortas; host voltou a responder |
+| T1 — instruções do agente | ✅ feito | trabalho em `fix/lint-safe-host-aware` (pushed) + aplicado no clone do server |
+| T2 — isolamento em cgroup | ✅ feito e **provado** | alocação de 900 MB em teto de 700 M → exit 137, host vivo |
+| Disco 96% → 85% | ✅ feito | `go clean -cache` + versões antigas do Playwright (~8,6 GB) |
+| golangci-lint corrigido | ✅ feito | 2.12.2 (quebrado) → **2.14.0** em `~/go/bin` + PATH |
+| **Swap +6 GB** | ⛔ pendente | requer `sudo` com senha (não tenho) |
+| **Journal vacuum** | ⛔ pendente | requer `sudo` |
+| **VACUUM `bb.db`** | ⏸ adiado | exige parar o `bb-daemon` → **interrompe thread ativa** (ver §4) |
 
 ---
 
-## 1. T2 — Isolamento (já embutido no `lint-safe`)
+## 0. O que aconteceu (evidência)
 
-`scripts/lint-safe.sh` já envolve a rodada num **escopo cgroup transitório**:
-se um lint fugir do controle, ele morre *dentro do próprio cgroup* em vez de
-acordar o OOM killer global.
+4 vCPU (Neoverse-N1) / 8 GB / disco **96%** / swap 2 GB **100% usado** / load **36**.
+`golangci-lint` **full-repo** (≈2,6 GB RSS) disparado pelo agente `pi`, concorrendo
+com `bb-daemon` (**3,7 GB**) + produção + `opencode`. Soma > 8 GB → swap → thrash →
+host para de responder.
+
+Detalhes que importam:
+- O processo que derrubou **não** usava `cache clean` — a causa foi **escopo**
+  (lintou `web-packages.sh`, o repo inteiro), não runtime.
+- O `golangci-lint` do PATH (`/usr/local/bin`, **2.12.2**, built go1.26) **nem
+  funciona** neste repo (go1.27.1): `the Go language version used to build
+  golangci-lint is lower than the targeted Go version`. Toda rodada queimava
+  recursos e terminava em erro.
+- O host tem `go 1.22.2` no PATH (repo pede 1.27.1) → `GOTOOLCHAIN=auto` baixa
+  toolchain a cada comando; e **não há `sudo` sem senha**.
+
+---
+
+## 1. T1 — correção das instruções (feito)
+
+- **Repo local (branch `fix/lint-safe-host-aware`, pushed):** novo
+  `scripts/lint-safe.sh` + `make lint-safe`; `.air.toml` sem lint por save;
+  `.lefthook.yml` escopado; skill sem `cache clean`; AGENTS/docs atualizados.
+- **Clone do server (`~/repos/gogogo-fullstack-template`):** `scripts/lint-safe.sh`
+  adicionado; `AGENTS.md` e `skills/gogogo-coding-standards/SKILL.md` corrigidos
+  (adições cirúrgicas — **nenhum arquivo de trabalho do agente foi tocado**).
+- **Regra global do agente** em `~/.pi/agent/AGENTS.md` (fora do worktree): nunca
+  `golangci-lint run ./...`, nunca `cache clean`; usar `lint-safe`/escopado.
+- **golangci-lint 2.14.0** instalado em `~/go/bin` (mesmo pin do CI) e
+  `$HOME/go/bin` prependado no PATH de `~/.profile`/`~/.bashrc`/`~/.bash_profile`.
+  Backup do anterior em `~/go/bin/golangci-lint.bak-2.13.2`.
+
+> Merge pendente: abrir PR de `fix/lint-safe-host-aware` → `master`.
+
+## 2. T2 — isolamento (feito, provado)
+
+`scripts/lint-safe.sh` mede RAM livre + cores em tempo de execução e:
+full só com `MemAvailable ≥ 4096 MB`; senão packages alterados; sempre
+`GOMEMLIMIT`/`--concurrency`; sempre num **escopo cgroup** (`systemd-run`).
 
 ```bash
-# o que o lint-safe executa por baixo, em hosts com systemd de usuário:
-systemd-run --user --scope --quiet \
-  -p MemoryMax=1500M -p MemorySwapMax=256M \
-  -p CPUQuota=200% -p Nice=10 \
-  golangci-lint run <pkgs> --concurrency 2 --timeout 5m
+# prova de contenção (rodada): 900 MB num teto de 700 M → exit 137, host vivo
+systemd-run --user --scope --quiet -p MemoryMax=700M -p MemorySwapMax=0 \
+  bash -c 'python3 -c "x=bytearray(900*1024*1024)"'
 ```
 
-**Aplicar o mesmo teto a build/test** (os outros dois picos, além do lint):
+> Nota: `systemd-run -p Nice=10` é **rejeitado** neste systemd
+> (`Unknown assignment`) — o script usa `nice -n 15` no prefixo.
+
+End-to-end no server: `bash scripts/lint-safe.sh` rodou full capado
+(`GOMEMLIMIT=3243MiB`, conc=4) e terminou com o host saudável (~3 GB usados).
+
+Para build/test pesado, aplique o mesmo teto:
 
 ```bash
-# build
-go build ./...                 # barato; normalmente não precisa de escopo
-# testes (o pico real: -race em features/todo)
 systemd-run --user --scope --quiet \
   -p MemoryMax=2500M -p MemorySwapMax=512M -p CPUQuota=200% -p Nice=10 \
   go test -race -count=1 ./features/... ./internal/...
 ```
 
-**Verificação T2:** rode `make lint-safe` e observe que o processo some sozinho
-se estourar o teto, sem derrubar `bb-daemon`:
+## 3. T3 — capacidade
 
+### 3.1 Feito
 ```bash
-# em outra sessão
-watch -n2 'free -h; ps -eo rss,args --sort=-rss | grep -E "golangci|go test" | head'
+go clean -cache                      # libera ~6,8 GB (regenerável)
+# + remoção das versões antigas de ~/.cache/ms-playwright (mantém a última)
+# resultado: disco 96% (3,4 GB livres) → 85% (11 GB livres)
 ```
 
----
-
-## 2. T3 — Capacidade (exige janela de manutenção)
-
-> Ordem importa: **disco → swap → banco → toolchain**. O VACUUM do SQLite precisa
-> de espaço temporário (~1,2 GB) e o novo swap precisa de disco livre. Faça numa
-> janela sem thread ativa codando.
-
-### 2.1 Disco — hoje 96% (3,4 GB livres)
+### 3.2 Pendente — precisa de `sudo` com senha (rode você)
 
 ```bash
-df -h /
-sudo du -xh --max-depth=1 /home/deploy | sort -rh | head -15   # o que ocupa
-
-# 1) limpeza sancionada (allow-list; sempre veja o dry-run antes)
-~/scripts/cleanup.sh --dry-run
-~/scripts/cleanup.sh
-
-# 2) journal do sistema
-sudo journalctl --vacuum-size=200M
-
-# 3) cache de build do Go (6,8 GB) — libera agora, repovoa no próximo build
-go clean -cache
-
-# 4) docker: só o que é descartável (NUNCA prune de imagem de produção)
-docker system df
-docker builder prune -f
-docker image prune -f          # dangling only
-```
-
-`~/backups` (5,5 GB) e `~/.cache` (12 GB) são os maiores candidatos — revise e
-pode timestamps antigos manualmente antes de apagar qualquer coisa.
-
-### 2.2 Swap — hoje 2 GB, 100% usado (RAM 8 GB)
-
-Regra: **adicione um segundo swapfile sem mexer no atual** (dar `swapoff` num
-swap cheio pode disparar OOM). Depois de liberar disco:
-
-```bash
-# criar swap extra de 6 GB
+# swap extra de 6 GB SEM mexer no /swapfile atual (swapoff em swap cheio = OOM)
 sudo fallocate -l 6G /swapfile2
 sudo chmod 600 /swapfile2
 sudo mkswap /swapfile2
 sudo swapon /swapfile2
-
-# persistir
 echo '/swapfile2 none swap sw 0 0' | sudo tee -a /etc/fstab
 
+# journal
+sudo journalctl --vacuum-size=200M
+
 # conferir
-swapon --show
-cat /proc/sys/vm/swappiness   # 10 está bom: mantenha baixo
+swapon --show; free -h; df -h /
 ```
 
-Swap é **rede de segurança**, não solução: só engorda a margem antes do próximo
-pico. A solução é não rodar o pico (T1) + isolamento (T2).
+## 4. Adiado — VACUUM do `bb.db` (1,2 GB)
 
-### 2.3 `bb.db` — 1,2 GB + WAL, 3.001 dirs de thread
-
-O banco do bb-daemon é grande e ajuda a inflar o processo (que já bate 3,7 GB).
+**Exige parar o `bb-daemon`** → interromperia a thread de coding ativa. Não foi
+feito por causa disso. Faça numa janela sem thread:
 
 ```bash
-# 0) BACKUP primeiro (db pode ser copiado a quente com sqlite .backup)
 sqlite3 ~/.bb/bb.db ".backup ~/.bb/bb.db.bak-$(date +%Y%m%d-%H%M)"
-
-# 1) espaço recuperável antes de decidir
 sqlite3 ~/.bb/bb.db "PRAGMA page_count; PRAGMA freelist_count; PRAGMA page_size;"
-#   recuperável ≈ freelist_count × page_size
-
-# 2) janela: parar o daemon (interrompe threads/automações)
 systemctl --user stop bb-daemon.service
-
-# 3) VACUUM (precisa de ~1,2 GB de disco livre — por isso 2.1 vem antes)
 sqlite3 ~/.bb/bb.db "PRAGMA journal_mode=WAL; VACUUM;"
 sqlite3 ~/.bb/bb.db "PRAGMA wal_checkpoint(TRUNCATE);"
-
-# 4) revisar threads antigas (ARQUIVAR, não apagar às cegas)
-ls -lt ~/.bb/thread-storage | tail -20
-
-# 5) subir de volta e medir
 systemctl --user start bb-daemon.service
 systemctl --user show bb-daemon.service -p MemoryCurrent -p MemoryPeak
 ```
 
-Se depois do VACUUM o `MemoryPeak` continuar alto, considere baixar o
-`MemoryMax` do `bb-daemon` de 4,5 G para ~3 G (arquivo em
-`~/.config/systemd/user/bb-daemon.service.d/`). **Não baixe sem medir** — um teto
-baixo demais mata o bb dentro do cgroup.
-
-### 2.4 Toolchain — alinhar com o CI
-
-Hoje o host tem `go 1.22.2` no PATH (o repo pede **go 1.27.1**) e
-`golangci-lint 2.12.2` (built go1.26), enquanto o CI usa **2.14.0**. O
-`GOTOOLCHAIN=auto` baixa o toolchain a cada comando — disco e CPU à toa.
-
-```bash
-# Go 1.27.1 (linux/arm64)
-curl -fsSL https://go.dev/dl/go1.27.1.linux-arm64.tar.gz -o /tmp/go.tgz
-sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go.tgz
-export PATH=/usr/local/go/bin:$PATH
-go version            # → go1.27.1
-
-# golangci-lint 2.14.0 (release oficial; o bottle do Homebrew recusa go1.27)
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
-  | sh -s -- -b ~/.local/bin v2.14.0
-golangci-lint version # → 2.14.0
-```
-
-Ganho: menos downloads de toolchain e lint alinhado ao CI (menos risco de
-erro de type-check espúrio por versão).
-
-### 2.5 Verificação final
-
-```bash
-free -h; swapon --show; uptime; df -h /
-journalctl --since "1 hour ago" | grep -iE "oom|killed process" || echo "sem OOM"
-cd ~/repos/gogogo-fullstack-template && make lint-safe
-```
+Se `MemoryPeak` seguir alto, baixar `MemoryMax` do bb (hoje 4,5 G) para ~3 G —
+**medindo antes**, pois teto baixo demais mata o bb dentro do cgroup.
 
 ---
 
-## 3. Hardening opcional — forçar a política mesmo se a LLM ignorar
+## 5. Backup do trabalho do servidor
 
-Um agente pode chamar `golangci-lint run ./...` direto, sem saber do
-`lint-safe`. Para tornar a política inevitável, um *shim* no PATH:
+Antes de qualquer coisa, snapshot do estado não commitado:
 
-```bash
-# ~/.local/bin/golangci-lint  (precisa vir ANTES de /usr/local/bin no PATH)
-#!/usr/bin/env bash
-case "${1:-}" in
-  version|cache) exec /usr/local/bin/golangci-lint "$@" ;;   # não mexer nesses
-  run)           exec bash "$(git rev-parse --show-toplevel)/scripts/lint-safe.sh" "${@:2}" ;;
-  *)             exec /usr/local/bin/golangci-lint "$@" ;;
-esac
+```
+~/.ops-backups/20261006-151337/
+  tracked.patch        # git diff HEAD (ci.yml, .golangci.yml, Makefile)
+  status.txt, HEAD.txt, branch.txt, stash-create.sha
+  pi-AGENTS.md, pi-hook/, pi-skills/, bb-automations/, bb/skills*
 ```
 
-Trade-off: centraliza a política, mas exige `chmod +x` e garantir a ordem do
-`PATH`; e qualquer repo fora do gogogo cai no `lint-safe` dele. Ative só depois
-de validar. Alternativa mais simples: manter a regra no `AGENTS.md`/skill (feito)
-e usar o `lint-safe` como o único comando documentado.
+Nada no worktree do agente foi sobrescrito; as mudanças aplicadas nele são
+**adições** (`AGENTS.md`, skill, novo `scripts/lint-safe.sh`).
 
----
+## 6. Risco residual
 
-## 4. Resumo executável
-
-| Camada | Ação | Quando |
-|---|---|---|
-| T0 | `kill <pid golangci-lint>` se em curso | agora |
-| T1 | `make lint-safe`; nunca `cache clean`; nunca `run ./...` | sempre |
-| T2 | escopo `systemd-run -p MemoryMax=…` (já no `lint-safe`) | sempre |
-| T3.1 | disco: `cleanup.sh`, `journalctl --vacuum`, `go clean -cache` | janela |
-| T3.2 | swap +6 GB (`/swapfile2`) | janela |
-| T3.3 | `bb.db` VACUUM + checkpoint + poda de threads | janela |
-| T3.4 | Go 1.27.1 + golangci-lint 2.14.0 | janela |
-| — | CAX31 (16 GB) | **fora de escopo (sem orçamento) — revisitar depois** |
+- O binário **`/usr/local/bin/golangci-lint` (2.12.2) continua quebrado** — não
+  pude substituí-lo (sem `sudo`). Shells que não passam por `lint-safe` ainda o
+  pegam; ele falha rápido no repo (go1.27.1), mas não está capado. Se puder:
+  `sudo ln -sf ~/go/bin/golangci-lint /usr/local/bin/golangci-lint`.
+- Enquanto prod e dev dividem 8 GB, picos continuam possíveis. Revisitar CAX31
+  (16 GB) quando houver orçamento.
