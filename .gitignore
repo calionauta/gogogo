@@ -110,3 +110,6 @@ site/docs/
 site/llms.txt
 site/llms-full.txt
 site/sitemap.xml
+
+# Autoresearch session state (branch-local, never committed)
+.auto/
