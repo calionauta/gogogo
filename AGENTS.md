@@ -32,7 +32,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
 | `make check-scope` | Assert `// SCOPE:layer=…,removal=…` on every `internal/`+`features/` file |
-| `make test` | Race tests `-p 1` (DagNats stability); CI runs them — prefer scoped tests locally |
+| `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + check-scope + lint + race tests + build. If green, push. (`make check` was removed — redundant subset.) |
 | `make signoff` | `ci-local` + advisory `gh signoff` stamp before push |
 | `make setup` | Activate lefthook git hooks (`core.hooksPath=.githooks`) |
@@ -45,7 +45,8 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
 - Prefer Datastar attributes over vanilla JS; inline JS only adjacent to the markup.
-- NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs), NO `go build -tags "<stale>"` (unified-build era has no tags).
+- NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs), NO `go build -tags "<stale>"` (unified-build era has no tags). Project-specific footguns go in `rules/rules.go` (ruleguard, loaded by gocritic) — a rule there fails CI, so prose guidance that a linter can enforce belongs there, not in this file.
+- NO `go func()` loop without a shutdown path: long-lived loops select on `ctx.Done()` (or a `done chan struct{}`), bound at wiring time. NO `ctx` stored in a struct. NO bare `for range ticker.C`. See `skills/gogogo-coding-standards` (Concurrency) + [docs/code-quality.md](docs/code-quality.md#concurrency-and-resources).
 
 ## Go-first / Zig (summary; normative: `docs/native-zig.md`)
 
@@ -64,7 +65,10 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 - **Routing:** register DIRECTLY on `se.Router` inside OnServe (nested `OnServe().BindFunc` never fires; `GET /` swallows subpaths). Cookie is `gogogo_auth`, NOT `pb_auth` (PB admin/users are separate namespaces — sharing clobbers the admin session); admin UI on separate origin `:8090/_/`. Static assets via EXACT `/static/<file>` routes with content-hash ETag (`ARCHITECTURE.md`, `docs/architecture.md`).
 - **Realtime:** todo mutations flow through PB realtime (`/api/realtime`, per-user rules) + fragment re-fetch — do NOT add a parallel SSE-hub re-render. SSE hub (`/api/todos/stream`) is ephemeral signals only. Whiteboard: SSEHub + NATS, Loro offline-first (`docs/async-layers.md`).
 - **Templ/CSS:** `make templ && make css` after `.templ` edits. `site/`+`docs/` are outside the Tailwind scan — landing edits can't stale the bundle (`docs/code-quality.md`).
-- **Tests:** temp-dir PB + `Bootstrap()` + real SQLite over `httptest`; orphan `web` procs hold `:18099`/`:4224` — `pkill -x web` (`docs/troubleshooting.md`).
+- **Tests:** temp-dir PB + `Bootstrap()` + real SQLite over `httptest`. Bind test servers to EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the address back — a fixed port is stolen by another package under `-p N` (`address already in use`), which is what the old `-p 1` was hiding. Orphan `web` procs also hold `:18099`/`:4224` — `pkill -x web` (`docs/troubleshooting.md`).
+- **Tests that spawn the real binary:** set `GOGOGO_NO_BROWSER=1` explicitly in the child env, built from scratch (not `append(os.Environ(), …)` — an inherited `=0` wins and a browser tab opens). The child inherits the parent's TTY, so `interactive()` detection alone lets `make test` from a terminal through; PB's first-run installer then calls `LaunchURL` (`docs/troubleshooting.md`).
+- **SSE in tests:** `pumpSSEUntil` must enforce its deadline while a `Read` is parked — a `for time.Now().Before(deadline) { Body.Read }` loop waits one heartbeat (15s) past it. Predicates parse payloads via `sseSignalPayloads`, never the raw transcript (it is `event:`/`data:` lines and each payload carries a `signals ` prefix, so `json.Unmarshal` always fails and the predicate never fires). A negative assertion uses `pumpSSEFor` + `sseAbsenceWindow`. Ruleguard rule `BlockingReadBehindDeadline` guards the loop (`docs/local-ci.md`).
+- **Tests other packages share:** never write a package global in a fixture. `auth.CookieSecure` was assigned `false` (its zero value) by four fixtures — a latent race the moment two tests in a package overlap. Set such state once in `TestMain`, or not at all.
 - **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
 - **Deploy:** push-to-`master` → CI gate → deploy. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone (`git pull --ff-only`). Scratch healthcheck: `CMD ["/app","health"]` (`docs/deploy.md`).
 - **Skins:** default DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Basecoat/Morpheus have their own vocab — read `docs/ui-skins.md` first.

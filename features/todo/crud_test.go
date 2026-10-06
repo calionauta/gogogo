@@ -10,9 +10,15 @@ import (
 )
 
 // requestTimeout caps any individual HTTP call in integration tests.
-// Generous enough for CI noise without letting a stuck handler hang the
-// suite forever.
-const requestTimeout = 5 * time.Second
+//
+// MUST exceed the SQLite busy_timeout set in the DSN (10s, see
+// features/todo/fixture_test.go + db/pocketbase.go): under write-lock
+// contention SQLite blocks up to busy_timeout before returning, so a request
+// timeout shorter than that cancels the request while the DB is still
+// legitimately waiting — the intermittent "POST /login: context deadline
+// exceeded" flake. Keep this strictly greater than busy_timeout plus handler
+// overhead; it still fails a genuinely stuck handler instead of hanging.
+const requestTimeout = 20 * time.Second
 
 // TestIntegration_CreateListDelete is the canonical happy-path E2E
 // for the todo feature: create → list → delete, exercising the real
@@ -103,7 +109,7 @@ func TestIntegration_DeleteEmitsInfoToast(t *testing.T) {
 		t.Fatalf("delete: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("delete status=%d", resp.StatusCode)
 	}
 	body := readBody(t, resp)

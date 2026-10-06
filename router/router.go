@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 
@@ -26,6 +27,71 @@ import (
 	"github.com/calionauta/gogogo/web/resources"
 )
 
+// noBrowserEnv, when "1", force-suppresses PocketBase's first-run installer
+// regardless of TTY detection (see suppressInstaller).
+const noBrowserEnv = "GOGOGO_NO_BROWSER"
+
+// interactive reports whether this process was started to be administered by a
+// human at a terminal, as opposed to by a test, a CI job, or a container
+// healthcheck.
+//
+// PocketBase's default installer mints a pbinstall token and calls
+// osutils.LaunchURL, which OPENS A BROWSER on whatever machine runs the
+// process. That is only desirable for a real first run at a terminal; in every
+// automated context it pops a tab the developer did not ask for, pointing at a
+// server that may not have bound yet ("127.0.0.1 refused to connect").
+//
+// Both stdin and stdout must be character devices, and stdin must additionally
+// be a real terminal rather than a character device like /dev/null. Checking
+// stdin catches the test/CI case (pipes, `/dev/null`, sockets); checking stdout
+// catches a daemon started with stdin inherited from the shell but output
+// redirected to a log. One-liner automation that uses a PTY still gets the old
+// behaviour, which is why GOGOGO_NO_BROWSER exists as an explicit override.
+func interactive() bool {
+	if os.Getenv(noBrowserEnv) == "1" {
+		return false
+	}
+	if os.Getenv(noBrowserEnv) == "0" {
+		return true
+	}
+	return isTerminal(os.Stdin) && isTerminal(os.Stdout)
+}
+
+// isTerminal reports whether f is an interactive terminal (a TTY), as opposed
+// to a pipe, a socket, a regular file, or /dev/null.
+//
+// os.ModeCharDevice alone is NOT enough: /dev/null is a character device, so a
+// bare mode-bit check reports "a terminal" for `< /dev/null > /dev/null 2>&1`
+// — exactly the background-daemon shape that must never pop a browser. Stat'ing
+// os.DevNull and comparing file identity closes that hole without a dependency.
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	if info.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	if devNull, nullErr := os.Stat(os.DevNull); nullErr == nil && os.SameFile(info, devNull) {
+		return false
+	}
+	return true
+}
+
+// suppressInstaller clears the ServeEvent's InstallerFunc so PocketBase skips
+// apis.DefaultInstallerFunc — which mints a pbinstall token and calls
+// osutils.LaunchURL, opening a browser tab on the machine running the process.
+// A test booting the real binary with a throwaway DATA_DIR hits this every run.
+func suppressInstaller(app *pocketbase.PocketBase) {
+	app.OnServe().Bind(&hook.Handler[*core.ServeEvent]{
+		Priority: 100, // after apis/serve.go assigns the default, before it reads
+		Func: func(se *core.ServeEvent) error {
+			se.InstallerFunc = nil
+			return se.Next()
+		},
+	})
+}
+
 // Init registers custom routes on PocketBase's serve event.
 // Call before pb.Start(). Pass todoH as the
 // same handler instance the caller used for RegisterHandlers so the
@@ -37,6 +103,14 @@ func Init(
 	js nats.JetStreamLike,
 	todoH *handlers.TodoHandler,
 ) {
+	// Suppress PocketBase's first-run installer unless a human is running this
+	// at a terminal. See interactive() for why non-TTY (tests, CI, containers)
+	// must never trigger a browser launch. The superuser can always be created
+	// non-interactively with `web superuser upsert EMAIL PASS`.
+	if !interactive() {
+		suppressInstaller(app)
+	}
+
 	app.OnServe().Bind(&hook.Handler[*core.ServeEvent]{
 		Priority: -100,
 		Func: func(se *core.ServeEvent) error {

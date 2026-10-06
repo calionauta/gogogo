@@ -91,7 +91,6 @@ func TestRepro_CRDT_CreateStuckLoading(t *testing.T) {
 	}
 
 	r := router.NewRouter[*core.RequestEvent](newRequestEventFactory(app))
-	auth.CookieSecure = false
 	r.BindFunc(auth.LoadAuthFromCookie)
 	h.RegisterRoutesOn(r)
 	r.GET("/login", auth.RedirectIfAuthed).BindFunc(auth.HandleLoginGetForTest)

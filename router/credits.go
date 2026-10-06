@@ -10,6 +10,7 @@
 package router
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -40,6 +41,17 @@ func registerCreditsRoutes(cfg *config.Config, se *core.ServeEvent) *credits.Ser
 		return nil
 	}
 	svc.RegisterRoutes(se)
+
+	// Background workers (payments retry + settlement outbox) are bound to a
+	// context cancelled on app termination, so a server shutdown stops them
+	// instead of leaking goroutines that outlive the process tree.
+	ctx, cancel := context.WithCancel(context.Background())
+	se.App.OnTerminate().BindFunc(func(e *core.TerminateEvent) error {
+		cancel()
+		return e.Next()
+	})
+	svc.Start(ctx)
+
 	return svc
 }
 

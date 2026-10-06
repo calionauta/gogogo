@@ -3,6 +3,38 @@
 Symptoms and where they actually come from. The most common gogogo issues are
 **processes orphans segurando portas** and **assets stale** — not logic bugs.
 
+## A browser tab opens at `127.0.0.1/_/#/pbinstall/…` during tests
+
+PocketBase's first-run installer (`apis.DefaultInstallerFunc`) mints a
+`pbinstall` token and calls `osutils.LaunchURL` — it **opens a browser** on the
+machine running the process. A test that boots the real binary with a throwaway
+`DATA_DIR` has no superuser, so it hits this on every run. The tab usually lands
+before the server has bound, which is the "This site can't be reached /
+127.0.0.1 refused to connect" variant.
+
+`router.Init` suppresses it whenever `interactive()` is false, and
+`interactive()` requires **stdin AND stdout to be real terminals**. The
+subtlety that made this recur: a child process inherits *the parent's* TTY
+status, so `go test` (or `make test`) launched from a real terminal produces a
+child that also looks interactive. Detection alone cannot cover that case —
+every test that spawns the binary must also set the explicit override:
+
+```go
+// Build the child env explicitly; do not append to os.Environ(), which may
+// carry a GOGOGO_NO_BROWSER=0 that would re-enable the launch.
+cmd.Env = []string{ ..., "GOGOGO_NO_BROWSER=1" }
+```
+
+`GOGOGO_NO_BROWSER=0` forces interactive (escape hatch for PTY-less
+automation). To confirm no browser is launched, put a shim early on `PATH` and
+check whether it fires:
+
+```bash
+mkdir -p /tmp/shim && printf '#!/bin/bash\necho "LAUNCHED: $*" >> /tmp/shim/open.log\n' > /tmp/shim/open && chmod +x /tmp/shim/open
+PATH=/tmp/shim:$PATH make ci-local
+cat /tmp/shim/open.log   # empty = correct
+```
+
 ## Tests fail with "failed to register onboarding workflow"
 
 An old `go run` / `web` binary is still holding `:18099` or `:4224`.
@@ -13,8 +45,11 @@ pkill -x web
 lsof -ti :18099 | xargs kill
 ```
 
-Then re-run. `make test` serializes packages with `-p 1` for DagNats engine
-stability, but a leftover process on the port defeats that.
+Then re-run. Two things can put a stale listener on `:18099`/`:4224`: a
+leftover `go run`/`web` binary, or **two packages binding the same fixed port**
+under `-p N`. The suite no longer has the second problem — every DagNats test
+binds an ephemeral HTTP port now (see `docs/local-ci.md`), so this is almost
+always the orphan-process case.
 
 ## The commit was aborted but every hook job showed green
 

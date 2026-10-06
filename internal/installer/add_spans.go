@@ -5,6 +5,7 @@
 package installer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,8 +14,8 @@ import (
 )
 
 // insertRuleSpan copies one rule's span from source into target at anchor.
-func insertRuleSpan(from, root, path string, r stripRule, anchor spanAnchor, rc *AddReceipt) (int, error) {
-	return insertSpan(from, root, path, path, []stripRule{r}, anchor, rc)
+func insertRuleSpan(t *treeFS, from, root, path string, r stripRule, anchor spanAnchor, rc *AddReceipt) (int, error) {
+	return insertSpan(t, from, root, path, path, []stripRule{r}, anchor, rc)
 }
 
 // spanAnchor locates an insertion point: before/after the first line
@@ -47,7 +48,7 @@ func templSpanAnchor(path string) (spanAnchor, bool) {
 // insertSpan copies the lines covered by rules from the source file into
 // the target file at anchor. Fully present spans are skipped (idempotent).
 func insertSpan(
-	from, root, srcPath, dstPath string,
+	t *treeFS, from, root, srcPath, dstPath string,
 	rules []stripRule, anchor spanAnchor, rc *AddReceipt,
 ) (int, error) {
 	srcRaw, err := os.ReadFile(filepath.Join(from, filepath.FromSlash(srcPath)))
@@ -56,7 +57,7 @@ func insertSpan(
 	}
 	srcLines := strings.Split(string(srcRaw), "\n")
 	dst := filepath.Join(root, filepath.FromSlash(dstPath))
-	dstRaw, err := os.ReadFile(dst)
+	dstRaw, err := t.ReadFile(dst)
 	if err != nil {
 		return 0, fmt.Errorf("target missing %s (not a scaffolded checkout?)", dstPath)
 	}
@@ -80,8 +81,7 @@ func insertSpan(
 	if inserted == 0 {
 		return 0, nil
 	}
-	//nolint:gosec // G306 scaffolded repo files are 0644 tracked sources, same as a git checkout.
-	if err := os.WriteFile(dst, []byte(strings.Join(dstLines, "\n")), scaffoldFileMode); err != nil {
+	if err := t.WriteFile(dst, []byte(strings.Join(dstLines, "\n")), scaffoldFileMode); err != nil {
 		return inserted, err
 	}
 	rc.touch(filepath.ToSlash(dstPath))
@@ -128,5 +128,5 @@ func findAnchor(dstLines []string, anchor spanAnchor) (int, error) {
 			return i + 1, nil
 		}
 	}
-	return -1, fmt.Errorf("cannot locate insertion anchor (evolved file?)")
+	return -1, errors.New("cannot locate insertion anchor (evolved file?)")
 }

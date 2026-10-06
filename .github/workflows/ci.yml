@@ -62,15 +62,22 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
+      - name: Check SKILL.md frontmatter
+        # A skill's YAML frontmatter is parsed by the skill HOST, never by this
+        # build — so a syntax error ships silently. Real YAML parser, not regex.
+        run: go run ./cmd/check-skill-frontmatter
       - name: Datastar-lint
+        # Pinned, not @latest: a new release can raise a rule to ERROR severity
+        # and start failing the build with no code change here. Bump this
+        # deliberately, reading the release notes.
         run: |
-          go install github.com/calionauta/datastar-lint@latest
+          go install github.com/calionauta/datastar-lint@v0.12.0
           export PATH="$HOME/go/bin:$PATH"
           make datastar-lint
       - name: Lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.13.2
+          version: v2.14.0
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
           # unavailable on the ubuntu runner; lint the web-facing packages only.
@@ -94,16 +101,23 @@ jobs:
       - name: CSS build
         run: make css
       - name: Test
-        # DagNats boots an embedded NATS + workflow engine per package under
-        # test; under -race, parallel packages starve the engine and cause
-        # flaky timeouts. Serialize packages (-p 1).
-        # Skip cmd/desktop: it is a Wails build that needs GTK/WebKit dev
-        # libraries only present on the desktop build runners, not here.
-        run: |
-          PKGS=$(bash scripts/web-packages.sh)
-          go test -race -p 1 $PKGS -v -count=1
+        # Plain parallel run: the DagNats tests used to bind fixed ports, and
+        # two packages grabbed the same one, which forced `-p 1`. They now bind
+        # ephemeral ports and read the address back, so packages run in
+        # parallel (~110s vs ~255s). cmd/desktop is skipped: it is a Wails
+        # build needing GTK/WebKit dev libraries only present on the desktop
+        # runners.
+        run: bash scripts/test-web.sh -race -count=1 -v
       - name: Build
         run: go build -o /dev/null ./cmd/web/
+      - name: Binary boot smoke test
+        # Boots the REAL compiled binary and asserts the raw SSE transport
+        # contract (GET /api/todos/stream -> 200 + text/event-stream) plus the
+        # rendered #sse-opener wiring. This is the half the Playwright smoke
+        # below does not cover: it validates the endpoint itself, not just that
+        # a browser renders. Gated behind RUN_SMOKE=1 so `go test ./...` stays
+        # port-free for developers.
+        run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
       - name: Deadcode (advisory)
         # Matches bin/check-deadcode.sh: advisory only, scoped to the
         # packages that are meant to be wired-up, so intentionally-unused

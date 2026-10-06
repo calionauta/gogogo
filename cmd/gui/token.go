@@ -2,6 +2,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,7 +29,7 @@ func tokenPath(dataDir string) string {
 // "remember me" is an inconvenience, not a login failure).
 func saveToken(path, token string) error {
 	if token == "" {
-		return fmt.Errorf("gui: refusing to persist an empty session token")
+		return errors.New("gui: refusing to persist an empty session token")
 	}
 	if err := os.WriteFile(path, []byte(token+"\n"), sessionFileMode); err != nil {
 		return fmt.Errorf("gui: save session token: %w", err)
@@ -46,7 +47,7 @@ func loadToken(path string) (string, error) {
 	}
 	token := strings.TrimSpace(string(raw))
 	if token == "" {
-		return "", fmt.Errorf("gui: saved session is empty")
+		return "", errors.New("gui: saved session is empty")
 	}
 	return token, nil
 }

@@ -38,6 +38,17 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
+// mustOpenTree opens a treeFS for a test and closes it on cleanup.
+func mustOpenTree(t *testing.T, root string) *treeFS {
+	t.Helper()
+	tree, err := openTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = tree.Close() })
+	return tree
+}
+
 // fixtureAddTrees builds a pristine template tree (from) and a trimmed
 // project tree (proj) for the landing unit: template has the package +
 // wiring, project has neither.
@@ -153,12 +164,13 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 		"\t// Phase 2: wire the CRDTStore JetStream transport when the chosen\n"
 	writeFile(t, filepath.Join(proj, "cmd", "web", "main.go"), dst)
 	u := findUnit(t, unitDagnats)
+	tree := mustOpenTree(t, proj)
 	for _, r := range u.mainStrips {
 		anchor := anchorAfter(mainCallsAnchor)
 		if r.addBefore != "" || r.addAfter != "" {
 			anchor = spanAnchor{before: r.addBefore, after: r.addAfter}
 		}
-		if _, err := insertSpan(from, proj,
+		if _, err := insertSpan(tree, from, proj,
 			filepath.Join("cmd", "web", "main.go"),
 			filepath.Join("cmd", "web", "main.go"),
 			[]stripRule{r}, anchor, &AddReceipt{}); err != nil {
@@ -187,7 +199,8 @@ func TestRebaseModulePrefix(t *testing.T) {
 		"package x\n\nimport \"github.com/calionauta/gogogo/internal/queue\"\n")
 	// Rebase only the x dir by faking a unit scope is overkill; call the
 	// helper over a synthetic tree instead.
-	n, err := rebaseTree(filepath.Join(dir, "x"), "github.com/calionauta/gogogo", "example.com/proj")
+	tree := mustOpenTree(t, dir)
+	n, err := rebaseTree(tree, filepath.Join(dir, "x"), "github.com/calionauta/gogogo", "example.com/proj")
 	if err != nil {
 		t.Fatal(err)
 	}

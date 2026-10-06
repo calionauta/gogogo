@@ -50,6 +50,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -280,7 +281,7 @@ func (s *FakeServer) writeStatusOrSuccess(w http.ResponseWriter, n int64) bool {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	body := `{"error":{"message":"forced "` + fmt.Sprint(status) + `","type":"server_error"}}`
+	body := `{"error":{"message":"forced "` + strconv.Itoa(status) + `","type":"server_error"}}`
 	_, _ = io.WriteString(w, body)
 	return false
 }

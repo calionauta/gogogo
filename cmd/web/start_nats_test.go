@@ -21,15 +21,18 @@ import (
 func TestStartNATS_SingleNATSWithDagNats(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
-	cfg.DagNats.HTTPAddr = "127.0.0.1:18098"
+	// Ephemeral HTTP port: a fixed one here duplicated features/todo's e2e
+	// fixture and risked a bind clash under parallel packages.
+	cfg.DagNats.HTTPAddr = "127.0.0.1:0"
 	cfg.DagNats.NATSPort = 14222 // distinct from TestConnectExisting's 4222 to avoid parallel-port clash
 	cfg.DagNats.StoreDir = t.TempDir()
 	cfg.NATS.Enabled = true
 	cfg.NATS.StoreDir = t.TempDir()
 
 	// DagNats owns the NATS on the conventional port.
-	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:18098", 14222, 1<<30)
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:0", 14222, 1<<30)
 	go func() { _ = srv.Run() }()
+	defer srv.Stop()
 
 	// startNATS internally calls ConnectExisting, which uses
 	// RetryOnFailedConnect (15s) — it blocks until DagNats' NATS on

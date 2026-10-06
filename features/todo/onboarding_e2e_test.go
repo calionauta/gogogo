@@ -28,13 +28,11 @@ import (
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
-// e2eDagNatsHTTP / e2eNATS are a dedicated DagNats engine port for this
-// test so it never clashes with TestOnboarding_ResumeSignalsRun (which
-// uses 127.0.0.1:18097 / 4222) when the dagnats-tagged suite runs.
-const (
-	e2eDagNatsHTTP = "127.0.0.1:18098"
-	e2eNATS        = 4223
-)
+// e2eNATS is the DagNats NATS port for this test. The HTTP side binds an
+// EPHEMERAL port (`127.0.0.1:0`) so it can never clash with another package's
+// test — a fixed 18098 here duplicated cmd/web's start_nats_test, and a fixed
+// port is what forced the suite to run under `-p 1`.
+const e2eNATS = 4223
 
 // buildFixtureDagNats boots the SAME full stack the production app serves
 // (PocketBase + goqite + todo routes + SSE + auth) AND a real DagNats
@@ -92,15 +90,15 @@ func buildFixtureDagNats(t *testing.T) (
 	}
 
 	r := router.NewRouter[*core.RequestEvent](newRequestEventFactory(app))
-	auth.CookieSecure = false
 	r.BindFunc(auth.LoadAuthFromCookie)
 	h.RegisterRoutesOn(r)
 	r.GET("/login", auth.RedirectIfAuthed).BindFunc(auth.HandleLoginGetForTest)
 	r.POST("/login", auth.HandlePasswordLogin)
 	r.POST("/logout", auth.HandleLogout)
 
-	// Boot a real DagNats engine (same wiring cmd/web/dagnats.go uses).
-	srv := dagnats.NewServer(t.TempDir(), e2eDagNatsHTTP, e2eNATS, 1<<30)
+	// Boot a real DagNats engine on an ephemeral HTTP port; the address is
+	// read back from the server once it is ready (below).
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:0", e2eNATS, 1<<30)
 	shim := server.EmbeddedWorker(srv)
 	shim.Handle("onboarding-greet", func(ctx worker.TaskContext) error {
 		// Forward the run input (root step) so the create-todo steps
@@ -153,15 +151,16 @@ func buildFixtureDagNats(t *testing.T) (
 			t.Logf("dagnats test server stopped: %v", runErrVal)
 		}
 	})
-	waitForDagNatsReady(t, e2eDagNatsHTTP)
+	dagHTTP := waitForDagNatsAddr(t, srv)
+	waitForDagNatsReady(t, dagHTTP)
 
-	client := dagnats.NewClient("http://" + e2eDagNatsHTTP)
+	client := dagnats.NewClient("http://" + dagHTTP)
 	registerOnboardingWorkflow(t, client)
 
 	// Wire the onboarding HTTP route (real browser path) onto the SAME
 	// router the SSE stream + todos are served from, mirroring
 	// router/onboarding_dagnats.go.
-	handlers.RegisterOnboardingRoutes(app, q, "http://"+e2eDagNatsHTTP, r, broadcaster, h)
+	handlers.RegisterOnboardingRoutes(app, q, "http://"+dagHTTP, r, broadcaster, h)
 
 	mux, err := r.BuildMux()
 	if err != nil {
@@ -185,6 +184,23 @@ func buildFixtureDagNats(t *testing.T) (
 // waitForDagNatsReady polls the engine's /ready endpoint until it
 // answers 200 (the embedded NATS + REST API are up). Mirrors the helper
 // used by TestOnboarding_ResumeSignalsRun.
+// waitForDagNatsAddr blocks until the engine reports the HTTP address it
+// actually bound (HTTPAddr() is empty until ready). It is what lets the test
+// ask for `127.0.0.1:0` instead of a fixed port that could collide with a test
+// in another package.
+func waitForDagNatsAddr(t *testing.T, srv *server.Server) string {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if addr := srv.HTTPAddr(); addr != "" {
+			return addr
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("dagnats never reported a bound HTTP address")
+	return ""
+}
+
 func waitForDagNatsReady(t *testing.T, addr string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

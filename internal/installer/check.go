@@ -33,7 +33,7 @@ func checkTree(root string) []unitCheck {
 		cache[path] = string(raw)
 		return cache[path], true
 	}
-	var out []unitCheck
+	out := make([]unitCheck, 0, len(manifestUnits))
 	for _, u := range manifestUnits {
 		uc := unitCheck{ID: u.id}
 		checkOwnedPaths(root, u, &uc)

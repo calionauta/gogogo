@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -110,7 +111,7 @@ func (c *Client) StartRun(ctx context.Context, workflow string, input any) (stri
 		return "", fmt.Errorf("dagnats: unmarshal run response: %w", err)
 	}
 	if result.RunID == "" {
-		return "", fmt.Errorf("dagnats: start run: empty run_id")
+		return "", errors.New("dagnats: start run: empty run_id")
 	}
 	return result.RunID, nil
 }

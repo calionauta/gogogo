@@ -166,6 +166,8 @@ github.com/pocketbase/ozzo-validation/v4 v4.3.0 h1:uKBDVma7bZqgR2a6AwE+k9hkuDFfi
 github.com/pocketbase/ozzo-validation/v4 v4.3.0/go.mod h1:6XNjSTw/Jb2F8LOkKO3oyzIWExbrGiYoS4uVxVwz90g=
 github.com/pocketbase/pocketbase v0.40.4 h1:0SvSUreR3NhUMCs9LchE59oEG53efZ3cKiMGyAGBN9U=
 github.com/pocketbase/pocketbase v0.40.4/go.mod h1:2mU+80FLiY1fb13WZRg8Xx/lKg4nTjgKVJMigyRH6k0=
+github.com/quasilyte/go-ruleguard/dsl v0.3.23 h1:lxjt5B6ZCiBeeNO8/oQsegE6fLeCzuMRoVWSkXC4uvY=
+github.com/quasilyte/go-ruleguard/dsl v0.3.23/go.mod h1:KeCP03KrjuSO0H1kTuZQCWlQPulDV6YMIXmpQss17rU=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.16.0 h1:O9DK+vNMDVGLr2BeZqmpLeMjiMNkuXfcqntWbZV6S5g=

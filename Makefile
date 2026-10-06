@@ -10,7 +10,7 @@ LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMM
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup rename help smoke gui run-gui lint-gui
+.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui
 
 all: build
 
@@ -77,22 +77,20 @@ clean:
 	@find . -name '*.log' -delete
 
 test:
-	# DagNats boots an embedded NATS + durable-workflow engine per package
-	# that tests it; running those packages in parallel under -race starves
-	# the engine and causes flaky timeouts. -p 1 serializes packages so the
-	# engine always gets enough CPU to complete runs within the test timeout.
+	# Plain parallel run across packages (scripts/test-web.sh). It used to be
+	# `-p 1` because the DagNats tests bound FIXED ports and two packages
+	# grabbed the same 18099; that looked like engine starvation but was a
+	# port collision. All DagNats tests now bind ephemeral HTTP ports and read
+	# the address back, so nothing needs serializing: ~110s vs ~255s.
 	# cmd/desktop is a separate Wails target (needs GTK/WebKit libs only on
-	# desktop build hosts); exclude it exactly as CI does.
-	@PKGS=$$(bash scripts/web-packages.sh); \
-		go test -race -p 1 $$PKGS -count=1
+	# desktop build hosts); web-packages.sh excludes it as CI does.
+	@bash scripts/test-web.sh -race -count=1
 
-# test-fast is the tight TDD loop. It keeps -p 1 (so the DagNats
-# embedded-engine stability holds) but drops -race, which is the
-# dominant cost of the full gate (~5min -> ~1min). Use it for
-# red/green iteration; run `test` (or `make ci-local`) before commit.
+# test-fast is the tight TDD loop. Same run as `test` but drops -race,
+# which is the dominant cost of the full gate. Use it for red/green
+# iteration; run `test` (or `make ci-local`) before commit.
 test-fast:
-	@PKGS=$$(bash scripts/web-packages.sh); \
-		go test -p 1 $$PKGS -count=1
+	@bash scripts/test-web.sh -count=1
 
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
 # v5). Idempotent. Run once after cloning; CI calls this in the
@@ -141,15 +139,19 @@ fmt:
 	@test -z "$$(goimports -l -local github.com/calionauta/gogogo $$(find . -name '*.go' ! -name '*_templ.go'))" || (echo "  ❌ goimports issues"; goimports -l -local github.com/calionauta/gogogo $$(find . -name '*.go' ! -name '*_templ.go'); exit 1)
 	@echo "  ✅ formatting clean"
 
-# datastar-lint checks .templ files for Datastar anti-patterns. Runs with
-# -only-errors so real issues fail the gate while intentional custom
-# attributes (e.g. data-tool/data-doc-id, read by our whiteboard JS) are
-# whitelisted via .datastar-lint.json instead of being flagged.
-# Scoped to ./features (where .templ live) so the every-save Air pre_cmd
-# does not walk node_modules.
+# datastar-lint checks the Datastar surface: .templ/.html attributes and Go
+# backend SDK calls (sse.PatchElements and friends).
+#
+# -only-errors: real issues fail the gate; warnings (intentional custom attrs
+# like data-tool/data-doc-id/data-neo-*) are reported but do not block. Those go
+# in .datastar-lint.yaml under attributes.allowed instead of being silenced.
+#
+# Scoped to ./features and ./internal so the every-save Air pre_cmd does not
+# walk node_modules. NOTE: a finding only fails this target when its severity is
+# ERROR — warnings alone exit 0.
 datastar-lint:
 	@echo "→ Running datastar-lint..."
-	@bin/datastar-lint -only-errors -r ./features
+	@bin/datastar-lint -only-errors -r ./features ./internal
 
 lint:
 	@echo "→ go vet..."
@@ -172,6 +174,15 @@ check-scope:
 	@go run ./cmd/check-scope
 	@echo "✅ SCOPE annotations present"
 
+# check-skill-frontmatter validates every SKILL.md frontmatter with a real
+# YAML parser. The repo's build never reads that YAML — the skill *host* does —
+# so an unquoted ": " in a description ships silently and only shows up as
+# "Error in user YAML" in the host UI. This gate is what stops it.
+check-skill-frontmatter:
+	@echo "→ check-skill-frontmatter (SKILL.md frontmatter linter)..."
+	@go run ./cmd/check-skill-frontmatter
+	@echo "✅ SKILL.md frontmatter valid"
+
 deadcode:
 	@which deadcode >/dev/null 2>&1 && PKGS=$$(bash scripts/web-packages.sh) && deadcode -test $$PKGS || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"
 
@@ -181,13 +192,13 @@ deadcode:
 # generated CSS is up to date. make setup installs the blocking
 # pre-commit hook that enforces the same gate on every commit.
 # ci-local runs the same quality gate as CI but locally, so you can
-# catch issues before pushing. Runs lint, tests (-p 1 for DagNats
-# engine stability), and a single unified build — no more tag matrix.
-ci-local: templ datastar-lint css-check check-scope
+# catch issues before pushing. Runs lint, tests (parallel across packages —
+# see scripts/test-web.sh), and a single unified build — no more tag matrix.
+ci-local: templ datastar-lint css-check check-scope check-skill-frontmatter
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
-	@echo "→ tests (unified, -p 1 for DagNats engine stability)"
-	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1
+	@echo "→ tests (parallel across packages)"
+	@bash scripts/test-web.sh -race -count=1
 	@echo "→ build (single build, reused by the smoke test)"
 	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
 	@echo "→ browser smoke test (Playwright)"
@@ -195,6 +206,23 @@ ci-local: templ datastar-lint css-check check-scope
 	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/smoke.mjs
 	@rm -f /tmp/gogogo-ci-local-web
 	@echo "✅ ci-local passed"
+
+# Fast local gate: the same cheap-but-decisive checks as ci-local (templ,
+# datastar-lint, css-check, check-scope, scoped lint) PLUS race tests for ONLY
+# the packages your change touches. Skips the full test sweep and the browser
+# smoke. Use it every few edits; run the full `ci-local` (and `make signoff`)
+# before pushing.
+#
+# Why: the full suite is dominated by features/todo (~90s+, >60% of the run),
+# so a CSS or installer tweak would otherwise pay for the whole suite. This
+# narrows on the changed packages, falling back to all packages when a shared
+# file (go.mod, config/, db/) changed.
+ci-local-fast: templ datastar-lint css-check check-scope check-skill-frontmatter
+	@echo "→ lint (golangci-lint, scoped to changed packages)"
+	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
+	@echo "→ tests (race, changed packages only)"
+	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else go test -race -count=1 $$PKGS; fi
+	@echo "✅ ci-local-fast passed (full gate before push: make ci-local)"
 
 # smoke boots the built binary in a headless browser, fails on uncaught client
 # errors, and exercises offline todo add/delete through IndexedDB + reconnect
@@ -217,7 +245,7 @@ signoff: ci-local
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
-.PHONY: ci-local signoff
+.PHONY: ci-local ci-local-fast signoff
 
 .PHONY: site site-check
 
@@ -257,6 +285,8 @@ docker-image: templ
 
 coverage:
 	@echo "→ Running tests with coverage..."
+	# -p 1 here on purpose: a single coverage.out needs every package's profile
+	# merged, and `go test` with -coverprofile writes one file per invocation.
 	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1 -coverprofile=coverage.out -covermode=atomic
 	@go tool cover -func=coverage.out | sort -k3 -r | head -30
 	@echo "---"
@@ -279,9 +309,13 @@ help:
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
+	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"
 
 	@echo "  css            Build app.min.css from src/css/input.css (Tailwind v4 + DaisyUI v5)"
+	@echo "  ci-local       Full pre-push gate (= CI): lint, race tests, build, browser smoke"
+	@echo "  ci-local-fast  Fast gate: cheap checks + race tests for changed packages only (~2-30s)"
+	@echo "  signoff        ci-local + gh signoff stamp (safe to push)"
 	@echo "  css-install    Install CSS build dependencies (npm)"
 	@echo "  dev            Live reload with Air"
 	@echo "  templ          Generate Templ components"

@@ -1,3 +1,59 @@
+## [0.34.0] - 2026-10-05
+
+Covers everything since v0.33.0. An earlier draft of this entry was numbered
+0.31.1 — a version that was never tagged and sorts *below* the released v0.33.0,
+so it would have been skipped by any reader walking the file top-down.
+
+### Added
+
+- **In-repo `gogogo-coding-standards` skill** (`skills/gogogo-coding-standards/`, `SKILL.md` + 5 references): the Go concurrency/perf/testing deltas for 1.25-1.27, the Datastar gate, and a Zig gate summary. Universal principles are delegated to `stelow-workflow-coding-standards` (linked, not duplicated). `AGENTS.md` shrank 576 → 75 lines with the load-bearing rules kept as one-liners pointing at `docs/*.md`, and `advise_stack` now cites the skill as its source.
+- **`make ci-local-fast`** — a layered gate scoped to the changed packages: the cheap decisive checks (templ, datastar-lint, css-check, check-scope) plus scoped lint and race tests, narrowed by `scripts/changed-packages.sh`. Measured ~2s for a CSS-only change and ~10s for one changed package, against ~240s for the full gate. It falls back to all packages when a shared file moves (`go.mod`, `config/`, `db/`, `internal/capabilities/`). `make ci-local` is unchanged and stays the authoritative pre-push gate.
+- **`rules/rules.go` — project footguns enforced by ruleguard**, loaded through `gocritic` so they run inside the ordinary `golangci-lint` pass and block CI. The first rule flags `<-time.After(...)` used directly as a select case: a timer allocated per evaluation that leaks inside a loop. Also enables `perfsprint`, `prealloc`, `fatcontext` and `usestdlibvars`.
+- **`credits.Settler.Start(ctx)`** — the settlement worker is no longer started by `New`; the caller owns its lifetime and the router binds it to `App.OnTerminate`.
+
+### Fixed
+
+- **Five concurrency and resource pitfalls**, each with a red-proof test. `credits.New` no longer starts workers (and its settlement ticker selects on `ctx.Done()`); `onboarding.pollRun` is bound to the handler's shutdown via a done channel + `sync.Once` — not a stored context, which `containedctx` rejects — while the durable workflow still survives the client navigating away, since the poll context derives from `Background` rather than `Request.Context()`. Installer writes are confined to their target directory.
+- **The `features/todo` login flake, at its root.** `"POST /login: context deadline exceeded"` was not timing noise: `requestTimeout` was 5s while SQLite's `busy_timeout` is 10s, so under a held write lock the request context cancelled while the database was still legitimately waiting. Reproduced deterministically — a 5s context under a 6s lock hold returns `database is locked`, a 20s context succeeds. `requestTimeout` is now 20s with the relation to `busy_timeout` documented so the next reader does not shorten it again. Separately, the goqite queue DB was opened without any `busy_timeout`, so a concurrent queue writer failed with `SQLITE_BUSY` instead of waiting; it now carries `busy_timeout(10000)` + WAL in the DSN. Goroutine leaks are now asserted with `goleak`.
+- **Two tests sharing a fixed port.** `internal/nats` and `features/todo/handlers` both bound `18099`, which is why the suite ran as a single `-p 1` sweep "for DagNats engine stability" — the serialization was a misdiagnosis of `bind: address already in use`. Both now bind ephemeral ports; see the parallelization note below.
+- **A browser tab opened on every run that spawns the real binary.** PocketBase's first-run installer mints a `pbinstall` token and calls `osutils.LaunchURL`; a test booting the binary with a throwaway `DATA_DIR` has no superuser, so it fired every time — usually pointing at a server that had not bound, hence the "127.0.0.1 refused to connect" tab. `router.Init` suppressed it only when `interactive()` was false, but a child inherits the parent's TTY: `make test` from a real terminal made the child look interactive too. `isCharDevice` was also the wrong predicate — `/dev/null` is a character device — so `< /dev/null > /dev/null` passed as a terminal. Now `isTerminal` rejects `/dev/null` explicitly, and every test that spawns the binary sets `GOGOGO_NO_BROWSER=1` in an env built from scratch (an inherited `=0` no longer wins).
+- **The SSE test pump did not honour its timeout.** `pumpSSEUntil` checked its deadline only between `Body.Read` calls, and `Read` blocks until the next event — so a caller asking for a 6s window waited one full heartbeat (15s). `TestTodoRecordsNotBroadcastViaHub` took 15.5s for a 6s negative assertion. The read now runs in a goroutine with a timer select that closes the body on expiry.
+- **An SSE predicate that could never fire burned its whole timeout.** `TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult` unmarshalled the raw SSE transcript as JSON, which is `event:`/`data:` lines and carries a `signals ` prefix on each payload, so `json.Unmarshal` always failed: the test waited the full 14s and passed on a later assertion. Now parses via `sseSignalPayloads`. 15.5s → 5.0s.
+- **A data race in the todo fixture.** Four test fixtures assigned `auth.CookieSecure = false` — its zero value, so a no-op write — which is a genuine race as soon as two tests in a package overlap (surfaced on the first attempt to add `t.Parallel()`). The assignments are deleted and the constraint documented on the variable: set shared state once in `TestMain`, never in a fixture.
+- **Two more fixed ports in tests.** `bootLiveServer` hardcoded `8291` and `cmd/web/smoke_test.go` hardcoded `18199` — the same collision class as above. Both now reserve an ephemeral port.
+- **The skill's YAML frontmatter failed to parse.** The `gogogo-coding-standards` description was an unquoted scalar containing `"Triggers when: "`, and `": "` starts a mapping in YAML, so every host reported an `Error in user YAML`. The description is quoted and a frontmatter gate now runs in CI so it cannot recur.
+- **The Datastar gate was checking almost nothing.** `bin/datastar-lint` did not forward `"$@"`, so every argument was discarded: `make datastar-lint` linted the whole repo (including `node_modules`) and printed 264 warnings where 0 were expected — the filters looked applied and were not. CI now pins the linter version instead of `@latest`, because a release can raise a rule to ERROR and fail the build with no code change here.
+
+### Changed
+
+- **`features/todo` race suite: 148s → ~70s**, and `make ci-local` to ~110s, with no change in coverage and zero races. `owner_require_test.go`'s per-Read goroutine loop (one leaked goroutine per 500ms tick) now uses the shared pump.
+- **The test suite runs the four engine packages serialized and everything else in parallel.** `scripts/test-web.sh` detects the engine packages (`cmd/web`, `features/todo`, `features/todo/handlers`, `internal/nats`), runs those `-p 1` in the foreground and the remaining 35 at default parallelism alongside, so the parallel group hides under the engine's wall-clock. Measured ~2m10 vs ~4m15, verified across 3 runs at `GOMAXPROCS=4` (the CI runner's size) and 2 at `GOMAXPROCS=2`.
+- **The queue worker no longer allocates a timer per idle second.** The worker loop used `time.After(200ms)` inside its `for {}`, the exact pattern the standards skill warns about; it resets a single timer instead. The per-tick `Info` log became `Debug` — it was one line per worker per idle second (4/s, ~345k lines/day) with nothing actionable.
+- **`golangci-lint` 2.13.2 → 2.14.0** (CI pin updated). The Homebrew bottle is built with go1.26 and refuses this repo's go1.27.1; the official release binary (go1.27.0) is what works.
+- **New ruleguard rule `BlockingReadBehindDeadline`** flags a `Body.Read` inside a `for time.Now().Before(deadline)` loop in tests — the construct above, made mechanical instead of prose.
+- **`docs/local-ci.md` records why the browser smoke test stays on Playwright**, with the lighter candidates measured rather than assumed. Lightpanda has `navigator.serviceWorker` and `caches` both `undefined`, so the offline path the smoke test exists to prove — Service Worker + IndexedDB outbox + replay — cannot run there.
+
+### Verification
+
+- `make ci-local` green (templ + datastar-lint + css-check + check-scope + golangci-lint + race tests + build + Playwright smoke)
+- Red-proofs: reverting `isTerminal` fails `TestIsTerminal_NonTerminalsAreRejected`; reverting `pumpSSEUntil` makes `TestPumpSSEUntil_HonorsDeadlineWhileReadParked` hang; the ruleguard rules fire on the bad patterns and stay silent on the corrected helpers; reverting the concurrency bounds leaks goroutines under `goleak`
+- A `PATH` shim intercepting `open` records zero browser launches across the full `ci-local`
+
+## [0.33.0] - 2026-10-04 · [0.32.0] - 2026-10-04
+
+These two releases were tagged and published but never got CHANGELOG entries:
+their GitHub release bodies are GoReleaser's auto-generated commit list rather
+than notes, so there is no curated record of what they changed. Reconstructing
+one after the fact would mean guessing at the grouping, so the primary sources
+are named instead of paraphrased:
+
+- [`v0.33.0`](https://github.com/calionauta/gogogo/releases/tag/v0.33.0) — 140 commits since v0.31.0, the installer's AI-ready section and update-check, the Tailwind scan-root fix, and a deploy fix so a failed roll actually fails the deploy.
+- [`v0.32.0`](https://github.com/calionauta/gogogo/releases/tag/v0.32.0) — the GoReleaser prebuilt binaries, `install.sh`, the guided installer's preflight and advise guidance, and the `gogogo` rename.
+
+`git log <tag>^..<tag>` and `gh release view <tag>` carry the detail. Future
+releases: write the CHANGELOG entry in the same commit as the behaviour change,
+which is what the "Docs stay truthful" rule in `AGENTS.md` already asks for.
+
 ## [0.31.0] - 2026-10-04
 
 ### Added

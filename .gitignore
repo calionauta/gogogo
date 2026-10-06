@@ -74,6 +74,13 @@ stelow.json
 # Pre-built binaries (belong in releases, not in the repo)
 gogogo-desktop
 gogogo-gui
+# A bare `go build ./cmd/<x>/` drops a binary named after the package at the
+# repo root. `go run` (what the Makefile targets use) never does.
+/check-skill-frontmatter
+/check-scope
+# `make desktop` (wails3) drops an untagged binary named after the app at the
+# repo root; ignore it by exact path so a `desktop/` source dir would be safe.
+/desktop
 
 # Investigation spikes (local only, never commit).
 #

@@ -87,7 +87,6 @@ func webFixture(t *testing.T) (string, *collab.MemoryPersister, func()) {
 			return e, nil
 		},
 	)
-	auth.CookieSecure = false
 	r.BindFunc(auth.LoadAuthFromCookie)
 	h.RegisterRoutesOn(r)
 	r.POST("/login", auth.HandlePasswordLogin)

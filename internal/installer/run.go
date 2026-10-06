@@ -161,7 +161,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	}
 	if opt.name == "" {
 		fs.Usage()
-		return opt, fs, fmt.Errorf("project name is required (--name my-app or interactive mode)")
+		return opt, fs, errors.New("project name is required (--name my-app or interactive mode)")
 	}
 	if err := validateName(opt.name); err != nil {
 		return opt, fs, err
@@ -410,7 +410,7 @@ type UnitView struct {
 
 // Units lists installer units in manifest order.
 func Units() []UnitView {
-	var out []UnitView
+	out := make([]UnitView, 0, len(manifestUnits))
 	for _, u := range manifestUnits {
 		m := u.meta()
 		summary := u.id

@@ -1,22 +1,56 @@
 #!/usr/bin/env bash
+# datastar-lint wrapper — supplies this project's defaults, forwards the rest.
+#
+# Two things to know before editing this file:
+#
+#  1. It must forward "$@". Without it, every argument a caller passes is
+#     silently discarded: `bin/datastar-lint -only-errors -r ./features` used to
+#     lint the WHOLE repo (including node_modules) with no -only-errors, so the
+#     Makefile target, the pre-commit hook and CI all reported 264 warnings
+#     where 0 were expected. The filters looked applied and were not.
+#
+#  2. `-e/--ext` is deprecated in datastar-lint v0.10+ — "analyzers control
+#     their own extensions". Pass `--analyzers` instead.
+#
+# With no arguments the wrapper lints the repo with every analyzer, which is the
+# useful default for a bare invocation. With arguments the caller is explicit,
+# so only the analyzer defaults are added.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# By default, lint both HTML/Templ files and Go SDK calls.
-# Add --analyzers html,go to enable cross-reference checks too.
-ANALYZERS="html,go"
+# Both analyzers, always: the Go analyzer validates backend SDK calls
+# (sse.PatchElements and friends) which the HTML/Templ analyzer cannot see, and
+# cross-reference checks need both.
+DEFAULT_ANALYZERS="html,go"
 
-# If the tool is already installed via go install, use it.
-if command -v datastar-lint &>/dev/null; then
-	exec datastar-lint -r --analyzers "$ANALYZERS" "$ROOT"
+run() {
+	if command -v datastar-lint &>/dev/null; then
+		exec datastar-lint "$@"
+	fi
+	# Fallback: run from the sibling source checkout.
+	local repo="${DSLINT_REPO:-$HOME/Development/datastar-lint}"
+	if [ -d "$repo" ]; then
+		exec go run "$repo" "$@"
+	fi
+	echo "❌ datastar-lint not found. Install it with: go install github.com/calionauta/datastar-lint@latest"
+	exit 1
+}
+
+if [ "$#" -eq 0 ]; then
+	run -r --analyzers "$DEFAULT_ANALYZERS" "$ROOT"
 fi
 
-# Fallback: try to build and run from the separate repo.
-DSLINT_REPO="$HOME/Development/datastar-lint"
-if [ -d "$DSLINT_REPO" ]; then
-	exec go run "$DSLINT_REPO" -r --analyzers "$ANALYZERS" "$ROOT"
-fi
+# Caller gave arguments: add the analyzer default unless they set one
+# themselves, and let their paths/flags through untouched.
+has_analyzers=false
+for arg in "$@"; do
+	case "$arg" in
+		-a|--analyzers|-analyzers|-analyzers=*) has_analyzers=true ;;
+	esac
+done
 
-echo "❌ datastar-lint not found. Install it with: go install github.com/calionauta/datastar-lint@latest"
-exit 1
+if [ "$has_analyzers" = true ]; then
+	run "$@"
+fi
+run --analyzers "$DEFAULT_ANALYZERS" "$@"

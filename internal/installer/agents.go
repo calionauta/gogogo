@@ -2,7 +2,6 @@
 package installer
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -47,5 +46,10 @@ go build ./cmd/web.
 
 func writeAgents(dir, projectName string) error {
 	out := strings.ReplaceAll(agentsTemplate, "__PROJECT__", projectName)
-	return os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(out), scaffoldFileMode)
+	t, err := openTree(dir)
+	if err != nil {
+		return err
+	}
+	defer t.Close()
+	return t.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(out), scaffoldFileMode)
 }

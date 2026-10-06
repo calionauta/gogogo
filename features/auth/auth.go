@@ -59,7 +59,15 @@ const (
 )
 
 // CookieSecure is set at startup from config (true in production,
-// false in dev so HTTP testing works).
+// false in dev so HTTP testing works) by router.Init, the only writer.
+//
+// Tests must NOT write it: the zero value is already false, which is the
+// value they need, and a per-fixture write is a data race as soon as two
+// tests in a package run concurrently. Four test files used to do
+// `auth.CookieSecure = false` for no effect; the assignment was deleted
+// rather than guarded, since removing a no-op write beats serializing on
+// a mutex. If a test ever genuinely needs `true`, set it once in that
+// package's TestMain, never inside a fixture.
 var CookieSecure bool
 
 // onLoginHook is an optional callback fired after a successful password

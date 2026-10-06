@@ -4,6 +4,7 @@ package installer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -66,25 +67,30 @@ func addUnit(from, root string, u trimUnit, rc *AddReceipt) error {
 	if err := requireScaffold(root); err != nil {
 		return err
 	}
-	if err := copyUnitPaths(from, root, m, rc); err != nil {
+	t, err := openTree(root)
+	if err != nil {
 		return err
 	}
-	if err := addRouterCalls(root, u, rc); err != nil {
+	defer t.Close()
+	if err := copyUnitPaths(t, from, root, m, rc); err != nil {
 		return err
 	}
-	if err := addSpans(from, root, u, rc); err != nil {
+	if err := addRouterCalls(t, root, u, rc); err != nil {
 		return err
 	}
-	if err := addImports(from, root, u, rc); err != nil {
+	if err := addSpans(t, from, root, u, rc); err != nil {
+		return err
+	}
+	if err := addImports(t, from, root, u, rc); err != nil {
 		return err
 	}
 	if u.id == unitDagnats {
 		mp := filepath.Join(root, "cmd", "web", "main.go")
-		if err := dropLineContaining(mp, mainBlankUse); err != nil && !os.IsNotExist(err) {
+		if err := dropLineContaining(t, mp, mainBlankUse); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
-	if err := rebaseModulePrefix(from, root, u, rc); err != nil {
+	if err := rebaseModulePrefix(t, from, root, u, rc); err != nil {
 		return err
 	}
 	rc.Warnings = append(rc.Warnings, addFollowUps(u)...)
@@ -93,16 +99,20 @@ func addUnit(from, root string, u trimUnit, rc *AddReceipt) error {
 
 // copyUnitPaths copies missing owned dirs/files from the template tree.
 // Present paths are skipped (idempotent re-add).
-func copyUnitPaths(from, root string, m unitMeta, rc *AddReceipt) error {
+//
+// Writes go through treeFS (copyInto) so a symlink planted inside the target
+// tree cannot redirect a write outside it. joinRoot still runs first as
+// lexical defense-in-depth.
+func copyUnitPaths(t *treeFS, from, root string, m unitMeta, rc *AddReceipt) error {
 	for _, d := range m.dirs {
 		dst, err := joinRoot(root, d)
 		if err != nil {
 			return err
 		}
-		if _, err := os.Lstat(dst); err == nil {
+		if _, err := t.Lstat(dst); err == nil {
 			continue
 		}
-		if err := copyPath(filepath.Join(from, filepath.FromSlash(d)), dst); err != nil {
+		if err := t.copyInto(filepath.Join(from, filepath.FromSlash(d)), dst); err != nil {
 			return fmt.Errorf("copy %s: %w", d, err)
 		}
 		rc.DirsCopied++
@@ -112,10 +122,10 @@ func copyUnitPaths(from, root string, m unitMeta, rc *AddReceipt) error {
 		if err != nil {
 			return err
 		}
-		if _, err := os.Lstat(dst); err == nil {
+		if _, err := t.Lstat(dst); err == nil {
 			continue
 		}
-		if err := copyPath(filepath.Join(from, filepath.FromSlash(f)), dst); err != nil {
+		if err := t.copyInto(filepath.Join(from, filepath.FromSlash(f)), dst); err != nil {
 			return fmt.Errorf("copy %s: %w", f, err)
 		}
 		rc.FilesCopied++
@@ -153,7 +163,7 @@ func (rc *AddReceipt) touch(path string) {
 // its anchor. Anchors resolve per rule (addBefore/addAfter win) with path
 // defaults: main.go after the shutdown defer, desktop before the Wails boot
 // section, .templ/handler files from templSpanAnchor.
-func addSpans(from, root string, u trimUnit, rc *AddReceipt) error {
+func addSpans(t *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 	type item struct {
 		path   string
 		rule   stripRule
@@ -193,48 +203,16 @@ func addSpans(from, root string, u trimUnit, rc *AddReceipt) error {
 			return fmt.Errorf("%s: no insertion anchor (add convention covers listed paths only)", it.path)
 		}
 		dst := filepath.Join(root, filepath.FromSlash(it.path))
-		if _, err := os.Stat(dst); os.IsNotExist(err) {
+		if _, err := t.Lstat(dst); os.IsNotExist(err) {
 			// Sibling trim deleted the target (e.g. sounds call sites
 			// in a removed layout): nothing to restore, not an error.
 			continue
 		}
-		n, err := insertRuleSpan(from, root, it.path, it.rule, it.anchor, rc)
+		n, err := insertRuleSpan(t, from, root, it.path, it.rule, it.anchor, rc)
 		if err != nil {
 			return err
 		}
 		rc.LinesInserted += n
-	}
-	return nil
-}
-
-// copyPath copies a file or directory tree, creating parents.
-func copyPath(src, dst string) error {
-	st, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	if !st.IsDir() {
-		raw, readErr := os.ReadFile(src)
-		if readErr != nil {
-			return readErr
-		}
-		if mkErr := os.MkdirAll(filepath.Dir(dst), dirMode); mkErr != nil {
-			return mkErr
-		}
-		//nolint:gosec // G306 scaffolded repo files are 0644 tracked sources, same as a git checkout.
-		return os.WriteFile(dst, raw, scaffoldFileMode)
-	}
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(dst, dirMode); err != nil {
-		return err
-	}
-	for _, e := range entries {
-		if err := copyPath(filepath.Join(src, e.Name()), filepath.Join(dst, e.Name())); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -429,7 +407,7 @@ func parseAddArgs(args []string, stdout io.Writer) (addOptions, error) {
 	names = append(names, fs.Args()...)
 	if len(names) != 1 {
 		fs.Usage()
-		return opt, fmt.Errorf("usage: gogogo add <unit> --from TEMPLATE --dir PROJECT")
+		return opt, errors.New("usage: gogogo add <unit> --from TEMPLATE --dir PROJECT")
 	}
 	opt.unitID = names[0]
 	units, err := addClosure(names[0])
@@ -439,7 +417,7 @@ func parseAddArgs(args []string, stdout io.Writer) (addOptions, error) {
 	opt.units = units
 	if opt.from == "" || opt.dir == "" {
 		fs.Usage()
-		return opt, fmt.Errorf("--from and --dir are both required")
+		return opt, errors.New("--from and --dir are both required")
 	}
 	if _, err := os.Stat(opt.from); err != nil {
 		return opt, &ExitError{code: 1, msg: "template source not found: " + opt.from}

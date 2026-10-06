@@ -41,6 +41,10 @@ const runtimeEnv = {
   NATS_ENABLED: "false",
   DAGNATS_ENABLED: "false",
   OFFLINE_SYNC_ENABLED: "true",
+  // Belt-and-suspenders: router.Init already suppresses the first-run
+  // installer for a non-TTY process, but an explicit flag means a future
+  // change to that heuristic cannot start popping browser tabs again.
+  GOGOGO_NO_BROWSER: "1",
 };
 const providedBin = process.env.SMOKE_BIN;
 const bin = providedBin ? resolve(providedBin) : join(tmp, "web");

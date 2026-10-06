@@ -2,10 +2,11 @@ package queue
 
 import (
 	"context"
-	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 
 	"github.com/calionauta/gogogo/config"
 )
@@ -75,7 +76,10 @@ func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
 // as a coarse sanity check that the simpler code path doesn't grow
 // goroutines unboundedly.
 func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
-	before := countGoroutines()
+	// goleak, not runtime.NumGoroutine: the count is process-global and races
+	// other tests' goroutines. This asserts the design invariant directly —
+	// replay is synchronous at Register(), so no goroutine outlives the loop.
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	for range 200 {
 		hub := NewSSEHub()
 		ch := make(chan []byte, 10)
@@ -83,12 +87,6 @@ func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
 		hub.Register("x", "", ch)
 		drain(ch)
 		hub.Unregister("x")
-	}
-	time.Sleep(10 * time.Millisecond) // let any leaked goroutines settle
-	after := countGoroutines()
-	if after > before+5 {
-		t.Errorf("goroutine count grew %d -> %d; possible leak from Register",
-			before, after)
 	}
 }
 
@@ -374,13 +372,6 @@ func TestSSEHub_UnregisterIfCurrent_NormalCleanup(t *testing.T) {
 }
 
 // --- helpers ---
-
-// countGoroutines is a coarse runtime check. Excludes the current
-// goroutine (returns 1 less than runtime.NumGoroutine) to make
-// the before/after comparison more meaningful.
-func countGoroutines() int {
-	return runtime.NumGoroutine() - 1
-}
 
 func drain(ch <-chan []byte) [][]byte {
 	var out [][]byte

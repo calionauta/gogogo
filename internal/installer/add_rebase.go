@@ -16,7 +16,7 @@ import (
 // in everything add just brought in. Copied files carry the source tree's
 // imports; without this, tidy resolves them against the published module
 // (wrong version, wrong path) instead of the local tree.
-func rebaseModulePrefix(from, root string, u trimUnit, rc *AddReceipt) error {
+func rebaseModulePrefix(t *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 	fromMod, err := goModModule(filepath.Join(from, "go.mod"))
 	if err != nil {
 		return fmt.Errorf("template source go.mod: %w", err)
@@ -43,7 +43,7 @@ func rebaseModulePrefix(from, root string, u trimUnit, rc *AddReceipt) error {
 			continue
 		}
 		seen[full] = true
-		n, err := rebaseTree(full, fromMod, toMod)
+		n, err := rebaseTree(t, full, fromMod, toMod)
 		if err != nil {
 			return err
 		}
@@ -73,13 +73,13 @@ func goModModule(path string) (string, error) {
 // rebaseTree rewrites old module prefix to new in .go/.templ files under p.
 // Missing paths are errors: rebase runs right after copy, so everything
 // listed must exist (unlike strip targets, which sibling trims may own).
-func rebaseTree(p, oldMod, newMod string) (int, error) {
-	st, err := os.Stat(p)
+func rebaseTree(t *treeFS, p, oldMod, newMod string) (int, error) {
+	st, err := t.Lstat(p)
 	if err != nil {
 		return 0, fmt.Errorf("rebase missing %s: %w", p, err)
 	}
 	if !st.IsDir() {
-		return rebaseFile(p, oldMod, newMod)
+		return rebaseFile(t, p, oldMod, newMod)
 	}
 	entries, err := os.ReadDir(p)
 	if err != nil {
@@ -87,7 +87,7 @@ func rebaseTree(p, oldMod, newMod string) (int, error) {
 	}
 	n := 0
 	for _, e := range entries {
-		m, err := rebaseTree(filepath.Join(p, e.Name()), oldMod, newMod)
+		m, err := rebaseTree(t, filepath.Join(p, e.Name()), oldMod, newMod)
 		if err != nil {
 			return n, err
 		}
@@ -96,19 +96,18 @@ func rebaseTree(p, oldMod, newMod string) (int, error) {
 	return n, nil
 }
 
-func rebaseFile(p, oldMod, newMod string) (int, error) {
+func rebaseFile(t *treeFS, p, oldMod, newMod string) (int, error) {
 	if !strings.HasSuffix(p, ".go") && !strings.HasSuffix(p, ".templ") {
 		return 0, nil
 	}
-	raw, err := os.ReadFile(p)
+	raw, err := t.ReadFile(p)
 	if err != nil {
 		return 0, err
 	}
 	if !strings.Contains(string(raw), oldMod) {
 		return 0, nil
 	}
-	//nolint:gosec // G306 scaffolded repo files are 0644 tracked sources, same as a git checkout.
-	if err := os.WriteFile(p, []byte(strings.ReplaceAll(string(raw), oldMod, newMod)), scaffoldFileMode); err != nil {
+	if err := t.WriteFile(p, []byte(strings.ReplaceAll(string(raw), oldMod, newMod)), scaffoldFileMode); err != nil {
 		return 0, err
 	}
 	return 1, nil

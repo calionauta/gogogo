@@ -90,6 +90,14 @@ func (wp *WorkerPool) Stop() {
 func (wp *WorkerPool) worker(id int) {
 	defer wp.wg.Done()
 
+	// Reusable idle timer: a `time.After` inside the loop would allocate a new
+	// Timer on every idle tick (4 workers x ~1/s). Reset it instead.
+	idle := time.NewTimer(200 * time.Millisecond)
+	if !idle.Stop() {
+		<-idle.C
+	}
+	defer idle.Stop()
+
 	for {
 		select {
 		case <-wp.stopCh:
@@ -103,7 +111,6 @@ func (wp *WorkerPool) worker(id int) {
 		}
 
 		msg, err := q.ReceiveAndWait(wp.ctx, time.Second)
-		slog.Info("queue worker: received", "worker_id", id, "has_msg", msg != nil, "err", err)
 		if err != nil {
 			select {
 			case <-wp.stopCh:
@@ -117,15 +124,20 @@ func (wp *WorkerPool) worker(id int) {
 			}
 		}
 		if msg == nil {
+			// Idle: no message this second. Log at Debug — an Info line here is
+			// one entry per worker per idle second, forever.
+			slog.Debug("queue worker: idle", "worker_id", id)
+			idle.Reset(200 * time.Millisecond)
 			select {
 			case <-wp.stopCh:
 				return
 			case <-wp.ctx.Done():
 				return
-			case <-time.After(200 * time.Millisecond):
+			case <-idle.C:
 				continue
 			}
 		}
+		slog.Debug("queue worker: received", "worker_id", id)
 
 		wp.processMessage(context.Background(), msg)
 

@@ -6,6 +6,7 @@
 package installer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 // addImports restores import lines the trim dropped: for every import-like
 // drop substr, the full line is extracted from source and inserted sorted
 // into the target import block. Idempotent.
-func addImports(from, root string, u trimUnit, rc *AddReceipt) error {
+func addImports(tree *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 	type target struct {
 		path    string
 		substrs []string
@@ -40,12 +41,12 @@ func addImports(from, root string, u trimUnit, rc *AddReceipt) error {
 		})
 	}
 	for _, t := range targets {
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(t.path))); os.IsNotExist(err) {
+		if _, err := tree.Lstat(filepath.Join(root, filepath.FromSlash(t.path))); os.IsNotExist(err) {
 			// Sibling trim deleted the target (e.g. sounds imports in
 			// a removed layout): nothing to restore, not an error.
 			continue
 		}
-		n, err := insertImports(from, root, t.path, t.substrs, rc)
+		n, err := insertImports(tree, from, root, t.path, t.substrs, rc)
 		if err != nil {
 			return err
 		}
@@ -60,13 +61,13 @@ func addImports(from, root string, u trimUnit, rc *AddReceipt) error {
 // (qualifier appears outside import lines): restoring sounds imports into
 // layouts whose call sites stay manual (by design) would break the build
 // with an unused import.
-func insertImports(from, root, path string, substrs []string, rc *AddReceipt) (int, error) {
+func insertImports(tree *treeFS, from, root, path string, substrs []string, rc *AddReceipt) (int, error) {
 	srcRaw, err := os.ReadFile(filepath.Join(from, filepath.FromSlash(path)))
 	if err != nil {
 		return 0, fmt.Errorf("template source missing %s", path)
 	}
 	dst := filepath.Join(root, filepath.FromSlash(path))
-	dstRaw, err := os.ReadFile(dst)
+	dstRaw, err := tree.ReadFile(dst)
 	if err != nil {
 		return 0, fmt.Errorf("target missing %s", path)
 	}
@@ -111,8 +112,7 @@ func insertImports(from, root, path string, substrs []string, rc *AddReceipt) (i
 	if inserted == 0 {
 		return 0, nil
 	}
-	//nolint:gosec // G306 scaffolded repo files are 0644 tracked sources, same as a git checkout.
-	if err := os.WriteFile(dst, []byte(strings.Join(lines, "\n")), scaffoldFileMode); err != nil {
+	if err := tree.WriteFile(dst, []byte(strings.Join(lines, "\n")), scaffoldFileMode); err != nil {
 		return inserted, err
 	}
 	rc.touch(filepath.ToSlash(path))
@@ -247,7 +247,7 @@ func mergeSingleImports(lines []string, imp string) ([]string, error) {
 		}
 	}
 	if pkgIdx == -1 {
-		return nil, fmt.Errorf("no package clause found")
+		return nil, errors.New("no package clause found")
 	}
 	paths := []string{imp}
 	for _, i := range singles {

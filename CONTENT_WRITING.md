@@ -57,7 +57,7 @@ these angles describe what the binary does, mechanically. each pairs a claim wit
 - **age-encrypted secrets via `~/.secrets/`** — no vault, no cloud. secrets live in `~/.secrets/<service>.env`, mode 600, loaded with `set -a; source ...; set +a`. the template ships an `internal/secrets` age-decrypted loader. on deploy, `deploy-prod.sh` regenerates the secrets file from github actions secrets — there is no secret history on disk.
 - **a demo that fails loudly on purpose** — `SIMULATE_LLM=true` runs an in-process fake goai client that scripts `500 → retry → slow → 200`. the user gets to watch the retry feedback toasts end-to-end without an api key. the demo doubles as a regression test for the queue + retry path.
 - **the `gogogo_auth` + `pb_auth` two-cookie puzzle** — pocketbase keeps the superuser (`_superusers`) and regular users in separate auth namespaces; sharing `pb_auth` between app and admin would clobber the admin session in the same browser (issues #5050 / #1780). so the app issues two cookies with the same token under two names — one for the app, one so `/api/realtime` authenticates as the same user. the split is documented in `features/auth/auth.go` constants and explained in the readme.
-- **`make check` as a single gate** — fmt → datastar-lint → css-check → golangci-lint (27 linters) → size → deadcode → race tests. the pre-commit hook runs it on every commit; `make ci-local` runs the same gate a developer would run before a push. the linters are picked to catch the mistakes llms make most often (unchecked errors, broken context propagation, body closes, slog misuse, magic numbers, contained contexts in structs).
+- **`make ci-local` as a single gate** — templ → datastar-lint → css-check → check-scope → golangci-lint (31 linters) → race tests → build → browser smoke. the pre-commit hook runs the cheap half on every commit; `make ci-local` runs the full gate a developer would run before a push. the linters are picked to catch the mistakes llms make most often (unchecked errors, broken context propagation, body closes, slog misuse, magic numbers, contained contexts in structs).
 - **`gh-signoff` as advisory stamp** — push-to-master deploys, so the signoff is a signal not a hard gate. `make signoff` is the local green stamp; it does not block a push.
 - **scratch + health as a deploy primitive** — `Dockerfile` builds on scratch, the container holds one binary, and the healthcheck is `cmd ["/app","health"]` (no `shell`, no `wget`, no `curl`). the server layout in the readme is the same for every sibling project — `bin/ compose/ env/ secrets/ data/ repo/ scripts/`.
 
@@ -65,7 +65,7 @@ these angles describe what the binary does, mechanically. each pairs a claim wit
 
 - ~56 mb binary on scratch
 - 12 kib datastar client
-- 27 linters via golangci-lint
+- 31 linters via golangci-lint, plus ruleguard rules for project footguns
 - 6 realtime / async layers
 - 5 ambient layers (pocketbase + goqite + dagnats + loro + jetstream) compiled into one binary
 - 3 sc (one-process) deliverable: web, desktop, android (same `internal/server.Run`)
@@ -75,8 +75,8 @@ these angles describe what the binary does, mechanically. each pairs a claim wit
 - 15s heartbeat (`DefaultSSEHeartbeatInterval`)
 - 6 dagnats steps in the `welcomeonboarding` workflow
 - ~30s health wait window after deploy
-- `-race -p 1` for tests (serialized packages for dagnats engine stability)
-- `make check` ~156s vs the old ~282s gate
+- `-race`, parallel across packages (the DagNats packages bind ephemeral ports, so `-p 1` is no longer needed)
+- `make ci-local` is the single pre-push gate (`make check` was removed — a redundant subset)
 
 ### II. Strategy / Motivation
 
@@ -100,7 +100,7 @@ these angles describe what the binary does, mechanically. each pairs a claim wit
 - **SCOPE as a deletion-friendly file header** — the SCOPE annotation is a tiny comment at the top of every source file. it tells an agent whether to remove, swap, or leave. agents that read these never waste a turn asking whether they can delete a file. humans that read these know which files are safe to refactor.
 - **The zig-zag between theory and code** — the readme alternates between the philosophical claim and the concrete command. a sentence like "one binary, zero external services" is followed by a build flag, a config flag, or a directory path. the prose earns the abstraction by grounding it.
 - **Anti-framework stance, explicit** — there is no framework here. each piece is independently replaceable. if you prefer chi over pocketbase's router, swap it. if you want htmx instead of datastar, swap it. if you want postgres instead of sqlite, swap it. the template is a collection of choices, not a cage.
-- **The lint config as a teacher** — `golangci-lint` with 27 linters (`govet`, `staticcheck`, `gosec`, `revive`, `gocritic`, `errcheck`, `ineffassign`, `unused`, `errorlint`, `nilerr`, `bodyclose`, `contextcheck`, `containedctx`, `sloglint`, `thelper`, `testifylint`, `gocyclo`, `gocognit`, `funlen`, `noctx`, `goconst`, `dupl`, `lll`, `mnd`, `tagliatelle`, `modernize`, `nolintlint`) is configured to catch the mistakes llms make most often. `.golangci.yml` reads as a curriculum. an agent that runs `make lint` is being taught the team's go style by the compiler.
+- **The lint config as a teacher** — `golangci-lint` with 31 linters (`govet`, `staticcheck`, `gosec`, `revive`, `gocritic`, `errcheck`, `ineffassign`, `unused`, `errorlint`, `nilerr`, `bodyclose`, `contextcheck`, `containedctx`, `sloglint`, `thelper`, `testifylint`, `gocyclo`, `gocognit`, `funlen`, `noctx`, `goconst`, `dupl`, `lll`, `mnd`, `tagliatelle`, `modernize`, `perfsprint`, `prealloc`, `fatcontext`, `usestdlibvars`, `nolintlint`), plus `ruleguard` rules in `rules/rules.go` for footguns no stock linter covers, is configured to catch the mistakes llms make most often. `.golangci.yml` reads as a curriculum. an agent that runs `make lint` is being taught the team's go style by the compiler.
 - **`gofumpt` + `goimports` as formatters, not linters** — separating format from lint means `golangci-lint run` never silently rewrites code. format is explicit. lint is gated. the gate can be configured without surprising a developer mid-edit.
 
 ### IV. Skills / Applied Knowledge
@@ -154,7 +154,7 @@ useful when the reader asks "but who is this for?".
 
 - **the solo founder shipping a v0** — one binary, one server, one tunnel. no devops to hire. sqlite file is the backup. ~~a single `scp`~~ a github action deploys it.
 - **the team lead evaluating go for web** — start with the readme's `who this template is for` section. the lint config is a curriculum. the `ARCHITECTURE.md` reads as a team's retrospective.
-- **the llm agent navigating an unfamiliar codebase** — read `ARCHITECTURE.md` first. respect `SCOPE:` annotations. run `make check` before editing; run `make lint` after. the `//nolint:tagliatelle` comments are intentional wire contracts; respect the reason.
+- **the llm agent navigating an unfamiliar codebase** — read `ARCHITECTURE.md` first. respect `SCOPE:` annotations. run `make ci-local` before pushing; run `make lint` (or `make ci-local-fast` while iterating) after editing. the `//nolint:tagliatelle` comments are intentional wire contracts; respect the reason.
 - **the indie hacker who wants offline web** — web client uses service worker + indexeddb; desktop uses nats leaf node. both paths replay mutations on reconnect. merge conflicts route through loro crdt for the whiteboard.
 - **the migrating rails / django developer** — features live in `features/<name>/`. handlers are pure http. ui is server-rendered templ. async is goqite or dagnats. the naming will feel familiar.
 - **the security-conscious team** — secrets never sit long-term on disk. the on-server file is regenerated every deploy. supply-chain: go has no mass npm tree; every module hash-pins via `go.sum`; `govulncheck` audits it.
@@ -189,13 +189,13 @@ this block exists because half the value of the prose is the negative space.
 the marketing-proof points (anti-marketing tone, sober description, no superlatives).
 
 - one binary ~56 mb ships on scratch, healthchecks on `/health`.
-- 27 linters tuned to llm-style mistakes, with a "make check" gate that runs in ~156s.
+- 31 linters tuned to llm-style mistakes, with a `make ci-local` gate.
 - six realtime/async layers coexist; you opt out via env var or by deleting one directory.
 - `~/.secrets/<service>.env` mode 600; secrets regenerated every deploy.
 - 12 kib client (datastar) + ~34 kb css (daisyui, default skin) + zero npm install. The Basecoat skin adds `basecoat.min.css` (~120 kb) + `basecoat.min.js`; Morpheus ships a vendorized web-components bundle (`morpheus/bundle.js`, SHA-pinned).
 - wails v3 desktop + android share `internal/server.Run` with the web binary.
 - 700 ms poll cadence; 64-deep per-client replay buffer; 15 s heartbeat.
-- -race -p 1 test run; dagnats engine serialized for stability.
+- -race test run, parallel across packages (ephemeral ports; no blanket `-p 1`).
 
 ---
 
