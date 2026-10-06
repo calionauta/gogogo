@@ -1,3 +1,37 @@
+## [Unreleased]
+
+Performance, correctness and CI-parity work on the test gate and three
+production shortcuts it exposed. No user-facing feature changes; the one new
+knob is `DAGNATS_GREET_PACING`.
+
+### Changed
+
+- **The test suite is ~47% faster (75.5s → ~40s wall) without weakening what it checks.** The cost was not the tests but latency the production code made them wait out: four demonstration/backoff delays (~20s), a 6s negative-assertion window, and a bcrypt cost of 10 that made every fixture login cost ~960ms under `-race`. Fixed by making pacing injectable (`Queue.SetRetry`, `(*TodoHandler).SetRetryDemoDelay`, `llm.NewSimulatedWithDelay`) with production defaults untouched, plus event-driven waits. `t.Parallel()` on `features/todo`, `features/whiteboard`, `internal/queue`, `internal/nats` and `features/store/crdtstore` (per-test fixtures were already isolated) added the rest.
+- **`make ci-local` now runs `check-generated`, `install-sh-guard` and the binary boot smoke test**, so the local gate matches the remote one step-for-step. `docs/local-ci.md` documents the parity table so the next drift is visible instead of silent.
+
+### Added
+
+- **`forbidigo`: no bare `time.Sleep` in production** (tests exempt). An uninterruptible wait holds its goroutine — and any `wg.Wait()` draining it at shutdown — for its full duration. Three real sites shipped this way; the lint now prevents a fourth.
+- **`DAGNATS_GREET_PACING`** (default `1500ms`) — the onboarding-greet pause was product latency, so it is tunable rather than deletable. Non-positive or unparseable values fall back to the default.
+- **`bin/check-install-sh.sh`** and `TestRegistryCoversDagnatsImports` — guards for the two silent-breakage classes found while doing the above.
+
+### Fixed
+
+- **`Stop()` blocked for up to a second per worker just because the queue was failing.** The worker's receive-error path used `time.Sleep(time.Second)`, which is uncancellable: `Stop()` cancels the pool context and then waits on `wg.Wait()`, so a shutdown sat through the full second. It is now a `select` on the pool context. Measured: `Stop()` with a failing queue 946ms → 190µs.
+- **`internal/nats` had three mutable package globals (`NS`, `NC`, `JS`).** One design, two symptoms: two concurrent starts raced on the same variables, and a test's teardown cleared state (and shut the server down) under its neighbours — which is why neither that package nor `crdtstore` could run in parallel. `StartEmbedded`/`StartLeafNode`/`ConnectExisting` now return an owned `*Handle` with a `Close()` that frees only what it started.
+- **`install.sh` planted a `go` symlink in `$BIN_DIR`**, which is on `PATH` by design — so it shadowed a system Go in every new shell (and read as though the CLI were named `go`). The toolchain is now exposed via `$GO_DIR/bin` on `PATH` instead. The same block had a reachability check that ran *after* prepending, so it could never be false and its guidance never printed.
+- **`TestTodoRecordsNotBroadcastViaHub` could never fail.** Its predicate searched for `"event":"created"`, a string the hub path translates away before it reaches the wire — so reintroducing the very regression it guards left it green at any window. It now asserts the wire symptom and goes red in 1.5s when the broadcast is restored.
+- **`css-check` failed on a clean tree with no source change.** Not a stale committed bundle: the local `node_modules` held tailwindcss 4.3.2 / daisyui 5.6.15 while `package-lock.json` pins 4.3.3 / 5.7.42. `make css-install` now compares the installed versions against the lockfile and reinstalls on mismatch, and the pre-commit hook builds through `make css` so a version skew cannot masquerade as stale CSS.
+- **Generated artifacts were never verified in either CI — only regenerated.** `_templ.go` (71 files) and `app.min.css` are committed *and* embedded in the binary, so editing a `.templ` or `src/css/input.css` without committing the regeneration passed lint, the race suite and both smoke tests, and shipped a binary rendering stale markup. Both jobs now diff after regenerating.
+- **`gogogo --trim dagnats` produced a broken tree.** `onboarding_lifecycle_test.go` imports `internal/dagnats` but was missing from the unit's file list, so the trim left a dangling import and the proof build failed; and the success message still advertised `http://localhost:8080/dagnats/` on a checkout where that console had just been deleted. Both fixed, with a guard for the first.
+- **`CreateTodoForOnboarding` wrote to the store through a nil context**, and a DagNats handler closure depended on a context that is trace-only (the engine derives it from the message headers, so it is never cancelled on shutdown) — both found by enabling the cancellation lint rather than suppressed.
+
+### Verification
+
+- `make ci-local` green end-to-end, including the binary boot smoke test and the Playwright browser smoke across all three skins
+- Red-proofs: the `forbidigo` rule fires on an injected `time.Sleep`; `check-generated` fails on a `.templ` edit with no regeneration; the new CSS diff fails on a stale bundle; `TestHandleConcurrentStartIsIndependent` reproduces the old globals race when the handles are shared; `TestWorkerStopIsPromptWhenQueueFails` fails (946ms) against the reintroduced sleep
+- 327 tests, 0 failures, 0 new skips; `golangci-lint` 0 issues with 32 linters
+
 ## [0.34.0] - 2026-10-05
 
 Covers everything since v0.33.0. An earlier draft of this entry was numbered
@@ -886,5 +920,3 @@ All notable changes to this template are documented here. The format is based on
   re-acquired the mutex already held by Create/Update/Delete. Refactored to
   `publishOpFromDoc(ctx, ownerID, opID, d)` which expects the caller to already hold
   `s.mu`.
-
-## [Unreleased]

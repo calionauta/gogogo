@@ -1,6 +1,6 @@
 # Code quality
 
-The template ships a strict `golangci-lint` configuration (31 linters)
+The template ships a strict `golangci-lint` configuration (32 linters)
 designed to catch the kinds of mistakes LLMs make most often: unchecked errors,
 insecure patterns, broken context propagation, resource leaks, and inconsistent
 error wrapping. The goal is not to block development but to redirect agents
@@ -24,6 +24,7 @@ this repo's build never does.
 | Correctness | `govet`, `staticcheck`, `errcheck`, `ineffassign`, `unused` | Shadowed variables, dead code, unchecked returns |
 | Error handling | `errorlint`, `nilerr`, `gosec` | Wrong `%w` formatting, returning nil inside an error path, hardcoded credentials |
 | Resource safety | `bodyclose`, `noctx`, `fatcontext`, `prealloc` | HTTP bodies and contexts not closed or propagated, nested `context.With*` inside loops, slices grown without a capacity hint |
+| Cancellation | `forbidigo` (no bare `time.Sleep`), `contextcheck` | A wait that cannot be interrupted: `time.Sleep` holds its goroutine — and any `wg.Wait()` draining it at shutdown — for its full duration. Three real sites shipped this way (the queue worker's 1s receive-error backoff, the onboarding-greet pause, and its retry loop); all three are now `select` on a context. Test files are exempt, because asserting an ABSENCE sometimes needs a fixed window. |
 | Test quality | `thelper`, `testifylint`, `sloglint`, `containedctx` | Missing `t.Helper()`, `assert` vs `require` misuse, context embedded in structs |
 | Complexity | `gocyclo`, `gocognit`, `funlen` | Functions too long or too nested to hold in working memory |
 | Style | `revive`, `gocritic`, `tagliatelle`, `goconst`, `dupl`, `lll`, `modernize`, `perfsprint`, `usestdlibvars` | Non-idiomatic patterns, magic numbers, duplicated code, long lines, slow `fmt.Sprintf`, literal `"200"`/`"GET"` instead of `http.StatusOK`/`http.MethodGet` |
@@ -39,7 +40,7 @@ approach had a deeper issue.**
 
 | Command | What it checks |
 |---|---|
-| `make lint` | `go vet` + `golangci-lint` (31 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
+| `make lint` | `go vet` + `golangci-lint` (32 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
 | `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
 | `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → golangci-lint → race tests → build |

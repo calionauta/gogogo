@@ -19,28 +19,10 @@ const (
 
 	// receiveErrorBackoff spaces out receive-error retries: a persistently
 	// failing queue (locked database, disk error) must not be hammered in a hot
-	// loop. It is a wait, not a sleep — see worker() for why that distinction is
-	// load-bearing.
+	// loop. It is a wait, not a sleep — see waitOrStop for why that distinction
+	// is load-bearing.
 	receiveErrorBackoff = time.Second
 )
-
-// waitCtx waits for d, or returns early when ctx is cancelled.
-//
-// Production code must not call time.Sleep: an uninterruptible wait holds its
-// goroutine — and therefore any wg.Wait() draining it at shutdown — for its
-// full duration, ignoring cancellation entirely. WorkerPool.Stop() is exactly
-// such a drain, so a bare sleep in a worker delays shutdown and defeats the
-// cancel path that exists to make shutdown prompt.
-func waitCtx(ctx context.Context, d time.Duration) error {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
 
 // WorkerPool drains the underlying goqite queue, dispatches each
 // message to a registered Handler (looked up via the HandlerRegistry),

@@ -51,7 +51,7 @@ linters:
       # sometimes the only way to express "this must NOT happen".
       forbid:
         - pattern: 'time\.Sleep'
-          msg: "time.Sleep is uncancellable — it holds its goroutine through shutdown. Wait on a context instead: select { case <-ctx.Done(): ; case <-timer.C: }. See internal/queue/workers.go waitCtx."
+          msg: "time.Sleep is uncancellable — it holds its goroutine through shutdown. Wait on a context instead: select { case <-ctx.Done(): ; case <-timer.C: }. See internal/queue/workers.go waitOrStop."
       analyze-types: true
       exclude-godoc-examples: true
     errcheck:

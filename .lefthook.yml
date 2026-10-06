@@ -50,6 +50,14 @@ pre-commit:
     # explicit @source globs), so these are the only extensions that can change
     # the bundle. site/ is deliberately absent: the landing page has its own
     # stylesheet and does not use the Tailwind bundle.
+    # Same reasoning as css-check: `_templ.go` is COMMITTED, so editing a
+    # `.templ` without committing its regeneration passes lint, tests and both
+    # smoke tests (they all build the committed generated file) and ships a
+    # binary rendering stale markup. css-check already guards the CSS half.
+    - name: generated-templ
+      run: make check-generated
+      glob: "**/*.templ"
+
     - name: css-check
       run: bin/check-css.sh
       glob: "*.{templ,go,css}"

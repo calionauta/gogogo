@@ -8,39 +8,52 @@ import (
 	"github.com/calionauta/gogogo/config"
 )
 
-// TestWaitCtxReturnsOnCancel pins the primitive that replaced time.Sleep in the
-// worker loop: it must return as soon as the context is cancelled, not when the
-// duration elapses. This is the whole reason the worker's receive-error backoff
+// TestWaitOrStopReturnsOnCancel pins the primitive that replaced time.Sleep in
+// the worker loop: it must return as soon as the pool starts shutting down, not
+// when the duration elapses. This is the whole reason the receive-error backoff
 // is not a sleep.
-func TestWaitCtxReturnsOnCancel(t *testing.T) {
+func TestWaitOrStopReturnsOnCancel(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // already cancelled
+	wp := &WorkerPool{
+		stopCh: make(chan struct{}),
+	}
+	wp.ctx, wp.cancel = context.WithCancel(context.Background())
+	wp.cancel() // already cancelled
+
+	timer := time.NewTimer(time.Hour)
+	defer timer.Stop()
 
 	start := time.Now()
-	err := waitCtx(ctx, 30*time.Second)
+	stopping := wp.waitOrStop(timer, 30*time.Second)
 	elapsed := time.Since(start)
 
-	if err == nil {
-		t.Fatal("waitCtx returned nil for a cancelled context")
+	if !stopping {
+		t.Fatal("waitOrStop returned false for a cancelled pool — the wait would outlive shutdown")
 	}
 	if elapsed > time.Second {
-		t.Fatalf("waitCtx waited %v on a cancelled context — it is a sleep, not a wait", elapsed)
+		t.Fatalf("waitOrStop took %v on a cancelled pool — it is a sleep, not a wait", elapsed)
 	}
 }
 
-// TestWaitCtxWaitsWhenNotCancelled is the other half: it must still actually
-// wait for the duration, or the backoff would be a spin.
-func TestWaitCtxWaitsWhenNotCancelled(t *testing.T) {
+// TestWaitOrStopWaitsWhenRunning is the other half: with a live pool it must
+// actually wait the duration, or the backoff would be a spin.
+func TestWaitOrStopWaitsWhenRunning(t *testing.T) {
 	t.Parallel()
 
+	wp := &WorkerPool{stopCh: make(chan struct{})}
+	wp.ctx, wp.cancel = context.WithCancel(context.Background())
+	defer wp.cancel()
+
+	timer := time.NewTimer(time.Hour)
+	defer timer.Stop()
+
 	start := time.Now()
-	if err := waitCtx(context.Background(), 40*time.Millisecond); err != nil {
-		t.Fatalf("waitCtx: %v", err)
+	if stopping := wp.waitOrStop(timer, 40*time.Millisecond); stopping {
+		t.Fatal("waitOrStop reported stopping on a live pool")
 	}
 	if elapsed := time.Since(start); elapsed < 30*time.Millisecond {
-		t.Fatalf("waitCtx returned after %v, expected ~40ms", elapsed)
+		t.Fatalf("waitOrStop returned after %v, expected ~40ms", elapsed)
 	}
 }
 
