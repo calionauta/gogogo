@@ -232,8 +232,8 @@ func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	streamA.settleJoin(wbWaitBudget)
-	streamB.settleJoin(wbWaitBudget)
+	streamA.settleJoin()
+	streamB.settleJoin()
 
 	// clientA creates a rectangle.
 	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{
@@ -252,7 +252,7 @@ func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	bEvents := streamB.waitFor(wbWaitBudget, func(ev string) bool { return shapesEventContains([]string{ev}, "s1") })
+	bEvents := streamB.waitFor(func(ev string) bool { return shapesEventContains([]string{ev}, "s1") })
 	// The originator must NOT be echoed. An absence cannot be short-circuited,
 	// so it keeps its full window — but only after the peer proved delivery
 	// reached the hub, so it is provably delivered-or-not by then.
@@ -309,8 +309,8 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	streamA.settleJoin(wbWaitBudget)
-	streamB.settleJoin(wbWaitBudget)
+	streamA.settleJoin()
+	streamB.settleJoin()
 
 	presence := collab.PresenceMsg{Type: "cursor", Doc: docID, User: "user-A", X: 0.5, Y: 0.5, TS: time.Now().UnixMilli()}
 	pbody, mErr := json.Marshal(presence)
@@ -324,7 +324,7 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	bEvents := streamB.waitFor(wbWaitBudget, func(ev string) bool { return presenceReceived([]string{ev}, "user-A") })
+	bEvents := streamB.waitFor(func(ev string) bool { return presenceReceived([]string{ev}, "user-A") })
 	aEvents := streamA.drain(100 * time.Millisecond) // absence check: no short-circuit
 
 	if !presenceReceived(bEvents, "user-A") {
@@ -375,8 +375,8 @@ func TestWhiteboard_OfflineReplay(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	streamA.settleJoin(wbWaitBudget)
-	streamB.settleJoin(wbWaitBudget)
+	streamA.settleJoin()
+	streamB.settleJoin()
 
 	// clientB draws immediately (online peer).
 	bOp := collab.ShapeOp{Op: "add", Shape: collab.Shape{ID: "s-b", Type: "rect", X: 5, Y: 5, W: 40, H: 40, Color: "#000"}}
@@ -402,7 +402,7 @@ func TestWhiteboard_OfflineReplay(t *testing.T) {
 	// land BEFORE the replayed one so ordering is actually exercised. Wait for
 	// B's shape to reach B's own stream, which proves it was merged and
 	// broadcast — a stronger guarantee than sleeping 200ms and hoping.
-	streamB.waitForEvent(wbWaitBudget, "s-b")
+	streamB.waitForEvent("s-b")
 
 	// clientA "reconnects" and flushes its buffered op.
 	updURL := baseURL + "/api/whiteboard/" + docID + "/update"
@@ -412,7 +412,7 @@ func TestWhiteboard_OfflineReplay(t *testing.T) {
 	}
 	respA.Body.Close()
 
-	bEvents := streamB.waitFor(wbWaitBudget, func(ev string) bool { return shapesEventContains([]string{ev}, "s-a") })
+	bEvents := streamB.waitFor(func(ev string) bool { return shapesEventContains([]string{ev}, "s-a") })
 	if !shapesEventContains(bEvents, "s-a") {
 		t.Fatalf("PEER did not receive the late (replayed) shape s-a.\nB events:\n%s", debugEvents(bEvents))
 	}

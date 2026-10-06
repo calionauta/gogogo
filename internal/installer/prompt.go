@@ -44,7 +44,7 @@ type formResult struct {
 // a future Charm Huh form would ask, in the same order, so the upgrade only
 // swaps the renderer. Closed-choice questions render a numbered menu (stable
 // order = manifest order): humans answer with numbers, ids, or both.
-func promptForm(stdin io.Reader, stdout io.Writer) (formResult, error) {
+func promptForm(stdin io.Reader, stdout io.Writer) formResult {
 	in := bufio.NewScanner(stdin)
 	ask := func(label, def string) string {
 		if def != "" {
@@ -64,24 +64,16 @@ func promptForm(stdin io.Reader, stdout io.Writer) (formResult, error) {
 	res := formResult{}
 	res.name = ask("Project name", "")
 	res.owner = ask("GitHub owner", "calionauta")
-	plugins, err := askKeep(in, stdout, "plugins", capabilities.KindPlugin)
-	if err != nil {
-		return res, err
-	}
-	res.plugins = plugins
-	features, err := askKeep(in, stdout, "features", capabilities.KindFeature)
-	if err != nil {
-		return res, err
-	}
-	res.features = features
-	return res, nil
+	res.plugins = askKeep(in, stdout, "plugins", capabilities.KindPlugin)
+	res.features = askKeep(in, stdout, "features", capabilities.KindFeature)
+	return res
 }
 
 // askKeep renders one closed-choice question as a numbered menu and loops
 // until the answer parses. Returns a parseKeep-ready string: "" (keep all),
 // "none" (drop all), or comma-joined unit ids. Numbers are 1-based positions
 // in the menu shown above them — never stored, never passed to flags.
-func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabilities.Kind) (string, error) {
+func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabilities.Kind) string {
 	var options []string
 	summaries := map[string]string{}
 	byID := capabilities.ByID()
@@ -105,7 +97,7 @@ func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabil
 	for {
 		fmt.Fprintf(stdout, "%s [%s]: ", label, strings.Join(options, ","))
 		if !in.Scan() {
-			return "", nil
+			return ""
 		}
 		ids, all, err := parseSelection(strings.TrimSpace(in.Text()), options)
 		if err != nil {
@@ -113,12 +105,12 @@ func askKeep(in *bufio.Scanner, stdout io.Writer, dimension string, kind capabil
 			continue
 		}
 		if all {
-			return "", nil
+			return ""
 		}
 		if len(ids) == 0 {
-			return keepNone, nil
+			return keepNone
 		}
-		return strings.Join(ids, ","), nil
+		return strings.Join(ids, ",")
 	}
 }
 

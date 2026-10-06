@@ -98,10 +98,10 @@ func TestWhiteboard_PeerCountAuthoritative(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	peersA := countPeersFromEvents(streamA.waitFor(wbWaitBudget, func(ev string) bool {
+	peersA := countPeersFromEvents(streamA.waitFor(func(ev string) bool {
 		return len(countPeersFromEvents([]string{ev})) == 2
 	}))
-	peersB := countPeersFromEvents(streamB.waitFor(wbWaitBudget, func(ev string) bool {
+	peersB := countPeersFromEvents(streamB.waitFor(func(ev string) bool {
 		return len(countPeersFromEvents([]string{ev})) == 2
 	}))
 
@@ -128,7 +128,7 @@ func TestWhiteboard_SingleOnlineLabel(t *testing.T) {
 	login(t, client, baseURL)
 
 	docID := "doc-online-" + time.Now().Format("150405.000")
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/"+docID))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/"+docID))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
 	}
@@ -156,7 +156,7 @@ func TestWhiteboard_ThemeToggleWired(t *testing.T) {
 	login(t, client, baseURL)
 
 	docID := "doc-theme-" + time.Now().Format("150405.000")
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/"+docID))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/"+docID))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
 	}
@@ -225,8 +225,8 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	streamA.settleJoin(wbWaitBudget)
-	streamB.settleJoin(wbWaitBudget)
+	streamA.settleJoin()
+	streamB.settleJoin()
 
 	body, err := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "wbA", X: 0.25, Y: 0.75, TS: 1})
 	if err != nil {
@@ -243,7 +243,7 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	evs := streamB.waitFor(wbWaitBudget, func(ev string) bool {
+	evs := streamB.waitFor(func(ev string) bool {
 		_, ok := cursorFromEvents([]string{ev})
 		return ok
 	})
@@ -276,7 +276,7 @@ func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
 	docID := "doc-local-" + time.Now().Format("150405.000")
 	streamA := openWBStream(t, clientA, baseURL, docID, "wbA")
 	defer streamA.close()
-	streamA.settleJoin(wbWaitBudget)
+	streamA.settleJoin()
 
 	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{
 		ID: "s-fix", Type: "rect", X: 10, Y: 10, W: 50, H: 50, Color: "#ff0000",

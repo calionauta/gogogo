@@ -13,13 +13,20 @@ import "github.com/calionauta/gogogo/internal/queue"
 //
 // Tagged dagnats because its only caller (onboarding.go) is dagnats-only;
 // without the tag it would be dead code in the default build (unused lint).
-func todoUpdateJob(event, source, id, title string, done bool) []byte {
+func todoUpdateJob(event, title string) []byte {
+	// "id" and "done" are part of the streamTodo wire payload and are emitted as
+	// their zero values on purpose: these are workflow-level notifications
+	// (completed / error / timeout), not mutations of a specific record, so
+	// there is no id to carry and no completion to flip. They are constants here
+	// rather than parameters because every call site would pass the same thing —
+	// which unparam flags, correctly: a parameter every caller fixes is a
+	// constant wearing a parameter's clothes.
 	ev := mustJSON(map[string]any{
 		"event":  event,
-		"source": source,
-		"id":     id,
+		"source": "remote",
+		"id":     "",
 		"title":  title,
-		"done":   done,
+		"done":   false,
 	})
 	j := mustJSON(queue.Job{Type: "todo", Payload: ev})
 	return j

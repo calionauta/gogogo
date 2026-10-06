@@ -40,7 +40,7 @@ func TestIntegration_ListFiltersByOwner(t *testing.T) {
 
 	// 2) User A creates 3 todos.
 	for _, title := range []string{"A1", "A2", "A3"} {
-		mustPostCtx(ctx, t, client, base, "/api/todos", url.Values{titleField: {title}}, 200)
+		mustPostCtx(ctx, t, client, base, "/api/todos", url.Values{titleField: {title}})
 	}
 
 	// 3) Seed a completely different user B and give B 5 todos in the
@@ -147,9 +147,12 @@ func cookieFor(client *http.Client, base string) string {
 
 // mustPostCtx posts with a caller-supplied *http.Client (carrying auth).
 func mustPostCtx(ctx context.Context, t *testing.T, client *http.Client,
-	base, path string, values url.Values, wantStatus int,
+	base, path string, values url.Values,
 ) {
 	t.Helper()
+	// Always-200: the anonymous/fail-closed paths assert their redirect
+	// explicitly instead of going through this helper (see auth_test.go).
+	const wantStatus = http.StatusOK
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+path,
 		strings.NewReader(values.Encode()))
 	if err != nil {

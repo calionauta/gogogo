@@ -99,8 +99,8 @@ func (s *wbStream) drain(window time.Duration) []string {
 // up. Exhausting the budget is NOT a failure: the caller keeps its original
 // assertion, so this only ever makes a passing test fast — it cannot turn a
 // failing assertion into a passing one.
-func (s *wbStream) waitFor(budget time.Duration, match func(string) bool) []string {
-	deadline := time.Now().Add(budget)
+func (s *wbStream) waitFor(match func(string) bool) []string {
+	deadline := time.Now().Add(wbWaitBudget)
 	var out []string
 	for time.Now().Before(deadline) {
 		out = append(out, s.drain(5*time.Millisecond)...)
@@ -111,9 +111,10 @@ func (s *wbStream) waitFor(budget time.Duration, match func(string) bool) []stri
 	return out
 }
 
-// waitForEvent is waitFor for a single wanted substring.
-func (s *wbStream) waitForEvent(budget time.Duration, substr string) []string {
-	return s.waitFor(budget, func(ev string) bool { return strings.Contains(ev, substr) })
+// waitForEvent waits for a single wanted substring and discards the transcript.
+// Callers that assert on what arrived use waitFor directly.
+func (s *wbStream) waitForEvent(substr string) {
+	s.waitFor(func(ev string) bool { return strings.Contains(ev, substr) })
 }
 
 // settleJoin lets the server register both streams before the test acts.
@@ -122,6 +123,6 @@ func (s *wbStream) waitForEvent(budget time.Duration, substr string) []string {
 // clients on join) instead of a fixed sleep: once the connecting client has
 // its count event, the hub has it registered and the peer's count event with
 // it. Same guarantee, ~150-200ms cheaper per call.
-func (s *wbStream) settleJoin(budget time.Duration) {
-	_ = s.waitForEvent(budget, `"type":"count"`)
+func (s *wbStream) settleJoin() {
+	s.waitForEvent(`"type":"count"`)
 }

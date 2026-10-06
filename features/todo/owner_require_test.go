@@ -110,7 +110,7 @@ func TestIntegration_AnonymousMutationsRedirectToLogin(t *testing.T) {
 	ctx := context.Background()
 	authed := loginClient(ctx, t, base)
 	mustPostCtx(ctx, t, authed, base, "/api/todos",
-		url.Values{titleField: {"victim"}}, 200)
+		url.Values{titleField: {"victim"}})
 	targetID := firstTodoID(t, app, demoEmail)
 
 	cases := map[string]struct {
@@ -160,7 +160,7 @@ func TestIntegration_CrossUserMutationIsNotFound(t *testing.T) {
 	ctx := context.Background()
 	owner := loginClient(ctx, t, base)
 	mustPostCtx(ctx, t, owner, base, "/api/todos",
-		url.Values{titleField: {"A-secret"}}, 200)
+		url.Values{titleField: {"A-secret"}})
 	if err := seedOtherUserWithTodos(app, "other@example.com", "O", 1); err != nil {
 		t.Fatalf("seed other user: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestIntegration_AnonymousStreamSeesNoTodos(t *testing.T) {
 	ctx := context.Background()
 	authed := loginClient(ctx, t, base)
 	mustPostCtx(ctx, t, authed, base, "/api/todos",
-		url.Values{titleField: {"someone-private"}}, 200)
+		url.Values{titleField: {"someone-private"}})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

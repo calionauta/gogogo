@@ -30,7 +30,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 	defer cleanup()
 
 	ctx := newTestCtx(t)
-	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {buyMilk}}, 200)
+	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {buyMilk}})
 
 	records, err := app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil || len(records) != 1 {
@@ -38,7 +38,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 	}
 	id := records[0].Id
 
-	mustPost(ctx, t, base, "/api/todos/"+id+"/delete", nil, 200)
+	mustPost(ctx, t, base, "/api/todos/"+id+"/delete", nil)
 
 	records, err = app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil {
@@ -58,7 +58,7 @@ func TestIntegration_ToggleFlipsCompleted(t *testing.T) {
 	defer cleanup()
 
 	ctx := newTestCtx(t)
-	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {"dishes"}}, 200)
+	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {"dishes"}})
 
 	records, err := app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil || len(records) != 1 {
@@ -69,14 +69,14 @@ func TestIntegration_ToggleFlipsCompleted(t *testing.T) {
 		t.Fatal("newly created todo should not be completed")
 	}
 
-	mustPost(ctx, t, base, "/api/todos/"+id+"/toggle", nil, 200)
+	mustPost(ctx, t, base, "/api/todos/"+id+"/toggle", nil)
 
 	records, err = app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil || !records[0].GetBool("completed") {
 		t.Fatalf("toggle did not flip completed to true (err=%v)", err)
 	}
 
-	mustPost(ctx, t, base, "/api/todos/"+id+"/toggle", nil, 200)
+	mustPost(ctx, t, base, "/api/todos/"+id+"/toggle", nil)
 
 	records, err = app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil || records[0].GetBool("completed") {
@@ -93,7 +93,7 @@ func TestIntegration_DeleteEmitsInfoToast(t *testing.T) {
 	defer cleanup()
 
 	ctx := newTestCtx(t)
-	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {"trash me"}}, 200)
+	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {"trash me"}})
 
 	records, err := app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil || len(records) != 1 {
@@ -135,7 +135,7 @@ func TestIntegration_ClearCompletedRemovesOnlyDone(t *testing.T) {
 
 	ctx := newTestCtx(t)
 	for _, title := range []string{"active", "done"} {
-		mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {title}}, 200)
+		mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {title}})
 	}
 
 	records, err := app.FindRecordsByFilter("todos", "title='done'", "", 0, 0)
@@ -147,7 +147,7 @@ func TestIntegration_ClearCompletedRemovesOnlyDone(t *testing.T) {
 		t.Fatalf("mark done: %v", saveErr)
 	}
 
-	mustPost(ctx, t, base, "/api/todos/completed/delete", nil, 200)
+	mustPost(ctx, t, base, "/api/todos/completed/delete", nil)
 
 	remaining, err := app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil {
@@ -179,9 +179,9 @@ func newTestCtx(t *testing.T) context.Context {
 // an empty owner — the fail-open this suite now guards against in
 // owner_require_test.go). Tests for the anonymous path assert the 303
 // explicitly; the happy-path tests below run authenticated.
-func mustPost(ctx context.Context, t *testing.T, base, path string, values url.Values, wantStatus int) {
+func mustPost(ctx context.Context, t *testing.T, base, path string, values url.Values) {
 	t.Helper()
-	mustPostCtx(ctx, t, loginClient(ctx, t, base), base, path, values, wantStatus)
+	mustPostCtx(ctx, t, loginClient(ctx, t, base), base, path, values)
 }
 
 // postForm wraps http.PostForm with a context-aware client so the

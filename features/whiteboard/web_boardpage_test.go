@@ -143,7 +143,7 @@ func TestWhiteboard_BoardPageRendersValidDocID(t *testing.T) {
 	login(t, client, baseURL)
 
 	docID := "doc-render-" + time.Now().Format("150405.000")
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/"+docID))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/"+docID))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
 	}
@@ -192,7 +192,7 @@ func TestWhiteboard_NewBoardRedirect(t *testing.T) {
 	}
 	login(t, client, baseURL)
 
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/new"))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/new"))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/new: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestWhiteboard_BoardPageShowsLoggedInNav(t *testing.T) {
 	login(t, client, baseURL)
 
 	docID := "doc-nav-" + time.Now().Format("150405.000")
-	resp, err := client.Do(mustReq(t, http.MethodGet, baseURL+"/whiteboard/"+docID))
+	resp, err := client.Do(mustGet(t, baseURL+"/whiteboard/"+docID))
 	if err != nil {
 		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
 	}
@@ -248,13 +248,14 @@ func minLocal(a, b int) int {
 	return b
 }
 
-// mustReq builds an HTTP request with a background context (golangci-lint
-// noctx forbids client.Get, so callers use client.Do(mustReq(...))).
-func mustReq(t *testing.T, method, url string) *http.Request {
+// mustGet builds a GET request with a background context (golangci-lint noctx
+// forbids client.Get, so callers use client.Do(mustGet(...))). Every caller
+// fetches, so the method is not a parameter.
+func mustGet(t *testing.T, url string) *http.Request {
 	t.Helper()
-	req, err := http.NewRequestWithContext(context.Background(), method, url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
-		t.Fatalf("build %s %s: %v", method, url, err)
+		t.Fatalf("build GET %s: %v", url, err)
 	}
 	return req
 }

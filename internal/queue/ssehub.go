@@ -121,11 +121,7 @@ func (h *SSEHub) Register(clientID, userID string, ch chan []byte) {
 	// backpressure path as a slow live client; the event is gone,
 	// but the producer never blocks. Replay is best-effort.
 	for _, msg := range h.buffer[clientID] {
-		select {
-		case ch <- msg:
-		default:
-			h.onDrop(clientID, msg, "slow-client-replay")
-		}
+		h.deliverOrDrop(clientID, ch, msg, "slow-client-replay")
 	}
 	delete(h.buffer, clientID)
 }
@@ -243,11 +239,7 @@ func (h *SSEHub) BroadcastExcept(data []byte, excludeClientID string) {
 		if id == excludeClientID {
 			continue
 		}
-		select {
-		case ch <- data:
-		default:
-			h.onDrop(id, data, "slow-client-broadcast")
-		}
+		h.deliverOrDrop(id, ch, data, "slow-client-broadcast")
 	}
 }
 
@@ -262,11 +254,7 @@ func (h *SSEHub) Broadcast(data []byte) {
 	// line here would flood production logs with one entry per event.
 	slog.Debug("ssehub: Broadcast", "clients", len(h.clients))
 	for id, ch := range h.clients {
-		select {
-		case ch <- data:
-		default:
-			h.onDrop(id, data, "slow-client-broadcast")
-		}
+		h.deliverOrDrop(id, ch, data, "slow-client-broadcast")
 	}
 }
 
@@ -288,11 +276,7 @@ func (h *SSEHub) BroadcastToUser(data []byte, userID, excludeClientID string) {
 		if h.userOf[id] != userID {
 			continue
 		}
-		select {
-		case ch <- data:
-		default:
-			h.onDrop(id, data, "slow-client-broadcast-user")
-		}
+		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-user")
 	}
 }
 
@@ -359,4 +343,22 @@ func (h *SSEHub) bufferEvent(clientID string, data []byte) {
 		buf = buf[1:]
 	}
 	h.buffer[clientID] = append(buf, data)
+}
+
+// deliverOrDrop attempts a non-blocking send on ch, reporting a full channel to
+// onDrop with reason. This is the backpressure contract in one place: producers
+// never block on a slow client.
+//
+// It exists because the same select appeared at four fan-out sites — the replay
+// drain in Register, Broadcast, BroadcastExcept and BroadcastToUser — differing
+// only in the reason string. Four copies meant the policy could drift between
+// them (one site gaining a timeout, another changing what counts as "slow")
+// without any test noticing. Callers hold at least a read lock; this helper
+// takes no lock of its own.
+func (h *SSEHub) deliverOrDrop(clientID string, ch chan []byte, data []byte, reason string) {
+	select {
+	case ch <- data:
+	default:
+		h.onDrop(clientID, data, reason)
+	}
 }

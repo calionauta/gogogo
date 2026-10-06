@@ -171,7 +171,7 @@ by hand, so when a step is added to one, add it to the other:
 | SKILL.md frontmatter | ✓ | ✓ |
 | install.sh bootstrap contract | ✓ | ✓ |
 | datastar-lint | ✓ | ✓ |
-| golangci-lint (32 linters) | ✓ | ✓ |
+| golangci-lint (33 linters) | ✓ | ✓ |
 | govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
 | deadcode (advisory) | ✅ pre-push hook | ✓ |
 | `go test -race` (parallel, all pkgs) | ✓ | ✓ |
@@ -237,6 +237,6 @@ no-op when lefthook is not installed).
 
 ## Related
 
-- [Code quality](code-quality.md) — the 32 linters and how to run them scoped.
+- [Code quality](code-quality.md) — the 33 linters and how to run them scoped.
 - [Troubleshooting](troubleshooting.md) — when the gate is green but behavior isn't.
 - [Deploy](deploy.md) — what happens after the push.

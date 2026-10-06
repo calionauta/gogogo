@@ -33,6 +33,7 @@ linters:
     - fatcontext      # nested context.With* inside loops/function literals
     - usestdlibvars   # use stdlib constants (http.MethodGet, time.RFC3339, ...)
     - forbidigo       # no bare time.Sleep in production code (see settings below)
+    - unparam         # a parameter constant at every call site is a constant in disguise
     # Note: stylecheck's ST* analyzers are bundled into `staticcheck` in
     # golangci-lint v2, so enabling staticcheck (above) already covers
     # them. `gofumpt` is a formatter, configured under `formatters:` below.

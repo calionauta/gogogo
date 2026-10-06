@@ -100,24 +100,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	var realClientID string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "event:PB_CONNECT" {
-			if scanner.Scan() {
-				data := scanner.Text()
-				if strings.HasPrefix(data, "data:") {
-					var m struct {
-						ClientID string `json:"clientId"`
-					}
-					if e := json.Unmarshal([]byte(strings.TrimPrefix(data, "data:")), &m); e == nil {
-						realClientID = m.ClientID
-					}
-				}
-			}
-			break
-		}
-	}
+	realClientID := pbConnectClientID(t, scanner)
 	if realClientID == "" {
 		t.Fatalf("never received PB_CONNECT with a clientId")
 	}
@@ -459,4 +442,41 @@ func bootLiveServer(t *testing.T) (string, func()) {
 	_ = proc.Process.Kill()
 	t.Fatalf("live server did not become healthy on %s within 60s", base)
 	return "", nil
+}
+
+// pbConnectClientID reads the SSE frame stream until the PB_CONNECT event and
+// returns the clientId PocketBase assigned.
+//
+// Extracted from the test body to flatten four levels of nesting into guard
+// clauses: the reader had `for` -> `if event` -> `if Scan` -> `if prefix` ->
+// `if unmarshal`, which nestif flagged at complexity 6. Each step below returns
+// as soon as it knows the answer.
+func pbConnectClientID(t *testing.T, scanner *bufio.Scanner) string {
+	t.Helper()
+
+	for !scanner.Scan() {
+		return "" // stream ended without the event
+	}
+	// Rewind-free scan: the caller's stream position is already past the
+	// headers, so walk forward until the PB_CONNECT frame.
+	for scanner.Scan() {
+		if strings.TrimSpace(scanner.Text()) != "event:PB_CONNECT" {
+			continue
+		}
+		if !scanner.Scan() {
+			return ""
+		}
+		data := scanner.Text()
+		if !strings.HasPrefix(data, "data:") {
+			return ""
+		}
+		var m struct {
+			ClientID string `json:"clientId"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(data, "data:")), &m); err != nil {
+			return ""
+		}
+		return m.ClientID
+	}
+	return ""
 }

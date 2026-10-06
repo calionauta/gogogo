@@ -66,7 +66,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	if handled, err := runSubcommand(ctx, args, stdin, stdout); handled {
 		return err
 	}
-	opt, _, err := loadOptions(args, stdin, stdout)
+	opt, err := loadOptions(args, stdin, stdout)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 
 // loadOptions parses flags, runs the interactive form when needed, and
 // validates the result. It never touches the filesystem.
-func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *flag.FlagSet, error) {
+func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, error) {
 	fs := flag.NewFlagSet("gogogo", flag.ContinueOnError)
 	opt := options{}
 	fs.StringVar(&opt.name, "name", "", "new project name (e.g. my-app)")
@@ -130,10 +130,10 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	fs.Usage = func() { PrintUsage(stdout, fs) }
 	fs.SetOutput(stdout)
 	if err := fs.Parse(args); err != nil {
-		return opt, fs, err
+		return opt, err
 	}
 	if opt.format != planFormatText && opt.format != planFormatJSON {
-		return opt, fs, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
+		return opt, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
 	}
 	if opt.check {
 		// --check never prompts and needs no project name: it reads.
@@ -150,10 +150,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 		}
 	}
 	if !opt.noTUI && opt.name == "" {
-		interactive, err := promptForm(stdin, stdout)
-		if err != nil {
-			return opt, fs, err
-		}
+		interactive := promptForm(stdin, stdout)
 		opt.name = interactive.name
 		opt.owner = interactive.owner
 		opt.plugins = interactive.plugins
@@ -161,18 +158,18 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, *fl
 	}
 	if opt.name == "" {
 		fs.Usage()
-		return opt, fs, errors.New("project name is required (--name my-app or interactive mode)")
+		return opt, errors.New("project name is required (--name my-app or interactive mode)")
 	}
 	if err := validateName(opt.name); err != nil {
-		return opt, fs, err
+		return opt, err
 	}
 	if err := checkKeepIDs(opt.plugins, opt.features); err != nil {
-		return opt, fs, err
+		return opt, err
 	}
 	if opt.dir == "" {
 		opt.dir = opt.name
 	}
-	return opt, fs, nil
+	return opt, nil
 }
 
 // templateCloneURL is the only network source the installer pulls: a
