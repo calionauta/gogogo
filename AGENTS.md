@@ -35,6 +35,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 | `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make check-generated` | Fail if committed `_templ.go` does not match the `.templ` sources |
 | `make ci-local-fast` | Same cheap checks, but lint + tests scoped to changed packages |
+| `make lint-safe` | Host-aware lint: sizes to free RAM/cores, scopes to changed pkgs when tight, memory-capped in a cgroup (`scripts/lint-safe.sh`) — prefer over `make lint` on a shared host |
 | `make ci-local` | **Single gate** (= CI): generated-templ + datastar-lint + css-check + check-scope + skill-frontmatter + install-sh + lint + race tests + build + binary-boot smoke + Playwright smoke. If green, push. (~82s; `make check` was removed — redundant subset.) |
 | `make signoff` | `ci-local` + advisory `gh signoff` stamp before push |
 | `make setup` | Activate lefthook git hooks (`core.hooksPath=.githooks`) |
@@ -79,3 +80,11 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 ## No AI attribution in commits or release notes
 
 Claude or any AI assistant does NOT co-author anything here. Never add `Co-Authored-By: Claude` (or any model) or human trailers to commits, PRs, release notes, blog posts, CHANGELOG. Draft files (`/tmp/msg.txt`, `/tmp/notes.txt`) end at the last meaningful sentence.
+
+## Shared-host lint (server.calionauta.com)
+
+- NEVER `golangci-lint run ./...` on this host — full-repo lint peaks near
+  2.6 GB RSS and takes this 8 GB box (shared with bb + production) into swap.
+  Use `make lint-safe` / `bash scripts/lint-safe.sh` (scopes to changed packages
+  when RAM is tight, caps the run in a cgroup); otherwise `golangci-lint run <changed-pkgs>`.
+- NEVER `golangci-lint cache clean` — the cache is what keeps a run cheap.
