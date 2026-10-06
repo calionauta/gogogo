@@ -75,7 +75,18 @@ if [ -z "${pkgs//[[:space:]]/}" ]; then
   exit 0
 fi
 
-if ! command -v golangci-lint >/dev/null 2>&1; then
+# Resolve a golangci-lint that can actually read this module. A binary on PATH
+# can be older than the module's Go version and then refuses to run at all
+# ("the Go language version used to build golangci-lint is lower than the
+# targeted Go version"), so prefer GOPATH/bin when one is installed there.
+# Override with GOLANGCI_LINT_BIN.
+lint_bin=""
+for cand in "${GOLANGCI_LINT_BIN:-}" "$HOME/go/bin/golangci-lint" \
+            "$(go env GOPATH 2>/dev/null)/bin/golangci-lint"; do
+  [ -n "$cand" ] && [ -x "$cand" ] && { lint_bin=$cand; break; }
+done
+[ -n "$lint_bin" ] || lint_bin=$(command -v golangci-lint || true)
+if [ -z "$lint_bin" ]; then
   echo "lint-safe: golangci-lint not installed (see docs/code-quality.md)" >&2
   exit 1
 fi
@@ -99,10 +110,10 @@ export GOMAXPROCS="$conc"
 export GOGC="${GOGC:-80}"
 
 scope_label=$([ "$run_full" = "1" ] && echo full || echo changed)
-printf 'lint-safe: %s | %s/%s MB free | %s cores | conc=%s | GOMEMLIMIT=%s\n' \
-  "$scope_label" "$mem_avail_mb" "$mem_total_mb" "$cores" "$conc" "$GOMEMLIMIT"
+printf 'lint-safe: %s | %s/%s MB free | %s cores | conc=%s | GOMEMLIMIT=%s | %s\n' \
+  "$scope_label" "$mem_avail_mb" "$mem_total_mb" "$cores" "$conc" "$GOMEMLIMIT" "$lint_bin"
 
-cmd=(golangci-lint run --concurrency "$conc" --timeout 5m $pkgs "$@")
+cmd=("$lint_bin" run --concurrency "$conc" --timeout 5m $pkgs "$@")
 
 prefix=(nice -n 15)
 command -v ionice >/dev/null 2>&1 && prefix+=(ionice -c2 -n7)
@@ -117,7 +128,6 @@ if [ "${LINT_NO_CGROUP:-0}" != "1" ] \
     -p MemoryMax="${cap_mb}M" \
     -p MemorySwapMax=256M \
     -p CPUQuota=$(( conc * 100 ))% \
-    -p Nice=10 \
     "${cmd[@]}"
 fi
 
