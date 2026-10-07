@@ -1,8 +1,13 @@
 // gogogo docs site builder — zero dependencies (node stdlib only).
 //
-// Inputs:  docs/**/*.md listed in the MANIFEST below (explicit list = stable slugs).
-// Outputs: site/docs/<slug>/index.html, site/docs/index.html, site/llms.txt,
-//          site/llms-full.txt, site/sitemap.xml.
+// Inputs:  docs/**/*.md listed in the MANIFEST below (explicit list = stable slugs),
+//          plus CHANGELOG.md sections (see RELEASE_SOURCES).
+// Outputs: site/docs/<slug>/index.html, site/docs/index.html,
+//          site/releases/index.html + site/releases/<version>.html,
+//          site/llms.txt, site/llms-full.txt, site/sitemap.xml.
+//
+// Releases pattern: skill cali-ops-changelog-site (agent-sync-public);
+// site/releases.mjs is a byte-identical vendored copy of its script.
 //
 // Refresh procedure: to add a page, append one MANIFEST row with a one-line
 // description, then run `node site/build.mjs`. Slugs are stable URLs — never
@@ -15,6 +20,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkReleases, buildReleases } from "./releases.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DOCS = join(ROOT, "docs");
@@ -24,6 +30,12 @@ const BASE = `https://calionauta.github.io/${NAME}`;
 
 // emitting page context for link rewriting (set per page in build())
 let CUR_SLUG = "";
+
+// CHANGELOG.md sections → /releases/ article pages (pattern: skill
+// cali-ops-changelog-site). Single source; versions share one slug namespace.
+const RELEASE_SOURCES = [
+  { file: "CHANGELOG.md", origin: "", repo: "calionauta/gogogo", tagPrefix: "v" },
+];
 
 // slug, source file (under docs/), one-line description (also feeds llms.txt)
 const MANIFEST = [
@@ -218,6 +230,9 @@ function sidebar(cur) {
     const cls = p.slug === cur ? ` class="cur"` : "";
     html += `<a${cls} href="${rel(cur, p.slug)}">${esc(p.title)}</a>`;
   }
+  // Releases live outside MANIFEST (CHANGELOG sections); the href is computed
+  // for the caller's depth so flat and nested slugs alike resolve to /releases/.
+  html += `<h4>Releases</h4><a href="${"../".repeat(cur.split("/").length + 1)}releases/">All releases</a>`;
   return html;
 }
 
@@ -302,6 +317,7 @@ ${body}
 
 function check() {
   let failed = 0;
+  checkReleases(ROOT, RELEASE_SOURCES);
   for (const p of MANIFEST) {
     const path = join(DOCS, p.file);
     if (!existsSync(path)) { console.error(`missing manifest file: ${p.file}`); failed++; }
@@ -421,11 +437,12 @@ function build() {
   const full = MANIFEST.map((p) => `# ${p.title}\n\nSource: docs/${p.file} — ${BASE}/docs/${p.slug}/\n\n${p.md.trim()}\n`).join("\n---\n\n");
   writeFileSync(join(OUT, "llms-full.txt"), `# ${NAME} docs (full)\n\n${full}`);
   // sitemap
-  const urls = ["", "docs/", ...MANIFEST.map((p) => `docs/${p.slug}/`)];
+  const releaseUrls = buildReleases({ ROOT, OUT, NAME, SOURCES: RELEASE_SOURCES, h: { esc, renderBody, pageShell } });
+  const urls = ["", "docs/", ...MANIFEST.map((p) => `docs/${p.slug}/`), ...releaseUrls];
   writeFileSync(join(OUT, "sitemap.xml"),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
     urls.map((u) => `  <url><loc>${BASE}/${u}</loc></url>`).join("\n") + `\n</urlset>\n`);
-  console.log(`built ${MANIFEST.length} pages + index + llms.txt + llms-full.txt + sitemap.xml`);
+  console.log(`built ${MANIFEST.length} pages + index + llms.txt + llms-full.txt + sitemap.xml + releases (${releaseUrls.length - 1} versions)`);
 }
 
 if (process.argv.includes("--check")) check();

@@ -114,6 +114,7 @@ __pycache__/
 # so it must never be committed — a stale committed copy would silently
 # diverge from the markdown and get published.
 site/docs/
+site/releases/
 site/llms.txt
 site/llms-full.txt
 site/sitemap.xml
