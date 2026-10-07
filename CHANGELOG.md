@@ -3,13 +3,14 @@
 ### Changed
 
 - **`docs/native-zig.md` no longer cites token counts from the retired
-  `mini-redis-comparison` experiment.** That experiment (a RESP/TCP server built
+  `mini-redis-comparison` experiment, and no longer references any external
+  experiment.** That experiment (a RESP/TCP server built
   in several languages) has been retired and its contents removed: every arm passed
   it in every phase, so it had stopped discriminating, and its numbers were never
   independently reproduced (N=1, one model). The v0.36.4 entry below cites them and
   stays as written history; the policy page now argues from the reasoning instead
-  and points at [`llm-language-benchmarks`](https://github.com/calionauta/llm-language-benchmarks),
-  which measures the same question with a task that can actually fail.
+  (discovery cost at the moment of the bottleneck, named default) and justifies
+  Zig from properties verifiable in this repo.
 
 ## [0.36.4] - 2026-10-06
 

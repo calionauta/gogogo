@@ -119,39 +119,23 @@ the decision procedure.
 **The cost of choosing at the moment of the bottleneck is the real argument.**
 The moment a profile proves a bottleneck is the worst moment to spend tokens
 learning a toolchain: the agent is under pressure, and it pays the **discovery**
-rate instead of the **reuse** rate. This page, the `zig-gate` reference in the
-coding-standards skill, the boundary rules and the removal plan are preparation
-that only pays off if the language is already decided. An agnostic gate would
-demote them to "one option among several", and an agent would re-derive the
-choice under time pressure.
+rate instead of the **reuse** rate. Preparation done calmly — this page, the
+`zig-gate` reference, the boundary rules, the removal plan — is what lets the
+urgent moment reuse instead of discover.
 
-That claim is being measured rather than asserted. The
-[`llm-language-benchmarks`](https://github.com/calionauta/llm-language-benchmarks)
-repo runs a byte-exact kernel task across Go, Zig, Odin, Rust and Mojo, under both
-an unprepared (`cold`) and a hinted condition — the difference between them is
-exactly the discovery cost above. Its results are not published yet.
+That is why the default is **named** rather than left open. This page, the
+`zig-gate` reference in the coding-standards skill, the boundary rules and the
+removal plan are all preparation, and preparation only pays off if the language is
+already decided. An agnostic gate would demote them to "one option among several",
+and an agent reaching the end of the decision procedure would re-derive the choice
+under time pressure — the worst possible moment.
 
-> **An earlier version of this page cited specific token counts here** (Mojo
-> discovery at ~9x the reuse cost; Odin's first submission not compiling on a
-> hallucinated API; Zig green 4/4 on Linux). Those came from a RESP/TCP-server
-> experiment that has since been **retired and removed**, because every arm passed
-> it in every phase — it had stopped discriminating. The numbers were never
-> independently reproduced (N=1, one model), and with the source gone they can no
-> longer be cited. The reasoning above stands on its own; the measurements are
-> being redone in the repo linked above.
-
-**Naming Zig is also what makes the preparation real.** This page, the `zig-gate`
-reference in the coding-standards skill, the boundary rules, and the removal plan
-are all investments that only pay off if Zig is the answer. An agnostic gate
-would demote them to "one option among several", and an agent would re-derive the
-choice under time pressure — precisely the cost measured above.
-
-**So the default is named, and the escape from it is explicit.** Zig is the first
-language to evaluate because of concrete, checkable properties:
+Zig is the first language to evaluate because of concrete, checkable properties,
+all of them verifiable here today:
 
 | Property | Why it matters here |
 |---|---|
-| `zig cc` cross-compiles | Builds cgo binaries for all six `GOOS`/`GOARCH` targets the template ships — the one thing a native boundary must not break |
+| `zig cc` cross-compiles | Acts as the cross-`cc` for a cgo build, so a native kernel does not add a second cross-toolchain. **Verify per target**: measured here it reaches linux/amd64, linux/arm64, windows/amd64, windows/arm64 but **not** darwin/amd64 or darwin/arm64 (the Go linker passes `-lresolv` and Zig's bundled macOS SDK has no such stub — verified with a cgo program that does not even import `net`) |
 | stdlib-first depth | `std.net`, `std.crypto`, `std.compress`, threads, SIMD — a kernel needs no package ecosystem, which is what keeps it "one package, small ABI, removable in minutes" |
 | Proven static cgo linking | The static-lib-to-Go path is demonstrated, not assumed |
 | Pre-1.0, pin-first | A **cost**, not a feature: the toolchain must be pinned and upgrades are real work. Acceptable because a native kernel is expected to be small and short-lived |
