@@ -104,6 +104,29 @@ delete the package directory and remove the wiring call from
 
 They coexist in the same binary. They do not compete.
 
+## Durability and retention (per store)
+
+Every store below is crash-recoverable by design (SQLite WAL replay,
+JetStream recovery, goqite), so backup means files, not coordination.
+The invariant to protect: **no truth lives in two places** — snapshots
+derive one way (Loro → PB), outboxes drain one way, grain rosters
+rebuild from heartbeats.
+
+| Store | Retention | Backup |
+|---|---|---|
+| `data.db` (PB app truth) | relational, kept | `scripts/backup.sh` (`.backup` + integrity check) |
+| `data/queue.db` (jobs) | jobs until acked + retried | same script, same check |
+| TODOS stream (live fan-out) | 24h + 256MB cap (consumers are live-only; catch-up is PB + fragment re-fetch) | `nats account backup` when reachable (ephemeral by design — losable) |
+| APP_CRUD stream (transport buffer) | 7d + 512MB cap (PB is the truth; replaying older would resurrect applied mutations) | same as above |
+| `room-presence` KV (roster) | latest revision per member + 24h TTL (crashed members expire) | same as above |
+| DagNats streams/KV (upstream) | engine-owned; 10 GiB store cap + 30d DLQ | same as above |
+| Browser outbox (IndexedDB) | device-local, drains on reconnect | not backed up (client state) |
+| Grain roster (GoAkt) | in-memory soft state, heartbeat-rebuilt | not backed up (rebuilt, by design) |
+
+Restore drill (monthly, cheap): `./scripts/restore.sh --dry-run <backup>`
+— an untested backup is a rumor. Full procedure lives in
+[deploy](deploy.md#backup-and-restore).
+
 ## One `make build` compiles everything
 
 No build tags, no stub files, no matrix. DagNats and NATS share a **single

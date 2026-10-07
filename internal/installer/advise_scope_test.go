@@ -46,10 +46,32 @@ func TestAdviseGenericWordsNeverLeaveGoScopes(t *testing.T) {
 	}
 }
 
+func TestAdviseRoomAuthoritySurfacesGoAkt(t *testing.T) {
+	// The reference demo must be discoverable: presenter/room/turn needs
+	// surface room-authority (keep goakt), the unit the demo ships in.
+	for _, need := range []string{
+		"take turns presenting in a shared room",
+		"game lobby with player arbitration",
+	} {
+		found := false
+		for _, p := range buildAdvise(need).Presets {
+			if p.Name == "room-authority" {
+				found = true
+				if len(p.Keep) != 1 || p.Keep[0] != "goakt" {
+					t.Errorf("%q keep = %v, want [goakt]", need, p.Keep)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("%q did not surface room-authority", need)
+		}
+	}
+}
+
+// TestAdviseLayVocabularySurfacesRightPresets pins lay words (several are
+// cross-language loanwords): people never say "offline-first", they say
+// "no internet" — and the preset must still surface.
 func TestAdviseLayVocabularySurfacesRightPresets(t *testing.T) {
-	// Laypeople never say "offline-first" or "realtime-collab". These are
-	// the words they do say (several are cross-language loanwords), pinned
-	// so a Match-list cleanup cannot silently drop them.
 	cases := []struct{ need, preset string }{
 		{"market with no internet, sync later on wifi", "offline-first"},
 		{"live chat with the crew", "realtime-collab"},

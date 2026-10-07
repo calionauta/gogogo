@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// presenceMemberTTL bounds crashed-member accumulation: heartbeats
+// refresh live members continuously, so anything idle this long is gone.
+const presenceMemberTTL = 24 * time.Hour
+
 type UserInfo struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
@@ -17,7 +21,10 @@ type UserInfo struct {
 
 // UserJoin broadcasts a join event and persists to KV.
 func UserJoin(roomID string, info UserInfo) error {
-	kv, err := EnsureKeyValue("room-presence")
+	kv, err := EnsureKeyValue("room-presence",
+		1, // latest revision per member is all the roster reads
+		presenceMemberTTL,
+	)
 	if err != nil {
 		return err
 	}
@@ -49,7 +56,10 @@ func UserJoin(roomID string, info UserInfo) error {
 
 // UserLeave removes user from KV and broadcasts leave event.
 func UserLeave(roomID, userID string) error {
-	kv, err := EnsureKeyValue("room-presence")
+	kv, err := EnsureKeyValue("room-presence",
+		1, // latest revision per member is all the roster reads
+		presenceMemberTTL,
+	)
 	if err != nil {
 		return err
 	}
@@ -75,7 +85,10 @@ func UserLeave(roomID, userID string) error {
 
 // GetRoomUsers returns all active users in a room from KV.
 func GetRoomUsers(roomID string) ([]UserInfo, error) {
-	kv, err := EnsureKeyValue("room-presence")
+	kv, err := EnsureKeyValue("room-presence",
+		1, // latest revision per member is all the roster reads
+		presenceMemberTTL,
+	)
 	if err != nil {
 		return nil, err
 	}

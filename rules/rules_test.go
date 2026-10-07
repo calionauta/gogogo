@@ -81,6 +81,7 @@ func goFile(body string) string {
 
 func fixtures() []ruleFixture {
 	all := tickerFixtures()
+	all = append(all, moderncFixtures()...)
 	all = append(all,
 		ruleFixture{
 			name: "the corrected select shape stays quiet",
@@ -434,4 +435,27 @@ func withoutEnv(env []string, key string) []string {
 		}
 	}
 	return out
+}
+
+// moderncFixtures are the ModerncDriverOpen cases, split out so each
+// function stays inside the 100-line `funlen` budget this repo enforces.
+// Var-shape (not func-shape): an uncalled func trips the harness's default
+// `unused` diagnostic and the run never reaches a rule verdict.
+func moderncFixtures() []ruleFixture {
+	open := func(driver string) string {
+		return "package fixture\n\nimport \"database/sql\"\n\nvar db, _ = sql.Open(\"" +
+			driver + "\", \"file:app.db\")\n\nvar _ = db\n"
+	}
+	return []ruleFixture{
+		{
+			name:        "modernc sqlite name is flagged",
+			source:      open("sqlite"),
+			wantAtLeast: 1,
+		},
+		{
+			name:        "ncruces sqlite3 name stays quiet",
+			source:      open("sqlite3"),
+			wantAtLeast: 0,
+		},
+	}
 }

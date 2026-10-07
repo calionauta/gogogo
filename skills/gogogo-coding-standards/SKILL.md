@@ -120,6 +120,23 @@ Full strategy: `references/go-testing.md`.
 - PB/SQLite: temp-dir instance + `Bootstrap()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
 - `B.Loop` style for benchmarks (1.26 inlining fix). `AllocsPerRun` panics under `-parallel`.
 
+## Storage and durability
+
+- Stores (each crash-recoverable; backup = files): `data.db` (PB truth),
+  `data/queue.db` (jobs), JetStream files (streams/KV), browser IndexedDB
+  (outbox). Full table + retention: `docs/async-layers.md#durability-and-retention-per-store`.
+- **No truth in two places.** Snapshots derive one way, outboxes drain one
+  way, grain rosters rebuild from heartbeats. A second writer to the same
+  truth is a design bug, not a sync problem.
+- Ephemeral coordination gets bounds, not hope: streams that nobody
+  replays get `MaxAge`+`MaxBytes` (TODOS 24h/256MB, APP_CRUD 7d/512MB);
+  KV rosters get History 1 + TTL (24h). Pin bounds in tests against
+  `StreamInfo` (see `internal/nats/retention_test.go`).
+- Backup/restore: `scripts/backup.sh` (`.backup` + `integrity_check` per
+  `.db`, JetStream when the `nats` CLI reaches the server) and
+  `scripts/restore.sh --dry-run` (monthly drill). Never `cp` a live
+  SQLite file; move `-wal`/`-shm` aside on restore.
+
 ## Datastar (.templ)
 
 Full rules: `references/datastar.md`.

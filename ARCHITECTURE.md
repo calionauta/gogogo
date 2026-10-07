@@ -44,6 +44,7 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH.RegisterRoutes(se)` | Delete package + remove block |
 | **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `registerWhiteboardStack(se, q, cfg)` (hub + routes + collab sync in one call) | Delete both dirs + `router/whiteboard.go` + `router/collab_jetstream.go` + remove call |
 | **Onboarding** | `features/todo/handlers/onboarding.go` + `internal/dagnats/` | 🟢 FEATURE | `registerOnboarding(app, q, se, broadcaster, todoH, cfg)` (no-ops when `DAGNATS_ENABLED=false`) | Delete both + remove call |
+| **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `registerRoomStack(se, cfg)` (no-ops when `GOAKT_ENABLED=false`) | Delete both dirs + `router/room_goakt.go` + `cmd/web/goakt.go` + remove call |
 | **EntityStore (persistence)** | `features/store/` (interface) + `features/store/pbstore/` (default impl) + `features/store/crdtstore/` (alternative) | 🟡 PLUGIN | `todoH.SetStore(pbstore.New(app, "todos"))` | Drop the `SetStore` call from `router.Init`; handler's lazy fallback (`h.st()`) rebuilds a PBStore. Switch strategy at runtime via `ENTITY_STORE=crdt` (see `config/config.go`). |
 
 > **⚠️ Auth is a mixed package.** The **login UI** (login page, navbar) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.
@@ -162,6 +163,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
   - Desktop Leaf Node — optional edge sync
   - *(Todos currently use the in-memory SSE Hub broadcaster, not NATS — the `JetStreamBroadcaster` exists in code but the startup order means it's never triggered. This is a pre-existing limitation: `server.Run(cfg, nil)` runs before `startNATS()`, so the router never receives a valid JetStream context. To fix it, either: (a) pass `startNATS()`'s JetStream context through `server.Run(cfg, js)`, or (b) follow the whiteboard's pattern of holding a direct `nc` connection reference.)*
 - **DagNats** (Plugin 🟡): durable multi-step workflows as declarative JSON. Uses NATS JetStream for state.
+- **GoAkt** (Plugin 🟡): entity actors (one grain per room: roster + presenter lock, supervised). Standalone, no network.
 
 ---
 
@@ -198,6 +200,7 @@ main.go
   │       ├─ registerCollabSync   🟢 FEATURE (NATS listener)
   │       └─ registerCrudConsumer 🟡 PLUGIN (if cfg.OfflineSync.Enabled)
   ├─ startDagNats(cfg, pb, ...) ← 🟡 PLUGIN: boots engine (NATS on :4222)
+  ├─ startGoAkt(cfg)            ← 🟡 PLUGIN: boots room actors (standalone, no network)
   ├─ startNATS(cfg)             ← 🟡 PLUGIN: connects or starts embedded NATS
   └─ pb.Start()                 ← 🔴 Core: serves HTTP
 ```

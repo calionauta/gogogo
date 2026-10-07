@@ -108,7 +108,7 @@ func TestUnitMenusFollowRegistryKinds(t *testing.T) {
 	// Menu numbers are positional: pin the order so humans learn stable
 	// numbers and prompt options never drift from registry kinds.
 	plugins := unitIDsOfKind(capabilities.KindPlugin)
-	wantPlugins := []string{"dagnats", "credits", "sounds", "skins-extra"}
+	wantPlugins := []string{"dagnats", "goakt", "credits", "sounds", "skins-extra"}
 	if fmt.Sprint(plugins) != fmt.Sprint(wantPlugins) {
 		t.Errorf("plugin menu = %v, want %v", plugins, wantPlugins)
 	}

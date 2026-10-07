@@ -83,6 +83,25 @@ Not for: single fire-and-forget jobs (that is `queue`); per-step undo
 on failure — DagNats retries and replays, it does not compensate
 (see saga note below); timers owned by one entity (no owner here).
 
+### `goakt` — entity actors with supervision (plugin, offered)
+
+What: one addressable grain per room (heartbeat roster plus an
+exactly-one presenter lock), supervised with restart budget, idle
+passivation. Standalone: no network, no discovery, no cluster.
+Runtime off: `GOAKT_ENABLED=false`.
+
+- Presenter/turn arbitration exactly one can win (KV stores and
+  pub/sub cannot arbitrate — concurrent acquirers race there).
+- Per-entity timers and heartbeat-driven membership that rebuilds
+  after a restart (soft state, never persisted).
+- Supervised workers that must come back after a panic, with a
+  retry budget instead of unbounded restarts.
+
+Not for: converging data across replicas (that is `collab`/Loro);
+fire-and-forget jobs (that is `queue`); multi-step DAGs with replay
+(that is `dagnats`); cross-process placement (standalone only —
+cluster mode is out of scope for this unit).
+
 ### `llm` — model calls (plugin, env-blessed)
 
 What: GoAI client behind an injectable interface (any OpenAI-compatible
@@ -180,7 +199,8 @@ matched — decide from the table or build custom; do not force-fit):
 - Photo galleries, donations, volunteer rotas — static display is
   `landing`; the workflows behind them have no unit.
 - Per-entity timers and single-owner locks (one cart, one room owner) —
-  no unit; this is the documented trigger for evaluating entity actors.
+  presenter locks are `goakt`; per-entity timers and conversation
+  supervision remain evaluation triggers (no unit yet).
 
 ### `whiteboard` — shared canvas (feature, offered)
 
@@ -190,6 +210,18 @@ What: Loro canvas + Rough.js + presence (pulls in `collab`).
 
 Not for: owner arbitration (no presenter lock); canvas is the only
 consumer of `collab` today.
+
+### `room` — presence demo page (feature, offered, bundled with `goakt`)
+
+What: the `/room/` page exercising the `goakt` engine (roster,
+presenter lock, crash hook). A reference implementation like `todo`,
+for entity actors.
+
+- Seeing supervised restart recovery live; the pattern to copy for
+  per-entity features.
+
+Not for: production rooms (no persistence, single process) — copy
+the grain pattern into your own feature instead.
 
 ### `landing` — public marketing page (feature, offered)
 

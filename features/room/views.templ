@@ -1,0 +1,103 @@
+// SCOPE:layer=feature,removal=feature — Room demo page (GoAkt grains).
+//
+// REMOVE by deleting features/room/ + the call site in router/router.go
+// + the navbar link lines in features/auth/views.templ (the unit's
+// extraStrips cover both). No sounds import here on purpose: room views
+// stay dependency-free so the unit carries no DependsOn.
+package room
+
+import (
+	"strconv"
+
+	"github.com/calionauta/gogogo/features/auth"
+	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+)
+
+// Page renders the room demo: roster, exactly-one presenter lock, and
+// the crash hook. Initial state is server-rendered; the adjacent script
+// polls JSON (heartbeat every 5s, roster every 3s) and re-renders the
+// roster block from the response — whole-snapshot polling, no event
+// log, matching the grain's pull-friendly Roster response.
+templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="light">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Room — gogogo</title>
+			<link rel="stylesheet" href="/static/app.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
+		</head>
+		<body>
+			@auth.Navbar(email, "room", buildLabel, buildCommit)
+			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>
+				<h1 class="text-2xl font-bold">Room: { roomID }</h1>
+				<p class="opacity-70">
+					One grain owns this roster and its presenter lock. Open a
+					second browser and take the lock there — exactly one of
+					you wins. Press crash and watch the roster rebuild.
+				</p>
+				<div class="card bg-base-200 shadow mt-4">
+					<div class="card-body">
+						<h2 class="card-title">
+							Presenter: <span id="room-presenter">
+								if roster.Presenter == "" {
+									(none)
+								} else {
+									{ roster.Presenter }
+								}
+							</span>
+						</h2>
+						<p class="text-sm opacity-70">Room generation <span id="room-generation">{ strconv.Itoa(roster.Generation) }</span> (bumps on every restart)</p>
+						<ul id="room-roster" class="menu">
+							for _, m := range roster.Members {
+								<li>{ m.Name }</li>
+							}
+						</ul>
+						<div class="card-actions justify-end">
+							<button id="room-acquire" class="btn btn-primary" type="button">Take presenter</button>
+							<button id="room-release" class="btn" type="button">Release</button>
+							<button id="room-leave" class="btn" type="button">Leave</button>
+							<button id="room-crash" class="btn btn-error" type="button">Crash room</button>
+						</div>
+					</div>
+				</div>
+			</main>
+			<script>
+				// Adjacent polling loop (not SSE): heartbeat keeps this
+				// member alive, roster refresh re-renders from snapshots.
+				// Templ does not interpolate expressions inside <script>
+				// (script bodies render verbatim), so the room id travels
+				// as a data attribute on <main>, read back here.
+				(function () {
+					var room = document.querySelector("main[data-room]").getAttribute("data-room");
+					function post(path) {
+						return fetch(path + "?room=" + encodeURIComponent(room), {method: "POST"});
+					}
+					function render(roster) {
+						var names = "";
+						(roster.members || []).forEach(function (m) { names += "<li>" + m.name + "</li>"; });
+						document.getElementById("room-roster").innerHTML = names;
+						document.getElementById("room-presenter").textContent = roster.presenter || "(none)";
+						document.getElementById("room-generation").textContent = roster.generation;
+					}
+					function refresh() {
+						fetch("/room/roster?room=" + encodeURIComponent(room))
+							.then(function (r) { return r.json(); })
+							.then(render);
+					}
+					document.getElementById("room-acquire").addEventListener("click", function () { post("/room/acquire").then(refresh); });
+					document.getElementById("room-release").addEventListener("click", function () { post("/room/release").then(refresh); });
+					document.getElementById("room-leave").addEventListener("click", function () { post("/room/leave").then(refresh); });
+					document.getElementById("room-crash").addEventListener("click", function () { post("/room/crash").then(refresh); });
+					setInterval(function () { post("/room/heartbeat"); }, 5000);
+					setInterval(refresh, 3000);
+					post("/room/heartbeat");
+				})();
+			</script>
+		</body>
+	</html>
+}
+

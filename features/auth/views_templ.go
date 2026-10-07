@@ -119,13 +119,13 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 = []any{templ.Classes("app-nav-link", map[string]bool{
-			"is-active": active == "config",
+			"is-active": active == "room",
 		})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/config\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/room\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -138,7 +138,31 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Config</a></div></div><div class=\"app-nav-end\"><button type=\"button\" class=\"app-theme-toggle\" aria-label=\"Toggle theme\" title=\"Toggle light/dark theme\" data-on:click=\"var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Room</a> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 = []any{templ.Classes("app-nav-link", map[string]bool{
+			"is-active": active == "config",
+		})}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/config\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var10).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">Config</a></div></div><div class=\"app-nav-end\"><button type=\"button\" class=\"app-theme-toggle\" aria-label=\"Toggle theme\" title=\"Toggle light/dark theme\" data-on:click=\"var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -147,43 +171,43 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			return templ_7745c5c3_Err
 		}
 		if userEmail == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/login\" class=\"app-nav-btn is-primary\" data-on:click=\"$loading = true\" data-variant=\"primary\">Sign in</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"/login\" class=\"app-nav-btn is-primary\" data-on:click=\"$loading = true\" data-variant=\"primary\">Sign in</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"app-dropdown\"><div tabindex=\"0\" role=\"button\" class=\"app-dropdown-trigger\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-user-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z\" clip-rule=\"evenodd\"></path></svg> <span class=\"app-user-email\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"app-dropdown\"><div tabindex=\"0\" role=\"button\" class=\"app-dropdown-trigger\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-user-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z\" clip-rule=\"evenodd\"></path></svg> <span class=\"app-user-email\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 63, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 66, Col: 46}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span></div><ul class=\"app-dropdown-menu\"><li class=\"app-menu-title\"><span>Signed in as</span></li><li><span class=\"font-mono text-xs break-all\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 70, Col: 60}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span></div><ul class=\"app-dropdown-menu\"><li class=\"app-menu-title\"><span>Signed in as</span></li><li><span class=\"font-mono text-xs break-all\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span></li><li><a href=\"/_/\" class=\"flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-menu-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path d=\"M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-4h2v4zm0-6H9V5h2v2z\"></path></svg> Dashboard</a></li><li><a href=\"/dagnats/\" target=\"_blank\" rel=\"noopener\" class=\"flex items-center gap-2 cursor-pointer\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-menu-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v3h10V5a1 1 0 00-1-1H5zm10 6H5v5a1 1 0 001 1h8a1 1 0 001-1v-5z\" clip-rule=\"evenodd\"></path></svg> DagNats</a></li><li><form method=\"POST\" action=\"/logout\" data-on:submit=\"$loading = true; if (navigator.serviceWorker) { navigator.serviceWorker.ready.then(function (r) { r.active && r.active.postMessage({ type: 'clear-pages' }); }); }\"><button type=\"submit\" class=\"w-full text-left flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-menu-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 10a1 1 0 011-1h10a1 1 0 110 2H4a1 1 0 01-1-1zM9 4a1 1 0 011-1h7a1 1 0 011 1v12a1 1 0 01-1 1h-7a1 1 0 01-1-1V4z\" clip-rule=\"evenodd\"></path></svg> Sign out</button></form></li></ul></div>")
+			var templ_7745c5c3_Var13 string
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 73, Col: 60}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></li><li><a href=\"/_/\" class=\"flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-menu-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path d=\"M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-4h2v4zm0-6H9V5h2v2z\"></path></svg> Dashboard</a></li><li><a href=\"/dagnats/\" target=\"_blank\" rel=\"noopener\" class=\"flex items-center gap-2 cursor-pointer\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-menu-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v3h10V5a1 1 0 00-1-1H5zm10 6H5v5a1 1 0 001 1h8a1 1 0 001-1v-5z\" clip-rule=\"evenodd\"></path></svg> DagNats</a></li><li><form method=\"POST\" action=\"/logout\" data-on:submit=\"$loading = true; if (navigator.serviceWorker) { navigator.serviceWorker.ready.then(function (r) { r.active && r.active.postMessage({ type: 'clear-pages' }); }); }\"><button type=\"submit\" class=\"w-full text-left flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-menu-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 10a1 1 0 011-1h10a1 1 0 110 2H4a1 1 0 01-1-1zM9 4a1 1 0 011-1h7a1 1 0 011 1v12a1 1 0 01-1 1h-7a1 1 0 01-1-1V4z\" clip-rule=\"evenodd\"></path></svg> Sign out</button></form></li></ul></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></nav>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div></nav>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -210,12 +234,12 @@ func LoginPage(next string, errMsg string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var12 == nil {
-			templ_7745c5c3_Var12 = templ.NopComponent
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -223,7 +247,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<script src=\"/static/iconify-icon.min.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<script src=\"/static/iconify-icon.min.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,43 +255,43 @@ func LoginPage(next string, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div role=\"alert\" class=\"alert alert-error mb-4\"><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div role=\"alert\" class=\"alert alert-error mb-4\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
+			var templ_7745c5c3_Var15 string
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 132, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 135, Col: 21}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<form method=\"POST\" action=\"/login\" class=\"space-y-4\"><input type=\"hidden\" name=\"next\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<form method=\"POST\" action=\"/login\" class=\"space-y-4\"><input type=\"hidden\" name=\"next\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var14 string
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 137, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 140, Col: 51}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo@demo.app\" class=\"input w-full\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input w-full\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\" data-variant=\"primary\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo credentials prefilled. Click <strong>Sign in</strong> to enter.</div></form></div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo@demo.app\" class=\"input w-full\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input w-full\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\" data-variant=\"primary\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo credentials prefilled. Click <strong>Sign in</strong> to enter.</div></form></div></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

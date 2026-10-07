@@ -23,7 +23,7 @@ const SU_PASS = "SmokeSuperuserPass!123";
 const USER_EMAIL = "smoke-user@local.dev";
 const USER_PASS = "SmokeUserPass!123";
 
-const ROUTES = ["/todo", "/whiteboard", "/login"];
+const ROUTES = ["/todo", "/whiteboard", "/room", "/login"];
 
 const fail = (msg) => {
   console.error("❌ " + msg);
@@ -553,6 +553,42 @@ try {
 
   pageErrors.length = 0;
   consoleErrors.length = 0;
+  // Room demo (GoAkt grains): the page's own polling loop heartbeats on
+  // load, so the roster must contain this user; acquire must elect them
+  // presenter; crash must bump the room generation (supervisor restart).
+  console.log("→ Exercising room roster + presenter lock + crash hook…");
+  await page.goto(BASE + "/room", { waitUntil: "load", timeout: 20000 });
+  await page.waitForTimeout(1500);
+  // Heartbeat is fire-and-forget: poll briefly so transport timing, not
+  // grain behavior, decides the verdict.
+  let rosterHasUser = false;
+  for (let i = 0; i < 10 && !rosterHasUser; i++) {
+    rosterHasUser = await page.evaluate(async (email) => {
+      const r = await fetch("/room/roster");
+      const j = await r.json();
+      return (j.members || []).some((m) => m.name === email);
+    }, USER_EMAIL);
+    if (!rosterHasUser) await page.waitForTimeout(500);
+  }
+  if (!rosterHasUser) fail("room roster does not contain the logged-in user after heartbeat");
+  const genBefore = await page.evaluate(async () => (await (await fetch("/room/roster")).json()).generation);
+  const presenter = await page.evaluate(async (email) => {
+    await fetch("/room/acquire", { method: "POST" });
+    const j = await (await fetch("/room/roster")).json();
+    return j.presenter;
+  }, USER_EMAIL);
+  if (presenter !== USER_EMAIL) fail(`room presenter = ${presenter}, want ${USER_EMAIL}`);
+  await page.evaluate(() => fetch("/room/crash", { method: "POST" }));
+  let genAfter = genBefore;
+  for (let i = 0; i < 40 && genAfter <= genBefore; i++) {
+    await page.waitForTimeout(500);
+    genAfter = await page.evaluate(async () => (await (await fetch("/room/roster")).json()).generation);
+  }
+  if (genAfter <= genBefore) fail(`room generation stuck at ${genAfter} after crash (want > ${genBefore})`);
+  if (pageErrors.length > 0) {
+    fail(`uncaught JS error during room test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
+  }
+
   // CAL-34: sweep every UI skin through the offline-queue contract.
   // Each skin has its own `.templ`, and a typo in the offline-reset
   // listener (data-on:gogogo:queued__window vs. gogogo__queued) used

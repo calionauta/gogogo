@@ -39,6 +39,13 @@ they can never be "missing a selector".
 3. Prefer Datastar attributes (`data-on:*`, signals, expressions, `__window`/`__document` modifiers) over vanilla JS. Inline JS only when unavoidable, adjacent to the markup (locality of behavior).
 4. Intentional custom attributes (whiteboard `data-tool`/`data-doc-id`, cuelume `data-cuelume-*`) go in `.datastar-lint.yaml` under `attributes.allowed` — never silence with broad ignores.
 5. The action list tracks the Datastar core release: `@query()` is v1.0.4+. An action missing from the linter's regex falls through to the "no action matched" branch and silently skips the URL-format and method checks, so re-check this list on a core upgrade.
+6. Templ does not interpolate `{...}` inside `<script>` bodies or inside
+quoted attribute strings (`data-room="{ id }"` renders literally). Pass
+values to inline scripts as unquoted data attributes
+(`data-room={ roomID }`) read back with `getAttribute`. Neither
+datastar-lint nor the Go linters see this class — the browser smoke
+(`scripts/smoke.mjs`, which loads every page and fails on JS errors)
+is the gate that catches it.
 
 ## Scan roots (why landing edits are safe)
 

@@ -12,6 +12,7 @@ second column names the **technology** that powers it.
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
 | **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
+| **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: heartbeat roster + exactly-one presenter lock, supervised with restart budget. Demo at `/room/` with a crash hook |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
 | **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` | NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync |
 | **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI | `UI_SKIN` | DaisyUI (default) or BasecoatUI (shadcn-style OKLCH tokens). Switch via env var or `?skin=`. See [UI skins](ui-skins.md) |
@@ -38,6 +39,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Landing page | `/` | Public. Same page for guests and signed-in users |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Whiteboard | `/whiteboard` | Auth-gated |
+| Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
 | Config view | `/config` | Auth-gated, read-only |
 | PocketBase admin | `/_/` | Superuser auth |
 | DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps |

@@ -120,6 +120,7 @@ dependencies and are left alone.
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser. No Redis |
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
+| **Room ownership without races** | [GoAkt](https://github.com/Tochemey/goakt) | One grain per room: heartbeat roster plus exactly-one presenter lock, supervised |
 | **Shared state that merges offline edits** | [Loro CRDT](https://github.com/aholstenson/loro-go) + [Rough.js](https://roughjs.com) | Conflict-free state with no last-write-wins data loss |
 | **Realtime for one instance or many** | PocketBase realtime + NATS JetStream | Per-user record push, plus cross-instance broadcast |
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |

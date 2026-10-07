@@ -216,3 +216,19 @@ in a scratch base.
 
 - [Configuration](configuration.md) — the env vars the deploy writes.
 - [Local CI](local-ci.md) — run the same gate before pushing.
+
+## Backup and restore
+
+```bash
+./scripts/backup.sh [DATA_DIR] [DEST_DIR]   # .backup + integrity_check per .db, JetStream when reachable
+./scripts/restore.sh --dry-run <backup>     # monthly drill: verifies without touching anything
+./scripts/restore.sh --force <backup> [DATA_DIR]  # stop the app first; moves -wal/-shm aside
+```
+
+What gets backed up: `data.db`, `queue.db` (both integrity-checked),
+JetStream streams/KV (only when the `nats` CLI reaches the server —
+ephemeral fan-out streams are losable by design, see
+[async-layers](async-layers.md#durability-and-retention-per-store)).
+Browser state is never backed up. Restore swaps files with the app
+stopped; every engine recovers on boot, so there is no cross-store
+coordination step.

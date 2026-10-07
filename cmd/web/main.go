@@ -101,6 +101,15 @@ func run() error {
 	startDagNats(lifecycleCtx, cfg, pb, todoH)
 	defer shutdownDagNats()
 
+	// GoAkt owns the room actor system (standalone, no network). It's
+	// always compiled; when GOAKT_ENABLED=false it no-ops.
+	// NOTE: intentionally NOT lifecycleCtx-bound (unlike DagNats): the
+	// standalone boot performs no retries and returns promptly, so there
+	// is no loop for shutdown to bound — and a self-contained span keeps
+	// `add goakt` position-independent (any anchor works).
+	startGoAkt(context.Background(), cfg)
+	defer shutdownGoAkt()
+
 	js := startNATS(cfg)
 	_ = js // startNATS has the side-effect of wiring the global broadcaster
 

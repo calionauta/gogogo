@@ -13,6 +13,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	natsio "github.com/nats-io/nats.go"
 
@@ -72,6 +73,12 @@ func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*Je
 		Name:     todoStream,
 		Subjects: []string{todoSubject},
 		Storage:  natsio.FileStorage,
+		// Bounded fan-out: consumers are live-only (ephemeral Subscribe,
+		// no replay position) and catch-up runs through PB realtime +
+		// fragment re-fetch — so history older than a day is never read.
+		// Without MaxAge the stream grows forever for zero benefit.
+		MaxAge:   24 * time.Hour,
+		MaxBytes: 256 << 20,
 	}); err != nil {
 		// AddStream only errors on genuine misconfiguration; an existing
 		// stream is not an error.

@@ -184,6 +184,12 @@
         <p>Switchable at runtime with <code>UI_SKIN</code> or <code>?skin=</code>.</p>
         <p class="off">Off: <code>UI_SKIN=daisyui</code></p>
       </div>
+      <div class="card">
+        <p class="step">Room ownership without races</p>
+        <p class="tech">GoAkt grains</p>
+        <p>One grain per room: heartbeat roster plus an exactly-one presenter lock, supervised with restart budget. Demo at <code>/room/</code> with a crash hook.</p>
+        <p class="off">Off: <code>GOAKT_ENABLED=false</code></p>
+      </div>
     </div>
     <p class="group-label feature">Feature — optional extras <span>(keep it or delete it)</span></p>
     <div class="grid-2">

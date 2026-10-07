@@ -103,6 +103,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | Unit | Deletes | Router / wiring strip |
 |---|---|---|
 | `dagnats` | `internal/dagnats/`, `router/onboarding_dagnats.go`, `router/dagnats_proxy_dagnats.go`, `router/dagnats_proxy_test.go`, `router/export_test.go`, `features/todo/handlers/onboarding.go`, `features/todo/handlers/todo_update_job_dagnats.go`, `features/todo/handlers/onboarding_resume_test.go`, `features/todo/onboarding_e2e_test.go`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go` | Drop 1 call line in `router/router.go` (guard lives inside `registerOnboarding`); `startDagNats` / `shutdownDagNats` calls in `cmd/web/main.go` (kept as `_ = todoH` so nothing dangles); drop `danmestas/dagnats` from `go.mod`. No dead UI: the workflow tab auto-hides via the `dagnatsUIEnabled` signal |
+| `goakt` | `internal/goakt/`, `features/room/`, `router/room_goakt.go`, `cmd/web/goakt.go` | Drop 1 call line (`registerRoomStack`); `startGoAkt` / `shutdownGoAkt` calls in `cmd/web/main.go`; drop `tochemey/goakt` from `go.mod`. Navbar Room link stripped |
 | `whiteboard` | `features/whiteboard/`, `internal/collab/`, `router/whiteboard.go`, `router/collab_jetstream.go` | Drop 1 call line (`registerWhiteboardStack`); Phase C demo block in `cmd/desktop/main.go` (+ `collab`/`context`/`time` imports); navbar Whiteboard link stripped. `loro-go` stays: `features/store/crdtstore` still imports it |
 | `landing` | `features/landing/` | Drop 1 call line + `landing` import in `router/router.go`; navbar brand retargeted `/` → `/todo`. Warns: plain GET / 404s afterwards |
 | `config-view` | `features/config/` | Drop 1 call line + `cfgfeature` import; navbar Config link stripped |
@@ -126,6 +127,7 @@ env-blessed with the reason recorded.
 | Capability | Runtime off (reversible) | Deletion (permanent) | Installer |
 |---|---|---|---|
 | Durable workflows (DagNats) | `DAGNATS_ENABLED=false` | `internal/dagnats/` + onboarding wiring | ✅ `dagnats` |
+| Entity actors (GoAkt rooms) | `GOAKT_ENABLED=false` | `internal/goakt/` + room demo | ✅ `goakt` |
 | Realtime (NATS JetStream) | `NATS_ENABLED=false` (in-memory fallback) | Manual — 15+ importers (`internal/nats` in handlers, collab, server, desktop); handler signatures carry NATS types | ❌ env-blessed (cascade too wide for line strips) |
 | Collaboration (Loro CRDT) | — (no servers at boot) | Bundled with `whiteboard` (see bundle rationale in manifest) | ✅ inside `whiteboard` |
 | Todo realtime (PB) | — (part of the DB) | With `features/todo/` (manual, it is the reference) | ❌ |

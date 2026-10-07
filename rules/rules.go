@@ -116,3 +116,17 @@ func TickerLoopWithoutExit(m dsl.Matcher) {
 		Where(!m.File().Name.Matches(`_test\.go`)).
 		Report(`for range <ticker>.C has no exit: defer t.Stop() stops the ticker, not the goroutine parked on it, so nothing can wake it. Not a deadlock and not a race — which is why only a leak checker or a shutdown assertion sees it. Select on ctx.Done()/done as well (see internal/queue/workers.go waitOrStop, references/go-concurrency-deltas.md)`)
 }
+
+// Scope: the repo has ZERO legitimate sql.Open("sqlite") (checked
+// repo-wide — every open uses the ncruces "sqlite3" name). Opening the
+// modernc "sqlite" name beside it would create a second pool against the
+// same files plus version-check coupling (PB warns when modernc versions
+// drift), for no benefit: both drivers are CGO-free and cross-compile.
+// PocketBase itself blank-imports modernc and DefaultDBConnect opens it,
+// so the dependency stays — this rule only forbids OUR code from
+// instantiating it. Proven by spike (both drivers registered, modernc
+// path live): removal is not an option, single-driver discipline is.
+func ModerncDriverOpen(m dsl.Matcher) {
+	m.Match(`sql.Open("sqlite", $dsn)`).
+		Report(`sql.Open("sqlite") instantiates the modernc driver beside the ncruces "sqlite3" pool — two pools, one set of files, plus PB version-check coupling. Open "sqlite3" (see db/pocketbase.go)`)
+}

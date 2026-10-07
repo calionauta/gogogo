@@ -37,6 +37,31 @@ so **no build tag is required** and a plain `go build` just works.
 Being cgo-free means clean cross-compilation of the production binary (the
 deploy workflow builds `GOOS=linux` from any runner).
 
+### Why `modernc.org/sqlite` stays in `go.mod` (read before touching)
+
+PocketBase itself blank-imports `modernc.org/sqlite`
+(`core/db_connect.go`, whose `DefaultDBConnect` opens the `"sqlite"`
+driver) and version-checks it at runtime (`modernc_versions_check.go`:
+warns unless driver v1.57.0 + libc v1.74.4 — the versions pinned here).
+Removing it breaks the PB link, so `go mod tidy` keeps it; the
+dependency is load-bearing for the framework even though our boot path
+opens ncruces `"sqlite3"` exclusively. Proven by spike (both drivers
+registered in one process, modernc path live). Rule: our code opens
+`"sqlite3"` only — enforced by the `ModerncDriverOpen` ruleguard rule,
+which fails CI on `sql.Open("sqlite", …)`. Two pools against one set
+of files is the failure it prevents.
+
+### Extensions: available, none loaded
+
+The ncruces tree ships extensions (`fts5`, `rtree`, `vec1` — SQLite's own
+vector extension — `bloom`, `unicode`, …), but nothing in this repo
+registers or loads any of them (verified: no `LoadExtension`, no
+`USING fts5/vec1` anywhere). The door is open — semantic search over
+todos via `vec1` would be one `Register` call away — but until a feature
+needs it, no extension loads. If you add one, document it here and pin
+a test that queries through it: an unloaded extension directory is not
+a capability.
+
 ## Why no frontend framework?
 
 Datastar gives you reactivity with no client-side framework and no build step.

@@ -105,6 +105,17 @@ var advisePresets = []advisePreset{
 		Note:  "Todo stays as the reference implementation — delete features/todo/ manually when done reading it.",
 	},
 	{
+		Name: "room-authority",
+		Idea: "one addressable owner per room: roster, locks, and timers live in the entity, not in rows",
+		Match: []string{
+			"presenter", "room", "turn", "arbitrat", "supervis", "lobby",
+		},
+		Keep: []string{unitGoAkt},
+		Note: "One grain per room (turn-based: exactly one lock winner), " +
+			"supervised with restart budget, roster rebuilt from heartbeats. " +
+			"Demo page at /room/ with a crash hook.",
+	},
+	{
 		Name:  "sound-feedback",
 		Idea:  "tiny client-side cues with mute and reduced-motion respect",
 		Match: []string{"sound", "audio", "feedback", "cue", "toggle"},

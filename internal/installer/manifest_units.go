@@ -14,6 +14,7 @@ import (
 // whiteboard covers whiteboard+collab (the only honest shape).
 const (
 	unitDagnats    = "dagnats"
+	unitGoAkt      = "goakt"
 	unitWhiteboard = "whiteboard"
 	unitLanding    = "landing"
 	unitConfigView = "config-view"
@@ -25,6 +26,7 @@ const (
 // unitCaps maps installer units to registry capability ids.
 var unitCaps = map[string][]string{
 	unitDagnats:    {"dagnats"},
+	unitGoAkt:      {"goakt", "room"},
 	unitWhiteboard: {"whiteboard", "collab"},
 	unitLanding:    {"landing"},
 	unitConfigView: {"config-view"},
@@ -225,6 +227,50 @@ var manifestUnits = []trimUnit{
 			},
 		},
 		goModDrops: []string{"github.com/danmestas/dagnats"},
+	},
+	{
+		id: unitGoAkt,
+		// Bundle rationale, same as whiteboard+collab: the room demo
+		// without the engine does not compile, and the engine without
+		// the demo is unproven surface — one unit is the honest shape.
+		extraDrops: []fileDrop{
+			{
+				path:    routerGoFile,
+				substrs: []string{"registerRoomStack(se, cfg)"},
+			},
+		},
+		mainStrips: []stripRule{
+			{
+				startMarker: "startGoAkt(context.Background(), cfg)",
+				endMarker:   "defer shutdownGoAkt()",
+				addAfter:    mainCallsAnchor,
+				// Removing the engine leaves its boot preamble (and the
+				// lifecycle comment it sits under) describing an absent
+				// engine — drop the block that documents them, or trim
+				// leaves an orphaned comment (and gofmt flags the stray
+				// blank lines in the scaffolded checkout).
+				alsoDeleteContains: []string{
+					"// GoAkt owns the room actor system (standalone, no network).",
+					"// always compiled; when GOAKT_ENABLED=false it no-ops.",
+					"// NOTE: intentionally NOT lifecycleCtx-bound (unlike DagNats): the",
+					"// standalone boot performs no retries and returns promptly, so there",
+					"// is no loop for shutdown to bound — and a self-contained span keeps",
+					"// `add goakt` position-independent (any anchor works).",
+				},
+			},
+		},
+		goModDrops: []string{"github.com/tochemey/goakt/v4"},
+		extraStrips: []fileStrip{
+			{
+				path: navbarTempl,
+				rules: []stripRule{
+					{
+						startMarker: `<a href="/room"`,
+						endMarker:   `}>Room</a>`,
+					},
+				},
+			},
+		},
 	},
 	{
 		id: unitWhiteboard,

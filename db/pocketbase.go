@@ -19,6 +19,12 @@ import (
 // bundles modernc.org/sqlite, but that registers "sqlite" and stays unused — so no
 // build tag is needed and a plain `go build` just works. Being cgo-free, ncruces
 // cross-compiles cleanly for the multi-arch Docker image and Wails desktop/mobile.
+//
+// modernc stays in go.mod on purpose: PB blank-imports it itself
+// (core/db_connect.go DefaultDBConnect) and version-checks it at runtime,
+// so removing it breaks the PB link. Our code must only ever open
+// "sqlite3" — enforced by the ModerncDriverOpen ruleguard rule.
+// Full rationale: docs/stack-layers.md ("Why modernc.org/sqlite stays").
 func Init(cfg *config.Config) (*pocketbase.PocketBase, error) {
 	app := pocketbase.NewWithConfig(pocketbase.Config{
 		DefaultDataDir:       cfg.DataDir,

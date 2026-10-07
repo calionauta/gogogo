@@ -10,11 +10,11 @@ Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream. 
 
 **Upstream-first (generated projects keep this):** check the upstream template (`site/llms.txt` + `site/docs/<slug>/`, or the GitHub blob) BEFORE creating a feature or installing a library. Reuse what exists (Todo is the reference; SCOPE says what is safe to delete). New dependency only when no upstream page covers the need.
 
-**Unified build.** `go build ./cmd/web` compiles everything, no build tags. Opt out at runtime (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
+**Unified build.** `go build ./cmd/web` compiles everything, no build tags. Opt out at runtime (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`, `GOAKT_ENABLED=false`). Backup: `scripts/backup.sh` (+ `restore.sh --dry-run` drill); retention per store: `docs/async-layers.md#durability-and-retention-per-store`.
 
 ## Stack (exact versions)
 
-Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sqlite3) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | NATS JetStream | age v1.3.2 | uuid v1.6.0
+Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sqlite3) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | GoAkt v4.6.1 | NATS JetStream | age v1.3.2 | uuid v1.6.0
 
 ## Skills
 

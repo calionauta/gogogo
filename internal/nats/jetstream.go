@@ -33,8 +33,11 @@ func EnsureStream(name string, subjects []string, maxAge ...time.Duration) error
 }
 
 // EnsureKeyValue creates a KV bucket if it doesn't exist on the CURRENT
-// handle's JetStream.
-func EnsureKeyValue(bucket string, maxValueSize ...int32) (nats.KeyValue, error) {
+// handle's JetStream. history caps per-key revisions (1 = latest only,
+// right for coordination state like rosters); ttl expires keys no one
+// refreshes (crashed members vanish instead of accumulating forever).
+// Zero history keeps the server default; zero ttl means no expiry.
+func EnsureKeyValue(bucket string, history uint8, ttl time.Duration, maxValueSize ...int32) (nats.KeyValue, error) {
 	js := JetStream()
 	if js == nil {
 		return nil, errors.New("nats: no JetStream — StartEmbedded/ConnectExisting was not called")
@@ -42,6 +45,8 @@ func EnsureKeyValue(bucket string, maxValueSize ...int32) (nats.KeyValue, error)
 	cfg := &nats.KeyValueConfig{
 		Bucket:  bucket,
 		Storage: nats.FileStorage,
+		History: history,
+		TTL:     ttl,
 	}
 	if len(maxValueSize) > 0 {
 		cfg.MaxValueSize = maxValueSize[0]

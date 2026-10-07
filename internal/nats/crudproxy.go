@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	natsio "github.com/nats-io/nats.go"
 	"github.com/pocketbase/pocketbase/core"
@@ -92,6 +93,13 @@ func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
 		Name:     crudStreamName,
 		Subjects: []string{crudSubjectPrefix + ">"},
 		Storage:  natsio.FileStorage,
+		// Bounded transport buffer: the server consumer is always up
+		// while NATS runs, and PocketBase (not this stream) is the
+		// truth — replaying month-old CRUD ops would resurrect
+		// already-applied mutations. A week covers any realistic
+		// consumer outage; MaxBytes caps disk either way.
+		MaxAge:   7 * 24 * time.Hour,
+		MaxBytes: 512 << 20,
 	}); err != nil {
 		if err.Error() != "stream already exists" {
 			slog.Warn("crudproxy: add stream failed", "error", err)

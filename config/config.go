@@ -20,6 +20,7 @@
 //	NATS_STORE_DIR      (default: "data/nats")
 //	NATS_LEAFNODE_URL   (default: "")    — connect as NATS Leaf Node
 //	DAGNATS_ENABLED     (default: true)  — enable DagNats workflows
+//	GOAKT_ENABLED       (default: true)  — enable GoAkt room actors
 //	DAGNATS_HTTP_ADDR   (default: "127.0.0.1:8090")
 //	DAGNATS_NATS_PORT   (default: 4222)
 //	DAGNATS_GREET_PACING (default: 1500ms) — onboarding-greet demo pause
@@ -152,6 +153,14 @@ type Config struct {
 		GreetPacing time.Duration
 	}
 
+	// GoAkt holds the GoAkt entity-actor settings. It is always
+	// compiled; set GOAKT_ENABLED=false to no-op it at runtime.
+	// Standalone mode needs no network, discovery, or cluster: rooms
+	// live in this process only.
+	GoAkt struct {
+		Enabled bool
+	}
+
 	// OfflineSync controls the hybrid offline-sync-online strategy.
 	// When enabled (default), the system works offline and syncs when
 	// online via Service Worker (web) + NATS CRUD proxy (desktop/edge).
@@ -280,6 +289,8 @@ func Load() *Config {
 	cfg.DagNats.StoreDir = getEnv("DAGNATS_STORE_DIR", "data/dagnats")
 	cfg.DagNats.TriggerBootstrap = envBool("DAGNATS_TRIGGER_BOOTSTRAP", true)
 	cfg.DagNats.GreetPacing = envDuration("DAGNATS_GREET_PACING", defaultGreetPacing)
+
+	cfg.GoAkt.Enabled = envBool("GOAKT_ENABLED", true)
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")

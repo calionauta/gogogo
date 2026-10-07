@@ -29,6 +29,9 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 				<a href="/whiteboard" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "whiteboard",
 				}) }>Whiteboard</a>
+				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+					"is-active": active == "room",
+				}) }>Room</a>
 				<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "config",
 				}) }>Config</a>

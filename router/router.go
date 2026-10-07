@@ -254,6 +254,7 @@ func Init(
 		// header and in internal/capabilities (single source of truth).
 		registerOnboarding(app, q, se, broadcaster, todoH, cfg)
 		registerWhiteboardStack(se, q, cfg)
+		registerRoomStack(se, cfg)
 
 		// NATS CRUD consumer: subscribes app.crud.todo.> and writes todo
 		// operations to PocketBase. This is the server-side counterpart

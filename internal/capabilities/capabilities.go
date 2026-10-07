@@ -261,6 +261,39 @@ var All = []Capability{
 		Reason:  "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{
+		ID:         "goakt",
+		Kind:       KindPlugin,
+		Summary:    "entity actors (GoAkt rooms: roster + presenter lock)",
+		RuntimeOff: "GOAKT_ENABLED=false",
+		Offered:    true,
+		Dirs:       []string{"internal/goakt"},
+		Files: []string{
+			"router/room_goakt.go",
+			"cmd/web/goakt.go",
+			// Test files outside owned dirs ride along, or trimming
+			// leaves a test referencing a deleted package (the dagnats
+			// precedent: onboarding_*_test.go).
+			"cmd/web/goakt_test.go",
+			"router/room_goakt_internal_test.go",
+		},
+		Warns: []string{
+			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
+		},
+		Note: "Deletion removes the engine + room demo. The navbar Room " +
+			"link is stripped automatically; main.go boot lines go with " +
+			"the unit's mainStrips.",
+	},
+	{
+		ID:      "room",
+		Kind:    KindFeature,
+		Summary: "room presence demo (one grain per room, crash hook included)",
+		Offered: true,
+		Dirs:    []string{"features/room"},
+		Warns: []string{
+			"The navbar Room link is stripped automatically.",
+		},
+	},
+	{
 		ID:      "whiteboard",
 		Kind:    KindFeature,
 		Summary: "collaborative canvas (Loro + Rough.js + presence)",
