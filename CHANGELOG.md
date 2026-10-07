@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+### Fixed
+
+- **`advise` no longer names foreign stacks — allowlist-only scopes.** A Go
+  serialization need (`native serialization fast path behind a C ABI, with a
+  pure-Go fallback`) was answered `scope=patterns/stack=Node.js` because the
+  generic word `fast` prefix-matched a web-framework signal. The ecosystem
+  detector is deleted: a need that matches nothing gets the full map instead
+  of a guessed label (scaffold first-run withheld until something matches),
+  `Zig` is answered as the documented native exception
+  (`scope=native-kernel`: gate + skill pointer), and the stdlib-only rules no
+  longer assume Go.
+
 ### Changed
 
 - **`docs/native-zig.md` no longer cites token counts from the retired

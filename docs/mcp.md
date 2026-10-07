@@ -55,18 +55,20 @@ Generated code follows [`skills/gogogo-coding-standards`](https://github.com/cal
 
 ### The three `advise_stack` scopes
 
-Chosen from `need` alone. Check the `scope` field before acting on the rest:
+Chosen from `need` alone. Check the `scope` field before acting on the rest.
+The tool knows the template plus its one native exception — never a stack
+label:
 
 | `scope` | When | What the rest of the document contains |
 |---|---|---|
-| `template` | a gogogo-shaped need | the 24 capabilities + keep/drop presets — act on these |
-| `patterns` | the need names a non-Go stack | the portable idea only; **nothing installs here** |
-| `go-standards` | a Go need that forbids dependencies ("stdlib only", "no deps") | the Go-standards pointer only; the capability table is **absent**, not empty |
+| `template` | a gogogo-shaped need — or anything the vocabulary does not match (full map shown instead of a guess; scaffold first-run withheld when nothing matched) | the 24 capabilities + keep/drop presets — act on these |
+| `native-kernel` | the need names **Zig** | the Zig gate + skill pointer; **nothing installs** into a kernel |
+| `go-standards` | a need that forbids dependencies ("stdlib only", "no deps") | the Go-standards pointer only; the capability table is **absent**, not empty |
 
 On `go-standards`, do not read the absence of capabilities as "no opinion" —
 the rules say why the template cannot apply and where the Go standards live.
-For a `patterns` need, take the idea and read the referenced paths; do not try
-to install them.
+For a `native-kernel` need, apply the gate (Go baseline + profile first) and
+read the referenced skill; do not try to install template units.
 
 ### check_tree needs a gogogo checkout
 

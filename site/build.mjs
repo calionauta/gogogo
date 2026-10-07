@@ -55,6 +55,8 @@ const MANIFEST = [
     desc: "The six async layers, PB realtime vs SSE Hub, cross-instance and offline sync." },
   { group: "Core", slug: "features", file: "features.md",
     desc: "Every capability and its runtime opt-out." },
+  { group: "Core", slug: "use-cases", file: "use-cases.md",
+    desc: "What each core, plugin, and feature is for, in business language." },
   { group: "Core", slug: "scope-taxonomy", file: "scope-taxonomy.md",
     desc: "Core / Plugin / Feature: the rule for deciding what is safe to delete." },
   { group: "Core", slug: "configuration", file: "configuration.md",

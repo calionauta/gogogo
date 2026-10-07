@@ -95,6 +95,9 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "offline-fir
 go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "realtime whiteboard" --format json
 ```
 
+What each core/plugin/feature is *for*, in business language, lives in
+[use-cases](use-cases.md) — read it before deciding what to keep.
+
 No `--dir`, no `--yes`, no filesystem touched: it reads the capability
 registry and prints use-case presets (keep/drop per preset), every
 capability with its trim flag or runtime off-switch, and the three global
@@ -105,12 +108,19 @@ before trim, upstream-first). The MCP server exposes the same document as
 Strategy for LLMs: empty `--need` returns the full map (cheapest correct
 first call — the document is small). A filtered call that matches nothing
 is not a dead end: the capabilities table is always complete, so decide
-from it or retry with broader terms. Name your stack: a non-Go codebase
-(Next.js, Python, Rust…) gets patterns plus reference paths — units are
-not installable there and advise says so instead of recommending them. Keyword matching is deliberately
-dumb (exact or ≥4-char prefix) — phrase the need with template vocabulary
-(`whiteboard`, `dagnats`, `offline`, `credits`) when a first attempt
-misses. Then preview with `trim_plan --dry-run` before any `trim_apply`.
+from it or retry with broader terms — and the scaffold first-run is
+withheld until something matches, so a miss never invites scaffolding the
+wrong thing. This tool only knows the Go template plus its Zig exception:
+an unmatched need gets the full map plus the preset names to retry with,
+never a stack label. A Zig-shaped need gets the native-kernel gate instead
+of trim mechanics. Keyword matching is deliberately dumb (exact hits, stem
+prefixes, 5+ letter abbreviations — short words never prefix-match) —
+phrase the need with template vocabulary (`whiteboard`, `dagnats`,
+`offline`, `credits`) when a first attempt misses. Matching is English
+plus international loanwords (`site`, `blog`, `email`, `chat`, `wifi`,
+`internet` fire in PT/ES/FR/DE too); anything else falls back to the full
+map, unfiltered but complete. Then preview
+with `trim_plan --dry-run` before any `trim_apply`.
 
 ## 0c. Adding to an existing project
 

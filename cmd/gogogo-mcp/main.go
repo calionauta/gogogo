@@ -102,10 +102,13 @@ var toolCatalog = []toolDef{
 		"Opinions, not changes: which units to keep for a use-case " +
 			"and how each switches off. Empty need returns the full map; " +
 			"no preset matched means decide from the capabilities table " +
-			"or retry with broader terms. Start here when deciding. " +
-			"Answers in one of three scopes: `template` (a gogogo-shaped need), " +
-			"`patterns` (a non-Go stack — take the idea, nothing installs), or " +
-			"`go-standards` (a Go need that forbids dependencies, e.g. " +
+			"or retry with broader terms. Business-language fit per unit: " +
+			"https://calionauta.github.io/gogogo/docs/use-cases/. " +
+			"Start here when deciding. " +
+			"Answers in one of three scopes: `template` (a gogogo-shaped need, " +
+			"or anything unmatched — the full map instead of a guess), " +
+			"`native-kernel` (a Zig need — the gate, nothing installs into " +
+			"a kernel), or `go-standards` (a need that forbids dependencies, e.g. " +
 			"stdlib-only: the template cannot apply). The Go coding standards " +
 			"it enforces are the gogogo-coding-standards skill — " +
 			"https://github.com/calionauta/gogogo (install: " +

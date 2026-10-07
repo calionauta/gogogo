@@ -37,6 +37,26 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig | **Zig Gate** + `references/zig-gate.md` |
+| Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
+| stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
+
+## Toolchain / stdlib-only
+
+This skill requires **Go 1.27.1 or newer**. `go.mod` declares the minimum
+(`go 1.27.1`, no `toolchain` pin), so later releases satisfy it with no skill
+update — and the version tags below (`wg.Go` 1.25, `B.Loop` 1.26, `new(expr)`
+1.26) are minimums too, valid on every newer toolchain. Everything below
+assumes at least 1.27.1. Do not write fallback code for older toolchains; if
+a task pins an older `go`, bump the pin instead of downgrading the code.
+
+If the task forbids dependencies (or the tree is not a gogogo checkout):
+only **Core Go Rules**, the **Testing** table-driven + `-race` parts, the
+100/500 size limits, and the **Zig Gate** order (correct first, no native
+code without evidence) apply. **Concurrency deltas** (`errgroup`, `wg.Go`,
+`goleak`, `synctest`), the **pprof → SIMD → Zig ladder**, **Datastar**, and
+PocketBase/`httptest` seams have nothing to attach to in a
+single-threaded dependency-free CLI — rejecting them is correct, not a
+failure. Record the rejection and why.
 
 Universal principles (KISS, DRY, LoB/SoC, YAGNI, file/function sizes) are NOT
 repeated here — they live in the vendored

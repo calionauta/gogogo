@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"slices"
 	"sort"
 	"strings"
 
@@ -44,7 +43,6 @@ type adviseCap struct {
 // adviseDoc is the full guidance document (text and JSON share it).
 type adviseDoc struct {
 	Scope string `json:"scope"`
-	Stack string `json:"stack,omitempty"`
 	// Tree records what the optional --dir probe found, so a reader can tell
 	// "I was told this is a gogogo checkout" from "nobody looked". Empty
 	// means no path was given — the answer is about the need alone.
@@ -55,7 +53,7 @@ type adviseDoc struct {
 	// they call for different next steps.
 	Reason       string         `json:"reason,omitempty"`
 	Rules        []string       `json:"rules"`
-	Presets      []advisePreset `json:"presets"`
+	Presets      []advisePreset `json:"presets,omitempty"`
 	Capabilities []adviseCap    `json:"capabilities,omitempty"`
 	FirstRun     *nextSteps     `json:"firstRun,omitempty"`
 }
@@ -67,39 +65,35 @@ func needWords(need string) []string {
 	})
 }
 
-// wordHit is the shared keyword rule (preset matching and stack signals):
-// exact hits always count; prefixes need length 4+ both ways so short
-// words ("ai", "bun", "vue") never prefix-match (airplane/ai precedent).
+// wordHit is the shared keyword rule (preset matching and constraint
+// signals): exact hits always count; a need-word covers a keyword stem from
+// length 4+ ("airplanes"→"airplane"), but a need-word only abbreviates a
+// LONGER keyword from length 5+ ("collab"→"collaborat"). The asymmetry is
+// the point: 4-letter English words ("back", "dash") must never match longer
+// keywords by prefix ("backend", "dashboard") — that direction is the entire
+// false-positive family, while genuine abbreviations are 5+ letters. Short
+// words ("ai") never prefix-match in either direction (airplane/ai precedent).
 func wordHit(words []string, kw string) bool {
 	for _, w := range words {
 		if w == kw || (len(kw) >= 4 && strings.HasPrefix(w, kw)) ||
-			(len(w) >= 4 && strings.HasPrefix(kw, w)) {
+			(len(w) >= 5 && strings.HasPrefix(kw, w)) {
 			return true
 		}
 	}
 	return false
 }
 
-// detectStack names a non-Go ecosystem when the need signals one without
-// any Go signal. Empty means template scope (Go or unknown: advise owns it).
-func detectStack(need string) string {
-	lowered := strings.ToLower(need)
+// wantsZig reports whether the need names the repo's one documented native
+// exception. Checked before everything need-shaped: a Zig kernel gets the
+// gate, never trim mechanics and never a guessed foreign label.
+func wantsZig(need string) bool {
 	words := needWords(need)
-	if slices.ContainsFunc(goSignals, func(g string) bool { return wordHit(words, g) }) {
-		return ""
-	}
-	for _, s := range stackSignals {
-		if s.dotted != "" {
-			if strings.Contains(lowered, s.dotted) {
-				return s.label
-			}
-			continue
-		}
-		if wordHit(words, s.word) {
-			return s.label
+	for _, z := range zigSignals {
+		if wordHit(words, z) {
+			return true
 		}
 	}
-	return ""
+	return false
 }
 
 // capUnit inverts unitCaps: capability id → owning installer unit.
@@ -157,9 +151,12 @@ func buildAdvise(need string) adviseDoc {
 
 // buildAdviseIn resolves the registry into guidance, filtering presets by
 // need (empty need returns every preset, most useful first is meaningless
-// without a query — manifest order wins). A non-Go stack switches the
-// scope to patterns: no trim mechanics, no capability table, owned paths
-// as copy reference.
+// without a query — manifest order wins). There is deliberately NO foreign
+// detector: this tool only knows the template plus its Zig exception, so a
+// need that matches nothing gets the full map (same as empty) instead of a
+// guessed stack label. Generic English words ("fast", "path", "native")
+// can never route outside Go scopes — there is no branch left that names
+// another ecosystem.
 //
 // dir is optional and opt-in. Empty keeps the answer a pure function of need
 // — the tool still reads nothing unless asked. When dir IS given, the probe is
@@ -181,27 +178,28 @@ func buildAdviseIn(need, dir string) adviseDoc {
 		annotated[i].Copy = presetCopyDirs(matched[i])
 	}
 	matched = annotated
-	if stack := detectStack(need); stack != "" {
+	// The one documented exception first: a Zig kernel gets the gate even
+	// when the need also carries a dependency constraint ("Zig, zero deps"
+	// is about the kernel, and the gate is the opinion that applies).
+	if wantsZig(need) {
 		return adviseDoc{
-			Scope: scopePatterns, Stack: stack, Tree: probeTree(dir),
-			Rules: foreignRules, Presets: matched,
+			Scope: scopeNativeKernel, Tree: probeTree(dir),
+			Rules: nativeKernelRules,
 		}
 	}
 	// The path outranks the need's wording: if the caller points at a tree
 	// that is not a gogogo checkout, the capability table is inapplicable
-	// whatever the need says. Checked after detectStack because a non-Go
-	// stack already has the shorter, correct answer.
+	// whatever the need says.
 	if dir != "" && !looksLikeTemplate(dir) {
 		return adviseDoc{
 			Scope: scopeGoStdlib, Reason: reasonNotCheckout,
 			Tree: treeNotCheckout, Presets: matched, Rules: notCheckoutRules,
 		}
 	}
-	// A Go need that constrains itself to the standard library cannot use
+	// A need that constrains itself to the standard library cannot use
 	// any capability (each one is or pulls a dependency), so answering with
 	// the 24-entry table buries the useful part. Answer with the Go
-	// standards pointer instead. Checked AFTER detectStack so an explicit
-	// non-Go stack still wins: "Rust, no dependencies" is a Rust need.
+	// standards pointer instead.
 	if wantsStdlibOnly(need) {
 		return adviseDoc{
 			Scope: scopeGoStdlib, Reason: reasonStdlibOnly,
@@ -211,6 +209,14 @@ func buildAdviseIn(need, dir string) adviseDoc {
 	doc := adviseDoc{
 		Scope: scopeTemplate, Tree: probeTree(dir), Rules: adviseRules,
 		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>", nil); return &n }(),
+	}
+	// A need that matches nothing is out of the tool's vocabulary (a foreign
+	// stack, a typo, a toaster). The full map below is still the honest
+	// answer — same as empty — but the scaffold first-run is withheld: with
+	// zero matched presets there is no evidence a gogogo scaffold is what
+	// the caller wants. Structural, no ecosystem list involved.
+	if strings.TrimSpace(need) != "" && len(matched) == 0 {
+		doc.FirstRun = nil
 	}
 	for _, c := range capabilities.All {
 		ac := adviseCap{
@@ -231,7 +237,7 @@ func buildAdviseIn(need, dir string) adviseDoc {
 		}
 		doc.Capabilities = append(doc.Capabilities, ac)
 	}
-	doc.Presets = matchPresets(need)
+	doc.Presets = matched
 	return doc
 }
 
@@ -269,28 +275,19 @@ func matchPresets(need string) []advisePreset {
 	return presets
 }
 
-// renderForeign is the patterns-scope text: no trim mechanics, no
-// capability table — the portable idea plus copy reference per preset.
+// renderNativeKernel is the native-kernel-scope text: the gate, the skill
+// pointer, the normative doc. No trim mechanics, no capability table, no
+// presets — a kernel need matches template vocabulary only by accident, and
+// printing it would invite installing web units into a codec.
 // Split out so Advise stays under the gocyclo gate.
-func renderForeign(doc adviseDoc) string {
+func renderNativeKernel(doc adviseDoc) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "stack detected: %s — advise knows the gogogo (Go) "+
-		"template only.\nUnits below are NOT installable here; take the "+
-		"pattern, copy the idea.\n\n", doc.Stack)
+	b.WriteString("native kernel (Zig) — the gogogo template does not install here.\n" +
+		"Zig is this repo's one documented native exception, so the opinion " +
+		"below is the gate, not a foreign-stack disclaimer.\n\n")
 	b.WriteString("rules:\n")
 	for _, r := range doc.Rules {
 		fmt.Fprintf(&b, "  - %s\n", r)
-	}
-	b.WriteString("\npresets (use-case → portable pattern + reference paths):\n")
-	if len(doc.Presets) == 0 {
-		b.WriteString("  no preset matched — describe the use-case with " +
-			"plain verbs (realtime, jobs, offline, AI).\n")
-	}
-	for _, p := range doc.Presets {
-		fmt.Fprintf(&b, "  %s: %s\n", p.Name, p.Idea)
-		if len(p.Copy) > 0 {
-			fmt.Fprintf(&b, "    reference: %s\n", strings.Join(p.Copy, ", "))
-		}
 	}
 	return b.String()
 }
@@ -302,7 +299,7 @@ func renderForeign(doc adviseDoc) string {
 // conditions reach this scope (the need forbids dependencies, or --dir is not a
 // checkpoint) and each ships its own rule set. Printing the header from
 // doc.Reason keeps the explanation matched to the cause.
-// Split out so Advise stays under the gocyclo gate, like renderForeign.
+// Split out so Advise stays under the gocyclo gate, like renderNativeKernel.
 func renderStdlib(doc adviseDoc) string {
 	var b strings.Builder
 	switch doc.Reason {
@@ -311,13 +308,64 @@ func renderStdlib(doc adviseDoc) string {
 			"No capability is installable into it: this tool trims and extends its own scaffold,\n" +
 			"not an arbitrary project.\n\n")
 	default:
-		b.WriteString("stdlib-only Go — the gogogo template does not apply here.\n" +
+		b.WriteString("dependency-constrained need — the gogogo template does not apply here.\n" +
 			"No capability is installable: each one adds or belongs to a dependency\n" +
 			"this need forbids, so the registry is omitted rather than shown empty.\n\n")
 	}
 	b.WriteString("rules:\n")
 	for _, r := range doc.Rules {
 		fmt.Fprintf(&b, "  - %s\n", r)
+	}
+	return b.String()
+}
+
+// renderTemplate is the template-scope text: rules, keep/drop presets with
+// the no-match recovery hint, the full capability table, and the scaffold
+// first-run (withheld when a non-empty need matched nothing — a miss must
+// not invite scaffolding the wrong thing).
+// Split out so Advise stays under the gocyclo gate, like the other renders.
+func renderTemplate(doc adviseDoc, need string) string {
+	var b strings.Builder
+	b.WriteString("gogogo advise — opinions, not changes (nothing was installed):\n\n")
+	b.WriteString("rules:\n")
+	for _, r := range doc.Rules {
+		fmt.Fprintf(&b, "  - %s\n", r)
+	}
+	b.WriteString("\npresets (use-case → keep/drop):\n")
+	if len(doc.Presets) == 0 {
+		names := make([]string, 0, len(advisePresets))
+		for _, p := range advisePresets {
+			names = append(names, p.Name)
+		}
+		fmt.Fprintf(&b, "  no preset matched %q — available: %s\n", need, strings.Join(names, ", "))
+		fmt.Fprintf(&b, "  %s\n", notApplicableHint)
+	}
+	for _, p := range doc.Presets {
+		fmt.Fprintf(&b, "  %s: keep [%s]", p.Name, strings.Join(p.Keep, ", "))
+		if len(p.Drop) > 0 {
+			fmt.Fprintf(&b, " drop [%s]", strings.Join(p.Drop, ", "))
+		}
+		fmt.Fprintf(&b, "\n    %s\n", p.Note)
+	}
+	b.WriteString("\ncapabilities (id, kind, how to switch each off):\n")
+	for _, c := range doc.Capabilities {
+		fmt.Fprintf(&b, "  %-14s %-7s %s\n", c.ID, c.Kind, c.Summary)
+		fmt.Fprintf(&b, "  %-14s         trim: %s", "", c.Trim)
+		if c.RuntimeOff != "" {
+			fmt.Fprintf(&b, " | off: %s", c.RuntimeOff)
+		}
+		b.WriteString("\n")
+		if len(c.Dirs)+len(c.Files) > 0 {
+			fmt.Fprintf(&b, "  %-14s         copy: %s\n", "",
+				strings.Join(append(c.Dirs, c.Files...), ", "))
+		}
+	}
+	if n := doc.FirstRun; n != nil {
+		b.WriteString("\nfirst run (defaults; PORT overrides the port):\n")
+		fmt.Fprintf(&b, "  %s\n", strings.Replace(n.Dev, "<dir>", "my-app", 1))
+		fmt.Fprintf(&b, "  app %s · login %s\n", n.App, n.Login)
+		fmt.Fprintf(&b, "  admin %s\n", n.Admin)
+		fmt.Fprintf(&b, "  workflows %s\n", n.Flows)
 	}
 	return b.String()
 }
@@ -352,53 +400,13 @@ func Advise(need, format, dir string) (string, error) {
 		}
 		return string(raw) + "\n", nil
 	}
-	var b strings.Builder
-	b.WriteString("gogogo advise — opinions, not changes (nothing was installed):\n\n")
-	if doc.Scope == scopePatterns {
-		return renderForeign(doc), nil
+	if doc.Scope == scopeNativeKernel {
+		return renderNativeKernel(doc), nil
 	}
 	if doc.Scope == scopeGoStdlib {
 		return renderStdlib(doc), nil
 	}
-	b.WriteString("rules:\n")
-	for _, r := range doc.Rules {
-		fmt.Fprintf(&b, "  - %s\n", r)
-	}
-	b.WriteString("\npresets (use-case → keep/drop):\n")
-	if len(doc.Presets) == 0 {
-		names := make([]string, 0, len(advisePresets))
-		for _, p := range advisePresets {
-			names = append(names, p.Name)
-		}
-		fmt.Fprintf(&b, "  no preset matched %q — available: %s\n", need, strings.Join(names, ", "))
-	}
-	for _, p := range doc.Presets {
-		fmt.Fprintf(&b, "  %s: keep [%s]", p.Name, strings.Join(p.Keep, ", "))
-		if len(p.Drop) > 0 {
-			fmt.Fprintf(&b, " drop [%s]", strings.Join(p.Drop, ", "))
-		}
-		fmt.Fprintf(&b, "\n    %s\n", p.Note)
-	}
-	b.WriteString("\ncapabilities (id, kind, how to switch each off):\n")
-	for _, c := range doc.Capabilities {
-		fmt.Fprintf(&b, "  %-14s %-7s %s\n", c.ID, c.Kind, c.Summary)
-		fmt.Fprintf(&b, "  %-14s         trim: %s", "", c.Trim)
-		if c.RuntimeOff != "" {
-			fmt.Fprintf(&b, " | off: %s", c.RuntimeOff)
-		}
-		b.WriteString("\n")
-		if len(c.Dirs)+len(c.Files) > 0 {
-			fmt.Fprintf(&b, "  %-14s         copy: %s\n", "",
-				strings.Join(append(c.Dirs, c.Files...), ", "))
-		}
-	}
-	n := doc.FirstRun
-	b.WriteString("\nfirst run (defaults; PORT overrides the port):\n")
-	fmt.Fprintf(&b, "  %s\n", strings.Replace(n.Dev, "<dir>", "my-app", 1))
-	fmt.Fprintf(&b, "  app %s · login %s\n", n.App, n.Login)
-	fmt.Fprintf(&b, "  admin %s\n", n.Admin)
-	fmt.Fprintf(&b, "  workflows %s\n", n.Flows)
-	return b.String(), nil
+	return renderTemplate(doc, need), nil
 }
 
 func runAdvise(args []string, stdout io.Writer) error {

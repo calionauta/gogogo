@@ -94,6 +94,34 @@ func TestAdviseStackNeedsNothing(t *testing.T) { // The guidance tool is read-on
 	}
 }
 
+func TestAdviseStackGenericWordsStayInGoScopes(t *testing.T) {
+	// Over the MCP transport, like an agent would call it: generic English
+	// words must never route outside Go scopes, and every answer must be
+	// valid JSON with a scope the docs promise.
+	for _, need := range []string{
+		"native serialization fast path behind a C ABI, with a pure-Go fallback",
+		"fast",
+		"Zig kernel",
+		"Django blog",
+	} {
+		res, _, err := handleAdvise(context.Background(), nil, adviseArgs{Need: need})
+		if err != nil {
+			t.Fatalf("%q: %v", need, err)
+		}
+		var doc struct {
+			Scope string `json:"scope"`
+		}
+		if err := json.Unmarshal([]byte(toolText(t, res)), &doc); err != nil {
+			t.Fatalf("%q is not valid JSON: %v", need, err)
+		}
+		switch doc.Scope {
+		case "template", "go-standards", "native-kernel":
+		default:
+			t.Errorf("%q → scope %q, want template/go-standards/native-kernel", need, doc.Scope)
+		}
+	}
+}
+
 func TestProtocolListsCatalogTools(t *testing.T) {
 	// End-to-end over in-memory transports: the served surface is
 	// exactly the catalog, callable through the MCP protocol.

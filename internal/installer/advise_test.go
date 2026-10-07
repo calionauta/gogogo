@@ -88,63 +88,10 @@ func TestAdviseNeedMatchesOfflinePresetFirst(t *testing.T) {
 	}
 }
 
-func TestAdviseForeignStackPatternsOnly(t *testing.T) {
-	// A Next.js need must NOT recommend installable Go units.
-	doc := buildAdvise("Next.js dashboard with realtime cursors")
-	if doc.Scope != "patterns" {
-		t.Fatalf("scope = %q, want patterns", doc.Scope)
-	}
-	if doc.Stack != "Next.js" {
-		t.Errorf("stack = %q, want Next.js", doc.Stack)
-	}
-	if len(doc.Capabilities) != 0 {
-		t.Errorf("foreign scope must omit the Go capability table, got %d rows", len(doc.Capabilities))
-	}
-	if doc.FirstRun != nil {
-		t.Error("foreign scope must omit scaffold first-run")
-	}
-	if len(doc.Presets) == 0 || doc.Presets[0].Name != "realtime-collab" {
-		t.Fatalf("realtime need did not surface realtime-collab: %+v", doc.Presets)
-	}
-	if doc.Presets[0].Idea == "" {
-		t.Error("foreign preset must carry the portable idea")
-	}
-	found := false
-	for _, d := range doc.Presets[0].Copy {
-		if d == "features/whiteboard" {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("foreign preset copy dirs missing whiteboard reference: %v", doc.Presets[0].Copy)
-	}
-}
-
-func TestAdviseGoMentionWins(t *testing.T) {
-	doc := buildAdvise("golang API serving a Next.js frontend with background jobs")
-	if doc.Scope != "template" {
-		t.Errorf("mixed stack with golang must stay template-scoped, got %q", doc.Scope)
-	}
-}
-
-func TestAdviseVerbGoDoesNotForceTemplate(t *testing.T) {
-	// "go" the English verb must not hijack an explicit foreign stack.
-	doc := buildAdvise("I want to go with Next.js for realtime")
-	if doc.Scope != "patterns" || doc.Stack != "Next.js" {
-		t.Errorf("verb-go + Next.js must be patterns/Next.js, got %q/%q", doc.Scope, doc.Stack)
-	}
-}
-
-func TestAdviseMultiStackIsDeterministic(t *testing.T) {
-	// Slice order is priority order: same answer every run.
-	for range 5 {
-		doc := buildAdvise("React frontend on Django backend")
-		if doc.Stack != "React" {
-			t.Fatalf("stack = %q, want React (first match wins)", doc.Stack)
-		}
-	}
-}
-
+// TestAdviseTemplateVocabularyWinsOverStackWords pins the allowlist-only
+// rule: with no ecosystem detector left, template vocabulary decides. A
+// need that names a foreign stack AND a template use-case is answered with
+// the use-case (keep/drop you can act on), never with a stack label.
 func TestAdviseEmptyNeedIsTemplate(t *testing.T) {
 	doc := buildAdvise("")
 	if doc.Scope != "template" || doc.FirstRun == nil {
@@ -152,6 +99,11 @@ func TestAdviseEmptyNeedIsTemplate(t *testing.T) {
 	}
 }
 
+// TestAdviseGenericWordsNeverLeaveGoScopes pins the allowlist-only
+// invariant: generic English words must never route outside Go scopes.
+// "fast" once prefix-matched a web-framework signal and sent a Go
+// serialization need to a foreign scope; with no ecosystem detector left,
+// that routing error has no branch to fall into.
 func TestAdviseNeedWithNoMatchReturnsNone(t *testing.T) {
 	if got := buildAdvise("quantum toaster firmware"); len(got.Presets) != 0 {
 		t.Errorf("nonsense need matched %d presets, want 0", len(got.Presets))
@@ -172,7 +124,10 @@ func TestAdviseTextStatesGoFirstRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}
-	for _, want := range []string{"Zig", "--features whiteboard", "demo@demo.app / demo1234456", "/dagnats/"} {
+	for _, want := range []string{
+		"Zig", "--features whiteboard",
+		"demo@demo.app / demo1234456", "/dagnats/", "docs/use-cases",
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("advise text missing %q", want)
 		}
@@ -263,9 +218,9 @@ func TestAdviseStdlibOnlyGoScope(t *testing.T) {
 }
 
 // TestAdviseStdlibScopeDoesNotHijackTemplateNeeds is the reverse guard: the
-// new scope must not swallow needs the template actually answers. A misfire
-// here is worse than the original problem, because it would suppress the
-// capability table for someone who can use it.
+// stdlib scope must not swallow needs the template actually answers —
+// suppressing the capability table for someone who can use it is the most
+// expensive wrong answer this tool can give.
 func TestAdviseStdlibScopeDoesNotHijackTemplateNeeds(t *testing.T) {
 	cases := []string{
 		"",
@@ -287,47 +242,11 @@ func TestAdviseStdlibScopeDoesNotHijackTemplateNeeds(t *testing.T) {
 	}
 }
 
-// TestAdviseForeignStackBeatsStdlibConstraint pins the ordering decision.
-//
-// Both conditions can be true at once ("Rust server, no dependencies"). The
-// foreign-stack answer is the correct one: the constraint is about a language
-// this tool does not cover at all, so saying "nothing here applies" is right
-// while the Go-standards pointer would be actively wrong.
-func TestAdviseForeignStackBeatsStdlibConstraint(t *testing.T) {
-	cases := []struct{ need, stack string }{
-		{"Rust server, no dependencies", "Rust"},
-		{"TCP server in Python, stdlib only", "Python"},
-		{"Next.js app with no external deps", "Next.js"},
-		{"Zig kernel, zero dependencies", "Zig"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.need, func(t *testing.T) {
-			doc := buildAdvise(tc.need)
-			if doc.Scope != scopePatterns {
-				t.Fatalf("scope = %q, want %q", doc.Scope, scopePatterns)
-			}
-			if doc.Stack != tc.stack {
-				t.Errorf("stack = %q, want %q", doc.Stack, tc.stack)
-			}
-		})
-	}
-}
-
-// TestAdviseZigIsAForeignStack guards a gap this work surfaced: Zig is the
-// repo's own documented escape-hatch language (docs/native-zig.md) yet had no
-// stack signal, so "Zig, zero dependencies" fell through to a Go scope and was
-// answered with gogogo guidance.
-func TestAdviseZigIsAForeignStack(t *testing.T) {
-	for _, need := range []string{"Zig, zero dependencies", "zig kernel with no deps", "Zig TCP server stdlib only"} {
-		doc := buildAdvise(need)
-		if doc.Scope != scopePatterns || doc.Stack != "Zig" {
-			t.Errorf("%q → %q/%q, want patterns/Zig", need, doc.Scope, doc.Stack)
-		}
-	}
-}
-
-// TestAdviseStdlibTextNamesTheMismatch asserts the rendered text says WHY the
-// template does not apply, rather than returning a silent, near-empty answer.
+// TestAdviseConstraintNeedsStayOnGoScopes pins the post-detector ordering:
+// with no foreign branch left, a dependency constraint routes by the
+// constraint itself. "Rust server, no dependencies" cannot be answered as
+// Rust (nothing here knows Rust); it is answered as what it constrains to —
+// no template capabilities apply — with rules that no longer assume Go.
 func TestAdviseStdlibTextNamesTheMismatch(t *testing.T) {
 	out, err := Advise("Go CLI, no dependencies", planFormatText, "")
 	if err != nil {

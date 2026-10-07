@@ -10,6 +10,9 @@ var advisePresets = []advisePreset{
 		Match: []string{
 			"realtime", "collaborat", "canvas", unitWhiteboard,
 			"presence", "cursor", "multi-user", "multiplayer", "shared",
+			// "chat" and "live" are lay words AND cross-language loanwords
+			// (EN/PT/ES/FR/DE): "live chat", "live score", "fazer uma live".
+			"chat", "live",
 		},
 		Keep: []string{unitWhiteboard},
 		Note: "Single binary embeds NATS; multi-instance points at shared " +
@@ -22,6 +25,10 @@ var advisePresets = []advisePreset{
 		Match: []string{
 			"background", "job", "queue", "async", "email",
 			"export", "retry", "worker", "cron", "scheduled",
+			// "remind" is the lay word for scheduled notifications
+			// ("reminder emails"); EN-only, other languages fall back
+			// to the full map.
+			"remind",
 		},
 		Keep: []string{"queue (core — always in)"},
 		Note: "Nothing to trim: goqite + SSE hub are core. Write jobs like " +
@@ -44,6 +51,11 @@ var advisePresets = []advisePreset{
 		Match: []string{
 			"offline", "flaky", "airplane", "outbox", "sync",
 			"reconnect", "pwa",
+			// Lay connectivity words; "internet" and "wifi" are universal
+			// loanwords (EN/PT/ES/FR/DE), "connectivity" covers EN.
+			// ("signal" deliberately excluded: it would also match
+			// Datastar-signal needs.)
+			"internet", "wifi", "connectivity",
 		},
 		Keep: []string{
 			"offline-sync (runtime — enabled by default)",
@@ -73,11 +85,16 @@ var advisePresets = []advisePreset{
 		Note:  "Surfaces: /config (auth-gated env view), /_/ (PocketBase admin), /dagnats/ (workflow console).",
 	},
 	{
-		Name:  "marketing-site",
-		Idea:  "static public pages, no auth, no app state",
-		Match: []string{unitLanding, "marketing", "homepage", "site", "hero"},
-		Keep:  []string{unitLanding},
-		Note:  "Public GET / with no auth. Brand lives here; /todo is the app behind it.",
+		Name: "marketing-site",
+		Idea: "static public pages, no auth, no app state",
+		Match: []string{
+			unitLanding, "marketing", "homepage", "site", "hero",
+			// "website" and "blog" are THE lay words for a public site and
+			// universal loanwords (EN/PT/ES/FR/DE).
+			"website", "blog",
+		},
+		Keep: []string{unitLanding},
+		Note: "Public GET / with no auth. Brand lives here; /todo is the app behind it.",
 	},
 	{
 		Name:  "quiet-api",
@@ -121,18 +138,23 @@ var adviseRules = []string{
 		"because a skill's references/ only resolve as relative paths to a " +
 		"locally present skill. Audit new deps with `go mod why` + " +
 		"`govulncheck ./...` before adding.",
+	"Fitting units to a use-case: docs/use-cases.md maps every " +
+		"core/plugin/feature to business-language cases, decision pairs " +
+		"(jobs vs workflows, pb vs crdt), and what has no unit yet " +
+		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
 }
 
-// foreignRules replace the template rules when the need names a non-Go
-// stack: nothing here installs there, so trim mechanics stay silent.
-var foreignRules = []string{
-	"Copy the pattern, not the code: owned dirs below are the reference " +
-		"implementation to read, not packages to install.",
-	"This tool does not track other ecosystems — check their docs for " +
-		"the managed option before building it yourself.",
-}
+// notApplicableHint is the single honest answer for needs nothing in the
+// registry matches: this tool only knows the gogogo (Go) template, so it
+// shows the whole map instead of guessing. Folded into the template text
+// path ("no preset matched — available: ..."); kept here so the sentence
+// stays identical everywhere it renders.
+var notApplicableHint = "this tool only knows the gogogo (Go) template — " +
+	"nothing above matched, so the full map is shown instead of a guess. " +
+	"Take the Idea lines as portable patterns and the reference paths as " +
+	"reading pointers; nothing here installs outside a scaffolded checkout."
 
-// stdlibRules replace the template rules when a GO need rules the template
+// stdlibRules replace the template rules when a need rules the template
 // out with its own constraint (stdlib-only, no dependencies, single
 // binary). The capability table is not merely unhelpful there — every
 // capability ships a dependency the need forbids — so this document is a
@@ -142,10 +164,12 @@ var foreignRules = []string{
 // opinions must be told the template does not apply and why, or it will
 // assume the empty answer means "nothing to say".
 var stdlibRules = []string{
-	"This is a Go need whose own constraint (stdlib-only / no dependencies " +
-		"/ single binary) rules the gogogo template out: every capability " +
+	"This need forbids dependencies (stdlib-only / no deps / single " +
+		"binary), which rules the gogogo template out: every capability " +
 		"would add or belongs to a dependency the need forbids. Nothing from " +
-		"this toolchain installs here — read the Go standards instead.",
+		"this toolchain installs here — read the Go standards instead. " +
+		"(This tool only knows the Go template, so the pointer below is " +
+		"Go either way.)",
 	"Go coding standards: skills/gogogo-coding-standards/SKILL.md in the " +
 		"gogogo repo (https://github.com/calionauta/gogogo). The parts that " +
 		"apply without the template are references/go-concurrency-deltas.md " +
@@ -184,33 +208,20 @@ var notCheckoutRules = []string{
 		"merges into a scaffolded checkout.",
 }
 
-// Stack labels shared below (one spelling per ecosystem: goconst-quiet
-// by construction).
+// Stack labels: deliberately none. This tool only knows the gogogo (Go)
+// template plus its one documented native exception (Zig, below), so there
+// is no ecosystem detector to label anything with. A need that matches
+// nothing gets the full map instead of a guessed stack (see buildAdviseIn).
 const (
-	stackNext     = "Next.js"
-	stackReact    = "React"
-	stackVue      = "Vue"
-	stackSvelte   = "Svelte"
-	stackAstro    = "Astro"
-	stackAngular  = "Angular"
-	stackNode     = "Node.js"
-	stackBun      = "Bun"
-	stackDeno     = "Deno"
-	stackTS       = "TypeScript"
-	stackJS       = "JavaScript"
-	stackPython   = "Python"
-	stackRust     = "Rust"
-	stackRuby     = "Ruby"
-	stackPHP      = "PHP"
-	stackJVM      = "Java/Kotlin"
-	stackFlutter  = "Flutter"
-	stackDotnet   = "C#/.NET"
-	stackZig      = "Zig"
-	scopePatterns = "patterns"
 	scopeTemplate = "template"
+	// scopeNativeKernel is the second answer shape: the need names Zig, the
+	// repo's documented escape hatch (docs/native-zig.md). Capabilities do
+	// not install into a native kernel, so the answer is the Zig gate plus
+	// the skill pointer — never trim mechanics, never a foreign label.
+	scopeNativeKernel = "native-kernel"
 	// scopeGoStdlib is the third answer shape: the template does not apply.
 	// Two conditions produce it, distinguished by `reason`:
-	//   reasonStdlibOnly  — a Go need whose own constraint forbids dependencies
+	//   reasonStdlibOnly  — a need whose own constraint forbids dependencies
 	//   reasonNotCheckout — --dir points at something that is not a gogogo tree
 	// Both mean "the capability table is useless here", but they call for
 	// different next steps, so they share the scope and split on Reason.
@@ -226,9 +237,10 @@ const (
 	treeCheckout    = "gogogo-checkout"
 )
 
-// stdlibSignals are the constraints that make the template unusable for a Go
-// need. They are the counterpart of stackSignals: that one detects "this is
-// not Go at all", this one detects "this is Go, but not this template".
+// stdlibSignals are the constraints that make the template unusable for a
+// need. A need matching one gets the go-standards pointer instead of the
+// capability table — every capability ships a dependency the constraint
+// forbids.
 //
 // Every entry must be checkable from the need's own wording — no inference
 // about the reader's intent — because the answer changes shape based on it.
@@ -269,71 +281,32 @@ func needWordsJoined(need string) string {
 	return strings.Join(needWords(need), " ")
 }
 
-// stackSignal is one ordered detection rule: dotted substrings first
-// (tokenizing splits "next.js" apart), then whole words. Slice order is
-// the priority order — maps would answer multi-stack needs randomly.
-type stackSignal struct {
-	dotted string // substring of the raw need, "" when unused
-	word   string // whole-word signal, "" when unused
-	label  string
+// nativeKernelRules is the whole opinion for a Zig-shaped need: the gate,
+// the pointer to the standards that hold it, and the normative doc. No
+// capability table (nothing installs into a kernel), no presets (a kernel
+// need matches template vocabulary only by accident).
+var nativeKernelRules = []string{
+	"Go for everything; Zig only for a profiled hot kernel, codec, or OS " +
+		"integration (docs/native-zig.md). A speedup claim without a Go " +
+		"baseline benchmark is not a reason. Order: pprof, then SIMD " +
+		"(`GOEXPERIMENT=simd` + `archsimd`), then Zig — with a benchmark " +
+		"proving Go is the bottleneck at each step.",
+	"Go coding standards: skills/gogogo-coding-standards/SKILL.md in the " +
+		"gogogo repo (https://github.com/calionauta/gogogo) — the Zig-gate " +
+		"section states the evidence bar; universal principles " +
+		"(KISS/DRY/YAGNI) are delegated to stelow-workflow-coding-standards, " +
+		"vendored under skills/stelow-workflow-coding-standards/.",
+	"Still true without the template: one package, small C ABI, " +
+		"caller-owned buffers, pure-Go fallback from day one, removable in " +
+		"minutes. Byte-exact kernels are compared by checksum, not by vibes.",
 }
 
-var stackSignals = []stackSignal{
-	{"next.js", "", stackNext},
-	{"node.js", "", stackNode},
-	{"vue.js", "", stackVue},
-	{"", "nextjs", stackNext},
-	{"", "react", stackReact},
-	{"", "remix", stackReact},
-	{"", "vue", stackVue},
-	{"", "nuxt", stackVue},
-	{"", "svelte", stackSvelte},
-	{"", "sveltekit", stackSvelte},
-	{"", "astro", stackAstro},
-	{"", "angular", stackAngular},
-	{"", "node", stackNode},
-	{"", "nodejs", stackNode},
-	{"", "express", stackNode},
-	{"", "fastify", stackNode},
-	{"", "nestjs", stackNode},
-	{"", "hono", stackNode},
-	{"", "bun", stackBun},
-	{"", "deno", stackDeno},
-	{"", "typescript", stackTS},
-	{"", "javascript", stackJS},
-	{"", "python", stackPython},
-	{"", "django", stackPython},
-	{"", "flask", stackPython},
-	{"", "fastapi", stackPython},
-	{"", "streamlit", stackPython},
-	{"", "rust", stackRust},
-	{"", "axum", stackRust},
-	{"", "actix", stackRust},
-	{"", "tauri", stackRust},
-	{"", "ruby", stackRuby},
-	{"", "rails", stackRuby},
-	{"", "php", stackPHP},
-	{"", "laravel", stackPHP},
-	{"", "spring", stackJVM},
-	{"", "kotlin", stackJVM},
-	{"", "flutter", stackFlutter},
-	{"", "dart", stackFlutter},
-	{"", "dotnet", stackDotnet},
-	{"", "csharp", stackDotnet},
-	// Zig is this repo's documented escape hatch (docs/native-zig.md), so a
-	// Zig need is explicitly NOT a Go need. Without this signal "Zig, zero
-	// dependencies" fell through to the Go scopes and answered about the
-	// gogogo template.
-	{"", "zig", stackZig},
-	{"", "ziglang", stackZig},
-}
-
-// goSignals keep template-scoped answers when the need names Go
-// unambiguously ("golang API serving a Next.js frontend" is still a Go
-// backend question). Bare "go" is deliberately absent: it collides with
-// the English verb ("want to go with Next.js") and silently forces the
-// wrong scope — an explicit golang/templ/gin/... wins instead.
-var goSignals = []string{
-	"golang", "templ", "gogogo", "gin", "fiber",
-	"pocketbase", "dagnats", "goqite",
+// zigSignals is the tool's entire non-Go vocabulary: one entry, the one
+// documented exception. It is deliberately NOT a stack detector — anything
+// else the tool does not name, and an unnamed need gets the full map rather
+// than a guessed label. "zig" is 3 letters, so wordHit's prefix rule cannot
+// engage for it in either direction, and "zigzag" (codec vocabulary)
+// matches neither "zig" nor "ziglang" (pinned by test).
+var zigSignals = []string{
+	"zig", "ziglang",
 }
