@@ -42,10 +42,24 @@ cmd/gogogo/README.md for the alternatives analysis). Removed units are gone
 from disk with their wiring calls — not disabled behind flags. To remove more
 later, follow docs/scope-taxonomy.md#removing-a-component and prove with
 go build ./cmd/web.
+
+removed: __REMOVED__
+
+That removed: line is machine-read, not decoration: gogogo --check --dir . uses
+it to tell a deliberately trimmed tree (CHECK-TRIMMED, exit 0) apart from real
+manifest drift (CHECK-FAIL, exit 1). Keep it in sync if you remove units by
+hand; a tree with no removed: line is checked strictly.
 `
 
-func writeAgents(dir, projectName string) error {
+func writeAgents(dir, projectName string, removed []string) error {
 	out := strings.ReplaceAll(agentsTemplate, "__PROJECT__", projectName)
+	// "none" rather than an empty string, so the line is always parseable and
+	// always present — an empty value would read as a missing section.
+	list := "none"
+	if len(removed) > 0 {
+		list = strings.Join(removed, ", ")
+	}
+	out = strings.ReplaceAll(out, "__REMOVED__", list)
 	t, err := openTree(dir)
 	if err != nil {
 		return err

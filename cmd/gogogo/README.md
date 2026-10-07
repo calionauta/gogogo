@@ -54,9 +54,15 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   `--yes` also stops after the plan with a re-run hint — the installer never
   deletes on an assumption.
 - `--check --dir X` verifies every marker against a checkout without
-  changing anything (drift gate; `CHECK-OK`/`CHECK-FAIL` lines, exit 1 on
-  drift). The same check runs in-process as `TestCheckTreeAgainstRepoRoot`,
-  so CI fails when a source edit moves a marker.
+  changing anything (drift gate; `CHECK-OK`/`CHECK-TRIMMED`/`CHECK-FAIL`
+  lines, exit 1 only on real drift). The three verdicts are distinct:
+  `CHECK-OK` the unit applies; `CHECK-TRIMMED` the unit is gone and the tree's
+  AGENTS.md records that it was removed on purpose (`removed:` line) — **exit 0**;
+  `CHECK-FAIL` a unit does not apply and nothing says it was trimmed — exit 1.
+  So `--check` on a project you scaffolded with fewer features passes instead of
+  reporting the units you deliberately dropped as errors. A tree with no
+  `removed:` line is checked strictly. The same check runs in-process as
+  `TestCheckTreeAgainstRepoRoot`, so CI fails when a source edit moves a marker.
 - `add <unit> --from TEMPLATE --dir PROJECT` reverses a trim (or ports a
   unit into an evolved codebase): resolves `DependsOn` first (e.g. adding
   whiteboard pulls sounds), copies owned paths, re-inserts call lines +

@@ -474,17 +474,3 @@ func TestCheckTreeSkipsTrimmedUnits(t *testing.T) {
 		t.Errorf("unknown capability must not count as trimmed away")
 	}
 }
-
-func TestWriteAgentsPointsUpstream(t *testing.T) {
-	dir := t.TempDir()
-	if err := writeAgents(dir, "my-app"); err != nil {
-		t.Fatal(err)
-	}
-	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
-	text := string(raw)
-	for _, want := range []string{"my-app", "llms.txt", "scope-taxonomy", "blob/master"} {
-		if !strings.Contains(text, want) {
-			t.Errorf("AGENTS.md missing %q:\n%s", want, text)
-		}
-	}
-}

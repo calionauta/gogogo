@@ -238,7 +238,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name); err != nil {
+	if err := writeAgents(opt.dir, opt.name, removedIDs(drop)); err != nil {
 		return err
 	}
 	printReceiptText(stdout, rc)
@@ -277,7 +277,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name); err != nil {
+	if err := writeAgents(opt.dir, opt.name, removedIDs(drop)); err != nil {
 		return err
 	}
 	// Silence prove chatter in JSON mode: discard its progress lines,

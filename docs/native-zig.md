@@ -108,6 +108,59 @@ infrastructure, native plugin systems, or framework scaffolding without a
 real use case are out of scope — see
 [Do not over-engineer](#do-not-over-engineer-the-preparation).
 
+## Why Zig is named, and not left open
+
+Naming Zig is a deliberate decision, not an oversight. The rule this page
+enforces is **no native code without a Go baseline and a profile**; it is not
+"no preference about which toolchain". Those are different things, and the
+difference matters because of how an agent behaves when it reaches the end of
+the decision procedure.
+
+**The cost of choosing at the moment of the bottleneck is measured, and it is
+high.** The [`mini-redis-comparison`](https://github.com/calionauta/mini-redis-comparison)
+experiment (a RESP/TCP server built by an agent in Rust, Zig, Go, Odin and Mojo;
+N=1, one model — read it as direction, not proof) found:
+
+- **Discovery dominates when the language is not prepared.** Mojo's phase-1 cost
+  was **120k prompt tokens** exploring its libc FFI; phase 2, reusing what it had
+  already learned, cost **12.7k** — roughly **9x** less. Total: **4.96M tokens
+  against Go's 387k (13x)**.
+- **An unprepared language produces more wrong-API cycles.** Odin's first
+  submission did not compile: one hallucinated API (`mem.move`), untyped
+  `transmute`, and an arity error.
+- **A prepared language produced none of that.** Zig on Linux was green in all
+  four phases, first try — **0 correction rounds, 0 hallucinated APIs**.
+
+The lesson is not "Zig is easy". Zig's stdlib genuinely churns between releases,
+and its networking API changed shape in 0.16/0.17. The lesson is that **the
+moment a profile proves a bottleneck is the worst moment to spend tokens
+learning a toolchain**: the agent is under pressure, and it pays the discovery
+rate instead of the reuse rate.
+
+**Naming Zig is also what makes the preparation real.** This page, the `zig-gate`
+reference in the coding-standards skill, the boundary rules, and the removal plan
+are all investments that only pay off if Zig is the answer. An agnostic gate
+would demote them to "one option among several", and an agent would re-derive the
+choice under time pressure — precisely the cost measured above.
+
+**So the default is named, and the escape from it is explicit.** Zig is the first
+language to evaluate because of concrete, checkable properties:
+
+| Property | Why it matters here |
+|---|---|
+| `zig cc` cross-compiles | Builds cgo binaries for all six `GOOS`/`GOARCH` targets the template ships — the one thing a native boundary must not break |
+| stdlib-first depth | `std.net`, `std.crypto`, `std.compress`, threads, SIMD — a kernel needs no package ecosystem, which is what keeps it "one package, small ABI, removable in minutes" |
+| Proven static cgo linking | The static-lib-to-Go path is demonstrated, not assumed |
+| Pre-1.0, pin-first | A **cost**, not a feature: the toolchain must be pinned and upgrades are real work. Acceptable because a native kernel is expected to be small and short-lived |
+
+**When Zig is the wrong answer, argue it — do not quietly pick something else.**
+If a mature C library already solves the problem, wrap it (see [Native is not
+synonymous with Zig](#native-is-not-synonymous-with-zig)) instead of rewriting it.
+If a different language is genuinely better for one specific kernel, the proposal
+must make that case in required-justification item 5. What this policy forbids is
+an agent **silently** choosing a language — or silently writing native code at all
+— with neither the baseline nor the argument.
+
 ## When Zig may be justified
 
 Concrete categories only — each still requires evidence per the

@@ -1,3 +1,33 @@
+## [0.36.4] - 2026-10-06
+
+Two improvements: the installer's drift gate stopped misreporting a correct
+scaffold as broken, and the native-boundary policy now documents *why* Zig is
+the named default instead of leaving it implicit.
+
+### Fixed
+
+- **`gogogo --check` reported a deliberately trimmed project as broken.** The gate answers "would applyTrim succeed fully here?", so against a scaffolded tree every marker it looks for is legitimately absent — it emitted `CHECK-FAIL` for each removed unit and exited **1**. A human knows to ignore that; an LLM agent reads exit 1 plus the word FAIL and concludes the scaffold is broken, which is exactly the wrong conclusion. Since `apply` already writes a `Trim provenance` section into the generated `AGENTS.md`, that information is now recorded as a machine-read `removed:` line and used to tell the two apart:
+
+  | Line | Meaning | Exit |
+  |---|---|---|
+  | `CHECK-OK <id>` | the unit applies | 0 |
+  | `CHECK-TRIMMED <id>` | gone, and the tree records it was removed on purpose | 0 |
+  | `CHECK-FAIL <id> <problem>` | does not apply and nothing says it was trimmed | 1 |
+
+  Verified end-to-end on a real scaffold: `CHECK-OK 2 / CHECK-TRIMMED 5 / CHECK-FAIL 0`, exit 0 (was exit 1 with 5 failures). Deleting a unit that was **not** recorded still exits 1 with the exact name — the gate still catches real drift, which is the property that must not regress. A tree with no `removed:` line is checked strictly, because a false "this is fine" is worse than a noisy failure. Unknown ids on the `removed:` line are ignored rather than trusted, since it is read from a markdown file a human may edit.
+
+- **The `AGENTS.md` template used backticks inside a Go raw string**, which terminated the string literal. Caught by the compiler; the machine-read line is now plain text.
+
+### Changed
+
+- **`docs/native-zig.md` now documents why Zig is named rather than left open.** The policy enforces "no native code without a Go baseline and a profile" — not "no preference about which toolchain". Those are different rules, and naming the default is what makes the 493-line policy, the `zig-gate` skill reference, and the boundary/removal plans pay off instead of being re-derived under pressure. The section cites the measured cost of choosing late from `mini-redis-comparison`: Mojo's discovery phase cost **120k prompt tokens** versus **12.7k** to reuse what it had learned (~9x), **4.96M total against Go's 387k**; Odin's unprepared first submission did not compile (one hallucinated API); Zig on Linux was green 4/4, first try, **0 rounds, 0 hallucinated APIs**. It also states plainly that Zig's stdlib churn is a **cost**, not a feature, and that a different language may win for a specific kernel — argued in required-justification item 5, never chosen silently.
+
+### Verification
+
+- `make ci-local` green end-to-end; `make site-check` green (22 pages, all anchors resolve)
+- Red-proofs: removing the provenance reclassification fails `TestCheckAcceptsDeliberatelyTrimmedTree` and `TestExplainTrimCountsOnlyUnrecordedUnits`; `TestReadTrimProvenanceIgnoresUnknownIDs` pins that an unknown id is not trusted; `TestCheckStillFailsWithoutProvenance` pins the strict fallback; `TestWriteAgentsRecordsEmptyTrim` pins that a full template still records provenance
+- End-to-end against a real scaffold: trimmed tree exits 0, a unit deleted outside the recorded trim exits 1
+
 ## [0.36.3] - 2026-10-06
 
 Closing the coverage gap the previous release exposed, plus two tool traps that

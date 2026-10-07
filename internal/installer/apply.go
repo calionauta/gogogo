@@ -24,7 +24,11 @@ func runCheck(opt options, stdout io.Writer) error {
 			"%d unit(s) cannot apply cleanly here — manifest drift "+
 				"or already-trimmed tree (see CHECK-FAIL lines above)", failed)}
 	}
-	fmt.Fprintln(stdout, "gogogo: check OK — every unit applies cleanly here")
+	// Reaching here means every unit either applies or is recorded as
+	// deliberately removed. Say which, so a trimmed tree does not read as a
+	// silent pass.
+	fmt.Fprintln(stdout, "gogogo: check OK — every non-trimmed unit applies "+
+		"cleanly here (CHECK-TRIMMED lines are expected for a scaffolded tree)")
 	return nil
 }
 

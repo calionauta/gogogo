@@ -139,11 +139,18 @@ func looksLikeTemplate(root string) bool {
 }
 
 // printCheck renders unitCheck results in grep-able lines:
-// "CHECK-OK <id>" or "CHECK-FAIL <id> <problem>".
+// "CHECK-OK <id>", "CHECK-TRIMMED <id>" or "CHECK-FAIL <id> <problem>".
 //
-// Returns the count of units with problems so the caller can decide the exit
-// code. A non-template tree is reported as ONE actionable line rather than
-// per-unit noise (see looksLikeTemplate).
+// Returns the count of units that are GENUINELY broken so the caller can decide
+// the exit code. A non-template tree is reported as ONE actionable line rather
+// than per-unit noise (see looksLikeTemplate).
+//
+// A deliberately trimmed tree is the third case, and it is not a failure:
+// against a scaffolded project every marker the trim acted on is legitimately
+// absent, so the strict verdict reported all of them as CHECK-FAIL with exit 1.
+// A human knows to ignore that; an LLM agent reads exit 1 + FAIL and concludes
+// the scaffold is broken. When the tree records its own trim (the removed: line
+// in AGENTS.md), that is used to separate "you asked for this" from real drift.
 func printCheck(w io.Writer, results []unitCheck, root string) int {
 	if !looksLikeTemplate(root) {
 		fmt.Fprintf(w, "CHECK-FAIL (tree) not a gogogo checkout: %s has no "+
@@ -151,6 +158,13 @@ func printCheck(w io.Writer, results []unitCheck, root string) int {
 			"  Nothing to verify — run this against a gogogo template or a "+
 			"project scaffolded from one.\n", root)
 		return 1
+	}
+	// A recorded trim reclassifies the units it removed; a negative return
+	// means there is no usable provenance, so fall through to strict below.
+	if tp := readTrimProvenance(root); tp.found {
+		if failed := explainTrim(w, results, tp); failed >= 0 {
+			return failed
+		}
 	}
 	failed := 0
 	for _, uc := range results {
