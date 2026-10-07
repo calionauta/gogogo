@@ -178,6 +178,7 @@ by hand, so when a step is added to one, add it to the other:
 | `go test -race` (parallel, all pkgs) | ✓ | ✓ |
 | build + **binary** boot smoke | ✓ | ✓ |
 | browser smoke (Playwright) | ✓ | ✓ |
+| whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 
 **The generated-artifact checks are the ones that regressed.** `_templ.go`
 (71 files) and `web/resources/static/app.min.css` are both *committed and

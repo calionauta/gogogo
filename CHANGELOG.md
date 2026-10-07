@@ -1,3 +1,25 @@
+## [0.36.3] - 2026-10-06
+
+Closing the coverage gap the previous release exposed, plus two tool traps that
+were making local verification lie.
+
+### Added
+
+- **The whiteboard client now has regression tests, and they are wired into the gate.** The Go side of the whiteboard had 15 tests; the client had none, and `scripts/smoke.mjs` only loaded `/whiteboard` without ever drawing on it. That blind spot is exactly where the v0.36.1 regression lived. `scripts/whiteboard-client.test.mjs` drives the real page in Chromium and asserts on canvas **pixels in a region** — a region, not total ink, because a whole-list replacement still leaves one shape painted, so "some ink exists" cannot tell a correct merge from a destructive replace. It runs in `make ci-local` and in `ci.yml`, reusing the binary the browser-smoke step already builds.
+
+  Both tests are **red-proofed**, and getting there took fixing the test twice. The first version delayed the *request*, which let the server process op 1 after op 2 so op 1's payload already contained both shapes — it passed against the broken code and proved nothing. It must delay the *response*: `route.fetch()` sends the request immediately (so the captured answer really is the older single-shape state) and delivery is held back past the second response. Restoring `shapes = body.shapes` now fails both tests with shape 2's ink at 0; restoring the whole-list replace only in the 409 handler fails only the 409 test. Each red-proof isolates its own fix.
+
+### Fixed
+
+- **`bin/check-deadcode.sh` reported a toolchain mismatch as "dead code found".** The installed `deadcode` binary is a `go install`ed tool that lags the Go toolchain, so it emits type-check errors for files under `/usr/local/go/src` (`package requires newer Go version go1.27 (application built with go1.26)`). The script captured stderr with `2>&1` and printed anything non-empty as a finding, sending the reader hunting for dead functions that do not exist — which is what happened on this host. It now separates stdout (findings) from stderr (diagnostics) and distinguishes three cases: a real finding, a recognised toolchain mismatch with its fix, and an unrecognised failure reported as "scan did not complete" rather than guessing at a cause. All four paths are exercised.
+
+- **`features/todo` leaked a temp directory on every test run.** `TestMain` removed the built binary but never the `MkdirTemp` directory around it, so each run left an empty `gogogo-live-*` behind — **195 had accumulated** in `/tmp` on this host before it was noticed while investigating a full disk. `buildLiveServerBinary` now returns the directory and `TestMain` removes it with `RemoveAll`.
+
+### Verification
+
+- `make ci-local` green end-to-end, now including the whiteboard client tests
+- Red-proofs: `shapes = body.shapes` fails both client tests (shape 2 ink 0); the 409 whole-list replace fails only the 409 test; the four `check-deadcode.sh` paths (finding / toolchain mismatch / unrecognised failure / real host) each produce their intended message; the `gogogo-live-*` count does not grow across a `features/todo` run
+
 ## [0.36.2] - 2026-10-06
 
 Release-process fix found by auditing the v0.36.1 deploy rather than trusting it.

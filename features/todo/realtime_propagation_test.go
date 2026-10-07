@@ -350,29 +350,37 @@ var liveServerBin string
 // real server. A build failure is fatal for the whole package, which is correct:
 // those tests cannot run without it, and `go build` failing is a broken package.
 func TestMain(m *testing.M) {
-	bin, err := buildLiveServerBinary()
+	bin, dir, err := buildLiveServerBinary()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "build live server binary: %v\n", err)
 		os.Exit(1)
 	}
 	liveServerBin = bin
 	code := m.Run()
-	_ = os.Remove(bin)
+	// Remove the whole temp DIRECTORY, not just the binary inside it. Removing
+	// only the binary left an empty gogogo-live-* dir behind on every run — 195
+	// had accumulated in /tmp on this host before it was noticed. On a long-lived
+	// or shared machine that is a slow inode leak, and it is the kind of thing
+	// that only surfaces when a disk fills.
+	_ = os.RemoveAll(dir)
 	os.Exit(code)
 }
 
-func buildLiveServerBinary() (string, error) {
-	dir, err := os.MkdirTemp("", "gogogo-live-")
+// buildLiveServerBinary builds the production binary into a fresh temp dir and
+// returns both the binary path and the DIRECTORY, so the caller can remove the
+// directory and not just the file.
+func buildLiveServerBinary() (binPath, dir string, err error) {
+	dir, err = os.MkdirTemp("", "gogogo-live-")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	bin := filepath.Join(dir, "gogogo_live")
 	build := exec.CommandContext(context.Background(), "go", "build", "-o", bin, "github.com/calionauta/gogogo/cmd/web")
 	build.Stderr = os.Stderr
 	if out, buildErr := build.Output(); buildErr != nil {
-		return "", fmt.Errorf("go build: %w\n%s", buildErr, out)
+		return "", dir, fmt.Errorf("go build: %w\n%s", buildErr, out)
 	}
-	return bin, nil
+	return bin, dir, nil
 }
 
 // bootLiveServer runs the prebuilt production binary (dev variant) as a
