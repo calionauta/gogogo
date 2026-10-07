@@ -116,26 +116,29 @@ enforces is **no native code without a Go baseline and a profile**; it is not
 difference matters because of how an agent behaves when it reaches the end of
 the decision procedure.
 
-**The cost of choosing at the moment of the bottleneck is measured, and it is
-high.** The [`mini-redis-comparison`](https://github.com/calionauta/mini-redis-comparison)
-experiment (a RESP/TCP server built by an agent in Rust, Zig, Go, Odin and Mojo;
-N=1, one model — read it as direction, not proof) found:
+**The cost of choosing at the moment of the bottleneck is the real argument.**
+The moment a profile proves a bottleneck is the worst moment to spend tokens
+learning a toolchain: the agent is under pressure, and it pays the **discovery**
+rate instead of the **reuse** rate. This page, the `zig-gate` reference in the
+coding-standards skill, the boundary rules and the removal plan are preparation
+that only pays off if the language is already decided. An agnostic gate would
+demote them to "one option among several", and an agent would re-derive the
+choice under time pressure.
 
-- **Discovery dominates when the language is not prepared.** Mojo's phase-1 cost
-  was **120k prompt tokens** exploring its libc FFI; phase 2, reusing what it had
-  already learned, cost **12.7k** — roughly **9x** less. Total: **4.96M tokens
-  against Go's 387k (13x)**.
-- **An unprepared language produces more wrong-API cycles.** Odin's first
-  submission did not compile: one hallucinated API (`mem.move`), untyped
-  `transmute`, and an arity error.
-- **A prepared language produced none of that.** Zig on Linux was green in all
-  four phases, first try — **0 correction rounds, 0 hallucinated APIs**.
+That claim is being measured rather than asserted. The
+[`llm-language-benchmarks`](https://github.com/calionauta/llm-language-benchmarks)
+repo runs a byte-exact kernel task across Go, Zig, Odin, Rust and Mojo, under both
+an unprepared (`cold`) and a hinted condition — the difference between them is
+exactly the discovery cost above. Its results are not published yet.
 
-The lesson is not "Zig is easy". Zig's stdlib genuinely churns between releases,
-and its networking API changed shape in 0.16/0.17. The lesson is that **the
-moment a profile proves a bottleneck is the worst moment to spend tokens
-learning a toolchain**: the agent is under pressure, and it pays the discovery
-rate instead of the reuse rate.
+> **An earlier version of this page cited specific token counts here** (Mojo
+> discovery at ~9x the reuse cost; Odin's first submission not compiling on a
+> hallucinated API; Zig green 4/4 on Linux). Those came from a RESP/TCP-server
+> experiment that has since been **retired and removed**, because every arm passed
+> it in every phase — it had stopped discriminating. The numbers were never
+> independently reproduced (N=1, one model), and with the source gone they can no
+> longer be cited. The reasoning above stands on its own; the measurements are
+> being redone in the repo linked above.
 
 **Naming Zig is also what makes the preparation real.** This page, the `zig-gate`
 reference in the coding-standards skill, the boundary rules, and the removal plan
