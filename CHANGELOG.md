@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [0.40.1] - 2026-10-08
+
+### Fixed
+
+- **Theme toggle dead on Datastar-less pages** (whiteboard board,
+  notes): the inline `data-on:click` needs the runtime while the
+  delegated fallback matched a class the button doesn't have. One
+  owner (delegated listener), one storage key (`themeMode`).
+- **Caret landing one line down** at line starts: the mirror dropped
+  the trailing remainder, collapsing the newline's line box.
+- **Caret reports at 800ms** (were 1500ms) now the shared throttle
+  guarantees the trailing send.
+
+### Added
+
+- **Join chime on shared notes** (one soft chime per arrival, centrally
+  mute-aware) with the declared sounds dependency it needed.
+
 ## [0.40.0] - 2026-10-08
 
 ### Added
