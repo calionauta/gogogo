@@ -14,7 +14,7 @@
 (function () {
   "use strict";
 
-  var KEY = "theme";
+  var KEY = "themeMode";
   var DARK = "dark";
   var LIGHT = "light";
 

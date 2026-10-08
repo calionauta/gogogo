@@ -3,6 +3,7 @@ package notes
 import "strconv"
 
 import "github.com/calionauta/gogogo/features/auth"
+import "github.com/calionauta/gogogo/features/sounds"
 
 // NotesIndex lists existing shared notes with a button to start a new one.
 templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit string) {
@@ -99,13 +100,13 @@ templ NotesPage(email string, docID string, text string, rev uint64, buildLabel 
 			@auth.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script src="/static/iconify-icon.min.js"></script>
+			@sounds.SoundAssets()
 			<script defer src="/static/throttle.js"></script>
 			<script defer src="/static/notes.js"></script>
 		</head>
 		<body>
 			@auth.Navbar(email, "notes", buildLabel, buildCommit)
 			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ docID } data-rev={ strconv.FormatUint(rev, 10) }>
-				<h1 class="sr-only">Shared note</h1>
 				<h1 class="sr-only">Shared note</h1>
 				<div class="flex items-center justify-between mb-2">
 					<a class="btn btn-sm btn-ghost" href="/notes">Back</a>

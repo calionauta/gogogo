@@ -319,6 +319,7 @@ var All = []Capability{
 		Summary: "shared plain-text notes (server-owned Loro Text + SSE)",
 		DependsOn: []string{
 			depCollab,
+			depSounds,
 		},
 		Dirs: []string{"features/notes"},
 		Files: []string{

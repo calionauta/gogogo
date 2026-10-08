@@ -137,7 +137,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ line: line, pos: pos }),
     }).catch(function () { /* ephemeral */ });
-  }, 1500);
+  }, 800);
   function maybeCaret() {
     if (document.activeElement !== ta) return;
     const pos = ta.selectionStart || 0;
@@ -167,6 +167,13 @@
     const marker = document.createElement("span");
     marker.textContent = "​";
     mirror.appendChild(marker);
+    // Trailing remainder (when any): without it, an offset exactly at a
+    // "\n" (caret at a line start) collapses — a newline ending the mirror
+    // creates no line box, so the marker lands at the end of the PREVIOUS
+    // line and the dot drops one line down until more typing moves it
+    // mid-line (the reported bug). The remainder forces every line box to
+    // exist, so line-start carets measure on their own line.
+    mirror.appendChild(document.createTextNode(ta.value.substring(offset)));
     wrap.appendChild(mirror);
     // Marker is a zero-size inline at the caret: its offset box top is the
     // line top, its height the line height — a text caret, not a dot.
@@ -390,6 +397,16 @@
     clean = !outbox.length;
   }
 
+  let lastChime = 0;
+  function chimeJoin() {
+    const now = Date.now();
+    if (now - lastChime < 10000) return;
+    lastChime = now;
+    try {
+      if (window.Cuelume && window.Cuelume.play) window.Cuelume.play("chime");
+    } catch (err) { /* sound off or unavailable: presence stays visual */ }
+  }
+
   const es = new EventSource(
     "/api/notes/" + encodeURIComponent(DOC) + "/stream?clientID=" + encodeURIComponent(CID)
   );
@@ -408,10 +425,14 @@
     }
     // Presence pill: rendered from the authoritative count, never by
     // incrementing locally — every tab agrees even on missed events.
+    // A peer joining while you're here gets one soft chime (throttled):
+    // arrival is the one presence moment worth hearing; text, typing and
+    // carets stay silent or the room becomes unbearable.
     if (peers && (m.type === "count" || m.type === "join" || m.type === "leave") && m.doc === DOC) {
       if (m.type === "count" && Array.isArray(m.peers)) {
         peers.textContent = m.peers.length + " online";
       }
+      if (m.type === "join" && m.user && m.user !== CID) chimeJoin();
     }
     // Typing pill: peers announce intent; a leave also clears a stuck
     // typist immediately instead of waiting for the 6s expiry.

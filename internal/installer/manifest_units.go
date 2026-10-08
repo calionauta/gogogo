@@ -366,6 +366,7 @@ var manifestUnits = []trimUnit{
 			{path: "features/config/views.templ", substrs: soundsDropLines},
 			{path: "features/landing/views.templ", substrs: soundsDropLines},
 			{path: "features/whiteboard/components.templ", substrs: soundsDropLines},
+			{path: "features/notes/notes.templ", substrs: soundsDropLines},
 		},
 	},
 	{
