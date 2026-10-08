@@ -1,5 +1,37 @@
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-08
+
+### Added
+
+- **Shared notes presence: "X online" pill and "X está digitando…" indicator.**
+  The notes feature ports the whiteboard peers contract (join to others,
+  authoritative count to all, leave + recount, reconnect guard) with
+  red-first tests, plus throttled typing reports with a 6s client-side
+  expiry. No server typing state, no persistence, no NATS.
+- **Notes offline op outbox.** Batches typed while offline replay on
+  reconnect and reload (localStorage, demo-grade); poison batches drop
+  instead of retrying forever. Same strategy as the whiteboard outbox,
+  sized down for text ops.
+- **Per-feature stack picks in `docs/use-cases.md`.** Whiteboard, room,
+  and notes now state why this stack and not the alternative (fair pros
+  and cons each way), plus an OT-vs-CRDT decision pair crediting the
+  Datastar collab demo (`ot.js`, Tim Baumann) — deliberately no unit.
+
+### Changed
+
+- **Peer-set mechanics extracted to `collab.PeerSet`.** Whiteboard and
+  notes shared ~40 duplicated lines; both handlers delegate now, suites
+  prove no behavior change.
+- **Scope cards list `internal/goakt`, `features/room`, `features/notes`.**
+  The landing grid was stale since the GoAkt work.
+
+### Fixed
+
+- **Notes accessibility gaps.** Real `<label>`, `sr-only` h1,
+  `aria-live` pills, `aria-busy` on pending (opacity alone fails
+  forced-colors and screen readers).
+
 ## [0.37.0] - 2026-10-08
 
 ### Changed
