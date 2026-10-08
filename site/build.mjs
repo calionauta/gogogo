@@ -41,6 +41,8 @@ const RELEASE_SOURCES = [
 const MANIFEST = [
   { group: "Get started", slug: "overview", file: "overview.md",
     desc: "What gogogo is, who it is for, and the six async layers it ships." },
+  { group: "Get started", slug: "motivation", file: "motivation.md",
+    desc: "The thesis behind the stack: Go for almost everything, Zig as the named exception, and how to choose without hype." },
   { group: "Get started", slug: "getting-started", file: "getting-started.md",
     desc: "Clone, run, first five minutes, and the commands you need." },
   { group: "Agents", slug: "cli", file: "cli.md",

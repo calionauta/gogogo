@@ -526,6 +526,7 @@ Vague instructions like "use Zig when appropriate" are banned. Follow the
 
 ## Related
 
+- [Motivation](motivation.md) — the thesis behind Go-first: cheap failure, readable code, named exception.
 - [Architecture](architecture.md) — unified build, directory layout, wiring.
 - [Scope taxonomy](scope-taxonomy.md) — why `native` is a boundary, not a layer.
 - [Stack in layers](stack-layers.md) — what Go and the dependencies already cover.

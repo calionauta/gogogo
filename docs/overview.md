@@ -75,6 +75,7 @@ gives you: [Admin & Dashboard](admin-dashboard.md).
 
 ## Related
 
+- [Motivation](motivation.md) — the thesis: Go for almost everything, Zig as the named exception.
 - [Getting started](getting-started.md) — create your repo from the template, rename it, run it.
 - [Architecture](architecture.md) — how the layers depend on each other.
 - [Features](features.md) — every capability and its runtime opt-out.

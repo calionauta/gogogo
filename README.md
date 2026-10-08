@@ -33,6 +33,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 
 **Get started**
 - [overview](docs/overview.md) — what gogogo is, who it is for, and the seven async layers it ships.
+- [motivation](docs/motivation.md) — the thesis: Go for almost everything, Zig as the named exception.
 - [getting-started](docs/getting-started.md) — clone, run, first five minutes, and the commands you need.
 
 **Core**
@@ -114,7 +115,7 @@ dependencies and are left alone.
 
 | Layer | Choice | Why |
 |---|---|---|
-| **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([native-zig](docs/native-zig.md)) |
+| **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([native-zig](docs/native-zig.md); the why: [motivation](docs/motivation.md)) |
 | **Zero-config database, auth and API** | [PocketBase](https://pocketbase.io) (embedded SQLite) | Zero-config auth, REST, file storage, and an admin UI at `/_/` — no separate service |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
