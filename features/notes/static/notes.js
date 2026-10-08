@@ -98,10 +98,10 @@
 
   // Heartbeat re-announce (OT-demo lesson): an idle peer's dot must not
   // age out while they're still here — force a resend every 5s when the
-  // page is visible. The shared throttle keeps it to one POST; expiry
-  // stays the disconnect detector.
+  // page is visible, even unfocused (readers count as present; only the
+  // position goes stale, and the tooltip line stays truthful).
   setInterval(function () {
-    if (!document.hidden) { caretSent = -1; maybeCaret(); }
+    if (!document.hidden) { caretSent = -1; maybeCaret(true); }
   }, 5000);
 
   // Remote carets ("who is where"): peers report {line, pos}; each browser
@@ -150,10 +150,12 @@
       body: JSON.stringify({ line: line, pos: pos }),
     }).catch(function () { /* ephemeral */ });
   }, 500);
-  function maybeCaret() {
-    if (document.activeElement !== ta) return;
-    const pos = ta.selectionStart || 0;
-    if (pos === caretSent) return;
+  function maybeCaret(force) {
+    const pos = force ? (ta.selectionStart || 0) : (document.activeElement !== ta ? -1 : (ta.selectionStart || 0));
+    if (pos < 0) return;
+    // Forced (heartbeat) resends even unmoved: expiry is time-based, so
+    // only a fresh report proves presence. Normal path skips duplicates.
+    if (!force && pos === caretSent) return;
     caretSent = pos;
     reportCaretWire(pos, ta.value.slice(0, pos).split("\n").length);
   }
@@ -165,7 +167,7 @@
   function caretXY(offset) {
     const cs = getComputedStyle(ta);
     const mirror = document.createElement("div");
-    const props = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "tabSize"];
+    const props = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "wordBreak", "tabSize"];
     for (const p of props) { try { mirror.style[p] = cs[p]; } catch (err) {} }
     if (ta.wrap === "off") mirror.style.whiteSpace = "pre";
     else { mirror.style.whiteSpace = "pre-wrap"; mirror.style.wordWrap = "break-word"; }

@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.40.4] - 2026-10-08
+
+### Fixed
+
+- **Idle readers vanish from presence.** Heartbeat re-announce now
+  reports even unfocused (position may be stale, tooltip line stays
+  truthful); expiry remains the disconnect detector.
+- **Mirror copies `word-break` too.** One more computed property the
+  pixel math silently depended on.
+
 ## [0.40.3] - 2026-10-08
 
 ### Fixed
