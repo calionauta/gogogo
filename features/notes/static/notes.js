@@ -82,7 +82,13 @@
     timer = setTimeout(sendDiff, 100);
     reportTyping();
     maybeCaret();
-    renderCarets();
+    // NOTE: no renderCarets() here on purpose. Peer offsets refer to the
+    // peer's text state; recomputing pixels from OUR just-changed text
+    // moves their dots spuriously (the reported bug). Worse, any dot left
+    // on screen is now positioned on stale text — so hide the layer until
+    // fresh reports arrive (≤1.5s while peers are active). No lying pixels.
+    const layer = document.getElementById("caret-layer");
+    if (layer) layer.innerHTML = "";
   });
   ta.addEventListener("scroll", function () { renderCarets(); }, { passive: true });
   window.addEventListener("resize", function () { renderCarets(); });
@@ -135,10 +141,13 @@
     marker.textContent = "​";
     mirror.appendChild(marker);
     wrap.appendChild(mirror);
+    // Marker is a zero-size inline at the caret: its offset box top is the
+    // line top, its height the line height — a text caret, not a dot.
     const x = ta.offsetLeft + marker.offsetLeft;
     const y = ta.offsetTop + marker.offsetTop;
+    const h = marker.offsetHeight || parseInt(getComputedStyle(ta).lineHeight, 10) || 20;
     mirror.remove();
-    return { x: x, y: y };
+    return { x: x, y: y, h: h };
   }
   function renderCarets() {
     const layer = document.getElementById("caret-layer");
@@ -161,11 +170,10 @@
       dot.style.position = "absolute";
       dot.style.left = Math.round(x) + "px";
       dot.style.top = Math.round(y) + "px";
-      dot.style.width = "8px"; dot.style.height = "8px";
-      dot.style.borderRadius = "9999px";
+      dot.style.width = "2px";
+      dot.style.height = Math.max(10, Math.round(p.h)) + "px";
       dot.style.background = peerColor(user);
-      dot.style.transform = "translate(-50%,-50%)";
-      dot.style.boxShadow = "0 0 0 2px rgba(255,255,255,.7)";
+      dot.style.boxShadow = "0 0 0 1px rgba(255,255,255,.7)";
       layer.appendChild(dot);
     });
   }
