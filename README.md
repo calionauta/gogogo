@@ -164,6 +164,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | AI credits + BYOK relay + Stripe top-ups | `CREDITS_ENABLED=false` |
 | Collaborative whiteboard (CRDT + presence + offline outbox) | delete `features/whiteboard/` |
 | Room presence demo (GoAkt grains: roster + presenter lock) | delete `features/room/` |
+| Shared notes (server-owned Loro Text, live peer text) | delete `features/notes/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
 | Hybrid offline sync (Service Worker + Leaf Node) | `OFFLINE_SYNC_ENABLED=false` |
 | Pluggable persistence (`pb` ⇄ `crdt`) | `ENTITY_STORE=pb` |

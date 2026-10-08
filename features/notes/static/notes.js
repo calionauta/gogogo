@@ -30,6 +30,14 @@
 
   let lastSent = ta.value;
   let timer = null;
+  const draftKey = "notes-draft:" + DOC;
+  // Demo-grade offline cushion: if the server rendered empty but this
+  // browser typed before (reload during an outage), restore the draft.
+  // Server text always wins when non-empty — last-writer-per-browser only.
+  try {
+    if (!ta.value && localStorage.getItem(draftKey)) ta.value = localStorage.getItem(draftKey);
+    lastSent = ta.value;
+  } catch (err) { /* private mode: no draft */ }
   ta.addEventListener("input", function () {
     clearTimeout(timer);
     timer = setTimeout(sendDiff, 300);
@@ -50,6 +58,7 @@
     if (ins) ops.push({ t: "ins", i: p, s: ins });
     lastSent = cur;
     if (!ops.length) return;
+    try { localStorage.setItem(draftKey, cur); } catch (err) { /* private mode */ }
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },

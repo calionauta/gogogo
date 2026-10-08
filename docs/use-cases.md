@@ -117,7 +117,7 @@ calls only. Multi-step agent behavior is `dagnats` (pipelines), not this.
 ### `collab` — realtime convergence (plugin, bundled with whiteboard)
 
 What: Loro CRDT DocStore, sync workers, presence transport.
-Never standalone (no producers without a canvas).
+Never standalone (needs a producing feature: canvas, notes).
 
 - Two cursors drawing at once, offline edits that merge without a
   server round-trip.
@@ -208,8 +208,8 @@ What: Loro canvas + Rough.js + presence (pulls in `collab`).
 
 - Brainstorm boards, seating charts, any shared drawing surface.
 
-Not for: owner arbitration (no presenter lock); canvas is the only
-consumer of `collab` today.
+Not for: owner arbitration (no presenter lock); canvas and notes share
+`collab` today.
 
 ### `room` — presence demo page (feature, offered, bundled with `goakt`)
 
@@ -222,6 +222,18 @@ for entity actors.
 
 Not for: production rooms (no persistence, single process) — copy
 the grain pattern into your own feature instead.
+
+### `notes` — shared plain text (feature, manual removal, rides the whiteboard unit for trim)
+
+What: the `/notes/` pages exercising server-owned Loro Text (character
+ops merge, resolved text streams to peers). A reference implementation
+like `todo`, for collaborative editing without a JS CRDT library.
+
+- Meeting notes, shared scratchpads, any plain-text surface where
+  concurrent typing must never lose characters.
+
+Not for: rich text (no marks, no cursors shared); offline-first editing
+(ops need the server — a dropped connection holds text in the tab only).
 
 ### `landing` — public marketing page (feature, offered)
 

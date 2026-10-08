@@ -10,6 +10,7 @@ var advisePresets = []advisePreset{
 		Match: []string{
 			"realtime", "collaborat", "canvas", unitWhiteboard,
 			"presence", "cursor", "multi-user", "multiplayer", "shared",
+			"notes", "document",
 			// "chat" and "live" are lay words AND cross-language loanwords
 			// (EN/PT/ES/FR/DE): "live chat", "live score", "fazer uma live".
 			"chat", "live",
