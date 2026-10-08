@@ -183,6 +183,20 @@ ecosystem than React; persistent connections your proxies must allow; more
 logic lives in the backend by design. The repo pays down the newness with
 `datastar-lint` and the `internal/datastar` wrapper.
 
+### Demo features shipped (and not a bare core)?
+
+`todo`, `whiteboard`, `room`, `notes` ship as working pages — not because
+every app needs a todo list, but because patterns teach better than prose:
+todo is the reference MVC, whiteboard the CRDT canvas, room the actor
+pattern, notes the collaborative text. Rejected: a minimal core with
+nothing to copy (every scaffold would re-derive the same wiring, badly).
+Cost: scaffold weight and trim burden — each demo is a unit the installer
+offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`,
+`credits`, `sounds`, `skins`) or a documented manual removal (`todo`,
+`notes`), and every demo rots if its pattern drifts from the core. Revisit
+per demo: anything nobody copies in real scaffolds is deletion candidate,
+not heritage.
+
 ## How the pieces combine
 
 The layers are not independent choices — they are designed to work together:
