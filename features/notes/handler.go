@@ -20,7 +20,6 @@ package notes
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -238,64 +237,29 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 		clientID = uuid.NewString()
 	}
 
-	flusher, ok := c.Response.(http.Flusher)
-	if !ok {
-		return c.String(http.StatusInternalServerError, "streaming unsupported")
-	}
-	c.Response.Header().Set("Content-Type", "text/event-stream")
-	c.Response.Header().Set("Cache-Control", "no-cache")
-	c.Response.Header().Set("Connection", "keep-alive")
-	c.Response.WriteHeader(http.StatusOK)
-	fmt.Fprintf(c.Response, ": connected %s\n\n", docID)
-	flusher.Flush()
-
-	ch := make(chan []byte, config.DefaultClientQueueSize)
-	h.hub.Register(clientID, "", ch)
-	defer func() {
-		h.hub.UnregisterIfCurrent(clientID, ch)
-		h.peerLeave(docID, clientID)
-	}()
-
-	// Presence: join to the others, authoritative count to everyone
-	// (including self, so a fresh tab seeds its pill without waiting).
-	h.peerJoin(docID, clientID)
-	if joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"}); mErr == nil {
-		h.hub.BroadcastExcept(joinMsg, clientID)
-	} else {
-		slog.Warn("notes: marshal join", "error", mErr)
-	}
-	h.broadcastPeerCount(docID)
-
-	if text := h.docs.GetOrCreate(docID).Text(); text != "" {
-		h.revsMu.Lock()
-		rev := h.revs[docID]
-		h.revsMu.Unlock()
-		if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text, Rev: rev}); err == nil {
-			fmt.Fprintf(c.Response, "data: %s\n\n", payload)
-			flusher.Flush()
-		}
-	}
-
-	// Heartbeat: SSE handlers only detect disconnects on write; without it
-	// a parked handler leaks a goroutine and a hub registration forever.
-	heartbeat := time.NewTicker(config.DefaultSSEHeartbeatInterval)
-	defer heartbeat.Stop()
-
-	ctx := c.Request.Context()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-heartbeat.C:
-			if _, err := fmt.Fprintf(c.Response, ": heartbeat\n\n"); err != nil {
-				return nil
+	return h.hub.ServeStream(c.Response, c.Request, clientID, docID,
+		func(send func([]byte) error) {
+			// Presence: join to the others, authoritative count to
+			// everyone (including self, so a fresh tab seeds its pill
+			// without waiting).
+			h.peerJoin(docID, clientID)
+			if joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"}); mErr == nil {
+				h.hub.BroadcastExcept(joinMsg, clientID)
+			} else {
+				slog.Warn("notes: marshal join", "error", mErr)
 			}
-			flusher.Flush()
-		case msg := <-ch:
-			fmt.Fprintf(c.Response, "data: %s\n\n", msg)
-			flusher.Flush()
-		}
-	}
+			h.broadcastPeerCount(docID)
+
+			if text := h.docs.GetOrCreate(docID).Text(); text != "" {
+				h.revsMu.Lock()
+				rev := h.revs[docID]
+				h.revsMu.Unlock()
+				if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text, Rev: rev}); err == nil {
+					_ = send(payload)
+				}
+			}
+		},
+		func() { h.peerLeave(docID, clientID) })
 }
 
 // handleOp applies one op batch: merge into the shared Doc, persist the

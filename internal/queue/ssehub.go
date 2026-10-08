@@ -3,8 +3,12 @@ package queue
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/calionauta/gogogo/config"
 )
@@ -277,6 +281,73 @@ func (h *SSEHub) BroadcastToUser(data []byte, userID, excludeClientID string) {
 			continue
 		}
 		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-user")
+	}
+}
+
+// ServeStream upgrades w to an SSE stream registered on the hub and pumps
+// hub events until r's context ends — the fan-out loop every collaborative
+// feature used to hand-roll (whiteboard, notes now share it). onConnect
+// runs after registration (join broadcasts, initial payload via send);
+// onDisconnect runs after unregister (leave broadcasts). Either may be
+// nil. Returns nil on context end or first failed write.
+//
+// Heartbeat: SSE handlers only detect disconnects on write; without the
+// ticker a parked handler leaks a goroutine and a hub registration
+// forever — the ticker write forces Go's HTTP server to notice the closed
+// connection and cancel the context.
+func (h *SSEHub) ServeStream(
+	w http.ResponseWriter, r *http.Request, clientID, streamTag string,
+	onConnect func(send func([]byte) error), onDisconnect func(),
+) error {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return errors.New("ssehub: streaming unsupported")
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, ": connected %s\n\n", streamTag)
+	flusher.Flush()
+
+	ch := make(chan []byte, config.DefaultClientQueueSize)
+	h.Register(clientID, "", ch)
+	defer func() {
+		h.UnregisterIfCurrent(clientID, ch)
+		if onDisconnect != nil {
+			onDisconnect()
+		}
+	}()
+
+	send := func(data []byte) error {
+		if _, err := fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+			return err
+		}
+		flusher.Flush()
+		return nil
+	}
+	if onConnect != nil {
+		onConnect(send)
+	}
+
+	heartbeat := time.NewTicker(config.DefaultSSEHeartbeatInterval)
+	defer heartbeat.Stop()
+
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-heartbeat.C:
+			if _, err := fmt.Fprintf(w, ": heartbeat\n\n"); err != nil {
+				return nil
+			}
+			flusher.Flush()
+		case msg := <-ch:
+			if err := send(msg); err != nil {
+				return nil
+			}
+		}
 	}
 }
 
