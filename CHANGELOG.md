@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [0.40.5] - 2026-10-08
+
+### Changed
+
+- **Presence identity is server-stamped everywhere.** Whiteboard
+  cursors showed spoofable random ids in one red; the server now stamps
+  the authed email (shared `collab.DisplayName` rule with notes) and
+  each client hashes it to a deterministic per-user color. Tests pin
+  attribution + anti-spoof on both features.
+- **Theme toggle wiring pinned by test** (single delegated owner, one
+  storage key) after the live dead-toggle diagnosis.
+
 ## [0.40.4] - 2026-10-08
 
 ### Fixed
