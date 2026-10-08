@@ -224,7 +224,7 @@
     <p class="kicker">What makes it different</p>
     <h2>Everything async your app will need.<br>Already inside.</h2>
     <p class="section-lede">Every web app eventually needs a queue, a workflow runtime, a
-    collaboration layer, and a realtime layer. They solve different problems, so
+    collaboration layer, a realtime layer, and an owner for shared state. They solve different problems, so
     gogogo compiles all of them into one build — and lets you switch each off with a
     single environment variable when you don't need it.</p>
 
@@ -258,6 +258,11 @@
         <p class="step">Broadcast across instances</p>
         <p class="tech">NATS JetStream</p>
         <p>Run two or more instances behind a load balancer and records converge. Safe to enable on one.</p>
+      </div>
+      <div class="card">
+        <p class="step">Room ownership without races</p>
+        <p class="tech">GoAkt grains</p>
+        <p>One addressable owner per room: heartbeat roster plus an exactly-one presenter lock, supervised with restart budget.</p>
       </div>
     </div>
 
