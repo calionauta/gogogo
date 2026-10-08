@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-08
+
 ### Changed
 
 - **Advise scope `native-kernel` renamed `exception-to-go`.** The old name

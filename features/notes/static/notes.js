@@ -83,9 +83,21 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ops: batch }),
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    }).then(function (r) {
+      if (!r.ok) {
+        // Poison batch (invalid ops — only producible via devtools, our
+        // UI only emits ins/del): drop it instead of retrying forever.
+        // Network failures reject below and keep the batch.
+        outbox = outbox.slice(batch.length);
+        saveOutbox();
+        flushing = false;
+        return null;
+      }
+      return r.json();
+    }).then(function (d) {
       flushing = false;
-      if (d && typeof d.text === "string") {
+      if (!d) return;
+      if (typeof d.text === "string") {
         outbox = outbox.slice(batch.length);
         saveOutbox();
         // Adopt the authoritative text when unfocused (peers may have
