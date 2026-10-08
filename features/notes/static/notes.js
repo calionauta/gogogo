@@ -87,10 +87,22 @@
     timer = setTimeout(sendDiff, 100);
     reportTyping();
     maybeCaret();
+    // Deliberately vanilla (not data-on:input__debounce): the timer,
+    // lastInputAt (idle adopt), typing and caret reports share one
+    // handler by design — splitting the timer into markup would scatter
+    // coupled state across two owners for zero protocol gain.
   });
   ta.addEventListener("scroll", function () { renderCarets(); }, { passive: true });
   window.addEventListener("resize", function () { renderCarets(); });
   document.addEventListener("selectionchange", function () { maybeCaret(); });
+
+  // Heartbeat re-announce (OT-demo lesson): an idle peer's dot must not
+  // age out while they're still here — force a resend every 5s when the
+  // page is visible. The shared throttle keeps it to one POST; expiry
+  // stays the disconnect detector.
+  setInterval(function () {
+    if (!document.hidden) { caretSent = -1; maybeCaret(); }
+  }, 5000);
 
   // Remote carets ("who is where"): peers report {line, pos}; each browser
   // maps the offset to ITS OWN pixels via mirror-div (computed font metrics
@@ -137,7 +149,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ line: line, pos: pos }),
     }).catch(function () { /* ephemeral */ });
-  }, 800);
+  }, 500);
   function maybeCaret() {
     if (document.activeElement !== ta) return;
     const pos = ta.selectionStart || 0;

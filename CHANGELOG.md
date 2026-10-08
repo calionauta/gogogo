@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [0.40.3] - 2026-10-08
+
+### Fixed
+
+- **Caret cadence + idle presence.** Reports at 500ms with a 5s
+  heartbeat re-announce (OT-demo lesson), so idle peers stop aging out
+  and active carets track typing instead of freezing between throttle
+  windows.
+
 ## [0.40.2] - 2026-10-08
 
 ### Fixed
