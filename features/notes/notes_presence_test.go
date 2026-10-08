@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"strings"
 	"testing"
 	"time"
@@ -135,7 +136,7 @@ func TestNotesCaretRelay(t *testing.T) {
 	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
 		line, _ := msg["x"].(float64)
 		pos, _ := msg["y"].(float64)
-		return msg["type"] == "caret" && msg["user"] == "cliA" && line == 5 && pos == 17
+		return msg["type"] == "caret" && msg["user"] == notesEmail && line == 5 && pos == 17
 	})
 }
 
@@ -319,7 +320,8 @@ func TestNotesConcurrentBatchesMerge(t *testing.T) {
 	}
 }
 
-// postTyping sends a typing state as clientID.
+// postTyping sends a typing state as clientID (any client: authed or
+// anonymous — the server falls back to the raw id without auth).
 func postTyping(t *testing.T, client *http.Client, baseURL, docID, clientID string, typing bool) int {
 	t.Helper()
 	body := `{"typing":false}`
@@ -357,14 +359,14 @@ func TestNotesTypingBroadcast(t *testing.T) {
 		t.Fatalf("typing status = %d", code)
 	}
 	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
-		return msg["type"] == "typing" && msg["user"] == "cliA"
+		return msg["type"] == "typing" && msg["user"] == notesEmail
 	})
 
 	if code := postTyping(t, client, baseURL, docID, "cliA", false); code != http.StatusOK {
 		t.Fatalf("stopped status = %d", code)
 	}
 	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
-		return msg["type"] == "stopped" && msg["user"] == "cliA"
+		return msg["type"] == "stopped" && msg["user"] == notesEmail
 	})
 }
 
@@ -383,7 +385,7 @@ func TestNotesPresenceJoinCount(t *testing.T) {
 	defer closeC()
 
 	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
-		return msg["type"] == "join" && msg["user"] == "cliC"
+		return msg["type"] == "join" && msg["user"] == notesEmail
 	})
 	msg := waitNoteEvent(t, gotB, func(msg map[string]any) bool {
 		return msg["type"] == "count" && containsAll(peerIDs(msg), "cliB", "cliC")
@@ -411,7 +413,7 @@ func TestNotesPresenceLeave(t *testing.T) {
 	closeC()
 
 	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
-		return msg["type"] == "leave" && msg["user"] == "cliC"
+		return msg["type"] == "leave" && msg["user"] == notesEmail
 	})
 	msg := waitNoteEvent(t, gotB, func(msg map[string]any) bool {
 		return msg["type"] == "count" && !containsAll(peerIDs(msg), "cliC")
@@ -419,4 +421,61 @@ func TestNotesPresenceLeave(t *testing.T) {
 	if !containsAll(peerIDs(msg), "cliB") {
 		t.Fatalf("count after leave = %v, want cliB present", peerIDs(msg))
 	}
+}
+
+// TestNotesStreamReceivesText pins live fan-out: B's open stream must
+// receive A's op as a note-text event (exclude-origin: A gets nothing).
+func TestNotesStreamReceivesText(t *testing.T) {
+	baseURL, _, cleanup := notesFixture(t)
+	defer cleanup()
+	client := notesAuthedClient(t, baseURL)
+	docID := "note-stream"
+
+	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	defer closeB()
+
+	postOp(t, client, baseURL, docID, "cliA", `{"base":0,"ops":[{"t":"ins","i":0,"s":"live text"}]}`)
+
+	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+		return msg["type"] == "note-text" && msg["text"] == "live text" && msg["from"] == notesEmail
+	})
+}
+
+// TestNotesInsertClampsToEnd pins append-on-overflow instead of an error:
+// positions shift under concurrency, so the server serializes with clamps.
+func TestNotesInsertClampsToEnd(t *testing.T) {
+	baseURL, _, cleanup := notesFixture(t)
+	defer cleanup()
+	client := notesAuthedClient(t, baseURL)
+	docID := "note-clamp"
+
+	_, out := postOp(t, client, baseURL, docID, "cliA", `{"base":0,"ops":[{"t":"ins","i":999,"s":"hi"}]}`)
+	if out["text"] != "hi" {
+		t.Fatalf("clamped insert: text = %v", out["text"])
+	}
+}
+
+// TestNotesPresenceFallsBackToClientID pins the display-name contract's
+// other branch: without auth there is no email, so events carry the raw
+// clientID instead of an empty user.
+func TestNotesPresenceFallsBackToClientID(t *testing.T) {
+	baseURL, _, cleanup := notesFixture(t)
+	defer cleanup()
+	client := notesAuthedClient(t, baseURL)
+	docID := "note-fallback"
+
+	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	defer closeB()
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar: %v", err)
+	}
+	anon := &http.Client{Jar: jar}
+	if code := postTyping(t, anon, baseURL, docID, "anonX", true); code != http.StatusOK {
+		t.Fatalf("anon typing status = %d", code)
+	}
+	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+		return msg["type"] == "typing" && msg["user"] == "anonX"
+	})
 }

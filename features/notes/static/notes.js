@@ -34,13 +34,18 @@
   const typing = document.getElementById("typing-pill");
   if (!ta) return;
 
-  // Grey-unconfirmed: text the server has not confirmed yet renders dimmed.
-  // Confirmation is the POST 200 below — nothing claims a state the server
-  // has not accepted (same honesty rule as the OT demo's grey text, but
-  // driven by our own round-trip instead of an OT verdict). aria-busy
-  // carries the same state programmatically (opacity alone is not enough
-  // for forced-colors / screen-reader users).
-  function setPending(on) { ta.style.opacity = on ? "0.55" : ""; ta.setAttribute("aria-busy", on ? "true" : "false"); }
+  // Pending state: a textarea cannot style ranges, so per-character
+  // grey ("only unsynced letters dimmed") is impossible without
+  // contenteditable — and swapping the editor for a status light would
+  // trade a simple honest control for a rich-text project. The truthful
+  // signal here is the save pill (saving… → last round-trip), plus
+  // aria-busy for assistive tech. Whole-text dimming was tried and
+  // removed: it punished the typist for the transport's latency.
+  let lastRTT = "";
+  function setPending(on) {
+    ta.setAttribute("aria-busy", on ? "true" : "false");
+    if (rtt) rtt.textContent = on ? "saving…" : lastRTT;
+  }
 
   // Convergence model: serverText/REV track the last AUTHORITATIVE state
   // (page render, then every 200/409/stream event). Diffs always compute
@@ -170,11 +175,30 @@
       dot.style.position = "absolute";
       dot.style.left = Math.round(x) + "px";
       dot.style.top = Math.round(y) + "px";
-      dot.style.width = "2px";
-      dot.style.height = Math.max(10, Math.round(p.h)) + "px";
+      dot.style.width = "3px";
+      dot.style.height = Math.max(12, Math.round(p.h)) + "px";
       dot.style.background = peerColor(user);
       dot.style.boxShadow = "0 0 0 1px rgba(255,255,255,.7)";
       layer.appendChild(dot);
+      // Name flag in the caret's own color, floating above the line —
+      // the balloon: who, exactly where. pointer-events none so it never
+      // eats clicks meant for the textarea.
+      const flag = document.createElement("span");
+      flag.textContent = user;
+      flag.title = user + " · line " + c.line;
+      flag.style.position = "absolute";
+      flag.style.left = Math.round(x) + "px";
+      flag.style.top = Math.round(y) + "px";
+      flag.style.transform = "translate(2px,-100%)";
+      flag.style.background = peerColor(user);
+      flag.style.color = "#fff";
+      flag.style.fontSize = "10px";
+      flag.style.lineHeight = "1.4";
+      flag.style.padding = "0 5px";
+      flag.style.borderRadius = "4px";
+      flag.style.whiteSpace = "nowrap";
+      flag.style.pointerEvents = "none";
+      layer.appendChild(flag);
     });
   }
   ta.addEventListener("blur", function () {
@@ -322,7 +346,7 @@
         outbox = rest.length ? [{ ops: rest, base: REV }] : [];
         saveOutbox();
         clean = !outbox.length;
-        if (t0 && rtt) rtt.textContent = "· " + Math.round(performance.now() - t0) + "ms";
+        if (t0 && rtt) { lastRTT = "· " + Math.round(performance.now() - t0) + "ms"; rtt.textContent = lastRTT; }
         adoptRemote(d.text, d.rev);
         net.classList.add("hidden");
         if (outbox.length) flush();

@@ -62,6 +62,19 @@ type NoteTextEvent struct {
 	Rev  uint64 `json:"rev"`
 }
 
+// displayName resolves the human identity for presence: the authed email
+// when signed in (what two demo accounts make visible), else the raw
+// clientID. Peer sets stay keyed by clientID (connections); only display
+// uses the email.
+func displayName(c *core.RequestEvent, clientID string) string {
+	if c.Auth != nil {
+		if email := c.Auth.Email(); email != "" {
+			return email
+		}
+	}
+	return clientID
+}
+
 // opRequest is one POST body: an ordered batch of character ops applied
 // atomically under the doc mutex. Base is the server revision the client
 // computed positions against; a mismatch means the doc advanced underneath
@@ -92,6 +105,12 @@ type Handler struct {
 
 	peers *collab.PeerSet
 
+	// peerNames maps clientID → display name (authed email, else the id).
+	// peerLeave runs from deferred cleanup without the request, so the
+	// name is captured at join time; entries die with the leave.
+	peerNamesMu sync.Mutex
+	peerNames   map[string]string
+
 	// revs is the per-doc batch counter backing optimistic concurrency.
 	// Every accepted op batch bumps it; ops carry the base they were
 	// computed against. Memory-only on purpose: after a restart every
@@ -120,6 +139,7 @@ func New(
 		persister: persister,
 		nc:        nc,
 		peers:     collab.NewPeerSet(),
+		peerNames: make(map[string]string),
 		revs:      make(map[string]uint64),
 	}
 }
@@ -236,6 +256,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 	if clientID == "" {
 		clientID = uuid.NewString()
 	}
+	h.setPeerName(clientID, displayName(c, clientID))
 
 	return h.hub.ServeStream(c.Response, c.Request, clientID, docID,
 		func(send func([]byte) error) {
@@ -243,7 +264,9 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 			// everyone (including self, so a fresh tab seeds its pill
 			// without waiting).
 			h.peerJoin(docID, clientID)
-			if joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"}); mErr == nil {
+			joinUser := displayName(c, clientID)
+			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: joinUser, Type: "join"})
+			if mErr == nil {
 				h.hub.BroadcastExcept(joinMsg, clientID)
 			} else {
 				slog.Warn("notes: marshal join", "error", mErr)
@@ -302,7 +325,7 @@ func (h *Handler) handleOp(c *core.RequestEvent) error {
 			"rev":   current,
 		})
 	}
-	text, err := h.applyOps(docID, from, req.Ops, current+1)
+	text, err := h.applyOps(docID, from, displayName(c, from), req.Ops, current+1)
 	if err != nil {
 		h.revsMu.Unlock()
 		return c.String(http.StatusBadRequest, "apply op: "+err.Error())
@@ -360,7 +383,7 @@ func (h *Handler) handleTyping(c *core.RequestEvent) error {
 	}
 	if err := h.relay(from, collab.PresenceMsg{
 		Doc:  docID,
-		User: from,
+		User: displayName(c, from),
 		Type: typ,
 		TS:   time.Now().UnixMilli(),
 	}); err != nil {
@@ -409,7 +432,7 @@ func (h *Handler) handleCaret(c *core.RequestEvent) error {
 	}
 	if err := h.relay(from, collab.PresenceMsg{
 		Doc:  docID,
-		User: from,
+		User: displayName(c, from),
 		Type: "caret",
 		X:    float64(req.Line),
 		Y:    float64(req.Pos),
@@ -424,7 +447,7 @@ func (h *Handler) handleCaret(c *core.RequestEvent) error {
 // fans out to NATS (server convergence) and to the hub (live peers).
 // rev is the revision this batch will carry (already reserved by the
 // caller); on error nothing is broadcast and rev stays unbumped.
-func (h *Handler) applyOps(docID, from string, ops []collab.TextOp, rev uint64) (string, error) {
+func (h *Handler) applyOps(docID, from, who string, ops []collab.TextOp, rev uint64) (string, error) {
 	d := h.docs.GetOrCreate(docID)
 	since := d.StateVersion()
 	var text string
@@ -441,7 +464,7 @@ func (h *Handler) applyOps(docID, from string, ops []collab.TextOp, rev uint64) 
 		}
 	}
 	payload, err := json.Marshal(NoteTextEvent{
-		Type: wireNoteText, Doc: docID, From: from, Text: text, Rev: rev,
+		Type: wireNoteText, Doc: docID, From: who, Text: text, Rev: rev,
 	})
 	if err != nil {
 		slog.Warn("notes: marshal text", "doc", docID, "error", err)

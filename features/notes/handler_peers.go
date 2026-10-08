@@ -18,6 +18,25 @@ func (h *Handler) peerJoin(docID, clientID string) []string {
 	return h.peers.Join(docID, clientID)
 }
 
+// setPeerName captures the display name for a clientID; peerLeave runs
+// without the request, so without this the leave event could not carry
+// the same identity the join announced.
+func (h *Handler) setPeerName(clientID, name string) {
+	h.peerNamesMu.Lock()
+	defer h.peerNamesMu.Unlock()
+	h.peerNames[clientID] = name
+}
+
+// peerNameOf returns the captured display name, falling back to the id.
+func (h *Handler) peerNameOf(clientID string) string {
+	h.peerNamesMu.Lock()
+	defer h.peerNamesMu.Unlock()
+	if name, ok := h.peerNames[clientID]; ok {
+		return name
+	}
+	return clientID
+}
+
 // peerLeave removes clientID from docID's peer set and broadcasts a
 // "leave" plus a recount. Skipped when the clientID re-registered during
 // an EventSource reconnect.
@@ -26,7 +45,11 @@ func (h *Handler) peerLeave(docID, clientID string) {
 		return
 	}
 	h.peers.Leave(docID, clientID)
-	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "leave"})
+	name := h.peerNameOf(clientID)
+	h.peerNamesMu.Lock()
+	delete(h.peerNames, clientID)
+	h.peerNamesMu.Unlock()
+	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, Type: "leave"})
 	if lErr != nil {
 		slog.Warn("notes: marshal leave", "error", lErr)
 		return
