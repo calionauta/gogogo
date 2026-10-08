@@ -24,7 +24,7 @@ Go + template rules only. Universal principles (KISS, DRY, LoB/SoC, YAGNI, sizes
 
 ## When to Use
 
-Activate when: editing any `.go` file, spawning a goroutine, creating a channel, touching `context.Context`, running `golangci-lint`/`go test`, touching `.templ`, profiling, or proposing SIMD/Zig. Do not activate for copy writing, landing-page CSS, or release notes.
+Activate when: editing any `.go` file, spawning a goroutine, creating a channel, touching `context.Context`, running `golangci-lint`/`go test`, touching `.templ`, profiling, proposing SIMD/Zig, or spawning an actor / writing a supervision policy. Do not activate for copy writing, landing-page CSS, or release notes.
 
 ## Start here (this file is long; read only what you need)
 
@@ -32,6 +32,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 |---|---|
 | Writing or reviewing ordinary Go | **Core Go Rules** |
 | Goroutines, channels, `context`, shutdown, lifecycle | **Concurrency (deltas)** + `references/go-concurrency-deltas.md` |
+| Spawning actors, supervision, per-entity state | **Entity actors (GoAkt)** |
 | Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
@@ -96,6 +97,21 @@ Full table: `references/go-concurrency-deltas.md`.
 - Mutex zero value, unexported `mu`, short sections, never across I/O. Counters/flags: typed `atomic.*`.
 - Writes into a tree you don't fully control: `os.Root` (`os.OpenRoot`), not a lexical path check — a planted symlink defeats `filepath.Join` + `HasPrefix`. See `internal/installer/tree.go`.
 - Tests: `goleak` for leaks (never `runtime.NumGoroutine()`), `synctest.Test`/`Wait`/`Sleep` for timers. Prod leaks: `goroutineleak` pprof (GA 1.27), not a test substitute.
+
+## Entity actors (GoAkt)
+
+Reference implementation: `internal/goakt/` (room grains) + demo page
+`features/room/`. Business fit: `docs/use-cases.md` (`goakt`, `room`
+entries); discovery: `room-authority` advise preset.
+
+- One grain per entity, turn-based: no mutex inside `Receive`, ever.
+- State is soft unless persisted on purpose: roster rebuilds from
+  heartbeats after a restart — generation counter proves it.
+- Supervision is explicit: `WithAnyErrorDirective` + `WithRetry` budget
+  at spawn; budget exhaustion stops (fail-closed), it never retries
+  forever. Crash hooks (`RoomCrash`-style) must exist to prove it.
+- Standalone only: no placement, no cluster, no grain persistence
+  claims. Cross-process entities are out of scope for this unit.
 
 ## Performance
 

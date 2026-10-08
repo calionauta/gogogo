@@ -125,5 +125,5 @@ the onboarding workflow, session token in a `0600` file (no OS keyring).
 
 ## Related
 
-- [Six async layers](async-layers.md) — where Leaf Node and CRDT fit.
+- [Seven async layers](async-layers.md) — where Leaf Node and CRDT fit.
 - [Configuration](configuration.md) — `NATS_LEAFNODE_URL`.

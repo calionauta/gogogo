@@ -32,13 +32,13 @@ The manual lives on the site, not in this file:
 One-liners mirror the docs site manifest (`site/build.mjs`).
 
 **Get started**
-- [overview](docs/overview.md) — what gogogo is, who it is for, and the six async layers it ships.
+- [overview](docs/overview.md) — what gogogo is, who it is for, and the seven async layers it ships.
 - [getting-started](docs/getting-started.md) — clone, run, first five minutes, and the commands you need.
 
 **Core**
 - [architecture](docs/architecture.md) — directory layout, dependency direction, entry points, and route wiring gotchas.
 - [stack-layers](docs/stack-layers.md) — every dependency and why it is in the box.
-- [async-layers](docs/async-layers.md) — the six async layers, PB realtime vs SSE Hub, cross-instance and offline sync.
+- [async-layers](docs/async-layers.md) — the seven async layers, PB realtime vs SSE Hub, cross-instance and offline sync.
 - [features](docs/features.md) — every capability and its runtime opt-out.
 - [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
 - [configuration](docs/configuration.md) — every environment variable and runtime constant.
@@ -133,7 +133,7 @@ Full table with the reasoning behind each choice:
 
 ## Everything async your app will need
 
-Six complementary layers, already inside, each with its own opt-out:
+Seven complementary layers, already inside, each with its own opt-out:
 
 ```
 Background jobs that update the UI   → goqite + SSE Hub (always on)
@@ -142,6 +142,7 @@ Collaboration without data loss      → Loro CRDT (remove internal/collab/)
 Live record updates, scoped per user → PB realtime (always on)
 Ephemeral UI signals                 → SSE Hub via Datastar (always on)
 Broadcast across instances           → JetStream (NATS_ENABLED=false)
+Room ownership without races         → GoAkt grains (GOAKT_ENABLED=false)
 ```
 
 Records flow through PocketBase's own realtime channel — scoped per user by the
@@ -161,6 +162,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | AI Suggest via GoAI, or keyless simulated LLM for the demo | no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
 | AI credits + BYOK relay + Stripe top-ups | `CREDITS_ENABLED=false` |
 | Collaborative whiteboard (CRDT + presence + offline outbox) | delete `features/whiteboard/` |
+| Room presence demo (GoAkt grains: roster + presenter lock) | delete `features/room/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
 | Hybrid offline sync (Service Worker + Leaf Node) | `OFFLINE_SYNC_ENABLED=false` |
 | Pluggable persistence (`pb` ⇄ `crdt`) | `ENTITY_STORE=pb` |

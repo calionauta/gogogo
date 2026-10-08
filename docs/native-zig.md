@@ -26,7 +26,7 @@ and none should be added without a concrete use case that passes the
   and agents. Every new language doubles the cognitive surface.
 - **The stack already covers the hard parts.** Database, auth, realtime,
   jobs, workflows, CRDT sync, LLM client — see
-  [Stack in layers](stack-layers.md) and [Six async layers](async-layers.md).
+  [Stack in layers](stack-layers.md) and [Seven async layers](async-layers.md).
   Most "we need native" instincts are really "we haven't checked what Go or
   gogogo already ships."
 

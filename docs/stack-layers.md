@@ -2,7 +2,7 @@
 
 Everything you need to build a modern web app, in a single binary. This page
 explains **why each choice is here**; for the layered async topology see
-[Six async layers](async-layers.md).
+[Seven async layers](async-layers.md).
 
 | Layer | Choice | Why |
 |-------|--------|-----|

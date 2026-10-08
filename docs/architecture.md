@@ -117,6 +117,6 @@ See [Scope taxonomy](scope-taxonomy.md) for the full rules.
 ## Related
 
 - [Stack in layers, not silos](stack-layers.md) — what each dependency is for.
-- [Six async layers](async-layers.md) — the realtime and async topology.
+- [Seven async layers](async-layers.md) — the realtime and async topology.
 - [Configuration](configuration.md) — where constants live and why.
 - [Native boundary](native-zig.md) — Go-first policy and the Zig escape hatch.

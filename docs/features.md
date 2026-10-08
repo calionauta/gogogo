@@ -56,6 +56,6 @@ from `router/router.go` → `Init()`, and — if it was a plugin — remove the
 
 ## Related
 
-- [Six async layers](async-layers.md) — the topology behind these capabilities.
+- [Seven async layers](async-layers.md) — the topology behind these capabilities.
 - [The Todo example](todo-example.md) — the pattern to imitate.
 - [Desktop & Mobile](desktop-mobile.md) — two more frontends over the same backend.

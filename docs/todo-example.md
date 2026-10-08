@@ -88,5 +88,5 @@ remain — migrating titles to `metadata` would hand every step all three.)
 ## Related
 
 - [Features](features.md)
-- [Six async layers](async-layers.md) — why PB realtime and not the SSE Hub for CRUD.
+- [Seven async layers](async-layers.md) — why PB realtime and not the SSE Hub for CRUD.
 - [Adding your own feature](getting-started.md#adding-your-own-feature)

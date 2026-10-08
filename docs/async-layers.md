@@ -1,13 +1,14 @@
-# Six async layers
+# Seven async layers
 
 Most templates force you to pick **one** async strategy — usually a queue,
 sometimes a workflow runtime, rarely both. As your app grows you will hit
 problems that **each** of these solves: a **queue** for background jobs, a
 **workflow runtime** for durable multi-step processes, a **collaboration
-layer** for conflict-free state merging, and a **real-time layer** for
-cross-client state.
+layer** for conflict-free state merging, a **real-time layer** for
+cross-client state, and an **entity layer** when exactly one owner must
+decide (a lock, a turn, a roster).
 
-This template ships all six in one unified build. Use what you need; the rest
+This template ships all seven in one unified build. Use what you need; the rest
 sits dormant until you don't.
 
 ```
@@ -17,6 +18,7 @@ Loro CRDT    → collaborative docs with offline merges (remove internal/collab/
 PB realtime  → record-change push via PB's native /api/realtime (always on, per-user scoped)
 SSE Hub      → ephemeral signals via Datastar protocol (always on, part of queue)
 JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_ENABLED=false)
+GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
 ```
 
 ## Two realtime mechanisms for different jobs
@@ -91,6 +93,19 @@ broadcast. `clear` takes no version because it cannot conflict.
 Note the scope: the canvas today only *adds* shapes, so this was not yet
 reachable from the UI — it becomes load-bearing as soon as shapes can be moved or
 resized.
+
+## Entity-addressed messaging owns what converging cannot
+
+Broadcast converges data; it never elects an owner. When two browsers grab
+the same presenter lock, a KV put races and pub/sub duplicates — the grain
+serializes: one room, one mailbox, exactly one winner, by construction.
+
+A grain (`internal/goakt/`) holds a heartbeat roster plus the lock,
+supervised with a restart budget and passivated when idle. Roster state is
+soft (rebuilt from heartbeats, never persisted — see the durability table
+below). The `/room/` demo exercises the whole loop including a crash hook;
+copy the grain pattern for per-entity features. Standalone only: no
+placement, no cluster — cross-process entities are out of scope.
 
 ## The opt-out rules
 

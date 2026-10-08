@@ -47,7 +47,7 @@ documents how to change or remove each piece.
 
 ## What makes it different
 
-Most templates force you to pick **one** async strategy. This one ships **six**
+Most templates force you to pick **one** async strategy. This one ships **seven**
 complementary layers in a single build and lets you opt out at runtime:
 
 | Layer | Solves |
@@ -58,8 +58,9 @@ complementary layers in a single build and lets you opt out at runtime:
 | PocketBase realtime | per-user-scoped record-change push |
 | SSE Hub | ephemeral signals over the Datastar protocol |
 | JetStream | cross-instance broadcast and state |
+| GoAkt grains | one addressable owner per room (roster, locks, supervision) |
 
-See [Six async layers](async-layers.md) for why each exists and when you
+See [Seven async layers](async-layers.md) for why each exists and when you
 should disable it, and [Stack in layers, not silos](stack-layers.md) for the
 full dependency picture.
 

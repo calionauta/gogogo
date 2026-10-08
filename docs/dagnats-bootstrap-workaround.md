@@ -147,7 +147,7 @@ neither touches the raising call).
 
 ## Related
 
-- [Async layers](async-layers.md) — where DagNats sits among the six layers.
+- [Async layers](async-layers.md) — where DagNats sits among the seven layers.
 - [Troubleshooting](troubleshooting.md) — other first-run failures.
 - [Configuration](configuration.md) — `DAGNATS_TRIGGER_BOOTSTRAP` and the rest
   of the DagNats settings.
