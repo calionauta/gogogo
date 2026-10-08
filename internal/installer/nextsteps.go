@@ -17,7 +17,7 @@ func buildNextSteps(dir string, dropped []trimUnit) nextSteps {
 		Dev:   "cd " + dir + " && make dev",
 		App:   "http://localhost:8080 (PORT overrides)",
 		Todo:  "http://localhost:8080/todo",
-		Login: "demo@demo.app / demo1234456 (prefilled on the sign-in form)",
+		Login: "demo1@demo.app and demo2@demo.app / demo1234456 (demo1 prefilled; open a second browser for contention)",
 		Admin: "http://localhost:8080/_/ (PocketBase — create the superuser on first visit)",
 		Flows: "http://localhost:8080/dagnats/ (DagNats console)",
 	}

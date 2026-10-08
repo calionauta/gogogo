@@ -18,7 +18,8 @@ import (
 // exposing the app to the internet. Left as exported vars so a
 // downstream project can swap them from cmd/web/main.go.
 var (
-	DemoUserEmail    = "demo@demo.app"
+	DemoUserEmail    = "demo1@demo.app"
+	DemoUserEmail2   = "demo2@demo.app"
 	DemoUserPassword = "demo1234456"
 )
 
@@ -294,15 +295,34 @@ func ensureDemoUser(app core.App) error {
 		if saveErr := app.Save(existing); saveErr != nil {
 			return saveErr
 		}
+	} else {
+		record := core.NewRecord(col)
+		record.SetEmail(DemoUserEmail)
+		record.SetPassword(DemoUserPassword)
+		if saveErr := app.Save(record); saveErr != nil {
+			return saveErr
+		}
+		slog.Info("seed: created demo user", "email", DemoUserEmail)
+	}
+	// Second demo account: contention (room lock), per-user isolation
+	// (todo owner rules) and authorship (whiteboard) need two distinct
+	// logins. Same password, same refresh rule. One cookie per browser
+	// profile, so the two accounts meet across browsers, incognito
+	// windows, or devices — never two tabs in one browser.
+	if existing, err := app.FindAuthRecordByEmail(col.Name, DemoUserEmail2); err == nil && existing != nil {
+		existing.SetPassword(DemoUserPassword)
+		if saveErr := app.Save(existing); saveErr != nil {
+			return saveErr
+		}
 		return nil
 	}
 	record := core.NewRecord(col)
-	record.SetEmail(DemoUserEmail)
+	record.SetEmail(DemoUserEmail2)
 	record.SetPassword(DemoUserPassword)
 	if saveErr := app.Save(record); saveErr != nil {
 		return saveErr
 	}
-	slog.Info("seed: created demo user", "email", DemoUserEmail)
+	slog.Info("seed: created demo user", "email", DemoUserEmail2)
 	return nil
 }
 

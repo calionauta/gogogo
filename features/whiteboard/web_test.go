@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	wbEmail    = "demo@demo.app"
+	wbEmail    = "demo1@demo.app"
 	wbPassword = "demo1234456"
 )
 

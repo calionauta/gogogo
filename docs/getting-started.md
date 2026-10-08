@@ -79,7 +79,7 @@ project's dev loop stays yours):
 gogogo: done — next:
   cd my-app && make dev
   app:       http://localhost:8080 (PORT overrides)
-  login:     demo@demo.app / demo1234456 (prefilled on the sign-in form)
+  login:     demo1@demo.app / demo1234456 (prefilled; demo2 same password — second browser for contention)
   admin:     http://localhost:8080/_/ (PocketBase — create the superuser on first visit)
   workflows: http://localhost:8080/dagnats/ (DagNats console)
 ```
@@ -188,8 +188,8 @@ make dev
 ```
 
 Open `http://localhost:8080` for the landing page, then
-`http://localhost:8080/todo` for the demo — sign in with the seeded
-`demo@demo.app` / `demo1234456`.
+`http://localhost:8080/todo` for the demo — sign in with a seeded account
+(`demo1@demo.app` / `demo1234456`; `demo2@demo.app` takes the same password).
 
 > The default port is `8080` (override with `PORT`). The default branch is
 > `master`.
@@ -224,8 +224,9 @@ everything — the unified build era means you never pass `-tags`.
 1. `make dev` — the binary boots with PocketBase + goqite + SSE Hub + DagNats +
    NATS, and seeds the demo user and collections on first run.
 2. Open `/` — public landing page, no auth.
-3. Open `/todo` — sign in as `demo@demo.app` / `demo1234456`, add a todo, and watch it
-   stream through PocketBase realtime.
+3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
+   stream through PocketBase realtime. (`demo2@demo.app`, same password, keeps
+   a separate todo list — per-user isolation you can verify in a second browser.)
 4. Open `/config` — auth-gated read-only view of what the binary decided:
    env-decrypted values, masked secrets, runtime constants.
 5. Open `/whiteboard` — collaborative canvas; open it in a second window to

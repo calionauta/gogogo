@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	roomEmail    = "demo@demo.app"
+	roomEmail    = "demo1@demo.app"
 	roomPassword = "demo1234456"
 	roomEmail2   = "demo2@demo.app"
 )

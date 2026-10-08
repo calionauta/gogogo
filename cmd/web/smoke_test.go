@@ -43,7 +43,7 @@ func freeTCPPortForTest() (int, error) {
 // it 303-redirects to /login, so any assertion about its HTML must run against
 // a logged-in client.
 const (
-	demoEmail    = "demo@demo.app"
+	demoEmail    = "demo1@demo.app"
 	demoPassword = "demo1234456"
 )
 

@@ -6399,6 +6399,78 @@
       max-width: 96rem;
     }
   }
+  @layer daisyui.l1.l2.l3 {
+    .divider {
+      display: flex;
+      height: calc(0.25rem * 4);
+      flex-direction: row;
+      align-items: center;
+      align-self: stretch;
+      white-space: nowrap;
+      margin: var(--divider-m, 1rem 0);
+      --divider-color: var(--color-base-content);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .divider {
+        --divider-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+      }
+    }
+    .divider:before {
+      content: "";
+      height: calc(0.25rem * 0.5);
+      width: 100%;
+      flex-grow: 1;
+      background-color: var(--divider-color);
+    }
+    @media print {
+      .divider:before {
+        border: 0.5px solid;
+      }
+    }
+    .divider:after {
+      content: "";
+      height: calc(0.25rem * 0.5);
+      width: 100%;
+      flex-grow: 1;
+      background-color: var(--divider-color);
+    }
+    @media print {
+      .divider:after {
+        border: 0.5px solid;
+      }
+    }
+    .divider:not(:empty) {
+      gap: calc(0.25rem * 4);
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .divider-horizontal.divider {
+      height: auto;
+      width: calc(0.25rem * 4);
+      flex-direction: column;
+    }
+    .divider-horizontal.divider:before {
+      height: 100%;
+      width: calc(0.25rem * 0.5);
+    }
+    .divider-horizontal.divider:after {
+      height: 100%;
+      width: calc(0.25rem * 0.5);
+    }
+    .divider-vertical.divider {
+      height: calc(0.25rem * 4);
+      width: auto;
+      flex-direction: row;
+    }
+    .divider-vertical.divider:before {
+      height: calc(0.25rem * 0.5);
+      width: 100%;
+    }
+    .divider-vertical.divider:after {
+      height: calc(0.25rem * 0.5);
+      width: 100%;
+    }
+  }
   .mx-1 {
     margin-inline: var(--spacing);
   }

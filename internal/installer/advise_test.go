@@ -126,7 +126,7 @@ func TestAdviseTextStatesGoFirstRule(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Zig", "--features whiteboard",
-		"demo@demo.app / demo1234456", "/dagnats/", "docs/use-cases",
+		"demo1@demo.app", "/dagnats/", "docs/use-cases",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("advise text missing %q", want)

@@ -102,7 +102,7 @@ This command needs Go and git (checked up front) — or curl + git via the
 binary install in [CLI & MCP](#cli--mcp-agent-paths) below, where
 `install.sh` bootstraps Go when missing. Open `http://localhost:8080`
 for the landing page, then `http://localhost:8080/todo` for the demo
-(sign in with the seeded `demo@demo.app` / `demo1234456`).
+(sign in with the seeded `demo1@demo.app` / `demo1234456`; `demo2@demo.app` takes the same password for two-user contention).
 
 > `make rename` only rewrites **this** project's identity. Sibling repos under
 the same owner (`ai-credits`, `datastar-lint`, `pi-leakguard`) are real
@@ -201,9 +201,11 @@ Full taxonomy and per-package removal table:
 | **Live PocketBase admin** | [gogogo.calionauta.com/_/](https://gogogo.calionauta.com/_/) |
 | **Durable workflow console (DagNats)** | [gogogo.calionauta.com/dagnats/](https://gogogo.calionauta.com/dagnats/) |
 
-Sign in with `demo@demo.app` / `demo1234456`. The demo's `users` collection is locked —
-you can log in as the demo user but cannot create or delete accounts through the
-API or the dashboard (only the superuser can).
+Sign in as `demo1@demo.app` / `demo1234456` (`demo2@demo.app` takes the same
+password — open a second browser or incognito window to be both at once and
+prove contention, per-user todos, and authorship). The demo's `users`
+collection is locked — you can log in as the demo users but cannot create
+or delete accounts through the API or the dashboard (only the superuser can).
 
 ## Commands
 

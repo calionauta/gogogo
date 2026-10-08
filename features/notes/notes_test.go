@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	notesEmail    = "demo@demo.app"
+	notesEmail    = "demo1@demo.app"
 	notesPassword = "demo1234456"
 )
 

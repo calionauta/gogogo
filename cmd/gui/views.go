@@ -75,7 +75,7 @@ func loginView(d uiDeps, snap windowSnapshot) widget.Widget {
 		primitives.Text("gogogo — native").FontSize(titleFontSize).Bold().
 			Color(inkText),
 		textfield.New(
-			textfield.Placeholder("demo@demo.app"),
+			textfield.Placeholder("demo1@demo.app"),
 			textfield.InputTypeOpt(textfield.TypeEmail),
 			textfield.ValueSignal(emailSig),
 			textfield.OnChange(func(v string) { s.setEmail(v) }),

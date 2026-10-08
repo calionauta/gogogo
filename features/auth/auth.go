@@ -25,7 +25,7 @@
 // to "simplify" away. BEST PRACTICE: run the admin UI on a separate
 // origin/port (e.g. :8090/_/) so even pb_auth never collides.
 //
-// The demo user (demo@demo.app / demo1234456) is seeded by
+// The demo user (demo1@demo.app / demo1234456) is seeded by
 // db.SeedDefaults on first run; on a fresh clone it is the only
 // way in. Change it in production.
 package auth

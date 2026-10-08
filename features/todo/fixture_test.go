@@ -29,7 +29,7 @@ import (
 // goconst doesn't fire and so the source of truth is one place.
 const (
 	titleField   = "title"
-	demoEmail    = "demo@demo.app"
+	demoEmail    = "demo1@demo.app"
 	demoPassword = "demo1234456"
 )
 
