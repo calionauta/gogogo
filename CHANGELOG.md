@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [0.40.2] - 2026-10-08
+
+### Fixed
+
+- **Notes index actually goes live.** The resync button is a Datastar
+  `@get` but the page never loaded the runtime — PB events clicked a
+  dead button. Runtime added, pinned by a render test.
+- **Dead Datastar attributes on the whiteboard toolbar.** `data-on` /
+  `data-bind` with no runtime on the page (vanilla already owned both);
+  `data-tool` stays as the honest hook. `features.md` now records the
+  Datastar-vs-vanilla split rule so the next surface picks correctly.
+
 ## [0.40.1] - 2026-10-08
 
 ### Fixed
