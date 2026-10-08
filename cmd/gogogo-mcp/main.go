@@ -71,7 +71,9 @@ var toolCatalog = []toolDef{
 		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). " +
 			"Changes nothing. Requires a gogogo checkout at `dir` unless it does not " +
 			"exist yet (then it previews the clone) — on an unrelated project it " +
-			"cannot preview anything, so call advise_stack for guidance instead.",
+			"cannot preview anything, so call advise_stack for guidance instead. " +
+			"Decide what to keep with advise_stack first (business-language fit: " +
+			"https://calionauta.github.io/gogogo/docs/use-cases/).",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleTrimPlan) },
 	},
 	{

@@ -19,10 +19,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# Both analyzers, always: the Go analyzer validates backend SDK calls
-# (sse.PatchElements and friends) which the HTML/Templ analyzer cannot see, and
-# cross-reference checks need both.
-DEFAULT_ANALYZERS="html,go"
+# All three analyzers, always: the Go analyzer validates backend SDK calls
+# (sse.PatchElements and friends) which the HTML/Templ analyzer cannot see,
+# the templ analyzer catches Go expressions rendering literally inside
+# <script> bodies and quoted attributes (a class no other gate sees), and
+# cross-reference checks need html+go.
+DEFAULT_ANALYZERS="html,go,templ"
 
 run() {
 	if command -v datastar-lint &>/dev/null; then

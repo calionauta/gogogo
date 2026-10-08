@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/capabilities"
 )
 
 // planUnit is the agent- and human-readable rendering of one dropped unit.
@@ -20,6 +22,15 @@ type planUnit struct {
 	RuntimeOff string   `json:"runtimeOff,omitempty"`
 }
 
+// keptUnit is what stays: id + kind + one-line summary, so deciders
+// reading --format json see what each kept unit IS, not just its id.
+// Additive (the id lists stay): stable field names are untouched.
+type keptUnit struct {
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Summary string `json:"summary"`
+}
+
 // scaffoldPlan is the full preview of what the installer will do.
 // JSON field names are stable: agents may parse --format json output.
 type scaffoldPlan struct {
@@ -29,6 +40,7 @@ type scaffoldPlan struct {
 	Dir          string     `json:"dir"`
 	KeepPlugins  []string   `json:"keepPlugins"`
 	KeepFeatures []string   `json:"keepFeatures"`
+	Keep         []keptUnit `json:"keepUnits"`
 	Drop         []planUnit `json:"drop"`
 	DryRun       bool       `json:"dryRun"`
 }
@@ -41,8 +53,24 @@ func buildPlan(name, owner, dir string, keep keepSet, drop []trimUnit, dryRun bo
 		Dir:          dir,
 		KeepPlugins:  sortedKeys(keep.plugins),
 		KeepFeatures: sortedKeys(keep.features),
+		Keep:         []keptUnit{},
 		Drop:         []planUnit{},
 		DryRun:       dryRun,
+	}
+	for _, u := range manifestUnits {
+		m := u.meta()
+		kept := m.kind == capabilities.KindPlugin && keep.plugins[u.id] ||
+			m.kind == capabilities.KindFeature && keep.features[u.id]
+		if !kept {
+			continue
+		}
+		summary := ""
+		if caps := u.caps(); len(caps) > 0 {
+			if c, ok := capabilities.ByID()[caps[0]]; ok {
+				summary = c.Summary
+			}
+		}
+		p.Keep = append(p.Keep, keptUnit{ID: u.id, Kind: string(m.kind), Summary: summary})
 	}
 	for _, u := range drop {
 		m := u.meta()

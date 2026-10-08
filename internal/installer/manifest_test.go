@@ -32,6 +32,26 @@ func TestPlanTrimKeepsAllByDefault(t *testing.T) {
 	}
 }
 
+func TestPlanKeepListsSummaries(t *testing.T) {
+	// Deciders reading --format json see what each kept unit IS: the id
+	// lists alone force a second lookup per unit.
+	p := buildPlan("x", "y", ".", parseKeep("", ""), nil, true)
+	if len(p.Keep) != len(manifestUnits) {
+		t.Fatalf("keepUnits = %d, want all %d units", len(p.Keep), len(manifestUnits))
+	}
+	for _, k := range p.Keep {
+		if k.ID == "" || k.Kind == "" || k.Summary == "" {
+			t.Errorf("keepUnits entry incomplete: %+v", k)
+		}
+	}
+	dropped := buildPlan("x", "y", ".", keepAllBut("goakt"), nil, true)
+	for _, k := range dropped.Keep {
+		if k.ID == "goakt" {
+			t.Error("dropped goakt still listed in keepUnits")
+		}
+	}
+}
+
 // keepAllBut returns a keep set with every manifest unit kept except dropped.
 // It keeps test lines short and stays correct when new units are added.
 func keepAllBut(dropped ...string) keepSet {
