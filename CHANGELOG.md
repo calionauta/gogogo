@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [0.38.1] - 2026-10-08
+
+### Fixed
+
+- **English-only typing indicator.** The "X is typing…" pill and the
+  0.38.0 changelog entry shipped pt-BR strings; product surfaces are
+  English-only now.
+
 ## [0.38.0] - 2026-10-08
 
 ### Added
