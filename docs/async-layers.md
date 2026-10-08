@@ -12,7 +12,7 @@ This template ships all seven in one unified build. Use what you need; the rest
 sits dormant until you don't.
 
 ```
-goqite       → background jobs + SSE hub (always on)
+goqite       → background jobs + SSE Hub delivery (always on)
 dagnats      → durable multi-step workflows as JSON (opt-out: DAGNATS_ENABLED=false)
 Loro CRDT    → collaborative docs with offline merges (remove internal/collab/)
 PB realtime  → record-change push via PB's native /api/realtime (always on, per-user scoped)
