@@ -40,7 +40,7 @@ const RELEASE_SOURCES = [
 // slug, source file (under docs/), one-line description (also feeds llms.txt)
 const MANIFEST = [
   { group: "Get started", slug: "overview", file: "overview.md",
-    desc: "What gogogo is, who it is for, and the six async layers it ships." },
+    desc: "What gogogo is, who it is for, and the seven async layers it ships." },
   { group: "Get started", slug: "motivation", file: "motivation.md",
     desc: "The thesis behind the stack: Go for almost everything, Zig as the named exception, and how to choose without hype." },
   { group: "Get started", slug: "getting-started", file: "getting-started.md",
@@ -54,7 +54,7 @@ const MANIFEST = [
   { group: "Core", slug: "stack-layers", file: "stack-layers.md",
     desc: "Every dependency and why it is in the box." },
   { group: "Core", slug: "async-layers", file: "async-layers.md",
-    desc: "The six async layers, PB realtime vs SSE Hub, cross-instance and offline sync." },
+    desc: "The seven async layers, PB realtime vs SSE Hub, cross-instance and offline sync." },
   { group: "Core", slug: "features", file: "features.md",
     desc: "Every capability and its runtime opt-out." },
   { group: "Core", slug: "use-cases", file: "use-cases.md",
@@ -180,8 +180,17 @@ function renderBody(md, pageDir) {
       const ordered = /^\s*\d+\.\s+/.test(line);
       const items = [];
       while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
-        items.push(`<li>${inline(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, ""), pageDir)}</li>`);
+        const parts = [lines[i].replace(/^\s*([-*]|\d+\.)\s+/, "")];
         i++;
+        // Lazy continuation lines belong to the same item. A blank line,
+        // a new bullet, or any other block opener ends the item text.
+        while (i < lines.length && lines[i].trim() !== ""
+          && !/^\s*([-*]|\d+\.)\s+/.test(lines[i])
+          && !/^(#{1,6}\s+>|>|\||---+\s*$|```)/.test(lines[i].trim())) {
+          parts.push(lines[i].trim());
+          i++;
+        }
+        items.push(`<li>${inline(parts.join(" "), pageDir)}</li>`);
       }
       out.push(ordered ? `<ol>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
       continue;
@@ -436,7 +445,7 @@ function build() {
   writeFileSync(join(OUT, "docs", "index.html"),
     pageShell("Docs", "", `<h1>${esc(NAME)} docs</h1>\n${groups}`, `<a href="../">← ${NAME} home</a>`, idxNav));
   // llms.txt (stable map: one line per page)
-  const llms = `# ${NAME} docs\n\n> Full-stack Go web app template that ships as one binary: PocketBase + Templ + Datastar + Tailwind, plus six complementary async layers (goqite, DagNats, Loro CRDT, PocketBase realtime, SSE Hub, JetStream). Full map below; complete texts in llms-full.txt.\n\n` +
+  const llms = `# ${NAME} docs\n\n> Full-stack Go web app template that ships as one binary: PocketBase + Templ + Datastar + Tailwind, plus seven complementary async layers (goqite, DagNats, Loro CRDT, PocketBase realtime, SSE Hub, JetStream, GoAkt grains). Full map below; complete texts in llms-full.txt.\n\n` +
     MANIFEST.map((p) => `## ${p.title}\n${p.desc}\n${BASE}/docs/${p.slug}/\n`).join("\n");
   writeFileSync(join(OUT, "llms.txt"), llms);
   // llms-full.txt (concatenated sources)

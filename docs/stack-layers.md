@@ -18,6 +18,7 @@ explains **why each choice is here**; for the layered async topology see
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | Optional SQLite ledger: managed LLM reserve/settle billing, monthly entitlements, Stripe top-ups, encrypted per-user BYOK relay metering |
 | **Real-time** | [NATS JetStream](https://nats.io) | Multi-user realtime, cross-instance broadcast |
 | **Collaboration (CRDT)** | [loro-go](https://github.com/aholstenson/loro-go) | Conflict-free merging of whiteboard/notes state; converges offline edits with no last-write-wins data loss |
+| **Room ownership** | [GoAkt](https://github.com/Tochemey/goakt) | One addressable owner per room: heartbeat roster plus exactly-one presenter lock, supervised |
 | **Hand-drawn canvas** | [Rough.js](https://roughjs.com) (embedded) | Minimalist sketchy whiteboard rendering, embedded in the binary so it is removed with the whiteboard feature |
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
@@ -88,9 +89,10 @@ The layers are not independent choices — they are designed to work together:
   without last-write-wins data loss.
 - Record changes fan out through **PocketBase realtime**, scoped per user by
   the collection's own access rules.
+- Single-owner decisions go to **GoAkt grains**: one addressable owner per room (roster, locks, supervision).
 
 ## Related
 
 - [Features](features.md) — every capability and its runtime opt-out.
-- [Async layers](async-layers.md) — the six layers and why each exists.
+- [Async layers](async-layers.md) — the seven layers and why each exists.
 - [Code quality for LLM agents](code-quality.md) — the lint set behind these choices.
