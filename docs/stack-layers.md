@@ -76,6 +76,86 @@ CSS is the one build step, and it is a build step you run explicitly
 (`make css`), not one your users pay for at runtime: the compiled
 `app.min.css` is embedded into the binary with `//go:embed`.
 
+## Why this one (and not that one)?
+
+One-line reasons live in the table. This section records the cost behind
+each choice — what was rejected, what it costs to keep, and when to
+revisit.
+
+### goqite + retry-go (and not Redis)?
+
+A queue without a service to run: jobs persist in the SQLite the app
+already owns, retries back off with jitter, and one binary stays one
+binary. Rejected: Redis-style brokers (a second process to persist, secure,
+and operate) and JetStream as a job queue (it is the cross-instance
+broadcast, not a work queue with per-job retry semantics). Cost:
+single-process throughput — depth and worker latency are bounded by this
+box. Revisit when profiles show the queue, not the work, as the bottleneck.
+
+### DagNats (and not Temporal)?
+
+Workflows as declarative JSON, embedded in the binary, state durable on the
+JetStream the template already runs. No cluster to install, no second
+surface to learn. Rejected: Temporal (a server plus database plus SDKs for
+durability most apps never need at this scale). Cost: the expressive and
+throughput ceiling of a young JSON engine, and no hosted offering. Revisit
+when a workflow outgrows JSON or needs cross-team operation.
+
+### JetStream on by default (and not opt-in)?
+
+Durable workflows, cross-instance broadcast, and collab sync all assume it,
+so on-by-default keeps every feature working out of the box — and one env
+var switches it off. Cost: an embedded NATS server in every boot, its ports
+and storage in every deploy. Strictly single-instance with no workflows?
+`NATS_ENABLED=false` removes the cost entirely.
+
+### GoAI (and not the provider SDKs)?
+
+One injectable interface over any OpenAI-compatible provider, with a stub
+(`internal/llm/fakeserver`) that keeps real LLMs out of tests. Rejected:
+one SDK per vendor (a dependency each, untestable without network). Cost:
+the wrapper lags newest provider features and adds its own surface to
+learn. Revisit per provider when it blocks a capability you actually call.
+
+### Loro, server-owned (and not Yjs / Automerge / OT)?
+
+The merge engine with the smallest client footprint: none. The server owns
+the Doc, browsers POST ops and render the JSON broadcast back — no JS CRDT
+library, no npm build step — and offline edits still merge without
+last-write-wins. Rejected: Yjs in the browser (a second CRDT system doing
+Loro's job, plus a bundler, plus a sync protocol that fits websockets
+better than the SSE + NATS transport here); Automerge (same overlap, same
+cost); OT in the style of the Datastar collab demo (server-serialized,
+plain text only, no offline merge — honest for notes, insufficient for
+rich text). Cost: every keystroke round-trips — no client-local editing —
+and the rich-text editor binding (cursor mapping, marks) is future work,
+as a `removal=feature` package reusing `internal/collab`, never a new
+plugin.
+
+### age + `~/.secrets/` (and not Vault / KMS)?
+
+Secrets as encrypted files, decrypted at boot: zero services, zero bills,
+zero IAM. Rejected: Vault / cloud KMS (a service to run and pay for, so a
+single box can hold its own secrets). Cost: no rotation story, and
+distribution across instances is manual. Revisit when secrets outgrow one
+box or need audit trails.
+
+### Wails + gogpu/ui (and not Electron / Tauri)?
+
+Desktop shells over the same backend: Wails for a webview shell with
+offline edge sync, gogpu/ui for a pure-Go window with no webview and no
+HTTP at all. Rejected: Electron (a Chromium per app, its own update and CVE
+surface). Cost: the platform matrix and native debugging stay yours. Both
+are delete-with-the-package features, never core.
+
+### 30+ linters (and not `go vet` alone)?
+
+Tuned for agent-written code: unchecked errors, leaked contexts, unclosed
+bodies, weak crypto, template-signal mistakes — enforced in pre-commit
+hooks and CI, taught upfront via the coding-standards skill. Cost: CI
+minutes and a `//nolint` discipline curve. Revisit by deleting rules that
+never fire, not by adding more.
+
 ## How the pieces combine
 
 The layers are not independent choices — they are designed to work together:

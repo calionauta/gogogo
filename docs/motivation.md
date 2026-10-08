@@ -25,10 +25,11 @@ and fixes are cheap — and humans can read whenever they step in.
 
 That covers 99% of today's web systems and services, leaving 1% for another
 language chosen by context (like zig or rust — and where it fits, odin or
-mojo).
-
-I could be wrong; everything moves too fast for certainty. But it is a cheap
-bet to test: the criteria above confirm the thesis as well as they refute it.
+mojo). The split is illustrative, not measured: shorthand for "almost
+everything, then a rare exception", not a benchmark. The criteria above
+confirm the thesis as well as they refute it — and I could still be wrong,
+since everything moves too fast for certainty. But it is a cheap bet to
+test.
 
 Why Go? Compatibility is promised — code from a decade ago still compiles,
 so AI trained on old code stays valid. The toolchain fixes things for free:

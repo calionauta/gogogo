@@ -120,11 +120,11 @@ the decision procedure.
 The moment a profile proves a bottleneck is the worst moment to spend tokens
 learning a toolchain: the agent is under pressure, and it pays the **discovery**
 rate instead of the **reuse** rate. Preparation done calmly — this page, the
-`zig-gate` reference, the boundary rules, the removal plan — is what lets the
+`exception-to-go` reference, the boundary rules, the removal plan — is what lets the
 urgent moment reuse instead of discover.
 
 That is why the default is **named** rather than left open. This page, the
-`zig-gate` reference in the coding-standards skill, the boundary rules and the
+`exception-to-go` reference in the coding-standards skill, the boundary rules and the
 removal plan are all preparation, and preparation only pays off if the language is
 already decided. An agnostic gate would demote them to "one option among several",
 and an agent reaching the end of the decision procedure would re-derive the choice

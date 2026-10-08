@@ -95,4 +95,4 @@ Rule: try portable `simd` before any Zig. 2–7.5x happens only in vectorizable 
 
 ## 7. Then Zig (rare)
 
-Only with a Go baseline bench + profile proving Go is the bottleneck and a measured expected benefit. See `references/zig-gate.md`. req/s parity with Rust/Zig is not the goal: I/O-bound paths already win in Go; GC imposes a pure-render ceiling.
+Only with a Go baseline bench + profile proving Go is the bottleneck and a measured expected benefit. See `references/exception-to-go.md`. req/s parity with Rust/Zig is not the goal: I/O-bound paths already win in Go; GC imposes a pure-render ceiling.

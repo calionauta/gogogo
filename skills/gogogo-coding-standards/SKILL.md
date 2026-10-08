@@ -37,7 +37,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
-| Proposing Zig | **Zig Gate** + `references/zig-gate.md` |
+| Proposing Zig (the native exception) | **Exception-to-go gate** + `references/exception-to-go.md` |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
 | stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
 
@@ -52,7 +52,7 @@ a task pins an older `go`, bump the pin instead of downgrading the code.
 
 If the task forbids dependencies (or the tree is not a gogogo checkout):
 only **Core Go Rules**, the **Testing** table-driven + `-race` parts, the
-100/500 size limits, and the **Zig Gate** order (correct first, no native
+100/500 size limits, and the **exception-to-go** order (correct first, no native
 code without evidence) apply. **Concurrency deltas** (`errgroup`, `wg.Go`,
 `goleak`, `synctest`), the **pprof → SIMD → Zig ladder**, **Datastar**, and
 PocketBase/`httptest` seams have nothing to attach to in a
@@ -163,9 +163,9 @@ Full rules: `references/datastar.md`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
 
-## Zig Gate
+## Exception-to-go gate
 
-Full gate: `references/zig-gate.md` (summary) + `docs/native-zig.md` (normative).
+Full gate: `references/exception-to-go.md` (summary) + `docs/native-zig.md` (normative).
 
 - Zero Zig in tree today. No vendored Zig skill until the first kernel passes the gate.
 - Bans: "Zig is faster", manual memory, low-level, speculation, preference, avoiding a Go dep.
@@ -291,7 +291,7 @@ warnings print and exit 0.
 **Input:** "Should this parser go to Zig?"
 
 **Steps:**
-1. Follow `references/go-perf.md` then `references/zig-gate.md`.
+1. Follow `references/go-perf.md` then `references/exception-to-go.md`.
 2. Demand Go baseline + 30s CPU pprof + `GOEXPERIMENT=simd` evaluation first.
 
 **Output:** "No Zig — pprof shows 80% in SQLite query, not CPU kernel. Fix query first."
@@ -328,4 +328,4 @@ warnings print and exit 0.
 | `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate, demonstration-delay latency |
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, PB strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
-| `references/zig-gate.md` | bans, decision, pin policy, what to vendor and when |
+| `references/exception-to-go.md` | bans, decision, pin policy, what to vendor and when |
