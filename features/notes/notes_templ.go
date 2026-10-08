@@ -194,7 +194,7 @@ func NotesPage(email string, docID string, text string, rev uint64, buildLabel s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script src=\"/static/iconify-icon.min.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script><script src=\"/static/iconify-icon.min.js\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -217,7 +217,7 @@ func NotesPage(email string, docID string, text string, rev uint64, buildLabel s
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(docID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 110, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 111, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -230,20 +230,20 @@ func NotesPage(email string, docID string, text string, rev uint64, buildLabel s
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatUint(rev, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 110, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 111, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"><h1 class=\"sr-only\">Shared note</h1><div class=\"flex items-center justify-between mb-2\"><a class=\"btn btn-sm btn-ghost\" href=\"/notes\">Back</a> <span class=\"flex items-center gap-2\"><span id=\"peer-pill\" class=\"text-xs text-base-content/60\" title=\"Tabs on this note\" aria-live=\"polite\">1 online</span> <span id=\"typing-pill\" class=\"text-xs text-base-content/60 italic\" title=\"Who is typing\" aria-live=\"polite\"></span> <span id=\"rtt-pill\" class=\"text-xs text-base-content/40\" title=\"Last save round-trip\"></span> <span id=\"net-status\" class=\"text-xs text-warning hidden\" aria-live=\"polite\">reconnecting…</span></span></div><label class=\"sr-only\" for=\"note-text\">Note text</label><div id=\"note-wrap\" class=\"relative\"><textarea id=\"note-text\" class=\"textarea textarea-bordered w-full font-mono\" rows=\"20\" placeholder=\"Type — every tab merges.\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"><h1 class=\"sr-only\">Shared note</h1><div class=\"flex items-center justify-between mb-2\"><a class=\"btn btn-sm btn-ghost\" href=\"/notes\">Back</a> <span class=\"flex items-center gap-2\"><span id=\"peer-pill\" class=\"text-xs text-base-content/60\" title=\"Tabs on this note\" aria-live=\"polite\">1 online</span> <span id=\"typing-pill\" class=\"text-xs text-base-content/60 italic\" title=\"Who is typing\" aria-live=\"polite\"></span> <span id=\"rtt-pill\" class=\"text-xs text-base-content/40\" title=\"Last save round-trip\"></span> <span id=\"net-status\" class=\"text-xs text-warning hidden\" aria-live=\"polite\">reconnecting…</span></span></div><div id=\"session-banner\" class=\"hidden alert alert-warning mt-2\" role=\"alert\" aria-live=\"polite\"><span>Session expired — <a class=\"link\" href=\"/login\">sign in again</a> to keep your name on edits. Your text stays safe in this tab.</span></div><label class=\"sr-only\" for=\"note-text\">Note text</label><div id=\"note-wrap\" class=\"relative\"><textarea id=\"note-text\" class=\"textarea textarea-bordered w-full font-mono\" rows=\"20\" placeholder=\"Type — every tab merges.\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 123, Col: 139}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 127, Col: 139}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {

@@ -29,6 +29,7 @@ templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel strin
 			<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
+			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
 			@auth.Navbar(email, "room", buildLabel, buildCommit)

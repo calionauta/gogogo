@@ -24,7 +24,6 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/pocketbase/pocketbase/core"
@@ -45,6 +44,10 @@ const (
 	// switches on `msg.type === "note-text"` and renders `msg.text`.
 	wireNoteText = "note-text"
 
+	// authedKey is the session flag carried by op answers and the stream
+	// session event, so tabs learn their auth state without a round trip.
+	authedKey = "authed"
+
 	// notesSyncSubject is the NATS subject space for cross-instance server
 	// convergence. Separate from app.sync.> (whiteboard) so each
 	// collection's snapshots land in its own persister.
@@ -60,17 +63,25 @@ type NoteTextEvent struct {
 	From string `json:"from"`
 	Text string `json:"text"`
 	Rev  uint64 `json:"rev"`
+	// Caret travels WITH the text it belongs to (same event, zero lag):
+	// the author's caret at send time, so peers render dot and letters
+	// together instead of racing two channels. Omitted when absent or
+	// invalid — decoration must never break the op path.
+	Caret *CaretReport `json:"caret,omitempty"`
 }
 
-// displayName resolves the human identity for presence via the shared
-// collab.DisplayName rule (authed email, else the raw client id). Peer
-// sets stay keyed by clientID (connections); only display uses email.
-func displayName(c *core.RequestEvent, clientID string) string {
-	email := ""
-	if c.Auth != nil {
-		email = c.Auth.Email()
-	}
-	return collab.DisplayName(email, clientID)
+// CaretReport is one caret position attached to an op batch or event.
+// Line is 1-based by \n (dimension-independent); Pos is a UTF-16 offset
+// mapped per-viewport by each peer (see notes.js caretXY).
+type CaretReport struct {
+	Line int `json:"line"`
+	Pos  int `json:"pos"`
+}
+
+// validCaret reports whether a client-supplied caret is sane enough to
+// relay. Invalid values are dropped, never rejected: caret is decoration.
+func validCaret(c *CaretReport) bool {
+	return c != nil && c.Line >= 1 && c.Pos >= 0
 }
 
 // opRequest is one POST body: an ordered batch of character ops applied
@@ -82,6 +93,8 @@ func displayName(c *core.RequestEvent, clientID string) string {
 type opRequest struct {
 	Base uint64          `json:"base,omitempty"`
 	Ops  []collab.TextOp `json:"ops"`
+	// Caret travels with the batch so text and dot arrive atomically.
+	Caret *CaretReport `json:"caret,omitempty"`
 }
 
 // Handler serves the notes routes. It holds the shared DocStore (CRDT
@@ -258,6 +271,15 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 
 	return h.hub.ServeStream(c.Response, c.Request, clientID, docID,
 		func(send func([]byte) error) {
+			// Session state FIRST, before any peer/text events: tabs open
+			// for days outlive their cookie, and without this an expired
+			// session looks identical to a healthy one until names degrade
+			// to hashes and nobody can say why.
+			if session, err := json.Marshal(map[string]any{
+				"type": "session", "doc": docID, authedKey: c.Auth != nil,
+			}); err == nil {
+				_ = send(session)
+			}
 			// Presence: join to the others, authoritative count to
 			// everyone (including self, so a fresh tab seeds its pill
 			// without waiting).
@@ -316,14 +338,16 @@ func (h *Handler) handleOp(c *core.RequestEvent) error {
 		// recomputes against the fresh base and retries (same
 		// recoverable-conflict contract as whiteboard shape versions).
 		text := h.docs.GetOrCreate(docID).Text()
+		authed := c.Auth != nil
 		return c.JSON(http.StatusConflict, map[string]any{
-			"ok":    false,
-			"error": "stale",
-			"text":  text,
-			"rev":   current,
+			"ok":      false,
+			"error":   "stale",
+			"text":    text,
+			"rev":     current,
+			authedKey: authed,
 		})
 	}
-	text, err := h.applyOps(docID, from, displayName(c, from), req.Ops, current+1)
+	text, err := h.applyOps(docID, from, displayName(c, from), req.Ops, current+1, req.Caret)
 	if err != nil {
 		h.revsMu.Unlock()
 		return c.String(http.StatusBadRequest, "apply op: "+err.Error())
@@ -331,121 +355,16 @@ func (h *Handler) handleOp(c *core.RequestEvent) error {
 	h.revs[docID] = current + 1
 	rev := h.revs[docID]
 	h.revsMu.Unlock()
-	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text, "rev": rev})
-}
-
-// relay broadcasts one ephemeral presence event (no persistence, no
-// NATS). Typing and caret share it: same envelope, same error policy,
-// one place to change when the wire evolves.
-func (h *Handler) relay(from string, msg collab.PresenceMsg) error {
-	payload, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	h.hub.BroadcastExcept(payload, from)
-	return nil
-}
-
-// typingRequest is one typing-state report. Ephemeral by design:
-// broadcast only, never persisted, never forwarded to NATS. A dropped
-// "stopped" is covered by the client's expiry sweep, so the server keeps
-// no per-peer typing state (no residue to GC, nothing to converge).
-type typingRequest struct {
-	Typing bool `json:"typing"`
-}
-
-// handleTyping relays a typing state to peers on the doc's stream
-// (exclude-origin). Production note: any authenticated user may report
-// for any doc — same trust level as ops (no per-note ACL yet); throttle
-// lives client-side (at most one report per 2.5s of typing).
-func (h *Handler) handleTyping(c *core.RequestEvent) error {
-	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("notes: typing auth load", "error", err)
-	}
-	docID := c.Request.PathValue("docID")
-	if docID == "" {
-		return c.String(http.StatusBadRequest, "missing doc id")
-	}
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		return c.String(http.StatusBadRequest, "read body")
-	}
-	from := c.Request.URL.Query().Get("clientID")
-	var req typingRequest
-	if uErr := json.Unmarshal(body, &req); uErr != nil {
-		return c.String(http.StatusBadRequest, "decode typing: "+uErr.Error())
-	}
-	typ := "stopped"
-	if req.Typing {
-		typ = "typing"
-	}
-	if err := h.relay(from, collab.PresenceMsg{
-		Doc:  docID,
-		User: displayName(c, from),
-		Type: typ,
-		TS:   time.Now().UnixMilli(),
-	}); err != nil {
-		return c.String(http.StatusInternalServerError, "marshal typing")
-	}
-	return c.JSON(http.StatusOK, map[string]any{"ok": true})
-}
-
-// caretRequest is one caret report: line index (1-based, by \n) plus the
-// UTF-16 offset in the reporter's text. Lines are dimension-independent
-// (same text, same lines everywhere); the offset lets each peer map the
-// caret to ITS OWN pixels via mirror-div (fonts, zoom and wrapping differ
-// per viewport, so no server-side geometry could ever be right for all).
-// Broadcast only, never persisted, never forwarded to NATS.
-type caretRequest struct {
-	Line int `json:"line"`
-	Pos  int `json:"pos"`
-}
-
-// handleCaret relays a caret line to peers on the doc's stream
-// (exclude-origin). Non-positive lines are rejected; the line is capped
-// downstream by clients, never trusted for indexing server-side (the
-// server stores nothing — it only relays the number).
-func (h *Handler) handleCaret(c *core.RequestEvent) error {
-	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("notes: caret auth load", "error", err)
-	}
-	docID := c.Request.PathValue("docID")
-	if docID == "" {
-		return c.String(http.StatusBadRequest, "missing doc id")
-	}
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		return c.String(http.StatusBadRequest, "read body")
-	}
-	from := c.Request.URL.Query().Get("clientID")
-	var req caretRequest
-	if uErr := json.Unmarshal(body, &req); uErr != nil {
-		return c.String(http.StatusBadRequest, "decode caret: "+uErr.Error())
-	}
-	if req.Line < 1 {
-		return c.String(http.StatusBadRequest, "line must be >= 1")
-	}
-	if req.Pos < 0 {
-		return c.String(http.StatusBadRequest, "pos must be >= 0")
-	}
-	if err := h.relay(from, collab.PresenceMsg{
-		Doc:  docID,
-		User: displayName(c, from),
-		Type: "caret",
-		X:    float64(req.Line),
-		Y:    float64(req.Pos),
-		TS:   time.Now().UnixMilli(),
-	}); err != nil {
-		return c.String(http.StatusInternalServerError, "marshal caret")
-	}
-	return c.JSON(http.StatusOK, map[string]any{"ok": true})
+	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text, "rev": rev, authedKey: c.Auth != nil})
 }
 
 // applyOps merges the batch under one version-vector window, persists,
 // fans out to NATS (server convergence) and to the hub (live peers).
 // rev is the revision this batch will carry (already reserved by the
 // caller); on error nothing is broadcast and rev stays unbumped.
-func (h *Handler) applyOps(docID, from, who string, ops []collab.TextOp, rev uint64) (string, error) {
+func (h *Handler) applyOps(
+	docID, from, who string, ops []collab.TextOp, rev uint64, caret *CaretReport,
+) (string, error) {
 	d := h.docs.GetOrCreate(docID)
 	since := d.StateVersion()
 	var text string
@@ -463,6 +382,7 @@ func (h *Handler) applyOps(docID, from, who string, ops []collab.TextOp, rev uin
 	}
 	payload, err := json.Marshal(NoteTextEvent{
 		Type: wireNoteText, Doc: docID, From: who, Text: text, Rev: rev,
+		Caret: caretOrNil(caret),
 	})
 	if err != nil {
 		slog.Warn("notes: marshal text", "doc", docID, "error", err)

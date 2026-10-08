@@ -346,11 +346,29 @@
     setPending(true);
     const t0 = (typeof performance !== "undefined") ? performance.now() : 0;
     const head = outbox[0];
+    // Caret rides WITH the batch: the server echoes it on the same
+    // note-text event as the resolved text, so dot and letters arrive
+    // atomically — no cross-channel race where the dot lands before its
+    // text exists.
+    const atSend = ta.selectionStart || 0;
+    const sendBody = { base: head.base, ops: head.ops,
+      caret: { line: ta.value.slice(0, atSend).split("\n").length, pos: atSend } };
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ base: head.base, ops: head.ops }),
+      body: JSON.stringify(sendBody),
     }).then(function (r) {
+      if (r.status === 401 || r.status === 403) {
+        // Session dead (or never existed): KEEP the batch — dropping
+        // would silently eat the user's typing. Banner explains + links
+        // to login; the next 200 clears it. (Our endpoints are warn-only
+        // today so this fires only if hardening lands — the path must
+        // still be correct when it does.)
+        flushing = false;
+        setPending(false);
+        setSession(false);
+        return null;
+      }
       if (r.status !== 200 && r.status !== 409) {
         // Poison batch (invalid ops — only producible via devtools, our
         // UI only emits ins/del): drop it instead of retrying forever.
@@ -374,6 +392,8 @@
         // against it, retry bounded (a second 409 means another race;
         // the next local input recomputes anyway).
         attempts++;
+        if (res.body.authed === true) setSession(true);
+        else if (res.body.authed === false) setSession(false);
         adoptRemote(res.body.text, res.body.rev);
         requeue();
         clean = !outbox.length;
@@ -384,6 +404,8 @@
       if (typeof d.text === "string") {
         serverText = d.text;
         if (typeof d.rev === "number") REV = d.rev;
+        if (d.authed === true) setSession(true);
+        else if (d.authed === false) setSession(false);
         outbox.shift();
         // Recompute the remainder against the fresh base: queued ops were
         // positioned on older text and would 409 for sure.
@@ -421,6 +443,18 @@
     } catch (err) { /* sound off or unavailable: presence stays visual */ }
   }
 
+  // Session banner: tabs outlive cookies. Shown on authed:false (op
+  // answers, stream session event) or HTTP 401/403; hidden again on the
+  // next authed:true. Never auto-redirects: that would strand unsent
+  // textarea content — the user re-logs in (same browser shares the
+  // cookie back) and keeps typing.
+  function setSession(on) {
+    const b = document.getElementById("session-banner");
+    if (!b) return;
+    if (on) b.classList.add("hidden");
+    else b.classList.remove("hidden");
+  }
+
   const es = new EventSource(
     "/api/notes/" + encodeURIComponent(DOC) + "/stream?clientID=" + encodeURIComponent(CID)
   );
@@ -432,8 +466,23 @@
     } catch (err) {
       return;
     }
+    if (m.type === "session") {
+      // Initial per-connection auth state (also re-sent never: SSE is one
+      // long request, so mid-stream expiry surfaces via op answers).
+      if (m.authed === true) setSession(true);
+      else if (m.authed === false) setSession(false);
+      return;
+    }
     if (m.type === "note-text" && typeof m.text === "string" && typeof m.rev === "number") {
-      if (m.from !== CID) adoptRemote(m.text, m.rev);
+      if (m.from !== CID) {
+        adoptRemote(m.text, m.rev);
+        // Atomic caret: rendered from the same event as the text it
+        // belongs to — dot and letters can never disagree.
+        if (m.caret && typeof m.caret.line === "number" && typeof m.caret.pos === "number") {
+          carets.set(m.from, { line: Math.max(1, Math.round(m.caret.line)), pos: Math.max(0, Math.round(m.caret.pos)), seen: Date.now() });
+          renderCarets();
+        }
+      }
       else if (m.rev > REV) { REV = m.rev; serverText = m.text; }
       net.classList.add("hidden");
     }

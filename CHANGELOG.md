@@ -1,5 +1,26 @@
 ## [Unreleased]
 
+## [0.41.0] - 2026-10-09
+
+### Added
+
+- **Atomic text+caret delivery on notes.** Op batches carry the
+  author's caret; the server echoes it on the same note-text event as
+  the resolved text, so dots and letters arrive together instead of
+  racing two channels (the "line below, then corrects" class).
+- **Session visibility.** Streams open with a `{type:session}` event
+  and op answers carry `authed`; tabs show an expiring-session banner
+  with re-login instead of silently degrading to hashes. HTTP 401/403
+  keeps the outbox (never drops user typing).
+- **Datastar runtime on every navbar page** (board, notes doc, room,
+  config, landing): the shared logout form's `data-on` handlers were
+  dead markup without it — including the logout service-worker cleanup.
+
+### Fixed
+
+- **Dead Datastar attributes removed** from the whiteboard toolbar
+  (`data-on`/`data-bind` with no runtime; vanilla already owned both).
+
 ## [0.40.5] - 2026-10-08
 
 ### Changed

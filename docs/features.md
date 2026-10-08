@@ -77,9 +77,12 @@ and UI state that patch cleanly go through the Datastar runtime (todo,
 whiteboard list, notes index — every one of those pages loads
 `datastar.js`, pinned by test); canvas rendering, textarea math, and
 op batching stay vanilla JS (no declarative equivalent, and the offline
-outbox needs exact control). A `data-on`/`data-bind` attribute on a page
-without the runtime is dead markup — remove it instead of mirroring it
-in vanilla.
+outbox needs exact control). Shared chrome counts as UI state: the
+navbar logout form carries `data-on` handlers, so every page rendering
+the navbar loads the runtime too (board, notes doc, room, config,
+landing) — a `data-on`/`data-bind` attribute on a page without the
+runtime is dead markup, and here it would silently skip the logout
+service-worker cleanup.
 
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"

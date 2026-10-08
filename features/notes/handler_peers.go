@@ -7,8 +7,14 @@ package notes
 
 import (
 	"encoding/json"
+	"io"
 	"log/slog"
+	"net/http"
+	"time"
 
+	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/calionauta/gogogo/features/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 )
 
@@ -73,4 +79,131 @@ func (h *Handler) broadcastPeerCount(docID string) {
 		return
 	}
 	h.hub.Broadcast(msg)
+}
+
+// displayName resolves the human identity for presence via the shared
+// collab.DisplayName rule (authed email, else the raw client id). Peer
+// sets stay keyed by clientID (connections); only display uses email.
+func displayName(c *core.RequestEvent, clientID string) string {
+	email := ""
+	if c.Auth != nil {
+		email = c.Auth.Email()
+	}
+	return collab.DisplayName(email, clientID)
+}
+
+// relay broadcasts one ephemeral presence event (no persistence, no
+// NATS). Typing and caret share it: same envelope, same error policy,
+// one place to change when the wire evolves.
+func (h *Handler) relay(from string, msg collab.PresenceMsg) error {
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	h.hub.BroadcastExcept(payload, from)
+	return nil
+}
+
+// typingRequest is one typing-state report. Ephemeral by design:
+// broadcast only, never persisted, never forwarded to NATS. A dropped
+// "stopped" is covered by the client's expiry sweep, so the server keeps
+// no per-peer typing state (no residue to GC, nothing to converge).
+type typingRequest struct {
+	Typing bool `json:"typing"`
+}
+
+// caretRequest is one caret report: line index (1-based, by \n) plus the
+// UTF-16 offset in the reporter's text. Lines are dimension-independent
+// (same text, same lines everywhere); the offset lets each peer map the
+// caret to ITS OWN pixels via mirror-div (fonts, zoom and wrapping differ
+// per viewport, so no server-side geometry could ever be right for all).
+// Broadcast only, never persisted, never forwarded to NATS.
+type caretRequest struct {
+	Line int `json:"line"`
+	Pos  int `json:"pos"`
+}
+
+// caretOrNil passes a client caret through only when sane; anything
+// else (including nil) becomes an omitted field, never a 400.
+func caretOrNil(c *CaretReport) *CaretReport {
+	if !validCaret(c) {
+		return nil
+	}
+	return c
+}
+
+// handleTyping relays a typing state to peers on the doc's stream
+// (exclude-origin). Production note: any authenticated user may report
+// for any doc — same trust level as ops (no per-note ACL yet); throttle
+// lives client-side (at most one report per 2.5s of typing).
+func (h *Handler) handleTyping(c *core.RequestEvent) error {
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("notes: typing auth load", "error", err)
+	}
+	docID := c.Request.PathValue("docID")
+	if docID == "" {
+		return c.String(http.StatusBadRequest, "missing doc id")
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "read body")
+	}
+	from := c.Request.URL.Query().Get("clientID")
+	var req typingRequest
+	if uErr := json.Unmarshal(body, &req); uErr != nil {
+		return c.String(http.StatusBadRequest, "decode typing: "+uErr.Error())
+	}
+	typ := "stopped"
+	if req.Typing {
+		typ = "typing"
+	}
+	if err := h.relay(from, collab.PresenceMsg{
+		Doc:  docID,
+		User: displayName(c, from),
+		Type: typ,
+		TS:   time.Now().UnixMilli(),
+	}); err != nil {
+		return c.String(http.StatusInternalServerError, "marshal typing")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"ok": true})
+}
+
+// handleCaret relays a caret line to peers on the doc's stream
+// (exclude-origin). Non-positive lines are rejected; the line is capped
+// downstream by clients, never trusted for indexing server-side (the
+// server stores nothing — it only relays the number).
+func (h *Handler) handleCaret(c *core.RequestEvent) error {
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("notes: caret auth load", "error", err)
+	}
+	docID := c.Request.PathValue("docID")
+	if docID == "" {
+		return c.String(http.StatusBadRequest, "missing doc id")
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "read body")
+	}
+	from := c.Request.URL.Query().Get("clientID")
+	var req caretRequest
+	if uErr := json.Unmarshal(body, &req); uErr != nil {
+		return c.String(http.StatusBadRequest, "decode caret: "+uErr.Error())
+	}
+	if req.Line < 1 {
+		return c.String(http.StatusBadRequest, "line must be >= 1")
+	}
+	if req.Pos < 0 {
+		return c.String(http.StatusBadRequest, "pos must be >= 0")
+	}
+	if err := h.relay(from, collab.PresenceMsg{
+		Doc:  docID,
+		User: displayName(c, from),
+		Type: "caret",
+		X:    float64(req.Line),
+		Y:    float64(req.Pos),
+		TS:   time.Now().UnixMilli(),
+	}); err != nil {
+		return c.String(http.StatusInternalServerError, "marshal caret")
+	}
+	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
