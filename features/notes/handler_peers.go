@@ -1,9 +1,8 @@
 // SCOPE:layer=feature,removal=feature — Shared plain-text notes (server-owned Loro Text)
-// Presence/peer bookkeeping, split out of handler.go. Same contract as the
-// whiteboard's handler_peers.go (join → others, count → all, leave +
-// recount on disconnect, reconnect-race guard), minus cursor coordinates:
-// a textarea has no canvas to place remote cursors on, so presence here is
-// the "X online" pill only.
+// Presence/peer bookkeeping. Same contract as the whiteboard's
+// handler_peers.go, sharing the collab.PeerSet mechanics: join to the
+// others, authoritative count to all, leave + recount on disconnect with
+// the reconnect-race guard. No cursor coordinates (see Handler doc).
 package notes
 
 import (
@@ -16,38 +15,17 @@ import (
 // peerJoin registers clientID as connected to docID and returns the list
 // of clientIDs already on the doc. Called on SSE connect.
 func (h *Handler) peerJoin(docID, clientID string) []string {
-	h.peersMu.Lock()
-	defer h.peersMu.Unlock()
-	set := h.peers[docID]
-	if set == nil {
-		set = make(map[string]struct{})
-		h.peers[docID] = set
-	}
-	others := make([]string, 0, len(set))
-	for id := range set {
-		if id != clientID {
-			others = append(others, id)
-		}
-	}
-	set[clientID] = struct{}{}
-	return others
+	return h.peers.Join(docID, clientID)
 }
 
 // peerLeave removes clientID from docID's peer set and broadcasts a
 // "leave" plus a recount. Skipped when the clientID re-registered during
-// an EventSource reconnect (same race guard as the whiteboard).
+// an EventSource reconnect.
 func (h *Handler) peerLeave(docID, clientID string) {
 	if h.hub.IsRegistered(clientID) {
 		return
 	}
-	h.peersMu.Lock()
-	if set, ok := h.peers[docID]; ok {
-		delete(set, clientID)
-		if len(set) == 0 {
-			delete(h.peers, docID)
-		}
-	}
-	h.peersMu.Unlock()
+	h.peers.Leave(docID, clientID)
 	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "leave"})
 	if lErr != nil {
 		slog.Warn("notes: marshal leave", "error", lErr)
@@ -57,17 +35,9 @@ func (h *Handler) peerLeave(docID, clientID string) {
 	h.broadcastPeerCount(docID)
 }
 
-// peerList returns the current clientIDs on docID. Callers must NOT hold
-// peersMu.
+// peerList returns the current clientIDs on docID (including the caller).
 func (h *Handler) peerList(docID string) []string {
-	h.peersMu.Lock()
-	defer h.peersMu.Unlock()
-	set := h.peers[docID]
-	out := make([]string, 0, len(set))
-	for id := range set {
-		out = append(out, id)
-	}
-	return out
+	return h.peers.List(docID)
 }
 
 // broadcastPeerCount sends the authoritative full peer set to every

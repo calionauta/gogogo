@@ -33,8 +33,10 @@
   // Grey-unconfirmed: text the server has not confirmed yet renders dimmed.
   // Confirmation is the POST 200 below — nothing claims a state the server
   // has not accepted (same honesty rule as the OT demo's grey text, but
-  // driven by our own round-trip instead of an OT verdict).
-  function setPending(on) { ta.style.opacity = on ? "0.55" : ""; }
+  // driven by our own round-trip instead of an OT verdict). aria-busy
+  // carries the same state programmatically (opacity alone is not enough
+  // for forced-colors / screen-reader users).
+  function setPending(on) { ta.style.opacity = on ? "0.55" : ""; ta.setAttribute("aria-busy", on ? "true" : "false"); }
 
   let lastSent = ta.value;
   let timer = null;

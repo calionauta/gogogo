@@ -24,7 +24,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,8 +83,7 @@ type Handler struct {
 	persister collab.Persister
 	nc        *natsio.Conn // nil = SSE-only mode
 
-	peersMu sync.Mutex
-	peers   map[string]map[string]struct{}
+	peers *collab.PeerSet
 }
 
 // New builds a notes handler. persister is the PocketBase notes collection
@@ -106,7 +104,7 @@ func New(
 		docs:      docs,
 		persister: persister,
 		nc:        nc,
-		peers:     make(map[string]map[string]struct{}),
+		peers:     collab.NewPeerSet(),
 	}
 }
 

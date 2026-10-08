@@ -19,21 +19,7 @@ import (
 // (possibly empty) is sent to the new client as a "snapshot" presence
 // event so it can seed its peer count without waiting for future joins.
 func (h *Handler) peerJoin(docID, clientID string) []string {
-	h.peersMu.Lock()
-	defer h.peersMu.Unlock()
-	set := h.peers[docID]
-	if set == nil {
-		set = make(map[string]struct{})
-		h.peers[docID] = set
-	}
-	others := make([]string, 0, len(set))
-	for id := range set {
-		if id != clientID {
-			others = append(others, id)
-		}
-	}
-	set[clientID] = struct{}{}
-	return others
+	return h.peers.Join(docID, clientID)
 }
 
 // peerLeave removes clientID from docID's peer set and broadcasts a
@@ -53,14 +39,7 @@ func (h *Handler) peerLeave(docID, clientID string) {
 	if h.hub.IsRegistered(clientID) {
 		return
 	}
-	h.peersMu.Lock()
-	if set, ok := h.peers[docID]; ok {
-		delete(set, clientID)
-		if len(set) == 0 {
-			delete(h.peers, docID)
-		}
-	}
-	h.peersMu.Unlock()
+	h.peers.Leave(docID, clientID)
 	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "leave"})
 	if lErr != nil {
 		slog.Warn("whiteboard: marshal leave", "error", lErr)
@@ -74,16 +53,9 @@ func (h *Handler) peerLeave(docID, clientID string) {
 }
 
 // peerList returns the current set of clientIDs connected to docID
-// (including the caller). Callers must NOT hold peersMu.
+// (including the caller).
 func (h *Handler) peerList(docID string) []string {
-	h.peersMu.Lock()
-	defer h.peersMu.Unlock()
-	set := h.peers[docID]
-	out := make([]string, 0, len(set))
-	for id := range set {
-		out = append(out, id)
-	}
-	return out
+	return h.peers.List(docID)
 }
 
 // broadcastPeerCount sends the authoritative, full peer set for docID to

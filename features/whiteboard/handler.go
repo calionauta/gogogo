@@ -22,7 +22,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -60,8 +59,7 @@ type Handler struct {
 	// that doc's SSE stream. It is the authoritative source for the
 	// "X online" count so the number is consistent across every tab
 	// (each tab computes count = peers + self from the same events).
-	peersMu sync.Mutex
-	peers   map[string]map[string]struct{}
+	peers *collab.PeerSet
 }
 
 // New builds a whiteboard handler. persister is the PocketBase whiteboards
@@ -86,7 +84,7 @@ func New(
 		hub:    hub,
 		cfg:    cfg,
 		worker: collab.NewWebSyncWorker(hub, persister, docs, nc),
-		peers:  make(map[string]map[string]struct{}),
+		peers:  collab.NewPeerSet(),
 	}
 }
 
