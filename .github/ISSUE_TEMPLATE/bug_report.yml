@@ -1,0 +1,53 @@
+name: Bug / friction report
+description: Something broke while scaffolding, renaming, running, or deploying.
+title: "[bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most valuable contribution right now is a precise reproduction.
+        See [CONTRIBUTING.md](https://github.com/calionauta/gogogo/blob/master/CONTRIBUTING.md#issues) before filling this in.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: What were you building, and what blocked you?
+      placeholder: Scaffolded with install.sh --run, tried to deploy to…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behavior
+      placeholder: Expected X, got Y.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, Go version, scaffold method (install.sh vs manual), relevant env vars.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Steps, commands, or a small script. Log excerpt matters more than theory.
+      placeholder: |
+        1. …
+        2. …
+        ```
+        <log excerpt>
+        ```
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you already tried (including agent attempts)
+      description: If you pointed an agent at the codebase, include what it attempted and what you learned.
+      placeholder: Tried X, agent suggested Y, learned Z.
+    validations:
+      required: false

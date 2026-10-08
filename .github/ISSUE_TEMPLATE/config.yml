@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Docs
+    url: https://calionauta.github.io/gogogo/docs/
+    about: Check the manual before reporting — most answers are already there.
+  - name: Live demo
+    url: https://gogogo.calionauta.com/
+    about: Reproduce against the deployed template first (demo@demo.app / demo1234456).

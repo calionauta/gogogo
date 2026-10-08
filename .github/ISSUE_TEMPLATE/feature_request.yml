@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a change to the template. Discuss first — no surprise PRs.
+title: "[feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature PRs without prior discussion are redirected to an issue first.
+        See [CONTRIBUTING.md](https://github.com/calionauta/gogogo/blob/master/CONTRIBUTING.md). Make the case here.
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: What real app needed this? Feature requests without a use case are closed.
+      placeholder: While building …, I needed …
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      placeholder: Add / change … behind … opt-out.
+    validations:
+      required: true
+  - type: textarea
+    id: fork
+    attributes:
+      label: Why upstream instead of in your fork?
+      description: Most app-specific needs belong in the fork, not the template.
+      placeholder: This belongs upstream because every scaffolded app will need …
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope impact
+      description: Which SCOPE axis does this touch (core / plugin / feature)?
+      placeholder: removal=plugin, delete features/xyz/ to opt out.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
