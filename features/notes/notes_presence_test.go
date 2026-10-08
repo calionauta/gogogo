@@ -9,13 +9,14 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 func openNoteStream(
 	t *testing.T, client *http.Client, baseURL, docID, clientID string,
-) (chan string, context.CancelFunc) {
+) (*eventLog, context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
@@ -34,39 +35,85 @@ func openNoteStream(
 		resp.Body.Close()
 		t.Fatalf("stream status = %d", resp.StatusCode)
 	}
-	got := make(chan string, 32)
+	log := &eventLog{}
 	go func() {
 		sc := bufio.NewScanner(resp.Body)
 		sc.Buffer(make([]byte, 64*1024), 1024*1024)
 		for sc.Scan() {
 			if rest, ok := strings.CutPrefix(sc.Text(), "data: "); ok {
-				got <- rest
+				log.append(rest)
 			}
 		}
 	}()
-	return got, func() { cancel(); resp.Body.Close() }
+	return log, func() { cancel(); resp.Body.Close() }
 }
 
-// waitNoteEvent returns the first payload matching pred, or fails after
-// 10s.
-func waitNoteEvent(t *testing.T, got chan string, pred func(map[string]any) bool) map[string]any {
-	t.Helper()
-	deadline := time.After(10 * time.Second)
-	for {
-		select {
-		case data := <-got:
-			var msg map[string]any
-			if err := json.Unmarshal([]byte(data), &msg); err != nil {
-				continue
-			}
-			if pred(msg) {
-				return msg
-			}
-		case <-deadline:
-			t.Fatalf("timed out waiting for matching event")
-			return nil
+// eventLog is a lossless transcript of one SSE stream. Every payload the
+// scanner reads is appended; waiters scan the whole log instead of
+// consuming a channel, so an early wait can never eat an event a later
+// wait needs (that exact bug made join/count assertions flake: the settle
+// wait consumed the join the test then waited for).
+type eventLog struct {
+	mu     sync.Mutex
+	events []map[string]any
+	raw    []string
+}
+
+func (l *eventLog) append(data string) {
+	var msg map[string]any
+	if err := json.Unmarshal([]byte(data), &msg); err != nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.events = append(l.events, msg)
+	l.raw = append(l.raw, data)
+}
+
+func (l *eventLog) find(pred func(map[string]any) bool) (map[string]any, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, msg := range l.events {
+		if pred(msg) {
+			return msg, true
 		}
 	}
+	return nil, false
+}
+
+func (l *eventLog) count() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return len(l.events)
+}
+
+// waitNoteEvent polls the transcript until one entry matches pred, or
+// fails after 10s. Polling (not channel consumption) is what keeps
+// sequential waits independent; the failure reports the transcript size
+// so a timeout reads as "nothing matched" vs "nothing arrived".
+func waitNoteEvent(t *testing.T, log *eventLog, pred func(map[string]any) bool) map[string]any {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if msg, ok := log.find(pred); ok {
+			return msg
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for matching event (%d arrived)", log.count())
+	return nil
+}
+
+// settleStream waits for the stream's OWN authoritative count event,
+// proving the server registered this client before the test acts.
+// Without it, a broadcast can fire before registration completes: HTTP
+// 200 headers flush before Register runs, so "open then act" races the
+// server under load. Same guarantee as whiteboard's settleJoin.
+func settleStream(t *testing.T, log *eventLog, clientID string) {
+	t.Helper()
+	waitNoteEvent(t, log, func(msg map[string]any) bool {
+		return msg["type"] == "count" && containsAll(peerIDs(msg), clientID)
+	})
 }
 
 // peerIDs extracts the peers list from a count/join event.
@@ -105,7 +152,8 @@ func TestNotesOpCarriesCaret(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-opcaret"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 
 	code, _ := postOp(t, client, baseURL, docID, "cliA",
@@ -113,7 +161,7 @@ func TestNotesOpCarriesCaret(t *testing.T) {
 	if code != http.StatusOK {
 		t.Fatalf("op with caret status = %d", code)
 	}
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		if msg["type"] != "note-text" {
 			return false
 		}
@@ -135,7 +183,8 @@ func TestNotesOpDropsInvalidCaret(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-badcaret"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 
 	code, out := postOp(t, client, baseURL, docID, "cliA",
@@ -143,7 +192,7 @@ func TestNotesOpDropsInvalidCaret(t *testing.T) {
 	if code != http.StatusOK || out["text"] != "hi" {
 		t.Fatalf("op with bad caret: status = %d, out = %v", code, out)
 	}
-	msg := waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "note-text"
 	})
 	if _, present := msg["caret"]; present {
@@ -182,13 +231,14 @@ func TestNotesCaretRelay(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-caret"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 
 	if code := postCaret(t, client, baseURL, docID, "cliA", 5, 17); code != http.StatusOK {
 		t.Fatalf("caret status = %d", code)
 	}
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		line, _ := msg["x"].(float64)
 		pos, _ := msg["y"].(float64)
 		return msg["type"] == "caret" && msg["user"] == notesEmail && line == 5 && pos == 17
@@ -227,20 +277,21 @@ func TestNotesTypingBroadcast(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-typing"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 
 	if code := postTyping(t, client, baseURL, docID, "cliA", true); code != http.StatusOK {
 		t.Fatalf("typing status = %d", code)
 	}
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "typing" && msg["user"] == notesEmail
 	})
 
 	if code := postTyping(t, client, baseURL, docID, "cliA", false); code != http.StatusOK {
 		t.Fatalf("stopped status = %d", code)
 	}
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "stopped" && msg["user"] == notesEmail
 	})
 }
@@ -254,15 +305,17 @@ func TestNotesPresenceJoinCount(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-presence"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 	_, closeC := openNoteStream(t, client, baseURL, docID, "cliC")
+	settleStream(t, logB, "cliC")
 	defer closeC()
 
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "join" && msg["user"] == notesEmail
 	})
-	msg := waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "count" && containsAll(peerIDs(msg), "cliB", "cliC")
 	})
 	if len(peerIDs(msg)) != 2 {
@@ -278,19 +331,21 @@ func TestNotesPresenceLeave(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-leave"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 	_, closeC := openNoteStream(t, client, baseURL, docID, "cliC")
+	settleStream(t, logB, "cliC")
 
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "count" && containsAll(peerIDs(msg), "cliB", "cliC")
 	})
 	closeC()
 
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "leave" && msg["user"] == notesEmail
 	})
-	msg := waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "count" && !containsAll(peerIDs(msg), "cliC")
 	})
 	if !containsAll(peerIDs(msg), "cliB") {
@@ -306,12 +361,13 @@ func TestNotesStreamReceivesText(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-stream"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 
 	postOp(t, client, baseURL, docID, "cliA", `{"base":0,"ops":[{"t":"ins","i":0,"s":"live text"}]}`)
 
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "note-text" && msg["text"] == "live text" && msg["from"] == notesEmail
 	})
 }
@@ -339,7 +395,8 @@ func TestNotesPresenceFallsBackToClientID(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-fallback"
 
-	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	logB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	settleStream(t, logB, "cliB")
 	defer closeB()
 
 	jar, err := cookiejar.New(nil)
@@ -350,7 +407,7 @@ func TestNotesPresenceFallsBackToClientID(t *testing.T) {
 	if code := postTyping(t, anon, baseURL, docID, "anonX", true); code != http.StatusOK {
 		t.Fatalf("anon typing status = %d", code)
 	}
-	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+	waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "typing" && msg["user"] == "anonX"
 	})
 }
