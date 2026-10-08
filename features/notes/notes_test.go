@@ -67,6 +67,26 @@ func notesFixture(t *testing.T) (string, *collab.MemoryPersister, func()) {
 		t.Fatalf("Bootstrap: %v", bErr)
 	}
 
+	// Seed the "notes" collection production seeds on boot (db/seed.go
+	// ensureNotesCollection): the fragment lists from it, so tests need
+	// it present exactly like production does.
+	if _, findErr := app.FindCollectionByNameOrId("notes"); findErr != nil {
+		col := core.NewBaseCollection("notes")
+		col.Fields.Add(
+			&core.TextField{Name: "doc_id", Required: true},
+			&core.TextField{Name: "snapshot"},
+			&core.NumberField{Name: "version"},
+			&core.DateField{Name: "updated"},
+		)
+		viewRule := "@request.auth.id != ''"
+		col.ListRule = &viewRule
+		col.ViewRule = &viewRule
+		if sErr := app.Save(col); sErr != nil {
+			os.RemoveAll(tmpDir)
+			t.Fatalf("seed notes collection: %v", sErr)
+		}
+	}
+
 	q, err := queue.New(cfg)
 	if err != nil {
 		mustReset(t, app)

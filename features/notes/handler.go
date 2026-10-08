@@ -139,6 +139,7 @@ func (h *Handler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
 	r.GET("/api/notes/{docID}/stream", h.handleStream)
 	r.POST("/api/notes/{docID}/op", h.handleOp)
 	r.POST("/api/notes/{docID}/typing", h.handleTyping)
+	r.GET("/api/notes/fragment", h.handleFragment)
 }
 
 // handleIndex lists existing notes (from the PocketBase collection).
@@ -150,24 +151,49 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if c.Auth != nil {
 		email = c.Auth.Email()
 	}
-	ids := []string{}
-	if records, err := h.app.FindRecordsByFilter("notes", "", "-updated", notesListLimit, 0); err == nil {
-		for _, rec := range records {
-			ids = append(ids, rec.GetString("doc_id"))
-		}
-	} else {
-		slog.Debug("notes: list unavailable (collection not seeded?)", "error", err)
-	}
-	return NotesIndex(email, ids, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return NotesIndex(email, h.listNoteIDs(), h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
-// handleNew creates a fresh note id and redirects to it. Docs are created
-// lazily on first op, so this only mints the id.
+// listNoteIDs returns created note ids (tolerates a missing collection so
+// tests with an in-memory persister and fresh installs render empty).
+func (h *Handler) listNoteIDs() []string {
+	ids := []string{}
+	records, err := h.app.FindRecordsByFilter("notes", "", "-updated", notesListLimit, 0)
+	if err != nil {
+		slog.Debug("notes: list unavailable (collection not seeded?)", "error", err)
+		return ids
+	}
+	for _, rec := range records {
+		ids = append(ids, rec.GetString("doc_id"))
+	}
+	return ids
+}
+
+// handleFragment renders just the notes list. It is the target of the
+// index page's PB-realtime resync (same pattern as the whiteboard list:
+// a hidden @get button re-fetched on record events).
+func (h *Handler) handleFragment(c *core.RequestEvent) error {
+	return NotesListFragment(h.listNoteIDs()).Render(c.Request.Context(), c.Response)
+}
+
+// handleNew creates a fresh note id and redirects to it. A PocketBase
+// record is created when the collection exists so realtime subscribers
+// see it (mirrors whiteboard handleNew); the CRDT doc itself stays lazy
+// until the first op.
 func (h *Handler) handleNew(c *core.RequestEvent) error {
 	if err := auth.RequireAuthOrRedirect(c); err != nil {
 		return err
 	}
-	return c.Redirect(http.StatusFound, "/notes/"+uuid.NewString())
+	docID := uuid.NewString()
+	if col, err := h.app.FindCollectionByNameOrId("notes"); err == nil {
+		rec := core.NewRecord(col)
+		rec.Set("doc_id", docID)
+		rec.Set("version", 0)
+		if saveErr := h.app.Save(rec); saveErr != nil {
+			slog.Warn("notes: save new note record", "doc", docID, "error", saveErr)
+		}
+	}
+	return c.Redirect(http.StatusFound, "/notes/"+docID)
 }
 
 // handleNote renders one note page with the resolved text. Rehydrates the

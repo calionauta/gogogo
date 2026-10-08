@@ -25,18 +25,63 @@ templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit s
 					<h1 class="text-2xl font-bold">Shared notes</h1>
 					<a class="btn btn-sm btn-primary" href="/notes/new">New note</a>
 				</div>
-				if len(docIDs) == 0 {
-					<p class="text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
-				} else {
-					<ul class="menu bg-base-200 rounded-box w-full">
-						for _, id := range docIDs {
-							<li><a href={ templ.URL("/notes/" + id) }>{ id }</a></li>
-						}
-					</ul>
-				}
+				@NotesListFragment(docIDs)
 			</main>
+			<button
+				id="notes-realtime-resync"
+				type="button"
+				class="hidden"
+				data-on:click={ "@get('/api/notes/fragment')" }
+				aria-hidden="true"
+			></button>
+			<script type="module">
+				// Live list: PocketBase realtime on the notes collection,
+				// re-fetching the fragment — same pattern as the whiteboard
+				// list. Concatenation (no template literals): datastar-lint
+				// rejects templ-expression-looking braces in script bodies.
+				var clientID = "notes-" + Math.random().toString(36).slice(2, 10);
+				var es = new EventSource("/api/realtime?clientId=" + encodeURIComponent(clientID));
+				function subscribe(id) {
+					fetch("/api/realtime", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ clientId: id, action: "subscribe", subscriptions: ["notes"] })
+					}).catch(function () {});
+				}
+				function resync() {
+					var b = document.getElementById("notes-realtime-resync");
+					if (b) { b.click(); }
+				}
+				es.addEventListener("PB_CONNECT", function (e) {
+					var msg;
+					try { msg = JSON.parse(e.data); } catch (_) { return; }
+					if (!msg.clientId) { return; }
+					es.addEventListener("notes", function () { resync(); });
+					subscribe(msg.clientId);
+					resync();
+				});
+				document.addEventListener("visibilitychange", function () {
+					if (!document.hidden) { resync(); }
+				});
+			</script>
 		</body>
 	</html>
+}
+
+// NotesListFragment renders just the notes list. Target of the
+// @get('/api/notes/fragment') resync above.
+templ NotesListFragment(docIDs []string) {
+	<div id="notes-list">
+		if len(docIDs) == 0 {
+			<p class="text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
+		} else {
+			<ul class="menu bg-base-200 rounded-box w-full">
+				for _, id := range docIDs {
+					<li><a href={ templ.URL("/notes/" + id) }>{ id }</a></li>
+				}
+			</ul>
+		}
+	</div>
 }
 
 // NotesPage renders one shared note: a textarea bound to the server-owned
