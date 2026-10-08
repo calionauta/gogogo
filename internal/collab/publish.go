@@ -6,6 +6,8 @@ import (
 
 	"github.com/aholstenson/loro-go"
 	natsio "github.com/nats-io/nats.go"
+
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // Publisher pushes local Loro updates onto the JetStream subject
@@ -38,4 +40,25 @@ func (p *Publisher) PublishUpdate(d *Doc, since *loro.VersionVector) error {
 		return pubErr
 	}
 	return nil
+}
+
+// Fanout delivers one committed change to both transports in fixed order:
+// SSE hub peers first (live tabs, exclude-originator), then raw bytes to
+// NATS for cross-instance server convergence (nil connection = SSE-only
+// mode, skip silently; empty payload = nothing to converge, skip).
+// Whiteboard (ApplyOp) and notes (applyOps) funnel through here so the
+// order, the drop policy, and the logging can never drift per feature.
+// event is the already-marshaled SSE payload; natsPayload is what the
+// peer SyncWorker imports (snapshot or delta — the caller's choice,
+// preserved as-is). Persistence stays with the caller: each feature owns
+// its collection and error policy. Fanout never fails the op: transport
+// errors log and the change is already durable + already live locally.
+func Fanout(hub *queue.SSEHub, nc *natsio.Conn, subject, docID, fromClientID string, natsPayload, event []byte) {
+	hub.BroadcastExcept(event, fromClientID)
+	if nc == nil || len(natsPayload) == 0 {
+		return
+	}
+	if err := nc.Publish(subject, natsPayload); err != nil {
+		slog.Warn("collab: fanout publish failed", "subject", subject, "doc", docID, "error", err)
+	}
 }

@@ -313,6 +313,18 @@ func (h *Handler) handleOp(c *core.RequestEvent) error {
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text, "rev": rev})
 }
 
+// relay broadcasts one ephemeral presence event (no persistence, no
+// NATS). Typing and caret share it: same envelope, same error policy,
+// one place to change when the wire evolves.
+func (h *Handler) relay(from string, msg collab.PresenceMsg) error {
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	h.hub.BroadcastExcept(payload, from)
+	return nil
+}
+
 // typingRequest is one typing-state report. Ephemeral by design:
 // broadcast only, never persisted, never forwarded to NATS. A dropped
 // "stopped" is covered by the client's expiry sweep, so the server keeps
@@ -346,16 +358,14 @@ func (h *Handler) handleTyping(c *core.RequestEvent) error {
 	if req.Typing {
 		typ = "typing"
 	}
-	payload, mErr := json.Marshal(collab.PresenceMsg{
+	if err := h.relay(from, collab.PresenceMsg{
 		Doc:  docID,
 		User: from,
 		Type: typ,
 		TS:   time.Now().UnixMilli(),
-	})
-	if mErr != nil {
+	}); err != nil {
 		return c.String(http.StatusInternalServerError, "marshal typing")
 	}
-	h.hub.BroadcastExcept(payload, from)
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -397,18 +407,16 @@ func (h *Handler) handleCaret(c *core.RequestEvent) error {
 	if req.Pos < 0 {
 		return c.String(http.StatusBadRequest, "pos must be >= 0")
 	}
-	payload, mErr := json.Marshal(collab.PresenceMsg{
+	if err := h.relay(from, collab.PresenceMsg{
 		Doc:  docID,
 		User: from,
 		Type: "caret",
 		X:    float64(req.Line),
 		Y:    float64(req.Pos),
 		TS:   time.Now().UnixMilli(),
-	})
-	if mErr != nil {
+	}); err != nil {
 		return c.String(http.StatusInternalServerError, "marshal caret")
 	}
-	h.hub.BroadcastExcept(payload, from)
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -435,19 +443,17 @@ func (h *Handler) applyOps(docID, from string, ops []collab.TextOp, rev uint64) 
 	payload, err := json.Marshal(NoteTextEvent{
 		Type: wireNoteText, Doc: docID, From: from, Text: text, Rev: rev,
 	})
-	if err == nil {
-		h.hub.BroadcastExcept(payload, from)
-	} else {
+	if err != nil {
 		slog.Warn("notes: marshal text", "doc", docID, "error", err)
+		return text, err
 	}
+	var update []byte
 	if h.nc != nil {
-		if update, err := d.EncodeUpdate(since); err == nil {
-			if nErr := h.nc.Publish(notesSyncSubject+docID, update); nErr != nil {
-				slog.Warn("notes: nats publish", "doc", docID, "error", nErr)
-			}
-		} else {
-			slog.Warn("notes: encode update", "doc", docID, "error", err)
+		var uErr error
+		if update, uErr = d.EncodeUpdate(since); uErr != nil {
+			slog.Warn("notes: encode update", "doc", docID, "error", uErr)
 		}
 	}
+	collab.Fanout(h.hub, h.nc, notesSyncSubject+docID, docID, from, update, payload)
 	return text, nil
 }

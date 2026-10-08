@@ -204,17 +204,10 @@ func (w *WebSyncWorker) ApplyOp(docID, fromClientID string, op ShapeOp) ([]Shape
 		slog.Warn("collab: marshal shapes", "doc", docID, "error", err)
 		return shapes, err
 	}
-	w.hub.BroadcastExcept(payload, fromClientID)
-
-	// NATS broadcast: publish the raw Loro update so the SyncWorker on
-	// other instances converges this doc too.
-	if w.nc != nil {
-		// Encode the shape op as a Loro update for the NATS sync path.
-		// The SyncWorker persists and re-broadcasts to its own SSE hub.
-		if nErr := w.nc.Publish(natsSyncSubject(docID), d.EncodeSnapshot()); nErr != nil {
-			slog.Warn("collab: nats publish shapes", "doc", docID, "error", nErr)
-		}
-	}
+	// Fanout: hub peers, then the snapshot on app.sync.<docID> so the
+	// SyncWorker on other instances converges too. Snapshot (not delta)
+	// preserved as-is — changing the wire needs the desktop edges.
+	Fanout(w.hub, w.nc, natsSyncSubject(docID), docID, fromClientID, snapshot, payload)
 
 	return shapes, nil
 }
