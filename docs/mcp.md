@@ -31,9 +31,25 @@ where `install.sh` puts it):
 { "mcpServers": { "gogogo": { "command": "~/.local/bin/gogogo-mcp" } } }
 ```
 
-- **Claude Code** — user config (`~/.claude.json`) or `claude mcp add`.
-- **Cursor** — workspace/client config (`.cursor/mcp.json`).
-- **BB** — client MCP config, same block.
+That JSON shape fits Claude Code (`.mcp.json` per project, or
+`claude mcp add gogogo -- ~/.local/bin/gogogo-mcp` for just you).
+The others need their own format — same binary, same tools:
+
+- **Claude Code** — `.mcp.json` above, or the `claude mcp add` command.
+  Verify: `claude mcp list`, then restart.
+- **Codex** — TOML in `~/.codex/config.toml` (every project) or
+  `.codex/config.toml` (this project, must be trusted):
+  `[mcp_servers.gogogo]` + `command = "~/.local/bin/gogogo-mcp"`.
+  Verify: `/mcp` in session, or `codex mcp list`.
+- **OpenCode** — `opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp`,
+  or `"mcp": {"gogogo": {"type": "local", "command": [...]}}` in
+  `opencode.json`. Verify: `opencode mcp list`.
+- **Pi** (1.0) — `pi mcp add gogogo -- ~/.local/bin/gogogo-mcp`.
+  Reads the standard `mcpServers` format too. Verify: `pi mcp list`.
+
+Use the absolute path (`echo $HOME`) — most clients spawn without a
+shell, so `~` may not expand. Cursor, VS Code, BB and other
+JSON-config clients take the Claude Code block verbatim.
 
 ## Tools
 

@@ -222,6 +222,77 @@ h1 {
   border-top: 1px solid var(--line);
 }
 
+/* ---------- client tabs (MCP install, one client at a time) ---------- */
+
+.tabs {
+  margin: 0 auto 18px;
+  max-width: 620px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-tint);
+}
+
+.tabs input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-labels {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-labels label {
+  flex: 1 1 auto;
+  text-align: center;
+  padding: 10px 8px;
+  margin-bottom: -1px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-labels label:hover { color: var(--ink); }
+
+#tab-claude:checked ~ .tab-labels label[for="tab-claude"],
+#tab-codex:checked ~ .tab-labels label[for="tab-codex"],
+#tab-opencode:checked ~ .tab-labels label[for="tab-opencode"],
+#tab-pi:checked ~ .tab-labels label[for="tab-pi"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.tabs .panel { display: none; }
+
+#tab-claude:checked ~ .panels .panel-claude,
+#tab-codex:checked ~ .panels .panel-codex,
+#tab-opencode:checked ~ .panels .panel-opencode,
+#tab-pi:checked ~ .panels .panel-pi { display: block; }
+
+.tabs .panel pre {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+}
+
+/* ---------- Stelow aside (own rhythm, apart from the docs links) ---------- */
+
+.stelow-aside {
+  margin: 28px auto 0;
+  max-width: 560px;
+  text-align: center;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-faint);
+}
+
+.stelow-aside a { font-weight: 600; }
+
 /* ---------- sections ---------- */
 
 .section {

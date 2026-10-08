@@ -108,15 +108,48 @@
       </div>
     </div>
     <div class="install-block wide">
-      <pre><code>{ "mcpServers": { "gogogo": { "command": "~/.local/bin/gogogo-mcp" } } }</code></pre>
+      <p class="install-label">0 · Install the binary (once)</p>
+      <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh</code></pre>
+      <p class="install-note">Puts <code>gogogo</code> + <code>gogogo-mcp</code> in <code>~/.local/bin</code>. Or build from source: <code>cd cmd/gogogo-mcp && go build -o gogogo-mcp .</code></p>
     </div>
+    <div class="tabs">
+      <input type="radio" name="mcp-client" id="tab-claude" checked>
+      <input type="radio" name="mcp-client" id="tab-codex">
+      <input type="radio" name="mcp-client" id="tab-opencode">
+      <input type="radio" name="mcp-client" id="tab-pi">
+      <div class="tab-labels">
+        <label for="tab-claude">Claude Code</label>
+        <label for="tab-codex">Codex</label>
+        <label for="tab-opencode">OpenCode</label>
+        <label for="tab-pi">Pi</label>
+      </div>
+      <div class="panels">
+        <div class="panel panel-claude">
+          <pre><code>{ "mcpServers": { "gogogo": { "command": "~/.local/bin/gogogo-mcp" } } }</code></pre>
+          <p class="install-note">Save as <code>.mcp.json</code> in your project (shared with the team), or run <code>claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code> for just you. Verify: <code>claude mcp list</code>, then restart Claude Code.</p>
+        </div>
+        <div class="panel panel-codex">
+          <pre><code>[mcp_servers.gogogo]
+command = "~/.local/bin/gogogo-mcp"</code></pre>
+          <p class="install-note">In <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this project, must be trusted). Verify: <code>/mcp</code> in session, or <code>codex mcp list</code>.</p>
+        </div>
+        <div class="panel panel-opencode">
+          <pre><code>opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
+          <p class="install-note">Or in <code>opencode.json</code>: <code>"mcp": {"gogogo": {"type": "local", "command": ["~/.local/bin/gogogo-mcp"]}}</code>. Verify: <code>opencode mcp list</code>.</p>
+        </div>
+        <div class="panel panel-pi">
+          <pre><code>pi mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
+          <p class="install-note">Pi 1.0 reads the standard <code>mcpServers</code> format too — migrating from another client just works. Verify: <code>pi mcp list</code> (exits 1 on invalid entries).</p>
+        </div>
+      </div>
+    </div>
+    <p class="fine center">Replace <code>~</code> with your home dir (<code>echo $HOME</code>) — most clients spawn without a shell, so it may not expand.</p>
     <p class="fine center">CLI reference: <a href="./docs/cli/">cli →</a> ·
     MCP setup: <a href="./docs/mcp/">mcp →</a> ·
     tool catalog: <a href="https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp" rel="noopener">cmd/gogogo-mcp</a></p>
-    <p class="exception-sub">Still shaping the <em>what</em> — or deciding
-    what's worth building?
-    <a href="https://calionauta.github.io/stelow/">Stelow</a> — your agentic
-    product team — runs the full product workflow.</p>
+    <aside class="stelow-aside">
+      <p>Still shaping the <em>what</em> — or deciding what's worth building? <a href="https://calionauta.github.io/stelow/">Stelow</a> — your agentic product team — runs the full product workflow.</p>
+    </aside>
   </section>
 
   <section id="stack" class="section">
