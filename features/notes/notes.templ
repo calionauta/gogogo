@@ -4,6 +4,7 @@ import "strconv"
 
 import "github.com/calionauta/gogogo/features/auth"
 import "github.com/calionauta/gogogo/features/sounds"
+import "github.com/calionauta/gogogo/internal/components"
 
 // NotesIndex lists existing shared notes with a button to start a new one.
 templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit string) {
@@ -119,9 +120,7 @@ templ NotesPage(email string, docID string, text string, rev uint64, buildLabel 
 						<span id="net-status" class="text-xs text-warning hidden" aria-live="polite">reconnecting…</span>
 					</span>
 				</div>
-				<div id="session-banner" class="hidden alert alert-warning mt-2" role="alert" aria-live="polite">
-					<span>Session expired — <a class="link" href="/login">sign in again</a> to keep your name on edits. Your text stays safe in this tab.</span>
-				</div>
+				@components.SessionBanner(email != "")
 				<label class="sr-only" for="note-text">Note text</label>
 				<div id="note-wrap" class="relative">
 					<textarea id="note-text" class="textarea textarea-bordered w-full font-mono" rows="20" placeholder="Type — every tab merges.">{ text }</textarea>

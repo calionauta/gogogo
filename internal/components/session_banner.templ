@@ -1,0 +1,29 @@
+// SCOPE:core - Session-expiry banner. ONE component for every authenticated
+// page: the notes/whiteboard SSE streams drive it live (collab.SessionEvent),
+// while pages without a raw stream (todo, room, config) let the shared
+// /static/session.js probe /api/session. Pass authed=true when the page
+// rendered for a signed-in user; a public page passes false and never warns.
+package components
+
+import "strconv"
+
+// SessionBanner renders the hidden banner plus its controller script. The
+// banner starts hidden and is revealed by session.js only when a session
+// that was present disappears — see web/resources/static/session.js.
+templ SessionBanner(authed bool) {
+	<div
+		id="session-banner"
+		class="hidden alert alert-warning app-session-banner"
+		data-component="session-banner"
+		data-authed={ strconv.FormatBool(authed) }
+		role="alert"
+		aria-live="polite"
+	>
+		<span>
+			Session expired —
+			<a class="link" href="/login">sign in again</a>
+			to keep your name on edits. Your work stays safe in this tab.
+		</span>
+	</div>
+	<script defer src="/static/session.js"></script>
+}

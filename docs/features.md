@@ -84,6 +84,15 @@ landing) — a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.
 
+Session visibility is shared the same way: the notes and whiteboard streams
+open with a `collab.SessionEvent` frame, and pages without a raw stream
+(todo, room) poll `/api/session`, so every tab raises the same
+`components.SessionBanner` the moment a cookie expires — peer names never
+silently degrade to client hashes with nothing on screen explaining why, and
+the banner never auto-redirects (unsent work would be stranded). It is
+opt-in per page via the render-time `authed` flag, so a public page never
+nags about a session it never had.
+
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"
 in the README (wire size). Icons (`iconify`, 24 KB raw) load only on

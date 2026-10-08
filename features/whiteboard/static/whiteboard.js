@@ -66,6 +66,14 @@
     if (msg.type === "shapes") {
       shapes = msg.shapes || [];
       render();
+    } else if (msg.type === "session") {
+      // First frame of the stream: the shared session banner shows when
+      // the connection is no longer authed, so a peer's cursor stops
+      // silently degrading to a raw client id. Falls through harmlessly
+      // when the shared controller is absent.
+      if (window.GogogoSession && window.GogogoSession.set) {
+        window.GogogoSession.set(!!msg.authed);
+      }
     } else if (["cursor", "join", "leave", "count", "snapshot"].indexOf(msg.type) !== -1) {
       handlePresence(msg);
     }

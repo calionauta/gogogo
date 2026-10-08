@@ -443,16 +443,15 @@
     } catch (err) { /* sound off or unavailable: presence stays visual */ }
   }
 
-  // Session banner: tabs outlive cookies. Shown on authed:false (op
-  // answers, stream session event) or HTTP 401/403; hidden again on the
-  // next authed:true. Never auto-redirects: that would strand unsent
-  // textarea content — the user re-logs in (same browser shares the
-  // cookie back) and keeps typing.
+  // Session banner: the shared controller (/static/session.js) owns the
+  // DOM; this stays a local alias so every call site reads the same.
+  // Fallback keeps it a no-op if the shared file missed the first paint.
+  // Shown on authed:false (op answers, stream session frame) or HTTP
+  // 401/403; hidden on the next authed:true. Never auto-redirects — that
+  // would strand unsent textarea content (the user re-logs in and keeps
+  // typing).
   function setSession(on) {
-    const b = document.getElementById("session-banner");
-    if (!b) return;
-    if (on) b.classList.add("hidden");
-    else b.classList.remove("hidden");
+    if (window.GogogoSession && window.GogogoSession.set) window.GogogoSession.set(on);
   }
 
   const es = new EventSource(

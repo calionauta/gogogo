@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/internal/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 )
 
@@ -33,6 +34,7 @@ templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel strin
 		</head>
 		<body>
 			@auth.Navbar(email, "room", buildLabel, buildCommit)
+			@components.SessionBanner(email != "")
 			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>
 				<h1 class="text-2xl font-bold">Room: { roomID }</h1>
 				<p class="opacity-70">

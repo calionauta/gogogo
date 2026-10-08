@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [0.42.0] - 2026-10-09
+
+### Added
+
+- **Shared session-expiry visibility for every feature.** Notes and
+  whiteboard streams open with a `collab.SessionEvent` frame; pages
+  without a raw stream (todo, room) poll `/api/session`. All render the
+  same `components.SessionBanner` + `/static/session.js`, so a cookie
+  that expires while a tab is open now says so instead of silently
+  degrading peer names to client hashes. Opt-in per page via the
+  render-time `authed` flag.
+
+### Changed
+
+- `internal/collab` gained `SessionEvent`; notes uses it instead of an
+  inline map. The session banner JS moved to one shared controller.
+
 ## [0.41.0] - 2026-10-09
 
 ### Added
