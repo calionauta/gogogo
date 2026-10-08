@@ -108,9 +108,9 @@
       </div>
     </div>
     <div class="install-block wide">
-      <p class="install-label">0 · Install the binary (once)</p>
+      <p class="install-label">Prerequisite — install the binary, once</p>
       <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh</code></pre>
-      <p class="install-note">Puts <code>gogogo</code> + <code>gogogo-mcp</code> in <code>~/.local/bin</code>. Or build from source: <code>cd cmd/gogogo-mcp && go build -o gogogo-mcp .</code></p>
+      <p class="install-note">Puts <code>gogogo</code> + <code>gogogo-mcp</code> in <code>~/.local/bin</code> (or build from source: <code>cd cmd/gogogo-mcp && go build -o gogogo-mcp .</code>). Below, replace <code>~</code> with your absolute home path (<code>echo $HOME</code>) — clients spawn without a shell, so it may not expand.</p>
     </div>
     <div class="tabs">
       <input type="radio" name="mcp-client" id="tab-claude" checked>
@@ -143,13 +143,20 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
         </div>
       </div>
     </div>
-    <p class="fine center">Replace <code>~</code> with your home dir (<code>echo $HOME</code>) — most clients spawn without a shell, so it may not expand.</p>
-    <p class="fine center">CLI reference: <a href="./docs/cli/">cli →</a> ·
-    MCP setup: <a href="./docs/mcp/">mcp →</a> ·
-    tool catalog: <a href="https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp" rel="noopener">cmd/gogogo-mcp</a></p>
-    <aside class="stelow-aside">
-      <p>Still shaping the <em>what</em> — or deciding what's worth building? <a href="https://calionauta.github.io/stelow/">Stelow</a> — your agentic product team — runs the full product workflow.</p>
-    </aside>
+    <div class="grid-3 docs-links">
+      <a class="doc-card" href="./docs/cli/">
+        <span class="doc-card-title">CLI reference →</span>
+        <span class="doc-card-desc">Scaffold, trim, advise, add, check — every flag.</span>
+      </a>
+      <a class="doc-card" href="./docs/mcp/">
+        <span class="doc-card-title">MCP setup →</span>
+        <span class="doc-card-desc">Transports, tools, per-client wiring.</span>
+      </a>
+      <a class="doc-card" href="https://github.com/calionauta/gogogo/tree/master/cmd/gogogo-mcp" rel="noopener">
+        <span class="doc-card-title">Tool catalog →</span>
+        <span class="doc-card-desc">The six tools, source included.</span>
+      </a>
+    </div>
   </section>
 
   <section id="stack" class="section">

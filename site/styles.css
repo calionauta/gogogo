@@ -280,18 +280,46 @@ h1 {
   margin: 0;
 }
 
-/* ---------- Stelow aside (own rhythm, apart from the docs links) ---------- */
+/* ---------- docs link cards (whole-card affordance, no paragraph soup) ---------- */
 
-.stelow-aside {
-  margin: 28px auto 0;
-  max-width: 560px;
-  text-align: center;
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: var(--ink-faint);
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
 }
 
-.stelow-aside a { font-weight: 600; }
+.docs-links {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 900px;
+}
+
+a.doc-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: var(--bg-tint);
+  text-decoration: none;
+}
+
+a.doc-card:hover { border-color: var(--accent); }
+
+.doc-card-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.doc-card-desc {
+  display: block;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+}
 
 /* ---------- sections ---------- */
 
