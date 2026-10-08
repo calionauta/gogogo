@@ -113,7 +113,7 @@ placement, no cluster — cross-process entities are out of scope.
 `config/config.go`. Set `NATS_ENABLED=false` or `DAGNATS_ENABLED=false` and the
 engine won't boot; downstream consumers handle nil gracefully.
 
-**Product features** (Todo, Whiteboard) have no runtime flag. To remove them,
+**Product features** (Todo, Whiteboard, Room, Notes) have no runtime flag. To remove them,
 delete the package directory and remove the wiring call from
 `router/router.go` — that is the [SCOPE removal pattern](scope-taxonomy.md).
 

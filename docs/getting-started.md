@@ -230,6 +230,8 @@ everything — the unified build era means you never pass `-tags`.
    env-decrypted values, masked secrets, runtime constants.
 5. Open `/whiteboard` — collaborative canvas; open it in a second window to
    see presence cursors and CRDT convergence.
+6. Open `/notes` — shared plain-text note; type in two windows to see
+   concurrent keystrokes merge, with presence and typing indicators.
 
 ## Commands
 

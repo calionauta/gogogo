@@ -32,6 +32,7 @@ internal/
   datastar/                       Datastar SSE rendering helpers
   nats/                           NATS JetStream + embedded server
   dagnats/                        DagNats durable workflow client
+  goakt/                          GoAkt entity actors (room authority)
   llm/                            GoAI LLM SDK helpers
   collab/                         Loro CRDT + DocStore + sync workers + presence
 features/
@@ -42,6 +43,8 @@ features/
   config/                         Auth-gated read-only /config view
   todo/                           Todo MVC example
   whiteboard/                     Collaborative canvas
+  room/                           Room presence demo (GoAkt grains)
+  notes/                          Shared plain-text notes (server-owned Loro Text)
   sounds/                         UI sound feedback (cuelume)
 web/
   resources/                      Embedded static assets

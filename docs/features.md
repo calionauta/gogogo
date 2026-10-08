@@ -11,7 +11,7 @@ second column names the **technology** that powers it.
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase` |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
 | **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots |
-| **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, snapshots in the `notes` collection |
+| **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing indicators, snapshots in the `notes` collection |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
 | **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: heartbeat roster + exactly-one presenter lock, supervised with restart budget. Demo at `/room/` with a crash hook |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |

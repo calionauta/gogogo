@@ -43,6 +43,7 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | **Read-only config view** | `features/config/` | 🟢 FEATURE | `config.New(cfg).RegisterRoutes(se)` (registered on `se.Router` directly) | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go` before render. |
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH.RegisterRoutes(se)` | Delete package + remove block |
 | **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `registerWhiteboardStack(se, q, cfg)` (hub + routes + collab sync in one call) | Delete both dirs + `router/whiteboard.go` + `router/collab_jetstream.go` + remove call |
+| **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `registerNotesStack(se, q, cfg)` (own hub + routes + notes sync on `app.notes.>`) | Delete dir + `router/notes.go` + remove call (+ navbar link, seed, capability entry) |
 | **Onboarding** | `features/todo/handlers/onboarding.go` + `internal/dagnats/` | 🟢 FEATURE | `registerOnboarding(app, q, se, broadcaster, todoH, cfg)` (no-ops when `DAGNATS_ENABLED=false`) | Delete both + remove call |
 | **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `registerRoomStack(se, cfg)` (no-ops when `GOAKT_ENABLED=false`) | Delete both dirs + `router/room_goakt.go` + `cmd/web/goakt.go` + remove call |
 | **EntityStore (persistence)** | `features/store/` (interface) + `features/store/pbstore/` (default impl) + `features/store/crdtstore/` (alternative) | 🟡 PLUGIN | `todoH.SetStore(pbstore.New(app, "todos"))` | Drop the `SetStore` call from `router.Init`; handler's lazy fallback (`h.st()`) rebuilds a PBStore. Switch strategy at runtime via `ENTITY_STORE=crdt` (see `config/config.go`). |
@@ -63,7 +64,7 @@ These are the **plumbing layers**. Each is independently replaceable.
 | **Event bus: NATS JetStream** | `internal/nats/` | 🟡 PLUGIN | `startNATS(cfg)` in `main.go` | Remove `startNATS` call; falls back to in-memory fan-out via SSE Hub |
 | **CRUD proxy (offline sync)** | `internal/nats/crudproxy.go` | 🟡 PLUGIN | `NewCrudPublisher(js)` + `NewCrudConsumer(app, js)` in `router.Init()` | Remove `crudproxy.go`; toggle via `OFFLINE_SYNC_ENABLED=false` (default on) |
 | **DagNats** (workflows) | `internal/dagnats/` | 🟡 PLUGIN | `startDagNats(cfg, pb, ...)` in `main.go` | Remove call + delete package |
-| **CRDT + Sync** (Loro) | `internal/collab/` | 🟡 PLUGIN | Via `registerWhiteboard` + `registerCollabSync` | Delete with whiteboard |
+| **CRDT + Sync** (Loro) | `internal/collab/` | 🟡 PLUGIN | Via `registerWhiteboard` + `registerCollabSync` (whiteboard) and `registerNotesStack` (notes, on `app.notes.>`) | Delete with the whiteboard unit (whiteboard+collab+notes) |
 | **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 PLUGIN | Imported by handlers | Replace with your own SSE rendering |
 | **Secrets** (age) | `internal/secrets/` | 🔴 CORE | `secrets.Load(appName)` in `config.Load()` | Remove call; env vars work without it |
 | **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | `llm.New(apiKey)` in `server.Run()` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
