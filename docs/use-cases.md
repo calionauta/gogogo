@@ -182,6 +182,13 @@ the implementation reference; delete it manually when done reading.
   for the outbox).
 - **Where entities live:** server truth, billing, accounts → `entity-store`
   `pb`. Shared canvas/docs edited offline → `crdt`.
+- **Shared text: CRDT merge vs OT serialization:** every keystroke must
+  survive concurrent typing with no central lock → `notes`
+  (server-owned Loro Text over `collab`). Plain text with explicit
+  unconfirmed states, refusal handling, and caret sharing instead → OT in
+  the style of the [Datastar collab demo](https://datastar-collab-edit-demo.ndyg.cross.stream/)
+  (`ot.js` by Tim Baumann) — no unit for it; the pattern ports to one
+  `features/` package on the SSE hub if you need it.
 - **Public vs operator surface:** unauthenticated homepage → `landing`;
   auth-gated env inspection → `config-view`.
 

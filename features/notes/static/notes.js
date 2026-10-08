@@ -30,7 +30,9 @@
 
   let lastSent = ta.value;
   let timer = null;
+  let flushing = false;
   const draftKey = "notes-draft:" + DOC;
+  const outKey = "notes-outbox:" + DOC;
   // Demo-grade offline cushion: if the server rendered empty but this
   // browser typed before (reload during an outage), restore the draft.
   // Server text always wins when non-empty — last-writer-per-browser only.
@@ -38,10 +40,19 @@
     if (!ta.value && localStorage.getItem(draftKey)) ta.value = localStorage.getItem(draftKey);
     lastSent = ta.value;
   } catch (err) { /* private mode: no draft */ }
+  // Op outbox (whiteboard uses IndexedDB; localStorage is enough for text
+  // ops): batches typed while offline replay on reconnect AND on reload.
+  // At-least-once: a lost response replays an applied batch, duplicating
+  // the insert — text inserts are not idempotent. Demo-grade, documented.
+  let outbox = [];
+  try { outbox = JSON.parse(localStorage.getItem(outKey) || "[]"); } catch (err) { outbox = []; }
+  function saveOutbox() { try { localStorage.setItem(outKey, JSON.stringify(outbox)); } catch (err) {} }
   ta.addEventListener("input", function () {
     clearTimeout(timer);
     timer = setTimeout(sendDiff, 300);
   });
+  if (outbox.length) flush();
+  window.addEventListener("online", flush);
 
   function sendDiff() {
     const cur = ta.value;
@@ -59,11 +70,36 @@
     lastSent = cur;
     if (!ops.length) return;
     try { localStorage.setItem(draftKey, cur); } catch (err) { /* private mode */ }
+    for (const op of ops) outbox.push(op);
+    saveOutbox();
+    flush();
+  }
+
+  function flush() {
+    if (!outbox.length || flushing) return;
+    flushing = true;
+    const batch = outbox.slice();
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ops: ops }),
-    }).catch(function () { net.classList.remove("hidden"); });
+      body: JSON.stringify({ ops: batch }),
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      flushing = false;
+      if (d && typeof d.text === "string") {
+        outbox = outbox.slice(batch.length);
+        saveOutbox();
+        // Adopt the authoritative text when unfocused (peers may have
+        // typed while we were offline); the focused case converges on
+        // the next local edit via the stream handler below.
+        if (document.activeElement !== ta && d.text !== ta.value) ta.value = d.text;
+        lastSent = ta.value;
+        net.classList.add("hidden");
+      }
+      if (outbox.length) setTimeout(flush, 1000);
+    }).catch(function () {
+      flushing = false;
+      net.classList.remove("hidden");
+    });
   }
 
   const es = new EventSource(
