@@ -247,7 +247,7 @@ the grain pattern into your own feature instead.
 ### `notes` — shared plain text (feature, manual removal, rides the whiteboard unit for trim)
 
 What: the `/notes/` pages exercising server-owned Loro Text (character
-ops merge, resolved text streams to peers). A reference implementation
+ops merge, resolved text streams to peers, typing presence). A reference implementation
 like `todo`, for collaborative editing without a JS CRDT library.
 
 Stack pick: server-owned Loro Text over Yjs-in-browser (second CRDT

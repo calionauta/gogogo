@@ -121,6 +121,7 @@ func (h *Handler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
 	r.GET("/notes/{docID}", h.handleNote)
 	r.GET("/api/notes/{docID}/stream", h.handleStream)
 	r.POST("/api/notes/{docID}/op", h.handleOp)
+	r.POST("/api/notes/{docID}/typing", h.handleTyping)
 }
 
 // handleIndex lists existing notes (from the PocketBase collection).
@@ -276,6 +277,52 @@ func (h *Handler) handleOp(c *core.RequestEvent) error {
 		return c.String(http.StatusBadRequest, "apply op: "+err.Error())
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text})
+}
+
+// typingRequest is one typing-state report. Ephemeral by design:
+// broadcast only, never persisted, never forwarded to NATS. A dropped
+// "stopped" is covered by the client's expiry sweep, so the server keeps
+// no per-peer typing state (no residue to GC, nothing to converge).
+type typingRequest struct {
+	Typing bool `json:"typing"`
+}
+
+// handleTyping relays a typing state to peers on the doc's stream
+// (exclude-origin). Production note: any authenticated user may report
+// for any doc — same trust level as ops (no per-note ACL yet); throttle
+// lives client-side (at most one report per 2.5s of typing).
+func (h *Handler) handleTyping(c *core.RequestEvent) error {
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("notes: typing auth load", "error", err)
+	}
+	docID := c.Request.PathValue("docID")
+	if docID == "" {
+		return c.String(http.StatusBadRequest, "missing doc id")
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "read body")
+	}
+	from := c.Request.URL.Query().Get("clientID")
+	var req typingRequest
+	if uErr := json.Unmarshal(body, &req); uErr != nil {
+		return c.String(http.StatusBadRequest, "decode typing: "+uErr.Error())
+	}
+	typ := "stopped"
+	if req.Typing {
+		typ = "typing"
+	}
+	payload, mErr := json.Marshal(collab.PresenceMsg{
+		Doc:  docID,
+		User: from,
+		Type: typ,
+		TS:   time.Now().UnixMilli(),
+	})
+	if mErr != nil {
+		return c.String(http.StatusInternalServerError, "marshal typing")
+	}
+	h.hub.BroadcastExcept(payload, from)
+	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
 // applyOps merges the batch under one version-vector window, persists,

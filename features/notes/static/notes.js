@@ -28,6 +28,7 @@
   const net = document.getElementById("net-status");
   const peers = document.getElementById("peer-pill");
   const rtt = document.getElementById("rtt-pill");
+  const typing = document.getElementById("typing-pill");
   if (!ta) return;
 
   // Grey-unconfirmed: text the server has not confirmed yet renders dimmed.
@@ -60,7 +61,49 @@
   ta.addEventListener("input", function () {
     clearTimeout(timer);
     timer = setTimeout(sendDiff, 300);
+    reportTyping();
   });
+
+  // Typing indicator ("X está digitando…"): throttled reports while
+  // typing, one stopped after 3s idle. Server relays only — no state, no
+  // persistence. Peers expire entries client-side (6s without refresh),
+  // so a dropped "stopped" cannot stick a ghost typist. Portuguese
+  // microcopy matches the product voice; keep it if the pill is copied.
+  const typists = new Map();
+  let typingLast = 0;
+  let typingSent = false;
+  let idleTimer = null;
+  function reportTyping() {
+    const now = Date.now();
+    if (!typingSent || now - typingLast > 2500) {
+      typingSent = true;
+      typingLast = now;
+      sendTyping(true);
+    }
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () { typingSent = false; sendTyping(false); }, 3000);
+  }
+  function sendTyping(on) {
+    fetch("/api/notes/" + encodeURIComponent(DOC) + "/typing?clientID=" + encodeURIComponent(CID), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ typing: on }),
+    }).catch(function () { /* ephemeral: loss just hides the pill */ });
+  }
+  function renderTypists() {
+    if (!typing) return;
+    const now = Date.now();
+    const live = [];
+    typists.forEach(function (seen, user) {
+      if (now - seen < 6000) live.push(user);
+      else typists.delete(user);
+    });
+    if (!live.length) { typing.textContent = ""; return; }
+    const names = live.slice(0, 2).join(" e ");
+    const more = live.length > 2 ? " e outros" : "";
+    typing.textContent = names + more + (live.length === 1 ? " está digitando…" : " estão digitando…");
+  }
+  setInterval(renderTypists, 2000);
   if (outbox.length) flush();
   window.addEventListener("online", flush);
 
@@ -155,6 +198,13 @@
       if (m.type === "count" && Array.isArray(m.peers)) {
         peers.textContent = m.peers.length + " online";
       }
+    }
+    // Typing pill: peers announce intent; a leave also clears a stuck
+    // typist immediately instead of waiting for the 6s expiry.
+    if (m.doc === DOC && m.user && m.user !== CID) {
+      if (m.type === "typing") typists.set(m.user, Date.now());
+      else if (m.type === "stopped" || m.type === "leave") typists.delete(m.user);
+      renderTypists();
     }
   };
   es.onerror = function () { net.classList.remove("hidden"); };

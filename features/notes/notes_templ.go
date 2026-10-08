@@ -160,14 +160,14 @@ func NotesPage(email string, docID string, text string, buildLabel string, build
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><h1 class=\"sr-only\">Shared note</h1><div class=\"flex items-center justify-between mb-2\"><a class=\"btn btn-sm btn-ghost\" href=\"/notes\">Back</a> <span class=\"flex items-center gap-2\"><span id=\"peer-pill\" class=\"text-xs text-base-content/60\" title=\"Tabs on this note\" aria-live=\"polite\">1 online</span> <span id=\"rtt-pill\" class=\"text-xs text-base-content/40\" title=\"Last save round-trip\"></span> <span id=\"net-status\" class=\"text-xs text-warning hidden\" aria-live=\"polite\">reconnecting…</span></span></div><label class=\"sr-only\" for=\"note-text\">Note text</label> <textarea id=\"note-text\" class=\"textarea textarea-bordered w-full font-mono\" rows=\"20\" placeholder=\"Type — every tab merges.\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><h1 class=\"sr-only\">Shared note</h1><div class=\"flex items-center justify-between mb-2\"><a class=\"btn btn-sm btn-ghost\" href=\"/notes\">Back</a> <span class=\"flex items-center gap-2\"><span id=\"peer-pill\" class=\"text-xs text-base-content/60\" title=\"Tabs on this note\" aria-live=\"polite\">1 online</span> <span id=\"typing-pill\" class=\"text-xs text-base-content/60 italic\" title=\"Who is typing\" aria-live=\"polite\"></span> <span id=\"rtt-pill\" class=\"text-xs text-base-content/40\" title=\"Last save round-trip\"></span> <span id=\"net-status\" class=\"text-xs text-warning hidden\" aria-live=\"polite\">reconnecting…</span></span></div><label class=\"sr-only\" for=\"note-text\">Note text</label> <textarea id=\"note-text\" class=\"textarea textarea-bordered w-full font-mono\" rows=\"20\" placeholder=\"Type — every tab merges.\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 70, Col: 138}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/notes.templ`, Line: 71, Col: 138}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
