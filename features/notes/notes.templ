@@ -59,7 +59,11 @@ templ NotesPage(email string, docID string, text string, buildLabel string, buil
 			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ docID }>
 				<div class="flex items-center justify-between mb-2">
 					<a class="btn btn-sm btn-ghost" href="/notes">Back</a>
-					<span id="net-status" class="text-xs text-warning hidden">reconnecting…</span>
+					<span class="flex items-center gap-2">
+						<span id="peer-pill" class="text-xs text-base-content/60" title="Tabs on this note">1 online</span>
+						<span id="rtt-pill" class="text-xs text-base-content/40" title="Last save round-trip"></span>
+						<span id="net-status" class="text-xs text-warning hidden">reconnecting…</span>
+					</span>
 				</div>
 				<textarea id="note-text" class="textarea textarea-bordered w-full font-mono" rows="20" placeholder="Type — every tab merges.">{ text }</textarea>
 				<p class="text-xs text-base-content/60 mt-2">Plain text, CRDT-merged on the server. Concurrent typing never loses characters; rich text does not exist here yet.</p>

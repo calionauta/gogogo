@@ -26,7 +26,15 @@
   const CID = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
   const ta = document.getElementById("note-text");
   const net = document.getElementById("net-status");
+  const peers = document.getElementById("peer-pill");
+  const rtt = document.getElementById("rtt-pill");
   if (!ta) return;
+
+  // Grey-unconfirmed: text the server has not confirmed yet renders dimmed.
+  // Confirmation is the POST 200 below — nothing claims a state the server
+  // has not accepted (same honesty rule as the OT demo's grey text, but
+  // driven by our own round-trip instead of an OT verdict).
+  function setPending(on) { ta.style.opacity = on ? "0.55" : ""; }
 
   let lastSent = ta.value;
   let timer = null;
@@ -78,6 +86,8 @@
   function flush() {
     if (!outbox.length || flushing) return;
     flushing = true;
+    setPending(true);
+    const t0 = (typeof performance !== "undefined") ? performance.now() : 0;
     const batch = outbox.slice();
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
@@ -96,10 +106,12 @@
       return r.json();
     }).then(function (d) {
       flushing = false;
+      setPending(false);
       if (!d) return;
       if (typeof d.text === "string") {
         outbox = outbox.slice(batch.length);
         saveOutbox();
+        if (t0 && rtt) rtt.textContent = "· " + Math.round(performance.now() - t0) + "ms";
         // Adopt the authoritative text when unfocused (peers may have
         // typed while we were offline); the focused case converges on
         // the next local edit via the stream handler below.
@@ -110,6 +122,7 @@
       if (outbox.length) setTimeout(flush, 1000);
     }).catch(function () {
       flushing = false;
+      setPending(false);
       net.classList.remove("hidden");
     });
   }
@@ -133,6 +146,13 @@
         lastSent = m.text;
       }
       net.classList.add("hidden");
+    }
+    // Presence pill: rendered from the authoritative count, never by
+    // incrementing locally — every tab agrees even on missed events.
+    if (peers && (m.type === "count" || m.type === "join" || m.type === "leave") && m.doc === DOC) {
+      if (m.type === "count" && Array.isArray(m.peers)) {
+        peers.textContent = m.peers.length + " online";
+      }
     }
   };
   es.onerror = function () { net.classList.remove("hidden"); };

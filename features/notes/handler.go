@@ -24,6 +24,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,6 +70,12 @@ type opRequest struct {
 // Handler serves the notes routes. It holds the shared DocStore (CRDT
 // state), the persister (snapshot durability), the SSE hub (fan-out), and
 // the optional NATS connection (cross-instance server convergence).
+//
+// peers tracks, per doc, the set of clientIDs on that doc's SSE stream —
+// the authoritative source for the "X online" pill (same pattern as the
+// whiteboard's handler_peers.go, minus cursors: text positions don't map
+// to pixels without mirror-div geometry, which this feature deliberately
+// does not do).
 type Handler struct {
 	app       core.App
 	hub       *queue.SSEHub
@@ -76,6 +83,9 @@ type Handler struct {
 	docs      *collab.DocStore
 	persister collab.Persister
 	nc        *natsio.Conn // nil = SSE-only mode
+
+	peersMu sync.Mutex
+	peers   map[string]map[string]struct{}
 }
 
 // New builds a notes handler. persister is the PocketBase notes collection
@@ -96,6 +106,7 @@ func New(
 		docs:      docs,
 		persister: persister,
 		nc:        nc,
+		peers:     make(map[string]map[string]struct{}),
 	}
 }
 
@@ -194,7 +205,20 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 
 	ch := make(chan []byte, config.DefaultClientQueueSize)
 	h.hub.Register(clientID, "", ch)
-	defer h.hub.UnregisterIfCurrent(clientID, ch)
+	defer func() {
+		h.hub.UnregisterIfCurrent(clientID, ch)
+		h.peerLeave(docID, clientID)
+	}()
+
+	// Presence: join to the others, authoritative count to everyone
+	// (including self, so a fresh tab seeds its pill without waiting).
+	h.peerJoin(docID, clientID)
+	if joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"}); mErr == nil {
+		h.hub.BroadcastExcept(joinMsg, clientID)
+	} else {
+		slog.Warn("notes: marshal join", "error", mErr)
+	}
+	h.broadcastPeerCount(docID)
 
 	if text := h.docs.GetOrCreate(docID).Text(); text != "" {
 		if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text}); err == nil {

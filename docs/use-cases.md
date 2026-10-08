@@ -214,6 +214,13 @@ matched — decide from the table or build custom; do not force-fit):
 
 What: Loro canvas + Rough.js + presence (pulls in `collab`).
 
+Stack pick: server-owned Loro Map (shape ops POSTed, resolved shapes
+broadcast) over Yjs-in-browser (a JS CRDT + bundler for a canvas that
+merges fine server-side) and over OT (shape conflicts resolve by
+versioned overwrite, not character transforms — OT buys nothing here).
+Pro: zero client deps beyond Rough.js, offline replay converges. Con:
+every stroke round-trips; no peer-local drawing while offline.
+
 - Brainstorm boards, seating charts, any shared drawing surface.
 
 Not for: owner arbitration (no presenter lock); canvas and notes share
@@ -224,6 +231,12 @@ Not for: owner arbitration (no presenter lock); canvas and notes share
 What: the `/room/` page exercising the `goakt` engine (roster,
 presenter lock, crash hook). A reference implementation like `todo`,
 for entity actors.
+
+Stack pick: GoAkt grains (addressable owners with supervision and
+restart budgets) over NATS request-reply with manual locking (no single
+owner, races on failover) and over PB-record locking (polling, no
+supervision). Pro: exactly-one presenter survives crashes by design.
+Con: an actor runtime to learn and boot for what starts as a counter.
 
 - Seeing supervised restart recovery live; the pattern to copy for
   per-entity features.
@@ -236,6 +249,14 @@ the grain pattern into your own feature instead.
 What: the `/notes/` pages exercising server-owned Loro Text (character
 ops merge, resolved text streams to peers). A reference implementation
 like `todo`, for collaborative editing without a JS CRDT library.
+
+Stack pick: server-owned Loro Text over Yjs-in-browser (second CRDT
+system + bundler + a sync protocol that fits websockets better than
+this SSE + NATS transport) and over OT à la the Datastar collab demo
+(server-serialized, plain-text-only, no offline merge — honest, but less
+than the CRDT already in the box gives). Pro: 3KB of vanilla JS, every
+keystroke converges, offline batches replay. Con: no client-local
+editing (round-trip per batch), no rich text, no remote carets.
 
 - Meeting notes, shared scratchpads, any plain-text surface where
   concurrent typing must never lose characters.
