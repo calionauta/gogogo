@@ -139,6 +139,7 @@ func (h *Handler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
 	r.GET("/api/notes/{docID}/stream", h.handleStream)
 	r.POST("/api/notes/{docID}/op", h.handleOp)
 	r.POST("/api/notes/{docID}/typing", h.handleTyping)
+	r.POST("/api/notes/{docID}/caret", h.handleCaret)
 	r.GET("/api/notes/fragment", h.handleFragment)
 }
 
@@ -389,6 +390,59 @@ func (h *Handler) handleTyping(c *core.RequestEvent) error {
 	})
 	if mErr != nil {
 		return c.String(http.StatusInternalServerError, "marshal typing")
+	}
+	h.hub.BroadcastExcept(payload, from)
+	return c.JSON(http.StatusOK, map[string]any{"ok": true})
+}
+
+// caretRequest is one caret report: line index (1-based, by \n) plus the
+// UTF-16 offset in the reporter's text. Lines are dimension-independent
+// (same text, same lines everywhere); the offset lets each peer map the
+// caret to ITS OWN pixels via mirror-div (fonts, zoom and wrapping differ
+// per viewport, so no server-side geometry could ever be right for all).
+// Broadcast only, never persisted, never forwarded to NATS.
+type caretRequest struct {
+	Line int `json:"line"`
+	Pos  int `json:"pos"`
+}
+
+// handleCaret relays a caret line to peers on the doc's stream
+// (exclude-origin). Non-positive lines are rejected; the line is capped
+// downstream by clients, never trusted for indexing server-side (the
+// server stores nothing — it only relays the number).
+func (h *Handler) handleCaret(c *core.RequestEvent) error {
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("notes: caret auth load", "error", err)
+	}
+	docID := c.Request.PathValue("docID")
+	if docID == "" {
+		return c.String(http.StatusBadRequest, "missing doc id")
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "read body")
+	}
+	from := c.Request.URL.Query().Get("clientID")
+	var req caretRequest
+	if uErr := json.Unmarshal(body, &req); uErr != nil {
+		return c.String(http.StatusBadRequest, "decode caret: "+uErr.Error())
+	}
+	if req.Line < 1 {
+		return c.String(http.StatusBadRequest, "line must be >= 1")
+	}
+	if req.Pos < 0 {
+		return c.String(http.StatusBadRequest, "pos must be >= 0")
+	}
+	payload, mErr := json.Marshal(collab.PresenceMsg{
+		Doc:  docID,
+		User: from,
+		Type: "caret",
+		X:    float64(req.Line),
+		Y:    float64(req.Pos),
+		TS:   time.Now().UnixMilli(),
+	})
+	if mErr != nil {
+		return c.String(http.StatusInternalServerError, "marshal caret")
 	}
 	h.hub.BroadcastExcept(payload, from)
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

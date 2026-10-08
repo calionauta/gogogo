@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
@@ -96,107 +95,48 @@ func containsAll(hay []string, needles ...string) bool {
 	return true
 }
 
-// postOpRaw is the goroutine-safe postOp: no t.Fatalf inside workers.
-func postOpRaw(client *http.Client, baseURL, docID, clientID, body string) (int, map[string]any, error) {
+// postCaret sends a caret report as clientID: line index (dimension-
+// independent) + UTF-16 offset (for pixel mapping on the peer's own
+// viewport via mirror-div — each browser measures itself, so zoom, fonts
+// and wrapping never desync the math).
+func postCaret(t *testing.T, client *http.Client, baseURL, docID, clientID string, line, pos int) int {
+	t.Helper()
+	body := fmt.Sprintf(`{"line":%d,"pos":%d}`, line, pos)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		baseURL+"/api/notes/"+docID+"/op?clientID="+clientID,
+		baseURL+"/api/notes/"+docID+"/caret?clientID="+clientID,
 		strings.NewReader(body))
 	if err != nil {
-		return 0, nil, err
+		t.Fatalf("caret req: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, nil, err
+		t.Fatalf("caret post: %v", err)
 	}
 	defer resp.Body.Close()
-	var out map[string]any
-	if dErr := json.NewDecoder(resp.Body).Decode(&out); dErr != nil {
-		return resp.StatusCode, map[string]any{}, nil
-	}
-	return resp.StatusCode, out, nil
+	return resp.StatusCode
 }
 
-// TestNotesConcurrentHammer hammers one doc from N writers at once (each
-// tracking rev through 200/409 like a real tab) and asserts every marker
-// survives. This is the concurrency acceptance test: revsMu + doc mutex
-// under -race, merge completeness under contention.
-func TestNotesConcurrentHammer(t *testing.T) {
+// TestNotesCaretRelay pins line-presence: a caret report reaches peers
+// as an ephemeral event carrying the line index (no persistence, no
+// NATS — liveness only, like typing).
+func TestNotesCaretRelay(t *testing.T) {
 	baseURL, _, cleanup := notesFixture(t)
 	defer cleanup()
 	client := notesAuthedClient(t, baseURL)
-	docID := "note-hammer"
+	docID := "note-caret"
 
-	const writers = 8
-	const perWriter = 5
-	errCh := make(chan string, writers*perWriter*4)
-	// Buffer for the worst case (every attempt reports): no receiver runs
-	// until wg.Wait returns, so an undersized channel deadlocks the very
-	// contention this test exists to create.
-	revCh := make(chan uint64, writers*perWriter*30)
-	var wg sync.WaitGroup
-	for w := range writers {
-		wg.Add(1)
-		go func(w int) {
-			defer wg.Done()
-			who := fmt.Sprintf("cliH%d", w)
-			var rev uint64
-			for b := range perWriter {
-				marker := fmt.Sprintf("w%db%d;", w, b)
-				body := fmt.Sprintf(`{"base":%d,"ops":[{"t":"ins","i":0,"s":%q}]}`, rev, marker)
-				ok := false
-				for attempt := 0; attempt < 25 && !ok; attempt++ {
-					code, out, err := postOpRaw(client, baseURL, docID, who, body)
-					if err != nil {
-						errCh <- fmt.Sprintf("w%d b%d transport: %v", w, b, err)
-						return
-					}
-					if r, _ := out["rev"].(float64); r > 0 {
-						rev = uint64(r)
-						revCh <- rev
-					}
-					switch code {
-					case http.StatusOK:
-						ok = true
-					case http.StatusConflict:
-						body = fmt.Sprintf(`{"base":%d,"ops":[{"t":"ins","i":0,"s":%q}]}`, rev, marker)
-					default:
-						errCh <- fmt.Sprintf("w%d b%d status = %d", w, b, code)
-						return
-					}
-				}
-				if !ok {
-					errCh <- fmt.Sprintf("w%d b%d never accepted", w, b)
-					return
-				}
-			}
-		}(w)
+	gotB, closeB := openNoteStream(t, client, baseURL, docID, "cliB")
+	defer closeB()
+
+	if code := postCaret(t, client, baseURL, docID, "cliA", 5, 17); code != http.StatusOK {
+		t.Fatalf("caret status = %d", code)
 	}
-	wg.Wait()
-	close(errCh)
-	close(revCh)
-	for e := range errCh {
-		t.Fatalf("hammer: %s", e)
-	}
-	var maxRev uint64
-	for r := range revCh {
-		if r > maxRev {
-			maxRev = r
-		}
-	}
-	code, out := postOp(t, client, baseURL, docID, "cliFinal",
-		fmt.Sprintf(`{"base":%d,"ops":[{"t":"ins","i":0,"s":"END"}]}`, maxRev))
-	if code != http.StatusOK {
-		t.Fatalf("final op: status = %d: %v", code, out)
-	}
-	text, _ := out["text"].(string)
-	for w := range writers {
-		for b := range perWriter {
-			if marker := fmt.Sprintf("w%db%d;", w, b); !strings.Contains(text, marker) {
-				t.Fatalf("hammer lost %q in %q", marker, text)
-			}
-		}
-	}
+	waitNoteEvent(t, gotB, func(msg map[string]any) bool {
+		line, _ := msg["x"].(float64)
+		pos, _ := msg["y"].(float64)
+		return msg["type"] == "caret" && msg["user"] == "cliA" && line == 5 && pos == 17
+	})
 }
 
 // TestNotesFragmentListsDocs pins the live-index half: a note created via

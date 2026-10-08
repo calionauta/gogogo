@@ -81,7 +81,94 @@
     lastInputAt = Date.now();
     timer = setTimeout(sendDiff, 100);
     reportTyping();
+    maybeCaret();
+    renderCarets();
   });
+  ta.addEventListener("scroll", function () { renderCarets(); }, { passive: true });
+  window.addEventListener("resize", function () { renderCarets(); });
+  document.addEventListener("selectionchange", function () { maybeCaret(); });
+
+  // Remote carets ("who is where"): peers report {line, pos}; each browser
+  // maps the offset to ITS OWN pixels via mirror-div (computed font metrics
+  // copied from the live textarea, so zoom, fonts and wrapping can never
+  // desync the math — static CSS guessing is what breaks across viewports).
+  // Dots are approximate when text moved since the report (offsets go
+  // stale); the tooltip line number is the exact, dimension-independent
+  // truth. No library, no build step, ~60 lines.
+  const carets = new Map(); // user -> {line, pos, seen}
+  let caretSent = -1, caretThrottle = 0;
+  function peerColor(user) {
+    let h = 0;
+    for (let i = 0; i < user.length; i++) h = (h * 31 + user.charCodeAt(i)) >>> 0;
+    return "hsl(" + (h % 360) + ",70%,45%)";
+  }
+  function maybeCaret() {
+    if (document.activeElement !== ta) return;
+    const pos = ta.selectionStart || 0;
+    const now = Date.now();
+    if (pos !== caretSent && now - caretThrottle > 1500) {
+      caretSent = pos;
+      caretThrottle = now;
+      const line = ta.value.slice(0, pos).split("\n").length;
+      fetch("/api/notes/" + encodeURIComponent(DOC) + "/caret?clientID=" + encodeURIComponent(CID), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ line: line, pos: pos }),
+      }).catch(function () { /* ephemeral */ });
+    }
+  }
+  function caretXY(offset) {
+    const cs = getComputedStyle(ta);
+    const mirror = document.createElement("div");
+    const props = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "tabSize"];
+    for (const p of props) { try { mirror.style[p] = cs[p]; } catch (err) {} }
+    if (ta.wrap === "off") mirror.style.whiteSpace = "pre";
+    else { mirror.style.whiteSpace = "pre-wrap"; mirror.style.wordWrap = "break-word"; }
+    mirror.style.position = "absolute";
+    mirror.style.visibility = "hidden";
+    mirror.style.top = ta.offsetTop + "px";
+    mirror.style.left = ta.offsetLeft + "px";
+    mirror.style.width = ta.clientWidth + "px";
+    const wrap = document.getElementById("note-wrap") || document.body;
+    mirror.textContent = ta.value.substring(0, offset);
+    const marker = document.createElement("span");
+    marker.textContent = "​";
+    mirror.appendChild(marker);
+    wrap.appendChild(mirror);
+    const x = ta.offsetLeft + marker.offsetLeft;
+    const y = ta.offsetTop + marker.offsetTop;
+    mirror.remove();
+    return { x: x, y: y };
+  }
+  function renderCarets() {
+    const layer = document.getElementById("caret-layer");
+    if (!layer) return;
+    layer.style.position = "absolute";
+    layer.style.left = "0"; layer.style.top = "0";
+    layer.style.right = "0"; layer.style.bottom = "0";
+    layer.style.overflow = "hidden";
+    layer.style.pointerEvents = "none";
+    layer.innerHTML = "";
+    const now = Date.now();
+    carets.forEach(function (c, user) {
+      if (now - c.seen > 8000) { carets.delete(user); return; }
+      const p = caretXY(Math.min(c.pos, ta.value.length));
+      const x = p.x - ta.scrollLeft, y = p.y - ta.scrollTop;
+      const ox = ta.offsetLeft, oy = ta.offsetTop;
+      if (x < ox || y < oy || x > ox + ta.clientWidth || y > oy + ta.clientHeight) return;
+      const dot = document.createElement("span");
+      dot.title = user + " · line " + c.line;
+      dot.style.position = "absolute";
+      dot.style.left = Math.round(x) + "px";
+      dot.style.top = Math.round(y) + "px";
+      dot.style.width = "8px"; dot.style.height = "8px";
+      dot.style.borderRadius = "9999px";
+      dot.style.background = peerColor(user);
+      dot.style.transform = "translate(-50%,-50%)";
+      dot.style.boxShadow = "0 0 0 2px rgba(255,255,255,.7)";
+      layer.appendChild(dot);
+    });
+  }
   ta.addEventListener("blur", function () {
     // Converge a paused editor without stealing the caret mid-thought:
     // adopt server text only when nothing local is unconfirmed.
@@ -128,6 +215,7 @@
     typing.textContent = names + more + (live.length === 1 ? " is typing…" : " are typing…");
   }
   setInterval(renderTypists, 2000);
+  setInterval(renderCarets, 2000); // expiry sweep for stale peer carets
   if (outbox.length) flush();
   window.addEventListener("online", flush);
 
@@ -275,6 +363,18 @@
       if (m.type === "typing") typists.set(m.user, Date.now());
       else if (m.type === "stopped" || m.type === "leave") typists.delete(m.user);
       renderTypists();
+    }
+    // Caret dots: positions are approximate (offsets reported against the
+    // peer's text state), the tooltip line is exact. A leave clears the
+    // dot at once instead of waiting for the 8s expiry.
+    if (m.doc === DOC && m.user && m.user !== CID) {
+      if (m.type === "caret" && typeof m.x === "number" && typeof m.y === "number") {
+        carets.set(m.user, { line: Math.max(1, Math.round(m.x)), pos: Math.max(0, Math.round(m.y)), seen: Date.now() });
+        renderCarets();
+      } else if (m.type === "leave") {
+        carets.delete(m.user);
+        renderCarets();
+      }
     }
   };
   es.onerror = function () { net.classList.remove("hidden"); };

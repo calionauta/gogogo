@@ -261,7 +261,7 @@ editing (round-trip per batch), no rich text, no remote carets.
 - Meeting notes, shared scratchpads, any plain-text surface where
   concurrent typing must never lose characters.
 
-Not for: rich text (no marks, no cursors shared); offline-first editing
+Not for: rich text (no marks); offline-first editing
 (ops need the server — a dropped connection holds text in the tab only).
 
 ### `landing` — public marketing page (feature, offered)
