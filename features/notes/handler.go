@@ -24,6 +24,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,18 +53,25 @@ const (
 )
 
 // NoteTextEvent is the wire envelope broadcast to peers: the resolved text
-// after applying an op batch. Clients re-render from it.
+// after applying an op batch. Rev lets clients advance their base without
+// a round-trip. Clients re-render from it.
 type NoteTextEvent struct {
 	Type string `json:"type"` // "note-text"
 	Doc  string `json:"doc"`
 	From string `json:"from"`
 	Text string `json:"text"`
+	Rev  uint64 `json:"rev"`
 }
 
 // opRequest is one POST body: an ordered batch of character ops applied
-// atomically under the doc mutex.
+// atomically under the doc mutex. Base is the server revision the client
+// computed positions against; a mismatch means the doc advanced underneath
+// (concurrent peer) and the batch is refused with 409 + authoritative
+// state instead of being misapplied — positions against a stale base
+// delete or displace the wrong characters. Absent base means 0.
 type opRequest struct {
-	Ops []collab.TextOp `json:"ops"`
+	Base uint64          `json:"base,omitempty"`
+	Ops  []collab.TextOp `json:"ops"`
 }
 
 // Handler serves the notes routes. It holds the shared DocStore (CRDT
@@ -84,6 +92,14 @@ type Handler struct {
 	nc        *natsio.Conn // nil = SSE-only mode
 
 	peers *collab.PeerSet
+
+	// revs is the per-doc batch counter backing optimistic concurrency.
+	// Every accepted op batch bumps it; ops carry the base they were
+	// computed against. Memory-only on purpose: after a restart every
+	// client mismatches once, gets 409 + authoritative state, and
+	// re-syncs — self-healing, no persisted counter to corrupt.
+	revsMu sync.Mutex
+	revs   map[string]uint64
 }
 
 // New builds a notes handler. persister is the PocketBase notes collection
@@ -105,6 +121,7 @@ func New(
 		persister: persister,
 		nc:        nc,
 		peers:     collab.NewPeerSet(),
+		revs:      make(map[string]uint64),
 	}
 }
 
@@ -175,7 +192,10 @@ func (h *Handler) handleNote(c *core.RequestEvent) error {
 		}
 	}
 	text := h.docs.GetOrCreate(docID).Text()
-	return NotesPage(email, docID, text, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	h.revsMu.Lock()
+	rev := h.revs[docID]
+	h.revsMu.Unlock()
+	return NotesPage(email, docID, text, rev, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
 // handleStream opens an SSE connection for one doc. The client receives
@@ -220,7 +240,10 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 	h.broadcastPeerCount(docID)
 
 	if text := h.docs.GetOrCreate(docID).Text(); text != "" {
-		if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text}); err == nil {
+		h.revsMu.Lock()
+		rev := h.revs[docID]
+		h.revsMu.Unlock()
+		if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text, Rev: rev}); err == nil {
 			fmt.Fprintf(c.Response, "data: %s\n\n", payload)
 			flusher.Flush()
 		}
@@ -272,11 +295,31 @@ func (h *Handler) handleOp(c *core.RequestEvent) error {
 	if len(req.Ops) == 0 {
 		return c.String(http.StatusBadRequest, "no ops")
 	}
-	text, err := h.applyOps(docID, from, req.Ops)
+	h.revsMu.Lock()
+	current := h.revs[docID]
+	if req.Base != current {
+		h.revsMu.Unlock()
+		// Stale base: refuse instead of misapplying. The response
+		// carries the authoritative text + revision so the client
+		// recomputes against the fresh base and retries (same
+		// recoverable-conflict contract as whiteboard shape versions).
+		text := h.docs.GetOrCreate(docID).Text()
+		return c.JSON(http.StatusConflict, map[string]any{
+			"ok":    false,
+			"error": "stale",
+			"text":  text,
+			"rev":   current,
+		})
+	}
+	text, err := h.applyOps(docID, from, req.Ops, current+1)
 	if err != nil {
+		h.revsMu.Unlock()
 		return c.String(http.StatusBadRequest, "apply op: "+err.Error())
 	}
-	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text})
+	h.revs[docID] = current + 1
+	rev := h.revs[docID]
+	h.revsMu.Unlock()
+	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text, "rev": rev})
 }
 
 // typingRequest is one typing-state report. Ephemeral by design:
@@ -327,7 +370,9 @@ func (h *Handler) handleTyping(c *core.RequestEvent) error {
 
 // applyOps merges the batch under one version-vector window, persists,
 // fans out to NATS (server convergence) and to the hub (live peers).
-func (h *Handler) applyOps(docID, from string, ops []collab.TextOp) (string, error) {
+// rev is the revision this batch will carry (already reserved by the
+// caller); on error nothing is broadcast and rev stays unbumped.
+func (h *Handler) applyOps(docID, from string, ops []collab.TextOp, rev uint64) (string, error) {
 	d := h.docs.GetOrCreate(docID)
 	since := d.StateVersion()
 	var text string
@@ -339,11 +384,14 @@ func (h *Handler) applyOps(docID, from string, ops []collab.TextOp) (string, err
 	}
 	snapshot := d.EncodeSnapshot()
 	if h.persister != nil {
-		if err := h.persister.SaveSnapshot(docID, snapshot); err != nil {
-			slog.Warn("notes: persist snapshot failed", "doc", docID, "error", err)
+		if pErr := h.persister.SaveSnapshot(docID, snapshot); pErr != nil {
+			slog.Warn("notes: persist snapshot failed", "doc", docID, "error", pErr)
 		}
 	}
-	if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, From: from, Text: text}); err == nil {
+	payload, err := json.Marshal(NoteTextEvent{
+		Type: wireNoteText, Doc: docID, From: from, Text: text, Rev: rev,
+	})
+	if err == nil {
 		h.hub.BroadcastExcept(payload, from)
 	} else {
 		slog.Warn("notes: marshal text", "doc", docID, "error", err)

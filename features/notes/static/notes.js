@@ -2,8 +2,11 @@
 //
 // Transport:
 //   - SSE stream (`/api/notes/<doc>/stream`) carries resolved-text events:
-//       {type:"note-text", doc, from, text} -> replace textarea content
-//       (unless focused — never steal the caret).
+//       {type:"note-text", doc, from, text, rev} -> advance the base
+//       always; render when backgrounded or idle (caret saved/clamped).
+//   - Typing POSTs prefix/suffix-diffed char ops with the base revision;
+//     stale bases get 409 + authoritative state and recompute (bounded
+//     auto-retry), so positions are never evaluated on old text.
 //   - Typing POSTs prefix/suffix-diffed char ops to
 //     `/api/notes/<doc>/op`; the server merges them into the Loro Text,
 //     persists, and broadcasts the resolved text to every OTHER client
@@ -39,9 +42,18 @@
   // for forced-colors / screen-reader users).
   function setPending(on) { ta.style.opacity = on ? "0.55" : ""; ta.setAttribute("aria-busy", on ? "true" : "false"); }
 
-  let lastSent = ta.value;
+  // Convergence model: serverText/REV track the last AUTHORITATIVE state
+  // (page render, then every 200/409/stream event). Diffs always compute
+  // against it, so positions are never evaluated on a stale base — a batch
+  // computed across a race is refused with 409 and recomputed instead of
+  // misapplied (which is how characters used to go missing).
+  let serverText = ta.value;
+  let REV = parseInt((main.dataset.rev || "0"), 10) || 0;
+  let clean = true; // no unconfirmed local edits (blur may adopt server text)
+  let lastInputAt = 0; // last keystroke: adopt-render pauses while fresh
   let timer = null;
   let flushing = false;
+  let attempts = 0; // bounded 409 auto-retries per flush chain
   const draftKey = "notes-draft:" + DOC;
   const outKey = "notes-outbox:" + DOC;
   // Demo-grade offline cushion: if the server rendered empty but this
@@ -49,19 +61,31 @@
   // Server text always wins when non-empty — last-writer-per-browser only.
   try {
     if (!ta.value && localStorage.getItem(draftKey)) ta.value = localStorage.getItem(draftKey);
-    lastSent = ta.value;
   } catch (err) { /* private mode: no draft */ }
   // Op outbox (whiteboard uses IndexedDB; localStorage is enough for text
   // ops): batches typed while offline replay on reconnect AND on reload.
-  // At-least-once: a lost response replays an applied batch, duplicating
-  // the insert — text inserts are not idempotent. Demo-grade, documented.
+  // Entries are {ops, base} pairs. At-least-once: a lost response replays
+  // an applied batch, duplicating the insert — text inserts are not
+  // idempotent. Demo-grade, documented.
   let outbox = [];
-  try { outbox = JSON.parse(localStorage.getItem(outKey) || "[]"); } catch (err) { outbox = []; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(outKey) || "[]");
+    for (const e of raw) {
+      if (e && Array.isArray(e.ops)) outbox.push(e);
+      else if (e && typeof e.t === "string") outbox.push({ ops: [e], base: 0 });
+    }
+  } catch (err) { outbox = []; }
   function saveOutbox() { try { localStorage.setItem(outKey, JSON.stringify(outbox)); } catch (err) {} }
   ta.addEventListener("input", function () {
     clearTimeout(timer);
-    timer = setTimeout(sendDiff, 300);
+    lastInputAt = Date.now();
+    timer = setTimeout(sendDiff, 100);
     reportTyping();
+  });
+  ta.addEventListener("blur", function () {
+    // Converge a paused editor without stealing the caret mid-thought:
+    // adopt server text only when nothing local is unconfirmed.
+    if (clean && !flushing && !outbox.length && serverText !== ta.value) ta.value = serverText;
   });
 
   // Typing indicator ("X is typing…"): throttled reports while
@@ -107,24 +131,47 @@
   if (outbox.length) flush();
   window.addEventListener("online", flush);
 
-  function sendDiff() {
-    const cur = ta.value;
-    if (cur === lastSent) return;
+  // Adopt remote text without stealing the caret mid-thought. The base
+  // (REV/serverText) ALWAYS advances — that is what keeps the next local
+  // diff positioned correctly. Rendering happens when the tab is in
+  // background, or when the user has been idle with nothing unconfirmed;
+  // an active typist keeps local content (their keystrokes still send
+  // against the fresh base). Caret is saved and clamped on render.
+  function adoptRemote(text, rev) {
+    if (typeof text !== "string") return;
+    if (typeof rev === "number" && rev > REV) { REV = rev; serverText = text; }
+    if (text === ta.value) { clean = !outbox.length; return; }
+    if (outbox.length || flushing) return;
+    const focused = document.activeElement === ta;
+    if (focused && Date.now() - lastInputAt < 1500) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    ta.value = text;
+    clean = true;
+    if (focused) { try { ta.setSelectionRange(Math.min(s, text.length), Math.min(e, text.length)); } catch (err) {} }
+  }
+
+  function diffOps(cur, base) {
     let p = 0;
-    while (p < lastSent.length && p < cur.length && lastSent[p] === cur[p]) p++;
+    while (p < base.length && p < cur.length && base[p] === cur[p]) p++;
     let s = 0;
-    while (s < lastSent.length - p && s < cur.length - p &&
-      lastSent[lastSent.length - 1 - s] === cur[cur.length - 1 - s]) s++;
+    while (s < base.length - p && s < cur.length - p &&
+      base[base.length - 1 - s] === cur[cur.length - 1 - s]) s++;
     const ops = [];
-    const delLen = lastSent.length - p - s;
+    const delLen = base.length - p - s;
     if (delLen > 0) ops.push({ t: "del", i: p, n: delLen });
     const ins = cur.slice(p, cur.length - s);
     if (ins) ops.push({ t: "ins", i: p, s: ins });
-    lastSent = cur;
+    return ops;
+  }
+
+  function sendDiff() {
+    const ops = diffOps(ta.value, serverText);
     if (!ops.length) return;
-    try { localStorage.setItem(draftKey, cur); } catch (err) { /* private mode */ }
-    for (const op of ops) outbox.push(op);
+    try { localStorage.setItem(draftKey, ta.value); } catch (err) { /* private mode */ }
+    outbox.push({ ops: ops, base: REV });
     saveOutbox();
+    clean = false;
+    attempts = 0;
     flush();
   }
 
@@ -133,43 +180,70 @@
     flushing = true;
     setPending(true);
     const t0 = (typeof performance !== "undefined") ? performance.now() : 0;
-    const batch = outbox.slice();
+    const head = outbox[0];
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ops: batch }),
+      body: JSON.stringify({ base: head.base, ops: head.ops }),
     }).then(function (r) {
-      if (!r.ok) {
+      if (r.status !== 200 && r.status !== 409) {
         // Poison batch (invalid ops — only producible via devtools, our
         // UI only emits ins/del): drop it instead of retrying forever.
         // Network failures reject below and keep the batch.
-        outbox = outbox.slice(batch.length);
+        outbox.shift();
         saveOutbox();
         flushing = false;
+        setPending(false);
+        if (outbox.length) setTimeout(flush, 1000);
         return null;
       }
-      return r.json();
-    }).then(function (d) {
+      return r.json().then(function (d) { return { status: r.status, body: d }; },
+        function () { return { status: r.status, body: null }; });
+    }).then(function (res) {
       flushing = false;
       setPending(false);
-      if (!d) return;
-      if (typeof d.text === "string") {
-        outbox = outbox.slice(batch.length);
-        saveOutbox();
-        if (t0 && rtt) rtt.textContent = "· " + Math.round(performance.now() - t0) + "ms";
-        // Adopt the authoritative text when unfocused (peers may have
-        // typed while we were offline); the focused case converges on
-        // the next local edit via the stream handler below.
-        if (document.activeElement !== ta && d.text !== ta.value) ta.value = d.text;
-        lastSent = ta.value;
-        net.classList.add("hidden");
+      if (!res || !res.body) return;
+      const d = res.body;
+      if (res.status === 409) {
+        // Stale base: adopt authority, recompute everything queued
+        // against it, retry bounded (a second 409 means another race;
+        // the next local input recomputes anyway).
+        attempts++;
+        adoptRemote(res.body.text, res.body.rev);
+        requeue();
+        clean = !outbox.length;
+        if (outbox.length && attempts < 5) flush();
+        else attempts = 0;
+        return;
       }
-      if (outbox.length) setTimeout(flush, 1000);
+      if (typeof d.text === "string") {
+        serverText = d.text;
+        if (typeof d.rev === "number") REV = d.rev;
+        outbox.shift();
+        // Recompute the remainder against the fresh base: queued ops were
+        // positioned on older text and would 409 for sure.
+        const rest = diffOps(ta.value, serverText);
+        outbox = rest.length ? [{ ops: rest, base: REV }] : [];
+        saveOutbox();
+        clean = !outbox.length;
+        if (t0 && rtt) rtt.textContent = "· " + Math.round(performance.now() - t0) + "ms";
+        adoptRemote(d.text, d.rev);
+        net.classList.add("hidden");
+        if (outbox.length) flush();
+      }
     }).catch(function () {
       flushing = false;
       setPending(false);
       net.classList.remove("hidden");
     });
+  }
+
+  // Recompute the whole queue against current serverText as one batch.
+  function requeue() {
+    const rest = diffOps(ta.value, serverText);
+    outbox = rest.length ? [{ ops: rest, base: REV }] : [];
+    saveOutbox();
+    clean = !outbox.length;
   }
 
   const es = new EventSource(
@@ -183,13 +257,9 @@
     } catch (err) {
       return;
     }
-    if (m.type === "note-text" && m.from !== CID && typeof m.text === "string") {
-      // Never steal the caret: a focused textarea keeps local content;
-      // it converges on the next local edit.
-      if (document.activeElement !== ta) {
-        ta.value = m.text;
-        lastSent = m.text;
-      }
+    if (m.type === "note-text" && typeof m.text === "string" && typeof m.rev === "number") {
+      if (m.from !== CID) adoptRemote(m.text, m.rev);
+      else if (m.rev > REV) { REV = m.rev; serverText = m.text; }
       net.classList.add("hidden");
     }
     // Presence pill: rendered from the authoritative count, never by

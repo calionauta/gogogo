@@ -201,7 +201,7 @@ func TestNotesOpRoundTrip(t *testing.T) {
 		t.Fatalf("text = %v, want hello", out["text"])
 	}
 
-	code, out = postOp(t, client, baseURL, docID, "cliA", `{"ops":[{"t":"ins","i":5,"s":" world"}]}`)
+	code, out = postOp(t, client, baseURL, docID, "cliA", `{"base":1,"ops":[{"t":"ins","i":5,"s":" world"}]}`)
 	if code != http.StatusOK || out["text"] != "hello world" {
 		t.Fatalf("append: status = %d, out = %v", code, out)
 	}
@@ -224,22 +224,6 @@ func TestNotesOpRoundTrip(t *testing.T) {
 	}
 }
 
-// TestNotesConcurrentInsertsMerge is the CRDT proof: two clients typing at
-// the same position must both survive — no last-write-wins data loss.
-func TestNotesConcurrentInsertsMerge(t *testing.T) {
-	baseURL, _, cleanup := notesFixture(t)
-	defer cleanup()
-	client := notesAuthedClient(t, baseURL)
-	docID := "note-merge"
-
-	postOp(t, client, baseURL, docID, "cliA", `{"ops":[{"t":"ins","i":0,"s":"hello"}]}`)
-	_, out := postOp(t, client, baseURL, docID, "cliB", `{"ops":[{"t":"ins","i":0,"s":"XYZ "}]}`)
-	text, _ := out["text"].(string)
-	if !strings.Contains(text, "hello") || !strings.Contains(text, "XYZ") {
-		t.Fatalf("merge lost an edit: %q", text)
-	}
-}
-
 // TestNotesDelete pins delete semantics with clamping.
 func TestNotesDelete(t *testing.T) {
 	baseURL, _, cleanup := notesFixture(t)
@@ -247,8 +231,8 @@ func TestNotesDelete(t *testing.T) {
 	client := notesAuthedClient(t, baseURL)
 	docID := "note-delete"
 
-	postOp(t, client, baseURL, docID, "cliA", `{"ops":[{"t":"ins","i":0,"s":"hello world"}]}`)
-	_, out := postOp(t, client, baseURL, docID, "cliA", `{"ops":[{"t":"del","i":5,"n":99}]}`)
+	postOp(t, client, baseURL, docID, "cliA", `{"base":0,"ops":[{"t":"ins","i":0,"s":"hello world"}]}`)
+	_, out := postOp(t, client, baseURL, docID, "cliA", `{"base":1,"ops":[{"t":"del","i":5,"n":99}]}`)
 	if out["text"] != "hello" {
 		t.Fatalf("delete clamped: text = %v", out["text"])
 	}
