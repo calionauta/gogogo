@@ -348,10 +348,18 @@
     }
   });
 
+  // Cursor presence, throttled to ~10Hz with a trailing send (shared
+  // /static/throttle.js — same contract as notes carets: delayed, never
+  // dropped). Raw pointermove fires ~60/s; every event used to POST.
+  var throttleFn = function (fn) { return fn; };
+  if (window.GogogoThrottle && window.GogogoThrottle.throttleTrailing) {
+    throttleFn = window.GogogoThrottle.throttleTrailing;
+  }
+  var throttledPresence = throttleFn(function (x, y) { postPresence(x, y); }, 100);
   canvas.addEventListener("pointermove", function (e) {
     const p = localPos(e);
     const r = canvas.getBoundingClientRect();
-    postPresence(parseFloat((p.x / r.width).toFixed(4)), parseFloat((p.y / r.height).toFixed(4)));
+    throttledPresence(parseFloat((p.x / r.width).toFixed(4)), parseFloat((p.y / r.height).toFixed(4)));
     if (!drawing) return;
     if (tool === "pen") {
       drawing.points.push(p.x, p.y);

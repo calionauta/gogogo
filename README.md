@@ -130,7 +130,9 @@ dependencies and are left alone.
 | **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (27) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 
 Full table with the reasoning behind each choice:
-[stack-layers](docs/stack-layers.md).
+[stack-layers](docs/stack-layers.md). Client weight per feature
+([measured](docs/features.md#client-weight)): 0–48 KB of JS — the backend
+is the source of truth, the browser holds intent and cache.
 
 ## Everything async your app will need
 

@@ -76,6 +76,15 @@ CSS is the one build step, and it is a build step you run explicitly
 (`make css`), not one your users pay for at runtime: the compiled
 `app.min.css` is embedded into the binary with `//go:embed`.
 
+The rule behind the lightness: **the backend is the source of truth and
+the browser holds ephemeral intent plus cache, never authority.** Records
+live in PocketBase, documents in Loro snapshots, jobs in goqite — the
+client renders what the server ships and reports what the user did. That
+is what keeps every feature between 0 and ~48 KB of JS (measured per
+feature: [Client weight](features.md#client-weight)). The honest boundary:
+offline outboxes and textarea drafts do live client-side, but as cache to
+be reconciled, never as truth to be defended.
+
 ## Why this one (and not that one)?
 
 One-line reasons live in the table. This section records the cost behind

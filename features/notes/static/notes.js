@@ -87,13 +87,6 @@
     timer = setTimeout(sendDiff, 100);
     reportTyping();
     maybeCaret();
-    // NOTE: no renderCarets() here on purpose. Peer offsets refer to the
-    // peer's text state; recomputing pixels from OUR just-changed text
-    // moves their dots spuriously (the reported bug). Worse, any dot left
-    // on screen is now positioned on stale text — so hide the layer until
-    // fresh reports arrive (≤1.5s while peers are active). No lying pixels.
-    const layer = document.getElementById("caret-layer");
-    if (layer) layer.innerHTML = "";
   });
   ta.addEventListener("scroll", function () { renderCarets(); }, { passive: true });
   window.addEventListener("resize", function () { renderCarets(); });
@@ -107,26 +100,55 @@
   // stale); the tooltip line number is the exact, dimension-independent
   // truth. No library, no build step, ~60 lines.
   const carets = new Map(); // user -> {line, pos, seen}
-  let caretSent = -1, caretThrottle = 0;
+  // shiftPeerOffsets transforms peer offsets through OUR unconfirmed local
+  // ops (one-direction OT-lite): we know exactly what changed under their
+  // reported positions, so their carets track our typing instead of
+  // freezing on stale absolute offsets — the reported "it stops in the
+  // wrong place while I keep typing" bug. Runs inside sendDiff, before the
+  // batch posts. Deletes overlapping a caret clamp it to the cut point
+  // (documented approximation: ownership of the deleted range is gone, the
+  // nearest surviving position is the honest answer).
+  function shiftPeerOffsets(ops) {
+    if (!carets.size) return;
+    carets.forEach(function (c) {
+      let pos = c.pos;
+      for (const op of ops) {
+        if (op.t === "ins") {
+          if (pos >= op.i) pos += op.s.length;
+        } else if (op.t === "del") {
+          if (pos > op.i + op.n) pos -= op.n;
+          else if (pos > op.i) pos = op.i;
+        }
+      }
+      c.pos = pos;
+    });
+  }
+  let caretSent = -1;
+  // Shared leading + trailing throttle (/static/throttle.js): a throttled
+  // caret report is delayed, never dropped. Fallback calls through
+  // directly if the shared file failed to load (offline first paint).
+  var throttleFn = function (fn) { return fn; };
+  if (window.GogogoThrottle && window.GogogoThrottle.throttleTrailing) {
+    throttleFn = window.GogogoThrottle.throttleTrailing;
+  }
+  var reportCaretWire = throttleFn(function (pos, line) {
+    fetch("/api/notes/" + encodeURIComponent(DOC) + "/caret?clientID=" + encodeURIComponent(CID), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ line: line, pos: pos }),
+    }).catch(function () { /* ephemeral */ });
+  }, 1500);
+  function maybeCaret() {
+    if (document.activeElement !== ta) return;
+    const pos = ta.selectionStart || 0;
+    if (pos === caretSent) return;
+    caretSent = pos;
+    reportCaretWire(pos, ta.value.slice(0, pos).split("\n").length);
+  }
   function peerColor(user) {
     let h = 0;
     for (let i = 0; i < user.length; i++) h = (h * 31 + user.charCodeAt(i)) >>> 0;
     return "hsl(" + (h % 360) + ",70%,45%)";
-  }
-  function maybeCaret() {
-    if (document.activeElement !== ta) return;
-    const pos = ta.selectionStart || 0;
-    const now = Date.now();
-    if (pos !== caretSent && now - caretThrottle > 1500) {
-      caretSent = pos;
-      caretThrottle = now;
-      const line = ta.value.slice(0, pos).split("\n").length;
-      fetch("/api/notes/" + encodeURIComponent(DOC) + "/caret?clientID=" + encodeURIComponent(CID), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ line: line, pos: pos }),
-      }).catch(function () { /* ephemeral */ });
-    }
   }
   function caretXY(offset) {
     const cs = getComputedStyle(ta);
@@ -288,6 +310,8 @@
     const ops = diffOps(ta.value, serverText);
     if (!ops.length) return;
     try { localStorage.setItem(draftKey, ta.value); } catch (err) { /* private mode */ }
+    shiftPeerOffsets(ops);
+    renderCarets();
     outbox.push({ ops: ops, base: REV });
     saveOutbox();
     clean = false;

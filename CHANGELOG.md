@@ -1,5 +1,26 @@
 ## [Unreleased]
 
+## [0.40.0] - 2026-10-08
+
+### Added
+
+- **Peer carets that track: colored text-carets with name flags and
+  tooltips.** Peers report {line, pos}; each browser maps offsets to its
+  own pixels via mirror-div, and local ops transform peer offsets so dots
+  follow typing instead of freezing. Recipe-conformance test pins the
+  mirror property list.
+- **Shared leading + trailing throttle** (`web/resources/static/throttle.js`,
+  ~2 KB) for caret/cursor reports — delayed, never dropped; the whiteboard
+  posted presence per pointermove before.
+- **Client-weight table + landing section.** Measured vendored JS per
+  feature (0–48 KB raw) and the backend-as-source-of-truth rule, now
+  stated in docs, thesis, README, and site.
+
+### Fixed
+
+- **Caret reports dropped inside the throttle window** (peers froze) and
+  **carets rendered as dots** instead of text carets.
+
 ## [0.39.0] - 2026-10-08
 
 ### Added

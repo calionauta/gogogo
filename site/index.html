@@ -322,6 +322,36 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
     stub files, no matrix. <a href="./docs/async-layers/">Read the async layers doc →</a></p>
   </section>
 
+  <section id="thin-client" class="section">
+    <p class="kicker">Featherweight client</p>
+    <h2>Kilobytes of JS, not megabytes.</h2>
+    <p class="section-lede">The backend is the source of truth — the browser holds
+    ephemeral intent and cache, never authority. So the client stays tiny:
+    measured vendored JS per feature (<a href="./docs/features/#client-weight">full table</a>).</p>
+    <div class="grid-2">
+      <div class="card">
+        <p class="step">Todo, Room, Landing, Config</p>
+        <p class="tech">0 KB of extra JS</p>
+        <p>Server-rendered pages. No client code beyond the shared core.</p>
+      </div>
+      <div class="card">
+        <p class="step">Shared notes</p>
+        <p class="tech">~19 KB raw · ~7 KB on the wire</p>
+        <p>Collaborative editing, presence, carets — one vendored file, no dependency.</p>
+      </div>
+      <div class="card">
+        <p class="step">Collaborative whiteboard</p>
+        <p class="tech">~48 KB raw · ~16 KB on the wire</p>
+        <p>Canvas wiring plus the hand-drawn renderer. Still smaller than most framework runtimes alone.</p>
+      </div>
+      <div class="card">
+        <p class="step">Shared core, every page</p>
+        <p class="tech">~40 KB raw · ~16 KB on the wire</p>
+        <p>Datastar plus theming. That is the whole client platform.</p>
+      </div>
+    </div>
+  </section>
+
   <section id="scope" class="section">
     <p class="kicker">Safe to trim</p>
     <h2>Delete what you don't need, without guessing.</h2>

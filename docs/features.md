@@ -55,6 +55,29 @@ from `router/router.go` → `Init()`, and — if it was a plugin — remove the
 `start*` call in `cmd/web/main.go`. Full checklist in
 [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 
+## Client weight
+
+Vendored JS per feature, measured deterministically (`wc -c` raw,
+`gzip -nc` for wire; rounded up). CSS is one shared bundle and is not
+attributed per feature.
+
+| Feature | Files | Raw | Gzip |
+|---|---|---|---|
+| Todo, Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
+| Shared notes | `notes.js` | 19 KB | 7 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 48 KB | 16 KB |
+| Shared core (every page) | `datastar.js` + `theme.js` | 40 KB | 16 KB |
+
+Whiteboard and notes pages additionally load the shared
+`throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
+for cursor/caret reports, one implementation for both features.
+
+Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
+`datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"
+in the README (wire size). Icons (`iconify`, 24 KB raw) load only on
+pages that use them; sounds (`cuelume.js`, 10 KB) only with the sounds
+plugin.
+
 ## Related
 
 - [Seven async layers](async-layers.md) — the topology behind these capabilities.

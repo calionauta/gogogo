@@ -37,6 +37,13 @@ gofmt, vet, and millisecond builds close the loop on every error before
 running. Lints catch typical AI-generated mistakes. And agent-era infra
 already runs on it: kubernetes, ollama, temporal, and the like.
 
+I also wanted something extremely light on the client with the backend as
+the source of truth: kilobytes of JS per feature, never authority in the
+browser — records in the database, documents in CRDT snapshots, intent
+posted as ops. The offline outbox is cache to be reconciled, not truth to
+be defended; that single rule is what keeps the whole client featherweight
+without giving up realtime collaboration.
+
 ## Why this became gogogo
 
 A single-binary fullstack in Go, dev-ready and ai-ready: a CLI and MCP so

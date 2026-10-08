@@ -288,3 +288,31 @@ func TestNotesPersistsSnapshot(t *testing.T) {
 		t.Fatalf("no snapshot persisted for %q", docID)
 	}
 }
+
+// TestNotesCaretRecipePinsMirrorProps guards the canonical mirror-div
+// recipe inside static/notes.js: pixel mapping is only exact when every
+// text-affecting CSS property is copied from the live textarea. If this
+// fails, someone dropped a property — dots drift per viewport. It pins
+// presence, not correctness (pixels need a browser; the transform above
+// is reviewed live, not executed here).
+func TestNotesCaretRecipePinsMirrorProps(t *testing.T) {
+	raw, err := os.ReadFile("static/notes.js")
+	if err != nil {
+		t.Fatalf("read notes.js: %v", err)
+	}
+	src := string(raw)
+	for _, prop := range []string{
+		"fontFamily", "fontSize", "fontWeight", "lineHeight",
+		"letterSpacing", "textTransform", "textIndent",
+		"paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+		"borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+		"boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "tabSize",
+		"getComputedStyle", "offsetLeft", "offsetTop",
+		"scrollLeft", "scrollTop", "selectionStart",
+		"shiftPeerOffsets",
+	} {
+		if !strings.Contains(src, prop) {
+			t.Errorf("notes.js missing mirror recipe %q", prop)
+		}
+	}
+}
