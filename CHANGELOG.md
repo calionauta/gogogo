@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Shared notes presence: "X online" pill and "X está digitando…" indicator.**
+- **Shared notes presence: "X online" pill and "X is typing…" indicator.**
   The notes feature ports the whiteboard peers contract (join to others,
   authoritative count to all, leave + recount, reconnect guard) with
   red-first tests, plus throttled typing reports with a 6s client-side

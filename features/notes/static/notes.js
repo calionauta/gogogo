@@ -64,11 +64,11 @@
     reportTyping();
   });
 
-  // Typing indicator ("X está digitando…"): throttled reports while
+  // Typing indicator ("X is typing…"): throttled reports while
   // typing, one stopped after 3s idle. Server relays only — no state, no
   // persistence. Peers expire entries client-side (6s without refresh),
-  // so a dropped "stopped" cannot stick a ghost typist. Portuguese
-  // microcopy matches the product voice; keep it if the pill is copied.
+  // so a dropped "stopped" cannot stick a ghost typist. English
+  // microcopy throughout; keep it that way if the pill is copied.
   const typists = new Map();
   let typingLast = 0;
   let typingSent = false;
@@ -99,9 +99,9 @@
       else typists.delete(user);
     });
     if (!live.length) { typing.textContent = ""; return; }
-    const names = live.slice(0, 2).join(" e ");
-    const more = live.length > 2 ? " e outros" : "";
-    typing.textContent = names + more + (live.length === 1 ? " está digitando…" : " estão digitando…");
+    const names = live.slice(0, 2).join(" and ");
+    const more = live.length > 2 ? " and others" : "";
+    typing.textContent = names + more + (live.length === 1 ? " is typing…" : " are typing…");
   }
   setInterval(renderTypists, 2000);
   if (outbox.length) flush();
