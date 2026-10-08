@@ -249,6 +249,17 @@ stamp. It catches ~95% of regressions in under 3 minutes instead of waiting on a
 CI round trip. The tier ladder (T1 format/build → T5 signoff) and what each tier
 catches: [local-ci](docs/local-ci.md).
 
+## Contributing
+
+The most valuable contribution right now is **using gogogo for a real
+project and reporting what broke** — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+AI-assisted contributions are welcome, with a human in the loop: disclose
+tool use in the PR body (no AI trailers in commits or changelogs), explain
+motivation, include a reproduction, keep the diff minimal, and run
+`make signoff` before pushing. Please discuss features in an issue before
+opening a PR.
+
 ## Acknowledgements
 
 Inspired by [northstar](https://github.com/zangster300/northstar) by Zangster —
