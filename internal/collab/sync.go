@@ -18,10 +18,14 @@ import (
 // shared doc, converging every instance.
 //
 // Topic layout: "app.sync.<docID>" carries a Loro update for that doc.
+// Features with their own subject space (notes uses "app.notes.<docID>")
+// build the worker with NewSyncWorkerForSubject so each collection's
+// snapshots land in its own persister.
 type SyncWorker struct {
 	nc        *natsio.Conn
 	persister Persister
 	docs      *DocStore // shared with WebSyncWorker
+	subject   string    // NATS subject pattern, e.g. "app.sync.>"
 }
 
 // NewSyncWorker builds a worker bound to a NATS connection and a
@@ -40,18 +44,29 @@ func NewSyncWorker(nc *natsio.Conn, p Persister, docs *DocStore) *SyncWorker {
 		nc:        nc,
 		persister: p,
 		docs:      docs,
+		subject:   "app.sync.>",
 	}
+}
+
+// NewSyncWorkerForSubject builds a worker on a custom subject pattern
+// (same "app.<ns>.<docID>" layout so docIDFromSubject still applies).
+// The notes feature uses it with "app.notes.>" and its own persister so
+// snapshots converge per collection instead of mixing stores.
+func NewSyncWorkerForSubject(nc *natsio.Conn, p Persister, docs *DocStore, subject string) *SyncWorker {
+	w := NewSyncWorker(nc, p, docs)
+	w.subject = subject
+	return w
 }
 
 func (w *SyncWorker) doc(docID string) *Doc {
 	return w.docs.GetOrCreate(docID)
 }
 
-// Run subscribes to app.sync.> and blocks processing updates until the
-// context is cancelled (subscription drained) or the connection closes.
-// Callers typically run it in a goroutine and cancel on shutdown.
+// Run subscribes to the worker's subject and blocks processing updates
+// until the context is cancelled (subscription drained) or the connection
+// closes. Callers typically run it in a goroutine and cancel on shutdown.
 func (w *SyncWorker) Run(ctx context.Context) error {
-	sub, err := w.nc.Subscribe("app.sync.>", func(msg *natsio.Msg) {
+	sub, err := w.nc.Subscribe(w.subject, func(msg *natsio.Msg) {
 		docID := docIDFromSubject(msg.Subject)
 		if docID == "" {
 			return

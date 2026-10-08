@@ -125,11 +125,11 @@ var advisePresets = []advisePreset{
 }
 
 // adviseRules are the global opinions, printed before everything else.
-// They encode docs/native-zig.md and the runtime-vs-trim rule in one place
+// They encode docs/exception-to-go.md and the runtime-vs-trim rule in one place
 // so an LLM gets them without reading the whole site.
 var adviseRules = []string{
 	"Go for everything; Zig only for a profiled hot kernel, codec, or OS " +
-		"integration (docs/native-zig.md). A speedup claim without a Go " +
+		"integration (docs/exception-to-go.md). A speedup claim without a Go " +
 		"baseline benchmark is not a reason.",
 	"Prefer runtime switches over trim when unsure: NATS_ENABLED=false, " +
 		"DAGNATS_ENABLED=false, OFFLINE_SYNC_ENABLED=false, unset " +
@@ -226,9 +226,9 @@ var notCheckoutRules = []string{
 const (
 	scopeTemplate = "template"
 	// scopeExceptionToGo is the second answer shape: the need names Zig, the
-	// repo's one documented exception to the Go rule (docs/native-zig.md).
+	// repo's one documented exception to the Go rule (docs/exception-to-go.md).
 	// Capabilities do not install under an exception, so the answer is the
-	// Zig gate plus the skill pointer — never trim mechanics, never a
+	// Exception-to-go gate plus the skill pointer — never trim mechanics, never a
 	// foreign label.
 	scopeExceptionToGo = "exception-to-go"
 	// scopeGoStdlib is the third answer shape: the template does not apply.
@@ -299,12 +299,12 @@ func needWordsJoined(need string) string {
 // need matches template vocabulary only by accident).
 var exceptionToGoRules = []string{
 	"Go for everything; Zig only for a profiled hot kernel, codec, or OS " +
-		"integration (docs/native-zig.md). A speedup claim without a Go " +
+		"integration (docs/exception-to-go.md). A speedup claim without a Go " +
 		"baseline benchmark is not a reason. Order: pprof, then SIMD " +
 		"(`GOEXPERIMENT=simd` + `archsimd`), then Zig — with a benchmark " +
 		"proving Go is the bottleneck at each step.",
 	"Go coding standards: skills/gogogo-coding-standards/SKILL.md in the " +
-		"gogogo repo (https://github.com/calionauta/gogogo) — the Zig-gate " +
+		"gogogo repo (https://github.com/calionauta/gogogo) — the exception-to-go " +
 		"section states the evidence bar; universal principles " +
 		"(KISS/DRY/YAGNI) are delegated to stelow-workflow-coding-standards, " +
 		"vendored under skills/stelow-workflow-coding-standards/.",

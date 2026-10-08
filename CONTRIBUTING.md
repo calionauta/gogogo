@@ -87,7 +87,7 @@ will be asked for one or closed. This keeps the queue reviewable.
    - `GOGOGO_NO_BROWSER=1` in the child env when a test spawns the real
      binary (built from scratch, not appended to `os.Environ()`).
    - Go-first: no new native/Zig code without a benchmarked case
-     ([native-zig](docs/native-zig.md)).
+     ([exception-to-go](docs/exception-to-go.md)).
    - Project footguns live in `rules/rules.go` (ruleguard) — if your change
      trips one, fix the code, not the rule.
 4. **Verify before asking for review.** Run `make signoff` (full local gate =

@@ -175,7 +175,10 @@ var All = []Capability{
 		Files:   []string{"router/collab_jetstream.go"},
 		Reason: "Bundled into the whiteboard unit: whiteboard embeds collab " +
 			"types (no-compile without it) and collab without whiteboard " +
-			"is dead (no producers). Split trigger: a second consumer.",
+			"was dead until notes arrived as the second consumer " +
+			"(features/notes shares the transport on its own subject " +
+			"space). Split trigger met — see the notes entry: trimming " +
+			"the whiteboard bundle removes collab, which notes needs.",
 	},
 	{
 		ID:      "datastar",
@@ -299,7 +302,7 @@ var All = []Capability{
 		Summary: "collaborative canvas (Loro + Rough.js + presence)",
 		Offered: true,
 		DependsOn: []string{
-			"collab",
+			depCollab,
 			depSounds,
 		},
 		Dirs: []string{"features/whiteboard"},
@@ -309,6 +312,23 @@ var All = []Capability{
 		Warns: []string{
 			"The navbar Whiteboard link is stripped automatically.",
 		},
+	},
+	{
+		ID:      "notes",
+		Kind:    KindFeature,
+		Summary: "shared plain-text notes (server-owned Loro Text + SSE)",
+		DependsOn: []string{
+			depCollab,
+		},
+		Dirs: []string{"features/notes"},
+		Files: []string{
+			"router/notes.go",
+		},
+		Note: "Manual removal (or trim the whiteboard unit, which covers " +
+			"whiteboard+collab+notes): delete the dir + router/notes.go, " +
+			"drop registerNotesStack from router.Init, remove the Notes " +
+			"navbar link in features/auth/views.templ, delete " +
+			"ensureNotesCollection in db/seed.go, and remove this entry.",
 	},
 	{
 		ID:      "landing",
@@ -342,6 +362,10 @@ var All = []Capability{
 // depSounds is the shared soft dependency of UI pages: their .templ
 // files import the sounds package for SoundAssets.
 const depSounds = "sounds"
+
+// depCollab is the shared transport dependency of collab consumers
+// (whiteboard, notes): the server-owned Loro DocStore + sync workers.
+const depCollab = "collab"
 
 // ByID indexes All by capability id.
 func ByID() map[string]Capability {

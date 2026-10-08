@@ -1,6 +1,6 @@
-# Exception-to-go gate (Zig; summary — normative doc is `docs/native-zig.md`)
+# Exception-to-go gate (Zig; summary — normative doc is `docs/exception-to-go.md`)
 
-There is no Zig code and no Zig toolchain in this repo today. That is the successful default, not a gap. This file is the 80-line gate agents check; the full decision procedure, boundary rules, and removal plan live in `docs/native-zig.md` and win on conflict.
+There is no Zig code and no Zig toolchain in this repo today. That is the successful default, not a gap. This file is the 80-line gate agents check; the full decision procedure, boundary rules, and removal plan live in `docs/exception-to-go.md` and win on conflict.
 
 ## Bans (never sufficient alone)
 

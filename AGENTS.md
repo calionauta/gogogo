@@ -18,7 +18,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 
 ## Skills
 
-- `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, Zig gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles live in the vendored `skills/stelow-workflow-coding-standards` (upstream [stelow](https://github.com/calionauta/stelow), pinned in its `UPSTREAM_SHA` — never edit the vendored copy in place). Drift: `bin/check-stelow-drift.sh` detects, `scripts/refresh-stelow.sh` fixes (a scheduled workflow opens the bump PR).
+- `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, exception-to-go gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles live in the vendored `skills/stelow-workflow-coding-standards` (upstream [stelow](https://github.com/calionauta/stelow), pinned in its `UPSTREAM_SHA` — never edit the vendored copy in place). Drift: `bin/check-stelow-drift.sh` detects, `scripts/refresh-stelow.sh` fixes (a scheduled workflow opens the bump PR).
 - `cali-code-navigation` — ripwire orient-first navigation. Use when landing cold in unfamiliar code or tracing callers.
 - `/skill:cali-ops-deploy-github-tailscale` — server layout, deploy user, secret tables.
 
@@ -51,7 +51,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 - NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs — or just `make lint-safe`, which sizes the run to the host's free RAM/cores and caps it in a cgroup), NO `golangci-lint cache clean` (the cache is what keeps a run cheap; a cold run re-type-checks the whole module and spikes memory — it has taken a shared host into swap), NO `go build -tags "<stale>"` (unified-build era has no tags). Project-specific footguns go in `rules/rules.go` (ruleguard, loaded by gocritic) — a rule there fails CI, so prose guidance that a linter can enforce belongs there, not in this file.
 - NO `go func()` loop without a shutdown path: long-lived loops select on `ctx.Done()` (or a `done chan struct{}`), bound at wiring time. NO `ctx` stored in a struct. NO bare `for range ticker.C`. See `skills/gogogo-coding-standards` (Concurrency) + [docs/code-quality.md](docs/code-quality.md#concurrency-and-resources).
 
-## Go-first / Zig (summary; normative: `docs/native-zig.md`)
+## Go-first / Zig (summary; normative: `docs/exception-to-go.md`)
 
 Go is the product language (~95-99%). Zero Zig code/toolchain in tree — do not add without a benchmarked case. Bans: "Zig is faster", manual memory, "low-level", "could be optimized", "looks like SIMD", preference, avoiding a Go dep, future perf. Go SIMD (`simd`/`archsimd`, `GOEXPERIMENT=simd`) first; perf work needs a Go baseline bench + profile proving Go is the bottleneck. Kernel rules: one package, small C ABI, caller-owned buffers, pure-Go fallback day one, removable in minutes. Vague "use Zig when appropriate" is rejected — follow the doc's decision procedure.
 

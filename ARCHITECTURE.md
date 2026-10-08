@@ -18,7 +18,7 @@
 
 > The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent). The `SCOPE` annotations in source files are the authoritative reference; this table is a summary.
 
-> **Native boundary (not a layer).** `native` is a reserved implementation boundary, not a fourth SCOPE value. There is no Zig code or toolchain in this repo. If a justified case ever arrives, the Go API lives in its normal package (`internal/<thing>/` with the usual SCOPE) and Zig sources stay inside it behind a small C ABI — see `docs/native-zig.md`. Do not create a top-level `native/` directory speculatively.
+> **Native boundary (not a layer).** `native` is a reserved implementation boundary, not a fourth SCOPE value. There is no Zig code or toolchain in this repo. If a justified case ever arrives, the Go API lives in its normal package (`internal/<thing>/` with the usual SCOPE) and Zig sources stay inside it behind a small C ABI — see `docs/exception-to-go.md`. Do not create a top-level `native/` directory speculatively.
 
 ## Layer taxonomy (SCOPE)
 

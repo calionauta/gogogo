@@ -11,7 +11,8 @@ import (
 
 // Unit ids offered by the installer. Most map 1:1 to a capability;
 // skins-extra maps to the skins capability (partial removal) and
-// whiteboard covers whiteboard+collab (the only honest shape).
+// whiteboard covers whiteboard+collab+notes (the only honest shape:
+// notes is the second collab consumer, so collab cannot trim alone).
 const (
 	unitDagnats    = "dagnats"
 	unitGoAkt      = "goakt"
@@ -27,7 +28,7 @@ const (
 var unitCaps = map[string][]string{
 	unitDagnats:    {"dagnats"},
 	unitGoAkt:      {"goakt", "room"},
-	unitWhiteboard: {"whiteboard", "collab"},
+	unitWhiteboard: {"whiteboard", "collab", "notes"},
 	unitLanding:    {"landing"},
 	unitConfigView: {"config-view"},
 	unitCredits:    {"credits"},
@@ -279,7 +280,7 @@ var manifestUnits = []trimUnit{
 		extraDrops: []fileDrop{
 			{
 				path:    routerGoFile,
-				substrs: []string{"registerWhiteboardStack(se, q, cfg)"},
+				substrs: []string{"registerWhiteboardStack(se, q, cfg)", "registerNotesStack(se, q, cfg)"},
 			},
 		},
 		desktopStrips: []stripRule{
@@ -301,6 +302,10 @@ var manifestUnits = []trimUnit{
 					{
 						startMarker: `<a href="/whiteboard"`,
 						endMarker:   `}>Whiteboard</a>`,
+					},
+					{
+						startMarker: `<a href="/notes"`,
+						endMarker:   `}>Notes</a>`,
 					},
 				},
 			},

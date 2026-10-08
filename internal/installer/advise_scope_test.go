@@ -130,7 +130,7 @@ func TestAdviseConstraintNeedsStayOnGoScopes(t *testing.T) {
 // TestAdviseZigGetsTheGate guards the one documented exception: Zig is not
 // a foreign stack, it is the repo's native escape hatch, so it gets the
 // gate plus the skill pointer — never trim mechanics, never a disclaimer
-// to "check their docs" (the docs are ours: docs/native-zig.md).
+// to "check their docs" (the docs are ours: docs/exception-to-go.md).
 func TestAdviseZigGetsTheGate(t *testing.T) {
 	for _, need := range []string{
 		"Zig kernel, zero dependencies",
@@ -148,7 +148,7 @@ func TestAdviseZigGetsTheGate(t *testing.T) {
 			t.Errorf("%q carries scaffold first-run, want none", need)
 		}
 		joined := strings.Join(doc.Rules, " ")
-		for _, want := range []string{"docs/native-zig.md", "gogogo-coding-standards", "pprof"} {
+		for _, want := range []string{"docs/exception-to-go.md", "gogogo-coding-standards", "pprof"} {
 			if !strings.Contains(joined, want) {
 				t.Errorf("%q rules missing %q", need, want)
 			}
@@ -223,7 +223,7 @@ func TestAdviseExceptionToGoText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}
-	for _, want := range []string{"exception to Go (Zig)", "docs/native-zig.md", "gogogo-coding-standards"} {
+	for _, want := range []string{"exception to Go (Zig)", "docs/exception-to-go.md", "gogogo-coding-standards"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("text output missing %q:\n%s", want, out)
 		}

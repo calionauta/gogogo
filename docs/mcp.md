@@ -78,7 +78,7 @@ label:
 | `scope` | When | What the rest of the document contains |
 |---|---|---|
 | `template` | a gogogo-shaped need — or anything the vocabulary does not match (full map shown instead of a guess; scaffold first-run withheld when nothing matched) | the 24 capabilities + keep/drop presets — act on these |
-| `exception-to-go` | the need names **Zig** | the Zig gate + skill pointer; **nothing installs** under the exception |
+| `exception-to-go` | the need names **Zig** | the exception-to-go gate + skill pointer; **nothing installs** under the exception |
 | `go-standards` | a need that forbids dependencies ("stdlib only", "no deps") | the Go-standards pointer only; the capability table is **absent**, not empty |
 
 On `go-standards`, do not read the absence of capabilities as "no opinion" —

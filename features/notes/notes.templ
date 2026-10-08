@@ -1,0 +1,69 @@
+package notes
+
+import "github.com/calionauta/gogogo/features/auth"
+
+// NotesIndex lists existing shared notes with a button to start a new one.
+templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit string) {
+	<!DOCTYPE html>
+	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Notes — gogogo</title>
+			<link rel="stylesheet" href="/static/app.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
+			<script src="/static/iconify-icon.min.js"></script>
+		</head>
+		<body>
+			@auth.Navbar(email, "notes", buildLabel, buildCommit)
+			<main class="p-4 max-w-2xl mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<h1 class="text-2xl font-bold">Shared notes</h1>
+					<a class="btn btn-sm btn-primary" href="/notes/new">New note</a>
+				</div>
+				if len(docIDs) == 0 {
+					<p class="text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
+				} else {
+					<ul class="menu bg-base-200 rounded-box w-full">
+						for _, id := range docIDs {
+							<li><a href={ templ.URL("/notes/" + id) }>{ id }</a></li>
+						}
+					</ul>
+				}
+			</main>
+		</body>
+	</html>
+}
+
+// NotesPage renders one shared note: a textarea bound to the server-owned
+// Loro Text. Typing POSTs prefix/suffix-diffed ops; the SSE stream applies
+// peers' resolved text unless the textarea is focused (no caret stealing).
+templ NotesPage(email string, docID string, text string, buildLabel string, buildCommit string) {
+	<!DOCTYPE html>
+	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Note — gogogo</title>
+			<link rel="stylesheet" href="/static/app.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
+			<script src="/static/iconify-icon.min.js"></script>
+			<script defer src="/static/notes.js"></script>
+		</head>
+		<body>
+			@auth.Navbar(email, "notes", buildLabel, buildCommit)
+			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ docID }>
+				<div class="flex items-center justify-between mb-2">
+					<a class="btn btn-sm btn-ghost" href="/notes">Back</a>
+					<span id="net-status" class="text-xs text-warning hidden">reconnecting…</span>
+				</div>
+				<textarea id="note-text" class="textarea textarea-bordered w-full font-mono" rows="20" placeholder="Type — every tab merges.">{ text }</textarea>
+				<p class="text-xs text-base-content/60 mt-2">Plain text, CRDT-merged on the server. Concurrent typing never loses characters; rich text does not exist here yet.</p>
+			</main>
+		</body>
+	</html>
+}

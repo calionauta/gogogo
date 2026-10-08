@@ -1,6 +1,6 @@
 # Go perf runbook (pprof → simd → Zig)
 
-Order is mandatory. Skipping to SIMD/Zig without a profile is rejected per `docs/native-zig.md`.
+Order is mandatory. Skipping to SIMD/Zig without a profile is rejected per `docs/exception-to-go.md`.
 
 ## 1. Ship correct first
 

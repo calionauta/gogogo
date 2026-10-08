@@ -11,7 +11,7 @@ Rules the project learned by hand live in `rules/rules.go` and are loaded by
 below) — prose guidance that a linter can enforce is enforced instead.
 
 The rules an **agent** is meant to load — Go idioms, concurrency, testing, the
-Zig gate — live in
+exception-to-go gate — live in
 [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
 (install with `npx skills add calionauta/gogogo`). Its frontmatter is validated
 by `make check-skill-frontmatter`, because the skill *host* parses that YAML and

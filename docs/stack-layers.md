@@ -98,8 +98,9 @@ Workflows as declarative JSON, embedded in the binary, state durable on the
 JetStream the template already runs. No cluster to install, no second
 surface to learn. Rejected: Temporal (a server plus database plus SDKs for
 durability most apps never need at this scale). Cost: the expressive and
-throughput ceiling of a young JSON engine, and no hosted offering. Revisit
-when a workflow outgrows JSON or needs cross-team operation.
+throughput ceiling of a young JSON engine. Revisit when a workflow outgrows
+JSON, needs multi-tenant operation (namespaces, per-team RBAC and audit —
+none documented upstream), or needs a hosted offering.
 
 ### JetStream on by default (and not opt-in)?
 
@@ -155,6 +156,32 @@ bodies, weak crypto, template-signal mistakes — enforced in pre-commit
 hooks and CI, taught upfront via the coding-standards skill. Cost: CI
 minutes and a `//nolint` discipline curve. Revisit by deleting rules that
 never fire, not by adding more.
+
+### PocketBase (and not chi/gin + Postgres, or Supabase/Firebase)?
+
+Database, auth, REST, file storage, realtime, and an admin UI in one
+embedded binary — maintained upstream for years, speaking plain SQLite
+underneath. Rejected: assembling it yourself (router + SQL + session auth +
+an admin you write and secure), and outsourcing it (Supabase/Firebase move
+your data behind a network call, a bill, and someone else's changelog).
+Cost: PocketBase shapes the app — collections model, its Go API surface,
+the admin/superuser split, SQLite's single-writer ceiling. Revisit when the
+write load or the data model outgrows one embedded database.
+
+### Datastar (and not htmx, and not a JS framework)?
+
+Datastar's own guide puts it plainly: backend reactivity like htmx plus
+frontend reactivity like Alpine, with no npm packages. Signals hold state,
+the backend drives DOM patches, and SSE streaming is a first-class
+primitive — unlike either. htmx overlap is real and acknowledged: simple
+hyperlink-style swaps stay simpler in htmx. What Datastar adds is the
+realtime half Delaney keeps pushing beyond htmx: persistent SSE streams the
+backend owns, which is exactly what the SSE Hub and the collab features
+stand on. Rejected: SPA frameworks (a bundler, hydration, a second source
+of truth in the client) for the default path. Cost: a younger, smaller
+ecosystem than React; persistent connections your proxies must allow; more
+logic lives in the backend by design. The repo pays down the newness with
+`datastar-lint` and the `internal/datastar` wrapper.
 
 ## How the pieces combine
 

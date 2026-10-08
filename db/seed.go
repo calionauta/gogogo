@@ -60,6 +60,7 @@ func ApplySeeds(app core.App, offlineSyncEnabled bool) error {
 	join(ensureDemoUser(app))
 	join(ensureUsersCollectionRules(app))
 	join(ensureWhiteboardsCollection(app))
+	join(ensureNotesCollection(app))
 	return errors.Join(errs...)
 }
 
@@ -241,6 +242,37 @@ func ensureWhiteboardsCollection(app core.App) error {
 
 	if err := app.Save(col); err != nil {
 		return fmt.Errorf("seed: save whiteboards collection: %w", err)
+	}
+	return nil
+}
+
+// ensureNotesCollection creates the "notes" collection that stores resolved
+// Loro Text snapshots from the notes feature. Same schema contract as
+// whiteboards (doc_id key, snapshot bytes, monotonic version); the notes
+// SyncWorker subscribes app.notes.> so snapshots never mix collections.
+func ensureNotesCollection(app core.App) error {
+	col, err := app.FindCollectionByNameOrId("notes")
+	if err != nil {
+		col = core.NewBaseCollection("notes")
+		col.Fields.Add(
+			&core.TextField{Name: "doc_id", Required: true},
+			&core.TextField{Name: "snapshot"},
+			&core.NumberField{Name: "version"},
+			&core.DateField{Name: "updated"},
+		)
+	}
+	notesViewRule := "@request.auth.id != ''"
+	if col.ListRule == nil || *col.ListRule != notesViewRule {
+		r := notesViewRule
+		col.ListRule = &r
+	}
+	if col.ViewRule == nil || *col.ViewRule != notesViewRule {
+		r := notesViewRule
+		col.ViewRule = &r
+	}
+
+	if err := app.Save(col); err != nil {
+		return fmt.Errorf("seed: save notes collection: %w", err)
 	}
 	return nil
 }

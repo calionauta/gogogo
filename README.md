@@ -43,7 +43,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 - [features](docs/features.md) — every capability and its runtime opt-out.
 - [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
 - [configuration](docs/configuration.md) — every environment variable and runtime constant.
-- [native-zig](docs/native-zig.md) — Go-first policy: why Zig is an exceptional native boundary, plus the agent decision procedure.
+- [exception-to-go](docs/exception-to-go.md) — Go-first policy: why Zig is an exceptional native boundary, plus the agent decision procedure.
 
 **Frontend**
 - [todo-example](docs/todo-example.md) — the Todo reference implementation and the contract to imitate.
@@ -66,7 +66,7 @@ Plus [ARCHITECTURE.md](ARCHITECTURE.md) — the canonical annotated dependency
 graph, and [AGENTS.md](AGENTS.md) — the working rules for human and AI agents
 in this repo. The rules an agent is meant to *load* live in
 [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
-(Go + template standards, concurrency, perf, testing, the Zig gate) — install
+(Go + template standards, concurrency, perf, testing, the exception-to-go gate) — install
 it with `npx skills add calionauta/gogogo`.
 
 </details>
@@ -115,7 +115,7 @@ dependencies and are left alone.
 
 | Layer | Choice | Why |
 |---|---|---|
-| **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([native-zig](docs/native-zig.md); the why: [motivation](docs/motivation.md)) |
+| **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([exception-to-go](docs/exception-to-go.md); the why: [motivation](docs/motivation.md)) |
 | **Zero-config database, auth and API** | [PocketBase](https://pocketbase.io) (embedded SQLite) | Zero-config auth, REST, file storage, and an admin UI at `/_/` — no separate service |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |

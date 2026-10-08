@@ -5,7 +5,7 @@ import "github.com/calionauta/gogogo/features/sounds"
 // Navbar is the top bar rendered on every authenticated page.
 // Shows the app name on the left, a user dropdown on the right with
 // the logged-in email and a logout button. Login link when no user.
-// `active` marks the current section ("todo" | "whiteboard" | "config" | "")
+// `active` marks the current section ("todo" | "whiteboard" | "room" | "notes" | "config" | "")
 // so the navbar can highlight it. The order of nav items is fixed
 // and intentional: feature tabs first (Todo, Whiteboard) so the
 // common paths are adjacent to the logo, then the operator-facing
@@ -32,6 +32,9 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "room",
 				}) }>Room</a>
+				<a href="/notes" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+					"is-active": active == "notes",
+				}) }>Notes</a>
 				<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "config",
 				}) }>Config</a>

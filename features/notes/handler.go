@@ -1,0 +1,292 @@
+// SCOPE:layer=feature,removal=feature — Shared plain-text notes (server-owned Loro Text)
+// Depends on: internal/collab/ (CRDT transport), internal/queue/ (SSE hub).
+// To remove: delete features/notes/ + router/notes.go, drop the
+// registerNotesStack call in router/router.go, remove the Notes navbar link
+// in features/auth/views.templ, delete ensureNotesCollection in db/seed.go,
+// and remove the "notes" capability in internal/capabilities.
+// Package notes implements minimal collaborative text editing: a textarea
+// backed by a server-owned Loro Text CRDT. The browser sends character ops
+// (insert/delete); the server serializes them under the doc mutex, persists
+// the resolved snapshot to the PocketBase "notes" collection, and
+// broadcasts the resolved text to every other connected client
+// (exclude-origin) over a dedicated SSE hub. No JS CRDT library, no rich
+// text widget — concurrent typing merges, formatting does not exist.
+//
+// Same-instance realtime only (mirrors the whiteboard topology):
+// cross-instance NATS converges server state, but peer browsers reload the
+// snapshot instead of receiving live pushes. Remote text never steals the
+// caret: a focused textarea keeps local content until the next local edit.
+package notes
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/router"
+
+	natsio "github.com/nats-io/nats.go"
+
+	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/queue"
+)
+
+const (
+	notesListLimit = 50
+
+	// wireNoteText is the SSE event type for resolved text. The browser
+	// switches on `msg.type === "note-text"` and renders `msg.text`.
+	wireNoteText = "note-text"
+
+	// notesSyncSubject is the NATS subject space for cross-instance server
+	// convergence. Separate from app.sync.> (whiteboard) so each
+	// collection's snapshots land in its own persister.
+	notesSyncSubject = "app.notes."
+)
+
+// NoteTextEvent is the wire envelope broadcast to peers: the resolved text
+// after applying an op batch. Clients re-render from it.
+type NoteTextEvent struct {
+	Type string `json:"type"` // "note-text"
+	Doc  string `json:"doc"`
+	From string `json:"from"`
+	Text string `json:"text"`
+}
+
+// opRequest is one POST body: an ordered batch of character ops applied
+// atomically under the doc mutex.
+type opRequest struct {
+	Ops []collab.TextOp `json:"ops"`
+}
+
+// Handler serves the notes routes. It holds the shared DocStore (CRDT
+// state), the persister (snapshot durability), the SSE hub (fan-out), and
+// the optional NATS connection (cross-instance server convergence).
+type Handler struct {
+	app       core.App
+	hub       *queue.SSEHub
+	cfg       *config.Config
+	docs      *collab.DocStore
+	persister collab.Persister
+	nc        *natsio.Conn // nil = SSE-only mode
+}
+
+// New builds a notes handler. persister is the PocketBase notes collection
+// (or an in-memory fake in tests). docs is the DocStore shared with the
+// notes SyncWorker; nc is the NATS connection (nil for SSE-only mode).
+func New(
+	app core.App,
+	hub *queue.SSEHub,
+	persister collab.Persister,
+	docs *collab.DocStore,
+	nc *natsio.Conn,
+	cfg *config.Config,
+) *Handler {
+	return &Handler{
+		app:       app,
+		hub:       hub,
+		cfg:       cfg,
+		docs:      docs,
+		persister: persister,
+		nc:        nc,
+	}
+}
+
+// RegisterRoutes wires the notes HTTP + SSE routes on the router.
+func (h *Handler) RegisterRoutes(se *core.ServeEvent) {
+	h.RegisterRoutesOn(se.Router)
+}
+
+// RegisterRoutesOn wires the same routes on a raw router (used by tests
+// via httptest.NewServer, and by router.Init in production).
+func (h *Handler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
+	r.GET("/notes", h.handleIndex)
+	r.GET("/notes/new", h.handleNew)
+	r.GET("/notes/{docID}", h.handleNote)
+	r.GET("/api/notes/{docID}/stream", h.handleStream)
+	r.POST("/api/notes/{docID}/op", h.handleOp)
+}
+
+// handleIndex lists existing notes (from the PocketBase collection).
+func (h *Handler) handleIndex(c *core.RequestEvent) error {
+	if err := auth.RequireAuthOrRedirect(c); err != nil {
+		return err
+	}
+	email := ""
+	if c.Auth != nil {
+		email = c.Auth.Email()
+	}
+	ids := []string{}
+	if records, err := h.app.FindRecordsByFilter("notes", "", "-updated", notesListLimit, 0); err == nil {
+		for _, rec := range records {
+			ids = append(ids, rec.GetString("doc_id"))
+		}
+	} else {
+		slog.Debug("notes: list unavailable (collection not seeded?)", "error", err)
+	}
+	return NotesIndex(email, ids, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+}
+
+// handleNew creates a fresh note id and redirects to it. Docs are created
+// lazily on first op, so this only mints the id.
+func (h *Handler) handleNew(c *core.RequestEvent) error {
+	if err := auth.RequireAuthOrRedirect(c); err != nil {
+		return err
+	}
+	return c.Redirect(http.StatusFound, "/notes/"+uuid.NewString())
+}
+
+// handleNote renders one note page with the resolved text. Rehydrates the
+// in-memory CRDT from the persisted snapshot so a reloaded page converges
+// onto saved state before receiving live updates.
+func (h *Handler) handleNote(c *core.RequestEvent) error {
+	if err := auth.RequireAuthOrRedirect(c); err != nil {
+		return err
+	}
+	email := ""
+	if c.Auth != nil {
+		email = c.Auth.Email()
+	}
+	docID := c.Request.PathValue("docID")
+	if docID == "" {
+		return c.String(http.StatusBadRequest, "missing doc id")
+	}
+	if snap, ok := h.persister.LoadSnapshot(docID); ok {
+		d := h.docs.GetOrCreate(docID)
+		if err := d.ApplyUpdate(snap); err != nil {
+			slog.Warn("notes: rehydrate failed", "doc", docID, "error", err)
+		}
+	}
+	text := h.docs.GetOrCreate(docID).Text()
+	return NotesPage(email, docID, text, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+}
+
+// handleStream opens an SSE connection for one doc. The client receives
+// resolved-text events; the initial text arrives immediately so a tab that
+// opened mid-session starts from current state.
+func (h *Handler) handleStream(c *core.RequestEvent) error {
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("notes: stream auth load", "error", err)
+	}
+	docID := c.Request.PathValue("docID")
+	clientID := c.Request.URL.Query().Get("clientID")
+	if clientID == "" {
+		clientID = uuid.NewString()
+	}
+
+	flusher, ok := c.Response.(http.Flusher)
+	if !ok {
+		return c.String(http.StatusInternalServerError, "streaming unsupported")
+	}
+	c.Response.Header().Set("Content-Type", "text/event-stream")
+	c.Response.Header().Set("Cache-Control", "no-cache")
+	c.Response.Header().Set("Connection", "keep-alive")
+	c.Response.WriteHeader(http.StatusOK)
+	fmt.Fprintf(c.Response, ": connected %s\n\n", docID)
+	flusher.Flush()
+
+	ch := make(chan []byte, config.DefaultClientQueueSize)
+	h.hub.Register(clientID, "", ch)
+	defer h.hub.UnregisterIfCurrent(clientID, ch)
+
+	if text := h.docs.GetOrCreate(docID).Text(); text != "" {
+		if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, Text: text}); err == nil {
+			fmt.Fprintf(c.Response, "data: %s\n\n", payload)
+			flusher.Flush()
+		}
+	}
+
+	// Heartbeat: SSE handlers only detect disconnects on write; without it
+	// a parked handler leaks a goroutine and a hub registration forever.
+	heartbeat := time.NewTicker(config.DefaultSSEHeartbeatInterval)
+	defer heartbeat.Stop()
+
+	ctx := c.Request.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-heartbeat.C:
+			if _, err := fmt.Fprintf(c.Response, ": heartbeat\n\n"); err != nil {
+				return nil
+			}
+			flusher.Flush()
+		case msg := <-ch:
+			fmt.Fprintf(c.Response, "data: %s\n\n", msg)
+			flusher.Flush()
+		}
+	}
+}
+
+// handleOp applies one op batch: merge into the shared Doc, persist the
+// snapshot, publish update bytes for cross-instance convergence, and
+// broadcast the resolved text to peers (exclude-origin — the originator
+// already holds the text optimistically).
+func (h *Handler) handleOp(c *core.RequestEvent) error {
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("notes: op auth load", "error", err)
+	}
+	docID := c.Request.PathValue("docID")
+	if docID == "" {
+		return c.String(http.StatusBadRequest, "missing doc id")
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "read body")
+	}
+	from := c.Request.URL.Query().Get("clientID")
+	var req opRequest
+	if uErr := json.Unmarshal(body, &req); uErr != nil {
+		return c.String(http.StatusBadRequest, "decode op: "+uErr.Error())
+	}
+	if len(req.Ops) == 0 {
+		return c.String(http.StatusBadRequest, "no ops")
+	}
+	text, err := h.applyOps(docID, from, req.Ops)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "apply op: "+err.Error())
+	}
+	return c.JSON(http.StatusOK, map[string]any{"ok": true, "text": text})
+}
+
+// applyOps merges the batch under one version-vector window, persists,
+// fans out to NATS (server convergence) and to the hub (live peers).
+func (h *Handler) applyOps(docID, from string, ops []collab.TextOp) (string, error) {
+	d := h.docs.GetOrCreate(docID)
+	since := d.StateVersion()
+	var text string
+	var err error
+	for _, op := range ops {
+		if text, err = d.ApplyTextOp(op); err != nil {
+			return "", err
+		}
+	}
+	snapshot := d.EncodeSnapshot()
+	if h.persister != nil {
+		if err := h.persister.SaveSnapshot(docID, snapshot); err != nil {
+			slog.Warn("notes: persist snapshot failed", "doc", docID, "error", err)
+		}
+	}
+	if payload, err := json.Marshal(NoteTextEvent{Type: wireNoteText, Doc: docID, From: from, Text: text}); err == nil {
+		h.hub.BroadcastExcept(payload, from)
+	} else {
+		slog.Warn("notes: marshal text", "doc", docID, "error", err)
+	}
+	if h.nc != nil {
+		if update, err := d.EncodeUpdate(since); err == nil {
+			if nErr := h.nc.Publish(notesSyncSubject+docID, update); nErr != nil {
+				slog.Warn("notes: nats publish", "doc", docID, "error", nErr)
+			}
+		} else {
+			slog.Warn("notes: encode update", "doc", docID, "error", err)
+		}
+	}
+	return text, nil
+}

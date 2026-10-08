@@ -1,6 +1,6 @@
 ---
 name: gogogo-coding-standards
-description: "Go backend standards for the gogogo template — PocketBase/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/Zig gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, or proposing native code. Delegates universal principles to stelow-workflow-coding-standards."
+description: "Go backend standards for the gogogo template — PocketBase/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, or proposing native code. Delegates universal principles to stelow-workflow-coding-standards."
 ---
 
 # gogogo-coding-standards
@@ -20,7 +20,7 @@ Go + template rules only. Universal principles (KISS, DRY, LoB/SoC, YAGNI, sizes
   `scripts/refresh-stelow.sh` (or `make refresh-stelow`) — never copy by hand; the
   scheduled `stelow-auto-bump` workflow opens the bump as a PR.
 - Go override (copied, stable): max 100 lines/function, 500 lines/file. Universal default is 50/400.
-- This skill covers only what stelow does not: Go idioms, gogogo gates, Datastar, perf, Zig gate.
+- This skill covers only what stelow does not: Go idioms, gogogo gates, Datastar, perf, exception-to-go gate.
 
 ## When to Use
 
@@ -165,7 +165,7 @@ Full rules: `references/datastar.md`.
 
 ## Exception-to-go gate
 
-Full gate: `references/exception-to-go.md` (summary) + `docs/native-zig.md` (normative).
+Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md` (normative).
 
 - Zero Zig in tree today. No vendored Zig skill until the first kernel passes the gate.
 - Bans: "Zig is faster", manual memory, low-level, speculation, preference, avoiding a Go dep.

@@ -4,8 +4,8 @@
 //
 // This file is build-tag-free so the PocketBase-backed persister is
 // available to the web-only transport (sync_web.go) as well as the
-// jetstream-tagged SyncWorker (sync.go). Both transports converge onto
-// the same "whiteboards" collection as the source of truth.
+// jetstream-tagged SyncWorker (sync.go). Each feature converges onto its
+// own collection ("whiteboards", "notes", ...) as the source of truth.
 package collab
 
 import (
@@ -16,8 +16,8 @@ import (
 )
 
 // Persister stores the resolved snapshot of a collaborative doc. The
-// server-side implementation writes to the PocketBase "whiteboards"
-// collection; tests use an in-memory fake.
+// server-side implementation writes to one PocketBase collection per
+// feature ("whiteboards", "notes"); tests use an in-memory fake.
 type Persister interface {
 	SaveSnapshot(docID string, snapshot []byte) error
 	LoadSnapshot(docID string) ([]byte, bool)
@@ -54,27 +54,37 @@ func (m *MemoryPersister) LoadSnapshot(docID string) ([]byte, bool) {
 	return s, ok
 }
 
-// PocketBasePersister implements Persister against the "whiteboards"
-// collection. Upsert by doc_id; stores the Loro snapshot as base64 in the
+// PocketBasePersister implements Persister against one collection.
+// Upsert by doc_id; stores the Loro snapshot as base64 in the
 // "snapshot" field and a monotonic "version" for idempotent writes.
 type PocketBasePersister struct {
-	app core.App
+	app        core.App
+	collection string
 }
 
-// NewPocketBasePersister builds a persister for the given PocketBase app.
+// NewPocketBasePersister builds a persister for the given PocketBase app,
+// targeting the "whiteboards" collection.
 func NewPocketBasePersister(app core.App) *PocketBasePersister {
-	return &PocketBasePersister{app: app}
+	return NewPocketBasePersisterForCollection(app, "whiteboards")
 }
 
-// SaveSnapshot upserts the whiteboard record keyed by docID.
+// NewPocketBasePersisterForCollection builds a persister targeting the
+// named collection (same schema: doc_id, snapshot, version). The notes
+// feature uses it with the "notes" collection.
+func NewPocketBasePersisterForCollection(app core.App, collection string) *PocketBasePersister {
+	return &PocketBasePersister{app: app, collection: collection}
+}
+
+// SaveSnapshot upserts the record keyed by docID.
 func (p *PocketBasePersister) SaveSnapshot(docID string, snapshot []byte) error {
-	// See db/seed.go ensureWhiteboardsCollection for the schema:
+	// See db/seed.go ensureWhiteboardsCollection / ensureNotesCollection
+	// for the schema:
 	//   doc_id (text, unique), snapshot (text/base64), version (int).
-	col, err := p.app.FindCollectionByNameOrId("whiteboards")
+	col, err := p.app.FindCollectionByNameOrId(p.collection)
 	if err != nil {
-		return fmt.Errorf("whiteboards collection: %w", err)
+		return fmt.Errorf("%s collection: %w", p.collection, err)
 	}
-	rec, err := p.app.FindFirstRecordByFilter("whiteboards", "doc_id = {:doc}", map[string]any{"doc": docID})
+	rec, err := p.app.FindFirstRecordByFilter(p.collection, "doc_id = {:doc}", map[string]any{"doc": docID})
 	if err != nil || rec == nil {
 		rec = core.NewRecord(col)
 		rec.Set("doc_id", docID)
@@ -84,7 +94,7 @@ func (p *PocketBasePersister) SaveSnapshot(docID string, snapshot []byte) error 
 	}
 	rec.Set("snapshot", string(snapshot))
 	if err := p.app.Save(rec); err != nil {
-		return fmt.Errorf("save whiteboard %s: %w", docID, err)
+		return fmt.Errorf("save %s %s: %w", p.collection, docID, err)
 	}
 	return nil
 }
@@ -92,7 +102,7 @@ func (p *PocketBasePersister) SaveSnapshot(docID string, snapshot []byte) error 
 // LoadSnapshot returns the persisted Loro snapshot for docID, or
 // (nil, false) when the doc has never been saved.
 func (p *PocketBasePersister) LoadSnapshot(docID string) ([]byte, bool) {
-	rec, err := p.app.FindFirstRecordByFilter("whiteboards", "doc_id = {:doc}", map[string]any{"doc": docID})
+	rec, err := p.app.FindFirstRecordByFilter(p.collection, "doc_id = {:doc}", map[string]any{"doc": docID})
 	if err != nil || rec == nil {
 		return nil, false
 	}

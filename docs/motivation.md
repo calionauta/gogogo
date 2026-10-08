@@ -2,7 +2,7 @@
 
 > A thesis, not a rule. Written Oct 2026, while the timeline argued about
 > which language pairs best with LLMs. The enforceable rules live in
-> [native-zig](native-zig.md); this page explains why they exist.
+> [exception-to-go](exception-to-go.md); this page explains why they exist.
 
 ## The 99-to-1 bet
 
@@ -46,7 +46,7 @@ plus a skill with the Go coding standards.
 In gogogo the exception is not an open choice: zig is the named default for
 a native kernel, anything else needs a written case — the decision is made
 calmly, once, not re-derived by every agent under deadline pressure. The
-procedure and the removal plan are in [native-zig](native-zig.md).
+procedure and the removal plan are in [exception-to-go](exception-to-go.md).
 
 Install it, ask the LLM to build, no external services. Core is opinionated;
 plugins and features strip away at install. The live capability list is in
@@ -91,5 +91,5 @@ PR. The rules are in
 
 - [Overview](overview.md) — what gogogo is and who it is for.
 - [Stack in layers](stack-layers.md) — every dependency and why it is in the box.
-- [Native boundary](native-zig.md) — the enforceable Go-first policy behind this thesis.
+- [Native boundary](exception-to-go.md) — the enforceable Go-first policy behind this thesis.
 - [Features](features.md) — every capability and its runtime opt-out.
