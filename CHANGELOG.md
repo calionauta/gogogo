@@ -1,5 +1,40 @@
 ## [Unreleased]
 
+## [0.39.0] - 2026-10-08
+
+### Added
+
+- **Shared notes: live index, typing + line-caret presence.** The index
+  page re-fetches via PB realtime (whiteboard pattern); peers announce
+  typing ("X is typing…", throttled, expiring) and caret {line, pos},
+  rendered as per-user colored text-carets with tooltips — each browser
+  maps offsets to its own pixels via mirror-div.
+- **Op protocol: base revision + 409 + recompute.** Batches carry the
+  base they were computed against; stale bases are refused with
+  authoritative state instead of misapplied (the silent character-loss
+  class). Clients track REV everywhere, retry bounded, render remote
+  text backgrounded or idle with caret restore.
+- **Concurrency acceptance: 8×5 hammer + rev-chain + stream-rev tests,**
+  all under `-race`; mutation runs prove the guards fail without the fix.
+
+### Changed
+
+- **Shared fan-out loop (`SSEHub.ServeStream`), shared peer set
+  (`collab.PeerSet`), shared fan-out tail (`collab.Fanout`).**
+  Whiteboard + notes had hand-rolled the same ~35 SSE lines and the same
+  persist→broadcast→NATS tail; suites prove zero behavior change. Op
+  protocols stay separate by design (different conflict semantics).
+- **Skill records the base+409 rule** so the next agent doesn't re-learn
+  silent misapply.
+
+### Fixed
+
+- **Focused tab never converging** (one direction looked broken) and
+  **peer carets moving spuriously** (re-rendered from local keystrokes
+  on stale offsets); carets draw as text carets, not dots.
+- **Notes test flake under contention** (deadline + backoff retry) and a
+  self-deadlocking test channel found along the way.
+
 ## [0.38.1] - 2026-10-08
 
 ### Fixed
