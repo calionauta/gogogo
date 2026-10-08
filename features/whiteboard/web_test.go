@@ -324,11 +324,17 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	bEvents := streamB.waitFor(func(ev string) bool { return presenceReceived([]string{ev}, "user-A") })
+	bEvents := streamB.waitFor(func(ev string) bool { return presenceReceived([]string{ev}, wbEmail) })
 	aEvents := streamA.drain(100 * time.Millisecond) // absence check: no short-circuit
 
-	if !presenceReceived(bEvents, "user-A") {
-		t.Fatalf("PEER (clientB) did not receive cursor presence from user-A.\nB events:\n%s", debugEvents(bEvents))
+	// The server stamps the AUTHED email, overwriting the client-sent
+	// "user-A": spoofed identities never reach peers, and two demo
+	// accounts read apart on every cursor.
+	if !presenceReceived(bEvents, wbEmail) {
+		t.Fatalf("PEER (clientB) did not receive cursor stamped with email.\nB events:\n%s", debugEvents(bEvents))
+	}
+	if presenceReceived(bEvents, "user-A") {
+		t.Fatalf("PEER (clientB) received the spoofed client-sent user.\nB events:\n%s", debugEvents(bEvents))
 	}
 	if presenceReceived(aEvents, "user-A") {
 		t.Fatalf("ORIGINATOR (clientA) received its own cursor echo "+

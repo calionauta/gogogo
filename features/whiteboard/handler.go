@@ -343,12 +343,21 @@ func (h *Handler) handlePresence(c *core.RequestEvent) error {
 		return c.String(http.StatusBadRequest, "read body")
 	}
 	from := c.Request.URL.Query().Get("clientID")
-	// Re-tag the event with the doc id and broadcast to peers.
+	// Re-tag the event with the doc id and the SERVER-authenticated user,
+	// then broadcast to peers. Stamping here (not trusting the client's
+	// User field) is what makes two demo accounts read apart — and stops
+	// a client spoofing someone else's cursor. Same rule as notes, shared
+	// via collab.DisplayName.
 	var msg collab.PresenceMsg
 	if err := json.Unmarshal(body, &msg); err != nil {
 		return c.String(http.StatusBadRequest, "decode presence")
 	}
+	email := ""
+	if c.Auth != nil {
+		email = c.Auth.Email()
+	}
 	msg.Doc = docID
+	msg.User = collab.DisplayName(email, from)
 	msg.TS = time.Now().UnixMilli()
 	data, mErr := json.Marshal(msg)
 	if mErr != nil {

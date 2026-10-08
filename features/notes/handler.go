@@ -62,17 +62,15 @@ type NoteTextEvent struct {
 	Rev  uint64 `json:"rev"`
 }
 
-// displayName resolves the human identity for presence: the authed email
-// when signed in (what two demo accounts make visible), else the raw
-// clientID. Peer sets stay keyed by clientID (connections); only display
-// uses the email.
+// displayName resolves the human identity for presence via the shared
+// collab.DisplayName rule (authed email, else the raw client id). Peer
+// sets stay keyed by clientID (connections); only display uses email.
 func displayName(c *core.RequestEvent, clientID string) string {
+	email := ""
 	if c.Auth != nil {
-		if email := c.Auth.Email(); email != "" {
-			return email
-		}
+		email = c.Auth.Email()
 	}
-	return clientID
+	return collab.DisplayName(email, clientID)
 }
 
 // opRequest is one POST body: an ordered batch of character ops applied

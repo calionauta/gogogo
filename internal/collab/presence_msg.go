@@ -73,3 +73,14 @@ func (m *PresenceMsg) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+// DisplayName resolves the human identity for presence: the authed email
+// when signed in, else the raw client id. Whiteboard and notes share it
+// so two demo accounts read apart everywhere (and a spoofed client-side
+// user never reaches peers — the server stamps what it authenticated).
+func DisplayName(email, fallback string) string {
+	if email != "" {
+		return email
+	}
+	return fallback
+}

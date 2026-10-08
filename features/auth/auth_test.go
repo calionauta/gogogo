@@ -2,9 +2,13 @@
 package auth_test
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/pocketbase/pocketbase"
@@ -130,5 +134,55 @@ func TestResolveOwnerRejectsBadToken(t *testing.T) {
 		if ownerID, err := auth.ResolveOwner(app, token); err == nil {
 			t.Errorf("ResolveOwner(%q) succeeded with owner %q, want error", token, ownerID)
 		}
+	}
+}
+
+// TestThemeToggleSingleOwner pins the wiring that broke the toggle live:
+// exactly one toggle path (the delegated listener on .theme-toggle,
+// which works with and without the Datastar runtime) and one storage key
+// shared with ThemeHead. An inline data-on:click would double-fire where
+// Datastar exists and lie dead where it doesn't (whiteboard board, notes);
+// a second storage key orphans the persisted choice on OS-preference
+// changes.
+func TestThemeToggleSingleOwner(t *testing.T) {
+	var buf bytes.Buffer
+	if err := auth.Navbar("demo1@demo.app", "todo", "dev", "c0ffee").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render navbar: %v", err)
+	}
+	html := buf.String()
+	start := strings.Index(html, "app-theme-toggle")
+	if start < 0 {
+		t.Fatalf("navbar missing the theme toggle button")
+	}
+	end := strings.Index(html[start:], "</button>")
+	if end < 0 {
+		t.Fatalf("navbar theme button never closes")
+	}
+	button := html[start : start+end]
+	if !strings.Contains(button, "theme-toggle") {
+		t.Errorf("theme button missing the .theme-toggle class the delegated listener binds")
+	}
+	if strings.Contains(button, "data-on:click") {
+		t.Errorf("theme button must not carry data-on:click " +
+			"(double-fire with the delegated listener; dead on Datastar-less pages)")
+	}
+
+	// One storage key across the pre-paint bootstrap and the module.
+	head, err := os.ReadFile("theme_head.templ")
+	if err != nil {
+		t.Fatalf("read theme_head: %v", err)
+	}
+	// web/resources/static/theme.js is read from the repo root's static tree.
+	js, err := os.ReadFile("../../web/resources/static/theme.js")
+	if err != nil {
+		t.Fatalf("read theme.js: %v", err)
+	}
+	for _, src := range []string{string(head), string(js)} {
+		if !strings.Contains(src, "themeMode") {
+			t.Errorf("theme wiring left the shared storage key")
+		}
+	}
+	if strings.Contains(string(js), `var KEY = "theme";`) {
+		t.Errorf("theme.js uses an orphan storage key (ThemeHead reads themeMode)")
 	}
 }

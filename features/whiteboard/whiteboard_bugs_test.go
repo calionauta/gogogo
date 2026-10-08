@@ -251,8 +251,10 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	if !ok {
 		t.Fatalf("clientB never received a cursor event from wbA; events=%s", tailEvents(evs, 400))
 	}
-	if cur.User != "wbA" {
-		t.Fatalf("cursor event user = %q, want wbA", cur.User)
+	// The server stamps the authed email (wbEmail), overwriting the
+	// client-sent "wbA" — same anti-spoof rule as notes presence.
+	if cur.User != wbEmail {
+		t.Fatalf("cursor event user = %q, want authed %q", cur.User, wbEmail)
 	}
 	if math.Abs(cur.X-0.25) > 1e-6 || math.Abs(cur.Y-0.75) > 1e-6 {
 		t.Fatalf("cursor coords = (%v,%v), want (0.25,0.75)", cur.X, cur.Y)

@@ -494,6 +494,12 @@
     cursorsEl.innerHTML = "";
     Object.keys(peers).forEach(function (u) {
       const p = peers[u];
+      // One color per user (hashed, deterministic across tabs with no
+      // server state) so two demo accounts read apart at a glance —
+      // same rule as notes carets.
+      let h = 0;
+      for (let i = 0; i < u.length; i++) h = (h * 31 + u.charCodeAt(i)) >>> 0;
+      const color = "hsl(" + (h % 360) + ",70%,45%)";
       const el = document.createElement("div");
       el.style.position = "absolute";
       el.style.left = (p.x * r.width) + "px";
@@ -501,8 +507,8 @@
       el.style.transform = "translate(-2px,-2px)";
       el.style.pointerEvents = "none";
       el.innerHTML =
-        '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M0 0 L0 12 L4 9 L7 14 L9 13 L6 8 L11 8 Z" fill="#ef4444"/></svg>' +
-        '<span class="badge badge-sm ml-1" style="background:#ef4444;color:#fff">' +
+        '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M0 0 L0 12 L4 9 L7 14 L9 13 L6 8 L11 8 Z" fill="' + color + '"/></svg>' +
+        '<span class="badge badge-sm ml-1" style="background:' + color + ';color:#fff">' +
         escapeHtml(u) +
         "</span>";
       cursorsEl.appendChild(el);
