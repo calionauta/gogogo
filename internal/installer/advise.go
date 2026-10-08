@@ -183,8 +183,8 @@ func buildAdviseIn(need, dir string) adviseDoc {
 	// is about the kernel, and the gate is the opinion that applies).
 	if wantsZig(need) {
 		return adviseDoc{
-			Scope: scopeNativeKernel, Tree: probeTree(dir),
-			Rules: nativeKernelRules,
+			Scope: scopeExceptionToGo, Tree: probeTree(dir),
+			Rules: exceptionToGoRules,
 		}
 	}
 	// The path outranks the need's wording: if the caller points at a tree
@@ -275,14 +275,14 @@ func matchPresets(need string) []advisePreset {
 	return presets
 }
 
-// renderNativeKernel is the native-kernel-scope text: the gate, the skill
+// renderExceptionToGo is the exception-to-go-scope text: the gate, the skill
 // pointer, the normative doc. No trim mechanics, no capability table, no
 // presets — a kernel need matches template vocabulary only by accident, and
 // printing it would invite installing web units into a codec.
 // Split out so Advise stays under the gocyclo gate.
-func renderNativeKernel(doc adviseDoc) string {
+func renderExceptionToGo(doc adviseDoc) string {
 	var b strings.Builder
-	b.WriteString("native kernel (Zig) — the gogogo template does not install here.\n" +
+	b.WriteString("exception to Go (Zig) — the gogogo template does not install here.\n" +
 		"Zig is this repo's one documented native exception, so the opinion " +
 		"below is the gate, not a foreign-stack disclaimer.\n\n")
 	b.WriteString("rules:\n")
@@ -299,7 +299,7 @@ func renderNativeKernel(doc adviseDoc) string {
 // conditions reach this scope (the need forbids dependencies, or --dir is not a
 // checkpoint) and each ships its own rule set. Printing the header from
 // doc.Reason keeps the explanation matched to the cause.
-// Split out so Advise stays under the gocyclo gate, like renderNativeKernel.
+// Split out so Advise stays under the gocyclo gate, like renderExceptionToGo.
 func renderStdlib(doc adviseDoc) string {
 	var b strings.Builder
 	switch doc.Reason {
@@ -400,8 +400,8 @@ func Advise(need, format, dir string) (string, error) {
 		}
 		return string(raw) + "\n", nil
 	}
-	if doc.Scope == scopeNativeKernel {
-		return renderNativeKernel(doc), nil
+	if doc.Scope == scopeExceptionToGo {
+		return renderExceptionToGo(doc), nil
 	}
 	if doc.Scope == scopeGoStdlib {
 		return renderStdlib(doc), nil

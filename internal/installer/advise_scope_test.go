@@ -28,8 +28,8 @@ func TestAdviseGenericWordsNeverLeaveGoScopes(t *testing.T) {
 		"fast",
 		"fast path codec",
 	} {
-		if doc := buildAdvise(need); doc.Scope == scopeNativeKernel {
-			t.Errorf("%q → scope native-kernel, want a Go scope", need)
+		if doc := buildAdvise(need); doc.Scope == scopeExceptionToGo {
+			t.Errorf("%q → scope exception-to-go, want a Go scope", need)
 		} else if doc.Scope != scopeTemplate && doc.Scope != scopeGoStdlib {
 			t.Errorf("%q → scope %q, want template or go-standards", need, doc.Scope)
 		}
@@ -138,8 +138,8 @@ func TestAdviseZigGetsTheGate(t *testing.T) {
 		"Zig TCP server stdlib only",
 	} {
 		doc := buildAdvise(need)
-		if doc.Scope != scopeNativeKernel {
-			t.Errorf("%q → scope %q, want native-kernel", need, doc.Scope)
+		if doc.Scope != scopeExceptionToGo {
+			t.Errorf("%q → scope %q, want exception-to-go", need, doc.Scope)
 		}
 		if len(doc.Capabilities) != 0 {
 			t.Errorf("%q carries %d capabilities, want none", need, len(doc.Capabilities))
@@ -158,7 +158,7 @@ func TestAdviseZigGetsTheGate(t *testing.T) {
 
 // TestAdviseZigzagDoesNotTriggerZig pins the near-miss: "zigzag" is codec
 // vocabulary (varint spec), not the language. wordHit must not route it to
-// the native-kernel scope — "zig" is 3 letters so the prefix rule cannot
+// the exception-to-go scope — "zig" is 3 letters so the prefix rule cannot
 // engage in either direction.
 func TestAdviseZigzagDoesNotTriggerZig(t *testing.T) {
 	doc := buildAdvise("zigzag varint codec in pure go, no dependencies")
@@ -217,13 +217,13 @@ func TestAdviseUnmatchedNeedGetsFullMapWithoutScaffold(t *testing.T) {
 	}
 }
 
-// TestAdviseNativeKernelText asserts the rendered gate says the gate.
-func TestAdviseNativeKernelText(t *testing.T) {
+// TestAdviseExceptionToGoText asserts the rendered gate says the gate.
+func TestAdviseExceptionToGoText(t *testing.T) {
 	out, err := Advise("Zig kernel", planFormatText, "")
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}
-	for _, want := range []string{"native kernel (Zig)", "docs/native-zig.md", "gogogo-coding-standards"} {
+	for _, want := range []string{"exception to Go (Zig)", "docs/native-zig.md", "gogogo-coding-standards"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("text output missing %q:\n%s", want, out)
 		}

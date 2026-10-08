@@ -225,11 +225,12 @@ var notCheckoutRules = []string{
 // nothing gets the full map instead of a guessed stack (see buildAdviseIn).
 const (
 	scopeTemplate = "template"
-	// scopeNativeKernel is the second answer shape: the need names Zig, the
-	// repo's documented escape hatch (docs/native-zig.md). Capabilities do
-	// not install into a native kernel, so the answer is the Zig gate plus
-	// the skill pointer — never trim mechanics, never a foreign label.
-	scopeNativeKernel = "native-kernel"
+	// scopeExceptionToGo is the second answer shape: the need names Zig, the
+	// repo's one documented exception to the Go rule (docs/native-zig.md).
+	// Capabilities do not install under an exception, so the answer is the
+	// Zig gate plus the skill pointer — never trim mechanics, never a
+	// foreign label.
+	scopeExceptionToGo = "exception-to-go"
 	// scopeGoStdlib is the third answer shape: the template does not apply.
 	// Two conditions produce it, distinguished by `reason`:
 	//   reasonStdlibOnly  — a need whose own constraint forbids dependencies
@@ -292,11 +293,11 @@ func needWordsJoined(need string) string {
 	return strings.Join(needWords(need), " ")
 }
 
-// nativeKernelRules is the whole opinion for a Zig-shaped need: the gate,
+// exceptionToGoRules is the whole opinion for a Zig-shaped need: the gate,
 // the pointer to the standards that hold it, and the normative doc. No
 // capability table (nothing installs into a kernel), no presets (a kernel
 // need matches template vocabulary only by accident).
-var nativeKernelRules = []string{
+var exceptionToGoRules = []string{
 	"Go for everything; Zig only for a profiled hot kernel, codec, or OS " +
 		"integration (docs/native-zig.md). A speedup claim without a Go " +
 		"baseline benchmark is not a reason. Order: pprof, then SIMD " +

@@ -115,9 +115,9 @@ func TestAdviseStackGenericWordsStayInGoScopes(t *testing.T) {
 			t.Fatalf("%q is not valid JSON: %v", need, err)
 		}
 		switch doc.Scope {
-		case "template", "go-standards", "native-kernel":
+		case "template", "go-standards", "exception-to-go":
 		default:
-			t.Errorf("%q → scope %q, want template/go-standards/native-kernel", need, doc.Scope)
+			t.Errorf("%q → scope %q, want template/go-standards/exception-to-go", need, doc.Scope)
 		}
 	}
 }

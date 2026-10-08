@@ -44,7 +44,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
   | Scope | When | What you get |
   |---|---|---|
   | `template` | a gogogo-shaped need (or anything the vocabulary does not match — the full map is shown instead of a guess) | the capability table + keep/drop presets. When nothing matched, the scaffold first-run is withheld and the text names the preset list to retry with |
-  | `native-kernel` | the need names **Zig**, the repo's one documented native exception | the Zig gate (`pprof → SIMD → Zig`, Go baseline first) + the skill pointer; no capability table, nothing installs into a kernel |
+  | `exception-to-go` | the need names **Zig**, the repo's one documented exception to Go-first | the Zig gate (`pprof → SIMD → Zig`, Go baseline first) + the skill pointer; no capability table, nothing installs under the exception |
   | `go-standards` | either a need that forbids dependencies ("stdlib only", "no deps", "single binary"), **or** `--dir` pointing at a path that is not a gogogo checkout | the Go-standards pointer; the capability table is omitted because no entry applies. Two causes share the scope, so branch on `reason`: `stdlib-only` (the need rules dependencies out) or `not-a-gogogo-checkout` (the path does). `tree` records what the probe found, and is absent when no `--dir` was given |
 
   The `go-standards` scope exists because answering a stdlib-only need with 24

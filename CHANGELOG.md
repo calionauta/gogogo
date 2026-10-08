@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Changed
+
+- **Advise scope `native-kernel` renamed `exception-to-go`.** The old name
+  described a workload noun that doesn't always fit (OS integration is no
+  kernel); the new name states the policy relation (the exception *to*
+  Go-first), covering kernel, codec, and OS integration uniformly. No
+  behavior change — same trigger, same gate, same shape.
+
 ### Fixed
 
 - **`advise` no longer names foreign stacks — allowlist-only scopes.** A Go

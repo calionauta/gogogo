@@ -112,7 +112,7 @@ from it or retry with broader terms — and the scaffold first-run is
 withheld until something matches, so a miss never invites scaffolding the
 wrong thing. This tool only knows the Go template plus its Zig exception:
 an unmatched need gets the full map plus the preset names to retry with,
-never a stack label. A Zig-shaped need gets the native-kernel gate instead
+never a stack label. A Zig-shaped need gets the exception-to-go gate instead
 of trim mechanics. Keyword matching is deliberately dumb (exact hits, stem
 prefixes, 5+ letter abbreviations — short words never prefix-match) —
 phrase the need with template vocabulary (`whiteboard`, `dagnats`,
