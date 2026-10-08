@@ -18,6 +18,7 @@ templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit s
 			@auth.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script src="/static/iconify-icon.min.js"></script>
+			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
 			@auth.Navbar(email, "notes", buildLabel, buildCommit)

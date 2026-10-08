@@ -316,3 +316,24 @@ func TestNotesCaretRecipePinsMirrorProps(t *testing.T) {
 		}
 	}
 }
+
+// TestNotesIndexLoadsDatastarRuntime pins the live-index wiring: the
+// resync button is a Datastar @get, so the page must load the runtime.
+// Without it the button is dead and PB events re-render nothing (shipped
+// exactly that way once).
+func TestNotesIndexLoadsDatastarRuntime(t *testing.T) {
+	var buf bytes.Buffer
+	err := notes.NotesIndex("demo1@demo.app", []string{"abc"}, "dev", "c0ffee").Render(context.Background(), &buf)
+	if err != nil {
+		t.Fatalf("render index: %v", err)
+	}
+	html := buf.String()
+	// data-on:click goes through templ.ResolveAttributeValue (quotes may
+	// come out entity-escaped — the browser decodes them); assert the
+	// parts, not the literal.
+	for _, want := range []string{"/static/datastar.js", "notes-realtime-resync", "data-on:click", "/api/notes/fragment"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("index page missing %q", want)
+		}
+	}
+}

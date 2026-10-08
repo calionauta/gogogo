@@ -72,6 +72,15 @@ Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
 for cursor/caret reports, one implementation for both features.
 
+Split rule (Datastar vs vanilla, enforced by review): list fragments
+and UI state that patch cleanly go through the Datastar runtime (todo,
+whiteboard list, notes index — every one of those pages loads
+`datastar.js`, pinned by test); canvas rendering, textarea math, and
+op batching stay vanilla JS (no declarative equivalent, and the offline
+outbox needs exact control). A `data-on`/`data-bind` attribute on a page
+without the runtime is dead markup — remove it instead of mirroring it
+in vanilla.
+
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"
 in the README (wire size). Icons (`iconify`, 24 KB raw) load only on
