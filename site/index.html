@@ -62,18 +62,22 @@
     babysitting.</p>
     <div class="grid-4">
       <div class="card slim">
+        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg></p>
         <p class="step">Deterministic stack</p>
         <p>The same choices in every project — agents stop re-deciding.</p>
       </div>
       <div class="card slim">
+        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2"/></svg></p>
         <p class="step">SCOPE on every file</p>
-        <p>Agents know what is safe to delete before touching anything.</p>
+        <p>Tagged Core (customize, never remove), Plugin (env-off), or Feature (delete it) — agents know what is safe to trim. <a href="./docs/scope-taxonomy/">Scope taxonomy →</a></p>
       </div>
       <div class="card slim">
+        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></p>
         <p class="step">Lint tuned for AI-written code</p>
-        <p>No babysitting the stream — the gate catches it. The rules ship as a loadable skill: <a href="https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards" rel="noopener">gogogo-coding-standards</a>.</p>
+        <p>golangci-lint + datastar-lint + repo guard rules catch unchecked errors, leaked contexts, and template mistakes — enforced in hooks and CI, taught to agents via the <a href="https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards" rel="noopener">gogogo-coding-standards</a> skill.</p>
       </div>
       <div class="card slim">
+        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></p>
         <p class="step">Docs change with the code</p>
         <p>One place describes behavior — updated in the same commit, never stale.</p>
       </div>
@@ -347,7 +351,7 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
     <p class="exception-sub">Zig enters in one case: a <strong>proven</strong>
     native need — a profiled hot kernel, a codec, an OS integration.
     Everything else stays Go.</p>
-    <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a></p>
+    <p class="fine"><a href="./docs/native-zig/">When Zig is justified →</a> · <a href="./docs/motivation/">Why this thesis →</a></p>
   </section>
 
   <section id="start" class="section cta-section">
