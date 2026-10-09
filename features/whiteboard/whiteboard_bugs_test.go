@@ -42,8 +42,11 @@ func TestWhiteboard_PresenceToleratesStringCoords(t *testing.T) {
 
 	docID := "doc-presstr-" + time.Now().Format("150405.000")
 
-	// String coords — the exact payload that previously 400'd.
-	strBody := []byte(`{"type":"cursor","doc":"` + docID + `","user":"u-str","x":"0.1234","y":"0.4321","ts":1}`)
+	// String coords — the exact payload that previously 400'd. The cts rides
+	// along as a string too: a fork that stringifies numbers must not 400
+	// on the new field either (same tolerance rule as x/y).
+	strBody := []byte(`{"type":"cursor","doc":"` + docID + `","user":"u-str",` +
+		`"x":"0.1234","y":"0.4321","ts":1,"cts":"1700000000000"}`)
 	presenceURL := baseURL + "/api/whiteboard/" + docID + "/presence"
 	resp, err := postWithClientID(context.Background(), client, presenceURL, "wb-str", strBody)
 	if err != nil {

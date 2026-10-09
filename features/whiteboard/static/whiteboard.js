@@ -637,6 +637,9 @@
       return;
     }
     if (msg.type === "draft-end") {
+      // Guarded like any other frame: a stale (retried) end arriving after
+      // newer drafts started must not wipe the live shape.
+      if (!freshEnough(msg.user, msg.cts)) return;
       delete drafts[msg.user];
       render();
     }
@@ -647,7 +650,7 @@
     const now = Date.now();
     Object.keys(cursors).forEach(function (u) {
       const p = cursors[u];
-      if (now - p.ts > CURSOR_TTL) { delete cursors[u]; return; }
+      if (now - p.ts > CURSOR_TTL) { delete cursors[u]; delete lastCTS[u]; return; }
       // One color per user (hashed, deterministic across tabs with no
       // server state) so two demo accounts read apart at a glance —
       // same rule as notes carets.

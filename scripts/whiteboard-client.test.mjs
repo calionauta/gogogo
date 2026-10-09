@@ -482,6 +482,56 @@ async function main() {
   await stB.mouse.up();
   await stB.unroute("**/api/whiteboard/**/presence*");
 
+  // ---------------------------------------------------------------------------
+  // 7. A stale draft-end must not wipe a newer live draft.
+  //
+  // B draws a real rect and HOLDS STILL (quiescent: trailing frames flushed,
+  // no motion, so nothing new is in flight). A hand-crafted draft-end with an
+  // ANCIENT cts is then injected through B's own session — the server
+  // re-stamps it to B's user, the same key as the live draft. The cts guard
+  // must drop it and the live draft stays painted. Without the guard the end
+  // deletes the draft and, with nobody moving, nothing repaints it.
+  //
+  // RED-PROOFED: with the guard removed from draft-end the injected end wipes
+  // the live shape, so the ink assertion fails.
+  // ---------------------------------------------------------------------------
+  const doc7 = "wb-end-" + process.pid;
+  const endA = await makeCtx("E-A");
+  const endB = await makeCtx("E-B");
+  await endA.goto(`${BASE}/whiteboard/${doc7}?clientID=wb-end-a`, { waitUntil: "networkidle" });
+  await endB.goto(`${BASE}/whiteboard/${doc7}?clientID=wb-end-b`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  const END_REGION = { x: 50, y: 50, w: 190, h: 150 };
+  const endBox = await endB.locator("#wb-canvas").boundingBox();
+  await endB.mouse.move(endBox.x + 60, endBox.y + 60);
+  await endB.mouse.down();
+  await endB.mouse.move(endBox.x + 220, endBox.y + 180, { steps: 10 });
+  await sleep(1000); // HOLDING STILL — quiescent, trailing frames flushed
+
+  const heldInk = await endA.evaluate(inkInRegion(END_REGION.x, END_REGION.y, END_REGION.w, END_REGION.h));
+  if (heldInk === 0) {
+    bad("setup failed: no live draft painted before the stale-end injection");
+  } else {
+    ok(`live draft held on peer canvas (ink ${heldInk})`);
+    await endB.evaluate(async ({ doc, clientID }) => {
+      await fetch(`/api/whiteboard/${doc}/presence?clientID=${clientID}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ type: "draft-end", doc, user: "anyone", cts: 1 }),
+      });
+    }, { doc: doc7, clientID: "wb-end-b" });
+    await sleep(600); // an unguarded end would have wiped the draft by now
+    const keptInk = await endA.evaluate(inkInRegion(END_REGION.x, END_REGION.y, END_REGION.w, END_REGION.h));
+    if (keptInk > 0) {
+      ok(`stale draft-end did not wipe the live draft (ink ${keptInk})`);
+    } else {
+      bad("stale draft-end wiped a newer live draft");
+    }
+  }
+  await endB.mouse.up();
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {
