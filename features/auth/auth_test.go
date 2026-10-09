@@ -137,12 +137,12 @@ func TestResolveOwnerRejectsBadToken(t *testing.T) {
 	}
 }
 
-// TestThemeToggleSingleOwner pins the wiring that broke the toggle live:
-// exactly one toggle path (the delegated listener on .theme-toggle,
-// which works with and without the Datastar runtime) and one storage key
-// shared with ThemeHead. An inline data-on:click would double-fire where
-// Datastar exists and lie dead where it doesn't (whiteboard board, notes);
-// a second storage key orphans the persisted choice on OS-preference
+// TestThemeToggleSingleOwner pins the wiring the toggle depends on:
+// exactly one toggle path (data-on:click on the button, owned by Datastar,
+// which every navbar page loads) and one storage key shared with ThemeHead.
+// A document-level click delegation alongside data-on:click would
+// double-fire (two toggles = no visible change), so theme.js must not bind
+// one; a second storage key orphans the persisted choice on OS-preference
 // changes.
 func TestThemeToggleSingleOwner(t *testing.T) {
 	var buf bytes.Buffer
@@ -160,11 +160,11 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 	}
 	button := html[start : start+end]
 	if !strings.Contains(button, "theme-toggle") {
-		t.Errorf("theme button missing the .theme-toggle class the delegated listener binds")
+		t.Errorf("theme button missing the .theme-toggle class")
 	}
-	if strings.Contains(button, "data-on:click") {
-		t.Errorf("theme button must not carry data-on:click " +
-			"(double-fire with the delegated listener; dead on Datastar-less pages)")
+	if !strings.Contains(button, `data-on:click="Theme.toggle()"`) {
+		t.Errorf("theme button must carry data-on:click=\"Theme.toggle()\" " +
+			"(the single toggle path; theme.js owns persistence, not clicks)")
 	}
 
 	// One storage key across the pre-paint bootstrap and the module.
@@ -184,5 +184,10 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 	}
 	if strings.Contains(string(js), `var KEY = "theme";`) {
 		t.Errorf("theme.js uses an orphan storage key (ThemeHead reads themeMode)")
+	}
+	if strings.Contains(string(js), "__themeDelegated") ||
+		strings.Contains(string(js), "toggleFromEvent") {
+		t.Errorf("theme.js must not bind its own click path " +
+			"(double-fire alongside data-on:click)")
 	}
 }

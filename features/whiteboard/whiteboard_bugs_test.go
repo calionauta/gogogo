@@ -144,10 +144,11 @@ func TestWhiteboard_SingleOnlineLabel(t *testing.T) {
 }
 
 // TestWhiteboard_ThemeToggleWired is the regression guard for the
-// "dark/light toggle does nothing on the whiteboard page" bug. The
-// whiteboard page does NOT load Datastar, so the toggle must work purely
-// via theme.js binding the .theme-toggle button. Asserts the board page
-// renders the toggle button and references theme.js.
+// "dark/light toggle does nothing on the whiteboard page" bug. The board
+// page loads Datastar like every other navbar page, so the toggle works
+// via data-on:click on the button. Asserts the board page renders the
+// toggle button with that handler and loads both runtimes it needs
+// (theme.js for persistence/icons, Datastar for the click).
 func TestWhiteboard_ThemeToggleWired(t *testing.T) {
 	t.Parallel()
 	baseURL, _, cleanup := webFixture(t)
@@ -168,8 +169,14 @@ func TestWhiteboard_ThemeToggleWired(t *testing.T) {
 	if !strings.Contains(body, "theme-toggle") {
 		t.Fatalf("board page missing .theme-toggle button (dark/light toggle would be inert)")
 	}
+	if !strings.Contains(body, `data-on:click="Theme.toggle()"`) {
+		t.Fatalf("board page toggle missing data-on:click (the single toggle path)")
+	}
 	if !strings.Contains(body, "/static/theme.js") {
-		t.Fatalf("board page does not load theme.js (toggle binding never runs)")
+		t.Fatalf("board page does not load theme.js (persistence/icons never run)")
+	}
+	if !strings.Contains(body, "/static/datastar.js") {
+		t.Fatalf("board page does not load Datastar (data-on:click never fires)")
 	}
 }
 
