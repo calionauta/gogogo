@@ -108,31 +108,50 @@
   // maps the offset to ITS OWN pixels via mirror-div (computed font metrics
   // copied from the live textarea, so zoom, fonts and wrapping can never
   // desync the math — static CSS guessing is what breaks across viewports).
-  // Dots are approximate when text moved since the report (offsets go
-  // stale); the tooltip line number is the exact, dimension-independent
-  // truth. No library, no build step, ~60 lines.
-  const carets = new Map(); // user -> {line, pos, seen}
+  //
+  // A caret is stored as {line, pos, text, seen}: `pos` is an offset in
+  // `text`, the exact document snapshot the reporter measured against (the
+  // `note-text` event ships its text, so the two travel together). Measuring
+  // the mirror against that snapshot — NOT against our own ta.value — is
+  // what keeps a peer's dot on the right LINE while the two editors are
+  // briefly diverged. Against ta.value the same offset lands on whatever
+  // character our stale copy holds at that index: a peer whose caret sits at
+  // the END of line 2 (offset N) showed up at the START of line 3 in a copy
+  // that was one character behind — the reported "blinks at the start of the
+  // line below, then snaps back". The snapshot makes the dot's line/column
+  // exactly the reporter's, independent of our local render lag.
+  const carets = new Map(); // user -> {line, pos, text, seen}
   // shiftPeerOffsets transforms peer offsets through OUR unconfirmed local
   // ops (one-direction OT-lite): we know exactly what changed under their
   // reported positions, so their carets track our typing instead of
   // freezing on stale absolute offsets — the reported "it stops in the
   // wrong place while I keep typing" bug. Runs inside sendDiff, before the
-  // batch posts. Deletes overlapping a caret clamp it to the cut point
-  // (documented approximation: ownership of the deleted range is gone, the
-  // nearest surviving position is the honest answer).
+  // batch posts. `ops` are relative to serverText, which is also the
+  // snapshot a fresh caret was reported against, so the same splice keeps
+  // `pos` and `text` in lockstep (a delete overlapping a caret clamps both
+  // to the cut point — documented approximation: ownership of the deleted
+  // range is gone, the nearest surviving position is the honest answer).
   function shiftPeerOffsets(ops) {
     if (!carets.size) return;
     carets.forEach(function (c) {
       let pos = c.pos;
+      let text = typeof c.text === "string" ? c.text : null;
       for (const op of ops) {
         if (op.t === "ins") {
           if (pos >= op.i) pos += op.s.length;
+          if (text !== null && op.i <= text.length) {
+            text = text.slice(0, op.i) + op.s + text.slice(op.i);
+          }
         } else if (op.t === "del") {
           if (pos > op.i + op.n) pos -= op.n;
           else if (pos > op.i) pos = op.i;
+          if (text !== null && op.i < text.length) {
+            text = text.slice(0, op.i) + text.slice(op.i + op.n);
+          }
         }
       }
       c.pos = pos;
+      if (text !== null) c.text = text;
     });
   }
   let caretSent = -1;
@@ -149,7 +168,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ line: line, pos: pos }),
     }).catch(function () { /* ephemeral */ });
-  }, 500);
+  }, 200);
   function maybeCaret(force) {
     const pos = force ? (ta.selectionStart || 0) : (document.activeElement !== ta ? -1 : (ta.selectionStart || 0));
     if (pos < 0) return;
@@ -164,7 +183,15 @@
     for (let i = 0; i < user.length; i++) h = (h * 31 + user.charCodeAt(i)) >>> 0;
     return "hsl(" + (h % 360) + ",70%,45%)";
   }
-  function caretXY(offset) {
+  // caretXY maps an offset to pixels. `text` is the snapshot `offset` was
+  // measured against (the reporting peer's document); it defaults to our
+  // own textarea when a report carries no snapshot (the standalone
+  // selectionchange/heartbeat path). Both the prefix and the trailing
+  // remainder are sliced from that SAME text, so the marker's line box is
+  // derived from the reporter's text, not ours.
+  function caretXY(offset, text) {
+    const src = typeof text === "string" ? text : ta.value;
+    const at = Math.max(0, Math.min(offset, src.length));
     const cs = getComputedStyle(ta);
     const mirror = document.createElement("div");
     const props = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "wordBreak", "tabSize"];
@@ -177,7 +204,7 @@
     mirror.style.left = ta.offsetLeft + "px";
     mirror.style.width = ta.clientWidth + "px";
     const wrap = document.getElementById("note-wrap") || document.body;
-    mirror.textContent = ta.value.substring(0, offset);
+    mirror.textContent = src.substring(0, at);
     const marker = document.createElement("span");
     marker.textContent = "​";
     mirror.appendChild(marker);
@@ -187,7 +214,7 @@
     // line and the dot drops one line down until more typing moves it
     // mid-line (the reported bug). The remainder forces every line box to
     // exist, so line-start carets measure on their own line.
-    mirror.appendChild(document.createTextNode(ta.value.substring(offset)));
+    mirror.appendChild(document.createTextNode(src.substring(at)));
     wrap.appendChild(mirror);
     // Marker is a zero-size inline at the caret: its offset box top is the
     // line top, its height the line height — a text caret, not a dot.
@@ -196,6 +223,29 @@
     const h = marker.offsetHeight || parseInt(getComputedStyle(ta).lineHeight, 10) || 20;
     mirror.remove();
     return { x: x, y: y, h: h };
+  }
+  // impliedLine counts the line an offset falls on in `text`, by the SAME
+  // rule the reporter used (slice then split on "\n"). When it disagrees
+  // with the reported line, the snapshot is not the reporter's — their text
+  // has run ahead of ours (an op we have not rendered yet) — so the dot
+  // cannot be placed honestly.
+  function impliedLine(pos, text) {
+    if (typeof text !== "string") return -1;
+    return text.slice(0, Math.max(0, Math.min(pos, text.length))).split("\n").length;
+  }
+  // setCaret is the SINGLE gate every caret report goes through. It stores
+  // {line, pos, text} only when the snapshot can actually justify the dot's
+  // line; a report that cannot is used for presence only (seen refreshed)
+  // and the last honest position is kept. This is what stops the "dot flashes
+  // on the wrong line during the other user's typing delay" — text that
+  // reaches us a frame before its caret snapshot is never used as a basis.
+  function setCaret(user, line, pos, text) {
+    if (typeof text === "string" && impliedLine(pos, text) !== line) {
+      const prev = carets.get(user);
+      if (prev) prev.seen = Date.now();
+      return;
+    }
+    carets.set(user, { line: line, pos: pos, text: text, seen: Date.now() });
   }
   function renderCarets() {
     const layer = document.getElementById("caret-layer");
@@ -209,7 +259,7 @@
     const now = Date.now();
     carets.forEach(function (c, user) {
       if (now - c.seen > 8000) { carets.delete(user); return; }
-      const p = caretXY(Math.min(c.pos, ta.value.length));
+      const p = caretXY(c.pos, c.text);
       const x = p.x - ta.scrollLeft, y = p.y - ta.scrollTop;
       const ox = ta.offsetLeft, oy = ta.offsetTop;
       if (x < ox || y < oy || x > ox + ta.clientWidth || y > oy + ta.clientHeight) return;
@@ -300,18 +350,30 @@
   // background, or when the user has been idle with nothing unconfirmed;
   // an active typist keeps local content (their keystrokes still send
   // against the fresh base). Caret is saved and clamped on render.
+  // A peer's text we could not render yet (we were mid-keystroke): kept so
+  // the deferred render is RETRIED instead of waiting for the next event.
+  // Without this a tab that stopped typing right after a peer's op kept a
+  // stale textarea forever — the peer's letters (and their mirrored text)
+  // never appeared until someone typed again.
+  let pendingAdopt = null;
   function adoptRemote(text, rev) {
     if (typeof text !== "string") return;
     if (typeof rev === "number" && rev > REV) { REV = rev; serverText = text; }
-    if (text === ta.value) { clean = !outbox.length; return; }
-    if (outbox.length || flushing) return;
+    if (text === ta.value) { clean = !outbox.length; pendingAdopt = null; return; }
+    if (outbox.length || flushing) { pendingAdopt = { text: text, rev: rev }; return; }
     const focused = document.activeElement === ta;
-    if (focused && Date.now() - lastInputAt < 1500) return;
+    if (focused && Date.now() - lastInputAt < 1500) { pendingAdopt = { text: text, rev: rev }; return; }
     const s = ta.selectionStart, e = ta.selectionEnd;
     ta.value = text;
     clean = true;
+    pendingAdopt = null;
     if (focused) { try { ta.setSelectionRange(Math.min(s, text.length), Math.min(e, text.length)); } catch (err) {} }
   }
+  // Retry the deferred adopt once the focused-typist window has passed (or
+  // the outbox drained). Cheap: it no-ops when nothing is pending.
+  setInterval(function () {
+    if (pendingAdopt) adoptRemote(pendingAdopt.text, pendingAdopt.rev);
+  }, 250);
 
   function diffOps(cur, base) {
     let p = 0;
@@ -478,7 +540,7 @@
         // Atomic caret: rendered from the same event as the text it
         // belongs to — dot and letters can never disagree.
         if (m.caret && typeof m.caret.line === "number" && typeof m.caret.pos === "number") {
-          carets.set(m.from, { line: Math.max(1, Math.round(m.caret.line)), pos: Math.max(0, Math.round(m.caret.pos)), seen: Date.now() });
+          setCaret(m.from, Math.max(1, Math.round(m.caret.line)), Math.max(0, Math.round(m.caret.pos)), m.text);
           renderCarets();
         }
       }
@@ -508,7 +570,12 @@
     // dot at once instead of waiting for the 8s expiry.
     if (m.doc === DOC && m.user && m.user !== CID) {
       if (m.type === "caret" && typeof m.x === "number" && typeof m.y === "number") {
-        carets.set(m.user, { line: Math.max(1, Math.round(m.x)), pos: Math.max(0, Math.round(m.y)), seen: Date.now() });
+        // Standalone caret (selectionchange/heartbeat): no text snapshot on
+        // the wire, so anchor to the authoritative text we hold. It is the
+        // reporter's view minus any op still in flight, which is the closest
+        // honest basis and far better than our possibly-diverged ta.value.
+        // setCaret discards it when that basis cannot justify the line.
+        setCaret(m.user, Math.max(1, Math.round(m.x)), Math.max(0, Math.round(m.y)), serverText);
         renderCarets();
       } else if (m.type === "leave") {
         carets.delete(m.user);

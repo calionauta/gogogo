@@ -190,3 +190,12 @@ jobs:
         # drive the page and assert on canvas pixels; both are red-proofed.
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web node scripts/whiteboard-client.test.mjs
+      - name: Notes caret client regression tests
+        # Cross-user caret positioning: the mirror-div must be measured against
+        # the reporter's text snapshot, not the observer's (possibly stale)
+        # ta.value. The reported bug — a peer's end-of-line caret appearing at
+        # the start of the line below while an op was in flight — is reproduced
+        # here by two real authenticated contexts typing concurrently. The
+        # line assertion is red-proofed (fails against the old basis).
+        run: |
+          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/notes-caret.test.mjs

@@ -277,6 +277,71 @@ async function main() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // 3. A "count" broadcast (someone joins/leaves) must NOT move remote cursors.
+  //
+  // The server re-broadcasts the authoritative peer set on every join and
+  // leave. The client used to rebuild its peer map from scratch, seeding each
+  // peer at the canvas CENTER — so every remote cursor jumped to the middle the
+  // instant anyone came or went, with nobody moving. Known positions must be
+  // carried over; only peers never seen start at center.
+  //
+  // RED-PROOFED: with the whole-map rebuild, `after` becomes the seeded 50%
+  // and both assertions below fail.
+  // ---------------------------------------------------------------------------
+  const doc3 = "wb-count-" + process.pid;
+  const makeCtx = async (label) => {
+    const c = await browser.newContext();
+    await c.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+    const p = await c.newPage();
+    p.on("pageerror", (e) => pageErrors.push(`${label}: ${String(e)}`));
+    return p;
+  };
+  const pageA = await makeCtx("A");
+  const pageB = await makeCtx("B");
+  await pageA.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-alpha`, { waitUntil: "networkidle" });
+  await pageB.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-bravo`, { waitUntil: "networkidle" });
+  await sleep(900);
+  // B moves its pointer to a known off-center spot (canvas-relative CSS px).
+  const box3 = await pageB.locator("#wb-canvas").boundingBox();
+  await pageB.mouse.move(box3.x + box3.width * 0.2, box3.y + box3.height * 0.3);
+  await sleep(700);
+
+  // Cursor events are re-stamped by the SERVER with the authenticated email
+  // (anti-spoof), so the rendered badge carries USER_EMAIL, not the clientID.
+  const readCursor = (pg) =>
+    pg.evaluate((who) => {
+      const el = [...document.querySelectorAll("#cursors > div")].find(
+        (d) => (d.querySelector(".badge")?.textContent || "") === who,
+      );
+      return el ? { left: el.style.left, top: el.style.top } : null;
+    }, USER_EMAIL);
+
+  const before = await readCursor(pageA);
+  const wrapW = await pageA.evaluate(
+    () => document.getElementById("canvas-wrap").getBoundingClientRect().width,
+  );
+
+  // A third client connects -> the server broadcasts a fresh "count" to all.
+  const pageC = await makeCtx("C");
+  await pageC.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-charlie`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  const after = await readCursor(pageA);
+  if (before && after && before.left === after.left && before.top === after.top) {
+    ok(`remote cursor held its position across a peer join (left ${after.left})`);
+  } else {
+    bad(`a peer join moved a remote cursor: before=${JSON.stringify(before)} after=${JSON.stringify(after)}`);
+  }
+  // And it must sit where B actually pointed (~20% width), not the canvas
+  // center a naive roster rebuild would seed it with.
+  const leftPct = after && wrapW ? parseFloat(after.left) / wrapW : -1;
+  if (Math.abs(leftPct - 0.2) < 0.08) {
+    ok(`cursor stayed where the peer pointed (left ${(leftPct * 100).toFixed(0)}%)`);
+  } else {
+    bad(`cursor did not land on the peer's spot (left=${after && after.left}, wrap=${wrapW})`);
+  }
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

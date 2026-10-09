@@ -256,7 +256,8 @@ this SSE + NATS transport) and over OT à la the Datastar collab demo
 (server-serialized, plain-text-only, no offline merge — honest, but less
 than the CRDT already in the box gives). Pro: 3KB of vanilla JS, every
 keystroke converges, offline batches replay. Con: no client-local
-editing (round-trip per batch), no rich text, no remote carets.
+editing (round-trip per batch), no rich text, and peer presence is
+line/offset carets (no selection highlights).
 
 - Meeting notes, shared scratchpads, any plain-text surface where
   concurrent typing must never lose characters.

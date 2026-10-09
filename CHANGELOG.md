@@ -1,5 +1,42 @@
 ## [Unreleased]
 
+## [0.42.2] - 2026-10-09
+
+### Fixed
+
+- **Remote carets no longer flash on the wrong line.** A peer's caret is
+  reported as an offset in the REPORTING client's text, but the notes
+  client mapped it against its OWN textarea — a beat behind while a
+  concurrent op is in flight. A caret at the end of line 2 (offset N)
+  therefore painted at the start of line 3 in a copy one character
+  behind, then snapped back once the text arrived (the reported "blinks
+  at the start of the line below"). Each caret now carries the text
+  snapshot it was measured against (shipped on the `note-text` event)
+  and the mirror is sliced from that snapshot; a report whose snapshot
+  cannot justify its own reported line is used for presence only, never
+  to place a dot. Caret reports also move to a 200 ms leading+trailing
+  throttle instead of 500 ms.
+- **A deferred text adopt is retried.** When a peer's text arrived during
+  the local focused-typist window it was skipped and only re-attempted on
+  the NEXT event — a tab that went quiet kept a stale textarea (and a
+  stale caret basis) indefinitely. The skipped adopt is now retried on a
+  250 ms timer.
+- **Whiteboard cursors stop moving when nobody moves.** The client kept
+  the connection roster (keyed by clientID) and remote cursors (keyed by
+  the server-stamped email) in ONE map, so every join/leave rebuilt the
+  roster from clientIDs, discarded the real cursor entries, and left
+  phantom cursors at the canvas origin. Roster and cursors are now
+  separate maps, and idle cursors expire on an 8 s TTL (the wire carries
+  no cursor heartbeat).
+
+### Added
+
+- **Red-proofed client regression tests.** `scripts/notes-caret.test.mjs`
+  drives two authenticated contexts typing concurrently and asserts the
+  rendered dot's line always matches the line it reports; the whiteboard
+  client suite gains a two-user check that a peer join neither moves nor
+  drops a cursor. Both run in `ci-local` and the CI workflow.
+
 ## [0.42.1] - 2026-10-09
 
 ### Fixed

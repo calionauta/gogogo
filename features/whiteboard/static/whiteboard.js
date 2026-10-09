@@ -456,52 +456,69 @@
   }
 
   // ---- presence ----
-  let peers = {}; // user -> {x,y,ts}
+  // Roster (who is connected) and cursors (where they last pointed) are TWO
+  // different identities on the wire: join/leave/count carry the CONNECTION id
+  // (clientID) and are the source of truth for the "X online" count, while
+  // cursor events carry the SERVER-AUTHENTICATED display name (email — see
+  // whiteboard.handlePresence, which re-stamps them). Keeping both in one map
+  // (as this once did) meant every authoritative "count" rebuild discarded the
+  // name-keyed cursor entries and re-added clientID-keyed phantoms at the
+  // canvas origin — so a real cursor vanished and a ghost appeared the instant
+  // anyone joined or left, with nobody moving. Split, each map has one owner.
+  let roster = {}; // clientID -> true (connections on this doc)
+  let cursors = {}; // displayName -> {x, y, ts}
+  const CURSOR_TTL = 8000; // no server-side cursor expiry: prune client-side
+
   function updatePeerCount() {
     const el = document.getElementById("peer-count");
-    if (el) el.textContent = String(Object.keys(peers).length + 1); // +self
+    if (el) el.textContent = String(Object.keys(roster).length + 1); // +self
+  }
+  function seedRoster(list) {
+    (list || []).forEach(function (p) {
+      if (p !== user) roster[p] = true;
+    });
   }
   function handlePresence(msg) {
-    if (msg.user === user) return; // ignore our own echoes
     if (msg.type === "count") {
-      // Authoritative peer set from the server: seed the peer map (minus
-      // self) so the "X online" count and remote cursors stay consistent
-      // across every tab — even after reconnects or a missed leave. The
-      // server broadcasts the full set (including us); we drop self.
-      peers = {};
-      (msg.peers || []).forEach(function (p) {
-        if (p !== user) peers[p] = peers[p] || { x: 0.5, y: 0.5, ts: Date.now() };
-      });
+      // Authoritative full connection set (includes us): rebuild the roster,
+      // dropping self. Cursors are deliberately untouched — they live in their
+      // own map and expire on their own clock, so a join/leave cannot move or
+      // drop a cursor nobody moved.
+      roster = {};
+      seedRoster(msg.peers);
       updatePeerCount();
-      renderCursors();
       return;
     }
     if (msg.type === "snapshot") {
-      // Seed the peer set from the server's list of already-connected
-      // clients (we were the last to arrive, so we missed their joins).
-      (msg.peers || []).forEach(function (p) {
-        if (p !== user) peers[p] = peers[p] || { x: 0.5, y: 0.5, ts: Date.now() };
-      });
+      // Existing connections for a late arrival (we missed their joins).
+      seedRoster(msg.peers);
       updatePeerCount();
-      renderCursors();
       return;
     }
-    // A leave from a peer we never tracked is harmless.
     if (msg.type === "join") {
-      peers[msg.user] = msg;
-    } else if (msg.type === "leave") {
-      delete peers[msg.user];
-    } else {
-      peers[msg.user] = msg;
+      if (msg.user !== user) roster[msg.user] = true;
+      updatePeerCount();
+      return;
     }
-    updatePeerCount();
-    renderCursors();
+    if (msg.type === "leave") {
+      delete roster[msg.user];
+      updatePeerCount();
+      return;
+    }
+    if (msg.type === "cursor" && typeof msg.x === "number" && typeof msg.y === "number") {
+      // Keyed by the display name the SERVER stamped, so a client cannot spoof
+      // and two demo accounts read apart. A move refreshes the TTL.
+      cursors[msg.user] = { x: msg.x, y: msg.y, ts: Date.now() };
+      renderCursors();
+    }
   }
   function renderCursors() {
     const r = wrap.getBoundingClientRect();
     cursorsEl.innerHTML = "";
-    Object.keys(peers).forEach(function (u) {
-      const p = peers[u];
+    const now = Date.now();
+    Object.keys(cursors).forEach(function (u) {
+      const p = cursors[u];
+      if (now - p.ts > CURSOR_TTL) { delete cursors[u]; return; }
       // One color per user (hashed, deterministic across tabs with no
       // server state) so two demo accounts read apart at a glance —
       // same rule as notes carets.
@@ -530,5 +547,5 @@
 
   window.addEventListener("resize", fitCanvas);
   fitCanvas();
-  setInterval(renderCursors, 4000); // prune stale handled server-side too
+  setInterval(renderCursors, 4000); // also expires idle cursors (CURSOR_TTL)
 })();
