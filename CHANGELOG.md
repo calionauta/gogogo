@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [0.42.5] - 2026-10-09
+
+### Changed
+
+- **Benefit-led landing hero.** H1 is now "One binary. The whole stack.
+  Yours."; lede back to the feature list.
+- **Readability pass on tradeoff texts.** One idea per paragraph, lists
+  over comma chains; principle recorded in CONTRIBUTING.
+
 ## [0.42.4] - 2026-10-09
 
 ### Changed
