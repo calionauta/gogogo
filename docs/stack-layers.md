@@ -91,6 +91,28 @@ One-line reasons live in the table. This section records the cost behind
 each choice — what was rejected, what it costs to keep, and when to
 revisit.
 
+### Go (and not TypeScript / Python)?
+
+LLMs reach for TypeScript and Python by familiarity, not fitness — the same
+flywheel as React: TS grows on React/Next's back, Python on AI's (+7% in
+2025). Both are defensible defaults elsewhere; here they lose on three
+structural points. One static binary (~30 MB on `scratch`) against a runtime
+plus `node_modules` plus a build step (Node) or an interpreter plus venv
+plus a packaging matrix (Python). Concurrency as the default (goroutines)
+against a single-threaded event loop (Node) or a GIL that in 2026 means
+running a second interpreter (3.14t, opt-in) whose lock silently re-enables
+on any unmarked C extension, with no stable ABI and no official container
+tag yet. Millisecond builds and `gofmt` uniformity, which is what makes
+agent output checkable before it runs. Rejected: Node (single thread, build
+step per deploy), Python (packaging plus interpreter matrix, concurrency
+still migrating). Cost: a smaller hiring pool than TS, no ML/data ecosystem
+to speak of, slower raw single-core than C/Zig/Rust (a May-2026
+cross-language suite puts Go ~2x off C and CPython ~40x on synthetic
+workloads — direction, not destiny). Revisit per workload: Python the day
+the app is ML/data-first (numpy/pandas have no Go equivalent worth
+fighting), TypeScript the day the team or the product is JS-only and the
+npm ecosystem pays the binary's rent.
+
 ### goqite + retry-go (and not Redis)?
 
 A queue without a service to run: jobs persist in the SQLite the app
