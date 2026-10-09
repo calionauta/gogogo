@@ -1,20 +1,27 @@
 // Theme controller — dark/light mode with localStorage persistence.
 //
 // Design notes (kept deliberately small and dependency-free):
-//   - The actual theme is applied via the `data-theme` attribute on <html>,
-//     which DaisyUI v5 reads to swap its design tokens. No class toggling,
-//     no CSS rebuild.
-//   - A tiny inline script in the document <head> (ThemeHead) sets the
-//     attribute BEFORE first paint to avoid a flash of the wrong theme.
-//     This module owns everything AFTER that: persisting the choice and
-//     toggling it from the navbar button.
-//   - Storage key is "theme"; value is "light" | "dark". Falls back to the
-//     OS preference (prefers-color-scheme) when nothing is stored, and to
-//     "light" if even that is unavailable (older browsers / private mode).
+//   - The $theme SIGNAL owns the `data-theme` attribute on <html> (via the
+//     `data-attr:data-theme` binding every page ships) and the `dark` class
+//     (via `data-class:dark`). Nothing in this module writes either one:
+//     Datastar watches the DOM and reverts external writes to bound
+//     attributes, so an imperative setAttribute here would be clobbered
+//     back to the signal value (a toggle that changes nothing and hides
+//     both icons).
+//   - The navbar button flips the signal with
+//     `data-on:click="$theme = ...; localStorage.setItem('themeMode', $theme);
+//     Theme.syncIcons($theme)"`. This module owns icon sync (the iconify
+//     quirk), the pre-paint bootstrap read, and the OS-preference fallback.
+//   - Storage key is "themeMode"; value is "light" | "dark". Falls back to
+//     the OS preference (prefers-color-scheme) when nothing is stored, and
+//     to "light" if even that is unavailable (older browsers/private mode).
+//   - Live OS-preference changes are intentionally NOT followed: with no
+//     stored choice the pre-paint bootstrap already honored the OS once,
+//     and a mid-session flip would need signal access this module does not
+//     (and must not) have. Toggling writes the choice, which wins forever.
 (function () {
   "use strict";
 
-  var KEY = "themeMode";
   var DARK = "dark";
   var LIGHT = "light";
 
@@ -31,26 +38,14 @@
     );
   }
 
-  function apply(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    // Keep the inline head script and any listener in sync.
-    try {
-      localStorage.setItem(KEY, theme);
-    } catch (e) {
-      /* private mode / quota — non-fatal, theme still applies this session */
-    }
-    syncIcons(theme);
-    document.dispatchEvent(
-      new CustomEvent("themechange", { detail: { theme: theme } })
-    );
-  }
-
   // Explicitly show only the active theme's icon. In light mode the sun
   // (icon-light-mode) is shown; in dark mode the moon is shown. The CSS
   // [data-theme] rules are the primary mechanism, but iconify-icon is a
   // custom element whose own stylesheet can override the host display;
   // setting it directly here guarantees exactly one icon is visible
-  // regardless of cascade order. Called on init and after every change.
+  // regardless of cascade order. Called on init and from the button's
+  // data-on:click after the signal flips (inline styles on the icons are
+  // NOT data-bound, so nothing reverts them).
   function syncIcons(theme) {
     var icons = document.querySelectorAll(".theme-toggle-icon");
     icons.forEach(function (el) {
@@ -61,57 +56,14 @@
     });
   }
 
-  // Expose a stable API for the navbar toggle button's data-on:click.
-  // The click itself is owned by Datastar (every navbar page loads the
-  // runtime); this module owns persistence, icon sync, and the OS-preference
-  // listener. There is intentionally no document-level click delegation
-  // here — it would double-fire alongside data-on:click (two toggles =
-  // no visible change).
+  // Minimal stable API: read the current theme, fix the icons. Writes go
+  // through the $theme signal (see the button); nothing here touches
+  // data-theme or the dark class.
   window.Theme = {
     get: current,
     current: current,
-    set: apply,
-    toggle: function () {
-      var next = current() === DARK ? LIGHT : DARK;
-      apply(next);
-      // Micro-animation: briefly spin/scale the toggle icon (matches the
-      // treinador project's feel). The CSS class is added then removed.
-      var icons = document.querySelectorAll(".theme-toggle-icon");
-      icons.forEach(function (el) {
-        el.classList.remove("theme-toggle-spin");
-        // Force reflow so the animation can retrigger on rapid toggles.
-        void el.offsetWidth;
-        el.classList.add("theme-toggle-spin");
-        setTimeout(function () {
-          el.classList.remove("theme-toggle-spin");
-        }, 320);
-      });
-      return next;
-    },
+    syncIcons: syncIcons,
   };
-
-  // React to OS-level preference changes only when the user hasn't made an
-  // explicit choice (nothing in localStorage yet). Once they pick, their
-  // choice wins until they toggle again.
-  if (window.matchMedia) {
-    var mq = window.matchMedia("(prefers-color-scheme: dark)");
-    var listener = function (e) {
-      var stored;
-      try {
-        stored = localStorage.getItem(KEY);
-      } catch (err) {
-        stored = null;
-      }
-      if (!stored) {
-        document.documentElement.setAttribute(
-          "data-theme",
-          e.matches ? DARK : LIGHT
-        );
-      }
-    };
-    if (mq.addEventListener) mq.addEventListener("change", listener);
-    else if (mq.addListener) mq.addListener(listener); // Safari < 14
-  }
 
   // Initial icon sync: ensure exactly one toggle icon is visible based on
   // the theme already applied by ThemeHead before paint. Wrapped so a
