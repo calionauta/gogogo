@@ -104,8 +104,15 @@ running a second interpreter (3.14t, opt-in) whose lock silently re-enables
 on any unmarked C extension, with no stable ABI and no official container
 tag yet. Millisecond builds and `gofmt` uniformity, which is what makes
 agent output checkable before it runs. Rejected: Node (single thread, build
-step per deploy), Python (packaging plus interpreter matrix, concurrency
-still migrating). Cost: a smaller hiring pool than TS, no ML/data ecosystem
+step per deploy, and an install-time code-execution primitive — npm
+`preinstall`/`postinstall` hooks run on `npm install` before any import,
+which is the delivery mechanism behind the 2026 worm waves in `keyv`,
+`axios`, 140+ `@mastra/*` packages, and 639 `@antv` versions; Go has no
+equivalent hook, resolves through a checksum-backed proxy, and never
+executes dependency code at build time), Python (packaging converged with
+`uv` plus lockfiles in 2026 — no strawmanning `pip` — but the interpreter
+matrix plus the GIL migration remain, and raw speed is an order of
+magnitude off). Cost: a smaller hiring pool than TS, no ML/data ecosystem
 to speak of, slower raw single-core than C/Zig/Rust (a May-2026
 cross-language suite puts Go ~2x off C and CPython ~40x on synthetic
 workloads — direction, not destiny). Revisit per workload: Python the day
