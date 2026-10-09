@@ -532,6 +532,152 @@ async function main() {
   }
   await endB.mouse.up();
 
+  // ---------------------------------------------------------------------------
+  // 8. Skew immunity: delaying the CURSOR channel must not detach the dot.
+  //
+  // Production skew (tunnel latency, QUIC blips) delays cursor and draft
+  // frames independently — the old two-throttle design let the dot lag the
+  // live corner by hundreds of ms. Here we delay ONLY cursor-type frames by
+  // 400ms while drafts flow instantly. With the fused frame the dot rides
+  // the draft (same instant as the tip), so it must sit on the tip LONG
+  // BEFORE the delayed cursor frames land. With separate channels the dot
+  // would still be at the pre-drag position at sample time.
+  //
+  // Mechanism matters: the delay MUST hold the REQUEST (sleep, then
+  // continue), so the server receives and broadcasts late. Delaying the
+  // RESPONSE (fetch now, fulfill later) proves nothing — the sender ignores
+  // responses (fire-and-forget) while the server already broadcast on time.
+  // That vacuous variant passed against broken code; this one does not.
+  //
+  // Sampling: 200ms after motion ends. Fused trailing flushes in <=80ms
+  // (+localhost ms), so the dot is on the tip; a 400ms-delayed cursor is
+  // still in flight. A second sample at 900ms proves the setup converges
+  // (dot appears at all) so a failure at 200ms means skew, not absence.
+  //
+  // RED-PROOFED: on the pre-fuse code the mid sample still shows the
+  // pre-drag position (cursor channel detached), so it fails; the late
+  // sample converges on both.
+  // ---------------------------------------------------------------------------
+  const doc8 = "wb-skew-" + process.pid;
+  const skA = await makeCtx("K-A");
+  const skB = await makeCtx("K-B");
+  await skA.goto(`${BASE}/whiteboard/${doc8}?clientID=wb-skew-a`, { waitUntil: "networkidle" });
+  await skB.goto(`${BASE}/whiteboard/${doc8}?clientID=wb-skew-b`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  let delayed = 0;
+  await skB.route("**/api/whiteboard/**/presence*", async (route) => {
+    const body = route.request().postData() || "";
+    if (body.includes('"cursor"') && !body.includes('"draft"')) {
+      delayed++;
+      await sleep(400); // hold the REQUEST: server receives late, peers see it late
+      await route.continue();
+      return;
+    }
+    await route.continue();
+  });
+
+  const skBox = await skB.locator("#wb-canvas").boundingBox();
+  const SKTIP = { x: 240, y: 200 };
+  await skB.mouse.move(skBox.x + 60, skBox.y + 60);
+  await sleep(300);
+  await skB.mouse.down();
+  await skB.mouse.move(skBox.x + SKTIP.x, skBox.y + SKTIP.y, { steps: 10 });
+  // still HOLDING: sample mid-skew-window, then after convergence
+  await sleep(200);
+  const readDotPct = async (pg) => {
+    const d = await readCursor(pg);
+    const w = await pg.evaluate(() => {
+      const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    });
+    return d ? { x: parseFloat(d.left) / w.w, y: parseFloat(d.top) / w.h } : null;
+  };
+  const skExp = { x: SKTIP.x / skBox.width, y: SKTIP.y / skBox.height };
+  const mid = await readDotPct(skA);
+  await sleep(700); // past the 400ms delayed cursor landing
+  const late = await readDotPct(skA);
+
+  if (delayed === 0) {
+    bad("no cursor frame was delayed — the skew was never injected");
+  } else {
+    ok(`${delayed} cursor frame(s) delayed 400ms (skew injected)`);
+  }
+  const close = (p) => p && Math.abs(p.x - skExp.x) < 0.03 && Math.abs(p.y - skExp.y) < 0.03;
+  if (late && close(late)) {
+    ok(`dot converges on the tip (late sample ${(late.x * 100).toFixed(1)}%,${(late.y * 100).toFixed(1)}%)`);
+  } else {
+    bad(`dot never reached the tip: late=${JSON.stringify(late)} tip=${skExp.x.toFixed(3)},${skExp.y.toFixed(3)}`);
+  }
+  if (mid && close(mid)) {
+    ok(`dot rides the tip DURING the skew window (mid sample ${(mid.x * 100).toFixed(1)}%,${(mid.y * 100).toFixed(1)}%)`);
+  } else {
+    bad(`dot detached from the tip while the cursor channel lagged: mid=${JSON.stringify(mid)} tip=${skExp.x.toFixed(3)},${skExp.y.toFixed(3)}`);
+  }
+  await skB.mouse.up();
+  await skB.unroute("**/api/whiteboard/**/presence*");
+
+  // ---------------------------------------------------------------------------
+  // 9. Negative drag (up-left): the ink must be where the tip is.
+  //
+  // Dragging up-left makes w,h negative. If the renderer mangles negative
+  // dimensions, the painted shape detaches from the logical corner while the
+  // dot (logical tip) stays put — dot-vs-shape split with ZERO channel skew.
+  // The dot assertion must hold regardless; the ink-near-tip assertion pins
+  // the geometry.
+  // ---------------------------------------------------------------------------
+  const doc9 = "wb-neg-" + process.pid;
+  const ngA = await makeCtx("N-A");
+  const ngB = await makeCtx("N-B");
+  await ngA.goto(`${BASE}/whiteboard/${doc9}?clientID=wb-neg-a`, { waitUntil: "networkidle" });
+  await ngB.goto(`${BASE}/whiteboard/${doc9}?clientID=wb-neg-b`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  const ngBox = await ngB.locator("#wb-canvas").boundingBox();
+  const NGTIP = { x: 60, y: 60 }; // dragged UP-LEFT to here; w,h negative
+  await ngB.mouse.move(ngBox.x + 220, ngBox.y + 180);
+  await sleep(300);
+  await ngB.mouse.down();
+  await ngB.mouse.move(ngBox.x + NGTIP.x, ngBox.y + NGTIP.y, { steps: 10 });
+  await sleep(800); // HOLDING
+
+  const ngDot = await readCursor(ngA);
+  const ngWrap = await ngA.evaluate(() => {
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return { w: r.width, h: r.height };
+  });
+  const ngExp = { x: NGTIP.x / ngBox.width, y: NGTIP.y / ngBox.height };
+  const ngGot = ngDot ? { x: parseFloat(ngDot.left) / ngWrap.w, y: parseFloat(ngDot.top) / ngWrap.h } : null;
+  if (ngGot && Math.abs(ngGot.x - ngExp.x) < 0.02 && Math.abs(ngGot.y - ngExp.y) < 0.02) {
+    ok(`dot on tip for negative drag (dot ${(ngGot.x * 100).toFixed(1)}%,${(ngGot.y * 100).toFixed(1)}%)`);
+  } else {
+    bad(`dot off tip on negative drag: dot=${JSON.stringify(ngDot)} tip=${ngExp.x.toFixed(3)},${ngExp.y.toFixed(3)}`);
+  }
+  // Ink must exist NEAR the tip corner (generous 30px box: rough.js wobbles,
+  // but a mangled negative rect paints nowhere near its corner).
+  const ngInk = await ngA.evaluate(
+    (tip) => {
+      const c = document.getElementById("wb-canvas");
+      const rect = c.getBoundingClientRect();
+      const scale = c.width / Math.max(1, rect.width);
+      const g = c.getContext("2d");
+      const S = 30 * scale;
+      const X = Math.max(0, Math.floor((tip.x - 15) * scale));
+      const Y = Math.max(0, Math.floor((tip.y - 15) * scale));
+      const d = g.getImageData(X, Y, Math.min(S, c.width - X), Math.min(S, c.height - Y)).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++;
+      return n;
+    },
+    { x: NGTIP.x, y: NGTIP.y },
+  );
+  if (ngInk > 0) {
+    ok(`ink painted at the negative-drag tip (ink ${ngInk})`);
+  } else {
+    bad("no ink near the negative-drag tip — renderer mangles negative w/h");
+  }
+  await ngB.mouse.up();
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {
