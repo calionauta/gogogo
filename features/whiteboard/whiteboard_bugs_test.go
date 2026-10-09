@@ -169,8 +169,8 @@ func TestWhiteboard_ThemeToggleWired(t *testing.T) {
 	if !strings.Contains(body, "theme-toggle") {
 		t.Fatalf("board page missing .theme-toggle button (dark/light toggle would be inert)")
 	}
-	if !strings.Contains(body, `data-on:click="Theme.toggle()"`) {
-		t.Fatalf("board page toggle missing data-on:click (the single toggle path)")
+	if !strings.Contains(body, "data-on:click=") || !strings.Contains(body, "$theme =") {
+		t.Fatalf("board page toggle missing signal-flip data-on:click (the single toggle path)")
 	}
 	if !strings.Contains(body, "/static/theme.js") {
 		t.Fatalf("board page does not load theme.js (persistence/icons never run)")

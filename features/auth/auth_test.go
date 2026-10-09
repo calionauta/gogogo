@@ -162,32 +162,40 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 	if !strings.Contains(button, "theme-toggle") {
 		t.Errorf("theme button missing the .theme-toggle class")
 	}
-	if !strings.Contains(button, `data-on:click="Theme.toggle()"`) {
-		t.Errorf("theme button must carry data-on:click=\"Theme.toggle()\" " +
-			"(the single toggle path; theme.js owns persistence, not clicks)")
+	// The single toggle path: signal flip (Datastar owns data-theme),
+	// icon sync, persistence — in that order so a storage throw in
+	// private mode cannot skip the visible change.
+	for _, want := range []string{
+		`data-on:click="`,
+		`$theme = $theme === 'dark' ? 'light' : 'dark'`,
+		`Theme.syncIcons($theme)`,
+		`localStorage.setItem('themeMode', $theme)`,
+	} {
+		if !strings.Contains(button, want) {
+			t.Errorf("theme button missing %q (the single toggle path)", want)
+		}
 	}
 
-	// One storage key across the pre-paint bootstrap and the module.
+	// One storage key across the pre-paint bootstrap, the button, and the
+	// module. The key lives in ThemeHead (read) and the button expression
+	// (write); theme.js never writes storage, only icons.
 	head, err := os.ReadFile("theme_head.templ")
 	if err != nil {
 		t.Fatalf("read theme_head: %v", err)
+	}
+	if !strings.Contains(string(head), "themeMode") {
+		t.Errorf("ThemeHead left the shared storage key")
+	}
+	if !strings.Contains(button, "themeMode") {
+		t.Errorf("button expression left the shared storage key")
 	}
 	// web/resources/static/theme.js is read from the repo root's static tree.
 	js, err := os.ReadFile("../../web/resources/static/theme.js")
 	if err != nil {
 		t.Fatalf("read theme.js: %v", err)
 	}
-	for _, src := range []string{string(head), string(js)} {
-		if !strings.Contains(src, "themeMode") {
-			t.Errorf("theme wiring left the shared storage key")
-		}
-	}
-	if strings.Contains(string(js), `var KEY = "theme";`) {
-		t.Errorf("theme.js uses an orphan storage key (ThemeHead reads themeMode)")
-	}
-	if strings.Contains(string(js), "__themeDelegated") ||
-		strings.Contains(string(js), "toggleFromEvent") {
-		t.Errorf("theme.js must not bind its own click path " +
-			"(double-fire alongside data-on:click)")
+	if strings.Contains(string(js), `setAttribute("data-theme"`) {
+		t.Errorf("theme.js must not write data-theme (Datastar reverts " +
+			"external writes to bound attributes; the $theme signal owns it)")
 	}
 }
