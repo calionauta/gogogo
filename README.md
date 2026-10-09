@@ -21,6 +21,10 @@ router, reactive frontend, task queue… — and the project stalls at the
 answers those decisions once, ships them wired together, and documents how to
 change or remove each piece.
 
+What it is not: a framework. Frameworks call your code and keep you on
+their release train; gogogo hands you wired, documented code and gets out
+of the way.
+
 ## 📖 Docs (single source of truth)
 
 The manual lives on the site, not in this file:
