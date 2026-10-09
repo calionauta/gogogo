@@ -1,6 +1,5 @@
 ## [Unreleased]
 
-<<<<<<< HEAD
 ## [0.42.8] - 2026-10-09
 
 ### Fixed
@@ -35,7 +34,6 @@
   leading+trailing through the shared `/static/throttle.js`. The pattern is
   documented as reusable in `docs/async-layers.md` ("commit on release, relay
   while moving") and covered by a red-proofed two-context Playwright test.
->>>>>>> origin/master
 
 ## [0.42.6] - 2026-10-09
 
