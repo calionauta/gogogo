@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+### Fixed
+
+- **Room roster reads survive a supervised restart.** A `/room/*` click
+  landing in the grain-restart window (or on a starved runner) could
+  answer 502 even though the same read succeeds milliseconds later — the
+  cause of the intermittent `TestRoomAcquireCrashRecoverOverHTTP` CI
+  failure. The read is now retried inside a bounded budget, and the grain
+  error is logged instead of swallowed, so a future 502 names its route
+  and cause.
+
 ### Security
 
 - **Go 1.27.1 → 1.27.2 and `x/net` v0.59.0 → v0.60.0**, closing the

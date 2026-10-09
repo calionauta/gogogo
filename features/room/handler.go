@@ -17,13 +17,29 @@ package room
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"time"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
 
 	appcfg "github.com/calionauta/gogogo/config"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+)
+
+// rosterReadBudget bounds a whole retried roster read. A supervised grain
+// restart tears the room down briefly; a read that lands in that window
+// (or that a starved runner cannot service inside goakt.AskTimeout) used to
+// turn a click into a 502 even though the same read succeeds moments later.
+// Roster is a pure read, so retrying it has no side effects.
+const (
+	rosterReadBudget = 5 * time.Second
+	// rosterRetryDelay spaces the retries. It is short on purpose: the
+	// failure being retried is a stall, not a slow query, and the Ask that
+	// just failed already consumed its own timeout budget.
+	rosterRetryDelay = 50 * time.Millisecond
 )
 
 // roomSystem is the grain surface this feature needs. *goakt.Host
@@ -37,13 +53,14 @@ type roomSystem interface {
 
 // Handler serves the room demo. State lives in grains, never here.
 type Handler struct {
-	cfg   *appcfg.Config
-	rooms roomSystem
+	cfg        *appcfg.Config
+	rooms      roomSystem
+	readBudget time.Duration
 }
 
 // New constructs a Handler around a grain host (production) or fake.
 func New(cfg *appcfg.Config, rooms roomSystem) *Handler {
-	return &Handler{cfg: cfg, rooms: rooms}
+	return &Handler{cfg: cfg, rooms: rooms, readBudget: rosterReadBudget}
 }
 
 // RegisterRoutesOn wires the room routes on a router (production passes
@@ -75,14 +92,48 @@ func roomID(c *core.RequestEvent) string {
 	return "lobby"
 }
 
+// readRoster reads the roster, tolerating a transient grain stall (see
+// rosterReadBudget). The happy path is a single round trip; only a failure
+// costs a retry, and the whole thing is bounded by the request context plus
+// the budget.
+func (h *Handler) readRoster(ctx context.Context, id string) (appgoakt.Roster, error) {
+	ctx, cancel := context.WithTimeout(ctx, h.readBudget)
+	defer cancel()
+	var roster appgoakt.Roster
+	err := retry.Do(
+		func() error {
+			var readErr error
+			roster, readErr = h.rooms.Roster(ctx, id)
+			return readErr
+		},
+		retry.Attempts(3),
+		retry.Delay(rosterRetryDelay),
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+	)
+	if err != nil {
+		return appgoakt.Roster{}, err
+	}
+	return roster, nil
+}
+
+// unavailable logs the grain failure and answers the client. The error is
+// logged, never returned in the body: the previous version swallowed it
+// whole, which is why a CI 502 here could not be attributed to a route or a
+// cause from the log.
+func unavailable(c *core.RequestEvent, room, step string, err error) error {
+	slog.Warn("room: grain unavailable", "room", room, "step", step, "error", err)
+	return c.String(http.StatusBadGateway, "room engine unavailable")
+}
+
 func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if c.Auth == nil {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 	id := roomID(c)
-	roster, err := h.rooms.Roster(c.Request.Context(), id)
+	roster, err := h.readRoster(c.Request.Context(), id)
 	if err != nil {
-		return c.String(http.StatusBadGateway, "room engine unavailable")
+		return unavailable(c, id, "index", err)
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Response.WriteHeader(http.StatusOK)
@@ -93,9 +144,10 @@ func (h *Handler) handleRoster(c *core.RequestEvent) error {
 	if c.Auth == nil {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
-	roster, err := h.rooms.Roster(c.Request.Context(), roomID(c))
+	id := roomID(c)
+	roster, err := h.readRoster(c.Request.Context(), id)
 	if err != nil {
-		return c.String(http.StatusBadGateway, "room engine unavailable")
+		return unavailable(c, id, "roster", err)
 	}
 	return c.JSON(http.StatusOK, roster)
 }
@@ -109,11 +161,11 @@ func (h *Handler) mutate(c *core.RequestEvent, msg func(name string) any) error 
 	id := roomID(c)
 	name := c.Auth.Email()
 	if err := h.rooms.Tell(c.Request.Context(), id, msg(name)); err != nil {
-		return c.String(http.StatusBadGateway, "room engine unavailable")
+		return unavailable(c, id, "tell", err)
 	}
-	roster, err := h.rooms.Roster(c.Request.Context(), id)
+	roster, err := h.readRoster(c.Request.Context(), id)
 	if err != nil {
-		return c.String(http.StatusBadGateway, "room engine unavailable")
+		return unavailable(c, id, "read-after-tell", err)
 	}
 	return c.JSON(http.StatusOK, roster)
 }

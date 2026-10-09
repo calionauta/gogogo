@@ -104,7 +104,10 @@ A grain (`internal/goakt/`) holds a heartbeat roster plus the lock,
 supervised with a restart budget and passivated when idle. Roster state is
 soft (rebuilt from heartbeats, never persisted — see the durability table
 below). The `/room/` demo exercises the whole loop including a crash hook;
-copy the grain pattern for per-entity features. Standalone only: no
+copy the grain pattern for per-entity features. Roster reads over HTTP are
+retried within a bounded budget, so the supervised-restart window answers a
+moment later instead of with a 502; the grain error is logged, never
+returned in the response body. Standalone only: no
 placement, no cluster — cross-process entities are out of scope.
 
 ## The opt-out rules
