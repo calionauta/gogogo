@@ -103,7 +103,13 @@ against a single-threaded event loop (Node) or a GIL that in 2026 means
 running a second interpreter (3.14t, opt-in) whose lock silently re-enables
 on any unmarked C extension, with no stable ABI and no official container
 tag yet. Millisecond builds and `gofmt` uniformity, which is what makes
-agent output checkable before it runs. Rejected: Node (single thread, build
+agent output checkable before it runs. A wide stdlib (http, json, testing,
+pprof in the box) means fewer third-party tickets in the supply-chain
+lottery — Node reaches for express/vitest, Python for fastapi/pytest, each
+a dependency the Go version never installs. `go test -race` catches data
+races in test with one command; neither rival has an equivalent. Cold
+starts are milliseconds with megabytes of RSS, which matters at the edge
+and is irrelevant on a VPS. Rejected: Node (single thread, build
 step per deploy, and an install-time code-execution primitive — npm
 `preinstall`/`postinstall` hooks run on `npm install` before any import,
 which is the delivery mechanism behind the 2026 worm waves in `keyv`,
