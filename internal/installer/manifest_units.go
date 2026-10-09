@@ -301,11 +301,11 @@ var manifestUnits = []trimUnit{
 				rules: []stripRule{
 					{
 						startMarker: `<a href="/whiteboard"`,
-						endMarker:   `}>Whiteboard</a>`,
+						endMarker:   `}>Collab whiteboard</a>`,
 					},
 					{
 						startMarker: `<a href="/notes"`,
-						endMarker:   `}>Notes</a>`,
+						endMarker:   `}>Collab notes</a>`,
 					},
 				},
 			},

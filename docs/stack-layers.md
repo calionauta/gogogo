@@ -332,8 +332,9 @@ reports:
   while keeping its overhead.
 Datastar is 11.29 KiB full (~5 KiB core): signals, computed, effects, and
 SSE `patchElements`/`patchSignals` — everything realtime needs, no npm, no
-build step, no second source of truth to drift. And where React relies on
-discipline, this repo relies on a check:
+build step, no second source of truth to drift.
+
+And where React relies on discipline, this repo relies on a check:
 [datastar-lint](https://github.com/calionauta/datastar-lint) fails the
 build on signal/attribute/expression mistakes in seconds — the same
 cheap-failure bet as the rest of the stack.

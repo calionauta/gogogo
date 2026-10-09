@@ -63,7 +63,7 @@ func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, 
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Whiteboards — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Collab whiteboards — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -99,7 +99,7 @@ func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<main class=\"container mx-auto p-4\"><div class=\"flex items-center justify-between mb-4\"><h1 class=\"text-2xl font-bold\">Whiteboards</h1><a class=\"btn btn-primary\" data-variant=\"primary\" href=\"/whiteboard/new\">New whiteboard</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<main class=\"container mx-auto p-4\"><div class=\"flex items-center justify-between mb-4\"><h1 class=\"text-2xl font-bold\">Collab whiteboards</h1><a class=\"btn btn-primary\" data-variant=\"primary\" href=\"/whiteboard/new\">New whiteboard</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -239,14 +239,14 @@ func Board(email string, docID string, buildLabel string, buildCommit string, of
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Whiteboard ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<!doctype html><html lang=\"en\" data-signals=\"{theme: 'light'}\" data-attr:data-theme=\"$theme\" data-class:dark=\"$theme === 'dark'\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Collab whiteboard ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(docID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 119, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 119, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
