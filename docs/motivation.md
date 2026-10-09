@@ -37,6 +37,8 @@ gofmt, vet, and millisecond builds close the loop on every error before
 running. Lints catch typical AI-generated mistakes. And agent-era infra
 already runs on it: kubernetes, ollama, temporal, and the like.
 
+Each motive above serves one of the criteria, not the other way round: the compatibility promise serves correctness and agent cost — decade-old code still compiles, so the training data stays valid and fixes stay cheap. gofmt, vet, millisecond builds, and lints serve agent cost — the loop closes before anything runs. The single binary serves coexistence — one deploy artifact, no second toolchain, and nothing that can't be stripped out. That is the whole bet: Go wins the 99% not by being the fastest language, but by being the cheapest place to fail.
+
 I also wanted something extremely light on the client with the backend as
 the source of truth: kilobytes of JS per feature, never authority in the
 browser — records in the database, documents in CRDT snapshots, intent
