@@ -23,6 +23,15 @@ criteria:
 My take: LLMs need a language where failing is cheap — errors surface early
 and fixes are cheap — and humans can read whenever they step in.
 
+For context, I'm not a Go expert. I spent over a decade building software
+systems in the past, though not in Go. These days, I'm exploring a different
+way of building software, leaning into Go's strengths, static analysis,
+linters, and other tools to make LLM-assisted development more reliable.
+
+gogogo is partly an exploration of that idea: how much can we achieve with a
+relatively simple, opinionated foundation that both humans and coding agents
+can understand, rather than reaching for more complexity by default?
+
 That covers 99% of today's web systems and services, leaving 1% for another
 language chosen by context (like zig or rust — and where it fits, odin or
 mojo). The split is illustrative, not measured: shorthand for "almost
