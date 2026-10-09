@@ -25,6 +25,14 @@ type PresenceMsg struct {
 	X    float64 `json:"x"`
 	Y    float64 `json:"y"`
 	TS   int64   `json:"ts"`
+	// CTS is the SENDER-captured timestamp (Unix millis at frame build).
+	// The server re-stamps TS on receipt, which destroys capture order —
+	// so receivers adjudicate staleness with CTS, compared only within one
+	// sender's frames (per-user key), where the sender clock is monotonic
+	// and cross-machine skew cannot intrude. A retried POST keeps its
+	// original CTS and always loses to anything captured later. Passes
+	// through the server untouched (only TS is re-stamped).
+	CTS int64 `json:"cts,omitempty"`
 	// Peers is the list of clientIDs already present on the doc, sent to
 	// a freshly-connected client as a "snapshot" event so it can seed its
 	// peer count without waiting for future joins (which already happened
@@ -52,6 +60,7 @@ type presenceAlias struct {
 	X     json.Number `json:"x"`
 	Y     json.Number `json:"y"`
 	TS    int64       `json:"ts"`
+	CTS   int64       `json:"cts,omitempty"`
 	Peers []string    `json:"peers,omitempty"`
 	Shape *Shape      `json:"shape,omitempty"`
 }
@@ -66,6 +75,7 @@ func (m *PresenceMsg) UnmarshalJSON(b []byte) error {
 	m.Doc = a.Doc
 	m.User = a.User
 	m.TS = a.TS
+	m.CTS = a.CTS
 	m.Peers = a.Peers
 	m.Shape = a.Shape
 	if a.X != "" {
