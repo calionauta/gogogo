@@ -20,6 +20,7 @@ There is no Zig code and no Zig toolchain in this repo today. That is the succes
 - Pure-Go fallback ships from day one; deletion leaves a working binary (`go build ./cmd/web` proves it).
 - Pinned toolchain, locked inputs, `scratch`-static safe, scoped cached CI step. No top-level `native/` forest, no shared "zig utils", no Zig framework, stdlib first.
 - Tests: golden vectors vs Go baseline + edges (empty/max/malformed) + lifetime tests + bench on same workload + hand-mutation red-proof + fuzz on untrusted inputs.
+- **Lifetime/leak gate (run, don't eyeball).** `alloc` immediately paired with `defer`/`errdefer free`, same allocator frees, no global allocator. Tests use `std.testing.allocator` or `DebugAllocator` asserting `deinit() == .ok`, plus error paths forced and a ~10k-call loop test. Paste `zig build test` (safety on) + `go test -race -count=1` green; `.leak` rejects the kernel.
 - Debug story: symbols across the boundary + Go-vs-Zig bisection documented in the package.
 
 ## Local-docs-first (when Zig exists)

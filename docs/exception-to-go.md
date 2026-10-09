@@ -144,7 +144,9 @@ all of them verifiable here today:
 If a mature C library already solves the problem, wrap it (see [Native is not
 synonymous with Zig](#native-is-not-synonymous-with-zig)) instead of rewriting it.
 If a different language is genuinely better for one specific kernel, the proposal
-must make that case in required-justification item 5. What this policy forbids is
+must make that case in required-justification item 5 — starting from the
+evidence in [Native language tradeoffs](native-language-tradeoffs.md) and
+rebutting the row for the proposed language point by point. What this policy forbids is
 an agent **silently** choosing a language — or silently writing native code at all
 — with neither the baseline nor the argument.
 
@@ -245,7 +247,9 @@ rejected:
    adjectives
 5. **why Zig is appropriate** — and why Zig stdlib is sufficient, or (if a
    dependency is proposed) why it is needed per the
-   [dependency policy](#zig-dependency-policy-stdlib-first)
+   [dependency policy](#zig-dependency-policy-stdlib-first). If the answer
+   is a different language instead of Zig, rebut its row in
+   [Native language tradeoffs](native-language-tradeoffs.md) point by point
 6. **boundary design** — the C-ABI function set, data layout, who
    allocates/frees (see below)
 7. **portability** —Tiered targets (`GOOS`/`GOARCH`), cross-compile story,
@@ -393,6 +397,29 @@ and modify safely.
 - Fuzz the boundary where inputs are untrusted (parsers, codecs, protocol
   handlers).
 
+### Lifetime/leak gate (deterministic, LLM-executable)
+
+Manual memory is the biggest Zig risk: Rust turns most accidental
+leaks into safe-but-still-OOM leaks, while Zig turns them into dev
+discipline backed by leak-detecting allocators. Every kernel passes
+this gate — no exceptions, no volume-based anecdotes:
+
+1. **Pairing rule.** Every `alloc` is followed immediately by its
+   `defer free` / `errdefer free` — no early return between them. Same
+   allocator frees what allocated it; never store an allocator globally.
+2. **Ownership default.** Caller-owned buffers (Go allocates, Zig
+   writes, Go frees). A Zig-side allocation must export a matching
+   `free` and the Go wrapper must `defer` it on every path.
+3. **Leak-detecting tests, not eyeballing.** Zig tests use
+   `std.testing.allocator` (fails on leak) or a `DebugAllocator`
+   asserting `deinit() == .ok`. Suite includes: error paths forced,
+   `empty/max/malformed`, plus a **loop test (~10k calls)** to catch
+   accumulation a single call hides.
+4. **Commands the agent runs and pastes.** `zig build test` (leak-check
+   build, safety on) green; `go test -race -count=1` on the owning
+   package green. A `deinit() == .leak` or loop-test growth rejects the
+   kernel outright.
+
 ## Build, CI, and portability expectations
 
 Adding a Zig toolchain conflicts with properties this repo protects.
@@ -527,6 +554,7 @@ Vague instructions like "use Zig when appropriate" are banned. Follow the
 ## Related
 
 - [Motivation](motivation.md) — the thesis behind Go-first: cheap failure, readable code, named exception.
+- [Native language tradeoffs](native-language-tradeoffs.md) — evidence-backed comparison of Zig, Rust, Nim, Odin, and Mojo as exception languages.
 - [Architecture](architecture.md) — unified build, directory layout, wiring.
 - [Scope taxonomy](scope-taxonomy.md) — why `native` is a boundary, not a layer.
 - [Stack in layers](stack-layers.md) — what Go and the dependencies already cover.
