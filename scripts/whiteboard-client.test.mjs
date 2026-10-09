@@ -342,6 +342,46 @@ async function main() {
     bad(`cursor did not land on the peer's spot (left=${after && after.left}, wrap=${wrapW})`);
   }
 
+  // ---------------------------------------------------------------------------
+  // 4. An IN-PROGRESS shape must be visible to peers before the pointer is
+  //    released (the live "draft" channel). Without it a peer sees only the
+  //    cursor moving and the whole shape pops in on pointer-up.
+  //
+  // RED-PROOFED: with the draft relay removed the peer's canvas has ZERO ink
+  // in the region while the draw is still held, so the first assertion fails.
+  // ---------------------------------------------------------------------------
+  const doc4 = "wb-draft-" + process.pid;
+  const drawA = await makeCtx("D-A");
+  const drawB = await makeCtx("D-B");
+  await drawA.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-a`, { waitUntil: "networkidle" });
+  await drawB.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-b`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  // Region where the held rectangle is being drawn (CSS px, canvas-relative).
+  const DRAFT_REGION = { x: 50, y: 50, w: 180, h: 160 };
+  const beforeInk = await drawA.evaluate(inkInRegion(DRAFT_REGION.x, DRAFT_REGION.y, DRAFT_REGION.w, DRAFT_REGION.h));
+  if (beforeInk === 0) ok("peer canvas starts empty in the draw region");
+  else bad(`region was not empty before drawing (ink ${beforeInk})`);
+
+  const bbox = await drawB.locator("#wb-canvas").boundingBox();
+  await drawB.mouse.move(bbox.x + 60, bbox.y + 60);
+  await drawB.mouse.down();
+  await drawB.mouse.move(bbox.x + 200, bbox.y + 180, { steps: 10 });
+  await sleep(600); // still HOLDING — let draft frames propagate
+
+  const midInk = await drawA.evaluate(inkInRegion(DRAFT_REGION.x, DRAFT_REGION.y, DRAFT_REGION.w, DRAFT_REGION.h));
+  if (midInk > 0) {
+    ok(`peer sees the shape while it is still being drawn (ink ${midInk})`);
+  } else {
+    bad("peer saw nothing until the pointer was released (no draft relay)");
+  }
+
+  await drawB.mouse.up();
+  await sleep(900);
+  const afterInk = await drawA.evaluate(inkInRegion(DRAFT_REGION.x, DRAFT_REGION.y, DRAFT_REGION.w, DRAFT_REGION.h));
+  if (afterInk > 0) ok(`committed shape still painted after release (ink ${afterInk})`);
+  else bad(`shape vanished after release (ink ${afterInk})`);
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

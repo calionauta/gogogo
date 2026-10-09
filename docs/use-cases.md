@@ -218,8 +218,10 @@ Stack pick: server-owned Loro Map (shape ops POSTed, resolved shapes
 broadcast) over Yjs-in-browser (a JS CRDT + bundler for a canvas that
 merges fine server-side) and over OT (shape conflicts resolve by
 versioned overwrite, not character transforms — OT buys nothing here).
-Pro: zero client deps beyond Rough.js, offline replay converges. Con:
-every stroke round-trips; no peer-local drawing while offline.
+Pro: zero client deps beyond Rough.js, offline replay converges, and
+peers watch a stroke grow live (the in-progress shape rides the ephemeral
+presence channel and is committed on release). Con: every committed
+stroke round-trips; no live draft while offline.
 
 - Brainstorm boards, seating charts, any shared drawing surface.
 

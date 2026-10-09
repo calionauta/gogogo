@@ -10,7 +10,7 @@ second column names the **technology** that powers it.
 | **Background jobs + retry** | `goqite` + `retry-go` | — | Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`) |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase` |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
-| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL) |
+| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-first outbox replay, PocketBase-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL) |
 | **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged), live index via PB realtime, snapshots in the `notes` collection |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
 | **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: heartbeat roster + exactly-one presenter lock, supervised with restart budget. Demo at `/room/` with a crash hook |
@@ -64,8 +64,8 @@ attributed per feature.
 | Feature | Files | Raw | Gzip |
 |---|---|---|---|
 | Todo, Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
-| Shared notes | `notes.js` | 19 KB | 7 KB |
-| Whiteboard | `whiteboard.js` + `rough.min.js` | 48 KB | 16 KB |
+| Shared notes | `notes.js` | 28 KB | 10 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 54 KB | 18 KB |
 | Shared core (every page) | `datastar.js` + `theme.js` | 40 KB | 16 KB |
 
 Whiteboard and notes pages additionally load the shared

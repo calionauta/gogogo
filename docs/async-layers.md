@@ -39,6 +39,20 @@ The todo feature uses both: PB realtime for CRUD propagation, SSE Hub for
 toasts and live hints. The whiteboard uses the SSE Hub directly for shape and
 presence broadcast.
 
+**Ephemeral draft channel (a reusable pattern).** The whiteboard's live
+drawing is the reference for "show work in progress without committing it".
+While a shape is being drawn it is posted on the same volatile presence
+relay (`/presence`, `type:"draft"`) as the cursor — never persisted, never
+merged into the CRDT, never published to NATS — and peers repaint it
+immediately. The real `add` op on pointer-up remains the only commit, and a
+peer drops the draft the instant the committed shape with that id arrives
+(plus a TTL backstop). Each frame carries the **whole** shape, not a delta,
+so a dropped frame is healed by the next one and the channel needs no
+sequencing or acks. Reuse it for anything whose *finished* state belongs in
+the durable store but whose *in-progress* state only needs to be seen:
+dragging an existing shape, a resize handle, a live text selection.
+The rule of thumb: **commit on release, relay while moving.**
+
 > **Do not add a parallel SSE-hub re-render for record mutations.** If a record
 > changed, PB realtime already delivers it, and the collection's `ListRule` /
 > `ViewRule` (`@request.auth.id != '' && owner = @request.auth.id`) make the
