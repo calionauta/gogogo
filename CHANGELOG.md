@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [0.42.11] - 2026-10-09
+
+### Added
+
+- **Whiteboard presence skew + geometry tests.** T8 injects production-like
+  skew by holding cursor-channel requests 400 ms: the dot must still ride
+  the tip mid-window (fails on the pre-fuse code, where the dot detached).
+  T9 drags up-left and pins ink at the negative-dimension tip. Both
+  red-proofed; T8's first version delayed the *response* instead of the
+  request and passed vacuously against broken code — fixed and documented
+  in the test header.
+
 ## [0.42.10] - 2026-10-09
 
 ### Fixed
