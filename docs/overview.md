@@ -18,6 +18,18 @@ router, reactive frontend, task queue… — and the project stalls at the
 This template answers those decisions once, ships them wired together, and
 documents how to change or remove each piece.
 
+## Not a framework
+
+Frameworks call your code and keep you on their release train. This template
+does the opposite: it answers the stack decisions once, ships them wired and
+documented, and gets out of the way — you rename it, you own every line,
+there is nothing to upgrade. It does ship frameworks inside (PocketBase,
+GoAkt, Wails), and each of them is removable per the [scope
+taxonomy](scope-taxonomy.md): nothing you keep is load-bearing by accident.
+For an LLM agent this means zero new DSL to learn — plain Go, stable
+third-party surfaces, and the skill files, instead of a moving proprietary
+framework.
+
 ## Who it is for
 
 - **You who get tired of configuring the same stack over and over.**
