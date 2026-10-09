@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+<<<<<<< HEAD
 ## [0.42.8] - 2026-10-09
 
 ### Fixed
@@ -16,6 +17,25 @@
 
 - **Collab navbar order.** Collab Todo | Collab whiteboard | Collab
   notes | Room | Config; installer add-anchor follows.
+
+## [0.42.7] - 2026-10-09
+
+### Added
+
+- **Live in-progress drawing on the whiteboard.** A shape being drawn is now
+  relayed while the pointer is still down, so peers watch it grow instead of
+  seeing it pop in whole on release. The draft rides the existing volatile
+  presence channel (`/presence`, `type:"draft"`) — never persisted, never
+  merged into the CRDT, never published to NATS — and the real `add` op on
+  pointer-up stays the only commit; peers drop the draft the moment the
+  committed shape with that id arrives, with a 5 s TTL backstop and an
+  explicit end for degenerate draws that commit nothing. Each frame carries
+  the whole shape (not a delta), so a dropped frame is healed by the next one
+  and the channel needs no sequencing or acks; it is throttled at 80 ms
+  leading+trailing through the shared `/static/throttle.js`. The pattern is
+  documented as reusable in `docs/async-layers.md` ("commit on release, relay
+  while moving") and covered by a red-proofed two-context Playwright test.
+>>>>>>> origin/master
 
 ## [0.42.6] - 2026-10-09
 

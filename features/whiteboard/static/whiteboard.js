@@ -37,6 +37,11 @@
   const cursorsEl = document.getElementById("cursors");
 
   let shapes = []; // authoritative shape list from server
+  // Live in-progress shapes from peers, keyed by the peer's display name
+  // (one pointer, one draft): {shape, ts}. Ephemeral view state only — the
+  // CRDT/`shapes` list stays the single source of truth for committed
+  // shapes. See the draft transport in the pointermove section.
+  let drafts = {};
   let tool = "rect";
   let color = "#1f2937";
   let drawing = null; // in-progress shape
@@ -65,6 +70,7 @@
     }
     if (msg.type === "shapes") {
       shapes = msg.shapes || [];
+      dropCommittedDrafts();
       render();
     } else if (msg.type === "session") {
       // First frame of the stream: the shared session banner shows when
@@ -74,7 +80,7 @@
       if (window.GogogoSession && window.GogogoSession.set) {
         window.GogogoSession.set(!!msg.authed);
       }
-    } else if (["cursor", "join", "leave", "count", "snapshot"].indexOf(msg.type) !== -1) {
+    } else if (["cursor", "join", "leave", "count", "snapshot", "draft", "draft-end"].indexOf(msg.type) !== -1) {
       handlePresence(msg);
     }
   };
@@ -364,6 +370,43 @@
     throttleFn = window.GogogoThrottle.throttleTrailing;
   }
   var throttledPresence = throttleFn(function (x, y) { postPresence(x, y); }, 100);
+
+  // LIVE DRAWING (draft channel). While the pointer is down the shape is
+  // ALSO posted on the volatile presence transport (the /presence endpoint,
+  // which never persists and never touches the CRDT — a half-drawn shape is
+  // not committed state). Peers render it immediately, so a stroke grows on
+  // every screen instead of popping in whole on release. Design rules that
+  // make this reliable without a sync protocol:
+  //
+  //   - Each frame carries the WHOLE shape, not a delta. A dropped frame is
+  //     therefore healed by the very next one, so the channel needs no
+  //     sequence numbers, acks, or gap recovery.
+  //   - It is throttled (leading + trailing via the shared /static/throttle.js)
+  //     so a ~60Hz pointer does not become a 60Hz POST; the trailing call
+  //     guarantees the last position is always sent.
+  //   - It is SUPERSEDED, never authoritative: the real `add` op on pointer-up
+  //     is what commits the shape, and peers drop the draft the instant the
+  //     committed shape with the same id arrives (plus a TTL backstop, and an
+  //     explicit end for degenerate draws that commit nothing).
+  //
+  // Payload note: a pen stroke's `points` array grows with the stroke and is
+  // re-sent whole each frame. That is the price of loss-tolerance; it is fine
+  // at this throttle and shape scale. Delta-encoding would need sequencing.
+  var throttledDraft = throttleFn(function (shape) { postDraft("draft", shape); }, 80);
+  function postDraft(type, shape) {
+    // Offline: skip. The committed op is the durable path and replays from the
+    // outbox; a live draft has no value once the connection is gone.
+    if (!navigator.onLine) return;
+    fetch(
+      "/api/whiteboard/" + encodeURIComponent(docID) + "/presence?clientID=" + encodeURIComponent(clientID),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: type, doc: docID, user: user, shape: shape }),
+      }
+    ).catch(function () { /* cosmetic: the next frame re-sends the whole shape */ });
+  }
+
   canvas.addEventListener("pointermove", function (e) {
     const p = localPos(e);
     const r = canvas.getBoundingClientRect();
@@ -375,6 +418,7 @@
       drawing.w = p.x - drawing.x;
       drawing.h = p.y - drawing.y;
     }
+    throttledDraft(drawing);
     render();
   });
 
@@ -388,6 +432,10 @@
     const done = drawing;
     drawing = null;
     if (tiny) {
+      // Nothing is committed for a degenerate draw, so the draft has nothing
+      // to be superseded by — end it explicitly instead of leaving a ghost
+      // until the TTL.
+      postDraft("draft-end");
       render();
       return;
     }
@@ -423,8 +471,36 @@
     if (!ctx) return;
     const r = wrap.getBoundingClientRect();
     ctx.clearRect(0, 0, r.width, r.height);
-    const all = drawing ? shapes.concat([drawing]) : shapes;
+    const all = shapes.slice();
+    // Peers' in-progress strokes, then our own — drawn after the committed
+    // shapes so a live stroke is never hidden under one.
+    Object.keys(drafts).forEach(function (u) { all.push(drafts[u].shape); });
+    if (drawing) all.push(drawing);
     for (const s of all) drawShape(s);
+  }
+
+  // DRAFT_TTL is the backstop for a draft whose "supersede" signal never
+  // arrives (the committing op was buffered offline, or the peer vanished).
+  const DRAFT_TTL = 5000;
+  // pruneDrafts drops expired drafts and returns how many it removed, so a
+  // caller can repaint only when the screen actually changed.
+  function pruneDrafts() {
+    const now = Date.now();
+    let n = 0;
+    Object.keys(drafts).forEach(function (u) {
+      if (now - drafts[u].ts > DRAFT_TTL) { delete drafts[u]; n++; }
+    });
+    return n;
+  }
+  // A draft is superseded the moment its committed shape lands: the same id
+  // in the authoritative list means the real shape is now on screen, so the
+  // provisional one must go (otherwise it would linger as a duplicate).
+  function dropCommittedDrafts() {
+    const committed = {};
+    for (let i = 0; i < shapes.length; i++) committed[shapes[i].id] = true;
+    Object.keys(drafts).forEach(function (u) {
+      if (committed[drafts[u].shape.id]) delete drafts[u];
+    });
   }
 
   function drawShape(s) {
@@ -510,6 +586,26 @@
       // and two demo accounts read apart. A move refreshes the TTL.
       cursors[msg.user] = { x: msg.x, y: msg.y, ts: Date.now() };
       renderCursors();
+      return;
+    }
+    if (msg.type === "draft") {
+      if (msg.shape && msg.shape.id) {
+        // Ignore a draft for a shape we already hold as committed (an
+        // out-of-order frame that arrived after the real op).
+        let committed = false;
+        for (let i = 0; i < shapes.length; i++) {
+          if (shapes[i].id === msg.shape.id) { committed = true; break; }
+        }
+        if (!committed) drafts[msg.user] = { shape: msg.shape, ts: Date.now() };
+      } else {
+        delete drafts[msg.user];
+      }
+      render();
+      return;
+    }
+    if (msg.type === "draft-end") {
+      delete drafts[msg.user];
+      render();
     }
   }
   function renderCursors() {
@@ -548,4 +644,5 @@
   window.addEventListener("resize", fitCanvas);
   fitCanvas();
   setInterval(renderCursors, 4000); // also expires idle cursors (CURSOR_TTL)
+  setInterval(function () { if (pruneDrafts() > 0) render(); }, 2000); // draft TTL backstop
 })();

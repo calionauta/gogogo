@@ -32,6 +32,15 @@ type PresenceMsg struct {
 	// the FULL set of currently-connected clientIDs (including the recipient),
 	// and the client excludes itself when rendering.
 	Peers []string `json:"peers,omitempty"`
+
+	// Shape carries an IN-PROGRESS ("draft") shape for an ephemeral
+	// `type:"draft"` event — the whiteboard's live-drawing channel. It is
+	// deliberately NOT part of the CRDT: a half-drawn shape is not committed
+	// state, so it is relayed over the same volatile presence path as a
+	// cursor (never persisted, never merged, never sent to NATS) and is
+	// superseded by the real `add` op on pointer-up. This is what lets peers
+	// watch a stroke grow instead of seeing it pop in whole on release.
+	Shape *Shape `json:"shape,omitempty"`
 }
 
 // presenceAlias mirrors PresenceMsg but decodes X/Y as json.Number so a
@@ -44,6 +53,7 @@ type presenceAlias struct {
 	Y     json.Number `json:"y"`
 	TS    int64       `json:"ts"`
 	Peers []string    `json:"peers,omitempty"`
+	Shape *Shape      `json:"shape,omitempty"`
 }
 
 // UnmarshalJSON tolerates X/Y provided as JSON numbers or numeric strings.
@@ -57,6 +67,7 @@ func (m *PresenceMsg) UnmarshalJSON(b []byte) error {
 	m.User = a.User
 	m.TS = a.TS
 	m.Peers = a.Peers
+	m.Shape = a.Shape
 	if a.X != "" {
 		f, err := a.X.Float64()
 		if err != nil {
