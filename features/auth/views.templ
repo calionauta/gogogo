@@ -7,8 +7,8 @@ import "github.com/calionauta/gogogo/features/sounds"
 // the logged-in email and a logout button. Login link when no user.
 // `active` marks the current section ("todo" | "whiteboard" | "room" | "notes" | "config" | "")
 // so the navbar can highlight it. The order of nav items is fixed
-// and intentional: feature tabs first (Todo, Whiteboard) so the
-// common paths are adjacent to the logo, then the operator-facing
+// and intentional: collab features first (Todo, Whiteboard, Notes) so the
+// common paths are adjacent to the logo, then Room, then the operator-facing
 // Config tab at the end (not a content destination; an inspection
 // surface). The logo text always links to "/" — the landing page.
 templ Navbar(userEmail string, active string, buildLabel string, buildCommit string) {
@@ -25,16 +25,16 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 			<div class="app-nav-links">
 				<a href="/todo" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "todo",
-				}) }>Todo</a>
+				}) }>Collab Todo</a>
 				<a href="/whiteboard" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "whiteboard",
 				}) }>Collab whiteboard</a>
-				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
-					"is-active": active == "room",
-				}) }>Room</a>
 				<a href="/notes" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "notes",
 				}) }>Collab notes</a>
+				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+					"is-active": active == "room",
+				}) }>Room</a>
 				<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "config",
 				}) }>Config</a>
