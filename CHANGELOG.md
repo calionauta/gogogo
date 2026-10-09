@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.42.1] - 2026-10-09
+
 ### Fixed
 
 - **Room roster reads survive a supervised restart.** A `/room/*` click
