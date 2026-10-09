@@ -393,6 +393,29 @@ and modify safely.
 - Fuzz the boundary where inputs are untrusted (parsers, codecs, protocol
   handlers).
 
+### Lifetime/leak gate (deterministic, LLM-executable)
+
+Manual memory is the biggest Zig risk: Rust turns most accidental
+leaks into safe-but-still-OOM leaks, while Zig turns them into dev
+discipline backed by leak-detecting allocators. Every kernel passes
+this gate — no exceptions, no volume-based anecdotes:
+
+1. **Pairing rule.** Every `alloc` is followed immediately by its
+   `defer free` / `errdefer free` — no early return between them. Same
+   allocator frees what allocated it; never store an allocator globally.
+2. **Ownership default.** Caller-owned buffers (Go allocates, Zig
+   writes, Go frees). A Zig-side allocation must export a matching
+   `free` and the Go wrapper must `defer` it on every path.
+3. **Leak-detecting tests, not eyeballing.** Zig tests use
+   `std.testing.allocator` (fails on leak) or a `DebugAllocator`
+   asserting `deinit() == .ok`. Suite includes: error paths forced,
+   `empty/max/malformed`, plus a **loop test (~10k calls)** to catch
+   accumulation a single call hides.
+4. **Commands the agent runs and pastes.** `zig build test` (leak-check
+   build, safety on) green; `go test -race -count=1` on the owning
+   package green. A `deinit() == .leak` or loop-test growth rejects the
+   kernel outright.
+
 ## Build, CI, and portability expectations
 
 Adding a Zig toolchain conflicts with properties this repo protects.
