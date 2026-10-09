@@ -15,8 +15,8 @@ import "github.com/calionauta/gogogo/features/sounds"
 // the logged-in email and a logout button. Login link when no user.
 // `active` marks the current section ("todo" | "whiteboard" | "room" | "notes" | "config" | "")
 // so the navbar can highlight it. The order of nav items is fixed
-// and intentional: feature tabs first (Todo, Whiteboard) so the
-// common paths are adjacent to the logo, then the operator-facing
+// and intentional: collab features first (Todo, Whiteboard, Notes) so the
+// common paths are adjacent to the logo, then Room, then the operator-facing
 // Config tab at the end (not a content destination; an inspection
 // surface). The logo text always links to "/" — the landing page.
 func Navbar(userEmail string, active string, buildLabel string, buildCommit string) templ.Component {
@@ -90,7 +90,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\">Todo</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\">Collab Todo</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -119,13 +119,13 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 = []any{templ.Classes("app-nav-link", map[string]bool{
-			"is-active": active == "room",
+			"is-active": active == "notes",
 		})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/room\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/notes\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -138,18 +138,18 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Room</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Collab notes</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 = []any{templ.Classes("app-nav-link", map[string]bool{
-			"is-active": active == "notes",
+			"is-active": active == "room",
 		})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/notes\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/room\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -162,7 +162,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">Collab notes</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">Room</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -186,7 +186,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">Config</a></div></div><div class=\"app-nav-end\"><button type=\"button\" class=\"app-theme-toggle theme-toggle\" aria-label=\"Toggle theme\" title=\"Toggle light/dark theme\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">Config</a></div></div><div class=\"app-nav-end\"><button type=\"button\" class=\"app-theme-toggle theme-toggle\" aria-label=\"Toggle theme\" title=\"Toggle light/dark theme\" data-on:click=\"Theme.toggle()\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -207,7 +207,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 68, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 69, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -220,7 +220,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 75, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 76, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -291,7 +291,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 137, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 138, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -309,7 +309,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 142, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 143, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {

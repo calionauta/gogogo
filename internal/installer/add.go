@@ -38,7 +38,7 @@ const (
 	// block lands above it.
 	desktopBlockAnchor = "\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)"
 	// navLinkAnchorSubstr marks the Todo nav link; section links land below.
-	navLinkAnchorSubstr = "}>Todo</a>"
+	navLinkAnchorSubstr = "}>Collab Todo</a>"
 	// todoLayoutAnchor is the DaisyUI fallback; skin dispatches land above.
 	todoLayoutAnchor = "\treturn components.Layout("
 	// todoRegionAnchor is the region fallback; skin cases land above.

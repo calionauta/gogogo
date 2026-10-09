@@ -30,6 +30,7 @@ func assets() templ.Component {
 <link rel="stylesheet" href="/static/app.min.css"/>
 <link rel="stylesheet" href="/static/app.css"/>
 <script src="/static/iconify-icon.min.js"></script>
+<script defer type="module" src="/static/theme.js"></script>
 <script defer type="module" src="/static/datastar.js"></script>
 	`)
 }

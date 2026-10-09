@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [0.42.8] - 2026-10-09
+
+### Fixed
+
+- **Dead theme toggle on daisyui pages.** Only basecoat loaded
+  `/static/theme.js`; the default skin now includes it, with a
+  red-proofed regression test.
+- **Single toggle path.** `data-on:click="Theme.toggle()"` on the button
+  (Datastar loads on every navbar page); theme.js keeps persistence and
+  icons, document delegation removed (double-fire). Pinned tests
+  inverted to the new design.
+
+### Changed
+
+- **Collab navbar order.** Collab Todo | Collab whiteboard | Collab
+  notes | Room | Config; installer add-anchor follows.
+
 ## [0.42.7] - 2026-10-09
 
 ### Added
