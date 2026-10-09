@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Security
+
+- **Go 1.27.1 → 1.27.2 and `x/net` v0.59.0 → v0.60.0**, closing the
+  GO-2026-6603–6617 stdlib family (net/http, http2, net/textproto,
+  crypto/tls, os, html/template) that blocking pre-push `govulncheck`
+  reported. Docker base image, both CI toolchain installs, the
+  `gogogo-mcp` module and the coding-standards skill pin move with it;
+  `govulncheck` is clean again.
+
 ## [0.42.0] - 2026-10-09
 
 ### Added

@@ -1,6 +1,6 @@
 module github.com/calionauta/gogogo
 
-go 1.27.1
+go 1.27.2
 
 tool github.com/a-h/templ/cmd/templ
 
@@ -141,7 +141,7 @@ require (
 	golang.org/x/arch v0.31.0 // indirect
 	golang.org/x/image v0.46.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
