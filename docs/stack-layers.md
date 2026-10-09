@@ -96,35 +96,42 @@ revisit.
 LLMs reach for TypeScript and Python by familiarity, not fitness — the same
 flywheel as React: TS grows on React/Next's back, Python on AI's (+7% in
 2025). Both are defensible defaults elsewhere; here they lose on three
-structural points. One static binary (~30 MB on `scratch`) against a runtime
-plus `node_modules` plus a build step (Node) or an interpreter plus venv
-plus a packaging matrix (Python). Concurrency as the default (goroutines)
-against a single-threaded event loop (Node) or a GIL that in 2026 means
-running a second interpreter (3.14t, opt-in) whose lock silently re-enables
-on any unmarked C extension, with no stable ABI and no official container
-tag yet. Millisecond builds and `gofmt` uniformity, which is what makes
-agent output checkable before it runs. A wide stdlib (http, json, testing,
-pprof in the box) means fewer third-party tickets in the supply-chain
-lottery — Node reaches for express/vitest, Python for fastapi/pytest, each
-a dependency the Go version never installs. `go test -race` catches data
-races in test with one command; neither rival has an equivalent. Cold
-starts are milliseconds with megabytes of RSS, which matters at the edge
-and is irrelevant on a VPS. Rejected: Node (single thread, build
-step per deploy, and an install-time code-execution primitive — npm
-`preinstall`/`postinstall` hooks run on `npm install` before any import,
-which is the delivery mechanism behind the 2026 worm waves in `keyv`,
-`axios`, 140+ `@mastra/*` packages, and 639 `@antv` versions; Go has no
-equivalent hook, resolves through a checksum-backed proxy, and never
-executes dependency code at build time), Python (packaging converged with
-`uv` plus lockfiles in 2026 — no strawmanning `pip` — but the interpreter
-matrix plus the GIL migration remain, and raw speed is an order of
-magnitude off). Cost: a smaller hiring pool than TS, no ML/data ecosystem
-to speak of, slower raw single-core than C/Zig/Rust (a May-2026
-cross-language suite puts Go ~2x off C and CPython ~40x on synthetic
-workloads — direction, not destiny). Revisit per workload: Python the day
-the app is ML/data-first (numpy/pandas have no Go equivalent worth
-fighting), TypeScript the day the team or the product is JS-only and the
-npm ecosystem pays the binary's rent.
+structural points.
+
+- **One artifact.** A static binary (~30 MB on `scratch`) against a runtime
+  plus `node_modules` plus a build step (Node), or an interpreter plus venv
+  plus a packaging matrix (Python).
+- **Concurrency by default.** Goroutines against a single-threaded event
+  loop (Node), or a GIL that in 2026 means running a second interpreter
+  (3.14t, opt-in) whose lock silently re-enables on any unmarked C
+  extension — with no stable ABI and no official container tag yet.
+- **Checkable output.** Millisecond builds and `gofmt` uniformity: agent
+  output is verified before it runs. A wide stdlib (http, json, testing,
+  pprof in the box) means fewer third-party tickets in the supply-chain
+  lottery — Node reaches for express/vitest, Python for fastapi/pytest, each
+  a dependency the Go version never installs. `go test -race` catches data
+  races in test with one command; neither rival has an equivalent. Cold
+  starts are milliseconds with megabytes of RSS — matters at the edge,
+  irrelevant on a VPS.
+
+Rejected: Node (single thread, build step per deploy, plus an install-time
+code-execution primitive — npm `preinstall`/`postinstall` hooks run on `npm
+install` before any import, the delivery mechanism behind the 2026 worm
+waves in `keyv`, `axios`, 140+ `@mastra/*` packages, and 639 `@antv`
+versions; Go has no equivalent hook, resolves through a checksum-backed
+proxy, and never executes dependency code at build time), Python (packaging
+converged with `uv` plus lockfiles in 2026 — no strawmanning `pip` — but
+the interpreter matrix plus the GIL migration remain, and raw speed is an
+order of magnitude off).
+
+Cost: a smaller hiring pool than TS, no ML/data ecosystem to speak of,
+slower raw single-core than C/Zig/Rust (a May-2026 cross-language suite
+puts Go ~2x off C and CPython ~40x on synthetic workloads — direction, not
+destiny).
+
+Revisit per workload: Python the day the app is ML/data-first (numpy/pandas
+have no Go equivalent worth fighting), TypeScript the day the team or the
+product is JS-only and the npm ecosystem pays the binary's rent.
 
 ### goqite + retry-go (and not Redis)?
 
@@ -218,13 +225,19 @@ Postgres is the #1 database in the 2025 Stack Overflow survey (58%) and
 Supabase (13M+ developers) just bought Turso (Oct 2026) with an explicit
 thesis: SQLite to start, Postgres to scale, with a graduation path between
 them. Take that thesis at face value — it is also our revisit trigger.
-Postgres genuinely wins when: sustained multi-writer contention on the same
-rows, true horizontal writes across regions, or heavy analytics the app
-itself must run. Until profiles prove one of those, "only Postgres scales"
-is premature: a single NVMe box runs SQLite/WAL at 100k+ reads/s and ~10k
-writes/s, readers never block the writer, and the first rungs of the ladder
-are batching (one transaction, not N commits), a generous `busy_timeout`,
-and a write queue — not a second database server.
+Postgres genuinely wins when:
+
+- sustained multi-writer contention on the same rows,
+- true horizontal writes across regions, or
+- heavy analytics the app itself must run.
+
+Until profiles prove one of those, "only Postgres scales" is premature:
+
+- a single NVMe box runs SQLite/WAL at 100k+ reads/s and ~10k writes/s,
+  readers never block the writer;
+- the first rungs of the ladder are batching (one transaction, not N
+  commits), a generous `busy_timeout`, and a write queue — not a second
+  database server.
 
 #### Scaling PocketBase's own SQLite — the honest ladder
 
@@ -270,15 +283,18 @@ above says otherwise.
 #### Routers: PocketBase rides the stdlib, and that ends the debate
 
 Since v0.23 PocketBase dropped Echo and routes on a thin wrapper over Go's
-`net/http.ServeMux` — Gin (89k stars, zero-alloc radix, custom context,
-12 deps) and Echo (33k stars, JSON/p99 balance, 8 deps) beat it on
-microbenchmarks, and Chi (22k stars, zero deps, stdlib-pure — the one
-Supabase's own auth service uses) is the minimalist pole. None of it
-matters here: routing is microseconds against milliseconds of SQLite, and
-PocketBase's maintainer says exactly that — ignore artificial benchmarks,
-apps bottleneck on DB operations. There is no router upgrade that moves our
-numbers; the day routing shows up in a profile, the database has already
-been the problem for months.
+`net/http.ServeMux`. The famous alternatives beat it on microbenchmarks:
+
+- **Gin** (89k stars) — zero-alloc radix, custom context, 12 deps.
+- **Echo** (33k stars) — JSON/p99 balance, 8 deps.
+- **Chi** (22k stars) — zero deps, stdlib-pure; the one Supabase's own auth
+  service uses.
+
+None of it matters here: routing is microseconds against milliseconds of
+SQLite, and PocketBase's maintainer says exactly that — ignore artificial
+benchmarks, apps bottleneck on DB operations. There is no router upgrade
+that moves our numbers; the day routing shows up in a profile, the database
+has already been the problem for months.
 
 ### Datastar (and not htmx, and not a JS framework)?
 
@@ -305,16 +321,20 @@ familiarity, not fitness — the advantage holds regardless of technical
 merit, which is exactly why it should not decide the stack.
 
 The costs are structural, converging across independent 2026 production
-reports: a misplaced `use client` pulls its whole subtree into the client
-bundle; server/client boundaries multiply cache, transport, and debugging
-surface (origin CPU per request, Flight payloads, hydration roots); and the
-apps that pay most — dashboards, admin panels, realtime collaboration, the
-exact shape of this template's features — gain least, because interactivity
-everywhere collapses the server-first advantage while keeping its overhead.
+reports:
+
+- a misplaced `use client` pulls its whole subtree into the client bundle;
+- server/client boundaries multiply cache, transport, and debugging surface
+  (origin CPU per request, Flight payloads, hydration roots);
+- the apps that pay most — dashboards, admin panels, realtime
+  collaboration, the exact shape of this template's features — gain least,
+  because interactivity everywhere collapses the server-first advantage
+  while keeping its overhead.
 Datastar is 11.29 KiB full (~5 KiB core): signals, computed, effects, and
 SSE `patchElements`/`patchSignals` — everything realtime needs, no npm, no
-build step, no second source of truth to drift. And where React relies on
-discipline, this repo relies on a check:
+build step, no second source of truth to drift.
+
+And where React relies on discipline, this repo relies on a check:
 [datastar-lint](https://github.com/calionauta/datastar-lint) fails the
 build on signal/attribute/expression mistakes in seconds — the same
 cheap-failure bet as the rest of the stack.

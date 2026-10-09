@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.42.4] - 2026-10-09
+
+### Changed
+
+- **Navbar and titles name the differentiator.** Whiteboard → Collab
+  whiteboard, Notes → Collab notes (topbar, page titles); installer strip
+  rules follow. Routes (`/whiteboard`, `/notes`) unchanged.
+- **Readability pass on tradeoff texts.** One idea per paragraph, lists
+  over comma chains; principle recorded in CONTRIBUTING.
+
 ## [0.42.3] - 2026-10-09
 
 ### Added

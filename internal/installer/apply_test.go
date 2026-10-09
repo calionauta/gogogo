@@ -262,7 +262,7 @@ func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
 	}
 	give := "\t\t\t\t<a href=\"/todo\">Todo</a>\n" +
 		"\t\t\t\t<a href=\"/whiteboard\" class={ x }>\n" +
-		"\t\t\t\t}) }>Whiteboard</a>\n" +
+		"\t\t\t\t}) }>Collab whiteboard</a>\n" +
 		"\t\t\t\t<a href=\"/config\" class={ y }>\n" +
 		"\t\t\t\t}) }>Config</a>\n"
 	p := filepath.Join(authDir, "views.templ")
@@ -274,7 +274,7 @@ func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _ := os.ReadFile(p)
-	for _, dead := range []string{"/whiteboard", "/config", "Whiteboard</a>", "Config</a>"} {
+	for _, dead := range []string{"/whiteboard", "/config", "Collab whiteboard</a>", "Config</a>"} {
 		if strings.Contains(string(out), dead) {
 			t.Errorf("dead navbar reference %q survived trim:\n%s", dead, out)
 		}

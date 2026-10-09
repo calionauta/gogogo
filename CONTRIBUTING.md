@@ -17,7 +17,10 @@ can defend it in review.
    expected-vs-actual, environment, and minimal reproduction steps is worth more
    than most PRs. See [Issues](#issues) below.
 3. **Fix docs and small papercuts.** Unclear explanations, broken examples,
-   misleading error messages.
+   misleading error messages. Docs follow one readability rule: a paragraph
+   holds a single idea in at most three lines; three or more items in a
+   sentence become a list, each with a bold lead-in. If a paragraph needs a
+   second job (claim plus evidence plus exception), split it.
 4. **Small, focused code PRs** linked to a discussed issue. One concern per PR.
 
 Please discuss a feature in an issue *before* opening a PR. Unsolicited feature
