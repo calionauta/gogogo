@@ -1,4 +1,4 @@
-# Go for almost everything, zig or rust for the exception
+# Go for almost everything, zig for the exception
 
 > A thesis, not a rule. Written Oct 2026, while the timeline argued about
 > which language pairs best with LLMs. The enforceable rules live in
