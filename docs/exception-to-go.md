@@ -144,7 +144,9 @@ all of them verifiable here today:
 If a mature C library already solves the problem, wrap it (see [Native is not
 synonymous with Zig](#native-is-not-synonymous-with-zig)) instead of rewriting it.
 If a different language is genuinely better for one specific kernel, the proposal
-must make that case in required-justification item 5. What this policy forbids is
+must make that case in required-justification item 5 — starting from the
+evidence in [Native language tradeoffs](native-language-tradeoffs.md) and
+rebutting the row for the proposed language point by point. What this policy forbids is
 an agent **silently** choosing a language — or silently writing native code at all
 — with neither the baseline nor the argument.
 
@@ -245,7 +247,9 @@ rejected:
    adjectives
 5. **why Zig is appropriate** — and why Zig stdlib is sufficient, or (if a
    dependency is proposed) why it is needed per the
-   [dependency policy](#zig-dependency-policy-stdlib-first)
+   [dependency policy](#zig-dependency-policy-stdlib-first). If the answer
+   is a different language instead of Zig, rebut its row in
+   [Native language tradeoffs](native-language-tradeoffs.md) point by point
 6. **boundary design** — the C-ABI function set, data layout, who
    allocates/frees (see below)
 7. **portability** —Tiered targets (`GOOS`/`GOARCH`), cross-compile story,
@@ -550,6 +554,7 @@ Vague instructions like "use Zig when appropriate" are banned. Follow the
 ## Related
 
 - [Motivation](motivation.md) — the thesis behind Go-first: cheap failure, readable code, named exception.
+- [Native language tradeoffs](native-language-tradeoffs.md) — evidence-backed comparison of Zig, Rust, Nim, Odin, and Mojo as exception languages.
 - [Architecture](architecture.md) — unified build, directory layout, wiring.
 - [Scope taxonomy](scope-taxonomy.md) — why `native` is a boundary, not a layer.
 - [Stack in layers](stack-layers.md) — what Go and the dependencies already cover.

@@ -65,6 +65,8 @@ const MANIFEST = [
     desc: "Every environment variable and runtime constant." },
   { group: "Core", slug: "exception-to-go", file: "exception-to-go.md",
     desc: "Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules." },
+  { group: "Core", slug: "native-language-tradeoffs", file: "native-language-tradeoffs.md",
+    desc: "Evidence-backed tradeoffs of Zig, Rust, Nim, Odin, and Mojo as native exception languages, and what a non-Zig proposal must rebut." },
   { group: "Frontend", slug: "todo-example", file: "todo-example.md",
     desc: "The Todo reference implementation and the contract to imitate." },
   { group: "Frontend", slug: "ui-skins", file: "ui-skins.md",
