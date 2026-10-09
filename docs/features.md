@@ -10,8 +10,8 @@ second column names the **technology** that powers it.
 | **Background jobs + retry** | `goqite` + `retry-go` | — | Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`) |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase` |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
-| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots, server-stamped cursor identity |
-| **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets, live index via PB realtime, snapshots in the `notes` collection |
+| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL) |
+| **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged), live index via PB realtime, snapshots in the `notes` collection |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
 | **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: heartbeat roster + exactly-one presenter lock, supervised with restart budget. Demo at `/room/` with a crash hook |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
@@ -83,6 +83,15 @@ the navbar loads the runtime too (board, notes doc, room, config,
 landing) — a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.
+
+Session visibility is shared the same way: the notes and whiteboard streams
+open with a `collab.SessionEvent` frame, and pages without a raw stream
+(todo, room) poll `/api/session`, so every tab raises the same
+`components.SessionBanner` the moment a cookie expires — peer names never
+silently degrade to client hashes with nothing on screen explaining why, and
+the banner never auto-redirects (unsent work would be stranded). It is
+opt-in per page via the render-time `authed` flag, so a public page never
+nags about a session it never had.
 
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"

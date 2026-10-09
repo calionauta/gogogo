@@ -125,6 +125,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, buildLabel st
 			@auth.Navbar(userEmail, "todo", buildLabel, buildCommit)
 @skins.SkinSelector(skinName)
 			@components.OfflineBanner(offlineSync)
+			@components.SessionBanner(userEmail != "")
 			@TodoList(signals)
 			<div id="toast-container"></div>
 			@RealtimeStream("/api/todos/stream")

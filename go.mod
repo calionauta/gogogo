@@ -1,6 +1,6 @@
 module github.com/calionauta/gogogo
 
-go 1.27.1
+go 1.27.2
 
 tool github.com/a-h/templ/cmd/templ
 

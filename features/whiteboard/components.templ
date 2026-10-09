@@ -129,6 +129,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 		<body>
 			@auth.Navbar(email, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
+			@components.SessionBanner(email != "")
 			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ docID }>
 				<div class="toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto">
 					<button class="btn btn-sm" data-tool="rect">Rectangle</button>

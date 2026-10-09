@@ -30,6 +30,19 @@ func RegisterAuth(se *core.ServeEvent) {
 	se.Router.GET("/login", handleLoginGetWithRedirect)
 	se.Router.POST("/login", HandlePasswordLogin)
 	se.Router.POST("/logout", HandleLogout)
+	se.Router.GET("/api/session", handleSessionProbe)
+}
+
+// handleSessionProbe answers the shared session banner's poll: whether the
+// request still carries a valid app cookie. LoadAppAuth is the /api-aware
+// loader (the global middleware skips /api/*), so this reports the true
+// state for a tab whose cookie expired while it stayed open. One endpoint
+// for every feature — the client side lives in /static/session.js.
+func handleSessionProbe(e *core.RequestEvent) error {
+	if err := LoadAppAuth(e); err != nil {
+		return err
+	}
+	return e.JSON(http.StatusOK, map[string]bool{"authed": e.Auth != nil})
 }
 
 // HandleLoginGetForTest is the exported alias used by features that

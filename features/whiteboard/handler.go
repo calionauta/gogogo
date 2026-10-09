@@ -224,6 +224,13 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 
 	return h.hub.ServeStream(c.Response, c.Request, clientID, docID,
 		func(send func([]byte) error) {
+			// Session frame first: the shared banner shows when this stream
+			// is no longer authed, so peer cursors stop silently falling
+			// back to raw client ids. Same collab.SessionEvent as notes —
+			// one wire contract for every collab stream.
+			if session := collab.SessionEvent(docID, c.Auth != nil); session != nil {
+				_ = send(session)
+			}
 			// Register the client BEFORE announcing presence so that the
 			// join broadcast and the per-peer snapshot below are both computed
 			// against a hub that already knows about this client. (Previously the

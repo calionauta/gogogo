@@ -1,6 +1,6 @@
 module github.com/calionauta/gogogo/cmd/gogogo-mcp
 
-go 1.27.1
+go 1.27.2
 
 replace github.com/calionauta/gogogo => ../..
 

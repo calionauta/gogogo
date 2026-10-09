@@ -262,6 +262,8 @@ ci-local: check-generated check-sizes datastar-lint css-check check-scope check-
 	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/smoke.mjs
 	@echo "→ whiteboard client regression tests (Playwright, canvas pixels)"
 	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/whiteboard-client.test.mjs
+	@echo "→ notes caret client regression tests (Playwright, two users)"
+	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/notes-caret.test.mjs
 	@rm -f /tmp/gogogo-ci-local-web
 	@echo "✅ ci-local passed"
 

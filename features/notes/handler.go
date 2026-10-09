@@ -274,10 +274,9 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 			// Session state FIRST, before any peer/text events: tabs open
 			// for days outlive their cookie, and without this an expired
 			// session looks identical to a healthy one until names degrade
-			// to hashes and nobody can say why.
-			if session, err := json.Marshal(map[string]any{
-				"type": "session", "doc": docID, authedKey: c.Auth != nil,
-			}); err == nil {
+			// to hashes and nobody can say why. The frame itself is the
+			// shared collab.SessionEvent so notes and whiteboard agree.
+			if session := collab.SessionEvent(docID, c.Auth != nil); session != nil {
 				_ = send(session)
 			}
 			// Presence: join to the others, authoritative count to
