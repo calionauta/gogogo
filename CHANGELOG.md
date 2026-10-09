@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [0.42.6] - 2026-10-09
+
+### Changed
+
+- **Landing hero hierarchy.** Emotional H1 restored ("Your stack is
+  ready. Come build."); positioning as H2 ("Not a framework. One
+  binary."); nav "Thesis" renamed to "Why Go" (position kept).
+
 ## [0.42.5] - 2026-10-09
 
 ### Changed
