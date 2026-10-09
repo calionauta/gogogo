@@ -1,5 +1,25 @@
 ## [Unreleased]
 
+## [0.42.9] - 2026-10-09
+
+### Fixed
+
+- **A peer's cursor now rides the live tip while drawing.** The cursor and
+  the in-progress shape travelled on two throttles at different rates
+  (100 ms vs 80 ms) with no ordering between them, so the dot lagged the
+  dragged corner by up to hundreds of milliseconds — sitting mid-edge while
+  the tip moved on. Every pointermove now POSTs one fused ephemeral frame
+  (normalized cursor plus the whole shape); peers render dot and corner from
+  the same instant, so they cannot skew apart.
+- **A retried frame no longer drags the dot back in time.** The presence
+  retry re-sent the original body up to 600 ms later and the receiver applied
+  it unconditionally, so a late retry overwrote fresher positions. Frames
+  carry the sender-captured `cts` (new `PresenceMsg` field, relayed
+  untouched — the server still re-stamps only `ts`) and a per-user guard
+  drops anything older than the last applied frame, for cursor and draft
+  alike. Covered by two red-proofed two-context Playwright tests (dot-on-tip
+  while held; aborted-frame retry exercised and dropped).
+
 ## [0.42.8] - 2026-10-09
 
 ### Fixed

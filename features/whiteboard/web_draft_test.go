@@ -29,6 +29,24 @@ func draftShape(events []string, user string) *collab.Shape {
 	return nil
 }
 
+// draftMsg returns the first "draft" presence event stamped with user.
+// The caller asserts on wire-passthrough fields (cts, cursor) so the
+// expected literals live in the test rather than the helper.
+func draftMsg(events []string, user string) *collab.PresenceMsg {
+	for _, ev := range events {
+		raw := strings.TrimPrefix(strings.TrimSpace(ev), "data: ")
+		var msg collab.PresenceMsg
+		if err := json.Unmarshal([]byte(raw), &msg); err != nil {
+			continue
+		}
+		if msg.Type == "draft" && msg.User == user && msg.Shape != nil {
+			m := msg
+			return &m
+		}
+	}
+	return nil
+}
+
 // TestWhiteboard_DraftPresenceRelay pins the LIVE-DRAWING channel: an
 // in-progress ("draft") shape posted on /presence reaches peers with the
 // shape intact and the identity re-stamped, and is NOT echoed to the
@@ -72,7 +90,11 @@ func TestWhiteboard_DraftPresenceRelay(t *testing.T) {
 	streamB.settleJoin()
 
 	shape := collab.Shape{ID: "s-live-1", Type: "rect", X: 10, Y: 20, W: 30, H: 40, Color: "#1f2937"}
-	draft := collab.PresenceMsg{Type: "draft", Doc: docID, User: "spoofed", Shape: &shape, TS: time.Now().UnixMilli()}
+	cts := time.Now().UnixMilli()
+	draft := collab.PresenceMsg{
+		Type: "draft", Doc: docID, User: "spoofed",
+		X: 0.22, Y: 0.18, CTS: cts, Shape: &shape, TS: time.Now().UnixMilli(),
+	}
 	body, mErr := json.Marshal(draft)
 	if mErr != nil {
 		t.Fatalf("marshal draft: %v", mErr)
@@ -95,6 +117,13 @@ func TestWhiteboard_DraftPresenceRelay(t *testing.T) {
 	}
 	if draftShape(bEvents, "spoofed") != nil {
 		t.Fatalf("PEER (clientB) received the spoofed client-sent user on a draft.\nB events:\n%s", debugEvents(bEvents))
+	}
+	// The fused frame's cursor and capture timestamp ride the same relay
+	// untouched: the peer renders the dot from these, so dropping either
+	// reopens the skew (or the retry time-travel) this channel closed.
+	if got := draftMsg(bEvents, wbEmail); got == nil || got.CTS != cts || got.X != 0.22 || got.Y != 0.18 {
+		t.Fatalf("PEER (clientB) did not receive cursor+cts intact on the draft frame "+
+			"(got %+v).\nB events:\n%s", got, debugEvents(bEvents))
 	}
 	if draftShape(aEvents, wbEmail) != nil {
 		t.Fatalf("ORIGINATOR (clientA) received its own draft echo "+

@@ -9,7 +9,13 @@
 //   - Drawing POSTs a shape op to `/api/whiteboard/<doc>/update`; the
 //     server merges it into the Loro CRDT, persists, and broadcasts the
 //     resolved shapes back to every OTHER client (exclude-origin).
-//   - Mouse moves POST cursor presence to `/api/whiteboard/<doc>/presence`.
+//   - Every pointermove POSTs ONE fused ephemeral frame to
+//     `/api/whiteboard/<doc>/presence` (volatile: never persisted, never
+//     merged, never sent to NATS): normalized cursor (x,y 0..1) plus, while
+//     the pointer is down, the whole in-progress shape. Peers render the dot
+//     and the live corner from the same instant, so they cannot skew apart.
+//     Frames carry the sender-captured `cts`; a stale (retried) frame never
+//     moves the dot back.
 //
 // No JS CRDT dependency: the server owns the Loro doc and ships plain
 // JSON shapes. rough.js (loaded from CDN in the page) gives the
@@ -309,26 +315,31 @@
     });
   }
 
-  // POST a cursor presence event. The whiteboard streams over the
+  // POST one fused ephemeral frame. The whiteboard streams over the
   // Cloudflare tunnel, which can occasionally reset the underlying
   // HTTP/3 (QUIC) connection (ERR_QUIC_PROTOCOL_ERROR) — a transient
   // transport blip, not an app error. We retry a couple of times so a
-  // single dropped POST does not permanently kill the remote cursor.
-  // fail is intentionally quiet: a missed cursor frame is cosmetic, and
-  // the next mouse move re-sends it.
-  function postPresence(x, y) {
+  // single dropped POST does not lose the trailing (final) position.
+  // A retry re-sends the ORIGINAL body with its ORIGINAL cts, so on the
+  // receiving end it always loses to anything captured later — a late
+  // retry can never drag the dot (or the draft) back in time.
+  function postFrame(frame) {
+    // Offline: skip. The committed op is the durable path and replays from the
+    // outbox; a live frame has no value once the connection is gone.
+    if (!navigator.onLine) return;
     const url =
       "/api/whiteboard/" +
       encodeURIComponent(docID) +
       "/presence?clientID=" +
       encodeURIComponent(clientID);
     const body = JSON.stringify({
-      type: "cursor",
+      type: frame.type || (frame.shape ? "draft" : "cursor"),
       doc: docID,
       user: user,
-      x: x,
-      y: y,
-      ts: Date.now(),
+      x: frame.x,
+      y: frame.y,
+      cts: frame.cts,
+      shape: frame.shape,
     });
     let attempt = 0;
     function send() {
@@ -362,64 +373,52 @@
     }
   });
 
-  // Cursor presence, throttled to ~10Hz with a trailing send (shared
+  // ONE throttle for the fused frame: ~12Hz with a trailing send (shared
   // /static/throttle.js — same contract as notes carets: delayed, never
   // dropped). Raw pointermove fires ~60/s; every event used to POST.
+  // A single rate for cursor and draft (not two rates picked separately)
+  // is what keeps the dot and the live corner on the same instant.
   var throttleFn = function (fn) { return fn; };
   if (window.GogogoThrottle && window.GogogoThrottle.throttleTrailing) {
     throttleFn = window.GogogoThrottle.throttleTrailing;
   }
-  var throttledPresence = throttleFn(function (x, y) { postPresence(x, y); }, 100);
+  var throttledFrame = throttleFn(function (frame) { postFrame(frame); }, 80);
 
-  // LIVE DRAWING (draft channel). While the pointer is down the shape is
-  // ALSO posted on the volatile presence transport (the /presence endpoint,
-  // which never persists and never touches the CRDT — a half-drawn shape is
-  // not committed state). Peers render it immediately, so a stroke grows on
-  // every screen instead of popping in whole on release. Design rules that
-  // make this reliable without a sync protocol:
-  //
-  //   - Each frame carries the WHOLE shape, not a delta. A dropped frame is
-  //     therefore healed by the very next one, so the channel needs no
-  //     sequence numbers, acks, or gap recovery.
-  //   - It is throttled (leading + trailing via the shared /static/throttle.js)
-  //     so a ~60Hz pointer does not become a 60Hz POST; the trailing call
-  //     guarantees the last position is always sent.
-  //   - It is SUPERSEDED, never authoritative: the real `add` op on pointer-up
-  //     is what commits the shape, and peers drop the draft the instant the
-  //     committed shape with the same id arrives (plus a TTL backstop, and an
-  //     explicit end for degenerate draws that commit nothing).
+  // LIVE DRAWING rides the fused frame above: while the pointer is down the
+  // frame ALSO carries the whole in-progress shape (never a delta: a dropped
+  // frame is healed by the next one, so the channel needs no sequence numbers
+  // or acks). It stays SUPERSEDED, never authoritative: the real `add` op on
+  // pointer-up commits the shape, and peers drop the draft the instant the
+  // committed shape with the same id arrives (plus a 5 s TTL backstop, and an
+  // explicit end for degenerate draws that commit nothing).
   //
   // Payload note: a pen stroke's `points` array grows with the stroke and is
   // re-sent whole each frame. That is the price of loss-tolerance; it is fine
   // at this throttle and shape scale. Delta-encoding would need sequencing.
-  var throttledDraft = throttleFn(function (shape) { postDraft("draft", shape); }, 80);
-  function postDraft(type, shape) {
-    // Offline: skip. The committed op is the durable path and replays from the
-    // outbox; a live draft has no value once the connection is gone.
-    if (!navigator.onLine) return;
-    fetch(
-      "/api/whiteboard/" + encodeURIComponent(docID) + "/presence?clientID=" + encodeURIComponent(clientID),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: type, doc: docID, user: user, shape: shape }),
-      }
-    ).catch(function () { /* cosmetic: the next frame re-sends the whole shape */ });
-  }
 
   canvas.addEventListener("pointermove", function (e) {
     const p = localPos(e);
     const r = canvas.getBoundingClientRect();
-    throttledPresence(parseFloat((p.x / r.width).toFixed(4)), parseFloat((p.y / r.height).toFixed(4)));
-    if (!drawing) return;
-    if (tool === "pen") {
-      drawing.points.push(p.x, p.y);
-    } else {
-      drawing.w = p.x - drawing.x;
-      drawing.h = p.y - drawing.y;
+    // The frame couples cursor and shape from the SAME pointer event: the dot
+    // a peer renders IS the tip of the shape version it renders. cts is
+    // captured here (not at send time) so a retried frame keeps its original
+    // age and loses to anything captured later.
+    const frame = {
+      x: parseFloat((p.x / r.width).toFixed(4)),
+      y: parseFloat((p.y / r.height).toFixed(4)),
+      cts: Date.now(),
+    };
+    if (drawing) {
+      if (tool === "pen") {
+        drawing.points.push(p.x, p.y);
+      } else {
+        drawing.w = p.x - drawing.x;
+        drawing.h = p.y - drawing.y;
+      }
+      frame.shape = drawing;
+      render();
     }
-    throttledDraft(drawing);
-    render();
+    throttledFrame(frame);
   });
 
   canvas.addEventListener("pointerup", function (e) {
@@ -435,7 +434,7 @@
       // Nothing is committed for a degenerate draw, so the draft has nothing
       // to be superseded by — end it explicitly instead of leaving a ghost
       // until the TTL.
-      postDraft("draft-end");
+      postFrame({ type: "draft-end", cts: Date.now() });
       render();
       return;
     }
@@ -545,6 +544,48 @@
   let cursors = {}; // displayName -> {x, y, ts}
   const CURSOR_TTL = 8000; // no server-side cursor expiry: prune client-side
 
+  // Per-user sender-captured timestamp of the last APPLIED frame. The server
+  // re-stamps `ts` on receipt (destroying capture order), so staleness is
+  // adjudicated with `cts`, compared only within one sender's frames — where
+  // the sender clock is monotonic and cross-machine skew cannot intrude.
+  // A retried POST keeps its original cts and always loses to anything
+  // captured later. Missing cts (old sender) applies: fail-open, never stuck.
+  var lastCTS = {};
+  function freshEnough(u, cts) {
+    if (typeof cts !== "number") return true;
+    if (cts < (lastCTS[u] || 0)) return false;
+    lastCTS[u] = cts;
+    return true;
+  }
+  function applyCursor(u, x, y) {
+    cursors[u] = { x: x, y: y, ts: Date.now() };
+    renderCursors();
+  }
+  // Applies one draft frame: stores the shape (unless already committed or
+  // older-captured than the last applied frame) and moves the sender's dot
+  // to the frame's cursor — the live tip coupled at capture.
+  function applyDraft(msg) {
+    if (!msg.shape || !msg.shape.id) {
+      delete drafts[msg.user];
+      return;
+    }
+    // Ignore a draft for a shape we already hold as committed (an
+    // out-of-order frame that arrived after the real op).
+    for (let i = 0; i < shapes.length; i++) {
+      if (shapes[i].id === msg.shape.id) return;
+    }
+    // One logical stream per sender: cursor and draft share the cts guard,
+    // so an older-captured frame moves neither the dot nor the shape — even
+    // when two POSTs race each other through the server.
+    if (!freshEnough(msg.user, msg.cts)) return;
+    drafts[msg.user] = { shape: msg.shape, ts: Date.now() };
+    // The frame's cursor IS this shape version's live tip (coupled at
+    // capture), so the dot moves with the corner: same instant, zero skew.
+    if (typeof msg.x === "number" && typeof msg.y === "number") {
+      applyCursor(msg.user, msg.x, msg.y);
+    }
+  }
+
   function updatePeerCount() {
     const el = document.getElementById("peer-count");
     if (el) el.textContent = String(Object.keys(roster).length + 1); // +self
@@ -583,23 +624,15 @@
     }
     if (msg.type === "cursor" && typeof msg.x === "number" && typeof msg.y === "number") {
       // Keyed by the display name the SERVER stamped, so a client cannot spoof
-      // and two demo accounts read apart. A move refreshes the TTL.
-      cursors[msg.user] = { x: msg.x, y: msg.y, ts: Date.now() };
-      renderCursors();
+      // and two demo accounts read apart. A move refreshes the TTL. A frame
+      // older than the last applied one (a retried POST landing late) moves
+      // nothing — last-write-wins would drag the dot back in time.
+      if (!freshEnough(msg.user, msg.cts)) return;
+      applyCursor(msg.user, msg.x, msg.y);
       return;
     }
     if (msg.type === "draft") {
-      if (msg.shape && msg.shape.id) {
-        // Ignore a draft for a shape we already hold as committed (an
-        // out-of-order frame that arrived after the real op).
-        let committed = false;
-        for (let i = 0; i < shapes.length; i++) {
-          if (shapes[i].id === msg.shape.id) { committed = true; break; }
-        }
-        if (!committed) drafts[msg.user] = { shape: msg.shape, ts: Date.now() };
-      } else {
-        delete drafts[msg.user];
-      }
+      applyDraft(msg);
       render();
       return;
     }

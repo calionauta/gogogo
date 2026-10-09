@@ -65,7 +65,7 @@ attributed per feature.
 |---|---|---|---|
 | Todo, Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
 | Shared notes | `notes.js` | 28 KB | 10 KB |
-| Whiteboard | `whiteboard.js` + `rough.min.js` | 54 KB | 18 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 19 KB |
 | Shared core (every page) | `datastar.js` + `theme.js` | 40 KB | 16 KB |
 
 Whiteboard and notes pages additionally load the shared

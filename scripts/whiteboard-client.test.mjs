@@ -382,6 +382,106 @@ async function main() {
   if (afterInk > 0) ok(`committed shape still painted after release (ink ${afterInk})`);
   else bad(`shape vanished after release (ink ${afterInk})`);
 
+  // ---------------------------------------------------------------------------
+  // 5. While a shape is HELD mid-draw, the peer's cursor dot must sit on the
+  //    live tip. The fused frame carries cursor and shape from the same
+  //    pointer event, so they cannot skew apart the way two throttles at
+  //    different rates did (dot trailing mid-edge while the corner moved on).
+  //
+  // RED-PROOFED: with the cursor dropped from the draft frame the dot freezes
+  // at its pre-draw position while the shape grows, so the assertion fails.
+  // ---------------------------------------------------------------------------
+  const doc5 = "wb-tip-" + process.pid;
+  const tipA = await makeCtx("T-A");
+  const tipB = await makeCtx("T-B");
+  await tipA.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-a`, { waitUntil: "networkidle" });
+  await tipB.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-b`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  const tipBox = await tipB.locator("#wb-canvas").boundingBox();
+  const TIP = { x: 220, y: 180 }; // canvas-relative CSS px: the held corner
+  await tipB.mouse.move(tipBox.x + 60, tipBox.y + 60);
+  await sleep(300);
+  await tipB.mouse.down();
+  await tipB.mouse.move(tipBox.x + TIP.x, tipBox.y + TIP.y, { steps: 10 });
+  await sleep(800); // still HOLDING — trailing fused frames flushed
+
+  const dot5 = await readCursor(tipA);
+  const wrap5 = await tipA.evaluate(() => {
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return { w: r.width, h: r.height };
+  });
+  const expX = TIP.x / tipBox.width;
+  const expY = TIP.y / tipBox.height;
+  const gotX = dot5 ? parseFloat(dot5.left) / wrap5.w : -1;
+  const gotY = dot5 ? parseFloat(dot5.top) / wrap5.h : -1;
+  if (dot5 && Math.abs(gotX - expX) < 0.02 && Math.abs(gotY - expY) < 0.02) {
+    ok(`peer's dot rides the live tip while held (dot ${(gotX * 100).toFixed(1)}%,${(gotY * 100).toFixed(1)}% vs tip ${(expX * 100).toFixed(1)}%,${(expY * 100).toFixed(1)}%)`);
+  } else {
+    bad(`peer's dot is off the live tip: dot=${JSON.stringify(dot5)} tip=${expX.toFixed(3)},${expY.toFixed(3)}`);
+  }
+  await tipB.mouse.up();
+
+  // ---------------------------------------------------------------------------
+  // 6. A retried (stale) frame must not drag the dot back in time.
+  //
+  // Abort the first fused frame mid-drag: the client retries it ~300ms later
+  // with its ORIGINAL capture time, while newer frames keep flowing. The
+  // receiver's cts guard must drop the late retry — the dot stays at the live
+  // tip instead of jumping back to the aborted position.
+  //
+  // RED-PROOFED: with the cts guard removed the stale retry applies last and
+  // the dot ends at the aborted position, so the assertion fails.
+  // ---------------------------------------------------------------------------
+  const doc6 = "wb-stale-" + process.pid;
+  const stA = await makeCtx("S-A");
+  const stB = await makeCtx("S-B");
+  await stA.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-a`, { waitUntil: "networkidle" });
+  await stB.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-b`, { waitUntil: "networkidle" });
+  await sleep(900);
+
+  let aborted = 0;
+  await stB.route("**/api/whiteboard/**/presence*", async (route) => {
+    const body = route.request().postData() || "";
+    if (aborted === 0 && body.includes('"draft"')) {
+      aborted++;
+      await route.abort(); // client retries ~300ms later with original cts
+      return;
+    }
+    await route.continue();
+  });
+
+  const stBox = await stB.locator("#wb-canvas").boundingBox();
+  const T2 = { x: 240, y: 200 }; // final held corner (canvas-relative CSS px)
+  await stB.mouse.move(stBox.x + 60, stBox.y + 60);
+  await stB.mouse.down();
+  await stB.mouse.move(stBox.x + 120, stBox.y + 100, { steps: 5 });
+  await sleep(150);
+  await stB.mouse.move(stBox.x + T2.x, stBox.y + T2.y, { steps: 5 });
+  await sleep(1200); // HOLDING: fresh T2 frames plus the stale retry landed
+
+  if (aborted === 0) {
+    bad("no draft frame was aborted — the stale-retry path was never exercised");
+  } else {
+    ok("one draft frame aborted mid-drag (retry path exercised)");
+  }
+  const dot6 = await readCursor(stA);
+  const wrap6 = await stA.evaluate(() => {
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return { w: r.width, h: r.height };
+  });
+  const exp6X = T2.x / stBox.width;
+  const exp6Y = T2.y / stBox.height;
+  const got6X = dot6 ? parseFloat(dot6.left) / wrap6.w : -1;
+  const got6Y = dot6 ? parseFloat(dot6.top) / wrap6.h : -1;
+  if (dot6 && Math.abs(got6X - exp6X) < 0.02 && Math.abs(got6Y - exp6Y) < 0.02) {
+    ok(`stale retry did not move the dot back (dot ${(got6X * 100).toFixed(1)}%,${(got6Y * 100).toFixed(1)}% vs tip ${(exp6X * 100).toFixed(1)}%,${(exp6Y * 100).toFixed(1)}%)`);
+  } else {
+    bad(`stale retry dragged the dot back: dot=${JSON.stringify(dot6)} tip=${exp6X.toFixed(3)},${exp6Y.toFixed(3)}`);
+  }
+  await stB.mouse.up();
+  await stB.unroute("**/api/whiteboard/**/presence*");
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {
