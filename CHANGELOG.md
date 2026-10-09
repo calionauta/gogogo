@@ -1,5 +1,28 @@
 ## [Unreleased]
 
+## [0.41.1] - 2026-10-09
+
+### Added
+
+- **Native exception-language tradeoffs page** (`docs/native-language-tradeoffs.md`):
+  evidence-backed biggest-risk table for Zig, Rust, Nim, Odin, and Mojo,
+  with a rebuttal rule for justification item 5. Linked from
+  `exception-to-go` (wrong-answer paragraph, item 5, Related) and the site
+  manifest.
+- **Lifetime/leak gate for Zig kernels** (`docs/exception-to-go.md`):
+  alloc-adjacent defer/errdefer, `DebugAllocator`/`testing.allocator`
+  leak checks, forced error paths, ~10k-call loop test; mirrored as a
+  checklist in the coding-standards skill.
+- **Stack tradeoff depth** (`docs/stack-layers.md`): Go vs TypeScript/Python
+  (flywheel, two-interpreter GIL, npm install-hook supply chain, stdlib
+  breadth, race detector, cold start); PocketBase vs Postgres graduation
+  rule, SQLite/WAL scale numbers, PB scaling ladder, stdlib-router note
+  (Gin/Echo/Chi); React/Next flywheel costs vs Datastar + datastar-lint.
+- **"Not a framework" stated plainly**: landing hero, README intro, and a
+  `docs/overview.md` section — template hands you the code and leaves.
+- **Motivation thesis sharpened**: title names Zig as the exception; new
+  paragraph tying each Go motive to its criterion.
+
 ## [0.41.0] - 2026-10-09
 
 ### Added
