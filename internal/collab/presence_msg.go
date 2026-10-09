@@ -54,13 +54,16 @@ type PresenceMsg struct {
 // presenceAlias mirrors PresenceMsg but decodes X/Y as json.Number so a
 // numeric string like "0.5" and a bare number 0.5 both parse.
 type presenceAlias struct {
-	Type  string      `json:"type"`
-	Doc   string      `json:"doc"`
-	User  string      `json:"user"`
-	X     json.Number `json:"x"`
-	Y     json.Number `json:"y"`
-	TS    int64       `json:"ts"`
-	CTS   int64       `json:"cts,omitempty"`
+	Type string      `json:"type"`
+	Doc  string      `json:"doc"`
+	User string      `json:"user"`
+	X    json.Number `json:"x"`
+	Y    json.Number `json:"y"`
+	TS   int64       `json:"ts"`
+	// CTS mirrors X/Y tolerance below: a fork that stringifies numbers
+	// (exactly how the cursor 400 bug happened) must not 400 on cts.
+	// Decoded tolerantly via the alias; always marshalled as a number.
+	CTS   json.Number `json:"cts,omitempty"`
 	Peers []string    `json:"peers,omitempty"`
 	Shape *Shape      `json:"shape,omitempty"`
 }
@@ -75,7 +78,14 @@ func (m *PresenceMsg) UnmarshalJSON(b []byte) error {
 	m.Doc = a.Doc
 	m.User = a.User
 	m.TS = a.TS
-	m.CTS = a.CTS
+	m.CTS = 0
+	if a.CTS != "" {
+		c, err := a.CTS.Int64()
+		if err != nil {
+			return fmt.Errorf("presence cts: %w", err)
+		}
+		m.CTS = c
+	}
 	m.Peers = a.Peers
 	m.Shape = a.Shape
 	if a.X != "" {

@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [0.42.10] - 2026-10-09
+
+### Fixed
+
+- **A stale draft-end no longer wipes a newer live draft.** `draft-end`
+  went through unguarded, so a retried end landing after fresh drafts
+  started deleted the live shape (nothing repainted it while the pointer
+  held still). It shares the per-user `cts` guard now. Red-proofed with a
+  stale-end injection test.
+- **`cts` tolerates numeric strings.** The new capture-timestamp field
+  follows the same rule as cursor coordinates (stringified numbers never
+  400) — a fork that stringifies numbers the way the old cursor bug did
+  stays accepted.
+- **Per-user `cts` entries expire with the cursor.** The guard's timestamp
+  map is pruned on the same TTL sweep that drops idle dots, so it cannot
+  grow without bound on long-lived boards.
+
 ## [0.42.9] - 2026-10-09
 
 ### Fixed

@@ -41,10 +41,14 @@ presence broadcast.
 
 **Ephemeral draft channel (a reusable pattern).** The whiteboard's live
 drawing is the reference for "show work in progress without committing it".
-While a shape is being drawn it is posted on the same volatile presence
-relay (`/presence`, `type:"draft"`) as the cursor — never persisted, never
-merged into the CRDT, never published to NATS — and peers repaint it
-immediately. The real `add` op on pointer-up remains the only commit, and a
+While a shape is being drawn, every pointermove posts one fused frame on the
+same volatile presence relay (`/presence`) — normalized cursor plus the whole
+in-progress shape (`type:"draft"`) — never persisted, never
+merged into the CRDT, never published to NATS — and peers repaint dot and
+corner from the same instant, so they cannot skew apart. Frames carry the
+sender-captured `cts` and receivers drop anything older than the last applied
+frame per user, so a retried POST can never drag state back in time.
+The real `add` op on pointer-up remains the only commit, and a
 peer drops the draft the instant the committed shape with that id arrives
 (plus a TTL backstop). Each frame carries the **whole** shape, not a delta,
 so a dropped frame is healed by the next one and the channel needs no
