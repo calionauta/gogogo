@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/todo"
+	ic "github.com/calionauta/gogogo/internal/components"
 )
 
 // marshalSignals serializes the initial signal set as a JSON string for
@@ -54,6 +55,7 @@ templ TodoList(signals todo.Signals) {
 							<span class="text-base-content/30 mx-1">·</span>
 							<span>{ signals.OfflineLabel }</span>
 						</p>
+						@ic.TechBadge([]string{"PocketBase realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
 					</div>
 				</div>
 				<span class="online-pill" data-show="$connectedClients >= 0">

@@ -1,0 +1,13 @@
+// SCOPE:core - shared stack-disclosure badge.
+package components
+
+import "strings"
+
+// TechBadge renders the stack a page demonstrates in one visual
+// language: a muted inline list under the page subtitle. Data comes
+// from the feature (it knows what it demonstrates); this component owns
+// the look, so every page teaches the architecture identically.
+// Display-only: no states, no interactivity, nothing to fail.
+templ TechBadge(items []string) {
+	<p class="text-xs text-base-content/40 mt-1">Demonstrates: { strings.Join(items, " · ") }</p>
+}

@@ -80,6 +80,7 @@ templ header(signals todo.Signals) {
 					<span class="text-base-content/30 mx-1">·</span>
 					<span>{ signals.OfflineLabel }</span>
 				</p>
+				@components.TechBadge([]string{"PocketBase realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
 			</div>
 		</div>
 		<span class="online-pill" data-show="$connectedClients >= 0">

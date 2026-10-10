@@ -28,6 +28,7 @@ templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit s
 					<h1 class="text-2xl font-bold">Shared notes</h1>
 					<a class="btn btn-sm btn-primary" href="/notes/new">New note</a>
 				</div>
+				@components.TechBadge([]string{"Loro Text", "SSE Hub", "NATS", "PocketBase realtime"})
 				@NotesListFragment(docIDs)
 			</main>
 			@components.PbRealtimeResync("notes-realtime-resync", "'/api/notes/fragment'", "notes")

@@ -36,6 +36,7 @@ templ GenuiIndex(email string, buildLabel string, buildCommit string) {
 					The model answers with interface, not just text: it picks
 					components from a fixed catalog and this page renders them.
 				</p>
+				@components.TechBadge([]string{"component catalog", "SSE morphs", "goqite jobs", "GoAI"})
 				<!-- Network-failure release: the spinner is server-owned (the
 				     worker result clears it), so a dead @post with all
 				     retries failed would lock Ask until reload. datastar-fetch

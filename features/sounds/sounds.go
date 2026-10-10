@@ -17,6 +17,25 @@
 //   - Sounds are additive only: every cue pairs with existing visual
 //     feedback (toasts, button states) and never replaces it.
 //
+// Sonic vocabulary (one mapping for every feature — do not invent
+// per-page cues; the glue below fires most of these with zero markup):
+//
+//   - Any press on any interactive element → "press" (delegated global
+//     listener, capture phase: covers Datastar-morphed DOM with no
+//     per-element wiring).
+//   - Toast appears → cue by toast type: success → "success",
+//     error → "error", warning → "loading", info → "page"
+//     (MutationObserver on #toast-container).
+//   - Navbar hover → "tick", navbar press → "toggle" (explicit
+//     data-cuelume-* attrs, the only per-element wiring in the app).
+//   - Destructive press (todo delete) → "droplet" (explicit override).
+//   - Sound re-enabled → "chime" (confirmation the system is live;
+//     muting plays nothing on purpose).
+//
+// A new feature gets full sound behavior by rendering the shared toast
+// container + navbar: no per-feature JS, no per-button attrs, unless it
+// needs an override from the table above.
+//
 // REMOVE (plugin): delete this package, drop @sounds.SoundAssets() from
 // the page layouts (features/todo/components/layout.templ, landing,
 // config, auth LoginPage, whiteboard) and @sounds.SoundToggle() from the

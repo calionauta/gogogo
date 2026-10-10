@@ -219,10 +219,24 @@ type genuiPayload struct {
 }
 
 // handleGenuiJob runs the model leg in the worker pool: ask, parse
-// against the catalog, fan the result to the originator. Errors return
-// (worker retries) AND surface immediately (tab gets an error result +
-// toast on the first attempt — no silent spinner).
+// against the catalog, fan the result to the originator.
+//
+// Delivery ALWAYS targets h.hub (this feature's hub), never the hub
+// argument the pool passes in: the pool hands every handler its own
+// shared hub, and sending there surfaced Ask answers as toasts on
+// unrelated tabs (lived bug: answers appeared on Todo while /genui
+// stayed empty). h.hub nil falls back to the argument.
+//
+// Errors return nil after delivering the error result: no pool-level
+// retry for Ask. llm.Chat already retries transient faults natively
+// (429/5xx, never 401), and a pool retry would re-run minutes of
+// free-model latency per attempt while broadcasting retry noise to a
+// foreign hub. One attempt, immediate user-visible result.
 func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job queue.Job) error {
+	target := h.hub
+	if target == nil {
+		target = hub
+	}
 	var p struct {
 		Prompt string `json:"prompt"`
 		UserID string `json:"userId"`
@@ -232,19 +246,21 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	}
 	raw, err := h.responder.Respond(ctx, p.Prompt)
 	if err != nil {
-		h.sendResult(hub, job.ClientID, nil, "Ask failed: model unavailable")
-		h.sendToast(hub, job.ClientID, "Ask failed: model unavailable", "error")
-		return fmt.Errorf("genui: respond: %w", err)
+		h.sendResult(target, job.ClientID, nil, "Ask failed: model unavailable")
+		h.sendToast(target, job.ClientID, "Ask failed: model unavailable", "error")
+		//nolint:nilerr // delivered as user-visible result; pool must not retry Ask (see handleGenuiJob doc)
+		return nil
 	}
 	//nolint:contextcheck // pure CPU constructors (no I/O to cancel); ctx enters at component Render instead
 	dirs, err := ParseDirectives(raw)
 	if err != nil {
-		h.sendResult(hub, job.ClientID, nil, "Ask failed: could not shape the answer")
-		h.sendToast(hub, job.ClientID, "Ask failed: could not shape the answer", "error")
-		return fmt.Errorf("genui: parse directives: %w", err)
+		h.sendResult(target, job.ClientID, nil, "Ask failed: could not shape the answer")
+		h.sendToast(target, job.ClientID, "Ask failed: could not shape the answer", "error")
+		//nolint:nilerr // same contract as above: delivered, not retried
+		return nil
 	}
-	h.sendResult(hub, job.ClientID, dirs, "")
-	h.sendToast(hub, job.ClientID, fmt.Sprintf("Rendered %d components", len(dirs)), "success")
+	h.sendResult(target, job.ClientID, dirs, "")
+	h.sendToast(target, job.ClientID, fmt.Sprintf("Rendered %d components", len(dirs)), "success")
 	return nil
 }
 
