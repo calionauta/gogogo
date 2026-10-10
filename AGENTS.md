@@ -52,6 +52,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 - Prefer Datastar attributes over vanilla JS; inline JS only adjacent to the markup.
 - NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs — or just `make lint-safe`, which sizes the run to the host's free RAM/cores and caps it in a cgroup), NO `golangci-lint cache clean` (the cache is what keeps a run cheap; a cold run re-type-checks the whole module and spikes memory — it has taken a shared host into swap), NO `go build -tags "<stale>"` (unified-build era has no tags). Project-specific footguns go in `rules/rules.go` (ruleguard, loaded by gocritic) — a rule there fails CI, so prose guidance that a linter can enforce belongs there, not in this file.
 - NO `go func()` loop without a shutdown path: long-lived loops select on `ctx.Done()` (or a `done chan struct{}`), bound at wiring time. NO `ctx` stored in a struct. NO bare `for range ticker.C`. See `skills/gogogo-coding-standards` (Concurrency) + [docs/code-quality.md](docs/code-quality.md#concurrency-and-resources).
+- NO `--no-verify` commits to dodge a red gate — a red hook is a finding about your change, not an obstacle. Fix it, narrow the scope, or drop the change. (Precedent: a funlen breakage shipped past local hooks this way and failed CI instead.)
 
 ## Go-first / Zig (summary; normative: `docs/exception-to-go.md`)
 

@@ -173,8 +173,8 @@ async function main() {
   B.on("pageerror", (e) => pageErrors.push("B: " + String(e)));
 
   const docID = "notes-caret-" + process.pid;
-  await A.goto(`${BASE}/notes/${docID}`, { waitUntil: "networkidle" });
-  await B.goto(`${BASE}/notes/${docID}`, { waitUntil: "networkidle" });
+  await A.goto(`${BASE}/notes/${docID}`, { waitUntil: "domcontentloaded" });
+  await B.goto(`${BASE}/notes/${docID}`, { waitUntil: "domcontentloaded" });
   await sleep(1000);
 
   // A authors three short lines (no wrapping: line number == visual row).

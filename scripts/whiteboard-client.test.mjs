@@ -178,7 +178,7 @@ async function main() {
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
   const docID = "wb-order-" + process.pid;
-  await page.goto(`${BASE}/whiteboard/${docID}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/whiteboard/${docID}`, { waitUntil: "domcontentloaded" });
   await sleep(600); // let the SSE stream connect and the canvas size settle
 
   // ---------------------------------------------------------------------------
@@ -299,8 +299,8 @@ async function main() {
   };
   const pageA = await makeCtx("A");
   const pageB = await makeCtx("B");
-  await pageA.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-alpha`, { waitUntil: "networkidle" });
-  await pageB.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-bravo`, { waitUntil: "networkidle" });
+  await pageA.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-alpha`, { waitUntil: "domcontentloaded" });
+  await pageB.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-bravo`, { waitUntil: "domcontentloaded" });
   await sleep(900);
   // B moves its pointer to a known off-center spot (canvas-relative CSS px).
   const box3 = await pageB.locator("#wb-canvas").boundingBox();
@@ -324,7 +324,7 @@ async function main() {
 
   // A third client connects -> the server broadcasts a fresh "count" to all.
   const pageC = await makeCtx("C");
-  await pageC.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-charlie`, { waitUntil: "networkidle" });
+  await pageC.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-charlie`, { waitUntil: "domcontentloaded" });
   await sleep(900);
 
   const after = await readCursor(pageA);
@@ -353,8 +353,8 @@ async function main() {
   const doc4 = "wb-draft-" + process.pid;
   const drawA = await makeCtx("D-A");
   const drawB = await makeCtx("D-B");
-  await drawA.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-a`, { waitUntil: "networkidle" });
-  await drawB.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-b`, { waitUntil: "networkidle" });
+  await drawA.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-a`, { waitUntil: "domcontentloaded" });
+  await drawB.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-b`, { waitUntil: "domcontentloaded" });
   await sleep(900);
 
   // Region where the held rectangle is being drawn (CSS px, canvas-relative).
@@ -394,8 +394,8 @@ async function main() {
   const doc5 = "wb-tip-" + process.pid;
   const tipA = await makeCtx("T-A");
   const tipB = await makeCtx("T-B");
-  await tipA.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-a`, { waitUntil: "networkidle" });
-  await tipB.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-b`, { waitUntil: "networkidle" });
+  await tipA.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-a`, { waitUntil: "domcontentloaded" });
+  await tipB.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-b`, { waitUntil: "domcontentloaded" });
   await sleep(900);
 
   const tipBox = await tipB.locator("#wb-canvas").boundingBox();
@@ -436,8 +436,8 @@ async function main() {
   const doc6 = "wb-stale-" + process.pid;
   const stA = await makeCtx("S-A");
   const stB = await makeCtx("S-B");
-  await stA.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-a`, { waitUntil: "networkidle" });
-  await stB.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-b`, { waitUntil: "networkidle" });
+  await stA.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-a`, { waitUntil: "domcontentloaded" });
+  await stB.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-b`, { waitUntil: "domcontentloaded" });
   await sleep(900);
 
   let aborted = 0;
