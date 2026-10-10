@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/google/uuid"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
@@ -233,6 +232,7 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		h.sendToast(hub, job.ClientID, "Ask failed: model unavailable", "error")
 		return fmt.Errorf("genui: respond: %w", err)
 	}
+	//nolint:contextcheck // pure CPU constructors (no I/O to cancel); ctx enters at component Render instead
 	dirs, err := ParseDirectives(raw)
 	if err != nil {
 		h.sendResult(hub, job.ClientID, nil, "Ask failed: could not shape the answer")
@@ -287,13 +287,9 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 		}); err != nil {
 			return err
 		}
-		comps := make([]templ.Component, 0, len(p.Directives))
-		for _, d := range p.Directives {
-			comp, err := Render(d)
-			if err != nil {
-				return err
-			}
-			comps = append(comps, comp)
+		comps, err := RenderAll(p.Directives)
+		if err != nil {
+			return err
 		}
 		return dshelpers.RenderAndPatch(sse, GenuiResult(comps, p.Error, p.Error != ""),
 			sdk.WithSelector("#genui-result"),

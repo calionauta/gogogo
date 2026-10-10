@@ -146,6 +146,21 @@ templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 	</div>
 }
 
+// GenuiSection groups nested components under a titled section, so
+// answers read as documents (week plan holding its table) instead of
+// flat stacks. One nesting primitive beats per-case layouts: the model
+// composes from the same catalog, never invents structure.
+templ GenuiSection(title string, children []templ.Component) {
+	<section class="rounded-lg border border-base-300 bg-base-100">
+		<h3 class="font-semibold px-4 pt-3">{ title }</h3>
+		<div class="p-4 pt-2 flex flex-col gap-3">
+			for _, child := range children {
+				@child
+			}
+		</div>
+	</section>
+}
+
 // GenuiTextNote renders a single prose card.
 templ GenuiTextNote(text string) {
 	<div class="card bg-base-200/40">
