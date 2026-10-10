@@ -57,6 +57,10 @@ on the provider). If you do it anyway:
   users bring their own keys (metered, never charged to you). A shared key
   is a demo posture, not a production one — the default (no key, button
   hidden) is the safe posture.
+- **Rotate on a schedule, not just on suspicion.** Provider keys support
+  expiry (`expires_at`, e.g. 90 days); the Telegram monitor
+  (`check-genui-llm.sh` on the server) catches death, but expiry prevents
+  silent longevity. Rotation is one dashboard action + secrets-file edit.
 
 ### 2. Keyless simulated LLM (on by default in dev)
 

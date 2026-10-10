@@ -93,6 +93,15 @@ shares the same shape — siblings differ only by name:
    secrets). You do **not** create the directory tree by hand; the workflow
    does it on first deploy.
 
+> Secrets stay server-side by design: the workflow renders
+> `~/.secrets/<app>.env` (600) from GitHub Secrets on every deploy and
+> nothing secret is ever committed. The template also ships age tooling
+> (`bin/init-secrets` + `internal/secrets`) for projects that need
+> encrypted config — deliberately **not** used on a single box, where the
+> identity would live next to the ciphertext and the gain over 600
+> files + no-repo + monitoring is ~zero. Revisit if secrets ever need to
+> travel through git (multi-operator GitOps).
+
 > Two gotchas that bite on a non-root `deploy` user:
 > - Grant the container write access with `setfacl`/`chmod`, **never `chown`** —
 >   the deploy user is not root.

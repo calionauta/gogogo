@@ -46,10 +46,19 @@ func Load(projectName string) {
 	if err != nil {
 		return
 	}
+	loadFrom(usr.HomeDir, projectName, key)
+}
 
-	secretsFile := filepath.Join(usr.HomeDir, ".secrets", projectName+".env.age")
+// loadFrom is Load with its inputs explicit (home dir, key) so tests
+// drive it without touching the real user or environment. A configured
+// key with an unreadable file is an Error, not a silent keyless boot:
+// the old silence turned a broken deploy into hidden buttons.
+func loadFrom(homeDir, projectName, key string) {
+	secretsFile := filepath.Join(homeDir, ".secrets", projectName+".env.age")
 	data, err := os.ReadFile(secretsFile)
 	if err != nil {
+		slog.Default().Error("secrets: key configured but file unreadable (booting keyless)",
+			"project", projectName, "file", secretsFile, "error", err)
 		return
 	}
 
