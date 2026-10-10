@@ -120,6 +120,10 @@ func TodoPage(title string, signals todo.Signals, userEmail string, buildLabel s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		templ_7745c5c3_Err = components.ToastContainer().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = sseOpener().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -168,7 +172,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(marshalSignals(signals))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 44, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 45, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -241,7 +245,7 @@ func header(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(signals.StoreLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 79, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 80, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -254,7 +258,7 @@ func header(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(signals.OfflineLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 81, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 82, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -404,7 +408,7 @@ func asyncDemosCard(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.SidebarTab == "" || signals.SidebarTab == "queue", "true", "false"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 166, Col: 214}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 167, Col: 214}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -417,7 +421,7 @@ func asyncDemosCard(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.SidebarTab == "" || signals.SidebarTab == "queue", "0", "-1"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 166, Col: 305}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 167, Col: 305}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -435,7 +439,7 @@ func asyncDemosCard(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.SidebarTab == "ai", "true", "false"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 169, Col: 178}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 170, Col: 178}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 			if templ_7745c5c3_Err != nil {
@@ -448,7 +452,7 @@ func asyncDemosCard(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.SidebarTab == "ai", "0", "-1"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 169, Col: 238}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 170, Col: 238}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 			if templ_7745c5c3_Err != nil {
@@ -467,7 +471,7 @@ func asyncDemosCard(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.SidebarTab == "workflow", "true", "false"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 173, Col: 196}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 174, Col: 196}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 			if templ_7745c5c3_Err != nil {
@@ -480,7 +484,7 @@ func asyncDemosCard(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.SidebarTab == "workflow", "0", "-1"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 173, Col: 262}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 174, Col: 262}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 			if templ_7745c5c3_Err != nil {
@@ -570,7 +574,7 @@ func queueRetryPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $demoStep === 1, 'step-success': $demoStep >= 2}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 221, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 222, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {
@@ -583,7 +587,7 @@ func queueRetryPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $demoStep === 2, 'step-success': $demoStep >= 3}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 225, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 226, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -596,7 +600,7 @@ func queueRetryPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $demoStep === 3 && $techPhase === 'error', 'step-success': $demoStep >= 3 && $techPhase !== 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 230, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 231, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -641,7 +645,7 @@ func aiSuggestPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 278, Col: 167}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 279, Col: 167}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -654,7 +658,7 @@ func aiSuggestPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 282, Col: 167}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 283, Col: 167}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -667,7 +671,7 @@ func aiSuggestPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $aiStep >= 3 && $aiPending, 'step-success': $aiStep >= 3 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 287, Col: 167}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 288, Col: 167}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
@@ -712,7 +716,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 1)}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 334, Col: 234}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 335, Col: 234}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
@@ -725,7 +729,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 2)}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 338, Col: 234}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 339, Col: 234}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -738,7 +742,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 3)}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 342, Col: 234}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 343, Col: 234}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
@@ -751,7 +755,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 4)}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 346, Col: 234}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 347, Col: 234}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -764,7 +768,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 5)}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 350, Col: 234}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 351, Col: 234}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {
@@ -777,7 +781,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 6)}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 354, Col: 234}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 355, Col: 234}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 		if templ_7745c5c3_Err != nil {
@@ -790,7 +794,7 @@ func durableWorkflowPanel(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'alert-info': $onboardingActive && !$workflowCompleted && $onboardingStep === 2}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 360, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 361, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -872,7 +876,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.Filter == "all", "true", "false"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 420, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 421, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
@@ -885,7 +889,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.Filter == "all", "0", "-1"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 420, Col: 158}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 421, Col: 158}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
@@ -898,7 +902,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.Filter == "active", "true", "false"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 422, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 423, Col: 104}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -911,7 +915,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.Filter == "active", "0", "-1"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 422, Col: 164}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 423, Col: 164}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 		if templ_7745c5c3_Err != nil {
@@ -924,7 +928,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.Filter == "completed", "true", "false"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 424, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 425, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 		if templ_7745c5c3_Err != nil {
@@ -937,7 +941,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var41 string
 		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(ternary(signals.Filter == "completed", "0", "-1"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 424, Col: 170}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 425, Col: 170}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 		if templ_7745c5c3_Err != nil {
@@ -1045,7 +1049,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue("$newTitle = " + safeJSString(s))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 466, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 467, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 			if templ_7745c5c3_Err != nil {
@@ -1058,7 +1062,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var45 string
 			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 467, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 468, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 			if templ_7745c5c3_Err != nil {
@@ -1105,7 +1109,7 @@ func todoItem(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue("todo-" + item.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 475, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 476, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -1128,7 +1132,7 @@ func todoItem(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle?skin=basecoat')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 480, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 481, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -1146,7 +1150,7 @@ func todoItem(item todo.Todo) templ.Component {
 			var templ_7745c5c3_Var49 string
 			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 484, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 485, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 			if templ_7745c5c3_Err != nil {
@@ -1164,7 +1168,7 @@ func todoItem(item todo.Todo) templ.Component {
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 486, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 487, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
@@ -1182,7 +1186,7 @@ func todoItem(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(timeAgo(item.CreatedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 489, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 490, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 		if templ_7745c5c3_Err != nil {
@@ -1195,7 +1199,7 @@ func todoItem(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 491, Col: 140}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 492, Col: 140}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -1269,7 +1273,7 @@ func sseOpener() templ.Component {
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=basecoat', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 540, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 541, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 		if templ_7745c5c3_Err != nil {

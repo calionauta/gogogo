@@ -64,6 +64,8 @@ func TestGenuiIndexWiring(t *testing.T) {
 		"retries-failed",
 		`id="genui-stream-opener"`,
 		`id="genui-result"`,
+		`id="toast-container"`,
+		`id="session-banner"`,
 		`<h1`,
 	} {
 		if !strings.Contains(html, want) {

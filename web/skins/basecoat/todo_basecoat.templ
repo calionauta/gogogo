@@ -30,6 +30,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 			</main>
 			@deleteConfirmModal()
 			<div class="toast" data-show="$loading"></div>
+			@components.ToastContainer()
 			@sseOpener()
 			@pbRealtime()
 		</body>

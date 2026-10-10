@@ -30,6 +30,7 @@ templ GenuiIndex(email string, buildLabel string, buildCommit string) {
 		<body>
 			@auth.Navbar(email, "genui", buildLabel, buildCommit)
 			@components.OfflineBanner(true)
+			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">
 				<h1 class="text-2xl font-bold">Ask AI</h1>
 				<p class="text-sm text-base-content/60 mt-1 mb-4">
@@ -77,6 +78,7 @@ templ GenuiIndex(email string, buildLabel string, buildCommit string) {
 				<h2 class="text-lg font-semibold mt-8 mb-2">Answer</h2>
 				@GenuiResult(nil, "", false)
 			</main>
+			@components.ToastContainer()
 			@StreamOpener("/api/genui/stream")
 		</body>
 	</html>

@@ -23,14 +23,14 @@ const SU_PASS = "SmokeSuperuserPass!123";
 const USER_EMAIL = "smoke-user@local.dev";
 const USER_PASS = "SmokeUserPass!123";
 
-const ROUTES = ["/todo", "/whiteboard", "/room", "/login"];
+const ROUTES = ["/todo", "/whiteboard", "/room", "/login", "/genui"];
 
 // Trim-aware gating: a trimmed checkout must neither fail on routes that
 // no longer exist nor silently pass over them. SMOKE_FEATURES lists the
 // features present (default: the full template surface); trim output
 // (installer Warns) tells you the value to use. Unknown names fail fast:
 // a typo must never read as "trimmed".
-const ALL_FEATURES = ["todo", "whiteboard", "room", "login"];
+const ALL_FEATURES = ["todo", "whiteboard", "room", "login", "genui"];
 const FEATURES = (process.env.SMOKE_FEATURES || ALL_FEATURES.join(",")).split(",");
 for (const f of FEATURES) {
   if (!ALL_FEATURES.includes(f)) {

@@ -1,0 +1,48 @@
+// SCOPE:core - shared toast stacking container.
+package components
+
+// ToastContainer renders the fixed bottom-right stacking container plus
+// the toast entrance/progress CSS that ic.Toast depends on. Any page
+// whose server code patches #toast-container (emitToast and friends)
+// must render this — without it every toast errors with
+// PatchElementsNoTargetsFound and vanishes silently (lived bug on the
+// Ask page, latent on the basecoat skin). One definition, not one copy
+// per layout: the todo Layout keeps its own identical block for now
+// (byte-stability on the most-tested page; consolidate on next touch).
+templ ToastContainer() {
+	<style>
+		#toast-container {
+			z-index: 100;
+			position: fixed;
+			right: 1rem;
+			bottom: 1rem;
+			display: flex;
+			flex-direction: column-reverse;
+			gap: 0.5rem;
+			max-width: 24rem;
+		}
+		.toast-msg {
+			opacity: 0;
+			transform: scale(0.9) translateY(50px);
+			transition: transform 0.5s, opacity 0.5s;
+		}
+		.toast-msg.open {
+			transform: scale(1) translateY(0);
+			opacity: 1;
+		}
+		.toast-timer-bar {
+			height: 3px;
+			border-radius: 999px;
+			background: oklch(0.872 0.01 258.338 / 0.3);
+			animation: toast-shrink 3s linear forwards;
+		}
+		.toast-msg:has(.alert-error) .toast-timer-bar {
+			animation-duration: 8s;
+		}
+		@keyframes toast-shrink {
+			from { width: 100%; }
+			to { width: 0%; }
+		}
+	</style>
+	<div id="toast-container"></div>
+}
