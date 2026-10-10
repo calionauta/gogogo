@@ -254,26 +254,11 @@ func Init(
 
 		// Optional capabilities: one call each, guards live inside the
 		// callee (not here). Trimming one is: delete its package dir(s),
-		// drop its call line below (+ its import when it becomes unused),
-		// go mod tidy. Removal checklists live in each file's SCOPE
-		// header and in internal/capabilities (single source of truth).
-		registerOnboarding(app, q, se, broadcaster, todoH, cfg)
-		registerWhiteboardStack(se, q, cfg)
-		registerRoomStack(se, cfg)
-		registerNotesStack(se, q, cfg)
-		registerGenuiStack(se, q, cfg)
-
-		// NATS CRUD consumer: subscribes app.crud.todo.> and writes todo
-		// operations to PocketBase. This is the server-side counterpart
-		// to the CrudPublisher: desktop edges publish CRUD ops to their
-		// local NATS; the Leaf Node replicates to the server; this
-		// consumer writes them to the server's PocketBase.
-		// Only started when OfflineSync is enabled AND NATS is available.
-		// No-op when either condition is false.
-		if cfg.OfflineSync.Enabled {
-			registerCrudConsumer(se, js, cfg.AppName)
-		}
-		// Remove crud consumer: delete this line + delete internal/nats/crudproxy.go
+		// drop its call line in registerOptionalStacks below (+ its import
+		// when it becomes unused), go mod tidy. Removal checklists live in
+		// each file's SCOPE header and in internal/capabilities (single
+		// source of truth).
+		registerOptionalStacks(app, q, se, broadcaster, todoH, cfg, js)
 
 		landing.New(cfg).RegisterRoutes(se)
 		cfgfeature.New(cfg).RegisterRoutes(se)
@@ -281,6 +266,38 @@ func Init(
 
 		return se.Next()
 	})
+}
+
+// registerOptionalStacks wires one-call-per-capability features plus the
+// NATS CRUD consumer. Extracted from Init so Init stays inside the
+// funlen budget; trimming one is still deleting its call line here.
+func registerOptionalStacks(
+	app *pocketbase.PocketBase,
+	q *queue.Queue,
+	se *core.ServeEvent,
+	broadcaster nats.TodoBroadcaster,
+	todoH *handlers.TodoHandler,
+	cfg *config.Config,
+	js nats.JetStreamLike,
+) {
+	registerOnboarding(app, q, se, broadcaster, todoH, cfg)
+	registerWhiteboardStack(se, q, cfg)
+	registerRoomStack(se, cfg)
+	registerNotesStack(se, q, cfg)
+	registerGenuiStack(se, q, cfg)
+	registerChatStack(se, q, cfg)
+
+	// NATS CRUD consumer: subscribes app.crud.todo.> and writes todo
+	// operations to PocketBase. This is the server-side counterpart
+	// to the CrudPublisher: desktop edges publish CRUD ops to their
+	// local NATS; the Leaf Node replicates to the server; this
+	// consumer writes them to the server's PocketBase.
+	// Only started when OfflineSync is enabled AND NATS is available.
+	// No-op when either condition is false.
+	if cfg.OfflineSync.Enabled {
+		registerCrudConsumer(se, js, cfg.AppName)
+	}
+	// Remove crud consumer: delete this line + delete internal/nats/crudproxy.go
 }
 
 // noCacheHTML sets Cache-Control: no-cache on document (HTML) responses so

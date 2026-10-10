@@ -10,6 +10,7 @@ second column names the **technology** that powers it.
 | **Background jobs + retry** | `goqite` + `retry-go` | — | Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`) |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase` |
 | **Ask AI (generative UI)** | Catalog + SSE morphs, no client JS | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless) | Model picks cards, tables, sections from a fixed registry; unknown types fail closed; worker streams the render over a dedicated SSE hub (`/genui`) |
+| **Chat (conversation)** | Catalog answers + persisted history | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless) | Conversation over the same catalog: prompts persist per owner, answers render inline as text plus components; unknown output degrades to a safe prose bubble; dedicated SSE hub (`/chat`) |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
 | **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-first outbox replay, PocketBase-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL) |
 | **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged), live index via PB realtime, snapshots in the `notes` collection |
@@ -41,6 +42,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Landing page | `/` | Public. Same page for guests and signed-in users |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Ask AI demo | `/genui` | Auth-gated. Keyless demo answers; live model with `GOAI_API_KEY` |
+| Chat demo | `/chat` | Auth-gated. Persisted per-owner history; same catalog as Ask |
 | Whiteboard | `/whiteboard` | Auth-gated |
 | Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
 | Config view | `/config` | Auth-gated, read-only |
@@ -65,7 +67,7 @@ attributed per feature.
 
 | Feature | Files | Raw | Gzip |
 |---|---|---|---|
-| Todo, Room, Landing, Config, Ask AI | inline only (no extra JS) | 0 KB | 0 KB |
+| Todo, Room, Landing, Config, Ask AI, Chat | inline only (no extra JS) | 0 KB | 0 KB |
 | Shared notes | `notes.js` | 28 KB | 10 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 19 KB |
 | Shared core (every page) | `datastar.js` + `theme.js` | 40 KB | 16 KB |

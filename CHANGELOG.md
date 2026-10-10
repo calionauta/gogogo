@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+### Added
+
+- **Chat conversation demo on the genui catalog.** `features/chat/` persists
+  both sides per owner (idempotent on `idem` + `idem#answer`, so SW replays
+  never duplicate), parses every answer through `ParseChatAnswer` (catalog
+  directives render, anything else degrades to a safe prose bubble — chat
+  never dies per message), and fans the answer over a dedicated SSE hub.
+  Page at `/chat` (`POST /api/chat/ask`, `GET /api/chat/stream`); history
+  store is in-memory behind `MessageStore`, PocketBase collection is the
+  documented upgrade path. Red-proofed worker/store/parse/render tests.
+
 ## 0.43.0 (2026-10-10)
 
 ## What's Changed

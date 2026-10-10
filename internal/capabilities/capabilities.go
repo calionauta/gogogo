@@ -272,6 +272,15 @@ var All = []Capability{
 		Reason:  "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{
+		ID:        "chat",
+		Kind:      KindFeature,
+		Summary:   "conversation demo (persisted history + catalog answers on genui)",
+		DependsOn: []string{"genui"},
+		Dirs:      []string{"features/chat"},
+		Files:     []string{"router/chat.go"},
+		Reason:    "No installer unit yet: nothing to trim, nothing to add back — same envelope rides the queue's SSE Hub.",
+	},
+	{
 		ID:         "goakt",
 		Kind:       KindPlugin,
 		Summary:    "entity actors (GoAkt rooms: roster + presenter lock)",

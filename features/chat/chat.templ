@@ -1,0 +1,146 @@
+// SCOPE:layer=feature,removal=feature — chat conversation templates.
+package chat
+
+import (
+	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
+)
+
+// ChatIndex renders the conversation page: composer form, live message
+// list fed by the worker, result stream. Sounds ride the shared assets
+// (global press cue + toast observer) — zero custom sound JS by design.
+templ ChatIndex(email string, buildLabel string, buildCommit string) {
+	<!DOCTYPE html>
+	<html lang="en" data-signals="{theme: 'light', chat_thinking: false, chat_error: ''}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Chat — gogogo</title>
+			<link rel="stylesheet" href="/static/app.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
+			@sounds.SoundAssets()
+			<script src="/static/iconify-icon.min.js"></script>
+			<script defer type="module" src="/static/datastar.js"></script>
+			@components.OfflineSyncScript(true)
+		</head>
+		<body>
+			@auth.Navbar(email, "chat", buildLabel, buildCommit)
+			@components.OfflineBanner(true)
+			@components.SessionBanner(email != "")
+			<main class="container mx-auto p-4 max-w-2xl">
+				<h1 class="text-2xl font-bold">Chat</h1>
+				<p class="text-sm text-base-content/60 mt-1 mb-4">
+					Ask anything — answers stream below as text plus interface.
+				</p>
+				<form
+					id="chat-composer"
+					data-on:submit__prevent={ "@post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
+					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed — check your connection and try again.') : null"
+					data-cuelume="send"
+				>
+					<label for="chat-prompt" class="form-control w-full">
+						<span class="label-text mb-1">Message</span>
+						<input
+							id="chat-prompt"
+							name="prompt"
+							type="text"
+							required
+							minlength="1"
+							maxlength="2000"
+							autocomplete="off"
+							placeholder="Plan my day"
+							class="input input-bordered w-full"
+						/>
+					</label>
+					<div class="mt-3 flex items-center gap-3">
+						<button type="submit" class="btn btn-primary" data-attr:disabled="$chat_thinking">
+							<span data-show="!$chat_thinking">Send</span>
+							<span data-show="$chat_thinking" class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+							<span data-show="$chat_thinking">Thinking…</span>
+						</button>
+					</div>
+				</form>
+				<div class="mt-6">
+					@ChatList(nil, false, "")
+				</div>
+			</main>
+			@components.ToastContainer()
+			<button
+				id="chat-stream-opener"
+				class="hidden"
+				data-on:click={ "@get('/api/chat/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+				aria-hidden="true"
+			></button>
+			<script type="module">
+				(function () {
+					try {
+						var id = sessionStorage.getItem('gogogo_client_id');
+						if (!id) {
+							id = 'tab-' + Math.random().toString(36).slice(2, 10);
+							sessionStorage.setItem('gogogo_client_id', id);
+						}
+						window.__gogogoClientID = id;
+					} catch (e) {
+						window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
+					}
+					function openSSE() {
+						var b = document.getElementById('chat-stream-opener');
+						if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
+					}
+					document.addEventListener('datastar-ready', openSSE);
+					setTimeout(openSSE, 300);
+				})();
+			</script>
+		</body>
+	</html>
+}
+
+// ChatList renders the message column in its states: empty guidance,
+// thinking skeleton while the worker runs, error with retry, or the
+// bubbles. User right-aligned, assistant left-aligned; component
+// directives render inside the assistant bubble.
+templ ChatList(msgs []MessageView, thinking bool, errMsg string) {
+	<div id="chat-messages" class="flex flex-col gap-3" aria-live="polite">
+		if errMsg != "" {
+			<div class="alert alert-error" role="alert">
+				<span>{ errMsg }</span>
+			</div>
+			<button type="button" class="btn btn-sm btn-ghost self-start">Try again</button>
+		}
+		if len(msgs) == 0 && !thinking && errMsg == "" {
+			<div class="rounded-lg border border-dashed border-base-300 p-6 text-center">
+				<p class="font-semibold">Ask anything — answers stream below</p>
+				<p class="text-sm text-base-content/60 mt-1">History persists per account; components render inline.</p>
+			</div>
+		}
+		for _, m := range msgs {
+			if m.Role == "user" {
+				<div class="chat chat-end">
+					<div class="chat-bubble chat-bubble-primary">{ m.Text }</div>
+				</div>
+			} else {
+				<div class="chat chat-start">
+					<div class="chat-bubble">
+						if m.Text != "" {
+							<p class="text-sm">{ m.Text }</p>
+						}
+						for _, comp := range m.Components {
+							<div class="mt-2">@comp</div>
+						}
+					</div>
+				</div>
+			}
+		}
+		if thinking {
+			<div class="chat chat-start" role="status">
+				<div class="chat-bubble">
+					<span>Thinking</span>
+					<span class="skeleton h-4 w-32 inline-block ml-2" aria-hidden="true"></span>
+				</div>
+			</div>
+		}
+	</div>
+}
