@@ -54,3 +54,12 @@ Tailwind input scans only `features/`, `web/`, `internal/` (`source(none)` + exp
 - `site/**` and `docs/**` edits cannot stale `app.min.css` (landing uses its own stylesheet, zero Tailwind utils).
 - `css-check` fails only when a class-shaped token in a scanned tree changes the bundle without `make css`. Rebuild, don't exclude — **unless the tree renders no HTML at all.** `internal/installer/**` is excluded (`@source not`) for exactly that reason: it is the CLI, it only NAMES classes as data (and its prose contains words like "diff"), so scanning it injected spurious DaisyUI CSS. Every class it names is defined in a `.templ` that IS scanned, so nothing is lost. Exclude only a package that renders no markup; anything that renders belongs in the scan.
 - Test data / JSON / prose containing `p-1`-like tokens inside scanned trees creates spurious CSS — keep fixtures out or rename the key.
+
+## Realtime patterns (don't invent transports)
+
+`docs/realtime-recipe.md` is the recipe: hidden-`@get` permanent streams,
+`PbRealtimeResync` for record lists, fragment morphs with selector
+headers, `data-effect` for signal reactions (never polling), `fail()` on
+500s, and the conformance test that pins every `/api/*` URL to a Go
+route. MCP/CLI surfaces the same knowledge via `advise` (presets
+`realtime-transport`, `ai-features`); the skill is the execution half.
