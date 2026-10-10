@@ -58,6 +58,27 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 
 Go is the product language (~95-99%). Zero Zig code/toolchain in tree — do not add without a benchmarked case. Bans: "Zig is faster", manual memory, "low-level", "could be optimized", "looks like SIMD", preference, avoiding a Go dep, future perf. Go SIMD (`simd`/`archsimd`, `GOEXPERIMENT=simd`) first; perf work needs a Go baseline bench + profile proving Go is the bottleneck. Kernel rules: one package, small C ABI, caller-owned buffers, pure-Go fallback day one, removable in minutes. Vague "use Zig when appropriate" is rejected — follow the doc's decision procedure.
 
+## Architecture seams
+
+Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a framework.
+
+**Principles (LLM-friendly, evolvable; 2026 practice):**
+- **Thin seams over clever abstractions.** Add interfaces only when you actually have 2+ implementations or a real need to swap. Prefer small, purpose-built interfaces (1-3 methods). Never reach for `GenericRepo[T]`. Go's implicit interfaces mean no ceremony.
+- **Feature-scoped ports.** Prefer `features/<name>/internal/ports/` for feature-specific contracts; keep cross-cutting minimal in `internal/ports/`. Ports stay close to the code that uses them. (Ports-per-feature > heavy hexagonal layering.)
+- **Explicit DI, no containers.** Inject via struct fields or constructor args. No reflection-based DI, no service locator.
+- **Vertical slices > horizontal layers.** Implement end-to-end for a single feature (red-proof with contract tests). Generalize only when the third concrete case repeats. This maximizes locality for LLMs.
+- **Adapters, not facades.** Implementations live in `internal/repos/<backend>/` or `features/<name>/internal/repos/<backend>/`. Keep adapters thin - translate between external types and domain types.
+- **Examples are the spec.** Living code is more useful to LLMs than long prose. When adding a new seam, mirror an existing concrete example (e.g. the todo vertical slice in this POC).
+- **Dual-mode when evolving core paths.** When replacing/swapping a core integration, use a feature flag (e.g. `DB_BACKEND=pb|alt`) to compare behavior with zero regressions. Default to existing behavior.
+- **Core vs plugins.** Mark new removable pieces with `removal=plugin` and SCOPE. Core (`removal=core`) changes need care.
+- **Constructors build, callers start; stoppable on terminate.** Follow concurrency rules from coding standards.
+- **Fail fast, explicit errors.** Keep contracts obvious; prefer compile-time checks over runtime magic.
+
+**Rules:**
+- Don't abstract prematurely. Duplicate a little > create wrong abstraction.
+- Don't hide dependencies behind globals/env checks deep in code - inject them.
+- Keep seams discoverable (small files, clear names). If an LLM can't copy-paste and adapt it, it's too clever.
+
 ## SCOPE
 
 Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>` (`docs/scope-taxonomy.md`). Enforced by `make check-scope` + pre-commit. Trim rule: never delete `removal=core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).

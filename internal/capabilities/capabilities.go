@@ -377,6 +377,62 @@ var All = []Capability{
 			"The navbar Config link is stripped automatically.",
 		},
 	},
+	{
+		ID:      "poc-pb-alt-ports",
+		Kind:    KindPlugin,
+		Summary: "POC: repo/service interfaces for PB→alt migration",
+		Dirs:    []string{"internal/ports"},
+		Note:    "POC, removal=plugin — easy to delete entirely if not adopted",
+	},
+	{
+		ID:      "poc-pb-alt-repos",
+		Kind:    KindPlugin,
+		Summary: "POC: PB and alt repo adapters",
+		Dirs:    []string{"internal/repos", "internal/repos/pb", "internal/repos/alt"},
+		Note:    "POC, removal=plugin — dual adapters behind interfaces",
+	},
+	{
+		ID:      "poc-authlimen",
+		Kind:    KindPlugin,
+		Summary: "POC: limen auth service",
+		Dirs:    []string{"internal/authlimen"},
+		Note:    "POC, removal=plugin",
+	},
+	{
+		ID:      "poc-backend",
+		Kind:    KindPlugin,
+		Summary: "POC: backend selector (pb/alt)",
+		Dirs:    []string{"internal/backend"},
+		Note:    "POC, removal=plugin",
+	},
+	{
+		ID:      "poc-dbsql",
+		Kind:    KindPlugin,
+		Summary: "POC: sqlc + Turso scaffolding",
+		Dirs:    []string{"internal/dbsql"},
+		Note:    "POC, removal=plugin",
+	},
+	{
+		ID:      "poc-routerchi",
+		Kind:    KindPlugin,
+		Summary: "POC: Go-Chi router wrapper",
+		Dirs:    []string{"internal/routerchi"},
+		Note:    "POC, removal=plugin",
+	},
+	{
+		ID:      "poc-casbinpol",
+		Kind:    KindPlugin,
+		Summary: "POC: Casbin policies",
+		Dirs:    []string{"internal/casbinpol"},
+		Note:    "POC, removal=plugin",
+	},
+	{
+		ID:      "poc-events",
+		Kind:    KindPlugin,
+		Summary: "POC: NATS/JS event helpers",
+		Dirs:    []string{"internal/events"},
+		Note:    "POC, removal=plugin",
+	},
 }
 
 // depSounds is the shared soft dependency of UI pages: their .templ

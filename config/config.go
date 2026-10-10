@@ -183,6 +183,14 @@ type Config struct {
 	// See ARCHITECTURE.md (Phase 2: JetStream op transport).
 	// is the only way to get multi-instance sync on crdt.
 	EntityStore string
+	// DBBackend selects backend implementation: "pb" (default) or "alt" (sqlc+tursogo)
+	DBBackend string
+	// Turso/LibSQL config for alt backend
+	Turso struct {
+		URL       string // libsql:// or file://
+		AuthToken string
+		DBPath    string // fallback for local file
+	}
 
 	// Skin selects the active UI skin. Default "daisyui" (the template's
 	// core theme). Other option: "basecoat" (shadcn-style, community-
@@ -306,6 +314,10 @@ func Load() *Config {
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
+	cfg.DBBackend = getEnv("DB_BACKEND", "pb")
+	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", getEnv("LIBSQL_URL", ""))
+	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
+	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app-alt.db")
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
