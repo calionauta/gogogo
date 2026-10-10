@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## 0.43.0 (2026-10-10)
+
+## What's Changed
+* docs(llm): shared-key production warnings by @calionauta in https://github.com/calionauta/gogogo/pull/90
+* Ask feedback batch: own-hub delivery, TechBadges, suggest context by @calionauta in https://github.com/calionauta/gogogo/pull/92
+* ci(release): release-please owns versioning by @calionauta in https://github.com/calionauta/gogogo/pull/93
+* docs(tradeoffs): generative UI catalog entry by @calionauta in https://github.com/calionauta/gogogo/pull/94
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.42.13...v0.43.0
+
 ## [0.42.13] - 2026-10-10
 
 ### Added
