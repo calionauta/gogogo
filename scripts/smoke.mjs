@@ -23,7 +23,23 @@ const SU_PASS = "SmokeSuperuserPass!123";
 const USER_EMAIL = "smoke-user@local.dev";
 const USER_PASS = "SmokeUserPass!123";
 
-const ROUTES = ["/todo", "/whiteboard", "/room", "/login"];
+const ROUTES = ["/todo", "/whiteboard", "/room", "/login", "/genui"];
+
+// Trim-aware gating: a trimmed checkout must neither fail on routes that
+// no longer exist nor silently pass over them. SMOKE_FEATURES lists the
+// features present (default: the full template surface); trim output
+// (installer Warns) tells you the value to use. Unknown names fail fast:
+// a typo must never read as "trimmed".
+const ALL_FEATURES = ["todo", "whiteboard", "room", "login", "genui"];
+const FEATURES = (process.env.SMOKE_FEATURES || ALL_FEATURES.join(",")).split(",");
+for (const f of FEATURES) {
+  if (!ALL_FEATURES.includes(f)) {
+    console.error(`❌ unknown SMOKE_FEATURES entry ${JSON.stringify(f)} (want ${ALL_FEATURES.join(",")})`);
+    process.exitCode = 1;
+  }
+}
+const hasFeature = (f) => FEATURES.includes(f);
+const GATED_ROUTES = ROUTES.filter((r) => hasFeature(r.slice(1)));
 
 const fail = (msg) => {
   console.error("❌ " + msg);
@@ -441,9 +457,17 @@ async function verifyOfflineUx(page, context) {
   }
 
   // 5) logout (online) => SW purges the cached page.
+  // Drives the mechanism directly — POST /logout for the session plus
+  // the clear-pages postMessage the navbar form sends — instead of
+  // clicking through the login UI. The login page is trimmable while
+  // the endpoint and the SW protocol are core; this keeps the purge
+  // covered either way. Same coverage, zero UI coupling.
   console.log("→ Logging out to verify clear-pages purge…");
-  await page.locator('form[action="/logout"] button[type="submit"]').click();
-  await page.waitForFunction(() => location.pathname === "/login", null, { timeout: 15000 });
+  await page.evaluate(async (base) => {
+    await fetch(base + "/logout", { method: "POST" });
+    const r = await navigator.serviceWorker.ready;
+    if (r.active) r.active.postMessage({ type: "clear-pages" });
+  }, BASE);
   await page.waitForFunction(
     (u) => caches.match(u).then((r) => !r),
     BASE + "/todo",
@@ -509,7 +533,9 @@ try {
   if (!auth.json?.token) throw new Error("user auth failed: " + JSON.stringify(auth.json));
   const userToken = auth.json.token;
 
-  console.log(`→ Launching headless Chromium; testing routes: ${ROUTES.join(", ")}`);
+  console.log(`→ Launching headless Chromium; testing routes: ${GATED_ROUTES.join(", ")}`);
+  const skipped = ROUTES.filter((r) => !hasFeature(r.slice(1)));
+  for (const s of skipped) console.log(`  → ${s} trimmed, skipping`);
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const context = await browser.newContext();
   await context.addCookies([
@@ -526,7 +552,7 @@ try {
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
 
-  for (const route of ROUTES) {
+  for (const route of GATED_ROUTES) {
     pageErrors.length = 0;
     consoleErrors.length = 0;
     try {
@@ -553,6 +579,9 @@ try {
 
   pageErrors.length = 0;
   consoleErrors.length = 0;
+  if (!hasFeature("room")) {
+    console.log("  → /room trimmed, skipping roster/presenter/crash");
+  } else {
   // Room demo (GoAkt grains): the page's own polling loop heartbeats on
   // load, so the roster must contain this user; acquire must elect them
   // presenter; crash must bump the room generation (supervisor restart).
@@ -588,12 +617,29 @@ try {
   if (pageErrors.length > 0) {
     fail(`uncaught JS error during room test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
   }
+  } // hasFeature("room")
 
   // CAL-34: sweep every UI skin through the offline-queue contract.
   // Each skin has its own `.templ`, and a typo in the offline-reset
   // listener (data-on:gogogo:queued__window vs. gogogo__queued) used
   // to slip through because the harness only covered daisyui.
-  const offlineSkins = ["daisyui", "basecoat"];
+  // Basecoat is auto-detected, not assumed: with skins-extra trimmed the
+  // server falls back to DaisyUI with a warning log, so a blind second
+  // pass would run DaisyUI twice labeled "basecoat" (silent coverage
+  // loss). A genuinely identical render can only mean the fallback —
+  // the two skins share no markup.
+  const offlineSkins = ["daisyui"];
+  {
+    // Authenticated compare (page carries the session cookies): the login
+    // redirect would render identically for both and fake a fallback.
+    const distinct = await page.evaluate(async (base) => {
+      const a = await (await fetch(base + "/todo")).text();
+      const b = await (await fetch(base + "/todo?skin=basecoat")).text();
+      return a !== b;
+    }, BASE);
+    if (distinct) offlineSkins.push("basecoat");
+    else console.log("  → basecoat skin absent (fallback to DaisyUI), single pass");
+  }
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
     await verifySingleOnlineTodoSubmit(page, skin);

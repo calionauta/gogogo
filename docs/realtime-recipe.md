@@ -31,6 +31,12 @@ reference implementations are the spec.
 - **Records** → PB realtime + fragment re-fetch (per-user scoped free).
 - **Ephemeral** → own SSEHub + worker `hub.Send(clientID, …)`; stream
   loop with heartbeat (see `handleStream` in genui/whiteboard).
+- **Worker return contract** → return `err` (pool retries) ONLY when the
+  pool's hub is your feature's hub. Otherwise deliver the error result
+  to your own hub and return nil: `llm.Chat` already retries transient
+  faults natively, and a pool retry re-runs the whole job while
+  broadcasting retry noise to a foreign tab (lived bug: Ask answers
+  surfaced on Todo). One attempt, immediate user-visible result.
 - **Mutations** → `fail()` on 500 (never `+err.Error()` — ruleguard
   blocks it); 400s carry the recovery reason for the same-trust client.
 - **New `/api/*` URL in `.templ`/`.js`** → must match a registered Go

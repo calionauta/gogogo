@@ -103,6 +103,10 @@ func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		templ_7745c5c3_Err = components.TechBadge([]string{"Loro CRDT", "NATS", "SSE Hub", "presence", "offline outbox"}).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = WhiteboardListFragment(boards).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -165,7 +169,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs("/whiteboard/" + b.DocID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 68, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 69, Col: 98}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -178,7 +182,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(b.DocID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 69, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 70, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -191,7 +195,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(b.DocVer)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 70, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 71, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -241,7 +245,7 @@ func Board(email string, docID string, buildLabel string, buildCommit string, of
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(docID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 85, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 86, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -286,7 +290,7 @@ func Board(email string, docID string, buildLabel string, buildCommit string, of
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(docID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 99, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 100, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {

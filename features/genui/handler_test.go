@@ -29,21 +29,29 @@ func (s stubResponder) Respond(_ context.Context, _ string) (string, error) {
 
 // TestWorkerDeliversComponents proves the full async path without a model:
 // prompt in, genui envelope with rendered component HTML out on the
-// originator's hub channel. Uses a real SSEHub (no mocks of infra).
+// originator's hub channel. Uses real SSEHubs (no mocks of infra) —
+// and crucially TWO of them: the pool passes its shared hub as the
+// argument, but delivery must land on the feature's own hub. A single
+// hub in this test would hide the cross-talk bug that once surfaced
+// Ask answers as toasts on the Todo tab.
 func TestWorkerDeliversComponents(t *testing.T) {
 	t.Parallel()
-	hub := queue.NewSSEHub()
+	ownHub := queue.NewSSEHub()
 	ch := make(chan []byte, 8)
-	hub.Register("c1", "u1", ch)
-	defer hub.Unregister("c1")
+	ownHub.Register("c1", "u1", ch)
+	defer ownHub.Unregister("c1")
+	poolHub := queue.NewSSEHub()
+	poolCh := make(chan []byte, 8)
+	poolHub.Register("c1", "u1", poolCh)
+	defer poolHub.Unregister("c1")
 
-	h := &Handler{hub: hub, responder: stubResponder{raw: `{"components":[` +
+	h := &Handler{hub: ownHub, responder: stubResponder{raw: `{"components":[` +
 		`{"type":"text_note","props":{"text":"hello"}},` +
 		`{"type":"plan_cards","props":{"plans":[{"title":"Ship it","detail":"today"}]}}]}`}}
 	payload, _ := json.Marshal(map[string]string{"prompt": "plan my day", "userId": "u1"})
 	job := queue.Job{Type: "genui_ask", ClientID: "c1", Payload: payload}
 
-	if err := h.handleGenuiJob(context.Background(), hub, job); err != nil {
+	if err := h.handleGenuiJob(context.Background(), poolHub, job); err != nil {
 		t.Fatalf("handleGenuiJob: %v", err)
 	}
 	foundHTML, foundToast := false, false
@@ -62,24 +70,33 @@ func TestWorkerDeliversComponents(t *testing.T) {
 			t.Fatalf("hub got html=%v toast=%v, want both", foundHTML, foundToast)
 		}
 	}
+	select {
+	case raw := <-poolCh:
+		t.Fatalf("pool hub received genui traffic (cross-talk): %s", raw)
+	default:
+	}
 }
 
 // TestWorkerRejectsUnknownDirective proves the fail-closed path: a model
 // answering outside the catalog surfaces an error toast, and NO component
-// HTML reaches the tab.
+// HTML reaches the tab. The worker returns nil (no pool retry — the llm
+// client already retried transient faults, and a retry would re-run
+// minutes of free-model latency while broadcasting noise to a foreign
+// hub), so the error RESULT is the contract, not the return.
 func TestWorkerRejectsUnknownDirective(t *testing.T) {
 	t.Parallel()
-	hub := queue.NewSSEHub()
+	ownHub := queue.NewSSEHub()
 	ch := make(chan []byte, 8)
-	hub.Register("c1", "u1", ch)
-	defer hub.Unregister("c1")
+	ownHub.Register("c1", "u1", ch)
+	defer ownHub.Unregister("c1")
+	poolHub := queue.NewSSEHub()
 
-	h := &Handler{hub: hub, responder: stubResponder{raw: `{"components":[{"type":"evil","props":{"text":"x"}}]}`}}
+	h := &Handler{hub: ownHub, responder: stubResponder{raw: `{"components":[{"type":"evil","props":{"text":"x"}}]}`}}
 	payload, _ := json.Marshal(map[string]string{"prompt": "x", "userId": "u1"})
 	job := queue.Job{Type: "genui_ask", ClientID: "c1", Payload: payload}
 
-	if err := h.handleGenuiJob(context.Background(), hub, job); err == nil {
-		t.Fatal("handleGenuiJob(unknown) = nil error, want failure (worker retries, tab gets error toast)")
+	if err := h.handleGenuiJob(context.Background(), poolHub, job); err != nil {
+		t.Fatalf("handleGenuiJob(unknown) = %v, want nil (no pool retry; error delivered as result)", err)
 	}
 	select {
 	case raw := <-ch:

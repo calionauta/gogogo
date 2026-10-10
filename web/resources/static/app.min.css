@@ -7430,6 +7430,19 @@
       color: var(--color-primary-content);
       --input-color: var(--color-primary);
     }
+    @media (hover: hover) {
+      .link-primary:hover {
+        color: var(--color-primary);
+      }
+      @supports (color: color-mix(in lab, red, red)) {
+        .link-primary:hover {
+          color: color-mix(in oklab, var(--color-primary) 80%, #000);
+        }
+      }
+    }
+    .link-primary {
+      color: var(--color-primary);
+    }
   }
   .text-accent {
     color: var(--color-accent);

@@ -13,6 +13,10 @@
 
 // stay dependency-free so the unit carries no DependsOn.
 
+// Smoke: room has no installer unit, so ci-local still drives /room —
+
+// export SMOKE_FEATURES without room after manual removal.
+
 package room
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -81,7 +85,7 @@ func Page(email string, roomID string, roster appgoakt.Roster, buildLabel string
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(roomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 38, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 40, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -94,18 +98,26 @@ func Page(email string, roomID string, roster appgoakt.Roster, buildLabel string
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(roomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 39, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 41, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</h1><p class=\"opacity-70\">One grain owns this roster and its presenter lock. Open a second browser and take the lock there — exactly one of you wins. Press crash and watch the roster rebuild.</p><div class=\"card bg-base-200 shadow mt-4\"><div class=\"card-body\"><h2 class=\"card-title\">Presenter: <span id=\"room-presenter\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</h1><p class=\"opacity-70\">One grain owns this roster and its presenter lock. Open a second browser and take the lock there — exactly one of you wins. Press crash and watch the roster rebuild.</p>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.TechBadge([]string{"GoAkt grains", "supervision", "JSON polling"}).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"card bg-base-200 shadow mt-4\"><div class=\"card-body\"><h2 class=\"card-title\">Presenter: <span id=\"room-presenter\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if roster.Presenter == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "(none)")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "(none)")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -113,50 +125,50 @@ func Page(email string, roomID string, roster appgoakt.Roster, buildLabel string
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(roster.Presenter)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 52, Col: 27}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 55, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span></h2><p class=\"text-sm opacity-70\">Room generation <span id=\"room-generation\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span></h2><p class=\"text-sm opacity-70\">Room generation <span id=\"room-generation\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(roster.Generation))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 56, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 59, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span> (bumps on every restart)</p><ul id=\"room-roster\" class=\"menu\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span> (bumps on every restart)</p><ul id=\"room-roster\" class=\"menu\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, m := range roster.Members {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 59, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/views.templ`, Line: 62, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</ul><div class=\"card-actions justify-end\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\">Take presenter</button> <button id=\"room-release\" class=\"btn\" type=\"button\">Release</button> <button id=\"room-leave\" class=\"btn\" type=\"button\">Leave</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\">Crash room</button></div></div></div></main><script>\n\t\t\t\t// Adjacent polling loop (not SSE): heartbeat keeps this\n\t\t\t\t// member alive, roster refresh re-renders from snapshots.\n\t\t\t\t// Templ does not interpolate expressions inside <script>\n\t\t\t\t// (script bodies render verbatim), so the room id travels\n\t\t\t\t// as a data attribute on <main>, read back here.\n\t\t\t\t(function () {\n\t\t\t\t\tvar room = document.querySelector(\"main[data-room]\").getAttribute(\"data-room\");\n\t\t\t\t\tfunction post(path) {\n\t\t\t\t\t\treturn fetch(path + \"?room=\" + encodeURIComponent(room), {method: \"POST\"});\n\t\t\t\t\t}\n\t\t\t\t\tfunction render(roster) {\n\t\t\t\t\t\tvar names = \"\";\n\t\t\t\t\t\t(roster.members || []).forEach(function (m) { names += \"<li>\" + m.name + \"</li>\"; });\n\t\t\t\t\t\tdocument.getElementById(\"room-roster\").innerHTML = names;\n\t\t\t\t\t\tdocument.getElementById(\"room-presenter\").textContent = roster.presenter || \"(none)\";\n\t\t\t\t\t\tdocument.getElementById(\"room-generation\").textContent = roster.generation;\n\t\t\t\t\t}\n\t\t\t\t\tfunction refresh() {\n\t\t\t\t\t\tfetch(\"/room/roster?room=\" + encodeURIComponent(room))\n\t\t\t\t\t\t\t.then(function (r) { return r.json(); })\n\t\t\t\t\t\t\t.then(render);\n\t\t\t\t\t}\n\t\t\t\t\tdocument.getElementById(\"room-acquire\").addEventListener(\"click\", function () { post(\"/room/acquire\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-release\").addEventListener(\"click\", function () { post(\"/room/release\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-leave\").addEventListener(\"click\", function () { post(\"/room/leave\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-crash\").addEventListener(\"click\", function () { post(\"/room/crash\").then(refresh); });\n\t\t\t\t\tsetInterval(function () { post(\"/room/heartbeat\"); }, 5000);\n\t\t\t\t\tsetInterval(refresh, 3000);\n\t\t\t\t\tpost(\"/room/heartbeat\");\n\t\t\t\t})();\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</ul><div class=\"card-actions justify-end\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\">Take presenter</button> <button id=\"room-release\" class=\"btn\" type=\"button\">Release</button> <button id=\"room-leave\" class=\"btn\" type=\"button\">Leave</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\">Crash room</button></div></div></div></main><script>\n\t\t\t\t// Adjacent polling loop (not SSE): heartbeat keeps this\n\t\t\t\t// member alive, roster refresh re-renders from snapshots.\n\t\t\t\t// Templ does not interpolate expressions inside <script>\n\t\t\t\t// (script bodies render verbatim), so the room id travels\n\t\t\t\t// as a data attribute on <main>, read back here.\n\t\t\t\t(function () {\n\t\t\t\t\tvar room = document.querySelector(\"main[data-room]\").getAttribute(\"data-room\");\n\t\t\t\t\tfunction post(path) {\n\t\t\t\t\t\treturn fetch(path + \"?room=\" + encodeURIComponent(room), {method: \"POST\"});\n\t\t\t\t\t}\n\t\t\t\t\tfunction render(roster) {\n\t\t\t\t\t\tvar names = \"\";\n\t\t\t\t\t\t(roster.members || []).forEach(function (m) { names += \"<li>\" + m.name + \"</li>\"; });\n\t\t\t\t\t\tdocument.getElementById(\"room-roster\").innerHTML = names;\n\t\t\t\t\t\tdocument.getElementById(\"room-presenter\").textContent = roster.presenter || \"(none)\";\n\t\t\t\t\t\tdocument.getElementById(\"room-generation\").textContent = roster.generation;\n\t\t\t\t\t}\n\t\t\t\t\tfunction refresh() {\n\t\t\t\t\t\tfetch(\"/room/roster?room=\" + encodeURIComponent(room))\n\t\t\t\t\t\t\t.then(function (r) { return r.json(); })\n\t\t\t\t\t\t\t.then(render);\n\t\t\t\t\t}\n\t\t\t\t\tdocument.getElementById(\"room-acquire\").addEventListener(\"click\", function () { post(\"/room/acquire\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-release\").addEventListener(\"click\", function () { post(\"/room/release\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-leave\").addEventListener(\"click\", function () { post(\"/room/leave\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-crash\").addEventListener(\"click\", function () { post(\"/room/crash\").then(refresh); });\n\t\t\t\t\tsetInterval(function () { post(\"/room/heartbeat\"); }, 5000);\n\t\t\t\t\tsetInterval(refresh, 3000);\n\t\t\t\t\tpost(\"/room/heartbeat\");\n\t\t\t\t})();\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

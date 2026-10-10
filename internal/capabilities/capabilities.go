@@ -319,6 +319,8 @@ var All = []Capability{
 		},
 		Warns: []string{
 			"The navbar Whiteboard link is stripped automatically.",
+			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
 		},
 	},
 	{

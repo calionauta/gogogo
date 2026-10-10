@@ -4,6 +4,8 @@
 // + the navbar link lines in features/auth/views.templ (the unit's
 // extraStrips cover both). No sounds import here on purpose: room views
 // stay dependency-free so the unit carries no DependsOn.
+// Smoke: room has no installer unit, so ci-local still drives /room —
+// export SMOKE_FEATURES without room after manual removal.
 package room
 
 import (
@@ -42,6 +44,7 @@ templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel strin
 					second browser and take the lock there — exactly one of
 					you wins. Press crash and watch the roster rebuild.
 				</p>
+				@components.TechBadge([]string{"GoAkt grains", "supervision", "JSON polling"})
 				<div class="card bg-base-200 shadow mt-4">
 					<div class="card-body">
 						<h2 class="card-title">

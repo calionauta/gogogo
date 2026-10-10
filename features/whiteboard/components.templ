@@ -49,6 +49,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 					<h1 class="text-2xl font-bold">Collab whiteboards</h1>
 					<a class="btn btn-primary" data-variant="primary" href="/whiteboard/new">New whiteboard</a>
 				</div>
+				@components.TechBadge([]string{"Loro CRDT", "NATS", "SSE Hub", "presence", "offline outbox"})
 				@WhiteboardListFragment(boards)
 			</main>
 			@components.PbRealtimeResync("wb-realtime-resync", "'/api/whiteboards/fragment'", "whiteboards")
