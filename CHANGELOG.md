@@ -1,5 +1,41 @@
 ## [Unreleased]
 
+### Added
+
+- **Shared PB-realtime resync component.** The hidden-`@get` + EventSource
+  snippet existed in 4 copies (todo, basecoat skin, notes, whiteboard) and
+  had already drifted. `internal/components/PbRealtimeResync` (button id +
+  fragment + topic params, golden-tested) replaces all four; todo's
+  doc-version watcher split out separately. Callers keep their ids/urls,
+  so existing page assertions pass unchanged.
+- **AG-UI-compatible event envelope (`internal/genui`).** Run/text-message
+  framing subset, byte-compatible with the reference Go SDK by test,
+  fail-closed both directions, emitted over the existing SSE Hub. No new
+  transport, no new dependency; tool/state events arrive with the
+  component catalog, not before.
+- **Stale-tab reload on deploy.** `/health` stamps `X-Gogogo-Build`
+  (`config.BuildTag()`); authed pages compare on load/foreground via
+  `session.js` and reload once on mismatch. Inert in dev, single-binary
+  deploys only. Covered by a real-binary smoke assertion (red-proofed).
+- **Transport preset + matrix.** `advise --need "broadcast transport"`
+  surfaces `realtime-transport` (runtime switches, nothing to trim);
+  `docs/async-layers.md` carries the queryable layer×switch table.
+
+### Fixed
+
+- **Bare 500s now log + return safe messages.** `fail()` in todo
+  handlers (14 sites migrated, including a real `err.Error()` leak in
+  suggest-enqueue); ruleguard `RawInternalString` + `LeakedErrText500*`
+  block regressions repo-wide (400 recovery reasons deliberately out of
+  scope). `.templ`/`.js` `/api/*` URLs are pinned to registered routes
+  by `TestTemplAPIURLsHaveRoutes` (+ pre-commit hook).
+- **SSE Hub drains on shutdown** (`SSEHub.Close()` wired into
+  `Queue.Close()`); relay marshal failures in notes/whiteboard now log.
+- **`datastar-lint` phantom script regions (v0.13.2) + version pin test
+  (v0.13.3).** `<script` inside `//` comments no longer opens a region;
+  `TestFallbackVersionTracksChangelog` ties the fallback constant to the
+  release. Pin moved to v0.13.3 (CI + skill doc).
+
 ## [0.42.11] - 2026-10-09
 
 ### Added

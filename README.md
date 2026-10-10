@@ -274,6 +274,7 @@ opening a PR.
 
 Inspired by [northstar](https://github.com/zangster300/northstar) by Zangster —
 a Go + NATS + Datastar + Templ + DaisyUI application starter.
+See [docs/inspirations.md](docs/inspirations.md) for full credits and learnings.
 
 ## License
 

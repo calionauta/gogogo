@@ -103,7 +103,7 @@ jobs:
         # and start failing the build with no code change here. Bump this
         # deliberately, reading the release notes.
         run: |
-          go install github.com/calionauta/datastar-lint@v0.13.1
+          go install github.com/calionauta/datastar-lint@v0.13.3
           export PATH="$HOME/go/bin:$PATH"
           make datastar-lint
       - name: Lint

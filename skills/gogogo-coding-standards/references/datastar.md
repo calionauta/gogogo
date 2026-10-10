@@ -9,7 +9,7 @@ make templ && make datastar-lint   # after any .templ change
 ```
 
 - `make datastar-lint` = `bin/datastar-lint -only-errors -r ./features ./internal` (`Makefile`). Two trees because the **Go analyzer** validates backend SDK calls (`sse.PatchElements`) which live under `internal/`; the HTML analyzer covers the `.templ` under `features/`. `-only-errors` keeps intentional custom attrs (`data-tool`, `data-doc-id`) green.
-- CI pins the version (`go install github.com/calionauta/datastar-lint@v0.12.0`), **not** `@latest`: a new release can raise a rule to ERROR and fail the build with no code change here.
+- CI pins the version (`go install github.com/calionauta/datastar-lint@v0.13.3`), **not** `@latest`: a new release can raise a rule to ERROR and fail the build with no code change here.
 - Locally use the wrapper (`bin/datastar-lint`); it forwards `"$@"` and adds `--analyzers html,go`. Never bypass it with raw flags — the wrapper is what supplies the analyzers.
 - Pre-commit runs it on `*.{templ,go}` (`bin/check-datastar.sh`, scanning `./features/ ./web/ ./internal/`). Air `pre_cmd` runs templgen + lint on every save (`.air.toml`).
 
