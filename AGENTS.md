@@ -82,6 +82,12 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 
 Claude or any AI assistant does NOT co-author anything here. Never add `Co-Authored-By: Claude` (or any model) or human trailers to commits, PRs, release notes, blog posts, CHANGELOG. Draft files (`/tmp/msg.txt`, `/tmp/notes.txt`) end at the last meaningful sentence.
 
+## Releases (release-please owns versioning)
+
+- Agents push feature/fix branches and open normal PRs ONLY. Never open a release PR, never `git tag`, never edit version numbers.
+- Keep writing narrative entries under CHANGELOG `[Unreleased]` — the bot promotes them on release.
+- After a master merge, tell the user a `chore: release X.Y.Z` PR will appear for THEM to review and merge (merge creates the tag; `release.yml` builds from it). Never merge it autonomously.
+
 ## Shared-host lint (server.calionauta.com)
 
 - NEVER `golangci-lint run ./...` on this host — full-repo lint peaks near

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "changelog-type": "github",
+      "bump-minor-pre-major": false,
+      "include-v-in-tag": true
+    }
+  }
+}
