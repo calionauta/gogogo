@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.42.12] - 2026-10-10
+
 ### Added
 
 - **Shared PB-realtime resync component.** The hidden-`@get` + EventSource
