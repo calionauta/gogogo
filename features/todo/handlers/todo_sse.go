@@ -339,7 +339,7 @@ func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, pay
 	if p.SuggestErr != "" {
 		return emitToast(sse, "Suggest failed: "+p.SuggestErr, phaseError)
 	}
-	return emitToast(sse, fmt.Sprintf("Got %d suggestions", len(p.Suggestions)), retryStatusSuccess)
+	return emitToast(sse, fmt.Sprintf("Got %d suggestions — see below", len(p.Suggestions)), retryStatusSuccess)
 }
 
 func (h *TodoHandler) streamProgress(sse *sdk.ServerSentEventGenerator, payload []byte) error {
