@@ -1,5 +1,7 @@
 package components
 
+import ic "github.com/calionauta/gogogo/internal/components"
+
 // RealtimeStream opens the persistent Server-Sent Events stream that keeps
 // every connected browser in sync. It is rendered ONCE, from Layout, so the
 // realtime wiring lives in exactly one place and cannot drift per-page.
@@ -99,102 +101,51 @@ templ RealtimeStream(streamURL string) {
 // a record mutation event we re-fetch the list fragment via Datastar's
 // programmatic @get (window.datastar.get), morphing #todo-list in place.
 templ PbRealtimeRecords() {
-	<button
-		id="pb-realtime-resync"
-		type="button"
-		class="hidden"
-		data-on:click={ "@get('/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all'))" }
-		aria-hidden="true"
-	></button>
-	<script type="module">
-		// Re-fetch the todo list via the hidden @get button (markup above)
-		// instead of calling actions.get() directly: Datastar's get action
-		// needs a context (el/cleanups) the runtime only synthesizes when the
-		// action is invoked through an attribute, so a bare actions.get(url)
-		// crashes (cleanups is undefined). The server's /api/todos/fragment
-		// response sets datastar-selector + datastar-mode headers so the morph
-		// targets #todo-list (outer).
-		var clientID = window.__gogogoClientID || ('tab-' + Math.random().toString(36).slice(2, 10));
-			var es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(clientID));
-			function subscribe(clientId) {
-				fetch('/api/realtime', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ clientId: clientId, action: 'subscribe', subscriptions: ['todos'] })
-				}).catch(function () {});
-			}
-			// Refetch the full fragment to recover any record changes that
-			// arrived while this tab was disconnected or not yet subscribed.
-			// PocketBase realtime has NO event replay buffer, so a create that
-			// happens before the subscription is live (or while backgrounded)
-			// would otherwise never reach this tab — leaving the other tab
-			// silently out of sync until a full reload.
-			function resync() {
-				var b = document.getElementById('pb-realtime-resync');
-				if (b) { b.click(); }
-			}
-			es.addEventListener('PB_CONNECT', function (e) {
-				var msg;
-				try { msg = JSON.parse(e.data); } catch (_) { return; }
-				if (!msg.clientId) { return; }
-			// PocketBase sends RECORD events on `event: <topic>` (the subscription
-		// topic, e.g. "todos"), NOT on the clientId channel (which only carries
-		// control messages like PB_CONNECT / PB_SUBSCRIBED). Bind onRecord to the
-		// "todos" topic so create/update/delete actually reach the browser.
-			es.addEventListener('todos', onRecord);
-			subscribe(msg.clientId);
-			resync();
-			});
-			// Recover events missed while the tab was backgrounded. Browsers
-			// throttle/pause EventSource when hidden, and PocketBase realtime
-			// does NOT replay, so refetch the fragment when the tab becomes
-			// visible again.
-			document.addEventListener('visibilitychange', function () {
-				if (!document.hidden) { resync(); }
-			});
-			function onRecord(e) {
-				var msg;
-				try { msg = JSON.parse(e.data); } catch (_) { return; }
-				// Any record change (create/update/delete): refetch the fragment.
-				// The server returns datastar-selector:#todo-list + datastar-mode:outer,
-				// so the outer morph replaces the whole list — deletes disappear and
-				// creates/updates merge in. More robust than partial DOM edits and
-				// keeps every tab consistent with the server.
-				resync();
-			}
-			// EventSource auto-reconnects on drop; PB_CONNECT re-fires with a
-			// fresh clientId, so we re-subscribe and re-bind on each connect.
+	@ic.PbRealtimeResync("pb-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')", "todos")
+	@DocVersionWatcher()
+}
 
-			// CRDTStore doc-version watcher (Phase 3).
-			//
-			// When the SSE hub fans out a doc-version-bumped event
-			// (from a peer instance via ApplyRemoteOp OR from a local
-			// CRDTStore mutation), the server merges the $docVersion
-			// signal on this client. We watch that signal and
-			// re-fetch the fragment — same path as a PB record event,
-			// so the UX is identical regardless of which side wrote.
-			//
-			// We poll because Datastar v1 doesn't expose a signal-
-			// change subscribe API; the signal lives on a document
-			// attribute managed by Datastar. A 250ms tick is cheap
-			// (one number compare) and well under human perception.
-			var lastDocVersion = null;
-			function watchDocVersion() {
-				var sig = document.body && document.body.getAttribute('data-signals-docVersion');
-				var v = sig == null ? null : Number(sig);
-				if (v != null && v !== lastDocVersion) {
-					lastDocVersion = v;
-					if (window.__gogogoDocVersionReady) { resync(); }
-					window.__gogogoDocVersionReady = true;
-				}
+// DocVersionWatcher re-fetches the list when the SSE hub fans out a
+// doc-version-bumped event (CRDTStore peer write). Split out of
+// PbRealtimeRecords so the shared resync component stays generic:
+// record changes go through PB realtime, doc-version bumps through
+// this watcher, both ending on the same hidden @get button.
+templ DocVersionWatcher() {
+	<script type="module">
+		// CRDTStore doc-version watcher (Phase 3).
+		//
+		// When the SSE hub fans out a doc-version-bumped event
+		// (from a peer instance via ApplyRemoteOp OR from a local
+		// CRDTStore mutation), the server merges the $docVersion
+		// signal on this client. We watch that signal and
+		// re-fetch the fragment — same path as a PB record event,
+		// so the UX is identical regardless of which side wrote.
+		//
+		// We poll because Datastar v1 does not expose a signal-
+		// change subscribe API; the signal lives on a document
+		// attribute managed by Datastar. A 250ms tick is cheap
+		// (one number compare) and well under human perception.
+		function clickResync() {
+			var b = document.getElementById("pb-realtime-resync");
+			if (b) { b.click(); }
+		}
+		var lastDocVersion = null;
+		function watchDocVersion() {
+			var sig = document.body && document.body.getAttribute("data-signals-docVersion");
+			var v = sig == null ? null : Number(sig);
+			if (v != null && v !== lastDocVersion) {
+				lastDocVersion = v;
+				if (window.__gogogoDocVersionReady) { clickResync(); }
+				window.__gogogoDocVersionReady = true;
 			}
-			document.addEventListener('datastar-ready', function () {
-				watchDocVersion();
-				setInterval(watchDocVersion, 250);
-			});
-			setTimeout(function () {
-				watchDocVersion();
-				setInterval(watchDocVersion, 250);
-			}, 400);
+		}
+		document.addEventListener("datastar-ready", function () {
+			watchDocVersion();
+			setInterval(watchDocVersion, 250);
+		});
+		setTimeout(function () {
+			watchDocVersion();
+			setInterval(watchDocVersion, 250);
+		}, 400);
 	</script>
 }

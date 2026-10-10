@@ -333,10 +333,13 @@ func TestRealtimeNoOrphanIIFE(t *testing.T) {
 	if strings.Contains(pbBlock, "})()"+";") {
 		t.Fatalf("PbRealtimeRecords script block contains orphan })(); — SyntaxError kills cross-tab realtime")
 	}
-	// Also verify the script block DOES contain the pb-realtime-resync
-	// button reference (the resync mechanism is the fix for the crash).
-	if !strings.Contains(pbBlock, "pb-realtime-resync") {
-		t.Fatalf("PbRealtimeRecords script missing pb-realtime-resync resync mechanism")
+	// Also verify the page carries the shared resync mechanism: the
+	// data-pb-resync marker the script uses to find its hidden @get
+	// button (the resync mechanism is the fix for the crash). Checked
+	// page-wide — the marker lives on the button tag, which renders
+	// before this script block.
+	if !strings.Contains(html, "data-pb-resync") {
+		t.Fatalf("page missing data-pb-resync resync mechanism")
 	}
 }
 
