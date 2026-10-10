@@ -171,20 +171,20 @@ learn. Revisit per provider when it blocks a capability you actually call.
 
 ### Generative UI catalog (and not a React GenUI SDK)?
 
-The model picks components from a fixed registry (`text_note`,
+The model picks components from a fixed registry — `text_note`,
 `plan_cards`, `data_table`, `bar_chart`, `action_buttons`, nestable
-`section`s) and the server renders them as Templ over SSE — no client
-framework, no JS bundle, trimmable like every feature. Rejected:
-OpenUI/A2UI/AG-UI/CopilotKit renderers (all React/JS with npm + SPA;
-none ships a Go/hypermedia renderer, so adopting one breaks the single
-binary), free-form model HTML (unreviewable, untestable, XSS surface),
-and the community AG-UI Go SDK (version churn for ~10 string constants —
-mirrored stdlib-only with a wire-compatibility test instead). Cost: the
-catalog only grows by developer PR (the model never invents components),
-recursion is depth-capped, and free-model rosters churn monthly (a slug
-can go paid or 404 overnight — verified live; pin and monitor). Revisit
-when an external AG-UI client needs our stream, or a renderer the model
-can't express in server-rendered HTML.
+`section`s — and the server renders them as Templ over SSE: no client
+framework, no JS bundle, trimmable like every feature.
+
+- **Rejected:** OpenUI/A2UI/AG-UI/CopilotKit renderers (all React/JS
+  with npm + SPA; none ships a Go/hypermedia renderer), free-form
+  model HTML (unreviewable, untestable, XSS surface), and the
+  community AG-UI Go SDK (version churn for ~10 string constants —
+  mirrored stdlib-only with a wire-compatibility test instead).
+- **Cost:** the catalog grows by developer PR only; recursion is
+  depth-capped; free-model rosters churn monthly (pin and monitor).
+- **Revisit when:** an external AG-UI client needs the stream, or a
+  renderer the model can't express in server-rendered HTML.
 
 ### Loro, server-owned (and not Yjs / Automerge / OT)?
 

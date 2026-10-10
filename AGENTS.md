@@ -88,6 +88,7 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
 - Agents push feature/fix branches and open normal PRs ONLY. Never open a release PR, never `git tag`, never edit version numbers.
 - Keep writing narrative entries under CHANGELOG `[Unreleased]` — the bot promotes them on release.
 - After a master merge, tell the user a `chore: release X.Y.Z` PR will appear for THEM to review and merge (merge creates the tag; `release.yml` builds from it). Never merge it autonomously.
+- Docs prose: one idea per paragraph, max three lines; 3+ items become a bold-lead list (`CONTRIBUTING.md`).
 
 ## Shared-host lint (server.calionauta.com)
 
