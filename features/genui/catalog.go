@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -37,6 +38,34 @@ type TextNoteProps struct {
 // SectionProps titles a group of nested components.
 type SectionProps struct {
 	Title string `json:"title"`
+}
+
+// Bar is one labeled bar in a bar chart.
+type Bar struct {
+	Label string  `json:"label"`
+	Value float64 `json:"value"`
+}
+
+// BarChartProps is a pure-CSS bar chart: zero JS, zero chart lib, fully
+// server-rendered — the visual proof an answer is interface, not prose.
+type BarChartProps struct {
+	Title string `json:"title"`
+	Bars  []Bar  `json:"bars"`
+}
+
+// Action is one app-mutating button: a form posting fields to a
+// same-origin URL. This is what makes an answer act on your data
+// instead of describing it — the un-chatbot primitive.
+type Action struct {
+	Label  string            `json:"label"`
+	Method string            `json:"method"`
+	URL    string            `json:"url"`
+	Fields map[string]string `json:"fields,omitempty"`
+}
+
+// ActionButtonsProps is a row of action buttons.
+type ActionButtonsProps struct {
+	Actions []Action `json:"actions"`
 }
 
 // Plan is one actionable plan card.
@@ -113,6 +142,65 @@ var renderers = map[string]renderer{
 		}
 		return GenuiDataTable(p.Headers, p.Rows), nil
 	},
+	"bar_chart": func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[BarChartProps](props)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(p.Title) == "" {
+			return nil, errors.New("genui: bar_chart requires title")
+		}
+		if len(p.Bars) == 0 {
+			return nil, errors.New("genui: bar_chart requires at least one bar")
+		}
+		peak := 0.0
+		for _, b := range p.Bars {
+			if b.Value < 0 {
+				return nil, fmt.Errorf("genui: bar_chart bar %q has negative value", b.Label)
+			}
+			peak = max(peak, b.Value)
+		}
+		if peak <= 0 {
+			return nil, errors.New("genui: bar_chart needs a positive value to scale by")
+		}
+		return GenuiBarChart(p.Title, p.Bars, peak), nil
+	},
+	"action_buttons": func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[ActionButtonsProps](props)
+		if err != nil {
+			return nil, err
+		}
+		if len(p.Actions) == 0 {
+			return nil, errors.New("genui: action_buttons requires at least one action")
+		}
+		for _, a := range p.Actions {
+			if err := checkAction(a); err != nil {
+				return nil, err
+			}
+		}
+		return GenuiActionButtons(p.Actions), nil
+	},
+}
+
+// checkAction enforces the same-origin contract: action buttons post
+// to this app only. Absolute URLs, protocol-relative URLs, schemes and
+// whitespace never reach a form — a model turning answers into request
+// forgery buttons fails here, not in the browser.
+func checkAction(a Action) error {
+	if strings.TrimSpace(a.Label) == "" {
+		return errors.New("genui: action requires label")
+	}
+	switch a.Method {
+	case http.MethodPost, http.MethodGet:
+	default:
+		return fmt.Errorf("genui: action method %q must be POST or GET", a.Method)
+	}
+	u := a.URL
+	if u == "" || !strings.HasPrefix(u, "/") || strings.HasPrefix(u, "//") ||
+		strings.ContainsAny(u, " \t\n:") {
+		return fmt.Errorf("genui: action url %q must be a same-origin path", u)
+	}
+	return nil
 }
 
 // Registered reports whether name is a catalog component. Section is
@@ -200,6 +288,8 @@ func PromptForCatalog() string {
 		"text_note {text}, " +
 		"plan_cards {plans:[{title, detail}]}, " +
 		"data_table {headers:[], rows:[[]]}, " +
+		"bar_chart {title, bars:[{label, value>=0}]}, " +
+		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
 		"section {title} holding nested components. " +
 		"No prose outside the JSON object."
 }

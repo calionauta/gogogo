@@ -103,3 +103,31 @@ func TestGenuiResultRendersCatalog(t *testing.T) {
 		}
 	}
 }
+
+// TestGenuiResultRendersVisualComponents proves the non-text half:
+// bars scale by width with text values (never color-only) and action
+// buttons post to same-origin URLs with their fields.
+func TestGenuiResultRendersVisualComponents(t *testing.T) {
+	t.Parallel()
+	dirs, err := genui.ParseDirectives(`{"components":[` +
+		`{"type":"bar_chart","props":{"title":"W","bars":[{"label":"Mon","value":2},{"label":"Tue","value":4}]}},` +
+		`{"type":"action_buttons","props":{"actions":[` +
+		`{"label":"Add","method":"POST","url":"/api/todos","fields":{"title":"x"}}]}}]}`)
+	if err != nil {
+		t.Fatalf("ParseDirectives(visual): %v", err)
+	}
+	comps, err := genui.RenderAll(dirs)
+	if err != nil {
+		t.Fatalf("RenderAll(visual): %v", err)
+	}
+	var buf bytes.Buffer
+	if err := genui.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("GenuiResult(visual): %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{`role="img"`, `width: 100`, `width: 50`, `name="title"`, ">W<", ">Mon<"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("visual result missing %q", want)
+		}
+	}
+}

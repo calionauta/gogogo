@@ -2,6 +2,7 @@
 package genui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -47,7 +48,7 @@ func TestParseToleratesFencesAndProse(t *testing.T) {
 // to emit components that fail closed at parse time.
 func TestCatalogListsRegistered(t *testing.T) {
 	t.Parallel()
-	for _, want := range []string{"text_note", "plan_cards", "data_table"} {
+	for _, want := range []string{"text_note", "plan_cards", "data_table", "bar_chart", "action_buttons", "section"} {
 		if !Registered(want) {
 			t.Errorf("catalog missing %q (prompt advertises it)", want)
 		}
@@ -64,6 +65,35 @@ func TestParseRejectsMalformedProps(t *testing.T) {
 	t.Parallel()
 	if _, err := ParseDirectives(`{"components":[{"type":"plan_cards","props":{"plans":"not-an-array"}}]}`); err == nil {
 		t.Fatal("ParseDirectives(bad props) = nil error, want rejection")
+	}
+}
+
+// TestActionButtonsStaySameOrigin pins the SSRF guard: an action
+// posting off-origin (or to a non-relative URL) must fail closed, or a
+// model could turn every Ask answer into a request forgery button.
+func TestActionButtonsStaySameOrigin(t *testing.T) {
+	t.Parallel()
+	for _, url := range []string{
+		"https://evil.example/x",
+		"//evil.example/x",
+		"javascript:alert(1)",
+		"/api/todos with space",
+	} {
+		raw := `{"components":[{"type":"action_buttons","props":{` +
+			`"actions":[{"label":"x","method":"POST","url":` + strconv.Quote(url) + `}]}}]}`
+		if _, err := ParseDirectives(raw); err == nil {
+			t.Fatalf("ParseDirectives(action %q) = nil error, want rejection", url)
+		}
+	}
+}
+
+// TestBarChartNeedsPositiveBars pins honest scaling: an empty or
+// all-zero series renders nothing meaningful, so it fails instead of
+// drawing a flat lie.
+func TestBarChartNeedsPositiveBars(t *testing.T) {
+	t.Parallel()
+	if _, err := ParseDirectives(`{"components":[{"type":"bar_chart","props":{"title":"W","bars":[]}}]}`); err == nil {
+		t.Fatal("ParseDirectives(empty bars) = nil error, want rejection")
 	}
 }
 

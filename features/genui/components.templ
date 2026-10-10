@@ -161,6 +161,49 @@ templ GenuiSection(title string, children []templ.Component) {
 	</section>
 }
 
+// GenuiBarChart renders a pure-CSS bar chart: zero JS, zero chart
+// library, fully server-rendered and morphable. Values print as text
+// next to every bar, so nothing is conveyed by color alone (and
+// DaisyUI theme tokens keep both modes legible).
+templ GenuiBarChart(title string, bars []Bar, peak float64) {
+	<div>
+		<h3 class="font-semibold mb-2">{ title }</h3>
+		<ul class="flex flex-col gap-2">
+			for i, bar := range bars {
+				<li>
+					<div class="flex justify-between text-sm mb-1">
+						<span>{ bar.Label }</span>
+						<span class="text-base-content/60">{ barValue(bar.Value) }</span>
+					</div>
+					<div class="h-3 rounded bg-base-300 overflow-hidden" role="img" aria-label={ bar.Label + ": " + barValue(bar.Value) }>
+						<div
+							class={ "h-full rounded " + barClass(i) }
+							style={ "width: " + barWidth(bar.Value, peak) }
+						></div>
+					</div>
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// GenuiActionButtons renders one form per action: each button posts its
+// fields to a same-origin URL (validated server-side in checkAction).
+// Per-button forms beat one shared form — the fields travel with the
+// action they belong to, and each posts independently.
+templ GenuiActionButtons(actions []Action) {
+	<div class="flex flex-wrap gap-2">
+		for _, action := range actions {
+			<form data-on:submit__prevent={ "@" + actionVerb(action.Method) + "('" + action.URL + "', {contentType: 'form'})" }>
+				for key, val := range action.Fields {
+					<input type="hidden" name={ key } value={ val }/>
+				}
+				<button type="submit" class="btn btn-sm btn-primary">{ action.Label }</button>
+			</form>
+		}
+	</div>
+}
+
 // GenuiTextNote renders a single prose card.
 templ GenuiTextNote(text string) {
 	<div class="card bg-base-200/40">
