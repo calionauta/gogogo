@@ -167,7 +167,7 @@ func TestKindsFollowServantPrinciple(t *testing.T) {
 	pluginIDs := []string{
 		"nats", "dagnats", "goakt", "llm", "collab", "datastar", "components",
 		"credits", "sounds", "skins", "entity-store", "offline-sync",
-		"capabilities",
+		"capabilities", "genui",
 	}
 	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room"}
 	byID := ByID()
