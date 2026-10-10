@@ -141,6 +141,11 @@ func PbRealtimeRecords() templ.Component {
 // PbRealtimeRecords so the shared resync component stays generic:
 // record changes go through PB realtime, doc-version bumps through
 // this watcher, both ending on the same hidden @get button.
+//
+// Reactive, not polling: data-effect re-runs its expression whenever
+// $docVersion changes (plus once on load), so no 250ms timer keeps a
+// goroutine-equivalent alive in every tab. The script holds only the
+// pure compare-and-click function — Datastar owns the subscription.
 func DocVersionWatcher() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -162,7 +167,7 @@ func DocVersionWatcher() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script type=\"module\">\n\t\t// CRDTStore doc-version watcher (Phase 3).\n\t\t//\n\t\t// When the SSE hub fans out a doc-version-bumped event\n\t\t// (from a peer instance via ApplyRemoteOp OR from a local\n\t\t// CRDTStore mutation), the server merges the $docVersion\n\t\t// signal on this client. We watch that signal and\n\t\t// re-fetch the fragment — same path as a PB record event,\n\t\t// so the UX is identical regardless of which side wrote.\n\t\t//\n\t\t// We poll because Datastar v1 does not expose a signal-\n\t\t// change subscribe API; the signal lives on a document\n\t\t// attribute managed by Datastar. A 250ms tick is cheap\n\t\t// (one number compare) and well under human perception.\n\t\tfunction clickResync() {\n\t\t\tvar b = document.getElementById(\"pb-realtime-resync\");\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\tvar lastDocVersion = null;\n\t\tfunction watchDocVersion() {\n\t\t\tvar sig = document.body && document.body.getAttribute(\"data-signals-docVersion\");\n\t\t\tvar v = sig == null ? null : Number(sig);\n\t\t\tif (v != null && v !== lastDocVersion) {\n\t\t\t\tlastDocVersion = v;\n\t\t\t\tif (window.__gogogoDocVersionReady) { clickResync(); }\n\t\t\t\twindow.__gogogoDocVersionReady = true;\n\t\t\t}\n\t\t}\n\t\tdocument.addEventListener(\"datastar-ready\", function () {\n\t\t\twatchDocVersion();\n\t\t\tsetInterval(watchDocVersion, 250);\n\t\t});\n\t\tsetTimeout(function () {\n\t\t\twatchDocVersion();\n\t\t\tsetInterval(watchDocVersion, 250);\n\t\t}, 400);\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"pb-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

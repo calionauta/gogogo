@@ -15,6 +15,16 @@ make templ && make datastar-lint   # after any .templ change
 
 ## API shape (read before writing a Go SDK call or rule)
 
+Pinned core: `web/resources/static/datastar.js` is Datastar **v1.0.3**
+(self-hosted, no CDN). Current docs live at `https://data-star.dev`
+(guide + reference/attributes + reference/actions + reference/sse_events);
+`datastar-lint` is tested against v1.0.4. Version gaps already bitten:
+`data-on-signal-patch-filter` does NOT exist in v1.0.3 (use `data-effect`
+on the signal instead); `data-effect`, `data-init`, `data-on-interval`,
+`data-indicator`, `data-on:datastar-fetch` all verified present in the
+bundle. When the docs show an attribute, grep the bundle before using it
+— a silently-ignored attribute is worse than a missing one.
+
 The Datastar Go SDK is **method-only**. Every patch call is a method on
 `*datastar.ServerSentEventGenerator` from `datastar.NewSSE(w, r)`:
 
@@ -36,7 +46,20 @@ they can never be "missing a selector".
 
 1. `PatchElements` needs a selector or the client throws `PatchElementsNoTargetsFound` and the update silently never lands. Pair `internal/datastar.RenderAndPatch` with an explicit selector. This is an **error** in the linter, so it fails the gate.
 2. A helper taking `opts ...PatchElementOption` and forwarding them (`sse.PatchElements(html, opts...)`) is correct and must not be flagged — the selector comes from the caller.
-3. Prefer Datastar attributes (`data-on:*`, signals, expressions, `__window`/`__document` modifiers) over vanilla JS. Inline JS only when unavoidable, adjacent to the markup (locality of behavior).
+3. Vanilla JS is the last resort, never the default (locality of
+   behavior). Before writing any inline `<script>` or static `.js`,
+   enumerate the Datastar primitive that could own it (`data-on:*`
+   incl. `__window`/`__document`, `data-effect`, `data-on-interval`,
+   `data-on-signal-patch`, `data-indicator`, `data-init`) and — when
+   none fits — write the reason in a comment next to the script. The
+   standing allowlist (each proven against the primitive list):
+   canvas/op batching + Loro + outbox (`whiteboard.js`, `notes.js`),
+   Service Worker + global controllers (`sw.js`, `session.js`,
+   `theme.js`), stream bootstrap openers (no `data-on:load` on body),
+   PB-realtime subscribe (not Datastar events). A `setInterval`
+   polling loop or `innerHTML` render is never acceptable for signal
+   changes or fragment updates — use `data-effect` /
+   `data-on-interval` + fragment morph (`docs/realtime-recipe.md`).
 4. Intentional custom attributes (whiteboard `data-tool`/`data-doc-id`, cuelume `data-cuelume-*`) go in `.datastar-lint.yaml` under `attributes.allowed` — never silence with broad ignores.
 5. The action list tracks the Datastar core release: `@query()` is v1.0.4+. An action missing from the linter's regex falls through to the "no action matched" branch and silently skips the URL-format and method checks, so re-check this list on a core upgrade.
 6. Templ does not interpolate `{...}` inside `<script>` bodies or inside
@@ -54,3 +77,12 @@ Tailwind input scans only `features/`, `web/`, `internal/` (`source(none)` + exp
 - `site/**` and `docs/**` edits cannot stale `app.min.css` (landing uses its own stylesheet, zero Tailwind utils).
 - `css-check` fails only when a class-shaped token in a scanned tree changes the bundle without `make css`. Rebuild, don't exclude — **unless the tree renders no HTML at all.** `internal/installer/**` is excluded (`@source not`) for exactly that reason: it is the CLI, it only NAMES classes as data (and its prose contains words like "diff"), so scanning it injected spurious DaisyUI CSS. Every class it names is defined in a `.templ` that IS scanned, so nothing is lost. Exclude only a package that renders no markup; anything that renders belongs in the scan.
 - Test data / JSON / prose containing `p-1`-like tokens inside scanned trees creates spurious CSS — keep fixtures out or rename the key.
+
+## Realtime patterns (don't invent transports)
+
+`docs/realtime-recipe.md` is the recipe: hidden-`@get` permanent streams,
+`PbRealtimeResync` for record lists, fragment morphs with selector
+headers, `data-effect` for signal reactions (never polling), `fail()` on
+500s, and the conformance test that pins every `/api/*` URL to a Go
+route. MCP/CLI surfaces the same knowledge via `advise` (presets
+`realtime-transport`, `ai-features`); the skill is the execution half.

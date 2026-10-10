@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/google/uuid"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
@@ -47,9 +46,13 @@ type demoResponder struct{}
 
 const demoAnswer = `{"components":[` +
 	`{"type":"text_note","props":{"text":"Demo answer — connect GOAI_API_KEY for live model output."}},` +
+	`{"type":"bar_chart","props":{"title":"This week","bars":[` +
+	`{"label":"Mon","value":3},{"label":"Tue","value":5},{"label":"Wed","value":2}]}},` +
 	`{"type":"plan_cards","props":{"plans":[` +
 	`{"title":"Ship the Ask panel","detail":"wire a real prompt through this same path"},` +
 	`{"title":"Grow the catalog","detail":"one registry entry per new component"}]}},` +
+	`{"type":"action_buttons","props":{"actions":[` +
+	`{"label":"Add demo todo","method":"POST","url":"/api/todos","fields":{"title":"Demo from Ask"}}]}},` +
 	`{"type":"data_table","props":{"headers":["Component","Renders"],` +
 	`"rows":[["text_note","prose card"],["plan_cards","apply buttons"],["data_table","this table"]]}}]}`
 
@@ -233,6 +236,7 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		h.sendToast(hub, job.ClientID, "Ask failed: model unavailable", "error")
 		return fmt.Errorf("genui: respond: %w", err)
 	}
+	//nolint:contextcheck // pure CPU constructors (no I/O to cancel); ctx enters at component Render instead
 	dirs, err := ParseDirectives(raw)
 	if err != nil {
 		h.sendResult(hub, job.ClientID, nil, "Ask failed: could not shape the answer")
@@ -287,16 +291,13 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 		}); err != nil {
 			return err
 		}
-		comps := make([]templ.Component, 0, len(p.Directives))
-		for _, d := range p.Directives {
-			comp, err := Render(d)
-			if err != nil {
-				return err
-			}
-			comps = append(comps, comp)
+		comps, err := RenderAll(p.Directives)
+		if err != nil {
+			return err
 		}
 		return dshelpers.RenderAndPatch(sse, GenuiResult(comps, p.Error, p.Error != ""),
-			sdk.WithSelector("#genui-result"))
+			sdk.WithSelector("#genui-result"),
+			sdk.WithViewTransitions())
 	case "toast":
 		var t struct {
 			ToastType string `json:"toastType"`

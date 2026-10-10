@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -14,14 +15,57 @@ import (
 // props. The model never emits markup — only names from Registered()
 // with props that decode into the structs below. Anything else fails
 // closed at ParseDirectives, before any renderer runs.
+//
+// Children enables one level of composition: container components
+// (section) nest directives inside directives, so answers can group
+// (a week plan holding its table) instead of only stacking siblings.
+// Depth is capped (maxDirectiveDepth) — unbounded recursion on
+// attacker-shaped input is a stack-exhaustion vector.
 type Directive struct {
 	Component string
 	Props     map[string]any
+	Children  []Directive
 }
+
+// maxDirectiveDepth bounds nesting (top level counts as 0).
+const maxDirectiveDepth = 3
 
 // TextNoteProps is a single prose card.
 type TextNoteProps struct {
 	Text string `json:"text"`
+}
+
+// SectionProps titles a group of nested components.
+type SectionProps struct {
+	Title string `json:"title"`
+}
+
+// Bar is one labeled bar in a bar chart.
+type Bar struct {
+	Label string  `json:"label"`
+	Value float64 `json:"value"`
+}
+
+// BarChartProps is a pure-CSS bar chart: zero JS, zero chart lib, fully
+// server-rendered — the visual proof an answer is interface, not prose.
+type BarChartProps struct {
+	Title string `json:"title"`
+	Bars  []Bar  `json:"bars"`
+}
+
+// Action is one app-mutating button: a form posting fields to a
+// same-origin URL. This is what makes an answer act on your data
+// instead of describing it — the un-chatbot primitive.
+type Action struct {
+	Label  string            `json:"label"`
+	Method string            `json:"method"`
+	URL    string            `json:"url"`
+	Fields map[string]string `json:"fields,omitempty"`
+}
+
+// ActionButtonsProps is a row of action buttons.
+type ActionButtonsProps struct {
+	Actions []Action `json:"actions"`
 }
 
 // Plan is one actionable plan card.
@@ -98,10 +142,75 @@ var renderers = map[string]renderer{
 		}
 		return GenuiDataTable(p.Headers, p.Rows), nil
 	},
+	"bar_chart": func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[BarChartProps](props)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(p.Title) == "" {
+			return nil, errors.New("genui: bar_chart requires title")
+		}
+		if len(p.Bars) == 0 {
+			return nil, errors.New("genui: bar_chart requires at least one bar")
+		}
+		peak := 0.0
+		for _, b := range p.Bars {
+			if b.Value < 0 {
+				return nil, fmt.Errorf("genui: bar_chart bar %q has negative value", b.Label)
+			}
+			peak = max(peak, b.Value)
+		}
+		if peak <= 0 {
+			return nil, errors.New("genui: bar_chart needs a positive value to scale by")
+		}
+		return GenuiBarChart(p.Title, p.Bars, peak), nil
+	},
+	"action_buttons": func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[ActionButtonsProps](props)
+		if err != nil {
+			return nil, err
+		}
+		if len(p.Actions) == 0 {
+			return nil, errors.New("genui: action_buttons requires at least one action")
+		}
+		for _, a := range p.Actions {
+			if err := checkAction(a); err != nil {
+				return nil, err
+			}
+		}
+		return GenuiActionButtons(p.Actions), nil
+	},
 }
 
-// Registered reports whether name is a catalog component.
+// checkAction enforces the same-origin contract: action buttons post
+// to this app only. Absolute URLs, protocol-relative URLs, schemes and
+// whitespace never reach a form — a model turning answers into request
+// forgery buttons fails here, not in the browser.
+func checkAction(a Action) error {
+	if strings.TrimSpace(a.Label) == "" {
+		return errors.New("genui: action requires label")
+	}
+	switch a.Method {
+	case http.MethodPost, http.MethodGet:
+	default:
+		return fmt.Errorf("genui: action method %q must be POST or GET", a.Method)
+	}
+	u := a.URL
+	if u == "" || !strings.HasPrefix(u, "/") || strings.HasPrefix(u, "//") ||
+		strings.ContainsAny(u, " \t\n:") {
+		return fmt.Errorf("genui: action url %q must be a same-origin path", u)
+	}
+	return nil
+}
+
+// Registered reports whether name is a catalog component. Section is
+// a container, not a leaf renderer: it resolves here so prompts,
+// validation and tests name one registry, while Render handles its
+// children natively below.
 func Registered(name string) bool {
+	if name == "section" {
+		return true
+	}
 	_, ok := renderers[name]
 	return ok
 }
@@ -110,6 +219,53 @@ func Registered(name string) bool {
 // names fail even if ParseDirectives was skipped — defense in depth,
 // same fail-closed shape as RequireOwner behind every handler.
 func Render(d Directive) (templ.Component, error) {
+	return renderDepth(d, 0)
+}
+
+// RenderAll renders a directive list, stopping at the first failure
+// (a half-rendered generative region is worse than an error toast).
+func RenderAll(dirs []Directive) ([]templ.Component, error) {
+	comps := make([]templ.Component, 0, len(dirs))
+	for _, d := range dirs {
+		comp, err := Render(d)
+		if err != nil {
+			return nil, err
+		}
+		comps = append(comps, comp)
+	}
+	return comps, nil
+}
+
+// renderDepth is Render with a nesting budget: one enforcement point
+// for both the parse path and direct Render callers.
+func renderDepth(d Directive, depth int) (templ.Component, error) {
+	if depth > maxDirectiveDepth {
+		return nil, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
+	}
+	if d.Component == "section" {
+		var title SectionProps
+		raw, err := json.Marshal(d.Props)
+		if err != nil {
+			return nil, fmt.Errorf("genui: encode section props: %w", err)
+		}
+		dec := json.NewDecoder(strings.NewReader(string(raw)))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&title); err != nil {
+			return nil, fmt.Errorf("genui: decode section props: %w", err)
+		}
+		if strings.TrimSpace(title.Title) == "" {
+			return nil, errors.New("genui: section requires title")
+		}
+		children := make([]templ.Component, 0, len(d.Children))
+		for _, child := range d.Children {
+			comp, err := renderDepth(child, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			children = append(children, comp)
+		}
+		return GenuiSection(title.Title, children), nil
+	}
 	r, ok := renderers[d.Component]
 	if !ok {
 		return nil, fmt.Errorf("genui: unregistered component %q", d.Component)
@@ -131,7 +287,10 @@ func PromptForCatalog() string {
 		"using ONLY these components: " +
 		"text_note {text}, " +
 		"plan_cards {plans:[{title, detail}]}, " +
-		"data_table {headers:[], rows:[[]]}. " +
+		"data_table {headers:[], rows:[[]]}, " +
+		"bar_chart {title, bars:[{label, value>=0}]}, " +
+		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
+		"section {title} holding nested components. " +
 		"No prose outside the JSON object."
 }
 
@@ -152,11 +311,19 @@ func stripFences(s string) string {
 	return strings.TrimSpace(s)
 }
 
+// rawDirective mirrors the model JSON including nesting; converted to
+// Directive only after validation passes at every level.
+type rawDirective struct {
+	Type     string         `json:"type"`
+	Props    map[string]any `json:"props"`
+	Children []rawDirective `json:"children,omitempty"`
+}
+
 // ParseDirectives extracts and validates the component list from raw
 // model output. Tolerant of fences and surrounding prose, strict about
-// the catalog: one unknown type or undecodable props rejects the whole
-// answer (a half-rendered generative region is worse than an error
-// toast with retry).
+// the catalog: one unknown type, undecodable props, over-deep nesting
+// or empty answer rejects the whole answer (a half-rendered generative
+// region is worse than an error toast with retry).
 func ParseDirectives(raw string) ([]Directive, error) {
 	s := stripFences(strings.TrimSpace(raw))
 	start, end := strings.IndexByte(s, '{'), strings.LastIndexByte(s, '}')
@@ -164,10 +331,7 @@ func ParseDirectives(raw string) ([]Directive, error) {
 		return nil, errors.New("genui: no JSON object found")
 	}
 	var envelope struct {
-		Components []struct {
-			Type  string         `json:"type"`
-			Props map[string]any `json:"props"`
-		} `json:"components"`
+		Components []rawDirective `json:"components"`
 	}
 	if err := json.Unmarshal([]byte(s[start:end+1]), &envelope); err != nil {
 		return nil, fmt.Errorf("genui: decode directives: %w", err)
@@ -177,13 +341,36 @@ func ParseDirectives(raw string) ([]Directive, error) {
 	}
 	dirs := make([]Directive, 0, len(envelope.Components))
 	for _, c := range envelope.Components {
-		if !Registered(c.Type) {
-			return nil, fmt.Errorf("genui: unregistered component %q", c.Type)
-		}
-		if _, err := Render(Directive{Component: c.Type, Props: c.Props}); err != nil {
+		d, err := convertDirective(c, 0)
+		if err != nil {
 			return nil, err
 		}
-		dirs = append(dirs, Directive{Component: c.Type, Props: c.Props})
+		dirs = append(dirs, d)
 	}
 	return dirs, nil
+}
+
+// convertDirective validates one node (type registered, props decode,
+// depth budget) and its subtree. Render doubles as the validator so
+// parse and render can never disagree on what is legal.
+func convertDirective(c rawDirective, depth int) (Directive, error) {
+	if depth > maxDirectiveDepth {
+		return Directive{}, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
+	}
+	if !Registered(c.Type) {
+		return Directive{}, fmt.Errorf("genui: unregistered component %q", c.Type)
+	}
+	children := make([]Directive, 0, len(c.Children))
+	for _, child := range c.Children {
+		converted, err := convertDirective(child, depth+1)
+		if err != nil {
+			return Directive{}, err
+		}
+		children = append(children, converted)
+	}
+	d := Directive{Component: c.Type, Props: c.Props, Children: children}
+	if _, err := renderDepth(d, depth); err != nil {
+		return Directive{}, err
+	}
+	return d, nil
 }

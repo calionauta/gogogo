@@ -43,7 +43,35 @@ func TestGenuiResultStates(t *testing.T) {
 	}
 }
 
-// TestGenuiResultRendersCatalog proves every catalog component renders
+// TestGenuiIndexWiring pins the page-level contracts: the Ask form
+// posts as form-encoded (so handleAsk reads prompt via FormValue), owns
+// a network-failure release (datastar-fetch error stages reset the
+// server-owned spinner — red-proofed below), labels its input, and opens
+// the result stream exactly once.
+func TestGenuiIndexWiring(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := genui.GenuiIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("GenuiIndex: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`id="genui-ask-form"`,
+		`for="genui-prompt"`,
+		`name="prompt"`,
+		`contentType: &#39;form&#39;`,
+		`data-on:datastar-fetch="evt.detail`,
+		"retries-failed",
+		`id="genui-stream-opener"`,
+		`id="genui-result"`,
+		`<h1`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("index missing %q", want)
+		}
+	}
+}
+
 // its content (headings + data), so the worker's HTML assertions hold.
 func TestGenuiResultRendersCatalog(t *testing.T) {
 	t.Parallel()
@@ -72,6 +100,34 @@ func TestGenuiResultRendersCatalog(t *testing.T) {
 	for _, want := range []string{"hello", "Ship it", "today", "A", "B", "1", "<table", "<h3", "Apply"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("full result missing %q", want)
+		}
+	}
+}
+
+// TestGenuiResultRendersVisualComponents proves the non-text half:
+// bars scale by width with text values (never color-only) and action
+// buttons post to same-origin URLs with their fields.
+func TestGenuiResultRendersVisualComponents(t *testing.T) {
+	t.Parallel()
+	dirs, err := genui.ParseDirectives(`{"components":[` +
+		`{"type":"bar_chart","props":{"title":"W","bars":[{"label":"Mon","value":2},{"label":"Tue","value":4}]}},` +
+		`{"type":"action_buttons","props":{"actions":[` +
+		`{"label":"Add","method":"POST","url":"/api/todos","fields":{"title":"x"}}]}}]}`)
+	if err != nil {
+		t.Fatalf("ParseDirectives(visual): %v", err)
+	}
+	comps, err := genui.RenderAll(dirs)
+	if err != nil {
+		t.Fatalf("RenderAll(visual): %v", err)
+	}
+	var buf bytes.Buffer
+	if err := genui.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("GenuiResult(visual): %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{`role="img"`, `width: 100`, `width: 50`, `name="title"`, ">W<", ">Mon<"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("visual result missing %q", want)
 		}
 	}
 }

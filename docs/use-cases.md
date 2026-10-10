@@ -110,6 +110,10 @@ Runtime off: unset `GOAI_API_KEY` (suggest button hides).
 
 - "Suggest a better title" buttons, streaming completions, BYOK
   metering via `credits`.
+- Generative UI: the model picks cards/tables/sections from a fixed
+  catalog and the server renders them (`features/genui`, demo at
+  `/genui`). Unknown component types fail closed — the model never
+  emits markup.
 
 Not for: orchestration, memory, tool loops, supervision — single
 calls only. Multi-step agent behavior is `dagnats` (pipelines), not this.
