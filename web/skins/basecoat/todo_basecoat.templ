@@ -253,7 +253,7 @@ templ queueRetryPanel(signals todo.Signals) {
 }
 
 // aiSuggestPanel is the AI Suggest tab. Separate affordance from the
-// queue + retry demo (calls GoAI/Groq). Hidden when the server was
+// queue + retry demo (calls the configured GoAI client). Hidden when the server was
 // started without a key AND without SIMULATE_LLM.
 templ aiSuggestPanel(signals todo.Signals) {
 	<div class="flex items-center justify-between">
@@ -269,7 +269,7 @@ templ aiSuggestPanel(signals todo.Signals) {
 	</div>
 
 	<p class="text-xs soft">
-		Asks the configured LLM (Groq via GoAI) for 3 todo suggestions. The request is queued (goqite) and retried (retry-go) like any slow, failure-prone call.
+		Asks the configured LLM for 3 todo suggestions. The request is queued (goqite) and retried (retry-go) like any slow, failure-prone call. Need cards, tables and charts instead? <a href="/genui">Try Ask AI</a>.
 	</p>
 
 	<ul class="w-full text-xs space-y-1">
@@ -290,7 +290,7 @@ templ aiSuggestPanel(signals todo.Signals) {
 
 	<button type="button" class="btn w-full" data-variant="primary"
 		data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle) + '&skin=basecoat')"
-		title="Ask the configured LLM (Groq) for 3 todo suggestions via goqite + retry-go">
+		title="Ask the configured LLM for 3 todo suggestions via goqite + retry-go">
 		<span class="inline-flex items-center gap-2">
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 				<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>

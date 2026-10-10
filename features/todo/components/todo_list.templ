@@ -139,7 +139,7 @@ templ TodoList(signals todo.Signals) {
 				each demo's content lives INSIDE its own tab container. $sidebarTab
 				selects the active tab (seeded "queue"). Queue + Retry demos goqite +
 				retry-go with HARD-CODED tasks (no LLM). AI Suggest is a SEPARATE
-				affordance that calls the configured GoAI/Groq client. Durable Workflow
+				affordance that calls the configured GoAI client. Durable Workflow
 				shows the DagNats event-sourced pipeline. -->
 				<div class="card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300 overflow-visible">
 					<div class="card-body p-4">
@@ -247,7 +247,7 @@ templ TodoList(signals todo.Signals) {
 							</div>
 						</div>
 
-						<!-- ════════ AI Suggest tab (separate affordance, calls GoAI/Groq) ════════ -->
+						<!-- ════════ AI Suggest tab (separate affordance, calls the configured LLM) ════════ -->
 						if signals.LLMEnabled || signals.SimulatedLLM {
 							<div class="p-4" data-show="$sidebarTab === 'ai'">
 								<div class="flex items-center justify-between mb-2">
@@ -263,9 +263,11 @@ templ TodoList(signals todo.Signals) {
 								</div>
 
 								<div class="text-xs text-base-content/60 mb-3">
-									Asks the configured LLM (Groq via GoAI) for 3 todo
+									Asks the configured LLM for 3 todo
 									suggestions. The request is queued (goqite) and retried
 									(retry-go) like any slow, failure-prone call.
+									Need cards, tables and charts instead of titles?
+									<a href="/genui" class="link link-primary">Try Ask AI</a>.
 								</div>
 
 								<ul class="steps steps-vertical w-full mb-3 text-xs">
@@ -286,7 +288,7 @@ templ TodoList(signals todo.Signals) {
 								<button
 									class="btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
 									data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
-									title="Ask the configured LLM (Groq) for 3 todo suggestions via goqite + retry-go"
+									title="Ask the configured LLM for 3 todo suggestions via goqite + retry-go"
 								 data-variant="primary">
 									<span class="inline-flex items-center gap-2">
 										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -517,6 +519,25 @@ templ SuggestionsList(suggestions []string) {
 				</button>
 			}
 		</div>
+		<script>
+			// Plain script on purpose (see DocVersionWatcher): data-effect
+			// evaluates at Datastar init, before deferred modules load.
+			window.__gogogoSuggestScroll = function (list) {
+				var n = list ? list.length : 0;
+				if (window.__gogogoSuggestSeen === undefined) {
+					window.__gogogoSuggestSeen = n;
+					return;
+				}
+				if (n > window.__gogogoSuggestSeen) {
+					window.__gogogoSuggestSeen = n;
+					var el = document.getElementById("suggestions-region");
+					if (el) { el.scrollIntoView({block: "nearest"}); }
+				} else {
+					window.__gogogoSuggestSeen = n;
+				}
+			};
+		</script>
+		<div data-effect="window.__gogogoSuggestScroll($suggestions)" hidden aria-hidden="true"></div>
 	</div>
 }
 
