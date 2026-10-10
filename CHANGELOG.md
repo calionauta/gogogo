@@ -1,5 +1,30 @@
 ## [Unreleased]
 
+## [0.42.13] - 2026-10-10
+
+### Added
+
+- **Ask AI demo (`/genui`, feature `genui`).** Catalog-constrained
+  generative UI: the model picks `text_note`, `plan_cards`,
+  `data_table`, `bar_chart` (pure CSS, zero JS) and `action_buttons`
+  (same-origin forms that mutate app data) or nested `section`s;
+  unknown types fail closed (red-proofed). Ask enqueues a worker job,
+  the answer streams over a dedicated SSE hub and morphs with view
+  transitions. Keyless demo via `SIMULATE_LLM`; live-verified against
+  `nvidia/nemotron-3-super-120b-a12b:free` (perfect catalog JSON first
+  try). UX audit: a11y 3 / design 3, 0 AI-slop tells.
+- **Reactive doc-version watcher.** The 250ms `setInterval` poll is a
+  `data-effect` subscription on `$docVersion` (pure fn in a synchronous
+  script — module scripts load after Datastar init and throw; caught by
+  the new browser PoC `scripts/todo-docwatch.test.mjs`).
+- **Ask spinner releases on network failure** (`data-on:datastar-fetch`
+  error stages on the form).
+- **Transport matrix + realtime recipe.** Queryable table in
+  `docs/async-layers.md`, `realtime-transport` advise preset,
+  `docs/realtime-recipe.md` (client/server patterns + checklist), skill
+  pointer; LoB-max rule and pinned Datastar core (v1.0.3) in the
+  `datastar.md` skill reference.
+
 ## [0.42.12] - 2026-10-10
 
 ### Added
