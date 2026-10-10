@@ -1,6 +1,10 @@
 package auth
 
-import "github.com/calionauta/gogogo/features/sounds"
+import (
+	"os"
+
+	"github.com/calionauta/gogogo/features/sounds"
+)
 
 // Navbar is the top bar rendered on every authenticated page.
 // Shows the app name on the left, a user dropdown on the right with
@@ -22,6 +26,7 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 			// storage or grep-ing CDN. "dev" for `go run`. The label has a
 			// title= that exposes commit + build time on hover.
 			<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
+			<span class="app-nav-badge" title="Backend">{ func() string { b := os.Getenv("DB_BACKEND"); if b == "" { return "pb" }; return b }() }</span>
 			<div class="app-nav-links">
 				<a href="/todo" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "todo",

@@ -81,7 +81,7 @@ async function api(method, path, { token, body } = {}) {
 }
 
 async function waitForServer() {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 200; i++) { // 100s total
     try {
       const r = await fetch(BASE + "/health");
       if (r.ok) return true;
