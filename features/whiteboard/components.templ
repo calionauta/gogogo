@@ -51,41 +51,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 				</div>
 				@WhiteboardListFragment(boards)
 			</main>
-			<button
-				id="wb-realtime-resync"
-				type="button"
-				class="hidden"
-				data-on:click={ "@get('/api/whiteboards/fragment')" }
-				aria-hidden="true"
-			></button>
-			<script type="module">
-				var clientID = 'wb-' + Math.random().toString(36).slice(2, 10);
-				var es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(clientID));
-				function subscribe(clientId) {
-					fetch('/api/realtime', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ clientId: clientId, action: 'subscribe', subscriptions: ['whiteboards'] })
-					}).catch(function () {});
-				}
-				function resync() {
-					var b = document.getElementById('wb-realtime-resync');
-					if (b) { b.click(); }
-				}
-				es.addEventListener('PB_CONNECT', function (e) {
-					var msg;
-					try { msg = JSON.parse(e.data); } catch (_) { return; }
-					if (!msg.clientId) { return; }
-					es.addEventListener('whiteboards', onRecord);
-					subscribe(msg.clientId);
-					resync();
-				});
-				document.addEventListener('visibilitychange', function () {
-					if (!document.hidden) { resync(); }
-				});				function onRecord(e) {
-					resync();
-				}
-				</script>
+			@components.PbRealtimeResync("wb-realtime-resync", "'/api/whiteboards/fragment'", "whiteboards")
 		</body>
 	</html>
 }

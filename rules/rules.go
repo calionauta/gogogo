@@ -130,3 +130,45 @@ func ModerncDriverOpen(m dsl.Matcher) {
 	m.Match(`sql.Open("sqlite", $dsn)`).
 		Report(`sql.Open("sqlite") instantiates the modernc driver beside the ncruces "sqlite3" pool — two pools, one set of files, plus PB version-check coupling. Open "sqlite3" (see db/pocketbase.go)`)
 }
+
+// RawInternalString flags `c.String(statusInternal, ...)` in the todo
+// handlers — a plain 500 with no log line and no separation between the
+// internal error and the public message. One site already leaked the
+// driver error into the response body ("enqueue failed: "+err.Error()).
+//
+// The fix is fail() (features/todo/handlers/http_fail.go): log internal,
+// return a safe public string. The match is scoped by construction:
+// statusInternal is declared only in features/todo/handlers (todo.go),
+// so no other package can compile this shape. fail() itself calls
+// c.String(status, ...) with a variable — never this constant — so the
+// helper does not flag itself.
+func RawInternalString(m dsl.Matcher) {
+	m.Match(`c.String(statusInternal, $*_)`).
+		Where(!m.File().Name.Matches(`http_fail\.go`)).
+		Report(`c.String(statusInternal, ...) returns a bare 500 with no log line and no internal/public split — use fail() (see features/todo/handlers/http_fail.go)`)
+}
+
+// LeakedErrText flags a 500 whose body concatenates err.Error() — the
+// internal text ships to the client. fail() exists for exactly this:
+// log the error, return a static public string.
+//
+// Scope is DELIBERATELY 500-only. The 400 sites ("decode op: "+err.Error(),
+// "apply op: "+err.Error()) carry the reason the client needs to recover
+// (stale base → resync against authoritative state, same recoverable-
+// conflict contract as the 409s beside them), and the audience is the
+// authenticated doc collaborator who sent the bytes. Flagging those
+// would push recovery reasons into logs the client never sees.
+func LeakedErrText500(m dsl.Matcher) {
+	m.Match(`c.String(statusInternal, $msg + $e.Error())`).
+		Where(!m.File().Name.Matches(`http_fail\.go`)).
+		Report(`500 body concatenates err.Error() — the internal text ships to the client. Use fail() with a static public message (see features/todo/handlers/http_fail.go)`)
+}
+
+// LeakedErrText500HTTP is the same guard for the http.StatusInternalServerError
+// spelling used outside the todo handlers (whiteboard, notes). Only the
+// FIRST m.Match in a rule function applies, so the second spelling needs
+// its own function. Same 400 exclusion as above.
+func LeakedErrText500HTTP(m dsl.Matcher) {
+	m.Match(`c.String(http.StatusInternalServerError, $msg + $e.Error())`).
+		Report(`500 body concatenates err.Error() — the internal text ships to the client. Log it server-side and return a static public message`)
+}

@@ -232,6 +232,18 @@ var (
 	once   sync.Once
 )
 
+// BuildTag identifies this binary for staleness checks: tabs open
+// across a deploy compare it (via the X-Gogogo-Build header on
+// /health) and reload instead of talking to a server whose element IDs
+// and signals no longer match their DOM. In dev both parts are static
+// ("dev/"), so the check is inert exactly where rebuilds are constant.
+func (c *Config) BuildTag() string {
+	if c == nil {
+		return "dev/"
+	}
+	return c.BuildLabel + "/" + c.BuildCommit
+}
+
 // Get returns the cached config singleton, loading it on first call.
 func Get() *Config {
 	once.Do(func() {

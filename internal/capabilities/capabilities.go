@@ -188,6 +188,13 @@ var All = []Capability{
 		Reason:  "Every .templ page renders through it; deletion is manual.",
 	},
 	{
+		ID:      "genui",
+		Kind:    KindPlugin,
+		Summary: "AG-UI-compatible event envelope for AI streams (framing subset; no new transport, no new dep)",
+		Dirs:    []string{"internal/genui"},
+		Reason:  "No installer unit yet: nothing to trim, nothing to add back — the envelope rides the queue's SSE Hub.",
+	},
+	{
 		ID:      "components",
 		Kind:    KindPlugin,
 		Summary: "shared UI helpers (Toast + OfflineBanner) + skin imports",

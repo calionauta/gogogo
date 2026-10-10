@@ -368,3 +368,27 @@ func templateRootDir(t *testing.T) string {
 		dir = parent
 	}
 }
+
+// TestAdviseTransportNeedMatchesTransportPreset pins the self-queryable
+// transport matrix: a need about broadcast/transport must surface the
+// realtime-transport preset (runtime switches, nothing to trim).
+func TestAdviseTransportNeedMatchesTransportPreset(t *testing.T) {
+	doc := buildAdvise("how do I broadcast to all tabs, websocket or sse transport")
+	found := false
+	for _, p := range doc.Presets {
+		if p.Name == "realtime-transport" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("transport need matched no realtime-transport preset, got %v", presetNames(doc.Presets))
+	}
+}
+
+func presetNames(ps []advisePreset) []string {
+	out := make([]string, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, p.Name)
+	}
+	return out
+}

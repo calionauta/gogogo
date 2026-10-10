@@ -82,6 +82,7 @@ func goFile(body string) string {
 func fixtures() []ruleFixture {
 	all := tickerFixtures()
 	all = append(all, moderncFixtures()...)
+	all = append(all, leakFixtures()...)
 	all = append(all,
 		ruleFixture{
 			name: "the corrected select shape stays quiet",
@@ -121,6 +122,26 @@ func fixtures() []ruleFixture {
 	}
 }`),
 			wantAtLeast: 1,
+		},
+		ruleFixture{
+			name: "raw statusInternal string is flagged, use fail()",
+			source: goFile(`type reqEvent struct{}
+func (reqEvent) String(code int, msg string) error { return nil }
+var statusInternal = 500
+func bad(c reqEvent) error {
+	return c.String(statusInternal, "boom")
+}`),
+			wantAtLeast: 1,
+		},
+		ruleFixture{
+			name: "other status constants stay quiet",
+			source: goFile(`type reqEvent struct{}
+func (reqEvent) String(code int, msg string) error { return nil }
+var statusBadRequest = 400
+func quiet(c reqEvent) error {
+	return c.String(statusBadRequest, "bad")
+}`),
+			wantAtLeast: 0,
 		},
 	)
 	return all

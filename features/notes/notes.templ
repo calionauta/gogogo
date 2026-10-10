@@ -30,43 +30,7 @@ templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit s
 				</div>
 				@NotesListFragment(docIDs)
 			</main>
-			<button
-				id="notes-realtime-resync"
-				type="button"
-				class="hidden"
-				data-on:click={ "@get('/api/notes/fragment')" }
-				aria-hidden="true"
-			></button>
-			<script type="module">
-				// Live list: PocketBase realtime on the notes collection,
-				// re-fetching the fragment — same pattern as the whiteboard
-				// list. Concatenation (no template literals): datastar-lint
-				// rejects templ-expression-looking braces in script bodies.
-				var clientID = "notes-" + Math.random().toString(36).slice(2, 10);
-				var es = new EventSource("/api/realtime?clientId=" + encodeURIComponent(clientID));
-				function subscribe(id) {
-					fetch("/api/realtime", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ clientId: id, action: "subscribe", subscriptions: ["notes"] })
-					}).catch(function () {});
-				}
-				function resync() {
-					var b = document.getElementById("notes-realtime-resync");
-					if (b) { b.click(); }
-				}
-				es.addEventListener("PB_CONNECT", function (e) {
-					var msg;
-					try { msg = JSON.parse(e.data); } catch (_) { return; }
-					if (!msg.clientId) { return; }
-					es.addEventListener("notes", function () { resync(); });
-					subscribe(msg.clientId);
-					resync();
-				});
-				document.addEventListener("visibilitychange", function () {
-					if (!document.hidden) { resync(); }
-				});
-			</script>
+			@components.PbRealtimeResync("notes-realtime-resync", "'/api/notes/fragment'", "notes")
 		</body>
 	</html>
 }

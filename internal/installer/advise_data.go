@@ -21,6 +21,21 @@ var advisePresets = []advisePreset{
 			"regardless (PocketBase).",
 	},
 	{
+		Name: "realtime-transport",
+		Idea: "records via PB realtime, ephemeral via SSE hub, " +
+			"cross-instance via JetStream — pick by traffic type",
+		Match: []string{
+			"transport", "broadcast", "websocket", "websockets",
+			"fanout", "fan-out", "pubsub", "pub-sub",
+			"server-sent", "sse", "polling", "eventsource",
+		},
+		Keep: []string{"(runtime switches — nothing to trim)"},
+		Note: "No single transport switch exists on purpose (records need " +
+			"per-user scoping, ephemeral needs fan-out). Matrix: " +
+			"docs/async-layers.md (Transport matrix). NATS_ENABLED=false " +
+			"is the cross-instance off switch; PB realtime is always on.",
+	},
+	{
 		Name: "background-jobs",
 		Idea: "durable queue with retry and backoff; progress streamed to the originator",
 		Match: []string{

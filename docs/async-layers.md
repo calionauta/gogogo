@@ -21,6 +21,24 @@ JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_
 GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
 ```
 
+## Transport matrix (queryable)
+
+Which wire carries what, what it falls back to, and the switch. There is
+deliberately no single transport switch: records need per-user scoping
+(free with collection rules), ephemeral traffic needs fan-out without
+persistence — one knob would conflate both. Pick by traffic type:
+
+| Traffic | Mechanism | Default | Switch / fallback | Notes |
+|---|---|---|---|---|
+| Record mutations (CRUD) | PB realtime `/api/realtime` | always on | none (PB-native; scoping comes from collection rules) | todo/whiteboard/notes lists resync fragments on it |
+| Ephemeral signals (toasts, progress, presence) | SSE Hub (Datastar SSE) | always on | in-process only; no cross-instance without JetStream | `BroadcastExcept` excludes the originator |
+| Cross-instance broadcast + CRUD proxy | NATS JetStream | on | `NATS_ENABLED=false` → in-memory hub; whiteboard/notes ops go SSE-only single-instance | `realtimeLabel()` surfaces the active transport in the UI |
+| Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | `ENTITY_STORE=pb` skips CRDT; workers no-op when NATS is down | snapshots persist to PB collections |
+| AI streams (tokens, run framing) | SSE Hub + AG-UI envelope | on with llm | unset `GOAI_API_KEY` hides the UI; envelope in `internal/genui/` | byte-compatible with AG-UI clients, no new transport |
+| Stale-tab detection | `X-Gogogo-Build` on `/health` | on | none; inert in dev (`dev/` tag never changes) | single-binary deploys only (see troubleshooting) |
+
+The same matrix is queryable at runtime: `advise --need "broadcast transport"` (preset `realtime-transport`).
+
 ## Two realtime mechanisms for different jobs
 
 This is the distinction that matters most, and the one most templates get

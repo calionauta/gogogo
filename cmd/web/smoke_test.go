@@ -154,6 +154,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	if err := waitForHealthy(ctx, base); err != nil {
 		t.Fatalf("binary never became healthy: %v", err)
 	}
+	assertHealthCarriesBuildTag(ctx, t, base)
 
 	// /todo requires a session; use a cookie jar so the login Set-Cookie is
 	// replayed on subsequent requests. The demo user is seeded on first boot.
@@ -202,6 +203,28 @@ func waitForHealthy(ctx context.Context, base string) error {
 		defer resp.Body.Close()
 		return resp.StatusCode == http.StatusOK
 	})
+}
+
+// assertHealthCarriesBuildTag pins the stale-tab contract on the real
+// binary: /health answers 200 "ok" (healthcheck) AND stamps
+// X-Gogogo-Build (tabs open across a deploy reload on mismatch).
+func assertHealthCarriesBuildTag(ctx context.Context, t *testing.T, base string) {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/health", nil)
+	if err != nil {
+		t.Fatalf("build /health request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET /health: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /health status = %d, want 200", resp.StatusCode)
+	}
+	if tag := resp.Header.Get("X-Gogogo-Build"); tag == "" {
+		t.Fatalf("GET /health missing X-Gogogo-Build header — stale tabs cannot detect deploys")
+	}
 }
 
 // assertPageWiresSSE checks the rendered /todo page opens the realtime

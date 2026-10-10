@@ -163,6 +163,7 @@ func (h *Handler) handleTyping(c *core.RequestEvent) error {
 		Type: typ,
 		TS:   time.Now().UnixMilli(),
 	}); err != nil {
+		slog.Warn("notes: relay typing failed", "error", err)
 		return c.String(http.StatusInternalServerError, "marshal typing")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -203,6 +204,7 @@ func (h *Handler) handleCaret(c *core.RequestEvent) error {
 		Y:    float64(req.Pos),
 		TS:   time.Now().UnixMilli(),
 	}); err != nil {
+		slog.Warn("notes: relay caret failed", "error", err)
 		return c.String(http.StatusInternalServerError, "marshal caret")
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

@@ -8,6 +8,8 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import ic "github.com/calionauta/gogogo/internal/components"
+
 // RealtimeStream opens the persistent Server-Sent Events stream that keeps
 // every connected browser in sync. It is rendered ONCE, from Layout, so the
 // realtime wiring lives in exactly one place and cannot drift per-page.
@@ -71,7 +73,7 @@ func RealtimeStream(streamURL string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 42, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 44, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -122,20 +124,45 @@ func PbRealtimeRecords() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button id=\"pb-realtime-resync\" type=\"button\" class=\"hidden\" data-on:click=\"")
+		templ_7745c5c3_Err = ic.PbRealtimeResync("pb-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')", "todos").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all'))")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 106, Col: 94}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		templ_7745c5c3_Err = DocVersionWatcher().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// Re-fetch the todo list via the hidden @get button (markup above)\n\t\t// instead of calling actions.get() directly: Datastar's get action\n\t\t// needs a context (el/cleanups) the runtime only synthesizes when the\n\t\t// action is invoked through an attribute, so a bare actions.get(url)\n\t\t// crashes (cleanups is undefined). The server's /api/todos/fragment\n\t\t// response sets datastar-selector + datastar-mode headers so the morph\n\t\t// targets #todo-list (outer).\n\t\tvar clientID = window.__gogogoClientID || ('tab-' + Math.random().toString(36).slice(2, 10));\n\t\t\tvar es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(clientID));\n\t\t\tfunction subscribe(clientId) {\n\t\t\t\tfetch('/api/realtime', {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\theaders: { 'Content-Type': 'application/json' },\n\t\t\t\t\tbody: JSON.stringify({ clientId: clientId, action: 'subscribe', subscriptions: ['todos'] })\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t\t// Refetch the full fragment to recover any record changes that\n\t\t\t// arrived while this tab was disconnected or not yet subscribed.\n\t\t\t// PocketBase realtime has NO event replay buffer, so a create that\n\t\t\t// happens before the subscription is live (or while backgrounded)\n\t\t\t// would otherwise never reach this tab — leaving the other tab\n\t\t\t// silently out of sync until a full reload.\n\t\t\tfunction resync() {\n\t\t\t\tvar b = document.getElementById('pb-realtime-resync');\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t\tes.addEventListener('PB_CONNECT', function (e) {\n\t\t\t\tvar msg;\n\t\t\t\ttry { msg = JSON.parse(e.data); } catch (_) { return; }\n\t\t\t\tif (!msg.clientId) { return; }\n\t\t\t// PocketBase sends RECORD events on `event: <topic>` (the subscription\n\t\t// topic, e.g. \"todos\"), NOT on the clientId channel (which only carries\n\t\t// control messages like PB_CONNECT / PB_SUBSCRIBED). Bind onRecord to the\n\t\t// \"todos\" topic so create/update/delete actually reach the browser.\n\t\t\tes.addEventListener('todos', onRecord);\n\t\t\tsubscribe(msg.clientId);\n\t\t\tresync();\n\t\t\t});\n\t\t\t// Recover events missed while the tab was backgrounded. Browsers\n\t\t\t// throttle/pause EventSource when hidden, and PocketBase realtime\n\t\t\t// does NOT replay, so refetch the fragment when the tab becomes\n\t\t\t// visible again.\n\t\t\tdocument.addEventListener('visibilitychange', function () {\n\t\t\t\tif (!document.hidden) { resync(); }\n\t\t\t});\n\t\t\tfunction onRecord(e) {\n\t\t\t\tvar msg;\n\t\t\t\ttry { msg = JSON.parse(e.data); } catch (_) { return; }\n\t\t\t\t// Any record change (create/update/delete): refetch the fragment.\n\t\t\t\t// The server returns datastar-selector:#todo-list + datastar-mode:outer,\n\t\t\t\t// so the outer morph replaces the whole list — deletes disappear and\n\t\t\t\t// creates/updates merge in. More robust than partial DOM edits and\n\t\t\t\t// keeps every tab consistent with the server.\n\t\t\t\tresync();\n\t\t\t}\n\t\t\t// EventSource auto-reconnects on drop; PB_CONNECT re-fires with a\n\t\t\t// fresh clientId, so we re-subscribe and re-bind on each connect.\n\n\t\t\t// CRDTStore doc-version watcher (Phase 3).\n\t\t\t//\n\t\t\t// When the SSE hub fans out a doc-version-bumped event\n\t\t\t// (from a peer instance via ApplyRemoteOp OR from a local\n\t\t\t// CRDTStore mutation), the server merges the $docVersion\n\t\t\t// signal on this client. We watch that signal and\n\t\t\t// re-fetch the fragment — same path as a PB record event,\n\t\t\t// so the UX is identical regardless of which side wrote.\n\t\t\t//\n\t\t\t// We poll because Datastar v1 doesn't expose a signal-\n\t\t\t// change subscribe API; the signal lives on a document\n\t\t\t// attribute managed by Datastar. A 250ms tick is cheap\n\t\t\t// (one number compare) and well under human perception.\n\t\t\tvar lastDocVersion = null;\n\t\t\tfunction watchDocVersion() {\n\t\t\t\tvar sig = document.body && document.body.getAttribute('data-signals-docVersion');\n\t\t\t\tvar v = sig == null ? null : Number(sig);\n\t\t\t\tif (v != null && v !== lastDocVersion) {\n\t\t\t\t\tlastDocVersion = v;\n\t\t\t\t\tif (window.__gogogoDocVersionReady) { resync(); }\n\t\t\t\t\twindow.__gogogoDocVersionReady = true;\n\t\t\t\t}\n\t\t\t}\n\t\t\tdocument.addEventListener('datastar-ready', function () {\n\t\t\t\twatchDocVersion();\n\t\t\t\tsetInterval(watchDocVersion, 250);\n\t\t\t});\n\t\t\tsetTimeout(function () {\n\t\t\t\twatchDocVersion();\n\t\t\t\tsetInterval(watchDocVersion, 250);\n\t\t\t}, 400);\n\t</script>")
+		return nil
+	})
+}
+
+// DocVersionWatcher re-fetches the list when the SSE hub fans out a
+// doc-version-bumped event (CRDTStore peer write). Split out of
+// PbRealtimeRecords so the shared resync component stays generic:
+// record changes go through PB realtime, doc-version bumps through
+// this watcher, both ending on the same hidden @get button.
+func DocVersionWatcher() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script type=\"module\">\n\t\t// CRDTStore doc-version watcher (Phase 3).\n\t\t//\n\t\t// When the SSE hub fans out a doc-version-bumped event\n\t\t// (from a peer instance via ApplyRemoteOp OR from a local\n\t\t// CRDTStore mutation), the server merges the $docVersion\n\t\t// signal on this client. We watch that signal and\n\t\t// re-fetch the fragment — same path as a PB record event,\n\t\t// so the UX is identical regardless of which side wrote.\n\t\t//\n\t\t// We poll because Datastar v1 does not expose a signal-\n\t\t// change subscribe API; the signal lives on a document\n\t\t// attribute managed by Datastar. A 250ms tick is cheap\n\t\t// (one number compare) and well under human perception.\n\t\tfunction clickResync() {\n\t\t\tvar b = document.getElementById(\"pb-realtime-resync\");\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\tvar lastDocVersion = null;\n\t\tfunction watchDocVersion() {\n\t\t\tvar sig = document.body && document.body.getAttribute(\"data-signals-docVersion\");\n\t\t\tvar v = sig == null ? null : Number(sig);\n\t\t\tif (v != null && v !== lastDocVersion) {\n\t\t\t\tlastDocVersion = v;\n\t\t\t\tif (window.__gogogoDocVersionReady) { clickResync(); }\n\t\t\t\twindow.__gogogoDocVersionReady = true;\n\t\t\t}\n\t\t}\n\t\tdocument.addEventListener(\"datastar-ready\", function () {\n\t\t\twatchDocVersion();\n\t\t\tsetInterval(watchDocVersion, 250);\n\t\t});\n\t\tsetTimeout(function () {\n\t\t\twatchDocVersion();\n\t\t\tsetInterval(watchDocVersion, 250);\n\t\t}, 400);\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

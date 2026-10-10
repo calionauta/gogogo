@@ -1,0 +1,74 @@
+// SCOPE:core - shared PocketBase-realtime list resync (records half).
+package components
+
+// PbRealtimeResync subscribes to PocketBase realtime for one collection
+// name and re-fetches a list fragment on any record change. This is the
+// "records" half of the realtime strategy (record mutations are per-user
+// scoped by PB, so there is no cross-user broadcast leak); ephemeral
+// signals keep flowing through the SSE hub. Rendered ONCE per page.
+//
+// the button id must be unique on the page (each page's id is pinned by its
+// feature test). fragmentExpr is the Datastar @get argument as
+// client-side JS (e.g. a fragment path) — evaluated by Datastar
+// at click time, never by the server. The last argument is the PB subscription name.
+//
+// The script finds its button through the data-pb-resync marker (never
+// a second copy of the id) and reads that name back with getAttribute:
+// Templ never interpolates Go values inside <script> bodies, so values
+// cross that boundary only as data attributes.
+//
+// clientID reuses the stable per-tab id when RealtimeStream set one,
+// else a fresh random id — the same behavior the per-feature copies had.
+templ PbRealtimeResync(buttonID, fragmentExpr, topic string) {
+	<button
+		id={ buttonID }
+		type="button"
+		class="hidden"
+		data-on:click={ "@get(" + fragmentExpr + ")" }
+		data-pb-resync="1"
+		data-topic={ topic }
+		aria-hidden="true"
+	></button>
+	<script type="module">
+		// Hidden-@get-button + EventSource pattern (not data-on:load):
+		// Datastar v1 does not fire data-on:load on div/body, so a load
+		// attribute silently never opens anything. The button's @get is a
+		// real Datastar action (with proper context); this script clicks it.
+		function el() { return document.querySelector('[data-pb-resync]'); }
+		function subj() {
+			var b = el();
+			return b ? b.getAttribute('data-topic') : null;
+		}
+		var cid = window.__gogogoClientID || ('tab-' + Math.random().toString(36).slice(2, 10));
+		var es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(cid));
+		function sub(id) {
+			fetch('/api/realtime', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ clientId: id, action: 'subscribe', subscriptions: [subj()] })
+			}).catch(function () {});
+		}
+		function go() {
+			var b = el();
+			if (b) { b.click(); }
+		}
+		es.addEventListener('PB_CONNECT', function (e) {
+			var msg;
+			try { msg = JSON.parse(e.data); } catch (_) { return; }
+			if (!msg.clientId) { return; }
+			// PocketBase sends RECORD events on `event: <name>`, NOT on
+			// the clientId channel (which carries only control messages
+			// like PB_CONNECT / PB_SUBSCRIBED).
+			es.addEventListener(subj(), function () { go(); });
+			sub(msg.clientId);
+			// Refetch: PB realtime has NO replay buffer, so a change from
+			// before the subscription went live would otherwise never
+			// arrive. Same on tab-visibility return (backgrounded tabs get
+			// their EventSource throttled/paused by the browser).
+			go();
+		});
+		document.addEventListener('visibilitychange', function () {
+			if (!document.hidden) { go(); }
+		});
+	</script>
+}

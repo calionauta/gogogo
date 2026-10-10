@@ -1296,20 +1296,7 @@ func pbRealtime() templ.Component {
 			templ_7745c5c3_Var56 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<button id=\"pb-realtime-resync\" type=\"button\" class=\"hidden\" data-on:click=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var57 string
-		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/fragment?skin=basecoat')")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 565, Col: 61}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\tvar clientID = 'pb-' + Math.random().toString(36).slice(2, 10);\n\t\tvar es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(clientID));\n\t\tfunction subscribe(clientId) {\n\t\t\tfetch('/api/realtime', {\n\t\t\t\tmethod: 'POST',\n\t\t\t\theaders: { 'Content-Type': 'application/json' },\n\t\t\t\tbody: JSON.stringify({ clientId: clientId, action: 'subscribe', subscriptions: ['todos'] })\n\t\t\t}).catch(function () {});\n\t\t}\n\t\tfunction resync() {\n\t\t\tvar b = document.getElementById('pb-realtime-resync');\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\tes.addEventListener('PB_CONNECT', function (e) {\n\t\t\tvar msg;\n\t\t\ttry { msg = JSON.parse(e.data); } catch (_) { return; }\n\t\t\tif (!msg.clientId) { return; }\n\t\t\tes.addEventListener('todos', function () { resync(); });\n\t\t\tsubscribe(msg.clientId);\n\t\t\tresync();\n\t\t});\n\t\tdocument.addEventListener('visibilitychange', function () {\n\t\t\tif (!document.hidden) { resync(); }\n\t\t});\n\t</script>")
+		templ_7745c5c3_Err = components.PbRealtimeResync("pb-realtime-resync", "'/api/todos/fragment?skin=basecoat'", "todos").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

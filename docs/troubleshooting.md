@@ -3,6 +3,16 @@
 Symptoms and where they actually come from. The most common gogogo issues are
 **processes orphans segurando portas** and **assets stale** — not logic bugs.
 
+## An open tab reloads itself once right after a deploy
+
+Expected, not a bug. A tab open across a deploy holds a DOM rendered by the
+old binary; the new server's element IDs and signals may no longer match it,
+so morphs would land nowhere. Authenticated pages compare the server's build
+tag (`X-Gogogo-Build` on `/health`) on load and on return-to-foreground and
+reload once when it changes. In dev the tag is constant, so Air rebuilds never
+trigger it. Single-binary deploys only: alternating builds (rolling deploy
+without affinity) would reload on every flip.
+
 ## A browser tab opens at `127.0.0.1/_/#/pbinstall/…` during tests
 
 PocketBase's first-run installer (`apis.DefaultInstallerFunc`) mints a

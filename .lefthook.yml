@@ -46,6 +46,14 @@ pre-commit:
       run: bin/check-datastar.sh
       glob: "*.{templ,go}"
 
+    # Every /api/* URL a template or script fires must match a registered
+    # Go route (renamed handler + stale template = silent dead button).
+    # One Go test, same implementation CI runs — not a parallel bash
+    # reimplementation. ~1s incremental.
+    - name: api-routes
+      run: bin/check-api-routes.sh
+      glob: "*.{templ,js,go}"
+
     # src/css/input.css scans features/, web/ and internal/ only (source(none) +
     # explicit @source globs), so these are the only extensions that can change
     # the bundle. site/ is deliberately absent: the landing page has its own

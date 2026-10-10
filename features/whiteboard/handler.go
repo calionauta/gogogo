@@ -368,6 +368,7 @@ func (h *Handler) handlePresence(c *core.RequestEvent) error {
 	msg.TS = time.Now().UnixMilli()
 	data, mErr := json.Marshal(msg)
 	if mErr != nil {
+		slog.Warn("whiteboard: marshal presence failed", "error", mErr)
 		return c.String(http.StatusInternalServerError, "marshal presence")
 	}
 	h.hub.BroadcastExcept(data, from)
