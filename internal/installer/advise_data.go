@@ -87,6 +87,7 @@ var advisePresets = []advisePreset{
 		Match: []string{
 			"ai", "llm", "suggest", "chatbot", "agent", "byok",
 			unitCredits, "openai", "anthropic",
+			"generative", "genui", "assistant", "copilot",
 		},
 		Keep: []string{unitCredits},
 		Note: "LLM itself is runtime (set GOAI_API_KEY); credits unit is " +
