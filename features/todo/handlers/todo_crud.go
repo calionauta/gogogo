@@ -34,8 +34,8 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 	filter := filterOf(c)
 	todos, err := h.listTodos(c, filter)
 	if err != nil {
-		slog.Error("todo: list failed", "filter", filter, "error", err)
-		return c.String(statusInternal, "error listing todos")
+		wrapped := fmt.Errorf("filter %s: %w", filter, err)
+		return fail(c, "todo: list failed", wrapped, "error listing todos")
 	}
 
 	// Item count reflects the CURRENT filter — the header badge and the
@@ -90,8 +90,8 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 	filter := filterOf(c)
 	todos, err := h.listTodos(c, filter)
 	if err != nil {
-		slog.Error("todo: fragment list failed", "filter", filter, "error", err)
-		return c.String(statusInternal, "error listing todos")
+		wrapped := fmt.Errorf("filter %s: %w", filter, err)
+		return fail(c, "todo: fragment list failed", wrapped, "error listing todos")
 	}
 	skinName := h.resolveSkin(c)
 	signals := todo.Signals{
@@ -102,8 +102,7 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 	}
 	var buf bytes.Buffer
 	if err := h.renderTodoListRegion(signals, skinName).Render(c.Request.Context(), &buf); err != nil {
-		slog.Error("todo: fragment render failed", "error", err)
-		return c.String(statusInternal, "error rendering list")
+		return fail(c, "todo: fragment render failed", err, "error rendering list")
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// Merge the filtered item count signal so the client's badge/footer
@@ -189,8 +188,7 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 		UpdatedAt: time.Now(),
 	}
 	if err := h.saveTodo(c, &item, owner, idemKey); err != nil {
-		slog.Error("todo: save failed", "error", err)
-		return c.String(statusInternal, "save failed")
+		return fail(c, "todo: save failed", err, "save failed")
 	}
 
 	// Publish to NATS for cross-instance sync (desktop→server).
@@ -212,8 +210,7 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 
 	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
-		slog.Error("todo: list after create failed", "error", err)
-		return c.String(statusInternal, "error listing todos")
+		return fail(c, "todo: list after create failed", err, "error listing todos")
 	}
 	sse := sdk.NewSSE(c.Response, c.Request)
 	// Reset loading + clear the input on success so the form returns
@@ -265,8 +262,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 		"completed": !current.Completed,
 	})
 	if err != nil {
-		slog.Error("todo: toggle save failed", "id", id, "error", err)
-		return c.String(statusInternal, "toggle failed")
+		return fail(c, "todo: toggle save failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
 	}
 
 	if isOfflineReplay(c) {
@@ -275,8 +271,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 
 	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
-		slog.Error("todo: list after toggle failed", "error", err)
-		return c.String(statusInternal, "error listing todos")
+		return fail(c, "todo: list after toggle failed", err, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
 	h.publishCrudOp(nats.CrudOpToggle, owner, &nats.CrudOpData{
@@ -337,8 +332,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return c.String(statusNotFound, "not found")
 	}
 	if delErr := h.st().Delete(ctxOf(c), owner, id); delErr != nil && !errors.Is(delErr, store.ErrNotFound) {
-		slog.Error("todo: delete failed", "id", id, "error", delErr)
-		return c.String(statusInternal, "delete failed")
+		return fail(c, "todo: delete failed", fmt.Errorf("id %s: %w", id, delErr), "delete failed")
 	}
 
 	if isOfflineReplay(c) {
@@ -347,8 +341,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 
 	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
-		slog.Error("todo: list after delete failed", "error", err)
-		return c.String(statusInternal, "error listing todos")
+		return fail(c, "todo: list after delete failed", err, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
 	h.publishCrudOp(nats.CrudOpDelete, owner, &nats.CrudOpData{ID: t.ID})
@@ -384,8 +377,7 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 
 	count, err := h.st().ClearCompleted(ctxOf(c), owner)
 	if err != nil {
-		slog.Error("todo: clear completed failed", "error", err)
-		return c.String(statusInternal, "clear failed")
+		return fail(c, "todo: clear completed failed", err, "clear failed")
 	}
 
 	if isOfflineReplay(c) {
@@ -394,8 +386,7 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 
 	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
-		slog.Error("todo: list after clear failed", "error", err)
-		return c.String(statusInternal, "error listing todos")
+		return fail(c, "todo: list after clear failed", err, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
 	h.publishCrudOp(nats.CrudOpClearCompleted, owner, nil)

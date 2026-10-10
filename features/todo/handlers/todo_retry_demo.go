@@ -25,7 +25,7 @@ import (
 // Techstack/Diagnostics panel in the UI.
 func (h *TodoHandler) handleEnqueueRetryDemo(c *core.RequestEvent) error {
 	if err := h.q.Enqueue(context.Background(), mustJSON(queue.Job{Type: "retry_demo"})); err != nil {
-		return c.String(statusInternal, "enqueue failed")
+		return fail(c, "todo: retry-demo enqueue failed", err, "enqueue failed")
 	}
 	sse := sdk.NewSSE(c.Response, c.Request)
 	return dshelpers.MergeSignals(sse, map[string]any{

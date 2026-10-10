@@ -176,6 +176,12 @@ func (q *Queue) Close() {
 		q.workers.Stop()
 		q.workers = nil
 	}
+	// Drop live SSE registrations so shutdown holds no stale channels.
+	// Live streams still exit via their request context (HTTP shutdown);
+	// Close only clears hub state and never blocks producers.
+	if q.hub != nil {
+		q.hub.Close()
+	}
 	q.q = nil
 	if q.db != nil {
 		_ = q.db.Close()

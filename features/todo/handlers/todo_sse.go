@@ -69,8 +69,7 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 			// not an error. See the owner resolution above.
 			todos = []todo.Todo{}
 		} else {
-			slog.Error("todo: list on sse open failed", "error", err)
-			return c.String(statusInternal, "error listing todos")
+			return fail(c, "todo: list on sse open failed", err, "error listing todos")
 		}
 	}
 	if err := dshelpers.MergeSignals(sse, todo.Signals{

@@ -69,15 +69,15 @@ func (h *TodoHandler) enqueueSuggest(c *core.RequestEvent, jobType, partial stri
 	}
 	payload, err := json.Marshal(map[string]string{"partial": partial, "userId": uid})
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "marshal failed")
+		return fail(c, "todo: suggest marshal failed", err, "marshal failed")
 	}
 	job := queue.Job{Type: jobType, ClientID: clientID, Payload: payload}
 	body, err := json.Marshal(job)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "marshal job failed")
+		return fail(c, "todo: suggest job marshal failed", err, "marshal job failed")
 	}
 	if err := h.q.Enqueue(context.Background(), body); err != nil {
-		return c.String(http.StatusInternalServerError, "enqueue failed: "+err.Error())
+		return fail(c, "todo: suggest enqueue failed", err, "enqueue failed")
 	}
 
 	sse := sdk.NewSSE(c.Response, c.Request)
