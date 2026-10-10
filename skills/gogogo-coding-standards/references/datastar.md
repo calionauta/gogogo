@@ -15,6 +15,16 @@ make templ && make datastar-lint   # after any .templ change
 
 ## API shape (read before writing a Go SDK call or rule)
 
+Pinned core: `web/resources/static/datastar.js` is Datastar **v1.0.3**
+(self-hosted, no CDN). Current docs live at `https://data-star.dev`
+(guide + reference/attributes + reference/actions + reference/sse_events);
+`datastar-lint` is tested against v1.0.4. Version gaps already bitten:
+`data-on-signal-patch-filter` does NOT exist in v1.0.3 (use `data-effect`
+on the signal instead); `data-effect`, `data-init`, `data-on-interval`,
+`data-indicator`, `data-on:datastar-fetch` all verified present in the
+bundle. When the docs show an attribute, grep the bundle before using it
+— a silently-ignored attribute is worse than a missing one.
+
 The Datastar Go SDK is **method-only**. Every patch call is a method on
 `*datastar.ServerSentEventGenerator` from `datastar.NewSSE(w, r)`:
 
@@ -36,7 +46,20 @@ they can never be "missing a selector".
 
 1. `PatchElements` needs a selector or the client throws `PatchElementsNoTargetsFound` and the update silently never lands. Pair `internal/datastar.RenderAndPatch` with an explicit selector. This is an **error** in the linter, so it fails the gate.
 2. A helper taking `opts ...PatchElementOption` and forwarding them (`sse.PatchElements(html, opts...)`) is correct and must not be flagged — the selector comes from the caller.
-3. Prefer Datastar attributes (`data-on:*`, signals, expressions, `__window`/`__document` modifiers) over vanilla JS. Inline JS only when unavoidable, adjacent to the markup (locality of behavior).
+3. Vanilla JS is the last resort, never the default (locality of
+   behavior). Before writing any inline `<script>` or static `.js`,
+   enumerate the Datastar primitive that could own it (`data-on:*`
+   incl. `__window`/`__document`, `data-effect`, `data-on-interval`,
+   `data-on-signal-patch`, `data-indicator`, `data-init`) and — when
+   none fits — write the reason in a comment next to the script. The
+   standing allowlist (each proven against the primitive list):
+   canvas/op batching + Loro + outbox (`whiteboard.js`, `notes.js`),
+   Service Worker + global controllers (`sw.js`, `session.js`,
+   `theme.js`), stream bootstrap openers (no `data-on:load` on body),
+   PB-realtime subscribe (not Datastar events). A `setInterval`
+   polling loop or `innerHTML` render is never acceptable for signal
+   changes or fragment updates — use `data-effect` /
+   `data-on-interval` + fragment morph (`docs/realtime-recipe.md`).
 4. Intentional custom attributes (whiteboard `data-tool`/`data-doc-id`, cuelume `data-cuelume-*`) go in `.datastar-lint.yaml` under `attributes.allowed` — never silence with broad ignores.
 5. The action list tracks the Datastar core release: `@query()` is v1.0.4+. An action missing from the linter's regex falls through to the "no action matched" branch and silently skips the URL-format and method checks, so re-check this list on a core upgrade.
 6. Templ does not interpolate `{...}` inside `<script>` bodies or inside
