@@ -20,14 +20,23 @@ criteria:
 - performance: operations per second (median across runs, not one sample) and the actual gain when optimization was requested.
 - coexistence: the cost of living with the rest of the system — translation between languages, deployment environments, a fallback plan, and a clean exit if you ever strip it out.
 
-My take: LLMs need a language where failing is cheap — errors surface early
+my take: LLMs need a language where failing is cheap — errors surface early
 and fixes are cheap — and humans can read whenever they step in.
+
+For context, i'm not a Go expert. i spent over a decade building software
+systems in the past, though not in Go. These days, i'm exploring a different
+way of building software, leaning into Go's strengths, static analysis,
+linters, and other tools to make LLM-assisted development more reliable.
+
+gogogo is partly an exploration of that idea: how much can we achieve with a
+relatively simple, opinionated foundation that both humans and coding agents
+can understand, rather than reaching for more complexity by default?
 
 That covers 99% of today's web systems and services, leaving 1% for another
 language chosen by context (like zig or rust — and where it fits, odin or
 mojo). The split is illustrative, not measured: shorthand for "almost
 everything, then a rare exception", not a benchmark. The criteria above
-confirm the thesis as well as they refute it — and I could still be wrong,
+confirm the thesis as well as they refute it — and i could still be wrong,
 since everything moves too fast for certainty. But it is a cheap bet to
 test.
 
@@ -39,7 +48,7 @@ already runs on it: kubernetes, ollama, temporal, and the like.
 
 Each motive above serves one of the criteria, not the other way round: the compatibility promise serves correctness and agent cost — decade-old code still compiles, so the training data stays valid and fixes stay cheap. gofmt, vet, millisecond builds, and lints serve agent cost — the loop closes before anything runs. The single binary serves coexistence — one deploy artifact, no second toolchain, and nothing that can't be stripped out. That is the whole bet: Go wins the 99% not by being the fastest language, but by being the cheapest place to fail.
 
-I also wanted something extremely light on the client with the backend as
+i also wanted something extremely light on the client with the backend as
 the source of truth: kilobytes of JS per feature, never authority in the
 browser — records in the database, documents in CRDT snapshots, intent
 posted as ops. The offline outbox is cache to be reconciled, not truth to
