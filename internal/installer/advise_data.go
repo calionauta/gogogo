@@ -91,7 +91,10 @@ var advisePresets = []advisePreset{
 		},
 		Keep: []string{unitCredits},
 		Note: "LLM itself is runtime (set GOAI_API_KEY); credits unit is " +
-			"the BYOK accounting. Never commit a key — age file locally, " +
+			"the BYOK accounting. The Ask demo (features/genui, /genui) is " +
+			"the reference for model-rendered UI: catalog-constrained " +
+			"components over SSE, keyless demo via SIMULATE_LLM. " +
+			"Never commit a key — age file locally, " +
 			"provider secrets in prod.",
 	},
 	{
