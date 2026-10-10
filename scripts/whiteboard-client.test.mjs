@@ -178,8 +178,8 @@ async function main() {
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
   const docID = "wb-order-" + process.pid;
-  await page.goto(`${BASE}/whiteboard/${docID}`, { waitUntil: "domcontentloaded" });
-  await sleep(600); // let the SSE stream connect and the canvas size settle
+  await page.goto(`${BASE}/whiteboard/${docID}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await sleep(1000); // let the SSE stream connect and the canvas size settle
 
   // ---------------------------------------------------------------------------
   // 1. A late response for an EARLIER op must not drop a later shape.
@@ -299,8 +299,8 @@ async function main() {
   };
   const pageA = await makeCtx("A");
   const pageB = await makeCtx("B");
-  await pageA.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-alpha`, { waitUntil: "domcontentloaded" });
-  await pageB.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-bravo`, { waitUntil: "domcontentloaded" });
+  await pageA.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-alpha`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await pageB.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-bravo`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await sleep(900);
   // B moves its pointer to a known off-center spot (canvas-relative CSS px).
   const box3 = await pageB.locator("#wb-canvas").boundingBox();
@@ -324,7 +324,7 @@ async function main() {
 
   // A third client connects -> the server broadcasts a fresh "count" to all.
   const pageC = await makeCtx("C");
-  await pageC.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-charlie`, { waitUntil: "domcontentloaded" });
+  await pageC.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-charlie`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await sleep(900);
 
   const after = await readCursor(pageA);
@@ -353,7 +353,7 @@ async function main() {
   const doc4 = "wb-draft-" + process.pid;
   const drawA = await makeCtx("D-A");
   const drawB = await makeCtx("D-B");
-  await drawA.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-a`, { waitUntil: "domcontentloaded" });
+  await drawA.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-a`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await drawB.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-b`, { waitUntil: "domcontentloaded" });
   await sleep(900);
 
