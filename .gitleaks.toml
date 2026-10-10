@@ -1,0 +1,16 @@
+# gitleaks allowlist — canonical TEST FIXTURES ONLY.
+#
+# Both entries below are fabricated placeholders committed deliberately
+# (PocketBase fixture tokens, hex stubs); they match generic-api-key/jwt
+# shapes, which is why they need allowlisting. Rule: test fixtures use
+# ONLY these two fake values for key-shaped strings. Any other
+# key-shaped value — in any file including *_test.go — still fails the
+# pre-commit hook and CI. If a new placeholder shape is ever needed, add
+# its exact literal here with a comment naming the fixture, never a
+# broad pattern.
+[allowlist]
+description = "canonical test fakes (PocketBase fixture JWT stub, hex stub)"
+regexes = [
+  '''0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab''',
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJjb2xsZWN0aW9uSWQiOiJ''',
+]

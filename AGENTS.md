@@ -47,6 +47,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 - NO manual `id` on PocketBase records (PK max 15, `^[a-z0-9]+$`).
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
+- NO secrets in git, chat-visible commands, or test fixtures — keys live in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets`; `gitleaks` pre-commit + CI enforce it. Never print secret values (lengths/names only).
 - NO agent self-certification in-loop — tests guarding new behavior are red-proofed (invert → fail → revert) and the case comes from the human or a fresh context; no mandated TDD red-green cycle (evidence: ProgramBench + DeepSWE 2026).
 - Prefer Datastar attributes over vanilla JS; inline JS only adjacent to the markup.
 - NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs — or just `make lint-safe`, which sizes the run to the host's free RAM/cores and caps it in a cgroup), NO `golangci-lint cache clean` (the cache is what keeps a run cheap; a cold run re-type-checks the whole module and spikes memory — it has taken a shared host into swap), NO `go build -tags "<stale>"` (unified-build era has no tags). Project-specific footguns go in `rules/rules.go` (ruleguard, loaded by gocritic) — a rule there fails CI, so prose guidance that a linter can enforce belongs there, not in this file.

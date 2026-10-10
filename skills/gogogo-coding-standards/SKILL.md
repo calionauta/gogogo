@@ -184,8 +184,10 @@ Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md`
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
 | Tests | `go test -race <pkgs>`; full `make ci-local`; stamp `make signoff` |
 | Vuln/deadcode | pre-push `govulncheck`, `deadcode -test` |
+| Secrets | pre-commit + CI `gitleaks` (`bin/check-secrets.sh`); keys in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets` — never in git, chat-visible commands, or fixtures; never print values (lengths/names only) |
 | Uninterruptible waits | `forbidigo` (no `time.Sleep` in production; tests exempt) |
 | Deps | `go mod tidy && git diff --exit-code go.mod go.sum`; audit adds with `go mod why` |
+| Secrets | `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets` — never in git (gitleaks pre-commit + CI), chat-visible commands, or fixtures; never print values (lengths/names only); rotate on suspicion (`expires_at` on provider keys) |
 
 ### Working with the linters (three layers, in the order they fire)
 
