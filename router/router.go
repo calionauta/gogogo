@@ -261,6 +261,7 @@ func Init(
 		registerWhiteboardStack(se, q, cfg)
 		registerRoomStack(se, cfg)
 		registerNotesStack(se, q, cfg)
+		registerGenuiStack(se, q, cfg)
 
 		// NATS CRUD consumer: subscribes app.crud.todo.> and writes todo
 		// operations to PocketBase. This is the server-side counterpart

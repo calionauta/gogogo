@@ -19,6 +19,8 @@
     --text-xs--line-height: calc(1 / 0.75);
     --text-sm: 0.875rem;
     --text-sm--line-height: calc(1.25 / 0.875);
+    --text-base: 1rem;
+    --text-base--line-height: calc(1.5 / 1);
     --text-lg: 1.125rem;
     --text-lg--line-height: calc(1.75 / 1.125);
     --text-xl: 1.25rem;
@@ -6923,10 +6925,16 @@
   .h-full {
     height: 100%;
   }
+  .min-h-24 {
+    min-height: calc(var(--spacing) * 24);
+  }
   .min-h-screen {
     min-height: 100vh;
   }
   @layer daisyui.l1.l2 {
+    .loading-sm {
+      width: calc(var(--size-selector, 0.25rem) * 5);
+    }
     .loading-xs {
       width: calc(var(--size-selector, 0.25rem) * 4);
     }
@@ -7327,6 +7335,10 @@
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
+  .text-base {
+    font-size: var(--text-base);
+    line-height: var(--tw-leading, var(--text-base--line-height));
+  }
   .text-lg {
     font-size: var(--text-lg);
     line-height: var(--tw-leading, var(--text-lg--line-height));
@@ -7672,6 +7684,9 @@
     .aura:has( > .checkbox,  > .toggle,  > .badge) {
       --aura-radius: var(--radius-selector);
     }
+  }
+  .last\:mb-0:last-child {
+    margin-bottom: 0px;
   }
   @media (hover: hover) {
     .hover\:scale-105:hover {

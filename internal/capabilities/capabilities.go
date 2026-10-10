@@ -191,7 +191,8 @@ var All = []Capability{
 		ID:      "genui",
 		Kind:    KindPlugin,
 		Summary: "AG-UI-compatible event envelope for AI streams (framing subset; no new transport, no new dep)",
-		Dirs:    []string{"internal/genui"},
+		Dirs:    []string{"internal/genui", "features/genui"},
+		Files:   []string{"router/genui.go"},
 		Reason:  "No installer unit yet: nothing to trim, nothing to add back — the envelope rides the queue's SSE Hub.",
 	},
 	{
