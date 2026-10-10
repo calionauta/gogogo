@@ -225,6 +225,9 @@ func assertHealthCarriesBuildTag(ctx context.Context, t *testing.T, base string)
 	if tag := resp.Header.Get("X-Gogogo-Build"); tag == "" {
 		t.Fatalf("GET /health missing X-Gogogo-Build header — stale tabs cannot detect deploys")
 	}
+	if cc := resp.Header.Get("Cache-Control"); cc != "no-store" {
+		t.Fatalf("GET /health Cache-Control = %q, want no-store (a cached tag fakes mismatches)", cc)
+	}
 }
 
 // assertPageWiresSSE checks the rendered /todo page opens the realtime

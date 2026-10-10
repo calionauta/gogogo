@@ -122,14 +122,7 @@ func Init(
 
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		// Global auth middleware is bound by the priority -100 hook above.
-		se.Router.GET("/health", func(c *core.RequestEvent) error {
-			// Stale-tab identity: pages open across a deploy compare this
-			// tag (see session.js) and reload instead of driving a DOM
-			// the new server no longer matches. Body stays "ok" — the
-			// container healthcheck contract.
-			c.Response.Header().Set("X-Gogogo-Build", cfg.BuildTag())
-			return c.String(200, "ok")
-		})
+		registerHealth(se, cfg)
 
 		// API discovery — the PocketBase startup banner advertises
 		// "REST API: http://...:8080/api/"; without exact /api + /api/
@@ -280,6 +273,18 @@ func Init(
 		wireCredits(cfg, se, todoH)
 
 		return se.Next()
+	})
+}
+
+// registerHealth serves GET /health: the container healthcheck ("ok")
+// plus the stale-tab build tag. Extracted from Init so the boot
+// function stays inside the funlen budget; covered by the smoke
+// assertion on X-Gogogo-Build + Cache-Control.
+func registerHealth(se *core.ServeEvent, cfg *config.Config) {
+	se.Router.GET("/health", func(c *core.RequestEvent) error {
+		c.Response.Header().Set("Cache-Control", "no-store")
+		c.Response.Header().Set("X-Gogogo-Build", cfg.BuildTag())
+		return c.String(200, "ok")
 	})
 }
 
