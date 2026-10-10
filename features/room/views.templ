@@ -4,6 +4,8 @@
 // + the navbar link lines in features/auth/views.templ (the unit's
 // extraStrips cover both). No sounds import here on purpose: room views
 // stay dependency-free so the unit carries no DependsOn.
+// Smoke: room has no installer unit, so ci-local still drives /room —
+// export SMOKE_FEATURES without room after manual removal.
 package room
 
 import (
