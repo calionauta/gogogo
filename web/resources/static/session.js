@@ -40,14 +40,41 @@
 
   window.GogogoSession = { set: set, probe: probe };
 
+  // Stale-tab reload: a tab open across a deploy holds a DOM whose
+  // element IDs and signals belong to the old binary — morphs land
+  // nowhere and actions send stale shapes. The server stamps every
+  // /health response with X-Gogogo-Build; the first check stores it,
+  // a later mismatch reloads so the tab re-renders from the new server.
+  // Same triggers as the session probe (authed pages only, load +
+  // foreground + heartbeat), same offline tolerance (fetch rejects →
+  // skip). In dev the tag is a constant ("dev/"), so Air rebuilds never
+  // cause reloads. Single-binary deploys only: under a rolling deploy
+  // alternating builds, each flip would reload once.
+  function buildCheck() {
+    fetch("/health", { headers: { Accept: "text/plain" } })
+      .then(function (r) {
+        var tag = r.headers.get("X-Gogogo-Build");
+        if (!tag) return;
+        var known = null;
+        try { known = sessionStorage.getItem("gogogo_build"); } catch (_) {}
+        if (known === null) {
+          try { sessionStorage.setItem("gogogo_build", tag); } catch (_) {}
+        } else if (known !== tag) {
+          location.reload();
+        }
+      })
+      .catch(function () { /* offline: leave the tab as it is */ });
+  }
+
   var b = el();
   if (b && b.dataset.authed === "true") {
     // Only a page that rendered authed can expire. Probe on load, on
     // return-to-foreground (the moment a long-open tab most needs it),
     // and on a slow heartbeat so a tab left open for days still notices.
     probe();
+    buildCheck();
     document.addEventListener("visibilitychange", function () {
-      if (!document.hidden) probe();
+      if (!document.hidden) { probe(); buildCheck(); }
     });
     setInterval(probe, 60000);
   }

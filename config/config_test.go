@@ -56,3 +56,32 @@ func TestEnvDuration(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildTag pins the stale-tab identity: label + commit joined, dev
+// default inert ("dev/"), nil-safe for callers without a config.
+func TestBuildTag(t *testing.T) {
+	t.Parallel()
+	var nilCfg *Config
+	if got := nilCfg.BuildTag(); got != "dev/" {
+		t.Errorf("nil BuildTag = %q, want %q", got, "dev/")
+	}
+	cases := []struct {
+		name   string
+		label  string
+		commit string
+		want   string
+	}{
+		{"dev defaults are inert", "dev", "", "dev/"},
+		{"prod carries tag and sha", "v0.21.0", "abc123", "v0.21.0/abc123"},
+		{"label change alone retires tabs", "v0.22.0", "abc123", "v0.22.0/abc123"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := &Config{BuildLabel: tc.label, BuildCommit: tc.commit}
+			if got := c.BuildTag(); got != tc.want {
+				t.Errorf("BuildTag = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
