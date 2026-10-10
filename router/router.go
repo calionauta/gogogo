@@ -124,9 +124,12 @@ func Init(
 		// Global auth middleware is bound by the priority -100 hook above.
 		se.Router.GET("/health", func(c *core.RequestEvent) error {
 			// Stale-tab identity: pages open across a deploy compare this
-			// tag (see session.js) and reload instead of driving a DOM
-			// the new server no longer matches. Body stays "ok" — the
-			// container healthcheck contract.
+			// tag (see session.js) and reload once instead of driving a
+			// DOM the new server no longer matches. Body stays "ok" — the
+			// container healthcheck contract. no-store: the tag must never
+			// be served stale by an intermediary, which would fake a
+			// mismatch and reload a tab that is already current.
+			c.Response.Header().Set("Cache-Control", "no-store")
 			c.Response.Header().Set("X-Gogogo-Build", cfg.BuildTag())
 			return c.String(200, "ok")
 		})
