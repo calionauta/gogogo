@@ -296,7 +296,8 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 			comps = append(comps, comp)
 		}
 		return dshelpers.RenderAndPatch(sse, GenuiResult(comps, p.Error, p.Error != ""),
-			sdk.WithSelector("#genui-result"))
+			sdk.WithSelector("#genui-result"),
+			sdk.WithViewTransitions())
 	case "toast":
 		var t struct {
 			ToastType string `json:"toastType"`

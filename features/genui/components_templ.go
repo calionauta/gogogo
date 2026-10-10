@@ -77,20 +77,20 @@ func GenuiIndex(email string, buildLabel string, buildCommit string) templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<main class=\"container mx-auto p-4 max-w-2xl\"><h1 class=\"text-2xl font-bold\">Ask AI</h1><p class=\"text-sm text-base-content/60 mt-1 mb-4\">The model answers with interface, not just text: it picks components from a fixed catalog and this page renders them.</p><form id=\"genui-ask-form\" data-on:submit__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<main class=\"container mx-auto p-4 max-w-2xl\"><h1 class=\"text-2xl font-bold\">Ask AI</h1><p class=\"text-sm text-base-content/60 mt-1 mb-4\">The model answers with interface, not just text: it picks components from a fixed catalog and this page renders them.</p><!-- Network-failure release: the spinner is server-owned (the\n\t\t\t\t     worker result clears it), so a dead @post with all\n\t\t\t\t     retries failed would lock Ask until reload. datastar-fetch\n\t\t\t\t     error stages reset it client-side; the event fires for\n\t\t\t\t     this form's own request. --><form id=\"genui-ask-form\" data-on:submit__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 41, Col: 141}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 46, Col: 141}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><label for=\"genui-prompt\" class=\"form-control w-full\"><span class=\"label-text mb-1\">What should the assistant shape for you?</span> <input id=\"genui-prompt\" name=\"prompt\" type=\"text\" required minlength=\"3\" maxlength=\"500\" autocomplete=\"off\" placeholder=\"Plan my day from my todos\" class=\"input input-bordered w-full\"></label><div class=\"mt-3 flex items-center gap-3\"><button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"$genui_pending\"><span data-show=\"!$genui_pending\">Ask</span> <span data-show=\"$genui_pending\" class=\"loading loading-spinner loading-sm\" aria-hidden=\"true\"></span> <span data-show=\"$genui_pending\">Thinking…</span></button><p class=\"text-xs text-base-content/50\" data-show=\"$genui_pending\" role=\"status\">Streaming the answer below.</p></div></form><h2 class=\"text-lg font-semibold mt-8 mb-2\">Answer</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null\"><label for=\"genui-prompt\" class=\"form-control w-full\"><span class=\"label-text mb-1\">What should the assistant shape for you?</span> <input id=\"genui-prompt\" name=\"prompt\" type=\"text\" required minlength=\"3\" maxlength=\"500\" autocomplete=\"off\" placeholder=\"Plan my day from my todos\" class=\"input input-bordered w-full\"></label><div class=\"mt-3 flex items-center gap-3\"><button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"$genui_pending\"><span data-show=\"!$genui_pending\">Ask</span> <span data-show=\"$genui_pending\" class=\"loading loading-spinner loading-sm\" aria-hidden=\"true\"></span> <span data-show=\"$genui_pending\">Thinking…</span></button><p class=\"text-xs text-base-content/50\" data-show=\"$genui_pending\" role=\"status\">Streaming the answer below.</p></div></form><h2 class=\"text-lg font-semibold mt-8 mb-2\">Answer</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -146,7 +146,7 @@ func StreamOpener(streamURL string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 86, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 92, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -198,7 +198,7 @@ func GenuiResult(comps []templ.Component, errMsg string, isError bool) templ.Com
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 124, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 130, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -266,7 +266,7 @@ func GenuiTextNote(text string) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 148, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 154, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -316,7 +316,7 @@ func GenuiPlanCards(plans []Plan) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(plan.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 163, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 169, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -334,7 +334,7 @@ func GenuiPlanCards(plans []Plan) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(plan.Detail)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 165, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 171, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -352,7 +352,7 @@ func GenuiPlanCards(plans []Plan) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 168, Col: 145}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 174, Col: 145}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -365,7 +365,7 @@ func GenuiPlanCards(plans []Plan) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(plan.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 169, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 175, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -420,7 +420,7 @@ func GenuiDataTable(headers []string, rows [][]string) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(h)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 191, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 197, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -448,7 +448,7 @@ func GenuiDataTable(headers []string, rows [][]string) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(cell)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 199, Col: 18}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components.templ`, Line: 205, Col: 18}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {

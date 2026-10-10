@@ -43,7 +43,35 @@ func TestGenuiResultStates(t *testing.T) {
 	}
 }
 
-// TestGenuiResultRendersCatalog proves every catalog component renders
+// TestGenuiIndexWiring pins the page-level contracts: the Ask form
+// posts as form-encoded (so handleAsk reads prompt via FormValue), owns
+// a network-failure release (datastar-fetch error stages reset the
+// server-owned spinner — red-proofed below), labels its input, and opens
+// the result stream exactly once.
+func TestGenuiIndexWiring(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := genui.GenuiIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("GenuiIndex: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`id="genui-ask-form"`,
+		`for="genui-prompt"`,
+		`name="prompt"`,
+		`contentType: &#39;form&#39;`,
+		`data-on:datastar-fetch="evt.detail`,
+		"retries-failed",
+		`id="genui-stream-opener"`,
+		`id="genui-result"`,
+		`<h1`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("index missing %q", want)
+		}
+	}
+}
+
 // its content (headings + data), so the worker's HTML assertions hold.
 func TestGenuiResultRendersCatalog(t *testing.T) {
 	t.Parallel()

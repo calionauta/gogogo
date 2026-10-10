@@ -110,42 +110,30 @@ templ PbRealtimeRecords() {
 // PbRealtimeRecords so the shared resync component stays generic:
 // record changes go through PB realtime, doc-version bumps through
 // this watcher, both ending on the same hidden @get button.
+//
+// Reactive, not polling: data-effect re-runs its expression whenever
+// $docVersion changes (plus once on load), so no 250ms timer keeps a
+// goroutine-equivalent alive in every tab. The script holds only the
+// pure compare-and-click function — Datastar owns the subscription.
 templ DocVersionWatcher() {
-	<script type="module">
-		// CRDTStore doc-version watcher (Phase 3).
-		//
-		// When the SSE hub fans out a doc-version-bumped event
-		// (from a peer instance via ApplyRemoteOp OR from a local
-		// CRDTStore mutation), the server merges the $docVersion
-		// signal on this client. We watch that signal and
-		// re-fetch the fragment — same path as a PB record event,
-		// so the UX is identical regardless of which side wrote.
-		//
-		// We poll because Datastar v1 does not expose a signal-
-		// change subscribe API; the signal lives on a document
-		// attribute managed by Datastar. A 250ms tick is cheap
-		// (one number compare) and well under human perception.
-		function clickResync() {
-			var b = document.getElementById("pb-realtime-resync");
-			if (b) { b.click(); }
-		}
-		var lastDocVersion = null;
-		function watchDocVersion() {
-			var sig = document.body && document.body.getAttribute("data-signals-docVersion");
-			var v = sig == null ? null : Number(sig);
-			if (v != null && v !== lastDocVersion) {
-				lastDocVersion = v;
-				if (window.__gogogoDocVersionReady) { clickResync(); }
-				window.__gogogoDocVersionReady = true;
+	<script>
+		// Plain (non-module, non-deferred) script on purpose: data-effect
+		// evaluates at Datastar init, which runs before deferred module
+		// scripts — a module-defined function is not yet defined then and
+		// every evaluation throws (caught live by scripts/todo-docwatch).
+		// The body only defines a function; nothing runs at parse time.
+		window.__gogogoDocWatch = function (v) {
+			if (v == null) { return; }
+			if (window.__gogogoDocVersionSeen === undefined) {
+				window.__gogogoDocVersionSeen = v;
+				return;
 			}
-		}
-		document.addEventListener("datastar-ready", function () {
-			watchDocVersion();
-			setInterval(watchDocVersion, 250);
-		});
-		setTimeout(function () {
-			watchDocVersion();
-			setInterval(watchDocVersion, 250);
-		}, 400);
+			if (v !== window.__gogogoDocVersionSeen) {
+				window.__gogogoDocVersionSeen = v;
+				var b = document.getElementById("pb-realtime-resync");
+				if (b) { b.click(); }
+			}
+		};
 	</script>
+	<div data-effect="window.__gogogoDocWatch($docVersion)" hidden aria-hidden="true"></div>
 }

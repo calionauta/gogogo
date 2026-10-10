@@ -36,9 +36,15 @@ templ GenuiIndex(email string, buildLabel string, buildCommit string) {
 					The model answers with interface, not just text: it picks
 					components from a fixed catalog and this page renders them.
 				</p>
+				<!-- Network-failure release: the spinner is server-owned (the
+				     worker result clears it), so a dead @post with all
+				     retries failed would lock Ask until reload. datastar-fetch
+				     error stages reset it client-side; the event fires for
+				     this form's own request. -->
 				<form
 					id="genui-ask-form"
 					data-on:submit__prevent={ "@post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
+					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null"
 				>
 					<label for="genui-prompt" class="form-control w-full">
 						<span class="label-text mb-1">What should the assistant shape for you?</span>
