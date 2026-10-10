@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## 0.43.1 (2026-10-10)
+
+## What's Changed
+* fix(deploy): stale-tab reload fires once, never loops by @calionauta in https://github.com/calionauta/gogogo/pull/97
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.43.0...v0.43.1
+
 ## 0.43.0 (2026-10-10)
 
 ## What's Changed
