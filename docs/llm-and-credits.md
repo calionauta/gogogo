@@ -25,6 +25,39 @@ GOAI_BASE_URL=https://api.groq.com/openai/v1
 GOAI_MODEL=llama-3.3-70b-versatile
 ```
 
+Free-tier keys (e.g. OpenRouter `:free` models) work the same way, but read
+the warnings below before putting one in production.
+
+#### Sharing one provider key across production users
+
+A single server-side key means every visitor spends the same quota and the
+same rate limit — and free-model rosters churn monthly (models get delisted
+from free without notice; a delisted slug either errors or bills, depending
+on the provider). If you do it anyway:
+
+- **Dedicated key, never personal.** Mint one key per deployment, label it,
+  rotate on any suspicion. The key lives server-side only (never in markup,
+  logs, or error bodies) — but server env, backups, and age files are still
+  copies; fewer copies, smaller blast radius.
+- **Cap it at the provider.** OpenRouter keys support a per-key `limit` with
+  `limit_reset: daily` plus a `disabled` flag (`GET /api/v1/key` reports
+  `limit_remaining`). Set a small limit with daily reset: free models cost
+  $0 so the cap never trips on them — its job is catching a slug that went
+  paid overnight. Prefer $1–5 over $0.01 (granularity + alerting behave
+  better at whole dollars; either way the cap is a fuse, not a budget).
+- **Expect the free quota to die daily.** OpenRouter free is 20 req/min and
+  50/day shared across ALL your users (1,000/day after a one-time $10
+  credit purchase — the actual reason to add credits). Past that, every Ask
+  fails until midnight UTC. Size the feature for it or gate it.
+- **Read the training + ToS fine print.** Free-tier prompts may train
+  third-party providers (check per-provider privacy switches), and proxying
+  one key's free quota to all app users sits in a gray area of
+  "reselling API access" terms. Never send user secrets through it.
+- **Prefer BYOK for real prod.** The `credits` plugin exists precisely so
+  users bring their own keys (metered, never charged to you). A shared key
+  is a demo posture, not a production one — the default (no key, button
+  hidden) is the safe posture.
+
 ### 2. Keyless simulated LLM (on by default in dev)
 
 `SIMULATE_LLM` is enabled unless it is explicitly set to `false` (the check is
