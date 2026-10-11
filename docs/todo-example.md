@@ -88,5 +88,5 @@ remain — migrating titles to `metadata` would hand every step all three.)
 ## Related
 
 - [Features](features.md)
-- [Seven async layers](async-layers.md) — why PB realtime and not the SSE Hub for CRUD.
+- [Architecture decision](architecture-decision.md) — what the flat stack serves and what it deliberately does not share.
 - [Adding your own feature](getting-started.md#adding-your-own-feature)

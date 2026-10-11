@@ -70,6 +70,38 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 	return serveChiOnListener(ln, srvHandler(bundle.mux), bundle), nil
 }
 
+// startCrudConsumer runs the JetStream CRUD consumer for cross-instance
+// convergence until the boot context is cancelled. It is nil-safe on js
+// (RunCrudConsumer no-ops when NATS is disabled). Extracted from bootChi to
+// keep boot under the function-length gate.
+func startCrudConsumer(
+	ctx context.Context, js nats.JetStreamLike, appName string,
+	q *dbgen.Queries, hub *queue.SSEHub,
+) {
+	go func() {
+		if cerr := chi.RunCrudConsumer(ctx, js, appName, q, hub); cerr != nil {
+			slog.Error("server: chi crud consumer stopped", "error", cerr)
+		}
+	}()
+}
+
+// bootOnboarding wires the DagNats onboarding slice onto the chi stack:
+// its stepper publishes to the chi hub, its route is served, and the todo
+// create path resumes the paused run. Returns nil (no shutdown hooks) when
+// the engine is disabled, so a stock boot never registers the route and the
+// resume hook stays off. Split from bootChi to keep boot under the length
+// gate, mirroring bootCredits.
+func bootOnboarding(
+	cfg *config.Config, a *auth.Auth, todoH *chi.Handler, hub *queue.SSEHub,
+) (*chi.OnboardingHandler, []func()) {
+	if !cfg.DagNats.Enabled {
+		return nil, nil
+	}
+	h := chi.NewOnboardingHandler(a, cfg.DagNats.HTTPAddr, hub)
+	todoH.SetOnboarding(h)
+	return h, []func(){h.Shutdown}
+}
+
 // bootCredits opens the Turso ledger, builds the engine (nil when the
 // feature is disabled — routes answer 503), starts its workers and
 // registers its shutdown. Split from bootChi to keep both under the
@@ -188,16 +220,15 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	todoH.RegisterRetryHandlers(chiQ.Registry())
 	chiQ.StartWorkers()
 
+	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
+	shutdown = append(shutdown, onbShutdown...)
+
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
 	if err != nil {
 		return nil, err
 	}
 
-	go func() {
-		if cerr := chi.RunCrudConsumer(bootCtx, js, cfg.AppName, queries, hub); cerr != nil {
-			slog.Error("server: chi crud consumer stopped", "error", cerr)
-		}
-	}()
+	startCrudConsumer(bootCtx, js, cfg.AppName, queries, hub)
 
 	persister, perr := collab.NewTursoPersister(queries)
 	if perr != nil {
@@ -211,7 +242,7 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
 		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
-		roomH, chatH, genuiH, creditsH,
+		roomH, chatH, genuiH, creditsH, onboardingH,
 	), cancelConsumer: cancelConsumer, shutdown: shutdown}, nil
 }
 
@@ -270,7 +301,7 @@ func buildChiMux(
 	landingH *landingchi.Handler, configH *configchi.Handler,
 	wbH *wbchi.Handler, notesH *notesachi.Handler,
 	roomH *roomchi.Handler, chatH *chatchi.Handler, genuiH *genuichi.Handler,
-	creditsH *creditschi.Handler,
+	creditsH *creditschi.Handler, onboardingH *chi.OnboardingHandler,
 ) http.Handler {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and
@@ -308,6 +339,10 @@ func buildChiMux(
 	mux.Handle("/api/genui/", genuiH.Routes())
 	mux.Handle("/api/credits", creditsH.Routes())
 	mux.Handle("/api/credits/", creditsH.Routes())
+	if onboardingH != nil {
+		mux.Handle("/api/onboarding", onboardingH.Routes())
+		mux.Handle("/api/onboarding/", onboardingH.Routes())
+	}
 	mux.Handle("/api/ai/", creditsH.Routes())
 	mux.Handle("/api/byok/", creditsH.Routes())
 	mux.Handle("/", landingH.Routes())

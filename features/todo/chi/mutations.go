@@ -76,6 +76,13 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Resume the durable onboarding workflow: the first todo a user with a
+	// pending run creates is the signal the blocked WaitForSignal step is
+	// waiting for. Nil (engine disabled) is a no-op.
+	if h.Onboarding != nil {
+		h.Onboarding.ResumeOnboarding(owner)
+	}
+
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return

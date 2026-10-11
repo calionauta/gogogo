@@ -73,7 +73,15 @@ type Handler struct {
 	// NATSEnabled switches the realtime label between the in-process hub
 	// and JetStream. Set from config at boot.
 	NATSEnabled bool
+	// Onboarding is the DagNats durable-workflow handler. Nil is valid
+	// (engine disabled): the create path's resume call is nil-checked, so
+	// a stock boot without DagNats never touches it.
+	Onboarding *OnboardingHandler
 }
+
+// SetOnboarding wires the durable-workflow handler the create path resumes.
+// Nil disables the resume hook without failing boot.
+func (h *Handler) SetOnboarding(o *OnboardingHandler) { h.Onboarding = o }
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.
 func (h *Handler) SetPublisher(p *natswire.CrudPublisher) {

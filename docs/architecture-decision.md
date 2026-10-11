@@ -150,14 +150,23 @@ Two things are worth knowing before this becomes the only engine:
 
 ## Current state and remaining work
 
-The flat stack serves auth, the todo slice (pages + data + realtime bridge),
-and the queue, each red-proofed against the real drivers. What still runs on
-the previous stack: the remaining features (whiteboard, notes, room, chat,
-genui, credits, config view, landing, desktop GUI) plus AI suggest, retry
-demo and onboarding. They are ported with the same recipe (contract tests
+The flat stack serves auth, the todo slice (pages + data + realtime bridge,
+AI suggest, retry demo and the durable onboarding workflow), the queue, and
+the remaining feature surfaces (whiteboard, notes, room, chat, genui,
+credits, config view, landing). What still runs on the previous stack: the
+desktop GUI boot. Everything is ported with the same recipe (contract tests
 first, same paths and wire, no translation layers), then `db/` goes away
 with the framework dependency, the framework-only tests with it, and the
 transitional serve seam (`CHI_ADDR`) with them.
+
+The onboarding slice is the one place the two stacks genuinely differ
+rather than duplicate a shape: the framework stack fans its stepper progress
+out over JetStream, while the flat stack broadcasts to its own SSE hub. The
+poll loop that owns a run is local to the instance that started it, and the
+signal is ephemeral UI state, so no cross-instance guarantee is lost. The
+step vocabulary is a chi-local copy for the same reason the wire types are:
+`features/todo/chi` cannot import `features/todo/handlers` without dragging
+the framework into the flat stack, which the dependency gate forbids.
 
 Conventions that outlive the transition: schema lives in
 `internal/db/migrations/*.sql`, applied in filename order and recorded in

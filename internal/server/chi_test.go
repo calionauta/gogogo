@@ -237,7 +237,7 @@ func TestBuildChiMux(t *testing.T) {
 		roomchi.NewHandler(cfg, a, fakeRooms{}),
 		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
 		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
-		creditschi.NewHandler(a, nil))
+		creditschi.NewHandler(a, nil), nil)
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))

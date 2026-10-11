@@ -104,6 +104,8 @@ func (h *Handler) dispatchJob(sse *sdk.ServerSentEventGenerator, job queue.Job) 
 		return true, h.streamRetry(sse, job.Payload)
 	case jobTypeSuggestResult:
 		return true, h.streamSuggestResult(sse, job.Payload)
+	case jobTypeProgress:
+		return true, h.streamProgress(sse, job.Payload)
 	case jobTypeClients:
 		return true, h.streamClients(sse, job.Payload)
 	default:

@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
+	"github.com/a-h/templ"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
@@ -89,6 +91,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) applyRecordEvent(
 	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool, evt recordEvent,
 ) error {
+	if evt.Event == eventWorkflowCompleted {
+		return h.applyWorkflowCompleted(ctx, sse, owner, hasOwner)
+	}
 	if !hasOwner {
 		return nil
 	}
@@ -105,4 +110,41 @@ func (h *Handler) applyRecordEvent(
 	return patchSSE(sse, h.renderListRegion(signals, "daisyui"),
 		sdk.WithSelector("#todo-list"),
 	)
+}
+
+// applyWorkflowCompleted marks the onboarding stepper done and re-lists.
+// The example todos were created server-side by the DagNats worker (via
+// the store, not the HTTP API), so they never crossed the request path —
+// without the explicit re-list here they would not appear until a reload.
+func (h *Handler) applyWorkflowCompleted(
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool,
+) error {
+	if err := h.applyOnboarding(sse, 0, 0, onbStatusCompleted, "Workflow completed", true); err != nil {
+		return err
+	}
+	if !hasOwner {
+		return nil
+	}
+	todos, err := h.listOwner(ctx, owner, "all")
+	if err != nil {
+		return fmt.Errorf("re-list after workflow: %w", err)
+	}
+	//nolint:contextcheck // datastar-go's sink takes no context (a
+	// third-party boundary); see patchSSE.
+	return renderWorkflowDone(sse, h.renderListRegion(todo.Signals{
+		Todos: todos, Filter: "all", ItemCount: len(todos),
+	}, "daisyui"))
+}
+
+// renderWorkflowDone patches the re-listed region and narrates completion.
+// It is context-free by construction: the only sinks are datastar-go writes
+// that take none, and the DB read that does need a context stays in the
+// caller. That split is what keeps the boundary declared in one place.
+func renderWorkflowDone(sse *sdk.ServerSentEventGenerator, region templ.Component) error {
+	if err := dshelpers.RenderAndPatch(sse, region,
+		sdk.WithSelector("#todo-list"),
+	); err != nil {
+		return err
+	}
+	return emitToast(sse, "Workflow completed — 3 example todos created", retryStatusSuccess)
 }
