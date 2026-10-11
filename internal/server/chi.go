@@ -19,6 +19,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -56,7 +57,7 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 	hub := queue.NewSSEHub()
 	queries := dbgen.New(sqlDB)
 	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
-	todoH.SetPublisher(nats.NewCrudPublisher(js))
+	todoH.SetPublisher(natswire.NewCrudPublisher(js))
 	todoH.BuildLabel = cfg.BuildLabel
 	todoH.BuildCommit = cfg.BuildCommit
 	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled

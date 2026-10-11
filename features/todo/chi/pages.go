@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	authviews "github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/features/todo/components"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -46,11 +46,20 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 		_ = authviews.LoginPage(loginNext(r), "Invalid form submission").Render(r.Context(), w)
 		return
 	}
-	token, err := h.authLogin(r)
+	token, totpRequired, err := h.authLogin(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_ = authviews.LoginPage(loginNext(r), "Wrong email or password").Render(r.Context(), w)
+		return
+	}
+	if totpRequired {
+		// The shared form has no code field: 2FA accounts complete login
+		// through the JSON API (/api/auth/totp/login). Say so plainly
+		// instead of failing opaquely.
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_ = authviews.LoginPage(loginNext(r), "Two-factor required — finish login via an API client").Render(r.Context(), w)
 		return
 	}
 	http.SetCookie(w, h.Auth.SetSessionCookie(token))
@@ -60,7 +69,7 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 
 // authLogin validates form credentials, keeping the handler body to the
 // same shape as the other mutation entries (resolve → act → respond).
-func (h *Handler) authLogin(r *http.Request) (string, error) {
+func (h *Handler) authLogin(r *http.Request) (string, bool, error) {
 	return h.Auth.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
 }
 

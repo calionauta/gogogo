@@ -92,16 +92,19 @@ func TestSignupLoginLogout(t *testing.T) {
 	}
 
 	// Unknown email and wrong password are indistinguishable.
-	if _, uerr := a.Login(ctx, "nobody@example.com", "Correct-horse-99!"); !errors.Is(uerr, ErrBadCredentials) {
+	if _, _, uerr := a.Login(ctx, "nobody@example.com", "Correct-horse-99!"); !errors.Is(uerr, ErrBadCredentials) {
 		t.Fatalf("unknown email err = %v, want ErrBadCredentials", uerr)
 	}
-	if _, werr := a.Login(ctx, "flat@example.com", "wrong-password-00"); !errors.Is(werr, ErrBadCredentials) {
+	if _, _, werr := a.Login(ctx, "flat@example.com", "wrong-password-00"); !errors.Is(werr, ErrBadCredentials) {
 		t.Fatalf("wrong password err = %v, want ErrBadCredentials", werr)
 	}
 
-	token2, err := a.Login(ctx, "FLAT@example.com", "Correct-horse-99!")
+	token2, totp, err := a.Login(ctx, "FLAT@example.com", "Correct-horse-99!")
 	if err != nil {
 		t.Fatalf("login: %v", err)
+	}
+	if totp {
+		t.Fatal("non-2FA login returned totpRequired")
 	}
 
 	// Both tokens validate.

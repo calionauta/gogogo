@@ -11,7 +11,7 @@ package room
 import (
 	"strconv"
 
-	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 )
@@ -30,12 +30,12 @@ templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel strin
 			<title>Room — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
-			@auth.Navbar(email, "room", buildLabel, buildCommit)
+			@authviews.Navbar(email, "room", buildLabel, buildCommit)
 			@components.SessionBanner(email != "")
 			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>
 				<h1 class="text-2xl font-bold">Room: { roomID }</h1>

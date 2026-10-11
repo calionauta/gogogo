@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	authviews "github.com/calionauta/gogogo/features/authviews"
 )
 
 // RegisterAuth wires all auth-related routes and middleware DIRECTLY on
@@ -95,5 +97,5 @@ func renderLoginPageTo(e *core.RequestEvent, errMsg string) error {
 	}
 	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	e.Response.WriteHeader(http.StatusOK)
-	return LoginPage(next, errMsg).Render(e.Request.Context(), e.Response)
+	return authviews.LoginPage(next, errMsg).Render(e.Request.Context(), e.Response)
 }

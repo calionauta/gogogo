@@ -34,6 +34,10 @@ pre-commit:
       run: go run ./cmd/check-scope
       glob: "{internal,features}/**/*.go"
 
+    - name: flatdeps-lint
+      run: go run ./cmd/check-flatdeps
+      glob: "{go.mod,internal/**,features/**}"
+
     # AI-assisted commits leak secrets at ~2x the baseline (GitGuardian
     # 2026) — a CI-only scan is too late (history already written). No
     # glob: every commit scans its staged content, cheap (~1s warm).

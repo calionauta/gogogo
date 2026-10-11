@@ -65,8 +65,8 @@ func TestStartChiBoot(t *testing.T) {
 		}
 		versions = append(versions, v)
 	}
-	if len(versions) == 0 || versions[len(versions)-1] != "0004_flat_identity" {
-		t.Fatalf("migrations = %v, want ledger through 0004_flat_identity", versions)
+	if len(versions) == 0 || versions[len(versions)-1] != "0005_auth_plugins" {
+		t.Fatalf("migrations = %v, want ledger through 0005_auth_plugins", versions)
 	}
 }
 

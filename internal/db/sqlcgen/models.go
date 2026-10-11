@@ -4,6 +4,20 @@
 
 package dbgen
 
+type MagicToken struct {
+	TokenHash string
+	UserID    string
+	Expires   string
+	Created   string
+}
+
+type OauthAccount struct {
+	Provider string
+	Subject  string
+	UserID   string
+	Created  string
+}
+
 type Session struct {
 	TokenHash string
 	UserID    string
@@ -28,4 +42,6 @@ type User struct {
 	Name         string
 	Created      string
 	Updated      string
+	TotpSecret   string
+	TotpVerified int64
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/db"
 	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
@@ -146,7 +147,7 @@ func TestResolveOwnerRejectsBadToken(t *testing.T) {
 // changes.
 func TestThemeToggleSingleOwner(t *testing.T) {
 	var buf bytes.Buffer
-	if err := auth.Navbar("demo1@demo.app", "todo", "dev", "c0ffee").Render(context.Background(), &buf); err != nil {
+	if err := authviews.Navbar("demo1@demo.app", "todo", "dev", "c0ffee").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render navbar: %v", err)
 	}
 	html := buf.String()

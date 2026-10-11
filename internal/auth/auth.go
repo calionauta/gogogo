@@ -23,12 +23,11 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/mail"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/argon2"
@@ -88,6 +87,11 @@ type ValidatedSession struct {
 type Auth struct {
 	q      *dbgen.Queries
 	secure bool
+
+	mu     sync.Mutex
+	oauth  map[string]OAuthProvider
+	states map[string]oauthState
+	sender MagicSender
 }
 
 // New builds the auth stack on migrated queries. secureCookies is false in
@@ -208,14 +212,16 @@ func (a *Auth) openSession(ctx context.Context, userID string) (string, error) {
 	return token, nil
 }
 
-// Login verifies the password and opens a session, returning the raw
-// cookie value. Unknown email and wrong password are indistinguishable.
+// Login verifies the password. It returns either a session token or
+// totpRequired=true when the account has verified 2FA — in that case no
+// session opens until VerifyTOTPLogin succeeds with the user's id and a
+// current code. Unknown email and wrong password are indistinguishable.
 // Expired sessions are pruned on the way in so the table cannot grow
 // without bound on an instance nobody ever logs out of.
-func (a *Auth) Login(ctx context.Context, email, password string) (token string, err error) {
+func (a *Auth) Login(ctx context.Context, email, password string) (token string, totpRequired bool, err error) {
 	addr, err := normalizeEmail(email)
 	if err != nil {
-		return "", ErrBadCredentials
+		return "", false, ErrBadCredentials
 	}
 	row, err := a.q.GetUserByEmail(ctx, addr)
 	if err != nil {
@@ -224,14 +230,84 @@ func (a *Auth) Login(ctx context.Context, email, password string) (token string,
 			// dummy hash keeps timing differences below noise without
 			// pretending to be a side-channel proof.
 			_, _ = hashPassword("dummy-placeholder-00")
-			return "", ErrBadCredentials
+			return "", false, ErrBadCredentials
 		}
-		return "", fmt.Errorf("auth: lookup: %w", err)
+		return "", false, fmt.Errorf("auth: lookup: %w", err)
 	}
 	if !verifyPassword(row.PasswordHash, password) {
+		return "", false, ErrBadCredentials
+	}
+	if row.TotpSecret != "" && row.TotpVerified != 0 {
+		return "", true, nil
+	}
+	token, err = a.openSession(ctx, row.ID)
+	if err != nil {
+		return "", false, err
+	}
+	return token, false, nil
+}
+
+// BeginTOTP starts enrollment for an authenticated user: stores a fresh
+// secret (unverified) and returns it with the provisioning URL their
+// authenticator app scans. Nothing is enforced until VerifyTOTPEnroll.
+func (a *Auth) BeginTOTP(ctx context.Context, userID string) (secret, url, email string, err error) {
+	user, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return "", "", "", ErrBadCredentials
+	}
+	secret, err = newTOTPSecret()
+	if err != nil {
+		return "", "", "", err
+	}
+	if err := a.q.SetTOTPSecret(ctx, dbgen.SetTOTPSecretParams{
+		TotpSecret: secret, Updated: db.Now(), ID: userID,
+	}); err != nil {
+		return "", "", "", fmt.Errorf("auth: totp begin: %w", err)
+	}
+	return secret, totpProvisioningURL(user.Email, "gogogo", secret), user.Email, nil
+}
+
+// VerifyTOTPEnroll confirms the device (proving the user scanned the
+// secret) and enforces 2FA from then on.
+func (a *Auth) VerifyTOTPEnroll(ctx context.Context, userID, code string) error {
+	user, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return ErrBadCredentials
+	}
+	if user.TotpSecret == "" || !verifyTOTP(user.TotpSecret, code, time.Now()) {
+		return ErrBadCredentials
+	}
+	if err := a.q.VerifyTOTPFlag(ctx, dbgen.VerifyTOTPFlagParams{
+		Updated: db.Now(), ID: userID,
+	}); err != nil {
+		return fmt.Errorf("auth: totp enroll: %w", err)
+	}
+	return nil
+}
+
+// VerifyTOTPLogin completes a password login pending second factor,
+// opening the session the first step withheld.
+func (a *Auth) VerifyTOTPLogin(ctx context.Context, userID, code string) (string, error) {
+	user, err := a.q.GetUser(ctx, userID)
+	if err != nil {
 		return "", ErrBadCredentials
 	}
-	return a.openSession(ctx, row.ID)
+	if user.TotpSecret == "" || user.TotpVerified == 0 {
+		return "", ErrBadCredentials
+	}
+	if !verifyTOTP(user.TotpSecret, code, time.Now()) {
+		return "", ErrBadCredentials
+	}
+	return a.openSession(ctx, user.ID)
+}
+
+// DisableTOTP removes second-factor enforcement. Callers gate this behind
+// a fresh password check (the HTTP route does).
+func (a *Auth) DisableTOTP(ctx context.Context, userID string) error {
+	if err := a.q.ClearTOTP(ctx, dbgen.ClearTOTPParams{Updated: db.Now(), ID: userID}); err != nil {
+		return fmt.Errorf("auth: totp disable: %w", err)
+	}
+	return nil
 }
 
 // Logout revokes one session. Unknown tokens are a no-op (logout must be
@@ -241,189 +317,4 @@ func (a *Auth) Logout(ctx context.Context, token string) {
 		return
 	}
 	_ = a.q.DeleteSession(ctx, tokenHash(token))
-}
-
-// Session validates the request's session cookie. Expired or unknown
-// sessions fail closed; callers redirect to /login.
-func (a *Auth) Session(r *http.Request) (*ValidatedSession, error) {
-	cookie, err := r.Cookie(CookieName)
-	if err != nil || cookie.Value == "" {
-		return nil, errors.New("auth: no session cookie")
-	}
-	row, err := a.q.GetSession(r.Context(), tokenHash(cookie.Value))
-	if err != nil {
-		return nil, errors.New("auth: unknown session")
-	}
-	expires, err := time.Parse(db.TimeFormat, row.Expires)
-	if err != nil {
-		return nil, fmt.Errorf("auth: session expiry unreadable: %w", err)
-	}
-	if time.Now().UTC().After(expires) {
-		_ = a.q.DeleteSession(r.Context(), row.TokenHash)
-		return nil, errors.New("auth: session expired")
-	}
-	user, err := a.q.GetUser(r.Context(), row.UserID)
-	if err != nil {
-		return nil, errors.New("auth: session owner gone")
-	}
-	return &ValidatedSession{User: &User{ID: user.ID, Email: user.Email}, Expires: expires}, nil
-}
-
-// sessionCookie builds the cookie for a fresh login. Exported as
-// SetSessionCookie so non-API logins (the /login form) issue the exact
-// same cookie instead of duplicating its attributes.
-func (a *Auth) sessionCookie(token string) *http.Cookie {
-	return a.SetSessionCookie(token)
-}
-
-// SetSessionCookie builds the login cookie. See sessionCookie.
-func (a *Auth) SetSessionCookie(token string) *http.Cookie {
-	// #nosec G124 — Secure is false in dev (plain-HTTP localhost) by explicit
-	// config; production boots with secureCookies and the real flag.
-	return &http.Cookie{
-		Name:     CookieName,
-		Value:    token,
-		Path:     "/",
-		MaxAge:   int(SessionTTL.Seconds()),
-		HttpOnly: true,
-		Secure:   a.secure,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-// clearCookie expires the session cookie (logout + invalid-token cleanup).
-func (a *Auth) clearCookie(w http.ResponseWriter) {
-	http.SetCookie(w, a.ClearSessionCookie())
-}
-
-// ClearSessionCookie builds the cookie-expiring counterpart to
-// SetSessionCookie. Exported for the /logout form handler.
-func (a *Auth) ClearSessionCookie() *http.Cookie {
-	// #nosec G124 — same deliberate dev/prod split as sessionCookie above.
-	return &http.Cookie{
-		Name:     CookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   a.secure,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-// ctxKey carries the validated session. Private so only SessionFrom reads it.
-type ctxKey struct{}
-
-// RequireSession is chi middleware: requests without a valid session get
-// 401 with the cookie cleared, the rest reach the handler with the session
-// in context. Data endpoints that prefer a login redirect (303) resolve
-// the session themselves via Session instead.
-func (a *Auth) RequireSession(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sess, err := a.Session(r)
-		if err != nil {
-			a.clearCookie(w)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, sess)))
-	})
-}
-
-// SessionFrom returns the session RequireSession stored in the context.
-func SessionFrom(ctx context.Context) (*ValidatedSession, error) {
-	sess, ok := ctx.Value(ctxKey{}).(*ValidatedSession)
-	if !ok || sess == nil {
-		return nil, errors.New("auth: no session in context")
-	}
-	return sess, nil
-}
-
-// Handler serves the auth API under /api/auth (mount at /): signup,
-// signin and signout with the same paths and JSON shapes the limen stack
-// used, so clients cut over without noticing the backend changed.
-func (a *Auth) Handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/auth/signup/credential", a.handleSignup)
-	mux.HandleFunc("/api/auth/signin/credential", a.handleSignin)
-	mux.HandleFunc("/api/auth/signout", a.handleSignout)
-	return mux
-}
-
-func readJSON(r *http.Request, dst any) error {
-	defer r.Body.Close()
-	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
-	return dec.Decode(dst)
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Name     string `json:"name"`
-	}
-	if err := readJSON(r, &body); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-	user, token, err := a.Signup(r.Context(), body.Email, body.Password, body.Name)
-	if err != nil {
-		if errors.Is(err, ErrBadCredentials) {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-	http.SetCookie(w, a.sessionCookie(token))
-	writeJSON(w, http.StatusOK, map[string]string{"email": user.Email})
-}
-
-func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Credential string `json:"credential"`
-		Password   string `json:"password"`
-	}
-	if err := readJSON(r, &body); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-	token, err := a.Login(r.Context(), body.Credential, body.Password)
-	if err != nil {
-		if errors.Is(err, ErrBadCredentials) {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
-			return
-		}
-		http.Error(w, "login failed", http.StatusInternalServerError)
-		return
-	}
-	http.SetCookie(w, a.sessionCookie(token))
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func (a *Auth) handleSignout(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if cookie, err := r.Cookie(CookieName); err == nil {
-		a.Logout(r.Context(), cookie.Value)
-	}
-	a.clearCookie(w)
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

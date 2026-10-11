@@ -25,7 +25,7 @@ import (
 
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -33,13 +33,13 @@ import (
 // (NATS disabled) is a no-op returning nil — the chi stack then converges
 // in-process through the Hub only.
 func RunCrudConsumer(
-	ctx context.Context, js nats.JetStreamLike, appName string, q *dbgen.Queries, hub *queue.SSEHub,
+	ctx context.Context, js natsio.JetStreamContext, appName string, q *dbgen.Queries, hub *queue.SSEHub,
 ) error {
 	if js == nil {
 		return nil
 	}
-	sub, err := js.Subscribe(nats.CrudSubjectAll, func(msg *natsio.Msg) {
-		var p nats.CrudPayload
+	sub, err := js.Subscribe(natswire.CrudSubjectAll, func(msg *natsio.Msg) {
+		var p natswire.CrudPayload
 		if err := json.Unmarshal(msg.Data, &p); err != nil {
 			slog.Warn("chi crudconsumer: unmarshal", "error", err)
 			return
@@ -49,7 +49,7 @@ func RunCrudConsumer(
 		}
 		applyCrudOp(ctx, q, hub, p)
 		_ = msg.Ack()
-	}, natsio.Durable(nats.CrudDurable(appName, "chi")), natsio.ManualAck())
+	}, natsio.Durable(natswire.CrudDurable(appName)+"-chi"), natsio.ManualAck())
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func RunCrudConsumer(
 // applyCrudOp applies one wire operation to Turso and fans out locally.
 // Every branch is idempotent (redeliveries converge, never duplicate) and
 // owner-scoped (a forged op for another tenant matches nothing).
-func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nats.CrudPayload) {
+func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p natswire.CrudPayload) {
 	owner, err := tenantOf(ctx, q, p.UserID)
 	if err != nil {
 		if isSkip(err) {
@@ -78,13 +78,13 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 	}
 	var evt recordEvent
 	switch p.Op {
-	case nats.CrudOpCreate:
+	case natswire.CrudOpCreate:
 		evt, err = applyCreate(ctx, q, owner, p.Data)
-	case nats.CrudOpToggle:
+	case natswire.CrudOpToggle:
 		evt, err = applyToggle(ctx, q, owner, p.Data)
-	case nats.CrudOpDelete:
+	case natswire.CrudOpDelete:
 		evt, err = applyDelete(ctx, q, owner, p.Data)
-	case nats.CrudOpClearCompleted:
+	case natswire.CrudOpClearCompleted:
 		evt, err = applyClearCompleted(ctx, q, owner)
 	default:
 		slog.Warn("chi crudconsumer: unknown op", "op", p.Op)
@@ -121,7 +121,7 @@ func tenantOf(ctx context.Context, q *dbgen.Queries, userID string) (string, err
 	return userID, nil
 }
 
-func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *nats.CrudOpData) (recordEvent, error) {
+func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *natswire.CrudOpData) (recordEvent, error) {
 	if data.Title == "" {
 		return recordEvent{}, errSkip
 	}
@@ -144,7 +144,7 @@ func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *nats
 	return recordEvent{Event: "created", ID: id, Title: data.Title}, nil
 }
 
-func applyToggle(ctx context.Context, q *dbgen.Queries, owner string, data *nats.CrudOpData) (recordEvent, error) {
+func applyToggle(ctx context.Context, q *dbgen.Queries, owner string, data *natswire.CrudOpData) (recordEvent, error) {
 	if data.ID == "" {
 		return recordEvent{}, errSkip
 	}
@@ -158,7 +158,7 @@ func applyToggle(ctx context.Context, q *dbgen.Queries, owner string, data *nats
 	return recordEvent{Event: "toggled", ID: data.ID, Done: data.Completed}, nil
 }
 
-func applyDelete(ctx context.Context, q *dbgen.Queries, owner string, data *nats.CrudOpData) (recordEvent, error) {
+func applyDelete(ctx context.Context, q *dbgen.Queries, owner string, data *natswire.CrudOpData) (recordEvent, error) {
 	if data.ID == "" {
 		return recordEvent{}, errSkip
 	}

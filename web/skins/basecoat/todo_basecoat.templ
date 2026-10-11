@@ -4,7 +4,7 @@
 package basecoat
 
 import (
-	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/web/skins"
@@ -18,11 +18,11 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			@skins.ActiveAssets(skinName)
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			@components.OfflineSyncScript(offlineSync)
 		</head>
 		<body class="surface text-base-content min-h-screen">
-			@auth.Navbar(userEmail, "todo", buildLabel, buildCommit)
+			@authviews.Navbar(userEmail, "todo", buildLabel, buildCommit)
 			@skins.SkinSelector(skinName)
 			@components.OfflineBanner(offlineSync)
 			<main class="max-w-5xl mx-auto mt-8 px-4">

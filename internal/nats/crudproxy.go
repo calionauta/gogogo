@@ -28,130 +28,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sync"
-	"time"
 
 	natsio "github.com/nats-io/nats.go"
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/calionauta/gogogo/internal/natswire"
 )
-
-// CRUD stream and subject constants.
-const (
-	crudStreamName    = "APP_CRUD"
-	crudSubjectPrefix = "app.crud.todo."
-	crudDurableFmt    = "%s-crud"
-)
-
-// CrudSubjectAll is the wildcard subject for todo CRUD operations. Both the
-// PocketBase consumer and the chi consumer subscribe to it with separate
-// durables (separate consumer groups), so one wire serves both stacks
-// during the staged migration.
-const CrudSubjectAll = crudSubjectPrefix + ">"
-
-// CrudDurable returns the durable consumer name for an app + stack pair.
-// Stacks must differ ("pb" vs "chi") so neither steals the other's
-// deliveries: same subject, independent cursors.
-func CrudDurable(appName, stack string) string {
-	return fmt.Sprintf(crudDurableFmt+"-%s", appName, stack)
-}
-
-// CrudOpType is the kind of CRUD operation published to NATS.
-type CrudOpType string
-
-const (
-	CrudOpCreate         CrudOpType = "create"
-	CrudOpToggle         CrudOpType = "toggle"
-	CrudOpDelete         CrudOpType = "delete"
-	CrudOpClearCompleted CrudOpType = "clear_completed"
-)
-
-// CrudPayload is the wire format for a CRUD operation published to NATS.
-type CrudPayload struct {
-	Op     CrudOpType  `json:"op"`
-	UserID string      `json:"userId"`
-	Data   *CrudOpData `json:"data,omitempty"`
-}
-
-// CrudOpData carries the per-operation data. ID is REQUIRED for
-// toggle/delete (must match the PocketBase record ID on the target
-// instance). For create, the handler includes the ID the local
-// PocketBase generated so the remote consumer reuses the same ID.
-type CrudOpData struct {
-	ID        string `json:"id,omitempty"`
-	Title     string `json:"title,omitempty"`
-	Completed bool   `json:"completed,omitempty"`
-}
-
-// CrudPublisher publishes todo CRUD operations to JetStream.
-// Each handler (create/toggle/delete) calls Publish AFTER writing to
-// PocketBase, so the SSE response is fast (PB write is the source of
-// truth). The NATS publication is best-effort convergence for other
-// instances (or the server, for desktop edges).
-//
-// Safe to call with a nil receiver (NATS unavailable) — it's a no-op.
-type CrudPublisher struct {
-	js   natsio.JetStreamContext
-	mu   sync.Mutex
-	done bool
-}
-
-// NewCrudPublisher ensures the APP_CRUD stream exists and returns a
-// publisher. Returns nil when js is nil (NATS disabled), so callers
-// can call Publish on nil safely (no-op).
-func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
-	if js == nil {
-		return nil
-	}
-	if _, err := js.AddStream(&natsio.StreamConfig{
-		Name:     crudStreamName,
-		Subjects: []string{crudSubjectPrefix + ">"},
-		Storage:  natsio.FileStorage,
-		// Bounded transport buffer: the server consumer is always up
-		// while NATS runs, and PocketBase (not this stream) is the
-		// truth — replaying month-old CRUD ops would resurrect
-		// already-applied mutations. A week covers any realistic
-		// consumer outage; MaxBytes caps disk either way.
-		MaxAge:   7 * 24 * time.Hour,
-		MaxBytes: 512 << 20,
-	}); err != nil {
-		if err.Error() != "stream already exists" {
-			slog.Warn("crudproxy: add stream failed", "error", err)
-			return nil
-		}
-	}
-	return &CrudPublisher{js: js}
-}
-
-// Publish sends a CRUD operation to JetStream. Non-blocking from the
-// caller's perspective: logs on error but returns immediately. The
-// handler has already written to PocketBase, so this is additive sync.
-func (p *CrudPublisher) Publish(op CrudOpType, userID string, data *CrudOpData) {
-	if p == nil {
-		return
-	}
-	payload, err := json.Marshal(CrudPayload{Op: op, UserID: userID, Data: data})
-	if err != nil {
-		slog.Warn("crudproxy: marshal payload", "op", op, "error", err)
-		return
-	}
-	subject := crudSubjectPrefix + string(op)
-	if _, pubErr := p.js.Publish(subject, payload); pubErr != nil {
-		slog.Warn("crudproxy: publish failed", "op", op, "subject", subject, "error", pubErr)
-	}
-}
-
-// Close drains the publisher. Idempotent.
-func (p *CrudPublisher) Close() {
-	if p == nil {
-		return
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.done {
-		return
-	}
-	p.done = true
-}
 
 // CrudConsumer subscribes to app.crud.todo.> and writes received CRUD
 // operations to the local PocketBase instance. It is the SERVER-SIDE
@@ -181,9 +63,9 @@ func (c *CrudConsumer) Run(ctx context.Context) error {
 	if c.js == nil {
 		return nil
 	}
-	durableName := fmt.Sprintf(crudDurableFmt, c.appName)
-	sub, err := c.js.Subscribe(crudSubjectPrefix+">", func(msg *natsio.Msg) {
-		var p CrudPayload
+	durableName := natswire.CrudDurable(c.appName)
+	sub, err := c.js.Subscribe(natswire.CrudSubjectAll, func(msg *natsio.Msg) {
+		var p natswire.CrudPayload
 		if err := json.Unmarshal(msg.Data, &p); err != nil {
 			slog.Warn("crudconsumer: unmarshal", "error", err)
 			return
@@ -192,13 +74,13 @@ func (c *CrudConsumer) Run(ctx context.Context) error {
 			return
 		}
 		switch p.Op {
-		case CrudOpCreate:
+		case natswire.CrudOpCreate:
 			c.handleCreate(p)
-		case CrudOpToggle:
+		case natswire.CrudOpToggle:
 			c.handleToggle(p)
-		case CrudOpDelete:
+		case natswire.CrudOpDelete:
 			c.handleDelete(p)
-		case CrudOpClearCompleted:
+		case natswire.CrudOpClearCompleted:
 			c.handleClearCompleted(p)
 		default:
 			slog.Warn("crudconsumer: unknown op", "op", p.Op)
@@ -214,7 +96,7 @@ func (c *CrudConsumer) Run(ctx context.Context) error {
 
 // --- handler methods ---
 
-func (c *CrudConsumer) handleCreate(p CrudPayload) {
+func (c *CrudConsumer) handleCreate(p natswire.CrudPayload) {
 	if p.Data == nil || p.Data.Title == "" {
 		return
 	}
@@ -236,7 +118,7 @@ func (c *CrudConsumer) handleCreate(p CrudPayload) {
 	}
 }
 
-func (c *CrudConsumer) handleToggle(p CrudPayload) {
+func (c *CrudConsumer) handleToggle(p natswire.CrudPayload) {
 	if p.Data == nil || p.Data.ID == "" {
 		return
 	}
@@ -255,7 +137,7 @@ func (c *CrudConsumer) handleToggle(p CrudPayload) {
 	}
 }
 
-func (c *CrudConsumer) handleDelete(p CrudPayload) {
+func (c *CrudConsumer) handleDelete(p natswire.CrudPayload) {
 	if p.Data == nil || p.Data.ID == "" {
 		return
 	}
@@ -273,7 +155,7 @@ func (c *CrudConsumer) handleDelete(p CrudPayload) {
 	}
 }
 
-func (c *CrudConsumer) handleClearCompleted(p CrudPayload) {
+func (c *CrudConsumer) handleClearCompleted(p natswire.CrudPayload) {
 	filter := fmt.Sprintf("completed=true && owner = %q", p.UserID)
 	records, err := c.app.FindRecordsByFilter("todos", filter, "", 0, 0)
 	if err != nil {

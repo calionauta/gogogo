@@ -17,7 +17,7 @@ import (
 	"github.com/calionauta/gogogo/features/store"
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
-	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 )
 
 func (h *TodoHandler) handleList(c *core.RequestEvent) error {
@@ -192,7 +192,7 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 	}
 
 	// Publish to NATS for cross-instance sync (desktop→server).
-	h.publishCrudOp(nats.CrudOpCreate, owner, &nats.CrudOpData{
+	h.publishCrudOp(natswire.CrudOpCreate, owner, &natswire.CrudOpData{
 		ID: item.ID, Title: item.Title, Completed: item.Completed,
 	})
 
@@ -274,7 +274,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 		return fail(c, "todo: list after toggle failed", err, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpToggle, owner, &nats.CrudOpData{
+	h.publishCrudOp(natswire.CrudOpToggle, owner, &natswire.CrudOpData{
 		ID: toggled.ID, Completed: toggled.Completed,
 	})
 
@@ -344,7 +344,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return fail(c, "todo: list after delete failed", err, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpDelete, owner, &nats.CrudOpData{ID: t.ID})
+	h.publishCrudOp(natswire.CrudOpDelete, owner, &natswire.CrudOpData{ID: t.ID})
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	// Close the confirmation modal on every client by clearing the
@@ -389,7 +389,7 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 		return fail(c, "todo: list after clear failed", err, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpClearCompleted, owner, nil)
+	h.publishCrudOp(natswire.CrudOpClearCompleted, owner, nil)
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	if err := h.patchTodoListWithSelfOrigin(sse, todos, h.resolveSkin(c)); err != nil {

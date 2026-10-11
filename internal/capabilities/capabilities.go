@@ -115,12 +115,22 @@ var All = []Capability{
 	{
 		ID:      "auth",
 		Kind:    KindCore,
-		Summary: "cookie sessions + middleware (limen on Turso + login UI)",
-		Dirs:    []string{"features/auth", "internal/auth"},
+		Summary: "cookie sessions + middleware (flat auth + shared login UI)",
+		Dirs:    []string{"features/auth", "internal/auth", "features/authviews"},
 		Note: "Core middleware; the login page is a removable UI (manual). " +
-			"internal/auth is the limen stack (credential/password on the " +
-			"limen_* tables, gogogo_auth cookie); features/auth is the " +
-			"legacy PocketBase middleware it replaces.",
+			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
+			"features/authviews holds the PB-free login/navbar/theme components " +
+			"shared by both stacks; features/auth keeps the legacy PocketBase " +
+			"middleware it replaces.",
+	},
+	{
+		ID:      "crudwire",
+		Kind:    KindCore,
+		Summary: "todo CRUD wire protocol (subjects + payloads + publisher)",
+		Dirs:    []string{"internal/natswire"},
+		Note: "Core, not plugin: chi handlers name these types in signatures " +
+			"even with NATS off (nil publisher), so trimming would not compile. " +
+			"The engines behind it (internal/nats) stay a plugin.",
 	},
 	{
 		ID:         "nats",

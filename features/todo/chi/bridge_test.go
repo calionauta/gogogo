@@ -16,10 +16,13 @@ import (
 	"testing"
 	"time"
 
+	natsio "github.com/nats-io/nats.go"
+
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -29,7 +32,7 @@ type bridgeFixture struct {
 	tb    testing.TB
 	q     *dbgen.Queries
 	hub   *queue.SSEHub
-	pub   *nats.CrudPublisher
+	pub   *natswire.CrudPublisher
 }
 
 func newBridgeFixture(tb testing.TB) *bridgeFixture {
@@ -64,7 +67,7 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 	// Publisher first: AddStream creates APP_CRUD, which the consumer's
 	// Subscribe requires. Reversing this races "no stream matches subject"
 	// and leaves a dead consumer (proven red by TestChiBridge*).
-	pub := nats.NewCrudPublisher(h.JS)
+	pub := natswire.NewCrudPublisher(h.JS)
 	if pub == nil {
 		tb.Fatal("crud publisher is nil (stream not created)")
 	}
@@ -99,7 +102,7 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 	f.hub.Register("bridge-client-1", f.owner, streamCh)
 	defer f.hub.Unregister("bridge-client-1")
 
-	f.pub.Publish(nats.CrudOpCreate, f.owner, &nats.CrudOpData{ID: "bridge-todo-1", Title: "From NATS"})
+	f.pub.Publish(natswire.CrudOpCreate, f.owner, &natswire.CrudOpData{ID: "bridge-todo-1", Title: "From NATS"})
 	got := f.waitRow(f.owner, "bridge-todo-1")
 	if got.Title != "From NATS" {
 		t.Fatalf("applied title = %q, want From NATS", got.Title)
@@ -117,7 +120,7 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 		t.Fatal("no hub fan-out for applied create")
 	}
 
-	f.pub.Publish(nats.CrudOpToggle, f.owner, &nats.CrudOpData{ID: "bridge-todo-1", Completed: true})
+	f.pub.Publish(natswire.CrudOpToggle, f.owner, &natswire.CrudOpData{ID: "bridge-todo-1", Completed: true})
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		got, err := f.q.GetTodo(ctx, dbgen.GetTodoParams{ID: "bridge-todo-1", Owner: f.owner})
@@ -130,7 +133,7 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 
-	f.pub.Publish(nats.CrudOpDelete, f.owner, &nats.CrudOpData{ID: "bridge-todo-1"})
+	f.pub.Publish(natswire.CrudOpDelete, f.owner, &natswire.CrudOpData{ID: "bridge-todo-1"})
 	deadline = time.Now().Add(5 * time.Second)
 	for {
 		if n, _ := f.q.CountTodosByOwner(ctx, f.owner); n == 0 {
@@ -149,13 +152,13 @@ func TestChiBridgeSkipsForeignIdentity(t *testing.T) {
 	// A PocketBase-world op carries a non-integer user id: the chi bridge
 	// must skip it (different identity model) without dying — and stay
 	// alive for the next valid op.
-	f.pub.Publish(nats.CrudOpCreate, "pb-record-id", &nats.CrudOpData{ID: "bridge-foreign-1", Title: "PB"})
+	f.pub.Publish(natswire.CrudOpCreate, "pb-record-id", &natswire.CrudOpData{ID: "bridge-foreign-1", Title: "PB"})
 	time.Sleep(500 * time.Millisecond)
 	if n, _ := f.q.CountTodosByOwner(context.Background(), f.owner); n != 0 {
 		t.Fatalf("foreign op created %d rows, want 0", n)
 	}
 
-	f.pub.Publish(nats.CrudOpCreate, f.owner, &nats.CrudOpData{ID: "bridge-after-foreign", Title: "Survivor"})
+	f.pub.Publish(natswire.CrudOpCreate, f.owner, &natswire.CrudOpData{ID: "bridge-after-foreign", Title: "Survivor"})
 	f.waitRow(f.owner, "bridge-after-foreign")
 }
 
@@ -224,7 +227,7 @@ func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
 		t.Fatalf("auth A: %v", aerr)
 	}
 	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub(), "daisyui")
-	handlerA.SetPublisher(nats.NewCrudPublisher(h.JS))
+	handlerA.SetPublisher(natswire.NewCrudPublisher(h.JS))
 	muxA := http.NewServeMux()
 	muxA.Handle("/api/auth/", authA.Handler())
 	muxA.Handle("/api/todos", handlerA.Routes())
@@ -256,7 +259,7 @@ func loopSignup(t *testing.T, muxA http.Handler) *http.Cookie {
 
 // newLoopInstanceB boots the consumer-only instance on its own database,
 // with the loop user mirrored, and starts its consumer.
-func newLoopInstanceB(t *testing.T, js nats.JetStreamLike, userID string) (*sql.DB, *dbgen.Queries) {
+func newLoopInstanceB(t *testing.T, js natsio.JetStreamContext, userID string) (*sql.DB, *dbgen.Queries) {
 	t.Helper()
 	sqlB, err := db.OpenAt(t.TempDir() + "/loop-b.db")
 	if err != nil {

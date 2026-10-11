@@ -10,7 +10,7 @@
 package whiteboard
 
 import (
-	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 )
@@ -34,7 +34,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 			<title>Collab whiteboards — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 				<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
 			<script src="/static/iconify-icon.min.js"></script>
@@ -42,7 +42,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 			@components.OfflineSyncScript(offlineSync)
 		</head>
 		<body>
-			@auth.Navbar(email, "whiteboard", buildLabel, buildCommit)
+			@authviews.Navbar(email, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			<main class="container mx-auto p-4">
 				<div class="flex items-center justify-between mb-4">
@@ -86,7 +86,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 			<title>Collab whiteboard { docID } — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 				<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
@@ -94,7 +94,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 			<script src="/static/rough.min.js"></script>
 		</head>
 		<body>
-			@auth.Navbar(email, "whiteboard", buildLabel, buildCommit)
+			@authviews.Navbar(email, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			@components.SessionBanner(email != "")
 			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ docID }>

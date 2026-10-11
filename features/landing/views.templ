@@ -12,7 +12,7 @@
 package landing
 
 import (
-	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 )
@@ -30,7 +30,7 @@ templ Index(userEmail string, buildLabel string, buildCommit string) {
 			<title>gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
@@ -67,7 +67,7 @@ templ Index(userEmail string, buildLabel string, buildCommit string) {
 			</style>
 		</head>
 		<body class="bg-base-100 min-h-screen">
-			@auth.Navbar(userEmail, "", buildLabel, buildCommit)
+			@authviews.Navbar(userEmail, "", buildLabel, buildCommit)
 			<main class="landing-hero">
 				<div class="landing-card">
 					<header class="text-center mb-6">

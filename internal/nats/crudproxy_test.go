@@ -9,6 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
@@ -63,7 +64,7 @@ func TestCrudConsumerCreate(t *testing.T) {
 	}
 
 	// Create publisher + consumer.
-	pub := nats.NewCrudPublisher(js)
+	pub := natswire.NewCrudPublisher(js)
 	if pub == nil {
 		t.Fatal("NewCrudPublisher returned nil")
 	}
@@ -79,7 +80,7 @@ func TestCrudConsumerCreate(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Publish a "create" operation.
-	pub.Publish(nats.CrudOpCreate, "user-test", &nats.CrudOpData{
+	pub.Publish(natswire.CrudOpCreate, "user-test", &natswire.CrudOpData{
 		ID: "test123abcd1234", Title: "NATS CRUD test", Completed: false,
 	})
 
@@ -142,14 +143,14 @@ func TestCrudConsumerToggle(t *testing.T) {
 		t.Fatalf("seed record: %v", seedErr)
 	}
 
-	pub := nats.NewCrudPublisher(js)
+	pub := natswire.NewCrudPublisher(js)
 	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() { _ = consumer.Run(ctx) }()
 	time.Sleep(200 * time.Millisecond)
 
 	// Publish toggle.
-	pub.Publish(nats.CrudOpToggle, "user-test", &nats.CrudOpData{
+	pub.Publish(natswire.CrudOpToggle, "user-test", &natswire.CrudOpData{
 		ID: "toggle123abc123", Completed: true,
 	})
 	time.Sleep(500 * time.Millisecond)
@@ -199,13 +200,13 @@ func TestCrudConsumerDelete(t *testing.T) {
 	rec.Set("owner", "user-test")
 	_ = app.Save(rec)
 
-	pub := nats.NewCrudPublisher(js)
+	pub := natswire.NewCrudPublisher(js)
 	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() { _ = consumer.Run(ctx) }()
 	time.Sleep(200 * time.Millisecond)
 
-	pub.Publish(nats.CrudOpDelete, "user-test", &nats.CrudOpData{ID: "delete123abc123"})
+	pub.Publish(natswire.CrudOpDelete, "user-test", &natswire.CrudOpData{ID: "delete123abc123"})
 	time.Sleep(500 * time.Millisecond)
 
 	if _, err := app.FindRecordById("todos", "delete123abc123"); err == nil {
@@ -258,13 +259,13 @@ func TestCrudConsumerClearCompleted(t *testing.T) {
 		_ = app.Save(r)
 	}
 
-	pub := nats.NewCrudPublisher(js)
+	pub := natswire.NewCrudPublisher(js)
 	consumer := nats.NewCrudConsumer(app, js, "gogogo")
 	ctx := t.Context()
 	go func() { _ = consumer.Run(ctx) }()
 	time.Sleep(200 * time.Millisecond)
 
-	pub.Publish(nats.CrudOpClearCompleted, "user-test", nil)
+	pub.Publish(natswire.CrudOpClearCompleted, "user-test", nil)
 	time.Sleep(500 * time.Millisecond)
 
 	// done1 should be deleted.
@@ -280,9 +281,9 @@ func TestCrudConsumerClearCompleted(t *testing.T) {
 // TestCrudPublisherNilSafe verifies that calling methods on a nil
 // *CrudPublisher does not panic.
 func TestCrudPublisherNilSafe(_ *testing.T) {
-	var pub *nats.CrudPublisher // nil
+	var pub *natswire.CrudPublisher // nil
 	// Must not panic.
-	pub.Publish(nats.CrudOpCreate, "user", &nats.CrudOpData{ID: "safe", Title: "safe"})
+	pub.Publish(natswire.CrudOpCreate, "user", &natswire.CrudOpData{ID: "safe", Title: "safe"})
 	pub.Close()
 }
 
@@ -290,7 +291,7 @@ func TestCrudPublisherNilSafe(_ *testing.T) {
 // returns nil when js is nil.
 func TestNewCrudPublisherReturnsNil(t *testing.T) {
 	t.Parallel()
-	pub := nats.NewCrudPublisher(nil)
+	pub := natswire.NewCrudPublisher(nil)
 	if pub != nil {
 		t.Fatal("NewCrudPublisher(nil) should return nil")
 	}

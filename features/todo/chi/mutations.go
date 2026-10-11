@@ -15,7 +15,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 )
 
 // context; disconnects surface as write errors, checked per call.
@@ -88,7 +88,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	h.publishSync(r, owner,
 		recordEvent{Event: "created", ID: createdID, Title: title},
-		nats.CrudOpCreate, &nats.CrudOpData{ID: createdID, Title: title})
+		natswire.CrudOpCreate, &natswire.CrudOpData{ID: createdID, Title: title})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"loading": false, "newTitle": "", signalItemCount: len(todos),
@@ -161,7 +161,7 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	h.publishSync(r, owner,
 		recordEvent{Event: "toggled", ID: id, Done: !current.Completed},
-		nats.CrudOpToggle, &nats.CrudOpData{ID: id, Completed: !current.Completed})
+		natswire.CrudOpToggle, &natswire.CrudOpData{ID: id, Completed: !current.Completed})
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
 		h.fail(w, "todo: toggle patch failed", err, "toggle failed")
@@ -230,7 +230,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	h.publishSync(r, owner,
 		recordEvent{Event: "deleted", ID: item.ID},
-		nats.CrudOpDelete, &nats.CrudOpData{ID: item.ID})
+		natswire.CrudOpDelete, &natswire.CrudOpData{ID: item.ID})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"confirmingDeleteId":    "",
@@ -276,7 +276,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 	}
 	h.publishSync(r, owner,
 		recordEvent{Event: "cleared"},
-		nats.CrudOpClearCompleted, nil)
+		natswire.CrudOpClearCompleted, nil)
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
 		h.fail(w, "todo: clear patch failed", err, "clear failed")

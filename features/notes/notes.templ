@@ -2,7 +2,7 @@ package notes
 
 import "strconv"
 
-import "github.com/calionauta/gogogo/features/auth"
+import "github.com/calionauta/gogogo/features/authviews"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
 
@@ -16,13 +16,13 @@ templ NotesIndex(email string, docIDs []string, buildLabel string, buildCommit s
 			<title>Collab notes — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
-			@auth.Navbar(email, "notes", buildLabel, buildCommit)
+			@authviews.Navbar(email, "notes", buildLabel, buildCommit)
 			<main class="p-4 max-w-2xl mx-auto">
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Shared notes</h1>
@@ -64,7 +64,7 @@ templ NotesPage(email string, docID string, text string, rev uint64, buildLabel 
 			<title>Collab note — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			<script src="/static/iconify-icon.min.js"></script>
@@ -73,7 +73,7 @@ templ NotesPage(email string, docID string, text string, rev uint64, buildLabel 
 			<script defer src="/static/notes.js"></script>
 		</head>
 		<body>
-			@auth.Navbar(email, "notes", buildLabel, buildCommit)
+			@authviews.Navbar(email, "notes", buildLabel, buildCommit)
 			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ docID } data-rev={ strconv.FormatUint(rev, 10) }>
 				<h1 class="sr-only">Shared note</h1>
 				<div class="flex items-center justify-between mb-2">

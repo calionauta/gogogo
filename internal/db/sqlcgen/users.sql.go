@@ -23,7 +23,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash, name, created, updated)
 VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, email, password_hash, name, created, updated
+RETURNING id, email, password_hash, name, created, updated, totp_secret, totp_verified
 `
 
 type CreateUserParams struct {
@@ -52,13 +52,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Name,
 		&i.Created,
 		&i.Updated,
+		&i.TotpSecret,
+		&i.TotpVerified,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
 
-SELECT id, email, password_hash, name, created, updated FROM users WHERE id = ?
+SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified FROM users WHERE id = ?
 `
 
 // Users: the identity table owned by internal/auth (argon2id hashes).
@@ -72,12 +74,14 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 		&i.Name,
 		&i.Created,
 		&i.Updated,
+		&i.TotpSecret,
+		&i.TotpVerified,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, created, updated FROM users WHERE email = ?
+SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified FROM users WHERE email = ?
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -90,6 +94,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Name,
 		&i.Created,
 		&i.Updated,
+		&i.TotpSecret,
+		&i.TotpVerified,
 	)
 	return i, err
 }

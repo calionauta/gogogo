@@ -90,7 +90,31 @@ Owning the commodity part (password + session + cookie) costs less long-term
 than tracking a young library's surface across every generated project. If an
 app outgrows password auth, limen remains the documented upgrade plugin for
 exactly that moment.
-- Magic-link/OTP/social are per-app plugins, not template core.
+
+## Auth plugins (owned): magic link, TOTP, OAuth
+
+The three live in `internal/auth` (migration 0005), red-proofed against the
+real driver — no new auth dependencies:
+
+- **Magic link** (`magiclink.go`): single-use tokens consumed by DELETE,
+  15-minute expiry, silent nil for unknown addresses, no auto-provisioning
+  (passwordless signup stays an explicit per-app choice, not a spam vector).
+  Delivery is an injected `MagicSender` — the template has no opinion on
+  SMTP vs API senders. Disabled without a sender (fail closed).
+- **TOTP second factor** (`totp.go`): owned RFC 6238 (the usual library
+  scored 0/10 maintained in 2026), verified against the RFC Appendix B
+  vectors. `totp_secret` empty means off; `totp_verified` guards the
+  enroll-then-confirm window so abandoned setups never lock anyone out.
+  Password login withholds the session (`totp_required`) until
+  `/api/auth/totp/login` closes it. The form login says so plainly —
+  the shared form has no code field.
+- **Social login** (`oauth.go`): generic authorization-code flow over
+  `golang.org/x/oauth2` (already in the module graph), with Google and
+  GitHub presets (GitHub reads `/user/emails` for the verified primary).
+  Endpoints are data so tests point them at stubs. Links land in
+  `oauth_accounts`; first login with a known address links instead of
+  duplicating. Handshake states are short-lived and in-process (single-box
+  caveat documented in code).
 
 ## Turso Database: the cost, stated plainly
 

@@ -23,6 +23,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/web/resources"
 )
@@ -223,9 +224,9 @@ func Init(
 		// initialized when OfflineSync is enabled AND NATS JetStream is
 		// available (js is non-nil). When disabled, CrudPublisher is nil
 		// and the handler's publishCrudOp is a no-op — zero cost.
-		var crudPub *nats.CrudPublisher
+		var crudPub *natswire.CrudPublisher
 		if cfg.OfflineSync.Enabled {
-			crudPub = nats.NewCrudPublisher(js)
+			crudPub = natswire.NewCrudPublisher(js)
 		}
 		if todoH != nil {
 			todoH.SetBroadcaster(broadcaster)

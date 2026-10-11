@@ -34,7 +34,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
@@ -57,7 +57,7 @@ type Handler struct {
 	// Nil (NATS disabled) is a valid zero value: Publish is nil-safe, so
 	// the stack converges in-process through the Hub only. Set via
 	// SetPublisher so tests can run hub-only without a NATS server.
-	Pub *nats.CrudPublisher
+	Pub *natswire.CrudPublisher
 	// BuildLabel/BuildCommit stamp the navbar version badge (from -ldflags
 	// in production builds, "dev"/"unknown" otherwise). Zero values render
 	// the same defaults the PocketBase index shows.
@@ -71,7 +71,7 @@ type Handler struct {
 }
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.
-func (h *Handler) SetPublisher(p *nats.CrudPublisher) {
+func (h *Handler) SetPublisher(p *natswire.CrudPublisher) {
 	h.Pub = p
 }
 
@@ -284,7 +284,7 @@ type recordEvent struct {
 // JetStream for other instances. Both are best-effort after the Turso write
 // (the source of truth); either may lag without affecting correctness.
 func (h *Handler) publishSync(
-	r *http.Request, owner string, evt recordEvent, op nats.CrudOpType, data *nats.CrudOpData,
+	r *http.Request, owner string, evt recordEvent, op natswire.CrudOpType, data *natswire.CrudOpData,
 ) {
 	h.broadcastRecord(r, owner, evt)
 	h.Pub.Publish(op, owner, data)

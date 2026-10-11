@@ -2,7 +2,7 @@
 package chat
 
 import (
-	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 )
@@ -19,7 +19,7 @@ templ ChatIndex(email string, buildLabel string, buildCommit string) {
 			<title>Chat — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
-			@auth.ThemeHead()
+			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
 			<script src="/static/iconify-icon.min.js"></script>
@@ -27,7 +27,7 @@ templ ChatIndex(email string, buildLabel string, buildCommit string) {
 			@components.OfflineSyncScript(true)
 		</head>
 		<body>
-			@auth.Navbar(email, "chat", buildLabel, buildCommit)
+			@authviews.Navbar(email, "chat", buildLabel, buildCommit)
 			@components.OfflineBanner(true)
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">

@@ -25,6 +25,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo/components"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 
 	// basecoat skin imported via features/todo/components/skin_imports.go
@@ -89,7 +90,7 @@ type TodoHandler struct {
 	q            *queue.Queue
 	cfg          *config.Config
 	broadcaster  TodoBroadcaster
-	crudPub      *nats.CrudPublisher // publishes CRUD ops to NATS for cross-instance sync
+	crudPub      *natswire.CrudPublisher // publishes CRUD ops to NATS for cross-instance sync
 	llm          *llm.Client
 	llmSimulated *llm.Client
 	// onboarding drives the event-driven onboarding flow. It is an
@@ -205,7 +206,7 @@ func (h *TodoHandler) SetStore(s store.EntityStore[todo.Todo]) {
 // When set, every todo CRUD operation is also published to JetStream
 // after being written to PocketBase, so other instances (or the server,
 // for desktop edges) converge. Pass nil (the default) to disable.
-func (h *TodoHandler) SetCrudPublisher(p *nats.CrudPublisher) {
+func (h *TodoHandler) SetCrudPublisher(p *natswire.CrudPublisher) {
 	h.crudPub = p
 }
 
@@ -213,7 +214,7 @@ func (h *TodoHandler) SetCrudPublisher(p *nats.CrudPublisher) {
 // configured. Called AFTER the handler writes to PocketBase, so failure
 // to publish does NOT affect the response. The operation data captures
 // the PocketBase-generated ID so the remote consumer reuses it.
-func (h *TodoHandler) publishCrudOp(op nats.CrudOpType, userID string, data *nats.CrudOpData) {
+func (h *TodoHandler) publishCrudOp(op natswire.CrudOpType, userID string, data *natswire.CrudOpData) {
 	if h.crudPub == nil {
 		return
 	}
