@@ -20,6 +20,8 @@ import (
 	chatchi "github.com/calionauta/gogogo/features/chat/chi"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	configchi "github.com/calionauta/gogogo/features/config/chi"
+	"github.com/calionauta/gogogo/features/credits"
+	creditschi "github.com/calionauta/gogogo/features/credits/chi"
 	genuichi "github.com/calionauta/gogogo/features/genui/chi"
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
@@ -68,6 +70,36 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 	return serveChiOnListener(ln, srvHandler(bundle.mux), bundle), nil
 }
 
+// bootCredits opens the Turso ledger, builds the engine (nil when the
+// feature is disabled — routes answer 503), starts its workers and
+// registers its shutdown. Split from bootChi to keep both under the
+// function-length gate.
+func bootCredits(
+	ctx context.Context, cfg *config.Config, shutdown []func(),
+	sqlDB *sql.DB, cancelConsumer context.CancelFunc, a *auth.Auth,
+) (*creditschi.Handler, []func(), error) {
+	ledgerDB, lerr := creditschi.OpenTursoLedger(cfg.DataDir)
+	if lerr != nil {
+		cancelConsumer()
+		_ = sqlDB.Close()
+		return nil, shutdown, fmt.Errorf("server: chi ledger: %w", lerr)
+	}
+	shutdown = append(shutdown, func() { _ = ledgerDB.Close() })
+	//nolint:contextcheck // engine constructor takes no context (same as the
+	// previous stack's wiring); cancellation starts at Service.Start.
+	creditsSvc, cerr := credits.NewOnDB(ledgerDB, cfg)
+	if cerr != nil {
+		cancelConsumer()
+		_ = sqlDB.Close()
+		return nil, shutdown, fmt.Errorf("server: chi credits: %w", cerr)
+	}
+	if creditsSvc == nil {
+		return creditschi.NewHandler(a, nil), shutdown, nil
+	}
+	creditsSvc.Start(ctx)
+	return creditschi.NewHandler(a, creditsSvc), shutdown, nil
+}
+
 // chiBundle is everything StartChi builds before listening. Tests boot it
 // and serve their own :0 listener, driving the production composition over
 // real HTTP — the automated preflight.
@@ -85,9 +117,9 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("server: chi db open: %w", err)
 	}
-	if err := db.Migrate(sqlDB); err != nil {
+	if merr := db.Migrate(sqlDB); merr != nil {
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("server: chi db migrate: %w", err)
+		return nil, fmt.Errorf("server: chi db migrate: %w", merr)
 	}
 
 	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
@@ -149,6 +181,11 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	genuiH.RegisterHandlers(chiQ.Registry())
 	chiQ.StartWorkers()
 
+	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		if cerr := chi.RunCrudConsumer(bootCtx, js, cfg.AppName, queries, hub); cerr != nil {
 			slog.Error("server: chi crud consumer stopped", "error", cerr)
@@ -167,7 +204,7 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
 		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
-		roomH, chatH, genuiH,
+		roomH, chatH, genuiH, creditsH,
 	), cancelConsumer: cancelConsumer, shutdown: shutdown}, nil
 }
 
@@ -226,6 +263,7 @@ func buildChiMux(
 	landingH *landingchi.Handler, configH *configchi.Handler,
 	wbH *wbchi.Handler, notesH *notesachi.Handler,
 	roomH *roomchi.Handler, chatH *chatchi.Handler, genuiH *genuichi.Handler,
+	creditsH *creditschi.Handler,
 ) http.Handler {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and
@@ -261,6 +299,10 @@ func buildChiMux(
 	mux.Handle("/genui", genuiH.Routes())
 	mux.Handle("/genui/", genuiH.Routes())
 	mux.Handle("/api/genui/", genuiH.Routes())
+	mux.Handle("/api/credits", creditsH.Routes())
+	mux.Handle("/api/credits/", creditsH.Routes())
+	mux.Handle("/api/ai/", creditsH.Routes())
+	mux.Handle("/api/byok/", creditsH.Routes())
 	mux.Handle("/", landingH.Routes())
 	return mux
 }

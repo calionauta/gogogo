@@ -16,6 +16,7 @@ import (
 	chatchi "github.com/calionauta/gogogo/features/chat/chi"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	configchi "github.com/calionauta/gogogo/features/config/chi"
+	creditschi "github.com/calionauta/gogogo/features/credits/chi"
 	genuichi "github.com/calionauta/gogogo/features/genui/chi"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
@@ -235,7 +236,8 @@ func TestBuildChiMux(t *testing.T) {
 		notesachi.NewHandler(dbgen.New(sqlDB), a, hub, persister, docs, cfg),
 		roomchi.NewHandler(cfg, a, fakeRooms{}),
 		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
-		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}))
+		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		creditschi.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))
@@ -282,5 +284,10 @@ func TestBuildChiMux(t *testing.T) {
 		if rec.Code != http.StatusSeeOther {
 			t.Fatalf("mux anon %s status = %d, want 303", target, rec.Code)
 		}
+	}
+	creditsRec := httptest.NewRecorder()
+	mux.ServeHTTP(creditsRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/credits", nil))
+	if creditsRec.Code != http.StatusUnauthorized {
+		t.Fatalf("mux anon /api/credits status = %d, want 401 JSON", creditsRec.Code)
 	}
 }

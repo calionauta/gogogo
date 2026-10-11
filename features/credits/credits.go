@@ -13,6 +13,7 @@ package credits
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -66,6 +67,19 @@ func New(cfg *config.Config) (*Service, error) {
 	db, err := credits.OpenSQLite("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
+	}
+	return NewOnDB(db, cfg)
+}
+
+// NewOnDB builds the credits engine on an already-open database handle
+// (any SQLite-compatible driver — Turso for the flat stack). Schema and
+// services are identical to New; only the connection source differs.
+// Ownership transfers: NewOnDB closes db on every failure path including
+// disabled, so callers never juggle it.
+func NewOnDB(db *sql.DB, cfg *config.Config) (*Service, error) {
+	if !cfg.Credits.Enabled {
+		_ = db.Close()
+		return nil, nil
 	}
 	svc, err := credits.New(db, credits.Config{
 		DefaultBillingMode: cfg.Credits.DefaultMode,
