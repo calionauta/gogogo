@@ -1,4 +1,4 @@
-// SCOPE:feature - REMOVE by deleting features/landing/ + the
+// SCOPE:feature - REMOVE by deleting features/landing/ (components move with it) + the
 // call site in router/router.go. The landing page is a marketing
 // shell: logo + about text + "Access demo site" CTA. It does NOT
 // call the database, does NOT authenticate the user (guests and
@@ -9,7 +9,7 @@
 // own README so the page mirrors the repo, not an LLM summary.
 // Source lines (README.md): the tagline block (~7-9) carries the
 // project positioning; the rest of the README is not surfaced.
-package landing
+package components
 
 import (
 	"github.com/calionauta/gogogo/features/authviews"

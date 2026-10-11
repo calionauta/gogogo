@@ -11,7 +11,7 @@
 //   - AGE_SECRET_KEY is excluded entirely; we render a boolean only.
 //     Any agent running with shell access can `env | grep AGE_`, but
 //     we deliberately don't pipe it to a browser.
-package config
+package components
 
 import (
 	"os"

@@ -12,6 +12,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	appcfg "github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/landing/components"
 )
 
 // Handler serves the landing page. State is limited to build
@@ -40,5 +41,5 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Response.WriteHeader(http.StatusOK)
-	return Index(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return components.Index(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }

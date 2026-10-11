@@ -20,6 +20,7 @@ import (
 
 	appcfg "github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/config/components"
 )
 
 // Handler serves the /config page. It holds the same *config.Config
@@ -61,8 +62,8 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if email == "" {
 		slog.Debug("config: auth record has no email; navbar will show Sign in")
 	}
-	data := BuildPageData(h.cfg)
+	data := components.BuildPageData(h.cfg)
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Response.WriteHeader(http.StatusOK)
-	return Page(data, email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return components.Page(data, email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # backup.sh — crash-consistent backup of every server-side store.
 #
-# What it covers: data.db + queue.db via sqlite3 .backup (transactionally
-# safe — never cp a live SQLite file), JetStream via `nats account backup`
-# when the nats CLI can reach the server, then one tarball. Every store
-# here is crash-recoverable by design (SQLite WAL replay, JetStream
-# recovery, goqite), so a point-in-time file set restores cleanly.
+# What it covers: data.db + queue.db + app.db via sqlite3 .backup
+# (transactionally safe — never cp a live SQLite file; Turso files are
+# SQLite-compatible and back up the same way), JetStream via
+# `nats account backup` when the nats CLI can reach the server, then one
+# tarball. Every store here is crash-recoverable by design (SQLite WAL
+# replay, JetStream recovery, goqite), so a point-in-time file set
+# restores cleanly.
 # What it does NOT cover: browser state (IndexedDB outbox, localStorage).
 #
 # Usage: ./scripts/backup.sh [DATA_DIR] [DEST_DIR]
@@ -36,6 +38,7 @@ sqlite_backup() { # $1 = db file, $2 = dest file
 
 sqlite_backup "$DATA_DIR/data.db" "$DEST/data.db"
 sqlite_backup "$DATA_DIR/queue.db" "$DEST/queue.db"
+sqlite_backup "$DATA_DIR/app.db" "$DEST/app.db"
 
 if command -v nats >/dev/null && [ -d "$DATA_DIR/nats" ]; then
 	if timeout 20 nats --server 127.0.0.1:4222 account backup "$DEST/jetstream" >/dev/null 2>&1; then
@@ -47,4 +50,4 @@ else
 	echo "backup: WARN JetStream backup skipped (no nats CLI or no $DATA_DIR/nats)" >&2
 fi
 
-echo "backup: done -> $DEST (data.db + queue.db integrity-checked; jetstream when reachable)"
+echo "backup: done -> $DEST (data.db + queue.db + app.db integrity-checked; jetstream when reachable)"

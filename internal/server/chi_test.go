@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
+	configchi "github.com/calionauta/gogogo/features/config/chi"
+	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	todochi "github.com/calionauta/gogogo/features/todo/chi"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
@@ -167,8 +169,10 @@ func TestBuildChiMux(t *testing.T) {
 		t.Fatalf("auth new: %v", aerr)
 	}
 	todoH := todochi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), "daisyui")
+	cfg := config.Load()
 
-	mux := buildChiMux(a, todoH)
+	mux := buildChiMux(a, todoH,
+		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))
@@ -198,5 +202,15 @@ func TestBuildChiMux(t *testing.T) {
 	mux.ServeHTTP(anonRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/todo", nil))
 	if anonRec.Code != http.StatusSeeOther {
 		t.Fatalf("mux anon /todo status = %d, want 303", anonRec.Code)
+	}
+	landingRec := httptest.NewRecorder()
+	mux.ServeHTTP(landingRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil))
+	if landingRec.Code != http.StatusOK {
+		t.Fatalf("mux GET / status = %d, want 200", landingRec.Code)
+	}
+	configRec := httptest.NewRecorder()
+	mux.ServeHTTP(configRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil))
+	if configRec.Code != http.StatusSeeOther {
+		t.Fatalf("mux anon /config status = %d, want 303", configRec.Code)
 	}
 }

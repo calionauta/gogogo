@@ -6,7 +6,7 @@
 // narrow — the goal is "what is configured?" without "what is the
 // value?". Internal users with shell access can read process env
 // directly; this view is the convenience panel for browsers.
-package config
+package components
 
 import (
 	"net/url"

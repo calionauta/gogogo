@@ -14,7 +14,7 @@
 //
 // These four invariants are the load-bearing safety guarantees of
 // the /config page; if any regresses, the page is leaking secrets.
-package config
+package components
 
 import (
 	"strings"

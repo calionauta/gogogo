@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/config"
+	configchi "github.com/calionauta/gogogo/features/config/chi"
+	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	"github.com/calionauta/gogogo/features/todo/chi"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
@@ -95,7 +97,9 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 		}
 	}()
 
-	return &chiBundle{sqlDB: sqlDB, mux: buildChiMux(a, todoH), cancelConsumer: cancelConsumer}, nil
+	return &chiBundle{sqlDB: sqlDB, mux: buildChiMux(a, todoH,
+		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+	), cancelConsumer: cancelConsumer}, nil
 }
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
@@ -128,12 +132,25 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, cancelConsumer contex
 
 // buildChiMux composes the flat-stack routes. Pure constructor (no ports,
 // no goroutines) so contract tests cover the exact composition production
-// serves: the auth handler already carries its /api/auth base path and the
-// std mux passes full paths through, which is what broke once before when
-// chi.Mount refused the root mount.
-func buildChiMux(a *auth.Auth, todoH *chi.Handler) http.Handler {
+// serves.
+func buildChiMux(
+	a *auth.Auth, todoH *chi.Handler, landingH *landingchi.Handler, configH *configchi.Handler,
+) http.Handler {
+	// Every sub-router serves absolute paths (the auth handler carries
+	// its /api/auth base path; chi routers match full paths too), and
+	// the std mux never strips prefixes — so each subtree pattern routes
+	// to the handler owning those absolute routes. Longest match wins;
+	// the landing root is the catch-all.
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
-	mux.Handle("/", todoH.Routes())
+	mux.Handle("/api/todos", todoH.Routes())
+	mux.Handle("/api/todos/", todoH.Routes())
+	mux.Handle("/todo", todoH.Routes())
+	mux.Handle("/todo/", todoH.Routes())
+	mux.Handle("/login", todoH.Routes())
+	mux.Handle("/logout", todoH.Routes())
+	mux.Handle("/config", configH.Routes())
+	mux.Handle("/config/", configH.Routes())
+	mux.Handle("/", landingH.Routes())
 	return mux
 }
