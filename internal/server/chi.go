@@ -57,6 +57,10 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 	queries := dbgen.New(sqlDB)
 	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
 	todoH.SetPublisher(nats.NewCrudPublisher(js))
+	todoH.BuildLabel = cfg.BuildLabel
+	todoH.BuildCommit = cfg.BuildCommit
+	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
+	todoH.NATSEnabled = cfg.NATS.Enabled
 
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
 	go func() {
@@ -95,7 +99,6 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 func buildChiMux(a *auth.Auth, todoH *chi.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
-	mux.Handle("/api/todos", todoH.Routes())
-	mux.Handle("/api/todos/", todoH.Routes())
+	mux.Handle("/", todoH.Routes())
 	return mux
 }

@@ -1,0 +1,120 @@
+// SCOPE:feature — Chi todo pages (login + index, step 6)
+//
+// Page endpoints mirror features/auth + the PocketBase todo index: same
+// paths, same redirects, same rendered components (the shared LoginPage
+// and Layout/TodoPage templates — no forked markup). Data comes from dbgen
+// and internal/auth instead of PocketBase.
+package chi
+
+import (
+	"net/http"
+	"strings"
+
+	authviews "github.com/calionauta/gogogo/features/auth"
+	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/features/todo/components"
+	"github.com/calionauta/gogogo/internal/auth"
+	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
+)
+
+// loginNext resolves the post-login destination, defaulting to the demo
+// app. Only same-origin paths are honored: a ?next=https://evil.com is an
+// open redirect, so anything that is not a bare path falls back to /todo.
+// (The PocketBase flow redirects unchecked; the chi stack does not inherit
+// that flaw.)
+func loginNext(r *http.Request) string {
+	next := r.FormValue("next")
+	if next == "" {
+		next = r.URL.Query().Get("next")
+	}
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		return "/todo"
+	}
+	return next
+}
+
+func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_ = authviews.LoginPage(loginNext(r), "").Render(r.Context(), w)
+}
+
+func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_ = authviews.LoginPage(loginNext(r), "Invalid form submission").Render(r.Context(), w)
+		return
+	}
+	token, err := h.authLogin(r)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_ = authviews.LoginPage(loginNext(r), "Wrong email or password").Render(r.Context(), w)
+		return
+	}
+	http.SetCookie(w, h.Auth.SetSessionCookie(token))
+	// #nosec G710 — loginNext allows same-origin paths only (/todo fallback).
+	http.Redirect(w, r, loginNext(r), http.StatusSeeOther)
+}
+
+// authLogin validates form credentials, keeping the handler body to the
+// same shape as the other mutation entries (resolve → act → respond).
+func (h *Handler) authLogin(r *http.Request) (string, error) {
+	return h.Auth.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
+}
+
+func (h *Handler) handleLogoutPost(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(auth.CookieName); err == nil {
+		h.Auth.Logout(r.Context(), cookie.Value)
+	}
+	http.SetCookie(w, h.Auth.ClearSessionCookie())
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// handleIndex serves the demo Todo page: the same Layout/TodoPage
+// components and signal seeding as the PocketBase index, with guests
+// bounced to /login and data from dbgen.
+func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
+	owner, sess, err := h.ownerSession(r)
+	if err != nil {
+		redirectLogin(w, r)
+		return
+	}
+	todos, err := h.listOwner(r.Context(), owner, "all")
+	if err != nil {
+		todos = nil
+	}
+	signals := todo.Signals{
+		Todos:            todos,
+		Filter:           "all",
+		ItemCount:        len(todos),
+		ConnectedClients: h.Hub.Stats().Clients,
+		Suggestions:      []string{},
+		SuggestErr:       "",
+		RealtimeKind:     h.realtimeKind(),
+		StoreLabel:       "Turso Database",
+		OfflineLabel:     h.offlineLabel(),
+		SidebarTab:       "queue",
+	}
+	skin := h.resolveSkin(r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	if skin == SkinBasecoat {
+		_ = basecoat.TodoPage(
+			"Todos — gogogo",
+			signals, sess.User.Email,
+			h.BuildLabel, h.BuildCommit,
+			h.OfflineSyncEnabled,
+			skin,
+		).Render(r.Context(), w)
+		return
+	}
+	_ = components.Layout(
+		"Todos — gogogo",
+		signals, sess.User.Email,
+		h.BuildLabel, h.BuildCommit,
+		h.OfflineSyncEnabled,
+		skin,
+	).Render(r.Context(), w)
+}

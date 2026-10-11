@@ -7,9 +7,11 @@ Status: accepted (2026-10-11)
 gogogo targets an explicit, flat stack: **chi** for routing, **sqlc-generated
 functions called directly from handlers** for data access, **Turso Database**
 (the Rust SQLite-compatible engine, driven by `turso.tech/database/tursogo`),
-**limen** for auth, **casbin** for permissions, and **Datastar + Templ** for the
-UI. PocketBase and the repo-interface abstraction layer (`internal/ports`,
-`internal/repos`, `internal/backend`) are removed.
+**owned argon2id auth** (`internal/auth`: password hashes, opaque sessions,
+`gogogo_auth` cookie, zero auth dependencies), **casbin** for permissions,
+and **Datastar + Templ** for the UI. PocketBase, the limen auth library and
+the repo-interface abstraction layer (`internal/ports`, `internal/repos`,
+`internal/backend`) are removed.
 
 ## Why (evidence)
 
@@ -42,7 +44,7 @@ genuinely interchangeable implementations — e.g. swapping LLM providers. The
 | sqlc query sources | `internal/db/queries/<domain>.sql` |
 | sqlc config | `internal/db/sqlc.yaml` |
 | sqlc-generated Go (`package dbgen`) | `internal/db/sqlcgen/` |
-| Auth (limen) | `internal/auth/` |
+| Auth (owned, argon2id + sessions) | `internal/auth/` |
 | Casbin model + policy (embedded) | `internal/rbac/casbin/` |
 | RBAC middleware | `internal/rbac/` |
 | Business logic | `features/<name>/` |
@@ -66,24 +68,29 @@ import rewrite, deliberately deferred so no import path changes twice.
 - **IDs are UUIDv7, generated in Go** (`db.NewID`), so the value exists before
   the insert and text ordering equals creation ordering.
 
-## Auth: limen, with the alternative written down
+## Auth: owned argon2id, with the library path written down
 
-Sessions and password logins come from **limen**
-(`github.com/thecodearcher/limen`), a composable auth library: sessions, cookie
-handling, CSRF and rate limiting in the core, each method composed on top. It
-replaces PocketBase's auth collection, and the app keeps the `gogogo_auth`
-cookie name so existing browser sessions and the SSE/realtime auth path are
-unchanged.
+Sessions and password logins come from **`internal/auth`** (~300 owned lines):
+argon2id hashes (`golang.org/x/crypto`, already a direct dependency), random
+32-byte session tokens of which only the SHA-256 reaches the `sessions` table,
+and the `gogogo_auth` cookie (`HttpOnly`/`SameSite=Lax`/`Secure`), so existing
+browser sessions and the SSE/realtime auth path are unchanged. No secrets, no
+config structs, no auth dependencies — sessions are random tokens, so there is
+nothing to rotate.
 
-**The alternative, if limen ever stops fitting: argon2id + a sessions table.**
-Both pieces already exist in this repo's dependency set — `golang.org/x/crypto`
-(already a direct dependency) provides argon2id, and
-`internal/db/migrations/0001_init.sql` already defines a `sessions` table
-storing only the hash of the cookie value. That path is roughly 150 lines of
-straight-line code (hash on register, verify on login, random 32-byte token
-stored as SHA-256, `Set-Cookie` with `HttpOnly`/`SameSite=Lax`/`Secure`), no new
-dependency, and no library between the request and the database. Choose it if
-limen's surface becomes the thing you are debugging.
+**The path not taken: limen** (`github.com/thecodearcher/limen`). Evaluated
+honestly in 2026-10: a composable auth library (sessions, cookies, CSRF, rate
+limiting, plus magic-link/OAuth/2FA plugins) that fits Turso via its
+database/sql adapter. Rejected for template core because it is pre-1.0 across
+three version-skewed modules, owns a second schema (five tables with its own
+columns and INTEGER ids, against the template's TEXT convention), and its
+breadth (magic link, OTP, social) needs external infrastructure anyway — an
+email sender, TOTP enrollment, OAuth client IDs — that no library eliminates.
+Owning the commodity part (password + session + cookie) costs less long-term
+than tracking a young library's surface across every generated project. If an
+app outgrows password auth, limen remains the documented upgrade plugin for
+exactly that moment.
+- Magic-link/OTP/social are per-app plugins, not template core.
 
 ## Turso Database: the cost, stated plainly
 
@@ -108,20 +115,19 @@ Two things are worth knowing before this becomes the only engine:
    migration runner, core schema (users, sessions, todos), sqlc config +
    queries + committed `sqlcgen`, and tests that run every one of them against
    the real driver.
-3. **Done** — Auth on limen as chi middleware (`internal/auth`, red-proofed
-   against the real Turso driver): credential/password plugin on its own
-   `limen_*` tables (migration 0002; limen's `users`/`sessions` names would
-   collide with the app tables from 0001, so every limen table carries the
-   prefix via Schema options), session cookie kept as `gogogo_auth`
-   (`WithHTTPSessionCookieName`), chi `RequireSession` middleware with
-   `SessionFrom` accessor. Not yet wired into `server.Run` — the PocketBase
-   boot still serves the app; the wiring lands with the todo slice (step 4).
+3. **Done** — owned auth as chi middleware (`internal/auth`, red-proofed
+   against the real Turso driver): argon2id + opaque sessions on the app
+   `users`/`sessions` tables (migration 0004 restores them after the removed
+   limen detour), session cookie kept as `gogogo_auth`, chi `RequireSession`
+   middleware with `SessionFrom` accessor.
 4. **Done (data endpoints)** — todo slice on chi + `dbgen` (`features/todo/chi`,
    red-proofed contract tests + live preflight): list/fragment/create/toggle/
    delete/clear/confirm/stream with the same paths, statuses, redirects and
-   Datastar SSE wire as the PocketBase handlers. Identity unified on limen
-   (migration 0003 drops the unused 0001 users/sessions tables; todos.owner
-   is now INTEGER REFERENCES limen_users). Out of scope here on purpose:
+   Datastar SSE wire as the PocketBase handlers. Identity is app-owned TEXT
+   UUIDs throughout (0003's limen detour is fully reverted by 0004). Chi pages
+   (GET/POST /login on the shared LoginPage, POST /logout, GET /todo on the
+   shared Layout/TodoPage) included, with the login `next` restricted to
+   same-origin paths. Out of scope here on purpose:
    full page (/todo index), AI suggest, retry demo, onboarding (step 6), and
    NATS cross-instance publish (step 5). Served alongside PocketBase only
    when CHI_ADDR + LIMEN_SECRET are set (`internal/server.StartChi`).

@@ -58,6 +58,16 @@ type Handler struct {
 	// the stack converges in-process through the Hub only. Set via
 	// SetPublisher so tests can run hub-only without a NATS server.
 	Pub *nats.CrudPublisher
+	// BuildLabel/BuildCommit stamp the navbar version badge (from -ldflags
+	// in production builds, "dev"/"unknown" otherwise). Zero values render
+	// the same defaults the PocketBase index shows.
+	BuildLabel  string
+	BuildCommit string
+	// OfflineSyncEnabled mirrors the config flag into the page signals.
+	OfflineSyncEnabled bool
+	// NATSEnabled switches the realtime label between the in-process hub
+	// and JetStream. Set from config at boot.
+	NATSEnabled bool
 }
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.
@@ -87,7 +97,46 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/todos/{id}/delete", h.handleDelete)
 	r.Get("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	r.Get("/api/todos/stream", h.handleStream)
+	r.Get("/login", h.handleLoginGet)
+	r.Post("/login", h.handleLoginPost)
+	r.Post("/logout", h.handleLogoutPost)
+	r.Get("/todo", h.handleIndex)
 	return r
+}
+
+// ownerSession resolves both the owner id and the validated session in one
+// call for page handlers, which need the user email for the navbar as well
+// as the owner for scoping.
+func (h *Handler) ownerSession(r *http.Request) (string, *auth.ValidatedSession, error) {
+	sess, err := h.Auth.Session(r)
+	if err != nil {
+		return "", nil, err
+	}
+	if sess == nil || sess.User == nil || sess.User.ID == "" {
+		return "", nil, errors.New("todo: empty session")
+	}
+	return sess.User.ID, sess, nil
+}
+
+// realtimeKind labels the active broadcast transport for the diagnostics
+// panel, matching the PocketBase index contract.
+func (h *Handler) realtimeKind() string {
+	if h.NATSEnabled {
+		return "JetStream"
+	}
+	return "in-memory"
+}
+
+// offlineLabel describes offline-sync behaviour for the page sub-header,
+// in the same words as the PocketBase index (with the Turso store named).
+func (h *Handler) offlineLabel() string {
+	if !h.OfflineSyncEnabled {
+		return "OFFLINE_SYNC_ENABLED=false — actions fail when network is down; offline mutations NOT queued"
+	}
+	if h.NATSEnabled {
+		return "Turso + NATS_ENABLED=true — SW queues browser mutations + JetStream (NATS) streams CRUD ops across replicas"
+	}
+	return "Turso, SW queues browser mutations; single instance"
 }
 
 // ownerID resolves the authenticated owner's id (a UUID string, matching

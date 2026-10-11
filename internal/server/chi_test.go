@@ -107,4 +107,16 @@ func TestBuildChiMux(t *testing.T) {
 	if !found {
 		t.Fatalf("mux signup set no %q cookie", auth.CookieName)
 	}
+
+	// Page routes ride the same mux (this composition broke once before).
+	loginRec := httptest.NewRecorder()
+	mux.ServeHTTP(loginRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/login", nil))
+	if loginRec.Code != http.StatusOK {
+		t.Fatalf("mux GET /login status = %d, want 200", loginRec.Code)
+	}
+	anonRec := httptest.NewRecorder()
+	mux.ServeHTTP(anonRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/todo", nil))
+	if anonRec.Code != http.StatusSeeOther {
+		t.Fatalf("mux anon /todo status = %d, want 303", anonRec.Code)
+	}
 }

@@ -269,8 +269,15 @@ func (a *Auth) Session(r *http.Request) (*ValidatedSession, error) {
 	return &ValidatedSession{User: &User{ID: user.ID, Email: user.Email}, Expires: expires}, nil
 }
 
-// sessionCookie builds the cookie for a fresh login.
+// sessionCookie builds the cookie for a fresh login. Exported as
+// SetSessionCookie so non-API logins (the /login form) issue the exact
+// same cookie instead of duplicating its attributes.
 func (a *Auth) sessionCookie(token string) *http.Cookie {
+	return a.SetSessionCookie(token)
+}
+
+// SetSessionCookie builds the login cookie. See sessionCookie.
+func (a *Auth) SetSessionCookie(token string) *http.Cookie {
 	// #nosec G124 — Secure is false in dev (plain-HTTP localhost) by explicit
 	// config; production boots with secureCookies and the real flag.
 	return &http.Cookie{
@@ -286,8 +293,14 @@ func (a *Auth) sessionCookie(token string) *http.Cookie {
 
 // clearCookie expires the session cookie (logout + invalid-token cleanup).
 func (a *Auth) clearCookie(w http.ResponseWriter) {
+	http.SetCookie(w, a.ClearSessionCookie())
+}
+
+// ClearSessionCookie builds the cookie-expiring counterpart to
+// SetSessionCookie. Exported for the /logout form handler.
+func (a *Auth) ClearSessionCookie() *http.Cookie {
 	// #nosec G124 — same deliberate dev/prod split as sessionCookie above.
-	http.SetCookie(w, &http.Cookie{
+	return &http.Cookie{
 		Name:     CookieName,
 		Value:    "",
 		Path:     "/",
@@ -295,7 +308,7 @@ func (a *Auth) clearCookie(w http.ResponseWriter) {
 		HttpOnly: true,
 		Secure:   a.secure,
 		SameSite: http.SameSiteLaxMode,
-	})
+	}
 }
 
 // ctxKey carries the validated session. Private so only SessionFrom reads it.

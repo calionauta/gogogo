@@ -54,12 +54,11 @@ func newChiFixture(tb testing.TB) *chiFixture {
 	h := NewHandler(dbgen.New(sqlDB), a, hub, "daisyui")
 
 	r := http.NewServeMux()
-	// Limen's handler already carries its /api/auth base path; the std
-	// mux passes the full path through (no stripping), so both mounts
-	// compose without prefix games.
+	// The auth handler already carries its /api/auth base path and the chi
+	// router serves absolute paths, so both mount without prefix games;
+	// the more specific /api/auth/ wins over the chi root mount.
 	r.Handle("/api/auth/", a.Handler())
-	r.Handle("/api/todos", h.Routes())
-	r.Handle("/api/todos/", h.Routes())
+	r.Handle("/", h.Routes())
 	return &chiFixture{t: tb, r: r, q: dbgen.New(sqlDB), hub: hub, auth: a}
 }
 
