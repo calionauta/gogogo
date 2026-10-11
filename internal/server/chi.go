@@ -179,6 +179,13 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
 		comp.NewResponder(realLLM, simulatedLLM))
 	genuiH.RegisterHandlers(chiQ.Registry())
+	todoH.SetQueue(chiQ)
+	todoH.SetLLMClient(realLLM)
+	if simulatedLLM != nil {
+		todoH.SetSimulatedLLMClient(simulatedLLM)
+	}
+	todoH.RegisterSuggestHandlers(chiQ.Registry())
+	todoH.RegisterRetryHandlers(chiQ.Registry())
 	chiQ.StartWorkers()
 
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)

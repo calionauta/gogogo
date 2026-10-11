@@ -3,7 +3,6 @@ package chi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -27,8 +26,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		clientID = uuid.New().String()
 	}
 	owner, ownerErr := h.ownerID(r)
+	hasOwner := ownerErr == nil
 	ownerStr := ""
-	if ownerErr == nil {
+	if hasOwner {
 		ownerStr = owner
 	}
 
@@ -38,7 +38,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	defer h.Hub.UnregisterIfCurrent(clientID, ch)
 
 	todos := []todo.Todo{}
-	if ownerErr == nil {
+	if hasOwner {
 		var err error
 		todos, err = h.listOwner(r.Context(), owner, "all")
 		if err != nil {
@@ -75,26 +75,22 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 			flusher.Flush()
 		case payload := <-ch:
-			if ownerErr != nil {
-				continue
-			}
-			if err := h.streamRecord(r.Context(), sse, owner, payload); err != nil {
+			if err := h.dispatchEnvelope(r.Context(), sse, owner, hasOwner, payload); err != nil {
 				slog.Error("todo: stream dispatch failed", "error", err)
 			}
 		}
 	}
 }
 
-// streamRecord re-lists scoped on every record event so each stream renders
-// its own tenant's rows. Callers skip it for anonymous streams (empty scope,
-// never an unscoped list), so owner is always valid here.
-// context; disconnects surface as write errors, checked per call.
-//
-//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
-func (h *Handler) streamRecord(ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, payload []byte) error { //nolint:lll // signature mirrors the dispatch call.
-	var evt recordEvent
-	if err := json.Unmarshal(payload, &evt); err != nil {
-		return fmt.Errorf("decode todo event: %w", err)
+// applyRecordEvent re-lists scoped on a decoded record event so each stream
+// renders its own tenant's rows. Anonymous streams (hasOwner == false)
+// have no tenant to re-list, so there is nothing to do — nil is the
+// correct result, not a swallowed error.
+func (h *Handler) applyRecordEvent(
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool, evt recordEvent,
+) error {
+	if !hasOwner {
+		return nil
 	}
 	todos, err := h.listOwner(ctx, owner, "all")
 	if err != nil {
@@ -104,6 +100,8 @@ func (h *Handler) streamRecord(ctx context.Context, sse *sdk.ServerSentEventGene
 		return err
 	}
 	signals := todo.Signals{Todos: todos, Filter: "all", ItemCount: len(todos)}
+	//nolint:contextcheck // SSE-sink boundary: patchSSE ends in datastar-go
+	// sinks, which take no context; disconnects surface as write errors.
 	return patchSSE(sse, h.renderListRegion(signals, "daisyui"),
 		sdk.WithSelector("#todo-list"),
 	)

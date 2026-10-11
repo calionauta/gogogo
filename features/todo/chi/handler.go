@@ -33,6 +33,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
@@ -51,6 +52,13 @@ type Handler struct {
 	Auth        *auth.Auth
 	Hub         *queue.SSEHub
 	DefaultSkin string
+	// LLM is the real suggest client (nil = disabled, 503 on the route).
+	LLM *llm.Client
+	// SimulatedLLM is the keyless fake used by the demo stepper.
+	SimulatedLLM *llm.Client
+	// Queue carries suggest/retry jobs. Nil is valid until wired:
+	// enqueue fails closed with 500 naming the missing wiring.
+	Queue *queue.Queue
 	// Pub publishes mutations to JetStream for cross-instance convergence.
 	// Nil (NATS disabled) is a valid zero value: Publish is nil-safe, so
 	// the stack converges in-process through the Hub only. Set via
@@ -71,6 +79,15 @@ type Handler struct {
 func (h *Handler) SetPublisher(p *natswire.CrudPublisher) {
 	h.Pub = p
 }
+
+// SetLLMClient wires the real suggest client. Nil disables AI features.
+func (h *Handler) SetLLMClient(c *llm.Client) { h.LLM = c }
+
+// SetSimulatedLLMClient wires the in-process fake LLM for the demo path.
+func (h *Handler) SetSimulatedLLMClient(c *llm.Client) { h.SimulatedLLM = c }
+
+// SetQueue wires the suggest/retry queue. Nil fails closed on enqueue.
+func (h *Handler) SetQueue(q *queue.Queue) { h.Queue = q }
 
 // NewHandler builds the chi todo handler. All deps required — a nil Q,
 // Auth or Hub is a programming error, surfaced here and not per request.
@@ -93,6 +110,9 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/todos/{id}/delete", h.handleDelete)
 	r.Get("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	r.Get("/api/todos/stream", h.handleStream)
+	r.Post("/api/todos/suggest", h.handleSuggest)
+	r.Post("/api/todos/suggest-simulated", h.handleSuggestSimulated)
+	r.Post("/api/todos/retry-demo", h.handleRetryDemo)
 	r.Get("/login", h.handleLoginGet)
 	r.Post("/login", h.handleLoginPost)
 	r.Post("/logout", h.handleLogoutPost)
