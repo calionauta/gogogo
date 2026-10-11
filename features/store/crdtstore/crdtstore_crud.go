@@ -63,7 +63,10 @@ func (s *CRDTStore) Create(_ context.Context, e todo.Todo, ownerID, _ string) (t
 	if err := s.persistRecords(ownerID, d); err != nil {
 		return todo.Todo{}, err
 	}
-	//nolint:contextcheck
+	//nolint:contextcheck // post-write fan-out intentionally outlives the request:
+	// the op is durable (persistRecords above succeeded), so a disconnected
+	// caller must not cancel the peer broadcast. Uses Background, not the
+	// request ctx, on purpose.
 	s.publishOpFromDoc(context.Background(), ownerID, "create-"+e.ID, d)
 	// Return the entity read back from the doc so the caller sees the
 	// server-assigned timestamps (CreatedAt/UpdatedAt).
@@ -152,7 +155,10 @@ func (s *CRDTStore) Update(_ context.Context, ownerID, id string, patch map[stri
 	if err := s.persistRecords(ownerID, d); err != nil {
 		return todo.Todo{}, err
 	}
-	//nolint:contextcheck
+	//nolint:contextcheck // post-write fan-out intentionally outlives the request:
+	// the op is durable (persistRecords above succeeded), so a disconnected
+	// caller must not cancel the peer broadcast. Uses Background, not the
+	// request ctx, on purpose.
 	s.publishOpFromDoc(context.Background(), ownerID, "update-"+id, d)
 	t, ok := findItem(d, id)
 	if !ok {
@@ -183,7 +189,10 @@ func (s *CRDTStore) Delete(_ context.Context, ownerID, id string) error {
 	if err := s.persistRecords(ownerID, d); err != nil {
 		return err
 	}
-	//nolint:contextcheck
+	//nolint:contextcheck // post-write fan-out intentionally outlives the request:
+	// the op is durable (persistRecords above succeeded), so a disconnected
+	// caller must not cancel the peer broadcast. Uses Background, not the
+	// request ctx, on purpose.
 	s.publishOpFromDoc(context.Background(), ownerID, "delete-"+id, d)
 	return nil
 }
@@ -221,7 +230,10 @@ func (s *CRDTStore) ClearCompleted(_ context.Context, ownerID string) (int, erro
 		if err := s.persistRecords(ownerID, d); err != nil {
 			return len(toDelete), err
 		}
-		//nolint:contextcheck
+		//nolint:contextcheck // post-write fan-out intentionally outlives the request:
+		// the op is durable (persistRecords above succeeded), so a disconnected
+		// caller must not cancel the peer broadcast. Uses Background, not the
+		// request ctx, on purpose.
 		s.publishOpFromDoc(context.Background(), ownerID, "clear-completed", d)
 	}
 	return len(toDelete), nil

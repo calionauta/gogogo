@@ -212,6 +212,36 @@ newly enabled linter that fails CI is worse than not enabling it. A rule with
 false positives here teaches people to add `//nolint`, which is the opposite of
 the intent.
 
+`//nolint` is a last resort, almost never used. CI enforces this through
+`nolintlint` (`require-specific` + `require-explanation` in `.golangci.yml`):
+a bare directive or one without a reason fails the gate. Before suppressing,
+work through this order — each step eliminated a real suppression on the
+flat-stack migration (Oct 2026):
+
+1. **Split the ctx-free path out.** If the flagged call threads `ctx` into a
+   branch that never touches I/O (signals + DOM patch only), extract that
+   branch into a function that takes no `ctx`. No `ctx` in scope, no finding,
+   no suppression. (3 `contextcheck` hits in `features/todo/chi/dispatch.go`
+   became 1 this way.)
+2. **Replace error-as-skip with a bool.** `if err != nil { return nil }` reads
+   as swallowed failure (`nilerr`). When the error is really a skip signal
+   (anonymous stream, no tenant), pass `hasOwner bool` instead — the skip is
+   visible in the signature and the suppression disappears.
+3. **Check whether the API is yours.** A sink you own (`SSEHub.Broadcast`,
+   26 caller files) can grow a `ctx` parameter — but that is a repo-wide
+   refactor, out of scope for the slice at hand; suppress with the reason and
+   move on. A third-party sink (`datastar-go`, `RenderAndPatch`) cannot change:
+   suppress at the narrowest call site with the boundary named.
+4. **Match the sibling stack.** If the legacy handler suppresses the identical
+   call with the identical reason, copy that pattern — consistency beats
+   novelty. If it does not, that is a signal your code may be shaped wrong;
+   go back to step 1.
+
+Never suppress to make a red gate green without doing steps 1–4 first. A
+suppression that states the boundary (`//nolint:contextcheck // SSE-sink
+boundary: …`) is a decision; one without a reason is a bypass, and CI treats
+it as such.
+
 **2. `ruleguard` — project-specific footguns (`rules/rules.go`).** Wired through
 `gocritic` (`settings.gocritic.settings.ruleguard.rules`), so it runs inside the
 same `golangci-lint` pass and is CI-blocking. Use it for a footgun that no stock

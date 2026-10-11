@@ -128,6 +128,12 @@ linters:
         - "500"
         - "10000"
         - "150405"  # time.Now format HHMMSS
+    nolintlint:
+      # A suppression without a named linter or a reason is a bypass, not a
+      # decision — CI rejects it so the reasoning stays next to the code.
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
   exclusions:
     generated: lax
     presets:
