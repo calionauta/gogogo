@@ -98,7 +98,7 @@ func run() error {
 	// DagNats owns the embedded NATS on :4222 and must boot first so the
 	// realtime broadcaster can attach to it. It's always compiled; when
 	// DAGNATS_ENABLED=false it no-ops.
-	startDagNats(lifecycleCtx, cfg, pb, todoH)
+	startDagNats(lifecycleCtx, cfg, todoH)
 	defer shutdownDagNats()
 
 	// GoAkt owns the room actor system (standalone, no network). It's
@@ -113,10 +113,10 @@ func run() error {
 	js := startNATS(cfg)
 	_ = js // startNATS has the side-effect of wiring the global broadcaster
 
-	// Staged-migration seam: serve the flat-stack chi router (limen auth +
-	// sqlc todos + NATS bridge) when CHI_ADDR + LIMEN_SECRET are set.
-	// Placed after startNATS so the chi consumer shares the JetStream
-	// context. No-op otherwise.
+	// Staged-migration seam: serve the flat-stack chi router (owned auth +
+	// sqlc todos + NATS bridge) when CHI_ADDR is set. Placed after
+	// startNATS so the chi consumer shares the JetStream context. No-op
+	// otherwise.
 	stopChi, err := server.StartChi(cfg, js)
 	if err != nil {
 		return err

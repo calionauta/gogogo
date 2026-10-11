@@ -9,13 +9,18 @@ import (
 	"github.com/danmestas/dagnats/server"
 	"github.com/danmestas/dagnats/worker"
 
-	"github.com/pocketbase/pocketbase"
-
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/todo/handlers"
 	appdagnats "github.com/calionauta/gogogo/internal/dagnats"
 	appnats "github.com/calionauta/gogogo/internal/nats"
 )
+
+// onboardingTodoCreator is what the DagNats onboarding worker needs from
+// the todo slice: create one row for an owner. One method on purpose, so
+// the worker depends on the capability rather than on a concrete handler
+// from a particular stack.
+type onboardingTodoCreator interface {
+	CreateTodoForOnboarding(ctx context.Context, title, owner string) error
+}
 
 // waitStep waits for d, returning early if ctx is cancelled first. Used for the
 // onboarding steps' human-visible pacing: the pause must never outlive a
@@ -70,7 +75,7 @@ func ctxForStep(lifecycle context.Context, step worker.TaskContext) context.Cont
 // ride this input/output chain rather than step config because the engine's
 // live publish path still omits TaskPayload.Config (per-step `metadata` IS
 // delivered as of DagNats v0.0.22, but config never was).
-func createOnboardingTodo(ctx context.Context, todoH *handlers.TodoHandler, step worker.TaskContext) error {
+func createOnboardingTodo(ctx context.Context, todoH onboardingTodoCreator, step worker.TaskContext) error {
 	var input struct {
 		User  string   `json:"user"`
 		Todos []string `json:"todos"`
@@ -126,7 +131,7 @@ const (
 // is ConnectExisting (called by startNATS right after), which uses
 // nats.RetryOnFailedConnect to block until the engine's NATS is
 // reachable — no polling loop in our code.
-func startDagNats(ctx context.Context, cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.TodoHandler) {
+func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoCreator) {
 	lifecycleCtx := ctx
 	if !cfg.DagNats.Enabled {
 		return
