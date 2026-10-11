@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## 0.43.2 (2026-10-11)
+
+## What's Changed
+* test(whiteboard): navigate with load + canvas wait instead of networkidle by @calionauta in https://github.com/calionauta/gogogo/pull/99
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.43.1...v0.43.2
+
 ## 0.43.1 (2026-10-10)
 
 ## What's Changed
