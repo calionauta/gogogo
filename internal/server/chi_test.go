@@ -4,8 +4,10 @@ package server
 import (
 	"context"
 	"database/sql"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -70,9 +72,87 @@ func TestStartChiBoot(t *testing.T) {
 	}
 }
 
-// TestBuildChiMux proves the served composition routes: the exact mux
-// StartChi serves, driven over HTTP (this is the composition that broke
-// once under chi.Mount at the root).
+// TestServeChiOnListener is the automated preflight: the production boot
+// composition served on a real :0 port, driven over real HTTP (signup,
+// login form, authed todo create). Ephemeral port read back from the
+// listener — never fixed, never flaky under parallel packages.
+func TestServeChiOnListener(t *testing.T) {
+	cfg := config.Load()
+	cfg.Dev = true
+	cfg.Turso.DBPath = t.TempDir() + "/serve.db"
+
+	bundle, err := bootChi(cfg, nil)
+	if err != nil {
+		t.Fatalf("bootChi: %v", err)
+	}
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	stop := serveChiOnListener(ln, srvHandler(bundle.mux), bundle.cancelConsumer, bundle.sqlDB)
+	defer stop()
+	base := "http://" + ln.Addr().String()
+
+	jar := &cookieJar{}
+	client := &http.Client{Jar: jar, CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+
+	post := func(path, body, contentType string) *http.Response {
+		t.Helper()
+		req, rerr := http.NewRequestWithContext(context.Background(),
+			http.MethodPost, base+path, strings.NewReader(body))
+		if rerr != nil {
+			t.Fatalf("request %s: %v", path, rerr)
+		}
+		req.Header.Set("Content-Type", contentType)
+		resp, derr := client.Do(req)
+		if derr != nil {
+			t.Fatalf("POST %s: %v", path, derr)
+		}
+		defer resp.Body.Close()
+		return resp
+	}
+
+	signupBody := `{"email":"serve@example.com","password":"Correct-horse-99!"}`
+	if resp := post("/api/auth/signup/credential",
+		signupBody, "application/json"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("signup status = %d", resp.StatusCode)
+	}
+	if resp := post("/login",
+		"email=serve@example.com&password=Correct-horse-99!&next=/todo",
+		"application/x-www-form-urlencoded"); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("form login status = %d", resp.StatusCode)
+	}
+	if resp := post("/api/todos?filter=all", "title=Served+item",
+		"application/x-www-form-urlencoded"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("create status = %d", resp.StatusCode)
+	}
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, base+"/todo", nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET /todo: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /todo status = %d", resp.StatusCode)
+	}
+}
+
+// cookieJar is the smallest jar that keeps the test honest: session
+// cookies round-trip, nothing else is remembered.
+type cookieJar struct {
+	cookies []*http.Cookie
+}
+
+func (j *cookieJar) SetCookies(_ *url.URL, cs []*http.Cookie) {
+	j.cookies = append(j.cookies, cs...)
+}
+
+func (j *cookieJar) Cookies(_ *url.URL) []*http.Cookie {
+	return j.cookies
+}
+
 func TestBuildChiMux(t *testing.T) {
 	sqlDB, err := db.OpenAt(t.TempDir() + "/mux.db")
 	if err != nil {

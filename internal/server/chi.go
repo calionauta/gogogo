@@ -1,15 +1,17 @@
 // SCOPE:core — Flat-stack chi server (staged-migration seam)
 //
-// StartChi serves the limen-auth + sqlc-todo chi router alongside
-// PocketBase while the migration is staged. It is a no-op unless both
-// CHI_ADDR and LIMEN_SECRET are set, so the default boot behaves exactly
-// as before. Removed at step 7, when the chi router becomes the server.
+// StartChi serves the flat-stack chi router (owned auth + sqlc todos)
+// alongside PocketBase while the migration is staged. It is a no-op unless
+// CHI_ADDR is set, so the default boot behaves exactly as before. Removed
+// at step 7, when the chi router becomes the server.
 package server
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -39,6 +41,30 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		return nil, nil
 	}
 
+	bundle, err := bootChi(cfg, js)
+	if err != nil {
+		return nil, err
+	}
+
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", cfg.ChiAddr)
+	if err != nil {
+		bundle.cancelConsumer()
+		_ = bundle.sqlDB.Close()
+		return nil, fmt.Errorf("server: chi listen %s: %w", cfg.ChiAddr, err)
+	}
+	return serveChiOnListener(ln, srvHandler(bundle.mux), bundle.cancelConsumer, bundle.sqlDB), nil
+}
+
+// chiBundle is everything StartChi builds before listening. Tests boot it
+// and serve their own :0 listener, driving the production composition over
+// real HTTP — the automated preflight.
+type chiBundle struct {
+	sqlDB          *sql.DB
+	mux            http.Handler
+	cancelConsumer context.CancelFunc
+}
+
+func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	sqlDB, err := db.Open(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("server: chi db open: %w", err)
@@ -70,26 +96,35 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		}
 	}()
 
-	mux := buildChiMux(a, todoH)
+	return &chiBundle{sqlDB: sqlDB, mux: buildChiMux(a, todoH), cancelConsumer: cancelConsumer}, nil
+}
 
-	srv := &http.Server{
-		Addr:              cfg.ChiAddr,
+// srvHandler wraps the mux for serveChiOnListener (kept separate so the
+// listener stays the caller's: tests bind :0 and read the port back).
+func srvHandler(mux http.Handler) *http.Server {
+	return &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+}
+
+// serveChiOnListener serves an already-bound listener until stop. Tests
+// bind 127.0.0.1:0 and drive real HTTP through ln.Addr — the automated
+// preflight for the serve path manual runs used to cover.
+func serveChiOnListener(ln net.Listener, srv *http.Server, cancelConsumer context.CancelFunc, sqlDB *sql.DB) func() {
 	go func() {
-		if serr := srv.ListenAndServe(); serr != nil && serr != http.ErrServerClosed {
+		if serr := srv.Serve(ln); serr != nil && serr != http.ErrServerClosed {
 			slog.Error("server: chi stack stopped", "error", serr)
 		}
 	}()
-	slog.Info("server: chi flat stack listening", "addr", cfg.ChiAddr)
+	slog.Info("server: chi flat stack listening", "addr", ln.Addr())
 	return func() {
 		cancelConsumer()
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
 		_ = sqlDB.Close()
-	}, nil
+	}
 }
 
 // buildChiMux composes the flat-stack routes. Pure constructor (no ports,
