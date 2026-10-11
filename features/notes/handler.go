@@ -33,6 +33,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
+	notescomponents "github.com/calionauta/gogogo/features/notes/components"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -182,7 +183,8 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if c.Auth != nil {
 		email = c.Auth.Email()
 	}
-	return NotesIndex(email, h.listNoteIDs(), h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return notescomponents.NotesIndex(email, h.listNoteIDs(),
+		h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
 // listNoteIDs returns created note ids (tolerates a missing collection so
@@ -204,7 +206,7 @@ func (h *Handler) listNoteIDs() []string {
 // index page's PB-realtime resync (same pattern as the whiteboard list:
 // a hidden @get button re-fetched on record events).
 func (h *Handler) handleFragment(c *core.RequestEvent) error {
-	return NotesListFragment(h.listNoteIDs()).Render(c.Request.Context(), c.Response)
+	return notescomponents.NotesListFragment(h.listNoteIDs()).Render(c.Request.Context(), c.Response)
 }
 
 // handleNew creates a fresh note id and redirects to it. A PocketBase
@@ -252,7 +254,8 @@ func (h *Handler) handleNote(c *core.RequestEvent) error {
 	h.revsMu.Lock()
 	rev := h.revs[docID]
 	h.revsMu.Unlock()
-	return NotesPage(email, docID, text, rev, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return notescomponents.NotesPage(email, docID, text, rev,
+		h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
 // handleStream opens an SSE connection for one doc. The client receives

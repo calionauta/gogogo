@@ -10,6 +10,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/collab"
+	collabpb "github.com/calionauta/gogogo/internal/collabpb"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/web/resources"
@@ -32,7 +33,7 @@ import (
 // Returns the DocStore for registerCollabSync to use.
 func registerWhiteboard(se *core.ServeEvent, _ *queue.Queue, hub *queue.SSEHub, cfg *config.Config) *collab.DocStore {
 	docs := collab.NewDocStore()
-	persister := collab.NewPocketBasePersister(se.App)
+	persister := collabpb.NewPocketBasePersister(se.App)
 	nc := nats.Conn() // may be nil if NATS not started; WebSyncWorker handles nil
 
 	// Serve whiteboard static assets (rough.min.js, whiteboard.js) so the

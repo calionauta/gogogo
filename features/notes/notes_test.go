@@ -22,6 +22,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
 	"github.com/calionauta/gogogo/features/notes"
+	notescomponents "github.com/calionauta/gogogo/features/notes/components"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/queue"
 
@@ -323,7 +324,8 @@ func TestNotesCaretRecipePinsMirrorProps(t *testing.T) {
 // exactly that way once).
 func TestNotesIndexLoadsDatastarRuntime(t *testing.T) {
 	var buf bytes.Buffer
-	err := notes.NotesIndex("demo1@demo.app", []string{"abc"}, "dev", "c0ffee").Render(context.Background(), &buf)
+	err := notescomponents.NotesIndex("demo1@demo.app", []string{"abc"},
+		"dev", "c0ffee").Render(context.Background(), &buf)
 	if err != nil {
 		t.Fatalf("render index: %v", err)
 	}

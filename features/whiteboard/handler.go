@@ -31,6 +31,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
+	wbcomponents "github.com/calionauta/gogogo/features/whiteboard/components"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -120,9 +121,9 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if err != nil {
 		records = nil
 	}
-	boards := make([]BoardMeta, 0, len(records))
+	boards := make([]wbcomponents.BoardMeta, 0, len(records))
 	for _, r := range records {
-		boards = append(boards, BoardMeta{
+		boards = append(boards, wbcomponents.BoardMeta{
 			DocID:  r.GetString("doc_id"),
 			DocVer: r.GetInt("version"),
 		})
@@ -170,9 +171,9 @@ func (h *Handler) handleListFragment(c *core.RequestEvent) error {
 	if err != nil {
 		records = nil
 	}
-	boards := make([]BoardMeta, 0, len(records))
+	boards := make([]wbcomponents.BoardMeta, 0, len(records))
 	for _, r := range records {
-		boards = append(boards, BoardMeta{
+		boards = append(boards, wbcomponents.BoardMeta{
 			DocID:  r.GetString("doc_id"),
 			DocVer: r.GetInt("version"),
 		})
@@ -180,7 +181,7 @@ func (h *Handler) handleListFragment(c *core.RequestEvent) error {
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Response.Header().Set("datastar-selector", "#whiteboard-list")
 	c.Response.Header().Set("datastar-mode", "outer")
-	return WhiteboardListFragment(boards).Render(c.Request.Context(), c.Response)
+	return wbcomponents.WhiteboardListFragment(boards).Render(c.Request.Context(), c.Response)
 }
 
 // handleBoard renders the interactive canvas for one doc. It rehydrates
@@ -388,16 +389,16 @@ func (h *Handler) handleSnapshot(c *core.RequestEvent) error {
 // renderBoardList writes the index page with PocketBase realtime wiring
 // so the whiteboard list updates live when another user creates a board.
 func renderBoardList(
-	c *core.RequestEvent, email string, boards []BoardMeta,
+	c *core.RequestEvent, email string, boards []wbcomponents.BoardMeta,
 	buildLabel, buildCommit string, offlineSync bool,
 ) error {
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return BoardListWithRealtime(email, boards, buildLabel, buildCommit, offlineSync).
+	return wbcomponents.BoardListWithRealtime(email, boards, buildLabel, buildCommit, offlineSync).
 		Render(c.Request.Context(), c.Response)
 }
 
 // renderBoard writes the interactive board page.
 func renderBoard(c *core.RequestEvent, email, docID, buildLabel, buildCommit string, offlineSync bool) error {
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return Board(email, docID, buildLabel, buildCommit, offlineSync).Render(c.Request.Context(), c.Response)
+	return wbcomponents.Board(email, docID, buildLabel, buildCommit, offlineSync).Render(c.Request.Context(), c.Response)
 }

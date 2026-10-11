@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 )
@@ -50,16 +51,20 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	defer rows.Close()
 	for rows.Next() {
 		var v string
-		if err := rows.Scan(&v); err != nil {
-			t.Fatalf("scan version: %v", err)
+		if serr := rows.Scan(&v); serr != nil {
+			t.Fatalf("scan version: %v", serr)
 		}
 		versions = append(versions, v)
 	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("rows: %v", err)
+	if rerr := rows.Err(); rerr != nil {
+		t.Fatalf("rows: %v", rerr)
 	}
-	if len(versions) == 0 || versions[0] != "0001_init" {
-		t.Fatalf("schema_migrations = %v, want ledger starting at 0001_init", versions)
+	want, verr := Versions()
+	if verr != nil {
+		t.Fatalf("expected versions: %v", verr)
+	}
+	if fmt.Sprintf("%v", versions) != fmt.Sprintf("%v", want) {
+		t.Fatalf("applied ledger = %v, want embedded %v", versions, want)
 	}
 }
 

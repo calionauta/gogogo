@@ -1,58 +1,15 @@
-// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
-// Package collab wraps the Loro CRDT (github.com/aholstenson/loro-go) for
-// the template's collaborative features (whiteboard, shared docs).
+// SCOPE:plugin — PocketBase snapshot persister (dies with the framework)
 //
-// This file is build-tag-free so the PocketBase-backed persister is
-// available to the web-only transport (sync_web.go) as well as the
-// jetstream-tagged SyncWorker (sync.go). Each feature converges onto its
-// own collection ("whiteboards", "notes", ...) as the source of truth.
-package collab
+// Transitional: the flat stack persists snapshots to Turso
+// (collab.TursoPersister). This file serves the previous stack only and
+// goes away with it.
+package collabpb
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/pocketbase/pocketbase/core"
 )
-
-// Persister stores the resolved snapshot of a collaborative doc. The
-// server-side implementation writes to one PocketBase collection per
-// feature ("whiteboards", "notes"); tests use an in-memory fake.
-type Persister interface {
-	SaveSnapshot(docID string, snapshot []byte) error
-	LoadSnapshot(docID string) ([]byte, bool)
-}
-
-// MemoryPersister is an in-memory Persister for tests and local demos
-// that don't need PocketBase durability.
-type MemoryPersister struct {
-	mu    sync.Mutex
-	store map[string][]byte
-}
-
-// NewMemoryPersister returns an empty in-memory persister.
-func NewMemoryPersister() *MemoryPersister {
-	return &MemoryPersister{store: make(map[string][]byte)}
-}
-
-// SaveSnapshot stores the latest snapshot for the doc.
-func (m *MemoryPersister) SaveSnapshot(docID string, snapshot []byte) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	cp := make([]byte, len(snapshot))
-	copy(cp, snapshot)
-	m.store[docID] = cp
-	return nil
-}
-
-// LoadSnapshot returns the stored snapshot (nil if none) and whether one
-// was present — used to rehydrate a doc on open.
-func (m *MemoryPersister) LoadSnapshot(docID string) ([]byte, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	s, ok := m.store[docID]
-	return s, ok
-}
 
 // PocketBasePersister implements Persister against one collection.
 // Upsert by doc_id; stores the Loro snapshot as base64 in the

@@ -102,6 +102,12 @@ func migrationVersions() ([]string, error) {
 	return versions, nil
 }
 
+// Versions exposes the embedded migration list for tooling and tests: the
+// applied ledger must match this exactly (no missing, no extras).
+func Versions() ([]string, error) {
+	return migrationVersions()
+}
+
 // applyMigration runs one file and records it, both inside one transaction.
 // The whole file is sent as a single Exec: tursogo executes every statement in
 // the string, which is why the migrations use semicolon-terminated statements

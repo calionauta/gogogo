@@ -4,11 +4,33 @@
 
 package dbgen
 
+type Board struct {
+	DocID   string
+	Owner   string
+	Title   string
+	Version int64
+	Updated string
+	Created string
+}
+
+type DocSnapshot struct {
+	DocID    string
+	Snapshot []byte
+	Updated  string
+}
+
 type MagicToken struct {
 	TokenHash string
 	UserID    string
 	Expires   string
 	Created   string
+}
+
+type Note struct {
+	DocID   string
+	Owner   string
+	Updated string
+	Created string
 }
 
 type OauthAccount struct {

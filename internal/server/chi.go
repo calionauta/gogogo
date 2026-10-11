@@ -17,8 +17,11 @@ import (
 	"github.com/calionauta/gogogo/config"
 	configchi "github.com/calionauta/gogogo/features/config/chi"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
+	notesachi "github.com/calionauta/gogogo/features/notes/chi"
 	"github.com/calionauta/gogogo/features/todo/chi"
+	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/nats"
@@ -97,8 +100,18 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 		}
 	}()
 
+	persister, perr := collab.NewTursoPersister(queries)
+	if perr != nil {
+		cancelConsumer()
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("server: chi snapshots: %w", perr)
+	}
+	docs := collab.NewDocStore()
+	docs.SetPersister(persister)
 	return &chiBundle{sqlDB: sqlDB, mux: buildChiMux(a, todoH,
 		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
+		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
 	), cancelConsumer: cancelConsumer}, nil
 }
 
@@ -134,7 +147,9 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, cancelConsumer contex
 // no goroutines) so contract tests cover the exact composition production
 // serves.
 func buildChiMux(
-	a *auth.Auth, todoH *chi.Handler, landingH *landingchi.Handler, configH *configchi.Handler,
+	a *auth.Auth, todoH *chi.Handler,
+	landingH *landingchi.Handler, configH *configchi.Handler,
+	wbH *wbchi.Handler, notesH *notesachi.Handler,
 ) http.Handler {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and
@@ -151,6 +166,15 @@ func buildChiMux(
 	mux.Handle("/logout", todoH.Routes())
 	mux.Handle("/config", configH.Routes())
 	mux.Handle("/config/", configH.Routes())
+	mux.Handle("/whiteboard", wbH.Routes())
+	mux.Handle("/whiteboard/", wbH.Routes())
+	mux.Handle("/api/whiteboard", wbH.Routes())
+	mux.Handle("/api/whiteboard/", wbH.Routes())
+	mux.Handle("/api/whiteboards/", wbH.Routes())
+	mux.Handle("/notes", notesH.Routes())
+	mux.Handle("/notes/", notesH.Routes())
+	mux.Handle("/api/notes", notesH.Routes())
+	mux.Handle("/api/notes/", notesH.Routes())
 	mux.Handle("/", landingH.Routes())
 	return mux
 }

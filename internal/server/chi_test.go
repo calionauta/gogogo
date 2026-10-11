@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -14,8 +15,11 @@ import (
 	"github.com/calionauta/gogogo/config"
 	configchi "github.com/calionauta/gogogo/features/config/chi"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
+	notesachi "github.com/calionauta/gogogo/features/notes/chi"
 	todochi "github.com/calionauta/gogogo/features/todo/chi"
+	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -57,20 +61,27 @@ func TestStartChiBoot(t *testing.T) {
 		t.Fatalf("reopen db: %v", err)
 	}
 	defer sqlDB.Close()
-	rows, err := sqlDB.QueryContext(context.Background(), `SELECT version FROM schema_migrations ORDER BY version`)
-	if err != nil {
-		t.Fatalf("read migrations: %v (seam did not migrate)", err)
+	rows, rerr := sqlDB.QueryContext(context.Background(), `SELECT version FROM schema_migrations ORDER BY version`)
+	if rerr != nil {
+		t.Fatalf("read migrations: %v (seam did not migrate)", rerr)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var v string
-		if err := rows.Scan(&v); err != nil {
-			t.Fatalf("scan: %v", err)
+		if serr := rows.Scan(&v); serr != nil {
+			t.Fatalf("scan: %v", serr)
 		}
 		versions = append(versions, v)
 	}
-	if len(versions) == 0 || versions[len(versions)-1] != "0006_auth_recovery" {
-		t.Fatalf("migrations = %v, want ledger through 0006_auth_recovery", versions)
+	if rerr := rows.Err(); rerr != nil {
+		t.Fatalf("rows: %v", rerr)
+	}
+	want, verr := db.Versions()
+	if verr != nil {
+		t.Fatalf("expected versions: %v", verr)
+	}
+	if fmt.Sprintf("%v", versions) != fmt.Sprintf("%v", want) {
+		t.Fatalf("applied ledger = %v, want embedded %v", versions, want)
 	}
 }
 
@@ -170,9 +181,16 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	todoH := todochi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), "daisyui")
 	cfg := config.Load()
+	persister, perr := collab.NewTursoPersister(dbgen.New(sqlDB))
+	if perr != nil {
+		t.Fatalf("persister: %v", perr)
+	}
+	docs := collab.NewDocStore()
 
 	mux := buildChiMux(a, todoH,
-		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a))
+		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+		wbchi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
+		notesachi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))

@@ -93,7 +93,7 @@ var All = []Capability{
 		ID:      "pocketbase-legacy",
 		Kind:    KindCore,
 		Summary: "PocketBase app handle + collection seeds (being removed)",
-		Dirs:    []string{"db"},
+		Dirs:    []string{"db", "internal/collabpb"},
 		Note: "Transitional: this is the old framework layer the flat stack replaces. " +
 			"It disappears, along with the PocketBase dependency, when the remaining " +
 			"features are ported (see docs/architecture-decision.md).",

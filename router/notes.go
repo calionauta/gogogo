@@ -12,6 +12,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/notes"
 	"github.com/calionauta/gogogo/internal/collab"
+	collabpb "github.com/calionauta/gogogo/internal/collabpb"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/web/resources"
@@ -27,7 +28,7 @@ import (
 func registerNotesStack(se *core.ServeEvent, _ *queue.Queue, cfg *config.Config) {
 	hub := queue.NewSSEHub()
 	docs := collab.NewDocStore()
-	persister := collab.NewPocketBasePersisterForCollection(se.App, "notes")
+	persister := collabpb.NewPocketBasePersisterForCollection(se.App, "notes")
 	nc := nats.Conn() // may be nil; handler + worker degrade to SSE-only
 
 	// Serve notes static assets (notes.js) so the feature is

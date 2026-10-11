@@ -8,6 +8,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/calionauta/gogogo/internal/collab"
+	collabpb "github.com/calionauta/gogogo/internal/collabpb"
 	"github.com/calionauta/gogogo/internal/nats"
 )
 
@@ -21,7 +22,7 @@ func registerCollabSync(se *core.ServeEvent, docs *collab.DocStore) {
 	if nc == nil {
 		return
 	}
-	persister := collab.NewPocketBasePersister(se.App)
+	persister := collabpb.NewPocketBasePersister(se.App)
 	worker := collab.NewSyncWorker(nc, persister, docs)
 	go func() {
 		ctx, cancel := context.WithCancel(context.Background())
