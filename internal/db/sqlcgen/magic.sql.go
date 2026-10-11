@@ -75,3 +75,19 @@ func (q *Queries) GetMagicToken(ctx context.Context, tokenHash string) (MagicTok
 	)
 	return i, err
 }
+
+const latestMagicTokenForUser = `-- name: LatestMagicTokenForUser :one
+SELECT token_hash, user_id, expires, created FROM magic_tokens WHERE user_id = ? ORDER BY created DESC LIMIT 1
+`
+
+func (q *Queries) LatestMagicTokenForUser(ctx context.Context, userID string) (MagicToken, error) {
+	row := q.db.QueryRowContext(ctx, latestMagicTokenForUser, userID)
+	var i MagicToken
+	err := row.Scan(
+		&i.TokenHash,
+		&i.UserID,
+		&i.Expires,
+		&i.Created,
+	)
+	return i, err
+}

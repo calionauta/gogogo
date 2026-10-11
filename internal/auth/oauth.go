@@ -131,9 +131,13 @@ func parseGitHubEmail(body []byte) (string, error) {
 	return "", errors.New("auth: github verified email not found")
 }
 
-// oauthState is one in-flight handshake.
+// oauthState is one in-flight handshake. The PKCE verifier binds the
+// callback's code exchange to the browser that started it: a leaked
+// authorization code alone cannot be redeemed (RFC 7636, recommended for
+// every OAuth client in 2026, not just public ones).
 type oauthState struct {
 	provider string
+	verifier string
 	expires  time.Time
 }
 
@@ -168,12 +172,13 @@ func oauthConfig(p OAuthProvider) *oauth2.Config {
 }
 
 // newOAuthState mints an unguessable handshake id and remembers it.
-func (a *Auth) newOAuthState(provider string) (string, error) {
+func (a *Auth) newOAuthState(provider string) (state, verifier string, err error) {
 	raw := make([]byte, oauthStateLen)
 	if _, err := rand.Read(raw); err != nil {
-		return "", fmt.Errorf("auth: oauth state entropy: %w", err)
+		return "", "", fmt.Errorf("auth: oauth state entropy: %w", err)
 	}
-	state := base64.RawURLEncoding.EncodeToString(raw)
+	state = base64.RawURLEncoding.EncodeToString(raw)
+	verifier = oauth2.GenerateVerifier()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.states == nil {
@@ -185,21 +190,22 @@ func (a *Auth) newOAuthState(provider string) (string, error) {
 			delete(a.states, k)
 		}
 	}
-	a.states[state] = oauthState{provider: provider, expires: now.Add(oauthStateTTL)}
-	return state, nil
+	a.states[state] = oauthState{provider: provider, verifier: verifier, expires: now.Add(oauthStateTTL)}
+	return state, verifier, nil
 }
 
-// takeOAuthState consumes a handshake id (single-use, like magic tokens).
-func (a *Auth) takeOAuthState(state, provider string) bool {
+// takeOAuthState consumes a handshake id (single-use, like magic tokens),
+// returning its PKCE verifier for the code exchange.
+func (a *Auth) takeOAuthState(state, provider string) (string, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	st, ok := a.states[state]
 	if !ok || st.provider != provider || time.Now().After(st.expires) {
 		delete(a.states, state)
-		return false
+		return "", false
 	}
 	delete(a.states, state)
-	return true
+	return st.verifier, true
 }
 
 // OAuthStart redirects to the provider. Unknown providers 404 (not 500:
@@ -210,12 +216,15 @@ func (a *Auth) OAuthStart(w http.ResponseWriter, r *http.Request, provider strin
 		http.NotFound(w, r)
 		return
 	}
-	state, err := a.newOAuthState(provider)
+	state, verifier, err := a.newOAuthState(provider)
 	if err != nil {
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, oauthConfig(p).AuthCodeURL(state), http.StatusFound)
+	http.Redirect(w, r, oauthConfig(p).AuthCodeURL(state,
+		oauth2.SetAuthURLParam("code_challenge", oauth2.S256ChallengeFromVerifier(verifier)),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	), http.StatusFound)
 }
 
 // OAuthCallback completes the handshake: state check, code exchange,
@@ -226,11 +235,12 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 		http.NotFound(w, r)
 		return
 	}
-	if !a.takeOAuthState(r.URL.Query().Get("state"), provider) {
+	verifier, ok := a.takeOAuthState(r.URL.Query().Get("state"), provider)
+	if !ok {
 		http.Error(w, "invalid login state", http.StatusBadRequest)
 		return
 	}
-	tok, err := oauthConfig(p).Exchange(r.Context(), r.URL.Query().Get("code"))
+	tok, err := oauthConfig(p).Exchange(r.Context(), r.URL.Query().Get("code"), oauth2.VerifierOption(verifier))
 	if err != nil {
 		http.Error(w, "login failed", http.StatusBadGateway)
 		return

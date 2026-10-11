@@ -23,8 +23,17 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 )
 
-// magicLinkTTL bounds a login link's lifetime.
+// magicLinkTTL bounds a login link's lifetime (10–15 minutes is the
+// industry consensus: slow inboxes still deliver, interception windows
+// stay small).
 const magicLinkTTL = 15 * time.Minute
+
+// magicRequestCooldown is the quiet period between two magic links for
+// one account. It bounds link-email spam through this endpoint (an
+// attacker requesting links for a known address can only trigger one
+// mail per minute); legitimate users waiting on slow inboxes already hold
+// a valid 15-minute link. Enforced silently, like everything else here.
+const magicRequestCooldown = time.Minute
 
 // MagicSender delivers the login link. Implementations send email; tests
 // capture it.
@@ -57,6 +66,12 @@ func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL strin
 		return err
 	}
 	now := time.Now().UTC()
+	if latest, err := a.q.LatestMagicTokenForUser(ctx, row.ID); err == nil {
+		if created, perr := time.Parse(db.TimeFormat, latest.Created); perr == nil &&
+			now.Sub(created) < magicRequestCooldown {
+			return nil // cooling down: the live link still works.
+		}
+	}
 	_ = a.q.DeleteMagicTokensForUser(ctx, row.ID)
 	if err := a.q.CreateMagicToken(ctx, dbgen.CreateMagicTokenParams{
 		TokenHash: hash, UserID: row.ID,

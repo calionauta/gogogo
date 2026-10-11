@@ -171,6 +171,27 @@ func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{jsonStatusKey: "ok"})
 }
 
+// handleTOTPRecovery mints recovery codes for an authenticated user. The
+// plaintext batch is returned exactly once — the caller displays it and
+// the server never stores it.
+func (a *Auth) handleTOTPRecovery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := a.authedUser(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	codes, err := a.RotateRecoveryCodes(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "issue failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{"codes": codes})
+}
+
 // handleOAuth dispatches /api/auth/oauth/{provider} (start) and
 // /api/auth/oauth/{provider}/callback (finish) by path shape.
 func (a *Auth) handleOAuth(w http.ResponseWriter, r *http.Request) {

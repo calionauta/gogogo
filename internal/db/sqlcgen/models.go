@@ -18,6 +18,12 @@ type OauthAccount struct {
 	Created  string
 }
 
+type RecoveryCode struct {
+	CodeHash string
+	UserID   string
+	Created  string
+}
+
 type Session struct {
 	TokenHash string
 	UserID    string

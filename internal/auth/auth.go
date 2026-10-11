@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -48,9 +49,14 @@ const SessionTTL = 7 * 24 * time.Hour
 // a hot path. The encoded form carries no parameters, so tuning them
 // later means rehash-on-next-login, not a migration.
 const (
-	argonTime    uint32 = 1
-	argonMemory  uint32 = 64 * 1024
-	argonThreads uint8  = 4
+	// Calibrated 2026-10 (M4, ~250ms): above the OWASP floor (19 MiB,
+	// t=2, p=1) with headroom for slower hardware. Review annually
+	// against the OWASP sheet; the v=1 marker makes rotation a
+	// rehash-on-login, not a migration.
+	argonVersion uint32 = 1
+	argonTime    uint32 = 2
+	argonMemory  uint32 = 128 * 1024
+	argonThreads uint8  = 1
 	argonKeyLen  uint32 = 32
 	argonSaltLen        = 16
 )
@@ -92,6 +98,8 @@ type Auth struct {
 	oauth  map[string]OAuthProvider
 	states map[string]oauthState
 	sender MagicSender
+	// totpAttempts throttles second-factor guessing (see ratelimit.go).
+	totpAttempts attemptTracker
 }
 
 // New builds the auth stack on migrated queries. secureCookies is false in
@@ -117,9 +125,10 @@ func normalizeEmail(email string) (string, error) {
 	return email, nil
 }
 
-// hashPassword hashes with argon2id, encoded as argon2id$<salt>$<hash>
-// (raw base64, no padding). Parameters live in code, so the string carries
-// no version to parse and no downgrade path to exploit.
+// hashPassword hashes with argon2id, encoded as argon2id$v=<n>$<salt>$<hash>
+// (raw base64, no padding). The version marker exists so a future parameter
+// rotation verifies old hashes and rehashes on next login instead of
+// needing a migration; unknown versions fail closed in verifyPassword.
 func hashPassword(password string) (string, error) {
 	if len(password) < minPasswordLen {
 		return "", fmt.Errorf("auth: password too short (min %d chars)", minPasswordLen)
@@ -129,18 +138,20 @@ func hashPassword(password string) (string, error) {
 		return "", fmt.Errorf("auth: salt: %w", err)
 	}
 	hash := argon2.IDKey([]byte(password), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
-	return "argon2id$" + base64.RawStdEncoding.EncodeToString(salt) +
+	return "argon2id$v=" + strconv.FormatUint(uint64(argonVersion), 10) +
+		"$" + base64.RawStdEncoding.EncodeToString(salt) +
 		"$" + base64.RawStdEncoding.EncodeToString(hash), nil
 }
 
-// verifyPassword compares in constant time. Unknown formats fail closed.
+// verifyPassword compares in constant time. Unknown formats and unknown
+// versions fail closed (a v=2 hash from the future never verifies here).
 func verifyPassword(encoded, password string) bool {
 	parts := strings.Split(encoded, "$")
-	if len(parts) != 3 || parts[0] != "argon2id" {
+	if len(parts) != 4 || parts[0] != "argon2id" || parts[1] != "v=1" {
 		return false
 	}
-	salt, err1 := base64.RawStdEncoding.DecodeString(parts[1])
-	want, err2 := base64.RawStdEncoding.DecodeString(parts[2])
+	salt, err1 := base64.RawStdEncoding.DecodeString(parts[2])
+	want, err2 := base64.RawStdEncoding.DecodeString(parts[3])
 	if err1 != nil || err2 != nil {
 		return false
 	}
@@ -286,7 +297,8 @@ func (a *Auth) VerifyTOTPEnroll(ctx context.Context, userID, code string) error 
 }
 
 // VerifyTOTPLogin completes a password login pending second factor,
-// opening the session the first step withheld.
+// opening the session the first step withheld. Accepts the current
+// authenticator code or any unused recovery code (consumed on use).
 func (a *Auth) VerifyTOTPLogin(ctx context.Context, userID, code string) (string, error) {
 	user, err := a.q.GetUser(ctx, userID)
 	if err != nil {
@@ -295,7 +307,7 @@ func (a *Auth) VerifyTOTPLogin(ctx context.Context, userID, code string) (string
 	if user.TotpSecret == "" || user.TotpVerified == 0 {
 		return "", ErrBadCredentials
 	}
-	if !verifyTOTP(user.TotpSecret, code, time.Now()) {
+	if !a.verifySecondFactor(ctx, user, code) {
 		return "", ErrBadCredentials
 	}
 	return a.openSession(ctx, user.ID)

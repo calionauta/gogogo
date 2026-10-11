@@ -21,6 +21,7 @@ func (a *Auth) Handler() http.Handler {
 	mux.HandleFunc("/api/auth/totp/verify", a.handleTOTPVerify)
 	mux.HandleFunc("/api/auth/totp/login", a.handleTOTPLogin)
 	mux.HandleFunc("/api/auth/totp/disable", a.handleTOTPDisable)
+	mux.HandleFunc("/api/auth/totp/recovery", a.handleTOTPRecovery)
 	mux.HandleFunc("/api/auth/oauth/", a.handleOAuth)
 	return mux
 }
@@ -28,7 +29,14 @@ func (a *Auth) Handler() http.Handler {
 // jsonStatusKey is the envelope key for trivial {"status":"ok"} bodies.
 const jsonStatusKey = "status"
 
+// maxAuthBody bounds auth request bodies (1 MiB). Passwords and codes are
+// bytes, never megabytes; without a cap a huge body is a memory sink
+// before validation even runs. Argon2's cost is ~constant in input length,
+// so this bounds transport, not hashing.
+const maxAuthBody = 1 << 20
+
 func readJSON(r *http.Request, dst any) error {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxAuthBody)
 	defer r.Body.Close()
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()

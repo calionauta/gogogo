@@ -15,3 +15,6 @@ DELETE FROM magic_tokens WHERE user_id = ?;
 
 -- name: DeleteExpiredMagicTokens :exec
 DELETE FROM magic_tokens WHERE expires < ?;
+
+-- name: LatestMagicTokenForUser :one
+SELECT * FROM magic_tokens WHERE user_id = ? ORDER BY created DESC LIMIT 1;

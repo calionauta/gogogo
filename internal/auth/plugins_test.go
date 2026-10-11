@@ -305,3 +305,177 @@ func TestOAuthFlow(t *testing.T) {
 		t.Fatalf("users = %d, want 1 (link, not duplicate)", n)
 	}
 }
+
+func TestPasswordVersionMarker(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+
+	if _, _, err := a.Signup(ctx, "ver@example.com", "Correct-horse-99!", ""); err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	row, err := a.q.GetUserByEmail(ctx, "ver@example.com")
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if !strings.HasPrefix(row.PasswordHash, "argon2id$v=1$") {
+		t.Fatalf("hash = %q, want versioned argon2id$v=1$", row.PasswordHash)
+	}
+	// Unversioned (pre-marker) hashes fail closed, never verify.
+	legacy := strings.Replace(row.PasswordHash, "argon2id$v=1$", "argon2id$", 1)
+	if verifyPassword(legacy, "Correct-horse-99!") {
+		t.Fatal("unversioned hash verified")
+	}
+}
+
+func TestMagicLinkCooldown(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	if _, _, err := a.Signup(ctx, "cool@example.com", "Correct-horse-99!", ""); err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	var sends int
+	send := func(_, _ string) error {
+		sends++
+		return nil
+	}
+	if err := a.RequestMagicLink(ctx, "cool@example.com", "http://x.test", send); err != nil {
+		t.Fatalf("first request: %v", err)
+	}
+	// Immediate second request: silent nil, no second mail (cooldown).
+	if err := a.RequestMagicLink(ctx, "cool@example.com", "http://x.test", send); err != nil {
+		t.Fatalf("cooldown request err = %v, want silent nil", err)
+	}
+	if sends != 1 {
+		t.Fatalf("sends = %d, want 1 (cooldown suppresses the second)", sends)
+	}
+}
+
+func TestRecoveryCodes(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	user, _, err := a.Signup(ctx, "rec@example.com", "Correct-horse-99!", "")
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	secret, _, err := func() (string, string, error) {
+		s, u, _, e := a.BeginTOTP(ctx, user.ID)
+		return s, u, e
+	}()
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	code, _ := totpCode(secret, time.Now())
+	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
+		t.Fatalf("enroll: %v", verr)
+	}
+
+	codes, err := a.RotateRecoveryCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	if len(codes) != 10 {
+		t.Fatalf("codes = %d, want 10", len(codes))
+	}
+	n, err := a.q.CountRecoveryCodes(ctx, user.ID)
+	if err != nil || n != 10 {
+		t.Fatalf("stored = %d, %v; want 10 hashes", n, err)
+	}
+
+	// A recovery code completes the pending login…
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, codes[3]); err != nil {
+		t.Fatalf("recovery login: %v", err)
+	}
+	// …exactly once.
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, codes[3]); err == nil {
+		t.Fatal("reused recovery code accepted")
+	}
+	// Wrong codes still fail, and rotation kills the old batch.
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, "XXXX-XXXX-XXXX-XXXX"); err == nil {
+		t.Fatal("bogus recovery code accepted")
+	}
+	if _, err := a.RotateRecoveryCodes(ctx, user.ID); err != nil {
+		t.Fatalf("rotate: %v", err)
+	}
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, codes[4]); err == nil {
+		t.Fatal("rotated-out recovery code accepted")
+	}
+}
+
+func TestTOTPThrottle(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	user, _, err := a.Signup(ctx, "throttle@example.com", "Correct-horse-99!", "")
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	secret, _, err := func() (string, string, error) {
+		s, u, _, e := a.BeginTOTP(ctx, user.ID)
+		return s, u, e
+	}()
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	code, _ := totpCode(secret, time.Now())
+	if err := a.VerifyTOTPEnroll(ctx, user.ID, code); err != nil {
+		t.Fatalf("enroll: %v", err)
+	}
+
+	// Mechanism, white-box: 10 failures fit the burst, the 11th does not,
+	// and success clears the slate (no lockout from others' guessing).
+	for i := range 10 {
+		if !a.totpAttempts.allow(user.ID) {
+			t.Fatalf("attempt %d refused inside the burst", i+1)
+		}
+	}
+	if a.totpAttempts.allow(user.ID) {
+		t.Fatal("11th attempt allowed past the burst")
+	}
+	a.totpAttempts.forget(user.ID)
+	if !a.totpAttempts.allow(user.ID) {
+		t.Fatal("attempt refused after forget")
+	}
+	a.totpAttempts.forget(user.ID)
+
+	// Behavior: ten wrong codes, then the RIGHT code still opens a
+	// session — throttling bounds guessing without locking the owner out.
+	for range 10 {
+		_, _ = a.VerifyTOTPLogin(ctx, user.ID, "000000")
+	}
+	code, _ = totpCode(secret, time.Now())
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err != nil {
+		t.Fatalf("right code after burst: %v", err)
+	}
+}
+
+func TestOAuthPKCEChallenge(t *testing.T) {
+	a := pluginAuth(t)
+	idp := stubIDP(t, "pkce@example.com", true)
+	a.SetOAuthProviders(map[string]OAuthProvider{
+		"stub": {
+			Name: "stub", ClientID: "id", ClientSecret: "secret",
+			RedirectURL: "http://x.test/api/auth/oauth/stub/callback",
+			AuthURL:     idp.URL + "/auth",
+			TokenURL:    idp.URL + "/token",
+			UserInfoURL: idp.URL + "/userinfo",
+			Scopes:      []string{"email"},
+			ParseEmail:  parseGoogleEmail,
+		},
+	})
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", a.Handler())
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(),
+		http.MethodGet, "/api/auth/oauth/stub", nil))
+	loc, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("location: %v", err)
+	}
+	q := loc.Query()
+	if q.Get("code_challenge") == "" {
+		t.Fatal("start redirect missing PKCE code_challenge")
+	}
+	if q.Get("code_challenge_method") != "S256" {
+		t.Fatalf("challenge method = %q, want S256", q.Get("code_challenge_method"))
+	}
+}
