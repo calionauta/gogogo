@@ -88,8 +88,23 @@ reconnect. Without it, it runs a standalone embedded NATS for local realtime.
 On top of that transport, **Loro CRDT** collaboration (`internal/collab`)
 publishes whiteboard updates on `app.sync.<docID>` and ephemeral multi-user
 **cursors** on `app.presence.<docID>`. The central server persists resolved
-Loro snapshots to PocketBase (the `whiteboards` collection) and streams
-presence to browser clients via SSE (`GET /api/collab/presence/{docID}`).
+Loro snapshots to the shared store and streams presence to browser clients
+via SSE (`GET /api/collab/presence/{docID}`).
+
+## Which backend `cmd/desktop` boots
+
+`cmd/desktop` boots the **flat chi stack** (`internal/server.StartChi`) and
+points the Wails webview at it through a reverse proxy, so the desktop and
+the web frontend share the same business logic. It sets `cfg.ChiAddr` to
+`<host>:<port>` itself rather than relying on `CHI_ADDR` from the
+environment, which keeps the seam explicit at the one place it needs to be.
+
+Everything else in the file — the Leaf Node / embedded NATS choice, the
+collab demo publish, the presence ticker, the proxy, `OnShutdown` — is
+backend-agnostic and unchanged. The previous command-line passthrough
+(`pb.RootCmd.SetArgs(os.Args[1:])` for `serve --http …`) is gone with it:
+there is no subcommand to forward, the stack serves on the configured
+address.
 
 ## Native window (gogpu/ui)
 

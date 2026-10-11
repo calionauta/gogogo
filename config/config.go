@@ -210,11 +210,12 @@ type Config struct {
 	// binary; there is no build-tag selection.
 	Skin string
 
-	// ChiAddr, when non-empty, serves the flat-stack chi router (limen
-	// auth + sqlc todo slice) on that address alongside PocketBase
-	// (e.g. CHI_ADDR=127.0.0.1:8081). Empty (the default) disables it:
-	// the binary behaves exactly as before. Staged-migration seam —
-	// removed when the chi router becomes the only server (step 7).
+	// ChiAddr, when non-empty, serves the flat-stack chi router (owned
+	// auth + sqlc todo slice + the other features ported to it) on that
+	// address alongside the framework boot (e.g. CHI_ADDR=127.0.0.1:8081).
+	// Empty (the default) disables it: the binary behaves exactly as
+	// before. Staged-migration seam — removed when the flat stack becomes
+	// the only server.
 	ChiAddr string
 
 	GoAI GoAIConfig

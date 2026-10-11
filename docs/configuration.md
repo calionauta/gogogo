@@ -24,7 +24,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `DATA_DIR` | `data` | Root for runtime data |
 | `DATABASE_PATH` | `data/data.db` | SQLite file the credits ledger shares with PocketBase |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
-| `CHI_ADDR` | unset | When set (e.g. `127.0.0.1:8081`), serves the flat-stack chi router (auth + sqlc todos) alongside PocketBase. Unset = PocketBase only |
+| `CHI_ADDR` | unset | When set (e.g. `127.0.0.1:8081`), serves the flat-stack chi router (owned auth + sqlc todos + the other features ported to it) alongside the framework boot. Unset = framework boot only. `cmd/desktop` sets it itself from `HOST`/`PORT` |
 
 ### Skin
 
