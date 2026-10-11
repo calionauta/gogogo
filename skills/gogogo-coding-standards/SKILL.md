@@ -232,10 +232,10 @@ flat-stack migration (Oct 2026):
    refactor, out of scope for the slice at hand; suppress with the reason and
    move on. A third-party sink (`datastar-go`, `RenderAndPatch`) cannot change:
    suppress at the narrowest call site with the boundary named.
-4. **Match the sibling stack.** If the legacy handler suppresses the identical
-   call with the identical reason, copy that pattern — consistency beats
-   novelty. If it does not, that is a signal your code may be shaped wrong;
-   go back to step 1.
+4. **Match the existing handler.** If the same call already carries the same
+   suppression with the same reason elsewhere in the repo, copy that pattern
+   — consistency beats novelty. If it does not, that is a signal your code
+   may be shaped wrong; go back to step 1.
 
 Never suppress to make a red gate green without doing steps 1–4 first. A
 suppression that states the boundary (`//nolint:contextcheck // SSE-sink
