@@ -1,11 +1,10 @@
 // SCOPE:plugin — Todo CRUD wire protocol (PB-free shared vocabulary)
 //
 // Package natswire owns the app.crud.todo.> wire: subjects, payload types
-// and the publisher. Both stacks (PocketBase handlers and the chi slice)
-// publish and consume the SAME subjects with separate durables, so mixed
-// deployments converge during the staged migration. It deliberately
-// imports nothing app-specific — certainly not PocketBase — so flat-stack
-// code can depend on it without dragging the framework along.
+// and the publisher. Every stack publishes and consumes the SAME subjects
+// with separate durables, so mixed deployments converge. It deliberately
+// imports nothing app-specific, so flat-stack code can depend on it
+// without dragging any framework along.
 package natswire
 
 import (
@@ -25,10 +24,9 @@ const (
 	crudDurableFmt    = "%s-crud"
 )
 
-// CrudSubjectAll is the wildcard subject for todo CRUD operations. Both the
-// PocketBase consumer and the chi consumer subscribe to it with separate
-// durables (separate consumer groups), so one wire serves both stacks
-// during the staged migration.
+// CrudSubjectAll is the wildcard subject for todo CRUD operations. Every
+// consumer subscribes with its own durable (separate consumer groups), so
+// one wire serves all stacks.
 const CrudSubjectAll = crudSubjectPrefix + ">"
 
 // CrudDurable returns the durable consumer name for an app: the exact
@@ -57,9 +55,9 @@ type CrudPayload struct {
 }
 
 // CrudOpData carries the per-operation data. ID is REQUIRED for
-// toggle/delete (must match the PocketBase record ID on the target
-// instance). For create, the handler includes the ID the local
-// PocketBase generated so the remote consumer reuses the same ID.
+// toggle/delete (must match the row id on the target instance). For
+// create, the handler includes the locally generated ID so the remote
+// consumer reuses the same one.
 type CrudOpData struct {
 	ID        string `json:"id,omitempty"`
 	Title     string `json:"title,omitempty"`
@@ -90,8 +88,7 @@ func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
 		Name:     crudStreamName,
 		Subjects: []string{crudSubjectPrefix + ">"},
 		Storage:  natsio.FileStorage,
-		// Bounded transport buffer: the server consumer is always up
-		// while NATS runs, and PocketBase (not this stream) is the
+		// Bounded transport buffer: the database (not this stream) is the
 		// truth — replaying month-old CRUD ops would resurrect
 		// already-applied mutations. A week covers any realistic
 		// consumer outage; MaxBytes caps disk either way.
@@ -108,7 +105,7 @@ func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
 
 // Publish sends a CRUD operation to JetStream. Non-blocking from the
 // caller's perspective: logs on error but returns immediately. The
-// handler has already written to PocketBase, so this is additive sync.
+// handler has already written to its database, so this is additive sync.
 func (p *CrudPublisher) Publish(op CrudOpType, userID string, data *CrudOpData) {
 	if p == nil {
 		return

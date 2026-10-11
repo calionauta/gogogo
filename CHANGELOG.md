@@ -39,6 +39,22 @@
   Page at `/chat` (`POST /api/chat/ask`, `GET /api/chat/stream`); history
   store is in-memory behind `MessageStore`, PocketBase collection is the
   documented upgrade path. Red-proofed worker/store/parse/render tests.
+- **Owned auth (`internal/auth`).** Argon2id passwords (~350ms, versioned
+  encoding), opaque sessions keyed by SHA-256, `gogogo_auth` cookie, plus
+  magic-link (single-use, silent nil), TOTP second factor (owned RFC 6238,
+  recovery codes, attempt throttle) and OAuth (generic x/oauth2 flow with
+  Google/GitHub presets, PKCE). Red-proofed against the real driver,
+  including RFC 6238 vectors and a stub-IdP flow.
+- **Chi todo slice (`features/todo/chi`).** Login/logout/index pages on the
+  shared templates plus the data endpoints and NATS bridge, served when
+  `CHI_ADDR` is set. Same paths and wire, contract-tested with `-race`.
+- **Queue on Turso.** goqite opens the queue file through `tursogo`; the
+  full queue suite runs on the new driver.
+- **PB-free UI package (`features/authviews`).** LoginPage, Navbar and
+  ThemeHead live here so flat-stack pages render without the framework;
+  the CRUD wire lives in `internal/natswire` for the same reason.
+- **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
+  no framework and only Turso is opened outside the transitional allowlist.
 
 ## [0.43.0] - 2026-10-10
 ### What's Changed

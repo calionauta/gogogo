@@ -93,7 +93,7 @@ exactly that moment.
 
 ## Auth plugins (owned): magic link, TOTP, OAuth
 
-The three live in `internal/auth` (migration 0005), red-proofed against the
+The three live in `internal/auth` (tables in `internal/db/migrations`), red-proofed against the
 real driver — no new auth dependencies:
 
 - **Magic link** (`magiclink.go`): single-use tokens consumed by DELETE,
@@ -116,6 +116,22 @@ real driver — no new auth dependencies:
   duplicating. Handshake states are short-lived and in-process (single-box
   caveat documented in code).
 
+## Why plugins live in-repo (not in plugin repos)
+
+The split follows consumers, not size. Auth methods, TOTP, magic links and
+the CRUD wire ship *with the template* — every generated project carries
+them at the template's version, refactored atomically with it, under one
+lint/test gate. Splitting them into versioned repos would buy independent
+releases nobody needs (nothing consumes auth v1.2 without the template
+around it) and charge per-change version bumps across repos.
+
+`ai-credits` stays separate for the opposite reason: it is a *library* with
+independent consumers (this template's demo, other apps), its own release
+cadence, and a one-way dependency (template → lib, never back). Merging it
+in would couple template releases to ledger releases with no consumer
+benefit. Same rule, both directions: shared-versioned code lives together,
+independently-consumed code lives apart.
+
 ## Turso Database: the cost, stated plainly
 
 `tursogo` is a `database/sql` driver (`sql.Open("turso", path)`) loaded through
@@ -132,44 +148,19 @@ Two things are worth knowing before this becomes the only engine:
 - Turso Database is pre-1.0. Keep backups (`scripts/backup.sh`) — the driver's
   own README says the same thing.
 
-## Migration plan (staged; every step ends green)
+## Current state and remaining work
 
-1. **Done** — abstraction removed, Turso naming fixed, `POC` naming gone.
-2. **Done** — `internal/db`: Turso connection, `_busy_timeout` DSN, pragmas,
-   migration runner, core schema (users, sessions, todos), sqlc config +
-   queries + committed `sqlcgen`, and tests that run every one of them against
-   the real driver.
-3. **Done** — owned auth as chi middleware (`internal/auth`, red-proofed
-   against the real Turso driver): argon2id + opaque sessions on the app
-   `users`/`sessions` tables (migration 0004 restores them after the removed
-   limen detour), session cookie kept as `gogogo_auth`, chi `RequireSession`
-   middleware with `SessionFrom` accessor.
-4. **Done (data endpoints)** — todo slice on chi + `dbgen` (`features/todo/chi`,
-   red-proofed contract tests + live preflight): list/fragment/create/toggle/
-   delete/clear/confirm/stream with the same paths, statuses, redirects and
-   Datastar SSE wire as the PocketBase handlers. Identity is app-owned TEXT
-   UUIDs throughout (0003's limen detour is fully reverted by 0004). Chi pages
-   (GET/POST /login on the shared LoginPage, POST /logout, GET /todo on the
-   shared Layout/TodoPage) included, with the login `next` restricted to
-   same-origin paths. Out of scope here on purpose:
-   full page (/todo index), AI suggest, retry demo, onboarding (step 6), and
-   NATS cross-instance publish (step 5). Served alongside PocketBase only
-   when CHI_ADDR + LIMEN_SECRET are set (`internal/server.StartChi`).
-5. **Done** — realtime on the chi stack (`features/todo/chi/bridge.go`,
-   red-proofed on embedded NATS + real Turso files): mutations publish to the
-   same `app.crud.todo.>` subjects the PocketBase stack uses (nil-safe, so
-   Hub-only convergence when NATS is off); `RunCrudConsumer` applies received
-   ops to Turso under its own `<app>-crud-chi` durable and fans out to local
-   chi streams. Integer owner ids apply; foreign (PocketBase) identities skip
-   loudly — the stacks have incompatible identity models until step 7. The
-   loop test proves an HTTP mutation on instance A lands in instance B's
-   database with no HTTP call of its own. `StartChi` takes the JetStream
-   context (wired after `startNATS`).
-6. Port the remaining features (whiteboard, notes, room, chat, genui, credits,
-   config view, landing, desktop GUI).
-7. Delete `db/`, drop the PocketBase dependency from `go.mod`, delete
-   PocketBase-only tests, add contract tests for the flat paths.
+The flat stack serves auth, the todo slice (pages + data + realtime bridge),
+and the queue, each red-proofed against the real drivers. What still runs on
+the previous stack: the remaining features (whiteboard, notes, room, chat,
+genui, credits, config view, landing, desktop GUI) plus AI suggest, retry
+demo and onboarding. They are ported with the same recipe (contract tests
+first, same paths and wire, no translation layers), then `db/` goes away
+with the framework dependency, the framework-only tests with it, and the
+transitional serve seam (`CHI_ADDR`) with them.
 
-Full PocketBase removal is a staged rewrite, not one change: it touches every
-handler and roughly 130 test files. Doing it in a single pass would leave the
-tree broken, so each stage ships independently.
+Conventions that outlive the transition: schema lives in
+`internal/db/migrations/*.sql`, applied in filename order and recorded in
+`schema_migrations` — files are append-only history, never edited. Generated
+`sqlcgen` is committed. Docs describe structure and contracts; CHANGELOG
+keeps history.

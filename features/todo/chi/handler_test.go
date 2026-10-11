@@ -1,10 +1,10 @@
 // SCOPE:feature — Chi todo slice contract tests (red-proof for step 4).
 //
 // Every test boots a real migrated Turso file, signs a user up through the
-// real limen HTTP surface, and drives the chi todo routes over HTTP. The
-// contracts mirror the PocketBase handlers byte-for-byte where the client
-// can observe them: paths, status codes, redirects, SSE content type, the
-// #todo-list fragment HTML, and owner isolation.
+// real auth HTTP surface, and drives the chi todo routes over HTTP. The
+// contracts cover what the client can observe: paths, status codes,
+// redirects, SSE content type, the #todo-list fragment HTML, and owner
+// isolation.
 package chi
 
 import (
@@ -23,8 +23,8 @@ import (
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
-// chiFixture boots the full step-4 stack in-process: Turso + migrations,
-// limen auth, a private SSE hub, and the chi router with auth + todo routes.
+// chiFixture boots the full stack in-process: Turso + migrations, owned
+// auth, a private SSE hub, and the chi router with auth + todo routes.
 type chiFixture struct {
 	t    testing.TB
 	r    http.Handler
@@ -62,7 +62,7 @@ func newChiFixture(tb testing.TB) *chiFixture {
 	return &chiFixture{t: tb, r: r, q: dbgen.New(sqlDB), hub: hub, auth: a}
 }
 
-// signup creates a limen user over HTTP and returns the session cookie.
+// signup creates a user over HTTP and returns the session cookie.
 func (f *chiFixture) signup(email string) *http.Cookie {
 	f.t.Helper()
 	body := `{"email":` + strconv.Quote(email) + `,"password":"Correct-horse-99!"}`

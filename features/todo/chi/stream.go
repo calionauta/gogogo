@@ -18,9 +18,9 @@ import (
 )
 
 // handleStream opens the chi-stack SSE stream: Hub-registered, owner-scoped,
-// record-sync only. Queue retry feedback, AI suggest and onboarding progress
-// stay on the PocketBase stream until their ports land — the chi hub is a
-// separate instance, so those envelopes can never arrive here misshapen.
+// record-sync only. Worker envelopes (retry feedback, AI suggest, workflow
+// progress) travel on other channels — the chi hub carries record sync, so
+// those envelopes can never arrive here misshapen.
 func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	clientID := r.URL.Query().Get("clientID")
 	if clientID == "" {

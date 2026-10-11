@@ -1,16 +1,14 @@
-// SCOPE:feature — Chi NATS bridge (cross-instance convergence, step 5)
+// SCOPE:feature — Chi NATS bridge (cross-instance convergence)
 //
-// RunCrudConsumer subscribes to the same app.crud.todo.> subjects the
-// PocketBase stack publishes, applies each operation to Turso, and fans the
-// record event out to local chi streams. Durable is per app + "chi", so the
-// PB consumer (<app>-crud) and the chi consumer (<app>-crud-chi) hold
-// independent cursors over the same wire during the staged migration.
+// RunCrudConsumer subscribes to the app.crud.todo.> subjects, applies each
+// operation to Turso, and fans the record event out to local chi streams.
+// Its durable is per app + "chi", independent from the server stack's
+// cursor over the same wire.
 //
-// Identity boundary: payload UserIDs are strings. Integer strings are chi
-// owners and apply; anything else (PocketBase record ids) is skipped with a
-// warning — the two stacks have incompatible identity models, and faking a
-// mapping would corrupt tenant scoping. Full convergence within the chi
-// stack; best-effort across stacks until PocketBase goes away (step 7).
+// Identity boundary: payload UserIDs are strings resolved against app
+// users; anything else is skipped with a warning — faking a mapping would
+// corrupt tenant scoping. Convergence is complete within one identity
+// model; foreign identities never apply.
 package chi
 
 import (
@@ -64,9 +62,8 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 	owner, err := tenantOf(ctx, q, p.UserID)
 	if err != nil {
 		if isSkip(err) {
-			// Unknown identity (including PocketBase-world ids, which live
-			// in a different identity model): skip, do not map. Faking a
-			// mapping would corrupt tenant scoping.
+			// Unknown identity: skip, do not map. Faking a mapping would
+			// corrupt tenant scoping.
 			slog.Warn("chi crudconsumer: unknown owner, skipping", "userId", p.UserID, "op", p.Op)
 			return
 		}
@@ -105,9 +102,8 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 	hub.BroadcastToUser(payload, p.UserID, "")
 }
 
-// tenantOf resolves a wire user id to a real app identity. Unknown ids —
-// including PocketBase-world record ids, which live in a different identity
-// model — are a skip, never a mapping.
+// tenantOf resolves a wire user id to a real app identity. Unknown ids
+// are a skip, never a mapping.
 func tenantOf(ctx context.Context, q *dbgen.Queries, userID string) (string, error) {
 	if userID == "" {
 		return "", errSkip

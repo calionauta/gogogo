@@ -1,9 +1,8 @@
-// SCOPE:feature — Chi todo pages (login + index, step 6)
+// SCOPE:feature — Chi todo pages (login/logout/todo index)
 //
-// Page endpoints mirror features/auth + the PocketBase todo index: same
-// paths, same redirects, same rendered components (the shared LoginPage
-// and Layout/TodoPage templates — no forked markup). Data comes from dbgen
-// and internal/auth instead of PocketBase.
+// Page endpoints: same paths, redirects and rendered components (the shared
+// LoginPage and Layout/TodoPage templates — no forked markup), with data
+// from dbgen and internal/auth.
 package chi
 
 import (
@@ -18,10 +17,8 @@ import (
 )
 
 // loginNext resolves the post-login destination, defaulting to the demo
-// app. Only same-origin paths are honored: a ?next=https://evil.com is an
-// open redirect, so anything that is not a bare path falls back to /todo.
-// (The PocketBase flow redirects unchecked; the chi stack does not inherit
-// that flaw.)
+// app. Only same-origin paths are honored: anything else falls back to
+// /todo, so no ?next= value can become an open redirect.
 func loginNext(r *http.Request) string {
 	next := r.FormValue("next")
 	if next == "" {
@@ -81,9 +78,8 @@ func (h *Handler) handleLogoutPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-// handleIndex serves the demo Todo page: the same Layout/TodoPage
-// components and signal seeding as the PocketBase index, with guests
-// bounced to /login and data from dbgen.
+// handleIndex serves the demo Todo page on the Layout/TodoPage
+// components, with guests bounced to /login and data from dbgen.
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	owner, sess, err := h.ownerSession(r)
 	if err != nil {

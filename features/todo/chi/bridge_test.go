@@ -1,9 +1,9 @@
 // SCOPE:feature — Chi NATS bridge tests (red-proof for step 5).
 //
-// The bridge carries todo mutations across instances: publish on the same
-// app.crud.todo.> subjects the PocketBase stack uses, apply to Turso on
-// receipt, fan out to local streams. Tests boot a real embedded NATS
-// server (ephemeral port) and a real migrated Turso file — no fakes.
+// The bridge carries todo mutations across instances over the shared
+// app.crud.todo.> subjects: publish, apply to Turso on receipt, fan out to
+// local streams. Tests boot a real embedded NATS server (ephemeral port)
+// and a real migrated Turso file — no fakes.
 package chi
 
 import (
@@ -149,9 +149,8 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 func TestChiBridgeSkipsForeignIdentity(t *testing.T) {
 	f := newBridgeFixture(t)
 
-	// A PocketBase-world op carries a non-integer user id: the chi bridge
-	// must skip it (different identity model) without dying — and stay
-	// alive for the next valid op.
+	// An op for an unknown identity must skip without dying — and the
+	// bridge must stay alive for the next valid op.
 	f.pub.Publish(natswire.CrudOpCreate, "pb-record-id", &natswire.CrudOpData{ID: "bridge-foreign-1", Title: "PB"})
 	time.Sleep(500 * time.Millisecond)
 	if n, _ := f.q.CountTodosByOwner(context.Background(), f.owner); n != 0 {

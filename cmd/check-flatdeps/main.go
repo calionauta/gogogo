@@ -1,11 +1,11 @@
-// SCOPE:core — Flat-stack dependency guard (no PocketBase, one SQLite driver)
+// SCOPE:core — Flat-stack dependency guard (framework-free, one SQLite driver)
 //
-// Command check-flatdeps proves the migration invariant without booting
-// anything: the flat-stack packages must not import PocketBase (or the
-// limen modules the refactor removed), and database/sql opens must use
-// the Turso driver outside the legacy allowlist. It runs `go list -deps`
-// (cached, seconds at most) instead of a build+boot cycle, so LLMs get
-// the violation at commit time instead of after a 2-minute binary run.
+// Command check-flatdeps proves the flat-stack invariant without booting
+// anything: the flat-stack packages must not import frameworks outside
+// the blessed set, and database/sql opens must use the Turso driver
+// outside the transitional allowlist below. It runs `go list -deps`
+// (cached, seconds at most) instead of a build+boot cycle, so violations
+// surface at commit time instead of after a 2-minute binary run.
 //
 // Exit non-zero with the offending import paths when the invariant breaks.
 package main
@@ -34,19 +34,19 @@ var flatPackages = []string{
 }
 
 // bannedPrefixes are module prefixes that must not appear in any flat
-// package's dependency closure. pocketbase = the framework being removed;
-// thecodearcher/limen = the evaluated-and-rejected auth path (see
-// docs/architecture-decision.md); modernc sqlite = the unused bundled
-// driver the template policy forbids (AGENTS.md).
+// package's dependency closure: the framework the stack replaced, the
+// evaluated-and-rejected auth path (see docs/architecture-decision.md),
+// and the unused bundled sqlite driver the template policy forbids.
 var bannedPrefixes = []string{
 	"github.com/pocketbase/",
 	"github.com/thecodearcher/limen",
 	"modernc.org/sqlite",
 }
 
-// legacyDriverFiles may still open the ncruces "sqlite3" driver until
-// step 7 deletes them with PocketBase. Everything else must open Turso.
-// Paths are repo-relative; the list shrinks, never grows.
+// legacyDriverFiles are the transitional sqlite3 opens outside the flat
+// stack. They disappear with their owners (the framework boot, the credits
+// ledger wiring, the desktop token helper); the list shrinks to empty and
+// is deleted then. Everything else must open Turso.
 var legacyDriverFiles = []string{
 	"db/pocketbase.go",
 	"features/credits/credits.go",
@@ -118,13 +118,13 @@ func checkDriverOpens() error {
 			continue
 		}
 		if !legacy(file) {
-			return fmt.Errorf("non-legacy Turso violation: %s opens sqlite3", line)
+			return fmt.Errorf("non-Turso open outside the transitional list: %s opens sqlite3", line)
 		}
 	}
 	return nil
 }
 
-// legacy reports whether a repo-relative file may still open sqlite3.
+// legacy reports whether a repo-relative file is on the transitional list.
 func legacy(file string) bool {
 	return slices.Contains(legacyDriverFiles, file)
 }

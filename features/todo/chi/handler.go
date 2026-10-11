@@ -1,16 +1,15 @@
-// SCOPE:feature — Chi todo slice (flat-stack port, step 4)
+// SCOPE:feature — Chi todo slice (flat stack)
 //
-// Package todo's chi Handler serves the todo data endpoints on the flat
-// stack: chi routing, limen sessions, sqlc queries called directly, the same
+// Package todo's chi Handler serves the todo surface on the flat stack:
+// chi routing, owned auth sessions, sqlc queries called directly, the same
 // Templ components, the same Datastar SSE wire. Paths, statuses, redirects
-// and fragment headers mirror features/todo/handlers (PocketBase) exactly —
-// the client cannot tell which stack answered.
+// and fragment headers follow the documented HTTP/SSE contracts in the
+// contract tests — the client cannot tell which stack answered.
 //
-// Scope: data endpoints only (list/fragment/CRUD/confirm/stream). The full
-// page (/todo index), AI suggest, retry demo and onboarding stay on the
-// PocketBase handlers until step 6. Cross-instance sync (NATS publish) is
-// out too — record propagation here is the chi SSE hub (step 5's realtime
-// cutover), not PocketBase realtime.
+// Scope: auth pages (login/logout), the todo index page, and the data
+// endpoints (list/fragment/CRUD/confirm/stream). AI suggest, retry demo
+// and onboarding live elsewhere; cross-instance sync goes through the
+// NATS bridge (bridge.go) while the SSE hub carries record sync.
 package chi
 
 import (
@@ -39,15 +38,14 @@ import (
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
-// SkinBasecoat mirrors handlers.SkinBasecoat without importing the
-// PocketBase handler package: the chi slice must not depend on the stack
-// it replaces.
+// SkinBasecoat is duplicated (not imported) from the framework handler
+// package so this package stays framework-free.
 const SkinBasecoat = "basecoat"
 
 // Handler serves the todo data endpoints on chi. Q is the concrete
 // sqlc queries (never an interface — a wrong call is a compile error);
 // Hub is a chi-stack-private SSE hub so chi record events never leak
-// into PocketBase-hub clients and vice versa.
+// into other stacks' clients and vice versa.
 type Handler struct {
 	Q           *dbgen.Queries
 	Auth        *auth.Auth
@@ -59,8 +57,7 @@ type Handler struct {
 	// SetPublisher so tests can run hub-only without a NATS server.
 	Pub *natswire.CrudPublisher
 	// BuildLabel/BuildCommit stamp the navbar version badge (from -ldflags
-	// in production builds, "dev"/"unknown" otherwise). Zero values render
-	// the same defaults the PocketBase index shows.
+	// in production builds, "dev"/"unknown" otherwise).
 	BuildLabel  string
 	BuildCommit string
 	// OfflineSyncEnabled mirrors the config flag into the page signals.
@@ -84,9 +81,8 @@ func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub, defaultSkin s
 	return &Handler{Q: q, Auth: a, Hub: hub, DefaultSkin: defaultSkin}
 }
 
-// Routes returns the chi router with the todo data endpoints. Paths match
-// the PocketBase registrations one for one so the cutover changes the
-// server, never the client.
+// Routes returns the chi router with the todo pages and data endpoints.
+
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/api/todos", h.handleList)
@@ -119,7 +115,7 @@ func (h *Handler) ownerSession(r *http.Request) (string, *auth.ValidatedSession,
 }
 
 // realtimeKind labels the active broadcast transport for the diagnostics
-// panel, matching the PocketBase index contract.
+// panel.
 func (h *Handler) realtimeKind() string {
 	if h.NATSEnabled {
 		return "JetStream"
@@ -127,8 +123,7 @@ func (h *Handler) realtimeKind() string {
 	return "in-memory"
 }
 
-// offlineLabel describes offline-sync behaviour for the page sub-header,
-// in the same words as the PocketBase index (with the Turso store named).
+// offlineLabel describes offline-sync behaviour for the page sub-header.
 func (h *Handler) offlineLabel() string {
 	if !h.OfflineSyncEnabled {
 		return "OFFLINE_SYNC_ENABLED=false — actions fail when network is down; offline mutations NOT queued"
@@ -155,7 +150,7 @@ func (h *Handler) ownerID(r *http.Request) (string, error) {
 }
 
 // redirectLogin sends unauthenticated clients to the login page, mirroring
-// the PocketBase handlers (303, never 401 — the Datastar client follows it).
+// (303, never 401 — the Datastar client follows redirects).
 func redirectLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
@@ -193,8 +188,7 @@ func toTodo(row dbgen.Todo) (todo.Todo, error) {
 }
 
 // listOwner loads the owner's todos and applies the list filter in Go:
-// "" (all), "active", "completed". Unknown filters read as "all", matching
-// the PocketBase filterOf default.
+// "" (all), "active", "completed". Unknown filters read as "all".
 func (h *Handler) listOwner(ctx context.Context, owner string, filter string) ([]todo.Todo, error) {
 	rows, err := h.Q.ListTodosByOwner(ctx, owner)
 	if err != nil {
@@ -269,10 +263,9 @@ func patchSSE(sse *sdk.ServerSentEventGenerator, comp templ.Component, opts ...s
 	return dshelpers.RenderAndPatch(sse, comp, opts...)
 }
 
-// recordEvent is the hub payload for todo mutations — the same shape the
-// PocketBase stream dispatcher decodes, so a future shared client keeps
-// working. Each stream re-lists scoped on receipt; the payload itself only
-// names what changed.
+// recordEvent is the hub payload for todo mutations: what changed
+// (created/toggled/deleted/cleared) plus the item data. Each stream
+// re-lists scoped on receipt; the payload itself only names the change.
 type recordEvent struct {
 	Event string `json:"event"`
 	ID    string `json:"id"`

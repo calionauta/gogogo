@@ -1,8 +1,7 @@
 // SCOPE:feature — Chi page contract tests (login + index, step 6).
 //
 // Same red-proof fixture as the data endpoints: real Turso, real auth,
-// driven over HTTP. Contracts mirror the PocketBase pages: paths,
-// redirects, rendered components.
+// driven over HTTP. Contracts: paths, redirects, rendered components.
 package chi
 
 import (

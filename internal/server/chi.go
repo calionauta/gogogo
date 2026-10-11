@@ -1,9 +1,8 @@
 // SCOPE:core — Flat-stack chi server (staged-migration seam)
 //
 // StartChi serves the flat-stack chi router (owned auth + sqlc todos)
-// alongside PocketBase while the migration is staged. It is a no-op unless
-// CHI_ADDR is set, so the default boot behaves exactly as before. Removed
-// at step 7, when the chi router becomes the server.
+// when CHI_ADDR is set, alongside the default boot. Unset CHI_ADDR is a
+// no-op returning nil, so a stock env never changes behaviour.
 package server
 
 import (
