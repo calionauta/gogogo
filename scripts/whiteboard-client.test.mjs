@@ -91,6 +91,18 @@ async function waitForServer() {
   return false;
 }
 
+// Navigation helper: goto with waitUntil "load" (like smoke.mjs), then wait
+// for the canvas explicitly. NEVER "networkidle" here: whiteboard.js opens a
+// long-lived SSE EventSource on script eval, and networkidle waits for 500ms
+// with zero open connections — an open SSE stream never lets that happen, so
+// the goto times out after 30s. That flaked CI 3x (page.goto Timeout exceeded
+// on /whiteboard/wb-order-*). The canvas wait is the deterministic readiness
+// signal; the sleeps after each navigation let the SSE stream connect.
+async function gotoBoard(pg, url) {
+  await pg.goto(url, { waitUntil: "load", timeout: 20000 });
+  await pg.locator("#wb-canvas").waitFor({ state: "visible", timeout: 15000 });
+}
+
 // Counts non-blank pixels inside a CSS-pixel region of the canvas.
 //
 // A REGION, not the whole canvas, is what makes these assertions decisive: a
@@ -178,7 +190,7 @@ async function main() {
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
   const docID = "wb-order-" + process.pid;
-  await page.goto(`${BASE}/whiteboard/${docID}`, { waitUntil: "networkidle" });
+  await gotoBoard(page, `${BASE}/whiteboard/${docID}`);
   await sleep(600); // let the SSE stream connect and the canvas size settle
 
   // ---------------------------------------------------------------------------
@@ -299,8 +311,8 @@ async function main() {
   };
   const pageA = await makeCtx("A");
   const pageB = await makeCtx("B");
-  await pageA.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-alpha`, { waitUntil: "networkidle" });
-  await pageB.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-bravo`, { waitUntil: "networkidle" });
+  await gotoBoard(pageA, `${BASE}/whiteboard/${doc3}?clientID=wb-alpha`);
+  await gotoBoard(pageB, `${BASE}/whiteboard/${doc3}?clientID=wb-bravo`);
   await sleep(900);
   // B moves its pointer to a known off-center spot (canvas-relative CSS px).
   const box3 = await pageB.locator("#wb-canvas").boundingBox();
@@ -324,7 +336,7 @@ async function main() {
 
   // A third client connects -> the server broadcasts a fresh "count" to all.
   const pageC = await makeCtx("C");
-  await pageC.goto(`${BASE}/whiteboard/${doc3}?clientID=wb-charlie`, { waitUntil: "networkidle" });
+  await gotoBoard(pageC, `${BASE}/whiteboard/${doc3}?clientID=wb-charlie`);
   await sleep(900);
 
   const after = await readCursor(pageA);
@@ -353,8 +365,8 @@ async function main() {
   const doc4 = "wb-draft-" + process.pid;
   const drawA = await makeCtx("D-A");
   const drawB = await makeCtx("D-B");
-  await drawA.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-a`, { waitUntil: "networkidle" });
-  await drawB.goto(`${BASE}/whiteboard/${doc4}?clientID=wb-live-b`, { waitUntil: "networkidle" });
+  await gotoBoard(drawA, `${BASE}/whiteboard/${doc4}?clientID=wb-live-a`);
+  await gotoBoard(drawB, `${BASE}/whiteboard/${doc4}?clientID=wb-live-b`);
   await sleep(900);
 
   // Region where the held rectangle is being drawn (CSS px, canvas-relative).
@@ -394,8 +406,8 @@ async function main() {
   const doc5 = "wb-tip-" + process.pid;
   const tipA = await makeCtx("T-A");
   const tipB = await makeCtx("T-B");
-  await tipA.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-a`, { waitUntil: "networkidle" });
-  await tipB.goto(`${BASE}/whiteboard/${doc5}?clientID=wb-tip-b`, { waitUntil: "networkidle" });
+  await gotoBoard(tipA, `${BASE}/whiteboard/${doc5}?clientID=wb-tip-a`);
+  await gotoBoard(tipB, `${BASE}/whiteboard/${doc5}?clientID=wb-tip-b`);
   await sleep(900);
 
   const tipBox = await tipB.locator("#wb-canvas").boundingBox();
@@ -436,8 +448,8 @@ async function main() {
   const doc6 = "wb-stale-" + process.pid;
   const stA = await makeCtx("S-A");
   const stB = await makeCtx("S-B");
-  await stA.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-a`, { waitUntil: "networkidle" });
-  await stB.goto(`${BASE}/whiteboard/${doc6}?clientID=wb-stale-b`, { waitUntil: "networkidle" });
+  await gotoBoard(stA, `${BASE}/whiteboard/${doc6}?clientID=wb-stale-a`);
+  await gotoBoard(stB, `${BASE}/whiteboard/${doc6}?clientID=wb-stale-b`);
   await sleep(900);
 
   let aborted = 0;
@@ -498,8 +510,8 @@ async function main() {
   const doc7 = "wb-end-" + process.pid;
   const endA = await makeCtx("E-A");
   const endB = await makeCtx("E-B");
-  await endA.goto(`${BASE}/whiteboard/${doc7}?clientID=wb-end-a`, { waitUntil: "networkidle" });
-  await endB.goto(`${BASE}/whiteboard/${doc7}?clientID=wb-end-b`, { waitUntil: "networkidle" });
+  await gotoBoard(endA, `${BASE}/whiteboard/${doc7}?clientID=wb-end-a`);
+  await gotoBoard(endB, `${BASE}/whiteboard/${doc7}?clientID=wb-end-b`);
   await sleep(900);
 
   const END_REGION = { x: 50, y: 50, w: 190, h: 150 };
@@ -561,8 +573,8 @@ async function main() {
   const doc8 = "wb-skew-" + process.pid;
   const skA = await makeCtx("K-A");
   const skB = await makeCtx("K-B");
-  await skA.goto(`${BASE}/whiteboard/${doc8}?clientID=wb-skew-a`, { waitUntil: "networkidle" });
-  await skB.goto(`${BASE}/whiteboard/${doc8}?clientID=wb-skew-b`, { waitUntil: "networkidle" });
+  await gotoBoard(skA, `${BASE}/whiteboard/${doc8}?clientID=wb-skew-a`);
+  await gotoBoard(skB, `${BASE}/whiteboard/${doc8}?clientID=wb-skew-b`);
   await sleep(900);
 
   let delayed = 0;
@@ -629,8 +641,8 @@ async function main() {
   const doc9 = "wb-neg-" + process.pid;
   const ngA = await makeCtx("N-A");
   const ngB = await makeCtx("N-B");
-  await ngA.goto(`${BASE}/whiteboard/${doc9}?clientID=wb-neg-a`, { waitUntil: "networkidle" });
-  await ngB.goto(`${BASE}/whiteboard/${doc9}?clientID=wb-neg-b`, { waitUntil: "networkidle" });
+  await gotoBoard(ngA, `${BASE}/whiteboard/${doc9}?clientID=wb-neg-a`);
+  await gotoBoard(ngB, `${BASE}/whiteboard/${doc9}?clientID=wb-neg-b`);
   await sleep(900);
 
   const ngBox = await ngB.locator("#wb-canvas").boundingBox();
