@@ -6,45 +6,89 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 )
 
 // newStore is the fixture for every generated-query test: a migrated temp
 // database and a *dbgen.Queries built the same way a handler will build it.
-func newStore(t *testing.T) (*sql.DB, *dbgen.Queries) {
+func newStore(t *testing.T) *dbgen.Queries {
 	t.Helper()
-	sqlDB := openTestDB(t)
-	return sqlDB, dbgen.New(sqlDB)
+	return dbgen.New(openTestDB(t))
 }
 
-// createLimenOwner inserts one identity row and returns its integer id.
-// Identity lives in limen_users (see 0003_identity): the app tables only
-// ever reference it, never duplicate it.
-func createLimenOwner(t *testing.T, sqlDB *sql.DB, email string) int64 {
+func createUser(t *testing.T, q *dbgen.Queries, email string) dbgen.User {
 	t.Helper()
-	res, err := sqlDB.ExecContext(context.Background(),
-		`INSERT INTO limen_users (email, created_at, updated_at) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		email,
-	)
+	now := Now()
+	u, err := q.CreateUser(context.Background(), dbgen.CreateUserParams{
+		ID:           NewID(),
+		Email:        email,
+		PasswordHash: "hash",
+		Name:         "Demo",
+		Created:      now,
+		Updated:      now,
+	})
 	if err != nil {
-		t.Fatalf("insert limen_users(%s): %v", email, err)
+		t.Fatalf("CreateUser(%s): %v", email, err)
 	}
-	id, err := res.LastInsertId()
+	return u
+}
+
+// TestGeneratedUserQueries covers the identity path including RETURNING, which
+// is what lets a handler answer with the created row without a second read.
+func TestGeneratedUserQueries(t *testing.T) {
+	q := newStore(t)
+	ctx := context.Background()
+	created := createUser(t, q, "demo1@demo.app")
+
+	got, err := q.GetUserByEmail(ctx, "demo1@demo.app")
 	if err != nil {
-		t.Fatalf("limen_users id: %v", err)
+		t.Fatalf("GetUserByEmail: %v", err)
 	}
-	return id
+	if got.ID != created.ID || got.Email != created.Email {
+		t.Fatalf("GetUserByEmail = %+v, want id %s", got, created.ID)
+	}
+
+	byID, err := q.GetUser(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if byID.Email != created.Email {
+		t.Fatalf("GetUser email = %q, want %q", byID.Email, created.Email)
+	}
+
+	if uerr := q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
+		PasswordHash: "new-hash", Updated: Now(), ID: created.ID,
+	}); uerr != nil {
+		t.Fatalf("UpdateUserPassword: %v", uerr)
+	}
+	after, err := q.GetUser(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetUser after update: %v", err)
+	}
+	if after.PasswordHash != "new-hash" {
+		t.Fatalf("password hash = %q, want new-hash", after.PasswordHash)
+	}
+
+	n, err := q.CountUsers(ctx)
+	if err != nil || n != 1 {
+		t.Fatalf("CountUsers = %d, %v; want 1, nil", n, err)
+	}
+
+	if _, err := q.GetUserByEmail(ctx, "nobody@demo.app"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("missing user err = %v, want sql.ErrNoRows", err)
+	}
 }
 
 // TestGeneratedTodoQueries covers the reference slice end to end: create,
 // list in reverse-chronological order, toggle (bool round-trip through the
 // INTEGER column), and owner-scoped delete.
 func TestGeneratedTodoQueries(t *testing.T) {
-	sqlDB, q := newStore(t)
+	q := newStore(t)
 	ctx := context.Background()
-	owner := createLimenOwner(t, sqlDB, "demo1@demo.app")
-	other := createLimenOwner(t, sqlDB, "demo2@demo.app")
+	owner := createUser(t, q, "demo1@demo.app").ID
+	other := createUser(t, q, "demo2@demo.app").ID
 
 	ids := make([]string, 0, 2)
 	for _, title := range []string{"first", "second"} {
@@ -110,9 +154,62 @@ func TestGeneratedTodoQueries(t *testing.T) {
 	}
 }
 
-// Sessions now belong to limen (limen_sessions, migration 0002): the
-// create/lookup/prune/revoke contract is covered red-proofed in
-// internal/auth against the same driver, so it is not duplicated here.
+// TestGeneratedSessionQueries covers the session path the auth package
+// uses: create, look up by token hash, prune expired rows, revoke one,
+// revoke all of a user's.
+func TestGeneratedSessionQueries(t *testing.T) {
+	q := newStore(t)
+	ctx := context.Background()
+	user := createUser(t, q, "demo1@demo.app").ID
+
+	future := time.Now().UTC().Add(time.Hour).Format(TimeFormat)
+	past := time.Now().UTC().Add(-time.Hour).Format(TimeFormat)
+
+	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
+		TokenHash: "hash-live", UserID: user, Expires: future, Created: Now(),
+	}); err != nil {
+		t.Fatalf("CreateSession(live): %v", err)
+	}
+	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
+		TokenHash: "hash-stale", UserID: user, Expires: past, Created: Now(),
+	}); err != nil {
+		t.Fatalf("CreateSession(stale): %v", err)
+	}
+
+	sess, err := q.GetSession(ctx, "hash-live")
+	if err != nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	if sess.UserID != user {
+		t.Fatalf("session user = %q, want %q", sess.UserID, user)
+	}
+
+	if err := q.DeleteExpiredSessions(ctx, Now()); err != nil {
+		t.Fatalf("DeleteExpiredSessions: %v", err)
+	}
+	if _, err := q.GetSession(ctx, "hash-stale"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("stale session still present: %v", err)
+	}
+
+	if err := q.DeleteSession(ctx, "hash-live"); err != nil {
+		t.Fatalf("DeleteSession: %v", err)
+	}
+	if _, err := q.GetSession(ctx, "hash-live"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("revoked session still present: %v", err)
+	}
+
+	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
+		TokenHash: "hash-2", UserID: user, Expires: future, Created: Now(),
+	}); err != nil {
+		t.Fatalf("CreateSession(2): %v", err)
+	}
+	if err := q.DeleteUserSessions(ctx, user); err != nil {
+		t.Fatalf("DeleteUserSessions: %v", err)
+	}
+	if _, err := q.GetSession(ctx, "hash-2"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("session survived DeleteUserSessions: %v", err)
+	}
+}
 
 // TestOpenCreatesParentDir pins the boot behaviour a fresh clone depends on:
 // `data/` does not exist yet, and Open has to create it before the engine

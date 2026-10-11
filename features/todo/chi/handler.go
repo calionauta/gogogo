@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/a-h/templ"
@@ -91,22 +90,19 @@ func (h *Handler) Routes() chi.Router {
 	return r
 }
 
-// ownerID resolves the authenticated owner's integer id. Fail-closed: any
-// error means "no owner", and callers redirect to /login — an empty owner
-// must never reach a store call, where it would list every tenant's rows.
-func (h *Handler) ownerID(r *http.Request) (int64, error) {
+// ownerID resolves the authenticated owner's id (a UUID string, matching
+// every owner column). Fail-closed: any error means "no owner", and callers
+// redirect to /login — an empty owner must never reach a store call, where
+// it would list every tenant's rows.
+func (h *Handler) ownerID(r *http.Request) (string, error) {
 	sess, err := h.Auth.Session(r)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
-	if sess == nil || sess.User == nil {
-		return 0, errors.New("todo: empty session")
+	if sess == nil || sess.User == nil || sess.User.ID == "" {
+		return "", errors.New("todo: empty session")
 	}
-	id, ok := sess.User.ID.(int64)
-	if !ok {
-		return 0, fmt.Errorf("todo: user id type %T, want int64", sess.User.ID)
-	}
-	return id, nil
+	return sess.User.ID, nil
 }
 
 // redirectLogin sends unauthenticated clients to the login page, mirroring
@@ -150,7 +146,7 @@ func toTodo(row dbgen.Todo) (todo.Todo, error) {
 // listOwner loads the owner's todos and applies the list filter in Go:
 // "" (all), "active", "completed". Unknown filters read as "all", matching
 // the PocketBase filterOf default.
-func (h *Handler) listOwner(ctx context.Context, owner int64, filter string) ([]todo.Todo, error) {
+func (h *Handler) listOwner(ctx context.Context, owner string, filter string) ([]todo.Todo, error) {
 	rows, err := h.Q.ListTodosByOwner(ctx, owner)
 	if err != nil {
 		return nil, err
@@ -239,27 +235,26 @@ type recordEvent struct {
 // JetStream for other instances. Both are best-effort after the Turso write
 // (the source of truth); either may lag without affecting correctness.
 func (h *Handler) publishSync(
-	r *http.Request, owner int64, evt recordEvent, op nats.CrudOpType, data *nats.CrudOpData,
+	r *http.Request, owner string, evt recordEvent, op nats.CrudOpType, data *nats.CrudOpData,
 ) {
 	h.broadcastRecord(r, owner, evt)
-	h.Pub.Publish(op, strconv.FormatInt(owner, 10), data)
+	h.Pub.Publish(op, owner, data)
 }
 
 // broadcastRecord publishes a mutation to the owner's other streams,
 // excluding the originating client when known (it already got the
 // synchronous patch below).
-func (h *Handler) broadcastRecord(r *http.Request, owner int64, evt recordEvent) {
+func (h *Handler) broadcastRecord(r *http.Request, owner string, evt recordEvent) {
 	payload, err := json.Marshal(evt)
 	if err != nil {
 		slog.Error("todo: marshal record event", "error", err)
 		return
 	}
-	ownerStr := strconv.FormatInt(owner, 10)
 	exclude := r.URL.Query().Get("clientID")
 	if exclude == "" {
 		exclude = r.Header.Get("X-Client-ID")
 	}
-	h.Hub.BroadcastToUser(payload, ownerStr, exclude)
+	h.Hub.BroadcastToUser(payload, owner, exclude)
 }
 
 // take no context; disconnects surface as write errors, checked per call.

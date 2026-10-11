@@ -45,7 +45,7 @@ func newChiFixture(tb testing.TB) *chiFixture {
 		tb.Fatalf("db migrate: %v", merr)
 	}
 
-	a, err := auth.New(sqlDB, []byte("0123456789abcdef0123456789abcdef"), false)
+	a, err := auth.New(dbgen.New(sqlDB), false)
 	if err != nil {
 		tb.Fatalf("auth new: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestChiTodoStreamOpens(t *testing.T) {
 }
 
 // ownerOf resolves the test user's integer owner id through its session.
-func (f *chiFixture) ownerOf(t *testing.T, cookie *http.Cookie) int64 {
+func (f *chiFixture) ownerOf(t *testing.T, cookie *http.Cookie) string {
 	t.Helper()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	req.AddCookie(cookie)
@@ -296,9 +296,5 @@ func (f *chiFixture) ownerOf(t *testing.T, cookie *http.Cookie) int64 {
 	if err != nil {
 		t.Fatalf("ownerOf: %v", err)
 	}
-	id, ok := sess.User.ID.(int64)
-	if !ok {
-		t.Fatalf("ownerOf: user id type %T, want int64", sess.User.ID)
-	}
-	return id
+	return sess.User.ID
 }

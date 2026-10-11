@@ -4,67 +4,28 @@
 
 package dbgen
 
-import (
-	"database/sql"
-)
-
-type LimenAccount struct {
-	ID                   int64
-	UserID               int64
-	Provider             string
-	ProviderAccountID    sql.NullString
-	AccessToken          string
-	RefreshToken         sql.NullString
-	AccessTokenExpiresAt sql.NullString
-	Scope                string
-	IDToken              sql.NullString
-	CreatedAt            string
-	UpdatedAt            string
-}
-
-type LimenRateLimit struct {
-	ID            int64
-	Key           string
-	Count         int64
-	LastRequestAt int64
-}
-
-type LimenSession struct {
-	ID         int64
-	Token      string
-	UserID     int64
-	CreatedAt  string
-	ExpiresAt  string
-	LastAccess string
-	Metadata   sql.NullString
-}
-
-type LimenUser struct {
-	ID              int64
-	Email           string
-	Password        sql.NullString
-	EmailVerifiedAt sql.NullString
-	FirstName       sql.NullString
-	LastName        sql.NullString
-	CreatedAt       string
-	UpdatedAt       string
-}
-
-type LimenVerification struct {
-	ID        int64
-	Subject   string
-	Value     string
-	ExpiresAt string
-	CreatedAt string
-	UpdatedAt string
+type Session struct {
+	TokenHash string
+	UserID    string
+	Expires   string
+	Created   string
 }
 
 type Todo struct {
 	ID        string
-	Owner     int64
+	Owner     string
 	Title     string
 	Completed bool
 	IdemKey   string
 	Created   string
 	Updated   string
+}
+
+type User struct {
+	ID           string
+	Email        string
+	PasswordHash string
+	Name         string
+	Created      string
+	Updated      string
 }

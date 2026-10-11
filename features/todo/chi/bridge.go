@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 
 	natsio "github.com/nats-io/nats.go"
 
@@ -62,10 +61,16 @@ func RunCrudConsumer(
 // Every branch is idempotent (redeliveries converge, never duplicate) and
 // owner-scoped (a forged op for another tenant matches nothing).
 func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nats.CrudPayload) {
-	owner, err := strconv.ParseInt(p.UserID, 10, 64)
+	owner, err := tenantOf(ctx, q, p.UserID)
 	if err != nil {
-		// Foreign identity model (PocketBase record id): skip, do not map.
-		slog.Warn("chi crudconsumer: non-integer owner, skipping", "userId", p.UserID, "op", p.Op)
+		if isSkip(err) {
+			// Unknown identity (including PocketBase-world ids, which live
+			// in a different identity model): skip, do not map. Faking a
+			// mapping would corrupt tenant scoping.
+			slog.Warn("chi crudconsumer: unknown owner, skipping", "userId", p.UserID, "op", p.Op)
+			return
+		}
+		slog.Warn("chi crudconsumer: owner lookup", "userId", p.UserID, "error", err)
 		return
 	}
 	if p.Data == nil {
@@ -100,7 +105,23 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 	hub.BroadcastToUser(payload, p.UserID, "")
 }
 
-func applyCreate(ctx context.Context, q *dbgen.Queries, owner int64, data *nats.CrudOpData) (recordEvent, error) {
+// tenantOf resolves a wire user id to a real app identity. Unknown ids —
+// including PocketBase-world record ids, which live in a different identity
+// model — are a skip, never a mapping.
+func tenantOf(ctx context.Context, q *dbgen.Queries, userID string) (string, error) {
+	if userID == "" {
+		return "", errSkip
+	}
+	if _, err := q.GetUser(ctx, userID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", errSkip
+		}
+		return "", fmt.Errorf("tenant lookup %s: %w", userID, err)
+	}
+	return userID, nil
+}
+
+func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *nats.CrudOpData) (recordEvent, error) {
 	if data.Title == "" {
 		return recordEvent{}, errSkip
 	}
@@ -123,7 +144,7 @@ func applyCreate(ctx context.Context, q *dbgen.Queries, owner int64, data *nats.
 	return recordEvent{Event: "created", ID: id, Title: data.Title}, nil
 }
 
-func applyToggle(ctx context.Context, q *dbgen.Queries, owner int64, data *nats.CrudOpData) (recordEvent, error) {
+func applyToggle(ctx context.Context, q *dbgen.Queries, owner string, data *nats.CrudOpData) (recordEvent, error) {
 	if data.ID == "" {
 		return recordEvent{}, errSkip
 	}
@@ -137,7 +158,7 @@ func applyToggle(ctx context.Context, q *dbgen.Queries, owner int64, data *nats.
 	return recordEvent{Event: "toggled", ID: data.ID, Done: data.Completed}, nil
 }
 
-func applyDelete(ctx context.Context, q *dbgen.Queries, owner int64, data *nats.CrudOpData) (recordEvent, error) {
+func applyDelete(ctx context.Context, q *dbgen.Queries, owner string, data *nats.CrudOpData) (recordEvent, error) {
 	if data.ID == "" {
 		return recordEvent{}, errSkip
 	}
@@ -147,7 +168,7 @@ func applyDelete(ctx context.Context, q *dbgen.Queries, owner int64, data *nats.
 	return recordEvent{Event: "deleted", ID: data.ID}, nil
 }
 
-func applyClearCompleted(ctx context.Context, q *dbgen.Queries, owner int64) (recordEvent, error) {
+func applyClearCompleted(ctx context.Context, q *dbgen.Queries, owner string) (recordEvent, error) {
 	if _, err := q.DeleteCompletedByOwner(ctx, owner); err != nil {
 		return recordEvent{}, fmt.Errorf("clear apply: %w", err)
 	}

@@ -125,7 +125,16 @@ Two things are worth knowing before this becomes the only engine:
    full page (/todo index), AI suggest, retry demo, onboarding (step 6), and
    NATS cross-instance publish (step 5). Served alongside PocketBase only
    when CHI_ADDR + LIMEN_SECRET are set (`internal/server.StartChi`).
-5. Port realtime (SSE Hub already exists; drop PocketBase realtime).
+5. **Done** — realtime on the chi stack (`features/todo/chi/bridge.go`,
+   red-proofed on embedded NATS + real Turso files): mutations publish to the
+   same `app.crud.todo.>` subjects the PocketBase stack uses (nil-safe, so
+   Hub-only convergence when NATS is off); `RunCrudConsumer` applies received
+   ops to Turso under its own `<app>-crud-chi` durable and fans out to local
+   chi streams. Integer owner ids apply; foreign (PocketBase) identities skip
+   loudly — the stacks have incompatible identity models until step 7. The
+   loop test proves an HTTP mutation on instance A lands in instance B's
+   database with no HTTP call of its own. `StartChi` takes the JetStream
+   context (wired after `startNATS`).
 6. Port the remaining features (whiteboard, notes, room, chat, genui, credits,
    config view, landing, desktop GUI).
 7. Delete `db/`, drop the PocketBase dependency from `go.mod`, delete

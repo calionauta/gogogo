@@ -28,17 +28,13 @@ const shutdownTimeout = 5 * time.Second
 
 // StartChi boots the flat stack and serves it in the background. The
 // returned func stops the server; callers defer it. A nil return with a
-// nil error means "seam disabled" (no CHI_ADDR or no LIMEN_SECRET) —
-// logged, never fatal, so a stock env never breaks.
+// nil error means "seam disabled" (no CHI_ADDR) — so a stock env never
+// changes behaviour.
 //
 // js carries the JetStream context for cross-instance convergence (nil =
 // Hub-only, same as NATS_ENABLED=false). The consumer runs until stop.
 func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error) {
 	if cfg.ChiAddr == "" {
-		return nil, nil
-	}
-	if len(cfg.AuthSecret) != auth.SecretLen {
-		slog.Warn("server: CHI_ADDR set but LIMEN_SECRET is not 32 bytes; chi stack disabled")
 		return nil, nil
 	}
 
@@ -51,7 +47,7 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		return nil, fmt.Errorf("server: chi db migrate: %w", err)
 	}
 
-	a, aerr := auth.New(sqlDB, cfg.AuthSecret, !cfg.Dev)
+	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
 	if aerr != nil {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
@@ -69,10 +65,7 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		}
 	}()
 
-	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
-	mux.Handle("/api/todos", todoH.Routes())
-	mux.Handle("/api/todos/", todoH.Routes())
+	mux := buildChiMux(a, todoH)
 
 	srv := &http.Server{
 		Addr:              cfg.ChiAddr,
@@ -92,4 +85,17 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		_ = srv.Shutdown(ctx)
 		_ = sqlDB.Close()
 	}, nil
+}
+
+// buildChiMux composes the flat-stack routes. Pure constructor (no ports,
+// no goroutines) so contract tests cover the exact composition production
+// serves: the auth handler already carries its /api/auth base path and the
+// std mux passes full paths through, which is what broke once before when
+// chi.Mount refused the root mount.
+func buildChiMux(a *auth.Auth, todoH *chi.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/todos", todoH.Routes())
+	mux.Handle("/api/todos/", todoH.Routes())
+	return mux
 }

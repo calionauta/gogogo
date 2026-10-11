@@ -21,18 +21,16 @@ func openTestDB(t *testing.T) *sql.DB {
 	return sqlDB
 }
 
-func insertUser(t *testing.T, sqlDB *sql.DB, email string) int64 {
+func insertUser(t *testing.T, sqlDB *sql.DB, email string) string {
 	t.Helper()
-	res, err := sqlDB.ExecContext(context.Background(),
-		`INSERT INTO limen_users (email, created_at, updated_at) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		email,
+	id := NewID()
+	now := Now()
+	_, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, email, "hash", "Demo", now, now,
 	)
 	if err != nil {
 		t.Fatalf("insert user %s: %v", email, err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		t.Fatalf("user id: %v", err)
 	}
 	return id
 }
@@ -110,7 +108,7 @@ func TestForeignKeysEnforced(t *testing.T) {
 	now := Now()
 	_, err := sqlDB.ExecContext(context.Background(),
 		`INSERT INTO todos (id, owner, title, completed, idem_key, created, updated) VALUES (?, ?, ?, 0, '', ?, ?)`,
-		NewID(), 9999, "orphan", now, now,
+		NewID(), "no-such-user", "orphan", now, now,
 	)
 	if err == nil {
 		t.Fatal("inserting a todo with an unknown owner succeeded; foreign keys are not enforced")
@@ -147,14 +145,19 @@ func TestIdemKeyPartialUnique(t *testing.T) {
 	}
 }
 
-// TestTodoCascade proves deleting a limen identity removes their todos, so a
-// deleted account leaves nothing queryable behind. (limen owns its session
-// rows with RESTRICT; the app side cascades.)
-func TestTodoCascade(t *testing.T) {
+// TestSessionCascade proves deleting a user removes their sessions and todos,
+// so a deleted account leaves nothing queryable behind.
+func TestSessionCascade(t *testing.T) {
 	sqlDB := openTestDB(t)
 	owner := insertUser(t, sqlDB, "demo2@demo.app")
 	now := Now()
 
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO sessions (token_hash, user_id, expires, created) VALUES (?, ?, ?, ?)`,
+		"hash-a", owner, now, now,
+	); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
 	if _, err := sqlDB.ExecContext(context.Background(),
 		`INSERT INTO todos (id, owner, title, completed, idem_key, created, updated) VALUES (?, ?, ?, 0, '', ?, ?)`,
 		NewID(), owner, "t", now, now,
@@ -162,17 +165,24 @@ func TestTodoCascade(t *testing.T) {
 		t.Fatalf("insert todo: %v", err)
 	}
 
-	if _, err := sqlDB.ExecContext(context.Background(), `DELETE FROM limen_users WHERE id = ?`, owner); err != nil {
+	if _, err := sqlDB.ExecContext(context.Background(), `DELETE FROM users WHERE id = ?`, owner); err != nil {
 		t.Fatalf("delete user: %v", err)
 	}
 
-	var n int
-	if err := sqlDB.QueryRowContext(context.Background(),
-		`SELECT count(*) FROM todos WHERE owner = ?`, owner).Scan(&n); err != nil {
-		t.Fatalf("count todos: %v", err)
-	}
-	if n != 0 {
-		t.Errorf("todos left %d rows after user delete, want 0", n)
+	for _, q := range []struct {
+		name  string
+		query string
+	}{
+		{"sessions", `SELECT count(*) FROM sessions WHERE user_id = ?`},
+		{"todos", `SELECT count(*) FROM todos WHERE owner = ?`},
+	} {
+		var n int
+		if err := sqlDB.QueryRowContext(context.Background(), q.query, owner).Scan(&n); err != nil {
+			t.Fatalf("count %s: %v", q.name, err)
+		}
+		if n != 0 {
+			t.Errorf("%s left %d rows after user delete, want 0", q.name, n)
+		}
 	}
 }
 

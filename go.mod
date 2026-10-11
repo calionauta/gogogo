@@ -25,9 +25,6 @@ require (
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/starfederation/datastar-go v1.2.2
 	github.com/stripe/stripe-go/v80 v80.2.1
-	github.com/thecodearcher/limen v0.2.3
-	github.com/thecodearcher/limen/adapters/sql v0.2.1
-	github.com/thecodearcher/limen/plugins/credential-password v0.2.2
 	github.com/tochemey/goakt/v4 v4.6.1
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24
 	github.com/zendev-sh/goai v0.10.3
@@ -74,6 +71,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/go-webgpu/goffi v0.6.3 // indirect
 	github.com/go-webgpu/webgpu v0.5.5 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
@@ -95,7 +93,6 @@ require (
 	github.com/hashicorp/logutils v1.0.0 // indirect
 	github.com/hashicorp/memberlist v0.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect

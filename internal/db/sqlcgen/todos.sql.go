@@ -13,7 +13,7 @@ const countTodosByOwner = `-- name: CountTodosByOwner :one
 SELECT count(*) FROM todos WHERE owner = ?
 `
 
-func (q *Queries) CountTodosByOwner(ctx context.Context, owner int64) (int64, error) {
+func (q *Queries) CountTodosByOwner(ctx context.Context, owner string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countTodosByOwner, owner)
 	var count int64
 	err := row.Scan(&count)
@@ -28,7 +28,7 @@ RETURNING id, owner, title, completed, idem_key, created, updated
 
 type CreateTodoParams struct {
 	ID        string
-	Owner     int64
+	Owner     string
 	Title     string
 	Completed bool
 	IdemKey   string
@@ -63,7 +63,7 @@ const deleteCompletedByOwner = `-- name: DeleteCompletedByOwner :execrows
 DELETE FROM todos WHERE owner = ? AND completed = 1
 `
 
-func (q *Queries) DeleteCompletedByOwner(ctx context.Context, owner int64) (int64, error) {
+func (q *Queries) DeleteCompletedByOwner(ctx context.Context, owner string) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteCompletedByOwner, owner)
 	if err != nil {
 		return 0, err
@@ -77,7 +77,7 @@ DELETE FROM todos WHERE id = ? AND owner = ?
 
 type DeleteTodoParams struct {
 	ID    string
-	Owner int64
+	Owner string
 }
 
 func (q *Queries) DeleteTodo(ctx context.Context, arg DeleteTodoParams) error {
@@ -91,7 +91,7 @@ SELECT id, owner, title, completed, idem_key, created, updated FROM todos WHERE 
 
 type GetTodoParams struct {
 	ID    string
-	Owner int64
+	Owner string
 }
 
 func (q *Queries) GetTodo(ctx context.Context, arg GetTodoParams) (Todo, error) {
@@ -114,7 +114,7 @@ SELECT id, owner, title, completed, idem_key, created, updated FROM todos WHERE 
 `
 
 type GetTodoByIdemKeyParams struct {
-	Owner   int64
+	Owner   string
 	IdemKey string
 }
 
@@ -140,7 +140,7 @@ SELECT id, owner, title, completed, idem_key, created, updated FROM todos WHERE 
 
 // Todos: the reference vertical slice. Every statement is owner-scoped, so a
 // handler cannot leak another tenant's row by forgetting a filter.
-func (q *Queries) ListTodosByOwner(ctx context.Context, owner int64) ([]Todo, error) {
+func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, error) {
 	rows, err := q.db.QueryContext(ctx, listTodosByOwner, owner)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ type SetTodoCompletedParams struct {
 	Completed bool
 	Updated   string
 	ID        string
-	Owner     int64
+	Owner     string
 }
 
 func (q *Queries) SetTodoCompleted(ctx context.Context, arg SetTodoCompletedParams) error {

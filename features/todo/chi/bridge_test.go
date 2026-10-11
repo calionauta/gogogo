@@ -8,6 +8,7 @@ package chi
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -24,10 +25,11 @@ import (
 
 // bridgeFixture boots Turso + embedded NATS + the consumer.
 type bridgeFixture struct {
-	tb  testing.TB
-	q   *dbgen.Queries
-	hub *queue.SSEHub
-	pub *nats.CrudPublisher
+	owner string
+	tb    testing.TB
+	q     *dbgen.Queries
+	hub   *queue.SSEHub
+	pub   *nats.CrudPublisher
 }
 
 func newBridgeFixture(tb testing.TB) *bridgeFixture {
@@ -50,17 +52,14 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 
 	hub := queue.NewSSEHub()
 	q := dbgen.New(sqlDB)
-	// Identity first: applied ops reference limen_users(id), exactly as a
-	// real signup would have created it. Fresh AUTOINCREMENT starts at 1.
-	res, err := sqlDB.ExecContext(context.Background(),
-		`INSERT INTO limen_users (email, created_at, updated_at) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		"bridge@example.com",
-	)
-	if err != nil {
+	// Identity first: applied ops reference users(id), exactly as a real
+	// signup would have created it.
+	owner := db.NewID()
+	if _, err := sqlDB.ExecContext(context.Background(),
+		`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
+		owner, "bridge@example.com", "hash", "Bridge", db.Now(), db.Now(),
+	); err != nil {
 		tb.Fatalf("bridge owner: %v", err)
-	}
-	if id, _ := res.LastInsertId(); id != 1 {
-		tb.Fatalf("bridge owner id = %d, want 1", id)
 	}
 	// Publisher first: AddStream creates APP_CRUD, which the consumer's
 	// Subscribe requires. Reversing this races "no stream matches subject"
@@ -74,11 +73,11 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 	go func() {
 		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", q, hub)
 	}()
-	return &bridgeFixture{tb: tb, q: q, hub: hub, pub: pub}
+	return &bridgeFixture{tb: tb, q: q, hub: hub, pub: pub, owner: owner}
 }
 
 // waitRow polls Turso until the todo exists or the deadline hits.
-func (f *bridgeFixture) waitRow(owner int64, id string) dbgen.Todo {
+func (f *bridgeFixture) waitRow(owner string, id string) dbgen.Todo {
 	f.tb.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
@@ -97,11 +96,11 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 
 	// A chi client registered on the hub must hear the applied ops.
 	streamCh := make(chan []byte, 16)
-	f.hub.Register("bridge-client-1", "1", streamCh)
+	f.hub.Register("bridge-client-1", f.owner, streamCh)
 	defer f.hub.Unregister("bridge-client-1")
 
-	f.pub.Publish(nats.CrudOpCreate, "1", &nats.CrudOpData{ID: "bridge-todo-1", Title: "From NATS"})
-	got := f.waitRow(1, "bridge-todo-1")
+	f.pub.Publish(nats.CrudOpCreate, f.owner, &nats.CrudOpData{ID: "bridge-todo-1", Title: "From NATS"})
+	got := f.waitRow(f.owner, "bridge-todo-1")
 	if got.Title != "From NATS" {
 		t.Fatalf("applied title = %q, want From NATS", got.Title)
 	}
@@ -118,10 +117,10 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 		t.Fatal("no hub fan-out for applied create")
 	}
 
-	f.pub.Publish(nats.CrudOpToggle, "1", &nats.CrudOpData{ID: "bridge-todo-1", Completed: true})
+	f.pub.Publish(nats.CrudOpToggle, f.owner, &nats.CrudOpData{ID: "bridge-todo-1", Completed: true})
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		got, err := f.q.GetTodo(ctx, dbgen.GetTodoParams{ID: "bridge-todo-1", Owner: 1})
+		got, err := f.q.GetTodo(ctx, dbgen.GetTodoParams{ID: "bridge-todo-1", Owner: f.owner})
 		if err == nil && got.Completed {
 			break
 		}
@@ -131,10 +130,10 @@ func TestChiBridgeCreateToggleDelete(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 
-	f.pub.Publish(nats.CrudOpDelete, "1", &nats.CrudOpData{ID: "bridge-todo-1"})
+	f.pub.Publish(nats.CrudOpDelete, f.owner, &nats.CrudOpData{ID: "bridge-todo-1"})
 	deadline = time.Now().Add(5 * time.Second)
 	for {
-		if n, _ := f.q.CountTodosByOwner(ctx, 1); n == 0 {
+		if n, _ := f.q.CountTodosByOwner(ctx, f.owner); n == 0 {
 			return
 		}
 		if time.Now().After(deadline) {
@@ -152,18 +151,21 @@ func TestChiBridgeSkipsForeignIdentity(t *testing.T) {
 	// alive for the next valid op.
 	f.pub.Publish(nats.CrudOpCreate, "pb-record-id", &nats.CrudOpData{ID: "bridge-foreign-1", Title: "PB"})
 	time.Sleep(500 * time.Millisecond)
-	if n, _ := f.q.CountTodosByOwner(context.Background(), 1); n != 0 {
+	if n, _ := f.q.CountTodosByOwner(context.Background(), f.owner); n != 0 {
 		t.Fatalf("foreign op created %d rows, want 0", n)
 	}
 
-	f.pub.Publish(nats.CrudOpCreate, "1", &nats.CrudOpData{ID: "bridge-after-foreign", Title: "Survivor"})
-	f.waitRow(1, "bridge-after-foreign")
+	f.pub.Publish(nats.CrudOpCreate, f.owner, &nats.CrudOpData{ID: "bridge-after-foreign", Title: "Survivor"})
+	f.waitRow(f.owner, "bridge-after-foreign")
 }
 
 // TestChiPublishToConsumerLoop is the step-5 end-to-end: an HTTP mutation on
 // instance A publishes to NATS, and instance B's consumer applies it to its
 // own Turso file. Both instances share one embedded server; each keeps its
-// own database, mirroring two boxes (owner identity must exist on both —
+// own database, mirroring two boxes. Owner identity must exist on both —
+// the test mirrors it explicitly (production multi-box needs the shared
+// remote Turso for that; the mechanism under test is publish→apply, not
+// identity sync).
 func TestChiPublishToConsumerLoop(t *testing.T) {
 	h, err := nats.StartEmbedded(t.TempDir() + "/nats-loop")
 	if err != nil {
@@ -171,67 +173,15 @@ func TestChiPublishToConsumerLoop(t *testing.T) {
 	}
 	t.Cleanup(h.Close)
 
-	// Instance A: full HTTP stack (auth + todo with a live publisher).
-	sqlA, err := db.OpenAt(t.TempDir() + "/loop-a.db")
+	muxA, sqlA := newLoopInstanceA(t, h)
+	cookie := loopSignup(t, muxA)
+	userA, err := dbgen.New(sqlA).GetUserByEmail(context.Background(), "loop@example.com")
 	if err != nil {
-		t.Fatalf("db open A: %v", err)
+		t.Fatalf("loop user A: %v", err)
 	}
-	t.Cleanup(func() { sqlA.Close() })
-	if merr := db.Migrate(sqlA); merr != nil {
-		t.Fatalf("db migrate A: %v", merr)
-	}
-	authA, aerr := auth.New(sqlA, []byte("0123456789abcdef0123456789abcdef"), false)
-	if aerr != nil {
-		t.Fatalf("auth A: %v", aerr)
-	}
-	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub(), "daisyui")
-	handlerA.SetPublisher(nats.NewCrudPublisher(h.JS))
-	muxA := http.NewServeMux()
-	muxA.Handle("/api/auth/", authA.Handler())
-	muxA.Handle("/api/todos", handlerA.Routes())
-	muxA.Handle("/api/todos/", handlerA.Routes())
+	_, qB := newLoopInstanceB(t, h.JS, userA.ID)
 
-	// Instance B: consumer only, on its own database.
-	sqlB, err := db.OpenAt(t.TempDir() + "/loop-b.db")
-	if err != nil {
-		t.Fatalf("db open B: %v", err)
-	}
-	t.Cleanup(func() { sqlB.Close() })
-	if err := db.Migrate(sqlB); err != nil {
-		t.Fatalf("db migrate B: %v", err)
-	}
-	if _, err := sqlB.ExecContext(context.Background(),
-		`INSERT INTO limen_users (email, created_at, updated_at) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		"loop@example.com",
-	); err != nil {
-		t.Fatalf("loop owner B: %v", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	go func() {
-		_ = RunCrudConsumer(ctx, h.JS, "looptest", dbgen.New(sqlB), queue.NewSSEHub())
-	}()
-	time.Sleep(300 * time.Millisecond) // let the consumer subscribe.
-
-	// Signup on A, then mutate over HTTP.
-	signupReq := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost, "/api/auth/signup/credential",
-		strings.NewReader(`{"email":"loop@example.com","password":"Correct-horse-99!"}`))
-	signupReq.Header.Set("Content-Type", "application/json")
-	signupRec := httptest.NewRecorder()
-	muxA.ServeHTTP(signupRec, signupReq)
-	if signupRec.Code != http.StatusOK {
-		t.Fatalf("loop signup: status = %d (%s)", signupRec.Code, signupRec.Body.String())
-	}
-	var cookie *http.Cookie
-	for _, c := range signupRec.Result().Cookies() {
-		if c.Name == auth.CookieName {
-			cookie = c
-		}
-	}
-	if cookie == nil {
-		t.Fatal("loop signup: no session cookie")
-	}
+	// Mutate on A over HTTP.
 	createReq := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/todos?filter=all", strings.NewReader("title=Loop+item"))
 	createReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -243,10 +193,9 @@ func TestChiPublishToConsumerLoop(t *testing.T) {
 	}
 
 	// Instance B converges without any HTTP call of its own.
-	qB := dbgen.New(sqlB)
 	deadline := time.Now().Add(8 * time.Second)
 	for {
-		list, err := qB.ListTodosByOwner(context.Background(), 1)
+		list, err := qB.ListTodosByOwner(context.Background(), userA.ID)
 		if err == nil && len(list) == 1 && list[0].Title == "Loop item" {
 			return
 		}
@@ -255,4 +204,80 @@ func TestChiPublishToConsumerLoop(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+// newLoopInstanceA boots the full HTTP stack (auth + todo with a live
+// publisher) on its own database. Split out so the loop test stays under
+// the function-length gate.
+func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
+	t.Helper()
+	sqlA, err := db.OpenAt(t.TempDir() + "/loop-a.db")
+	if err != nil {
+		t.Fatalf("db open A: %v", err)
+	}
+	t.Cleanup(func() { sqlA.Close() })
+	if merr := db.Migrate(sqlA); merr != nil {
+		t.Fatalf("db migrate A: %v", merr)
+	}
+	authA, aerr := auth.New(dbgen.New(sqlA), false)
+	if aerr != nil {
+		t.Fatalf("auth A: %v", aerr)
+	}
+	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub(), "daisyui")
+	handlerA.SetPublisher(nats.NewCrudPublisher(h.JS))
+	muxA := http.NewServeMux()
+	muxA.Handle("/api/auth/", authA.Handler())
+	muxA.Handle("/api/todos", handlerA.Routes())
+	muxA.Handle("/api/todos/", handlerA.Routes())
+	return muxA, sqlA
+}
+
+// loopSignup signs up on muxA and returns the session cookie. Split out so
+// the loop test stays under the function-length gate.
+func loopSignup(t *testing.T, muxA http.Handler) *http.Cookie {
+	t.Helper()
+	signupReq := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/auth/signup/credential",
+		strings.NewReader(`{"email":"loop@example.com","password":"Correct-horse-99!"}`))
+	signupReq.Header.Set("Content-Type", "application/json")
+	signupRec := httptest.NewRecorder()
+	muxA.ServeHTTP(signupRec, signupReq)
+	if signupRec.Code != http.StatusOK {
+		t.Fatalf("loop signup: status = %d (%s)", signupRec.Code, signupRec.Body.String())
+	}
+	for _, c := range signupRec.Result().Cookies() {
+		if c.Name == auth.CookieName {
+			return c
+		}
+	}
+	t.Fatal("loop signup: no session cookie")
+	return nil
+}
+
+// newLoopInstanceB boots the consumer-only instance on its own database,
+// with the loop user mirrored, and starts its consumer.
+func newLoopInstanceB(t *testing.T, js nats.JetStreamLike, userID string) (*sql.DB, *dbgen.Queries) {
+	t.Helper()
+	sqlB, err := db.OpenAt(t.TempDir() + "/loop-b.db")
+	if err != nil {
+		t.Fatalf("db open B: %v", err)
+	}
+	t.Cleanup(func() { sqlB.Close() })
+	if merr := db.Migrate(sqlB); merr != nil {
+		t.Fatalf("db migrate B: %v", merr)
+	}
+	now := db.Now()
+	if _, err := sqlB.ExecContext(context.Background(),
+		`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
+		userID, "loop@example.com", "hash", "Loop", now, now,
+	); err != nil {
+		t.Fatalf("loop owner B: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() {
+		_ = RunCrudConsumer(ctx, js, "looptest", dbgen.New(sqlB), queue.NewSSEHub())
+	}()
+	time.Sleep(300 * time.Millisecond) // let the consumer subscribe.
+	return sqlB, dbgen.New(sqlB)
 }

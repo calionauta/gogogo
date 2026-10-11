@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,7 +29,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	owner, ownerErr := h.ownerID(r)
 	ownerStr := ""
 	if ownerErr == nil {
-		ownerStr = strconv.FormatInt(owner, 10)
+		ownerStr = owner
 	}
 
 	sse := sdk.NewSSE(w, r)
@@ -92,7 +91,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 // context; disconnects surface as write errors, checked per call.
 //
 //nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
-func (h *Handler) streamRecord(ctx context.Context, sse *sdk.ServerSentEventGenerator, owner int64, payload []byte) error { //nolint:lll // signature mirrors the dispatch call.
+func (h *Handler) streamRecord(ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, payload []byte) error { //nolint:lll // signature mirrors the dispatch call.
 	var evt recordEvent
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return fmt.Errorf("decode todo event: %w", err)

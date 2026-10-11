@@ -217,12 +217,6 @@ type Config struct {
 	// removed when the chi router becomes the only server (step 7).
 	ChiAddr string
 
-	// AuthSecret is the 32-byte limen signing secret (LIMEN_SECRET).
-	// Empty means the chi stack cannot boot: rotating it logs everybody
-	// out, so it must be stable across restarts (put it in ~/.secrets,
-	// not in a shell one-liner).
-	AuthSecret []byte
-
 	GoAI GoAIConfig
 
 	// Credits gates the AI credits + BYOK plugin (lib calionauta/ai-credits).
@@ -343,9 +337,6 @@ func Load() *Config {
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
 	cfg.ChiAddr = getEnv("CHI_ADDR", "")
-	if s := os.Getenv("LIMEN_SECRET"); s != "" {
-		cfg.AuthSecret = []byte(s)
-	}
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
