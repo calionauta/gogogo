@@ -42,6 +42,19 @@ const (
 	crudDurableFmt    = "%s-crud"
 )
 
+// CrudSubjectAll is the wildcard subject for todo CRUD operations. Both the
+// PocketBase consumer and the chi consumer subscribe to it with separate
+// durables (separate consumer groups), so one wire serves both stacks
+// during the staged migration.
+const CrudSubjectAll = crudSubjectPrefix + ">"
+
+// CrudDurable returns the durable consumer name for an app + stack pair.
+// Stacks must differ ("pb" vs "chi") so neither steals the other's
+// deliveries: same subject, independent cursors.
+func CrudDurable(appName, stack string) string {
+	return fmt.Sprintf(crudDurableFmt+"-%s", appName, stack)
+}
+
 // CrudOpType is the kind of CRUD operation published to NATS.
 type CrudOpType string
 

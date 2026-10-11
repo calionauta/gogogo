@@ -35,6 +35,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
@@ -53,6 +54,16 @@ type Handler struct {
 	Auth        *auth.Auth
 	Hub         *queue.SSEHub
 	DefaultSkin string
+	// Pub publishes mutations to JetStream for cross-instance convergence.
+	// Nil (NATS disabled) is a valid zero value: Publish is nil-safe, so
+	// the stack converges in-process through the Hub only. Set via
+	// SetPublisher so tests can run hub-only without a NATS server.
+	Pub *nats.CrudPublisher
+}
+
+// SetPublisher installs the cross-instance publisher. Nil disables it.
+func (h *Handler) SetPublisher(p *nats.CrudPublisher) {
+	h.Pub = p
 }
 
 // NewHandler builds the chi todo handler. All deps required — a nil Q,
@@ -222,6 +233,16 @@ type recordEvent struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
 	Done  bool   `json:"done"`
+}
+
+// publishSync fans a mutation out twice: Hub for this instance's streams,
+// JetStream for other instances. Both are best-effort after the Turso write
+// (the source of truth); either may lag without affecting correctness.
+func (h *Handler) publishSync(
+	r *http.Request, owner int64, evt recordEvent, op nats.CrudOpType, data *nats.CrudOpData,
+) {
+	h.broadcastRecord(r, owner, evt)
+	h.Pub.Publish(op, strconv.FormatInt(owner, 10), data)
 }
 
 // broadcastRecord publishes a mutation to the owner's other streams,

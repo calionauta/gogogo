@@ -15,6 +15,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // context; disconnects surface as write errors, checked per call.
@@ -43,19 +44,21 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// Idempotent replay: a retried create with the same dedupe token
 	// returns the original row instead of a duplicate.
 	ctx := r.Context()
+	createdID := ""
 	dedupe, derr := h.Q.GetTodoByIdemKey(ctx, dbgen.GetTodoByIdemKeyParams{
 		Owner: owner, IdemKey: idemKey,
 	})
 	switch {
 	case derr == nil:
-		_ = dedupe // replay: the original row stands, nothing to insert.
+		createdID = dedupe.ID // replay: the original row stands.
 	case !errors.Is(derr, sql.ErrNoRows):
 		h.fail(w, "todo: dedupe lookup failed", derr, "save failed")
 		return
 	default:
 		now := db.Now()
+		newID := db.NewID()
 		if _, cerr := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
-			ID: db.NewID(), Owner: owner, Title: title,
+			ID: newID, Owner: owner, Title: title,
 			Completed: false, IdemKey: idemKey, Created: now, Updated: now,
 		}); cerr != nil {
 			// A concurrent create may win the race on the partial unique
@@ -63,11 +66,13 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 			if existing, rerr := h.Q.GetTodoByIdemKey(ctx, dbgen.GetTodoByIdemKeyParams{
 				Owner: owner, IdemKey: idemKey,
 			}); rerr == nil {
-				_ = existing
+				createdID = existing.ID
 			} else {
 				h.fail(w, "todo: save failed", cerr, "save failed")
 				return
 			}
+		} else {
+			createdID = newID
 		}
 	}
 
@@ -81,7 +86,9 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after create failed", err, "error listing todos")
 		return
 	}
-	h.broadcastRecord(r, owner, recordEvent{Event: "created", Title: title})
+	h.publishSync(r, owner,
+		recordEvent{Event: "created", ID: createdID, Title: title},
+		nats.CrudOpCreate, &nats.CrudOpData{ID: createdID, Title: title})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"loading": false, "newTitle": "", signalItemCount: len(todos),
@@ -152,7 +159,9 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after toggle failed", err, "error listing todos")
 		return
 	}
-	h.broadcastRecord(r, owner, recordEvent{Event: "toggled", ID: id, Done: !current.Completed})
+	h.publishSync(r, owner,
+		recordEvent{Event: "toggled", ID: id, Done: !current.Completed},
+		nats.CrudOpToggle, &nats.CrudOpData{ID: id, Completed: !current.Completed})
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
 		h.fail(w, "todo: toggle patch failed", err, "toggle failed")
@@ -219,7 +228,9 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after delete failed", err, "error listing todos")
 		return
 	}
-	h.broadcastRecord(r, owner, recordEvent{Event: "deleted", ID: item.ID})
+	h.publishSync(r, owner,
+		recordEvent{Event: "deleted", ID: item.ID},
+		nats.CrudOpDelete, &nats.CrudOpData{ID: item.ID})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"confirmingDeleteId":    "",
@@ -263,7 +274,9 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after clear failed", err, "error listing todos")
 		return
 	}
-	h.broadcastRecord(r, owner, recordEvent{Event: "cleared"})
+	h.publishSync(r, owner,
+		recordEvent{Event: "cleared"},
+		nats.CrudOpClearCompleted, nil)
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
 		h.fail(w, "todo: clear patch failed", err, "clear failed")

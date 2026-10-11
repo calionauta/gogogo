@@ -89,16 +89,6 @@ func run() error {
 	}
 	defer shutdown()
 
-	// Staged-migration seam: serve the flat-stack chi router (limen auth
-	// + sqlc todos) when CHI_ADDR + LIMEN_SECRET are set. No-op otherwise.
-	stopChi, err := server.StartChi(cfg)
-	if err != nil {
-		return err
-	}
-	if stopChi != nil {
-		defer stopChi()
-	}
-
 	// lifecycleCtx bounds background boot work (workflow registration, DagNats
 	// watchdogs) to the process lifetime: a shutdown cancels it, so a retry loop
 	// stops promptly instead of burning its own timeouts.
@@ -122,6 +112,18 @@ func run() error {
 
 	js := startNATS(cfg)
 	_ = js // startNATS has the side-effect of wiring the global broadcaster
+
+	// Staged-migration seam: serve the flat-stack chi router (limen auth +
+	// sqlc todos + NATS bridge) when CHI_ADDR + LIMEN_SECRET are set.
+	// Placed after startNATS so the chi consumer shares the JetStream
+	// context. No-op otherwise.
+	stopChi, err := server.StartChi(cfg, js)
+	if err != nil {
+		return err
+	}
+	if stopChi != nil {
+		defer stopChi()
+	}
 
 	// WORKAROUND (upstream DagNats v0.0.24 bug): the trigger console cannot
 	// create the FIRST trigger because listing an empty bucket returns

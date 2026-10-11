@@ -18,6 +18,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -29,7 +30,10 @@ const shutdownTimeout = 5 * time.Second
 // returned func stops the server; callers defer it. A nil return with a
 // nil error means "seam disabled" (no CHI_ADDR or no LIMEN_SECRET) —
 // logged, never fatal, so a stock env never breaks.
-func StartChi(cfg *config.Config) (stop func(), err error) {
+//
+// js carries the JetStream context for cross-instance convergence (nil =
+// Hub-only, same as NATS_ENABLED=false). The consumer runs until stop.
+func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error) {
 	if cfg.ChiAddr == "" {
 		return nil, nil
 	}
@@ -54,7 +58,16 @@ func StartChi(cfg *config.Config) (stop func(), err error) {
 	}
 
 	hub := queue.NewSSEHub()
-	todoH := chi.NewHandler(dbgen.New(sqlDB), a, hub, cfg.Skin)
+	queries := dbgen.New(sqlDB)
+	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
+	todoH.SetPublisher(nats.NewCrudPublisher(js))
+
+	bootCtx, cancelConsumer := context.WithCancel(context.Background())
+	go func() {
+		if cerr := chi.RunCrudConsumer(bootCtx, js, cfg.AppName, queries, hub); cerr != nil {
+			slog.Error("server: chi crud consumer stopped", "error", cerr)
+		}
+	}()
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
@@ -73,6 +86,7 @@ func StartChi(cfg *config.Config) (stop func(), err error) {
 	}()
 	slog.Info("server: chi flat stack listening", "addr", cfg.ChiAddr)
 	return func() {
+		cancelConsumer()
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
