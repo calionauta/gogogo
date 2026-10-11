@@ -1,0 +1,171 @@
+// SCOPE:feature — Chi room slice (GoAkt presence demo)
+//
+// Same routes, wire and page as the framework handlers: index/roster
+// pages and JSON, heartbeat/acquire/release/leave/crash mutations. State
+// lives in GoAkt grains (never a database); members act as their login
+// email. The roster stays pull-based JSON — no SSE transport to port.
+package chi
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/calionauta/gogogo/config"
+	roomcomponents "github.com/calionauta/gogogo/features/room/components"
+	"github.com/calionauta/gogogo/internal/auth"
+	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+)
+
+// roomSystem is the grain surface this slice needs. *goakt.Host satisfies
+// it in production; tests substitute a fake. One method per user intent.
+type roomSystem interface {
+	Roster(ctx context.Context, id string) (appgoakt.Roster, error)
+	Acquire(ctx context.Context, id, name string) (appgoakt.AcquireResult, error)
+	Tell(ctx context.Context, id string, msg any) error
+}
+
+// mutateTimeout bounds one click (tell + read-back) so a stalled grain
+// cannot park an HTTP handler past the client's patience.
+const mutateTimeout = 5 * time.Second
+
+// Handler serves the room demo on chi. State lives in grains, never here.
+type Handler struct {
+	cfg   *config.Config
+	auth  *auth.Auth
+	rooms roomSystem
+}
+
+// NewHandler builds the chi room handler. Nil deps panic: wire errors
+// surface at boot, not per request.
+func NewHandler(cfg *config.Config, a *auth.Auth, rooms roomSystem) *Handler {
+	if cfg == nil || a == nil || rooms == nil {
+		panic("room chi: NewHandler with nil dependency")
+	}
+	return &Handler{cfg: cfg, auth: a, rooms: rooms}
+}
+
+// Routes returns the chi router with the room pages and API.
+func (h *Handler) Routes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/room", h.handleIndex)
+	r.Get("/room/roster", h.handleRoster)
+	r.Post("/room/heartbeat", h.handleHeartbeat)
+	r.Post("/room/acquire", h.handleAcquire)
+	r.Post("/room/release", h.handleRelease)
+	r.Post("/room/leave", h.handleLeave)
+	r.Post("/room/crash", h.handleCrash)
+	return r
+}
+
+func roomID(r *http.Request) string {
+	if id := r.URL.Query().Get("room"); id != "" {
+		return id
+	}
+	return "lobby"
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+// unavailable logs the grain failure and answers 502 without leaking it:
+// the previous generation swallowed the error whole, which is why a CI
+// 502 here could not be attributed to a route or a cause from the log.
+func (h *Handler) unavailable(w http.ResponseWriter, room, step string, err error) {
+	slog.Warn("room: grain unavailable", "room", room, "step", step, "error", err)
+	writeText(w, http.StatusBadGateway, "room engine unavailable")
+}
+
+func writeText(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(code)
+	_, _ = w.Write([]byte(msg))
+}
+
+// owner resolves the member email or redirects guests to sign-in.
+func (h *Handler) owner(w http.ResponseWriter, r *http.Request) (string, bool) {
+	sess, err := h.auth.Session(r)
+	if err != nil || sess.User == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return "", false
+	}
+	return sess.User.Email, true
+}
+
+func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
+	email, ok := h.owner(w, r)
+	if !ok {
+		return
+	}
+	id := roomID(r)
+	roster, err := h.rooms.Roster(r.Context(), id)
+	if err != nil {
+		h.unavailable(w, id, "index", err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_ = roomcomponents.Page(email, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+}
+
+func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.owner(w, r); !ok {
+		return
+	}
+	id := roomID(r)
+	roster, err := h.rooms.Roster(r.Context(), id)
+	if err != nil {
+		h.unavailable(w, id, "roster", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, roster)
+}
+
+// mutate applies a fire-and-forget grain message for the member, then
+// answers with the fresh roster (one round trip per click).
+func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name string) any) {
+	name, ok := h.owner(w, r)
+	if !ok {
+		return
+	}
+	id := roomID(r)
+	ctx, cancel := context.WithTimeout(r.Context(), mutateTimeout)
+	defer cancel()
+	if err := h.rooms.Tell(ctx, id, msg(name)); err != nil {
+		h.unavailable(w, id, "tell", err)
+		return
+	}
+	roster, err := h.rooms.Roster(ctx, id)
+	if err != nil {
+		h.unavailable(w, id, "read-after-tell", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, roster)
+}
+
+func (h *Handler) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, func(name string) any { return appgoakt.RoomHeartbeat{Name: name} })
+}
+
+func (h *Handler) handleAcquire(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, func(name string) any { return appgoakt.RoomAcquire{Name: name} })
+}
+
+func (h *Handler) handleRelease(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, func(name string) any { return appgoakt.RoomRelease{Name: name} })
+}
+
+func (h *Handler) handleLeave(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, func(name string) any { return appgoakt.RoomLeave{Name: name} })
+}
+
+func (h *Handler) handleCrash(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, func(_ string) any { return appgoakt.RoomCrash{} })
+}

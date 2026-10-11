@@ -8,6 +8,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/genui"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -25,7 +26,7 @@ func registerGenuiStack(se *core.ServeEvent, q *queue.Queue, cfg *config.Config)
 	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
 		simulated = llm.NewSimulated()
 	}
-	h := genui.New(cfg, q, hub, genui.NewResponder(real, simulated))
+	h := genui.New(cfg, q, hub, comp.NewResponder(real, simulated))
 	h.RegisterRoutes(se)
 	h.RegisterHandlers(q.Registry())
 }

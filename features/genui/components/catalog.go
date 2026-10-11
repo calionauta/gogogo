@@ -1,5 +1,5 @@
 // SCOPE:feature — gogen-ui component catalog.
-package genui
+package components
 
 import (
 	"encoding/json"

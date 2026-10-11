@@ -1,5 +1,5 @@
 // SCOPE:feature — chat conversation model + answer parsing
-package chat
+package store
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/calionauta/gogogo/features/genui"
+	"github.com/calionauta/gogogo/features/genui/components"
 )
 
 // Message is one persisted chat record: user prompt or assistant answer.
@@ -18,7 +18,7 @@ type Message struct {
 	Owner      string
 	Role       string
 	Text       string
-	Components []genui.Directive
+	Components []components.Directive
 	IdemKey    string
 	Created    time.Time
 }
@@ -56,8 +56,8 @@ const proseCap = 2000
 // becomes one safe text_note bubble. Never errors — chat degrades,
 // it does not fail per message (unlike the Ask demo's fail-closed
 // showcase, where strictness is the point being demonstrated).
-func ParseChatAnswer(raw string) ([]genui.Directive, bool, error) {
-	if dirs, err := genui.ParseDirectives(raw); err == nil {
+func ParseChatAnswer(raw string) ([]components.Directive, bool, error) {
+	if dirs, err := components.ParseDirectives(raw); err == nil {
 		return dirs, false, nil
 	}
 	text := strings.TrimSpace(raw)
@@ -67,7 +67,7 @@ func ParseChatAnswer(raw string) ([]genui.Directive, bool, error) {
 	if len(text) > proseCap {
 		text = text[:proseCap] + "…"
 	}
-	return []genui.Directive{{
+	return []components.Directive{{
 		Component: "text_note",
 		Props:     map[string]any{"text": text},
 	}}, true, nil

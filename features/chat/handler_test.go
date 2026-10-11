@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/calionauta/gogogo/features/chat/store"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -18,13 +19,13 @@ import (
 // zero I/O, so worker tests run in milliseconds.
 type memStore struct {
 	mu   sync.Mutex
-	msgs []Message
+	msgs []store.Message
 	seen map[string]bool
 }
 
 func newMemStore() *memStore { return &memStore{seen: map[string]bool{}} }
 
-func (s *memStore) Append(_ context.Context, owner string, m Message) error {
+func (s *memStore) Append(_ context.Context, owner string, m store.Message) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if m.IdemKey != "" {
@@ -34,17 +35,17 @@ func (s *memStore) Append(_ context.Context, owner string, m Message) error {
 		s.seen[owner+"\x00"+m.IdemKey] = true
 	}
 	m.Created = time.Now()
-	s.msgs = append(s.msgs, Message{
+	s.msgs = append(s.msgs, store.Message{
 		Owner: owner, Role: m.Role, Text: m.Text, Components: m.Components,
 		IdemKey: m.IdemKey, Created: m.Created,
 	})
 	return nil
 }
 
-func (s *memStore) List(_ context.Context, owner string) ([]Message, error) {
+func (s *memStore) List(_ context.Context, owner string) ([]store.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var out []Message
+	var out []store.Message
 	for _, m := range s.msgs {
 		if m.Owner == owner {
 			out = append(out, m)
@@ -72,16 +73,16 @@ func TestWorkerPersistsBothSides(t *testing.T) {
 	ch := make(chan []byte, 8)
 	hub.Register("c1", "u1", ch)
 	defer hub.Unregister("c1")
-	store := newMemStore()
+	mem := newMemStore()
 
-	h := &Handler{hub: hub, store: store, responder: stubResponder{raw: "hello there"}}
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{raw: "hello there"}}
 	payload, _ := json.Marshal(map[string]string{"prompt": "hi", "userId": "u1", "idem": "k1"})
 	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
 
 	if err := h.handleChatJob(context.Background(), hub, job); err != nil {
 		t.Fatalf("handleChatJob: %v", err)
 	}
-	msgs, err := store.List(context.Background(), "u1")
+	msgs, err := mem.List(context.Background(), "u1")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -105,12 +106,12 @@ func TestWorkerPersistsBothSides(t *testing.T) {
 // never see these messages, even on a shared hub.
 func TestWorkerScopesOwners(t *testing.T) {
 	t.Parallel()
-	store := newMemStore()
+	mem := newMemStore()
 	ctx := context.Background()
-	if err := store.Append(ctx, "u1", Message{Role: "user", Text: "mine"}); err != nil {
+	if err := mem.Append(ctx, "u1", store.Message{Role: "user", Text: "mine"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := store.List(ctx, "u2"); len(got) != 0 {
+	if got, _ := mem.List(ctx, "u2"); len(got) != 0 {
 		t.Fatalf("u2 sees %d messages, want 0 (cross-user leak)", len(got))
 	}
 }
@@ -120,8 +121,8 @@ func TestWorkerScopesOwners(t *testing.T) {
 func TestWorkerDedupesOfflineReplay(t *testing.T) {
 	t.Parallel()
 	hub := queue.NewSSEHub()
-	store := newMemStore()
-	h := &Handler{hub: hub, store: store, responder: stubResponder{raw: "ok"}}
+	mem := newMemStore()
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{raw: "ok"}}
 	payload, _ := json.Marshal(map[string]string{"prompt": "hi", "userId": "u1", "idem": "same"})
 	job := queue.Job{Type: "chat_ask", ClientID: "", Payload: payload}
 	ctx := context.Background()
@@ -131,7 +132,7 @@ func TestWorkerDedupesOfflineReplay(t *testing.T) {
 	if err := h.handleChatJob(ctx, hub, job); err != nil {
 		t.Fatalf("replay must not error, got: %v", err)
 	}
-	msgs, _ := store.List(ctx, "u1")
+	msgs, _ := mem.List(ctx, "u1")
 	if len(msgs) != 2 {
 		t.Fatalf("replay stored %d messages, want exactly 2 (user + answer, no dupes)", len(msgs))
 	}
@@ -146,9 +147,9 @@ func TestWorkerReleasesThinkingOnModelDown(t *testing.T) {
 	ch := make(chan []byte, 8)
 	hub.Register("c1", "u1", ch)
 	defer hub.Unregister("c1")
-	store := newMemStore()
+	mem := newMemStore()
 
-	h := &Handler{hub: hub, store: store, responder: stubResponder{err: errors.New("boom")}}
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{err: errors.New("boom")}}
 	payload, _ := json.Marshal(map[string]string{"prompt": "x", "userId": "u1", "idem": "k9"})
 	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
 

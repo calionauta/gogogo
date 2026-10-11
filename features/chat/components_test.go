@@ -9,8 +9,9 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/calionauta/gogogo/features/chat"
-	"github.com/calionauta/gogogo/features/genui"
+	chatcomponents "github.com/calionauta/gogogo/features/chat/components"
+	"github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 )
 
 // TestChatPageWiring pins the page-level contracts: labeled composer,
@@ -21,7 +22,7 @@ import (
 func TestChatPageWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := chat.ChatIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
+	if err := chatcomponents.ChatIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
 	html := buf.String()
@@ -52,10 +53,10 @@ func TestChatPageWiring(t *testing.T) {
 // worker runs, error with a retry affordance.
 func TestChatListStates(t *testing.T) {
 	t.Parallel()
-	render := func(msgs []chat.MessageView, thinking bool, errMsg string) string {
+	render := func(msgs []store.MessageView, thinking bool, errMsg string) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := chat.ChatList(msgs, thinking, errMsg).Render(context.Background(), &buf); err != nil {
+		if err := chatcomponents.ChatList(msgs, thinking, errMsg).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("ChatList: %v", err)
 		}
 		return buf.String()
@@ -85,19 +86,19 @@ func TestChatListStates(t *testing.T) {
 // assistant bubble (generative UI inside chat, not beside it).
 func TestChatListRendersBubbles(t *testing.T) {
 	t.Parallel()
-	comp, err := genui.Render(genui.Directive{
+	comp, err := comp.Render(comp.Directive{
 		Component: "text_note",
 		Props:     map[string]any{"text": "nested hi"},
 	})
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	msgs := []chat.MessageView{
+	msgs := []store.MessageView{
 		{Role: "user", Text: "plan my day"},
 		{Role: "assistant", Text: "", Components: []templ.Component{comp}},
 	}
 	var buf bytes.Buffer
-	if err := chat.ChatList(msgs, false, "").Render(context.Background(), &buf); err != nil {
+	if err := chatcomponents.ChatList(msgs, false, "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatList(bubbles): %v", err)
 	}
 	for _, want := range []string{"plan my day", "nested hi", "chat-end", "chat-start"} {

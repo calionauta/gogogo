@@ -13,15 +13,20 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
+	chatchi "github.com/calionauta/gogogo/features/chat/chi"
+	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	configchi "github.com/calionauta/gogogo/features/config/chi"
+	genuichi "github.com/calionauta/gogogo/features/genui/chi"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
+	roomchi "github.com/calionauta/gogogo/features/room/chi"
 	todochi "github.com/calionauta/gogogo/features/todo/chi"
 	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -102,7 +107,7 @@ func TestServeChiOnListener(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	stop := serveChiOnListener(ln, srvHandler(bundle.mux), bundle.cancelConsumer, bundle.sqlDB)
+	stop := serveChiOnListener(ln, srvHandler(bundle.mux), bundle)
 	defer stop()
 	base := "http://" + ln.Addr().String()
 
@@ -166,6 +171,42 @@ func (j *cookieJar) Cookies(_ *url.URL) []*http.Cookie {
 	return j.cookies
 }
 
+// fakeRooms is the deterministic grain stand-in for mux tests.
+type fakeRooms struct{}
+
+func (fakeRooms) Roster(_ context.Context, _ string) (appgoakt.Roster, error) {
+	return appgoakt.Roster{}, nil
+}
+
+func (fakeRooms) Acquire(_ context.Context, _, _ string) (appgoakt.AcquireResult, error) {
+	return appgoakt.AcquireResult{}, nil
+}
+
+func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }
+
+// stubResponder answers model calls with fixed output.
+type stubResponder struct{ raw string }
+
+func (s stubResponder) Respond(context.Context, string) (string, error) { return s.raw, nil }
+
+// stubGenuiResponder answers Ask calls with an empty catalog.
+type stubGenuiResponder struct{}
+
+func (stubGenuiResponder) Respond(context.Context, string) (string, error) {
+	return `{"components":[]}`, nil
+}
+
+// chiQForTest opens an isolated queue (no workers needed for routing).
+func chiQForTest(t *testing.T) *queue.Queue {
+	t.Helper()
+	q, err := queue.NewAt(t.TempDir() + "/muxqueue")
+	if err != nil {
+		t.Fatalf("mux queue: %v", err)
+	}
+	t.Cleanup(q.Close)
+	return q
+}
+
 func TestBuildChiMux(t *testing.T) {
 	sqlDB, err := db.OpenAt(t.TempDir() + "/mux.db")
 	if err != nil {
@@ -187,10 +228,14 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 
+	hub := queue.NewSSEHub()
 	mux := buildChiMux(a, todoH,
 		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
-		wbchi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		notesachi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg))
+		wbchi.NewHandler(dbgen.New(sqlDB), a, hub, persister, docs, cfg),
+		notesachi.NewHandler(dbgen.New(sqlDB), a, hub, persister, docs, cfg),
+		roomchi.NewHandler(cfg, a, fakeRooms{}),
+		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
+		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))
@@ -230,5 +275,12 @@ func TestBuildChiMux(t *testing.T) {
 	mux.ServeHTTP(configRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil))
 	if configRec.Code != http.StatusSeeOther {
 		t.Fatalf("mux anon /config status = %d, want 303", configRec.Code)
+	}
+	for _, target := range []string{"/room", "/chat", "/genui"} {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil))
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("mux anon %s status = %d, want 303", target, rec.Code)
+		}
 	}
 }

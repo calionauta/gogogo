@@ -26,6 +26,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 
 	appcfg "github.com/calionauta/gogogo/config"
+	roomcomponents "github.com/calionauta/gogogo/features/room/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 )
 
@@ -137,7 +138,8 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Response.WriteHeader(http.StatusOK)
-	return Page(c.Auth.Email(), id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return roomcomponents.Page(c.Auth.Email(), id, roster,
+		h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
 func (h *Handler) handleRoster(c *core.RequestEvent) error {

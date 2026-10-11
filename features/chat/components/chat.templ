@@ -1,8 +1,9 @@
 // SCOPE:layer=feature,removal=feature — chat conversation templates.
-package chat
+package components
 
 import (
 	"github.com/calionauta/gogogo/features/authviews"
+	"github.com/calionauta/gogogo/features/chat/store"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 )
@@ -102,7 +103,7 @@ templ ChatIndex(email string, buildLabel string, buildCommit string) {
 // thinking skeleton while the worker runs, error with retry, or the
 // bubbles. User right-aligned, assistant left-aligned; component
 // directives render inside the assistant bubble.
-templ ChatList(msgs []MessageView, thinking bool, errMsg string) {
+templ ChatList(msgs []store.MessageView, thinking bool, errMsg string) {
 	<div id="chat-messages" class="flex flex-col gap-3" aria-live="polite">
 		if errMsg != "" {
 			<div class="alert alert-error" role="alert">

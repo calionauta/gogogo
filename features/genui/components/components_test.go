@@ -1,5 +1,5 @@
 // SCOPE:feature — gogen-ui render tests.
-package genui_test
+package components_test
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/calionauta/gogogo/features/genui"
+	"github.com/calionauta/gogogo/features/genui/components"
 )
 
 // TestGenuiResultStates pins the three render states the critique demands:
@@ -20,8 +20,8 @@ func TestGenuiResultStates(t *testing.T) {
 	render := func() string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := genui.GenuiResult(nil, "", false).Render(context.Background(), &buf); err != nil {
-			t.Fatalf("GenuiResult(empty): %v", err)
+		if err := components.GenuiResult(nil, "", false).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("components.GenuiResult(empty): %v", err)
 		}
 		return buf.String()
 	}
@@ -33,8 +33,8 @@ func TestGenuiResultStates(t *testing.T) {
 	}
 
 	var errBuf bytes.Buffer
-	if err := genui.GenuiResult(nil, "model exploded", true).Render(context.Background(), &errBuf); err != nil {
-		t.Fatalf("GenuiResult(error): %v", err)
+	if err := components.GenuiResult(nil, "model exploded", true).Render(context.Background(), &errBuf); err != nil {
+		t.Fatalf("components.GenuiResult(error): %v", err)
 	}
 	for _, want := range []string{"model exploded", "Try asking again", "role=\"alert\""} {
 		if !strings.Contains(errBuf.String(), want) {
@@ -51,8 +51,8 @@ func TestGenuiResultStates(t *testing.T) {
 func TestGenuiIndexWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := genui.GenuiIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
-		t.Fatalf("GenuiIndex: %v", err)
+	if err := components.GenuiIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("components.GenuiIndex: %v", err)
 	}
 	html := buf.String()
 	for _, want := range []string{
@@ -77,7 +77,7 @@ func TestGenuiIndexWiring(t *testing.T) {
 // its content (headings + data), so the worker's HTML assertions hold.
 func TestGenuiResultRendersCatalog(t *testing.T) {
 	t.Parallel()
-	dirs := []genui.Directive{
+	dirs := []components.Directive{
 		{Component: "text_note", Props: map[string]any{"text": "hello"}},
 		{Component: "plan_cards", Props: map[string]any{"plans": []any{
 			map[string]any{"title": "Ship it", "detail": "today"},
@@ -89,15 +89,15 @@ func TestGenuiResultRendersCatalog(t *testing.T) {
 	}
 	comps := make([]templ.Component, 0, len(dirs))
 	for _, d := range dirs {
-		comp, err := genui.Render(d)
+		comp, err := components.Render(d)
 		if err != nil {
-			t.Fatalf("Render(%q): %v", d.Component, err)
+			t.Fatalf("components.Render(%q): %v", d.Component, err)
 		}
 		comps = append(comps, comp)
 	}
 	var buf bytes.Buffer
-	if err := genui.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
-		t.Fatalf("GenuiResult(full): %v", err)
+	if err := components.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("components.GenuiResult(full): %v", err)
 	}
 	for _, want := range []string{"hello", "Ship it", "today", "A", "B", "1", "<table", "<h3", "Apply"} {
 		if !strings.Contains(buf.String(), want) {
@@ -111,20 +111,20 @@ func TestGenuiResultRendersCatalog(t *testing.T) {
 // buttons post to same-origin URLs with their fields.
 func TestGenuiResultRendersVisualComponents(t *testing.T) {
 	t.Parallel()
-	dirs, err := genui.ParseDirectives(`{"components":[` +
+	dirs, err := components.ParseDirectives(`{"components":[` +
 		`{"type":"bar_chart","props":{"title":"W","bars":[{"label":"Mon","value":2},{"label":"Tue","value":4}]}},` +
 		`{"type":"action_buttons","props":{"actions":[` +
 		`{"label":"Add","method":"POST","url":"/api/todos","fields":{"title":"x"}}]}}]}`)
 	if err != nil {
-		t.Fatalf("ParseDirectives(visual): %v", err)
+		t.Fatalf("components.ParseDirectives(visual): %v", err)
 	}
-	comps, err := genui.RenderAll(dirs)
+	comps, err := components.RenderAll(dirs)
 	if err != nil {
-		t.Fatalf("RenderAll(visual): %v", err)
+		t.Fatalf("components.RenderAll(visual): %v", err)
 	}
 	var buf bytes.Buffer
-	if err := genui.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
-		t.Fatalf("GenuiResult(visual): %v", err)
+	if err := components.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("components.GenuiResult(visual): %v", err)
 	}
 	html := buf.String()
 	for _, want := range []string{`role="img"`, `width: 100`, `width: 50`, `name="title"`, ">W<", ">Mon<"} {

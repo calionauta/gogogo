@@ -12,18 +12,27 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/calionauta/gogogo/config"
+	chatchi "github.com/calionauta/gogogo/features/chat/chi"
+	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	configchi "github.com/calionauta/gogogo/features/config/chi"
+	genuichi "github.com/calionauta/gogogo/features/genui/chi"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
+	roomchi "github.com/calionauta/gogogo/features/room/chi"
 	"github.com/calionauta/gogogo/features/todo/chi"
 	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -56,7 +65,7 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		_ = bundle.sqlDB.Close()
 		return nil, fmt.Errorf("server: chi listen %s: %w", cfg.ChiAddr, err)
 	}
-	return serveChiOnListener(ln, srvHandler(bundle.mux), bundle.cancelConsumer, bundle.sqlDB), nil
+	return serveChiOnListener(ln, srvHandler(bundle.mux), bundle), nil
 }
 
 // chiBundle is everything StartChi builds before listening. Tests boot it
@@ -66,6 +75,9 @@ type chiBundle struct {
 	sqlDB          *sql.DB
 	mux            http.Handler
 	cancelConsumer context.CancelFunc
+	// shutdown runs on stop, after the HTTP server drains: queue close,
+	// actor halt. Tests get the same cleanup through serveChiOnListener.
+	shutdown []func()
 }
 
 func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
@@ -84,6 +96,9 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
 
+	bootCtx, cancelConsumer := context.WithCancel(context.Background())
+	var shutdown []func()
+
 	hub := queue.NewSSEHub()
 	queries := dbgen.New(sqlDB)
 	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
@@ -93,7 +108,47 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
 	todoH.NATSEnabled = cfg.NATS.Enabled
 
-	bootCtx, cancelConsumer := context.WithCancel(context.Background())
+	// GoAkt room grains. A failed start degrades to 502s (same as the
+	// previous stack with its engine down), never to a failed boot.
+	var roomH *roomchi.Handler
+	if cfg.GoAkt.Enabled {
+		host := appgoakt.New()
+		if herr := host.Start(bootCtx); herr != nil {
+			slog.Warn("server: goakt failed to start, room demo disabled", "error", herr)
+		} else {
+			appgoakt.SetDefault(host)
+			roomH = roomchi.NewHandler(cfg, a, host)
+			shutdown = append(shutdown, func() {
+				ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+				defer cancel()
+				_ = host.Stop(ctx)
+			})
+		}
+	}
+
+	// Chi-owned queue: chat/genui workers run here so they never compete
+	// with the other stack's workers for the same jobs.
+	chiQ, qerr := queue.NewAt(filepath.Join(cfg.DataDir, "chi"))
+	if qerr != nil {
+		cancelConsumer()
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("server: chi queue: %w", qerr)
+	}
+	shutdown = append(shutdown, chiQ.Close)
+
+	realLLM := llm.New(cfg.GoAI.APIKey)
+	var simulatedLLM *llm.Client
+	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
+		simulatedLLM = llm.NewSimulated()
+	}
+	chatH := chatchi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
+		chatstore.NewMemStore(), chiChatResponder(realLLM, simulatedLLM))
+	chatH.RegisterHandlers(chiQ.Registry())
+	genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
+		comp.NewResponder(realLLM, simulatedLLM))
+	genuiH.RegisterHandlers(chiQ.Registry())
+	chiQ.StartWorkers()
+
 	go func() {
 		if cerr := chi.RunCrudConsumer(bootCtx, js, cfg.AppName, queries, hub); cerr != nil {
 			slog.Error("server: chi crud consumer stopped", "error", cerr)
@@ -112,7 +167,24 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
 		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
-	), cancelConsumer: cancelConsumer}, nil
+		roomH, chatH, genuiH,
+	), cancelConsumer: cancelConsumer, shutdown: shutdown}, nil
+}
+
+// chiChatResponder bridges the genui model leg to the chat Responder:
+// identical method shape, distinct named types so neither feature imports
+// the other's handler.
+func chiChatResponder(real, simulated *llm.Client) chatstore.Responder {
+	return chiResponderAdapter{inner: comp.NewResponder(real, simulated)}
+}
+
+// chiResponderAdapter adapts comp.Responder to the chat store seam.
+type chiResponderAdapter struct {
+	inner comp.Responder
+}
+
+func (ad chiResponderAdapter) Respond(ctx context.Context, prompt string) (string, error) {
+	return ad.inner.Respond(ctx, prompt)
 }
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
@@ -127,7 +199,7 @@ func srvHandler(mux http.Handler) *http.Server {
 // serveChiOnListener serves an already-bound listener until stop. Tests
 // bind 127.0.0.1:0 and drive real HTTP through ln.Addr — the automated
 // preflight for the serve path manual runs used to cover.
-func serveChiOnListener(ln net.Listener, srv *http.Server, cancelConsumer context.CancelFunc, sqlDB *sql.DB) func() {
+func serveChiOnListener(ln net.Listener, srv *http.Server, bundle *chiBundle) func() {
 	go func() {
 		if serr := srv.Serve(ln); serr != nil && serr != http.ErrServerClosed {
 			slog.Error("server: chi stack stopped", "error", serr)
@@ -135,11 +207,14 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, cancelConsumer contex
 	}()
 	slog.Info("server: chi flat stack listening", "addr", ln.Addr())
 	return func() {
-		cancelConsumer()
+		bundle.cancelConsumer()
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
-		_ = sqlDB.Close()
+		for _, stop := range bundle.shutdown {
+			stop()
+		}
+		_ = bundle.sqlDB.Close()
 	}
 }
 
@@ -150,6 +225,7 @@ func buildChiMux(
 	a *auth.Auth, todoH *chi.Handler,
 	landingH *landingchi.Handler, configH *configchi.Handler,
 	wbH *wbchi.Handler, notesH *notesachi.Handler,
+	roomH *roomchi.Handler, chatH *chatchi.Handler, genuiH *genuichi.Handler,
 ) http.Handler {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and
@@ -175,6 +251,16 @@ func buildChiMux(
 	mux.Handle("/notes/", notesH.Routes())
 	mux.Handle("/api/notes", notesH.Routes())
 	mux.Handle("/api/notes/", notesH.Routes())
+	if roomH != nil {
+		mux.Handle("/room", roomH.Routes())
+		mux.Handle("/room/", roomH.Routes())
+	}
+	mux.Handle("/chat", chatH.Routes())
+	mux.Handle("/chat/", chatH.Routes())
+	mux.Handle("/api/chat/", chatH.Routes())
+	mux.Handle("/genui", genuiH.Routes())
+	mux.Handle("/genui/", genuiH.Routes())
+	mux.Handle("/api/genui/", genuiH.Routes())
 	mux.Handle("/", landingH.Routes())
 	return mux
 }

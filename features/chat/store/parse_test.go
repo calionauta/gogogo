@@ -1,5 +1,5 @@
 // SCOPE:feature — chat answer parsing tests.
-package chat
+package store
 
 import (
 	"strings"

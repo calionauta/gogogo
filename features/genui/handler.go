@@ -4,7 +4,6 @@ package genui
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -17,67 +16,11 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
-	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
-
-// Responder is the model leg behind Ask: production passes an llm
-// adapter, tests pass a stub. The queue worker — not the HTTP handler
-// calls it, because an LLM round-trip never runs inline (>50ms rule).
-type Responder interface {
-	Respond(ctx context.Context, prompt string) (string, error)
-}
-
-// llmResponder asks a real model for catalog directives.
-type llmResponder struct {
-	client *llm.Client
-}
-
-func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, PromptForCatalog()+"\nUser request: "+prompt)
-}
-
-// demoResponder is the keyless showcase: deterministic directives
-// exercising every catalog component, labeled as demo data. Same
-// role as SIMULATE_LLM in todo — the feature works with zero keys.
-type demoResponder struct{}
-
-const demoAnswer = `{"components":[` +
-	`{"type":"text_note","props":{"text":"Demo answer — connect GOAI_API_KEY for live model output."}},` +
-	`{"type":"bar_chart","props":{"title":"This week","bars":[` +
-	`{"label":"Mon","value":3},{"label":"Tue","value":5},{"label":"Wed","value":2}]}},` +
-	`{"type":"plan_cards","props":{"plans":[` +
-	`{"title":"Ship the Ask panel","detail":"wire a real prompt through this same path"},` +
-	`{"title":"Grow the catalog","detail":"one registry entry per new component"}]}},` +
-	`{"type":"action_buttons","props":{"actions":[` +
-	`{"label":"Add demo todo","method":"POST","url":"/api/todos","fields":{"title":"Demo from Ask"}}]}},` +
-	`{"type":"data_table","props":{"headers":["Component","Renders"],` +
-	`"rows":[["text_note","prose card"],["plan_cards","apply buttons"],["data_table","this table"]]}}]}`
-
-func (demoResponder) Respond(_ context.Context, _ string) (string, error) {
-	return demoAnswer, nil
-}
-
-type errResponder struct{ err error }
-
-func (e errResponder) Respond(_ context.Context, _ string) (string, error) {
-	return "", e.err
-}
-
-// NewResponder picks the model leg: real key wins, simulated key gets
-// the deterministic demo, neither is a fail-closed error (the worker
-// releases the spinner through the error result either way).
-func NewResponder(real, simulated *llm.Client) Responder {
-	if real != nil && real.Configured() {
-		return llmResponder{client: real}
-	}
-	if simulated != nil && simulated.Configured() {
-		return demoResponder{}
-	}
-	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
-}
 
 // Signal names for the Ask panel (mirrors features/todo signal_keys.go:
 // one spelling per signal, so painters and readers never drift).
@@ -91,11 +34,11 @@ type Handler struct {
 	cfg       *config.Config
 	q         *queue.Queue
 	hub       *queue.SSEHub
-	responder Responder
+	responder comp.Responder
 }
 
 // New constructs a Handler. Used by router wiring and tests.
-func New(cfg *config.Config, q *queue.Queue, hub *queue.SSEHub, responder Responder) *Handler {
+func New(cfg *config.Config, q *queue.Queue, hub *queue.SSEHub, responder comp.Responder) *Handler {
 	return &Handler{cfg: cfg, q: q, hub: hub, responder: responder}
 }
 
@@ -126,7 +69,7 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if c.Auth != nil {
 		userEmail = c.Auth.Email()
 	}
-	return GenuiIndex(userEmail, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return comp.GenuiIndex(userEmail, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
 // handleAsk validates and enqueues an Ask job, acking with a spinner
@@ -214,8 +157,8 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 // error, plus the spinner release. One shape for success and failure so
 // the dispatcher has a single branch.
 type genuiPayload struct {
-	Directives []Directive `json:"directives,omitempty"`
-	Error      string      `json:"error,omitempty"`
+	Directives []comp.Directive `json:"directives,omitempty"`
+	Error      string           `json:"error,omitempty"`
 }
 
 // handleGenuiJob runs the model leg in the worker pool: ask, parse
@@ -254,7 +197,7 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		return nil
 	}
 	//nolint:contextcheck // pure CPU constructors (no I/O to cancel); ctx enters at component Render instead
-	dirs, err := ParseDirectives(raw)
+	dirs, err := comp.ParseDirectives(raw)
 	if err != nil {
 		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 		h.sendResult(target, job.ClientID, nil, "Ask failed: could not shape the answer")
@@ -272,7 +215,7 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 
 // sendResult delivers the render payload to one tab (or broadcasts when
 // the job carries no client).
-func (h *Handler) sendResult(hub *queue.SSEHub, clientID string, dirs []Directive, errMsg string) {
+func (h *Handler) sendResult(hub *queue.SSEHub, clientID string, dirs []comp.Directive, errMsg string) {
 	body := mustJSON(queue.Job{Type: "genui", Payload: mustJSON(genuiPayload{Directives: dirs, Error: errMsg})})
 	if clientID == "" {
 		hub.Broadcast(body)
@@ -313,11 +256,11 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 		}); err != nil {
 			return err
 		}
-		comps, err := RenderAll(p.Directives)
+		comps, err := comp.RenderAll(p.Directives)
 		if err != nil {
 			return err
 		}
-		return dshelpers.RenderAndPatch(sse, GenuiResult(comps, p.Error, p.Error != ""),
+		return dshelpers.RenderAndPatch(sse, comp.GenuiResult(comps, p.Error, p.Error != ""),
 			sdk.WithSelector("#genui-result"),
 			sdk.WithViewTransitions())
 	case "toast":

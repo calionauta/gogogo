@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/chat/store"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -28,8 +29,8 @@ type Handler struct {
 	cfg       *config.Config
 	q         *queue.Queue
 	hub       *queue.SSEHub
-	store     MessageStore
-	responder Responder
+	store     store.MessageStore
+	responder store.Responder
 }
 
 // chatEnvelope is the worker → tab payload: rendered answer or error,
@@ -70,13 +71,13 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		return errors.New("chat: missing userId")
 	}
 	now := time.Now()
-	_ = h.store.Append(ctx, p.UserID, Message{
+	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
 	raw, err := h.responder.Respond(ctx, p.Prompt)
 	if err != nil {
 		slog.Warn("chat: model unavailable", "error", err)
-		_ = h.store.Append(ctx, p.UserID, Message{
+		_ = h.store.Append(ctx, p.UserID, store.Message{
 			Owner: p.UserID, Role: roleAssistant, Text: "model unavailable",
 			IdemKey: p.Idem + "#answer", Created: time.Now(),
 		})
@@ -87,14 +88,14 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		return nil
 	}
 	//nolint:contextcheck // pure CPU constructors (no I/O to cancel); ctx enters at component Render instead
-	dirs, _, _ := ParseChatAnswer(raw)
+	dirs, _, _ := store.ParseChatAnswer(raw)
 	text := ""
 	if len(dirs) == 1 && dirs[0].Component == "text_note" {
 		if t, ok := dirs[0].Props["text"].(string); ok {
 			text = t
 		}
 	}
-	_ = h.store.Append(ctx, p.UserID, Message{
+	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
 	})

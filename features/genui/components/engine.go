@@ -1,5 +1,5 @@
 // SCOPE:feature — gogen-ui view helpers.
-package genui
+package components
 
 import (
 	"math"

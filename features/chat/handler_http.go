@@ -17,7 +17,9 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
-	"github.com/calionauta/gogogo/features/genui"
+	chatcomponents "github.com/calionauta/gogogo/features/chat/components"
+	"github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -31,7 +33,9 @@ const (
 
 // New constructs a Handler. Used by router wiring and tests (tests set
 // hub/store/responder directly and leave cfg/q nil — HTTP paths only).
-func New(cfg *config.Config, q *queue.Queue, hub *queue.SSEHub, store MessageStore, responder Responder) *Handler {
+func New(
+	cfg *config.Config, q *queue.Queue, hub *queue.SSEHub, store store.MessageStore, responder store.Responder,
+) *Handler {
 	return &Handler{cfg: cfg, q: q, hub: hub, store: store, responder: responder}
 }
 
@@ -63,7 +67,7 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if c.Auth != nil {
 		email = c.Auth.Email()
 	}
-	return ChatIndex(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
+	return chatcomponents.ChatIndex(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(c.Request.Context(), c.Response)
 }
 
 // handleAsk validates and enqueues a chat job, acking with a thinking
@@ -172,12 +176,12 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 		return err
 	}
 	if p.Error != "" {
-		return dshelpers.RenderAndPatch(sse, ChatList(nil, false, p.Error),
+		return dshelpers.RenderAndPatch(sse, chatcomponents.ChatList(nil, false, p.Error),
 			sdk.WithSelector("#chat-messages"))
 	}
 	comps := renderDirectives(p.Directives)
-	view := MessageView{Role: roleAssistant, Text: p.Text, Components: comps}
-	return dshelpers.RenderAndPatch(sse, ChatList([]MessageView{view}, false, ""),
+	view := store.MessageView{Role: roleAssistant, Text: p.Text, Components: comps}
+	return dshelpers.RenderAndPatch(sse, chatcomponents.ChatList([]store.MessageView{view}, false, ""),
 		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
 }
 
@@ -195,12 +199,12 @@ func renderDirectives(raw any) []templ.Component {
 	// The worker sends Directive structs; re-decode them as raw model
 	// output would decode — one validation path for both directions.
 	var envelope struct {
-		Components []genui.Directive `json:"components"`
+		Components []comp.Directive `json:"components"`
 	}
 	if decErr := json.Unmarshal(blob, &envelope); decErr != nil {
 		return nil
 	}
-	comps, renderErr := genui.RenderAll(envelope.Components)
+	comps, renderErr := comp.RenderAll(envelope.Components)
 	if renderErr != nil {
 		return nil
 	}

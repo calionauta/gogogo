@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"maragu.dev/goqite"
@@ -25,6 +26,10 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 )
+
+// dirPerm is the mode for a created queue directory (read/execute for
+// group and others so backups and sidecars can inspect it).
+const dirPerm = 0o755
 
 // workerCount is the default number of concurrent workers in the pool.
 // Four balances throughput against SQLite write contention; raise it
@@ -65,7 +70,17 @@ type Queue struct {
 // Turso Database is the template's single SQLite engine (see internal/db):
 // the queue file is just another Turso file, covered by the same backup.
 func New(cfg *config.Config) (*Queue, error) {
-	dbPath := cfg.DataDir + "/queue.db"
+	return NewAt(cfg.DataDir)
+}
+
+// NewAt opens a queue in an explicit directory (creating it), for stacks
+// that need their own queue file — the chi stack runs its own workers on
+// a separate file so the two stacks never compete for the same jobs.
+func NewAt(dataDir string) (*Queue, error) {
+	if err := os.MkdirAll(dataDir, dirPerm); err != nil {
+		return nil, fmt.Errorf("queue: create data dir %q: %w", dataDir, err)
+	}
+	dbPath := dataDir + "/queue.db"
 	// busy_timeout must be set in the DSN (a PRAGMA statement is not applied
 	// by the driver on open), matching the app DB's DSN in internal/db.
 	// Without it a concurrent writer gets SQLITE_BUSY immediately instead of

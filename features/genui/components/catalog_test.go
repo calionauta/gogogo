@@ -1,5 +1,5 @@
 // SCOPE:feature — gogen-ui catalog tests.
-package genui
+package components
 
 import (
 	"strconv"

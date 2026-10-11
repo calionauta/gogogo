@@ -9,7 +9,8 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/chat"
-	"github.com/calionauta/gogogo/features/genui"
+	chatstore "github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -28,22 +29,22 @@ func registerChatStack(se *core.ServeEvent, q *queue.Queue, cfg *config.Config) 
 	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
 		simulated = llm.NewSimulated()
 	}
-	h := chat.New(cfg, q, hub, chat.NewMemStore(), chatResponder(real, simulated))
+	h := chat.New(cfg, q, hub, chatstore.NewMemStore(), chatResponder(real, simulated))
 	h.RegisterRoutes(se)
 	h.RegisterHandlers(q.Registry())
 }
 
 // chatResponder reuses the genui model leg: real key wins, simulated
 // key gets the deterministic demo, neither is a fail-closed error.
-func chatResponder(real, simulated *llm.Client) chat.Responder {
-	return chatResponderAdapter{inner: genui.NewResponder(real, simulated)}
+func chatResponder(real, simulated *llm.Client) chatstore.Responder {
+	return chatResponderAdapter{inner: comp.NewResponder(real, simulated)}
 }
 
 // chatResponderAdapter bridges the genui Responder to the chat
 // Responder: identical method shape, distinct named types so neither
 // feature imports the other's handler.
 type chatResponderAdapter struct {
-	inner genui.Responder
+	inner comp.Responder
 }
 
 func (a chatResponderAdapter) Respond(ctx context.Context, prompt string) (string, error) {

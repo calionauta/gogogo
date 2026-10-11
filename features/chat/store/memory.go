@@ -1,5 +1,5 @@
 // SCOPE:feature — chat demo store (in-memory)
-package chat
+package store
 
 import (
 	"context"
