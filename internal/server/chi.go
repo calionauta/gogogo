@@ -1,8 +1,15 @@
-// SCOPE:core — Flat-stack chi server (staged-migration seam)
+// SCOPE:core — Flat-stack chi server (the only server)
 //
-// StartChi serves the flat-stack chi router (owned auth + sqlc todos)
-// when CHI_ADDR is set, alongside the default boot. Unset CHI_ADDR is a
-// no-op returning nil, so a stock env never changes behaviour.
+// BootChi / AttachJetStream / Serve compose the flat stack: boot builds
+// everything that needs no engines (DB, auth, handlers, hubs, queues,
+// workers), AttachJetStream installs the cross-instance publisher and
+// consumer once the DagNats-owned NATS is reachable, and Serve binds the
+// listener. cmd/web needs the split: DagNats owns the embedded NATS and
+// must boot before JetStream exists, and the onboarding worker needs the
+// todo handler BootChi returns — one function could not have both.
+// StartChi keeps the single-call shape for frontends whose boot order
+// allows it (cmd/desktop). ChiAddr empty disables the serve path, so a
+// stock env never changes behaviour.
 package server
 
 import (
@@ -44,36 +51,34 @@ import (
 // few seconds to finish before the process exits.
 const shutdownTimeout = 5 * time.Second
 
-// StartChi boots the flat stack and serves it in the background. The
-// returned func stops the server; callers defer it. A nil return with a
-// nil error means "seam disabled" (no CHI_ADDR) — so a stock env never
-// changes behaviour.
-//
-// js carries the JetStream context for cross-instance convergence (nil =
-// Hub-only, same as NATS_ENABLED=false). The consumer runs until stop.
-func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error) {
-	if cfg.ChiAddr == "" {
-		return nil, nil
-	}
+// ChiStack is the booted flat stack, held apart so callers can attach
+// JetStream and serve in the order their boot graph requires. Boot owns
+// DB, auth, handlers, hubs, onboarding, credits, queues and workers —
+// everything that needs no engines. AttachJetStream installs the
+// cross-instance publisher + consumer, which need the NATS the DagNats
+// engine owns and therefore cannot exist at boot time. Serve binds the
+// listener. The zero value is not usable; build with BootChi.
+type ChiStack struct {
+	sqlDB          *sql.DB
+	mux            http.Handler
+	cancelConsumer context.CancelFunc
+	// shutdown runs on stop, after the HTTP server drains: queue close,
+	// actor halt. Same cleanup reachable through Serve's stop func.
+	shutdown []func()
 
-	bundle, err := bootChi(cfg, js)
-	if err != nil {
-		return nil, err
-	}
-
-	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", cfg.ChiAddr)
-	if err != nil {
-		bundle.cancelConsumer()
-		_ = bundle.sqlDB.Close()
-		return nil, fmt.Errorf("server: chi listen %s: %w", cfg.ChiAddr, err)
-	}
-	return serveChiOnListener(ln, srvHandler(bundle.mux), bundle), nil
+	appName string
+	queries *dbgen.Queries
+	hub     *queue.SSEHub
+	// TodoHandler is the todo slice handle engines wire against: the
+	// DagNats onboarding worker creates example todos through it, so
+	// cmd/web passes this to startDagNats before NATS exists.
+	TodoHandler *chi.Handler
 }
 
 // startCrudConsumer runs the JetStream CRUD consumer for cross-instance
 // convergence until the boot context is cancelled. It is nil-safe on js
-// (RunCrudConsumer no-ops when NATS is disabled). Extracted from bootChi to
-// keep boot under the function-length gate.
+// (RunCrudConsumer no-ops when NATS is disabled). Called from
+// AttachJetStream so it stays under boot's function-length gate.
 func startCrudConsumer(
 	ctx context.Context, js nats.JetStreamLike, appName string,
 	q *dbgen.Queries, hub *queue.SSEHub,
@@ -85,11 +90,43 @@ func startCrudConsumer(
 	}()
 }
 
+// bootRoomActor starts the GoAkt actor system and returns the room grains
+// handler plus the host (nil, nil when disabled or when the engine failed
+// to start: /room then degrades to 502s, same as the previous stack with
+// its engine down — never to a failed boot). The shutdown hook is
+// registered by the caller so the Background timeout in stopRoomActor
+// lives outside a function carrying the boot ctx (that is what the
+// contextcheck rule wants, and it keeps the hook's lifetime independent).
+func bootRoomActor(
+	ctx context.Context, cfg *config.Config, a *auth.Auth,
+) (*roomchi.Handler, *appgoakt.Host) {
+	if !cfg.GoAkt.Enabled {
+		return nil, nil
+	}
+	host := appgoakt.New()
+	if herr := host.Start(ctx); herr != nil {
+		slog.Warn("server: goakt failed to start, room demo disabled", "error", herr)
+		return nil, nil
+	}
+	appgoakt.SetDefault(host)
+	return roomchi.NewHandler(cfg, a, host), host
+}
+
+// stopRoomActor is the shutdown hook for the GoAkt host. Its timeout
+// starts from Background on purpose: the hook runs during stop(), while
+// the boot context may already be cancelled, and a cancelled parent would
+// make host.Stop fail instantly instead of draining grains.
+func stopRoomActor(host *appgoakt.Host) {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	_ = host.Stop(ctx)
+}
+
 // bootOnboarding wires the DagNats onboarding slice onto the chi stack:
 // its stepper publishes to the chi hub, its route is served, and the todo
 // create path resumes the paused run. Returns nil (no shutdown hooks) when
 // the engine is disabled, so a stock boot never registers the route and the
-// resume hook stays off. Split from bootChi to keep boot under the length
+// resume hook stays off. Split from BootChi to keep boot under the length
 // gate, mirroring bootCredits.
 func bootOnboarding(
 	cfg *config.Config, a *auth.Auth, todoH *chi.Handler, hub *queue.SSEHub,
@@ -104,7 +141,7 @@ func bootOnboarding(
 
 // bootCredits opens the Turso ledger, builds the engine (nil when the
 // feature is disabled — routes answer 503), starts its workers and
-// registers its shutdown. Split from bootChi to keep both under the
+// registers its shutdown. Split from BootChi to keep both under the
 // function-length gate.
 func bootCredits(
 	ctx context.Context, cfg *config.Config, shutdown []func(),
@@ -132,19 +169,11 @@ func bootCredits(
 	return creditschi.NewHandler(a, creditsSvc), shutdown, nil
 }
 
-// chiBundle is everything StartChi builds before listening. Tests boot it
-// and serve their own :0 listener, driving the production composition over
-// real HTTP — the automated preflight.
-type chiBundle struct {
-	sqlDB          *sql.DB
-	mux            http.Handler
-	cancelConsumer context.CancelFunc
-	// shutdown runs on stop, after the HTTP server drains: queue close,
-	// actor halt. Tests get the same cleanup through serveChiOnListener.
-	shutdown []func()
-}
-
-func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
+// BootChi boots the flat stack without listening and without JetStream:
+// the returned stack serves its mux and has cross-instance sync off
+// until AttachJetStream runs. js-free by design — the engine owns the
+// NATS, so JetStream is attached after boot, never passed into it.
+func BootChi(cfg *config.Config) (*ChiStack, error) {
 	sqlDB, err := db.Open(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("server: chi db open: %w", err)
@@ -161,33 +190,25 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	}
 
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
-	var shutdown []func()
 
 	hub := queue.NewSSEHub()
 	queries := dbgen.New(sqlDB)
 	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
-	todoH.SetPublisher(natswire.NewCrudPublisher(js))
 	todoH.BuildLabel = cfg.BuildLabel
 	todoH.BuildCommit = cfg.BuildCommit
 	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
 	todoH.NATSEnabled = cfg.NATS.Enabled
 
-	// GoAkt room grains. A failed start degrades to 502s (same as the
-	// previous stack with its engine down), never to a failed boot.
-	var roomH *roomchi.Handler
-	if cfg.GoAkt.Enabled {
-		host := appgoakt.New()
-		if herr := host.Start(bootCtx); herr != nil {
-			slog.Warn("server: goakt failed to start, room demo disabled", "error", herr)
-		} else {
-			appgoakt.SetDefault(host)
-			roomH = roomchi.NewHandler(cfg, a, host)
-			shutdown = append(shutdown, func() {
-				ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-				defer cancel()
-				_ = host.Stop(ctx)
-			})
-		}
+	// Onboarding wires before the actor boot so the shutdown hooks are
+	// preallocated from its slice. The hook order is arbitrary (they stop
+	// independent things: stepper, actor, queue, ledger).
+	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
+	shutdown := make([]func(), 0, 1+len(onbShutdown))
+	shutdown = append(shutdown, onbShutdown...)
+
+	roomH, roomHost := bootRoomActor(bootCtx, cfg, a)
+	if roomHost != nil {
+		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
 	}
 
 	// Chi-owned queue: chat/genui workers run here so they never compete
@@ -220,15 +241,10 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	todoH.RegisterRetryHandlers(chiQ.Registry())
 	chiQ.StartWorkers()
 
-	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
-	shutdown = append(shutdown, onbShutdown...)
-
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
 	if err != nil {
 		return nil, err
 	}
-
-	startCrudConsumer(bootCtx, js, cfg.AppName, queries, hub)
 
 	persister, perr := collab.NewTursoPersister(queries)
 	if perr != nil {
@@ -238,12 +254,66 @@ func bootChi(cfg *config.Config, js nats.JetStreamLike) (*chiBundle, error) {
 	}
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
-	return &chiBundle{sqlDB: sqlDB, mux: buildChiMux(a, todoH,
-		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
-		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
-		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
-		roomH, chatH, genuiH, creditsH, onboardingH,
-	), cancelConsumer: cancelConsumer, shutdown: shutdown}, nil
+	return &ChiStack{
+		sqlDB: sqlDB,
+		mux: buildChiMux(a, todoH,
+			landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+			wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
+			notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
+			roomH, chatH, genuiH, creditsH, onboardingH,
+		),
+		cancelConsumer: cancelConsumer,
+		shutdown:       shutdown,
+		appName:        cfg.AppName,
+		queries:        queries,
+		hub:            hub,
+		TodoHandler:    todoH,
+	}, nil
+}
+
+// AttachJetStream installs the cross-instance wiring on js: the CRUD
+// publisher on the todo handler and the consumer goroutine, which runs
+// until ctx is cancelled. Nil-safe by construction — NewCrudPublisher(nil)
+// yields a nil publisher and RunCrudConsumer no-ops — so a NATS-off boot
+// attaches nil and behaves exactly like the Hub-only stack. Call once.
+//
+// ctx is the caller's lifetime signal (cmd/web passes its lifecycleCtx;
+// StartChi passes Background) — the stack holds no context of its own.
+func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
+	s.TodoHandler.SetPublisher(natswire.NewCrudPublisher(js))
+	startCrudConsumer(ctx, js, s.appName, s.queries, s.hub)
+}
+
+// Serve binds addr and serves the stack; the returned func stops it
+// (consumer cancelled, HTTP drained, shutdown hooks, DB closed). The
+// listener binds synchronously so a taken port fails at the call site.
+// Callers defer the stop func.
+func (s *ChiStack) Serve(addr string) (func(), error) {
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", addr)
+	if err != nil {
+		s.cancelConsumer()
+		_ = s.sqlDB.Close()
+		return nil, fmt.Errorf("server: chi listen %s: %w", addr, err)
+	}
+	return serveChiOnListener(ln, srvHandler(s.mux), s), nil
+}
+
+// StartChi boots, attaches JetStream and serves in one call — the
+// single-function entry for frontends whose boot order allows it
+// (cmd/desktop: NATS is up before the stack boots). A nil return with a
+// nil error means "seam disabled" (no ChiAddr), so a stock env never
+// changes behaviour. cmd/web uses Boot/Attach/Serve directly: its
+// DagNats engine owns the NATS and must boot first.
+func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error) {
+	if cfg.ChiAddr == "" {
+		return nil, nil
+	}
+	stack, err := BootChi(cfg)
+	if err != nil {
+		return nil, err
+	}
+	stack.AttachJetStream(context.Background(), js)
+	return stack.Serve(cfg.ChiAddr)
 }
 
 // chiChatResponder bridges the genui model leg to the chat Responder:
@@ -274,7 +344,7 @@ func srvHandler(mux http.Handler) *http.Server {
 // serveChiOnListener serves an already-bound listener until stop. Tests
 // bind 127.0.0.1:0 and drive real HTTP through ln.Addr — the automated
 // preflight for the serve path manual runs used to cover.
-func serveChiOnListener(ln net.Listener, srv *http.Server, bundle *chiBundle) func() {
+func serveChiOnListener(ln net.Listener, srv *http.Server, stack *ChiStack) func() {
 	go func() {
 		if serr := srv.Serve(ln); serr != nil && serr != http.ErrServerClosed {
 			slog.Error("server: chi stack stopped", "error", serr)
@@ -282,14 +352,14 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, bundle *chiBundle) fu
 	}()
 	slog.Info("server: chi flat stack listening", "addr", ln.Addr())
 	return func() {
-		bundle.cancelConsumer()
+		stack.cancelConsumer()
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
-		for _, stop := range bundle.shutdown {
+		for _, stop := range stack.shutdown {
 			stop()
 		}
-		_ = bundle.sqlDB.Close()
+		_ = stack.sqlDB.Close()
 	}
 }
 
@@ -345,6 +415,13 @@ func buildChiMux(
 	}
 	mux.Handle("/api/ai/", creditsH.Routes())
 	mux.Handle("/api/byok/", creditsH.Routes())
+	// Healthcheck: the scratch image runs `app health`, which GETs this
+	// path on 127.0.0.1:PORT. PocketBase served /health natively; the
+	// flat stack owns it now. Register before the landing catch-all so
+	// the exact path wins.
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.Handle("/", landingH.Routes())
 	return mux
 }

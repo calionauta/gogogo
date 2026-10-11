@@ -156,6 +156,10 @@ var All = []Capability{
 			"router/export_test.go",
 			"features/todo/handlers/onboarding.go",
 			"features/todo/handlers/todo_update_job_dagnats.go",
+			// The chi slice owns its onboarding wiring too (step 6):
+			// the stepper + the resume hook live here, so trimming the
+			// engine deletes the whole file.
+			"features/todo/chi/onboarding.go",
 			// Both onboarding test files import internal/dagnats, so trimming
 			// the unit must remove them too — otherwise the proof build fails
 			// with a dangling import (`module .../internal/dagnats: not found`).

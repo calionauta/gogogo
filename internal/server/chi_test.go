@@ -100,9 +100,9 @@ func TestServeChiOnListener(t *testing.T) {
 	cfg.Dev = true
 	cfg.Turso.DBPath = t.TempDir() + "/serve.db"
 
-	bundle, err := bootChi(cfg, nil)
+	bundle, err := BootChi(cfg)
 	if err != nil {
-		t.Fatalf("bootChi: %v", err)
+		t.Fatalf("BootChi: %v", err)
 	}
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
