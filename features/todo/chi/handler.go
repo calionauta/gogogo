@@ -106,6 +106,28 @@ func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub, defaultSkin s
 	return &Handler{Q: q, Auth: a, Hub: hub, DefaultSkin: defaultSkin}
 }
 
+// CreateTodoForOnboarding programmatically creates a todo for the DagNats
+// onboarding worker (no-op when DAGNATS_ENABLED=false). owner MUST be
+// non-empty — the store scopes every row by owner, and an empty one would
+// make the example todos invisible to the user who triggered the run.
+//
+// It deliberately goes straight to the store rather than through the
+// request path: the worker is not an HTTP caller, so there is no form to
+// parse, no SSE to patch, and no session to resolve.
+func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner string) error {
+	if owner == "" {
+		return errors.New("todo: onboarding create requires an owner")
+	}
+	now := db.Now()
+	if _, err := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
+		ID: db.NewID(), Owner: owner, Title: title,
+		Completed: false, IdemKey: "", Created: now, Updated: now,
+	}); err != nil {
+		return fmt.Errorf("onboarding create %q: %w", title, err)
+	}
+	return nil
+}
+
 // Routes returns the chi router with the todo pages and data endpoints.
 
 func (h *Handler) Routes() chi.Router {

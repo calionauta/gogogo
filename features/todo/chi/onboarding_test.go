@@ -273,6 +273,39 @@ func TestChiOnboardingStepMath(t *testing.T) {
 	}
 }
 
+// TestChiOnboardingCreateForWorker proves the DagNats worker's entry point
+// writes a scoped row: the example todos are created programmatically, so
+// without the owner they would never surface in the user's list.
+func TestChiOnboardingCreateForWorker(t *testing.T) {
+	f := newOnboardingFixture(t)
+	cookie := f.signup("onb-worker@example.com")
+	owner := f.ownerOf(t, cookie)
+
+	if err := f.h.CreateTodoForOnboarding(context.Background(), "worker task", owner); err != nil {
+		t.Fatalf("CreateTodoForOnboarding: %v", err)
+	}
+	list, err := f.q.ListTodosByOwner(context.Background(), owner)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("after worker create: %d rows, %v; want 1", len(list), err)
+	}
+	if list[0].Title != "worker task" {
+		t.Fatalf("worker create wrote %q, want %q", list[0].Title, "worker task")
+	}
+}
+
+// TestChiOnboardingCreateRejectsEmptyOwner pins the fail-fast contract the
+// store's owner scoping depends on.
+func TestChiOnboardingCreateRejectsEmptyOwner(t *testing.T) {
+	f := newOnboardingFixture(t)
+	if err := f.h.CreateTodoForOnboarding(context.Background(), "orphan", ""); err == nil {
+		t.Fatal("CreateTodoForOnboarding with empty owner must fail, got nil")
+	}
+	rows, qerr := f.q.ListTodosByOwner(context.Background(), "")
+	if qerr == nil && len(rows) != 0 {
+		t.Fatalf("no rows may be written for an empty owner, found %d", len(rows))
+	}
+}
+
 // ownerOf resolves the test user's owner id through its session.
 func (f *onboardingFixture) ownerOf(t *testing.T, cookie *http.Cookie) string {
 	t.Helper()
