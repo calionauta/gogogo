@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Enables cross-instance
+// SCOPE:plugin — Enables cross-instance
 // Leaf Node replicates, server consumer writes to server PocketBase).
 //
 // Architecture:

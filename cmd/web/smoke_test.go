@@ -114,7 +114,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	// DATA_DIR/DATABASE_PATH must be absolute and inside the temp dir. The
 	// binary's defaults are relative (data/data.db, data/), so without these
 	// the goqite queue fails with "unable to open database file: lstat data:
-	// no such file or directory" whenever the process cwd has no data/ dir —
+	// no such file or directory" whenever the process cwd has no data/ dir
 	// an environment-dependent pass/fail. Pin both to the same temp tree
 	// scripts/smoke.mjs uses.
 	cmd.Env = append(os.Environ(),
@@ -122,7 +122,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		"DATABASE_PATH="+filepath.Join(dataDir, "app.db"),
 		// Disable the background subsystems this test does not exercise. The
 		// DagNats engine binds fixed ports (HTTP :8090, NATS :4222); leaving
-		// it on makes the test fail whenever anything else on the machine —
+		// it on makes the test fail whenever anything else on the machine
 		// another test package, a stray dev server — already holds them.
 		"NATS_ENABLED=false",
 		"DAGNATS_ENABLED=false",

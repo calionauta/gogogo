@@ -36,6 +36,8 @@
 //	                       (see features/store/store.go)
 //	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui" or "basecoat"
 //	                       (see web/skins/)
+//	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
+//	                       enforces the embedded policy in internal/rbac/casbin
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──
 //
@@ -183,13 +185,22 @@ type Config struct {
 	// See ARCHITECTURE.md (Phase 2: JetStream op transport).
 	// is the only way to get multi-instance sync on crdt.
 	EntityStore string
-	// DBBackend selects backend implementation: "pb" (default) or "alt" (sqlc+tursogo)
-	DBBackend string
-	// Turso/LibSQL config for alt backend
+	// RBACEnabled turns on the opt-in Casbin RBAC middleware
+	// (RBAC_ENABLED, default false). When false the middleware is a
+	// no-op pass-through, so the default install behaves exactly as
+	// before. When true, router.Init binds an enforcer built from the
+	// go:embed'd model + policy in internal/rbac/casbin and denies any
+	// request the policy does not allow. Treat the embedded policy as a
+	// starting point — tune it for your app before enabling in production.
+	RBACEnabled bool
+	// Turso holds the Turso Database connection settings — the Rust
+	// SQLite-compatible engine, driven from Go by turso.tech/database/tursogo.
+	// Consumed by the sqlc-backed data layer. An empty URL means a local file
+	// at DBPath.
 	Turso struct {
-		URL       string // libsql:// or file://
+		URL       string // turso:// or file://
 		AuthToken string
-		DBPath    string // fallback for local file
+		DBPath    string // local file used when URL is empty
 	}
 
 	// Skin selects the active UI skin. Default "daisyui" (the template's
@@ -198,6 +209,19 @@ type Config struct {
 	// skin dispatcher in web/skins/. All skins are compiled into the
 	// binary; there is no build-tag selection.
 	Skin string
+
+	// ChiAddr, when non-empty, serves the flat-stack chi router (limen
+	// auth + sqlc todo slice) on that address alongside PocketBase
+	// (e.g. CHI_ADDR=127.0.0.1:8081). Empty (the default) disables it:
+	// the binary behaves exactly as before. Staged-migration seam —
+	// removed when the chi router becomes the only server (step 7).
+	ChiAddr string
+
+	// AuthSecret is the 32-byte limen signing secret (LIMEN_SECRET).
+	// Empty means the chi stack cannot boot: rotating it logs everybody
+	// out, so it must be stable across restarts (put it in ~/.secrets,
+	// not in a shell one-liner).
+	AuthSecret []byte
 
 	GoAI GoAIConfig
 
@@ -314,10 +338,14 @@ func Load() *Config {
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
-	cfg.DBBackend = getEnv("DB_BACKEND", "pb")
-	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", getEnv("LIBSQL_URL", ""))
+	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
+	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
-	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app-alt.db")
+	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
+	cfg.ChiAddr = getEnv("CHI_ADDR", "")
+	if s := os.Getenv("LIMEN_SECRET"); s != "" {
+		cfg.AuthSecret = []byte(s)
+	}
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)

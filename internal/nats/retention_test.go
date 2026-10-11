@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — stream/KV retention bounds tests.
+// SCOPE:plugin — stream/KV retention bounds tests.
 package nats_test
 
 import (

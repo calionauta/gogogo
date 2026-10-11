@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Window state + backend wiring for the gogpu/ui POC
+// SCOPE:feature — Window state + backend wiring for the gogpu/ui native window
 package main
 
 import (
@@ -162,7 +162,7 @@ func (s *windowState) signIn() {
 // database. Safe to call from any goroutine: pure data, no widgets.
 // This is also the poll path — another frontend's writes become visible
 // here on the next tick (read-your-own + read-others within one poll
-// interval; there is no push channel in the POC).
+// interval; there is no push channel in the native window).
 func (s *windowState) refresh() {
 	s.mu.Lock()
 	ownerID := s.ownerID

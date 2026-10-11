@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Notes concurrency hammer test.
+// SCOPE:feature — Notes concurrency hammer test.
 package notes_test
 
 import (

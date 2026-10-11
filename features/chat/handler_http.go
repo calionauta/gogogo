@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat HTTP routes (page, ask, stream)
+// SCOPE:feature — chat HTTP routes (page, ask, stream)
 package chat
 
 import (

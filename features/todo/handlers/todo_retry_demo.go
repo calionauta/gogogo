@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
+// SCOPE:feature — Todo MVC example (reference implementation)
 //
 // The "retry_demo" job cluster: the UI trigger, the worker-side handler and
 // the SSE feedback broadcast. Split out of todo.go so the queue/retry
@@ -79,6 +79,9 @@ func (h *TodoHandler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub,
 	const maxAttempts = 3
 	attempt := 0
 	err := retry.Do(
+		//nolint:contextcheck // the attempt body ends in SSEHub.Broadcast,
+		// which takes no context; retry cancellation flows through
+		// retry.Context below.
 		func() error {
 			attempt++
 			// Deliberately fail the first two attempts to demonstrate
@@ -96,9 +99,13 @@ func (h *TodoHandler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub,
 		retry.Context(ctx),
 	)
 	if err != nil {
+		//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+		// cancellation is handled by the surrounding ctx select.
 		hub.Broadcast(toastJob("Queue + retry demo failed", phaseError))
 		return err
 	}
+	//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+	// cancellation is handled by the surrounding ctx select.
 	hub.Broadcast(toastJob("Queue + retry OK — 3 attempts", "success"))
 	return nil
 }

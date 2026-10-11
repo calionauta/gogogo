@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Public marketing landing page (GET /)
+// SCOPE:feature — Public marketing landing page (GET /)
 //
 // Handler serves the marketing landing page at GET /. The page is
 // public — guests and signed-in users see the same hero — so we

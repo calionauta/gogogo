@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Basecoat page contract test.
+// SCOPE:feature — Basecoat page contract test.
 package basecoat
 
 import (

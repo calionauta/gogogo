@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
+// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
 package collab
 
 import (
@@ -38,7 +38,7 @@ const (
 // returned. That is not an optimisation, it is a correctness requirement: a
 // request that arrives for a doc this process has never loaded must not start
 // from an empty doc, or the op is applied to nothing and the resolved snapshot
-// is then persisted over the good one. That path is reachable in production —
+// is then persisted over the good one. That path is reachable in production
 // the service worker serves the board page from cache after a server restart,
 // the SSE stream connects (loading nothing), and the client's IndexedDB outbox
 // then replays an op into an empty doc, discarding every shape drawn before.

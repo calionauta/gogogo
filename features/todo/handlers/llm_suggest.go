@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
+// SCOPE:feature — Todo MVC example (reference implementation)
 package handlers
 
 import (
@@ -130,6 +130,8 @@ func (h *TodoHandler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, j
 			if job.ClientID != "" {
 				hub.Send(job.ClientID, body)
 			} else {
+				//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+				// cancellation is handled by the surrounding ctx select.
 				hub.Broadcast(body)
 			}
 		}
@@ -157,6 +159,8 @@ func (h *TodoHandler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, j
 		hub.Send(job.ClientID, body)
 		return err // worker retries on failure (visible SSE feedback)
 	}
+	//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+	// cancellation is handled by the surrounding ctx select.
 	hub.Broadcast(body)
 	return err
 }

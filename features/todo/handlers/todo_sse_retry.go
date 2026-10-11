@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo SSE stream: toast + retry/AI-Suggest dispatch helpers
+// SCOPE:feature — Todo SSE stream: toast + retry/AI-Suggest dispatch helpers
 package handlers
 
 import (

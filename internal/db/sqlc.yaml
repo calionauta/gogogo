@@ -1,0 +1,31 @@
+# sqlc config for the flat data layer.
+#
+# The schema is the migrations directory (the same files Migrate applies), so
+# the generated code cannot drift from the database the app actually runs.
+# Regenerate with `make sqlc`; the output is committed so a clone needs no
+# sqlc install to build.
+#
+# emit_interface is deliberately false: handlers take *dbgen.Queries (the
+# concrete struct), which is what turns a wrong query name or argument into a
+# compile error instead of a runtime nil-interface panic.
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "migrations"
+    queries: "queries"
+    gen:
+      go:
+        package: "dbgen"
+        out: "sqlcgen"
+        sql_package: "database/sql"
+        emit_interface: false
+        emit_prepared_queries: false
+        emit_empty_slices: true
+        emit_json_tags: false
+        emit_db_tags: false
+        emit_sql_as_comment: false
+        overrides:
+          # INTEGER 0/1 reads better as a bool at every call site; the
+          # database/sql scan path converts the engine's integer for us.
+          - column: "todos.completed"
+            go_type: "bool"

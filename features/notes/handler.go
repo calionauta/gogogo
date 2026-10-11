@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Shared plain-text notes (server-owned Loro Text)
+// SCOPE:feature — Shared plain-text notes (server-owned Loro Text)
 // Depends on: internal/collab/ (CRDT transport), internal/queue/ (SSE hub).
 // To remove: delete features/notes/ + router/notes.go, drop the
 // registerNotesStack call in router/router.go, remove the Notes navbar link
@@ -101,7 +101,7 @@ type opRequest struct {
 // state), the persister (snapshot durability), the SSE hub (fan-out), and
 // the optional NATS connection (cross-instance server convergence).
 //
-// peers tracks, per doc, the set of clientIDs on that doc's SSE stream —
+// peers tracks, per doc, the set of clientIDs on that doc's SSE stream
 // the authoritative source for the "X online" pill (same pattern as the
 // whiteboard's handler_peers.go, minus cursors: text positions don't map
 // to pixels without mirror-div geometry, which this feature deliberately

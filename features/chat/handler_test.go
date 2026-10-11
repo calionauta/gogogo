@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat worker + store tests.
+// SCOPE:feature — chat worker + store tests.
 package chat
 
 import (

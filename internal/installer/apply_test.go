@@ -403,7 +403,7 @@ func TestCheckTreeAgainstRepoRoot(t *testing.T) {
 	// updating cmd/gogogo, this fails naming the unit + marker.
 	// Skipped wholesale in evolved trees: once any owned path is gone
 	// the tree was trimmed, and marker absence there means "removed by
-	// design" or "manual follow-up pending" (e.g. sounds call sites) —
+	// design" or "manual follow-up pending" (e.g. sounds call sites)
 	// not drift. Use `gogogo --check` for a human-readable verdict there.
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

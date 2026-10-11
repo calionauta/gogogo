@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: trim-provenance reader
+// SCOPE:plugin — installer engine: trim-provenance reader
 package installer
 
 import (

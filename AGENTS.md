@@ -31,7 +31,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
-| `make check-scope` | Assert `// SCOPE:layer=…,removal=…` on every `internal/`+`features/` file |
+| `make check-scope` | Assert `// SCOPE:<core|plugin|feature>` on every `internal/`+`features/` file |
 | `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make check-generated` | Fail if committed `_templ.go` does not match the `.templ` sources |
 | `make ci-local-fast` | Same cheap checks, but lint + tests scoped to changed packages |
@@ -64,13 +64,13 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 
 **Principles (LLM-friendly, evolvable; 2026 practice):**
 - **Thin seams over clever abstractions.** Add interfaces only when you actually have 2+ implementations or a real need to swap. Prefer small, purpose-built interfaces (1-3 methods). Never reach for `GenericRepo[T]`. Go's implicit interfaces mean no ceremony.
-- **Feature-scoped ports.** Prefer `features/<name>/internal/ports/` for feature-specific contracts; keep cross-cutting minimal in `internal/ports/`. Ports stay close to the code that uses them. (Ports-per-feature > heavy hexagonal layering.)
+- **Direct calls over interfaces.** Call the concrete dependency (a sqlc function, a chi handler) directly. Reserve an interface for a genuinely swappable edge (e.g. an LLM provider) and keep it to 1-3 methods. A one-implementation interface is a shallow module — delete it.
 - **Explicit DI, no containers.** Inject via struct fields or constructor args. No reflection-based DI, no service locator.
 - **Vertical slices > horizontal layers.** Implement end-to-end for a single feature (red-proof with contract tests). Generalize only when the third concrete case repeats. This maximizes locality for LLMs.
-- **Adapters, not facades.** Implementations live in `internal/repos/<backend>/` or `features/<name>/internal/repos/<backend>/`. Keep adapters thin - translate between external types and domain types.
-- **Examples are the spec.** Living code is more useful to LLMs than long prose. When adding a new seam, mirror an existing concrete example (e.g. the todo vertical slice in this POC).
-- **Dual-mode when evolving core paths.** When replacing/swapping a core integration, use a feature flag (e.g. `DB_BACKEND=pb|alt`) to compare behavior with zero regressions. Default to existing behavior.
-- **Core vs plugins.** Mark new removable pieces with `removal=plugin` and SCOPE. Core (`removal=core`) changes need care.
+- **No pass-through layers.** Never wrap a dependency in a thin adapter that only forwards calls — call it directly. Translate types at the boundary only when the external shape genuinely differs from the domain shape.
+- **Examples are the spec.** Living code is more useful to LLMs than long prose. When adding a new seam, mirror an existing concrete example (e.g. the todo vertical slice).
+- **Dual-mode when evolving core paths.** When replacing/swapping a core integration, use a feature flag (e.g. `ENTITY_STORE=pb|crdt`) to compare behavior with zero regressions. Default to existing behavior.
+- **Core vs plugins.** Mark new removable pieces with `SCOPE:plugin`. `SCOPE:core` changes need care.
 - **Constructors build, callers start; stoppable on terminate.** Follow concurrency rules from coding standards.
 - **Fail fast, explicit errors.** Keep contracts obvious; prefer compile-time checks over runtime magic.
 
@@ -81,7 +81,7 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 
 ## SCOPE
 
-Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>` (`docs/scope-taxonomy.md`). Enforced by `make check-scope` + pre-commit. Trim rule: never delete `removal=core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).
+Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:<core|plugin|feature> — <desc>` (`docs/scope-taxonomy.md`). The directory is the layer; the annotation records only the removal class. Enforced by `make check-scope` + pre-commit. Trim rule: never delete `core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).
 
 ## Hooks
 

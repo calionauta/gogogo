@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — Tests for the transport-free auth entry points.
+// SCOPE:core — Tests for the transport-free auth entry points.
 package auth_test
 
 import (

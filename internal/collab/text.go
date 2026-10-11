@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro Text ops for server-owned text docs (notes)
+// SCOPE:plugin — Loro Text ops for server-owned text docs (notes)
 package collab
 
 import (

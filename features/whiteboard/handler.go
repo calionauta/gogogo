@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Collaborative whiteboard (Loro CRDT canvas)
+// SCOPE:feature — Collaborative whiteboard (Loro CRDT canvas)
 // Depends on: internal/collab/ (CRDT), internal/nats/ (NATS sync).
 // Package whiteboard implements a minimal collaborative whiteboard:
 // an HTML5 canvas rendered with rough.js (hand-drawn style) and backed
@@ -16,10 +16,10 @@
 package whiteboard
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -32,6 +32,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/auth"
 	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -154,7 +155,7 @@ func (h *Handler) handleNew(c *core.RequestEvent) error {
 			rec.Set("owner", c.Auth.Id)
 		}
 		if saveErr := h.app.Save(rec); saveErr != nil {
-			slog.Warn("whiteboard: save new board record", "doc", docID, "error", saveErr)
+			observability.Warn(context.Background(), "whiteboard: save new board record", "doc", docID, "error", saveErr)
 		}
 	}
 
@@ -200,7 +201,7 @@ func (h *Handler) handleBoard(c *core.RequestEvent) error {
 	// Rehydrate the in-memory CRDT from the persisted snapshot so live
 	// clients converge onto saved state before receiving new updates.
 	if snap, ok := h.worker.LoadSnapshot(docID); ok {
-		slog.Info("whiteboard: rehydrated doc", "doc", docID, "bytes", len(snap))
+		observability.Info(context.Background(), "whiteboard: rehydrated doc", "doc", docID, "bytes", len(snap))
 	}
 	if err := renderBoard(c, email, docID, h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled); err != nil {
 		return err
@@ -214,7 +215,7 @@ func (h *Handler) handleBoard(c *core.RequestEvent) error {
 // middleware) so the stream is scoped to the logged-in user.
 func (h *Handler) handleStream(c *core.RequestEvent) error {
 	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("whiteboard: stream auth load", "error", err)
+		observability.Warn(context.Background(), "whiteboard: stream auth load", "error", err)
 	}
 	docID := c.Request.PathValue("docID")
 	clientID := c.Request.URL.Query().Get("clientID")
@@ -226,7 +227,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 		func(send func([]byte) error) {
 			// Session frame first: the shared banner shows when this stream
 			// is no longer authed, so peer cursors stop silently falling
-			// back to raw client ids. Same collab.SessionEvent as notes —
+			// back to raw client ids. Same collab.SessionEvent as notes
 			// one wire contract for every collab stream.
 			if session := collab.SessionEvent(docID, c.Auth != nil); session != nil {
 				_ = send(session)
@@ -249,7 +250,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 
 			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"})
 			if mErr != nil {
-				slog.Warn("whiteboard: marshal join", "error", mErr)
+				observability.Warn(context.Background(), "whiteboard: marshal join", "error", mErr)
 				return
 			}
 			h.hub.BroadcastExcept(joinMsg, clientID)
@@ -257,7 +258,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 			if len(others) > 0 {
 				snap, sErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "snapshot", Peers: others})
 				if sErr != nil {
-					slog.Warn("whiteboard: marshal snapshot", "error", sErr)
+					observability.Warn(context.Background(), "whiteboard: marshal snapshot", "error", sErr)
 				} else if err := send(snap); err != nil {
 					return
 				}
@@ -271,7 +272,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 			if shapes := h.worker.Shapes(docID); len(shapes) > 0 {
 				payload, err := json.Marshal(collab.WebShapesEvent{Type: wireShapes, Doc: docID, From: "", Shapes: shapes})
 				if err != nil {
-					slog.Warn("whiteboard: marshal initial shapes", "error", err)
+					observability.Warn(context.Background(), "whiteboard: marshal initial shapes", "error", err)
 				} else {
 					_ = send(payload)
 				}
@@ -284,7 +285,7 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 // shared Doc, persists the snapshot, and broadcasts to peers.
 func (h *Handler) handleUpdate(c *core.RequestEvent) error {
 	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("whiteboard: update auth load", "error", err)
+		observability.Warn(context.Background(), "whiteboard: update auth load", "error", err)
 	}
 	docID := c.Request.PathValue("docID")
 	if docID == "" {
@@ -342,7 +343,7 @@ func (h *Handler) handleUpdate(c *core.RequestEvent) error {
 // peers on the doc's stream (exclude-origin via the hub).
 func (h *Handler) handlePresence(c *core.RequestEvent) error {
 	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("whiteboard: presence auth load", "error", err)
+		observability.Warn(context.Background(), "whiteboard: presence auth load", "error", err)
 	}
 	docID := c.Request.PathValue("docID")
 	body, err := io.ReadAll(c.Request.Body)
@@ -368,7 +369,7 @@ func (h *Handler) handlePresence(c *core.RequestEvent) error {
 	msg.TS = time.Now().UnixMilli()
 	data, mErr := json.Marshal(msg)
 	if mErr != nil {
-		slog.Warn("whiteboard: marshal presence failed", "error", mErr)
+		observability.Warn(context.Background(), "whiteboard: marshal presence failed", "error", mErr)
 		return c.String(http.StatusInternalServerError, "marshal presence")
 	}
 	h.hub.BroadcastExcept(data, from)
@@ -378,7 +379,7 @@ func (h *Handler) handlePresence(c *core.RequestEvent) error {
 // handleSnapshot returns the current resolved shapes for a doc as JSON.
 func (h *Handler) handleSnapshot(c *core.RequestEvent) error {
 	if err := auth.LoadAppAuth(c); err != nil {
-		slog.Warn("whiteboard: snapshot auth load", "error", err)
+		observability.Warn(context.Background(), "whiteboard: snapshot auth load", "error", err)
 	}
 	docID := c.Request.PathValue("docID")
 	return c.JSON(http.StatusOK, h.worker.Shapes(docID))

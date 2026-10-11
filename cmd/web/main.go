@@ -89,6 +89,16 @@ func run() error {
 	}
 	defer shutdown()
 
+	// Staged-migration seam: serve the flat-stack chi router (limen auth
+	// + sqlc todos) when CHI_ADDR + LIMEN_SECRET are set. No-op otherwise.
+	stopChi, err := server.StartChi(cfg)
+	if err != nil {
+		return err
+	}
+	if stopChi != nil {
+		defer stopChi()
+	}
+
 	// lifecycleCtx bounds background boot work (workflow registration, DagNats
 	// watchdogs) to the process lifetime: a shutdown cancels it, so a retry loop
 	// stops promptly instead of burning its own timeouts.

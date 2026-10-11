@@ -198,7 +198,7 @@ cost); OT in the style of the Datastar collab demo (server-serialized,
 plain text only, no offline merge — honest for notes, insufficient for
 rich text). Cost: every keystroke round-trips — no client-local editing —
 and the rich-text editor binding (cursor mapping, marks) is future work,
-as a `removal=feature` package reusing `internal/collab`, never a new
+as a `feature` package reusing `internal/collab`, never a new
 plugin.
 
 ### age + `~/.secrets/` (and not Vault / KMS)?
@@ -273,7 +273,7 @@ midsize SaaS without trying. Past that, in order:
    `ncruces/go-sqlite3`?](#why-ncrucesgo-sqlite3)). Revisit only with the
    unified build.
 3. **Community HA** — `pocketbase-ha` (NATS replication, last-writer-wins or
-   static leader), libsql primary-replica PoCs, Marmot+NATS multi-primary.
+   static leader), libsql primary-replica topologies, Marmot+NATS multi-primary.
    All third-party, all with the same asterisk: hooks and realtime are
    evaluated in-process, so they do not sync across nodes the way records
    do. Leader-for-writes is the only consistent topology; multi-primary is

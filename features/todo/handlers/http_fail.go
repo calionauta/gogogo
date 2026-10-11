@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo HTTP failure helper (log + plain response)
+// SCOPE:feature — Todo HTTP failure helper (log + plain response)
 package handlers
 
 import (

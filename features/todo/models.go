@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
+// SCOPE:feature — Todo MVC example (reference implementation)
 // To remove: delete features/todo/ and the todo block in router/router.go Init().
 package todo
 

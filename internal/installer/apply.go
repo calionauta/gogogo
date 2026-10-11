@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: check gate and apply tail
+// SCOPE:plugin — installer engine: check gate and apply tail
 package installer
 
 import (

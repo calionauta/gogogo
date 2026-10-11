@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — Datastar rendering helpers (RenderAndPatch, MergeSignals)
+// SCOPE:core — Datastar rendering helpers (RenderAndPatch, MergeSignals)
 package datastar
 
 import (
@@ -7,6 +7,8 @@ import (
 
 	"github.com/a-h/templ"
 	datastarsdk "github.com/starfederation/datastar-go/datastar"
+
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // RenderAndPatch renders a Templ component and patches it into the DOM via SSE.
@@ -17,6 +19,8 @@ func RenderAndPatch(
 ) error {
 	var buf strings.Builder
 	if err := component.Render(context.Background(), &buf); err != nil {
+		observability.Error(context.Background(), "datastar render failed",
+			observability.WithComponent("datastar", "core")...)
 		return err
 	}
 	return sse.PatchElements(buf.String(), opts...)

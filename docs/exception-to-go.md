@@ -295,7 +295,7 @@ conventions instead of inventing a parallel tree:
 
 - Go API lives where the codebase already puts that kind of code:
   `internal/<thing>/` (infra) or `features/<thing>/` (product), with the
-  normal `// SCOPE:layer=…,removal=…` annotation — the linter
+  normal `// SCOPE:<core|plugin|feature>` annotation — the linter
   (`cmd/check-scope`, run via `make check-scope`) only walks those two
   trees.
 - Zig sources, if any, live **inside that package** (e.g.

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro doc rehydration + PocketBase record projection for CRDTStore
+// SCOPE:plugin — Loro doc rehydration + PocketBase record projection for CRDTStore
 package crdtstore
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: plan preview, receipts, and JSON envelopes
+// SCOPE:plugin — installer engine: plan preview, receipts, and JSON envelopes
 package installer
 
 import (

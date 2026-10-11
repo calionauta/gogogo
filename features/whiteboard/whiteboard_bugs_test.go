@@ -318,7 +318,7 @@ func TestWhiteboard_LocalClientDoesNotReceiveEcho(t *testing.T) {
 			}
 		}
 	}
-	// No shapes event or a shapes event without our id is both correct —
+	// No shapes event or a shapes event without our id is both correct
 	// the originator trusts its optimistic local state + the HTTP 200.
 }
 

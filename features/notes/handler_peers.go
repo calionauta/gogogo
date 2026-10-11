@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Shared plain-text notes (server-owned Loro Text)
+// SCOPE:feature — Shared plain-text notes (server-owned Loro Text)
 // Presence/peer bookkeeping. Same contract as the whiteboard's
 // handler_peers.go, sharing the collab.PeerSet mechanics: join to the
 // others, authoritative count to all, leave + recount on disconnect with

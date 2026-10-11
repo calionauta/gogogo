@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — SSE Hub Close contract
+// SCOPE:core — SSE Hub Close contract
 package queue
 
 import "testing"

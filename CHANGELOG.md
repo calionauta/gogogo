@@ -1,7 +1,36 @@
 ## [Unreleased]
 
+### Changed
+
+- **Flat architecture.** Removed the `internal/ports` + `internal/repos` +
+  `internal/backend` abstraction layer (a shallow pass-through with no
+  implementation wired into the app) and the `DB_BACKEND` selector. Data
+  access calls sqlc-generated functions directly from handlers.
+- **Turso, not libSQL.** Config names Turso Database; the libSQL Go driver and
+  the `LIBSQL_URL` fallback are gone (`turso.tech/database/tursogo` is the
+  driver).
+- **SCOPE is one axis.** The annotation is now `// SCOPE:<core|plugin|feature>`
+  — the redundant `layer=` axis, which only restated the directory, is
+  dropped, and `make check-scope` accepts only this form.
+- **Opt-in Casbin RBAC.** `RBAC_ENABLED=true` binds an enforcer built from the
+  embedded model + policy in `internal/rbac/casbin`.
+- **No “POC” language.** The native-window target, docs, CI job, and scripts no
+  longer describe anything as a proof-of-concept.
+- **SCOPE linter exempts generated files.** `make check-scope` now skips any
+  file carrying Go's standard `// Code generated … DO NOT EDIT.` marker, so
+  regenerating `sqlcgen` (or any future generator output) never needs a
+  hand-added annotation.
+
 ### Added
 
+- **Flat data layer (`internal/db`).** Turso Database over the `tursogo`
+  `database/sql` driver (pure-Go, no CGO, no libSQL): connection + pragmas,
+  an embedded migration runner (`schema_migrations`), the core schema (users,
+  sessions, todos — incl. owner scoping and the partial `idem_key` dedupe
+  index the offline queue depends on), and sqlc query sources generated into
+  `internal/db/sqlcgen` (`package dbgen`, `emit_interface: false`). `make sqlc`
+  regenerates; `make check-generated` fails on drift when sqlc is on PATH.
+  Every path is covered by tests that run against the real driver.
 - **Chat conversation demo on the genui catalog.** `features/chat/` persists
   both sides per owner (idempotent on `idem` + `idem#answer`, so SW replays
   never duplicate), parses every answer through `ParseChatAnswer` (catalog
@@ -11,9 +40,8 @@
   store is in-memory behind `MessageStore`, PocketBase collection is the
   documented upgrade path. Red-proofed worker/store/parse/render tests.
 
-## 0.43.0 (2026-10-10)
-
-## What's Changed
+## [0.43.0] - 2026-10-10
+### What's Changed
 * docs(llm): shared-key production warnings by @calionauta in https://github.com/calionauta/gogogo/pull/90
 * Ask feedback batch: own-hub delivery, TechBadges, suggest context by @calionauta in https://github.com/calionauta/gogogo/pull/92
 * ci(release): release-please owns versioning by @calionauta in https://github.com/calionauta/gogogo/pull/93
@@ -38,7 +66,7 @@
 - **Reactive doc-version watcher.** The 250ms `setInterval` poll is a
   `data-effect` subscription on `$docVersion` (pure fn in a synchronous
   script — module scripts load after Datastar init and throw; caught by
-  the new browser PoC `scripts/todo-docwatch.test.mjs`).
+  the new browser test `scripts/todo-docwatch.test.mjs`).
 - **Ask spinner releases on network failure** (`data-on:datastar-fetch`
   error stages on the form).
 - **Transport matrix + realtime recipe.** Queryable table in

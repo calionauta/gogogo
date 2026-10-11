@@ -196,6 +196,10 @@ func Init(
 		// pb_auth cookie before reaching feature handlers.
 		auth.CookieSecure = !cfg.Dev && cfg.Host != "127.0.0.1"
 		auth.RegisterAuth(se)
+		// Opt-in RBAC: a no-op pass-through unless RBAC_ENABLED=true, so
+		// binding it here never changes the default install. When enabled it
+		// enforces the embedded policy in internal/rbac/casbin.
+		se.Router.BindFunc(rbacMiddleware(cfg))
 		// Remove auth: delete this line + delete features/auth/
 
 		// Wire the realtime broadcaster so todo mutations are shared

@@ -21,7 +21,7 @@ import (
 // this directory was machine-checked before these tests.
 //
 // WHY NOT go-ruleguard's own test API. The engine
-// (`github.com/quasilyte/go-ruleguard`) is NOT a dependency of this module —
+// (`github.com/quasilyte/go-ruleguard`) is NOT a dependency of this module
 // only its `dsl` subpackage is, because that is what rules.go imports. Adding
 // the engine would be a new dependency just for a test, and this repo's rule is
 // to reach for what exists first. `golangci-lint` is already the runner CI and
@@ -391,7 +391,7 @@ func writeIn(t *testing.T, path, content string) {
 //
 //     Measured, and it is the difference between a real guard and a decorative
 //     one. With a shared cache that a previous `go test ./rules/` had warmed,
-//     editing the rule to a pattern that cannot match STILL REPORTED a hit —
+//     editing the rule to a pattern that cannot match STILL REPORTED a hit
 //     the red-proof passed, i.e. it could not detect a broken rule at all. With
 //     a per-fixture cache the cache starts empty every run, so the rule on disk
 //     is always the rule that runs, and breaking it fails the suite as it

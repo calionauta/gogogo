@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: read-only check gate
+// SCOPE:plugin — installer engine: read-only check gate
 package installer
 
 import (

@@ -66,7 +66,7 @@ func TestTodoRecordsNotBroadcastViaHub(t *testing.T) {
 	}
 	// Negative assertion: there is no event to short-circuit on, so both
 	// streams are drained for the full window (pumpSSEFor states that
-	// intent). The two drains are independent, so they run concurrently —
+	// intent). The two drains are independent, so they run concurrently
 	// serially this was 6s + 6s of dead time for one negative assertion.
 	var (
 		wg           sync.WaitGroup

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: server-side safety rails (read-only mode, dir confinement)
+// SCOPE:plugin — installer engine: server-side safety rails (read-only mode, dir confinement)
 package installer
 
 import (
@@ -9,7 +9,7 @@ import (
 )
 
 // Guardrails for shared/gateway deployments (Bifrost): an agent with tool
-// access has the CLI's full power, so the operator — not the caller —
+// access has the CLI's full power, so the operator — not the caller
 // sets the boundaries via environment. Unset means local-CLI behavior
 // (open), so existing flows never notice these exist.
 const (

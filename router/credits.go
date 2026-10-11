@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — Wire the AI credits + BYOK feature
+// SCOPE:plugin — Wire the AI credits + BYOK feature
 // into the router. To remove: delete this file + the block in router.go that
 // calls registerCredits + delete features/credits/ + config Credits fields
 // + go.mod require/replace.

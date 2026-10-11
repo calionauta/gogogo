@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=core — Auth route registration (/login, /logout, cookie middleware)
+// SCOPE:core — Auth route registration (/login, /logout, cookie middleware)
 package auth
 
 import (
@@ -74,7 +74,7 @@ func handleLoginGet(e *core.RequestEvent) error {
 // the redirect into the render handler keeps the route's middleware
 // chain flat (a single handler, no BindFunc composition).
 // (Pre-refactor: redirected to "/" which served the todo page.
-// After the landing-page refactor, "/" is the marketing hero —
+// After the landing-page refactor, "/" is the marketing hero
 // signed-in users go to /todo instead.)
 func handleLoginGetWithRedirect(e *core.RequestEvent) error {
 	if e.Auth != nil {

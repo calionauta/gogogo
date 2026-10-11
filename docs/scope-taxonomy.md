@@ -8,50 +8,49 @@ developers what can be safely removed. (Files elsewhere — `cmd/`, `db/`,
 the template safely trimmable: you never have to guess whether a directory is
 load-bearing.
 
-## The three layers
+## The three removal classes
 
-| Annotation | Meaning | You would… |
+The annotation carries a single axis — the removal class — with three values:
+
+| Class | Meaning | You would… |
 |------------|---------|-----------|
-| `SCOPE:core` 🔴 | Binary does not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
-| `SCOPE:plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `router.Init`, `cmd/web/main.go`). |
-| `SCOPE:feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
+| `core` 🔴 | Binary does not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
+| `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `router.Init`, `cmd/web/main.go`). |
+| `feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
 
-## The two-axis annotation form
+## The annotation form
 
 Non-test, non-generated `.go` files under `internal/` and `features/` declare
-their SCOPE on two **orthogonal** axes in a leading doc comment:
+their removal class in a leading doc comment:
 
 ```go
-// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <short description>
+// SCOPE:<core|plugin|feature> — <short description>
 ```
 
-| Axis | Values | Means |
-|------|--------|-------|
-| `layer` | `infra` · `feature` | Where it lives / what kind of code. `infra` for cross-cutting plumbing in `internal/`; `feature` for product-level code in `features/`. Some packages in `features/` (e.g. `features/auth`, `features/store`) carry `infra` semantics for individual files. |
-| `removal` | `core` · `plugin` · `feature` | What happens if you delete it. `core` = binary won't compile or won't boot; `plugin` = binary works but loses a capability; `feature` = pure demo. |
-
-The two-axis scheme eliminates a prior ambiguity where `SCOPE:core - REMOVE if
-not using NATS` and `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same
-label but meant different things. With the new axes, the first becomes
-`layer=infra,removal=plugin` (binary works without it) and the second stays
-`layer=infra,removal=core` (binary breaks without it).
+The class is one value: `core` = binary won't compile or won't boot; `plugin` =
+binary works but loses a capability; `feature` = pure demo. The **directory is
+the layer** — `internal/` is infrastructure, `features/` is product — so there
+is no separate `layer` axis to keep in sync (an earlier two-axis
+`layer=…,removal=…` form was dropped for exactly that reason).
 
 **Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in
 `internal/` and `features/` and asserts the canonical SCOPE line is present in
-the leading doc-comment group. `make ci-local` runs it via the `check-scope`
-target, and the lefthook pre-commit runs it whenever staged files match
-`{internal,features}/**/*.go`. Migrating an existing file uses
-`python3 scripts/migrate-scope.py` (idempotent).
+the leading doc-comment group. **The single-axis form above is the only
+accepted dialect** — the legacy two-axis `layer=…,removal=…` form is rejected,
+so the annotation is either canonical or an offender (no drift between
+dialects). `make ci-local` runs it via the `check-scope` target, and the
+lefthook pre-commit runs it whenever staged files match `{internal,features}/**/*.go`.
+Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent).
 
 ## Rule of thumb for agents
 
 If you see a `SCOPE` annotation on a file, respect it. **Never delete a
-`removal=core` file without asking. Never keep a `removal=feature` file in
-production if the domain doesn't need it.**
+`core` file without asking. Never keep a `feature` file in production if the
+domain doesn't need it.**
 
-`removal=feature` and `removal=plugin` files are free to delete, after reading
-the inline description — it lists exactly what to remove in `router/router.go`
-and `cmd/web/`.
+`feature` and `plugin` files are free to delete, after reading the inline
+description — it lists exactly what to remove in `router/router.go` and
+`cmd/web/`.
 
 ## Removing a component
 

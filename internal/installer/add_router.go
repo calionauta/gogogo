@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: add router call restoration
+// SCOPE:plugin — installer engine: add router call restoration
 package installer
 
 import (

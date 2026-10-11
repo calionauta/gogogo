@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — GoAkt lifecycle (room actor system)
+// SCOPE:plugin — GoAkt lifecycle (room actor system)
 package main
 
 import (

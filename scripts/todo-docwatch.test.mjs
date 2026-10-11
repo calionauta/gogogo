@@ -1,4 +1,4 @@
-// SCOPE:core - Behavioral PoC: doc-version watcher is reactive, not polling.
+// SCOPE:core - Behavioral test: doc-version watcher is reactive, not polling.
 //
 // Boots the real binary, logs in, loads /todo, and proves the resync
 // wiring executes without timers: an init script records every
@@ -174,7 +174,7 @@ try {
 }
 
 if (process.exitCode === 1) {
-  console.error("\n❌ docwatch PoC FAILED");
+  console.error("\n❌ docwatch FAILED");
 } else {
-  console.log("\n✅ docwatch PoC passed (reactive watcher, no polling, stream live)");
+  console.log("\n✅ docwatch passed (reactive watcher, no polling, stream live)");
 }

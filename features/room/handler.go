@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Room presence demo (GoAkt grains)
+// SCOPE:feature — Room presence demo (GoAkt grains)
 //
 // Handler serves the room demo page at GET /room: a named roster with
 // heartbeats plus an exactly-one presenter lock, both owned by a GoAkt

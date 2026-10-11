@@ -56,7 +56,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 
 **Ship**
 - [deploy](docs/deploy.md) — server layout, first-time setup, deploy workflow, build pipeline and version badge.
-- [desktop-mobile](docs/desktop-mobile.md) — Wails v3 desktop/mobile, edge sync, and the native window PoC.
+- [desktop-mobile](docs/desktop-mobile.md) — Wails v3 desktop/mobile, edge sync, and the native window.
 - [admin-dashboard](docs/admin-dashboard.md) — admin surfaces, the two-cookie rule, and the DagNats console.
 - [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
 
@@ -177,7 +177,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | Pluggable persistence (`pb` ⇄ `crdt`) | `ENTITY_STORE=pb` |
 | Multi-instance realtime | `NATS_ENABLED=false` |
 | Public landing page + auth-gated config view | delete `features/landing/`, `features/config/` |
-| Wails v3 desktop/mobile + native window PoC | delete `cmd/desktop/`, `cmd/gui/` |
+| Wails v3 desktop/mobile + native window | delete `cmd/desktop/`, `cmd/gui/` |
 
 Infrastructure opts out with an env var. Product features opt out by deleting
 the package and its one wiring call — see
@@ -186,17 +186,17 @@ the package and its one wiring call — see
 ## Core / Plugin / Feature
 
 Every non-test `.go` file under `internal/` and `features/` carries a SCOPE
-annotation on two axes: `layer` (where it lives) and `removal` (what happens if
-you delete it). `make check-scope` enforces it in CI and in your pre-commit hook.
+annotation declaring its removal class. `make check-scope` enforces it in CI and
+in your pre-commit hook.
 
 | Annotation | Meaning | You would |
 |---|---|---|
-| `removal=core` 🔴 | The binary does not work without it | Customize, never remove |
-| `removal=plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
-| `removal=feature` 🟢 | A demo or add-on | Keep as reference, then remove |
+| `SCOPE:core` 🔴 | The binary does not work without it | Customize, never remove |
+| `SCOPE:plugin` 🟡 | The binary works but loses a capability | Swap, or delete + remove the wiring call |
+| `SCOPE:feature` 🟢 | A demo or add-on | Keep as reference, then remove |
 
-The rule for agents: **never delete a `removal=core` file without asking; never
-keep a `removal=feature` file in production if the domain doesn't need it.**
+The rule for agents: **never delete a `core` file without asking; never
+keep a `feature` file in production if the domain doesn't need it.**
 Full taxonomy and per-package removal table:
 [scope-taxonomy](docs/scope-taxonomy.md).
 

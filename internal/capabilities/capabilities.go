@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Capability registry: single source
+// SCOPE:plugin — Capability registry: single source
 // of truth for ids, kinds, runtime switches, and owned paths (consumed by
 // cmd/gogogo, docs, and --help).
 package capabilities
@@ -84,9 +84,19 @@ var All = []Capability{
 	{
 		ID:      "database",
 		Kind:    KindCore,
-		Summary: "PocketBase setup + collection seeds",
+		Summary: "flat data layer: Turso Database connection + migrations + sqlc queries",
+		Dirs:    []string{"internal/db"},
+		Note: "Core: handlers call the generated dbgen.* functions directly; " +
+			"migrations under internal/db/migrations are the schema.",
+	},
+	{
+		ID:      "pocketbase-legacy",
+		Kind:    KindCore,
+		Summary: "PocketBase app handle + collection seeds (being removed)",
 		Dirs:    []string{"db"},
-		Note:    "Core: collections and demo seeds live here.",
+		Note: "Transitional: this is the old framework layer the flat stack replaces. " +
+			"It disappears, along with the PocketBase dependency, when the remaining " +
+			"features are ported (see docs/architecture-decision.md).",
 	},
 	{
 		ID:      "appconfig",
@@ -105,9 +115,12 @@ var All = []Capability{
 	{
 		ID:      "auth",
 		Kind:    KindCore,
-		Summary: "cookie sessions + middleware (login UI removable separately)",
-		Dirs:    []string{"features/auth"},
-		Note:    "Core middleware; the login page is a removable UI (manual).",
+		Summary: "cookie sessions + middleware (limen on Turso + login UI)",
+		Dirs:    []string{"features/auth", "internal/auth"},
+		Note: "Core middleware; the login page is a removable UI (manual). " +
+			"internal/auth is the limen stack (credential/password on the " +
+			"limen_* tables, gogogo_auth cookie); features/auth is the " +
+			"legacy PocketBase middleware it replaces.",
 	},
 	{
 		ID:         "nats",
@@ -378,60 +391,18 @@ var All = []Capability{
 		},
 	},
 	{
-		ID:      "poc-pb-alt-ports",
-		Kind:    KindPlugin,
-		Summary: "POC: repo/service interfaces for PB→alt migration",
-		Dirs:    []string{"internal/ports"},
-		Note:    "POC, removal=plugin — easy to delete entirely if not adopted",
+		ID:      "observability",
+		Kind:    KindCore,
+		Summary: "core observability (slog + tracing)",
+		Dirs:    []string{"internal/observability"},
+		Note:    "core infra, removal=core",
 	},
 	{
-		ID:      "poc-pb-alt-repos",
-		Kind:    KindPlugin,
-		Summary: "POC: PB and alt repo adapters",
-		Dirs:    []string{"internal/repos", "internal/repos/pb", "internal/repos/alt"},
-		Note:    "POC, removal=plugin — dual adapters behind interfaces",
-	},
-	{
-		ID:      "poc-authlimen",
-		Kind:    KindPlugin,
-		Summary: "POC: limen auth service",
-		Dirs:    []string{"internal/authlimen"},
-		Note:    "POC, removal=plugin",
-	},
-	{
-		ID:      "poc-backend",
-		Kind:    KindPlugin,
-		Summary: "POC: backend selector (pb/alt)",
-		Dirs:    []string{"internal/backend"},
-		Note:    "POC, removal=plugin",
-	},
-	{
-		ID:      "poc-dbsql",
-		Kind:    KindPlugin,
-		Summary: "POC: sqlc + Turso scaffolding",
-		Dirs:    []string{"internal/dbsql"},
-		Note:    "POC, removal=plugin",
-	},
-	{
-		ID:      "poc-routerchi",
-		Kind:    KindPlugin,
-		Summary: "POC: Go-Chi router wrapper",
-		Dirs:    []string{"internal/routerchi"},
-		Note:    "POC, removal=plugin",
-	},
-	{
-		ID:      "poc-casbinpol",
-		Kind:    KindPlugin,
-		Summary: "POC: Casbin policies",
-		Dirs:    []string{"internal/casbinpol"},
-		Note:    "POC, removal=plugin",
-	},
-	{
-		ID:      "poc-events",
-		Kind:    KindPlugin,
-		Summary: "POC: NATS/JS event helpers",
-		Dirs:    []string{"internal/events"},
-		Note:    "POC, removal=plugin",
+		ID:      "rbac",
+		Kind:    KindCore,
+		Summary: "RBAC with Casbin (embedded model + policy)",
+		Dirs:    []string{"internal/rbac"},
+		Note:    "core infra, removal=core",
 	},
 }
 

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Collaborative whiteboard (Loro CRDT canvas)
+// SCOPE:feature — Collaborative whiteboard (Loro CRDT canvas)
 // Depends on: internal/collab/ (CRDT).
 //
 // HTTP-level guards for the per-shape optimistic-concurrency contract, split out

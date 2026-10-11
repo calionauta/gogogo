@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogpu/ui native window over the existing backend
+// SCOPE:feature — gogpu/ui native window over the existing backend
 //
 // Command gui is a proof of concept: a native desktop window built with
 // gogpu/ui (pure-Go GPU rendering, zero CGO, no webview, no JavaScript)
@@ -16,7 +16,7 @@
 //	  app appears here within one poll tick (same collection).
 //	Not proved: no offline sync (this window is ONLINE-ONLY — mutations
 //	  run synchronously against the local DB and fail visibly when it
-//	  is unreachable; there is no outbox, no replay, no Loro merge —
+//	  is unreachable; there is no outbox, no replay, no Loro merge
 //	  see the whiteboard's whiteboard.js outbox for what that would
 //	  take), no durable workflow trigger (handleCreate resumes the
 //	  onboarding workflow; the native add() does not — the trigger
@@ -31,12 +31,12 @@
 // is genuinely optional for a native frontend.
 //
 // It is deliberately NOT part of `make build` / `make test`: it is a
-// separate native target like cmd/desktop, validated by the gui-poc job
+// separate native target like cmd/desktop, validated by the gui job
 // in .github/workflows/desktop.yml (CGO_ENABLED=0, pure Go, so it builds
 // headless anywhere `go` is; tests run headless too, no window/GPU).
 //
 // To remove: delete cmd/gui/, drop the `gui` target from the Makefile,
-// drop the gui-poc job from desktop.yml, and re-add cmd/gui to
+// drop the gui job from desktop.yml, and re-add cmd/gui to
 // scripts/web-packages.sh's exclusion... (it is currently excluded;
 // removing the directory needs no script change).
 package main
@@ -70,13 +70,13 @@ import (
 const todosCollection = "todos"
 
 // pollInterval is the realtime-read tick: how often the window
-// re-reads the collection. No push channel exists in the POC, so this
+// re-reads the collection. No push channel exists in the native window, so this
 // is what makes another frontend's writes visible here. 2s is the
 // KISS point — fast enough to feel live, slow enough that a local
 // SQLite re-list never shows up in profiles.
 const pollInterval = 2 * time.Second
 
-// Window chrome for the native POC.
+// Window chrome for the native window.
 const (
 	seedColorHex = 0x6750A4
 	windowWidth  = 520

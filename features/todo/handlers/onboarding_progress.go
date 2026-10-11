@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Onboarding SSE progress vocabulary.
+// SCOPE:feature — Onboarding SSE progress vocabulary.
 //
 // Pure step math + phase/status constants shared by the DagNats onboarding
 // handler (onboarding.go) and the todo SSE dispatcher (todo_sse.go). This

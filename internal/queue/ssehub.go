@@ -1,20 +1,20 @@
-// SCOPE:layer=infra,removal=core — SSE Hub (in-memory fan-out, replay buffer, backpressure)
+// SCOPE:core — SSE Hub (in-memory fan-out, replay buffer, backpressure)
 package queue
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // Runtime defaults (DefaultReplayBufferSize, DefaultClientQueueSize,
-// DefaultSSEHeartbeatInterval) are now defined in config/config.go —
+// DefaultSSEHeartbeatInterval) are now defined in config/config.go
 // tune there to affect every consumer.
 // SSEHubStats is a snapshot of the hub's current resource use. Returned
 // by Stats() so operators can observe backpressure and reconnection
@@ -93,7 +93,9 @@ func NewSSEHub(opts ...HubOption) *SSEHub {
 		userOf:    make(map[string]string),
 		maxBuffer: config.DefaultReplayBufferSize,
 		onDrop: func(clientID string, _ []byte, reason string) {
-			slog.Warn("ssehub: dropping event", "client_id", clientID, "reason", reason)
+			obsArgs := append(observability.WithComponent("ssehub", "core"),
+				"client_id", clientID, "reason", reason)
+			observability.Warn(context.Background(), "ssehub: dropping event", obsArgs...)
 		},
 	}
 	for _, opt := range opts {
@@ -118,7 +120,7 @@ func (h *SSEHub) Register(clientID, userID string, ch chan []byte) {
 
 	// Drain the replay buffer SYNCHRONOUSLY. We hold the write lock
 	// so a concurrent Send either sees us as already-registered and
-	// pushes to the channel, or — if it grabbed the lock first —
+	// pushes to the channel, or — if it grabbed the lock first
 	// pushes to the buffer (which we'll drain next call).
 	//
 	// Drop-on-full: a slow client during replay is the same
@@ -256,7 +258,9 @@ func (h *SSEHub) Broadcast(data []byte) {
 	defer h.mu.RUnlock()
 	// Debug, not Info: Broadcast runs on every fan-out (hot path), so an Info
 	// line here would flood production logs with one entry per event.
-	slog.Debug("ssehub: Broadcast", "clients", len(h.clients))
+	obsArgs := append(observability.WithComponent("ssehub", "core"),
+		"clients", len(h.clients))
+	observability.Debug(context.Background(), "ssehub: Broadcast", obsArgs...)
 	for id, ch := range h.clients {
 		h.deliverOrDrop(id, ch, data, "slow-client-broadcast")
 	}

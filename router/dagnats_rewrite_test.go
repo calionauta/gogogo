@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — tests for the DagNats proxy's response
+// SCOPE:plugin — tests for the DagNats proxy's response
 // body rewriting (absolute-path prefixing + Content-Length consistency).
 package router_test
 

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — shared routing helper.
+// SCOPE:core — shared routing helper.
 //
 // A leaf package: it imports only net/http and the PocketBase core types, so
 // any package that has a ServeEvent can use it without creating an import

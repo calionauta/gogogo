@@ -10,7 +10,7 @@ LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMM
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -239,7 +239,7 @@ deadcode:
 # Deterministic: `templ generate` is idempotent (verified — a second run
 # produces a byte-identical tree), unlike the Tailwind/Astro generators that
 # motivated disabling actions/cache.
-check-generated: templ
+check-generated: templ sqlc-check
 	@if ! git diff --quiet --exit-code -- '*_templ.go'; then \
 		echo "  ❌ committed _templ.go does not match the .templ sources."; \
 		echo "     Run \`make templ\` and COMMIT the regenerated files."; \
@@ -247,6 +247,34 @@ check-generated: templ
 		exit 1; \
 	fi
 	@echo "  ✓ generated templ files match their sources"
+
+# sqlc-check regenerates internal/db/sqlcgen and fails on drift. Unlike templ,
+# sqlc is a standalone binary (not a `go tool` dependency — pulling sqlc's own
+# module graph into go.mod is not worth it), so a machine without sqlc skips the
+# check with a warning instead of a false red. `make sqlc` is the fix.
+sqlc-check:
+	@if command -v sqlc >/dev/null 2>&1; then \
+		(cd internal/db && sqlc generate); \
+		if ! git diff --quiet --exit-code -- internal/db/sqlcgen; then \
+			echo "  ❌ committed sqlcgen does not match internal/db/queries."; \
+			echo "     Run \`make sqlc\` and COMMIT the regenerated files."; \
+			git diff --stat -- internal/db/sqlcgen; \
+			exit 1; \
+		fi; \
+		echo "  ✓ generated sqlc files match their queries"; \
+	else \
+		echo "  ⚠ sqlc not on PATH — skipped the internal/db/sqlcgen freshness check"; \
+	fi
+
+# sqlc regenerates the flat data layer from internal/db/migrations + queries.
+sqlc:
+	@command -v sqlc >/dev/null 2>&1 || { \
+		echo "  ❌ sqlc not found on PATH."; \
+		echo "     Install it with: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest"; \
+		exit 1; \
+	}
+	@echo "→ Generating sqlc queries..."
+	@cd internal/db && sqlc generate
 
 ci-local: check-generated check-sizes datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
@@ -390,26 +418,26 @@ help:
 	@echo "  rename         Rename the project (NAME=my-app [OWNER=myorg] [DRY=1])"
 	@echo "  docker-image   Build and push Docker image"
 
-# gui builds the gogpu/ui native POC (proof that the backend is reachable
+# gui builds the gogpu/ui native window (proof that the backend is reachable
 # without HTTP). Tests run headless (no window/GPU); the shipped binary
 # builds with CGO_ENABLED=0 per the gogpu requirement. Validated in CI
-# by the gui-poc job in .github/workflows/desktop.yml.
+# by the gui job in .github/workflows/desktop.yml.
 gui:
-	@echo "→ Testing native gogpu/ui POC v$(VERSION) (headless)..."
+	@echo "→ Testing native gogpu/ui window v$(VERSION) (headless)..."
 	@go test -race -count=1 ./cmd/gui
-	@echo "→ Building native gogpu/ui POC v$(VERSION)..."
+	@echo "→ Building native gogpu/ui window v$(VERSION)..."
 	@CGO_ENABLED=0 go build $(LDFLAGS) -o gogogo-gui ./cmd/gui
 
 # lint-gui runs the full 27-linter gate on cmd/gui. NOT in CI (linting
 # the wgpu/naga tree is minutes-cold per push and only catches style —
-# breakage is caught by vet+tests+build in the gui-poc job). Run this
+# breakage is caught by vet+tests+build in the gui job). Run this
 # locally before committing any cmd/gui change; keep it at zero issues.
 lint-gui:
-	@echo "→ golangci-lint on cmd/gui (manual gate, see gui-poc NOTE)..."
+	@echo "→ golangci-lint on cmd/gui (manual gate, see gui NOTE)..."
 	@golangci-lint run ./cmd/gui/...
 
 run-gui:
-	@echo "→ Starting the native gogpu/ui POC (window + GPU required)..."
+	@echo "→ Starting the native gogpu/ui window (window + GPU required)..."
 	@./gogogo-gui
 
 # --- Docs site (GitHub Pages) ----------------------------------------------

@@ -53,7 +53,7 @@ Details in [Admin & Dashboard](admin-dashboard.md).
 
 ## Removing a feature
 
-Every feature package carries a `SCOPE:removal=feature` annotation. The rule:
+Every feature package carries a `SCOPE:feature` annotation. The rule:
 delete the package directory, delete its dependents, remove the wiring call
 from `router/router.go` → `Init()`, and — if it was a plugin — remove the
 `start*` call in `cmd/web/main.go`. Full checklist in

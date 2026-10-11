@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — verifies the DagNats console proxy
+// SCOPE:plugin — verifies the DagNats console proxy
 // forwards every HTTP method, not just GET.
 //
 // Regression guard for the bug where the console rendered fine but every write

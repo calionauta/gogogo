@@ -1,0 +1,18 @@
+# Default Casbin policy, compiled into the binary via //go:embed.
+#
+# Subject is a role derived from the authenticated user (see router/rbac.go):
+#   admin      — role field == "admin"
+#   user       — any other authenticated user
+#   anonymous  — no session
+#
+# Object is the request path, action is the HTTP method.
+# This is a STARTING POINT: tune it for your app before enabling RBAC in
+# production (RBAC_ENABLED=true). Admin is intentionally broad; the public
+# surface must stay reachable or the app loses its CSS/JS and healthcheck.
+p, admin, /*, .*
+p, anonymous, /static/*, (GET|HEAD)
+p, anonymous, /sw.js, GET
+p, anonymous, /health, GET
+p, anonymous, /login, (GET|POST)
+p, anonymous, /api/session, GET
+p, user, /profile, (GET|POST)

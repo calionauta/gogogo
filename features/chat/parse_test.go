@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat answer parsing tests.
+// SCOPE:feature — chat answer parsing tests.
 package chat
 
 import (

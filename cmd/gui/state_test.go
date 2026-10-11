@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Tests for the native window's backend wiring
+// SCOPE:feature — Tests for the native window's backend wiring
 package main
 
 import (
@@ -14,8 +14,8 @@ import (
 	"github.com/calionauta/gogogo/features/store/pbstore"
 )
 
-// The POC's whole claim is that the backend is reachable without HTTP.
-// These tests exercise the real windowState against a real PocketBase —
+// The native window's whole claim is that the backend is reachable without HTTP.
+// These tests exercise the real windowState against a real PocketBase
 // no native window, no rendering — so they run headless in CI.
 
 const (
@@ -201,7 +201,7 @@ func TestNativeCrossStateVisibilityAndLastWriteWins(t *testing.T) {
 		t.Fatalf("B after refresh: %+v, want A's row", snap.items)
 	}
 
-	// Conflict: B completes, A (stale) flips back. Last write wins —
+	// Conflict: B completes, A (stale) flips back. Last write wins
 	// deterministic here because the test serializes the two writes.
 	b.toggle(id)
 	a.refresh()

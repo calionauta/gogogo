@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT-backed EntityStore strategy for todos
+// SCOPE:plugin — Loro CRDT-backed EntityStore strategy for todos
 package crdtstore
 
 //
@@ -31,7 +31,7 @@ package crdtstore
 //     are already compatible).
 //
 // Realtime: mutations write normal `todos` records, so PocketBase
-// realtime already delivers per-owner updates to subscribed clients —
+// realtime already delivers per-owner updates to subscribed clients
 // the same path PBStore uses. An optional JetStream op-transport
 // (SetTransport) additionally ships Loro ops across instances for
 // cross-instance convergence; it is OPTIONAL and OFF by default. The

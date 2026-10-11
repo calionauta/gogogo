@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — path-confined file IO for the installer.
+// SCOPE:core — path-confined file IO for the installer.
 //
 // The installer rewrites a checkout the user pointed at with --dir. That
 // checkout may itself have come from an untrusted source, so every write and

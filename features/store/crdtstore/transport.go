@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — REMOVE if you don't need cross-instance CRDT sync
+// SCOPE:plugin — REMOVE if you don't need cross-instance CRDT sync
 package crdtstore
 
 //

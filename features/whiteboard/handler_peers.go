@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Collaborative whiteboard (Loro CRDT canvas)
+// SCOPE:feature — Collaborative whiteboard (Loro CRDT canvas)
 // Depends on: internal/collab/ (CRDT), internal/queue/ (SSE hub).
 //
 // Presence/peer bookkeeping, split out of handler.go to stay within the

@@ -246,7 +246,7 @@ make datastar-lint # Datastar attribute / signal anti-patterns in .templ
 make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
 make test          # Race tests, parallel across packages
 make ci-local      # Full local gate (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build
-make gui           # Native gogpu/ui PoC: headless race tests + CGO_ENABLED=0 build
+make gui           # Native gogpu/ui window: headless race tests + CGO_ENABLED=0 build
 make run-gui       # Open the native window (needs DISPLAY/GPU; not exercised in CI)
 make signoff       # `make ci-local` + `gh signoff -f` stamp. Default pre-push gate
 make setup         # Activate lefthook git hooks

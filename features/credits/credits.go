@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — AI credits + BYOK (lib ai-credits).
+// SCOPE:plugin — AI credits + BYOK (lib ai-credits).
 // To remove: delete features/credits/ + router/credits.go + config fields.
 //
 // Wires the calionauta/ai-credits library (immutable ledger + pricing +

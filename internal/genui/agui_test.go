@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — gogen-ui AG-UI envelope tests.
+// SCOPE:plugin — gogen-ui AG-UI envelope tests.
 package genui
 
 import (

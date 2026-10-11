@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Notes collab tests (red-first:
+// SCOPE:feature — Notes collab tests (red-first:
 // this file landed before the implementation and failed to compile).
 package notes_test
 

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — tests for the shared route registration.
+// SCOPE:core — tests for the shared route registration.
 //
 // These pin the invariant that reached production as an eleven-hour crash
 // loop: any pattern registered for every method must not be method-less, or

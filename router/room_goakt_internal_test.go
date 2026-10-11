@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Room wiring guard test.
+// SCOPE:plugin — Room wiring guard test.
 //
 // Internal (package router) on purpose: it calls the unexported
 // registerRoomStack directly, so no export surface — and no coupling

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: add module-path rebasing
+// SCOPE:plugin — installer engine: add module-path rebasing
 //
 // Module-path rebasing, which `gogogo add` runs so a unit copied from the
 // template compiles inside the target project: rewriting the template

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: flags, plan,
+// SCOPE:plugin — installer engine: flags, plan,
 // apply, prove, and exit codes shared by the CLI and the MCP server.
 package installer
 
@@ -447,7 +447,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Units (id, kind). Kind follows the servant principle, not the directory:
   a plugin serves other capabilities (sounds, skins, credits serve pages);
   a feature is a terminal user surface (todo, whiteboard, landing, config).
-  --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here —
+  --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here
   todo (reference implementation), auth (middleware is core), queue (core),
   nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
   offline-sync (runtime: OFFLINE_SYNC_ENABLED=false),

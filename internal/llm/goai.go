@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — GoAI LLM client (used by Suggest)
+// SCOPE:plugin — GoAI LLM client (used by Suggest)
 // To remove: delete internal/llm/ + features/todo/handlers/llm_suggest.go.
 // Package llm wires the GoAI SDK (github.com/zendev-sh/goai) into the
 // gogogo template. The Client is configured via env so the
@@ -28,7 +28,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log/slog"
 	"math/big"
 	"os"
 	"time"
@@ -38,6 +37,7 @@ import (
 	"github.com/zendev-sh/goai/provider/compat"
 
 	"github.com/calionauta/gogogo/internal/llm/fakeserver"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // ErrNoAPIKey is returned by Chat/ChatStream when the client was built
@@ -84,7 +84,7 @@ type Client struct {
 }
 
 // New builds a Client from env. If apiKey is empty, New still
-// returns a usable Client whose Chat/ChatStream return ErrNoAPIKey —
+// returns a usable Client whose Chat/ChatStream return ErrNoAPIKey
 // the rest of the app can detect this and surface a clean error.
 func New(apiKey string) *Client {
 	baseURL := os.Getenv("GOAI_BASE_URL")
@@ -199,19 +199,33 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 	// work) is separate and re-drives the whole job on final failure.
 	// Removed our own c.retry.Do layer here so a single generation is one
 	// authorize + one settle, not N re-executions.
-	r, genErr := goai.GenerateText(ctx, m,
+	start := time.Now()
+	obsArgs := observability.WithComponent("llm.goai", "plugin")
+	observability.Debug(ctx, "llm: generate_text_start", obsArgs...)
+	var r *goai.TextResult
+	var genErr error
+	r, genErr = goai.GenerateText(ctx, m,
 		goai.WithPrompt(prompt),
 		goai.WithMaxRetries(c.maxRetries),
 		goai.WithRetryObserver(func(attempt int, err error, delay time.Duration) {
-			slog.Info("llm: goai retry", "attempt", attempt, "delay", delay, "error", err)
+			retryArgs := append(observability.WithComponent("llm.goai", "plugin"),
+				"attempt", attempt, "delay", delay, "error", err)
+			observability.Info(ctx, "llm: goai retry", retryArgs...)
 		}),
 	)
+	dur := time.Since(start)
 	if genErr != nil {
+		obsArgs = append(observability.WithComponent("llm.goai", "plugin"),
+			"duration_ms", dur.Milliseconds())
+		observability.Error(ctx, "llm: generate_text_failed", obsArgs...)
 		if settle != nil {
 			settle(provider.Usage{}) // release, bill nothing
 		}
 		return "", fmt.Errorf("llm: generate: %w", genErr)
 	}
+	obsArgs = append(observability.WithComponent("llm.goai", "plugin"),
+		"duration_ms", dur.Milliseconds())
+	observability.Info(ctx, "llm: generate_text_success", obsArgs...)
 	if settle != nil {
 		settle(r.TotalUsage)
 	}
@@ -293,7 +307,9 @@ func (c *Client) ChatSuggest(ctx context.Context, partial string) ([]string, err
 	// The model is told to return a JSON array. Parse defensively.
 	out, parseErr := parseStringArray(text)
 	if parseErr != nil {
-		slog.Warn("llm: suggest returned non-JSON; using raw", "raw", text, "err", parseErr)
+		warnArgs := append(observability.WithComponent("llm.goai", "plugin"),
+			"raw", text, "err", parseErr)
+		observability.Warn(ctx, "llm: suggest returned non-JSON; using raw", warnArgs...)
 		// Fall back to splitting on newlines so the UI still gets
 		// something to show.
 		return splitLines(text), nil

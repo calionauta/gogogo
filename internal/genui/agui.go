@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — AG-UI-compatible event envelope for AI streams
+// SCOPE:plugin — AG-UI-compatible event envelope for AI streams
 // Package genui speaks the AG-UI wire format (ag-ui-protocol/ag-ui) for the
 // event subset gogogo emits, without the external SDK: the community Go SDK
 // covers encode/decode/client, but vendoring it buys version churn for ~10

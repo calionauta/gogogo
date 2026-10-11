@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: upstream-first AGENTS.md generation
+// SCOPE:plugin — installer engine: upstream-first AGENTS.md generation
 package installer
 
 import (

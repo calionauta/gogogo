@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=core — Auth middleware (cookie + login/logout)
+// SCOPE:core — Auth middleware (cookie + login/logout)
 // Package auth implements a single-user demo login on top of
 // PocketBase's built-in auth API.
 //
@@ -48,7 +48,7 @@ var ErrBadCredentials = errors.New("auth: bad credentials")
 // cookieName is the app's OWN session cookie, kept distinct from
 // pb_auth ON PURPOSE (see package doc — do NOT merge them, or the
 // admin/app session clobber returns). pbAuthCookieName mirrors the same
-// token under PocketBase's native cookie name so PB-native surfaces —
+// token under PocketBase's native cookie name so PB-native surfaces
 // most importantly the /api/realtime SSE channel for record-change
 // subscriptions — authenticate as the same user. Without pb_auth set,
 // /api/realtime is unauthenticated and PB's per-subscriber record-access
@@ -116,7 +116,7 @@ func fireOnLogin(userID string) {
 // subscriber's auth (RealtimeClientAuthKey) from e.Auth at SSE connect
 // time, then uses it to evaluate the collection's list/view rule for
 // every delivered record event. If e.Auth is nil on /api/realtime, the
-// rule fails for every subscriber and NO record events are delivered —
+// rule fails for every subscriber and NO record events are delivered
 // which would make the PB-realtime record path (used for cross-tab todo
 // sync) silently dead. The app issues BOTH gogogo_auth and pb_auth
 // cookies (same token), so reading gogogo_auth here authenticates the
@@ -220,7 +220,7 @@ func Login(app core.App, email, password string) (userID, token string, err erro
 	return record.Id, token, nil
 }
 
-// ResolveOwner maps an auth token back to the user id it belongs to —
+// ResolveOwner maps an auth token back to the user id it belongs to
 // the same value RequireOwner returns for an authenticated HTTP
 // request. This is what lets a non-HTTP frontend scope store calls:
 // the EntityStore contract takes a plain ownerID string, so a native

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: trim/add unit mechanics (strips, drops, anchors)
+// SCOPE:plugin — installer engine: trim/add unit mechanics (strips, drops, anchors)
 package installer
 
 import (

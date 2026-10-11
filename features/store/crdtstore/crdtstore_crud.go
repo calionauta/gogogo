@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — EntityStore[todo.Todo] CRUD operations for CRDTStore
+// SCOPE:plugin — EntityStore[todo.Todo] CRUD operations for CRDTStore
 package crdtstore
 
 import (

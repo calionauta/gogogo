@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat demo store (in-memory)
+// SCOPE:feature — chat demo store (in-memory)
 package chat
 
 import (
@@ -39,7 +39,7 @@ func (s *MemStore) Append(_ context.Context, owner string, m Message) error {
 	return nil
 }
 
-// List returns one owner's records in created order. Never nil —
+// List returns one owner's records in created order. Never nil
 // renderers range over the result without a nil check.
 func (s *MemStore) List(_ context.Context, owner string) ([]Message, error) {
 	s.mu.Lock()

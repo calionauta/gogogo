@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: --run requirement checks (make+air)
+// SCOPE:plugin — installer engine: --run requirement checks (make+air)
 package installer
 
 import (

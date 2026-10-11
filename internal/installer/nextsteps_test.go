@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: scaffold next-steps
+// SCOPE:plugin — installer engine: scaffold next-steps
 package installer
 
 import (

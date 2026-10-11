@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — DagNats durable workflow engine
+// SCOPE:plugin — DagNats durable workflow engine
 package dagnats
 
 // ExampleTodoTexts are the titles the onboarding workflow creates as

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Room demo HTTP tests.
+// SCOPE:feature — Room demo HTTP tests.
 package room_test
 
 import (

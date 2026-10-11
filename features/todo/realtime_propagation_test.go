@@ -81,7 +81,7 @@ func TestCrossSessionCreatePropagates(t *testing.T) {
 	loginUser(ctx, t, clientB, base, demoEmail, demoPassword)
 
 	// Tab B opens the realtime SSE stream (pb_auth cookie authenticates).
-	// PocketBase assigns its own clientId and echoes it in PB_CONNECT —
+	// PocketBase assigns its own clientId and echoes it in PB_CONNECT
 	// that is the id the subscribe call must use (the URL clientId is
 	// ignored), mirroring the browser's subscribe(msg.clientId).
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,

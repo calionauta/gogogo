@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — collaboration (whiteboard depends on this)
+// SCOPE:plugin — collaboration (whiteboard depends on this)
 package collab
 
 import (

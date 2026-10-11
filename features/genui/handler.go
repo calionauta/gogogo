@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogen-ui Ask demo (reference implementation)
+// SCOPE:feature — gogen-ui Ask demo (reference implementation)
 package genui
 
 import (
@@ -24,7 +24,7 @@ import (
 )
 
 // Responder is the model leg behind Ask: production passes an llm
-// adapter, tests pass a stub. The queue worker — not the HTTP handler —
+// adapter, tests pass a stub. The queue worker — not the HTTP handler
 // calls it, because an LLM round-trip never runs inline (>50ms rule).
 type Responder interface {
 	Respond(ctx context.Context, prompt string) (string, error)
@@ -246,7 +246,9 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	}
 	raw, err := h.responder.Respond(ctx, p.Prompt)
 	if err != nil {
+		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 		h.sendResult(target, job.ClientID, nil, "Ask failed: model unavailable")
+		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 		h.sendToast(target, job.ClientID, "Ask failed: model unavailable", "error")
 		//nolint:nilerr // delivered as user-visible result; pool must not retry Ask (see handleGenuiJob doc)
 		return nil
@@ -254,12 +256,16 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	//nolint:contextcheck // pure CPU constructors (no I/O to cancel); ctx enters at component Render instead
 	dirs, err := ParseDirectives(raw)
 	if err != nil {
+		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 		h.sendResult(target, job.ClientID, nil, "Ask failed: could not shape the answer")
+		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 		h.sendToast(target, job.ClientID, "Ask failed: could not shape the answer", "error")
 		//nolint:nilerr // same contract as above: delivered, not retried
 		return nil
 	}
+	//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 	h.sendResult(target, job.ClientID, dirs, "")
+	//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see handleGenuiJob.
 	h.sendToast(target, job.ClientID, fmt.Sprintf("Rendered %d components", len(dirs)), "success")
 	return nil
 }

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: strip whitespace hygiene
+// SCOPE:plugin — installer engine: strip whitespace hygiene
 package installer
 
 import (

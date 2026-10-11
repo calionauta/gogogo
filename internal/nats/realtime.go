@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — NATS JetStream + Leaf Node + CRUD proxy
+// SCOPE:plugin — NATS JetStream + Leaf Node + CRUD proxy
 // Package nats provides the realtime broadcaster abstraction. It uses
 // NATS JetStream: todo mutations are
 // published to a durable stream and a single subscriber per process

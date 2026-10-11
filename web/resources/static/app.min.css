@@ -189,6 +189,83 @@
   }
 }
 @layer utilities {
+  @layer daisyui.l1.l2 {
+    .diff {
+      position: relative;
+      display: grid;
+      width: 100%;
+      overflow: hidden;
+      webkit-user-select: none;
+      user-select: none;
+      align-items: normal;
+      grid-template-rows: 1fr 1.8rem 1fr;
+      direction: ltr;
+      container-type: inline-size;
+      grid-template-columns: auto 1fr;
+    }
+    .diff:focus-visible {
+      outline-style: var(--tw-outline-style);
+      outline-width: 2px;
+      outline-offset: 1px;
+      outline-color: var(--color-base-content);
+    }
+    .diff:has(.diff-item-1:focus-visible) {
+      outline-style: var(--tw-outline-style);
+      outline-width: 2px;
+      outline-offset: 1px;
+      outline-color: var(--color-base-content);
+    }
+    .diff:focus-visible {
+      outline-style: var(--tw-outline-style);
+      outline-width: 2px;
+      outline-offset: 1px;
+      outline-color: var(--color-base-content);
+    }
+    .diff:focus-visible .diff-resizer {
+      min-width: 95cqi;
+      max-width: 95cqi;
+    }
+    .diff:has(.diff-item-1:focus-visible) {
+      outline-style: var(--tw-outline-style);
+      outline-width: 2px;
+      outline-offset: 1px;
+    }
+    .diff:has(.diff-item-1:focus-visible) .diff-resizer {
+      min-width: 5cqi;
+      max-width: 5cqi;
+    }
+    .diff:hover .diff-item-2::after {
+      height: 2.4rem;
+    }
+    @supports (-webkit-overflow-scrolling: touch) and (overflow: -webkit-paged-x) {
+      .diff:focus .diff-resizer {
+        min-width: 5cqi;
+        max-width: 5cqi;
+      }
+    }
+    @supports (-moz-appearance: none) {
+      @media (hover: none) and (pointer: coarse) {
+        .diff:focus .diff-resizer {
+          min-width: 5cqi;
+          max-width: 5cqi;
+        }
+      }
+    }
+    @supports (-webkit-overflow-scrolling: touch) and (overflow: -webkit-paged-x) {
+      .diff:has(.diff-item-1:focus) .diff-resizer {
+        min-width: 95cqi;
+        max-width: 95cqi;
+      }
+    }
+    @supports (-moz-appearance: none) {
+      @media (hover: none) and (pointer: coarse) {
+        .diff:has(.diff-item-1:focus) .diff-resizer {
+          min-width: 95cqi;
+          max-width: 95cqi;
+        }
+      }
+    }
+  }
   @layer daisyui.l1.l2.l3 {
     .modal {
       pointer-events: none;

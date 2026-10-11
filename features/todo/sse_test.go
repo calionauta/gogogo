@@ -24,7 +24,7 @@ const clientIDSuffixFormat = "150405.000"
 // tunable in one place.
 //
 // 500ms, not seconds: the events these checks rule out (a record event
-// leaking onto the hub) travel an in-process, synchronous path —
+// leaking onto the hub) travel an in-process, synchronous path
 // handleCreate → broadcaster.PublishTodoUpdate → hub.Broadcast — so a
 // regression shows up in single-digit milliseconds. A negative assertion
 // cannot short-circuit and must genuinely wait out its window, which is why

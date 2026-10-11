@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogen-ui render tests.
+// SCOPE:feature — gogen-ui render tests.
 package genui_test
 
 import (

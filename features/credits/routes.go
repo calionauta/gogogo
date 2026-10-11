@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — HTTP routes for AI credits + BYOK
+// SCOPE:plugin — HTTP routes for AI credits + BYOK
 // (lib ai-credits). To remove: delete features/credits/ + router/credits.go.
 //
 // Mounted by router.Init only when CREDITS_ENABLED=true. These are JSON

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat queue worker (persist + fan-out)
+// SCOPE:feature — chat queue worker (persist + fan-out)
 package chat
 
 import (
@@ -80,6 +80,9 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 			Owner: p.UserID, Role: roleAssistant, Text: "model unavailable",
 			IdemKey: p.Idem + "#answer", Created: time.Now(),
 		})
+		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
+		// cancellation is handled by the surrounding ctx select, and slow-client
+		// drops by the hub's drop handler.
 		h.send(target, job.ClientID, chatEnvelope{Error: "model unavailable: " + err.Error()})
 		return nil
 	}
@@ -95,6 +98,9 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
 	})
+	//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
+	// cancellation is handled by the surrounding ctx select, and slow-client
+	// drops by the hub's drop handler.
 	h.send(target, job.ClientID, chatEnvelope{Text: text, Directives: dirs})
 	return nil
 }

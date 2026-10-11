@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — tests for the installer's path-confined IO.
+// SCOPE:core — tests for the installer's path-confined IO.
 package installer
 
 import (

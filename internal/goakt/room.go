@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — GoAkt entity actors (room authority demo)
+// SCOPE:plugin — GoAkt entity actors (room authority demo)
 //
 // Package goakt hosts the template's actor system: one room grain per
 // chat/whiteboard-style room, holding the roster and the presenter lock
@@ -194,7 +194,7 @@ func Default() *Host {
 }
 
 // Host owns the actor system and the room PIDs. rooms is the only shared
-// state here (HTTP handlers resolve PIDs through it), hence the mutex —
+// state here (HTTP handlers resolve PIDs through it), hence the mutex
 // everything inside a Room stays lock-free by turn-based execution.
 type Host struct {
 	mu     sync.Mutex

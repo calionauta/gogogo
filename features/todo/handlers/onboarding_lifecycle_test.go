@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — tests for the onboarding handler's
+// SCOPE:feature — tests for the onboarding handler's
 // poll-goroutine lifetime.
 package handlers
 

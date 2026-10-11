@@ -1,6 +1,6 @@
 //go:build windows
 
-// SCOPE:layer=infra,removal=plugin — installer engine: --run handoff via child (Windows, no exec)
+// SCOPE:plugin — installer engine: --run handoff via child (Windows, no exec)
 package installer
 
 import (

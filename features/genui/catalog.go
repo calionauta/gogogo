@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogen-ui component catalog.
+// SCOPE:feature — gogen-ui component catalog.
 package genui
 
 import (

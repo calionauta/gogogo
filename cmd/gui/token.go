@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Session token persistence for the gogpu/ui POC
+// SCOPE:feature — Session token persistence for the gogpu/ui native window
 package main
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: add units to existing checkouts (copy, rewire, prove)
+// SCOPE:plugin — installer engine: add units to existing checkouts (copy, rewire, prove)
 package installer
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — UI sound feedback plugin (cuelume).
+// SCOPE:plugin — UI sound feedback plugin (cuelume).
 //
 // Adds interaction sounds to the app through the vendored cuelume library
 // (web/resources/static/cuelume/, MIT — not a package dependency). This

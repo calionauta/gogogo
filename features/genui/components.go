@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogen-ui view helpers.
+// SCOPE:feature — gogen-ui view helpers.
 package genui
 
 import (

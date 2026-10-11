@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
+// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
 // Package collab wraps the Loro CRDT (github.com/aholstenson/loro-go) for
 // the template's collaborative features (whiteboard, shared docs).
 //

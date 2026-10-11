@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
+// SCOPE:feature — Todo MVC example (reference implementation)
 package handlers
 
 import "github.com/calionauta/gogogo/internal/queue"
@@ -18,7 +18,7 @@ func todoUpdateJob(event, title string) []byte {
 	// their zero values on purpose: these are workflow-level notifications
 	// (completed / error / timeout), not mutations of a specific record, so
 	// there is no id to carry and no completion to flip. They are constants here
-	// rather than parameters because every call site would pass the same thing —
+	// rather than parameters because every call site would pass the same thing
 	// which unparam flags, correctly: a parameter every caller fixes is a
 	// constant wearing a parameter's clothes.
 	ev := mustJSON(map[string]any{

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Auth-gated read-only /config view (masked secrets)
+// SCOPE:feature — Auth-gated read-only /config view (masked secrets)
 //
 // Package wiring notes
 //

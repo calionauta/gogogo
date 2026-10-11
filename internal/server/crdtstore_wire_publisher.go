@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — CRDT store transport wiring (post-Init)
+// SCOPE:plugin — CRDT store transport wiring (post-Init)
 //
 // Wires the CRDTStore publisher so every saveSnapshot (local or via
 // ApplyRemoteOp from a peer instance) fans out a doc-version-bumped
@@ -43,7 +43,7 @@ var _ crdtstore.DocPublisher = (*hubPublisher)(nil)
 func (p *hubPublisher) Name() string { return "sse-hub" }
 
 // PublishDocEvent fans out a doc-version-bumped envelope to every
-// connected client of the owner. excludeClientID is "" —
+// connected client of the owner. excludeClientID is ""
 // cross-store events have no originating client, every tab of the
 // affected owner needs to know.
 func (p *hubPublisher) PublishDocEvent(ownerID string, version uint64) {

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: trim-provenance tests
+// SCOPE:plugin — installer engine: trim-provenance tests
 package installer
 
 import (

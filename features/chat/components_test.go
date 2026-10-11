@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat render tests.
+// SCOPE:feature — chat render tests.
 package chat_test
 
 import (

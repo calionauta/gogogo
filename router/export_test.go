@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — test-only export surface for the router
+// SCOPE:plugin — test-only export surface for the router
 // package. Go test files are excluded from the SCOPE linter, but this one
 // carries the annotation anyway so the file's purpose is obvious at a glance.
 //

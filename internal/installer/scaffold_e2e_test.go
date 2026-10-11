@@ -57,7 +57,7 @@ func TestScaffoldKeepAllRealProof(t *testing.T) {
 
 func TestScaffoldBrokenProofReports(t *testing.T) {
 	// Red-proof for the gate above: a tree that cannot compile must fail
-	// the apply with the compiler output AND a buildOk:false envelope —
+	// the apply with the compiler output AND a buildOk:false envelope
 	// never a silent success.
 	dir := t.TempDir()
 	writeScaffoldFixture(t, dir, "package main\n\nfunc broken( {\n")

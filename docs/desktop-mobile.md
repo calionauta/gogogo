@@ -91,7 +91,7 @@ publishes whiteboard updates on `app.sync.<docID>` and ephemeral multi-user
 Loro snapshots to PocketBase (the `whiteboards` collection) and streams
 presence to browser clients via SSE (`GET /api/collab/presence/{docID}`).
 
-## Native window PoC (gogpu/ui)
+## Native window (gogpu/ui)
 
 `cmd/gui` is a **second frontend over the same backend** (PocketBase +
 `EntityStore` + `features/auth.Login` / `ResolveOwner`) — no
@@ -106,7 +106,7 @@ make run-gui  # open the window (needs DISPLAY/GPU; not exercised in CI)
 ```
 
 Like `cmd/desktop` it is a separate target: excluded from `web-packages.sh`
-(web CI) and validated by the `gui-poc` job in
+(web CI) and validated by the `gui` job in
 `.github/workflows/desktop.yml` (gofumpt + vet + govulncheck + race tests +
 build, all headless). Full `golangci-lint` is a **manual local step by
 design** — linting wgpu/naga is minutes-cold per push and only catches style.
@@ -121,7 +121,7 @@ outbox/replay), no JetStream push (poll only), native `add()` does not trigger
 the onboarding workflow, session token in a `0600` file (no OS keyring).
 
 **To remove:** delete `cmd/gui/`, drop the `gui` Makefile target and the
-`gui-poc` job. No script change needed — it is already excluded from web CI.
+`gui` job. No script change needed — it is already excluded from web CI.
 
 ## Related
 

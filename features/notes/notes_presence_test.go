@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Notes stream + presence tests.
+// SCOPE:feature — Notes stream + presence tests.
 package notes_test
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: trim import-coverage test.
+// SCOPE:plugin — installer engine: trim import-coverage test.
 package installer
 
 import (

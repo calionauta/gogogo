@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — tests for the SQLite DSN configuration.
+// SCOPE:core — tests for the SQLite DSN configuration.
 package queue
 
 import (

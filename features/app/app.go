@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=core — AppContext (cross-cutting deps bundle)
+// SCOPE:core — AppContext (cross-cutting deps bundle)
 // Package app provides the cross-cutting "application core" pattern
 // for projects built on top of gogogo. In a real project
 // cloned from this template, this is where you'd put:
@@ -37,7 +37,7 @@ import (
 //
 // The template's current feature handlers (features/todo) take
 // individual dependencies; future features can take *Context
-// instead. Context does NOT depend on PocketBase or NATS —
+// instead. Context does NOT depend on PocketBase or NATS
 // the PocketBase *core.App reference and the realtime broadcaster
 // stay where they are (TodoHandler / router) because they're
 // tightly coupled to the request lifecycle.

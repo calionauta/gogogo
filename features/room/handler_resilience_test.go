@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Room roster-read resilience tests.
+// SCOPE:feature — Room roster-read resilience tests.
 package room
 
 import (

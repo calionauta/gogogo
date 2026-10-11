@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Repository helpers for the todo handler (thin wrappers
+// SCOPE:feature — Repository helpers for the todo handler (thin wrappers
 package handlers
 
 import (

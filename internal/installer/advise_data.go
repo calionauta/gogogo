@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: advise data (presets, rules, stack signals)
+// SCOPE:plugin — installer engine: advise data (presets, rules, stack signals)
 package installer
 
 import "strings"

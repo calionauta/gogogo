@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Tests for session token persistence.
+// SCOPE:feature — Tests for session token persistence.
 package main
 
 import (
@@ -42,7 +42,7 @@ func TestTokenSaveRefusesEmpty(t *testing.T) {
 	}
 }
 
-// Missing, unreadable, and blank sessions all mean "show login" —
+// Missing, unreadable, and blank sessions all mean "show login"
 // loadToken errors and restoreSession leaves the window signed out.
 func TestTokenLoadMissingMeansLogin(t *testing.T) {
 	s := newNativeState(t)
@@ -59,7 +59,7 @@ func TestTokenLoadMissingMeansLogin(t *testing.T) {
 	}
 }
 
-// A garbage token must clear the file and leave login showing —
+// A garbage token must clear the file and leave login showing
 // never a stuck "signed in but empty" frame, never a retry loop on
 // the next launch.
 func TestRestoreSessionClearsDeadToken(t *testing.T) {

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogen-ui worker tests.
+// SCOPE:feature — gogen-ui worker tests.
 package genui
 
 import (
@@ -29,7 +29,7 @@ func (s stubResponder) Respond(_ context.Context, _ string) (string, error) {
 
 // TestWorkerDeliversComponents proves the full async path without a model:
 // prompt in, genui envelope with rendered component HTML out on the
-// originator's hub channel. Uses real SSEHubs (no mocks of infra) —
+// originator's hub channel. Uses real SSEHubs (no mocks of infra)
 // and crucially TWO of them: the pool passes its shared hub as the
 // argument, but delivery must land on the feature's own hub. A single
 // hub in this test would hide the cross-talk bug that once surfaced

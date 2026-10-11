@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — REMOVE if you don't need PocketBase-backed storage
+// SCOPE:core — REMOVE if you don't need PocketBase-backed storage
 //
 // PBStore is the default EntityStore implementation: it persists each
 // entity as a PocketBase record in the corresponding collection. Idempotent

@@ -23,7 +23,7 @@ kept current with the code.
 ```
 cmd/web/                          Entry point (PB + goqite + SSE Hub + DagNats + NATS)
 cmd/desktop/                      Wails v3 desktop/edge shell (NATS Leaf Node when set)
-cmd/gui/                          gogpu/ui native window PoC over the same backend
+cmd/gui/                          gogpu/ui native window over the same backend
 config/                           Env config (+ age secrets)
 db/                               PocketBase setup + seed
 internal/
@@ -96,11 +96,15 @@ subtree matching — `GET /` swallows unregistered subpaths). Therefore:
 ## SCOPE annotations
 
 Every non-test, non-generated `.go` file under `internal/` and `features/`
-carries a leading doc-comment line declaring its SCOPE on two orthogonal axes:
+carries a leading doc-comment line declaring its removal class:
 
 ```
-// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <short description>
+// SCOPE:<core|plugin|feature> — <short description>
 ```
+
+The directory is the layer (`internal/` = infra, `features/` = product); the
+annotation only records what happens if the file is deleted. See
+[scope-taxonomy](scope-taxonomy.md).
 
 The `cmd/check-scope` program walks every `.go` file in `internal/` and
 `features/` and asserts the canonical line is present. `make ci-local` runs it,

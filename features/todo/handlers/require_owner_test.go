@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Unit tests for the RequireOwner choke point.
+// SCOPE:feature — Unit tests for the RequireOwner choke point.
 package handlers
 
 import (

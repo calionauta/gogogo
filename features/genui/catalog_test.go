@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — gogen-ui catalog tests.
+// SCOPE:feature — gogen-ui catalog tests.
 package genui
 
 import (

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — chat conversation model + answer parsing
+// SCOPE:feature — chat conversation model + answer parsing
 package chat
 
 import (

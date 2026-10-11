@@ -412,7 +412,7 @@ templ TodoList(signals todo.Signals) {
 templ createForm(signals todo.Signals) {
 	<form
 		class="join w-full mb-4"
-		data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
+		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}); }"
 	>
 		<input
 			type="text"

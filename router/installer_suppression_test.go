@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — tests that the PocketBase first-run
+// SCOPE:core — tests that the PocketBase first-run
 // installer can be suppressed in non-interactive environments.
 package router_test
 

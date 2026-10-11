@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Notes sync-protocol tests: base
+// SCOPE:feature — Notes sync-protocol tests: base
 // revisions, stale refusal + retry, session visibility. Split out of
 // notes_presence_test.go to stay within the 500-line budget.
 package notes_test
