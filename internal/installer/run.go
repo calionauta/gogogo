@@ -352,18 +352,11 @@ func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) e
 		return &ExitError{code: 2, msg: fmt.Sprintf(
 			"go mod tidy failed (%v):\n%s", err, tailLines(string(out), proofTidyTailLines))}
 	}
-	// Route-removing trims stale the generated inventory: regenerate it so
-	// the scaffolded tree is green immediately instead of failing its own
-	// drift test on first run. Warn-only (like templ generate): the drift
-	// test names the exact regen command if this step ever misses.
+	// Regenerate the route inventory so the tree is green immediately.
 	fmt.Fprintln(stdout, "gogogo: prove: api-routes inventory …")
-	if out, err := runIn(ctx, dir, "go", "test", "./internal/capabilities/",
-		"-run", "TestApiRoutesDocFresh", "-update", "-count=1"); err != nil {
-		fmt.Fprintf(stdout,
-			"gogogo: WARN: api-routes regen failed (%v) — run "+
-				"`go test ./internal/capabilities/ -run TestApiRoutesDocFresh -update` manually:\n%s\n",
-			err, tailLines(string(out), proofTidyTailLines))
-	}
+	// Warn-only here (failure is a stale doc, not a broken tree); the gate
+	// below treats the same error as fatal.
+	_ = proveAPIRoutesDoc(ctx, dir, stdout)
 	fmt.Fprintln(stdout, "gogogo: prove: go build ./cmd/web …")
 	tmp, err := os.CreateTemp("", "gogogo-proof-*")
 	if err != nil {
@@ -385,6 +378,23 @@ func runIn(ctx context.Context, dir, name string, args ...string) ([]byte, error
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	return cmd.CombinedOutput()
+}
+
+// proveAPIRoutesDoc regenerates the route inventory in the target tree.
+// It returns the regen error (callers decide warn-only vs fatal) after
+// printing the WARN with the manual regen command, so no failure mode is
+// silent. Shared with the preset composition gate, which proves it on
+// copies.
+func proveAPIRoutesDoc(ctx context.Context, dir string, stdout io.Writer) error {
+	if out, err := runIn(ctx, dir, "go", "test", "./internal/capabilities/",
+		"-run", "TestApiRoutesDocFresh", "-update", "-count=1"); err != nil {
+		fmt.Fprintf(stdout,
+			"gogogo: WARN: api-routes regen failed (%v) — run "+
+				"`go test ./internal/capabilities/ -run TestApiRoutesDocFresh -update` manually:\n%s\n",
+			err, tailLines(string(out), proofTidyTailLines))
+		return err
+	}
+	return nil
 }
 
 func tailLines(s string, n int) string {

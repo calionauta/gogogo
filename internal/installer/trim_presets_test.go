@@ -2,7 +2,9 @@
 package installer
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -126,6 +128,13 @@ func TestTrimPresetCompositionsBuild(t *testing.T) {
 			if err := applyTrim(dir, drop, rc); err != nil {
 				t.Fatalf("trim: %v", err)
 			}
+			// A real scaffold records provenance (removed: + removed-paths:)
+			// in AGENTS.md; the registry conformance tests below read it
+			// to tell deliberate removals from drift. The gate reproduces
+			// that step so the suites run under scaffold conditions.
+			if err := writeAgents(dir, name+"-gate", drop); err != nil {
+				t.Fatalf("provenance: %v", err)
+			}
 			for _, unit := range rc.Units {
 				if len(unit.StripsMissed) > 0 {
 					t.Errorf("preset %q unit %q missed strips:\n  %s",
@@ -156,7 +165,58 @@ func TestTrimPresetCompositionsBuild(t *testing.T) {
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%s tree lost a route:\n%s", name, out)
 			}
+			// Full product suites on the trimmed tree — the per-unit gate
+			// stops at vet+routes, but the 404 pins (credits/landing/config
+			// replaces, mux-table drops) and the provenance-aware registry
+			// tests only run here. Doc inventory regenerates first (same
+			// command prove runs), or the drift test fails by design.
+			var docBuf bytes.Buffer
+			if err := proveAPIRoutesDoc(ctx, dir, &docBuf); err != nil {
+				t.Fatalf("%s tree doc regen failed:\n%s", name, docBuf.String())
+			}
+			cmd = exec.CommandContext(ctx,
+				"go", "test", "./internal/server/", "./internal/capabilities/",
+				"-count=1")
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("%s tree product suite failed:\n%s", name, out)
+			}
 		})
+	}
+}
+
+// TestPresetDryRunJSON pins the --preset CLI contract end to end: the plan
+// carries the preset name and exactly its drops. Delete the Preset field
+// plumbing and agents lose the traceability the flag exists for.
+func TestPresetDryRunJSON(t *testing.T) {
+	out := captureStdout(t, func(w *os.File) {
+		err := Run(context.Background(), []string{
+			"--name", "x", "--preset", presetNoAI,
+			"--no-tui", "--dry-run", "--format", "json",
+		}, devNull(t), w)
+		if err != nil {
+			t.Fatalf("run: %v", err)
+		}
+	})
+	var plan struct {
+		Preset string `json:"preset"`
+		Drop   []struct {
+			ID string `json:"id"`
+		} `json:"drop"`
+	}
+	if err := json.Unmarshal([]byte(out), &plan); err != nil {
+		t.Fatalf("plan JSON: %v\n%s", err, out)
+	}
+	if plan.Preset != presetNoAI {
+		t.Errorf("preset = %q, want no-ai", plan.Preset)
+	}
+	ids := make([]string, 0, len(plan.Drop))
+	for _, u := range plan.Drop {
+		ids = append(ids, u.ID)
+	}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []string{"credits", "genui"}) {
+		t.Errorf("drops = %v, want [credits genui]", ids)
 	}
 }
 

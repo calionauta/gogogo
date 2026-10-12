@@ -96,6 +96,19 @@ func TestOAuthUnverifiedEmailRejected(t *testing.T) {
 	}
 }
 
+// TestOAuthSubjectRequired pins the fail-closed provider contract: without
+// a subject extractor there is no link key, so identity resolution errors
+// instead of falling back to an email-derived subject (the takeover the
+// sub-keying exists to prevent).
+func TestOAuthSubjectRequired(t *testing.T) {
+	idp := stubIDP(t, "nosub@example.com", true)
+	p := subProvider(idp.URL)
+	p.ParseSubject = nil
+	if _, _, err := fetchOAuthIdentity(context.Background(), p, "stub-access"); err == nil {
+		t.Fatal("nil subject extractor accepted (must fail, never email-fallback)")
+	}
+}
+
 // TestGitHubSubjectParses pins the /user id extraction (and its absence).
 func TestGitHubSubjectParses(t *testing.T) {
 	sub, err := parseGitHubSubject([]byte(`{"id":12345,"login":"octo"}`))
