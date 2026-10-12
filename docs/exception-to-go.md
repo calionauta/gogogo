@@ -348,6 +348,16 @@ is performance-critical.
   demonstrably simpler and safer for a particular use case, document the
   tradeoff rather than forcing C ABI mechanically — but the burden of proof
   is on the alternative.
+- **Loader: purego instead of cgo where it fits.** tursogo already loads
+  its native library through `purego` (dlopen, no C toolchain on the Go
+  side), so `CGO_ENABLED=0` builds and clean cross-compilation survive a
+  native dependency. A Zig kernel shipped as a static C-ABI lib can load
+  the same way — no C compiler involved in `go build`. Two hard limits,
+  both measured: purego dispatches per call (the batch-calls rule above
+  is load-bearing, not style), and **one FFI runtime per binary** —
+  purego's `fakecgo` collides with goffi's at CGO-less link time
+  (`cmd/gui` proved it: tursogo + wgpu cannot coexist without CGO), so a
+  purego-loaded kernel is refused in any binary that already links goffi.
 
 ## Performance rule (no reputation-based optimization)
 
