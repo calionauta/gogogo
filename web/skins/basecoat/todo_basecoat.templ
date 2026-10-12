@@ -540,23 +540,31 @@ templ sseOpener() {
 		id="sse-opener"
 		class="hidden"
 		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=basecoat', { permanent: true })" }
+		data-on:visibilitychange__document="if(!document.hidden){document.getElementById('sse-opener').click()}"
 		aria-hidden="true"
 	></button>
 	<script type="module">
+		// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven
+		// bootstrap as the daisyui RealtimeStream — the opener must fire
+		// on datastar-ready (plus a timeout fallback), not blindly at
+		// module eval: clicking before Datastar wires the button is a
+		// silent no-op and the stream never opens.
 		(function () {
 			try {
 				var id = sessionStorage.getItem('gogogoClientID');
 				if (!id) { id = 'tab-' + Math.random().toString(36).slice(2, 10); sessionStorage.setItem('gogogoClientID', id); }
 				window.__gogogoClientID = id;
+			} catch (e) {
+				window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
+			}
+			function openSSE() {
 				var b = document.getElementById('sse-opener');
-				if (b) { b.click(); }
-			} catch (e) {}
+				if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
+			}
+			document.addEventListener('datastar-ready', openSSE);
+			// Fallback if datastar-ready already fired.
+			setTimeout(openSSE, 300);
 		})();
-		document.addEventListener('visibilitychange', function () {
-			if (document.hidden) { return; }
-			var b = document.getElementById('sse-opener');
-			if (b) { b.click(); }
-		});
 	</script>
 }
 

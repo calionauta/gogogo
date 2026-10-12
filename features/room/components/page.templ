@@ -72,6 +72,12 @@ templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel strin
 				</div>
 			</main>
 			<script>
+				// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): this page
+				// predates the Datastar realtime pattern — vanilla fetch +
+				// innerHTML roster + heartbeat/refresh intervals. Converting
+				// means signals + @post morphs + data-on-interval with
+				// interaction coverage: a feature project, not a line edit.
+				// Pinned by the guard so it cannot grow.
 				// Adjacent polling loop (not SSE): heartbeat keeps this
 				// member alive, roster refresh re-renders from snapshots.
 				// Templ does not interpolate expressions inside <script>

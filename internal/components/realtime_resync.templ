@@ -14,15 +14,17 @@ package components
 // client-side JS (e.g. a fragment path) — evaluated by Datastar
 // at click time, never by the server.
 //
-// The script finds its button through the data-list-resync marker (never
-// a second copy of the id): Templ never interpolates Go values inside
-// <script> bodies, so values cross that boundary only as data attributes.
+// Visibility refetch is a data-on:visibilitychange__document attribute on
+// the button itself (not a vanilla listener): the id interpolates into
+// attributes, so no script needs it. The load-time go() call stays a
+// script (bootstrap, same class as the SSE opener).
 templ ListResync(buttonID, fragmentExpr string) {
 	<button
 		id={ buttonID }
 		type="button"
 		class="hidden"
 		data-on:click={ "@get(" + fragmentExpr + ")" }
+		data-on:visibilitychange__document={ "if(!document.hidden){document.getElementById('" + buttonID + "').click()}" }
 		data-list-resync="1"
 		aria-hidden="true"
 	></button>
@@ -37,12 +39,9 @@ templ ListResync(buttonID, fragmentExpr string) {
 			if (b) { b.click(); }
 		}
 		// Refetch on load (a change from while the page was gone would
-		// otherwise never arrive) and on tab-visibility return
-		// (backgrounded tabs get their streams throttled/paused by the
-		// browser).
+		// otherwise never arrive). Visibility return is the data-on
+		// attribute above (backgrounded tabs get their streams
+		// throttled/paused by the browser).
 		go();
-		document.addEventListener('visibilitychange', function () {
-			if (!document.hidden) { go(); }
-		});
 	</script>
 }

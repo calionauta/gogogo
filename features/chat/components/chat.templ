@@ -76,6 +76,10 @@ templ ChatIndex(email string, buildLabel string, buildCommit string) {
 				aria-hidden="true"
 			></button>
 			<script type="module">
+				// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven
+				// bootstrap as the todo RealtimeStream — Datastar v1 never fires
+				// data-on:load on body, so the datastar-ready click + timeout
+				// fallback below is the only opener that works.
 				(function () {
 					try {
 						var id = sessionStorage.getItem('gogogo_client_id');

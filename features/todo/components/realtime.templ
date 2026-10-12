@@ -56,6 +56,11 @@ templ RealtimeStream(streamURL string) {
 		aria-hidden="true"
 	></button>
 	<script type="module">
+		// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): Datastar v1
+		// never fires data-on:load on div/body, so no declarative opener
+		// exists — the datastar-ready click + timeout fallback below is
+		// the bootstrap. Everything after bootstrap (reopen on online /
+		// visibility) is data-on attributes on the button above.
 		// Stable per-tab client id. Persisted in sessionStorage so a reload
 		// reuses the same id (no leaked SSE registration on the server) and
 		// every mutation POSTs the matching id for BroadcastExcept.
