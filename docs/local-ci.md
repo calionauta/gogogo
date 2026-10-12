@@ -51,7 +51,8 @@ push/merge, or (b) the change touches an area the next tier checks.
 ### Why the full gate is slow, and the fast sibling
 
 The full run is dominated by `go test -race`. Measured `ci-local`:
-**5:50** end to end (2026-10-12, 10-core Mac; the race suite and the three
+**5:50–7:11** end to end (2026-10-12, 10-core Mac, two consecutive green
+runs — the range itself is load variance, see the flake paragraph below;
 Playwright suites run in parallel via `scripts/ci-fanout.sh`, so the
 wall-clock is the slowest suite, not the sum). Heaviest race packages by
 package time (they overlap in parallel — wall is the max, not the sum):
