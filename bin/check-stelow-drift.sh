@@ -43,6 +43,18 @@ BRANCH="main"
 STRICT=0
 [ "${1:-}" = "--strict" ] && STRICT=1
 
+# Portable timeout: macOS ships no `timeout(1)` (only coreutils `gtimeout`,
+# when installed). Without this shim ls-remote fails on every Mac and the
+# check reports "could not reach upstream" forever — masking real drift
+# exactly where developers work.
+if command -v timeout >/dev/null 2>&1; then
+  run_timeout() { timeout 20 "$@"; }
+elif command -v gtimeout >/dev/null 2>&1; then
+  run_timeout() { gtimeout 20 "$@"; }
+else
+  run_timeout() { "$@"; }
+fi
+
 # DRIFT accumulates every reason this check would fail. The exit code is
 # derived from it once, at the end, so a finding can never be printed without
 # also being able to fail (an earlier version printed the content mismatch and
@@ -90,7 +102,7 @@ if ! command -v git >/dev/null 2>&1; then
   fail_or_warn; exit $?
 fi
 
-REMOTE=$(timeout 20 git ls-remote "$UPSTREAM" "refs/heads/$BRANCH" 2>/dev/null | awk '{print $1}')
+REMOTE=$(run_timeout git ls-remote "$UPSTREAM" "refs/heads/$BRANCH" 2>/dev/null | awk '{print $1}')
 if [ -z "$REMOTE" ]; then
   # Offline is not drift. Failing a commit because GitHub was unreachable is
   # exactly the false alarm that trains people to bypass hooks.

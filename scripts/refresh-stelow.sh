@@ -55,13 +55,24 @@ done
 
 command -v curl >/dev/null 2>&1 || { echo "refresh-stelow: curl is required" >&2; exit 1; }
 
+# Portable timeout: macOS ships no `timeout(1)` (only coreutils `gtimeout`,
+# when installed). Without this shim the ls-remote below fails on every Mac
+# and the refresh can never resolve a branch name there.
+if command -v timeout >/dev/null 2>&1; then
+  run_timeout() { timeout 25 "$@"; }
+elif command -v gtimeout >/dev/null 2>&1; then
+  run_timeout() { gtimeout 25 "$@"; }
+else
+  run_timeout() { "$@"; }
+fi
+
 # --- resolve the target commit -------------------------------------------------
 # A full SHA is used as-is; anything else is treated as a branch/tag name and
 # resolved through git ls-remote, which needs no API token and no rate budget.
 if printf '%s' "$REF" | grep -qE '^[0-9a-f]{40}$'; then
   TARGET="$REF"
 else
-  TARGET=$(timeout 25 git ls-remote "$UPSTREAM_GIT" "refs/heads/$REF" "refs/tags/$REF" 2>/dev/null | awk 'NR==1{print $1}')
+  TARGET=$(run_timeout git ls-remote "$UPSTREAM_GIT" "refs/heads/$REF" "refs/tags/$REF" 2>/dev/null | awk 'NR==1{print $1}')
   [ -n "$TARGET" ] || { echo "refresh-stelow: could not resolve ref '$REF' upstream" >&2; exit 1; }
 fi
 echo "→ target commit: $TARGET"
@@ -106,7 +117,7 @@ elif [ -d "$LOCAL_CLONE/.git" ] && git -C "$LOCAL_CLONE" cat-file -e "$TARGET^{c
 else
   # Cannot see upstream's file list. Refresh the files we already vendor, and
   # say so — a silently incomplete refresh is the failure mode worth avoiding.
-  UPSTREAM_FILES=$(find "$SKILL_DIR" -type f ! -name UPSTREAM_SHA -printf '%P\n' | sort)
+  UPSTREAM_FILES=$(find "$SKILL_DIR" -type f ! -name UPSTREAM_SHA | sed "s|^$SKILL_DIR/||" | sort)
   echo "  ⚠️  file list: LOCAL ONLY (no API, no clone) — a newly added upstream"
   echo "      reference would NOT be picked up by this run."
 fi
@@ -152,7 +163,7 @@ GONE=""
 if [ -d "$SKILL_DIR" ]; then
   while IFS= read -r local_rel; do
     printf '%s\n' $UPSTREAM_FILES | grep -qxF "$local_rel" || { GONE="$GONE $local_rel"; CHANGED=1; }
-  done < <(find "$SKILL_DIR" -type f ! -name UPSTREAM_SHA -printf '%P\n' | sort)
+  done < <(find "$SKILL_DIR" -type f ! -name UPSTREAM_SHA | sed "s|^$SKILL_DIR/||" | sort)
 fi
 
 if [ "$CHANGED" -eq 0 ]; then
