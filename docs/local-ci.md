@@ -51,7 +51,7 @@ push/merge, or (b) the change touches an area the next tier checks.
 ### Why the full gate is slow, and the fast sibling
 
 The full run is dominated by `go test -race`. It used to be dominated by a
-single package: `features/todo` (a real PocketBase + goqite + SSE fixture per
+single package: `features/todo` (a real Turso + goqite + SSE fixture per
 test) was ~70s and over 60% of the suite. That fixture cost and the
 demonstration delays the tests waited out were both cut (see the 0.35 entry in
 [CHANGELOG.md](../CHANGELOG.md)), so the suite is now ~42s and `features/todo`

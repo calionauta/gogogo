@@ -2,6 +2,31 @@
 
 ### Changed
 
+- **Offline replays reach every stream.** Mutation handlers fan out (Hub +
+  JetStream) before the `"replayed"` short-circuit, and replays no longer
+  exclude the queued `clientID` — a background replay is not the originating
+  interaction, so no-echo does not apply. Fixes the offline "Add button
+  stuck + todo lost" class the Playwright smoke caught (red-proof:
+  `TestChiTodoReplayReachesOriginator`).
+- **`CHI_ADDR` honored by `cmd/web`.** The env var was dead on the main
+  binary (only `cmd/desktop` read it); `listenAddr` unifies the rule —
+  override when set, `HOST:PORT` otherwise.
+- **Dead realtime subscription removed.** Every list page opened an
+  `EventSource` on `/api/realtime`, a route that died with the framework —
+  a 404 per page plus stale PB narrative. `PbRealtimeResync` becomes
+  `ListResync`: same hidden-`@get` button ids, same visibility refetch, no
+  subscription. Record sync arrives over each feature's SSE stream.
+- **Demo seed covers both accounts.** The flat port seeded only demo1 while
+  the login form promises demo1+demo2; `internal/demo` seeds both again
+  (red-proof: `TestEnsureSeedsBothDemoAccounts`).
+- **Dead `ENCRYPTION_KEY` removed.** The PB-era key has no consumer on the
+  flat stack (sessions are random tokens; BYOK has its own
+  `CREDITS_ENC_KEY`): field, `/config` row and mask entry gone, masking
+  tests re-pinned on `AdminToken`.
+- **ai-credits v0.5.0 (tursogo, no modernc).** The ledger library drops
+  `modernc.org/sqlite`; `modernc` leaves our `go.mod` and the binary
+  closure. Its write lock is now driver-proof (`immediateTx` forces the
+  upgrade up front), which the concurrent-reserve suite red-proofs.
 - **PocketBase is gone.** The framework layer the flat stack replaced is fully
   removed: `db/` (app handle, seeds, idempotency hook), `router/` (route
   wiring), `internal/routeutil`, `internal/collabpb`, `features/store`

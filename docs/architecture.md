@@ -8,25 +8,25 @@ kept current with the code.
 ## Principles
 
 - **Unified build.** One `go build ./cmd/web` compiles everything — no build
-  tags. `ncruces/go-sqlite3` is the always-on SQLite driver (it registers
-  `sqlite3`); PocketBase also bundles `modernc.org/sqlite`, but that registers
-  `sqlite` and stays unused, so nothing is gated behind a tag. Opt out at
-  runtime with env vars (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
+  tags. `turso` (tursogo) is the always-on SQLite driver, registered by
+  `internal/db`; handlers call the generated `dbgen.*` queries directly, so
+  nothing is gated behind a tag. Opt out at runtime with env vars
+  (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
 - **Features in `features/`, infrastructure in `internal/`.** Features depend
   on infra, never the reverse.
-- **Wiring in `internal/server/chi.go` → `Init()`.** Every feature is registered by
-  one function call.
+- **Wiring in `internal/server/chi.go`.** `BootChi` builds one handler per
+  capability; `buildChiMux` mounts one route subtree per capability.
 - **Startup order in `cmd/web/main.go`.**
 
 ## Directory layout
 
 ```
-cmd/web/                          Entry point (PB + goqite + SSE Hub + DagNats + NATS)
+cmd/web/                          Entry point (flat stack + goqite + SSE Hub + DagNats + NATS)
 cmd/desktop/                      Wails v3 desktop/edge shell (NATS Leaf Node when set)
 cmd/gui/                          gogpu/ui native window over the same backend
 config/                           Env config (+ age secrets)
-db/                               PocketBase setup + seed
 internal/
+  demo/                           Fresh-install demo account seed (idempotent Signup)
   secrets/                        age-decrypted secrets loader
   queue/                          goqite + SSE Hub + workers + retry + handler registry
   datastar/                       Datastar SSE rendering helpers
@@ -35,10 +35,13 @@ internal/
   goakt/                          GoAkt entity actors (room authority)
   llm/                            GoAI LLM SDK helpers
   collab/                         Loro CRDT + DocStore + sync workers + presence
+  auth/                           Owned argon2id + sessions (gogogo_auth cookie)
+  db/                             Turso connection + migrations + sqlc queries
+  demo/                           Fresh-install demo account seed
+  server/                         Flat-stack composition (BootChi + buildChiMux)
 features/
   app/                            AppContext (cross-cutting deps bundle)
-  auth/                           Login/logout/cookie (UI) + middleware
-  store/                          EntityStore interface (PB + CRDT strategies)
+  authviews/                      Login/navbar/theme components (PB-free UI)
   landing/                        Public marketing hero on GET /
   config/                         Auth-gated read-only /config view
   todo/                           Todo MVC example
@@ -47,9 +50,8 @@ features/
   notes/                          Shared plain-text notes (server-owned Loro Text)
   sounds/                         UI sound feedback (cuelume)
 web/
-  resources/                      Embedded static assets
+  resources/                      Embedded static assets (AssetHandler: /static/ + root /sw.js)
   skins/                          Pluggable UI skin registry
-router/                           Route wiring (central dependency graph)
 ```
 
 The annotated version of this tree, with SCOPE markers on every entry, is in
@@ -58,15 +60,15 @@ The annotated version of this tree, with SCOPE markers on every entry, is in
 ## Dependency direction
 
 ```
-cmd/web  ──▶  router  ──▶  features/*  ──▶  internal/*  ──▶  (stdlib, deps)
-              ▲              │
-              └──────────────┘
+cmd/web  ──▶  internal/server  ──▶  features/*/chi  ──▶  internal/*  ──▶  (stdlib, deps)
+                       │                    │
+                       └────────────────────┘
          features depend on internal, never the reverse
 ```
 
 `internal/server/chi.go` is the single place where the dependency graph is
 assembled. If you are adding a feature, that is the only file you touch for
-wiring — the feature's own `RegisterRoutes` does the rest.
+wiring — the feature's own `Routes()` does the rest.
 
 ## The three app entry points
 
@@ -88,10 +90,11 @@ subtree matching — `GET /` swallows unregistered subpaths). Therefore:
 
 - Register all routes **directly** on `se.Router` inside the `OnServe` hook.
   A nested `OnServe().BindFunc` never fires.
-- Serve static assets via **exact** `/static/<file>` routes; the PB catch-all
-  shadows wildcards.
-- The app cookie is `gogogo_auth`, **not** `pb_auth` — see
-  [Admin & Dashboard](admin-dashboard.md#app-session-cookie-vs-pb_auth-why-two).
+- Serve static assets through `web/resources.AssetHandler` (`/static/` plus
+  root `/sw.js` with `Service-Worker-Allowed: /`); mount both before the
+  landing catch-all so the subtrees win.
+- The app cookie is `gogogo_auth` — the only cookie — see
+  [Admin & Dashboard](admin-dashboard.md#app-session-cookie-why-one).
 
 ## SCOPE annotations
 

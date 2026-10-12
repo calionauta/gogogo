@@ -22,9 +22,9 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `APP_NAME` | binary name | Project name (secrets scope); never empty |
 | `LOG_LEVEL` | `INFO` | slog level |
 | `DATA_DIR` | `data` | Root for runtime data |
-| `DATABASE_PATH` | `data/data.db` | SQLite file the credits ledger shares with PocketBase |
+| `DATABASE_PATH` | `data/data.db` | SQLite file the credits ledger opens (second connection to the app DB) |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
-| `CHI_ADDR` | unset | When set (e.g. `127.0.0.1:8081`), serves the flat-stack chi router (owned auth + sqlc todos + the other features ported to it) alongside the framework boot. Unset = framework boot only. `cmd/desktop` sets it itself from `HOST`/`PORT` |
+| `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the PB removal (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |
 
 ### Skin
 
@@ -86,14 +86,14 @@ real Todo **Suggest** path is metered in managed mode, and the app exposes
 server-side and records upstream JSON/SSE token usage with
 `billing_mode=byok` and `credits_charged=0`.
 
-> The relay trusts the authenticated PocketBase user stamped by the app. **Do
+> The relay trusts the authenticated session user stamped by the app. **Do
 > not expose `X-Auth-User` from an external proxy.**
 
 ### Auth and admin
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ENCRYPTION_KEY` | — | PocketBase encryption key |
+| `ENCRYPTION_KEY` | — | Legacy key name, kept for existing secrets files (the flat auth needs no encryption key — sessions are random tokens) |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
 
 ### Build metadata

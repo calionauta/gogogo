@@ -13,36 +13,17 @@ reload once when it changes. In dev the tag is constant, so Air rebuilds never
 trigger it. Single-binary deploys only: alternating builds (rolling deploy
 without affinity) would reload on every flip.
 
-## A browser tab opens at `127.0.0.1/_/#/pbinstall/…` during tests
+## A test binary seems to hang at boot (no browser, no output)
 
-PocketBase's first-run installer (`apis.DefaultInstallerFunc`) mints a
-`pbinstall` token and calls `osutils.LaunchURL` — it **opens a browser** on the
-machine running the process. A test that boots the real binary with a throwaway
-`DATA_DIR` has no superuser, so it hits this on every run. The tab usually lands
-before the server has bound, which is the "This site can't be reached /
-127.0.0.1 refused to connect" variant.
+The flat binary opens no browser and takes no CLI subcommands — address +
+data dir ride env (`HOST`/`PORT`, `TURSO_DB_PATH`, `DATA_DIR`). A spawned
+binary that never becomes healthy is almost always missing env: it binds
+`0.0.0.0:8080` and opens `data/` relative to the *child's* cwd. Pin both
+to a temp dir in the test (see `cmd/web/smoke_test.go`).
 
-The flat boot never opens a browser; nothing suppresses it anymore, and
-`interactive()` requires **stdin AND stdout to be real terminals**. The
-subtlety that made this recur: a child process inherits *the parent's* TTY
-status, so `go test` (or `make test`) launched from a real terminal produces a
-child that also looks interactive. Detection alone cannot cover that case —
-every test that spawns the binary must also set the explicit override:
-
-```go
-// Build the child env explicitly; do not append to os.Environ(), which may
-// carry a GOGOGO_NO_BROWSER=0 that would re-enable the launch.
-cmd.Env = []string{ ..., "GOGOGO_NO_BROWSER=1" }
-```
-
-`GOGOGO_NO_BROWSER=0` forces interactive (escape hatch for PTY-less
-automation). To confirm no browser is launched, put a shim early on `PATH` and
-check whether it fires:
-
-```bash
-mkdir -p /tmp/shim && printf '#!/bin/bash\necho "LAUNCHED: $*" >> /tmp/shim/open.log\n' > /tmp/shim/open && chmod +x /tmp/shim/open
-PATH=/tmp/shim:$PATH make ci-local
-cat /tmp/shim/open.log   # empty = correct
+Keep `GOGOGO_NO_BROWSER=1` set explicitly in the child env anyway (built
+from scratch, not `append(os.Environ(), …)` — an inherited `=0` would win):
+cheap insurance if a launcher ever returns.
 ```
 
 ## Tests fail with "failed to register onboarding workflow"
@@ -123,16 +104,21 @@ rebuild, do not investigate the lockfile further.
 
 Two separate mechanisms, and mixing them up is the usual cause:
 
-- **Record mutations** flow through PocketBase's native `/api/realtime`, scoped
-  by the collection's `ListRule`/`ViewRule`. If delivery is wrong, check the
-  rule — `@request.auth.id != '' && owner = @request.auth.id`.
+- **Record mutations** fan out twice per mutation: Hub record event to the
+  owner's streams (no-echo on `clientID`, except offline replays which reach
+  everyone) + JetStream CRUD op cross-instance, then each stream re-lists
+  scoped by owner. If delivery is wrong, check the owner scoping in
+  `broadcastRecord` and the exclusion rule — a replay stuck on its
+  optimistic row means fan-out sits behind the replay short-circuit again.
 - **Ephemeral signals** (toasts, client count, workflow progress) flow through
   the SSE Hub.
 
-If realtime is silently dropped, check that the client has **both** cookies —
-see [Admin & Dashboard](admin-dashboard.md#app-session-cookie-vs-pb_auth-why-two).
-Without `pb_auth` alongside `gogogo_auth`, PB's per-subscriber access check
-rejects the SSE channel and record events vanish with no error.
+If realtime is silently dropped, check the fan-out path: the mutation must
+reach `publishSync` (Hub record event + JetStream op) *before* any early
+return, and the stream's `clientID` must not be excluded unless it is the
+live originating tab — replays reach everyone (see
+[Admin & Dashboard](admin-dashboard.md#app-session-cookie-why-one) for the
+single-cookie model).
 
 ## "I changed the UI and nothing happened"
 
