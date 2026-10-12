@@ -118,6 +118,7 @@ func TestTrimPresetCompositionsBuild(t *testing.T) {
 	}
 	for _, name := range []string{"minimal", "no-ai"} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			drop, ok := presetPlan(name)
 			if !ok {
 				t.Fatalf("presetPlan(%q) unknown", name)

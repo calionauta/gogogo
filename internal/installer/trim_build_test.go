@@ -144,6 +144,7 @@ func TestTrimmedTreeStillBuilds(t *testing.T) {
 	}
 	for _, u := range manifestUnits {
 		t.Run(u.id, func(t *testing.T) {
+			t.Parallel()
 			dir := trimAndRegenerate(t, u)
 			// vet, not build: `go build ./...` ignores _test.go, and the
 			// composition test is exactly the file a trim is most likely to
@@ -218,6 +219,7 @@ func TestTrimmedTreeRouteGateCatchesLoss(t *testing.T) {
 func TestTrimmedTreeHasNoDanglingImports(t *testing.T) {
 	for _, u := range manifestUnits {
 		t.Run(u.id, func(t *testing.T) {
+			t.Parallel()
 			dir := trimAndRegenerate(t, u)
 			pkgs := unitImportPaths(u)
 			walkErr := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
