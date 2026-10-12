@@ -2,6 +2,24 @@
 
 ### Changed
 
+- **PocketBase is gone.** The framework layer the flat stack replaced is fully
+  removed: `db/` (app handle, seeds, idempotency hook), `router/` (route
+  wiring), `internal/routeutil`, `internal/collabpb`, `features/store`
+  (PBStore + CRDTStore — one data layer remains), `features/auth` (legacy
+  middleware), and every feature's PB handler pair. `cmd/web` serves only the
+  flat stack: `BootChi` → `startDagNats` → `startNATS` → `AttachJetStream` →
+  `Serve`, blocking on SIGINT/SIGTERM so cleanups drain in reverse order.
+  `cmd/gui` (native window) now runs on the same Turso + owned-auth layer.
+  `pocketbase` + `dbx` leave `go.mod`; the binary shrinks ~22% (141M → 110M).
+  No contract was lost silently: every PB-era test was re-pinned on the chi
+  slice that replaced it (cross-session create, notes caret/presence/rev
+  protocol, whiteboard peer counts + no-echo + 409, room roster resilience,
+  chat/genui workers, auth sessions + `/api/session`, theme toggle), and the
+  chi todo slice gained two fixes the migration exposed (`Signals.DagNatsEnabled`
+  registration truth, the `/static` + `/sw.js` + `/health` contract mounts).
+  `ENTITY_STORE` is gone with the strategy switch; `internal/db` IS the data
+  layer.
+
 - **Flat architecture.** Removed the `internal/ports` + `internal/repos` +
   `internal/backend` abstraction layer (a shallow pass-through with no
   implementation wired into the app) and the `DB_BACKEND` selector. Data

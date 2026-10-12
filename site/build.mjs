@@ -61,6 +61,8 @@ const MANIFEST = [
     desc: "Every capability and its runtime opt-out." },
   { group: "Core", slug: "use-cases", file: "use-cases.md",
     desc: "What each core, plugin, and feature is for, in business language." },
+  { group: "Core", slug: "architecture-decision", file: "architecture-decision.md",
+    desc: "The flat-stack decision record: what it serves, what it replaced, and the migration it completed." },
   { group: "Core", slug: "scope-taxonomy", file: "scope-taxonomy.md",
     desc: "Core / Plugin / Feature: the rule for deciding what is safe to delete." },
   { group: "Core", slug: "configuration", file: "configuration.md",
