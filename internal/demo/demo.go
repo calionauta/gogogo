@@ -16,19 +16,28 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 )
 
-// The pair the login form advertises as its placeholder. Same values the
-// PB seed used, so demos and docs keep working.
+// The pairs the login form advertises. Same values the PB seed used
+// (db/seed.go seeded both), so demos and docs keep working: demo1 is
+// prefilled, demo2 is the second browser for contention.
 const (
-	Email    = "demo1@demo.app"
-	Password = "demo1234456"
+	Email     = "demo1@demo.app"
+	Email2    = "demo2@demo.app"
+	Password  = "demo1234456"
+	demoName  = "Demo User"
+	demoName2 = "Demo User 2"
 )
 
-// Ensure seeds the demo account. Best-effort by design: a failure here
-// logs and continues (a fresh install without the demo user is a UX
+// Ensure seeds the demo accounts. Best-effort by design: a failure here
+// logs and continues (a fresh install without the demo users is a UX
 // regression, not a boot failure), and a duplicate is the normal repeat
 // case.
 func Ensure(ctx context.Context, a *auth.Auth) {
-	if _, _, err := a.Signup(ctx, Email, Password, "Demo User"); err != nil {
+	seedOne(ctx, a, Email, Password, demoName)
+	seedOne(ctx, a, Email2, Password, demoName2)
+}
+
+func seedOne(ctx context.Context, a *auth.Auth, email, password, name string) {
+	if _, _, err := a.Signup(ctx, email, password, name); err != nil {
 		if !errors.Is(err, auth.ErrBadCredentials) {
 			log.Printf("demo: seed skipped: %v", err)
 		}
