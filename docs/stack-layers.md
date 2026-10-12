@@ -133,10 +133,15 @@ box. Revisit when profiles show the queue, not the work, as the bottleneck.
 Workflows as declarative JSON, embedded in the binary, state durable on the
 JetStream the template already runs. No cluster to install, no second
 surface to learn. Rejected: Temporal (a server plus database plus SDKs for
-durability most apps never need at this scale). Cost: the expressive and
-throughput ceiling of a young JSON engine. Revisit when a workflow outgrows
-JSON, needs multi-tenant operation (namespaces, per-team RBAC and audit —
-none documented upstream), or needs a hosted offering.
+durability most apps never need at this scale). Cost: bounded dynamism by
+design — conditions-as-data (`skip_if`), bounded agent loops, planner
+fragments under `MaxSteps`/`MaxDepth`/`AllowedTasks` (full table:
+[dagnats](dagnats.md)). Revisit when a workflow needs unbounded iteration
+with no static bound, free-form expression evaluation the validators
+reject, dynamic topology beyond the planner bounds, multi-tenant operation
+(namespaces, per-team RBAC and audit — none documented upstream), or a
+hosted offering. Anything below that is a new DagNats primitive or a
+worker-side decision, not a new engine.
 
 ### JetStream on by default (and not opt-in)?
 
