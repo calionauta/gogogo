@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/calionauta/gogogo/features/chat/store"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -54,15 +54,14 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	})
 	raw, err := h.responder.Respond(ctx, p.Prompt)
 	if err != nil {
-		slog.Warn("chat: model unavailable", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Warn(ctx, "chat: model unavailable", obsArgs...)
 		_ = h.store.Append(ctx, p.UserID, store.Message{
 			Owner: p.UserID, Role: roleAssistant, Text: "model unavailable",
 			IdemKey: p.Idem + "#answer", Created: time.Now(),
 		})
-		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
-		// cancellation is handled by the surrounding ctx select, and slow-client
 		// drops by the hub's drop handler.
-		h.send(target, job.ClientID, chatEnvelope{Error: "model unavailable: " + err.Error()})
+		h.send(ctx, target, job.ClientID, chatEnvelope{Error: "model unavailable: " + err.Error()})
 		return nil
 	}
 	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
@@ -77,21 +76,23 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
 	})
-	//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-	h.send(target, job.ClientID, chatEnvelope{Text: text, Directives: dirs})
+	h.send(ctx, target, job.ClientID, chatEnvelope{Text: text, Directives: dirs})
 	return nil
 }
 
 // send delivers one chat envelope to a tab (or broadcasts when the job
 // carries no client). The envelope type is "chat" — the stream
 // dispatcher routes on it, same shape as every other hub producer.
-func (h *Handler) send(target *queue.SSEHub, clientID string, env chatEnvelope) {
-	body, err := json.Marshal(queue.Job{Type: "chat", Payload: mustJSON(env)})
+func (h *Handler) send(ctx context.Context, target *queue.SSEHub, clientID string, env chatEnvelope) {
+	body, err := json.Marshal(queue.Job{Type: "chat", Payload: mustJSON(ctx, env)})
 	if err != nil {
-		slog.Warn("chat: marshal envelope", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Warn(ctx, "chat: marshal envelope", obsArgs...)
 		return
 	}
 	if clientID == "" {
+		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
+		// cancellation flows through the surrounding ctx select.
 		target.Broadcast(body)
 		return
 	}

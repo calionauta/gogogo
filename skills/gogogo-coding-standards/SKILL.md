@@ -70,7 +70,7 @@ under **Core Go Rules**. Everything below is the delta this project adds on top.
 1. Errors are values: handle at call site, wrap with `%w`. See `errorlint`, `nilerr` in `.golangci.yml`.
 2. Interfaces at consumer, 1–3 methods. Prefer `io.Reader`/`io.Writer` over custom.
 3. `ctx context.Context` first param on I/O/cancellable paths. Never store in struct (`containedctx`, `contextcheck`, `noctx` enforce).
-4. `log/slog` only. No `fmt.Print*`, no bare `log.Printf`.
+4. `log/slog` only. No `fmt.Print*`, no bare `log.Printf`. In HTTP slices (`features/*/chi`, non-test), `slog.Error/Warn` is banned — use `internal/observability` with the request ctx (`ruleguard` enforces; helpers take ctx as a param for this reason).
 5. DI via constructors. No `init()` deps, no package-level service vars. No goroutines in `init()` — expose `Start`/`Stop`.
    - **A service handle is the case this rule is really about.** `internal/nats` had three exported globals (`NS`, `NC`, `JS`): two concurrent starts wrote the same variables (a real data race) and any `Stop()` cleared state another caller was still using — which is also why its tests could not run in parallel. Return a handle (`*Handle, error`) with a `Close()` that frees only what it owns; keep at most ONE accessor behind a `sync.RWMutex` for call sites that genuinely cannot thread the value. Pattern: `references/go-testing.md`.
 6. Naming: short receivers (`s`, `h`), acronyms `userID`/`httpClient`, no stutter, document exports.

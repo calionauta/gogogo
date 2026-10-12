@@ -2,9 +2,9 @@
 package chi
 
 import (
+	"context"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // peerJoin registers clientID as connected to docID and returns the list
@@ -42,7 +43,7 @@ func (h *Handler) peerNameOf(clientID string) string {
 // peerLeave removes clientID from docID's peer set and broadcasts a
 // "leave" plus a recount. Skipped when the clientID re-registered during
 // an EventSource reconnect.
-func (h *Handler) peerLeave(docID, clientID string) {
+func (h *Handler) peerLeave(ctx context.Context, docID, clientID string) {
 	if h.hub.IsRegistered(clientID) {
 		return
 	}
@@ -53,21 +54,25 @@ func (h *Handler) peerLeave(docID, clientID string) {
 	h.peerNamesMu.Unlock()
 	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, Type: "leave"})
 	if lErr != nil {
-		slog.Warn("notes: marshal leave", "error", lErr)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "error", lErr)
+		observability.Warn(ctx, "notes: marshal leave", obsArgs...)
 		return
 	}
 	h.hub.BroadcastExcept(leaveMsg, clientID)
-	h.broadcastPeerCount(docID)
+	h.broadcastPeerCount(ctx, docID)
 }
 
 // broadcastPeerCount sends the authoritative full peer set to every
 // connected client.
-func (h *Handler) broadcastPeerCount(docID string) {
+func (h *Handler) broadcastPeerCount(ctx context.Context, docID string) {
 	msg, err := json.Marshal(collab.PresenceMsg{Doc: docID, Type: "count", Peers: h.peers.List(docID)})
 	if err != nil {
-		slog.Warn("notes: marshal peer count", "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
+		observability.Warn(ctx, "notes: marshal peer count", obsArgs...)
 		return
 	}
+	//nolint:contextcheck // SSEHub Broadcast takes no context; this is a
+	// best-effort fan-out, failures surface as the next poll.
 	h.hub.Broadcast(msg)
 }
 
@@ -120,7 +125,8 @@ func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 		Type: typ,
 		TS:   time.Now().UnixMilli(),
 	}); err != nil {
-		slog.Warn("notes: relay typing failed", "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
+		observability.Warn(r.Context(), "notes: relay typing failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "marshal typing")
 		return
 	}
@@ -161,7 +167,8 @@ func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 		Y:    float64(req.Pos),
 		TS:   time.Now().UnixMilli(),
 	}); err != nil {
-		slog.Warn("notes: relay caret failed", "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
+		observability.Warn(r.Context(), "notes: relay caret failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "marshal caret")
 		return
 	}
