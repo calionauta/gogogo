@@ -118,6 +118,19 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.0 (2026-10-12)
+
+## What's Changed
+* docs(tests): record the networkidle-on-SSE footgun for Playwright suites by @calionauta in https://github.com/calionauta/gogogo/pull/101
+* docs(stack): native dependency ladder (pure Go, FFI, CGO-last) by @calionauta in https://github.com/calionauta/gogogo/pull/107
+* feat(obs): request-scoped logging enforced in HTTP slices by @calionauta in https://github.com/calionauta/gogogo/pull/106
+* fix(gui): driver-free dbschema split keeps zero-CGO link green by @calionauta in https://github.com/calionauta/gogogo/pull/105
+* Flat stack: remove PocketBase, chi slices + guardrails by @calionauta in https://github.com/calionauta/gogogo/pull/103
+* chore(stelow): refresh vendored copy to 9eb8a14, macOS-portable scripts by @calionauta in https://github.com/calionauta/gogogo/pull/104
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.43.2...v0.44.0
+
 ## 0.43.2 (2026-10-11)
 
 ## What's Changed
