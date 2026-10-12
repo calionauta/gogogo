@@ -696,6 +696,13 @@ try {
     fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
   }
 
+  // Stop tracing BEFORE closing: the finally below can only save a trace
+  // while the context is open, and the happy path closes it here — which
+  // is exactly why passing retries used to arrive without timelines.
+  if (tracePath) {
+    await context.tracing.stop({ path: tracePath });
+    console.log(`  ⏱ trace saved: ${tracePath}`);
+  }
   await context.close();
 } catch (e) {
   fail(e.stack || String(e));
