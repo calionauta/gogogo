@@ -67,8 +67,9 @@ shares the same shape — siblings differ only by name:
     │   └── .env                     ← non-secret env (DATABASE_URL, APP_URL, ...)
     ├── secrets/
     │   └── gogogo.env   ← mode 600, regenerated every deploy from GH Secrets
-    ├── data/
-    │   └── pb_data/                 ← persistent volume, survives restarts
+    ├── data/                        ← persistent volume, survives restarts
+    │   (bind-mounted into the container at /var/lib/<app>/data —
+    │   app.db, queue.db, nats/, dagnats/; see deploy/docker-compose.prod.yml)
     ├── repo/                        ← git clone of this repo (source for env/.env + deploy-prod.sh)
     └── scripts/
         └── deploy-prod.sh           ← the on-server deploy runner (mode 700)

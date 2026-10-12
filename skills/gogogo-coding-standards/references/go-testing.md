@@ -109,9 +109,8 @@ delivery" (1s) are event waits; the event arrives in milliseconds on an
 ### `t.Parallel()` is the biggest single lever — audit before adding it
 
 Parallelizing `features/todo` (59 tests) took 42s → 17.7s: each test builds its
-own PocketBase + SQLite + goqite fixture (~660ms, of which ~490ms is PB's own
-`Bootstrap`), so the package's wall-clock was ~50 payings of a per-test fixed
-cost. Before adding `t.Parallel()` to a package, verify all three:
+own temp-dir Turso/SQLite + goqite fixture, so the package's wall-clock was
+~50 payings of a per-test fixed cost. Before adding `t.Parallel()` to a package, verify all three:
 
 - **no `t.Setenv`** anywhere in it (the testing package panics: "test using
   t.Setenv … can not use t.Parallel");
@@ -124,7 +123,7 @@ cost. Before adding `t.Parallel()` to a package, verify all three:
   because the globals became a returned `Handle` (see below).
 
 **The fix pattern for a package-level singleton** — it is mechanical, and this
-is how `internal/nats` and `features/store/crdtstore` were unblocked:
+is how `internal/nats` was unblocked:
 
 1. Return a value from the constructor instead of assigning package state:
    `func StartEmbedded(...) (*Handle, error)`. The caller owns it.
@@ -133,16 +132,14 @@ is how `internal/nats` and `features/store/crdtstore` were unblocked:
    server it did not start.
 3. Provide `Close` on the real resources, never a package-level `Stop()` that
    clears shared state: closing a stale handle then cannot clear a newer one.
-4. Where a caller genuinely cannot thread the value (e.g. PocketBase `OnServe`
+4. Where a caller genuinely cannot thread the value (e.g. serve-event
    closures reading the connection long after boot returned), keep ONE
    accessor behind a `sync.RWMutex` plus a current-pointer, and say in the doc
    comment why that call site cannot hold the handle.
 
 The payoff is measurable, not cosmetic: `internal/nats` went from un-parallel
-(and racing) to `t.Parallel()` green at 8.4s → 4.0s isolated, and `crdtstore`
-17.5s → 7.1s (medians of 3 isolated runs). The package-level sum moved
-110.7s → ~93-106s, which is smaller than either package's isolated win because
-the suite already overlapped much of that work across packages.
+(and racing) to `t.Parallel()` green at 8.4s → 4.0s isolated (medians of 3
+isolated runs).
 
 Do not add `t.Parallel()` to make a package look faster if it then fails: a new
 red under `-race` is a finding about the production code, not about the tests.
@@ -152,7 +149,7 @@ fix the global; do not settle for a serial test to keep CI green.
 ## SQLite timeouts: the flake that looks like noise
 
 The integration tests hit a real SQLite file, and SQLite serializes writers. Its
-`busy_timeout` (10s in this repo's DSN — `db/pocketbase.go`, `internal/queue/goqite.go`)
+`busy_timeout` (10s in this repo's DSN — `internal/db`, `internal/queue/goqite.go`)
 is how long a writer BLOCKS waiting for the lock before giving up. A test/request
 timeout SHORTER than `busy_timeout` cancels the request while the database is
 still legitimately waiting, producing an intermittent
@@ -212,7 +209,7 @@ Before re-running a red test, suspect contention, not randomness:
 
 1. Pure functions: unit-test directly.
 2. Function-field injection: `streamFn`/`superviseFn` nil in prod, stubbed in tests.
-3. Temp-dir PocketBase + `Bootstrap()` + real SQLite; drive handlers with `httptest.NewRecorder` (+ `datastar.NewSSE` for SSE). Do not close httptest response bodies in tests (`bodyclose` excluded for `_test.go`).
+3. Temp-dir Turso file + `Migrate()` + real SQLite; drive handlers with `httptest.NewRecorder` (+ `datastar.NewSSE` for SSE). Do not close httptest response bodies in tests (`bodyclose` excluded for `_test.go`).
 
 ## Modernizers first
 

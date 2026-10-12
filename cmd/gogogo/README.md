@@ -130,12 +130,12 @@ env-blessed with the reason recorded.
 | Entity actors (GoAkt rooms) | `GOAKT_ENABLED=false` | `internal/goakt/` + room demo | ✅ `goakt` |
 | Realtime (NATS JetStream) | `NATS_ENABLED=false` (in-memory fallback) | Manual — 15+ importers (`internal/nats` in handlers, collab, server, desktop); handler signatures carry NATS types | ❌ env-blessed (cascade too wide for line strips) |
 | Collaboration (Loro CRDT) | — (no servers at boot) | Bundled with `whiteboard` (see bundle rationale in manifest) | ✅ inside `whiteboard` |
-| Todo realtime (PB) | — (part of the DB) | With `features/todo/` (manual, it is the reference) | ❌ |
+| Todo realtime (SSE Hub) | — (part of the Hub) | With `features/todo/` (manual, it is the reference) | ❌ |
 | LLM suggest (GoAI) | Unset `GOAI_API_KEY` (button hides) | Manual — handler + stepper UI live inside `features/todo` | ❌ env-blessed |
 | AI credits + BYOK | `CREDITS_ENABLED=false` (default) | `features/credits/` + wiring | ✅ `credits` |
 | Offline sync | `OFFLINE_SYNC_ENABLED=false` | Manual — `config` struct field + `sw.js` + templ SW registration | ❌ env-blessed (struct-field cascade) |
 | UI skins | `UI_SKIN=daisyui` / `?skin=` | `web/skins/<name>/` + dispatch branches | ✅ `skins-extra` (non-default skins) |
-| Persistence strategy | `ENTITY_STORE=pb\|crdt` | Manual — `buildTodoStore` switch + `ConcreteTodoStore` machinery | ❌ env-blessed |
+| Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |
 | Auth | — (core middleware) | Login UI removable manually; middleware stays | ❌ |
 | Sounds | — (client-side only) | `features/sounds/` + call sites | ✅ `sounds` |
 | Landing / config view | — (zero boot cost) | Package + wiring call | ✅ `landing`, `config-view` |

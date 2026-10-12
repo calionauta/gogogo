@@ -41,7 +41,7 @@ internal/
   server/                         Flat-stack composition (BootChi + buildChiMux)
 features/
   app/                            AppContext (cross-cutting deps bundle)
-  authviews/                      Login/navbar/theme components (PB-free UI)
+  authviews/                      Login/navbar/theme components
   landing/                        Public marketing hero on GET /
   config/                         Auth-gated read-only /config view
   todo/                           Todo MVC example
@@ -76,7 +76,7 @@ One backend, three frontends:
 
 | Entry point | Transport | Purpose |
 |---|---|---|
-| `cmd/web` | HTTP + SSE | The main server: PocketBase, router, queue, realtime |
+| `cmd/web` | HTTP + SSE | The main server: router, queue, realtime |
 | `cmd/desktop` | Wails v3 webview over a local HTTP proxy | Native desktop/edge shell, 100% shared backend |
 | `cmd/gui` | gogpu/ui native window | Second frontend with **no** HTTP at all — proves the domain layer is transport-agnostic |
 
@@ -85,11 +85,12 @@ CI. See [Desktop & Mobile](desktop-mobile.md).
 
 ## Route wiring gotcha
 
-PocketBase's `RouterGroup` compiles to the stdlib `http.ServeMux` (Go 1.22+
-subtree matching — `GET /` swallows unregistered subpaths). Therefore:
+The flat stack composes one stdlib `http.ServeMux` (`buildChiMux` in
+`internal/server/chi.go`; Go 1.22+ subtree matching — `GET /` swallows
+unregistered subpaths). Therefore:
 
-- Register all routes **directly** on `se.Router` inside the `OnServe` hook.
-  A nested `OnServe().BindFunc` never fires.
+- Mount one subtree per capability; longest match wins, the landing `/`
+  is the catch-all.
 - Serve static assets through `web/resources.AssetHandler` (`/static/` plus
   root `/sw.js` with `Service-Worker-Allowed: /`); mount both before the
   landing catch-all so the subtrees win.

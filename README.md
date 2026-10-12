@@ -43,7 +43,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 **Core**
 - [architecture](docs/architecture.md) — directory layout, dependency direction, entry points, and route wiring gotchas.
 - [stack-layers](docs/stack-layers.md) — every dependency and why it is in the box.
-- [async-layers](docs/async-layers.md) — the seven async layers, PB realtime vs SSE Hub, cross-instance and offline sync.
+- [async-layers](docs/async-layers.md) — the seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync.
 - [features](docs/features.md) — every capability and its runtime opt-out.
 - [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
 - [configuration](docs/configuration.md) — every environment variable and runtime constant.
@@ -120,14 +120,14 @@ dependencies and are left alone.
 | Layer | Choice | Why |
 |---|---|---|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([exception-to-go](docs/exception-to-go.md); the why: [motivation](docs/motivation.md)) |
-| **Zero-config database, auth and API** | [PocketBase](https://pocketbase.io) (embedded SQLite) | Zero-config auth, REST, file storage, and an admin UI at `/_/` — no separate service |
+| **Zero-config database and auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
 | **Room ownership without races** | [GoAkt](https://github.com/Tochemey/goakt) | One grain per room: heartbeat roster plus exactly-one presenter lock, supervised |
 | **Shared state that merges offline edits** | [Loro CRDT](https://github.com/aholstenson/loro-go) + [Rough.js](https://roughjs.com) | Conflict-free state with no last-write-wins data loss |
-| **Realtime for one instance or many** | PocketBase realtime + NATS JetStream | Per-user record push, plus cross-instance broadcast |
+| **Realtime for one instance or many** | SSE Hub + NATS JetStream | Per-user record push, plus cross-instance broadcast |
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
 | **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption. No vault, no cloud |
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
@@ -146,15 +146,15 @@ Seven complementary layers, already inside, each with its own opt-out:
 Background jobs that update the UI   → goqite + SSE Hub (always on)
 Workflows that survive a restart     → DagNats as JSON (DAGNATS_ENABLED=false)
 Collaboration without data loss      → Loro CRDT (remove internal/collab/)
-Live record updates, scoped per user → PB realtime (always on)
+Live record updates, scoped per user → SSE Hub record-sync (always on)
 Ephemeral UI signals                 → SSE Hub via Datastar (always on)
 Broadcast across instances           → JetStream (NATS_ENABLED=false)
 Room ownership without races         → GoAkt grains (GOAKT_ENABLED=false)
 ```
 
-Records flow through PocketBase's own realtime channel — scoped per user by the
-collection's access rules, free of charge. The SSE Hub is reserved for ephemeral
-signals (toasts, client counts, workflow progress). Mixing those two up is the
+Records flow through the SSE Hub record event — scoped per user by the
+owner column, free of charge. The ephemeral channel is reserved for
+ephemeral signals (toasts, client counts, workflow progress). Mixing those two up is the
 most common mistake in Datastar apps; [async-layers](docs/async-layers.md)
 explains why the split matters.
 
@@ -164,7 +164,7 @@ Every capability is always compiled. Each has a documented opt-out.
 
 | Capability | Opt-out |
 |---|---|
-| Todo app + PocketBase realtime, stacked toasts, sound feedback | delete `features/todo/` |
+| Todo app + live record-sync, stacked toasts, sound feedback | delete `features/todo/` |
 | Queue + retry with exponential backoff, SSE `lastRetry` signal | — (core) |
 | AI Suggest via GoAI, or keyless simulated LLM for the demo | no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
 | Ask AI: model renders catalog UI (cards, tables, sections) via SSE | no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
@@ -174,7 +174,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | Shared notes (server-owned Loro Text, live peer text) | delete `features/notes/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
 | Hybrid offline sync (Service Worker + Leaf Node) | `OFFLINE_SYNC_ENABLED=false` |
-| Pluggable persistence (`pb` ⇄ `crdt`) | `ENTITY_STORE=pb` |
+| Single-store persistence (Turso/SQLite via sqlc) | — (core) |
 | Multi-instance realtime | `NATS_ENABLED=false` |
 | Public landing page + auth-gated config view | delete `features/landing/`, `features/config/` |
 | Wails v3 desktop/mobile + native window | delete `cmd/desktop/`, `cmd/gui/` |
@@ -205,14 +205,11 @@ Full taxonomy and per-package removal table:
 | What | URL |
 |---|---|
 | **Todo & Whiteboard demo** | [gogogo.calionauta.com](https://gogogo.calionauta.com/) |
-| **Live PocketBase admin** | [gogogo.calionauta.com/_/](https://gogogo.calionauta.com/_/) |
 | **Durable workflow console (DagNats)** | [gogogo.calionauta.com/dagnats/](https://gogogo.calionauta.com/dagnats/) |
 
 Sign in as `demo1@demo.app` / `demo1234456` (`demo2@demo.app` takes the same
 password — open a second browser or incognito window to be both at once and
-prove contention, per-user todos, and authorship). The demo's `users`
-collection is locked — you can log in as the demo users but cannot create
-or delete accounts through the API or the dashboard (only the superuser can).
+prove contention, per-user todos, and authorship).
 
 ## Commands
 

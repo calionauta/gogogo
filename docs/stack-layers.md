@@ -7,7 +7,7 @@ explains **why each choice is here**; for the layered async topology see
 | Layer | Choice | Why |
 |-------|--------|-----|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime |
-| **Database + Auth + API** | [PocketBase](https://pocketbase.io) (embedded, on `ncruces/go-sqlite3`) | Zero-config auth, REST, admin UI at `/_/`, file storage — all in SQLite |
+| **Database + Auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via the Tailwind v4 CLI; no JS framework build step. |
 | **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable: [BasecoatUI](https://basecoatui.com) | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens. See [UI skins](ui-skins.md). |
@@ -23,34 +23,19 @@ explains **why each choice is here**; for the layered async topology see
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
-| **Native window (PoC)** | [gogpu/ui](https://github.com/gogpu/ui) (pure Go, zero CGO) | `cmd/gui`: a second frontend over the same PocketBase + `EntityStore` — no HTTP, no webview. See [Desktop & Mobile](desktop-mobile.md). |
+| **Native window (PoC)** | [gogpu/ui](https://github.com/gogpu/ui) (pure Go, zero CGO) | `cmd/gui`: a second frontend over the same Turso/sqlc store — no HTTP, no webview. See [Desktop & Mobile](desktop-mobile.md). |
 | **Linting** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | 33 linters: `govet`, `staticcheck`, `gosec`, `revive`, `gocritic`, `errcheck`, `ineffassign`, `unused`, `errorlint`, `nilerr`, `bodyclose`, `contextcheck`, `containedctx`, `sloglint`, `thelper`, `testifylint`, `gocyclo`, `gocognit`, `funlen`, `noctx`, `goconst`, `dupl`, `lll`, `mnd`, `tagliatelle`, `modernize`, `perfsprint`, `prealloc`, `fatcontext`, `usestdlibvars`, `nolintlint`, `unparam`, `forbidigo` (no bare `time.Sleep` in production — it is uncancellable) (see `.golangci.yml`); project-specific footguns live in [`rules/rules.go`](https://github.com/calionauta/gogogo/blob/master/rules/rules.go) via `gocritic`'s `ruleguard`; `datastar-lint` catches Datastar attribute/signal/expression mistakes (run via `make datastar-lint`). The rules an agent loads: [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards) |
 | **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build) + `deploy.yml` (cross-compiles the prod binary and ships it to the server on `master`; `make docker-image` pushes a multi-arch image to ghcr.io, locally, when you want one). Three off-path maintenance workflows: `stelow-drift.yml` (weekly, fails when the vendored stelow standards pin is stale) and `stelow-auto-bump.yml` (weekly, opens the bump PR) and `desktop.yml` |
 
 ## Why `ncruces/go-sqlite3`?
 
-It is the pure-Go (no cgo) SQLite engine this template standardizes on and the
-always-on driver. `db/pocketbase.go` registers it as the `sqlite3`
-`database/sql` driver that every query uses. PocketBase also bundles
-`modernc.org/sqlite`, but that registers itself as `sqlite` and stays unused,
-so **no build tag is required** and a plain `go build` just works.
+It is the pure-Go (no cgo) SQLite engine for the paths that open plain
+SQLite files directly (the native window registration, the credits test
+databases) — registered as the `sqlite3` `database/sql` driver. The app
+database itself (tables + queue) runs on `tursogo` (driver name `turso`).
 
 Being cgo-free means clean cross-compilation of the production binary (the
 deploy workflow builds `GOOS=linux` from any runner).
-
-### Why `modernc.org/sqlite` stays in `go.mod` (read before touching)
-
-PocketBase itself blank-imports `modernc.org/sqlite`
-(`core/db_connect.go`, whose `DefaultDBConnect` opens the `"sqlite"`
-driver) and version-checks it at runtime (`modernc_versions_check.go`:
-warns unless driver v1.57.0 + libc v1.74.4 — the versions pinned here).
-Removing it breaks the PB link, so `go mod tidy` keeps it; the
-dependency is load-bearing for the framework even though our boot path
-opens ncruces `"sqlite3"` exclusively. Proven by spike (both drivers
-registered in one process, modernc path live). Rule: our code opens
-`"sqlite3"` only — enforced by the `ModerncDriverOpen` ruleguard rule,
-which fails CI on `sql.Open("sqlite", …)`. Two pools against one set
-of files is the failure it prevents.
 
 ### Extensions: available, none loaded
 
@@ -78,7 +63,7 @@ CSS is the one build step, and it is a build step you run explicitly
 
 The rule behind the lightness: **the backend is the source of truth and
 the browser holds ephemeral intent plus cache, never authority.** Records
-live in PocketBase, documents in Loro snapshots, jobs in goqite — the
+live in Turso/SQLite, documents in Loro snapshots, jobs in goqite — the
 client renders what the server ships and reports what the user did. That
 is what keeps every feature between 0 and ~48 KB of JS (measured per
 feature: [Client weight](features.md#client-weight)). The honest boundary:
@@ -225,16 +210,16 @@ hooks and CI, taught upfront via the coding-standards skill. Cost: CI
 minutes and a `//nolint` discipline curve. Revisit by deleting rules that
 never fire, not by adding more.
 
-### PocketBase (and not chi/gin + Postgres, or Supabase/Firebase)?
+### Turso/SQLite (and not Postgres, or Supabase/Firebase)?
 
-Database, auth, REST, file storage, realtime, and an admin UI in one
-embedded binary — maintained upstream for years, speaking plain SQLite
-underneath. Rejected: assembling it yourself (router + SQL + session auth +
+Database, auth, and record-scoped realtime in one embedded binary —
+plain SQLite underneath, speaking it through sqlc-generated queries.
+Rejected: assembling it yourself (router + SQL + session auth +
 an admin you write and secure), and outsourcing it (Supabase/Firebase move
 your data behind a network call, a bill, and someone else's changelog).
-Cost: PocketBase shapes the app — collections model, its Go API surface,
-the admin/superuser split, SQLite's single-writer ceiling. Revisit when the
-write load or the data model outgrows one embedded database.
+Cost: embedded SQLite shapes the app — one file, its Go API surface,
+SQLite's single-writer ceiling. Revisit when the write load or the data
+model outgrows one embedded database.
 
 #### Postgres (and Supabase) — when it actually wins
 
@@ -256,11 +241,11 @@ Until profiles prove one of those, "only Postgres scales" is premature:
   commits), a generous `busy_timeout`, and a write queue — not a second
   database server.
 
-#### Scaling PocketBase's own SQLite — the honest ladder
+#### Scaling embedded SQLite — the honest ladder
 
-Upstream's stance is single-server vertical: 10k+ persistent realtime
-connections on a $4 VPS, a 120-connection read pool against a 1-connection
-write pool with built-in `database is locked` retries. That covers small to
+The stance is single-server vertical: 10k+ persistent realtime
+connections on a $4 VPS, a generous `busy_timeout` against a serialized
+writer with built-in `database is locked` retries. That covers small to
 midsize SaaS without trying. Past that, in order:
 
 1. **Disaster recovery** — Litestream streams WAL to S3-compatible storage
@@ -272,17 +257,16 @@ midsize SaaS without trying. Past that, in order:
    cgo-free `ncruces` stance that keeps cross-compilation clean (see [Why
    `ncruces/go-sqlite3`?](#why-ncrucesgo-sqlite3)). Revisit only with the
    unified build.
-3. **Community HA** — `pocketbase-ha` (NATS replication, last-writer-wins or
+3. **Community HA** — NATS-replicated SQLite (last-writer-wins or
    static leader), libsql primary-replica topologies, Marmot+NATS multi-primary.
-   All third-party, all with the same asterisk: hooks and realtime are
-   evaluated in-process, so they do not sync across nodes the way records
+   All third-party, all with the same asterisk: the record-event fan-out is
+   evaluated in-process, so it does not sync across nodes the way rows
    do. Leader-for-writes is the only consistent topology; multi-primary is
    eventual consistency wearing a costume.
-4. **Graduation** — a Postgres `EntityStore` strategy behind the existing
-   `features/store` interface, plus replacements for the PB pieces the
-   interface does not cover (auth, REST, realtime, admin UI). That is a
-   project, not a flag flip — which is why the trigger is measured write
-   load, not anxiety.
+4. **Graduation** — a Postgres migration (the sqlc queries are portable SQL;
+   auth, sessions and realtime are already ours, so there is no framework
+   surface to replace). That is a project, not a flag flip — which is why
+   the trigger is measured write load, not anxiety.
 
 Write-heavy-global (payments, bidding, telemetry at planetary scale) skips
 the ladder and starts at Postgres. Everything else should have to prove it
@@ -297,10 +281,9 @@ destination, now with Turso inside it). None of them change the default:
 the app runs whole on one box with zero cloud dependencies until the ladder
 above says otherwise.
 
-#### Routers: PocketBase rides the stdlib, and that ends the debate
+#### Routers: the stdlib, and that ends the debate
 
-Since v0.23 PocketBase dropped Echo and routes on a thin wrapper over Go's
-`net/http.ServeMux`. The famous alternatives beat it on microbenchmarks:
+The stack routes on a thin composition over Go's `net/http.ServeMux`. The famous alternatives beat it on microbenchmarks:
 
 - **Gin** (89k stars) — zero-alloc radix, custom context, 12 deps.
 - **Echo** (33k stars) — JSON/p99 balance, 8 deps.
@@ -308,7 +291,7 @@ Since v0.23 PocketBase dropped Echo and routes on a thin wrapper over Go's
   service uses.
 
 None of it matters here: routing is microseconds against milliseconds of
-SQLite, and PocketBase's maintainer says exactly that — ignore artificial
+SQLite, and the SQLite wisdom holds exactly — ignore artificial
 benchmarks, apps bottleneck on DB operations. There is no router upgrade
 that moves our numbers; the day routing shows up in a profile, the database
 has already been the problem for months.
@@ -381,8 +364,8 @@ The layers are not independent choices — they are designed to work together:
 - Multi-step processes go to **DagNats**, whose state is durable on **JetStream**.
 - Collaborative state goes through **Loro CRDT**, so offline edits merge
   without last-write-wins data loss.
-- Record changes fan out through **PocketBase realtime**, scoped per user by
-  the collection's own access rules.
+- Record changes fan out through the SSE Hub record event, scoped per user by
+  the owner column.
 - Single-owner decisions go to **GoAkt grains**: one addressable owner per room (roster, locks, supervision).
 
 ## Related

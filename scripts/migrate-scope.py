@@ -60,7 +60,7 @@ REMAPPING: list[tuple[re.Pattern[str], tuple[str, str], str]] = [
      ("infra", "core"), "Queue handlers + retry + workers"),
     # ---- internal/server: bootstrap, uuid, crdtstore wire ----
     (re.compile(r"^internal/server/boot\.go$"),
-     ("infra", "core"), "Server bootstrap (PocketBase, queue, router)"),
+     ("infra", "core"), "Server bootstrap (flat stack: queue, router)"),
     (re.compile(r"^internal/server/uuid\.go$"),
      ("infra", "core"), "UUID generator for per-process identifiers"),
     (re.compile(r"^internal/server/crdtstore_wire.*\.go$"),
@@ -88,13 +88,9 @@ REMAPPING: list[tuple[re.Pattern[str], tuple[str, str], str]] = [
     # ---- internal/collab: Loro CRDT backs the whiteboard feature ----
     (re.compile(r"^internal/collab/.*\.go$"),
      ("infra", "plugin"), "Loro CRDT + DocStore + sync workers + presence"),
-    # ---- features/store: interface + pbstore are core, crdtstore is plugin ----
-    (re.compile(r"^features/store/store\.go$"),
-     ("infra", "core"), "EntityStore interface (the contract every storage strategy implements)"),
-    (re.compile(r"^features/store/pbstore/.*\.go$"),
-     ("infra", "core"), "Default PocketBase EntityStore"),
-    (re.compile(r"^features/store/crdtstore/.*\.go$"),
-     ("infra", "plugin"), "Loro CRDT-backed EntityStore strategy"),
+    # ---- features/store: removed with the framework (single Turso/sqlc layer now) ----
+    # The old store-strategy entries are gone with the directory; one data
+    # layer remains (sqlc over internal/db).
     # ---- features/app: AppContext bundles cross-cutting deps ----
     (re.compile(r"^features/app/app\.go$"),
      ("feature", "core"), "AppContext (cross-cutting deps bundle)"),

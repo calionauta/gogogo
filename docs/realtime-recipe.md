@@ -10,9 +10,9 @@ reference implementations are the spec.
    true})` button clicked once on `datastar-ready` (+300ms fallback).
    Reference: `RealtimeStream` in `features/todo/components/realtime.templ`.
    Never `data-on:load` on div/body (v1 never fires it — silent no-op).
-2. **List resync on record change**: shared `PbRealtimeResync` in
-   `internal/components/realtime_resync.templ` (button id + fragment URL
-   + topic params). Do not copy its script — call it.
+2. **List resync on record change**: shared `ListResync` in
+   `internal/components/realtime_resync.templ` (button id + fragment URL).
+   Do not copy its script — call it.
 3. **Fragment morph**: server returns HTML + `datastar-selector` +
    `datastar-mode: outer` headers (`handleListFragment` is the reference).
    Target element needs a top-level `id` + explicit selector or the patch
@@ -28,7 +28,7 @@ reference implementations are the spec.
 
 ## Server patterns
 
-- **Records** → PB realtime + fragment re-fetch (per-user scoped free).
+- **Records** → Hub record event + fragment re-fetch (per-user scoped free).
 - **Ephemeral** → own SSEHub + worker `hub.Send(clientID, …)`; stream
   loop with heartbeat (see `handleStream` in genui/whiteboard).
 - **Worker return contract** → return `err` (pool retries) ONLY when the

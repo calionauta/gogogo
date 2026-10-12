@@ -222,7 +222,7 @@ everything — the unified build era means you never pass `-tags`.
 ## First five minutes
 
 1. `make dev` — the binary boots the flat stack (Turso + owned auth + goqite + SSE Hub) + DagNats +
-   NATS, and seeds the demo user and collections on first run.
+   NATS, and seeds the demo users on first run.
 2. Open `/` — public landing page, no auth.
 3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
    stream through the SSE hub. (`demo2@demo.app`, same password, keeps

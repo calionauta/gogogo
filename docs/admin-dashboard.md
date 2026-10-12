@@ -10,8 +10,8 @@ Three built-in surfaces, available as soon as the binary boots:
 | **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `:8090` / `/dagnats/` | Workflow runs, step inspection, JSON API for durable workflows |
 
-There is no database admin UI in the binary (the PB-era `/_/` dashboard went
-away with the framework). Inspect data with `sqlite3` against the Turso file
+There is no database admin UI in the binary (the legacy `/_/` dashboard went
+away with the old framework). Inspect data with `sqlite3` against the Turso file
 (`TURSO_DB_PATH`, default `data/app.db`) — same SQLite dialect — and back it
 up with `scripts/backup.sh`. For production, lock `/config` behind your
 ingress (IP allowlist, oauth2-proxy in front) like any authed surface.
@@ -44,7 +44,7 @@ In the demo deployment it is reachable at
 
 Log in with a seeded demo account (`demo1@demo.app` / `demo1234456`;
 `demo2@demo.app` takes the same password). Anyone can sign up on the demo
-— it is a demo, not a locked collection — and the demo user from the login
+— it is a demo, not a locked-down app — and the demo user from the login
 placeholder is seeded on every fresh boot (`internal/demo`).
 
 The demo runs the unified build. DagNats + NATS share a **single embedded

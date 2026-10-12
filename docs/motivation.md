@@ -75,7 +75,7 @@ plugins and features strip away at install. The live capability list is in
 The foundation — swapping any of this means a fork, not a toggle. Chosen by
 the criteria above:
 
-- **PocketBase (embedded SQLite)** — database, auth, REST, file storage, admin UI. Zero config, zero separate service.
+- **Turso (embedded SQLite) + owned auth** — database, cookie sessions, file-local storage. Zero config, zero separate service.
 - **Templ + Datastar over SSE** — server-rendered reactive UI, ~12 KiB client, no JS framework build step.
 - **goqite + SSE Hub (+ retry-go)** — background jobs with exponential backoff; progress streams to the browser. No Redis.
 - **age + `~/.secrets/`** — secrets encrypted at rest, decrypted at boot. No vault, no cloud.
@@ -93,7 +93,7 @@ Snapshot of Oct 2026 — the live list with opt-outs is
 - **GoAkt grains** — one addressable owner per room: heartbeat roster plus exactly-one presenter lock, supervised.
 - **Wails v3 + gogpu/ui** — desktop shells over the same backend.
 - **DaisyUI v5 + Basecoat** — two UI skins compiled into one binary, switchable at runtime.
-- **Todo app (PocketBase realtime)** — the reference app: full CRUD with per-user live updates. Copy the pattern, then delete it.
+- **Todo app (SSE Hub record-sync)** — the reference app: full CRUD with per-user live updates. Copy the pattern, then delete it.
 - **Whiteboard (Loro CRDT + Rough.js)** — conflict-free collaboration with offline merge.
 - **Room presence demo (GoAkt)** — heartbeat roster plus presenter lock, to copy for per-entity features.
 

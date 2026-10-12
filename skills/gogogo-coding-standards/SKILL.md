@@ -1,6 +1,6 @@
 ---
 name: gogogo-coding-standards
-description: "Go backend standards for the gogogo template — PocketBase/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, or proposing native code. Delegates universal principles to stelow-workflow-coding-standards."
+description: "Go backend standards for the gogogo template — Turso/SQLite, Templ, Datastar, NATS JetStream, goqite, slog, goroutines/channels/mutex/errgroup, context propagation, golangci-lint, race/synctest/goleak tests, datastar-lint on .templ, pprof/simd/exception-to-go gates. Triggers when: editing .go files, spawning goroutines, creating channels, wiring context, running lint/tests, touching .templ, profiling, or proposing native code. Delegates universal principles to stelow-workflow-coding-standards."
 ---
 
 # gogogo-coding-standards
@@ -55,7 +55,7 @@ only **Core Go Rules**, the **Testing** table-driven + `-race` parts, the
 100/500 size limits, and the **exception-to-go** order (correct first, no native
 code without evidence) apply. **Concurrency deltas** (`errgroup`, `wg.Go`,
 `goleak`, `synctest`), the **pprof → SIMD → Zig ladder**, **Datastar**, and
-PocketBase/`httptest` seams have nothing to attach to in a
+database/`httptest` seams have nothing to attach to in a
 single-threaded dependency-free CLI — rejecting them is correct, not a
 failure. Record the rejection and why.
 
@@ -86,7 +86,7 @@ Full table: `references/go-concurrency-deltas.md`.
 - Owner + exit + wait for every `go`. Use `wg.Go` (Go 1.25), never `Add` inside the goroutine.
 - **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to `se.App.OnTerminate` (see `router/credits.go`). A worker started in `New` on `Background` can never be stopped.
 - **Whatever you start, you must make stoppable — and hold it.** A function that starts something long-lived owns its lifecycle: store the handle on the owner inside the starter (as `Queue.StartWorkers` does), not in a return value a caller can drop. `pool := Start(); _ = pool` is how a pool ran with no reachable `Stop()` while `Close()` shut the database out from under it.
-- **Only one component owns the process signal.** A dependency may register its own `signal.Notify` (DagNats does; so does PocketBase). The runtime delivers a signal to EVERY channel, so two handlers race and whichever finishes first ends the process — skipping the other's deferred cleanup. Drive shutdown yourself via the library's explicit `Stop()`, and never write "shutdown is handled internally" without reading the code that does it. Verify by the EFFECTS (the cleanup actually ran), never by exit code alone.
+- **Only one component owns the process signal.** A dependency may register its own `signal.Notify` (DagNats does; any second owner races the same way). The runtime delivers a signal to EVERY channel, so two handlers race and whichever finishes first ends the process — skipping the other's deferred cleanup. Drive shutdown yourself via the library's explicit `Stop()`, and never write "shutdown is handled internally" without reading the code that does it. Verify by the EFFECTS (the cleanup actually ran), never by exit code alone.
 - Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/todo/handlers/onboarding.go`.
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
@@ -130,17 +130,17 @@ Full strategy: `references/go-testing.md`.
 - Always `go test -race ./...` scoped; `make ci-local-fast` while iterating (changed packages only), full `make ci-local` (= CI) before push, `make signoff` stamps.
 - **A delay that exists for a HUMAN must be injectable, and a test must assert an event, not a gap.** Demonstration pacing (`"visible pace"`, 1.5s retry gaps, 2s retry backoff) is invisible to a test; leaving it hard-coded cost this suite ~20s. Expose `Set…Delay`/`With…Delay`, keep the production default, dial it down in the fixture. A fixed `time.Sleep` before an assertion is usually a poll in disguise — poll with a deadline; keep the sleep only for an ABSENCE check.
 - **Prove a negative assertion can fail before trusting it.** Inject the thing it forbids and confirm it goes red; a predicate matching a string the wire never carries is green forever and was already found once (`broadcast_probe_test.go`).
-- `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like PocketBase are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
+- `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like the temp-dir database are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
 - **Constructors build, callers start; tests own the listener.** `BootChi` builds the stack without listening; `serveChiOnListener` serves an already-bound listener. Tests bind `127.0.0.1:0`, read the port back, and drive real HTTP through it — the automated preflight. Never add a serve path tests cannot borrow (a second constructor that binds its own port is untestable without a fixed port, which the rule above forbids).
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
-- PB/SQLite: temp-dir instance + `Bootstrap()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
+- Turso/SQLite: temp-dir file + `Migrate()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
 - `B.Loop` style for benchmarks (1.26 inlining fix). `AllocsPerRun` panics under `-parallel`.
 
 ## Storage and durability
 
-- Stores (each crash-recoverable; backup = files): `data.db` (PB truth),
+- Stores (each crash-recoverable; backup = files): `data/app.db` (Turso truth),
   `data/queue.db` (jobs), JetStream files (streams/KV), browser IndexedDB
   (outbox). Full table + retention: `docs/async-layers.md#durability-and-retention-per-store`.
 - **No truth in two places.** Snapshots derive one way, outboxes drain one
@@ -438,6 +438,6 @@ warnings print and exit 0.
 |---|---|
 | `references/go-concurrency-deltas.md` | wg.Go, errgroup, channels, timers, goleak/synctest/goroutineleak |
 | `references/go-perf.md` | pprof runbook, alloc, GOMAXPROCS, jsonv2, simd gate, demonstration-delay latency |
-| `references/go-testing.md` | race, synctest, httptest, B.Loop, PB strategy, fix modernizers |
+| `references/go-testing.md` | race, synctest, httptest, B.Loop, SQLite strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
 | `references/exception-to-go.md` | bans, decision, pin policy, what to vendor and when |

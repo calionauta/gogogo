@@ -15,8 +15,8 @@ sits dormant until you don't.
 goqite       → background jobs + SSE Hub delivery (always on)
 dagnats      → durable multi-step workflows as JSON (opt-out: DAGNATS_ENABLED=false)
 Loro CRDT    → collaborative docs with offline merges (remove internal/collab/)
-PB realtime  → record-change push via PB's native /api/realtime (always on, per-user scoped)
-SSE Hub      → ephemeral signals via Datastar protocol (always on, part of queue)
+SSE record   → record-change push, owner-scoped (always on)
+SSE ephemeral→ UI signals via Datastar protocol (always on, part of queue)
 JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_ENABLED=false)
 GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
 ```
@@ -25,15 +25,15 @@ GoAkt grains → one addressable owner per room: roster, locks, supervision (opt
 
 Which wire carries what, what it falls back to, and the switch. There is
 deliberately no single transport switch: records need per-user scoping
-(free with collection rules), ephemeral traffic needs fan-out without
+(free with the owner column), ephemeral traffic needs fan-out without
 persistence — one knob would conflate both. Pick by traffic type:
 
 | Traffic | Mechanism | Default | Switch / fallback | Notes |
 |---|---|---|---|---|
-| Record mutations (CRUD) | PB realtime `/api/realtime` | always on | none (PB-native; scoping comes from collection rules) | todo/whiteboard/notes lists resync fragments on it |
+| Record mutations (CRUD) | SSE Hub record event + fragment re-fetch | always on | none (Hub-native; scoping comes from the owner column) | todo/whiteboard/notes lists resync fragments on it |
 | Ephemeral signals (toasts, progress, presence) | SSE Hub (Datastar SSE) | always on | in-process only; no cross-instance without JetStream | `BroadcastExcept` excludes the originator |
 | Cross-instance broadcast + CRUD proxy | NATS JetStream | on | `NATS_ENABLED=false` → in-memory hub; whiteboard/notes ops go SSE-only single-instance | `realtimeLabel()` surfaces the active transport in the UI |
-| Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | `ENTITY_STORE=pb` skips CRDT; workers no-op when NATS is down | snapshots persist to PB collections |
+| Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | workers no-op when NATS is down | snapshots persist to Turso tables |
 | AI streams (tokens, run framing) | SSE Hub + AG-UI envelope | on with llm | unset `GOAI_API_KEY` hides the UI; envelope in `internal/genui/` | byte-compatible with AG-UI clients, no new transport |
 | Stale-tab detection | `X-Gogogo-Build` on `/health` | on | none; inert in dev (`dev/` tag never changes) | single-binary deploys only (see troubleshooting) |
 
@@ -44,18 +44,19 @@ The same matrix is queryable at runtime: `advise --need "broadcast transport"` (
 This is the distinction that matters most, and the one most templates get
 wrong.
 
-**PocketBase's native `/api/realtime`** pushes *record mutations*
-(create/toggle/delete) to subscribers, scoped per-user by the collection's
-access rules. It is the mechanism for **database actions**.
+**The SSE Hub record event** pushes *record mutations*
+(create/toggle/delete) to subscribers, scoped per-user by the owner
+column. It is the mechanism for **database actions**.
 
-**The SSE Hub** (`internal/queue/ssehub.go`) is reserved for **ephemeral
-signals**: client count, LLM suggest feedback, workflow progress, and the
-originating client's own synchronous patch. It delivers them via Datastar's
-SSE protocol (`internal/datastar.RenderAndPatch` / `MergeSignals`).
+**The SSE Hub ephemeral channel** (`internal/queue/ssehub.go`) carries
+**ephemeral signals**: client count, LLM suggest feedback, workflow
+progress, and the originating client's own synchronous patch. It delivers
+them via Datastar's SSE protocol (`internal/datastar.RenderAndPatch` /
+`MergeSignals`).
 
-The todo feature uses both: PB realtime for CRUD propagation, SSE Hub for
-toasts and live hints. The whiteboard uses the SSE Hub directly for shape and
-presence broadcast.
+The todo feature uses both: the record event for CRUD propagation, ephemeral
+signals for toasts and live hints. The whiteboard uses the SSE Hub directly
+for shape and presence broadcast.
 
 **Ephemeral draft channel (a reusable pattern).** The whiteboard's live
 drawing is the reference for "show work in progress without committing it".
@@ -76,9 +77,8 @@ dragging an existing shape, a resize handle, a live text selection.
 The rule of thumb: **commit on release, relay while moving.**
 
 > **Do not add a parallel SSE-hub re-render for record mutations.** If a record
-> changed, PB realtime already delivers it, and the collection's `ListRule` /
-> `ViewRule` (`@request.auth.id != '' && owner = @request.auth.id`) make the
-> delivery per-user scoped for free.
+> changed, the Hub record event already delivers it, and the owner-scoped
+> re-list makes the delivery per-user for free.
 
 ## Cross-instance sync adds two more paths
 
@@ -86,8 +86,8 @@ When JetStream is enabled (default: on):
 
 - The **NATS APP_CRUD stream** converges record operations across server
   instances. `CrudPublisher` publishes each mutation; `CrudConsumer` on the
-  receiving instance writes to its local PocketBase, which then broadcasts via
-  PB realtime to its local clients.
+  receiving instance writes to its local Turso database, which then broadcasts
+  via the Hub record event to its local clients.
 - The **NATS TODOS stream** carries ephemeral signals across instances and
   re-emits them through the local SSE Hub.
 
@@ -107,9 +107,9 @@ Leaf Node reconnects to the server. No Service Worker needed.
 ### Replay is dedup'd at the server
 
 The todo create form attaches a fresh `idem_key` UUID to every submit.
-`db/idempotency_hook.go` intercepts `OnRecordCreateRequest` and returns the
-existing record on a `(idem_key, owner)` match, so a Service Worker replay does
-not create a duplicate todo.
+The create path looks up `(idem_key, owner)` and returns the existing
+row on a match, so a Service Worker replay does not create a duplicate
+todo.
 
 The whiteboard needs no idempotency key for a different reason: a shape op is
 keyed by the shape's own id inside a LoroMap, so re-applying the same op resolves
@@ -163,15 +163,15 @@ They coexist in the same binary. They do not compete.
 Every store below is crash-recoverable by design (SQLite WAL replay,
 JetStream recovery, goqite), so backup means files, not coordination.
 The invariant to protect: **no truth lives in two places** — snapshots
-derive one way (Loro → PB), outboxes drain one way, grain rosters
+derive one way (Loro → Turso), outboxes drain one way, grain rosters
 rebuild from heartbeats.
 
 | Store | Retention | Backup |
 |---|---|---|
-| `data.db` (PB app truth) | relational, kept | `scripts/backup.sh` (`.backup` + integrity check) |
+| `data/app.db` (Turso app truth) | relational, kept | `scripts/backup.sh` (`.backup` + integrity check) |
 | `data/queue.db` (jobs) | jobs until acked + retried | same script, same check |
-| TODOS stream (live fan-out) | 24h + 256MB cap (consumers are live-only; catch-up is PB + fragment re-fetch) | `nats account backup` when reachable (ephemeral by design — losable) |
-| APP_CRUD stream (transport buffer) | 7d + 512MB cap (PB is the truth; replaying older would resurrect applied mutations) | same as above |
+| TODOS stream (live fan-out) | 24h + 256MB cap (consumers are live-only; catch-up is fragment re-fetch) | `nats account backup` when reachable (ephemeral by design — losable) |
+| APP_CRUD stream (transport buffer) | 7d + 512MB cap (the database is the truth; replaying older would resurrect applied mutations) | same as above |
 | `room-presence` KV (roster) | latest revision per member + 24h TTL (crashed members expire) | same as above |
 | DagNats streams/KV (upstream) | engine-owned; 10 GiB store cap + 30d DLQ | same as above |
 | Browser outbox (IndexedDB) | device-local, drains on reconnect | not backed up (client state) |

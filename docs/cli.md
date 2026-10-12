@@ -49,7 +49,8 @@ with the same flags (always tracks the latest commit; releases pin a version).
 
   The `go-standards` scope exists because answering a stdlib-only need with 24
   dependency-bearing capabilities is worse than answering nothing: an agent
-  reading it recommends PocketBase for a task whose spec forbids it.
+  reading it recommends a managed realtime backend for a task whose spec
+  forbids it.
 
 Engine internals (alternatives analysis, trim tables, flag matrix):
 [`cmd/gogogo`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo).

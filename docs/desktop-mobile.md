@@ -102,7 +102,7 @@ environment, which keeps the seam explicit at the one place it needs to be.
 Everything else in the file — the Leaf Node / embedded NATS choice, the
 collab demo publish, the presence ticker, the proxy, `OnShutdown` — is
 backend-agnostic and unchanged. The previous command-line passthrough
-(`pb.RootCmd.SetArgs(os.Args[1:])` for `serve --http …`) is gone with it:
+(the old `RootCmd.SetArgs(os.Args[1:])` for `serve --http …`) is gone with it:
 there is no subcommand to forward, the stack serves on the configured
 address.
 
