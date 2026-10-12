@@ -55,7 +55,10 @@ single package: `features/todo` (a real Turso + goqite + SSE fixture per
 test) was ~70s and over 60% of the suite. That fixture cost and the
 demonstration delays the tests waited out were both cut (see the 0.35 entry in
 [CHANGELOG.md](../CHANGELOG.md)), so the suite is now ~42s and `features/todo`
-~28s. Measured `ci-local`: **~82s** end to end. Everything else is cheap:
+~28s. Measured `ci-local`: **~82s** end to end (pre-fan-out; the race suite
+and the three Playwright suites now run in parallel via
+`scripts/ci-fanout.sh`, so the wall-clock is the slowest suite, not the
+sum — re-measure before quoting a new total). Everything else is cheap:
 templ ~0.7s, css-check ~2s, check-generated ~0.5s, check-scope ~0.25s, lint
 ~3.5s, Playwright ~3s when cached.
 
