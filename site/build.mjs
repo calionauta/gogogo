@@ -82,7 +82,7 @@ const MANIFEST = [
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",
     desc: "Wails v3 desktop/mobile, edge sync, and the native window." },
   { group: "Ship", slug: "admin-dashboard", file: "admin-dashboard.md",
-    desc: "Admin surfaces, the two-cookie rule, and the DagNats console." },
+    desc: "Admin surfaces, the single-cookie session, and the DagNats console." },
   { group: "Ship", slug: "llm-and-credits", file: "llm-and-credits.md",
     desc: "GoAI configuration and the optional ai-credits / BYOK plugin." },
   { group: "Operate", slug: "local-ci", file: "local-ci.md",

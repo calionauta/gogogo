@@ -17,7 +17,7 @@
 - Config and env vars: docs/configuration.md
 - Local CI and gates: docs/local-ci.md
 - Realtime, queue, offline: docs/async-layers.md
-- Auth and sessions: features/auth/ (owned argon2id), internal/auth/
+- Auth and sessions: internal/auth/ (owned argon2id sessions), features/authviews/ (login UI)
 - AI credits and billing: docs/llm-and-credits.md, features/credits/
 - Installer (trim/add units): internal/installer/, cmd/gogogo/README.md
 - HTTP route inventory (generated, do not edit): docs/api-routes.md
