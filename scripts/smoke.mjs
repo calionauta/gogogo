@@ -123,7 +123,7 @@ async function pendingMutationCount(page) {
   return page.evaluate(() =>
     Promise.race([
       new Promise((resolve, reject) => {
-        const open = indexedDB.open("pb-offline-queue", 1);
+        const open = indexedDB.open("gogogo-offline-queue", 1);
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;
@@ -295,7 +295,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // The pending-count drain is the single source of truth for
     // "the server accepted the replay".
     await page.waitForFunction(async () => {
-      const open = indexedDB.open("pb-offline-queue", 1);
+      const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
         open.onerror = () => reject(open.error);
         open.onsuccess = () => resolve(open.result);
@@ -330,7 +330,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
       );
     }
     await page.waitForFunction(async () => {
-      const open = indexedDB.open("pb-offline-queue", 1);
+      const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
         open.onerror = () => reject(open.error);
         open.onsuccess = () => resolve(open.result);
@@ -499,7 +499,7 @@ try {
     console.log(`→ Using prebuilt binary ${bin}…`);
   } else {
     console.log("→ Building binary (./cmd/web)…");
-    // 240s: the unified binary embeds PocketBase+NATS+DagNats+Loro etc., and
+    // 240s: the unified binary embeds Turso+NATS+DagNats+Loro etc., and
     // `go build ./cmd/web` can exceed 180s on a cold cache, tripping a false
     // failure right after a clean ci-local pass. Prefer using SMOKE_BIN to
     // reuse the binary ci-local already built.

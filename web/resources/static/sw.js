@@ -1,4 +1,4 @@
-// Service Worker — offline cache + Background Sync for PocketBase CRUD.
+// Service Worker — offline cache + Background Sync for app CRUD.
 //
 // This SW intercepts every fetch to /api/* (except SSE streams and
 // whiteboard endpoints) and:
@@ -6,8 +6,8 @@
 //   - POST/PUT/PATCH/DELETE: network-first — queue in IndexedDB if offline
 //   - On reconnect: Background Sync replays queued mutations in order
 //
-// PocketBase realtime SSE (EventSource) is NOT intercepted — the browser
-// manages it natively, so it reconnects automatically when online.
+// Record SSE streams (EventSource) are NOT intercepted — the browser
+// manages them natively, so they reconnect automatically when online.
 // Whiteboard endpoints are also skipped (they have their own Loro-based
 // offline mechanism via IndexedDB outbox in whiteboard.js).
 //
@@ -212,7 +212,7 @@ async function networkFirstWithQueue(request) {
       await notifyClients("sync-error");
       // Register a Background Sync event if supported.
       if (self.registration && self.registration.sync) {
-        self.registration.sync.register("pb-sync").catch(function () {});
+        self.registration.sync.register("gogogo-sync").catch(function () {});
       }
     } catch (_) {
       // Queue failed — the mutation is lost. In practice this only
@@ -356,7 +356,7 @@ function buildOfflineToastResponse() {
 }
 
 // ---- IndexedDB queue ----
-var DB_NAME = "pb-offline-queue";
+var DB_NAME = "gogogo-offline-queue";
 var DB_VERSION = 1;
 var STORE_NAME = "pending";
 
@@ -430,7 +430,7 @@ function requestReplay() {
 }
 
 self.addEventListener("sync", function (e) {
-  if (e.tag === "pb-sync") {
+  if (e.tag === "gogogo-sync") {
     e.waitUntil(requestReplay());
   }
 });

@@ -72,13 +72,13 @@ COPY --from=builder /out/etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # env), which bind-mounts to the host volume ACL-granted to uid 65532
 # (see scripts/deploy-prod.sh). With -tags dagnats the DagNats engine boots
 # its own embedded NATS and stores durable workflow state in DAGNATS_STORE_DIR
-# (default data/dagnats), separate from the main PocketBase SQLite file.
+# (default data/dagnats), separate from the main app SQLite files.
 # — no separate data dir is created and no extra writable path is needed.
 WORKDIR /var/lib/gogogo/data
 
 # Go's runtime expects /tmp to be writable (e.g. for memory-mapped
 # file backings in some stdlib paths). scratch has no /tmp, so
-# create it. The PocketBase data dir also lives in /tmp by default;
+# create it. The app data dir also lives in /tmp by default;
 # we mount a real volume there in the compose file for persistence.
 COPY --from=builder /tmp /tmp
 

@@ -54,7 +54,7 @@ const MANIFEST = [
   { group: "Core", slug: "stack-layers", file: "stack-layers.md",
     desc: "Every dependency and why it is in the box." },
   { group: "Core", slug: "async-layers", file: "async-layers.md",
-    desc: "The seven async layers, PB realtime vs SSE Hub, cross-instance and offline sync." },
+    desc: "The seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync." },
   { group: "Core", slug: "realtime-recipe", file: "realtime-recipe.md",
     desc: "How to add live UI: client/server patterns, checklist, no invented transports." },
   { group: "Core", slug: "features", file: "features.md",
@@ -451,7 +451,7 @@ function build() {
   writeFileSync(join(OUT, "docs", "index.html"),
     pageShell("Docs", "", `<h1>${esc(NAME)} docs</h1>\n${groups}`, `<a href="../">← ${NAME} home</a>`, idxNav));
   // llms.txt (stable map: one line per page)
-  const llms = `# ${NAME} docs\n\n> Full-stack Go web app template that ships as one binary: PocketBase + Templ + Datastar + Tailwind, plus seven complementary async layers (goqite, DagNats, Loro CRDT, PocketBase realtime, SSE Hub, JetStream, GoAkt grains). Full map below; complete texts in llms-full.txt.\n\n` +
+  const llms = `# ${NAME} docs\n\n> Full-stack Go web app template that ships as one binary: Turso/SQLite + Templ + Datastar + Tailwind, plus seven complementary async layers (goqite, DagNats, Loro CRDT, SSE Hub record-sync, SSE Hub ephemeral signals, JetStream, GoAkt grains). Full map below; complete texts in llms-full.txt.\n\n` +
     MANIFEST.map((p) => `## ${p.title}\n${p.desc}\n${BASE}/docs/${p.slug}/\n`).join("\n");
   writeFileSync(join(OUT, "llms.txt"), llms);
   // llms-full.txt (concatenated sources)
