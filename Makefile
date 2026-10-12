@@ -287,19 +287,13 @@ sqlc:
 ci-local: check-generated check-sizes datastar-lint css-check check-scope check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
-	@echo "→ tests (parallel across packages)"
-	@bash scripts/test-web.sh -race -count=1
 	@echo "→ build (single build, reused by the smoke tests)"
 	@go build $(LDFLAGS) -o $(SMOKE_BIN) ./cmd/web/
-	@echo "→ binary boot smoke test (asserts the SSE transport contract)"
+	@echo "→ binary boot smoke test (cheap gate: fail here, not after minutes)"
 	@RUN_SMOKE=1 SMOKE_BIN=$(SMOKE_BIN) go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
-	@echo "→ browser smoke test (Playwright)"
 	@npx playwright install chromium
-	@SMOKE_BIN=$(SMOKE_BIN) node scripts/smoke.mjs
-	@echo "→ whiteboard client regression tests (Playwright, canvas pixels)"
-	@SMOKE_BIN=$(SMOKE_BIN) node scripts/whiteboard-client.test.mjs
-	@echo "→ notes caret client regression tests (Playwright, two users)"
-	@SMOKE_BIN=$(SMOKE_BIN) node scripts/notes-caret.test.mjs
+	@echo "→ race tests + browser smokes (parallel fan-out, one log per suite)"
+	@CI_LOG_DIR=$(OS_TMPDIR)/gogogo-ci-logs SMOKE_BIN=$(SMOKE_BIN) bash scripts/ci-fanout.sh
 	@rm -f $(SMOKE_BIN)
 	@echo "✅ ci-local passed"
 
@@ -343,7 +337,7 @@ smoke:
 smoke-clean:
 	@echo "→ Removing smoke artifacts…"
 	@rm -f $(SMOKE_BIN)
-	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-*
+	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-* $(OS_TMPDIR)/gogogo-ci-logs
 	@echo "  ✓ smoke artifacts removed (Playwright browsers kept: shared cache)"
 
 # signoff runs the full local CI then stamps the current commit green via
