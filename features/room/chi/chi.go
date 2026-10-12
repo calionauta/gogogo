@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/calionauta/gogogo/config"
@@ -33,11 +34,22 @@ type roomSystem interface {
 // cannot park an HTTP handler past the client's patience.
 const mutateTimeout = 5 * time.Second
 
+// rosterReadBudget bounds a whole retried roster read. A supervised grain
+// restarts inside it, so a transient stall must not surface to the user.
+const rosterReadBudget = 5 * time.Second
+
+// rosterRetryDelay spaces the retries. Short on purpose: the read is a
+// pure question, so retrying it is free and the budget (not the attempt
+// count) is the real bound.
+const rosterRetryDelay = 50 * time.Millisecond
+
 // Handler serves the room demo on chi. State lives in grains, never here.
 type Handler struct {
 	cfg   *config.Config
 	auth  *auth.Auth
 	rooms roomSystem
+	// readBudget bounds readRoster's retries (overridable in tests).
+	readBudget time.Duration
 }
 
 // NewHandler builds the chi room handler. Nil deps panic: wire errors
@@ -46,7 +58,33 @@ func NewHandler(cfg *config.Config, a *auth.Auth, rooms roomSystem) *Handler {
 	if cfg == nil || a == nil || rooms == nil {
 		panic("room chi: NewHandler with nil dependency")
 	}
-	return &Handler{cfg: cfg, auth: a, rooms: rooms}
+	return &Handler{cfg: cfg, auth: a, rooms: rooms, readBudget: rosterReadBudget}
+}
+
+// readRoster reads the roster, tolerating a transient grain stall (the
+// supervised-restart window). The happy path is a single round trip;
+// only a failure costs a retry, and the whole read is bounded by the
+// request context plus the budget. Ported from the framework handler's
+// readRoster so the resilience contract survives the stack swap.
+func (h *Handler) readRoster(ctx context.Context, id string) (appgoakt.Roster, error) {
+	ctx, cancel := context.WithTimeout(ctx, h.readBudget)
+	defer cancel()
+	var roster appgoakt.Roster
+	err := retry.Do(
+		func() error {
+			var readErr error
+			roster, readErr = h.rooms.Roster(ctx, id)
+			return readErr
+		},
+		retry.Attempts(3),
+		retry.Delay(rosterRetryDelay),
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+	)
+	if err != nil {
+		return appgoakt.Roster{}, err
+	}
+	return roster, nil
 }
 
 // Routes returns the chi router with the room pages and API.
@@ -105,7 +143,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := roomID(r)
-	roster, err := h.rooms.Roster(r.Context(), id)
+	roster, err := h.readRoster(r.Context(), id)
 	if err != nil {
 		h.unavailable(w, id, "index", err)
 		return
@@ -120,7 +158,7 @@ func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := roomID(r)
-	roster, err := h.rooms.Roster(r.Context(), id)
+	roster, err := h.readRoster(r.Context(), id)
 	if err != nil {
 		h.unavailable(w, id, "roster", err)
 		return
@@ -142,7 +180,7 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name s
 		h.unavailable(w, id, "tell", err)
 		return
 	}
-	roster, err := h.rooms.Roster(ctx, id)
+	roster, err := h.readRoster(ctx, id)
 	if err != nil {
 		h.unavailable(w, id, "read-after-tell", err)
 		return

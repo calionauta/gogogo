@@ -71,7 +71,7 @@ func registeredAPIRoutes(t *testing.T, root string) []string {
 	defer func() { _ = rootFS.Close() }()
 	litRE := regexp.MustCompile(`"/api/[^"]*"`)
 	seen := map[string]bool{}
-	for _, tree := range []string{"features", "router", "internal"} {
+	for _, tree := range []string{"features", "internal", "cmd", "web"} {
 		err := filepath.WalkDir(filepath.Join(root, tree), func(p string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err

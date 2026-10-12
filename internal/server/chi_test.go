@@ -208,6 +208,47 @@ func chiQForTest(t *testing.T) *queue.Queue {
 	return q
 }
 
+// TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router
+// suite's RegisterRoomStackDisabledRegistersNothing: when the actor system
+// is disabled the handler is nil and the mux must not carry /room at all —
+// a dead route answering 502 is worse than a 404 that says "not here".
+func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
+	cfg := config.Load()
+	sqlDB, err := db.OpenAt(t.TempDir() + "/noroom.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if err := db.Migrate(sqlDB); err != nil {
+		t.Fatalf("db migrate: %v", err)
+	}
+	q := dbgen.New(sqlDB)
+	a, aerr := auth.New(q, false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	persister, perr := collab.NewTursoPersister(q)
+	if perr != nil {
+		t.Fatalf("persister: %v", perr)
+	}
+	docs := collab.NewDocStore()
+	hub := queue.NewSSEHub()
+	mux := buildChiMux(a, todochi.NewHandler(q, a, hub, "daisyui"),
+		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+		wbchi.NewHandler(q, a, hub, persister, docs, cfg),
+		notesachi.NewHandler(q, a, hub, persister, docs, cfg),
+		nil, // roomHandler: engine disabled
+		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
+		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		creditschi.NewHandler(a, nil), nil)
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/room", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("GET /room with the engine disabled: status = %d, want 404", rec.Code)
+	}
+}
+
 func TestBuildChiMux(t *testing.T) {
 	sqlDB, err := db.OpenAt(t.TempDir() + "/mux.db")
 	if err != nil {

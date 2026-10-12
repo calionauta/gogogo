@@ -1,8 +1,8 @@
 # Desktop & Mobile
 
-The same Go backend (PocketBase + queue + router + handlers) runs as a
+The same Go backend (flat stack: Turso + owned auth + queue + handlers) runs as a
 **native desktop app** via Wails v3. The desktop build reuses 100% of the
-business logic — it boots `internal/server.Run`, serves PocketBase in a
+business logic — it boots `internal/server.StartChi`, serves the chi stack in a
 goroutine, and points the webview at it through a reverse proxy.
 
 It is a **separate build target**, not part of the default web build/test loop.
@@ -108,8 +108,8 @@ address.
 
 ## Native window (gogpu/ui)
 
-`cmd/gui` is a **second frontend over the same backend** (PocketBase +
-`EntityStore` + `features/auth.Login` / `ResolveOwner`) — no
+`cmd/gui` is a **second frontend over the same backend** (Turso +
+sqlc queries + `internal/auth` (`Login` / `SessionByToken`) — no
 `*core.RequestEvent`, no cookies, no HTTP router, no webview. It proves the
 domain layer is transport-agnostic: login + todo add/toggle/delete through the
 exact store the web handlers use, with cross-frontend visibility on a 2s poll

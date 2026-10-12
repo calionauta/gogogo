@@ -20,7 +20,7 @@ func TestPollLoopRefreshesAndRebuilds(t *testing.T) {
 
 	// Second window, same backend (the "other frontend"), signed in
 	// BEFORE the row exists: only the poll can make it appear.
-	s2 := newState(s.app, s.st)
+	s2 := newState(s.st, s.a)
 	signInSecondNative(t, s2)
 	if n := len(s2.snapshot().items); n != 0 {
 		t.Fatalf("setup: s2 sees %d items, want 0", n)

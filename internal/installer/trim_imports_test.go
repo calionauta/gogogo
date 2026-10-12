@@ -47,7 +47,7 @@ func checkUnitTrimImports(t *testing.T, root string, u trimUnit) {
 		t.Skipf("unit %q owns no importable package", u.id)
 	}
 	var offenders []string
-	for _, tree := range []string{"cmd", "features", "internal", "router"} {
+	for _, tree := range []string{"cmd", "features", "internal"} {
 		walkErr := filepath.WalkDir(filepath.Join(root, tree), func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err

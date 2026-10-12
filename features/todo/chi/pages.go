@@ -101,6 +101,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		StoreLabel:       "Turso Database",
 		OfflineLabel:     h.offlineLabel(),
 		SidebarTab:       "queue",
+		DagNatsEnabled:   h.dagnatsUIEnabled(),
 	}
 	skin := h.resolveSkin(r)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

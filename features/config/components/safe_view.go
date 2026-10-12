@@ -157,7 +157,7 @@ func BuildPageData(cfg *config.Config) PageData {
 		Name: "Sync",
 		Rows: []Row{
 			rowBool("sync", "OfflineEnabled", cfg.OfflineSync.Enabled, "Service Worker + NATS CRUD proxy."),
-			row("sync", "EntityStore", cfg.EntityStore, "Persistence strategy: 'pb' or 'crdt'."),
+			row("sync", "TursoDBPath", cfg.Turso.DBPath, "Turso database file (URL env overrides)."),
 		},
 	})
 

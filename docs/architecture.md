@@ -14,7 +14,7 @@ kept current with the code.
   runtime with env vars (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
 - **Features in `features/`, infrastructure in `internal/`.** Features depend
   on infra, never the reverse.
-- **Wiring in `router/router.go` → `Init()`.** Every feature is registered by
+- **Wiring in `internal/server/chi.go` → `Init()`.** Every feature is registered by
   one function call.
 - **Startup order in `cmd/web/main.go`.**
 
@@ -64,7 +64,7 @@ cmd/web  ──▶  router  ──▶  features/*  ──▶  internal/*  ──
          features depend on internal, never the reverse
 ```
 
-`router/router.go` is the single place where the dependency graph is
+`internal/server/chi.go` is the single place where the dependency graph is
 assembled. If you are adding a feature, that is the only file you touch for
 wiring — the feature's own `RegisterRoutes` does the rest.
 

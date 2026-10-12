@@ -31,7 +31,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
   (`plan, receipt, buildOk, buildError, next`).
 - Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed.
 - Never `--run` without a terminal: it never returns.
-- `add`/`trim` only touch scaffolded checkouts (`router/router.go` +
+- `add`/`trim` only touch scaffolded checkouts (`internal/server/chi.go` +
   `go.mod` must exist) — foreign Go codebases get guidance (`advise`),
   not merging.
 - Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)

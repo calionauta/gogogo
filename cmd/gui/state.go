@@ -7,11 +7,9 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/gogogo/features/auth"
-	"github.com/calionauta/gogogo/features/store"
 	"github.com/calionauta/gogogo/features/todo"
+	"github.com/calionauta/gogogo/internal/auth"
 )
 
 // windowState is the single state object the native window mutates.
@@ -36,10 +34,14 @@ import (
 // exercised headless in state_test.go (no window, no GPU) and driven
 // from gogpu/ui callbacks in views.go. Swapping the toolkit changes
 // views.go only — this file and its tests stay untouched.
+//
+// Backend wiring is the flat stack's: guiStore (the sqlc queries the chi
+// handlers use) + internal/auth (owned argon2id + sessions). No
+// *core.App, no PocketBase, no cookie — the transport-free proof.
 type windowState struct {
-	mu  sync.Mutex
-	app core.App
-	st  store.EntityStore[todo.Todo]
+	mu sync.Mutex
+	st guiStore
+	a  *auth.Auth
 
 	// auth phase
 	signedIn bool
@@ -55,8 +57,8 @@ type windowState struct {
 	err   string
 }
 
-func newState(app core.App, st store.EntityStore[todo.Todo]) *windowState {
-	return &windowState{app: app, st: st, items: []todo.Todo{}}
+func newState(st guiStore, a *auth.Auth) *windowState {
+	return &windowState{st: st, a: a, items: []todo.Todo{}}
 }
 
 // windowSnapshot is a consistent, lock-free copy of everything a frame
@@ -122,17 +124,26 @@ func (s *windowState) adoptSession(token, ownerID string) {
 
 // signIn runs the transport-free login, then loads that owner's todos.
 // Both steps take a plain ownerID string — no request, no cookie, no
-// router. That is what features/auth.Login + ResolveOwner exist for.
+// router. That is what internal/auth.Login + SessionByToken exist for.
+// A password login that needs a second factor fails closed here: the
+// native window has no TOTP field, so the user signs in on the web
+// (VerifyTOTPLogin is an HTTP-surface concern today).
 func (s *windowState) signIn() {
 	s.mu.Lock()
 	email, password := s.email, s.password
-	app := s.app
 	s.mu.Unlock()
 
-	_, token, err := auth.Login(app, email, password)
+	ctx := context.Background()
+	token, totpRequired, err := s.a.Login(ctx, email, password)
 	if err != nil {
 		s.mu.Lock()
 		s.authErr = "wrong email or password"
+		s.mu.Unlock()
+		return
+	}
+	if totpRequired {
+		s.mu.Lock()
+		s.authErr = "two-factor required — sign in on the web"
 		s.mu.Unlock()
 		return
 	}
@@ -140,7 +151,7 @@ func (s *windowState) signIn() {
 	// a request carrying this token in its cookie yields this same id.
 	// Keeping the token also means "remember me" is a storage concern
 	// (see token.go), not a logic change.
-	ownerID, err := auth.ResolveOwner(app, token)
+	sess, err := s.a.SessionByToken(ctx, token)
 	if err != nil {
 		s.mu.Lock()
 		s.authErr = "could not resolve session"
@@ -150,7 +161,7 @@ func (s *windowState) signIn() {
 	s.mu.Lock()
 	s.authErr = ""
 	s.token = token
-	s.ownerID = ownerID
+	s.ownerID = sess.User.ID
 	s.signedIn = true
 	s.password = "" // never keep a password sitting in window state
 	s.mu.Unlock()
@@ -203,9 +214,7 @@ func (s *windowState) add() {
 	// online-only today (see main.go), but passing one keeps the call
 	// identical to the web path, so adding an outbox later changes
 	// nothing here.
-	_, err := st.Create(context.Background(),
-		todo.Todo{Title: title}, ownerID, uuid.NewString())
-	if err != nil {
+	if _, err := st.Create(context.Background(), title, ownerID, uuid.NewString()); err != nil {
 		s.mu.Lock()
 		s.err = fmt.Sprintf("create: %v", err)
 		s.mu.Unlock()
@@ -243,11 +252,9 @@ func (s *windowState) toggle(id string) {
 	ownerID, st := s.ownerID, s.st
 	s.mu.Unlock()
 
-	_, err := st.Update(context.Background(), ownerID, id,
-		map[string]any{"completed": completed})
-	if err != nil {
+	if serr := st.SetCompleted(context.Background(), ownerID, id, completed); serr != nil {
 		s.mu.Lock()
-		s.err = fmt.Sprintf("toggle: %v", err)
+		s.err = fmt.Sprintf("toggle: %v", serr)
 		s.mu.Unlock()
 		return
 	}

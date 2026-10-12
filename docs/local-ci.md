@@ -64,7 +64,7 @@ templ ~0.7s, css-check ~2s, check-generated ~0.5s, check-scope ~0.25s, lint
 race tests, narrowed by `scripts/changed-packages.sh` to the packages your
 diff actually touches. Measured: **~2s** for a CSS-only change, **~10s** for a
 single-package Go change, versus ~82s full. It falls back to all packages when
-a shared file moves (`go.mod`, `config/`, `db/`, `internal/capabilities/`) or
+a shared file moves (`go.mod`, `config/`, `internal/db/`, `internal/capabilities/`) or
 when nothing changed.
 
 Use it while iterating; the full `ci-local` (and `make signoff`) remain the

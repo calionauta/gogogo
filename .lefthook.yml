@@ -108,7 +108,7 @@ pre-commit:
     # does not block.
     - name: docs-staleness
       run: bin/check-docs-staleness.sh
-      glob: "{config/**,router/**,db/**,Makefile,.github/workflows/**,scripts/**,features/**,internal/**,docs/**,README.md}"
+      glob: "{config/**,Makefile,.github/workflows/**,scripts/**,features/**,internal/**,docs/**,README.md}"
 
 # pre-push stays LIGHT. The heavy gate (lint + race tests + build + smoke)
 # runs in GitHub Actions CI (`make ci-local` equivalent) on the runner after

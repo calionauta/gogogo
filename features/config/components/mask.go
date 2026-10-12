@@ -126,7 +126,7 @@ var envMap = map[string]map[string]string{
 	},
 	groupSync: {
 		"OfflineEnabled": "OFFLINE_SYNC_ENABLED",
-		"EntityStore":    "ENTITY_STORE",
+		"TursoDBPath":    "TURSO_DB_PATH",
 	},
 	groupSecrets: {
 		"AGESecretKey": "AGE_SECRET_KEY",

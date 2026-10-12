@@ -55,6 +55,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		ConnectedClients: h.Hub.Stats().Clients,
 		ClientID:         clientID,
 		SidebarTab:       "queue",
+		DagNatsEnabled:   h.dagnatsUIEnabled(),
 	}); err != nil {
 		h.fail(w, "todo: stream handshake failed", err, "error opening stream")
 		return
@@ -104,7 +105,10 @@ func (h *Handler) applyRecordEvent(
 	if err := dshelpers.MergeSignals(sse, map[string]any{signalItemCount: len(todos)}); err != nil {
 		return err
 	}
-	signals := todo.Signals{Todos: todos, Filter: "all", ItemCount: len(todos)}
+	signals := todo.Signals{
+		Todos: todos, Filter: "all", ItemCount: len(todos),
+		DagNatsEnabled: h.dagnatsUIEnabled(),
+	}
 	//nolint:contextcheck // SSE-sink boundary: patchSSE ends in datastar-go
 	// sinks, which take no context; disconnects surface as write errors.
 	return patchSSE(sse, h.renderListRegion(signals, "daisyui"),

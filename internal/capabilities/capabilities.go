@@ -68,18 +68,10 @@ var All = []Capability{
 	{
 		ID:      "server",
 		Kind:    KindCore,
-		Summary: "shared backend boot (PocketBase + queue + router + handlers)",
+		Summary: "flat backend boot (Turso + auth + handlers + queues + workers)",
 		Dirs:    []string{"internal/server"},
-		Note:    "Core: cmd/web and cmd/desktop both boot through it.",
-	},
-	{
-		ID:      "routeutil",
-		Kind:    KindCore,
-		Summary: "shared route registration (per-method, never Router.Any)",
-		Dirs:    []string{"internal/routeutil"},
-		Note: "Core: Router.Any() registers a method-less pattern, which conflicts " +
-			"with the app's own GET / and panics at ServeMux build time. Every " +
-			"proxied route registers through here so a method list exists once.",
+		Note: "Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. " +
+			"attach JetStream, then serve.",
 	},
 	{
 		ID:      "database",
@@ -88,15 +80,6 @@ var All = []Capability{
 		Dirs:    []string{"internal/db"},
 		Note: "Core: handlers call the generated dbgen.* functions directly; " +
 			"migrations under internal/db/migrations are the schema.",
-	},
-	{
-		ID:      "pocketbase-legacy",
-		Kind:    KindCore,
-		Summary: "PocketBase app handle + collection seeds (being removed)",
-		Dirs:    []string{"db", "internal/collabpb"},
-		Note: "Transitional: this is the old framework layer the flat stack replaces. " +
-			"It disappears, along with the PocketBase dependency, when the remaining " +
-			"features are ported (see docs/architecture-decision.md).",
 	},
 	{
 		ID:      "appconfig",
@@ -116,12 +99,11 @@ var All = []Capability{
 		ID:      "auth",
 		Kind:    KindCore,
 		Summary: "cookie sessions + middleware (flat auth + shared login UI)",
-		Dirs:    []string{"features/auth", "internal/auth", "features/authviews"},
+		Dirs:    []string{"internal/auth", "features/authviews"},
 		Note: "Core middleware; the login page is a removable UI (manual). " +
 			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
-			"features/authviews holds the PB-free login/navbar/theme components " +
-			"shared by both stacks; features/auth keeps the legacy PocketBase " +
-			"middleware it replaces.",
+			"features/authviews holds the PB-free login/navbar/theme components. " +
+			"The legacy PB middleware (features/auth) is gone with the framework.",
 	},
 	{
 		ID:      "crudwire",
@@ -138,7 +120,6 @@ var All = []Capability{
 		Summary:    "NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes",
 		RuntimeOff: "NATS_ENABLED=false (in-memory fallback)",
 		Dirs:       []string{"internal/nats"},
-		Files:      []string{"router/realtime_jet.go"},
 		Reason:     "15+ importers carry NATS types in signatures; deletion is a manual refactor, not line strips.",
 	},
 	{
@@ -150,24 +131,11 @@ var All = []Capability{
 		UISignal:   "DagNatsEnabled",
 		Dirs:       []string{"internal/dagnats"},
 		Files: []string{
-			"router/onboarding_dagnats.go",
-			"router/dagnats_proxy_dagnats.go",
-			"router/dagnats_proxy_test.go",
-			"router/export_test.go",
-			"features/todo/handlers/onboarding.go",
-			"features/todo/handlers/todo_update_job_dagnats.go",
-			// The chi slice owns its onboarding wiring too (step 6):
-			// the stepper + the resume hook live here, so trimming the
-			// engine deletes the whole file.
+			// Every file that imports internal/dagnats: trimming the unit
+			// must remove them too — otherwise the proof build fails with a
+			// dangling import (`module .../internal/dagnats: not found`).
 			"features/todo/chi/onboarding.go",
-			// Both onboarding test files import internal/dagnats, so trimming
-			// the unit must remove them too — otherwise the proof build fails
-			// with a dangling import (`module .../internal/dagnats: not found`).
-			// onboarding_lifecycle_test.go was missing from this list and
-			// reproduced exactly that. See TestManifestCoversDagnatsImports.
-			"features/todo/handlers/onboarding_resume_test.go",
-			"features/todo/handlers/onboarding_lifecycle_test.go",
-			"features/todo/onboarding_e2e_test.go",
+			"features/todo/chi/onboarding_test.go",
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
 			"cmd/web/start_nats_test.go",
@@ -178,8 +146,7 @@ var All = []Capability{
 		Note: "Deletion removes the engine + onboarding worker. " +
 			"The workflow tab, button, and hints auto-hide via the " +
 			"dagnatsUIEnabled signal (registration truth, not config " +
-			"truth). onboarding_progress.go stays: todo_sse.go needs " +
-			"its constants.",
+			"truth).",
 	},
 	{
 		ID:         "llm",
@@ -199,7 +166,10 @@ var All = []Capability{
 		Kind:    KindPlugin,
 		Summary: "Loro CRDT transport: DocStore, sync workers, presence",
 		Dirs:    []string{"internal/collab"},
-		Files:   []string{"router/collab_jetstream.go"},
+		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
+			"slices wire the transport). Files is empty on purpose: the " +
+			"importers outside internal/collab are EDITED (line drops), " +
+			"never deleted — internal/server/chi.go is core.",
 		Reason: "Bundled into the whiteboard unit: whiteboard embeds collab " +
 			"types (no-compile without it) and collab without whiteboard " +
 			"was dead until notes arrived as the second consumer " +
@@ -219,7 +189,6 @@ var All = []Capability{
 		Kind:    KindPlugin,
 		Summary: "AG-UI-compatible event envelope for AI streams (framing subset; no new transport, no new dep)",
 		Dirs:    []string{"internal/genui", "features/genui"},
-		Files:   []string{"router/genui.go"},
 		Reason:  "No installer unit yet: nothing to trim, nothing to add back — the envelope rides the queue's SSE Hub.",
 	},
 	{
@@ -236,7 +205,6 @@ var All = []Capability{
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
 		Offered:    true,
 		Dirs:       []string{"features/credits"},
-		Files:      []string{"router/credits.go"},
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
 				"GOAI_API_KEY, no ledger).",
@@ -277,14 +245,6 @@ var All = []Capability{
 		Note: "DaisyUI stays registered so the dispatcher fallback never fires.",
 	},
 	{
-		ID:         "entity-store",
-		Kind:       KindPlugin,
-		Summary:    "pluggable persistence (pb | crdt EntityStore strategies)",
-		RuntimeOff: "ENTITY_STORE=pb|crdt",
-		Dirs:       []string{"features/store"},
-		Reason:     "Strategy switch at runtime; deletion means editing the buildTodoStore switch (manual).",
-	},
-	{
 		ID:         "offline-sync",
 		Kind:       KindPlugin,
 		Summary:    "hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)",
@@ -304,7 +264,6 @@ var All = []Capability{
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",
 		DependsOn: []string{"genui"},
 		Dirs:      []string{"features/chat"},
-		Files:     []string{"router/chat.go"},
 		Reason:    "No installer unit yet: nothing to trim, nothing to add back — same envelope rides the queue's SSE Hub.",
 	},
 	{
@@ -313,15 +272,12 @@ var All = []Capability{
 		Summary:    "entity actors (GoAkt rooms: roster + presenter lock)",
 		RuntimeOff: "GOAKT_ENABLED=false",
 		Offered:    true,
-		Dirs:       []string{"internal/goakt"},
+		Dirs:       []string{"internal/goakt", "features/room"},
 		Files: []string{
-			"router/room_goakt.go",
+			// Owned by no dir: the engine boot in the web entry point.
+			// internal/server/chi.go is EDITED (line drops), not deleted.
 			"cmd/web/goakt.go",
-			// Test files outside owned dirs ride along, or trimming
-			// leaves a test referencing a deleted package (the dagnats
-			// precedent: onboarding_*_test.go).
 			"cmd/web/goakt_test.go",
-			"router/room_goakt_internal_test.go",
 		},
 		Warns: []string{
 			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
@@ -350,9 +306,6 @@ var All = []Capability{
 			depSounds,
 		},
 		Dirs: []string{"features/whiteboard"},
-		Files: []string{
-			"router/whiteboard.go",
-		},
 		Warns: []string{
 			"The navbar Whiteboard link is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
@@ -368,9 +321,6 @@ var All = []Capability{
 			depSounds,
 		},
 		Dirs: []string{"features/notes"},
-		Files: []string{
-			"router/notes.go",
-		},
 		Note: "Manual removal (or trim the whiteboard unit, which covers " +
 			"whiteboard+collab+notes): delete the dir + router/notes.go, " +
 			"drop registerNotesStack from router.Init, remove the Notes " +

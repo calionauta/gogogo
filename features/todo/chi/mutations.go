@@ -122,7 +122,10 @@ func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.
 	}); err != nil {
 		return err
 	}
-	signals := todo.Signals{Todos: todos, Filter: "all", ItemCount: len(todos)}
+	signals := todo.Signals{
+		Todos: todos, Filter: "all", ItemCount: len(todos),
+		DagNatsEnabled: h.dagnatsUIEnabled(),
+	}
 	return patchSSE(sse, h.renderListRegion(signals, skin),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())

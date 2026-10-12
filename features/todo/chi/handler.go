@@ -164,6 +164,13 @@ func (h *Handler) ownerSession(r *http.Request) (string, *auth.ValidatedSession,
 	return sess.User.ID, sess, nil
 }
 
+// dagnatsUIEnabled reports the durable-workflow UI truth: REGISTRATION,
+// not config. Nil Onboarding (engine disabled, trimmed, or never wired)
+// hides the Durable Workflow tab; bootOnboarding only registers when the
+// engine is enabled, so a stale resumer under a disabled engine can never
+// show the tab.
+func (h *Handler) dagnatsUIEnabled() bool { return h.Onboarding != nil }
+
 // realtimeKind labels the active broadcast transport for the diagnostics
 // panel.
 func (h *Handler) realtimeKind() string {
@@ -364,7 +371,10 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
 		return
 	}
-	signals := todo.Signals{Todos: todos, Filter: filter, ItemCount: len(todos)}
+	signals := todo.Signals{
+		Todos: todos, Filter: filter, ItemCount: len(todos),
+		DagNatsEnabled: h.dagnatsUIEnabled(),
+	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
 		h.fail(w, "todo: list signals failed", err, "error listing todos")
@@ -390,7 +400,10 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: fragment list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
 		return
 	}
-	signals := todo.Signals{Todos: todos, Filter: filter, ItemCount: len(todos)}
+	signals := todo.Signals{
+		Todos: todos, Filter: filter, ItemCount: len(todos),
+		DagNatsEnabled: h.dagnatsUIEnabled(),
+	}
 	var buf bytes.Buffer
 	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {
 		h.fail(w, "todo: fragment render failed", err, "error rendering list")

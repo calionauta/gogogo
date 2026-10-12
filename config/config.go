@@ -32,8 +32,6 @@
 //	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
 //	DAGNATS_STORE_DIR   (default: "data/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
-//	ENTITY_STORE         (default: "pb") — todo persistence strategy
-//	                       (see features/store/store.go)
 //	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui" or "basecoat"
 //	                       (see web/skins/)
 //	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
@@ -178,13 +176,6 @@ type Config struct {
 		Enabled bool
 	}
 
-	// EntityStore selects the persistence strategy for todos (and
-	// future domain entities). "pb" (default) uses PocketBase records
-	// + the OnRecordCreateRequest hook for offline-replay dedup.
-	// "crdt" uses Loro CRDTs per owner + a snapshot to PB; trade-off
-	// See ARCHITECTURE.md (Phase 2: JetStream op transport).
-	// is the only way to get multi-instance sync on crdt.
-	EntityStore string
 	// RBACEnabled turns on the opt-in Casbin RBAC middleware
 	// (RBAC_ENABLED, default false). When false the middleware is a
 	// no-op pass-through, so the default install behaves exactly as
@@ -210,12 +201,10 @@ type Config struct {
 	// binary; there is no build-tag selection.
 	Skin string
 
-	// ChiAddr, when non-empty, serves the flat-stack chi router (owned
-	// auth + sqlc todo slice + the other features ported to it) on that
-	// address alongside the framework boot (e.g. CHI_ADDR=127.0.0.1:8081).
-	// Empty (the default) disables it: the binary behaves exactly as
-	// before. Staged-migration seam — removed when the flat stack becomes
-	// the only server.
+	// ChiAddr overrides the flat-stack listen address (owned auth +
+	// sqlc todo slice + every ported feature). Empty uses Host:Port,
+	// the shape every other frontend binds. cmd/desktop sets it so the
+	// webview proxy and the backend agree on one address.
 	ChiAddr string
 
 	GoAI GoAIConfig
@@ -332,7 +321,6 @@ func Load() *Config {
 	cfg.GoAkt.Enabled = envBool("GOAKT_ENABLED", true)
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
-	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
 	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")

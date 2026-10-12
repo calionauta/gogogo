@@ -36,9 +36,9 @@ func templSpanAnchor(path string) (spanAnchor, bool) {
 	switch path {
 	case navbarTempl:
 		return spanAnchor{afterContains: navLinkAnchorSubstr}, true
-	case "features/todo/handlers/todo.go":
+	case todoGoFile:
 		return anchorBefore(todoLayoutAnchor), true
-	case "features/todo/handlers/todo_repo.go":
+	case todoRepoFile:
 		return anchorBefore(todoRegionAnchor), true
 	default:
 		return spanAnchor{}, false

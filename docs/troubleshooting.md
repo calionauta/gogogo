@@ -22,7 +22,7 @@ machine running the process. A test that boots the real binary with a throwaway
 before the server has bound, which is the "This site can't be reached /
 127.0.0.1 refused to connect" variant.
 
-`router.Init` suppresses it whenever `interactive()` is false, and
+The flat boot never opens a browser; nothing suppresses it anymore, and
 `interactive()` requires **stdin AND stdout to be real terminals**. The
 subtlety that made this recur: a child process inherits *the parent's* TTY
 status, so `go test` (or `make test`) launched from a real terminal produces a

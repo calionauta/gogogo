@@ -2,8 +2,8 @@
 
 Every non-test, non-generated `.go` file under `internal/` and `features/`
 carries a `SCOPE` annotation in its leading doc comment to tell agents and
-developers what can be safely removed. (Files elsewhere — `cmd/`, `db/`,
-`web/`, `config/`, `router/` — have none; the linter only walks `internal/` and
+developers what can be safely removed. (Files elsewhere — `cmd/`, `web/`,
+`config/` — have none; the linter only walks `internal/` and
 `features/`, skipping `*_test.go` and `*_templ.go`.) This is the rule that makes
 the template safely trimmable: you never have to guess whether a directory is
 load-bearing.
@@ -15,7 +15,7 @@ The annotation carries a single axis — the removal class — with three values
 | Class | Meaning | You would… |
 |------------|---------|-----------|
 | `core` 🔴 | Binary does not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
-| `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `router.Init`, `cmd/web/main.go`). |
+| `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
 | `feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
 
 ## The annotation form
@@ -49,14 +49,20 @@ If you see a `SCOPE` annotation on a file, respect it. **Never delete a
 domain doesn't need it.**
 
 `feature` and `plugin` files are free to delete, after reading the inline
-description — it lists exactly what to remove in `router/router.go` and
-`cmd/web/`.
+description — it lists exactly what to remove in `internal/server/chi.go`
+(the flat route composition) and `cmd/web/`.
 
 ## Removing a component
 
+The flat stack composes every capability in two places, both inside
+`internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux`
+mounts its routes. The installer (`gogogo trim <unit>`) automates the
+common ones; when doing it by hand:
+
 1. Delete the package directory (e.g. `features/todo/`).
 2. Delete dependent packages listed in the `Depends on:` comment.
-3. Remove the wiring call from `router/router.go` → `Init()`.
+3. Drop the handler construction + `mux.Handle(...)` lines from
+   `internal/server/chi.go` (and its test fixtures).
 4. If it was a plugin, also remove the `start*` call in `cmd/web/main.go`.
 5. Run `make check-scope && go build ./cmd/web` to catch anything left behind.
 
@@ -77,28 +83,25 @@ the field or a `.templ` reader goes missing.
 |---|---|---|
 | `cmd/web/` | 🔴 CORE | Never — entry point |
 | `config/` | 🔴 CORE | Never — env config |
-| `db/` | 🔴 CORE | Never — PocketBase setup + seed |
+| `internal/db/` | 🔴 CORE | Never — Turso connection + migrations + sqlc queries |
 | `internal/secrets/` | 🔴 CORE | Never — age loader |
 | `internal/queue/` | 🔴 CORE | Never — goqite + SSE Hub + workers + retry |
 | `internal/datastar/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/nats/` | 🟡 PLUGIN | Delete + wiring call (or `NATS_ENABLED=false`) |
-| `internal/dagnats/` | 🟡 PLUGIN | Delete `router/onboarding_dagnats.go` too (or `DAGNATS_ENABLED=false`) |
+| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/chi/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
 | `internal/llm/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/components/` | 🟡 PLUGIN | Shared UI helpers (Toast + OfflineBanner) |
-| `features/store/pbstore/` | 🟡 PLUGIN | Drop `todoH.SetStore(pbstore.New(app, "todos"))` from `router.Init`; the handler's lazy fallback rebuilds a PBStore on first use |
-| `features/app/` | 🔴 CORE | AppContext (cross-cutting deps bundle) |
-| `features/auth/` | 🔴 CORE (middleware) / 🟢 FEATURE (UI) | Keep middleware; UI removable |
+| `internal/server/` | 🔴 CORE | Never — flat stack composition (BootChi + buildChiMux) |
+| `internal/auth/` | 🔴 CORE | Never — argon2id + sessions (owned auth) |
+| `features/authviews/` | 🟢 FEATURE | Login/navbar/theme components (manual removal) |
 | `web/skins/` | 🟡 PLUGIN | Delete + drop blank imports in `features/todo/components/skin_imports.go` + drop `SkinSelector` from navbar |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
 | `features/landing/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/config/` | 🟢 FEATURE | Delete package + wiring call |
-| `router/onboarding_dagnats.go` | 🟢 FEATURE | Delete with `internal/dagnats/` |
-| `router/realtime_jet.go` | 🟢 FEATURE | Delete with `internal/nats/` |
 | `web/resources/` | 🔴 CORE | Never — embedded static assets |
-| `router/` | 🔴 CORE | Never — route wiring |
 
 ## Cross-package test dependencies
 
@@ -113,7 +116,7 @@ another package imports the deleted one. Check these when you trim:
 | **NATS** | `internal/nats/` | ⚠️ `internal/collab` may depend on NATS |
 | **OfflineSync** | `config/config.go` (`OFFLINE_SYNC_ENABLED`), `sw.js`, `crudproxy.go` | `internal/nats/crudproxy_test.go` covers create/toggle/delete/clear_completed e2e with JetStream |
 | **LLM** | `internal/llm/` | ⚠️ `features/todo/suggest_test.go` |
-| **EntityStore** | `features/store/pbstore/` | Drop `SetStore(pbstore.New(...))` from `router.Init` |
+| **Turso queries** | (only layer) | There is no strategy switch anymore: handlers call `dbgen.*` directly |
 | **Idempotency** | `db/idempotency_hook.go` + `db/idempotency_seed.go` | Remove `RegisterIdempotencyHook(app)` + `enableTodosIdempotency(col)` from `db/seed.go`, and the hidden `name="idem_key"` input from `createForm` |
 | **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` from the navbar |
 | **Skins** | `web/skins/` | Drop blank imports + the `SkinSelector` navbar call |

@@ -19,7 +19,7 @@ second column names the **technology** that powers it.
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
 | **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` | NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync |
 | **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI | `UI_SKIN` | DaisyUI (default) or BasecoatUI (shadcn-style OKLCH tokens). Switch via env var or `?skin=`. See [UI skins](ui-skins.md) |
-| **Pluggable persistence** | `pb` / `crdt` EntityStore | `ENTITY_STORE` | `pb` (default: PocketBase records + admin UI works) or `crdt` (Loro per-owner doc + JetStream transport). Same `EntityStore[T]` interface |
+| **Persistence** | Turso (sqlc) | — | One data layer: `internal/db` migrations + generated queries, no strategy switch |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset | Leaf-Node JetStream replication of Loro updates for desktop/edge clients |
 | **Landing page** | Templ | — | The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo` |
 | **Read-only config view** | Templ | — | Auth-gated `GET /config`: env-decrypted values, masked secrets, runtime constants. Never mutates state |
@@ -27,11 +27,12 @@ second column names the **technology** that powers it.
 ## Adding a new feature
 
 1. Create `features/<name>/` with its HTTP handlers + Templ components.
-2. Wire it in `router/router.go` → `Init()` with a single function call.
+2. Wire it in `internal/server/chi.go` — build the handler in `BootChi`,
+   mount the routes in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback, and
    **Datastar** for the reactive frontend.
 4. Add a `SCOPE:` annotation — `make check-scope` enforces it.
-5. Add a `RegisterRoutes(se, deps)` function and call it from `router.Init`.
+5. Add a `Routes()` method on your handler and mount it in `buildChiMux`.
 
 The [Todo feature](todo-example.md) is the full reference implementation.
 
@@ -55,7 +56,7 @@ Details in [Admin & Dashboard](admin-dashboard.md).
 
 Every feature package carries a `SCOPE:feature` annotation. The rule:
 delete the package directory, delete its dependents, remove the wiring call
-from `router/router.go` → `Init()`, and — if it was a plugin — remove the
+from `internal/server/chi.go`, and — if it was a plugin — remove the
 `start*` call in `cmd/web/main.go`. Full checklist in
 [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 

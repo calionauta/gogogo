@@ -2,18 +2,18 @@
 //
 // Command gui is a proof of concept: a native desktop window built with
 // gogpu/ui (pure-Go GPU rendering, zero CGO, no webview, no JavaScript)
-// that runs on the SAME backend as the web app — PocketBase, the demo
-// user seed, and the EntityStore contract in features/store.
+// that runs on the SAME backend as the web app — the flat stack: owned
+// auth (internal/auth), the sqlc todos (internal/db), and the todo model.
 //
 // What this proves, and what it does not:
 //
 //	Proved: the domain layer is genuinely transport-agnostic. Auth
-//	  (features/auth.Login + ResolveOwner), persistence
-//	  (store.EntityStore) and the todo model are consumed here with
-//	  no *core.RequestEvent, no cookie, and no HTTP router. If the web
-//	  app could be deleted and this app kept, the layering held.
-//	  Cross-frontend visibility holds too: a todo created in the web
-//	  app appears here within one poll tick (same collection).
+//	  (internal/auth.Login + SessionByToken), persistence (the same
+//	  dbgen queries the chi handlers call) and the todo model are
+//	  consumed here with no *http.Request, no cookie, and no HTTP
+//	  router. If the web app could be deleted and this app kept, the
+//	  layering held. Cross-frontend visibility holds too: a todo created
+//	  in the web app appears here within one poll tick (same database).
 //	Not proved: no offline sync (this window is ONLINE-ONLY — mutations
 //	  run synchronously against the local DB and fail visibly when it
 //	  is unreachable; there is no outbox, no replay, no Loro merge
@@ -25,10 +25,10 @@
 //	  only, no JetStream subscription), no theming parity with the
 //	  web skins.
 //
-// Note there is no pb.Start() and no HTTP listener here. app.Bootstrap()
-// opens the database without serving; the store reads and writes through
-// the App handle directly. That is the proof in miniature — the web tier
-// is genuinely optional for a native frontend.
+// Note there is no HTTP listener here. db.Open + db.Migrate prepare the
+// database without serving; the store reads and writes through the
+// queries directly. That is the proof in miniature — the web tier is
+// genuinely optional for a native frontend.
 //
 // It is deliberately NOT part of `make build` / `make test`: it is a
 // separate native target like cmd/desktop, validated by the gui job
@@ -42,6 +42,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -54,20 +56,23 @@ import (
 	"github.com/gogpu/ui/desktop"
 	"github.com/gogpu/ui/theme/material3"
 	"github.com/gogpu/ui/widget"
-	"github.com/pocketbase/pocketbase"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/db"
-	"github.com/calionauta/gogogo/features/auth"
-	"github.com/calionauta/gogogo/features/store/pbstore"
+	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/db"
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
-// todosCollection is the same PocketBase collection the web app writes.
-// Reading the identical table is what makes this a second frontend
-// rather than a parallel app.
-const todosCollection = "todos"
+// The demo account the login form advertises as its placeholder. The web
+// app's PB-era seed used the same pair (db/seed.go, now gone); the flat
+// stack owns identities in the users table, so a first run here seeds
+// what the web form would create.
+const (
+	demoUserEmail    = "demo1@demo.app"
+	demoUserPassword = "demo1234456"
+)
 
 // pollInterval is the realtime-read tick: how often the window
 // re-reads the collection. No push channel exists in the native window, so this
@@ -92,20 +97,23 @@ func main() {
 func run() error {
 	cfg := config.Load()
 
-	pbApp, err := db.Init(cfg)
+	// The same flat stack the web app serves: Turso file + migrations +
+	// owned auth, minus the HTTP listener. No framework, no bootstrap
+	// hook — the queries below are the ones the chi handlers call.
+	sqlDB, err := db.Open(cfg)
 	if err != nil {
-		return fmt.Errorf("pocketbase init: %w", err)
+		return fmt.Errorf("turso open: %w", err)
 	}
-	// Bootstrap (not Start) opens the database without serving HTTP.
-	if err := pbApp.Bootstrap(); err != nil {
-		return fmt.Errorf("pocketbase bootstrap: %w", err)
+	defer sqlDB.Close()
+	if merr := db.Migrate(sqlDB); merr != nil {
+		return fmt.Errorf("migrate: %w", merr)
 	}
-	// Seed directly instead of relying on SeedDefaults' OnServe hook:
-	// nothing is served here, so the hook would never fire and the
-	// window would open on a database with no todos collection.
-	if err := db.ApplySeeds(pbApp, cfg.OfflineSync.Enabled); err != nil {
-		return fmt.Errorf("seed: %w", err)
+
+	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
+	if aerr != nil {
+		return fmt.Errorf("auth: %w", aerr)
 	}
+	ensureDemoUser(context.Background(), a)
 
 	m3 := material3.New(widget.Hex(seedColorHex))
 
@@ -120,7 +128,7 @@ func run() error {
 		app.WithTheme(m3.AsTheme()),
 	)
 
-	st := newState(pbApp, pbstore.New(pbApp, todosCollection))
+	st := newState(guiStore{q: dbgen.New(sqlDB)}, a)
 	tokPath := tokenPath(cfg.DataDir)
 	restoreSession(st, tokPath)
 
@@ -159,6 +167,17 @@ func run() error {
 	return nil
 }
 
+// ensureDemoUser seeds the demo account the login form documents. A
+// missing account is created; Signup fails with ErrBadCredentials on a
+// duplicate email, which is exactly the "already seeded" case, so a
+// first-run and an every-run boot behave identically.
+func ensureDemoUser(ctx context.Context, a *auth.Auth) {
+	if _, _, err := a.Signup(ctx, demoUserEmail, demoUserPassword, "Demo User"); err != nil &&
+		!errors.Is(err, auth.ErrBadCredentials) {
+		log.Printf("gui: demo user seed skipped: %v", err)
+	}
+}
+
 // makeSignOut returns the full sign-out action: state reset plus
 // persisted-session removal. A standalone function (not an inline
 // closure) so tests can invoke the exact wiring the button uses.
@@ -169,7 +188,7 @@ func makeSignOut(st *windowState, tokPath string) func() {
 	}
 }
 
-// startPollLoop re-lists the collection on every tick so other
+// startPollLoop re-lists the store on every tick so other
 // frontends' writes appear without user action, rebuilds the UI, and
 // persists a fresh login token. I/O (refresh) runs off the UI thread
 // — refresh is pure data under stateMu and never touches widgets;
@@ -201,13 +220,13 @@ func restoreSession(st *windowState, tokPath string) {
 	if err != nil {
 		return
 	}
-	ownerID, err := auth.ResolveOwner(st.app, token)
+	sess, err := st.a.SessionByToken(context.Background(), token)
 	if err != nil {
 		slog.Warn("gui: saved session no longer valid, clearing", "error", err)
 		clearToken(tokPath)
 		return
 	}
-	st.adoptSession(token, ownerID)
+	st.adoptSession(token, sess.User.ID)
 }
 
 // persistSessionIfNeeded saves the live session token (0600) once per
@@ -231,12 +250,3 @@ func persistSessionIfNeeded(st *windowState, tokPath string) {
 		slog.Warn("gui: could not persist session", "error", err)
 	}
 }
-
-// Compile-time proof of the reuse claim: the store handed to the native
-// window is the exact type the HTTP handlers use, and the auth entry
-// point is transport-free.
-var (
-	_ = pbstore.New
-	_ = auth.Login
-	_ *pocketbase.PocketBase
-)

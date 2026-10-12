@@ -50,7 +50,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ENTITY_STORE` | `pb` | `pb` (PocketBase records, admin UI works) or `crdt` (Loro per-owner doc + JetStream cross-instance transport). Same `EntityStore[T]` interface either way. |
+
 | `OFFLINE_SYNC_ENABLED` | `true` | Hybrid offline sync. `false` disables the NATS CRUD proxy and the Service Worker offline queue — zero code paths traversed. |
 
 ### LLM

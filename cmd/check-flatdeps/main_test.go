@@ -23,15 +23,12 @@ func TestBannedPrefixes(t *testing.T) {
 	}
 }
 
-func TestLegacyAllowlist(t *testing.T) {
-	if !legacy("db/pocketbase.go") {
-		t.Error("db/pocketbase.go must stay allowlisted until step 7")
-	}
-	if legacy("internal/db/db.go") {
-		t.Error("internal/db/db.go must never be allowlisted")
-	}
-	if legacy("features/todo/chi/handler.go") {
-		t.Error("chi handler must never be allowlisted")
+// TestEveryFlatPackageIsFrameworkFree drives run() over the real tree:
+// the legacy-driver allowlist is gone with the framework boot, so the
+// banned-prefix closure is the whole guard.
+func TestEveryFlatPackageIsFrameworkFree(t *testing.T) {
+	if err := run(); err != nil {
+		t.Fatalf("run() = %v, want nil (framework-free closure)", err)
 	}
 }
 

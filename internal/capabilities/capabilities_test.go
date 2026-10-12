@@ -166,7 +166,7 @@ func TestKindsFollowServantPrinciple(t *testing.T) {
 	// features/credits is a plugin, features/todo is a feature.
 	pluginIDs := []string{
 		"nats", "dagnats", "goakt", "llm", "collab", "datastar", "components",
-		"credits", "sounds", "skins", "entity-store", "offline-sync",
+		"credits", "sounds", "skins", "offline-sync",
 		"capabilities", "genui",
 	}
 	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room"}
@@ -265,7 +265,7 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 	// Scan the trees a trimmed checkout keeps: the unit's own imports can
 	// appear anywhere in cmd/, features/, internal/ or router/.
 	var offenders []string
-	for _, tree := range []string{"cmd", "features", "internal", "router"} {
+	for _, tree := range []string{"cmd", "features", "internal"} {
 		walkErr := filepath.WalkDir(filepath.Join(root, tree), func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err

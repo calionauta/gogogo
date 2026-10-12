@@ -61,7 +61,7 @@ listings.
 packages you touched. Always scope:
 
 ```bash
-golangci-lint run ./features/todo/... ./router/...
+golangci-lint run ./features/todo/... ./internal/server/...
 ```
 
 On a host that also runs other work (agents, production, a co-tenant daemon),

@@ -75,11 +75,9 @@ var advisePresets = []advisePreset{
 		},
 		Keep: []string{
 			"offline-sync (runtime — enabled by default)",
-			"entity-store (runtime: ENTITY_STORE=pb|crdt)",
 		},
 		Note: "No trim involved: OFFLINE_SYNC_ENABLED=false is the off " +
-			"switch. CRDT store only when tabs must converge without a " +
-			"server round-trip.",
+			"switch.",
 	},
 	{
 		Name: "ai-features",

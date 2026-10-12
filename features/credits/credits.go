@@ -48,29 +48,6 @@ type Service struct {
 	startedFlag atomic.Bool
 }
 
-// New builds the credits engine on the app's SQLite DB file (a fresh
-// connection to cfg.DBPath), applies the lib-owned schema idempotently, and
-// constructs the BYOK credential store + relay. Returns (nil, nil) when the
-// feature is disabled — handlers then no-op and the binary boots
-// billing-free.
-func New(cfg *config.Config) (*Service, error) {
-	if !cfg.Credits.Enabled {
-		return nil, nil
-	}
-	// The credits ledger lives in the SAME SQLite file PocketBase uses
-	// (default DataDir/data.db) so users and balances share one atomic
-	// backup; the lib opens its own connection (the PB builder is opaque).
-	dbPath := cfg.DBPath
-	if dbPath == "" {
-		dbPath = "data/data.db"
-	}
-	db, err := credits.OpenSQLite("sqlite3", dbPath)
-	if err != nil {
-		return nil, err
-	}
-	return NewOnDB(db, cfg)
-}
-
 // NewOnDB builds the credits engine on an already-open database handle
 // (any SQLite-compatible driver — Turso for the flat stack). Schema and
 // services are identical to New; only the connection source differs.

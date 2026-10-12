@@ -18,7 +18,25 @@ func (a *Auth) Session(r *http.Request) (*ValidatedSession, error) {
 	if err != nil || cookie.Value == "" {
 		return nil, errors.New("auth: no session cookie")
 	}
-	row, err := a.q.GetSession(r.Context(), tokenHash(cookie.Value))
+	return a.resolveSession(r.Context(), cookie.Value)
+}
+
+// SessionByToken resolves a session token to its user without an HTTP
+// request — the transport-free counterpart of Session for frontends
+// that persist the cookie value and never see a request (cmd/gui's
+// "remember me" file). Expiry, revocation and pruning behave exactly as
+// in Session: one validation path, two entry points.
+func (a *Auth) SessionByToken(ctx context.Context, token string) (*ValidatedSession, error) {
+	if token == "" {
+		return nil, errors.New("auth: no session token")
+	}
+	return a.resolveSession(ctx, token)
+}
+
+// resolveSession is the shared validation: token hash lookup, expiry
+// check, owner load.
+func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSession, error) {
+	row, err := a.q.GetSession(ctx, tokenHash(token))
 	if err != nil {
 		return nil, errors.New("auth: unknown session")
 	}
@@ -27,10 +45,10 @@ func (a *Auth) Session(r *http.Request) (*ValidatedSession, error) {
 		return nil, fmt.Errorf("auth: session expiry unreadable: %w", err)
 	}
 	if time.Now().UTC().After(expires) {
-		_ = a.q.DeleteSession(r.Context(), row.TokenHash)
+		_ = a.q.DeleteSession(ctx, row.TokenHash)
 		return nil, errors.New("auth: session expired")
 	}
-	user, err := a.q.GetUser(r.Context(), row.UserID)
+	user, err := a.q.GetUser(ctx, row.UserID)
 	if err != nil {
 		return nil, errors.New("auth: session owner gone")
 	}

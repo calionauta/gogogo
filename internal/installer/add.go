@@ -18,8 +18,8 @@ import (
 
 // Shared file paths for add/trim mechanics (goconst-quiet, single spelling).
 const (
-	todoGoFile   = "features/todo/handlers/todo.go"
-	todoRepoFile = "features/todo/handlers/todo_repo.go"
+	todoGoFile   = "features/todo/chi/pages.go"
+	todoRepoFile = "features/todo/chi/handler.go"
 	dirMode      = 0o755
 )
 
@@ -27,9 +27,6 @@ const (
 // the target checkout. Keyed by file path (convention over configuration):
 // scaffolded trees keep these shapes, anything else fails fast.
 const (
-	// routerCallsAnchor ends the OnServe closure; capability calls land
-	// directly above it, in manifest order.
-	routerCallsAnchor = "\t\treturn se.Next()"
 	// mainCallsAnchor is the shutdown defer; dagnats boot lines land below.
 	mainCallsAnchor = "\tdefer shutdown()"
 	// mainBlankUse is removed when dagnats comes back (todoH used again).
@@ -40,9 +37,9 @@ const (
 	// navLinkAnchorSubstr marks the Todo nav link; section links land below.
 	navLinkAnchorSubstr = "}>Collab Todo</a>"
 	// todoLayoutAnchor is the DaisyUI fallback; skin dispatches land above.
-	todoLayoutAnchor = "\treturn components.Layout("
+	todoLayoutAnchor = "\t_ = components.Layout("
 	// todoRegionAnchor is the region fallback; skin cases land above.
-	todoRegionAnchor = "\tdefault:"
+	todoRegionAnchor = "\treturn components.TodoListRegion(signals)"
 )
 
 // AddReceipt records what one add run actually changed. Touched lists
@@ -134,10 +131,10 @@ func copyUnitPaths(t *treeFS, from, root string, m unitMeta, rc *AddReceipt) err
 }
 
 // requireScaffold fails fast on trees the installer cannot rewire:
-// without the flat Init list, insertion anchors mean nothing.
+// without the flat route composition, insertion anchors mean nothing.
 func requireScaffold(root string) error {
 	for _, f := range []string{
-		filepath.Join("router", "router.go"),
+		filepath.Join("internal", "server", "chi.go"),
 		"go.mod",
 	} {
 		p, err := joinRoot(root, f)

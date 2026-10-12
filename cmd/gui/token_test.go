@@ -100,7 +100,7 @@ func TestRestoreSessionAdoptsLiveToken(t *testing.T) {
 	}
 
 	// Fresh window, same backend: must come up signed in with data.
-	s2 := newState(s.app, s.st)
+	s2 := newState(s.st, s.a)
 	restoreSession(s2, path)
 	snap := s2.snapshot()
 	if !snap.signedIn {

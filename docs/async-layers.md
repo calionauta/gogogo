@@ -154,7 +154,7 @@ engine won't boot; downstream consumers handle nil gracefully.
 
 **Product features** (Todo, Whiteboard, Room, Notes) have no runtime flag. To remove them,
 delete the package directory and remove the wiring call from
-`router/router.go` — that is the [SCOPE removal pattern](scope-taxonomy.md).
+`internal/server/chi.go` — that is the [SCOPE removal pattern](scope-taxonomy.md).
 
 They coexist in the same binary. They do not compete.
 

@@ -11,7 +11,7 @@ func addRouterCalls(t *treeFS, root string, u trimUnit, rc *AddReceipt) error {
 	if len(calls) == 0 {
 		return nil
 	}
-	p := filepath.Join(root, "router", "router.go")
+	p := filepath.Join(root, filepath.FromSlash(chiGoFile))
 	raw, err := t.ReadFile(p)
 	if err != nil {
 		return err
@@ -19,13 +19,13 @@ func addRouterCalls(t *treeFS, root string, u trimUnit, rc *AddReceipt) error {
 	lines := strings.Split(string(raw), "\n")
 	anchor := -1
 	for i, l := range lines {
-		if l == routerCallsAnchor {
+		if l == chiMuxAnchor {
 			anchor = i
 			break
 		}
 	}
 	if anchor == -1 {
-		return &ExitError{code: 1, msg: "cannot locate insertion anchor in router/router.go (not a scaffolded Init?)"}
+		return &ExitError{code: 1, msg: "cannot locate insertion anchor in " + chiGoFile + " (not a scaffolded buildChiMux?)"}
 	}
 	var insert []string
 	for _, c := range calls {
@@ -37,7 +37,7 @@ func addRouterCalls(t *treeFS, root string, u trimUnit, rc *AddReceipt) error {
 			}
 		}
 		if !dup {
-			insert = append(insert, "\t\t"+c)
+			insert = append(insert, "\t"+c)
 		}
 	}
 	if len(insert) == 0 {
@@ -45,7 +45,7 @@ func addRouterCalls(t *treeFS, root string, u trimUnit, rc *AddReceipt) error {
 	}
 	lines = append(lines[:anchor], append(insert, lines[anchor:]...)...)
 	rc.LinesInserted += len(insert)
-	rc.touch("router/router.go")
+	rc.touch(chiGoFile)
 	return t.WriteFile(p, []byte(strings.Join(lines, "\n")), scaffoldFileMode)
 }
 
@@ -64,7 +64,7 @@ func routerCallLines(u trimUnit) []string {
 		out = append(out, c)
 	}
 	for _, ed := range u.extraDrops {
-		if ed.path != routerGoFile {
+		if ed.path != chiGoFile {
 			continue
 		}
 		for _, sub := range ed.substrs {

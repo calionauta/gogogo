@@ -13,23 +13,22 @@
 //
 // Idempotency: the UI generates a fresh UUID per click and sends it
 // as the `idem_key` form field on every create POST. The SW forwards
-// the form body verbatim on replay. The server-side hook
-// (db.RegisterIdempotencyHook) looks up an existing record with the
-// same (idem_key, owner) and returns it instead of creating a
-// duplicate; a (idem_key, owner) unique index in PocketBase backs the
-// dedup at the DB layer for the race window. Single-instance and
-// multi-instance both work because the dedup state lives in the
-// database. See docs/decisions.md for the full rationale.
+// the form body verbatim on replay. The server (features/todo/chi
+// mutations) looks up the todo by (owner, idem_key) and returns the
+// original instead of creating a duplicate; the (owner, idem_key)
+// unique index in internal/db/migrations backs the dedup at the DB
+// layer for the race window. Single-instance and multi-instance both
+// work because the dedup state lives in the database. See
+// docs/decisions.md for the full rationale.
 
-var CACHE_NAME = "pb-api-v1";
+var CACHE_NAME = "flat-api-v1";
 var PAGE_CACHE = "gogogo-pages-v1";
 var API_PREFIX = "/api/";
 
 // SSE and whiteboard paths that must NOT be intercepted.
 var SKIP_PATTERNS = [
-  "/api/realtime", // PocketBase realtime (EventSource, not caught by SW anyway)
   "/api/todos/stream", // todo SSE stream (EventSource)
-  "/api/collab/presence/", // presence SSE stream (EventSource)
+  "/api/notes/", // notes SSE stream + ops (EventSource + own convergence)
   "/api/whiteboard/" // whiteboard ops + stream (own offline mechanism)
 ];
 

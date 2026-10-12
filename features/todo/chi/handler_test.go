@@ -28,6 +28,7 @@ import (
 type chiFixture struct {
 	t    testing.TB
 	r    http.Handler
+	h    *Handler
 	q    *dbgen.Queries
 	hub  *queue.SSEHub
 	auth *auth.Auth
@@ -59,7 +60,7 @@ func newChiFixture(tb testing.TB) *chiFixture {
 	// the more specific /api/auth/ wins over the chi root mount.
 	r.Handle("/api/auth/", a.Handler())
 	r.Handle("/", h.Routes())
-	return &chiFixture{t: tb, r: r, q: dbgen.New(sqlDB), hub: hub, auth: a}
+	return &chiFixture{t: tb, r: r, h: h, q: dbgen.New(sqlDB), hub: hub, auth: a}
 }
 
 // signup creates a user over HTTP and returns the session cookie.

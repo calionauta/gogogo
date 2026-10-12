@@ -51,8 +51,8 @@ genuinely interchangeable implementations — e.g. swapping LLM providers. The
 
 Everything data-shaped lives under one tree, `internal/db/`, so there is exactly
 one connection string, one schema, and one generated package to reason about.
-PocketBase's old `db/` package is deleted with it, which frees the top-level
-`db/` name; promoting `internal/db` → `db` afterwards is a `git mv` plus an
+PocketBase's old `internal/db/` package is deleted with it, which frees the top-level
+`internal/db/` name; promoting `internal/db` → `db` afterwards is a `git mv` plus an
 import rewrite, deliberately deferred so no import path changes twice.
 
 ## Data layer rules
@@ -150,14 +150,19 @@ Two things are worth knowing before this becomes the only engine:
 
 ## Current state and remaining work
 
-The flat stack serves auth, the todo slice (pages + data + realtime bridge,
-AI suggest, retry demo and the durable onboarding workflow), the queue, and
-the remaining feature surfaces (whiteboard, notes, room, chat, genui,
-credits, config view, landing). What still runs on the previous stack: the
-desktop GUI boot. Everything is ported with the same recipe (contract tests
-first, same paths and wire, no translation layers), then `db/` goes away
-with the framework dependency, the framework-only tests with it, and the
-transitional serve seam (`CHI_ADDR`) with them.
+The migration is complete. The flat stack is the only stack: auth, the
+todo slice (pages + data + realtime bridge, AI suggest, retry demo and the
+durable onboarding workflow), the queue, whiteboard, notes, room, chat,
+genui, credits, the config view, the landing page, and the native GUI all
+boot from `internal/server` on the same Turso + owned-auth data layer.
+
+Gone with the framework: the `db/` package (app handle + seeds), the
+`router/` package (route wiring), the `features/store` strategies
+(PBStore and CRDTStore — one data layer remains, sqlc over `internal/db`),
+`features/auth` (the legacy PB middleware), the PB handlers under every
+feature, the `internal/routeutil` + `internal/collabpb` helpers, and the
+transitional serve seam (`CHI_ADDR`) — `cfg.Host:cfg.Port` is the address
+now. `internal/db/` does not go away; it IS the data layer.
 
 The onboarding slice is the one place the two stacks genuinely differ
 rather than duplicate a shape: the framework stack fans its stepper progress

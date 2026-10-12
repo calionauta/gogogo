@@ -2,21 +2,20 @@
 //
 // Command check-flatdeps proves the flat-stack invariant without booting
 // anything: the flat-stack packages must not import frameworks outside
-// the blessed set, and database/sql opens must use the Turso driver
-// outside the transitional allowlist below. It runs `go list -deps`
-// (cached, seconds at most) instead of a build+boot cycle, so violations
-// surface at commit time instead of after a 2-minute binary run.
+// the blessed set — the framework the stack replaced (PocketBase), the
+// evaluated-and-rejected auth path, and the bundled sqlite driver the
+// template policy forbids. It runs `go list -deps` (cached, seconds at
+// most) instead of a build+boot cycle, so violations surface at commit
+// time instead of after a 2-minute binary run.
 //
 // Exit non-zero with the offending import paths when the invariant breaks.
 package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 )
 
@@ -43,16 +42,6 @@ var bannedPrefixes = []string{
 	"modernc.org/sqlite",
 }
 
-// legacyDriverFiles are the transitional sqlite3 opens outside the flat
-// stack. They disappear with their owners (the framework boot, the credits
-// ledger wiring, the desktop token helper); the list shrinks to empty and
-// is deleted then. Everything else must open Turso.
-var legacyDriverFiles = []string{
-	"db/pocketbase.go",
-	"features/credits/credits.go",
-	"cmd/gui/main.go",
-}
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "check-flatdeps:", err)
@@ -71,9 +60,6 @@ func run() error {
 				return fmt.Errorf("package %s depends on banned %s", pkg, dep)
 			}
 		}
-	}
-	if err := checkDriverOpens(); err != nil {
-		return err
 	}
 	fmt.Println("check-flatdeps: flat stack is framework-free")
 	return nil
@@ -95,36 +81,4 @@ func listDeps(pkg string) ([]string, error) {
 		return nil, fmt.Errorf("go list %s: %w", pkg, err)
 	}
 	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
-}
-
-// checkDriverOpens fails on legacy-driver opens outside the allowlist (the
-// ncruces driver name, matched literally below). Turso opens pass everywhere.
-// Test files are exempt: hermetic :memory: databases keep unit tests fast
-// and never ship, while the driver itself leaves go.mod with step 7.
-func checkDriverOpens() error {
-	out, err := exec.CommandContext(context.Background(), "grep", "-rn", `sql\.Open("sqlite3"`, "--include=*.go",
-		"internal", "features", "cmd", "router").Output()
-	if err != nil {
-		// grep exits 1 on no matches: that is the passing state.
-		var exit *exec.ExitError
-		if errors.As(err, &exit) && exit.ExitCode() == 1 {
-			return nil
-		}
-		return fmt.Errorf("grep driver opens: %w", err)
-	}
-	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
-		file, _, _ := strings.Cut(line, ":")
-		if strings.HasSuffix(file, "_test.go") {
-			continue
-		}
-		if !legacy(file) {
-			return fmt.Errorf("non-Turso open outside the transitional list: %s opens sqlite3", line)
-		}
-	}
-	return nil
-}
-
-// legacy reports whether a repo-relative file is on the transitional list.
-func legacy(file string) bool {
-	return slices.Contains(legacyDriverFiles, file)
 }

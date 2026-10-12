@@ -80,7 +80,7 @@ gogogo: done — next:
   cd my-app && make dev
   app:       http://localhost:8080 (PORT overrides)
   login:     demo1@demo.app / demo1234456 (prefilled; demo2 same password — second browser for contention)
-  admin:     http://localhost:8080/_/ (PocketBase — create the superuser on first visit)
+  app:       http://localhost:8080/ (the flat stack — sign up on first visit)
   workflows: http://localhost:8080/dagnats/ (DagNats console)
 ```
 
@@ -137,7 +137,7 @@ go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
 
 `--from` is a pristine template checkout to copy from; `--check --dir`
 verifies the markers first. `add` refuses anything that is not a
-scaffolded checkout (`router/router.go` + `go.mod` must exist) — it
+scaffolded checkout (`internal/server/chi.go` + `go.mod` must exist) — it
 restores known markers, it does not merge foreign code.
 
 **Foreign Go codebase (not scaffolded).** There is no auto-adoption:
@@ -148,7 +148,7 @@ will not guess. Do instead:
 2. Read the upstream pattern via `llms.txt` (`AGENTS.md` has the map) —
    Todo is the reference implementation for jobs, SSE, and realtime.
 3. Copy the capability's dirs (the registry lists owned paths per
-   capability) and wire the single call in your router.
+   capability) and wire the handler in `BootChi` + the routes in `buildChiMux`.
 
 ## 1. Manual fallback: create your repository
 
@@ -221,11 +221,11 @@ everything — the unified build era means you never pass `-tags`.
 
 ## First five minutes
 
-1. `make dev` — the binary boots with PocketBase + goqite + SSE Hub + DagNats +
+1. `make dev` — the binary boots the flat stack (Turso + owned auth + goqite + SSE Hub) + DagNats +
    NATS, and seeds the demo user and collections on first run.
 2. Open `/` — public landing page, no auth.
 3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
-   stream through PocketBase realtime. (`demo2@demo.app`, same password, keeps
+   stream through the SSE hub. (`demo2@demo.app`, same password, keeps
    a separate todo list — per-user isolation you can verify in a second browser.)
 4. Open `/config` — auth-gated read-only view of what the binary decided:
    env-decrypted values, masked secrets, runtime constants.
@@ -266,12 +266,12 @@ Every feature follows the same pattern — use the Todo feature as the reference
 implementation.
 
 1. Create `features/<name>/` with its HTTP handlers + Templ components.
-2. Wire it in `router/router.go` → `Init()` with a single function call.
+2. Wire it in `internal/server/chi.go` → `Init()` with a single function call.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback
    (toasts, progress), and **Datastar** for the reactive frontend.
 4. Add a `SCOPE:` annotation so agents know what they can remove —
    `make check-scope` enforces it.
-5. Add a `RegisterRoutes(se, deps)` function and call it from `router.Init`.
+5. Add a `Routes()` method on your handler and mount it in `buildChiMux`.
 
 The contract to imitate, in four rules:
 

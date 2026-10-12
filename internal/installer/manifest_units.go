@@ -164,19 +164,24 @@ var soundsDropLines = []string{
 }
 
 // soundsToggleLines extends soundsDropLines for the navbar host, the only
-// layout rendering the mute toggle.
+// layout rendering the mute toggle (SoundAssets rides the page layouts,
+// so the navbar needs just the toggle + the import).
 var soundsToggleLines = []string{
-	`@sounds.SoundAssets()`,
 	`@sounds.SoundToggle()`,
 	soundsImportSuffix,
 }
 
 // navbarTempl owns the brand + section links retargeted by trim units.
-const navbarTempl = "features/auth/views.templ"
+const navbarTempl = "features/authviews/navbar.templ"
 
-// routerGoFile is the shared route-wiring file. Phase 2 Init is a flat
-// list of one call per capability, so trims here are single-line drops.
-const routerGoFile = "router/router.go"
+// chiGoFile is the shared route-wiring file — the successor of
+// router/router.go on the flat stack: BootChi composes one handler per
+// capability and buildChiMux mounts one route subtree per capability,
+// so trims here are line drops (both files live in this one source file).
+const chiGoFile = "internal/server/chi.go"
+
+// chiMuxAnchor ends buildChiMux; capability route lines land above it.
+const chiMuxAnchor = "\treturn mux"
 
 // Skin import suffixes dropped from handler dispatch + blank imports when
 // skins-extra is trimmed.
@@ -190,13 +195,30 @@ var manifestUnits = []trimUnit{
 		id: unitDagnats,
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{"registerOnboarding(app, q, se, broadcaster, todoH, cfg)"},
+				path: chiGoFile,
+				substrs: []string{
+					"onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)",
+					`mux.Handle("/api/onboarding", onboardingH.Routes())`,
+					`mux.Handle("/api/onboarding/", onboardingH.Routes())`,
+					"roomH, chatH, genuiH, creditsH, onboardingH,",
+				},
+			},
+		},
+		extraStrips: []fileStrip{
+			{
+				path: chiGoFile,
+				rules: []stripRule{
+					{
+						startMarker:       "\tif onboardingH != nil {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
+					},
+				},
 			},
 		},
 		mainStrips: []stripRule{
 			{
-				startMarker: "startDagNats(lifecycleCtx, cfg, pb, todoH)",
+				startMarker: "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)",
 				endMarker:   "defer shutdownDagNats()",
 				addAfter:    mainCallsAnchor,
 				// The lifecycle context exists ONLY to bound DagNats boot work,
@@ -206,18 +228,9 @@ var manifestUnits = []trimUnit{
 				// them — otherwise the trim leaves an orphaned three-line comment
 				// explaining a variable that no longer exists.
 				alsoDeleteContains: []string{
-					"lifecycleCtx, stopLifecycle :=",
-					"defer stopLifecycle()",
-					"// lifecycleCtx bounds background boot work",
-					"// watchdogs) to the process lifetime",
-					"// stops promptly instead of burning its own timeouts.",
-					// The DagNats boot preamble documents the call this rule is
-					// removing; leaving it produces a comment describing an absent
-					// engine (and two stray blank lines, which gofmt then flags in
-					// the scaffolded checkout).
-					"// DagNats owns the embedded NATS on :4222 and must boot first so the",
-					"// realtime broadcaster can attach to it. It's always compiled; when",
-					"// DAGNATS_ENABLED=false it no-ops.",
+					"// DagNats owns the embedded NATS on :4222 and must boot before",
+					"// startNATS so the realtime broadcaster can attach to it. It's always",
+					"// compiled; when DAGNATS_ENABLED=false it no-ops.",
 				},
 			},
 			{
@@ -236,8 +249,28 @@ var manifestUnits = []trimUnit{
 		// the demo is unproven surface — one unit is the honest shape.
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{"registerRoomStack(se, cfg)"},
+				path: chiGoFile,
+				substrs: []string{
+					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
+					"if roomHost != nil {",
+					"shutdown = append(shutdown, func() { stopRoomActor(roomHost) })",
+					"roomH, chatH, genuiH, creditsH, onboardingH,",
+					`mux.Handle("/room", roomH.Routes())`,
+					`mux.Handle("/room/", roomH.Routes())`,
+					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
+				},
+			},
+			{
+				// The server test compiles the room fixture (fakeRooms);
+				// the trim edits it out, it never deletes internal/server.
+				path: "internal/server/chi_test.go",
+				substrs: []string{
+					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
+					"func (fakeRooms) Roster",
+					"func (fakeRooms) Acquire",
+					"func (fakeRooms) Tell",
+					"type fakeRooms struct",
+				},
 			},
 		},
 		mainStrips: []stripRule{
@@ -279,8 +312,37 @@ var manifestUnits = []trimUnit{
 		// unit is the only honest shape (see internal/capabilities).
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{"registerWhiteboardStack(se, q, cfg)", "registerNotesStack(se, q, cfg)"},
+				path: chiGoFile,
+				substrs: []string{
+					"wbchi.NewHandler(queries, a, hub, persister, docs, cfg),",
+					"notesachi.NewHandler(queries, a, hub, persister, docs, cfg),",
+					`mux.Handle("/whiteboard", wbH.Routes())`,
+					`mux.Handle("/whiteboard/", wbH.Routes())`,
+					`mux.Handle("/api/whiteboard", wbH.Routes())`,
+					`mux.Handle("/api/whiteboard/", wbH.Routes())`,
+					`mux.Handle("/api/whiteboards/", wbH.Routes())`,
+					`mux.Handle("/notes", notesH.Routes())`,
+					`mux.Handle("/notes/", notesH.Routes())`,
+					`mux.Handle("/api/notes", notesH.Routes())`,
+					`mux.Handle("/api/notes/", notesH.Routes())`,
+					`	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"`,
+					`	notesachi "github.com/calionauta/gogogo/features/notes/chi"`,
+					`	"github.com/calionauta/gogogo/internal/collab"`,
+					"persister, perr := collab.NewTursoPersister(queries)",
+					"docs := collab.NewDocStore()",
+					"docs.SetPersister(persister)",
+				},
+			},
+			{
+				// The server test composes the collab persister/docs in
+				// TestBuildChiMux; the trim edits it, never deletes.
+				path: "internal/server/chi_test.go",
+				substrs: []string{
+					`"github.com/calionauta/gogogo/internal/collab"`,
+					"persister, perr := collab.NewTursoPersister",
+					"docs := collab.NewDocStore()",
+					"persister, docs",
+				},
 			},
 		},
 		desktopStrips: []stripRule{
@@ -315,13 +377,17 @@ var manifestUnits = []trimUnit{
 		id: unitLanding,
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{`features/landing"`, "landing.New(cfg).RegisterRoutes(se)"},
+				path: chiGoFile,
+				substrs: []string{
+					"landingchi.NewHandler(cfg, a)",
+					`landingchi "github.com/calionauta/gogogo/features/landing/chi"`,
+					`mux.Handle("/", landingH.Routes())`,
+				},
 			},
 		},
 		replaces: []fileReplace{
 			{
-				path:        "features/auth/views.templ",
+				path:        navbarTempl,
 				matchSubstr: `class="app-nav-brand"`,
 				old:         `href="/"`,
 				newStr:      `href="/todo"`,
@@ -332,8 +398,13 @@ var manifestUnits = []trimUnit{
 		id: unitConfigView,
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{`features/config"`, "cfgfeature.New(cfg).RegisterRoutes(se)"},
+				path: chiGoFile,
+				substrs: []string{
+					"configchi.NewHandler(cfg, a)",
+					`configchi "github.com/calionauta/gogogo/features/config/chi"`,
+					`mux.Handle("/config", configH.Routes())`,
+					`mux.Handle("/config/", configH.Routes())`,
+				},
 			},
 		},
 		extraStrips: []fileStrip{
@@ -352,8 +423,16 @@ var manifestUnits = []trimUnit{
 		id: unitCredits,
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{"wireCredits(cfg, se, todoH)"},
+				path: chiGoFile,
+				substrs: []string{
+					"creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)",
+					`mux.Handle("/api/credits", creditsH.Routes())`,
+					`mux.Handle("/api/credits/", creditsH.Routes())`,
+					`mux.Handle("/api/ai/", creditsH.Routes())`,
+					`mux.Handle("/api/byok/", creditsH.Routes())`,
+					`"github.com/calionauta/gogogo/features/credits"`,
+					`creditschi "github.com/calionauta/gogogo/features/credits/chi"`,
+				},
 			},
 		},
 		goModDrops: []string{"github.com/calionauta/ai-credits"},
@@ -363,10 +442,12 @@ var manifestUnits = []trimUnit{
 		extraDrops: []fileDrop{
 			{path: navbarTempl, substrs: soundsToggleLines},
 			{path: "features/todo/components/layout.templ", substrs: soundsDropLines},
-			{path: "features/config/views.templ", substrs: soundsDropLines},
-			{path: "features/landing/views.templ", substrs: soundsDropLines},
-			{path: "features/whiteboard/components.templ", substrs: soundsDropLines},
-			{path: "features/notes/notes.templ", substrs: soundsDropLines},
+			{path: "features/config/components/page.templ", substrs: soundsDropLines},
+			{path: "features/landing/components/index.templ", substrs: soundsDropLines},
+			{path: "features/whiteboard/components/board.templ", substrs: soundsDropLines},
+			{path: "features/notes/components/notes.templ", substrs: soundsDropLines},
+			{path: "features/chat/components/chat.templ", substrs: soundsDropLines},
+			{path: "features/genui/components/components.templ", substrs: soundsDropLines},
 		},
 	},
 	{
@@ -390,7 +471,7 @@ var manifestUnits = []trimUnit{
 				path: todoGoFile,
 				rules: []stripRule{
 					{
-						startMarker:       "\tif skinName == SkinBasecoat {",
+						startMarker:       "\tif skin == SkinBasecoat {",
 						endIsClosingBrace: true,
 						endBrace:          "\t}",
 					},
@@ -400,8 +481,9 @@ var manifestUnits = []trimUnit{
 				path: todoRepoFile,
 				rules: []stripRule{
 					{
-						startMarker: "\tcase SkinBasecoat:",
-						endMarker:   "return basecoat.TodoListRegion(signals)",
+						startMarker:       "\tif skin == SkinBasecoat {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
 					},
 				},
 			},

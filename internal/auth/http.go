@@ -23,7 +23,25 @@ func (a *Auth) Handler() http.Handler {
 	mux.HandleFunc("/api/auth/totp/disable", a.handleTOTPDisable)
 	mux.HandleFunc("/api/auth/totp/recovery", a.handleTOTPRecovery)
 	mux.HandleFunc("/api/auth/oauth/", a.handleOAuth)
+	// Session probe: the shared session banner (web/resources/static
+	// session.js) polls this to learn whether the cookie is still valid —
+	// a tab open for days outlives its cookie, and without this the
+	// banner cannot say so. Ported from the PB-era /api/session
+	// (features/auth/wiring.go) when that wiring died: one endpoint for
+	// every feature, answered by the owned Session validator.
+	mux.HandleFunc("/api/session", a.handleSessionProbe)
 	return mux
+}
+
+// handleSessionProbe answers {"authed": bool} for the current request.
+// A missing, unknown or expired cookie reports false (the banner shows
+// "session expired"); it never 401s — the probe is a poll, not a gate.
+func (a *Auth) handleSessionProbe(w http.ResponseWriter, r *http.Request) {
+	authed := false
+	if _, err := a.Session(r); err == nil {
+		authed = true
+	}
+	writeJSON(w, map[string]bool{"authed": authed})
 }
 
 // jsonStatusKey is the envelope key for trivial {"status":"ok"} bodies.
