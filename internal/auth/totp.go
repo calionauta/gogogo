@@ -31,6 +31,11 @@ const (
 	totpMod = 1000000
 )
 
+// totpKeyLen is the XChaCha20-Poly1305 key size AUTH_ENC_KEY must decode
+// to (32 bytes, 64 hex chars). Named so a truncated key is a named
+// constant mismatch, not a magic number.
+const totpKeyLen = 32
+
 // totpSecretLen is the RFC 4226 recommended secret size.
 const totpSecretLen = 20
 

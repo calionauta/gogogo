@@ -46,12 +46,13 @@ const (
 
 // Rejected-attempt reasons. Also stable strings, for the same reason.
 const (
-	reasonUnknownAccount = "unknown account"
-	reasonBadPassword    = "bad password"
-	reasonUnknownToken   = "unknown token"
-	reasonExpiredToken   = "expired token"
-	reasonThrottled      = "attempt budget exhausted"
-	reasonBadCode        = "wrong code"
+	reasonUnknownAccount  = "unknown account"
+	reasonBadPassword     = "bad password"
+	reasonUnknownToken    = "unknown token"
+	reasonExpiredToken    = "expired token"
+	reasonThrottled       = "attempt budget exhausted"
+	reasonSigninThrottled = "signin budget exhausted"
+	reasonBadCode         = "wrong code"
 )
 
 // secReject logs a rejected authentication attempt. email is the address as

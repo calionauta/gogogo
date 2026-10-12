@@ -101,8 +101,10 @@ func (a *Auth) verifySecondFactor(ctx context.Context, user dbgen.User, code str
 	code = strings.TrimSpace(code)
 	if user.TotpSecret != "" && user.TotpVerified != 0 {
 		// TOTP path is time-bound; no extra import needed here.
-		if verifyTOTPCode(user.TotpSecret, code) {
+		if opened, sealed, err := openTOTPSecret(a.totpKey, user.TotpSecret); err == nil &&
+			verifyTOTPCode(opened, code) {
 			a.totpAttempts.forget(user.ID)
+			a.upgradeTOTPSecret(ctx, user.ID, opened, sealed)
 			return true
 		}
 		if !a.totpAttempts.allow(user.ID) {

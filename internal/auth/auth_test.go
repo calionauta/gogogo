@@ -47,17 +47,71 @@ func TestPasswordHashRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash: %v", err)
 	}
-	if !verifyPassword(hash, "Correct-horse-99!") {
-		t.Fatal("valid password rejected")
+	if ok, stale := verifyPassword(hash, "Correct-horse-99!"); !ok || stale {
+		t.Fatalf("valid password rejected (ok=%v stale=%v)", ok, stale)
 	}
-	if verifyPassword(hash, "wrong") {
+	if ok, _ := verifyPassword(hash, "wrong"); ok {
 		t.Fatal("wrong password accepted")
 	}
-	if verifyPassword("garbage", "Correct-horse-99!") {
+	if ok, _ := verifyPassword("garbage", "Correct-horse-99!"); ok {
 		t.Fatal("malformed hash accepted")
+	}
+	if ok, _ := verifyPassword("argon2id$v=9$dGVzdA$ZHVtbXk", "Correct-horse-99!"); ok {
+		t.Fatal("future version accepted")
 	}
 	if _, err := hashPassword("short"); err == nil {
 		t.Fatal("short password accepted")
+	}
+}
+
+// TestPasswordRotation stages a parameter rotation without waiting for a
+// real one: v=1 rows verify under their own entry, report stale, and Login
+// upgrades them to the staged current version (rehash-on-login, the whole
+// point of the version marker). Delete the upgrade and the row stays v=1.
+func TestPasswordRotation(t *testing.T) {
+	ctx := context.Background()
+	a := testAuth(t, testDB(t))
+	const pw = "Correct-horse-99!"
+	old, herr := hashPassword(pw)
+	if herr != nil {
+		t.Fatalf("hash: %v", herr)
+	}
+	if !strings.HasPrefix(old, "argon2id$v=1$") {
+		t.Fatalf("hash = %q, want v=1", old)
+	}
+	// Stage v=2 (cheaper params keep the test fast) and point current at it.
+	oldVersions, oldCurrent := argonVersions, argonVersion
+	argonVersions = map[uint32]argonParams{
+		1: oldVersions[1],
+		2: {time: 1, memory: 8 * 1024, threads: 1, keyLen: 32},
+	}
+	argonVersion = 2
+	defer func() { argonVersions, argonVersion = oldVersions, oldCurrent }()
+	if _, _, err := a.Signup(ctx, "rot@example.com", pw, ""); err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	// Backdate the row to v=1 (as if created before the rotation).
+	row, rerr := a.q.GetUserByEmail(ctx, "rot@example.com")
+	if rerr != nil {
+		t.Fatalf("lookup: %v", rerr)
+	}
+	if err := a.q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
+		PasswordHash: old, Updated: db.Now(), ID: row.ID,
+	}); err != nil {
+		t.Fatalf("backdate: %v", err)
+	}
+	if _, _, lerr := a.Login(ctx, "rot@example.com", pw); lerr != nil {
+		t.Fatalf("login on stale hash: %v", lerr)
+	}
+	row, rerr = a.q.GetUserByEmail(ctx, "rot@example.com")
+	if rerr != nil {
+		t.Fatalf("relookup: %v", rerr)
+	}
+	if !strings.HasPrefix(row.PasswordHash, "argon2id$v=2$") {
+		t.Fatalf("row still %q, want upgraded v=2", row.PasswordHash)
+	}
+	if ok, stale := verifyPassword(row.PasswordHash, pw); !ok || stale {
+		t.Fatalf("upgraded hash rejected (ok=%v stale=%v)", ok, stale)
 	}
 }
 

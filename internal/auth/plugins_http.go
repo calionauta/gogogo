@@ -160,7 +160,11 @@ func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 	// Fresh password proof before removing the second factor: a stolen
 	// session alone must not downgrade the account's protection.
 	row, err := a.q.GetUser(r.Context(), user.ID)
-	if err != nil || !verifyPassword(row.PasswordHash, body.Password) {
+	if err != nil {
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+	if ok, _ := verifyPassword(row.PasswordHash, body.Password); !ok {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}

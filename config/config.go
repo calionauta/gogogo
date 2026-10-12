@@ -174,6 +174,19 @@ type Config struct {
 		Enabled bool
 	}
 
+	// Collab selects the CRDT snapshot store behind the whiteboard and
+	// notes (internal/collab Persister). "turso" persists snapshots in
+	// doc_snapshots (survive restarts, shared across instances via the
+	// database); "memory" keeps them process-local (no snapshot writes,
+	// docs start empty after a restart — the draw-without-persistence
+	// mode). Unknown values fail closed at boot.
+	//
+	// Toggle via COLLAB_SNAPSHOTS=memory in the environment.
+	// Default: turso.
+	Collab struct {
+		Snapshots string
+	}
+
 	// RBACEnabled turns on the opt-in Casbin RBAC middleware
 	// (RBAC_ENABLED, default false). When false the middleware is a
 	// no-op pass-through, so the default install behaves exactly as
@@ -182,6 +195,17 @@ type Config struct {
 	// request the policy does not allow. Treat the embedded policy as a
 	// starting point — tune it for your app before enabling in production.
 	RBACEnabled bool
+
+	// Auth holds owned-auth settings.
+	Auth struct {
+		// TOTPEncKey seals TOTP secrets at rest (AUTH_ENC_KEY, 64 hex
+		// chars = 32 bytes). Empty keeps legacy plaintext storage
+		// (documented in docs/configuration.md). Malformed values are
+		// dropped to empty (fail-safe: never a truncated key) — set the
+		// variable correctly and restart to arm encryption; rows upgrade
+		// themselves on next successful verify.
+		TOTPEncKey []byte
+	}
 	// Turso holds the Turso Database connection settings — the Rust
 	// SQLite-compatible engine, driven from Go by turso.tech/database/tursogo.
 	// Consumed by the sqlc-backed data layer. An empty URL means a local file
@@ -318,7 +342,13 @@ func Load() *Config {
 	cfg.GoAkt.Enabled = envBool("GOAKT_ENABLED", true)
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
+	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
 	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
+	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" {
+		if key, err := hex.DecodeString(strings.TrimSpace(raw)); err == nil && len(key) == 32 {
+			cfg.Auth.TOTPEncKey = key
+		}
+	}
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")

@@ -209,9 +209,9 @@ func stubIDP(t *testing.T, email string, verified bool) *httptest.Server {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if verified {
-			_, _ = w.Write([]byte(`{"email":"` + email + `","email_verified":true}`))
+			_, _ = w.Write([]byte(`{"sub":"stub-sub-1","email":"` + email + `","email_verified":true}`))
 		} else {
-			_, _ = w.Write([]byte(`{"email":"` + email + `","email_verified":false}`))
+			_, _ = w.Write([]byte(`{"sub":"stub-sub-1","email":"` + email + `","email_verified":false}`))
 		}
 	})
 	srv := httptest.NewServer(mux)
@@ -306,6 +306,20 @@ func TestOAuthFlow(t *testing.T) {
 	}
 }
 
+// TestGitHubSubjectParses pins the /user id extraction (and its absence).
+func TestGitHubSubjectParses(t *testing.T) {
+	sub, err := parseGitHubSubject([]byte(`{"id":12345,"login":"octo"}`))
+	if err != nil || sub != "12345" {
+		t.Fatalf("subject = %q, %v; want 12345, nil", sub, err)
+	}
+	if _, err := parseGitHubSubject([]byte(`{"login":"octo"}`)); err == nil {
+		t.Fatal("missing id accepted")
+	}
+	if _, err := parseGoogleSubject([]byte(`{"email":"a@b.c"}`)); err == nil {
+		t.Fatal("missing sub accepted")
+	}
+}
+
 func TestPasswordVersionMarker(t *testing.T) {
 	ctx := context.Background()
 	a := pluginAuth(t)
@@ -322,7 +336,7 @@ func TestPasswordVersionMarker(t *testing.T) {
 	}
 	// Unversioned (pre-marker) hashes fail closed, never verify.
 	legacy := strings.Replace(row.PasswordHash, "argon2id$v=1$", "argon2id$", 1)
-	if verifyPassword(legacy, "Correct-horse-99!") {
+	if ok, _ := verifyPassword(legacy, "Correct-horse-99!"); ok {
 		t.Fatal("unversioned hash verified")
 	}
 }

@@ -10,6 +10,15 @@
 // First login with an address that already exists links rather than
 // duplicating — one human, one users row, however many ways in.
 //
+// Residual, stated plainly: that first-time email match trusts the
+// provider's verification. If a provider reassigns an address to a new
+// human AND our row still carries it with no link yet, the new human
+// links to the old row. Sub-keying cannot prevent that first contact
+// (there is no link yet to prefer); it prevents everything after (address
+// changes never move an established link). Apps where that residual is
+// unacceptable should link only from an authenticated session instead of
+// on first contact.
+//
 // State parameters live in a short-lived in-process store (single-box
 // deployments; a multi-box fleet behind one remote Turso would need the
 // states table-shared — noted, not built, until the fleet exists).
@@ -25,6 +34,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -58,38 +68,51 @@ type OAuthProvider struct {
 	UserInfoURL  string
 	Scopes       []string
 	ParseEmail   func(body []byte) (string, error)
+	// SubjectURL fetches the stable provider-side account id (the "sub"
+	// claim). Empty reuses the UserInfoURL response. ParseSubject extracts
+	// it; nil keeps the legacy email-derived subject. Prefer sub: an
+	// email address can change hands (deleted accounts get recycled),
+	// and a link keyed by email follows the address to its new owner —
+	// a quiet account takeover. A sub never does.
+	SubjectURL   string
+	ParseSubject func(body []byte) (string, error)
 }
 
 // OAuthGoogle returns the preset for Google sign-in (OpenID Connect
-// userinfo carries a verified email claim).
+// userinfo carries a verified email claim AND a stable sub claim — the
+// subject the link is keyed by).
 func OAuthGoogle(clientID, clientSecret, redirectURL string) OAuthProvider {
 	return OAuthProvider{
 		// #nosec G101 — ClientSecret here is the caller's parameter, not a
 		// hardcoded credential; gosec matches the field name.
 		Name: "google", ClientID: clientID, ClientSecret: clientSecret,
-		RedirectURL: redirectURL,
-		AuthURL:     "https://accounts.google.com/o/oauth2/v2/auth",
-		TokenURL:    "https://oauth2.googleapis.com/token",
-		UserInfoURL: "https://openidconnect.googleapis.com/v1/userinfo",
-		Scopes:      []string{"openid", "email", "profile"},
-		ParseEmail:  parseGoogleEmail,
+		RedirectURL:  redirectURL,
+		AuthURL:      "https://accounts.google.com/o/oauth2/v2/auth",
+		TokenURL:     "https://oauth2.googleapis.com/token",
+		UserInfoURL:  "https://openidconnect.googleapis.com/v1/userinfo",
+		Scopes:       []string{"openid", "email", "profile"},
+		ParseEmail:   parseGoogleEmail,
+		ParseSubject: parseGoogleSubject,
 	}
 }
 
 // OAuthGitHub returns the preset for GitHub sign-in. GitHub's /user
 // payload may omit email (private addresses), so the preset reads
 // /user/emails and picks the verified primary — pass that URL and the
-// user:email scope.
+// user:email scope. The stable subject is /user's numeric id (never
+// reassigned, unlike logins and emails), fetched separately.
 func OAuthGitHub(clientID, clientSecret, redirectURL string) OAuthProvider {
 	return OAuthProvider{
 		// #nosec G101 — see OAuthGoogle above: parameter, not a secret.
 		Name: "github", ClientID: clientID, ClientSecret: clientSecret,
-		RedirectURL: redirectURL,
-		AuthURL:     "https://github.com/login/oauth/authorize",
-		TokenURL:    "https://github.com/login/oauth/access_token",
-		UserInfoURL: "https://api.github.com/user/emails",
-		Scopes:      []string{"user:email"},
-		ParseEmail:  parseGitHubEmail,
+		RedirectURL:  redirectURL,
+		AuthURL:      "https://github.com/login/oauth/authorize",
+		TokenURL:     "https://github.com/login/oauth/access_token",
+		UserInfoURL:  "https://api.github.com/user/emails",
+		Scopes:       []string{"user:email"},
+		ParseEmail:   parseGitHubEmail,
+		SubjectURL:   "https://api.github.com/user",
+		ParseSubject: parseGitHubSubject,
 	}
 }
 
@@ -129,6 +152,37 @@ func parseGitHubEmail(body []byte) (string, error) {
 		}
 	}
 	return "", errors.New("auth: github verified email not found")
+}
+
+// parseGoogleSubject extracts the stable sub claim: the link key, so the
+// account survives address changes (and a recycled address cannot take
+// over someone else's link).
+func parseGoogleSubject(body []byte) (string, error) {
+	var v struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(body, &v); err != nil {
+		return "", fmt.Errorf("auth: google subject decode: %w", err)
+	}
+	if v.Sub == "" {
+		return "", errors.New("auth: google sub missing")
+	}
+	return v.Sub, nil
+}
+
+// parseGitHubSubject extracts /user's numeric id: stable across login and
+// email changes (both get recycled; ids never are).
+func parseGitHubSubject(body []byte) (string, error) {
+	var v struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(body, &v); err != nil {
+		return "", fmt.Errorf("auth: github subject decode: %w", err)
+	}
+	if v.ID == 0 {
+		return "", errors.New("auth: github id missing")
+	}
+	return strconv.FormatInt(v.ID, 10), nil
 }
 
 // oauthState is one in-flight handshake. The PKCE verifier binds the
@@ -245,12 +299,12 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 		http.Error(w, "login failed", http.StatusBadGateway)
 		return
 	}
-	email, err := fetchOAuthEmail(r.Context(), p, tok.AccessToken)
+	email, subject, err := fetchOAuthIdentity(r.Context(), p, tok.AccessToken)
 	if err != nil {
 		http.Error(w, "login failed", http.StatusBadGateway)
 		return
 	}
-	user, err := a.findOrCreateOAuthUser(r.Context(), provider, p, email)
+	user, err := a.findOrCreateOAuthUser(r.Context(), provider, p, email, subject)
 	if err != nil {
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
@@ -264,41 +318,72 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 	http.Redirect(w, r, "/todo", http.StatusSeeOther)
 }
 
-// fetchOAuthEmail GETs the provider's userinfo with the access token.
-func fetchOAuthEmail(ctx context.Context, p OAuthProvider, accessToken string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.UserInfoURL, nil)
+// fetchOAuthIdentity resolves the verified email and the stable subject.
+// The subject is namespaced by provider; without ParseSubject it falls back
+// to the legacy email-derived form (kept working so old links adopt
+// instead of orphaning — see findOrCreateOAuthUser).
+func fetchOAuthIdentity(ctx context.Context, p OAuthProvider, accessToken string) (email, subject string, err error) {
+	body, err := fetchOAuthURL(ctx, p.UserInfoURL, accessToken)
 	if err != nil {
-		return "", err
+		return "", "", err
+	}
+	email, err = p.ParseEmail(body)
+	if err != nil {
+		return "", "", err
+	}
+	email, err = normalizeEmail(email)
+	if err != nil {
+		return "", "", err
+	}
+	if p.ParseSubject == nil {
+		return email, legacyOAuthSubject(p, email), nil
+	}
+	subURL := p.SubjectURL
+	subBody := body
+	if subURL != "" && subURL != p.UserInfoURL {
+		subBody, err = fetchOAuthURL(ctx, subURL, accessToken)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	sub, err := p.ParseSubject(subBody)
+	if err != nil {
+		return "", "", err
+	}
+	return email, p.Name + ":" + sub, nil
+}
+
+// fetchOAuthURL GETs one provider URL with the access token, capped.
+func fetchOAuthURL(ctx context.Context, url, accessToken string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("auth: userinfo status %d", resp.StatusCode)
+		return nil, fmt.Errorf("auth: userinfo status %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, oauthBodyLimit))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	email, err := p.ParseEmail(body)
-	if err != nil {
-		return "", err
-	}
-	return normalizeEmail(email)
+	return body, nil
 }
 
 // findOrCreateOAuthUser links (provider, subject) to an app user: reuse
-// the link, else reuse the email row, else provision. Subject comes from
-// the provider as the stable account id — resolve it before calling.
+// the link, else adopt a legacy email-keyed link (pre-sub rows upgrade
+// themselves here — no migration), else reuse the email row, else
+// provision. One human, one users row, however many ways in.
 func (a *Auth) findOrCreateOAuthUser(
-	ctx context.Context, provider string, p OAuthProvider, email string,
+	ctx context.Context, provider string, p OAuthProvider, email, subject string,
 ) (*User, error) {
-	subject, err := oauthSubject(p, email)
-	if err != nil {
-		return nil, err
+	if subject == "" {
+		return nil, errors.New("auth: empty oauth subject")
 	}
 	link, lerr := a.q.GetOAuthAccount(ctx, dbgen.GetOAuthAccountParams{
 		Provider: provider, Subject: subject,
@@ -309,6 +394,27 @@ func (a *Auth) findOrCreateOAuthUser(
 			return nil, fmt.Errorf("auth: linked user gone: %w", uerr)
 		}
 		return &User{ID: user.ID, Email: user.Email}, nil
+	}
+	// Legacy adoption: rows linked before subjects existed carry
+	// provider:email. Adopt them onto the stable subject (idempotent:
+	// LinkOAuthAccount ignores conflicts) instead of provisioning a
+	// duplicate — or worse, handing the recycled address to a new human.
+	if legacy := legacyOAuthSubject(p, email); legacy != subject {
+		if old, oerr := a.q.GetOAuthAccount(ctx, dbgen.GetOAuthAccountParams{
+			Provider: provider, Subject: legacy,
+		}); oerr == nil {
+			if _, uerr := a.q.GetUser(ctx, old.UserID); uerr == nil {
+				_ = a.q.LinkOAuthAccount(ctx, dbgen.LinkOAuthAccountParams{
+					Provider: provider, Subject: subject,
+					UserID: old.UserID, Created: db.Now(),
+				})
+				user, uerr := a.q.GetUser(ctx, old.UserID)
+				if uerr != nil {
+					return nil, fmt.Errorf("auth: linked user gone: %w", uerr)
+				}
+				return &User{ID: user.ID, Email: user.Email}, nil
+			}
+		}
 	}
 	row, err := a.q.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -333,14 +439,10 @@ func (a *Auth) findOrCreateOAuthUser(
 	return &User{ID: row.ID, Email: row.Email}, nil
 }
 
-// oauthSubject resolves the stable provider-side account id. OAuth 2.0
-// itself has no subject claim — each preset documents its source here.
-// The default (email as subject) fits providers whose userinfo key is the
-// verified email; presets needing more override by wrapping
-// findOrCreateOAuthUser, not by special-casing this function.
-func oauthSubject(p OAuthProvider, email string) (string, error) {
-	if email == "" {
-		return "", errors.New("auth: empty oauth subject")
-	}
-	return p.Name + ":" + email, nil
+// legacyOAuthSubject is the pre-sub link key (provider + verified email).
+// Kept only for adoption: new links always carry the stable subject, and
+// email-keyed rows must never be created fresh (an address can change
+// hands; a sub cannot).
+func legacyOAuthSubject(p OAuthProvider, email string) string {
+	return p.Name + ":" + email
 }

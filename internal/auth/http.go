@@ -109,6 +109,20 @@ func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+	// Per-IP throttle BEFORE the argon check: bogus logins cost ~250ms
+	// of hashing each, so an unthrottled endpoint is CPU-DoS by design.
+	// Same 401 shape when throttled (no oracle distinguishing "blocked"
+	// from "wrong"). Generous budget (stuffing scripts do thousands;
+	// offices do dozens), per-IP keyed (never per-email: tracking by
+	// email would let anyone lock anyone else out). X-Forwarded-For is
+	// deliberately NOT trusted — behind a proxy, throttle there; trusting
+	// a client-controlled header here would let attackers rotate past it.
+	ip := signinIP(r)
+	if !a.signinAttempts.allow(ip) {
+		secReject(r.Context(), evLoginRejected, reasonSigninThrottled, body.Credential, "")
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
 	token, totpRequired, err := a.Login(r.Context(), body.Credential, body.Password)
 	if err != nil {
 		if errors.Is(err, ErrBadCredentials) {
@@ -118,6 +132,9 @@ func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
 	}
+	// Password verified (session opened or TOTP pending): the failures
+	// allow() recorded above were typos, not an attack — forget them.
+	a.signinAttempts.forget(ip)
 	if totpRequired {
 		// No session yet: the client prompts for the authenticator code
 		// and completes at /api/auth/totp/login with its user id.

@@ -3,6 +3,11 @@
 -- name: SetTOTPSecret :exec
 UPDATE users SET totp_secret = ?, totp_verified = 0, updated = ? WHERE id = ?;
 
+-- name: UpdateTOTPSecret :exec
+-- Seal upgrades only: rewrites the secret (plaintext -> sealed) without
+-- touching the verified flag. SetTOTPSecret above is enrollment (resets).
+UPDATE users SET totp_secret = ?, updated = ? WHERE id = ?;
+
 -- name: VerifyTOTPFlag :exec
 UPDATE users SET totp_verified = 1, updated = ? WHERE id = ?;
 

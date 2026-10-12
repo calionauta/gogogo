@@ -104,6 +104,11 @@ func run() error {
 	if aerr != nil {
 		return fmt.Errorf("auth: %w", aerr)
 	}
+	if len(cfg.Auth.TOTPEncKey) > 0 {
+		if err := a.SetTOTPEncKey(cfg.Auth.TOTPEncKey); err != nil {
+			return fmt.Errorf("auth: %w", err)
+		}
+	}
 	demo.Ensure(context.Background(), a)
 
 	m3 := material3.New(widget.Hex(seedColorHex))

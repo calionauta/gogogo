@@ -13,6 +13,8 @@
 package auth
 
 import (
+	"net"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -23,17 +25,48 @@ const (
 	attemptMax    = 10
 )
 
-// attemptTracker counts recent failures per key (user id), forgetting them
-// as the window slides. Zero value ready; safe for concurrent use.
+// attemptTracker counts recent failures per key (user id, client IP),
+// forgetting them as the window slides. Zero value ready (the package
+// defaults below); safe for concurrent use. max/window override the
+// defaults when nonzero — signin throttling runs a looser budget than
+// TOTP throttling on the same machinery.
 type attemptTracker struct {
-	mu   sync.Mutex
-	hits map[string][]time.Time
+	mu     sync.Mutex
+	hits   map[string][]time.Time
+	max    int
+	window time.Duration
 }
 
-// allow records a failure for key and reports whether the key may try
-// again. Call it ONLY on failure: successes reset via forget.
+// signinAttemptBudget is the password-guessing budget per client IP:
+// stuffing scripts do thousands per minute, offices do dozens per day.
+// Per-IP (never per-email — tracking by email would let anyone lock
+// anyone else out). The edge reverse proxy remains the primary throttle;
+// this is defense in depth plus CPU-DoS bounding (each guess burns argon).
+const signinAttemptMax = 30
+
+// budget resolves the tracker's effective limits.
+func (t *attemptTracker) budget() (max int, window time.Duration) {
+	if t.max > 0 {
+		max = t.max
+	} else {
+		max = attemptMax
+	}
+	if t.window > 0 {
+		window = t.window
+	} else {
+		window = attemptWindow
+	}
+	return max, window
+}
+
+// allow records an attempt for key and reports whether the key may try
+// again. TOTP calls it only on failure (codes are the scarce resource);
+// signin calls it on entry (the argon check it gates is the scarce
+// resource) and forgets on verified passwords. Either way successes reset
+// via forget.
 func (t *attemptTracker) allow(key string) bool {
 	now := time.Now()
+	max, window := t.budget()
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.hits == nil {
@@ -41,13 +74,13 @@ func (t *attemptTracker) allow(key string) bool {
 	}
 	kept := t.hits[key][:0]
 	for _, at := range t.hits[key] {
-		if now.Sub(at) < attemptWindow {
+		if now.Sub(at) < window {
 			kept = append(kept, at)
 		}
 	}
 	kept = append(kept, now)
 	t.hits[key] = kept
-	return len(kept) <= attemptMax
+	return len(kept) <= max
 }
 
 // forget clears a key's history (called on success, so one typo burst
@@ -56,4 +89,16 @@ func (t *attemptTracker) forget(key string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	delete(t.hits, key)
+}
+
+// signinIP extracts the throttle key from the request: the TCP peer's IP,
+// never a proxy header (see handleSignin for why X-Forwarded-For would be
+// a bypass). Malformed peers key as themselves — distinct garbage does not
+// collide with real clients, and it still throttles garbage floods.
+func signinIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
