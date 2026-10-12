@@ -69,8 +69,12 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   imports + spans at the anchor table, rebases the template module path
   to the target's, then the same tidy+build proof. Imports restore only
   where used (no unused-import breakage). `.templ` call sites and the
-  navbar brand stay manual (warned). Refuses non-scaffolded trees.
-  Refuses non-scaffolded trees instead of guessing.
+  navbar brand stay manual (warned). Refuses non-scaffolded trees
+  instead of guessing. Fully mechanical only where every wiring edit is
+  anchored (`skins-extra` today): anything else refuses BEFORE mutating,
+  printing the exact lines to re-add by hand plus the unit's follow-ups
+  (writing a reversible subset and failing the proof mid-tree is worse
+  than refusing with a recipe).
 - Interactive menus are numbered (stable manifest order) and accept
   numbers, ids, or both; invalid answers re-ask. Scripted flags take ids
   only — numbers never cross the CLI boundary (positional = fragile).

@@ -166,22 +166,9 @@ func addSpans(t *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 		rule   stripRule
 		anchor spanAnchor
 	}
-	pathDefault := func(path string) spanAnchor {
-		switch path {
-		case filepath.Join("cmd", "web", "main.go"):
-			return anchorAfter(mainCallsAnchor)
-		case filepath.Join("cmd", "desktop", "main.go"):
-			return anchorBefore(desktopBlockAnchor)
-		default:
-			if anchor, ok := templSpanAnchor(path); ok {
-				return anchor
-			}
-			return spanAnchor{}
-		}
-	}
 	var items []item
 	collect := func(path string, rules []stripRule) {
-		def := pathDefault(path)
+		def := addSpanAnchor(path)
 		for _, r := range rules {
 			anchor := def
 			if r.addBefore != "" || r.addAfter != "" {
@@ -364,6 +351,9 @@ func executeAdd(ctx context.Context, opt addOptions, stdin io.Reader, stdout io.
 	if err := requireScaffold(opt.dir); err != nil {
 		return err
 	}
+	if err := refuseIrreversible(stdout, opt); err != nil {
+		return err
+	}
 	if !opt.yes && !confirmAdd(stdout, stdin, opt.unitID) {
 		fmt.Fprintln(stdout, "gogogo: aborted — nothing changed (re-run with --yes to skip this prompt)")
 		return nil
@@ -458,9 +448,14 @@ func printAddPlan(w io.Writer, format string, u trimUnit, from, dir string) {
 	if format == planFormatJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
+		manual := addManualWiring(u)
+		if unitPathsPresent(dir, u) {
+			manual = nil
+		}
 		_ = enc.Encode(map[string]any{
 			"unit": u.id, "from": from, "dir": dir,
 			"summary": unitOneLiner(u), "dryRun": true,
+			"manual": manual,
 		})
 		return
 	}
@@ -469,6 +464,13 @@ func printAddPlan(w io.Writer, format string, u trimUnit, from, dir string) {
 	fmt.Fprintf(w, "  copies %d path(s), %d wiring strip(s) to restore\n",
 		len(m.dirs)+len(m.files),
 		len(u.mainStrips)+len(u.desktopStrips)+len(u.extraStrips))
+	// Present units restore nothing (idempotent re-add): listing their
+	// manual lines here would read as work left to do.
+	if !unitPathsPresent(dir, u) {
+		for _, line := range addManualWiring(u) {
+			fmt.Fprintf(w, "  manual: %s\n", line)
+		}
+	}
 	for _, warn := range addFollowUps(u) {
 		fmt.Fprintf(w, "  manual follow-up: %s\n", warn)
 	}

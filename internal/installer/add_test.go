@@ -87,6 +87,38 @@ func findUnit(t *testing.T, id string) trimUnit {
 	return trimUnit{}
 }
 
+// TestUnitPathsPresentPinsIdempotentReadd pins the gate's skip: a unit
+// whose owned paths all exist restores nothing, so add skips both the
+// copy and the reversibility refusal (re-adding what is there is a no-op,
+// not an error).
+func TestUnitPathsPresentPinsIdempotentReadd(t *testing.T) {
+	dir := t.TempDir()
+	u := findUnit(t, unitSounds)
+	if unitPathsPresent(dir, u) {
+		t.Fatal("empty dir reports sounds present")
+	}
+	for _, d := range u.meta().dirs {
+		if err := os.MkdirAll(filepath.Join(dir, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range u.meta().files {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, filepath.FromSlash(f))), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(f)), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !unitPathsPresent(dir, u) {
+		t.Fatal("complete dirs+files report sounds missing")
+	}
+	os.Remove(filepath.Join(dir, filepath.FromSlash(u.meta().files[0])))
+	if unitPathsPresent(dir, u) {
+		t.Fatal("one file missing still reports present")
+	}
+}
+
 func TestAddUnitRestoresLanding(t *testing.T) {
 	from, proj := fixtureAddTrees(t)
 	rc := &AddReceipt{ID: unitLanding, Warnings: []string{}}

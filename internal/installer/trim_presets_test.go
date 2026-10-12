@@ -160,6 +160,38 @@ func TestTrimPresetCompositionsBuild(t *testing.T) {
 	}
 }
 
+// TestAddManualWiringPinsReversibility pins what `add` can and cannot
+// replay: skins-extra is fully mechanical (anchored spans, imports),
+// everything with bare chi.go constructions, test-body edits, one-way
+// replaces or unanchored strips refuses with the exact lines. Add a unit
+// whose wiring is span-anchored and it joins the reversible set here;
+// extend a unit with a bare drop and it must appear in the refuse list.
+func TestAddManualWiringPinsReversibility(t *testing.T) {
+	if got := addManualWiring(findUnit(t, unitSkinsExtra)); len(got) != 0 {
+		t.Errorf("skins-extra manual = %v, want fully reversible", got)
+	}
+	for _, id := range []string{
+		unitLanding, unitConfigView, unitWhiteboard, unitGoAkt,
+		unitCredits, unitGenUI, unitDagnats, unitSounds,
+	} {
+		got := addManualWiring(findUnit(t, id))
+		if len(got) == 0 {
+			t.Errorf("unit %q reports fully reversible — add would write code the proof rejects", id)
+		}
+	}
+	// The landing recipe names the construction the mux anchor cannot
+	// place (the proof failure that motivated the gate).
+	found := false
+	for _, line := range addManualWiring(findUnit(t, unitLanding)) {
+		if strings.Contains(line, "landingchi.NewHandler(cfg, a),") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("landing manual lines miss the construction: %v", addManualWiring(findUnit(t, unitLanding)))
+	}
+}
+
 // TestPresetKeepListsPinsResolution pins preset → keep-list resolution:
 // minimal empties both dimensions (keepNone, not "" — empty means
 // keep-all), targeted presets keep everything they do not drop, and
