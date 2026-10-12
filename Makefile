@@ -5,12 +5,20 @@ VERSION     := $(shell v=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILDTIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILDTIME)"
+# Smoke artifacts live in the OS temp dir, never in the repo and never
+# hardcoded to /tmp (wrong on Windows, ignores $TMPDIR elsewhere). node
+# resolves the per-OS dir; the assignment is recursive (=) so non-node
+# users never pay for it, falling back to $TMPDIR then /tmp.
+OS_TMPDIR = $(shell node -e "process.stdout.write(require('os').tmpdir())" 2>/dev/null || echo $${TMPDIR:-/tmp})
+# Prebuilt binary the smoke tests boot. Overridable via environment or
+# command line (SMOKE_BIN=... make ci-local); otherwise the default above.
+SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # Wails v3 pin. Kept in sync with go.mod (wails/v3) and the install line in
 # .github/workflows/desktop.yml. The desktop BUILD does not use the CLI (it is
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-clean gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -282,17 +290,17 @@ ci-local: check-generated check-sizes datastar-lint css-check check-scope check-
 	@echo "→ tests (parallel across packages)"
 	@bash scripts/test-web.sh -race -count=1
 	@echo "→ build (single build, reused by the smoke tests)"
-	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
+	@go build $(LDFLAGS) -o $(SMOKE_BIN) ./cmd/web/
 	@echo "→ binary boot smoke test (asserts the SSE transport contract)"
-	@RUN_SMOKE=1 SMOKE_BIN=/tmp/gogogo-ci-local-web go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
+	@RUN_SMOKE=1 SMOKE_BIN=$(SMOKE_BIN) go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
 	@echo "→ browser smoke test (Playwright)"
 	@npx playwright install chromium
-	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/smoke.mjs
+	@SMOKE_BIN=$(SMOKE_BIN) node scripts/smoke.mjs
 	@echo "→ whiteboard client regression tests (Playwright, canvas pixels)"
-	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/whiteboard-client.test.mjs
+	@SMOKE_BIN=$(SMOKE_BIN) node scripts/whiteboard-client.test.mjs
 	@echo "→ notes caret client regression tests (Playwright, two users)"
-	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/notes-caret.test.mjs
-	@rm -f /tmp/gogogo-ci-local-web
+	@SMOKE_BIN=$(SMOKE_BIN) node scripts/notes-caret.test.mjs
+	@rm -f $(SMOKE_BIN)
 	@echo "✅ ci-local passed"
 
 # install-sh-guard is the install.sh bootstrap contract (never plant a `go`
@@ -325,6 +333,18 @@ smoke:
 	@echo "→ Browser smoke test (Playwright)…"
 	@npx playwright install chromium
 	@node scripts/smoke.mjs
+
+# smoke-clean removes smoke/debug artifacts no test cleans up by itself.
+# The suite removes the binary and its tmp dirs on the happy path only; a
+# failed run, an interrupted run, or a manual `go build -o` leaves them
+# behind. Scoped to our own fixed names and the test-run prefixes — never
+# touch live dirs (gogogo-live-*) or the Playwright browser cache (shared,
+# GBs to re-download). Run when no smoke is running.
+smoke-clean:
+	@echo "→ Removing smoke artifacts…"
+	@rm -f $(SMOKE_BIN)
+	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-*
+	@echo "  ✓ smoke artifacts removed (Playwright browsers kept: shared cache)"
 
 # signoff runs the full local CI then stamps the current commit green via
 # the gh-signoff extension (basecamp/gh-signoff). This lets you skip

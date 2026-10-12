@@ -20,7 +20,7 @@
 //
 // Run: node scripts/notes-caret.test.mjs
 //   Needs a prebuilt binary, like scripts/smoke.mjs: SMOKE_BIN=... node ...
-//   Build it with: go build -o /tmp/gogogo-ci-local-web ./cmd/web/
+//   Build it with: go build -o "$TMPDIR/gogogo-ci-local-web" ./cmd/web/
 
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
@@ -28,7 +28,10 @@ import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const BIN = process.env.SMOKE_BIN || "/tmp/gogogo-ci-local-web";
+// SMOKE_BIN overrides; otherwise the OS temp dir (per-OS correct via
+// tmpdir() — never a hardcoded /tmp, which is wrong on Windows and
+// ignores $TMPDIR elsewhere). Matches the Makefile SMOKE_BIN default.
+const BIN = process.env.SMOKE_BIN || join(tmpdir(), "gogogo-ci-local-web");
 const PORT = Number(process.env.NOTES_TEST_PORT || 8132);
 const BASE = `http://127.0.0.1:${PORT}`;
 const SU_EMAIL = "notes-test-su@local.dev";
