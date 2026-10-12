@@ -73,7 +73,12 @@ browser suite exactly once, serially, and labels a pass-on-retry as a
 flake; two consecutive failures mean the product regressed (the race
 suite never retries — a retried race is a hidden data race). Offline
 waits log their elapsed time (`⏱ <step>: <ms>` in `smoke.mjs`) so the
-next flake arrives with durations attached.
+next flake arrives with durations attached. The structural fix is
+deterministic convergence, not tolerance: the SW posts `sync-end` when
+its queue drains, the banner bridge dispatches `gogogo:synced`, and the
+shared resync button refetches — offline tabs stay visible (so the
+visibility refetch never fires) and a replay broadcast landing mid
+re-establishment is missed with nothing after it.
 
 `make ci-local-fast` runs the same cheap-but-decisive checks
 (`templ`, `datastar-lint`, `css-check`, `check-scope`) plus **scoped** lint and
