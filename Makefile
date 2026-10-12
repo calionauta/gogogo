@@ -251,7 +251,7 @@ check-generated: templ sqlc-check
 	@if ! git diff --quiet --exit-code -- '*_templ.go'; then \
 		echo "  ❌ committed _templ.go does not match the .templ sources."; \
 		echo "     Run \`make templ\` and COMMIT the regenerated files."; \
-		git diff --stat -- '*_templ.go'; \
+		git --no-pager diff --stat -- '*_templ.go'; \
 		exit 1; \
 	fi
 	@echo "  ✓ generated templ files match their sources"
@@ -266,7 +266,7 @@ sqlc-check:
 		if ! git diff --quiet --exit-code -- internal/db/sqlcgen; then \
 			echo "  ❌ committed sqlcgen does not match internal/db/queries."; \
 			echo "     Run \`make sqlc\` and COMMIT the regenerated files."; \
-			git diff --stat -- internal/db/sqlcgen; \
+			git --no-pager diff --stat -- internal/db/sqlcgen; \
 			exit 1; \
 		fi; \
 		echo "  ✓ generated sqlc files match their queries"; \
