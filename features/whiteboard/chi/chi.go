@@ -128,7 +128,11 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	boards, err := h.listBoards(r.Context(), sess.User.ID)
 	if err != nil {
-		boards = nil
+		// Not an empty list: a failed query would render as "no boards",
+		// indistinguishable from the truth and invisible to the operator.
+		slog.Error("whiteboard: list boards failed", "owner", sess.User.ID, "error", err)
+		writeText(w, http.StatusInternalServerError, "error listing boards")
+		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -160,7 +164,11 @@ func (h *Handler) handleListFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	boards, err := h.listBoards(r.Context(), sess.User.ID)
 	if err != nil {
-		boards = nil
+		// Same contract as the index handler: an empty fragment is a lie the
+		// user cannot detect and the operator cannot diagnose.
+		slog.Error("whiteboard: list fragment failed", "owner", sess.User.ID, "error", err)
+		writeText(w, http.StatusInternalServerError, "error listing boards")
+		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("datastar-selector", "#whiteboard-list")

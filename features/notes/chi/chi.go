@@ -123,7 +123,12 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	email := sess.User.Email
 	ids, err := h.listNoteIDs(r.Context(), sess.User.ID)
 	if err != nil {
-		ids = []string{}
+		// Not an empty list: a failed query would render as "no notes yet",
+		// which is indistinguishable from the truth and leaves the operator
+		// with nothing to go on.
+		slog.Error("notes: list ids failed", "owner", sess.User.ID, "error", err)
+		writeText(w, http.StatusInternalServerError, "error listing notes")
+		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -153,7 +158,11 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := h.listNoteIDs(r.Context(), sess.User.ID)
 	if err != nil {
-		ids = []string{}
+		// Same contract as the index handler: an empty fragment is a lie the
+		// user cannot detect and the operator cannot diagnose.
+		slog.Error("notes: list fragment ids failed", "owner", sess.User.ID, "error", err)
+		writeText(w, http.StatusInternalServerError, "error listing notes")
+		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

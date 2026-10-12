@@ -88,7 +88,12 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	todos, err := h.listOwner(r.Context(), owner, "all")
 	if err != nil {
-		todos = nil
+		// Not a fake empty list: an unrunnable query would render as "you
+		// have no todos", which is indistinguishable from the real thing and
+		// tells the operator nothing. Fail loudly instead — the log carries
+		// the cause.
+		h.fail(w, "todo: index list failed", err, "error listing todos")
+		return
 	}
 	signals := todo.Signals{
 		Todos:            todos,
