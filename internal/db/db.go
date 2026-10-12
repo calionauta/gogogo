@@ -1,5 +1,8 @@
 // SCOPE:core — application database: the one place that knows the Turso
-// Database connection string, file layout, and pragmas.
+// Database connection string, file layout, and pragmas. Schema, versions,
+// IDs and timestamps live in internal/dbschema (driver-free, shared with
+// zero-CGO targets); this package owns only the tursogo open, so importing
+// it links tursogo (purego) — native targets must not import it.
 //
 // Turso Database is the ground-up Rust rewrite of SQLite; `tursogo` is its Go
 // driver — a database/sql driver named "turso", loaded through purego, so

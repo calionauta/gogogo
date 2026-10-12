@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // magicLinkTTL bounds a login link's lifetime (10–15 minutes is the
@@ -67,7 +67,7 @@ func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL strin
 	}
 	now := time.Now().UTC()
 	if latest, err := a.q.LatestMagicTokenForUser(ctx, row.ID); err == nil {
-		if created, perr := time.Parse(db.TimeFormat, latest.Created); perr == nil &&
+		if created, perr := time.Parse(dbschema.TimeFormat, latest.Created); perr == nil &&
 			now.Sub(created) < magicRequestCooldown {
 			return nil // cooling down: the live link still works.
 		}
@@ -75,12 +75,12 @@ func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL strin
 	_ = a.q.DeleteMagicTokensForUser(ctx, row.ID)
 	if err := a.q.CreateMagicToken(ctx, dbgen.CreateMagicTokenParams{
 		TokenHash: hash, UserID: row.ID,
-		Expires: now.Add(magicLinkTTL).Format(db.TimeFormat),
-		Created: now.Format(db.TimeFormat),
+		Expires: now.Add(magicLinkTTL).Format(dbschema.TimeFormat),
+		Created: now.Format(dbschema.TimeFormat),
 	}); err != nil {
 		return fmt.Errorf("auth: magic store: %w", err)
 	}
-	_ = a.q.DeleteExpiredMagicTokens(ctx, now.Format(db.TimeFormat))
+	_ = a.q.DeleteExpiredMagicTokens(ctx, now.Format(dbschema.TimeFormat))
 	if send == nil {
 		return errors.New("auth: no magic sender configured")
 	}
@@ -99,7 +99,7 @@ func (a *Auth) VerifyMagicLink(ctx context.Context, token string) (string, error
 		secReject(ctx, evMagicRejected, reasonUnknownToken, "", "")
 		return "", ErrBadCredentials
 	}
-	expires, err := time.Parse(db.TimeFormat, row.Expires)
+	expires, err := time.Parse(dbschema.TimeFormat, row.Expires)
 	if err != nil || time.Now().UTC().After(expires) {
 		_ = a.q.DeleteMagicToken(ctx, row.TokenHash)
 		secReject(ctx, evMagicRejected, reasonExpiredToken, "", row.UserID)

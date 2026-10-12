@@ -13,8 +13,8 @@ import (
 
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/natswire"
 )
 
@@ -52,11 +52,11 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	case derr == nil:
 		createdID = dedupe.ID // replay: the original row stands.
 	case !errors.Is(derr, sql.ErrNoRows):
-		h.fail(w, "todo: dedupe lookup failed", derr, "save failed")
+		h.fail(r.Context(), w, "todo: dedupe lookup failed", derr, "save failed")
 		return
 	default:
-		now := db.Now()
-		newID := db.NewID()
+		now := dbschema.Now()
+		newID := dbschema.NewID()
 		if _, cerr := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
 			ID: newID, Owner: owner, Title: title,
 			Completed: false, IdemKey: idemKey, Created: now, Updated: now,
@@ -68,7 +68,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 			}); rerr == nil {
 				createdID = existing.ID
 			} else {
-				h.fail(w, "todo: save failed", cerr, "save failed")
+				h.fail(r.Context(), w, "todo: save failed", cerr, "save failed")
 				return
 			}
 		} else {
@@ -100,22 +100,22 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 
 	todos, err := h.listOwner(ctx, owner, filterOf(r))
 	if err != nil {
-		h.fail(w, "todo: list after create failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: list after create failed", err, "error listing todos")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"loading": false, "newTitle": "", signalItemCount: len(todos),
 	}); err != nil {
-		h.fail(w, "todo: create signals failed", err, "save failed")
+		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
 		return
 	}
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
-		h.fail(w, "todo: create patch failed", err, "save failed")
+		h.fail(r.Context(), w, "todo: create patch failed", err, "save failed")
 		return
 	}
 	if err := emitToast(sse, "Added", "success"); err != nil {
-		h.fail(w, "todo: create toast failed", err, "save failed")
+		h.fail(r.Context(), w, "todo: create toast failed", err, "save failed")
 	}
 }
 
@@ -155,14 +155,14 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 			writeText(w, http.StatusNotFound, "not found")
 			return
 		}
-		h.fail(w, "todo: toggle read failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
+		h.fail(r.Context(), w, "todo: toggle read failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
 		return
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	if serr := h.Q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
 		Completed: !current.Completed, Updated: now, ID: id, Owner: owner,
 	}); serr != nil {
-		h.fail(w, "todo: toggle save failed", fmt.Errorf("id %s: %w", id, serr), "toggle failed")
+		h.fail(r.Context(), w, "todo: toggle save failed", fmt.Errorf("id %s: %w", id, serr), "toggle failed")
 		return
 	}
 
@@ -180,12 +180,12 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 
 	todos, err := h.listOwner(ctx, owner, filterOf(r))
 	if err != nil {
-		h.fail(w, "todo: list after toggle failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: list after toggle failed", err, "error listing todos")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
-		h.fail(w, "todo: toggle patch failed", err, "toggle failed")
+		h.fail(r.Context(), w, "todo: toggle patch failed", err, "toggle failed")
 	}
 }
 
@@ -202,7 +202,7 @@ func (h *Handler) handleConfirmDelete(w http.ResponseWriter, r *http.Request) {
 			writeText(w, http.StatusNotFound, "not found")
 			return
 		}
-		h.fail(w, "todo: confirm-delete read failed", err, "delete failed")
+		h.fail(r.Context(), w, "todo: confirm-delete read failed", err, "delete failed")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
@@ -210,7 +210,7 @@ func (h *Handler) handleConfirmDelete(w http.ResponseWriter, r *http.Request) {
 		"confirmingDeleteId":    item.ID,
 		"confirmingDeleteTitle": item.Title,
 	}); err != nil {
-		h.fail(w, "todo: confirm-delete signals failed", err, "delete failed")
+		h.fail(r.Context(), w, "todo: confirm-delete signals failed", err, "delete failed")
 	}
 }
 
@@ -231,11 +231,11 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 			writeText(w, http.StatusNotFound, "not found")
 			return
 		}
-		h.fail(w, "todo: delete read failed", fmt.Errorf("id %s: %w", id, err), "delete failed")
+		h.fail(r.Context(), w, "todo: delete read failed", fmt.Errorf("id %s: %w", id, err), "delete failed")
 		return
 	}
 	if derr := h.Q.DeleteTodo(ctx, dbgen.DeleteTodoParams{ID: id, Owner: owner}); derr != nil {
-		h.fail(w, "todo: delete failed", fmt.Errorf("id %s: %w", id, derr), "delete failed")
+		h.fail(r.Context(), w, "todo: delete failed", fmt.Errorf("id %s: %w", id, derr), "delete failed")
 		return
 	}
 
@@ -253,7 +253,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 
 	todos, err := h.listOwner(ctx, owner, filterOf(r))
 	if err != nil {
-		h.fail(w, "todo: list after delete failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: list after delete failed", err, "error listing todos")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
@@ -261,15 +261,15 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		"confirmingDeleteId":    "",
 		"confirmingDeleteTitle": "",
 	}); err != nil {
-		h.fail(w, "todo: delete signals failed", err, "delete failed")
+		h.fail(r.Context(), w, "todo: delete signals failed", err, "delete failed")
 		return
 	}
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
-		h.fail(w, "todo: delete patch failed", err, "delete failed")
+		h.fail(r.Context(), w, "todo: delete patch failed", err, "delete failed")
 		return
 	}
 	if err := emitToast(sse, fmt.Sprintf("Deleted “%s”", item.Title), "info"); err != nil {
-		h.fail(w, "todo: delete toast failed", err, "delete failed")
+		h.fail(r.Context(), w, "todo: delete toast failed", err, "delete failed")
 	}
 }
 
@@ -285,7 +285,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	count, err := h.Q.DeleteCompletedByOwner(ctx, owner)
 	if err != nil {
-		h.fail(w, "todo: clear completed failed", err, "clear failed")
+		h.fail(r.Context(), w, "todo: clear completed failed", err, "clear failed")
 		return
 	}
 
@@ -303,21 +303,21 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 
 	todos, err := h.listOwner(ctx, owner, filterOf(r))
 	if err != nil {
-		h.fail(w, "todo: list after clear failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: list after clear failed", err, "error listing todos")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
-		h.fail(w, "todo: clear patch failed", err, "clear failed")
+		h.fail(r.Context(), w, "todo: clear patch failed", err, "clear failed")
 		return
 	}
 	if count == 0 {
 		if err := emitToast(sse, "Nothing to clear", "info"); err != nil {
-			h.fail(w, "todo: clear toast failed", err, "clear failed")
+			h.fail(r.Context(), w, "todo: clear toast failed", err, "clear failed")
 		}
 		return
 	}
 	if err := emitToast(sse, fmt.Sprintf("Cleared %d completed", count), "success"); err != nil {
-		h.fail(w, "todo: clear toast failed", err, "clear failed")
+		h.fail(r.Context(), w, "todo: clear toast failed", err, "clear failed")
 	}
 }

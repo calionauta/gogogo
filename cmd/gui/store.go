@@ -15,12 +15,48 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/todo"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
+
+// guiDirPerm is the mode for the database parent dir created on first boot
+// (mirrors internal/db: group/other read+execute for sidecar inspection,
+// the file itself keeps the process umask).
+const guiDirPerm = 0o755
+
+// openGUIStore opens the app database file through the ncruces `sqlite3`
+// driver (pure Go, zero CGO) with the same pragmas the web stack carries:
+// busy_timeout + WAL + foreign_keys ride the DSN so every pooled
+// connection gets them (docs/code-quality.md rule). It must stay on this
+// driver: internal/db opens through tursogo, and importing that package
+// links purego whose fakecgo collides with goffi's at CGO_ENABLED=0 link
+// time (see cmd/gui/main.go).
+func openGUIStore(cfg *config.Config) (*sql.DB, error) {
+	path := cfg.Turso.DBPath
+	if path == "" {
+		path = filepath.Join(cfg.DataDir, "app.db")
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, guiDirPerm); err != nil {
+			return nil, fmt.Errorf("gui: create data dir %q: %w", dir, err)
+		}
+	}
+	dsn := "file:" + path +
+		"?_pragma=busy_timeout(10000)" +
+		"&_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(ON)"
+	sqlDB, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("gui: open %q: %w", path, err)
+	}
+	return sqlDB, nil
+}
 
 // guiStore is the cmd/gui slice of the flat persistence layer: owner-scoped
 // list, idempotent create, completed flip, delete.
@@ -72,8 +108,8 @@ func (s guiStore) Create(ctx context.Context, title, owner, idemKey string) (tod
 	case !errors.Is(err, sql.ErrNoRows):
 		return todo.Todo{}, fmt.Errorf("gui: dedupe lookup: %w", err)
 	}
-	now := db.Now()
-	id := db.NewID()
+	now := dbschema.Now()
+	id := dbschema.NewID()
 	if _, cerr := s.q.CreateTodo(ctx, dbgen.CreateTodoParams{
 		ID: id, Owner: owner, Title: title,
 		Completed: false, IdemKey: idemKey, Created: now, Updated: now,
@@ -98,7 +134,7 @@ func (s guiStore) SetCompleted(ctx context.Context, owner, id string, completed 
 		return fmt.Errorf("gui: toggle read: %w", err)
 	}
 	if err := s.q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: completed, Updated: db.Now(), ID: id, Owner: owner,
+		Completed: completed, Updated: dbschema.Now(), ID: id, Owner: owner,
 	}); err != nil {
 		return fmt.Errorf("gui: toggle write: %w", err)
 	}
@@ -128,11 +164,11 @@ var errNotFound = errors.New("gui: not found")
 // slice (same conversion, same TimeFormat) rather than shared: the
 // flat-deps gate keeps packages from reaching sideways for helpers.
 func toTodo(row dbgen.Todo) (todo.Todo, error) {
-	created, err := time.Parse(db.TimeFormat, row.Created)
+	created, err := time.Parse(dbschema.TimeFormat, row.Created)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
 	}
-	updated, err := time.Parse(db.TimeFormat, row.Updated)
+	updated, err := time.Parse(dbschema.TimeFormat, row.Updated)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s updated %q: %w", row.ID, row.Updated, err)
 	}

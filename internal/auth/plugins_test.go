@@ -12,6 +12,7 @@ import (
 
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // rfcSecret is the RFC 6238 Appendix B SHA-1 secret ("12345678901234567890").
@@ -55,7 +56,7 @@ func pluginAuth(t *testing.T) *Auth {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		t.Fatalf("db migrate: %v", merr)
 	}
 	a, err := New(dbgen.New(sqlDB), false)

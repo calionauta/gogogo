@@ -9,6 +9,7 @@
 package chi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -73,7 +74,7 @@ func TestChiTodoFragmentCarriesDagNatsFlag(t *testing.T) {
 func TestChiFailWritesPublicMessageWithStatus(t *testing.T) {
 	f := newChiFixture(t)
 	rec := httptest.NewRecorder()
-	f.h.fail(rec, "todo: save failed", errors.New("sqlite: busy"), "save failed")
+	f.h.fail(context.Background(), rec, "todo: save failed", errors.New("sqlite: busy"), "save failed")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
 	}

@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -31,10 +30,11 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/natswire"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
@@ -128,9 +128,9 @@ func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner stri
 	if owner == "" {
 		return errors.New("todo: onboarding create requires an owner")
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	if _, err := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
-		ID: db.NewID(), Owner: owner, Title: title,
+		ID: dbschema.NewID(), Owner: owner, Title: title,
 		Completed: false, IdemKey: "", Created: now, Updated: now,
 	}); err != nil {
 		return fmt.Errorf("onboarding create %q: %w", title, err)
@@ -228,20 +228,21 @@ func writeText(w http.ResponseWriter, code int, msg string) {
 	_, _ = w.Write([]byte(msg))
 }
 
-func (h *Handler) fail(w http.ResponseWriter, logMsg string, err error, publicMsg string) {
-	slog.Error(logMsg, "error", err)
+func (h *Handler) fail(ctx context.Context, w http.ResponseWriter, logMsg string, err error, publicMsg string) {
+	obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+	observability.Error(ctx, logMsg, obsArgs...)
 	writeText(w, http.StatusInternalServerError, publicMsg)
 }
 
 // toTodo maps a sqlc row onto the wire model. Timestamps are caller-written
-// RFC3339 (db.TimeFormat); a row that does not parse is data corruption,
+// RFC3339 (dbschema.TimeFormat); a row that does not parse is data corruption,
 // flagged as a 500 rather than rendered half-empty.
 func toTodo(row dbgen.Todo) (todo.Todo, error) {
-	created, err := time.Parse(db.TimeFormat, row.Created)
+	created, err := time.Parse(dbschema.TimeFormat, row.Created)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
 	}
-	updated, err := time.Parse(db.TimeFormat, row.Updated)
+	updated, err := time.Parse(dbschema.TimeFormat, row.Updated)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s updated %q: %w", row.ID, row.Updated, err)
 	}
@@ -370,7 +371,8 @@ func (h *Handler) publishSync(
 func (h *Handler) broadcastRecord(r *http.Request, owner string, evt recordEvent) {
 	payload, err := json.Marshal(evt)
 	if err != nil {
-		slog.Error("todo: marshal record event", "error", err)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+		observability.Error(r.Context(), "todo: marshal record event", obsArgs...)
 		return
 	}
 	exclude := r.URL.Query().Get("clientID")
@@ -395,7 +397,7 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	filter := filterOf(r)
 	todos, err := h.listOwner(r.Context(), owner, filter)
 	if err != nil {
-		h.fail(w, "todo: list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
+		h.fail(r.Context(), w, "todo: list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
 		return
 	}
 	signals := todo.Signals{
@@ -404,14 +406,14 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
-		h.fail(w, "todo: list signals failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: list signals failed", err, "error listing todos")
 		return
 	}
 	if err := patchSSE(
 		sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),
 	); err != nil {
-		h.fail(w, "todo: list patch failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: list patch failed", err, "error listing todos")
 	}
 }
 
@@ -424,7 +426,7 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	filter := filterOf(r)
 	todos, err := h.listOwner(r.Context(), owner, filter)
 	if err != nil {
-		h.fail(w, "todo: fragment list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
+		h.fail(r.Context(), w, "todo: fragment list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
 		return
 	}
 	signals := todo.Signals{
@@ -433,7 +435,7 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	var buf bytes.Buffer
 	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {
-		h.fail(w, "todo: fragment render failed", err, "error rendering list")
+		h.fail(r.Context(), w, "todo: fragment render failed", err, "error rendering list")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

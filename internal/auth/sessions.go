@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/calionauta/gogogo/internal/db"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // Session validates the request's session cookie. Expired or unknown
@@ -40,7 +40,7 @@ func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSess
 	if err != nil {
 		return nil, errors.New("auth: unknown session")
 	}
-	expires, err := time.Parse(db.TimeFormat, row.Expires)
+	expires, err := time.Parse(dbschema.TimeFormat, row.Expires)
 	if err != nil {
 		return nil, fmt.Errorf("auth: session expiry unreadable: %w", err)
 	}

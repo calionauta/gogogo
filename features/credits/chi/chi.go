@@ -11,7 +11,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"path/filepath"
 
@@ -19,6 +18,7 @@ import (
 
 	"github.com/calionauta/gogogo/features/credits"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // jsonErrKey is the response body key for error messages.
@@ -145,7 +145,8 @@ func (h *Handler) handleManaged(w http.ResponseWriter, r *http.Request) {
 		Model: req.Model, Prompt: req.Prompt, MaxOutputTokens: req.MaxOutputTokens,
 	})
 	if err != nil {
-		slog.Warn("credits: managed request failed", "error", err)
+		obsArgs := append(observability.WithComponent("credits", "feature"), "error", err)
+		observability.Warn(r.Context(), "credits: managed request failed", obsArgs...)
 		writeJSON(w, http.StatusBadRequest, map[string]any{jsonErrKey: err.Error()})
 		return
 	}

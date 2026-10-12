@@ -4,7 +4,6 @@ package chi
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // handleStream opens the chi-stack SSE stream: Hub-registered, owner-scoped,
@@ -44,7 +44,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		var err error
 		todos, err = h.listOwner(r.Context(), owner, "all")
 		if err != nil {
-			h.fail(w, "todo: list on stream open failed", err, "error listing todos")
+			h.fail(r.Context(), w, "todo: list on stream open failed", err, "error listing todos")
 			return
 		}
 	}
@@ -57,7 +57,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		SidebarTab:       "queue",
 		DagNatsEnabled:   h.dagnatsUIEnabled(),
 	}); err != nil {
-		h.fail(w, "todo: stream handshake failed", err, "error opening stream")
+		h.fail(r.Context(), w, "todo: stream handshake failed", err, "error opening stream")
 		return
 	}
 
@@ -79,7 +79,8 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		case payload := <-ch:
 			if err := h.dispatchEnvelope(r.Context(), sse, owner, hasOwner, payload); err != nil {
-				slog.Error("todo: stream dispatch failed", "error", err)
+				obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+				observability.Error(r.Context(), "todo: stream dispatch failed", obsArgs...)
 			}
 		}
 	}

@@ -92,7 +92,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		// have no todos", which is indistinguishable from the real thing and
 		// tells the operator nothing. Fail loudly instead — the log carries
 		// the cause.
-		h.fail(w, "todo: index list failed", err, "error listing todos")
+		h.fail(r.Context(), w, "todo: index list failed", err, "error listing todos")
 		return
 	}
 	signals := todo.Signals{

@@ -48,6 +48,37 @@ needs it, no extension loads. If you add one, document it here and pin
 a test that queries through it: an unloaded extension directory is not
 a capability.
 
+### Native dependencies (and not CGO by default)?
+
+A native dependency is anything that is not pure Go: a C library via
+CGO, a shared object loaded through `purego`, a WASM engine like the
+one inside ncruces. The ladder, in order — stop at the first rung that
+works:
+
+1. **Pure Go.** No toolchain beyond `go`, no link-time surprises.
+2. **Toolchain-free FFI.** `purego` (dlopen of a C ABI, like tursogo
+   uses) or a WASM runtime (like ncruces). `go build` stays
+   compiler-free and `CGO_ENABLED=0` keeps working.
+3. **CGO, with a written justification.** `loro-go` lives here today —
+   there is no pure-Go CRDT of its quality, so the repo pays for gcc in
+   CI (`ci.yml`) and documents it. A new CGO dependency must say who
+   installs the compiler (CI, every dev machine, cross-compile), whether
+   the link is static, and what happens to the `scratch` image.
+
+This is a ladder, not a ban: rung 3 exists because rung 2 cannot cover
+everything (inline C, unstable ABIs, libraries with no dlopen story).
+What the ladder forbids is reaching rung 3 *first* out of familiarity.
+
+Two hard rules once native code is in:
+
+- **One FFI runtime per binary.** `purego`'s `fakecgo` collides with
+  goffi's at CGO-less link time (measured: `cmd/gui` + tursogo, fixed by
+  opening through ncruces instead — see `internal/dbschema`). A binary
+  that links goffi (gui, desktop) cannot also link purego without CGO.
+- **New native surface updates the build matrix.** CGO additions touch
+  `desktop.yml` (gcc), the cross story (`GOOS=linux` from mac must still
+  work), and the package-audit scan — never just `go.mod`.
+
 ## Why no frontend framework?
 
 Datastar gives you reactivity with no client-side framework and no build step.

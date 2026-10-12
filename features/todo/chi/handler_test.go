@@ -21,6 +21,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -44,7 +45,7 @@ func newChiFixture(tb testing.TB) *chiFixture {
 		tb.Fatalf("db open: %v", err)
 	}
 	tb.Cleanup(func() { sqlDB.Close() })
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		tb.Fatalf("db migrate: %v", merr)
 	}
 
@@ -228,7 +229,7 @@ func TestChiTodoClearCompleted(t *testing.T) {
 	for _, item := range list {
 		if item.Title == "Done-item" {
 			if err := f.q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-				Completed: true, Updated: db.Now(), ID: item.ID, Owner: owner,
+				Completed: true, Updated: dbschema.Now(), ID: item.ID, Owner: owner,
 			}); err != nil {
 				t.Fatalf("setup toggle: %v", err)
 			}

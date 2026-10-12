@@ -25,23 +25,23 @@ const retryDemoMaxDelay = 2500 * time.Millisecond
 // succeeds, streaming per-attempt feedback over SSE.
 func (h *Handler) handleRetryDemo(w http.ResponseWriter, r *http.Request) {
 	if h.Queue == nil {
-		h.fail(w, "todo: retry-demo queue missing", errNoQueue, "enqueue failed")
+		h.fail(r.Context(), w, "todo: retry-demo queue missing", errNoQueue, "enqueue failed")
 		return
 	}
 	body, err := json.Marshal(queue.Job{Type: signalJobRetryDemo})
 	if err != nil {
-		h.fail(w, "todo: retry-demo marshal failed", err, "enqueue failed")
+		h.fail(r.Context(), w, "todo: retry-demo marshal failed", err, "enqueue failed")
 		return
 	}
 	if err := h.Queue.Enqueue(r.Context(), body); err != nil {
-		h.fail(w, "todo: retry-demo enqueue failed", err, "enqueue failed")
+		h.fail(r.Context(), w, "todo: retry-demo enqueue failed", err, "enqueue failed")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastRetry": "queued retry-demo job",
 	}); err != nil {
-		h.fail(w, "todo: retry-demo ack failed", err, "enqueue failed")
+		h.fail(r.Context(), w, "todo: retry-demo ack failed", err, "enqueue failed")
 	}
 }
 
@@ -54,8 +54,6 @@ func (h *Handler) RegisterRetryHandlers(reg *queue.HandlerRegistry) {
 func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, _ queue.Job) error {
 	const maxAttempts = 3
 	attempt := 0
-	//nolint:contextcheck // attempt body ends in SSEHub.Broadcast, which
-	// takes no context; retry cancellation flows through retry.Context.
 	err := retry.Do(
 		func() error {
 			attempt++
@@ -63,7 +61,7 @@ func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, _ q
 			if attempt < maxAttempts {
 				opErr = fmt.Errorf("simulated transient failure on attempt %d", attempt)
 			}
-			broadcastRetryFeedback(hub, attempt, opErr)
+			broadcastRetryFeedback(ctx, hub, attempt, opErr)
 			return opErr
 		},
 		retry.Attempts(maxAttempts),
@@ -82,7 +80,7 @@ func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, _ q
 	return nil
 }
 
-func broadcastRetryFeedback(hub *queue.SSEHub, attempt int, opErr error) {
+func broadcastRetryFeedback(ctx context.Context, hub *queue.SSEHub, attempt int, opErr error) {
 	status := "attempt"
 	if opErr == nil {
 		status = "success"
@@ -97,7 +95,9 @@ func broadcastRetryFeedback(hub *queue.SSEHub, attempt int, opErr error) {
 		"status":    status,
 		"error":     msg,
 	})
-	hub.Broadcast(mustJSON(queue.Job{Type: "retry", Payload: payload}))
+	//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+	// cancellation flows through the surrounding ctx select.
+	hub.Broadcast(mustJSON(ctx, queue.Job{Type: "retry", Payload: payload}))
 }
 
 func toastJob(message, kind string) []byte {

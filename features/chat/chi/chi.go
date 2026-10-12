@@ -9,9 +9,9 @@
 package chi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -26,6 +26,7 @@ import (
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -128,14 +129,16 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		"prompt": prompt, "userId": sess.User.ID, "idem": uuid.NewString(),
 	})
 	if err != nil {
-		slog.Error("chat: marshal ask job", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: marshal ask job", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "enqueue failed")
 		return
 	}
-	if err := h.q.Enqueue(r.Context(), mustJSON(queue.Job{
+	if err := h.q.Enqueue(r.Context(), mustJSON(r.Context(), queue.Job{
 		Type: "chat_ask", ClientID: r.URL.Query().Get("clientID"), Payload: payload,
 	})); err != nil {
-		slog.Error("chat: enqueue failed", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: enqueue failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "enqueue failed")
 		return
 	}
@@ -144,7 +147,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		signalChatThinking: true,
 		signalChatError:    "",
 	}); err != nil {
-		slog.Error("chat: ask ack failed", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: ask ack failed", obsArgs...)
 	}
 }
 
@@ -162,7 +166,8 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		signalChatThinking: false,
 		"clientID":         clientID,
 	}); err != nil {
-		slog.Error("chat: stream handshake failed", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: stream handshake failed", obsArgs...)
 		return
 	}
 	flusher, canFlush := w.(http.Flusher)
@@ -184,7 +189,8 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			//nolint:contextcheck // dispatch ends in datastar-go sinks, which
 			// take no context; disconnects surface as write errors.
 			if err := h.dispatchStreamMessage(sse, msg); err != nil {
-				slog.Error("chat: stream dispatch failed", "error", err)
+				obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+				observability.Error(r.Context(), "chat: stream dispatch failed", obsArgs...)
 			}
 		}
 	}
@@ -247,10 +253,11 @@ func renderDirectives(raw any) []templ.Component {
 	return comps
 }
 
-func mustJSON(v any) []byte {
+func mustJSON(ctx context.Context, v any) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
-		slog.Error("chat: marshal envelope", "error", err)
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(ctx, "chat: marshal envelope", obsArgs...)
 		return []byte("{}")
 	}
 	return b

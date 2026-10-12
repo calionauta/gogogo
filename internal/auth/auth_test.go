@@ -18,6 +18,7 @@ import (
 
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 func testDB(t *testing.T) *sql.DB {
@@ -27,7 +28,7 @@ func testDB(t *testing.T) *sql.DB {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if err := db.Migrate(sqlDB); err != nil {
+	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("db migrate: %v", err)
 	}
 	return sqlDB
@@ -97,7 +98,7 @@ func TestPasswordRotation(t *testing.T) {
 		t.Fatalf("lookup: %v", rerr)
 	}
 	if err := a.q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
-		PasswordHash: old, Updated: db.Now(), ID: row.ID,
+		PasswordHash: old, Updated: dbschema.Now(), ID: row.ID,
 	}); err != nil {
 		t.Fatalf("backdate: %v", err)
 	}
@@ -317,7 +318,7 @@ func TestSessionExpiry(t *testing.T) {
 	_ = user
 
 	// Backdate the session past its TTL straight in the table.
-	past := time.Now().UTC().Add(-time.Hour).Format(db.TimeFormat)
+	past := time.Now().UTC().Add(-time.Hour).Format(dbschema.TimeFormat)
 	sum := tokenHash(token)
 	if _, err := sqlDB.ExecContext(ctx,
 		`UPDATE sessions SET expires = ? WHERE token_hash = ?`, past, sum); err != nil {

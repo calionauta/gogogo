@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // recoveryCodeCount is the batch size per issuance. Ten survives several
@@ -54,7 +54,7 @@ func (a *Auth) IssueRecoveryCodes(ctx context.Context, userID string) ([]string,
 	if _, err := a.q.GetUser(ctx, userID); err != nil {
 		return nil, ErrBadCredentials
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	plain := make([]string, 0, recoveryCodeCount)
 	for range recoveryCodeCount {
 		raw := make([]byte, recoveryCodeLen)

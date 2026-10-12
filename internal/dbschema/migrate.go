@@ -1,11 +1,15 @@
-// SCOPE:core — schema migrations: embedded .sql files applied in order.
+// SCOPE:core — driver-free schema + identity: embedded migrations,
+// versions ledger, IDs and timestamps. No driver import here on purpose:
+// native targets (cmd/gui, zero CGO) open via ncruces `sqlite3` and share
+// this package, while internal/db owns the tursogo open. Importing
+// internal/db links tursogo (purego) — importing this package must not.
 //
 // Migrations are plain SQL under migrations/, applied by Migrate on every
 // boot and recorded in schema_migrations. There is no down-migration and no
 // separate tool: the files ARE the schema, so `git diff` shows the whole
 // history of the data model, and a fresh clone builds the same database as a
 // deployed one.
-package db
+package dbschema
 
 import (
 	"context"
@@ -52,7 +56,7 @@ func Migrate(sqlDB *sql.DB) error {
 		n++
 	}
 	if n > 0 {
-		slog.Info("db: migrations applied", "count", n)
+		slog.Info("dbschema: migrations applied", "count", n)
 	}
 	return nil
 }
@@ -65,7 +69,7 @@ func ensureMigrationsTable(sqlDB *sql.DB) error {
     applied_at TEXT NOT NULL
 )`)
 	if err != nil {
-		return fmt.Errorf("db: create schema_migrations: %w", err)
+		return fmt.Errorf("dbschema: create schema_migrations: %w", err)
 	}
 	return nil
 }
@@ -74,7 +78,7 @@ func ensureMigrationsTable(sqlDB *sql.DB) error {
 func appliedVersions(sqlDB *sql.DB) (map[string]bool, error) {
 	rows, err := sqlDB.QueryContext(context.Background(), `SELECT version FROM schema_migrations`)
 	if err != nil {
-		return nil, fmt.Errorf("db: read schema_migrations: %w", err)
+		return nil, fmt.Errorf("dbschema: read schema_migrations: %w", err)
 	}
 	defer rows.Close()
 
@@ -82,12 +86,12 @@ func appliedVersions(sqlDB *sql.DB) (map[string]bool, error) {
 	for rows.Next() {
 		var v string
 		if err := rows.Scan(&v); err != nil {
-			return nil, fmt.Errorf("db: scan schema_migrations: %w", err)
+			return nil, fmt.Errorf("dbschema: scan schema_migrations: %w", err)
 		}
 		applied[v] = true
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("db: iterate schema_migrations: %w", err)
+		return nil, fmt.Errorf("dbschema: iterate schema_migrations: %w", err)
 	}
 	return applied, nil
 }
@@ -96,7 +100,7 @@ func appliedVersions(sqlDB *sql.DB) (map[string]bool, error) {
 func migrationVersions() ([]string, error) {
 	entries, err := fs.ReadDir(migrationsFS, "migrations")
 	if err != nil {
-		return nil, fmt.Errorf("db: read migrations dir: %w", err)
+		return nil, fmt.Errorf("dbschema: read migrations dir: %w", err)
 	}
 	versions := make([]string, 0, len(entries))
 	for _, e := range entries {
@@ -122,23 +126,23 @@ func Versions() ([]string, error) {
 func applyMigration(sqlDB *sql.DB, version string) error {
 	sqlBytes, err := migrationsFS.ReadFile("migrations/" + version + ".sql")
 	if err != nil {
-		return fmt.Errorf("db: read migration %s: %w", version, err)
+		return fmt.Errorf("dbschema: read migration %s: %w", version, err)
 	}
 	tx, err := sqlDB.BeginTx(context.Background(), nil)
 	if err != nil {
-		return fmt.Errorf("db: begin migration %s: %w", version, err)
+		return fmt.Errorf("dbschema: begin migration %s: %w", version, err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(context.Background(), string(sqlBytes)); err != nil {
-		return fmt.Errorf("db: apply migration %s: %w", version, err)
+		return fmt.Errorf("dbschema: apply migration %s: %w", version, err)
 	}
 	if _, err := tx.ExecContext(context.Background(),
 		`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, version, Now()); err != nil {
-		return fmt.Errorf("db: record migration %s: %w", version, err)
+		return fmt.Errorf("dbschema: record migration %s: %w", version, err)
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("db: commit migration %s: %w", version, err)
+		return fmt.Errorf("dbschema: commit migration %s: %w", version, err)
 	}
 	return nil
 }

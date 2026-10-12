@@ -39,8 +39,8 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // oauthStateTTL bounds the login handshake: the callback must arrive
@@ -397,16 +397,16 @@ func (a *Auth) findOrCreateOAuthUser(
 		if !errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("auth: oauth lookup: %w", err)
 		}
-		now := db.Now()
+		now := dbschema.Now()
 		row, err = a.q.CreateUser(ctx, dbgen.CreateUserParams{
-			ID: db.NewID(), Email: email, PasswordHash: "!", Name: "",
+			ID: dbschema.NewID(), Email: email, PasswordHash: "!", Name: "",
 			Created: now, Updated: now,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("auth: oauth provision: %w", err)
 		}
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	if err := a.q.LinkOAuthAccount(ctx, dbgen.LinkOAuthAccountParams{
 		Provider: provider, Subject: subject, UserID: row.ID, Created: now,
 	}); err != nil {

@@ -18,6 +18,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -28,7 +29,7 @@ func wbFixture(t *testing.T) http.Handler {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		t.Fatalf("db migrate: %v", merr)
 	}
 	a, aerr := auth.New(dbgen.New(sqlDB), false)
