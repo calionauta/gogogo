@@ -474,6 +474,10 @@ func buildChiMux(
 		// The build tag is what a tab open across a deploy compares
 		// against (stale-tab reload). The body stays "ok" — the scratch image's
 		// healthcheck and the Playwright smoke both match on it.
+		// no-store: an intermediary caching this response would serve a
+		// stale tag and fake a mismatch the other way (see session.js
+		// buildCheck and the smoke assertion below).
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Gogogo-Build", todoH.BuildLabel+"-"+todoH.BuildCommit)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
