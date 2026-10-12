@@ -196,14 +196,19 @@ type Config struct {
 	// starting point — tune it for your app before enabling in production.
 	RBACEnabled bool
 
+	// AdminEmails promotes existing users to the admin role at boot
+	// (ADMIN_EMAILS, comma-separated, matched lowercase). Promotion only,
+	// never provisioning: the address must already own a row (sign up or
+	// first OAuth login first), and public signup must stay closed while
+	// the list is set — anyone can claim an unowned address. Empty
+	// disables promotion entirely.
+	AdminEmails []string
+
 	// Auth holds owned-auth settings.
 	Auth struct {
-		// TOTPEncKey seals TOTP secrets at rest (AUTH_ENC_KEY, 64 hex
-		// chars = 32 bytes). Empty keeps legacy plaintext storage
-		// (documented in docs/configuration.md). Malformed values are
-		// dropped to empty (fail-safe: never a truncated key) — set the
-		// variable correctly and restart to arm encryption; rows upgrade
-		// themselves on next successful verify.
+		// TOTPEncKey seals TOTP secrets (AUTH_ENC_KEY, 64 hex chars).
+		// Empty falls back to the auto-created key file. Malformed is
+		// dropped (fail-safe); set-but-malformed fails the boot instead.
 		TOTPEncKey []byte
 	}
 	// Turso holds the Turso Database connection settings — the Rust
@@ -344,11 +349,7 @@ func Load() *Config {
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
 	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
-	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" {
-		if key, err := hex.DecodeString(strings.TrimSpace(raw)); err == nil && len(key) == 32 {
-			cfg.Auth.TOTPEncKey = key
-		}
-	}
+	cfg.loadAuthEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
@@ -374,17 +375,18 @@ func Load() *Config {
 
 const creditsEncKeyBytes = 32
 
-// parseCreditsEncKey accepts the normal secret-manager representation (64 hex
-// chars for 32 key bytes) while retaining support for a legacy raw 32-byte
-// value. Invalid values remain invalid and are rejected fail-closed by the
-// credits plugin when a BYOK provider is configured.
+// parseCreditsEncKey accepts the secret-manager representation (64 hex
+// chars for 32 key bytes) and nothing else. Anything else yields nil, and
+// the credits plugin fails closed when a BYOK provider is configured
+// without a valid key.
 func parseCreditsEncKey(raw string) []byte {
+	raw = strings.TrimSpace(raw)
 	if len(raw) == hex.EncodedLen(creditsEncKeyBytes) {
 		if key, err := hex.DecodeString(raw); err == nil {
 			return key
 		}
 	}
-	return []byte(raw)
+	return nil
 }
 
 // parseProviders parses the BYOK_PROVIDERS env var

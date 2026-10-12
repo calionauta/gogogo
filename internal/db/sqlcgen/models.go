@@ -72,4 +72,5 @@ type User struct {
 	Updated      string
 	TotpSecret   string
 	TotpVerified int64
+	Role         string
 }

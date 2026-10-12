@@ -14,5 +14,8 @@ RETURNING *;
 -- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = ?, updated = ? WHERE id = ?;
 
+-- name: SetUserRole :exec
+UPDATE users SET role = ?, updated = ? WHERE email = ?;
+
 -- name: CountUsers :one
 SELECT count(*) FROM users;

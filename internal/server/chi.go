@@ -19,7 +19,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -44,7 +43,6 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
-	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -198,7 +196,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	seedDemoAccounts(a)
 	// At-rest TOTP encryption is opt-in by env (AUTH_ENC_KEY): a malformed
 	// key fails the boot rather than running half-encrypted.
-	if kerr := wireTOTPKey(a, cfg.Auth.TOTPEncKey); kerr != nil {
+	if kerr := wireTOTPKey(a, cfg); kerr != nil {
 		_ = sqlDB.Close()
 		return nil, kerr
 	}
@@ -238,24 +236,18 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	shutdown = append(shutdown, chiQ.Close)
 
-	realLLM := llm.New(cfg.GoAI.APIKey)
-	var simulatedLLM *llm.Client
-	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
-		simulatedLLM = llm.NewSimulated()
-	}
+	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
+	// Retained: the chat/genui constructions below consume these, and the
+	// genui trim drops those lines — without an explicit use the locals
+	// would not compile on trimmed trees. Same rule as the bootCtx retain.
+	_ = realLLM
+	_ = simulatedLLM
 	chatH := chatchi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
 		chatstore.NewMemStore(), chatchi.ResponderFromLLM(realLLM, simulatedLLM))
 	chatH.RegisterHandlers(chiQ.Registry())
 	genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
 		comp.NewResponder(realLLM, simulatedLLM))
 	genuiH.RegisterHandlers(chiQ.Registry())
-	todoH.SetQueue(chiQ)
-	todoH.SetLLMClient(realLLM)
-	if simulatedLLM != nil {
-		todoH.SetSimulatedLLMClient(simulatedLLM)
-	}
-	todoH.RegisterSuggestHandlers(chiQ.Registry())
-	todoH.RegisterRetryHandlers(chiQ.Registry())
 	chiQ.StartWorkers()
 
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
@@ -286,9 +278,19 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
+	// RBAC is wired, not optional plumbing: one enforcer built here and the
+	// middleware wraps the whole mux (pass-through when disabled, enforced
+	// denies when on). A parse failure is a programmer error and fails the
+	// boot loud. Split out of BootChi for the funlen gate.
+	handler, rerr := applyRBAC(a, cfg, queries, mux)
+	if rerr != nil {
+		cancelConsumer()
+		_ = sqlDB.Close()
+		return nil, rerr
+	}
 	return &ChiStack{
 		sqlDB:          sqlDB,
-		mux:            mux,
+		mux:            handler,
 		cancelConsumer: cancelConsumer,
 		shutdown:       shutdown,
 		appName:        cfg.AppName,
@@ -455,8 +457,7 @@ func buildChiMux(
 	mux.Handle("/api/ai/", creditsH.Routes())
 	mux.Handle("/api/byok/", creditsH.Routes())
 	// Healthcheck: the scratch image runs `app health`, which GETs this
-	// path on 127.0.0.1:PORT. The legacy stack served /health natively; the
-	// flat stack owns it now. Register before the landing catch-all so
+	// path on 127.0.0.1:PORT. Register before the landing catch-all so
 	// the exact path wins.
 	// Core bundle + Service Worker (see static.go).
 	mountStatic(mux)
@@ -471,8 +472,7 @@ func buildChiMux(
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		// The build tag is what a tab open across a deploy compares
-		// against (stale-tab reload); the legacy stack stamped it natively, the flat
-		// stack owns it now. The body stays "ok" — the scratch image's
+		// against (stale-tab reload). The body stays "ok" — the scratch image's
 		// healthcheck and the Playwright smoke both match on it.
 		w.Header().Set("X-Gogogo-Build", todoH.BuildLabel+"-"+todoH.BuildCommit)
 		w.WriteHeader(http.StatusOK)

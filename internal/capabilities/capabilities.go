@@ -111,7 +111,7 @@ var All = []Capability{
 		Note: "Core middleware; the login page is a removable UI (manual). " +
 			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
 			"features/authviews holds the login/navbar/theme components. " +
-			"The legacy framework middleware (features/auth) is gone with the framework.",
+			"No framework middleware remains; the owned stack is the whole story.",
 	},
 	{
 		ID:      "crudwire",
@@ -393,9 +393,14 @@ var All = []Capability{
 	{
 		ID:      "rbac",
 		Kind:    KindCore,
-		Summary: "RBAC with Casbin (embedded model + policy)",
+		Summary: "RBAC with Casbin (embedded model + policy, enforced at the mux)",
 		Dirs:    []string{"internal/rbac"},
-		Note:    "core infra, removal=core",
+		Note: "Wired middleware, not a dormant package: BootChi builds one " +
+			"enforcer and wraps the whole mux (pass-through when " +
+			"RBAC_ENABLED=false, enforced denies with 403 + warn log when " +
+			"true). Roles come from users.role (migration 0008, ADMIN_EMAILS " +
+			"promotes existing rows at boot). /config is the admin-only " +
+			"surface; the policy test pins every mux route for user-or-admin.",
 	},
 }
 

@@ -54,7 +54,7 @@ func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSess
 		secEvent(ctx, evSessionOrphan, row.UserID)
 		return nil, errors.New("auth: session owner gone")
 	}
-	return &ValidatedSession{User: &User{ID: user.ID, Email: user.Email}, Expires: expires}, nil
+	return &ValidatedSession{User: &User{ID: user.ID, Email: user.Email}, Expires: expires, Role: user.Role}, nil
 }
 
 // sessionCookie builds the cookie for a fresh login. Exported as

@@ -10,11 +10,13 @@ Three built-in surfaces, available as soon as the binary boots:
 | **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `:8090` / `/dagnats/` | Workflow runs, step inspection, JSON API for durable workflows |
 
-There is no database admin UI in the binary (the legacy `/_/` dashboard went
+There is no database admin UI in the binary (no `/_/` dashboard ships
 away with the old framework). Inspect data with `sqlite3` against the Turso file
 (`TURSO_DB_PATH`, default `data/app.db`) — same SQLite dialect — and back it
 up with `scripts/backup.sh`. For production, lock `/config` behind your
-ingress (IP allowlist, oauth2-proxy in front) like any authed surface.
+ingress (IP allowlist, oauth2-proxy in front) like any authed surface —
+or set `RBAC_ENABLED=true` with `ADMIN_EMAILS` (then `/config` is
+admin-only in-app; see [Configuration](configuration.md)).
 
 ## App session cookie (why one)
 
