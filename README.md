@@ -57,7 +57,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 **Ship**
 - [deploy](docs/deploy.md) — server layout, first-time setup, deploy workflow, build pipeline and version badge.
 - [desktop-mobile](docs/desktop-mobile.md) — Wails v3 desktop/mobile, edge sync, and the native window.
-- [admin-dashboard](docs/admin-dashboard.md) — admin surfaces, the two-cookie rule, and the DagNats console.
+- [admin-dashboard](docs/admin-dashboard.md) — admin surfaces, the single-cookie session, and the DagNats console.
 - [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
 
 **Operate**
@@ -216,7 +216,7 @@ prove contention, per-user todos, and authorship).
 ```bash
 make dev           # Live reload with Air (regenerates templ + CSS)
 make build         # Build binary (unified: everything included)
-make ci-local      # Full local gate (= CI): templ, lint, css-check, race tests, build
+make ci-local      # Full local gate (= CI): templ, lint, checks, build, boot smoke, parallel fan-out (race + browser smokes)
 make signoff       # ci-local + gh signoff stamp — the recommended pre-push gate
 make setup         # Activate lefthook git hooks
 make site          # Rebuild the docs site from docs/*.md
