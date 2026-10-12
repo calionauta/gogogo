@@ -18,6 +18,12 @@ import (
 	sdk "github.com/starfederation/datastar-go/datastar"
 )
 
+// stubResumer satisfies the resumer interface without an engine: the UI
+// flag tests registration truth, not engine behaviour.
+type stubResumer struct{}
+
+func (stubResumer) ResumeOnboarding(string) {}
+
 // TestChiDagNatsUISignalRequiresRegistration pins registration truth:
 // the UI flag follows the wired Onboarding handler, never the config
 // alone. bootOnboarding only registers when the engine is enabled, so
@@ -27,7 +33,7 @@ func TestChiDagNatsUISignalRequiresRegistration(t *testing.T) {
 	if f.h.dagnatsUIEnabled() {
 		t.Error("dagnatsUIEnabled = true with no Onboarding wired, want false")
 	}
-	f.h.SetOnboarding(&OnboardingHandler{})
+	f.h.SetOnboarding(stubResumer{})
 	if !f.h.dagnatsUIEnabled() {
 		t.Error("dagnatsUIEnabled = false with the handler registered, want true")
 	}
@@ -52,7 +58,7 @@ func TestChiTodoFragmentCarriesDagNatsFlag(t *testing.T) {
 		t.Fatal("Durable Workflow tab rendered with the engine unregistered")
 	}
 
-	f.h.SetOnboarding(&OnboardingHandler{})
+	f.h.SetOnboarding(stubResumer{})
 	rec = f.do(http.MethodGet, "/todo", "", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("todo page (registered) status = %d", rec.Code)

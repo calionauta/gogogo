@@ -33,6 +33,7 @@ import (
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
+	"github.com/calionauta/gogogo/features/onboarding"
 	roomchi "github.com/calionauta/gogogo/features/room/chi"
 	"github.com/calionauta/gogogo/features/todo/chi"
 	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
@@ -126,17 +127,17 @@ func stopRoomActor(host *appgoakt.Host) {
 
 // bootOnboarding wires the DagNats onboarding slice onto the chi stack:
 // its stepper publishes to the chi hub, its route is served, and the todo
-// create path resumes the paused run. Returns nil (no shutdown hooks) when
-// the engine is disabled, so a stock boot never registers the route and the
-// resume hook stays off. Split from BootChi to keep boot under the length
-// gate, mirroring bootCredits.
+// create path resumes the paused run through the resumer interface.
+// Returns nil (no shutdown hooks) when the engine is disabled, so a stock
+// boot never registers the route and the resume hook stays off. Split from
+// BootChi to keep boot under the length gate, mirroring bootCredits.
 func bootOnboarding(
 	cfg *config.Config, a *auth.Auth, todoH *chi.Handler, hub *queue.SSEHub,
-) (*chi.OnboardingHandler, []func()) {
+) (*onboarding.Handler, []func()) {
 	if !cfg.DagNats.Enabled {
 		return nil, nil
 	}
-	h := chi.NewOnboardingHandler(a, cfg.DagNats.HTTPAddr, hub)
+	h := onboarding.NewHandler(a, cfg.DagNats.HTTPAddr, hub)
 	todoH.SetOnboarding(h)
 	return h, []func(){h.Shutdown}
 }
@@ -379,7 +380,7 @@ func buildChiMux(
 	landingH *landingchi.Handler, configH *configchi.Handler,
 	wbH *wbchi.Handler, notesH *notesachi.Handler,
 	roomH *roomchi.Handler, chatH *chatchi.Handler, genuiH *genuichi.Handler,
-	creditsH *creditschi.Handler, onboardingH *chi.OnboardingHandler,
+	creditsH *creditschi.Handler, onboardingH *onboarding.Handler,
 ) http.Handler {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and

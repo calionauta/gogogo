@@ -7,10 +7,25 @@
 package chi
 
 import (
+	"context"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	sdk "github.com/starfederation/datastar-go/datastar"
 )
+
+// sseGen builds an SSE generator over a recorder for the signal-merge
+// tests, which have no live request to borrow a context from. It lives here
+// rather than in onboarding_test.go because the dagnats trim keeps this
+// file: a helper used by tests that survive a trim cannot live in one that
+// does not.
+func sseGen(tb testing.TB, w http.ResponseWriter) *sdk.ServerSentEventGenerator {
+	tb.Helper()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/todos", nil)
+	return sdk.NewSSE(w, req)
+}
 
 // retryEventFor builds the envelope the queue's retry layer emits for one
 // attempt of one job type.

@@ -102,13 +102,22 @@ func TestDagnatsUnitCoversCoupledTests(t *testing.T) {
 	for _, f := range c.Files {
 		have[f] = true
 	}
+	// A file under an owned directory goes with the unit without a per-file
+	// entry: the trim deletes the whole directory.
+	ownedDir := func(path string) bool {
+		for _, d := range c.Dirs {
+			if strings.HasPrefix(path, d+"/") {
+				return true
+			}
+		}
+		return false
+	}
 	for _, want := range []string{
-		"features/todo/chi/onboarding.go",
-		"features/todo/chi/onboarding_test.go",
+		"features/onboarding/onboarding_test.go",
 		"internal/nats/single_nats_test.go",
 		"cmd/web/start_nats_test.go",
 	} {
-		if !have[want] {
+		if !have[want] && !ownedDir(want) {
 			t.Errorf("dagnats capability does not own coupled test %q", want)
 		}
 	}

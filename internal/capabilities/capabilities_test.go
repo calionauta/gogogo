@@ -247,8 +247,11 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 	// part of the shipped tree the trim proof builds.
 	self := "internal/capabilities/capabilities_test.go"
 
-	// The unit individual what owns pkgDir, and the set of files it deletes.
+	// The unit individual what owns pkgDir, and the set of files it deletes:
+	// the Files list plus everything under its Dirs (a whole deleted
+	// directory needs no per-file entry).
 	var owned map[string]bool
+	var ownedDirs []string
 	for _, c := range All {
 		if !slices.Contains(c.Dirs, pkgDir) {
 			continue
@@ -256,6 +259,11 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 		owned = make(map[string]bool, len(c.Files))
 		for _, f := range c.Files {
 			owned[f] = true
+		}
+		for _, d := range c.Dirs {
+			if d != pkgDir {
+				ownedDirs = append(ownedDirs, d+"/")
+			}
 		}
 	}
 	if owned == nil {
@@ -280,6 +288,11 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 			rel = filepath.ToSlash(rel)
 			if strings.HasPrefix(rel, pkgDir+"/") {
 				return nil // the package itself goes with the unit
+			}
+			for _, d := range ownedDirs {
+				if strings.HasPrefix(rel, d) {
+					return nil // a sibling deleted directory goes with it
+				}
 			}
 			// root-scoped read (os.Root), not os.ReadFile(path): the skill
 			// requires os.OpenRoot for a walk into a tree not fully under our

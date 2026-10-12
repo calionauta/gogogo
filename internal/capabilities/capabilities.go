@@ -137,13 +137,13 @@ var All = []Capability{
 		RuntimeOff: "DAGNATS_ENABLED=false",
 		Offered:    true,
 		UISignal:   "DagNatsEnabled",
-		Dirs:       []string{"internal/dagnats"},
+		Dirs:       []string{"internal/dagnats", "features/onboarding"},
 		Files: []string{
 			// Every file that imports internal/dagnats: trimming the unit
 			// must remove them too — otherwise the proof build fails with a
 			// dangling import (`module .../internal/dagnats: not found`).
-			"features/todo/chi/onboarding.go",
-			"features/todo/chi/onboarding_test.go",
+			// The todo slice keeps only its wire constants and renderers,
+			// which import nothing from the engine, so it needs no entry.
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
 			"cmd/web/start_nats_test.go",
