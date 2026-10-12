@@ -296,6 +296,34 @@ benchmarks, apps bottleneck on DB operations. There is no router upgrade
 that moves our numbers; the day routing shows up in a profile, the database
 has already been the problem for months.
 
+### The flat stack (and not PocketBase)?
+
+PocketBase gave this template its first shape: database, auth, REST, file
+storage, realtime, and an admin UI in one embedded binary. The flat stack
+keeps the embedded SQLite and replaces everything else with owned code —
+not because PocketBase failed, but because a framework's opinions
+(collections model, its Go API surface, the admin/superuser split) charge
+rent on every LLM-assisted change, while owned code fails at compile time
+(see [the decision record](architecture-decision.md)).
+
+| PocketBase piece | Flat replacement | Notes |
+|---|---|---|
+| Collections on SQLite | Turso + sqlc migrations/queries (`internal/db/`) | Schema is SQL files + generated Go; a wrong query is a compile error |
+| Router (Echo-era, then stdlib wrapper) | stdlib `net/http.ServeMux` composed in `buildChiMux` | One subtree per capability; longest match wins |
+| Auth (users + `_superusers`, two cookies) | Owned argon2id + sessions, one `gogogo_auth` cookie | ~300 lines we maintain; no separate admin namespace to clobber |
+| REST API | Feature chi handlers (HTML fragments + JSON per endpoint) | No generic REST: each endpoint is hand-built for its page |
+| Realtime (`/api/realtime` + collection rules) | SSE Hub record event (owner column) + JetStream APP_CRUD | Per-user scoping moves from rules into queries |
+| Record hooks (`OnRecordCreateRequest`, …) | Explicit Go (lookup + unique index, e.g. `(owner, idem_key)`) | No hook chain to learn; the index is the race safety net |
+| Admin UI (`/_/`) | Dropped — `sqlite3` CLI + read-only `/config` view | No replacement: nothing in the template needs a database GUI |
+| File storage | Dropped — no feature uses uploads | Revisit if one ever does |
+
+Cost, stated plainly: we own every line above (auth, schema, realtime
+fan-out), Turso is pre-1.0 with heavyweight platform libs (~124 MB of
+module, `TURSO_GO_CACHE_DIR` caveat), and there is no admin/REST/storage
+to lean on. Revisit if owning the commodity parts costs more than the
+framework's opinions — the day the team wants a database GUI, a generic
+REST surface, or file uploads without writing them.
+
 ### Datastar (and not htmx, and not a JS framework)?
 
 Datastar's own guide puts it plainly: backend reactivity like htmx plus

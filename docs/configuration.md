@@ -52,6 +52,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 |---|---|---|
 
 | `OFFLINE_SYNC_ENABLED` | `true` | Hybrid offline sync. `false` disables the NATS CRUD proxy and the Service Worker offline queue — zero code paths traversed. |
+| `COLLAB_SNAPSHOTS` | `turso` | CRDT snapshot store behind whiteboard/notes. `memory` keeps snapshots process-local (draw without persistence — docs start empty after restart). Unknown values fail closed at boot. |
 
 ### LLM
 
@@ -93,7 +94,8 @@ server-side and records upstream JSON/SSE token usage with
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ENCRYPTION_KEY` | — | Legacy key name, kept for existing secrets files (the flat auth needs no encryption key — sessions are random tokens) |
+| `ENCRYPTION_KEY` | — | Legacy key name, kept for existing secrets files (sessions are random tokens and need no key; TOTP secrets at rest use `AUTH_ENC_KEY` below) |
+| `AUTH_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset keeps legacy plaintext storage — set it before enrolling 2FA; existing rows upgrade themselves on next successful verify. Malformed values are ignored (fail-safe: never a truncated key). |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
 
 ### Build metadata

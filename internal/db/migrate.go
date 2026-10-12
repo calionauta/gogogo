@@ -13,6 +13,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"sort"
 	"strings"
 )
@@ -39,6 +40,7 @@ func Migrate(sqlDB *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	n := 0
 	for _, v := range versions {
 		if applied[v] {
 			continue
@@ -46,6 +48,11 @@ func Migrate(sqlDB *sql.DB) error {
 		if err := applyMigration(sqlDB, v); err != nil {
 			return err
 		}
+		applied[v] = true
+		n++
+	}
+	if n > 0 {
+		slog.Info("db: migrations applied", "count", n)
 	}
 	return nil
 }

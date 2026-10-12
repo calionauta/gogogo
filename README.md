@@ -167,9 +167,10 @@ Every capability is always compiled. Each has a documented opt-out.
 | Todo app + live record-sync, stacked toasts, sound feedback | delete `features/todo/` |
 | Queue + retry with exponential backoff, SSE `lastRetry` signal | — (core) |
 | AI Suggest via GoAI, or keyless simulated LLM for the demo | no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
-| Ask AI: model renders catalog UI (cards, tables, sections) via SSE | no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
+| Ask AI: model renders catalog UI (cards, tables, sections) via SSE | `trim genui` (bundle with Chat), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
+| Chat: conversation over the same catalog, persisted per owner | `trim genui` (bundle with Ask AI), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
 | AI credits + BYOK relay + Stripe top-ups | `CREDITS_ENABLED=false` |
-| Collaborative whiteboard (CRDT + presence + offline outbox) | delete `features/whiteboard/` |
+| Collaborative whiteboard (CRDT + presence + offline outbox) | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` |
 | Room presence demo (GoAkt grains: roster + presenter lock) | delete `features/room/` |
 | Shared notes (server-owned Loro Text, live peer text) | delete `features/notes/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
@@ -179,8 +180,11 @@ Every capability is always compiled. Each has a documented opt-out.
 | Public landing page + auth-gated config view | delete `features/landing/`, `features/config/` |
 | Wails v3 desktop/mobile + native window | delete `cmd/desktop/`, `cmd/gui/` |
 
-Infrastructure opts out with an env var. Product features opt out by deleting
-the package and its one wiring call — see
+Infrastructure opts out with an env var. The installer automates the common
+deletions — named presets included: `go run ./cmd/gogogo --preset minimal`
+(core + todo + auth), `no-ai`, `no-collab` — see
+[cmd/gogogo/README.md](cmd/gogogo/README.md). Product features also opt out
+by deleting the package and its one wiring call — see
 [features](docs/features.md).
 
 ## Core / Plugin / Feature
@@ -199,6 +203,24 @@ The rule for agents: **never delete a `core` file without asking; never
 keep a `feature` file in production if the domain doesn't need it.**
 Full taxonomy and per-package removal table:
 [scope-taxonomy](docs/scope-taxonomy.md).
+
+## For AI agents
+
+Three entry points, one engine (`internal/installer` — CLI and MCP execute
+the same code path with the same receipts and proof):
+
+- [`llms.txt`](llms.txt) — the agent entry index: what to read per task,
+  invariants to not relearn. Published map of the docs site:
+  `site/llms.txt` (index) + `site/llms-full.txt` (complete texts).
+- Installer CLI — `go run ./cmd/gogogo advise --need "..."` for opinions
+  (reads nothing, changes nothing), `--preset minimal|no-ai|no-collab` or
+  `--plugins/--features` keep lists + `--dry-run` to preview,
+  `gogogo add <unit>` to reverse a trim. Full reference:
+  [cmd/gogogo/README.md](cmd/gogogo/README.md).
+- MCP server — `cmd/gogogo-mcp` (separate module, stdio):
+  `advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`
+  (requires `confirm:true`), `check_tree`, `add_unit`. Tool table in
+  [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md).
 
 ## Try it live
 

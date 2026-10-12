@@ -14,7 +14,7 @@
 
 ---
 
-> **SCOPE annotations in code.** Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its SCOPE on **two orthogonal axes**: `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <description>`. The `layer` axis says where the code lives (cross-cutting infra vs product feature). The `removal` axis says what happens if you delete it (binary breaks, binary loses capability, or pure demo). This two-axis scheme eliminates the prior ambiguity where `SCOPE:core - REMOVE if not using NATS` and `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same label.
+> **SCOPE annotations in code.** Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its removal class on a **single axis**: `// SCOPE:<core|plugin|feature> — <description>`. The class says what happens if you delete it (binary breaks, binary loses capability, or pure demo). The **directory is the layer** — `internal/` is infrastructure, `features/` is product — so there is no separate `layer` axis to keep in sync (an earlier two-axis `layer=…,removal=…` form was dropped for exactly that reason: `layer` merely restated the directory and the two dialects drifted apart). See `docs/scope-taxonomy.md` (normative) and `cmd/check-scope` (enforcement).
 
 > The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent). The `SCOPE` annotations in source files are the authoritative reference; this table is a summary.
 
@@ -22,13 +22,13 @@
 
 ## Layer taxonomy (SCOPE)
 
-Every component belongs to one of three layers, matching the `SCOPE:` annotation in each source file:
+Every component belongs to one of three removal classes, matching the `SCOPE:` annotation in each source file:
 
 | SCOPE | Meaning | You would… |
 |:------|:--------|:-----------|
-| **Core** 🔴 `SCOPE:layer=…,removal=core` | Binary does not work without it. | Customize, never remove. |
-| **Plugin** 🟡 `SCOPE:layer=…,removal=plugin` | Binary works but loses capability if removed. Clear removal instructions inline. | Swap for an equivalent, or delete + remove wiring call. |
-| **Feature** 🟢 `SCOPE:layer=…,removal=feature` | A demo/add-on. Depends on other packages (listed in comment). | Delete the package + dependent packages + remove wiring call. |
+| **Core** 🔴 `SCOPE:core` | Binary does not work without it. | Customize, never remove. |
+| **Plugin** 🟡 `SCOPE:plugin` | Binary works but loses capability if removed. Clear removal instructions inline. | Swap for an equivalent, or delete + remove wiring call. |
+| **Feature** 🟢 `SCOPE:feature` | A demo/add-on. Depends on other packages (listed in comment). | Delete the package + dependent packages + remove wiring call. |
 
 ---
 
@@ -46,6 +46,7 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ navbar link, seed, capability entry) |
 | **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟢 FEATURE | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call |
 | **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `roomH` mounted at `/room` in `buildChiMux` (nil-able; no-op when `GOAKT_ENABLED=false`) | Delete both dirs + remove call |
+| **Ask + chat demos** | `features/genui/` + `features/chat/` | 🟡 PLUGIN (bundle) | `genuiH`/`chatH` mounted at `/genui` + `/api/genui/` and `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | `gogogo trim genui` (or delete both dirs + remove calls + navbar Ask AI link + mux-table elements + `genui_stubs_test.go`) |
 | **Persistence (single store)** | `internal/db/` (migrations + sqlc queries) | 🔴 CORE | `db.Open(cfg)` in `BootChi` | Core data layer; customize, never remove |
 
 > **⚠️ Auth is a mixed package.** The **login UI** (login page, navbar) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.

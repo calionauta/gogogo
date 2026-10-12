@@ -20,6 +20,8 @@
 - Auth and sessions: internal/auth/ (owned argon2id sessions), features/authviews/ (login UI)
 - AI credits and billing: docs/llm-and-credits.md, features/credits/
 - Installer (trim/add units): internal/installer/, cmd/gogogo/README.md
+- Trim presets (minimal/no-ai/no-collab): internal/installer/trim_presets.go (`--preset`)
+- Going without auth/database (fork recipe): docs/no-auth-no-db-recipe.md
 - HTTP route inventory (generated, do not edit): docs/api-routes.md
 - Deploy: docs/deploy.md
 - Troubleshooting: docs/troubleshooting.md

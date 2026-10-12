@@ -11,7 +11,7 @@ package demo
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 
 	"github.com/calionauta/gogogo/internal/auth"
 )
@@ -39,7 +39,9 @@ func Ensure(ctx context.Context, a *auth.Auth) {
 func seedOne(ctx context.Context, a *auth.Auth, email, password, name string) {
 	if _, _, err := a.Signup(ctx, email, password, name); err != nil {
 		if !errors.Is(err, auth.ErrBadCredentials) {
-			log.Printf("demo: seed skipped: %v", err)
+			slog.WarnContext(ctx, "demo: seed skipped", "error", err)
 		}
+		return
 	}
+	slog.InfoContext(ctx, "demo: seed created", "email", email)
 }
