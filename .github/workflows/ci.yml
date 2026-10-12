@@ -84,6 +84,11 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
+      - name: Check-flatdeps (flat-stack dependencies)
+        # Same gate as `make check-flatdeps` and the pre-commit
+        # flatdeps-lint job: no banned framework in the closure, no
+        # cross-feature domain imports, sql.Open only in owner packages.
+        run: go run ./cmd/check-flatdeps
       - name: Check file size limits
         # The 500-line file budget was enforced ONLY by the pre-commit hook,
         # which `git commit --no-verify` (or LEFTHOOK_EXCLUDE) skips — so a

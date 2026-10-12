@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+### Added
+
+- **Flat-stack dependency guard.** `cmd/check-flatdeps` (`make check-flatdeps`,
+  CI + pre-commit) now proves three invariants without booting: no banned
+  framework in the closure, no cross-feature domain imports (shared UI leaves
+  `authviews`, `sounds`, `genui/components` excepted), and `sql.Open` only in
+  owner packages (`internal/db/`, `internal/queue/`, `features/credits/`).
+  Both new checks are red-proofed (violation probes fail, clean tree passes).
+- **Suggest output contract.** `internal/llm` forces untrusted model text into
+  shape — max 3 items, trimmed, deduped, cut at 60 runes (rune- not byte-cut,
+  so multibyte tails stay valid UTF-8) — on both the JSON path and the
+  plain-text fallback.
+- **Worker shutdown leak assertions.** `goleak.VerifyNone` on the queue
+  shutdown tests, so a worker surviving `Stop()`/`Close()` fails the suite
+  instead of leaking silently.
+
 ### Changed
 
 - **Offline replays reach every stream.** Mutation handlers fan out (Hub +

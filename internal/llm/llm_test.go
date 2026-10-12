@@ -123,6 +123,56 @@ func TestSplitLines(t *testing.T) {
 	}
 }
 
+// TestSuggestContract_StrictShape pins the guardrail on untrusted model
+// text: overlong items are cut at 60 runes (not bytes), repeats collapse,
+// empties drop, output caps at 3. Without this a model returning a
+// paragraph per "suggestion" or the same line 5× would render verbatim.
+func TestSuggestContract_StrictShape(t *testing.T) {
+	long := strings.Repeat("x", 200)
+	in := `["` + long + `","dup","dup",""," dup "]`
+	got, err := parseStringArray(in)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 items after dedupe/drop-empty, got %v", got)
+	}
+	if len([]rune(got[0])) != suggestMaxLen {
+		t.Fatalf("overlong item not cut at %d runes: len=%d", suggestMaxLen, len([]rune(got[0])))
+	}
+	if got[1] != "dup" {
+		t.Fatalf("dedupe failed: got %v", got)
+	}
+
+	// Same contract on the plain-text fallback path.
+	lines := "- " + long + "\n- dup\n- dup\n- extra\n- overflow"
+	got = splitLines(lines)
+	if len(got) != 3 {
+		t.Fatalf("expected cap at 3, got %v", got)
+	}
+	if len([]rune(got[0])) != suggestMaxLen {
+		t.Fatalf("fallback overlong item not cut: len=%d", len([]rune(got[0])))
+	}
+}
+
+// TestSuggestContract_MultibyteTruncation guards the rune (not byte) cut:
+// splitting mid-rune would ship invalid UTF-8 in the SSE/JSON envelope.
+func TestSuggestContract_MultibyteTruncation(t *testing.T) {
+	in := `["` + strings.Repeat("é", 100) + `"]`
+	got, err := parseStringArray(in)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || len([]rune(got[0])) != suggestMaxLen {
+		t.Fatalf("multibyte cut wrong: got %v", got)
+	}
+	for _, r := range got[0] {
+		if r == '\uFFFD' {
+			t.Fatalf("truncation produced replacement char: %q", got[0])
+		}
+	}
+}
+
 // TestRetryIsGoAIsOwn: retry is now delegated to goai's native layer. A
 // real client gets goai's default (2) retries; NewSimulated disables goai
 // retry (0) so the queue WORKER is the demo's retry unit.

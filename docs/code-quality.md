@@ -80,13 +80,18 @@ are encoded in **`rules/rules.go`** and loaded by `gocritic`'s built-in
 `linters.settings.gocritic.settings.ruleguard.rules`). CI fails on a hit, so
 the rule is enforced rather than merely documented.
 
-The current rule flags `<-time.After(...)` used directly as a `select` case:
-each evaluation allocates a `*time.Timer` that is not reclaimed until it fires,
-so in a loop every iteration another case wins leaks a timer for its full
-duration. The correct idiom is one `time.NewTimer` hoisted above the loop and
-`Reset` each iteration (`internal/queue/workers.go` is the reference fix).
-Matching the *receive* form rather than any `time.After` call keeps the
-legitimate one-shot `timeout := time.After(d)` above a loop unflagged.
+The current rules flag `<-time.After(...)` used directly as a `select` case,
+`for range <ticker>.C` loops with no exit, 500 bodies concatenating
+`err.Error()`, and the `sqlite` driver name — each documents its own bitten
+precedent and reference fix inline. Matching narrow shapes (the *receive*
+form of `time.After`, the 500-only error text) keeps legitimate neighbours
+unflagged.
+
+Structural boundaries live one level up, in **`cmd/check-flatdeps`**
+(`make check-flatdeps`, same gate in CI and pre-commit): no banned framework
+in the dependency closure, no cross-feature domain imports (shared UI leaves
+`authviews`, `sounds`, `genui/components` excepted), and `sql.Open` only in
+owner packages (`internal/db/`, `internal/queue/`, `features/credits/`).
 
 Adding a rule:
 

@@ -121,4 +121,9 @@ site/sitemap.xml
 
 # Autoresearch session state (branch-local, never committed)
 .auto/
-check-flatdeps
+
+# Compiled check-flatdeps binary (go build ./cmd/check-flatdeps in the repo
+# root). Root-anchored on purpose: a bare pattern would also match
+# cmd/check-flatdeps/ and silently refuse `git add` of the tool's own
+# sources (measured: explicit add failed with "paths are ignored").
+/check-flatdeps
