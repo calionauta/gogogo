@@ -130,6 +130,17 @@ timeout. Use `sseSignalPayloads`, which strips both layers.
 Both bugs inflate wall-clock while looking like a slow suite, so the fix is a
 helper with the guarantee, not a shorter timeout.
 
+**3. `networkidle` on a page that opens an SSE stream.** `whiteboard.js` and
+`notes.js` both create their `EventSource` on script eval, and Playwright's
+`waitUntil: "networkidle"` needs 500ms with zero open connections — an open
+SSE stream never lets that happen. `page.goto` then burns its whole 30s
+timeout and flakes (3x in CI on `/whiteboard/wb-order-*`, 2026-10). Every
+other harness (`smoke.mjs`, `todo-docwatch`) already used `waitUntil: "load"`,
+which is why only the whiteboard suite failed. Same shape as the two above:
+the fix is a helper with the guarantee — `gotoBoard()` / `gotoNote()` navigate
+with `load` and then wait for the canvas / textarea explicitly — not a longer
+timeout.
+
 ### Tests run in parallel across packages
 
 The suite used to run as one `-p 1` sweep "for DagNats engine stability". That
