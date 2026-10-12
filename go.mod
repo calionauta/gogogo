@@ -9,7 +9,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/aholstenson/loro-go v0.5.0
 	github.com/avast/retry-go/v4 v4.7.0
-	github.com/calionauta/ai-credits v0.4.1
+	github.com/calionauta/ai-credits v0.5.0
 	github.com/casbin/casbin/v2 v2.100.0
 	github.com/danmestas/dagnats v0.0.24
 	github.com/go-chi/chi/v5 v5.3.2
@@ -143,5 +143,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	modernc.org/memory v1.12.1 // indirect
 )

@@ -44,6 +44,17 @@ func ShortCommit() string {
 	return CommitHash
 }
 
+// listenAddr resolves the flat-stack listen address: the ChiAddr
+// override when set, Host:Port otherwise. Pure so the contract is
+// unit-testable; both callers (here and, via StartChi, cmd/desktop)
+// must agree on what "the address" means.
+func listenAddr(cfg *config.Config) string {
+	if cfg.ChiAddr != "" {
+		return cfg.ChiAddr
+	}
+	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+}
+
 func main() {
 	// `health` is a scratch-compatible healthcheck subcommand: it does an
 	// internal GET to /health and exits 0 on 200, 1 otherwise. The image
@@ -118,7 +129,10 @@ func run() error {
 
 	stack.AttachJetStream(lifecycleCtx, js)
 
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	// ChiAddr, when set, overrides Host:Port (same override cmd/desktop
+	// uses for its webview proxy target). Empty keeps the default, so a
+	// stock env never changes behaviour.
+	addr := listenAddr(cfg)
 	stop, err := stack.Serve(addr)
 	if err != nil {
 		return err
