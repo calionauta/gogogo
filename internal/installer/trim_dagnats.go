@@ -29,6 +29,31 @@ var dagNatsTrimUnit = []trimUnit{
 		// prefer extending the mount pattern over reintroducing replaces.)
 		extraStrips: []fileStrip{
 			{
+				// The "Run durable workflow" entry button in both skins: the
+				// only /api/onboarding refs in any kept template. Without the
+				// engine each would be a dead button firing a dead endpoint,
+				// so both go with the unit. The gated panels/tabs/hints around
+				// them stay, mirroring runtime-disabled (DAGNATS_ENABLED=false
+				// renders the same pages without the engine) — the trim only
+				// removes what can actually fire.
+				path: "features/todo/components/todo_list.templ",
+				rules: []stripRule{
+					{
+						startMarker: "<!-- trim:dagnats removes this entry button",
+						endMarker:   "</button>",
+					},
+				},
+			},
+			{
+				path: "web/skins/basecoat/todo_basecoat.templ",
+				rules: []stripRule{
+					{
+						startMarker: "<!-- trim:dagnats removes this entry button",
+						endMarker:   "</button>",
+					},
+				},
+			},
+			{
 				path: chiGoFile,
 				rules: []stripRule{
 					{

@@ -366,6 +366,7 @@ templ durableWorkflowPanel(signals todo.Signals) {
 		<span>Waiting for your next to-do. Add any task above to continue the workflow.</span>
 	</div>
 
+	<!-- trim:dagnats removes this entry button (the sole /api/onboarding ref in this skin; the gated panel around it stays, mirroring runtime-disabled) -->
 	<button type="button" class="btn w-full" data-variant="secondary"
 		data-attr:disabled="$onboardingActive && !$workflowCompleted"
 		data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">

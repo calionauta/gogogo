@@ -154,7 +154,61 @@ func TestTrimmedTreeStillBuilds(t *testing.T) {
 			if err != nil {
 				t.Fatalf("trimmed tree does not vet:\n%s", out)
 			}
+			// api-routes, not just vet: a trim can drop a route registration
+			// while leaving everything compiling (a mux.Handle line is not
+			// an import), and the result 404s at runtime. The same contract
+			// test CI runs on the full tree runs here against the trimmed
+			// copy — no parallel reimplementation that could disagree with
+			// it (see bin/check-api-routes.sh).
+			cmd = exec.CommandContext(context.Background(),
+				"go", "test", "./internal/capabilities/",
+				"-run", "TestTemplAPIURLsHaveRoutes", "-count=1")
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("trimmed tree lost a route:\n%s", out)
+			}
 		})
+	}
+}
+
+// TestTrimmedTreeRouteGateCatchesLoss proves the negative: the api-routes
+// step above must FAIL when a template fires a route nothing registers, or
+// it is green forever (the same reason TestRouteCoversMatcher exists for
+// the matcher). Trims sounds (the smallest unit), plants a probe template
+// firing a bogus endpoint, and requires the contract test to report it.
+//
+// Deliberately NOT a mux.Handle victim: deleting a mux line for a
+// remaining feature does not break this gate, because the feature's own
+// package still declares the same /api/* literal and the scanner counts
+// literals, not mux wiring. A mux line lost while its package survives is
+// a runtime 404 the source scan cannot see (documented residual); what this
+// gate catches is the stale-ref direction — a template firing an endpoint
+// no Go source names at all.
+func TestTrimmedTreeRouteGateCatchesLoss(t *testing.T) {
+	if testing.Short() {
+		t.Skip("copies the whole repo")
+	}
+	dir := trimAndRegenerate(t, findUnit(t, "sounds"))
+	const probe = "features/todo/components/zz_trim_probe.templ"
+	body := "package components\n\ntempl TrimProbe() {\n" +
+		"\t<span data-trim-probe=\"'/api/bogus-trim-probe'\" class=\"hidden\">probe</span>\n" +
+		"}\n"
+	if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(probe)), []byte(body), 0o600); err != nil {
+		t.Fatalf("write probe: %v", err)
+	}
+	cmd := exec.CommandContext(context.Background(),
+		"go", "test", "./internal/capabilities/",
+		"-run", "TestTemplAPIURLsHaveRoutes", "-count=1")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("route gate stayed green with an unregistered /api ref:\n%s", out)
+	}
+	// The gate must fail ON the probe, not on collateral (a generate or
+	// compile error in the copy would also be red, and would prove nothing
+	// about route coverage).
+	if !strings.Contains(string(out), "/api/bogus-trim-probe") {
+		t.Fatalf("route gate failed, but not on the probe ref:\n%s", out)
 	}
 }
 

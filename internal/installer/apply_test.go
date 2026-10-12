@@ -168,8 +168,11 @@ func TestNeedsTemplGen(t *testing.T) {
 	if !needsTemplGen(gen) {
 		t.Errorf("config-view/sounds drop should require templ regen")
 	}
-	if needsTemplGen([]trimUnit{byID["dagnats"]}) {
-		t.Errorf("dagnats-only drop should not require templ regen")
+	// The dagnats unit strips the workflow entry button from both todo
+	// skins, so it requires regen too — a unit that edits .templ must say
+	// so, or the prove step skips generation and ships stale _templ.go.
+	if !needsTemplGen([]trimUnit{byID["dagnats"]}) {
+		t.Errorf("dagnats drop should require templ regen (it strips .templ buttons)")
 	}
 }
 
