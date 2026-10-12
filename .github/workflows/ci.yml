@@ -117,8 +117,10 @@ jobs:
           version: v2.14.0
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
-          # unavailable on the ubuntu runner; lint the web-facing packages only.
-          args: ./cmd/web/ ./config/ ./db/ ./features/... ./internal/... ./router/... ./web/...
+          # unavailable on the ubuntu runner; lint the web-facing packages only
+          # (same set as scripts/web-packages.sh; router/ and db/ left with
+          # the PB removal and must not come back here).
+          args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
         run: sudo apt-get update -qq && sudo apt-get install -y gcc
@@ -184,7 +186,7 @@ jobs:
         # library APIs (internal/llm, internal/datastar) stay off the radar.
         run: |
           go install golang.org/x/tools/cmd/deadcode@latest
-          $(go env GOPATH)/bin/deadcode -test ./cmd/web/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
+          $(go env GOPATH)/bin/deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Browser smoke test
         # Datastar is a global client runtime; exercise the rendered app in
         # Chromium so upgrades cannot pass Go checks while breaking signals.
