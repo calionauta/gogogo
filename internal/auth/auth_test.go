@@ -43,6 +43,7 @@ func testAuth(t *testing.T, sqlDB *sql.DB) *Auth {
 }
 
 func TestPasswordHashRoundTrip(t *testing.T) {
+	withRealArgon(t)
 	hash, err := hashPassword("Correct-horse-99!")
 	if err != nil {
 		t.Fatalf("hash: %v", err)
