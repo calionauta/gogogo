@@ -40,16 +40,9 @@ func TestListResyncWiring(t *testing.T) {
 			t.Errorf("notes render missing %q", want)
 		}
 	}
-	for _, dead := range []string{
-		`EventSource('/api/realtime`,
-		`PB_CONNECT`,
-		`data-topic=`,
-		`data-pb-resync=`,
-	} {
-		if strings.Contains(notes, dead) {
-			t.Errorf("notes render still carries dead realtime wiring %q", dead)
-		}
-	}
+	// No dead-wire block: regressions to removed wiring are covered
+	// elsewhere (TestNoNewVanillaJS for listeners, check-flatdeps for the
+	// framework import), and this file asserts only the current contract.
 	if strings.Contains(notes, "})();") {
 		t.Errorf("notes render contains orphan })(); — SyntaxError kills the whole module")
 	}

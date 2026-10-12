@@ -43,7 +43,10 @@
   chi todo slice gained two fixes the migration exposed (`Signals.DagNatsEnabled`
   registration truth, the `/static` + `/sw.js` + `/health` contract mounts).
   `ENTITY_STORE` is gone with the strategy switch; `internal/db` IS the data
-  layer.
+  layer. Also gone with no replacement: the `/_/` admin UI (inspect with
+  `sqlite3` plus the read-only `/config` view) and file storage (no feature
+  uses uploads); auth collapses to a single `gogogo_auth` cookie and record
+  push to the SSE Hub record event.
 
 - **Flat architecture.** Removed the `internal/ports` + `internal/repos` +
   `internal/backend` abstraction layer (a shallow pass-through with no

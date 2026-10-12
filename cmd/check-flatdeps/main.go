@@ -1,10 +1,11 @@
 // SCOPE:core — Flat-stack dependency guard (framework-free, one SQLite driver)
 //
 // Command check-flatdeps proves the flat-stack invariant without booting
-// anything: the flat-stack packages must not import frameworks outside
-// the blessed set — the framework the stack replaced (PocketBase), the
-// evaluated-and-rejected auth path, and the bundled sqlite driver the
-// template policy forbids. It runs `go list -deps` (cached, seconds at
+// anything: no embedded framework and no duplicate SQLite driver may enter
+// the dependency closure. An LLM reaching for a familiar database would
+// silently reintroduce a framework surface plus a second pool, so the ban
+// is explicit prefixes with a clear error, not a policy paragraph nobody
+// reads. It runs `go list -deps` (cached, seconds at
 // most) instead of a build+boot cycle, so violations surface at commit
 // time instead of after a 2-minute binary run.
 //
@@ -33,7 +34,8 @@ var flatPackages = []string{
 }
 
 // bannedPrefixes are module prefixes that must not appear in any flat
-// package's dependency closure: the framework the stack replaced, the
+// package's dependency closure: an embedded-framework database (the familiar
+// one is listed because it is the one an LLM reaches for first), the
 // evaluated-and-rejected auth path (see docs/architecture-decision.md),
 // and the unused bundled sqlite driver the template policy forbids.
 var bannedPrefixes = []string{
