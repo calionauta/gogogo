@@ -7,7 +7,9 @@ explains **why each choice is here**; for the layered async topology see
 | Layer | Choice | Why |
 |-------|--------|-----|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime |
-| **Database + Auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
+| **Database + Auth** | Turso (embedded SQLite, sqlc) + owned auth (argon2id, magic-link, TOTP, OAuth) | Zero-config SQLite, cookie sessions, file-local storage — no separate service. Methods detail: [architecture-decision](architecture-decision.md) |
+| **Routing** | stdlib `http.ServeMux` + [go-chi](https://github.com/go-chi/chi) routers per feature | One chi router per capability (`features/*/chi`, `Routes() chi.Router`), all mounted on one stdlib mux in `internal/server/chi.go` (`buildChiMux`); longest match wins, landing `/` is the catch-all |
+| **Permissions** | [casbin](https://casbin.org) (embedded model + policy) | `internal/rbac/` middleware over an embedded `model.conf` + `policy.csv`; deny by default. Detail: [architecture-decision](architecture-decision.md) |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via the Tailwind v4 CLI; no JS framework build step. |
 | **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable: [BasecoatUI](https://basecoatui.com) | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens. See [UI skins](ui-skins.md). |
@@ -317,14 +319,36 @@ destination, now with Turso inside it). None of them change the default:
 the app runs whole on one box with zero cloud dependencies until the ladder
 above says otherwise.
 
-#### Routers: the stdlib, and that ends the debate
+### Owned auth (and not an auth library)?
 
-The stack routes on a thin composition over Go's `net/http.ServeMux`. The famous alternatives beat it on microbenchmarks:
+Password + session + cookie owned in `internal/auth` (~300 lines): argon2id
+hashes, random 32-byte session tokens (only the SHA-256 reaches the table),
+one `gogogo_auth` cookie. The three methods are owned plugins with no new
+auth dependencies: single-use magic-link (15min, fail closed without a
+sender), TOTP RFC 6238 (`totp_required` withholds the session until the
+second factor closes), generic OAuth code flow (Google + GitHub presets).
+Rejected: limen (pre-1.0 across three skewed modules, owns a second schema).
+Full detail: [architecture-decision](architecture-decision.md).
+
+### Casbin (and not hand-rolled checks)?
+
+Permissions as data, not `if` chains: `internal/rbac/` embeds `model.conf`
++ `policy.csv` and enforces through middleware, deny by default. A new rule
+is a policy row, not a code path — reviewable without reading handlers.
+Full detail: [architecture-decision](architecture-decision.md).
+
+### Routers: stdlib mux outside, chi routers inside
+
+Each capability owns a chi router (`features/*/chi`, `Routes() chi.Router`
+built with `chi.NewRouter()`); `internal/server/chi.go` (`buildChiMux`)
+mounts one subtree per capability on a single stdlib `net/http.ServeMux`.
+Longest match wins, the landing `/` is the catch-all. The famous
+alternatives beat chi on microbenchmarks:
 
 - **Gin** (89k stars) — zero-alloc radix, custom context, 12 deps.
 - **Echo** (33k stars) — JSON/p99 balance, 8 deps.
 - **Chi** (22k stars) — zero deps, stdlib-pure; the one Supabase's own auth
-  service uses.
+  service uses — and the one this stack uses inside each capability.
 
 None of it matters here: routing is microseconds against milliseconds of
 SQLite, and the SQLite wisdom holds exactly — ignore artificial

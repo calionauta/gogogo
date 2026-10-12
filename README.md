@@ -120,7 +120,8 @@ dependencies and are left alone.
 | Layer | Choice | Why |
 |---|---|---|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([exception-to-go](docs/exception-to-go.md); the why: [motivation](docs/motivation.md)) |
-| **Zero-config database and auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
+| **Zero-config database and auth** | Turso (embedded SQLite, sqlc) + owned auth (argon2id, magic-link, TOTP, OAuth) + [casbin](https://casbin.org) | Zero-config SQLite, cookie sessions, embedded RBAC — no separate service (detail: [architecture-decision](docs/architecture-decision.md)) |
+| **Routing** | stdlib `http.ServeMux` + [go-chi](https://github.com/go-chi/chi) routers per feature | One chi router per capability mounted on one stdlib mux; longest match wins (detail: [stack-layers](docs/stack-layers.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
@@ -131,7 +132,7 @@ dependencies and are left alone.
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
 | **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption. No vault, no cloud |
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
-| **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (27) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
+| **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (33) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 
 Full table with the reasoning behind each choice:
 [stack-layers](docs/stack-layers.md). Client weight per feature
