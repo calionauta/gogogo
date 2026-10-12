@@ -109,6 +109,21 @@ async function waitForServer() {
   return false;
 }
 
+
+// Navigation helper: goto with waitUntil "load" (like smoke.mjs), then wait
+// for the textarea explicitly. NEVER "networkidle" here: notes.js opens a
+// long-lived SSE EventSource on script eval, and networkidle waits for 500ms
+// with zero open connections — an open SSE stream never lets that happen, so
+// the goto can time out after 30s under CI load. Same latent bug as the
+// whiteboard harness (which flaked 3x before its fix); notes only has 2
+// navigations, so it had not flaked yet.
+async function gotoNote(pg, url) {
+  await pg.goto(url, { waitUntil: "load", timeout: 20000 });
+  await pg.locator("#note-text").waitFor({ state: "visible", timeout: 15000 });
+}
+
+
+
 // Records every caret-layer render: each dot's title (carries the reported
 // line) and its y offset relative to the textarea, plus the textarea metrics
 // needed to invert that y back into a line number.
@@ -172,12 +187,9 @@ async function main() {
   B.on("pageerror", (e) => pageErrors.push("B: " + String(e)));
 
   const docID = "notes-caret-" + process.pid;
-  await A.goto(`${BASE}/notes/${docID}`, { waitUntil: "domcontentloaded" });
-  await B.goto(`${BASE}/notes/${docID}`, { waitUntil: "domcontentloaded" });
-  // Event waits, not a fixed nap: both editors mounted.
-  for (const pg of [A, B]) {
-    await pg.waitForFunction(() => !!document.getElementById("note-text"), null, { timeout: 10000 });
-  }
+  await gotoNote(A, `${BASE}/notes/${docID}`);
+  await gotoNote(B, `${BASE}/notes/${docID}`);
+
 
   // A authors three short lines (no wrapping: line number == visual row).
   await A.locator("#note-text").click();

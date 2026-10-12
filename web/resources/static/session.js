@@ -43,15 +43,14 @@
   // Stale-tab reload: a tab open across a deploy holds a DOM whose
   // element IDs and signals belong to the old binary — morphs land
   // nowhere and actions send stale shapes. The server stamps every
-  // /health response with X-Gogogo-Build; the first check stores it,
-  // a later mismatch reloads so the tab re-renders from the new server.
-  // Same triggers as the session probe (authed pages only, load +
-  // foreground + heartbeat), same offline tolerance (fetch rejects →
-  // skip). In dev the tag is a constant ("dev/"), so Air rebuilds never
-  // cause reloads. Single-binary deploys only: under a rolling deploy
-  // alternating builds, each flip would reload once.
+  // /health response with X-Gogogo-Build; the first check stores it.
+  // On mismatch, STORE FIRST, then reload exactly once: without the
+  // store the fresh page would see the same mismatch and reload
+  // forever (lived bug: endless refresh loop after every deploy).
+  // cache:"no-store" keeps intermediaries from serving a stale tag,
+  // which would fake a mismatch the other way.
   function buildCheck() {
-    fetch("/health", { headers: { Accept: "text/plain" } })
+    fetch("/health", { headers: { Accept: "text/plain" }, cache: "no-store" })
       .then(function (r) {
         var tag = r.headers.get("X-Gogogo-Build");
         if (!tag) return;
@@ -60,6 +59,7 @@
         if (known === null) {
           try { sessionStorage.setItem("gogogo_build", tag); } catch (_) {}
         } else if (known !== tag) {
+          try { sessionStorage.setItem("gogogo_build", tag); } catch (_) {}
           location.reload();
         }
       })

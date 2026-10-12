@@ -118,6 +118,22 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.43.2 (2026-10-11)
+
+## What's Changed
+* test(whiteboard): navigate with load + canvas wait instead of networkidle by @calionauta in https://github.com/calionauta/gogogo/pull/99
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.43.1...v0.43.2
+
+## 0.43.1 (2026-10-10)
+
+## What's Changed
+* fix(deploy): stale-tab reload fires once, never loops by @calionauta in https://github.com/calionauta/gogogo/pull/97
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.43.0...v0.43.1
+
 ## [0.43.0] - 2026-10-10
 ### What's Changed
 * docs(llm): shared-key production warnings by @calionauta in https://github.com/calionauta/gogogo/pull/90
