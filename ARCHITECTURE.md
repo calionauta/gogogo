@@ -9,7 +9,7 @@
 
 - **Unified build.** One `go build ./cmd/web` compiles everything — no build tags. The database drivers (Turso `turso`, ncruces `sqlite3`) are always compiled in, so nothing is gated behind a tag. Opt out at runtime with env vars (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
 - **Features in `features/`**, infrastructure in `internal/`. Features depend on infra, never the reverse.
-- **Wiring in `router/router.go` → `Init()`**. Every feature is registered by one function call.
+- **Wiring in `internal/server/chi.go` → `BootChi` + `buildChiMux`**. Every feature is mounted by one composition function.
 - **Startup order in `cmd/web/main.go`** (see diagram below).
 
 ---
@@ -38,14 +38,14 @@ These are **product-level demos** — what the end user sees. All are Feature la
 
 | Feature | Package | SCOPE | Router wiring | Remove by |
 |---------|---------|:-----:|---------------|-----------|
-| **Auth** | `features/auth/` | 🟢/🔴 | `auth.RegisterAuth(se)` | Delete package + remove call |
+| **Auth** | `internal/auth/` + `features/authviews/` | 🟢/🔴 | `a.Handler()` mounted at `/api/auth/` in `buildChiMux` | Delete the login UI package; the middleware stays |
 | **Landing page** | `features/landing/` | 🟢 FEATURE | Mounted at `/` in `buildChiMux` | Delete package + remove call. The todo demo is at `/todo`; root becomes 404 or your replacement. |
 | **Read-only config view** | `features/config/` | 🟢 FEATURE | Mounted at `/config` in `buildChiMux` | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go` before render. |
-| **Todo** | `features/todo/` | 🟢 FEATURE | `todoH.RegisterRoutes(se)` | Delete package + remove block |
-| **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `registerWhiteboardStack(se, q, cfg)` (hub + routes + collab sync in one call) | Delete both dirs + `router/whiteboard.go` + `router/collab_jetstream.go` + remove call |
-| **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `registerNotesStack(se, q, cfg)` (own hub + routes + notes sync on `app.notes.>`) | Delete dir + `router/notes.go` + remove call (+ navbar link, seed, capability entry) |
-| **Onboarding** | `features/todo/handlers/onboarding.go` + `internal/dagnats/` | 🟢 FEATURE | `registerOnboarding(app, q, se, broadcaster, todoH, cfg)` (no-ops when `DAGNATS_ENABLED=false`) | Delete both + remove call |
-| **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `registerRoomStack(se, cfg)` (no-ops when `GOAKT_ENABLED=false`) | Delete both dirs + `router/room_goakt.go` + `cmd/web/goakt.go` + remove call |
+| **Todo** | `features/todo/` | 🟢 FEATURE | `todoH` mounted at `/todo` + `/api/todos` in `buildChiMux` | Delete package + remove block |
+| **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `wbH` mounted at `/whiteboard` + `/api/whiteboard/` in `buildChiMux` (one argument per line, so a trim drops exactly its lines) | Delete both dirs + remove call |
+| **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ navbar link, seed, capability entry) |
+| **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟢 FEATURE | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call |
+| **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `roomH` mounted at `/room` in `buildChiMux` (nil-able; no-op when `GOAKT_ENABLED=false`) | Delete both dirs + remove call |
 | **Persistence (single store)** | `internal/db/` (migrations + sqlc queries) | 🔴 CORE | `db.Open(cfg)` in `BootChi` | Core data layer; customize, never remove |
 
 > **⚠️ Auth is a mixed package.** The **login UI** (login page, navbar) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.
@@ -60,14 +60,14 @@ These are the **plumbing layers**. Each is independently replaceable.
 |-----------|---------|:-----:|---------|------------------|
 | **Database + Auth** (Turso/SQLite + owned sessions) | `internal/db/` + `internal/auth/` | 🔴 CORE | `db.Open(cfg)` + `auth.New(...)` in `BootChi` | Replace with your own DB + auth stack |
 | **Config** | `config/` | 🔴 CORE | `config.Load()` in `main.go` | Add/remove env vars |
-| **Queue + SSE Hub** (goqite) | `internal/queue/` | 🔴 CORE | `queue.New(cfg)` in `server.Run()` | Replace goqite with Redis; SSE Hub is in `ssehub.go` |
+| **Queue + SSE Hub** (goqite) | `internal/queue/` | 🔴 CORE | Built in `BootChi` (chi queue + workers) | Replace goqite with Redis; SSE Hub is in `ssehub.go` |
 | **Event bus: NATS JetStream** | `internal/nats/` | 🟡 PLUGIN | `startNATS(cfg)` in `main.go` | Remove `startNATS` call; falls back to in-memory fan-out via SSE Hub |
-| **CRUD proxy (offline sync)** | `internal/nats/crudproxy.go` | 🟡 PLUGIN | `NewCrudPublisher(js)` + `NewCrudConsumer(app, js)` in `router.Init()` | Remove `crudproxy.go`; toggle via `OFFLINE_SYNC_ENABLED=false` (default on) |
+| **CRUD proxy (offline sync)** | `internal/nats/` + `internal/natswire/` | 🟡 PLUGIN | Installed by `AttachJetStream` (publisher + consumer) | Detach call; toggle via `OFFLINE_SYNC_ENABLED=false` (default on) |
 | **DagNats** (workflows) | `internal/dagnats/` | 🟡 PLUGIN | `startDagNats(cfg, ...)` in `main.go` | Remove call + delete package |
-| **CRDT + Sync** (Loro) | `internal/collab/` | 🟡 PLUGIN | Via `registerWhiteboard` + `registerCollabSync` (whiteboard) and `registerNotesStack` (notes, on `app.notes.>`) | Delete with the whiteboard unit (whiteboard+collab+notes) |
+| **CRDT + Sync** (Loro) | `internal/collab/` | 🟡 PLUGIN | Wired in `BootChi` (persister + DocStore shared by whiteboard/notes) | Delete with the whiteboard unit (whiteboard+collab+notes) |
 | **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 PLUGIN | Imported by handlers | Replace with your own SSE rendering |
 | **Secrets** (age) | `internal/secrets/` | 🔴 CORE | `secrets.Load(appName)` in `config.Load()` | Remove call; env vars work without it |
-| **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | `llm.New(apiKey)` in `server.Run()` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
+| **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | Built in `BootChi` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
 | **UI skins** (pluggable) | `web/skins/` (`daisyui`, `basecoat`) | 🟡 PLUGIN | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
 
 > **🔴 CORE** = keep or replace the whole stack.  
@@ -162,7 +162,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
   - Whiteboard sync — shapes published directly via `WebSyncWorker.nc.Publish()` to subject `app.sync.<docID>` (bypasses SSE Hub entirely)
   - DagNats — workflow engine uses JetStream for durable state
   - Desktop Leaf Node — optional edge sync
-  - *(Todos currently use the in-memory SSE Hub broadcaster, not NATS — the `JetStreamBroadcaster` exists in code but the startup order means it's never triggered. This is a pre-existing limitation: `server.Run(cfg, nil)` runs before `startNATS()`, so the router never receives a valid JetStream context. To fix it, either: (a) pass `startNATS()`'s JetStream context through `server.Run(cfg, js)`, or (b) follow the whiteboard's pattern of holding a direct `nc` connection reference.)*
+  - *(Todos currently use the in-memory SSE Hub path, not the JetStream TODOS stream — the `JetStreamBroadcaster` exists in `internal/nats` but nothing wires it; cross-instance record convergence runs through the APP_CRUD stream + `AttachJetStream` instead.)*
 - **DagNats** (Plugin 🟡): durable multi-step workflows as declarative JSON. Uses NATS JetStream for state.
 - **GoAkt** (Plugin 🟡): entity actors (one grain per room: roster + presenter lock, supervised). Standalone, no network.
 
@@ -191,24 +191,20 @@ The same UI is rendered through one of three pluggable skins, compiled into the 
 main.go
   ├─ config.Load()              ← 🔴 Core: reads env vars + age secrets
   ├─ server composition (BootChi) ← 🔴 Core: Turso + queue + mux
-  │   └─ router.Init(app, q, cfg, js, todoH)   # js is nil here (see note below)
+  │   └─ buildChiMux(...)         # one subtree per capability; landing `/` is the catch-all
   │       ├─ static files         🔴 Core
-  │       ├─ auth.RegisterAuth    🟢 FEATURE UI + 🔴 CORE middleware
+  │       ├─ auth routes          🟢 FEATURE UI + 🔴 CORE middleware
   │       ├─ todo routes          🟢 FEATURE
-  │       │   └─ CrudPublisher (if cfg.OfflineSync.Enabled && js != nil)
-  │       ├─ registerOnboarding   🟢 FEATURE
-  │       ├─ registerWhiteboard   🟢 FEATURE (creates DocStore, separate SSEHub)
-  │       ├─ registerCollabSync   🟢 FEATURE (NATS listener)
-  │       └─ registerCrudConsumer 🟡 PLUGIN (if cfg.OfflineSync.Enabled)
+  │       ├─ onboarding mount     🟢 FEATURE (after the composition)
+  │       ├─ whiteboard routes    🟢 FEATURE (shares DocStore + persister)
+  │       └─ notes/room/chat/genui/credits routes (room nil-able)
   ├─ startDagNats(cfg, ...) ← 🟡 PLUGIN: boots engine (NATS on :4222)
   ├─ startGoAkt(cfg)            ← 🟡 PLUGIN: boots room actors (standalone, no network)
   ├─ startNATS(cfg)             ← 🟡 PLUGIN: connects or starts embedded NATS
   └─ Serve(addr)                ← 🔴 Core: serves HTTP
 ```
 
-> **OfflineSync toggle.** The entire offline sync stack is gated by `cfg.OfflineSync.Enabled`. When `false`: CrudPublisher is nil (handler's publishCrudOp is a no-op), registerCrudConsumer is skipped, and no NATS CRUD stream is created. Set `OFFLINE_SYNC_ENABLED=false` in production for an always-online deployment with zero overhead.
-
-> **Note on startup order:** `server.Run(cfg, nil)` is called BEFORE `startDagNats` and `startNATS`. This means `js` (the JetStream context) is always `nil` when `router.Init` runs. As a result, `newTodoBroadcaster(nil, hub)` always falls back to `InMemoryBroadcaster`. The whiteboard bypasses this limitation by publishing to NATS directly via `WebSyncWorker.nc.Publish()`. If you need NATS-backed todo broadcasting, pass the JetStream context through `server.Run(cfg, js)` instead of `nil`.
+> **OfflineSync toggle.** The entire offline sync stack is gated by `cfg.OfflineSync.Enabled`. When `false`: the CRUD publisher stays nil, the CRUD consumer no-ops, and no NATS CRUD stream is created. Set `OFFLINE_SYNC_ENABLED=false` in production for an always-online deployment with zero overhead.
 
 > **Note on startup order:** the flat stack boots the database and queue before the optional engines, so JetStream-dependent wiring attaches after `startNATS`, not during the initial composition. The whiteboard's `WebSyncWorker` publishes to NATS directly, which is why it works regardless of boot order.
 
@@ -217,12 +213,11 @@ main.go
 ## Adding a new feature
 
 1. Create `features/<name>/` with your HTTP handlers + Templ components.
-2. Create a `RegisterRoutes(se, deps)` function that wires your routes.
-3. Call it from `router/router.go` → `Init()`.
-4. Add a "Remove by" comment.
-5. Add a row to the Features table above.
+2. Add a `Routes()` method on your handler and mount its subtree in `buildChiMux`.
+3. Add a "Remove by" comment.
+4. Add a row to the Features table above.
 
-New infra should go in `internal/<name>/`. Same pattern: create the package, wire it in `main.go` or `router.go`, add a "Swap / Remove by" comment.
+New infra should go in `internal/<name>/`. Same pattern: create the package, wire it in `main.go` or `chi.go`, add a "Swap / Remove by" comment.
 
 ---
 
@@ -250,7 +245,7 @@ internal/                  Infrastructure
   components/                Shared UI helpers (Toast + OfflineBanner offline indicator)
   datastar/                  Datastar SSE rendering helpers
   secrets/                   age-decrypted secrets loader
-router/router.go            Route wiring (central dependency graph)
+internal/server/chi.go       BootChi + buildChiMux (composition root)
 web/
   resources/static/          Embedded JS/CSS assets (app.min.css, basecoat.min.css, sw.js, theme.js)
   skins/                     Pluggable UI skin registry (daisyui + basecoat) 🟡 PLUGIN
