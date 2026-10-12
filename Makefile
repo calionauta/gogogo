@@ -200,8 +200,7 @@ check-scope:
 	@go run ./cmd/check-scope
 	@echo "✅ SCOPE annotations present"
 
-# check-flatdeps proves the flat-stack invariant without booting anything:
-# no banned framework in the closure, no cross-feature domain imports
+# check-flatdeps proves the flat-stack invariant without booting anything:# no banned framework in the closure, no cross-feature domain imports
 # (shared UI leaves excepted), sql.Open only in owner packages. Same
 # implementation the pre-commit flatdeps-lint job runs — not a parallel
 # bash reimplementation.
@@ -209,6 +208,14 @@ check-flatdeps:
 	@echo "→ check-flatdeps (flat-stack dependency guard)..."
 	@go run ./cmd/check-flatdeps
 	@echo "✅ flat-stack dependencies within bounds"
+
+# check-dagnats-pin keeps docs/dagnats.md honest: the capability table is
+# verified against the go.mod pin, so a version bump without a doc update
+# fails here instead of shipping stale bounds. Pure grep, no network.
+check-dagnats-pin:
+	@echo "→ check-dagnats-pin (DagNats doc pin vs go.mod)..."
+	@bash bin/check-dagnats-pin.sh
+	@echo "✅ DagNats doc matches go.mod pin"
 
 # check-skill-frontmatter validates every SKILL.md frontmatter with a real
 # YAML parser. The repo's build never reads that YAML — the skill *host* does —
@@ -294,7 +301,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-skill-frontmatter install-sh-guard
+ci-local: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -322,7 +329,7 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-skill-frontmatter install-sh-guard
+ci-local-fast: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
@@ -428,6 +435,7 @@ help:
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
+	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"
 

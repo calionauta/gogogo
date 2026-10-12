@@ -89,6 +89,10 @@ jobs:
         # flatdeps-lint job: no banned framework in the closure, no
         # cross-feature domain imports, sql.Open only in owner packages.
         run: go run ./cmd/check-flatdeps
+      - name: Check-dagnats-pin (doc pin vs go.mod)
+        # Local-only check (grep, no network): the capability table in
+        # docs/dagnats.md is verified against the go.mod pin.
+        run: bash bin/check-dagnats-pin.sh
       - name: Check file size limits
         # The 500-line file budget was enforced ONLY by the pre-commit hook,
         # which `git commit --no-verify` (or LEFTHOOK_EXCLUDE) skips — so a
