@@ -47,7 +47,6 @@ const fail = (msg) => {
 };
 
 const tmp = mkdtempSync(join(tmpdir(), "gogogo-smoke-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
@@ -85,6 +84,25 @@ async function api(method, path, { body, token } = {}) {
     /* non-JSON */
   }
   return { status: res.status, json };
+}
+
+// signupCookie registers (idempotently) the smoke user and returns the
+// gogogo_auth cookie value the owned auth mints — the same cookie a
+// browser login would carry, so the page context authenticates without
+// any token plumbing.
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Smoke User" }),
+  });
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
 }
 
 async function waitForHealth(timeoutMs = 30000) {
@@ -491,10 +509,19 @@ try {
     });
   }
 
-  console.log(`→ Starting server on ${BASE} (data dir ${pbDir})…`);
-  server = spawn(bin, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
+  console.log(`→ Starting server on ${BASE} (data dir ${runtimeDir})…`);
+  // The flat binary has no CLI subcommands: listen address + data dir
+  // ride env vars (same as production), and the owned auth issues the
+  // session cookie at signup — no superuser/collection API anymore.
+  server = spawn(bin, [], {
     stdio: "ignore",
-    env: runtimeEnv,
+    env: {
+      ...runtimeEnv,
+      HOST: "127.0.0.1",
+      PORT: String(PORT),
+      TURSO_DB_PATH: join(runtimeDir, "app.db"),
+      GOAKT_ENABLED: process.env.SMOKE_ROOM === "0" ? "false" : "true",
+    },
   });
   server.on("exit", (code) => {
     if (code && code !== 0) console.error(`server exited with code ${code}`);
@@ -502,36 +529,13 @@ try {
 
   await waitForHealth();
 
-  console.log("→ Creating superuser + test user…");
-  const upsert = spawnSync(
-    bin,
-    ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS],
-    { encoding: "utf8", env: runtimeEnv },
-  );
-  if (upsert.status !== 0) {
-    throw new Error(`superuser upsert failed: ${upsert.stderr || upsert.stdout}`);
+  console.log(`→ Signing up the smoke user (${USER_EMAIL})…`);
+  let userToken = "";
+  for (let i = 0; i < 10 && !userToken; i++) {
+    userToken = await signupCookie(USER_EMAIL, USER_PASS);
+    if (!userToken) await new Promise((res) => setTimeout(res, 500));
   }
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  if (!su.json?.token) throw new Error("superuser auth failed: " + JSON.stringify(su.json));
-  const suToken = su.json.token;
-
-  // Create a regular app user (retry briefly in case seeding is still in flight).
-  let created = false;
-  for (let i = 0; i < 10 && !created; i++) {
-    const r = await api("POST", "/api/collections/users/records", {
-      token: suToken,
-      body: { email: USER_EMAIL, password: USER_PASS, passwordConfirm: USER_PASS },
-    });
-    if (r.status === 200 || r.status === 400) created = true; // 400 = already exists
-    else await new Promise((res) => setTimeout(res, 500));
-  }
-  const auth = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: USER_EMAIL, password: USER_PASS },
-  });
-  if (!auth.json?.token) throw new Error("user auth failed: " + JSON.stringify(auth.json));
-  const userToken = auth.json.token;
+  if (!userToken) throw new Error("smoke signup failed: no session cookie");
 
   console.log(`→ Launching headless Chromium; testing routes: ${GATED_ROUTES.join(", ")}`);
   const skipped = ROUTES.filter((r) => !hasFeature(r.slice(1)));

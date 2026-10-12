@@ -96,6 +96,14 @@ var All = []Capability{
 		Note:    "Core: handlers receive it, never remove.",
 	},
 	{
+		ID:      "demo-seed",
+		Kind:    KindCore,
+		Summary: "fresh-install demo account (one idempotent Signup)",
+		Dirs:    []string{"internal/demo"},
+		Note: "Core contract: a fresh clone has a way in. Boot (internal/server) " +
+			"and the native window both call it; Signup is idempotent.",
+	},
+	{
 		ID:      "auth",
 		Kind:    KindCore,
 		Summary: "cookie sessions + middleware (flat auth + shared login UI)",

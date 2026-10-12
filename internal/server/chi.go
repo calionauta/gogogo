@@ -40,11 +40,13 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/demo"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/web/resources"
 )
 
 // shutdownTimeout bounds chi-stack shutdown: in-flight SSE streams get a
@@ -188,6 +190,12 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
+	// Fresh-install contract: the demo account the login form advertises
+	// (the PB-era db.SeedDefaults pair). Idempotent Signup, so every boot
+	// after the first is a no-op.
+	demoCtx, cancelDemo := context.WithCancel(context.Background())
+	demo.Ensure(demoCtx, a)
+	cancelDemo()
 
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
 
@@ -419,8 +427,31 @@ func buildChiMux(
 	// path on 127.0.0.1:PORT. PocketBase served /health natively; the
 	// flat stack owns it now. Register before the landing catch-all so
 	// the exact path wins.
+	// Static assets: exact-prefix ETag handler (PB served /static through
+	// the router; the flat stack owns it now). Mounted before the landing
+	// catch-all so the subtree wins.
+	mux.Handle("/static/", resources.AssetHandler(resources.StaticFS(), "/static"))
+
+	// The Service Worker is served from the ROOT URL so its scope is "/"
+	// (per spec scope defaults to the script's directory): a SW under
+	// /static/ would only cover /static/ and never intercept /api/*
+	// mutations — the offline "Add button stuck + todo lost" bug.
+	// Service-Worker-Allowed is belt-and-suspenders for the { scope: '/' }
+	// the client registers with.
+	swAssets := resources.AssetHandler(resources.StaticFS(), "/")
+	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Service-Worker-Allowed", "/")
+		swAssets.ServeHTTP(w, r)
+	})
+
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		// The build tag is what a tab open across a deploy compares
+		// against (stale-tab reload); PB stamped it natively, the flat
+		// stack owns it now. The body stays "ok" — the scratch image's
+		// healthcheck and the Playwright smoke both match on it.
+		w.Header().Set("X-Gogogo-Build", todoH.BuildLabel+"-"+todoH.BuildCommit)
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("/", landingH.Routes())
 	return mux

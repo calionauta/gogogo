@@ -43,7 +43,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -61,17 +60,9 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/demo"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
-)
-
-// The demo account the login form advertises as its placeholder. The web
-// app's PB-era seed used the same pair (db/seed.go, now gone); the flat
-// stack owns identities in the users table, so a first run here seeds
-// what the web form would create.
-const (
-	demoUserEmail    = "demo1@demo.app"
-	demoUserPassword = "demo1234456"
 )
 
 // pollInterval is the realtime-read tick: how often the window
@@ -113,7 +104,7 @@ func run() error {
 	if aerr != nil {
 		return fmt.Errorf("auth: %w", aerr)
 	}
-	ensureDemoUser(context.Background(), a)
+	demo.Ensure(context.Background(), a)
 
 	m3 := material3.New(widget.Hex(seedColorHex))
 
@@ -165,17 +156,6 @@ func run() error {
 		return fmt.Errorf("desktop run: %w", err)
 	}
 	return nil
-}
-
-// ensureDemoUser seeds the demo account the login form documents. A
-// missing account is created; Signup fails with ErrBadCredentials on a
-// duplicate email, which is exactly the "already seeded" case, so a
-// first-run and an every-run boot behave identically.
-func ensureDemoUser(ctx context.Context, a *auth.Auth) {
-	if _, _, err := a.Signup(ctx, demoUserEmail, demoUserPassword, "Demo User"); err != nil &&
-		!errors.Is(err, auth.ErrBadCredentials) {
-		log.Printf("gui: demo user seed skipped: %v", err)
-	}
 }
 
 // makeSignOut returns the full sign-out action: state reset plus
