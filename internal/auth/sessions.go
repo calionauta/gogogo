@@ -46,10 +46,12 @@ func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSess
 	}
 	if time.Now().UTC().After(expires) {
 		_ = a.q.DeleteSession(ctx, row.TokenHash)
+		secEvent(ctx, evSessionExpired, row.UserID)
 		return nil, errors.New("auth: session expired")
 	}
 	user, err := a.q.GetUser(ctx, row.UserID)
 	if err != nil {
+		secEvent(ctx, evSessionOrphan, row.UserID)
 		return nil, errors.New("auth: session owner gone")
 	}
 	return &ValidatedSession{User: &User{ID: user.ID, Email: user.Email}, Expires: expires}, nil

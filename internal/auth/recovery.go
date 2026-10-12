@@ -106,6 +106,7 @@ func (a *Auth) verifySecondFactor(ctx context.Context, user dbgen.User, code str
 			return true
 		}
 		if !a.totpAttempts.allow(user.ID) {
+			secReject(ctx, evSecondFactorBlock, reasonThrottled, user.Email, user.ID)
 			return false
 		}
 	}

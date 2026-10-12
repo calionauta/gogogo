@@ -96,13 +96,16 @@ func (a *Auth) VerifyMagicLink(ctx context.Context, token string) (string, error
 	}
 	row, err := a.q.GetMagicToken(ctx, tokenHash(token))
 	if err != nil {
+		secReject(ctx, evMagicRejected, reasonUnknownToken, "", "")
 		return "", ErrBadCredentials
 	}
 	expires, err := time.Parse(db.TimeFormat, row.Expires)
 	if err != nil || time.Now().UTC().After(expires) {
 		_ = a.q.DeleteMagicToken(ctx, row.TokenHash)
+		secReject(ctx, evMagicRejected, reasonExpiredToken, "", row.UserID)
 		return "", ErrBadCredentials
 	}
 	_ = a.q.DeleteMagicToken(ctx, row.TokenHash)
+	secEvent(ctx, evMagicConsumed, row.UserID)
 	return a.openSession(ctx, row.UserID)
 }

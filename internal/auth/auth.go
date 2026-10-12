@@ -241,11 +241,13 @@ func (a *Auth) Login(ctx context.Context, email, password string) (token string,
 			// dummy hash keeps timing differences below noise without
 			// pretending to be a side-channel proof.
 			_, _ = hashPassword("dummy-placeholder-00")
+			secReject(ctx, evLoginRejected, reasonUnknownAccount, addr, "")
 			return "", false, ErrBadCredentials
 		}
 		return "", false, fmt.Errorf("auth: lookup: %w", err)
 	}
 	if !verifyPassword(row.PasswordHash, password) {
+		secReject(ctx, evLoginRejected, reasonBadPassword, addr, row.ID)
 		return "", false, ErrBadCredentials
 	}
 	if row.TotpSecret != "" && row.TotpVerified != 0 {
@@ -308,6 +310,7 @@ func (a *Auth) VerifyTOTPLogin(ctx context.Context, userID, code string) (string
 		return "", ErrBadCredentials
 	}
 	if !a.verifySecondFactor(ctx, user, code) {
+		secReject(ctx, evSecondFactorBad, reasonBadCode, user.Email, user.ID)
 		return "", ErrBadCredentials
 	}
 	return a.openSession(ctx, user.ID)
