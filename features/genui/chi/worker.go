@@ -39,21 +39,31 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	}
 	raw, err := h.responder.Respond(ctx, p.Prompt)
 	if err != nil {
+		// The responder's own error says what to do about it — "no LLM
+		// configured (GOAI_API_KEY or SIMULATE_LLM=true)", or the provider's
+		// message. Replacing it with a fixed "model unavailable" hid the only
+		// actionable part, so a missing key and a dead provider looked
+		// identical. err.Error() carries no credentials; the same value is
+		// already logged and already sent by the chat slice.
+		msg := "Ask failed: " + err.Error()
 		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
 		// cancellation is handled by the surrounding ctx select.
-		h.sendResult(target, job.ClientID, nil, "Ask failed: model unavailable")
+		h.sendResult(target, job.ClientID, nil, msg)
 		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-		h.sendToast(target, job.ClientID, "Ask failed: model unavailable", "error")
+		h.sendToast(target, job.ClientID, msg, "error")
 		//nolint:nilerr // delivered as user-visible result; pool must not retry Ask.
 		return nil
 	}
 	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
 	dirs, err := comp.ParseDirectives(raw)
 	if err != nil {
+		// Same reasoning as the responder error above: the parse failure's
+		// message is what tells you which directive the model got wrong.
+		msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
 		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-		h.sendResult(target, job.ClientID, nil, "Ask failed: could not shape the answer")
+		h.sendResult(target, job.ClientID, nil, msg)
 		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-		h.sendToast(target, job.ClientID, "Ask failed: could not shape the answer", "error")
+		h.sendToast(target, job.ClientID, msg, "error")
 		//nolint:nilerr // same contract as above: delivered, not retried.
 		return nil
 	}

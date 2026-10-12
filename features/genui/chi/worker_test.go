@@ -94,8 +94,14 @@ func TestWorkerRejectsUnknownDirective(t *testing.T) {
 	}
 	select {
 	case raw := <-ch:
-		if strings.Contains(string(raw), "evil") {
-			t.Fatalf("unknown directive leaked component HTML: %s", raw)
+		// The error names the offending component (that is the actionable
+		// part), but no directive may be delivered: the payload must carry
+		// the error and no "directives" key at all.
+		if !strings.Contains(string(raw), "could not shape") {
+			t.Fatalf("unknown directive did not surface a shape error: %s", raw)
+		}
+		if strings.Contains(string(raw), `"directives"`) {
+			t.Fatalf("unknown directive leaked component payload: %s", raw)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no error toast arrived on hub channel")
