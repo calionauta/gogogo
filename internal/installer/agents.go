@@ -16,7 +16,7 @@ This project (__PROJECT__) was scaffolded from
 
 ## Before creating a feature or installing a library, check upstream first
 
-The template already ships: auth (PocketBase), todo + realtime, background
+The template already ships: auth (owned argon2id + sessions), todo + realtime, background
 jobs + retry (goqite + retry-go), durable workflows (DagNats over JetStream),
 collaborative whiteboard (Loro CRDT), hybrid offline sync (Service Worker +
 NATS Leaf Node + idempotency), three UI skins, AI suggest + credits/BYOK

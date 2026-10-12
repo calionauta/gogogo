@@ -17,12 +17,12 @@ var advisePresets = []advisePreset{
 		},
 		Keep: []string{unitWhiteboard},
 		Note: "Single binary embeds NATS; multi-instance points at shared " +
-			"JetStream (docs/async-layers.md). Todo realtime stays " +
-			"regardless (PocketBase).",
+			"JetStream (docs/async-layers.md). Todo record sync stays " +
+			"regardless (SSE hub + stream re-list).",
 	},
 	{
 		Name: "realtime-transport",
-		Idea: "records via PB realtime, ephemeral via SSE hub, " +
+		Idea: "records via SSE stream re-list, ephemeral via SSE hub, " +
 			"cross-instance via JetStream — pick by traffic type",
 		Match: []string{
 			"transport", "broadcast", "websocket", "websockets",
@@ -33,7 +33,7 @@ var advisePresets = []advisePreset{
 		Note: "No single transport switch exists on purpose (records need " +
 			"per-user scoping, ephemeral needs fan-out). Matrix: " +
 			"docs/async-layers.md (Transport matrix). NATS_ENABLED=false " +
-			"is the cross-instance off switch; PB realtime is always on.",
+			"is the cross-instance off switch; the SSE record stream is always on.",
 	},
 	{
 		Name: "background-jobs",
@@ -100,7 +100,8 @@ var advisePresets = []advisePreset{
 		Idea:  "read-only env and data views behind auth",
 		Match: []string{"admin", "config", "inspect", "dashboard", "observab"},
 		Keep:  []string{unitConfigView},
-		Note:  "Surfaces: /config (auth-gated env view), /_/ (PocketBase admin), /dagnats/ (workflow console).",
+		Note: "Surfaces: /config (auth-gated env view), /api/session " +
+			"(session probe for the shared banner), /dagnats/ (workflow console).",
 	},
 	{
 		Name: "marketing-site",
