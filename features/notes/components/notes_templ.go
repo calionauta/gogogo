@@ -56,7 +56,7 @@ func NotesIndex(email string, docIDs []string, buildLabel string, buildCommit st
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.TechBadge([]string{"Loro Text", "SSE Hub", "NATS", "PocketBase realtime"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.TechBadge([]string{"Loro Text", "SSE Hub", "NATS", "SSE record sync"}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -68,7 +68,7 @@ func NotesIndex(email string, docIDs []string, buildLabel string, buildCommit st
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PbRealtimeResync("notes-realtime-resync", "'/api/notes/fragment'", "notes").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.ListResync("notes-realtime-resync", "'/api/notes/fragment'").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

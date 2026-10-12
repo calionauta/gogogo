@@ -22,9 +22,9 @@ type BoardMeta struct {
 }
 
 // BoardListWithRealtime renders the index of existing whiteboards with
-// PocketBase realtime wiring so the list updates live when another user
-// creates a new board. Follows the same pattern as the todo feature's
-// PbRealtimeRecords: a hidden @get button + EventSource subscription.
+// live-update wiring so the list updates when another user creates a new
+// board. Follows the same pattern as the todo feature's PbRealtimeRecords:
+// a hidden @get button the stream and the visibility refetch click.
 templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
@@ -52,7 +52,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 				@components.TechBadge([]string{"Loro CRDT", "NATS", "SSE Hub", "presence", "offline outbox"})
 				@WhiteboardListFragment(boards)
 			</main>
-			@components.PbRealtimeResync("wb-realtime-resync", "'/api/whiteboards/fragment'", "whiteboards")
+			@components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'")
 		</body>
 	</html>
 }

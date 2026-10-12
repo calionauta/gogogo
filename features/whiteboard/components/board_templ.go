@@ -39,9 +39,9 @@ type BoardMeta struct {
 }
 
 // BoardListWithRealtime renders the index of existing whiteboards with
-// PocketBase realtime wiring so the list updates live when another user
-// creates a new board. Follows the same pattern as the todo feature's
-// PbRealtimeRecords: a hidden @get button + EventSource subscription.
+// live-update wiring so the list updates when another user creates a new
+// board. Follows the same pattern as the todo feature's PbRealtimeRecords:
+// a hidden @get button the stream and the visibility refetch click.
 func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -115,7 +115,7 @@ func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PbRealtimeResync("wb-realtime-resync", "'/api/whiteboards/fragment'", "whiteboards").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
