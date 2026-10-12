@@ -343,7 +343,7 @@ smoke:
 smoke-clean:
 	@echo "→ Removing smoke artifacts…"
 	@rm -f $(SMOKE_BIN)
-	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-*
+	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-*
 	@echo "  ✓ smoke artifacts removed (Playwright browsers kept: shared cache)"
 
 # signoff runs the full local CI then stamps the current commit green via

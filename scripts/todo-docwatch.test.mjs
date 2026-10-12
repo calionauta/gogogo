@@ -1,6 +1,7 @@
 // SCOPE:core - Behavioral test: doc-version watcher is reactive, not polling.
 //
-// Boots the real binary, logs in, loads /todo, and proves the resync
+// Boots the real binary, signs a user up (the cookie is the session),
+// loads /todo, and proves the resync
 // wiring executes without timers: an init script records every
 // setInterval registration, so the old 250ms watchDocVersion poll would
 // FAIL this test and the data-effect subscription passes. Console and
@@ -10,15 +11,13 @@
 // Run: node scripts/todo-docwatch.test.mjs (SMOKE_BIN reuses a build,
 // SMOKE_PORT overrides the port).
 import { chromium } from "playwright";
-import { spawn, spawnSync, execSync } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const PORT = Number(process.env.SMOKE_PORT || 18091);
 const BASE = `http://127.0.0.1:${PORT}`;
-const SU_EMAIL = "docwatch-superuser@local.dev";
-const SU_PASS = "DocwatchSuperuserPass!123";
 const USER_EMAIL = "docwatch-user@local.dev";
 const USER_PASS = "DocwatchUserPass!123";
 
@@ -28,7 +27,6 @@ const fail = (msg) => {
 };
 
 const tmp = mkdtempSync(join(tmpdir(), "gogogo-docwatch-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
@@ -46,23 +44,32 @@ const bin = providedBin ? resolve(providedBin) : join(tmp, "web");
 let server = null;
 let browser = null;
 
-async function api(method, path, { body, token } = {}) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: "Bearer " + token } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+// The owned auth mints the session cookie at signup — the same path
+// smoke.mjs drives, and the only one there is (no superuser CLI, no
+// records API). Returns the gogogo_auth cookie value, "" on failure.
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Docwatch Test" }),
   });
-  const text = await res.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    /* non-JSON */
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
+}
+
+// The first signup can race the migration, so retry like smoke.mjs does.
+async function signupSession(email) {
+  for (let i = 0; i < 10; i++) {
+    const cookie = await signupCookie(email, USER_PASS);
+    if (cookie) return cookie;
+    await new Promise((r) => setTimeout(r, 500));
   }
-  return { status: res.status, json };
+  throw new Error(`signup failed for ${email}: no session cookie`);
 }
 
 async function waitForHealth(timeoutMs = 30000) {
@@ -91,35 +98,26 @@ try {
   }
 
   console.log(`→ Starting server on ${BASE}…`);
-  server = spawn(bin, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
+  // The flat binary has no CLI subcommands (no `serve`, no `--dir`): the
+  // listen address and the data dir ride env vars, exactly as smoke.mjs
+  // boots it.
+  server = spawn(bin, [], {
     stdio: "ignore",
-    env: runtimeEnv,
+    env: {
+      ...runtimeEnv,
+      HOST: "127.0.0.1",
+      PORT: String(PORT),
+      TURSO_DB_PATH: join(runtimeDir, "app.db"),
+    },
   });
   await waitForHealth();
 
-  const upsert = spawnSync(bin, ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS], {
-    encoding: "utf8",
-    env: runtimeEnv,
-  });
-  if (upsert.status !== 0) throw new Error("superuser upsert failed");
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  const suToken = su.json?.token;
-  if (!suToken) throw new Error("superuser auth failed");
-  await api("POST", "/api/collections/users/records", {
-    token: suToken,
-    body: { email: USER_EMAIL, password: USER_PASS, passwordConfirm: USER_PASS },
-  });
-  const auth = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: USER_EMAIL, password: USER_PASS },
-  });
-  if (!auth.json?.token) throw new Error("user auth failed");
+  const cookie = await signupSession(USER_EMAIL);
 
   console.log("→ Loading /todo with interval recorder…");
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const context = await browser.newContext();
-  await context.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+  await context.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
   // Record every setInterval registration BEFORE page scripts run. The old
   // watcher registered setInterval(watchDocVersion, 250); the reactive one
   // registers none — so this assertion fails on the old markup by construction.

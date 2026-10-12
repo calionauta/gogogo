@@ -24,7 +24,7 @@
 //   Build it with: go build -o "$TMPDIR/gogogo-ci-local-web" ./cmd/web/
 
 import { chromium } from "playwright";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,8 +35,6 @@ import { join } from "node:path";
 const BIN = process.env.SMOKE_BIN || join(tmpdir(), "gogogo-ci-local-web");
 const PORT = Number(process.env.WB_TEST_PORT || 8131);
 const BASE = `http://127.0.0.1:${PORT}`;
-const SU_EMAIL = "wb-test-su@local.dev";
-const SU_PASS = "WbTestSuperPass!123";
 const USER_EMAIL = "wb-test-user@local.dev";
 const USER_PASS = "WbTestUserPass!123";
 
@@ -50,7 +48,6 @@ const bad = (msg) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const tmp = mkdtempSync(join(tmpdir(), "wb-client-test-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
@@ -62,25 +59,45 @@ const runtimeEnv = {
   GOGOGO_NO_BROWSER: "1",
 };
 
-const server = spawn(BIN, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
-  env: runtimeEnv,
+// The flat binary has no CLI subcommands (no `serve`, no `--dir`): the
+// listen address and the data dir ride env vars, exactly as smoke.mjs
+// boots it.
+const server = spawn(BIN, [], {
   stdio: "ignore",
+  env: {
+    ...runtimeEnv,
+    HOST: "127.0.0.1",
+    PORT: String(PORT),
+    TURSO_DB_PATH: join(runtimeDir, "app.db"),
+  },
 });
 
-async function api(method, path, { token, body } = {}) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: token } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+// The owned auth mints the session cookie at signup — the same path
+// smoke.mjs drives, and the only one there is (no superuser CLI, no
+// records API). Returns the gogogo_auth cookie value, "" on failure.
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Whiteboard Test" }),
   });
-  let json = null;
-  try {
-    json = await res.json();
-  } catch {}
-  return { status: res.status, json };
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
+}
+
+// The first signup can race the migration, so retry like smoke.mjs does.
+async function signupSession(email) {
+  for (let i = 0; i < 10; i++) {
+    const cookie = await signupCookie(email, USER_PASS);
+    if (cookie) return cookie;
+    await sleep(500);
+  }
+  throw new Error(`signup failed for ${email}: no session cookie`);
 }
 
 async function waitForServer() {
@@ -137,44 +154,21 @@ async function main() {
     return;
   }
 
-  // Create the account through the same path smoke.mjs uses: superuser CLI, then
-  // the API. Driving the login FORM is flakier and would test auth, not the
+  // Create the account through the same path smoke.mjs uses: signup mints the
+  // session cookie directly, so no superuser CLI and no records API sit in the
+  // loop. Driving the login FORM is flakier and would test auth, not the
   // whiteboard.
-  const upsert = spawnSync(BIN, ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS], {
-    encoding: "utf8",
-    env: runtimeEnv,
-  });
-  if (upsert.status !== 0) {
-    bad("superuser upsert failed: " + (upsert.stderr || upsert.stdout));
-    return;
-  }
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  if (!su.json?.token) {
-    bad("superuser auth failed");
-    return;
-  }
-
-  for (let i = 0; i < 10; i++) {
-    const r = await api("POST", "/api/collections/users/records", {
-      token: su.json.token,
-      body: { email: USER_EMAIL, password: USER_PASS, passwordConfirm: USER_PASS },
-    });
-    if (r.status === 200 || r.status === 400) break; // 400 = already exists
-    await sleep(500);
-  }
-  const auth = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: USER_EMAIL, password: USER_PASS },
-  });
-  if (!auth.json?.token) {
-    bad("user auth failed");
+  let cookie = "";
+  try {
+    cookie = await signupSession(USER_EMAIL);
+  } catch (e) {
+    bad(e.message || String(e));
     return;
   }
 
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const context = await browser.newContext();
-  await context.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+  await context.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
   const page = await context.newPage();
 
   const pageErrors = [];
@@ -295,7 +289,7 @@ async function main() {
   const doc3 = "wb-count-" + process.pid;
   const makeCtx = async (label) => {
     const c = await browser.newContext();
-    await c.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+    await c.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
     const p = await c.newPage();
     p.on("pageerror", (e) => pageErrors.push(`${label}: ${String(e)}`));
     return p;

@@ -23,7 +23,7 @@
 //   Build it with: go build -o "$TMPDIR/gogogo-ci-local-web" ./cmd/web/
 
 import { chromium } from "playwright";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -34,8 +34,6 @@ import { join } from "node:path";
 const BIN = process.env.SMOKE_BIN || join(tmpdir(), "gogogo-ci-local-web");
 const PORT = Number(process.env.NOTES_TEST_PORT || 8132);
 const BASE = `http://127.0.0.1:${PORT}`;
-const SU_EMAIL = "notes-test-su@local.dev";
-const SU_PASS = "NotesTestSuperPass!123";
 const A_EMAIL = "notes-test-a@local.dev";
 const B_EMAIL = "notes-test-b@local.dev";
 const PASS = "NotesTestUserPass!123";
@@ -50,7 +48,6 @@ const bad = (msg) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const tmp = mkdtempSync(join(tmpdir(), "notes-caret-test-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const env = {
@@ -61,22 +58,45 @@ const env = {
   DAGNATS_ENABLED: "false",
   GOGOGO_NO_BROWSER: "1",
 };
-const server = spawn(BIN, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
-  env,
+// The flat binary has no CLI subcommands (no `serve`, no `--dir`): the
+// listen address and the data dir ride env vars, exactly as smoke.mjs
+// boots it.
+const server = spawn(BIN, [], {
   stdio: "ignore",
+  env: {
+    ...env,
+    HOST: "127.0.0.1",
+    PORT: String(PORT),
+    TURSO_DB_PATH: join(runtimeDir, "app.db"),
+  },
 });
 
-async function api(method, path, { token, body } = {}) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: token } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
+// The owned auth mints the session cookie at signup — the same path
+// smoke.mjs drives, and the only one there is (no superuser CLI, no
+// records API). Returns the gogogo_auth cookie value, "" on failure.
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Notes Caret Test" }),
   });
-  let json = null;
-  try {
-    json = await res.json();
-  } catch {}
-  return { status: res.status, json };
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
+}
+
+// The first signup can race the migration, so retry like smoke.mjs does.
+async function signupSession(email) {
+  for (let i = 0; i < 10; i++) {
+    const cookie = await signupCookie(email, PASS);
+    if (cookie) return cookie;
+    await sleep(500);
+  }
+  throw new Error(`signup failed for ${email}: no session cookie`);
 }
 
 async function waitForServer() {
@@ -87,22 +107,6 @@ async function waitForServer() {
     await sleep(500);
   }
   return false;
-}
-
-async function userToken(suToken, email) {
-  for (let i = 0; i < 10; i++) {
-    const r = await api("POST", "/api/collections/users/records", {
-      token: suToken,
-      body: { email, password: PASS, passwordConfirm: PASS },
-    });
-    if (r.status === 200 || r.status === 400) break;
-    await sleep(400);
-  }
-  const a = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: email, password: PASS },
-  });
-  if (!a.json?.token) throw new Error(`auth failed for ${email}: ${JSON.stringify(a.json)}`);
-  return a.json.token;
 }
 
 // Records every caret-layer render: each dot's title (carries the reported
@@ -146,23 +150,15 @@ async function main() {
     bad("server never came up");
     return;
   }
-  const upsert = spawnSync(BIN, ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS], {
-    encoding: "utf8",
-    env,
-  });
-  if (upsert.status !== 0) {
-    bad("superuser upsert failed: " + (upsert.stderr || upsert.stdout));
+  let tokenA = "";
+  let tokenB = "";
+  try {
+    tokenA = await signupSession(A_EMAIL);
+    tokenB = await signupSession(B_EMAIL);
+  } catch (e) {
+    bad(e.message || String(e));
     return;
   }
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  if (!su.json?.token) {
-    bad("superuser auth failed");
-    return;
-  }
-  const tokenA = await userToken(su.json.token, A_EMAIL);
-  const tokenB = await userToken(su.json.token, B_EMAIL);
 
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const ctxA = await browser.newContext();
