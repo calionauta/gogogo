@@ -1308,7 +1308,7 @@ func pbRealtime() templ.Component {
 			templ_7745c5c3_Var56 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.PbRealtimeResync("pb-realtime-resync", "'/api/todos/fragment?skin=basecoat'", "todos").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.ListResync("pb-realtime-resync", "'/api/todos/fragment?skin=basecoat'").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

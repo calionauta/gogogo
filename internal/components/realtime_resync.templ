@@ -46,13 +46,3 @@ templ ListResync(buttonID, fragmentExpr string) {
 		});
 	</script>
 }
-
-// PbRealtimeResync is the transitional alias the basecoat skin still
-// calls while its template is mid-edit elsewhere: same hidden-@get
-// button contract as ListResync (the topic argument is ignored — there
-// is no subscription endpoint anymore), so either spelling compiles and
-// renders identically. Delete with the last PbRealtimeResync call site;
-// new code calls ListResync directly.
-templ PbRealtimeResync(buttonID, fragmentExpr, topic string) {
-	@ListResync(buttonID, fragmentExpr)
-}
