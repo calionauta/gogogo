@@ -360,6 +360,13 @@ func (h *Handler) publishSync(
 // broadcastRecord publishes a mutation to the owner's other streams,
 // excluding the originating client when known (it already got the
 // synchronous patch below).
+//
+// Offline replays are the exception: a replayed request runs in the
+// background, long after the originating interaction, and its response
+// is a bare "replayed" acknowledgment — no synchronous patch. Excluding
+// the queued clientID would leave the tab that queued the mutation with
+// only its optimistic row forever. So replays fan out to every stream,
+// originator included.
 func (h *Handler) broadcastRecord(r *http.Request, owner string, evt recordEvent) {
 	payload, err := json.Marshal(evt)
 	if err != nil {
@@ -369,6 +376,9 @@ func (h *Handler) broadcastRecord(r *http.Request, owner string, evt recordEvent
 	exclude := r.URL.Query().Get("clientID")
 	if exclude == "" {
 		exclude = r.Header.Get("X-Client-ID")
+	}
+	if r.Header.Get("X-Offline-Replay") == "1" {
+		exclude = ""
 	}
 	h.Hub.BroadcastToUser(payload, owner, exclude)
 }

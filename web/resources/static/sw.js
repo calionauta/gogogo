@@ -472,8 +472,11 @@ async function replayQueue() {
         headers.append(pair[0], pair[1]);
       });
       // Tag replayed requests so the server can return a lightweight
-      // response (no Datastar SSE body) — the client still learns of the
-      // change via PocketBase realtime, so the streamed SSE would be wasted.
+      // response (no Datastar SSE body) — the tab still learns of the
+      // change via the hub record broadcast, which replays never exclude
+      // (the queued clientID rides along verbatim, but a background
+      // replay is not the originating interaction, so the no-echo rule
+      // does not apply to it).
       headers.append("X-Offline-Replay", "1");
       var opts = {
         method: item.method,

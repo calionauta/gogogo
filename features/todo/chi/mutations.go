@@ -83,6 +83,16 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.Onboarding.ResumeOnboarding(owner)
 	}
 
+	// Fan-out precedes the replay short-circuit below: a replayed request
+	// answers "replayed" with no SSE body, so the hub broadcast (plus the
+	// JetStream op) is the only path live tabs learn of the change through.
+	// The previous stack fanned out at the record-write layer, independent
+	// of the HTTP response; this stack fans out here, so it must not sit
+	// behind the early return.
+	h.publishSync(r, owner,
+		recordEvent{Event: "created", ID: createdID, Title: title},
+		natswire.CrudOpCreate, &natswire.CrudOpData{ID: createdID, Title: title})
+
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
@@ -93,9 +103,6 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after create failed", err, "error listing todos")
 		return
 	}
-	h.publishSync(r, owner,
-		recordEvent{Event: "created", ID: createdID, Title: title},
-		natswire.CrudOpCreate, &natswire.CrudOpData{ID: createdID, Title: title})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"loading": false, "newTitle": "", signalItemCount: len(todos),
@@ -159,6 +166,13 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fan-out before the replay short-circuit (see handleCreate): the
+	// "replayed" acknowledgment carries no patch, so the broadcast is the
+	// only path live tabs learn of the toggle through.
+	h.publishSync(r, owner,
+		recordEvent{Event: "toggled", ID: id, Done: !current.Completed},
+		natswire.CrudOpToggle, &natswire.CrudOpData{ID: id, Completed: !current.Completed})
+
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
@@ -169,9 +183,6 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after toggle failed", err, "error listing todos")
 		return
 	}
-	h.publishSync(r, owner,
-		recordEvent{Event: "toggled", ID: id, Done: !current.Completed},
-		natswire.CrudOpToggle, &natswire.CrudOpData{ID: id, Completed: !current.Completed})
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
 		h.fail(w, "todo: toggle patch failed", err, "toggle failed")
@@ -228,6 +239,13 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fan-out before the replay short-circuit (see handleCreate): the
+	// "replayed" acknowledgment carries no patch, so the broadcast is the
+	// only path live tabs learn of the delete through.
+	h.publishSync(r, owner,
+		recordEvent{Event: "deleted", ID: item.ID},
+		natswire.CrudOpDelete, &natswire.CrudOpData{ID: item.ID})
+
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
@@ -238,9 +256,6 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after delete failed", err, "error listing todos")
 		return
 	}
-	h.publishSync(r, owner,
-		recordEvent{Event: "deleted", ID: item.ID},
-		natswire.CrudOpDelete, &natswire.CrudOpData{ID: item.ID})
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"confirmingDeleteId":    "",
@@ -274,6 +289,13 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fan-out before the replay short-circuit (see handleCreate): the
+	// "replayed" acknowledgment carries no patch, so the broadcast is the
+	// only path live tabs learn of the clear through.
+	h.publishSync(r, owner,
+		recordEvent{Event: "cleared"},
+		natswire.CrudOpClearCompleted, nil)
+
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
@@ -284,9 +306,6 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: list after clear failed", err, "error listing todos")
 		return
 	}
-	h.publishSync(r, owner,
-		recordEvent{Event: "cleared"},
-		natswire.CrudOpClearCompleted, nil)
 	sse := sdk.NewSSE(w, r)
 	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
 		h.fail(w, "todo: clear patch failed", err, "clear failed")
