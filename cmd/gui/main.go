@@ -46,6 +46,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -104,8 +105,22 @@ func run() error {
 	if aerr != nil {
 		return fmt.Errorf("auth: %w", aerr)
 	}
-	if len(cfg.Auth.TOTPEncKey) > 0 {
-		if err := a.SetTOTPEncKey(cfg.Auth.TOTPEncKey); err != nil {
+	// Same seal-key rule as the web stack (see wireTOTPKey): env key wins,
+	// malformed fails the boot, else the auto-created file, else keyless
+	// with enrollment failing closed per operation.
+	key := cfg.Auth.TOTPEncKey
+	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" && len(key) == 0 {
+		return fmt.Errorf("auth: malformed AUTH_ENC_KEY (want 64 hex chars)")
+	}
+	if len(key) == 0 {
+		if fk, ferr := auth.LoadOrCreateKeyFile(cfg.DataDir); ferr != nil {
+			slog.Warn("gui: totp key file unavailable, TOTP enrollment disabled", "error", ferr)
+		} else {
+			key = fk[:]
+		}
+	}
+	if len(key) > 0 {
+		if err := a.SetTOTPEncKey(key); err != nil {
 			return fmt.Errorf("auth: %w", err)
 		}
 	}

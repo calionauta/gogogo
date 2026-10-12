@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 )
 
@@ -82,43 +81,6 @@ func TestOAuthSubjectSurvivesEmailChange(t *testing.T) {
 	}
 }
 
-// TestOAuthLegacyLinkAdopts covers pre-sub rows: a provider:email link from
-// before subjects existed adopts onto the stable subject at next login
-// instead of provisioning a duplicate.
-func TestOAuthLegacyLinkAdopts(t *testing.T) {
-	ctx := context.Background()
-	a := pluginAuth(t)
-	user, _, serr := a.Signup(ctx, "legacy-oauth@example.com", "Correct-horse-99!", "")
-	if serr != nil {
-		t.Fatalf("signup: %v", serr)
-	}
-	if err := a.q.LinkOAuthAccount(ctx, dbgen.LinkOAuthAccountParams{
-		Provider: "stub", Subject: "stub:legacy-oauth@example.com",
-		UserID: user.ID, Created: db.Now(),
-	}); err != nil {
-		t.Fatalf("legacy link: %v", err)
-	}
-	idp := stubIDP(t, "legacy-oauth@example.com", true)
-	a.SetOAuthProviders(map[string]OAuthProvider{"stub": subProvider(idp.URL)})
-	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
-	if code := oauthCallback(t, mux); code != http.StatusSeeOther {
-		t.Fatalf("callback status = %d", code)
-	}
-	n, err := a.q.CountUsers(ctx)
-	if err != nil {
-		t.Fatalf("count: %v", err)
-	}
-	if n != 1 {
-		t.Fatalf("users = %d, want 1 (adopted, not duplicated)", n)
-	}
-	if _, err := a.q.GetOAuthAccount(ctx, dbgen.GetOAuthAccountParams{
-		Provider: "stub", Subject: "stub:stub-sub-1",
-	}); err != nil {
-		t.Fatalf("adopted sub-keyed link missing: %v", err)
-	}
-}
-
 // TestOAuthUnverifiedEmailRejected pins the verified claim at the HTTP
 // layer: a provider response with email_verified=false fails the login
 // (502 from the callback), so an attacker-controlled IdP response without
@@ -131,5 +93,19 @@ func TestOAuthUnverifiedEmailRejected(t *testing.T) {
 	mux.Handle("/api/auth/", a.Handler())
 	if code := oauthCallback(t, mux); code != http.StatusBadGateway {
 		t.Fatalf("unverified callback status = %d, want 502", code)
+	}
+}
+
+// TestGitHubSubjectParses pins the /user id extraction (and its absence).
+func TestGitHubSubjectParses(t *testing.T) {
+	sub, err := parseGitHubSubject([]byte(`{"id":12345,"login":"octo"}`))
+	if err != nil || sub != "12345" {
+		t.Fatalf("subject = %q, %v; want 12345, nil", sub, err)
+	}
+	if _, err := parseGitHubSubject([]byte(`{"login":"octo"}`)); err == nil {
+		t.Fatal("missing id accepted")
+	}
+	if _, err := parseGoogleSubject([]byte(`{"email":"a@b.c"}`)); err == nil {
+		t.Fatal("missing sub accepted")
 	}
 }

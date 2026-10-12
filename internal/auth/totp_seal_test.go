@@ -1,9 +1,11 @@
-// SCOPE:core — TOTP at-rest encryption tests (seal, upgrade, fail-closed).
+// SCOPE:core — TOTP at-rest encryption tests (seal, key file, fail-closed).
 package auth
 
 import (
 	"context"
 	"crypto/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +20,9 @@ func testKey(t *testing.T) [32]byte {
 	return k
 }
 
-// TestTOTPSealedRoundTrip pins the encrypted path end to end: with a key
-// configured, the stored row is sealed (never the plaintext secret), and
-// enroll + login verify through the seal.
+// TestTOTPSealedRoundTrip pins the encrypted path end to end: the stored
+// row is sealed (never the plaintext secret), and enroll + login verify
+// through the seal.
 func TestTOTPSealedRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	a := testAuth(t, testDB(t))
@@ -62,52 +64,25 @@ func TestTOTPSealedRoundTrip(t *testing.T) {
 	}
 }
 
-// TestTOTPLegacyUpgradesOnVerify pins the migration without a migration:
-// a plaintext row from before the key verifies once, then rewrites itself
-// sealed (flag preserved — a sealed upgrade must never disenroll 2FA).
-func TestTOTPLegacyUpgradesOnVerify(t *testing.T) {
+// TestBeginTOTPRequiresKey pins the fail-closed enrollment: without a seal
+// key there is no enroll (a stored secret nobody can verify would brick
+// the user). Production always configures one; tests that need enrollment
+// set it explicitly (pluginAuth does).
+func TestBeginTOTPRequiresKey(t *testing.T) {
 	ctx := context.Background()
 	a := testAuth(t, testDB(t))
-	user, _, serr := a.Signup(ctx, "legacy@example.com", "Correct-horse-99!", "")
+	user, _, serr := a.Signup(ctx, "nokey@example.com", "Correct-horse-99!", "")
 	if serr != nil {
 		t.Fatalf("signup: %v", serr)
 	}
-	secret, _, _, berr := a.BeginTOTP(ctx, user.ID)
-	if berr != nil {
-		t.Fatalf("begin: %v", berr)
-	}
-	code, _ := totpCode(secret, time.Now())
-	if err := a.VerifyTOTPEnroll(ctx, user.ID, code); err != nil {
-		t.Fatalf("enroll: %v", err)
-	}
-	row, _ := a.q.GetUser(ctx, user.ID)
-	if strings.HasPrefix(row.TotpSecret, totpSealVersion) {
-		t.Fatal("no key configured, yet the row is sealed")
-	}
-	k := testKey(t)
-	if err := a.SetTOTPEncKey(k[:]); err != nil {
-		t.Fatalf("key: %v", err)
-	}
-	code, _ = totpCode(secret, time.Now())
-	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err != nil {
-		t.Fatalf("legacy login: %v", err)
-	}
-	row, _ = a.q.GetUser(ctx, user.ID)
-	if !strings.HasPrefix(row.TotpSecret, totpSealVersion) {
-		t.Fatalf("row still plaintext after verify, want sealed: %q", row.TotpSecret)
-	}
-	if row.TotpVerified == 0 {
-		t.Fatal("upgrade reset the verified flag (2FA disenrolled)")
-	}
-	code, _ = totpCode(secret, time.Now())
-	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err != nil {
-		t.Fatalf("post-upgrade login: %v", err)
+	if _, _, _, err := a.BeginTOTP(ctx, user.ID); err == nil {
+		t.Fatal("enrollment without a seal key accepted")
 	}
 }
 
-// TestTOTPSealFailClosed pins both closed directions: a sealed row without
-// a key never verifies, and the wrong key never verifies (no oracle beyond
-// the shared bad-credentials error).
+// TestTOTPSealFailClosed pins both closed directions on one enrolled row:
+// clearing the key fails verification, and the wrong key fails
+// verification (no oracle beyond the shared bad-credentials error).
 func TestTOTPSealFailClosed(t *testing.T) {
 	ctx := context.Background()
 	a := testAuth(t, testDB(t))
@@ -121,19 +96,55 @@ func TestTOTPSealFailClosed(t *testing.T) {
 	if err := a.VerifyTOTPEnroll(ctx, user.ID, code); err != nil {
 		t.Fatalf("enroll: %v", err)
 	}
-	other := testAuth(t, testDB(t))
-	row, _ := a.q.GetUser(ctx, user.ID)
-	// Same row, no key: closed.
-	if _, _, err := openTOTPSecret(nil, row.TotpSecret); err == nil {
-		t.Fatal("sealed row opened without a key")
+	if err := a.SetTOTPEncKey(nil); err != nil {
+		t.Fatalf("clear: %v", err)
 	}
-	// Same row, wrong key: closed. (A second Auth sharing no state stands
-	// in for a restarted process with a rotated/lost key.)
+	code, _ = totpCode(secret, time.Now())
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err == nil {
+		t.Fatal("sealed row verified without a key")
+	}
 	wrong := testKey(t)
-	if err := other.SetTOTPEncKey(wrong[:]); err != nil {
+	if err := a.SetTOTPEncKey(wrong[:]); err != nil {
 		t.Fatalf("key: %v", err)
 	}
-	if _, _, err := openTOTPSecret(other.totpKey, row.TotpSecret); err == nil {
-		t.Fatal("sealed row opened with the wrong key")
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err == nil {
+		t.Fatal("sealed row verified with the wrong key")
+	}
+	if err := a.SetTOTPEncKey(k[:]); err != nil {
+		t.Fatalf("key: %v", err)
+	}
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err != nil {
+		t.Fatalf("right key rejected: %v", err)
+	}
+}
+
+// TestLoadOrCreateKeyFile pins the zero-operator-action key lifecycle:
+// create once (0600), stable across boots, malformed fails fast (never a
+// silent second key next to the broken one).
+func TestLoadOrCreateKeyFile(t *testing.T) {
+	dir := t.TempDir()
+	k1, err := LoadOrCreateKeyFile(dir)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	st, err := os.Stat(filepath.Join(dir, totpKeyFileName))
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("key file perm = %o, want 600", st.Mode().Perm())
+	}
+	k2, err := LoadOrCreateKeyFile(dir)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if k1 != k2 {
+		t.Fatal("key file not stable across loads")
+	}
+	if err := os.WriteFile(filepath.Join(dir, totpKeyFileName), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadOrCreateKeyFile(dir); err == nil {
+		t.Fatal("malformed key file accepted")
 	}
 }

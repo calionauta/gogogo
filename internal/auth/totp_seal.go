@@ -1,20 +1,16 @@
 // SCOPE:core — TOTP secret encryption at rest
 //
-// A database read must not yield every user's second factor: sessions,
-// magic-link tokens and recovery codes are all stored hashed, but TOTP
-// verification needs the secret itself, so hashing is impossible and the
-// answer is encryption. Secrets sealed with XChaCha20-Poly1305
-// (x/crypto — no new dependency) under AUTH_ENC_KEY, stored as
-// "v1:" + base64(nonce|ciphertext) in the same TEXT column: no migration,
-// and legacy plaintext rows (no v1: prefix) keep verifying until the next
-// successful code upgrades them in place (same shape as password
-// rehash-on-login).
+// A database read must not yield any user's second factor: sessions,
+// magic-link tokens and recovery codes are all stored hashed, and TOTP
+// secrets are sealed with XChaCha20-Poly1305 (x/crypto — no new
+// dependency) under a 32-byte key, stored as "v1:" +
+// base64(nonce|ciphertext) in the same TEXT column. Non-sealed rows never
+// verify (fail closed) — there is no plaintext fallback.
 //
-// No key configured (the default) keeps the legacy behavior — documented,
-// not silent: the threat model (DB file readable = 2FA bypass) is stated
-// in docs/configuration.md next to the variable. Fail-closed everywhere
-// else: a sealed row without a key never verifies, and a wrong key never
-// verifies.
+// The key comes from AUTH_ENC_KEY when set, else from an auto-created
+// 0600 file (see LoadOrCreateKeyFile): encryption is always on, with no
+// operator action. A lost key means re-enrollment via recovery codes,
+// never silent plaintext.
 package auth
 
 import (
@@ -22,14 +18,25 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// totpSealVersion prefixes every sealed secret. Legacy rows (plain base32,
-// no prefix) verify as before and upgrade on next success when a key is set.
+// totpSealVersion prefixes every sealed secret.
 const totpSealVersion = "v1:"
+
+// totpKeyFileName is the auto-created key file inside the app data dir.
+const totpKeyFileName = "totp_seal.key"
+
+// keyFilePerm is the key file mode (group/others must not read it);
+// keyDirPerm the containing dir mode for auto-creation.
+const (
+	keyFilePerm = 0o600
+	keyDirPerm  = 0o755
+)
 
 // sealTOTPSecret encrypts a fresh secret. Nonce is random per seal and
 // prepended to the ciphertext; the whole envelope is raw base64.
@@ -46,34 +53,65 @@ func sealTOTPSecret(key *[32]byte, secret string) (string, error) {
 	return totpSealVersion + base64.RawStdEncoding.EncodeToString(sealed), nil
 }
 
-// openTOTPSecret returns the verifiable secret for a stored row. Sealed
-// rows need the key (absent or wrong key fails closed); legacy rows pass
-// through with sealed=false so the caller can upgrade them after a
-// successful verify.
-func openTOTPSecret(key *[32]byte, stored string) (secret string, sealed bool, err error) {
+// openTOTPSecret returns the verifiable secret for a stored row. Anything
+// that is not a sealed v1: envelope fails closed — including rows written
+// before sealing existed (re-enroll via recovery codes) and any key
+// problem (absent or wrong key).
+func openTOTPSecret(key *[32]byte, stored string) (string, error) {
 	if !strings.HasPrefix(stored, totpSealVersion) {
-		if stored == "" {
-			return "", false, errors.New("auth: empty totp secret")
-		}
-		return stored, false, nil
+		return "", errors.New("auth: unsealed totp secret rejected")
 	}
 	if key == nil {
-		return "", true, errors.New("auth: sealed totp secret without key")
+		return "", errors.New("auth: sealed totp secret without key")
 	}
 	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(stored, totpSealVersion))
 	if err != nil {
-		return "", true, fmt.Errorf("auth: totp seal decode: %w", err)
+		return "", fmt.Errorf("auth: totp seal decode: %w", err)
 	}
 	aead, err := chacha20poly1305.NewX(key[:])
 	if err != nil {
-		return "", true, fmt.Errorf("auth: totp seal: %w", err)
+		return "", fmt.Errorf("auth: totp seal: %w", err)
 	}
 	if len(raw) < chacha20poly1305.NonceSizeX {
-		return "", true, errors.New("auth: truncated totp seal")
+		return "", errors.New("auth: truncated totp seal")
 	}
 	plain, err := aead.Open(nil, raw[:chacha20poly1305.NonceSizeX], raw[chacha20poly1305.NonceSizeX:], nil)
 	if err != nil {
-		return "", true, errors.New("auth: sealed totp secret rejected")
+		return "", errors.New("auth: sealed totp secret rejected")
 	}
-	return string(plain), true, nil
+	return string(plain), nil
+}
+
+// LoadOrCreateKeyFile returns the 32-byte seal key at dir/totp_seal.key,
+// creating it (0600) on first boot. The key lives outside the database so
+// a database read (dump, backup, copy) never yields second factors; losing
+// the file means re-enrollment via recovery codes. A present-but-malformed
+// file fails fast instead of silently minting a second key next to it.
+func LoadOrCreateKeyFile(dir string) ([32]byte, error) {
+	var zero [32]byte
+	path := filepath.Join(dir, totpKeyFileName)
+	raw, err := os.ReadFile(path)
+	if err == nil {
+		if len(raw) != totpKeyLen {
+			return zero, fmt.Errorf("auth: totp key file %s holds %d bytes, want %d", path, len(raw), totpKeyLen)
+		}
+		var k [32]byte
+		copy(k[:], raw)
+		return k, nil
+	}
+	if !os.IsNotExist(err) {
+		return zero, fmt.Errorf("auth: totp key file: %w", err)
+	}
+	var k [32]byte
+	if _, err := rand.Read(k[:]); err != nil {
+		return zero, fmt.Errorf("auth: totp key entropy: %w", err)
+	}
+	if err := os.MkdirAll(dir, keyDirPerm); err != nil {
+		return zero, fmt.Errorf("auth: totp key dir: %w", err)
+	}
+	// #nosec G306 — keyFilePerm (0600) is the point: group/others must not read it.
+	if err := os.WriteFile(path, k[:], keyFilePerm); err != nil {
+		return zero, fmt.Errorf("auth: totp key write: %w", err)
+	}
+	return k, nil
 }

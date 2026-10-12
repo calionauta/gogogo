@@ -1,11 +1,9 @@
-// SCOPE:core — Demo-user seed for fresh installs (the legacy SeedDefaults pair)
+// SCOPE:core — Demo-user seed for fresh installs
 //
-// The old stack seeded a demo account on first boot (db/seed.go) so a fresh
-// clone had a way in. The flat stack keeps that contract: one idempotent
-// call at boot (internal/server) and on the native window's first run
-// (cmd/gui) signs the same pair up. Signup is idempotent by design — a
-// duplicate email answers ErrBadCredentials, which is exactly the
-// "already seeded" case.
+// A fresh clone needs a way in: one idempotent call at boot
+// (internal/server) and on the native window's first run (cmd/gui) signs
+// the same pair up. Signup is idempotent by design — a duplicate email
+// answers ErrBadCredentials, which is exactly the "already seeded" case.
 package demo
 
 import (
@@ -16,9 +14,8 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 )
 
-// The pairs the login form advertises. Same values the legacy seed used
-// (db/seed.go seeded both), so demos and docs keep working: demo1 is
-// prefilled, demo2 is the second browser for contention.
+// The pairs the login form advertises: demo1 is prefilled, demo2 is the
+// second browser for contention.
 const (
 	Email     = "demo1@demo.app"
 	Email2    = "demo2@demo.app"

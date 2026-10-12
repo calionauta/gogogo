@@ -72,7 +72,7 @@ All dormant unless `CREDITS_ENABLED=true`.
 | `CREDITS_ENABLED` | `false` | Master switch for the ai-credits plugin |
 | `CREDITS_MONTHLY_CREDITS` | `0` | Monthly entitlement per user |
 | `CREDITS_DEFAULT_MODE` | `explicit` | Billing mode applied when a request does not name one |
-| `CREDITS_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`) or a legacy raw 32-byte value. Encrypts user BYOK keys at rest. |
+| `CREDITS_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`). Encrypts user BYOK keys at rest. Anything else fails closed at BYOK configuration. |
 | `CREDITS_MODEL` | `GOAI_MODEL`, else `gpt-4o-mini` | Model used for priced managed calls |
 | `CREDITS_PRICING_FILE` | unset | Path to a pricing table |
 | `BYOK_PROVIDERS` | unset | `openai=https://api.openai.com/v1,groq=https://api.groq.com/openai/v1` |
@@ -94,9 +94,10 @@ server-side and records upstream JSON/SSE token usage with
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ENCRYPTION_KEY` | — | Legacy key name, kept for existing secrets files (sessions are random tokens and need no key; TOTP secrets at rest use `AUTH_ENC_KEY` below) |
-| `AUTH_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset keeps legacy plaintext storage — set it before enrolling 2FA; existing rows upgrade themselves on next successful verify. Malformed values are ignored (fail-safe: never a truncated key). |
+| `AUTH_ENC_KEY` | auto-created `totp_seal.key` | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset auto-creates a 0600 key file in the data dir (no operator action; backups must handle it like any secret). Set-but-malformed fails the boot. |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
+| `RBAC_ENABLED` | `false` | Enforce the embedded Casbin policy on every request (deny = 403 + warn log). `false` is pass-through with identical wiring. When on: anonymous reaches only the public surface (landing, login, auth endpoints, static, health); users reach everything except `/config`; admins reach all. |
+| `ADMIN_EMAILS` | unset | Comma-separated addresses promoted to `admin` at boot (existing rows only — never provisions; keep public signup closed while set, anyone can claim an unowned address). Required to reach `/config` with `RBAC_ENABLED=true`. |
 
 ### Build metadata
 

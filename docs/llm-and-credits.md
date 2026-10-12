@@ -111,8 +111,8 @@ When both BYOK vars are present, `POST /api/byok/{provider}/{path...}` injects
 the user's encrypted key server-side and records upstream JSON/SSE token usage
 with `billing_mode=byok` and `credits_charged=0`.
 
-`CREDITS_ENC_KEY` accepts the normal `openssl rand -hex 32` representation (or a
-legacy raw 32-byte value).
+`CREDITS_ENC_KEY` accepts the `openssl rand -hex 32` representation (64 hex
+chars) and nothing else.
 
 > The relay trusts the authenticated app user stamped by the app. **Do
 > not expose `X-Auth-User` from an external proxy.**

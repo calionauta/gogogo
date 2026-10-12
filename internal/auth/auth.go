@@ -105,6 +105,10 @@ type User struct {
 type ValidatedSession struct {
 	User    *User
 	Expires time.Time
+	// Role is the coarse RBAC subject ('admin' or 'user', from users.role).
+	// The middleware reads it; handlers keep using User and never branch
+	// on roles themselves.
+	Role string
 }
 
 // Auth is the flat auth stack. Build it once at boot and share it; all
@@ -124,9 +128,9 @@ type Auth struct {
 	// budget than TOTP: signinAttemptMax). Wired in New; zero value would
 	// inherit the TOTP budget, which is too tight for shared egress IPs.
 	signinAttempts attemptTracker
-	// totpKey seals TOTP secrets at rest (see totp_seal.go). Nil keeps the
-	// legacy plaintext storage; set it via SetTOTPEncKey (BootChi wires
-	// AUTH_ENC_KEY).
+	// totpKey seals TOTP secrets at rest (see totp_seal.go). Nil disables
+	// TOTP enrollment and verification; set it via SetTOTPEncKey (BootChi
+	// wires AUTH_ENC_KEY or the auto-created key file).
 	totpKey *[32]byte
 }
 
@@ -326,18 +330,19 @@ func (a *Auth) BeginTOTP(ctx context.Context, userID string) (secret, url, email
 	if err != nil {
 		return "", "", "", ErrBadCredentials
 	}
+	// Sealing needs the key: enrollment without one fails closed here,
+	// not later with a stored secret nobody can verify. Production always
+	// configures it (AUTH_ENC_KEY or the auto-created key file).
+	if a.totpKey == nil {
+		return "", "", "", errors.New("auth: totp encryption key not configured")
+	}
 	secret, err = newTOTPSecret()
 	if err != nil {
 		return "", "", "", err
 	}
-	// Seal before storing when a key is configured; the returned secret
-	// stays plaintext (the user must scan it).
-	stored := secret
-	if a.totpKey != nil {
-		stored, err = sealTOTPSecret(a.totpKey, secret)
-		if err != nil {
-			return "", "", "", err
-		}
+	stored, err := sealTOTPSecret(a.totpKey, secret)
+	if err != nil {
+		return "", "", "", err
 	}
 	if err := a.q.SetTOTPSecret(ctx, dbgen.SetTOTPSecretParams{
 		TotpSecret: stored, Updated: db.Now(), ID: userID,
@@ -357,7 +362,7 @@ func (a *Auth) VerifyTOTPEnroll(ctx context.Context, userID, code string) error 
 	if user.TotpSecret == "" {
 		return ErrBadCredentials
 	}
-	opened, sealed, err := openTOTPSecret(a.totpKey, user.TotpSecret)
+	opened, err := openTOTPSecret(a.totpKey, user.TotpSecret)
 	if err != nil || !verifyTOTP(opened, code, time.Now()) {
 		return ErrBadCredentials
 	}
@@ -366,7 +371,6 @@ func (a *Auth) VerifyTOTPEnroll(ctx context.Context, userID, code string) error 
 	}); err != nil {
 		return fmt.Errorf("auth: totp enroll: %w", err)
 	}
-	a.upgradeTOTPSecret(ctx, userID, opened, sealed)
 	return nil
 }
 
@@ -389,7 +393,8 @@ func (a *Auth) VerifyTOTPLogin(ctx context.Context, userID, code string) (string
 }
 
 // SetTOTPEncKey installs the at-rest encryption key for TOTP secrets
-// (AUTH_ENC_KEY, 32 bytes). Empty clears back to legacy plaintext storage.
+// (AUTH_ENC_KEY, 32 bytes). Empty clears back to keyless (enrollment and
+// verification fail closed until a key is set).
 // Wrong-sized keys fail fast: a truncated key must never silently weaken
 // every second factor.
 func (a *Auth) SetTOTPEncKey(key []byte) error {
@@ -404,23 +409,6 @@ func (a *Auth) SetTOTPEncKey(key []byte) error {
 	copy(k[:], key)
 	a.totpKey = &k
 	return nil
-}
-
-// upgradeTOTPSecret rewrites a legacy plaintext row sealed, preserving the
-// verified flag (UpdateTOTPSecret, not SetTOTPSecret — the latter resets
-// enrollment). No-op when already sealed or when no key is configured;
-// best-effort, like password rehash: the verify already succeeded.
-func (a *Auth) upgradeTOTPSecret(ctx context.Context, userID, opened string, sealed bool) {
-	if sealed || a.totpKey == nil {
-		return
-	}
-	resealed, err := sealTOTPSecret(a.totpKey, opened)
-	if err != nil {
-		return
-	}
-	_ = a.q.UpdateTOTPSecret(ctx, dbgen.UpdateTOTPSecretParams{
-		TotpSecret: resealed, Updated: db.Now(), ID: userID,
-	})
 }
 
 // DisableTOTP removes second-factor enforcement. Callers gate this behind

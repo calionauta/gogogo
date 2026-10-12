@@ -84,23 +84,6 @@ func (q *Queries) SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) er
 	return err
 }
 
-const updateTOTPSecret = `-- name: UpdateTOTPSecret :exec
-UPDATE users SET totp_secret = ?, updated = ? WHERE id = ?
-`
-
-type UpdateTOTPSecretParams struct {
-	TotpSecret string
-	Updated    string
-	ID         string
-}
-
-// Seal upgrades only: rewrites the secret (plaintext -> sealed) without
-// touching the verified flag. SetTOTPSecret above is enrollment (resets).
-func (q *Queries) UpdateTOTPSecret(ctx context.Context, arg UpdateTOTPSecretParams) error {
-	_, err := q.db.ExecContext(ctx, updateTOTPSecret, arg.TotpSecret, arg.Updated, arg.ID)
-	return err
-}
-
 const verifyTOTPFlag = `-- name: VerifyTOTPFlag :exec
 UPDATE users SET totp_verified = 1, updated = ? WHERE id = ?
 `

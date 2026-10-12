@@ -62,6 +62,12 @@ func pluginAuth(t *testing.T) *Auth {
 	if err != nil {
 		t.Fatalf("auth new: %v", err)
 	}
+	// Production always wires a seal key (AUTH_ENC_KEY or the auto-created
+	// file); the fixture mirrors that so enrollment paths behave as shipped.
+	k := testKey(t)
+	if err := a.SetTOTPEncKey(k[:]); err != nil {
+		t.Fatalf("seal key: %v", err)
+	}
 	return a
 }
 
@@ -226,12 +232,13 @@ func TestOAuthFlow(t *testing.T) {
 	a.SetOAuthProviders(map[string]OAuthProvider{
 		"stub": {
 			Name: "stub", ClientID: "id", ClientSecret: "secret",
-			RedirectURL: "http://x.test/api/auth/oauth/stub/callback",
-			AuthURL:     idp.URL + "/auth",
-			TokenURL:    idp.URL + "/token",
-			UserInfoURL: idp.URL + "/userinfo",
-			Scopes:      []string{"email"},
-			ParseEmail:  parseGoogleEmail,
+			RedirectURL:  "http://x.test/api/auth/oauth/stub/callback",
+			AuthURL:      idp.URL + "/auth",
+			TokenURL:     idp.URL + "/token",
+			UserInfoURL:  idp.URL + "/userinfo",
+			Scopes:       []string{"email"},
+			ParseEmail:   parseGoogleEmail,
+			ParseSubject: parseGoogleSubject,
 		},
 	})
 	mux := http.NewServeMux()
@@ -303,20 +310,6 @@ func TestOAuthFlow(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("users = %d, want 1 (link, not duplicate)", n)
-	}
-}
-
-// TestGitHubSubjectParses pins the /user id extraction (and its absence).
-func TestGitHubSubjectParses(t *testing.T) {
-	sub, err := parseGitHubSubject([]byte(`{"id":12345,"login":"octo"}`))
-	if err != nil || sub != "12345" {
-		t.Fatalf("subject = %q, %v; want 12345, nil", sub, err)
-	}
-	if _, err := parseGitHubSubject([]byte(`{"login":"octo"}`)); err == nil {
-		t.Fatal("missing id accepted")
-	}
-	if _, err := parseGoogleSubject([]byte(`{"email":"a@b.c"}`)); err == nil {
-		t.Fatal("missing sub accepted")
 	}
 }
 
@@ -467,12 +460,13 @@ func TestOAuthPKCEChallenge(t *testing.T) {
 	a.SetOAuthProviders(map[string]OAuthProvider{
 		"stub": {
 			Name: "stub", ClientID: "id", ClientSecret: "secret",
-			RedirectURL: "http://x.test/api/auth/oauth/stub/callback",
-			AuthURL:     idp.URL + "/auth",
-			TokenURL:    idp.URL + "/token",
-			UserInfoURL: idp.URL + "/userinfo",
-			Scopes:      []string{"email"},
-			ParseEmail:  parseGoogleEmail,
+			RedirectURL:  "http://x.test/api/auth/oauth/stub/callback",
+			AuthURL:      idp.URL + "/auth",
+			TokenURL:     idp.URL + "/token",
+			UserInfoURL:  idp.URL + "/userinfo",
+			Scopes:       []string{"email"},
+			ParseEmail:   parseGoogleEmail,
+			ParseSubject: parseGoogleSubject,
 		},
 	})
 	mux := http.NewServeMux()

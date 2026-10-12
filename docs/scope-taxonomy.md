@@ -30,13 +30,12 @@ their removal class in a leading doc comment:
 The class is one value: `core` = binary won't compile or won't boot; `plugin` =
 binary works but loses a capability; `feature` = pure demo. The **directory is
 the layer** — `internal/` is infrastructure, `features/` is product — so there
-is no separate `layer` axis to keep in sync (an earlier two-axis
-`layer=…,removal=…` form was dropped for exactly that reason).
+is no separate `layer` axis to keep in sync (a two-axis `layer=…,removal=…` form was considered and rejected for exactly that reason).
 
 **Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in
 `internal/` and `features/` and asserts the canonical SCOPE line is present in
 the leading doc-comment group. **The single-axis form above is the only
-accepted dialect** — the legacy two-axis `layer=…,removal=…` form is rejected,
+accepted dialect** — the two-axis `layer=…,removal=…` form is rejected,
 so the annotation is either canonical or an offender (no drift between
 dialects). `make ci-local` runs it via the `check-scope` target, and the
 lefthook pre-commit runs it whenever staged files match `{internal,features}/**/*.go`.

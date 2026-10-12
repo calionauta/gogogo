@@ -70,10 +70,9 @@ type OAuthProvider struct {
 	ParseEmail   func(body []byte) (string, error)
 	// SubjectURL fetches the stable provider-side account id (the "sub"
 	// claim). Empty reuses the UserInfoURL response. ParseSubject extracts
-	// it; nil keeps the legacy email-derived subject. Prefer sub: an
-	// email address can change hands (deleted accounts get recycled),
-	// and a link keyed by email follows the address to its new owner —
-	// a quiet account takeover. A sub never does.
+	// it and is required: an email address can change hands (deleted
+	// accounts get recycled), and a link keyed by email follows the
+	// address to its new owner — a quiet account takeover. A sub never does.
 	SubjectURL   string
 	ParseSubject func(body []byte) (string, error)
 }
@@ -304,7 +303,7 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 		http.Error(w, "login failed", http.StatusBadGateway)
 		return
 	}
-	user, err := a.findOrCreateOAuthUser(r.Context(), provider, p, email, subject)
+	user, err := a.findOrCreateOAuthUser(r.Context(), provider, email, subject)
 	if err != nil {
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
@@ -318,10 +317,8 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 	http.Redirect(w, r, "/todo", http.StatusSeeOther)
 }
 
-// fetchOAuthIdentity resolves the verified email and the stable subject.
-// The subject is namespaced by provider; without ParseSubject it falls back
-// to the legacy email-derived form (kept working so old links adopt
-// instead of orphaning — see findOrCreateOAuthUser).
+// fetchOAuthIdentity resolves the verified email and the stable subject,
+// namespaced by provider.
 func fetchOAuthIdentity(ctx context.Context, p OAuthProvider, accessToken string) (email, subject string, err error) {
 	body, err := fetchOAuthURL(ctx, p.UserInfoURL, accessToken)
 	if err != nil {
@@ -336,7 +333,7 @@ func fetchOAuthIdentity(ctx context.Context, p OAuthProvider, accessToken string
 		return "", "", err
 	}
 	if p.ParseSubject == nil {
-		return email, legacyOAuthSubject(p, email), nil
+		return "", "", errors.New("auth: provider has no subject extractor")
 	}
 	subURL := p.SubjectURL
 	subBody := body
@@ -376,11 +373,11 @@ func fetchOAuthURL(ctx context.Context, url, accessToken string) ([]byte, error)
 }
 
 // findOrCreateOAuthUser links (provider, subject) to an app user: reuse
-// the link, else adopt a legacy email-keyed link (pre-sub rows upgrade
-// themselves here — no migration), else reuse the email row, else
-// provision. One human, one users row, however many ways in.
+// the link, else reuse the email row, else provision. One human, one users
+// row, however many ways in. Subjects are stable provider ids; email rows
+// are matched only on first contact (see the linking comment above).
 func (a *Auth) findOrCreateOAuthUser(
-	ctx context.Context, provider string, p OAuthProvider, email, subject string,
+	ctx context.Context, provider, email, subject string,
 ) (*User, error) {
 	if subject == "" {
 		return nil, errors.New("auth: empty oauth subject")
@@ -394,27 +391,6 @@ func (a *Auth) findOrCreateOAuthUser(
 			return nil, fmt.Errorf("auth: linked user gone: %w", uerr)
 		}
 		return &User{ID: user.ID, Email: user.Email}, nil
-	}
-	// Legacy adoption: rows linked before subjects existed carry
-	// provider:email. Adopt them onto the stable subject (idempotent:
-	// LinkOAuthAccount ignores conflicts) instead of provisioning a
-	// duplicate — or worse, handing the recycled address to a new human.
-	if legacy := legacyOAuthSubject(p, email); legacy != subject {
-		if old, oerr := a.q.GetOAuthAccount(ctx, dbgen.GetOAuthAccountParams{
-			Provider: provider, Subject: legacy,
-		}); oerr == nil {
-			if _, uerr := a.q.GetUser(ctx, old.UserID); uerr == nil {
-				_ = a.q.LinkOAuthAccount(ctx, dbgen.LinkOAuthAccountParams{
-					Provider: provider, Subject: subject,
-					UserID: old.UserID, Created: db.Now(),
-				})
-				user, uerr := a.q.GetUser(ctx, old.UserID)
-				if uerr != nil {
-					return nil, fmt.Errorf("auth: linked user gone: %w", uerr)
-				}
-				return &User{ID: user.ID, Email: user.Email}, nil
-			}
-		}
 	}
 	row, err := a.q.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -437,12 +413,4 @@ func (a *Auth) findOrCreateOAuthUser(
 		return nil, fmt.Errorf("auth: oauth link: %w", err)
 	}
 	return &User{ID: row.ID, Email: row.Email}, nil
-}
-
-// legacyOAuthSubject is the pre-sub link key (provider + verified email).
-// Kept only for adoption: new links always carry the stable subject, and
-// email-keyed rows must never be created fresh (an address can change
-// hands; a sub cannot).
-func legacyOAuthSubject(p OAuthProvider, email string) string {
-	return p.Name + ":" + email
 }
