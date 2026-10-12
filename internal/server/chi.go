@@ -203,16 +203,14 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	hub := queue.NewSSEHub()
 	queries := dbgen.New(sqlDB)
 	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
-	todoH.BuildLabel = cfg.BuildLabel
-	todoH.BuildCommit = cfg.BuildCommit
-	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
-	todoH.NATSEnabled = cfg.NATS.Enabled
+	wireTodoDisplay(todoH, cfg)
 
-	// Onboarding wires before the actor boot so the shutdown hooks are
-	// preallocated from its slice. The hook order is arbitrary (they stop
-	// independent things: stepper, actor, queue, ledger).
+	// Shutdown hooks stop independent things: stepper, actor, queue,
+	// ledger. The order is arbitrary.
+	var shutdown []func()
+
+	// Onboarding wires before the actor boot so its hook lands first.
 	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
-	shutdown := make([]func(), 0, 1+len(onbShutdown))
 	shutdown = append(shutdown, onbShutdown...)
 
 	roomH, roomHost := bootRoomActor(bootCtx, cfg, a)
@@ -263,14 +261,16 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
+	mux := buildChiMux(a, todoH,
+		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
+		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
+		roomH, chatH, genuiH, creditsH,
+	)
+	mountOnboarding(mux, onboardingH)
 	return &ChiStack{
-		sqlDB: sqlDB,
-		mux: buildChiMux(a, todoH,
-			landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
-			wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
-			notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
-			roomH, chatH, genuiH, creditsH, onboardingH,
-		),
+		sqlDB:          sqlDB,
+		mux:            mux,
 		cancelConsumer: cancelConsumer,
 		shutdown:       shutdown,
 		appName:        cfg.AppName,
@@ -372,16 +372,41 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, stack *ChiStack) func
 	}
 }
 
+// wireTodoDisplay copies the display-time config into the todo handler:
+// version badge, offline label and realtime label. Extracted from BootChi
+// to keep boot under the function-length gate; it is plain assignment with
+// no control flow of its own.
+func wireTodoDisplay(todoH *chi.Handler, cfg *config.Config) {
+	todoH.BuildLabel = cfg.BuildLabel
+	todoH.BuildCommit = cfg.BuildCommit
+	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
+	todoH.NATSEnabled = cfg.NATS.Enabled
+}
+
+// mountOnboarding registers the onboarding routes after the composition,
+// not inside it: buildChiMux takes one concrete pointer per feature, and
+// every extra parameter is a line every trim must edit. The optional mount
+// keeps the signature stable while the engine is present or not. Nil is a
+// no-op, so a stock boot never registers the route.
+func mountOnboarding(mux *http.ServeMux, onboardingH *onboarding.Handler) {
+	if onboardingH != nil {
+		mux.Handle("/api/onboarding", onboardingH.Routes())
+		mux.Handle("/api/onboarding/", onboardingH.Routes())
+	}
+}
+
 // buildChiMux composes the flat-stack routes. Pure constructor (no ports,
 // no goroutines) so contract tests cover the exact composition production
-// serves.
+// serves. The onboarding routes are NOT parameters here: they mount after
+// the composition in BootChi, so adding or removing an optional surface
+// never changes this signature (see the mount block there).
 func buildChiMux(
 	a *auth.Auth, todoH *chi.Handler,
 	landingH *landingchi.Handler, configH *configchi.Handler,
 	wbH *wbchi.Handler, notesH *notesachi.Handler,
 	roomH *roomchi.Handler, chatH *chatchi.Handler, genuiH *genuichi.Handler,
-	creditsH *creditschi.Handler, onboardingH *onboarding.Handler,
-) http.Handler {
+	creditsH *creditschi.Handler,
+) *http.ServeMux {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and
 	// the std mux never strips prefixes — so each subtree pattern routes
@@ -418,10 +443,6 @@ func buildChiMux(
 	mux.Handle("/api/genui/", genuiH.Routes())
 	mux.Handle("/api/credits", creditsH.Routes())
 	mux.Handle("/api/credits/", creditsH.Routes())
-	if onboardingH != nil {
-		mux.Handle("/api/onboarding", onboardingH.Routes())
-		mux.Handle("/api/onboarding/", onboardingH.Routes())
-	}
 	mux.Handle("/api/ai/", creditsH.Routes())
 	mux.Handle("/api/byok/", creditsH.Routes())
 	// Healthcheck: the scratch image runs `app health`, which GETs this

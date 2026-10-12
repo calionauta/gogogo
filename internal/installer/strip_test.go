@@ -59,6 +59,7 @@ func TestStripOnboardingCallLine(t *testing.T) {
 	}
 	give := "\t// Optional capabilities: one wiring line each.\n" +
 		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
+		"\tshutdown = append(shutdown, onbShutdown...)\n" +
 		"\twbH := wbchi.NewHandler(queries, a, hub, persister, docs, cfg)\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)

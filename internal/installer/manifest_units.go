@@ -190,58 +190,9 @@ const (
 	soundsImportSuffix = `features/sounds"`
 )
 
-var manifestUnits = []trimUnit{
-	{
-		id: unitDagnats,
-		extraDrops: []fileDrop{
-			{
-				path: chiGoFile,
-				substrs: []string{
-					"onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)",
-					`mux.Handle("/api/onboarding", onboardingH.Routes())`,
-					`mux.Handle("/api/onboarding/", onboardingH.Routes())`,
-					"roomH, chatH, genuiH, creditsH, onboardingH,",
-				},
-			},
-		},
-		extraStrips: []fileStrip{
-			{
-				path: chiGoFile,
-				rules: []stripRule{
-					{
-						startMarker:       "\tif onboardingH != nil {",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
-					},
-				},
-			},
-		},
-		mainStrips: []stripRule{
-			{
-				startMarker: "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)",
-				endMarker:   "defer shutdownDagNats()",
-				addAfter:    mainCallsAnchor,
-				// The lifecycle context exists ONLY to bound DagNats boot work,
-				// so removing the engine leaves its declaration unused and the
-				// build fails on `declared and not used: lifecycleCtx`. Drop the
-				// declaration, its defer, and the comment block that documents
-				// them — otherwise the trim leaves an orphaned three-line comment
-				// explaining a variable that no longer exists.
-				alsoDeleteContains: []string{
-					"// DagNats owns the embedded NATS on :4222 and must boot before",
-					"// startNATS so the realtime broadcaster can attach to it. It's always",
-					"// compiled; when DAGNATS_ENABLED=false it no-ops.",
-				},
-			},
-			{
-				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",
-				endIsClosingBrace: true,
-				endBrace:          "\t}",
-				addBefore:         "\t// Phase 2: wire the CRDTStore JetStream transport when the chosen",
-			},
-		},
-		goModDrops: []string{"github.com/danmestas/dagnats"},
-	},
+var manifestUnits = append(dagNatsTrimUnit, baseTrimUnits...)
+
+var baseTrimUnits = []trimUnit{
 	{
 		id: unitGoAkt,
 		// Bundle rationale, same as whiteboard+collab: the room demo
@@ -254,7 +205,7 @@ var manifestUnits = []trimUnit{
 					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
 					"if roomHost != nil {",
 					"shutdown = append(shutdown, func() { stopRoomActor(roomHost) })",
-					"roomH, chatH, genuiH, creditsH, onboardingH,",
+					"roomH, chatH, genuiH, creditsH,",
 					`mux.Handle("/room", roomH.Routes())`,
 					`mux.Handle("/room/", roomH.Routes())`,
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
