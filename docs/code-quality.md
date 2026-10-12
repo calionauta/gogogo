@@ -37,6 +37,26 @@ need to understand what each linter expects.
 **If a lint forces you to restructure code, that is usually a sign the original
 approach had a deeper issue.**
 
+## Criteria to gates
+
+Each motive in [Motivation](motivation.md) maps to a gate, not prose.
+
+- **Correctness:** contract tests + red-proof discipline; `fail()` logs and 500s without leaking internals.
+- **Agent cost:** `llms.txt` index, ripwire-orient-first, one-arg-per-line composition (trim = drops, not surgery).
+- **Error type:** `check-flatdeps` + `check-generated` + `nolintlint` (named linter + reason enforced).
+- **Performance:** per-slice `bench_test.go`, `synctest` virtual-time loops, `-race` everywhere.
+- **Coexistence:** pure-Go fallback and removal plan for every native proposal; presets over forks where possible.
+
+## Trim gate failure semantics
+
+**A strip rule whose marker no longer matches fails, never warns.**
+`internal/installer/trim_build_test.go` runs copy → trim → templ generate
+→ gofmt → `go vet` → api-routes gate → receipt assertion.
+
+- **Missing FILE skips silently; missing MARKER fails loudly.** Sibling-unit overlap is normal; source drift is not.
+- **Drops/replaces have no receipt (residual).** Mitigated by leftover import/ref failures in vet and the api-routes gate, plus one-arg-per-line design and review.
+- **Cost:** full suite ~1min, CI/manual only (`-short` skips the build half).
+
 ## Running each layer
 
 | Command | What it checks |

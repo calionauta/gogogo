@@ -34,6 +34,23 @@ feedback loop AI coding depends on.
 genuinely interchangeable implementations — e.g. swapping LLM providers. The
 `internal/llm` client stays a (deep) module for exactly that reason.
 
+## Direct vs thin layer (2026-10-12)
+
+**Rule: direct calls by default; a thin layer only with 2+ real
+implementations, or as a documented deletion seam or cycle breaker.**
+Three independent sources state the same rule (verified 2026-10-12;
+falsifiable — a one-impl interface whose removal breaks nothing is deleted).
+
+- **datapages AGENTS.md ("Dependencies"):** prefer stdlib; modules are interfaces with 2+ shipped impls each.
+- **Alchemy (`Layer.effect`):** the contract is the type; the compiler rejects a missing dep in milliseconds.
+- **This repo:** `AGENTS.md` thin seams; never `GenericRepo[T]`; call the concrete dep directly.
+
+**The audit found zero to inline.** Post-PB-removal tree: `collab.Persister`,
+NATS broadcast paths and `genui Responder` are genuine multi-impl;
+`dbgen.DBTX` is a codegen seam; `llm.Biller` is a cycle breaker;
+`chat Responder`/`MessageStore`, the onboarding seams and `roomSystem`
+are construction/test/deletion seams.
+
 ## Target directory structure
 
 | Concern | Location |
@@ -178,3 +195,14 @@ Conventions that outlive the transition: schema lives in
 `schema_migrations` — files are append-only history, never edited. Generated
 `sqlcgen` is committed. Docs describe structure and contracts; CHANGELOG
 keeps history.
+
+## Core vs plugins: why presets (2026-10-12)
+
+**Core stays fixed; plugins/features compose via presets.** Database, auth,
+queue and server are load-bearing (handlers take `dbgen.Queries`, requests
+resolve an owner) — trimmable auth/db would be a second product mode
+with no demanding user.
+
+- **Presets (implemented):** `minimal`, `no-ai`, `no-collab` in `internal/installer/trim_presets.go` — data-only keep-sets over `planTrim`, covered by the trim build gate.
+- **Runtime flags on demand:** for measured boot cost, not speculatively.
+- **Never:** full microkernel or trimmable auth/db without a paying user; API-only is a fork — see `docs/no-auth-no-db-recipe.md`.
