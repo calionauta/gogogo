@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: project rename (module path + references)
+// SCOPE:plugin — installer engine: project rename (module path + references)
 package installer
 
 import (

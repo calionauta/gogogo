@@ -1,9 +1,9 @@
-// SCOPE:layer=feature,removal=plugin — AI credits + BYOK (lib ai-credits).
+// SCOPE:plugin — AI credits + BYOK (lib ai-credits).
 // To remove: delete features/credits/ + router/credits.go + config fields.
 //
 // Wires the calionauta/ai-credits library (immutable ledger + pricing +
 // reservations + monthly grants + reconcile + BYOK relay) into the app's
-// PocketBase SQLite. The lib takes a *sql.DB; the app exposes neither via
+// SQLite database. The lib takes a *sql.DB; the app exposes neither via
 // app.DB() (it returns an opaque dbx.Builder hiding the concrete *sql.DB),
 // so — like the goqite queue (internal/queue) — we open a second connection
 // to the same DB file. WAL + busy_timeout make cross-connection writes safe.
@@ -13,6 +13,7 @@ package credits
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -47,25 +48,15 @@ type Service struct {
 	startedFlag atomic.Bool
 }
 
-// New builds the credits engine on the app's SQLite DB file (a fresh
-// connection to cfg.DBPath), applies the lib-owned schema idempotently, and
-// constructs the BYOK credential store + relay. Returns (nil, nil) when the
-// feature is disabled — handlers then no-op and the binary boots
-// billing-free.
-func New(cfg *config.Config) (*Service, error) {
+// NewOnDB builds the credits engine on an already-open database handle
+// (any SQLite-compatible driver — Turso for the flat stack). Schema and
+// services are identical to New; only the connection source differs.
+// Ownership transfers: NewOnDB closes db on every failure path including
+// disabled, so callers never juggle it.
+func NewOnDB(db *sql.DB, cfg *config.Config) (*Service, error) {
 	if !cfg.Credits.Enabled {
+		_ = db.Close()
 		return nil, nil
-	}
-	// The credits ledger lives in the SAME SQLite file PocketBase uses
-	// (default DataDir/data.db) so users and balances share one atomic
-	// backup; the lib opens its own connection (the PB builder is opaque).
-	dbPath := cfg.DBPath
-	if dbPath == "" {
-		dbPath = "data/data.db"
-	}
-	db, err := credits.OpenSQLite("sqlite3", dbPath)
-	if err != nil {
-		return nil, err
 	}
 	svc, err := credits.New(db, credits.Config{
 		DefaultBillingMode: cfg.Credits.DefaultMode,
@@ -162,6 +153,7 @@ func (s *Service) Start(ctx context.Context) {
 		}
 		if s.Credits != nil {
 			go s.runSettlementOutbox(ctx)
+			go s.runReconcile(ctx)
 		}
 	})
 }
@@ -180,6 +172,32 @@ const settlementInterval = time.Minute
 func (s *Service) runSettlementOutbox(ctx context.Context) {
 	settlementLoop(ctx, settlementInterval, func(ctx context.Context) {
 		_ = s.Credits.ProcessSettlementOutbox(ctx, 100)
+	})
+}
+
+// reconcileInterval is the cadence of the drift check. Ten times slower
+// than settlement: reconcile is the safety net (expiring stuck reservations,
+// reporting ledger drift), not the hot path, and each run writes.
+const reconcileInterval = 10 * time.Minute
+
+// runReconcile periodically reconciles reservations against the ledger until
+// ctx is cancelled. Before this driver existed, Reconcile was implemented in
+// the library but never called in production — drift between reservations
+// and ledger went undetected. Mismatches are logged, not returned: there is
+// no caller to return to on a ticker, and a persistent mismatch must stay
+// visible in the operator's log rather than kill a background loop.
+func (s *Service) runReconcile(ctx context.Context) {
+	settlementLoop(ctx, reconcileInterval, func(ctx context.Context) {
+		mismatches, err := s.Credits.Reconcile(ctx)
+		if err != nil {
+			slog.Error("credits: reconcile failed", "error", err)
+			return
+		}
+		for _, m := range mismatches {
+			slog.Warn("credits: ledger drift detected",
+				"user", m.UserID,
+				"ledger_sum", m.LedgerSum, "balance", m.Balance)
+		}
 	})
 }
 

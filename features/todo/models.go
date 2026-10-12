@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
+// SCOPE:feature — Todo MVC example (reference implementation)
 // To remove: delete features/todo/ and the todo block in router/router.go Init().
 package todo
 
@@ -119,8 +119,8 @@ type Signals struct {
 	// The default build uses the InMemoryBroadcaster.
 	RealtimeKind string `json:"realtimeKind"`
 
-	// StoreLabel describes the active EntityStore strategy (e.g.
-	// "PocketBase records"). Surfaced in the page sub-header so a
+	// StoreLabel describes the active data layer (e.g.
+	// "Turso records"). Surfaced in the page sub-header so a
 	// tester can verify which persistence mode is running without
 	// grep-ing logs.
 	StoreLabel string `json:"storeLabel"`

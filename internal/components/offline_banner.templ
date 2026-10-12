@@ -32,6 +32,8 @@ templ OfflineBanner(offlineSync bool) {
 		class="app-banner"
 		data-component="offline-banner"
 		data-offline-sync={ strconv.FormatBool(offlineSync) }
+		data-on:online__window="window.__gogogoBannerOnline()"
+		data-on:offline__window="window.__gogogoBannerOffline()"
 		aria-live="polite"
 	>
 		<span id="offline-banner-text">Online</span>
@@ -78,6 +80,10 @@ templ OfflineBanner(offlineSync bool) {
 
 			if (OFFLINE_SYNC && navigator.serviceWorker) {
 				// SW postMessage bridge — see web/resources/static/sw.js.
+				// TRUE VANILLA EXCEPTION: no Datastar primitive receives
+				// service-worker messages; nothing declarative can own this
+				// subscription. The bridge re-enters Datastar by dispatching
+				// gogogo:queued (see data-on:gogogo:queued__window consumers).
 				navigator.serviceWorker.addEventListener("message", function (e) {
 					var data = e.data || {};
 					if (data.type === "sync-start") {
@@ -92,6 +98,13 @@ templ OfflineBanner(offlineSync bool) {
 						// presence pills so the live "X online" count
 						// appears with the green pulse again.
 						reflectPresence(true);
+						// Notify Datastar consumers: the queue drained, so
+						// list pages refetch through their resync button
+						// (see ListResync's gogogo:synced listener). The live
+						// SSE broadcast is not enough on its own — it can land
+						// while the tab's stream is still re-establishing
+						// after offline, with nothing after it.
+						window.dispatchEvent(new CustomEvent("gogogo:synced"));
 					} else if (data.type === "sync-error") {
 						setState("offline");
 						// Check actual connectivity — a sync-error while
@@ -133,7 +146,13 @@ templ OfflineBanner(offlineSync bool) {
 				}
 			}
 
-			window.addEventListener("online", function () {
+			// Owned by the data-on:online__window / data-on:offline__window
+			// attributes on the banner div (not vanilla listeners): the
+			// functions below are pure state writers, Datastar owns the
+			// subscriptions. The online path still orchestrates the SW replay
+			// kick — that multi-step imperative sequence (postMessage, wait,
+			// conditional update) has no declarative shape and stays here.
+			window.__gogogoBannerOnline = function () {
 				if (OFFLINE_SYNC && navigator.serviceWorker) {
 					navigator.serviceWorker.ready.then(function (registration) {
 						if (registration.active) {
@@ -146,8 +165,8 @@ templ OfflineBanner(offlineSync bool) {
 				setTimeout(function () {
 					if (!banner.classList.contains("is-syncing")) updateOnline();
 				}, 500);
-			});
-			window.addEventListener("offline", updateOnline);
+			};
+			window.__gogogoBannerOffline = function () { updateOnline(); };
 			updateOnline();
 		})();
 	</script>

@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Headless render tests for the native views.
+// SCOPE:feature — Headless render tests for the native views.
 package main
 
 import (

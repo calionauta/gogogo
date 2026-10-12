@@ -22,7 +22,9 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `APP_NAME` | binary name | Project name (secrets scope); never empty |
 | `LOG_LEVEL` | `INFO` | slog level |
 | `DATA_DIR` | `data` | Root for runtime data |
-| `DATABASE_PATH` | `data/data.db` | SQLite file the credits ledger shares with PocketBase |
+| `DATABASE_PATH` | `data/data.db` | SQLite file the credits ledger opens (second connection to the app DB) |
+| `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
+| `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |
 
 ### Skin
 
@@ -48,8 +50,9 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ENTITY_STORE` | `pb` | `pb` (PocketBase records, admin UI works) or `crdt` (Loro per-owner doc + JetStream cross-instance transport). Same `EntityStore[T]` interface either way. |
+
 | `OFFLINE_SYNC_ENABLED` | `true` | Hybrid offline sync. `false` disables the NATS CRUD proxy and the Service Worker offline queue — zero code paths traversed. |
+| `COLLAB_SNAPSHOTS` | `turso` | CRDT snapshot store behind whiteboard/notes. `memory` keeps snapshots process-local (draw without persistence — docs start empty after restart). Unknown values fail closed at boot. |
 
 ### LLM
 
@@ -69,7 +72,7 @@ All dormant unless `CREDITS_ENABLED=true`.
 | `CREDITS_ENABLED` | `false` | Master switch for the ai-credits plugin |
 | `CREDITS_MONTHLY_CREDITS` | `0` | Monthly entitlement per user |
 | `CREDITS_DEFAULT_MODE` | `explicit` | Billing mode applied when a request does not name one |
-| `CREDITS_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`) or a legacy raw 32-byte value. Encrypts user BYOK keys at rest. |
+| `CREDITS_ENC_KEY` | unset | 64 hex chars (`openssl rand -hex 32`). Encrypts user BYOK keys at rest. Anything else fails closed at BYOK configuration. |
 | `CREDITS_MODEL` | `GOAI_MODEL`, else `gpt-4o-mini` | Model used for priced managed calls |
 | `CREDITS_PRICING_FILE` | unset | Path to a pricing table |
 | `BYOK_PROVIDERS` | unset | `openai=https://api.openai.com/v1,groq=https://api.groq.com/openai/v1` |
@@ -84,15 +87,17 @@ real Todo **Suggest** path is metered in managed mode, and the app exposes
 server-side and records upstream JSON/SSE token usage with
 `billing_mode=byok` and `credits_charged=0`.
 
-> The relay trusts the authenticated PocketBase user stamped by the app. **Do
+> The relay trusts the authenticated session user stamped by the app. **Do
 > not expose `X-Auth-User` from an external proxy.**
 
 ### Auth and admin
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ENCRYPTION_KEY` | — | PocketBase encryption key |
+| `AUTH_ENC_KEY` | auto-created `totp_seal.key` | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset auto-creates a 0600 key file in the data dir (no operator action; backups must handle it like any secret). Set-but-malformed fails the boot. |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
+| `RBAC_ENABLED` | `false` | Enforce the embedded Casbin policy on every request (deny = 403 + warn log). `false` is pass-through with identical wiring. When on: anonymous reaches only the public surface (landing, login, auth endpoints, static, health); users reach everything except `/config`; admins reach all. |
+| `ADMIN_EMAILS` | unset | Comma-separated addresses promoted to `admin` at boot (existing rows only — never provisions; keep public signup closed while set, anyone can claim an unowned address). Required to reach `/config` with `RBAC_ENABLED=true`. |
 
 ### Build metadata
 

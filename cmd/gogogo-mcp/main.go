@@ -141,6 +141,7 @@ type trimArgs struct {
 	Dir      string `json:"dir,omitempty" jsonschema:"target checkout directory (default ./<name>)"`
 	Plugins  string `json:"plugins,omitempty" jsonschema:"comma-separated plugins to KEEP (default all, none drops all)"`
 	Features string `json:"features,omitempty" jsonschema:"comma-separated features to KEEP (default all, none drops all)"`
+	Preset   string `json:"preset,omitempty" jsonschema:"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with plugins/features)"`
 	Format   string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Confirm  bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
 }
@@ -202,6 +203,9 @@ func trimCLIArgs(a trimArgs, extra ...string) []string {
 	}
 	if a.Features != "" {
 		args = append(args, "--features", a.Features)
+	}
+	if a.Preset != "" {
+		args = append(args, "--preset", a.Preset)
 	}
 	format := a.Format
 	if format == "" {

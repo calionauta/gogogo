@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — tests for the DagNats trigger-bootstrap
+// SCOPE:plugin — tests for the DagNats trigger-bootstrap
 // workaround. Delete alongside trigger_bootstrap.go.
 package dagnats
 

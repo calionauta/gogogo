@@ -180,7 +180,7 @@ long-lived, it is responsible for making it stoppable.**
 the engine's shutdown "is wired internally". It was not, and the failure mode is
 worth knowing because nothing about it looks wrong in the code: **a library may
 register its own `signal.Notify` for SIGINT/SIGTERM** (DagNats does, in
-`server.waitAndShutdown`; so does PocketBase, in `pb.Start`/`Execute`). The Go
+`server.waitAndShutdown`; any second `signal.Notify` owner races the same way). The Go
 runtime delivers a signal to EVERY registered channel, so both handlers run
 concurrently and whichever finishes teardown first ends the process — skipping
 the other's deferred cleanup entirely. Observed as: the log ends mid-shutdown

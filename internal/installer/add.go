@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: add units to existing checkouts (copy, rewire, prove)
+// SCOPE:plugin — installer engine: add units to existing checkouts (copy, rewire, prove)
 package installer
 
 import (
@@ -18,8 +18,8 @@ import (
 
 // Shared file paths for add/trim mechanics (goconst-quiet, single spelling).
 const (
-	todoGoFile   = "features/todo/handlers/todo.go"
-	todoRepoFile = "features/todo/handlers/todo_repo.go"
+	todoGoFile   = "features/todo/chi/pages.go"
+	todoRepoFile = "features/todo/chi/chi.go"
 	dirMode      = 0o755
 )
 
@@ -27,9 +27,6 @@ const (
 // the target checkout. Keyed by file path (convention over configuration):
 // scaffolded trees keep these shapes, anything else fails fast.
 const (
-	// routerCallsAnchor ends the OnServe closure; capability calls land
-	// directly above it, in manifest order.
-	routerCallsAnchor = "\t\treturn se.Next()"
 	// mainCallsAnchor is the shutdown defer; dagnats boot lines land below.
 	mainCallsAnchor = "\tdefer shutdown()"
 	// mainBlankUse is removed when dagnats comes back (todoH used again).
@@ -40,9 +37,9 @@ const (
 	// navLinkAnchorSubstr marks the Todo nav link; section links land below.
 	navLinkAnchorSubstr = "}>Collab Todo</a>"
 	// todoLayoutAnchor is the DaisyUI fallback; skin dispatches land above.
-	todoLayoutAnchor = "\treturn components.Layout("
+	todoLayoutAnchor = "\t_ = components.Layout("
 	// todoRegionAnchor is the region fallback; skin cases land above.
-	todoRegionAnchor = "\tdefault:"
+	todoRegionAnchor = "\treturn components.TodoListRegion(signals)"
 )
 
 // AddReceipt records what one add run actually changed. Touched lists
@@ -134,10 +131,10 @@ func copyUnitPaths(t *treeFS, from, root string, m unitMeta, rc *AddReceipt) err
 }
 
 // requireScaffold fails fast on trees the installer cannot rewire:
-// without the flat Init list, insertion anchors mean nothing.
+// without the flat route composition, insertion anchors mean nothing.
 func requireScaffold(root string) error {
 	for _, f := range []string{
-		filepath.Join("router", "router.go"),
+		filepath.Join("internal", "server", "chi.go"),
 		"go.mod",
 	} {
 		p, err := joinRoot(root, f)
@@ -169,22 +166,9 @@ func addSpans(t *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 		rule   stripRule
 		anchor spanAnchor
 	}
-	pathDefault := func(path string) spanAnchor {
-		switch path {
-		case filepath.Join("cmd", "web", "main.go"):
-			return anchorAfter(mainCallsAnchor)
-		case filepath.Join("cmd", "desktop", "main.go"):
-			return anchorBefore(desktopBlockAnchor)
-		default:
-			if anchor, ok := templSpanAnchor(path); ok {
-				return anchor
-			}
-			return spanAnchor{}
-		}
-	}
 	var items []item
 	collect := func(path string, rules []stripRule) {
-		def := pathDefault(path)
+		def := addSpanAnchor(path)
 		for _, r := range rules {
 			anchor := def
 			if r.addBefore != "" || r.addAfter != "" {
@@ -222,6 +206,10 @@ func addSpans(t *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 func addFollowUps(u trimUnit) []string {
 	var out []string
 	switch u.id {
+	case unitWhiteboard:
+		out = append(out,
+			"sw.js still skips the notes/whiteboard streams: re-add the "+
+				"two exclusion lines in web/resources/static/sw.js if the bundle is back.")
 	case unitSounds:
 		out = append(out,
 			"sounds has no UI until call sites return: re-add "+
@@ -231,7 +219,26 @@ func addFollowUps(u trimUnit) []string {
 	case unitLanding:
 		out = append(out,
 			"navbar brand still points at /todo: point it back at / "+
-				"if the landing page is the front door again.")
+				"if the landing page is the front door again.",
+			"TestBuildChiMux still pins GET / as 404: re-assert 200 in "+
+				"internal/server/chi_test.go now the route is back.")
+	case unitConfigView:
+		out = append(out,
+			"TestBuildChiMux still pins /config as 404: re-assert the 303 "+
+				"auth redirect in internal/server/chi_test.go now the route is back.")
+	case unitGoAkt:
+		out = append(out,
+			"TestBuildChiMux pins fewer demo routes: re-add \"/room\" to "+
+				"its target table in internal/server/chi_test.go if the engine is back.")
+	case unitCredits:
+		out = append(out,
+			"TestBuildChiMux still pins /api/credits as 404: re-assert "+
+				"401 JSON in internal/server/chi_test.go now the route is back.")
+	case unitGenUI:
+		out = append(out,
+			"TestBuildChiMux pins fewer demo routes: re-add \"/chat\", "+
+				"\"/genui\" to its target table in internal/server/chi_test.go "+
+				"if the bundle is the front door again.")
 	}
 	return out
 }
@@ -344,6 +351,9 @@ func executeAdd(ctx context.Context, opt addOptions, stdin io.Reader, stdout io.
 	if err := requireScaffold(opt.dir); err != nil {
 		return err
 	}
+	if err := refuseIrreversible(stdout, opt); err != nil {
+		return err
+	}
 	if !opt.yes && !confirmAdd(stdout, stdin, opt.unitID) {
 		fmt.Fprintln(stdout, "gogogo: aborted — nothing changed (re-run with --yes to skip this prompt)")
 		return nil
@@ -438,9 +448,14 @@ func printAddPlan(w io.Writer, format string, u trimUnit, from, dir string) {
 	if format == planFormatJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
+		manual := addManualWiring(u)
+		if unitPathsPresent(dir, u) {
+			manual = nil
+		}
 		_ = enc.Encode(map[string]any{
 			"unit": u.id, "from": from, "dir": dir,
 			"summary": unitOneLiner(u), "dryRun": true,
+			"manual": manual,
 		})
 		return
 	}
@@ -449,6 +464,13 @@ func printAddPlan(w io.Writer, format string, u trimUnit, from, dir string) {
 	fmt.Fprintf(w, "  copies %d path(s), %d wiring strip(s) to restore\n",
 		len(m.dirs)+len(m.files),
 		len(u.mainStrips)+len(u.desktopStrips)+len(u.extraStrips))
+	// Present units restore nothing (idempotent re-add): listing their
+	// manual lines here would read as work left to do.
+	if !unitPathsPresent(dir, u) {
+		for _, line := range addManualWiring(u) {
+			fmt.Fprintf(w, "  manual: %s\n", line)
+		}
+	}
 	for _, warn := range addFollowUps(u) {
 		fmt.Fprintf(w, "  manual follow-up: %s\n", warn)
 	}

@@ -1,22 +1,26 @@
-// SCOPE:layer=feature,removal=feature — Tests for the native window's backend wiring
+// SCOPE:feature — Tests for the native window's backend wiring
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"context"
+	"database/sql"
+	"path/filepath"
 	"sync"
 	"testing"
 
-	"github.com/pocketbase/pocketbase/core"
-
-	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/db"
-	"github.com/calionauta/gogogo/features/store/pbstore"
+	"github.com/calionauta/gogogo/internal/auth"
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
-// The POC's whole claim is that the backend is reachable without HTTP.
-// These tests exercise the real windowState against a real PocketBase —
-// no native window, no rendering — so they run headless in CI.
+// The native window's whole claim is that the backend is reachable without HTTP.
+// These tests exercise the real windowState against a real SQLite file with
+// the owned auth stack — no native window, no rendering, so they run
+// headless in CI.
+//
+// Opened through ncruces like production (openGUIStore): importing
+// internal/db here would link tursogo into the test binary and break the
+// CGO_ENABLED=0 gui build (purego/goffi fakecgo collision).
 
 const (
 	nativeEmail    = "native@demo.app"
@@ -26,43 +30,28 @@ const (
 func newNativeState(t *testing.T) *windowState {
 	t.Helper()
 
-	tmpDir := t.TempDir()
-	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
-		t.Fatalf("rand key: %v", err)
-	}
-	cfg := &config.Config{
-		Host:          "127.0.0.1",
-		Dev:           true,
-		DataDir:       tmpDir,
-		DBPath:        tmpDir + "/app.db",
-		EncryptionKey: hex.EncodeToString(key),
-	}
-
-	app, err := db.Init(cfg)
+	sqlDB, err := sql.Open("sqlite3",
+		"file:"+filepath.Join(t.TempDir(), "native.db")+
+			"?_pragma=busy_timeout(10000)"+
+			"&_pragma=journal_mode(WAL)"+
+			"&_pragma=foreign_keys(ON)")
 	if err != nil {
-		t.Fatalf("db.Init: %v", err)
+		t.Fatalf("db open: %v", err)
 	}
-	if err = app.Bootstrap(); err != nil {
-		t.Fatalf("Bootstrap: %v", err)
-	}
-	if err = db.ApplySeeds(app, true); err != nil {
-		t.Fatalf("ApplySeeds: %v", err)
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("migrate: %v", merr)
 	}
 
-	col, err := app.FindCollectionByNameOrId("users")
+	q := dbgen.New(sqlDB)
+	a, err := auth.New(q, true)
 	if err != nil {
-		t.Fatalf("find users collection: %v", err)
+		t.Fatalf("auth: %v", err)
 	}
-	rec := core.NewRecord(col)
-	rec.SetEmail(nativeEmail)
-	rec.SetPassword(nativePassword)
-	rec.Set("verified", true)
-	if err := app.Save(rec); err != nil {
-		t.Fatalf("save user: %v", err)
+	if _, _, err := a.Signup(context.Background(), nativeEmail, nativePassword, "Native"); err != nil {
+		t.Fatalf("signup: %v", err)
 	}
-
-	return newState(app, pbstore.New(app, todosCollection))
+	return newState(guiStore{q: q}, a)
 }
 
 func signInNative(t *testing.T, s *windowState) {
@@ -76,7 +65,7 @@ func signInNative(t *testing.T, s *windowState) {
 }
 
 // The end-to-end claim: sign in through auth.Login (no cookie, no
-// RequestEvent), add a todo through the same EntityStore the HTTP
+// *http.Request), add a todo through the same queries the HTTP
 // handlers use, and read it back — all without an HTTP server running.
 func TestNativeSignInAddAndList(t *testing.T) {
 	s := newNativeState(t)
@@ -165,16 +154,16 @@ func TestNativeSignOutClearsOwner(t *testing.T) {
 	}
 }
 
-// Two windows over the SAME store (two frontends, one collection):
+// Two windows over the SAME database (two frontends, one schema):
 // A's write becomes visible to B on B's next refresh — the poll path
 // in main.go. Last writer wins on conflict, same as the web tier
-// (PocketBase has no merge; CRDTStore would be the answer when merge
+// (SQLite has no merge; a CRDT store would be the answer when merge
 // semantics matter).
 func TestNativeCrossStateVisibilityAndLastWriteWins(t *testing.T) {
 	a := newNativeState(t)
-	// Second window, same app handle + same collection: exactly what
-	// the web app and the native window share in production.
-	b := newState(a.app, pbstore.New(a.app, todosCollection))
+	// Second window, same queries + same auth (same database file):
+	// exactly what the web app and the native window share in production.
+	b := newState(a.st, a.a)
 
 	signInNative(t, a)
 	b.setEmail(nativeEmail)
@@ -201,7 +190,7 @@ func TestNativeCrossStateVisibilityAndLastWriteWins(t *testing.T) {
 		t.Fatalf("B after refresh: %+v, want A's row", snap.items)
 	}
 
-	// Conflict: B completes, A (stale) flips back. Last write wins —
+	// Conflict: B completes, A (stale) flips back. Last write wins
 	// deterministic here because the test serializes the two writes.
 	b.toggle(id)
 	a.refresh()

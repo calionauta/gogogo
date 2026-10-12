@@ -5,16 +5,15 @@ teaches is visible here first — copy this shape when you add your own feature.
 
 ## What it ships
 
-- Full CRUD via PocketBase.
+- Full CRUD via Turso/SQLite (sqlc queries in `internal/db`).
 - Reactive frontend with Datastar + the active skin (DaisyUI by default;
   BasecoatUI switchable — see [UI skins](ui-skins.md)).
-- **Database actions stream through PocketBase realtime.** Todo
-  `create`/`toggle`/`delete` fire PocketBase record events; each subscribed
+- **Database actions stream through the SSE Hub record event.** Todo
+  `create`/`toggle`/`delete` fan out a record event; each subscribed
   client re-fetches the fragment and morphs `#todo-list`. Delivery is per-user
-  scoped by the collection's `owner` rule
-  (`@request.auth.id != '' && owner = @request.auth.id`), so a client only
-  receives events for its own records. The SSE Hub is reserved for ephemeral
-  signals (success/retry toasts, live clients count, AI suggest) and the
+  scoped by the `owner` column, so a client only receives events for its own
+  records. The SSE Hub ephemeral channel is reserved for non-record signals
+  (success/retry toasts, live clients count, AI suggest) and the
   originating client's own synchronous patch.
 - Stacked toast notifications (auto-dismiss, manual close, progress bar).
 - **UI sounds** via cuelume — see [UI sounds](ui-sounds.md).
@@ -88,5 +87,5 @@ remain — migrating titles to `metadata` would hand every step all three.)
 ## Related
 
 - [Features](features.md)
-- [Seven async layers](async-layers.md) — why PB realtime and not the SSE Hub for CRUD.
+- [Architecture decision](architecture-decision.md) — what the flat stack serves and what it deliberately does not share.
 - [Adding your own feature](getting-started.md#adding-your-own-feature)

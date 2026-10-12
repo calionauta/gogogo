@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — WORKAROUND for an upstream DagNats bug.
+// SCOPE:plugin — WORKAROUND for an upstream DagNats bug.
 //
 // # What this is
 //

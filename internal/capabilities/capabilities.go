@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Capability registry: single source
+// SCOPE:plugin — Capability registry: single source
 // of truth for ids, kinds, runtime switches, and owned paths (consumed by
 // cmd/gogogo, docs, and --help).
 package capabilities
@@ -68,25 +68,19 @@ var All = []Capability{
 	{
 		ID:      "server",
 		Kind:    KindCore,
-		Summary: "shared backend boot (PocketBase + queue + router + handlers)",
+		Summary: "flat backend boot (Turso + auth + handlers + queues + workers)",
 		Dirs:    []string{"internal/server"},
-		Note:    "Core: cmd/web and cmd/desktop both boot through it.",
-	},
-	{
-		ID:      "routeutil",
-		Kind:    KindCore,
-		Summary: "shared route registration (per-method, never Router.Any)",
-		Dirs:    []string{"internal/routeutil"},
-		Note: "Core: Router.Any() registers a method-less pattern, which conflicts " +
-			"with the app's own GET / and panics at ServeMux build time. Every " +
-			"proxied route registers through here so a method list exists once.",
+		Note: "Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. " +
+			"attach JetStream, then serve.",
 	},
 	{
 		ID:      "database",
 		Kind:    KindCore,
-		Summary: "PocketBase setup + collection seeds",
-		Dirs:    []string{"db"},
-		Note:    "Core: collections and demo seeds live here.",
+		Summary: "flat data layer: Turso Database connection + migrations + sqlc queries",
+		Dirs:    []string{"internal/db", "internal/dbschema"},
+		Note: "Core: handlers call the generated dbgen.* functions directly; " +
+			"migrations under internal/dbschema/migrations are the schema (driver-free " +
+			"so zero-CGO targets share it; internal/db owns only the tursogo open).",
 	},
 	{
 		ID:      "appconfig",
@@ -103,11 +97,31 @@ var All = []Capability{
 		Note:    "Core: handlers receive it, never remove.",
 	},
 	{
+		ID:      "demo-seed",
+		Kind:    KindCore,
+		Summary: "fresh-install demo account (one idempotent Signup)",
+		Dirs:    []string{"internal/demo"},
+		Note: "Core contract: a fresh clone has a way in. Boot (internal/server) " +
+			"and the native window both call it; Signup is idempotent.",
+	},
+	{
 		ID:      "auth",
 		Kind:    KindCore,
-		Summary: "cookie sessions + middleware (login UI removable separately)",
-		Dirs:    []string{"features/auth"},
-		Note:    "Core middleware; the login page is a removable UI (manual).",
+		Summary: "cookie sessions + middleware (flat auth + shared login UI)",
+		Dirs:    []string{"internal/auth", "features/authviews"},
+		Note: "Core middleware; the login page is a removable UI (manual). " +
+			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
+			"features/authviews holds the login/navbar/theme components. " +
+			"No framework middleware remains; the owned stack is the whole story.",
+	},
+	{
+		ID:      "crudwire",
+		Kind:    KindCore,
+		Summary: "todo CRUD wire protocol (subjects + payloads + publisher)",
+		Dirs:    []string{"internal/natswire"},
+		Note: "Core, not plugin: chi handlers name these types in signatures " +
+			"even with NATS off (nil publisher), so trimming would not compile. " +
+			"The engines behind it (internal/nats) stay a plugin.",
 	},
 	{
 		ID:         "nats",
@@ -115,7 +129,6 @@ var All = []Capability{
 		Summary:    "NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes",
 		RuntimeOff: "NATS_ENABLED=false (in-memory fallback)",
 		Dirs:       []string{"internal/nats"},
-		Files:      []string{"router/realtime_jet.go"},
 		Reason:     "15+ importers carry NATS types in signatures; deletion is a manual refactor, not line strips.",
 	},
 	{
@@ -125,22 +138,13 @@ var All = []Capability{
 		RuntimeOff: "DAGNATS_ENABLED=false",
 		Offered:    true,
 		UISignal:   "DagNatsEnabled",
-		Dirs:       []string{"internal/dagnats"},
+		Dirs:       []string{"internal/dagnats", "features/onboarding"},
 		Files: []string{
-			"router/onboarding_dagnats.go",
-			"router/dagnats_proxy_dagnats.go",
-			"router/dagnats_proxy_test.go",
-			"router/export_test.go",
-			"features/todo/handlers/onboarding.go",
-			"features/todo/handlers/todo_update_job_dagnats.go",
-			// Both onboarding test files import internal/dagnats, so trimming
-			// the unit must remove them too — otherwise the proof build fails
-			// with a dangling import (`module .../internal/dagnats: not found`).
-			// onboarding_lifecycle_test.go was missing from this list and
-			// reproduced exactly that. See TestManifestCoversDagnatsImports.
-			"features/todo/handlers/onboarding_resume_test.go",
-			"features/todo/handlers/onboarding_lifecycle_test.go",
-			"features/todo/onboarding_e2e_test.go",
+			// Every file that imports internal/dagnats: trimming the unit
+			// must remove them too — otherwise the proof build fails with a
+			// dangling import (`module .../internal/dagnats: not found`).
+			// The todo slice keeps only its wire constants and renderers,
+			// which import nothing from the engine, so it needs no entry.
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
 			"cmd/web/start_nats_test.go",
@@ -151,8 +155,7 @@ var All = []Capability{
 		Note: "Deletion removes the engine + onboarding worker. " +
 			"The workflow tab, button, and hints auto-hide via the " +
 			"dagnatsUIEnabled signal (registration truth, not config " +
-			"truth). onboarding_progress.go stays: todo_sse.go needs " +
-			"its constants.",
+			"truth).",
 	},
 	{
 		ID:         "llm",
@@ -172,7 +175,13 @@ var All = []Capability{
 		Kind:    KindPlugin,
 		Summary: "Loro CRDT transport: DocStore, sync workers, presence",
 		Dirs:    []string{"internal/collab"},
-		Files:   []string{"router/collab_jetstream.go"},
+		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
+			"slices wire the transport). Snapshot durability is runtime: " +
+			"COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw " +
+			"without Turso writes; docs start empty after a restart). " +
+			"Files is empty on purpose: the " +
+			"importers outside internal/collab are EDITED (line drops), " +
+			"never deleted — internal/server/chi.go is core.",
 		Reason: "Bundled into the whiteboard unit: whiteboard embeds collab " +
 			"types (no-compile without it) and collab without whiteboard " +
 			"was dead until notes arrived as the second consumer " +
@@ -190,10 +199,24 @@ var All = []Capability{
 	{
 		ID:      "genui",
 		Kind:    KindPlugin,
-		Summary: "AG-UI-compatible event envelope for AI streams (framing subset; no new transport, no new dep)",
-		Dirs:    []string{"internal/genui", "features/genui"},
-		Files:   []string{"router/genui.go"},
-		Reason:  "No installer unit yet: nothing to trim, nothing to add back — the envelope rides the queue's SSE Hub.",
+		Summary: "generative UI: LLM answers render as Templ directives over the SSE hub",
+		Offered: true,
+		Dirs:    []string{"features/genui"},
+		Files: []string{
+			// Owned by no dir: the composition test's model stubs are only
+			// used by the genui/chat constructions — trimming the unit must
+			// delete them too, or the trimmed tree keeps dead code that
+			// trips the deadcode gate (same shape as the dagnats Files).
+			"internal/server/genui_stubs_test.go",
+		},
+		Warns: []string{
+			"ci-local smoke: export SMOKE_FEATURES without genui " +
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
+		},
+		Note: "Deletion removes the Ask demo + chat demo (one bundle: chat " +
+			"imports genui components, so chat without genui does not " +
+			"compile — same honest shape as whiteboard+collab+notes). " +
+			"The navbar Ask AI link is stripped automatically.",
 	},
 	{
 		ID:      "components",
@@ -209,7 +232,6 @@ var All = []Capability{
 		RuntimeOff: "CREDITS_ENABLED=false (already the default)",
 		Offered:    true,
 		Dirs:       []string{"features/credits"},
-		Files:      []string{"router/credits.go"},
 		Warns: []string{
 			"Todo AI Suggest becomes unmetered (still works with " +
 				"GOAI_API_KEY, no ledger).",
@@ -250,14 +272,6 @@ var All = []Capability{
 		Note: "DaisyUI stays registered so the dispatcher fallback never fires.",
 	},
 	{
-		ID:         "entity-store",
-		Kind:       KindPlugin,
-		Summary:    "pluggable persistence (pb | crdt EntityStore strategies)",
-		RuntimeOff: "ENTITY_STORE=pb|crdt",
-		Dirs:       []string{"features/store"},
-		Reason:     "Strategy switch at runtime; deletion means editing the buildTodoStore switch (manual).",
-	},
-	{
 		ID:         "offline-sync",
 		Kind:       KindPlugin,
 		Summary:    "hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)",
@@ -272,20 +286,28 @@ var All = []Capability{
 		Reason:  "Reference implementation — remove manually later per docs/scope-taxonomy.md.",
 	},
 	{
+		ID:        "chat",
+		Kind:      KindFeature,
+		Summary:   "conversation demo (persisted history + catalog answers on genui)",
+		DependsOn: []string{"genui"},
+		Dirs:      []string{"features/chat"},
+		Reason: "Bundled into the genui unit: chat imports genui components " +
+			"(no-compile without it) and genui without chat is unproven " +
+			"surface — one unit is the honest shape, same as " +
+			"whiteboard+collab+notes.",
+	},
+	{
 		ID:         "goakt",
 		Kind:       KindPlugin,
 		Summary:    "entity actors (GoAkt rooms: roster + presenter lock)",
 		RuntimeOff: "GOAKT_ENABLED=false",
 		Offered:    true,
-		Dirs:       []string{"internal/goakt"},
+		Dirs:       []string{"internal/goakt", "features/room"},
 		Files: []string{
-			"router/room_goakt.go",
+			// Owned by no dir: the engine boot in the web entry point.
+			// internal/server/chi.go is EDITED (line drops), not deleted.
 			"cmd/web/goakt.go",
-			// Test files outside owned dirs ride along, or trimming
-			// leaves a test referencing a deleted package (the dagnats
-			// precedent: onboarding_*_test.go).
 			"cmd/web/goakt_test.go",
-			"router/room_goakt_internal_test.go",
 		},
 		Warns: []string{
 			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
@@ -314,9 +336,6 @@ var All = []Capability{
 			depSounds,
 		},
 		Dirs: []string{"features/whiteboard"},
-		Files: []string{
-			"router/whiteboard.go",
-		},
 		Warns: []string{
 			"The navbar Whiteboard link is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
@@ -332,9 +351,6 @@ var All = []Capability{
 			depSounds,
 		},
 		Dirs: []string{"features/notes"},
-		Files: []string{
-			"router/notes.go",
-		},
 		Note: "Manual removal (or trim the whiteboard unit, which covers " +
 			"whiteboard+collab+notes): delete the dir + router/notes.go, " +
 			"drop registerNotesStack from router.Init, remove the Notes " +
@@ -367,6 +383,25 @@ var All = []Capability{
 		Warns: []string{
 			"The navbar Config link is stripped automatically.",
 		},
+	},
+	{
+		ID:      "observability",
+		Kind:    KindCore,
+		Summary: "core observability (slog + tracing)",
+		Dirs:    []string{"internal/observability"},
+		Note:    "core infra, removal=core",
+	},
+	{
+		ID:      "rbac",
+		Kind:    KindCore,
+		Summary: "RBAC with Casbin (embedded model + policy, enforced at the mux)",
+		Dirs:    []string{"internal/rbac"},
+		Note: "Wired middleware, not a dormant package: BootChi builds one " +
+			"enforcer and wraps the whole mux (pass-through when " +
+			"RBAC_ENABLED=false, enforced denies with 403 + warn log when " +
+			"true). Roles come from users.role (migration 0008, ADMIN_EMAILS " +
+			"promotes existing rows at boot). /config is the admin-only " +
+			"surface; the policy test pins every mux route for user-or-admin.",
 	},
 }
 

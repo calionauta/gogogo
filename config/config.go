@@ -8,9 +8,8 @@
 //	APP_NAME            (default: binary name)   — project name (secrets scope)
 //	LOG_LEVEL           (default: "INFO")
 //	DATABASE_PATH       (default: "data/data.db") — the SQLite file the
-//	                    credits ledger shares with PocketBase (see DATA_DIR)
+//	                    credits ledger opens (second connection, see DATA_DIR)
 //	DATA_DIR            (default: "data")
-//	ENCRYPTION_KEY      (default: "") — PocketBase encryption key
 //	ADMIN_UNLOCK_TOKEN  (default: "") — master password for admin endpoints
 //	GOAI_API_KEY        (default: "") — LLM provider API key
 //	GOAI_BASE_URL       (default: "https://api.openai.com/v1") // LLM base URL
@@ -32,10 +31,10 @@
 //	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
 //	DAGNATS_STORE_DIR   (default: "data/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
-//	ENTITY_STORE         (default: "pb") — todo persistence strategy
-//	                       (see features/store/store.go)
 //	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui" or "basecoat"
 //	                       (see web/skins/)
+//	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
+//	                       enforces the embedded policy in internal/rbac/casbin
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──
 //
@@ -95,9 +94,8 @@ type Config struct {
 	LogLevel string
 	Dev      bool
 
-	DBPath        string
-	DataDir       string
-	EncryptionKey string
+	DBPath  string
+	DataDir string
 
 	// AdminToken, when non-empty, unlocks the admin endpoints (e.g. the
 	// Todo "clear all" via token). Loaded from the age-decrypted
@@ -164,7 +162,7 @@ type Config struct {
 	// OfflineSync controls the hybrid offline-sync-online strategy.
 	// When enabled (default), the system works offline and syncs when
 	// online via Service Worker (web) + NATS CRUD proxy (desktop/edge).
-	// When disabled, all requests go directly to PocketBase with no
+	// When disabled, all requests go directly to the database with no
 	// offline caching or background sync — the simplest path for
 	// always-online deployments.
 	//
@@ -176,13 +174,52 @@ type Config struct {
 		Enabled bool
 	}
 
-	// EntityStore selects the persistence strategy for todos (and
-	// future domain entities). "pb" (default) uses PocketBase records
-	// + the OnRecordCreateRequest hook for offline-replay dedup.
-	// "crdt" uses Loro CRDTs per owner + a snapshot to PB; trade-off
-	// See ARCHITECTURE.md (Phase 2: JetStream op transport).
-	// is the only way to get multi-instance sync on crdt.
-	EntityStore string
+	// Collab selects the CRDT snapshot store behind the whiteboard and
+	// notes (internal/collab Persister). "turso" persists snapshots in
+	// doc_snapshots (survive restarts, shared across instances via the
+	// database); "memory" keeps them process-local (no snapshot writes,
+	// docs start empty after a restart — the draw-without-persistence
+	// mode). Unknown values fail closed at boot.
+	//
+	// Toggle via COLLAB_SNAPSHOTS=memory in the environment.
+	// Default: turso.
+	Collab struct {
+		Snapshots string
+	}
+
+	// RBACEnabled turns on the opt-in Casbin RBAC middleware
+	// (RBAC_ENABLED, default false). When false the middleware is a
+	// no-op pass-through, so the default install behaves exactly as
+	// before. When true, router.Init binds an enforcer built from the
+	// go:embed'd model + policy in internal/rbac/casbin and denies any
+	// request the policy does not allow. Treat the embedded policy as a
+	// starting point — tune it for your app before enabling in production.
+	RBACEnabled bool
+
+	// AdminEmails promotes existing users to the admin role at boot
+	// (ADMIN_EMAILS, comma-separated, matched lowercase). Promotion only,
+	// never provisioning: the address must already own a row (sign up or
+	// first OAuth login first), and public signup must stay closed while
+	// the list is set — anyone can claim an unowned address. Empty
+	// disables promotion entirely.
+	AdminEmails []string
+
+	// Auth holds owned-auth settings.
+	Auth struct {
+		// TOTPEncKey seals TOTP secrets (AUTH_ENC_KEY, 64 hex chars).
+		// Empty falls back to the auto-created key file. Malformed is
+		// dropped (fail-safe); set-but-malformed fails the boot instead.
+		TOTPEncKey []byte
+	}
+	// Turso holds the Turso Database connection settings — the Rust
+	// SQLite-compatible engine, driven from Go by turso.tech/database/tursogo.
+	// Consumed by the sqlc-backed data layer. An empty URL means a local file
+	// at DBPath.
+	Turso struct {
+		URL       string // turso:// or file://
+		AuthToken string
+		DBPath    string // local file used when URL is empty
+	}
 
 	// Skin selects the active UI skin. Default "daisyui" (the template's
 	// core theme). Other option: "basecoat" (shadcn-style, community-
@@ -190,6 +227,12 @@ type Config struct {
 	// skin dispatcher in web/skins/. All skins are compiled into the
 	// binary; there is no build-tag selection.
 	Skin string
+
+	// ChiAddr overrides the flat-stack listen address (owned auth +
+	// sqlc todo slice + every ported feature). Empty uses Host:Port,
+	// the shape every other frontend binds. cmd/desktop sets it so the
+	// webview proxy and the backend agree on one address.
+	ChiAddr string
 
 	GoAI GoAIConfig
 
@@ -201,7 +244,7 @@ type Config struct {
 
 // CreditsConfig holds the env-driven knobs for the AI credits plugin. Every
 // field defaults to billing-off; the plugin is only live when Enabled is
-// true AND the lib's schema can be applied to the app PocketBase SQLite.
+// true AND the lib's schema can be applied to the app SQLite database.
 type CreditsConfig struct {
 	Enabled             bool
 	EncKey              []byte // CREDITS_ENC_KEY, 32 bytes; empty = BYOK store disabled
@@ -275,17 +318,16 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		AppName:       appName,
-		BuildLabel:    getEnv("BUILD_LABEL", "dev"),
-		BuildCommit:   getEnv("BUILD_COMMIT", ""),
-		Host:          getEnv("HOST", "0.0.0.0"),
-		Port:          port,
-		LogLevel:      getEnv("LOG_LEVEL", "INFO"),
-		Dev:           dev,
-		DBPath:        getEnv("DATABASE_PATH", "data/data.db"),
-		DataDir:       getEnv("DATA_DIR", "data"),
-		EncryptionKey: os.Getenv("ENCRYPTION_KEY"),
-		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
+		AppName:     appName,
+		BuildLabel:  getEnv("BUILD_LABEL", "dev"),
+		BuildCommit: getEnv("BUILD_COMMIT", ""),
+		Host:        getEnv("HOST", "0.0.0.0"),
+		Port:        port,
+		LogLevel:    getEnv("LOG_LEVEL", "INFO"),
+		Dev:         dev,
+		DBPath:      getEnv("DATABASE_PATH", "data/data.db"),
+		DataDir:     getEnv("DATA_DIR", "data"),
+		AdminToken:  os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{
 			APIKey: os.Getenv("GOAI_API_KEY"),
 		},
@@ -305,7 +347,13 @@ func Load() *Config {
 	cfg.GoAkt.Enabled = envBool("GOAKT_ENABLED", true)
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
-	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
+	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
+	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
+	cfg.loadAuthEnv()
+	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
+	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
+	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
+	cfg.ChiAddr = getEnv("CHI_ADDR", "")
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
@@ -327,17 +375,18 @@ func Load() *Config {
 
 const creditsEncKeyBytes = 32
 
-// parseCreditsEncKey accepts the normal secret-manager representation (64 hex
-// chars for 32 key bytes) while retaining support for a legacy raw 32-byte
-// value. Invalid values remain invalid and are rejected fail-closed by the
-// credits plugin when a BYOK provider is configured.
+// parseCreditsEncKey accepts the secret-manager representation (64 hex
+// chars for 32 key bytes) and nothing else. Anything else yields nil, and
+// the credits plugin fails closed when a BYOK provider is configured
+// without a valid key.
 func parseCreditsEncKey(raw string) []byte {
+	raw = strings.TrimSpace(raw)
 	if len(raw) == hex.EncodedLen(creditsEncKeyBytes) {
 		if key, err := hex.DecodeString(raw); err == nil {
 			return key
 		}
 	}
-	return []byte(raw)
+	return nil
 }
 
 // parseProviders parses the BYOK_PROVIDERS env var

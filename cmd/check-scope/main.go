@@ -4,14 +4,23 @@
 //
 // It enforces that every hand-written .go file under internal/ and
 // features/ carries a `// SCOPE:` annotation so template consumers can
-// identify what is safe to remove. Generated (*_templ.go) and test files
-// are exempt.
+// identify what is safe to remove. Test files, Templ output (*_templ.go)
+// and any file carrying Go's standard generated-file marker
+// (`// Code generated … DO NOT EDIT.`) are exempt — regenerating a file must
+// never require hand-editing it.
 //
-// Accepted annotation dialects (both are in use across this repo):
+// There is exactly ONE accepted annotation dialect — a single actionable axis:
 //
-//	// SCOPE:core    [- description]
-//	// SCOPE:feature [- description]
-//	// SCOPE:layer=<name>[,...][,removal=...]
+//	// SCOPE:<core|plugin|feature> [— description]
+//
+//	core    — the binary does not work without it; never remove.
+//	plugin  — the binary works but loses a capability.
+//	feature — a demo/add-on user surface.
+//
+// The earlier two-axis `layer=…,removal=…` form was dropped: `layer` merely
+// restated the directory (`internal/` = infra, `features/` = feature) and the
+// two dialect variants drifted apart. `removal` is the axis that actually
+// drives trimming, so it is the only one kept.
 package main
 
 import (
@@ -19,15 +28,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 const maxScanLines = 40
 
-var validLayers = map[string]bool{
-	"core":    true,
-	"feature": true,
-}
+// canonical matches the single-axis form: one of the three removal classes at
+// the start of the annotation. The boundary group stops a match inside a
+// longer token (e.g. `corex`, `feature,removal=feature`).
+var canonical = regexp.MustCompile(`^(core|plugin|feature)(\s|—|-|$)`)
+
+// generatedMarker is Go's own generated-code convention (used by sqlc, stringer,
+// mockgen, protoc, …). A file carrying it is not hand-written, so there is no
+// human decision for a SCOPE annotation to record.
+var generatedMarker = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 
 func main() {
 	root := "."
@@ -110,11 +125,14 @@ func hasScopeAnnotation(path string) (bool, error) {
 
 	sc := bufio.NewScanner(f)
 	for i := 0; sc.Scan() && i < maxScanLines; i++ {
-		line := strings.TrimSpace(sc.Text())
+		raw := sc.Text()
+		line := strings.TrimSpace(raw)
 		switch {
 		case line == "":
 			continue
-		case strings.HasPrefix(sc.Text(), "package "):
+		case generatedMarker.MatchString(raw):
+			return true, nil // machine-written; nothing to declare
+		case strings.HasPrefix(raw, "package "):
 			return false, nil // package clause reached without annotation
 		case scopeFromLine(line):
 			return true, nil
@@ -129,12 +147,11 @@ func scopeFromLine(line string) bool {
 		return false
 	}
 	rest = strings.TrimSpace(rest)
-	layer, ok := strings.CutPrefix(rest, "SCOPE:")
+	body, ok := strings.CutPrefix(rest, "SCOPE:")
 	if !ok {
 		return false
 	}
-	head, _, _ := strings.Cut(strings.TrimSpace(layer), " ")
-	return validLayers[head] || strings.HasPrefix(head, "layer=")
+	return canonical.MatchString(strings.TrimSpace(body))
 }
 
 func report(offenders []string) {
@@ -142,7 +159,6 @@ func report(offenders []string) {
 	for _, f := range offenders {
 		fmt.Fprintf(os.Stderr, "  %s\n", f)
 	}
-	fmt.Fprintln(os.Stderr, "\nAdd one of:")
-	fmt.Fprintln(os.Stderr, "  // SCOPE:core - why this file must not be removed")
-	fmt.Fprintln(os.Stderr, "  // SCOPE:feature - REMOVE by deleting <dir>/")
+	fmt.Fprintln(os.Stderr, "\nAdd the canonical annotation:")
+	fmt.Fprintln(os.Stderr, "  // SCOPE:<core|plugin|feature> — why this file exists")
 }

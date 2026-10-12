@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — Stripe top-up wiring.
+// SCOPE:plugin — Stripe top-up wiring.
 package credits
 
 import (

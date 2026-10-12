@@ -83,7 +83,7 @@ To add a per-element sound, drop a `data-cuelume-*` attribute on the element —
 **Remove:** delete `features/sounds/`, drop `@sounds.SoundAssets()` from the
 page layouts and `@sounds.SoundToggle()` from the navbar, then delete
 `web/resources/static/cuelume.js` and `web/resources/static/cuelume/`. The full
-checklist lives in the `SCOPE:layer=feature,removal=plugin` doc comment in
+checklist lives in the `SCOPE:plugin` doc comment in
 `features/sounds/sounds.go`.
 
 ## Related

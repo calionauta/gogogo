@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=plugin — Managed LLM gateway with per-call
+// SCOPE:plugin — Managed LLM gateway with per-call
 // credits (lib ai-credits). To remove: delete features/credits/ + router.
 //
 // RunManaged wraps a managed LLM call: ensure monthly grant, predict max cost,

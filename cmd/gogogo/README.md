@@ -69,8 +69,12 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   imports + spans at the anchor table, rebases the template module path
   to the target's, then the same tidy+build proof. Imports restore only
   where used (no unused-import breakage). `.templ` call sites and the
-  navbar brand stay manual (warned). Refuses non-scaffolded trees.
-  Refuses non-scaffolded trees instead of guessing.
+  navbar brand stay manual (warned). Refuses non-scaffolded trees
+  instead of guessing. Fully mechanical only where every wiring edit is
+  anchored (`skins-extra` today): anything else refuses BEFORE mutating,
+  printing the exact lines to re-add by hand plus the unit's follow-ups
+  (writing a reversible subset and failing the proof mid-tree is worse
+  than refusing with a recipe).
 - Interactive menus are numbered (stable manifest order) and accept
   numbers, ids, or both; invalid answers re-ask. Scripted flags take ids
   only — numbers never cross the CLI boundary (positional = fragile).
@@ -102,14 +106,15 @@ appear here (`TestReadmeDocumentsUnits`).
 
 | Unit | Deletes | Router / wiring strip |
 |---|---|---|
-| `dagnats` | `internal/dagnats/`, `router/onboarding_dagnats.go`, `router/dagnats_proxy_dagnats.go`, `router/dagnats_proxy_test.go`, `router/export_test.go`, `features/todo/handlers/onboarding.go`, `features/todo/handlers/todo_update_job_dagnats.go`, `features/todo/handlers/onboarding_resume_test.go`, `features/todo/onboarding_e2e_test.go`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go` | Drop 1 call line in `router/router.go` (guard lives inside `registerOnboarding`); `startDagNats` / `shutdownDagNats` calls in `cmd/web/main.go` (kept as `_ = todoH` so nothing dangles); drop `danmestas/dagnats` from `go.mod`. No dead UI: the workflow tab auto-hides via the `dagnatsUIEnabled` signal |
-| `goakt` | `internal/goakt/`, `features/room/`, `router/room_goakt.go`, `cmd/web/goakt.go` | Drop 1 call line (`registerRoomStack`); `startGoAkt` / `shutdownGoAkt` calls in `cmd/web/main.go`; drop `tochemey/goakt` from `go.mod`. Navbar Room link stripped |
-| `whiteboard` | `features/whiteboard/`, `internal/collab/`, `router/whiteboard.go`, `router/collab_jetstream.go` | Drop 1 call line (`registerWhiteboardStack`); Phase C demo block in `cmd/desktop/main.go` (+ `collab`/`context`/`time` imports); navbar Whiteboard link stripped. `loro-go` stays: `features/store/crdtstore` still imports it |
-| `landing` | `features/landing/` | Drop 1 call line + `landing` import in `router/router.go`; navbar brand retargeted `/` → `/todo`. Warns: plain GET / 404s afterwards |
-| `config-view` | `features/config/` | Drop 1 call line + `cfgfeature` import; navbar Config link stripped |
-| `credits` | `features/credits/`, `router/credits.go` | Drop 1 call line (`wireCredits`); drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
+| `dagnats` | `internal/dagnats/`, `features/todo/chi/onboarding.go` (+ its test), `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go` | Drop the `bootOnboarding` line and the `/api/onboarding` mounts in `internal/server/chi.go`; `startDagNats` / `shutdownDagNats` calls in `cmd/web/main.go`; drop `danmestas/dagnats` from `go.mod`. No dead UI: the workflow tab auto-hides via the `dagnatsUIEnabled` signal |
+| `goakt` | `internal/goakt/`, `features/room/`, `cmd/web/goakt.go` | Drop the `bootRoomActor` line, the `/room` mounts and the room-actor shutdown in `internal/server/chi.go` (+ the `fakeRooms` fixture in its test); `startGoAkt` / `shutdownGoAkt` calls in `cmd/web/main.go`; drop `tochemey/goakt` from `go.mod`. Navbar Room link stripped |
+| `whiteboard` | `features/whiteboard/`, `features/notes/`, `internal/collab/` | Drop the `wbchi`/`notesachi` handler lines and the `/whiteboard` + `/notes` mounts in `internal/server/chi.go`; Phase C demo block in `cmd/desktop/main.go` (+ `collab`/`context`/`time` imports); navbar Whiteboard + Notes links stripped |
+| `landing` | `features/landing/` | Drop the `landingchi.NewHandler` line, its import and the `/` mount in `internal/server/chi.go`; navbar brand retargeted `/` → `/todo`. Warns: plain GET / 404s afterwards |
+| `config-view` | `features/config/` | Drop the `configchi.NewHandler` line, its import and the `/config` mounts; navbar Config link stripped |
+| `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
-| `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch branch + import stripped from `features/todo/handlers/todo.go` + `todo_repo.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
+| `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch blocks + imports stripped from `features/todo/chi/pages.go` + `features/todo/chi/chi.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
+| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; navbar Ask AI link stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`
@@ -129,13 +134,14 @@ env-blessed with the reason recorded.
 | Durable workflows (DagNats) | `DAGNATS_ENABLED=false` | `internal/dagnats/` + onboarding wiring | ✅ `dagnats` |
 | Entity actors (GoAkt rooms) | `GOAKT_ENABLED=false` | `internal/goakt/` + room demo | ✅ `goakt` |
 | Realtime (NATS JetStream) | `NATS_ENABLED=false` (in-memory fallback) | Manual — 15+ importers (`internal/nats` in handlers, collab, server, desktop); handler signatures carry NATS types | ❌ env-blessed (cascade too wide for line strips) |
-| Collaboration (Loro CRDT) | — (no servers at boot) | Bundled with `whiteboard` (see bundle rationale in manifest) | ✅ inside `whiteboard` |
-| Todo realtime (PB) | — (part of the DB) | With `features/todo/` (manual, it is the reference) | ❌ |
+| Collaboration (Loro CRDT) | — (no servers at boot; `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode) | Bundled with `whiteboard` (see bundle rationale in manifest) | ✅ inside `whiteboard` |
+| Todo realtime (SSE Hub) | — (part of the Hub) | With `features/todo/` (manual, it is the reference) | ❌ |
 | LLM suggest (GoAI) | Unset `GOAI_API_KEY` (button hides) | Manual — handler + stepper UI live inside `features/todo` | ❌ env-blessed |
 | AI credits + BYOK | `CREDITS_ENABLED=false` (default) | `features/credits/` + wiring | ✅ `credits` |
+| Generative UI + chat | Unset `GOAI_API_KEY` (Ask shows unconfigured; chat stub in tests) | `features/genui/` + `features/chat/` + wiring | ✅ `genui` |
 | Offline sync | `OFFLINE_SYNC_ENABLED=false` | Manual — `config` struct field + `sw.js` + templ SW registration | ❌ env-blessed (struct-field cascade) |
 | UI skins | `UI_SKIN=daisyui` / `?skin=` | `web/skins/<name>/` + dispatch branches | ✅ `skins-extra` (non-default skins) |
-| Persistence strategy | `ENTITY_STORE=pb\|crdt` | Manual — `buildTodoStore` switch + `ConcreteTodoStore` machinery | ❌ env-blessed |
+| Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |
 | Auth | — (core middleware) | Login UI removable manually; middleware stays | ❌ |
 | Sounds | — (client-side only) | `features/sounds/` + call sites | ✅ `sounds` |
 | Landing / config view | — (zero boot cost) | Package + wiring call | ✅ `landing`, `config-view` |

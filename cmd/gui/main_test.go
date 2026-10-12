@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Tests for the gui poll loop and sign-out wiring.
+// SCOPE:feature — Tests for the gui poll loop and sign-out wiring.
 package main
 
 import (
@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// The poll loop is the POC's realtime-read path: refresh off the UI
-// thread, then a serialized rebuild, then session persistence —
+// The poll loop is the native window's realtime-read path: refresh off the UI
+// thread, then a serialized rebuild, then session persistence
 // repeating until done closes. With a 10ms tick this proves the full
 // wiring headless: ticks fire, refreshUI runs, and another writer's
 // rows appear without user action.
@@ -20,7 +20,7 @@ func TestPollLoopRefreshesAndRebuilds(t *testing.T) {
 
 	// Second window, same backend (the "other frontend"), signed in
 	// BEFORE the row exists: only the poll can make it appear.
-	s2 := newState(s.app, s.st)
+	s2 := newState(s.st, s.a)
 	signInSecondNative(t, s2)
 	if n := len(s2.snapshot().items); n != 0 {
 		t.Fatalf("setup: s2 sees %d items, want 0", n)

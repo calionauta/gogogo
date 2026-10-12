@@ -35,7 +35,7 @@ func SkinSelector(current string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"position:relative;display:inline-block\"><div tabindex=\"0\" role=\"button\" style=\"display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;border-radius:0.375rem;border:1px solid transparent;background:transparent;color:inherit\" title=\"Select UI skin\"><svg xmlns=\"http://www.w3.org/2000/svg\" style=\"width:1rem;height:1rem;flex-shrink:0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z\" clip-rule=\"evenodd\"></path></svg> <span class=\"skin-label-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"position:relative;display:inline-block\" data-signals=\"{skinMenuOpen: false}\" data-on:click__document=\"if(!evt.target.closest('.skin-toggle')){$skinMenuOpen = false}\"><div tabindex=\"0\" role=\"button\" class=\"skin-toggle\" style=\"display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;border-radius:0.375rem;border:1px solid transparent;background:transparent;color:inherit\" title=\"Select UI skin\" data-on:click=\"$skinMenuOpen = !$skinMenuOpen\"><svg xmlns=\"http://www.w3.org/2000/svg\" style=\"width:1rem;height:1rem;flex-shrink:0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z\" clip-rule=\"evenodd\"></path></svg> <span class=\"skin-label-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -48,7 +48,7 @@ func SkinSelector(current string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div><ul tabindex=\"0\" role=\"menu\" style=\"position:absolute;z-index:60;top:100%;left:0;margin-top:0.25rem;min-width:10rem;padding:0.25rem;list-style:none;border-radius:0.5rem;border:1px solid oklch(0.556 0 0 / 0.2);background:oklch(1 0 0);color:oklch(0.145 0 0);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);display:none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div><ul tabindex=\"0\" role=\"menu\" data-show=\"$skinMenuOpen\" style=\"position:absolute;z-index:60;top:100%;left:0;margin-top:0.25rem;min-width:10rem;padding:0.25rem;list-style:none;border-radius:0.5rem;border:1px solid oklch(0.556 0 0 / 0.2);background:oklch(1 0 0);color:oklch(0.145 0 0);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);display:none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -110,7 +110,7 @@ func SkinSelector(current string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</ul></div><script>\n\t\tdocument.querySelectorAll('[title=\"Select UI skin\"]').forEach(function(btn) {\n\t\t\tvar open = false;\n\t\t\tvar menu = btn.nextElementSibling;\n\t\t\tbtn.addEventListener('click', function(e) {\n\t\t\t\te.stopPropagation();\n\t\t\t\topen = !open;\n\t\t\t\tmenu.style.display = open ? 'block' : 'none';\n\t\t\t});\n\t\t\tdocument.addEventListener('click', function() {\n\t\t\t\topen = false;\n\t\t\t\tmenu.style.display = 'none';\n\t\t\t});\n\t\t});\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</ul></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

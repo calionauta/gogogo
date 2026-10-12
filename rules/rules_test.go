@@ -21,7 +21,7 @@ import (
 // this directory was machine-checked before these tests.
 //
 // WHY NOT go-ruleguard's own test API. The engine
-// (`github.com/quasilyte/go-ruleguard`) is NOT a dependency of this module —
+// (`github.com/quasilyte/go-ruleguard`) is NOT a dependency of this module
 // only its `dsl` subpackage is, because that is what rules.go imports. Adding
 // the engine would be a new dependency just for a test, and this repo's rule is
 // to reach for what exists first. `golangci-lint` is already the runner CI and
@@ -73,6 +73,10 @@ type ruleFixture struct {
 	// minimum rather than an exact count is deliberate — see the enumeration
 	// note on TestRulesFire.
 	wantAtLeast int
+	// subdir places fixture.go under dir/subdir instead of dir root, so
+	// path-scoped rules (PkgPath) see a realistic package path. Empty
+	// means the module root.
+	subdir string
 }
 
 func goFile(body string) string {
@@ -83,6 +87,7 @@ func fixtures() []ruleFixture {
 	all := tickerFixtures()
 	all = append(all, moderncFixtures()...)
 	all = append(all, leakFixtures()...)
+	all = append(all, obsFixtures()...)
 	all = append(all,
 		ruleFixture{
 			name: "the corrected select shape stays quiet",
@@ -268,7 +273,7 @@ func TestRulesFire(t *testing.T) {
 	for _, tc := range fixtures() {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			writeFixtureModule(t, dir, rulesSrc, dslVersion, tc.source)
+			writeFixtureModule(t, dir, rulesSrc, dslVersion, tc)
 
 			out := runLint(t, bin, dir)
 			// A load failure also produces a "ruleguard:" line, so a zero could
@@ -341,7 +346,7 @@ func requireVersion(t *testing.T, cfg []byte) string {
 // writeFixtureModule lays out a minimal module that can actually LOAD rules.go:
 // the rules file copied in, the dsl dependency it imports, and a config pointing
 // gocritic at it by a path relative to the linted directory.
-func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion, source string) {
+func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion string, tc ruleFixture) {
 	t.Helper()
 
 	if err := os.MkdirAll(filepath.Join(dir, "rules"), 0o750); err != nil {
@@ -349,7 +354,14 @@ func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion, s
 	}
 	writeIn(t, filepath.Join(dir, "go.mod"),
 		"module fixture\n\ngo 1.22\n\nrequire github.com/quasilyte/go-ruleguard/dsl "+dslVersion+"\n")
-	writeIn(t, filepath.Join(dir, "fixture.go"), source)
+	if tc.subdir != "" {
+		if err := os.MkdirAll(filepath.Join(dir, filepath.FromSlash(tc.subdir)), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		writeIn(t, filepath.Join(dir, filepath.FromSlash(tc.subdir), "fixture.go"), tc.source)
+	} else {
+		writeIn(t, filepath.Join(dir, "fixture.go"), tc.source)
+	}
 	writeIn(t, filepath.Join(dir, "rules", "rules.go"), string(rulesSrc))
 
 	// Mirrors the project's own ruleguard block, minus every other linter, so a
@@ -391,7 +403,7 @@ func writeIn(t *testing.T, path, content string) {
 //
 //     Measured, and it is the difference between a real guard and a decorative
 //     one. With a shared cache that a previous `go test ./rules/` had warmed,
-//     editing the rule to a pattern that cannot match STILL REPORTED a hit —
+//     editing the rule to a pattern that cannot match STILL REPORTED a hit
 //     the red-proof passed, i.e. it could not detect a broken rule at all. With
 //     a per-fixture cache the cache starts empty every run, so the rule on disk
 //     is always the rule that runs, and breaking it fails the suite as it

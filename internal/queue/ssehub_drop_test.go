@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — SSE Hub backpressure/drop-reason contract
+// SCOPE:core — SSE Hub backpressure/drop-reason contract
 package queue
 
 import (

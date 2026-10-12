@@ -168,8 +168,11 @@ func TestNeedsTemplGen(t *testing.T) {
 	if !needsTemplGen(gen) {
 		t.Errorf("config-view/sounds drop should require templ regen")
 	}
-	if needsTemplGen([]trimUnit{byID["dagnats"]}) {
-		t.Errorf("dagnats-only drop should not require templ regen")
+	// The dagnats unit strips the workflow entry button from both todo
+	// skins, so it requires regen too — a unit that edits .templ must say
+	// so, or the prove step skips generation and ships stale _templ.go.
+	if !needsTemplGen([]trimUnit{byID["dagnats"]}) {
+		t.Errorf("dagnats drop should require templ regen (it strips .templ buttons)")
 	}
 }
 
@@ -228,16 +231,15 @@ func TestStripSkinsExtraDropsBlankImports(t *testing.T) {
 
 func TestStripSoundsDropsCallSites(t *testing.T) {
 	dir := t.TempDir()
-	authDir := filepath.Join(dir, "features", "auth")
+	authDir := filepath.Join(dir, "features", "authviews")
 	if err := os.MkdirAll(authDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	give := "import \"github.com/calionauta/gogogo/features/sounds\"\n" +
 		"\n" +
 		"\t\t\t@sounds.SoundToggle()\n" +
-		"\t\t\t@sounds.SoundAssets()\n" +
 		"\t\t\t<a href=\"/todo\">Todo</a>\n"
-	p := filepath.Join(authDir, "views.templ")
+	p := filepath.Join(authDir, "navbar.templ")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +258,7 @@ func TestStripSoundsDropsCallSites(t *testing.T) {
 
 func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
 	dir := t.TempDir()
-	authDir := filepath.Join(dir, "features", "auth")
+	authDir := filepath.Join(dir, "features", "authviews")
 	if err := os.MkdirAll(authDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +267,7 @@ func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
 		"\t\t\t\t}) }>Collab whiteboard</a>\n" +
 		"\t\t\t\t<a href=\"/config\" class={ y }>\n" +
 		"\t\t\t\t}) }>Config</a>\n"
-	p := filepath.Join(authDir, "views.templ")
+	p := filepath.Join(authDir, "navbar.templ")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -286,12 +288,12 @@ func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
 
 func TestLandingRetargetsBrand(t *testing.T) {
 	dir := t.TempDir()
-	authDir := filepath.Join(dir, "features", "auth")
+	authDir := filepath.Join(dir, "features", "authviews")
 	if err := os.MkdirAll(authDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	give := "\t\t\t<a href=\"/\" class=\"app-nav-brand\">\n\t\t\t\tgogogo\n\t\t\t</a>\n"
-	p := filepath.Join(authDir, "views.templ")
+	p := filepath.Join(authDir, "navbar.templ")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -310,25 +312,24 @@ func TestLandingRetargetsBrand(t *testing.T) {
 
 func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 	dir := t.TempDir()
-	handlersDir := filepath.Join(dir, "features", "todo", "handlers")
+	handlersDir := filepath.Join(dir, "features", "todo", "chi")
 	if err := os.MkdirAll(handlersDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	todoGive := "import (\n" +
 		"\tbasecoat \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
 		")\n" +
-		"\tif skinName == SkinBasecoat {\n" +
-		"\t\treturn basecoat.TodoPage(signals).Render(ctx, w)\n" +
+		"\tif skin == SkinBasecoat {\n" +
+		"\t\t_ = basecoat.TodoPage(signals).Render(ctx, w)\n" +
+		"\t\treturn\n" +
 		"\t}\n" +
-		"\treturn components.Layout(signals).Render(ctx, w)\n"
-	repoGive := "\tswitch skinName {\n" +
-		"\tcase SkinBasecoat:\n" +
+		"\t_ = components.Layout(signals).Render(ctx, w)\n"
+	repoGive := "\tif skin == SkinBasecoat {\n" +
 		"\t\treturn basecoat.TodoListRegion(signals)\n" +
-		"\tdefault:\n" +
-		"\t\treturn components.TodoListRegion(signals)\n" +
-		"\t}\n"
-	todoPath := filepath.Join(handlersDir, "todo.go")
-	repoPath := filepath.Join(handlersDir, "todo_repo.go")
+		"\t}\n" +
+		"\treturn components.TodoListRegion(signals)\n"
+	todoPath := filepath.Join(handlersDir, "pages.go")
+	repoPath := filepath.Join(handlersDir, "chi.go")
 	if err := os.WriteFile(todoPath, []byte(todoGive), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -363,14 +364,15 @@ func TestCheckTreeReportsMissingMarker(t *testing.T) {
 	// Drift detector: a unit whose call line is gone must be reported
 	// with the marker named, not silently skipped.
 	dir := t.TempDir()
-	routerDir := filepath.Join(dir, "router")
+	routerDir := filepath.Join(dir, "internal", "server")
 	if err := os.MkdirAll(routerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	give := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/landing\"\n" +
-		")\n"
-	if err := os.WriteFile(filepath.Join(routerDir, "router.go"), []byte(give), 0o600); err != nil {
+		")\n" +
+		"\treturn mux\n"
+	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	results := checkTree(dir)
@@ -388,7 +390,7 @@ func TestCheckTreeReportsMissingMarker(t *testing.T) {
 	}
 	found := false
 	for _, p := range landing.Problems {
-		if strings.Contains(p, "landing.New(cfg).RegisterRoutes(se)") {
+		if strings.Contains(p, `mux.Handle("/", landingH.Routes())`) {
 			found = true
 		}
 	}
@@ -403,7 +405,7 @@ func TestCheckTreeAgainstRepoRoot(t *testing.T) {
 	// updating cmd/gogogo, this fails naming the unit + marker.
 	// Skipped wholesale in evolved trees: once any owned path is gone
 	// the tree was trimmed, and marker absence there means "removed by
-	// design" or "manual follow-up pending" (e.g. sounds call sites) —
+	// design" or "manual follow-up pending" (e.g. sounds call sites)
 	// not drift. Use `gogogo --check` for a human-readable verdict there.
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {

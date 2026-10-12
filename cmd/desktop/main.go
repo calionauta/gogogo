@@ -1,9 +1,9 @@
 // Command desktop builds the Wails v3 native app shell around the exact
-// same Go backend the web app uses (PocketBase + goqite queue + router +
-// handlers). It boots the server via internal/server.Run, serves
-// PocketBase in a goroutine, and points the Wails webview at it through a
-// reverse proxy — so the desktop app and the web app share 100% of the
-// business logic.
+// same Go backend the web app uses (goqite queue + handlers + the flat
+// chi router). It boots the stack via internal/server.StartChi, serves it
+// in the background, and points the Wails webview at it through a reverse
+// proxy — so the desktop app and the web app share 100% of the business
+// logic.
 //
 // When NATS_LEAFNODE_URL is set, the desktop becomes a NATS Leaf Node
 // that syncs its JetStream streams with the central server (NATS_LEAFNODE_URL)
@@ -17,7 +17,6 @@ import (
 	"log"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -28,7 +27,7 @@ import (
 	"github.com/calionauta/gogogo/internal/server"
 )
 
-//nolint:gocyclo,gocognit // extracting NATS+Collab would add abstraction over single-use setup
+//nolint:gocyclo // extracting NATS+Collab would add abstraction over single-use setup
 func main() {
 	cfg := config.Load()
 
@@ -45,28 +44,38 @@ func main() {
 		if err != nil {
 			log.Printf("WARN: leaf node start failed, falling back to standalone NATS: %v", err)
 		} else {
-			nat, js = h, h.JS
+			nat, js = h, h.JS // leaf-node transport (nat feeds collab only)
 		}
 	} else if cfg.NATS.Enabled {
 		h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
 		if err != nil {
 			log.Printf("WARN: NATS start failed, in-memory broadcaster only: %v", err)
 		} else {
-			nat, js = h, h.JS
+			nat, js = h, h.JS // embedded transport (nat feeds collab only)
 		}
 	}
 
-	// Boot the shared backend (PocketBase + queue + router + handlers).
-	// js is the JetStream the broadcaster uses (Leaf Node or standalone);
-	// nil falls back to in-process SSE.
-	pb, _, _, shutdown, err := server.Run(cfg, js)
+	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	// Point the flat stack at the address the webview proxy targets, so
+	// the seam is explicit here instead of relying on an env var the
+	// desktop launcher would have to set.
+	cfg.ChiAddr = addr
+
+	// Boot the shared backend. js is the JetStream the publisher uses
+	// (Leaf Node or standalone); nil falls back to in-process SSE.
+	// StartChi returns a nil stop with a nil error only when ChiAddr is
+	// empty, which cannot happen here.
+	stopChi, err := server.StartChi(cfg, js)
 	if err != nil {
 		log.Fatalf("boot failed: %v", err)
+	}
+	if stopChi == nil {
+		log.Fatalf("boot failed: chi stack did not start (no %s listener)", addr)
 	}
 
 	// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.
 	// When running as a Leaf Node, these replicate to the central server
-	// (and the central SyncWorker persists them to PocketBase). When
+	// (and the central SyncWorker persists them to Turso). When
 	// standalone, they fan out to local realtime subscribers. The doc
 	// edit below is a minimal end-to-end smoke of the publish path.
 	if js != nil && nat != nil && nat.Conn != nil {
@@ -107,23 +116,8 @@ func main() {
 		}()
 	}
 
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-
-	// PocketBase blocks on pb.Start(), so run it on a goroutine. The
-	// Wails webview reaches it via the reverse proxy below.
-	go func() {
-		args := []string{"serve", "--http", addr}
-		if len(os.Args) > 1 {
-			args = os.Args[1:]
-		}
-		pb.RootCmd.SetArgs(args)
-		if startErr := pb.Start(); startErr != nil {
-			log.Fatalf("pocketbase start: %v", startErr)
-		}
-	}()
-
 	// Reverse proxy: the Wails webview loads http://localhost:<port>
-	// (where PocketBase serves the UI) through this handler.
+	// (where the flat stack serves the UI) through this handler.
 	target, err := url.Parse("http://" + addr)
 	if err != nil {
 		//nolint:gocritic // log.Fatalf is intentional — main() exits here.
@@ -140,11 +134,11 @@ func main() {
 		// not via defer — defer would be skipped on a fatal error and the
 		// gocritic linter flags it. OnShutdown runs on a clean exit.
 		OnShutdown: func() {
-			shutdown()
+			stopChi()
 		},
 	})
 
-	log.Printf("desktop: PocketBase on %s, webview proxied", addr)
+	log.Printf("desktop: flat stack on %s, webview proxied", addr)
 	if runErr := app.Run(); runErr != nil {
 		log.Fatalf("wails run: %v", runErr)
 	}

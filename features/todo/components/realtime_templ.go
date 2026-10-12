@@ -36,15 +36,24 @@ import ic "github.com/calionauta/gogogo/internal/components"
 //
 // VISIBILITY-RESILIENT RECONNECT:
 // Browsers throttle/pause EventSource when a tab is backgrounded, so a
-// backgrounded tab can miss SSE frames. We listen for visibilitychange and
-// re-open the stream when the tab becomes visible again (Datastar dedupes
-// duplicate permanent streams, and the server's replay buffer replays
-// events the tab missed while hidden). This makes realtime work regardless
-// of which tab/window currently has focus — the user never has to be
-// looking at the tab to receive updates.
+// backgrounded tab can miss SSE frames. The data-on:visibilitychange
+// attribute on the opener re-clicks when the tab becomes visible again
+// (Datastar dedupes duplicate permanent streams, and the server's replay
+// buffer replays events the tab missed while hidden). This makes realtime
+// work regardless of which tab/window currently has focus — the user never
+// has to be looking at the tab to receive updates.
 //
 // streamURL is the SSE endpoint to open (e.g. "/api/todos/stream"). Other
 // features pass their own endpoint; the mechanism is identical.
+//
+// REOPEN ON VISIBILITY/OFFLINE (Datastar attributes, not vanilla listeners):
+// Browsers throttle/pause EventSource on backgrounded tabs and kill network
+// connections when offline, so a tab can miss frames or go deaf. The two
+// data-on attributes below re-click the opener on window `online` and on
+// document `visibilitychange` (guarded to visible-only); the click re-runs
+// the permanent @get and Datastar re-establishes the stream. The script
+// holds only the pure open/reopen functions — Datastar owns the
+// subscriptions, mirroring DocVersionWatcher below.
 func RealtimeStream(streamURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -73,13 +82,13 @@ func RealtimeStream(streamURL string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 44, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 53, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// Stable per-tab client id. Persisted in sessionStorage so a reload\n\t\t// reuses the same id (no leaked SSE registration on the server) and\n\t\t// every mutation POSTs the matching id for BroadcastExcept.\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\tif (!id) {\n\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t}\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\n\t\t\tfunction openSSE() {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }\n\t\t\t}\n\t\t\tdocument.addEventListener('datastar-ready', openSSE);\n\t\t\t// Fallback if datastar-ready already fired.\n\t\t\tsetTimeout(openSSE, 300);\n\n\t\t\t// Re-open when the tab returns to the foreground: backgrounded\n\t\t\t// tabs have their EventSource throttled/paused by the browser, so\n\t\t\t// they can miss frames. Re-clicking the opener makes Datastar\n\t\t\t// re-establish the permanent stream (the server replays missed\n\t\t\t// events via its buffer). This keeps realtime working for tabs the\n\t\t\t// user is NOT currently looking at.\n\t\t\tdocument.addEventListener('visibilitychange', function () {\n\t\t\t\tif (!document.hidden) {\n\t\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\t\tif (b) { b.dataset.opened = ''; openSSE(); }\n\t\t\t\t}\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:online__window=\"window.__gogogoSSEReopen()\" data-on:visibilitychange__document=\"if(!document.hidden){window.__gogogoSSEReopen()}\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): Datastar v1\n\t\t// never fires data-on:load on div/body, so no declarative opener\n\t\t// exists — the datastar-ready click + timeout fallback below is\n\t\t// the bootstrap. Everything after bootstrap (reopen on online /\n\t\t// visibility) is data-on attributes on the button above.\n\t\t// Stable per-tab client id. Persisted in sessionStorage so a reload\n\t\t// reuses the same id (no leaked SSE registration on the server) and\n\t\t// every mutation POSTs the matching id for BroadcastExcept.\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\tif (!id) {\n\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t}\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\n\t\t\tfunction openSSE() {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }\n\t\t\t}\n\t\t\t// Re-click after a disconnect: reset the opened flag (a stream\n\t\t\t// the browser tore down never clears it) so the click below\n\t\t\t// actually re-runs the permanent @get. Called by the data-on\n\t\t\t// attributes above, never by vanilla listeners.\n\t\t\twindow.__gogogoSSEReopen = function () {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b) { b.dataset.opened = ''; openSSE(); }\n\t\t\t};\n\t\t\tdocument.addEventListener('datastar-ready', openSSE);\n\t\t\t// Fallback if datastar-ready already fired.\n\t\t\tsetTimeout(openSSE, 300);\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,23 +96,16 @@ func RealtimeStream(streamURL string) templ.Component {
 	})
 }
 
-// PbRealtimeRecords subscribes to PocketBase realtime for the `todos`
-// collection and re-renders the list region on any record change. This is
-// the "records" half of the "best of both" realtime strategy:
-//   - RECORDS (todo create/update/delete) flow through PocketBase realtime,
-//     which is per-user scoped — PB only delivers records the subscriber can
-//     see, so there is no cross-user broadcast leak (the old hub broadcast
-//     to every connected client regardless of owner).
-//   - EPHEMERAL signals (retry feedback, suggest, workflow progress) keep
-//     flowing through the SSE hub (see RealtimeStream), which is in-process
-//     and supports BroadcastExcept (exclude-origin) for those signals.
-//
-// We use the NATIVE EventSource + fetch subscribe protocol (no PocketBase
-// JS SDK dependency): the browser sends the pb_auth cookie automatically on
-// the SSE GET, PocketBase authenticates, and we POST the subscribe body. On
-// a record mutation event we re-fetch the list fragment via Datastar's
-// programmatic @get (window.datastar.get), morphing #todo-list in place.
-func PbRealtimeRecords() templ.Component {
+// RealtimeRecords composes the todo page's two refetch paths. Record
+// changes arrive live over the feature SSE stream (RealtimeStream, mounted
+// by the layout): the hub fans out a record event per mutation and the
+// stream re-lists scoped — per-user by construction, so there is no
+// cross-user broadcast leak. This component adds the manual path both
+// halves share:
+//   - the hidden @get button (ListResync) re-fetches the list fragment
+//     via Datastar's programmatic @get, morphing #todo-list in place;
+//   - DocVersionWatcher clicks it when the doc-version signal moves.
+func RealtimeRecords() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -124,7 +126,7 @@ func PbRealtimeRecords() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = ic.PbRealtimeResync("pb-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')", "todos").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -137,9 +139,9 @@ func PbRealtimeRecords() templ.Component {
 }
 
 // DocVersionWatcher re-fetches the list when the SSE hub fans out a
-// doc-version-bumped event (CRDTStore peer write). Split out of
-// PbRealtimeRecords so the shared resync component stays generic:
-// record changes go through PB realtime, doc-version bumps through
+// doc-version-bumped event (cross-instance peer write). Split out of
+// RealtimeRecords so the shared resync component stays generic:
+// record changes arrive over the stream, doc-version bumps through
 // this watcher, both ending on the same hidden @get button.
 //
 // Reactive, not polling: data-effect re-runs its expression whenever
@@ -167,7 +169,7 @@ func DocVersionWatcher() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"pb-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"todo-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

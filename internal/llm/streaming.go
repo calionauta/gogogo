@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — GoAI LLM client (used by Suggest)
+// SCOPE:plugin — GoAI LLM client (used by Suggest)
 package llm
 
 import (
@@ -20,6 +20,48 @@ const streamBufferSize = 4096
 // tolerating surrounding prose or markdown fences the model may add.
 var jsonArrayRE = regexp.MustCompile(`(?s)\[.*?\]`)
 
+// Suggestion contract shared by parseStringArray and splitLines: the UI
+// renders exactly what this returns, so untrusted model text is forced
+// into shape here — at most 3 items, each trimmed, deduped, and cut at 60
+// runes (the prompt asks for "under 60 characters" but nothing enforces
+// it). Templ escapes HTML on render, so angle brackets are kept verbatim.
+const (
+	suggestMaxItems = 3
+	suggestMaxLen   = 60
+)
+
+// sanitizeSuggestions forces raw model lines into the suggest contract.
+// Keep-first dedupe: the model's first phrasing wins over repeats.
+func sanitizeSuggestions(in []string) []string {
+	out := make([]string, 0, suggestMaxItems)
+	seen := map[string]bool{}
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, truncateRunes(s, suggestMaxLen))
+		if len(out) == suggestMaxItems {
+			break
+		}
+	}
+	return out
+}
+
+// truncateRunes cuts s at n runes (not bytes — a multibyte tail must not
+// split mid-rune into invalid UTF-8 for the SSE/JSON envelope).
+func truncateRunes(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
+}
+
 // parseStringArray extracts a JSON array of strings from a model
 // response. Defensive: handles surrounding markdown fences and
 // prose. Returns the first 3 elements to keep the UI clean even
@@ -39,19 +81,7 @@ func parseStringArray(raw string) ([]string, error) {
 	if err := json.Unmarshal([]byte(match), &arr); err != nil {
 		return nil, fmt.Errorf("llm: decode array: %w", err)
 	}
-	// Trim and cap to 3 short items.
-	out := make([]string, 0, 3)
-	for _, s := range arr {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		out = append(out, s)
-		if len(out) == 3 {
-			break
-		}
-	}
-	return out, nil
+	return sanitizeSuggestions(arr), nil
 }
 
 // stripCodeFence removes a leading ```json and trailing ``` from a
@@ -67,9 +97,10 @@ func stripCodeFence(s string) string {
 }
 
 // splitLines is the fallback for when the model returns plain text
-// instead of JSON. Splits on newlines and trims bullets/dashes.
+// instead of JSON. Splits on newlines and trims bullets/dashes, then
+// forces the same suggest contract as the JSON path.
 func splitLines(s string) []string {
-	var out []string
+	var raw []string
 	for line := range strings.SplitSeq(s, "\n") {
 		line = strings.TrimSpace(line)
 		// Strip leading "- " or "* " bullets.
@@ -77,12 +108,9 @@ func splitLines(s string) []string {
 		if line == "" {
 			continue
 		}
-		out = append(out, line)
-		if len(out) == 3 {
-			break
-		}
+		raw = append(raw, line)
 	}
-	return out
+	return sanitizeSuggestions(raw)
 }
 
 // StreamToSSE sends LLM tokens to a Datastar SSE connection. The first

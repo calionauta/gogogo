@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GoGoGo — a full-stack Go web app template that ships as one binary</title>
-<meta name="description" content="Full-stack Go web app template: PocketBase + Templ + Datastar + Tailwind in a single self-contained binary. Auth, database, queue, realtime, durable workflows, offline sync, and an admin UI — no Docker, no external services.">
+<meta name="description" content="Full-stack Go web app template: Turso/SQLite + Templ + Datastar + Tailwind in a single self-contained binary. Auth, database, queue, realtime, durable workflows and offline sync — no Docker, no external services.">
 <meta property="og:title" content="GoGoGo">
 <meta property="og:description" content="A full-stack Go web app template that ships as one binary. No Docker, no external services.">
 <meta property="og:image" content="./assets/logo.png">
@@ -175,9 +175,9 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
     <p class="group-label core">Core — always in <span>(customize, never remove)</span></p>
     <div class="grid-2">
       <div class="card">
-        <p class="step">Database, auth and API — zero config</p>
-        <p class="tech">PocketBase · embedded SQLite</p>
-        <p>Auth, REST, file storage and an admin UI at <code>/_/</code>. No separate service to run.</p>
+        <p class="step">Database and auth — zero config</p>
+        <p class="tech">Turso · embedded SQLite</p>
+        <p>Cookie sessions and file-local storage. No separate service to run.</p>
         <p class="off">Always in</p>
       </div>
       <div class="card">
@@ -243,7 +243,7 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       <div class="card">
         <p class="step">Collaborative whiteboard</p>
         <p class="tech">Loro CRDT + Rough.js</p>
-        <p>Presence cursors, offline outbox, PocketBase-persisted snapshots.</p>
+        <p>Presence cursors, offline outbox, Turso-persisted snapshots.</p>
         <p class="off">Delete: <code>features/whiteboard/</code></p>
       </div>
       <div class="card">
@@ -266,7 +266,7 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       </div>
       <div class="card">
         <p class="step">Todo reference app</p>
-        <p class="tech">PocketBase realtime</p>
+        <p class="tech">SSE Hub record-sync</p>
         <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
         <p class="off">Delete: <code>features/todo/</code></p>
       </div>
@@ -305,8 +305,8 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       </div>
       <div class="card">
         <p class="step">Live record updates, scoped per user</p>
-        <p class="tech">PocketBase realtime</p>
-        <p>The collection's own access rules decide who sees what — no extra channel to secure.</p>
+        <p class="tech">SSE Hub record-sync</p>
+        <p>The owner column decides who sees what — no extra channel to secure.</p>
       </div>
       <div class="card">
         <p class="step">Ephemeral UI signals</p>

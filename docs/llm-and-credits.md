@@ -84,7 +84,7 @@ working — AI is opt-in, not required.
 ## AI credits & BYOK (optional)
 
 [`ai-credits`](https://github.com/calionauta/ai-credits) keeps AI billing in the
-same SQLite file as PocketBase: an immutable ledger with a materialized balance,
+same SQLite file as the app: an immutable ledger with a materialized balance,
 pricing by actual token usage, conservative reserve/settle for unknown-output
 calls, lazy monthly entitlements, Stripe top-ups, and a reconciler. It stays
 completely dormant unless enabled.
@@ -111,10 +111,10 @@ When both BYOK vars are present, `POST /api/byok/{provider}/{path...}` injects
 the user's encrypted key server-side and records upstream JSON/SSE token usage
 with `billing_mode=byok` and `credits_charged=0`.
 
-`CREDITS_ENC_KEY` accepts the normal `openssl rand -hex 32` representation (or a
-legacy raw 32-byte value).
+`CREDITS_ENC_KEY` accepts the `openssl rand -hex 32` representation (64 hex
+chars) and nothing else.
 
-> The relay trusts the authenticated PocketBase user stamped by the app. **Do
+> The relay trusts the authenticated app user stamped by the app. **Do
 > not expose `X-Auth-User` from an external proxy.**
 
 For the library contract, schema, and security model see

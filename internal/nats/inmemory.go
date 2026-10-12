@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — NATS JetStream + Leaf Node + CRUD proxy
+// SCOPE:plugin — NATS JetStream + Leaf Node + CRUD proxy
 // Single-instance. Part of internal/nats package.
 // If you keep TODO without NATS (in-memory only), this file is needed.
 package nats
@@ -24,6 +24,10 @@ func NewInMemoryBroadcaster(hub *queue.SSEHub) *InMemoryBroadcaster {
 }
 
 // PublishTodoUpdate sends payload to every client registered on the hub.
+// a drop handler for slow clients; there is no cancellable I/O to thread
+// the context into, and callers select on ctx around Publish.
+//
+//nolint:contextcheck // in-memory fan-out is a synchronous channel send with
 func (b *InMemoryBroadcaster) PublishTodoUpdate(_ context.Context, payload []byte) error {
 	if b.hub != nil {
 		b.hub.Broadcast(payload)

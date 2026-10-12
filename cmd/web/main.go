@@ -1,12 +1,14 @@
 // SCOPE:core - DO NOT REMOVE - Server entry point. This is the main binary.
-// Package main wires the binary's startup sequence: PocketBase, the
-// goqite queue, optional NATS JetStream realtime, the DagNats durable
-// workflow engine (always compiled; opt out at runtime via DAGNATS_ENABLED), and the HTTP routes. Run with
-// `make dev` (live reload) or `make build` (single binary).
+// Package main wires the binary's startup sequence: the flat chi stack
+// (internal/server), the goqite-backed chat/genui queues it owns, optional
+// NATS JetStream realtime, and the DagNats durable workflow engine (always
+// compiled; opt out at runtime via DAGNATS_ENABLED).
 //
-// All Fatalf calls live at the top of main and the actual long-running
-// call (pb.Start) returns instead of Fatalf-ing so deferred shutdown
-// hooks fire on the way out.
+// Boot order is a graph, not a line: BootChi builds everything engine-free
+// (and returns the todo handler the onboarding worker writes through),
+// DagNats then owns the embedded NATS :4222, startNATS attaches to it, and
+// AttachJetStream + Serve finish the stack. run() blocks until SIGINT or
+// SIGTERM, so every deferred cleanup runs in reverse order on the way out.
 package main
 
 import (
@@ -15,11 +17,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/features/store/crdtstore"
 	"github.com/calionauta/gogogo/internal/server"
-	"github.com/calionauta/gogogo/router"
 )
 
 // Build metadata — overwritten at build time via LDFLAGS
@@ -40,6 +42,17 @@ func ShortCommit() string {
 		return CommitHash[:7]
 	}
 	return CommitHash
+}
+
+// listenAddr resolves the flat-stack listen address: the ChiAddr
+// override when set, Host:Port otherwise. Pure so the contract is
+// unit-testable; both callers (here and, via StartChi, cmd/desktop)
+// must agree on what "the address" means.
+func listenAddr(cfg *config.Config) string {
+	if cfg.ChiAddr != "" {
+		return cfg.ChiAddr
+	}
+	return fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 }
 
 func main() {
@@ -83,11 +96,13 @@ func run() error {
 	cfg.BuildLabel = Version
 	cfg.BuildCommit = ShortCommit()
 
-	pb, todoH, q, shutdown, err := server.Run(cfg, nil)
+	// Boot the engine-free stack first: it owns the todo handler the
+	// DagNats onboarding worker writes through, and DagNats must be up
+	// before JetStream can exist (it owns the embedded NATS).
+	stack, err := server.BootChi(cfg)
 	if err != nil {
 		return err
 	}
-	defer shutdown()
 
 	// lifecycleCtx bounds background boot work (workflow registration, DagNats
 	// watchdogs) to the process lifetime: a shutdown cancels it, so a retry loop
@@ -95,10 +110,10 @@ func run() error {
 	lifecycleCtx, stopLifecycle := context.WithCancel(context.Background())
 	defer stopLifecycle()
 
-	// DagNats owns the embedded NATS on :4222 and must boot first so the
-	// realtime broadcaster can attach to it. It's always compiled; when
-	// DAGNATS_ENABLED=false it no-ops.
-	startDagNats(lifecycleCtx, cfg, pb, todoH)
+	// DagNats owns the embedded NATS on :4222 and must boot before
+	// startNATS so the realtime broadcaster can attach to it. It's always
+	// compiled; when DAGNATS_ENABLED=false it no-ops.
+	startDagNats(lifecycleCtx, cfg, stack.TodoHandler)
 	defer shutdownDagNats()
 
 	// GoAkt owns the room actor system (standalone, no network). It's
@@ -111,7 +126,19 @@ func run() error {
 	defer shutdownGoAkt()
 
 	js := startNATS(cfg)
-	_ = js // startNATS has the side-effect of wiring the global broadcaster
+
+	stack.AttachJetStream(lifecycleCtx, js)
+
+	// ChiAddr, when set, overrides Host:Port (same override cmd/desktop
+	// uses for its webview proxy target). Empty keeps the default, so a
+	// stock env never changes behaviour.
+	addr := listenAddr(cfg)
+	stop, err := stack.Serve(addr)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	log.Printf("listening on %s", addr)
 
 	// WORKAROUND (upstream DagNats v0.0.24 bug): the trigger console cannot
 	// create the FIRST trigger because listing an empty bucket returns
@@ -126,39 +153,13 @@ func run() error {
 		ensureTriggerBootstrap()
 	}
 
-	// Phase 2: wire the CRDTStore JetStream transport when the chosen
-	// store is a *crdtstore.CRDTStore and JetStream is available. The
-	// router exposes the concrete type via a package var; we install
-	// the transport here (post-Init) so the NATS broadcaster and the
-	// CRDT store are both ready.
-	if concrete := router.ConcreteTodoStore(); concrete != nil {
-		if cs, ok := concrete.(*crdtstore.CRDTStore); ok {
-			stopTransport := server.WireCRDTStoreTransport(context.Background(), cs)
-			defer stopTransport()
-			// Phase 3: wire the SSE Hub publisher so cross-store
-			// CRDT ops trigger a client-side resync. Same lifetime
-			// as the transport wire; both halt on shutdown.
-			_ = server.WireCRDTStorePublisher(cs, q.Hub())
-		}
-	}
-
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	// PocketBase v0.39+ uses a Cobra root command. pb.Start() calls
-	// RootCmd.Execute() internally, so we set the args on the command
-	// (not os.Args — that confuses the help printer and makes it exit
-	// 1 with the usage text). Default to `serve` with our bind addr
-	// when no subcommand is given, but pass through any explicit
-	// subcommand (e.g. `superuser upsert`, `migrate`) so CLI admin
-	// tasks work instead of always forcing `serve`.
-	args := os.Args[1:]
-	if len(args) == 0 {
-		args = []string{"serve", "--http", addr}
-	}
-	pb.RootCmd.SetArgs(args)
-
-	log.Printf("listening on %s", addr)
-	if startErr := pb.Start(); startErr != nil {
-		return fmt.Errorf("server: %w", startErr)
-	}
+	// The process is the server now (there is no framework run loop
+	// underneath): block on signals so the deferred cleanups above —
+	// stop() draining HTTP, engine stops, lifecycle cancel — run in
+	// reverse order instead of being skipped at process exit.
+	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	<-ctx.Done()
+	log.Printf("shutting down")
 	return nil
 }

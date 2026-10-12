@@ -34,7 +34,7 @@ out_file=$(mktemp)
 err_file=$(mktemp)
 trap 'rm -f "$out_file" "$err_file"' EXIT
 
-deadcode -test ./cmd/web/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... \
+deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
     >"$out_file" 2>"$err_file"
 status=$?
 

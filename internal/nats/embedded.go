@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — NATS JetStream + Leaf Node + CRUD proxy
+// SCOPE:plugin — NATS JetStream + Leaf Node + CRUD proxy
 // Starts embedded NATS server or connects as Leaf Node.
 package nats
 
@@ -81,7 +81,7 @@ var (
 // been started.
 //
 // It exists for the call sites that genuinely cannot thread the handle
-// themselves: the PocketBase OnServe closures in router/, which read the
+// themselves: the serve-event closures in the router, which read the
 // connection when the serve event fires — long after the boot function that
 // created it returned.
 func Current() *Handle {

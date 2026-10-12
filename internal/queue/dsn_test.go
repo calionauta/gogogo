@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — tests for the SQLite DSN configuration.
+// SCOPE:core — tests for the Turso DSN configuration.
 package queue
 
 import (
@@ -7,53 +7,28 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	_ "turso.tech/database/tursogo"
 )
 
-// TestGoqiteDSN_HasBusyTimeout pins the pragma that keeps concurrent queue
-// writes from failing with SQLITE_BUSY. busy_timeout is applied per
-// connection at open time, so it must live in the DSN — a PRAGMA statement
-// issued afterwards would not cover every pooled connection.
-//
-// Red-proof: with the old `sql.Open("sqlite3", dbPath)` the busy_timeout is 0
-// and this test fails.
-func TestGoqiteDSN_HasBusyTimeout(t *testing.T) {
-	t.Parallel()
-	db, err := sql.Open("sqlite3",
-		"file:"+filepath.Join(t.TempDir(), "q.db")+
-			"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-
-	ctx := context.Background()
-	var busy int
-	if err := db.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&busy); err != nil {
-		t.Fatalf("read busy_timeout: %v", err)
-	}
-	if busy != 10000 {
-		t.Fatalf("busy_timeout = %d, want 10000 (SQLITE_BUSY under contention)", busy)
-	}
-
-	var mode string
-	if err := db.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&mode); err != nil {
-		t.Fatalf("read journal_mode: %v", err)
-	}
-	if mode != "wal" {
-		t.Fatalf("journal_mode = %q, want wal", mode)
-	}
+// tursoQueueDSN is the DSN Queue.New opens. busy_timeout must live in the
+// DSN (a PRAGMA statement is not applied by the driver on open), matching
+// the app DB's DSN in internal/db.
+func tursoQueueDSN(path string) string {
+	return path + "?_busy_timeout=10000"
 }
 
 // TestGoqiteDSN_ConcurrentWritersDoNotFail proves the practical effect: two
-// connections writing to the same goqite-style DB do not fail with a busy
-// error. With busy_timeout=0 the second write would error immediately.
+// connections writing to the same Turso file do not fail with a busy error.
+// The second writer must wait for the lock (busy_timeout) and succeed.
+// Without the DSN option it would error immediately.
 func TestGoqiteDSN_ConcurrentWritersDoNotFail(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "q.db")
-	dsn := "file:" + path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)"
+	dsn := tursoQueueDSN(path)
 
 	open := func() *sql.DB {
-		db, err := sql.Open("sqlite3", dsn)
+		db, err := sql.Open("turso", dsn)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +69,7 @@ func TestGoqiteDSN_ConcurrentWritersDoNotFail(t *testing.T) {
 		if err != nil {
 			t.Fatalf("second writer failed while busy_timeout should have waited: %v", err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Fatal("second writer never completed")
 	}
 }

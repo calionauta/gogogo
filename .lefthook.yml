@@ -34,6 +34,14 @@ pre-commit:
       run: go run ./cmd/check-scope
       glob: "{internal,features}/**/*.go"
 
+    - name: flatdeps-lint
+      run: go run ./cmd/check-flatdeps
+      glob: "{go.mod,internal/**,features/**}"
+
+    - name: dagnats-pin
+      run: bash bin/check-dagnats-pin.sh
+      glob: "{go.mod,go.sum,docs/dagnats.md,internal/dagnats/**}"
+
     # AI-assisted commits leak secrets at ~2x the baseline (GitGuardian
     # 2026) — a CI-only scan is too late (history already written). No
     # glob: every commit scans its staged content, cheap (~1s warm).
@@ -104,7 +112,7 @@ pre-commit:
     # does not block.
     - name: docs-staleness
       run: bin/check-docs-staleness.sh
-      glob: "{config/**,router/**,db/**,Makefile,.github/workflows/**,scripts/**,features/**,internal/**,docs/**,README.md}"
+      glob: "{config/**,Makefile,.github/workflows/**,scripts/**,features/**,internal/**,docs/**,README.md}"
 
 # pre-push stays LIGHT. The heavy gate (lint + race tests + build + smoke)
 # runs in GitHub Actions CI (`make ci-local` equivalent) on the runner after

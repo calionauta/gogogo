@@ -31,7 +31,7 @@ with the same flags (always tracks the latest commit; releases pin a version).
   (`plan, receipt, buildOk, buildError, next`).
 - Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed.
 - Never `--run` without a terminal: it never returns.
-- `add`/`trim` only touch scaffolded checkouts (`router/router.go` +
+- `add`/`trim` only touch scaffolded checkouts (`internal/server/chi.go` +
   `go.mod` must exist) — foreign Go codebases get guidance (`advise`),
   not merging.
 - Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
@@ -49,7 +49,8 @@ with the same flags (always tracks the latest commit; releases pin a version).
 
   The `go-standards` scope exists because answering a stdlib-only need with 24
   dependency-bearing capabilities is worse than answering nothing: an agent
-  reading it recommends PocketBase for a task whose spec forbids it.
+  reading it recommends a managed realtime backend for a task whose spec
+  forbids it.
 
 Engine internals (alternatives analysis, trim tables, flag matrix):
 [`cmd/gogogo`](https://github.com/calionauta/gogogo/tree/master/cmd/gogogo).

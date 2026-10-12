@@ -16,7 +16,7 @@ import (
 //
 // Note: JetStream stream replication between hub and spoke is a
 // domain/account configuration concern handled at deploy time (both sides
-// share a JetStream domain); this test asserts the transport binding —
+// share a JetStream domain); this test asserts the transport binding
 // the leaf actually attaches — which is the part StartLeafNode owns.
 func TestLeafNode_ConnectsToCentral(t *testing.T) {
 	t.Parallel()

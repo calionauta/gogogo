@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream. Module: `github.com/calionauta/gogogo`
+Go template: Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + NATS JetStream. Module: `github.com/calionauta/gogogo`
 
 **Naming:** repo, module, binary, deploy dir (`/home/deploy/<APP_NAME>/`), container, tunnel hostname share the project name. Fresh clones carry `gogogo` in ~670 places across ~200 files — never rename by hand (run `python3 scripts/rename-project.py --dry-run my-app` for the current count). Use `go run ./cmd/gogogo` (guided; see `cmd/gogogo/README.md`) or `make rename NAME=my-app [OWNER=myorg]`.
 
@@ -14,7 +14,7 @@ Go template: Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream. 
 
 ## Stack (exact versions)
 
-Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sqlite3) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | GoAkt v4.6.1 | NATS JetStream | age v1.3.2 | uuid v1.6.0
+Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | Turso (tursogo v0.8.2, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | GoAkt v4.6.1 | NATS JetStream | age v1.3.2 | uuid v1.6.0
 
 ## Skills
 
@@ -31,20 +31,20 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
 | `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
-| `make check-scope` | Assert `// SCOPE:layer=…,removal=…` on every `internal/`+`features/` file |
+| `make check-scope` | Assert `// SCOPE:<core|plugin|feature>` on every `internal/`+`features/` file |
 | `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make check-generated` | Fail if committed `_templ.go` does not match the `.templ` sources |
 | `make ci-local-fast` | Same cheap checks, but lint + tests scoped to changed packages |
 | `make lint-safe` | Host-aware lint: sizes to free RAM/cores, scopes to changed pkgs when tight, memory-capped in a cgroup (`scripts/lint-safe.sh`) — prefer over `make lint` on a shared host |
-| `make ci-local` | **Single gate** (= CI): generated-templ + datastar-lint + css-check + check-scope + skill-frontmatter + install-sh + lint + race tests + build + binary-boot smoke + Playwright smoke. If green, push. (~82s; `make check` was removed — redundant subset.) |
+| `make ci-local` | **Single gate** (= CI): checks + lint + build + boot smoke + parallel fan-out (race suite + browser smokes, one log each). If green, push. (`make check` was removed — redundant subset.) |
 | `make signoff` | `ci-local` + advisory `gh signoff` stamp before push |
 | `make setup` | Activate lefthook git hooks (`core.hooksPath=.githooks`) |
 
 ## Don'ts
 
 - NO HTMX/Alpine (Datastar), NO `fmt.Sprintf` HTML (Templ), NO `log` (`log/slog`).
-- Driver is `ncruces/go-sqlite3` (registers `sqlite3`) — never switch to PocketBase's bundled modernc (`sqlite`, unused). NO removing goqite for JetStream; different problems.
-- NO manual `id` on PocketBase records (PK max 15, `^[a-z0-9]+$`).
+- Driver is `turso` (tursogo, registered by `internal/db`) — the only data layer; handlers call `dbgen.*` directly, no strategy switch. NO removing goqite for JetStream; different problems.
+- NO hand-rolled IDs on rows — use `db.NewID()` (UUIDv7 string, matches every owner column).
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
 - NO secrets in git, chat-visible commands, or test fixtures — keys live in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets`; `gitleaks` pre-commit + CI enforce it. Never print secret values (lengths/names only).
@@ -52,14 +52,38 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sql
 - Prefer Datastar attributes over vanilla JS; inline JS only adjacent to the markup.
 - NO `make check`, NO whole-repo `golangci-lint run ./...` for small changes (scope to touched pkgs — or just `make lint-safe`, which sizes the run to the host's free RAM/cores and caps it in a cgroup), NO `golangci-lint cache clean` (the cache is what keeps a run cheap; a cold run re-type-checks the whole module and spikes memory — it has taken a shared host into swap), NO `go build -tags "<stale>"` (unified-build era has no tags). Project-specific footguns go in `rules/rules.go` (ruleguard, loaded by gocritic) — a rule there fails CI, so prose guidance that a linter can enforce belongs there, not in this file.
 - NO `go func()` loop without a shutdown path: long-lived loops select on `ctx.Done()` (or a `done chan struct{}`), bound at wiring time. NO `ctx` stored in a struct. NO bare `for range ticker.C`. See `skills/gogogo-coding-standards` (Concurrency) + [docs/code-quality.md](docs/code-quality.md#concurrency-and-resources).
+- NO `--no-verify` commits to dodge a red gate — a red hook is a finding about your change, not an obstacle. Fix it, narrow the scope, or drop the change. (Precedent: a funlen breakage shipped past local hooks this way and failed CI instead.)
+- NO legacy until 1.0 (only the human declares 1.0, never an LLM): no backward-compat code, no fallback branches for removed shapes, no deprecated aliases, no `legacy*` helpers, no comments explaining current behavior by reference to removed code — delete the old path, do not bridge it. Reword history-leaning comments to present tense. Exceptions (the only ones): DB migrations stay append-only (data loss beats code purity), and decision records (`docs/architecture-decision.md`, CHANGELOG) keep history — recording decisions is their job.
+- After manual smoke/debug runs: `make smoke-clean` — binaries and tmp dirs survive failures and interrupts (the suite only removes them on the happy path). Test artifacts live in the OS temp dir by construction (`SMOKE_BIN`, never `/tmp`-hardcoded); never leave binaries in the repo (a 44MB binary was once committed by accident). Never delete Playwright browsers in cleanup (per-OS shared cache, GBs to re-download).
 
 ## Go-first / Zig (summary; normative: `docs/exception-to-go.md`)
 
 Go is the product language (~95-99%). Zero Zig code/toolchain in tree — do not add without a benchmarked case. Bans: "Zig is faster", manual memory, "low-level", "could be optimized", "looks like SIMD", preference, avoiding a Go dep, future perf. Go SIMD (`simd`/`archsimd`, `GOEXPERIMENT=simd`) first; perf work needs a Go baseline bench + profile proving Go is the bottleneck. Kernel rules: one package, small C ABI, caller-owned buffers, pure-Go fallback day one, removable in minutes. Vague "use Zig when appropriate" is rejected — follow the doc's decision procedure.
 
+## Architecture seams
+
+Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a framework.
+
+**Principles (LLM-friendly, evolvable; 2026 practice):**
+- **Thin seams over clever abstractions.** Add interfaces only when you actually have 2+ implementations or a real need to swap. Prefer small, purpose-built interfaces (1-3 methods). Never reach for `GenericRepo[T]`. Go's implicit interfaces mean no ceremony.
+- **Direct calls over interfaces.** Call the concrete dependency (a sqlc function, a chi handler) directly. Reserve an interface for a genuinely swappable edge (e.g. an LLM provider) and keep it to 1-3 methods. A one-implementation interface is a shallow module — delete it.
+- **Explicit DI, no containers.** Inject via struct fields or constructor args. No reflection-based DI, no service locator.
+- **Vertical slices > horizontal layers.** Implement end-to-end for a single feature (red-proof with contract tests). Generalize only when the third concrete case repeats. This maximizes locality for LLMs.
+- **No pass-through layers.** Never wrap a dependency in a thin adapter that only forwards calls — call it directly. Translate types at the boundary only when the external shape genuinely differs from the domain shape.
+- **Examples are the spec.** Living code is more useful to LLMs than long prose. When adding a new seam, mirror an existing concrete example (e.g. the todo vertical slice).
+- **Dual-mode when evolving core paths.** When replacing/swapping a core integration, use a runtime flag to compare behavior with zero regressions. Default to existing behavior.
+- **Core vs plugins.** Mark new removable pieces with `SCOPE:plugin`. `SCOPE:core` changes need care.
+- **Constructors build, callers start; stoppable on terminate.** Follow concurrency rules from coding standards.
+- **Fail fast, explicit errors.** Keep contracts obvious; prefer compile-time checks over runtime magic.
+
+**Rules:**
+- Don't abstract prematurely. Duplicate a little > create wrong abstraction.
+- Don't hide dependencies behind globals/env checks deep in code - inject them.
+- Keep seams discoverable (small files, clear names). If an LLM can't copy-paste and adapt it, it's too clever.
+
 ## SCOPE
 
-Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>` (`docs/scope-taxonomy.md`). Enforced by `make check-scope` + pre-commit. Trim rule: never delete `removal=core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).
+Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SCOPE:<core|plugin|feature> — <desc>` (`docs/scope-taxonomy.md`). The directory is the layer; the annotation records only the removal class. Enforced by `make check-scope` + pre-commit. Trim rule: never delete `core` without asking; `feature`/`plugin` delete freely per the inline description (`docs/features.md`).
 
 ## Hooks
 
@@ -67,14 +91,14 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 
 ## Gotchas (details in docs)
 
-- **Routing:** register DIRECTLY on `se.Router` inside OnServe (nested `OnServe().BindFunc` never fires; `GET /` swallows subpaths). Cookie is `gogogo_auth`, NOT `pb_auth` (PB admin/users are separate namespaces — sharing clobbers the admin session); admin UI on separate origin `:8090/_/`. Static assets via EXACT `/static/<file>` routes with content-hash ETag (`ARCHITECTURE.md`, `docs/architecture.md`).
-- **Realtime:** todo mutations flow through PB realtime (`/api/realtime`, per-user rules) + fragment re-fetch — do NOT add a parallel SSE-hub re-render. SSE hub (`/api/todos/stream`) is ephemeral signals only. Whiteboard: SSEHub + NATS, Loro offline-first (`docs/async-layers.md`).
+- **Routing:** compose in `internal/server/chi.go` — `BootChi` builds one handler per capability, `buildChiMux` mounts one subtree per capability (stdlib mux, longest match wins; landing `/` is the catch-all). Cookie is `gogogo_auth` (owned argon2id sessions, `internal/auth`); DagNats console on `:8090`. Static via `web/resources.AssetHandler` (`/static/` + root `/sw.js` with `Service-Worker-Allowed: /`).
+- **Realtime:** mutations fan out twice — Hub record event to the owner's streams (no-echo on `clientID`, except offline replays which reach everyone) + JetStream CRUD op cross-instance — then re-list scoped. SSE hub (`/api/todos/stream`) is record-sync + ephemeral signals. Whiteboard/notes: SSEHub + NATS, Loro offline-first (`docs/async-layers.md`). Offline replay answers `"replayed"` + `X-Offline-Replay: 1`; fan-out runs BEFORE that short-circuit.
 - **Templ/CSS:** `make templ && make css` after `.templ` edits. `site/`+`docs/` are outside the Tailwind scan — landing edits can't stale the bundle (`docs/code-quality.md`).
-- **Tests:** temp-dir PB + `Bootstrap()` + real SQLite over `httptest`. Bind test servers to EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the address back — a fixed port is stolen by another package under `-p N` (`address already in use`), which is what the old `-p 1` was hiding. Orphan `web` procs also hold `:18099`/`:4224` — `pkill -x web` (`docs/troubleshooting.md`).
-- **Tests that spawn the real binary:** set `GOGOGO_NO_BROWSER=1` explicitly in the child env, built from scratch (not `append(os.Environ(), …)` — an inherited `=0` wins and a browser tab opens). The child inherits the parent's TTY, so `interactive()` detection alone lets `make test` from a terminal through; PB's first-run installer then calls `LaunchURL` (`docs/troubleshooting.md`).
-- **SSE in tests:** `pumpSSEUntil` must enforce its deadline while a `Read` is parked — a `for time.Now().Before(deadline) { Body.Read }` loop waits one heartbeat (15s) past it. Predicates parse payloads via `sseSignalPayloads`, never the raw transcript (it is `event:`/`data:` lines and each payload carries a `signals ` prefix, so `json.Unmarshal` always fails and the predicate never fires). A negative assertion uses `pumpSSEFor` + `sseAbsenceWindow`. Ruleguard rule `BlockingReadBehindDeadline` guards the loop (`docs/local-ci.md`).
+- **Tests:** temp-dir Turso (`db.OpenAt` + `db.Migrate`) + real auth over `httptest`/real `:0` servers. Bind test servers to EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the address back — a fixed port is stolen by another package under `-p N` (`address already in use`), which is what the old `-p 1` was hiding. Orphan `web` procs also hold `:18099`/`:4224` — `pkill -x web` (`docs/troubleshooting.md`).
+- **Tests that spawn the real binary:** the flat binary opens no browser and takes no CLI subcommands — address + data dir ride env (`HOST`/`PORT`, `TURSO_DB_PATH`); keep `GOGOGO_NO_BROWSER=1` set explicitly in the child env anyway (cheap insurance if a launcher ever returns).
+- **SSE in tests:** heartbeats flow on every open stream, so a parked `Read` must be deadline-bounded or the test hangs instead of failing — never assert on the raw transcript (`event:`/`data:` framing breaks `json.Unmarshal`); parse payloads. Ruleguard rule `BlockingReadBehindDeadline` guards the loop (`docs/local-ci.md`).
+- **Tests other packages share:** never write a package global in a fixture — a write one test doesn't need is a latent race the moment two tests overlap. Set such state once in `TestMain`, or not at all.
 - **Playwright in tests:** NEVER `waitUntil: "networkidle"` on a page that opens an SSE `EventSource` (whiteboard, notes) — the stream never lets the network go idle and `goto` burns its 30s timeout. Navigate with `waitUntil: "load"` + an explicit selector wait (`gotoBoard`/`gotoNote` in `scripts/`). Rule: if the page holds any long-lived connection, the readiness signal is a selector, never the network (`docs/local-ci.md`).
-- **Tests other packages share:** never write a package global in a fixture. `auth.CookieSecure` was assigned `false` (its zero value) by four fixtures — a latent race the moment two tests in a package overlap. Set such state once in `TestMain`, or not at all.
 - **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
 - **Deploy:** push-to-`master` → CI gate → deploy. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone (`git pull --ff-only`). Scratch healthcheck: `CMD ["/app","health"]` (`docs/deploy.md`).
 - **Skins:** default DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Basecoat has its own vocab — read `docs/ui-skins.md` first.

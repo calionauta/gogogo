@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/goleak"
+
 	"github.com/calionauta/gogogo/config"
 )
 
@@ -72,6 +74,15 @@ func TestWaitOrStopWaitsWhenRunning(t *testing.T) {
 func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 	t.Parallel()
 
+	// goleak: a worker that survives Stop() is the leak this file exists
+	// to prevent (the old time.Sleep held every worker past shutdown).
+	// IgnoreCurrent covers test-runner goroutines; connectionOpener is the
+	// SQLite driver's own background goroutine, not ours.
+	defer goleak.VerifyNone(t,
+		goleak.IgnoreCurrent(),
+		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+	)
+
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
 	if err != nil {
@@ -112,6 +123,13 @@ func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 // worker loop).
 func TestQueueCloseStopsWorkers(t *testing.T) {
 	t.Parallel()
+
+	// Same leak assertion as above: Close() must stop the pool it owns,
+	// or workers loop against a dead database forever.
+	defer goleak.VerifyNone(t,
+		goleak.IgnoreCurrent(),
+		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+	)
 
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})

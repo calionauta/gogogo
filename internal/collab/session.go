@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
+// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
 package collab
 
 import "encoding/json"

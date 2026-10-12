@@ -40,12 +40,9 @@ coverage.txt
 *.cover
 *.coverprofile
 
-# ── PocketBase runtime data ──
+# ── App runtime data ──
 # Test data + production data should never end up in an image.
-pb_data
 data
-internal/workflow/pb_data
-features/todo/pb_data
 *.db
 *.db-shm
 *.db-wal

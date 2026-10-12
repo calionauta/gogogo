@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: trim-provenance reader
+// SCOPE:plugin — installer engine: trim-provenance reader
 package installer
 
 import (
@@ -67,7 +67,7 @@ func readTrimProvenance(root string) trimProvenance {
 		id = strings.TrimSpace(id)
 		// "none" is the installer's marker for an empty trim, written so the
 		// line is always present and parseable.
-		if id == "none" || id == "" {
+		if id == keepNone || id == "" {
 			continue
 		}
 		// Only ids the manifest knows are trusted. Anything else is prose
@@ -112,6 +112,29 @@ func explainTrim(w io.Writer, results []unitCheck, tp trimProvenance) int {
 		}
 	}
 	return failed
+}
+
+// removedPaths is the machine-read companion to removedIDs: the union of
+// repo-relative dirs and files the dropped units owned, sorted for a stable
+// AGENTS.md. The registry conformance tests skip exactly these paths, so a
+// deliberately trimmed tree does not report its own removals as missing.
+func removedPaths(drop []trimUnit) string {
+	seen := map[string]bool{}
+	var out []string
+	for _, u := range drop {
+		m := u.meta()
+		for _, p := range append(append([]string{}, m.dirs...), m.files...) {
+			if !seen[p] {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	sort.Strings(out)
+	if len(out) == 0 {
+		return keepNone
+	}
+	return strings.Join(out, ", ")
 }
 
 // removedIDs extracts the unit ids from a trim plan, sorted for a stable

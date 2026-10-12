@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: interactive form, numbered menus, keep-set parsing
+// SCOPE:plugin — installer engine: interactive form, numbered menus, keep-set parsing
 package installer
 
 import (

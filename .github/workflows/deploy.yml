@@ -72,9 +72,7 @@ on:
       - "src/css/**"
       - "web/**/*.css"
       - "web/**"
-      - "db/**"
       - "config/**"
-      - "router/**"
       - "features/**"
       - "internal/**"
       - "cmd/**"
@@ -294,7 +292,7 @@ jobs:
             docker system prune -af --filter 'until=24h' 2>/dev/null || true
             docker builder prune -af 2>/dev/null || true
             # Application layout (SCP destinations must exist first)
-            for d in bin compose env scripts data/pb_data; do
+            for d in bin compose env scripts; do
               mkdir -p \"${APP_DIR}/\${d}\"
             done
             # Convention rule 4: secrets live in ~/.secrets/, 0700, read by the
@@ -342,7 +340,7 @@ jobs:
           ssh $DEPLOY_HOST "set -euo pipefail
             APP_NAME=\"${{ env.APP_NAME }}\"
             APP_DIR=\"/home/deploy/services/\${APP_NAME}\"
-            for d in bin compose env scripts secrets data/pb_data; do
+            for d in bin compose env scripts secrets; do
              mkdir -p \"\${APP_DIR}/\${d}\"
            done
 

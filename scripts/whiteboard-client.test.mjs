@@ -21,19 +21,20 @@
 //
 // Run: node scripts/whiteboard-client.test.mjs
 //   Needs a prebuilt binary, like scripts/smoke.mjs: SMOKE_BIN=... node ...
-//   Build it with: go build -o /tmp/gogogo-ci-local-web ./cmd/web/
+//   Build it with: go build -o "$TMPDIR/gogogo-ci-local-web" ./cmd/web/
 
 import { chromium } from "playwright";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const BIN = process.env.SMOKE_BIN || "/tmp/gogogo-ci-local-web";
+// SMOKE_BIN overrides; otherwise the OS temp dir (per-OS correct via
+// tmpdir() — never a hardcoded /tmp, which is wrong on Windows and
+// ignores $TMPDIR elsewhere). Matches the Makefile SMOKE_BIN default.
+const BIN = process.env.SMOKE_BIN || join(tmpdir(), "gogogo-ci-local-web");
 const PORT = Number(process.env.WB_TEST_PORT || 8131);
 const BASE = `http://127.0.0.1:${PORT}`;
-const SU_EMAIL = "wb-test-su@local.dev";
-const SU_PASS = "WbTestSuperPass!123";
 const USER_EMAIL = "wb-test-user@local.dev";
 const USER_PASS = "WbTestUserPass!123";
 
@@ -46,8 +47,33 @@ const bad = (msg) => {
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Event waits: poll page state instead of fixed naps. A fixed sleep stays
+// ONLY where time itself is the mechanism (lag injected in route handlers,
+// the mid-skew sample instant, absence checks) or for sub-300ms sequencing.
+async function waitForCanvas(pg, timeoutMs = 15000) {
+  await pg.waitForFunction(() => {
+    const c = document.getElementById("wb-canvas");
+    return !!c && c.getBoundingClientRect().width > 0;
+  }, null, { timeout: timeoutMs });
+}
+
+// Polls inkInRegion until every region paints (or timeout). Same predicate
+// the assertions use — when this returns true the assert below passes
+// instantly; on false the assert fails with its detailed message.
+async function waitForInk(pg, regions, timeoutMs = 15000) {
+  const start = Date.now();
+  for (;;) {
+    let all = true;
+    for (const r of regions) {
+      if ((await pg.evaluate(inkInRegion(r.x, r.y, r.w, r.h))) <= 0) { all = false; break; }
+    }
+    if (all) return true;
+    if (Date.now() - start > timeoutMs) return false;
+    await sleep(100);
+  }
+}
+
 const tmp = mkdtempSync(join(tmpdir(), "wb-client-test-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
@@ -59,29 +85,49 @@ const runtimeEnv = {
   GOGOGO_NO_BROWSER: "1",
 };
 
-const server = spawn(BIN, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
-  env: runtimeEnv,
+// The flat binary has no CLI subcommands (no `serve`, no `--dir`): the
+// listen address and the data dir ride env vars, exactly as smoke.mjs
+// boots it.
+const server = spawn(BIN, [], {
   stdio: "ignore",
+  env: {
+    ...runtimeEnv,
+    HOST: "127.0.0.1",
+    PORT: String(PORT),
+    TURSO_DB_PATH: join(runtimeDir, "app.db"),
+  },
 });
 
-async function api(method, path, { token, body } = {}) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: token } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+// The owned auth mints the session cookie at signup — the same path
+// smoke.mjs drives, and the only one there is (no superuser CLI, no
+// records API). Returns the gogogo_auth cookie value, "" on failure.
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Whiteboard Test" }),
   });
-  let json = null;
-  try {
-    json = await res.json();
-  } catch {}
-  return { status: res.status, json };
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
+}
+
+// The first signup can race the migration, so retry like smoke.mjs does.
+async function signupSession(email) {
+  for (let i = 0; i < 10; i++) {
+    const cookie = await signupCookie(email, USER_PASS);
+    if (cookie) return cookie;
+    await sleep(500);
+  }
+  throw new Error(`signup failed for ${email}: no session cookie`);
 }
 
 async function waitForServer() {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 200; i++) { // 100s total
     try {
       const r = await fetch(BASE + "/health");
       if (r.ok) return true;
@@ -146,52 +192,31 @@ async function main() {
     return;
   }
 
-  // Create the account through the same path smoke.mjs uses: superuser CLI, then
-  // the API. Driving the login FORM is flakier and would test auth, not the
+  // Create the account through the same path smoke.mjs uses: signup mints the
+  // session cookie directly, so no superuser CLI and no records API sit in the
+  // loop. Driving the login FORM is flakier and would test auth, not the
   // whiteboard.
-  const upsert = spawnSync(BIN, ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS], {
-    encoding: "utf8",
-    env: runtimeEnv,
-  });
-  if (upsert.status !== 0) {
-    bad("superuser upsert failed: " + (upsert.stderr || upsert.stdout));
-    return;
-  }
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  if (!su.json?.token) {
-    bad("superuser auth failed");
-    return;
-  }
-
-  for (let i = 0; i < 10; i++) {
-    const r = await api("POST", "/api/collections/users/records", {
-      token: su.json.token,
-      body: { email: USER_EMAIL, password: USER_PASS, passwordConfirm: USER_PASS },
-    });
-    if (r.status === 200 || r.status === 400) break; // 400 = already exists
-    await sleep(500);
-  }
-  const auth = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: USER_EMAIL, password: USER_PASS },
-  });
-  if (!auth.json?.token) {
-    bad("user auth failed");
+  let cookie = "";
+  try {
+    cookie = await signupSession(USER_EMAIL);
+  } catch (e) {
+    bad(e.message || String(e));
     return;
   }
 
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const context = await browser.newContext();
-  await context.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+  await context.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
   const page = await context.newPage();
 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(String(e)));
 
   const docID = "wb-order-" + process.pid;
+
   await gotoBoard(page, `${BASE}/whiteboard/${docID}`);
-  await sleep(600); // let the SSE stream connect and the canvas size settle
+  await waitForCanvas(page); // stream connected, canvas laid out
+
 
   // ---------------------------------------------------------------------------
   // 1. A late response for an EARLIER op must not drop a later shape.
@@ -209,21 +234,39 @@ async function main() {
   // version, so both stay.
   // ---------------------------------------------------------------------------
   let updateCount = 0;
+  let heldDelivered = null;
   await page.route("**/api/whiteboard/**/update*", async (route) => {
     updateCount++;
     if (updateCount === 1) {
       const response = await route.fetch(); // request goes now; answer is [X]
-      await sleep(1200); // ...but deliver it AFTER op 2's response
-      await route.fulfill({ response });
+      // Deliver AFTER op 2's response. The promise lets the test wait for
+      // the stale landing instead of hoping a fixed nap covers it — and
+      // unroute() below must come after it, or fulfill throws on a
+      // removed route.
+      heldDelivered = (async () => {
+        await sleep(1200);
+        await route.fulfill({ response });
+      })();
       return;
     }
     await route.continue();
   });
 
   await drawRect(page, 30, 30, 110, 100); // shape 1
-  await sleep(150);
+  // Op 1's POST must be inside the route handler (server holds its response
+  // 1200ms) before shape 2 is drawn — poll the handler's own state, which
+  // is stronger than the old 150ms hope-and-pray and immune to
+  // request-event-vs-interception races. Wait for heldDelivered (set after
+  // route.fetch resolves), not just the counter: `await null` would resolve
+  // instantly and reintroduce the race.
+  {
+    const t0 = Date.now();
+    while (!heldDelivered && Date.now() - t0 < 10000) await sleep(50);
+    if (!heldDelivered) throw new Error("op 1 never reached the update route");
+  }
   await drawRect(page, 160, 140, 250, 210); // shape 2, while op 1 is held
-  await sleep(2600); // past the held response plus render time
+  await heldDelivered; // the stale [X] response has landed (mechanism engaged)
+  await waitForInk(page, [FIRST, SECOND]); // plus render
 
   const firstInk = await page.evaluate(inkInRegion(FIRST.x, FIRST.y, FIRST.w, FIRST.h));
   const secondInk = await page.evaluate(inkInRegion(SECOND.x, SECOND.y, SECOND.w, SECOND.h));
@@ -275,7 +318,7 @@ async function main() {
   });
 
   await drawRect(page, 300, 300, 360, 360);
-  await sleep(1500);
+  await waitForInk(page, [FIRST, SECOND]); // 409 answered at once; wait the render
 
   const firstAfter409 = await page.evaluate(inkInRegion(FIRST.x, FIRST.y, FIRST.w, FIRST.h));
   const secondAfter409 = await page.evaluate(inkInRegion(SECOND.x, SECOND.y, SECOND.w, SECOND.h));
@@ -304,20 +347,25 @@ async function main() {
   const doc3 = "wb-count-" + process.pid;
   const makeCtx = async (label) => {
     const c = await browser.newContext();
-    await c.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+    await c.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
     const p = await c.newPage();
     p.on("pageerror", (e) => pageErrors.push(`${label}: ${String(e)}`));
     return p;
   };
   const pageA = await makeCtx("A");
   const pageB = await makeCtx("B");
+
   await gotoBoard(pageA, `${BASE}/whiteboard/${doc3}?clientID=wb-alpha`);
   await gotoBoard(pageB, `${BASE}/whiteboard/${doc3}?clientID=wb-bravo`);
-  await sleep(900);
+  await waitForCanvas(pageA);
+  await waitForCanvas(pageB);
+
   // B moves its pointer to a known off-center spot (canvas-relative CSS px).
   const box3 = await pageB.locator("#wb-canvas").boundingBox();
   await pageB.mouse.move(box3.x + box3.width * 0.2, box3.y + box3.height * 0.3);
-  await sleep(700);
+  // Wait for the relay, not a fixed nap: B's badge must render on A.
+  await pageA.waitForFunction((who) => [...document.querySelectorAll("#cursors > div")]
+    .some((d) => (d.querySelector(".badge")?.textContent || "") === who), USER_EMAIL, { timeout: 10000 });
 
   // Cursor events are re-stamped by the SERVER with the authenticated email
   // (anti-spoof), so the rendered badge carries USER_EMAIL, not the clientID.
@@ -336,8 +384,12 @@ async function main() {
 
   // A third client connects -> the server broadcasts a fresh "count" to all.
   const pageC = await makeCtx("C");
+
   await gotoBoard(pageC, `${BASE}/whiteboard/${doc3}?clientID=wb-charlie`);
-  await sleep(900);
+  // Wait for A to process the join broadcast (peer count 2 -> 3), not a nap.
+  await pageA.waitForFunction(
+    () => document.getElementById("peer-count")?.textContent === "3", null, { timeout: 10000 });
+
 
   const after = await readCursor(pageA);
   if (before && after && before.left === after.left && before.top === after.top) {
@@ -365,9 +417,12 @@ async function main() {
   const doc4 = "wb-draft-" + process.pid;
   const drawA = await makeCtx("D-A");
   const drawB = await makeCtx("D-B");
+
   await gotoBoard(drawA, `${BASE}/whiteboard/${doc4}?clientID=wb-live-a`);
   await gotoBoard(drawB, `${BASE}/whiteboard/${doc4}?clientID=wb-live-b`);
-  await sleep(900);
+  await waitForCanvas(drawA);
+  await waitForCanvas(drawB);
+
 
   // Region where the held rectangle is being drawn (CSS px, canvas-relative).
   const DRAFT_REGION = { x: 50, y: 50, w: 180, h: 160 };
@@ -379,7 +434,7 @@ async function main() {
   await drawB.mouse.move(bbox.x + 60, bbox.y + 60);
   await drawB.mouse.down();
   await drawB.mouse.move(bbox.x + 200, bbox.y + 180, { steps: 10 });
-  await sleep(600); // still HOLDING — let draft frames propagate
+  await waitForInk(drawA, [DRAFT_REGION]); // still HOLDING — draft frames arriving
 
   const midInk = await drawA.evaluate(inkInRegion(DRAFT_REGION.x, DRAFT_REGION.y, DRAFT_REGION.w, DRAFT_REGION.h));
   if (midInk > 0) {
@@ -389,7 +444,7 @@ async function main() {
   }
 
   await drawB.mouse.up();
-  await sleep(900);
+  await waitForInk(drawA, [DRAFT_REGION]); // committed render lands
   const afterInk = await drawA.evaluate(inkInRegion(DRAFT_REGION.x, DRAFT_REGION.y, DRAFT_REGION.w, DRAFT_REGION.h));
   if (afterInk > 0) ok(`committed shape still painted after release (ink ${afterInk})`);
   else bad(`shape vanished after release (ink ${afterInk})`);
@@ -406,9 +461,12 @@ async function main() {
   const doc5 = "wb-tip-" + process.pid;
   const tipA = await makeCtx("T-A");
   const tipB = await makeCtx("T-B");
+
   await gotoBoard(tipA, `${BASE}/whiteboard/${doc5}?clientID=wb-tip-a`);
   await gotoBoard(tipB, `${BASE}/whiteboard/${doc5}?clientID=wb-tip-b`);
-  await sleep(900);
+  await waitForCanvas(tipA);
+  await waitForCanvas(tipB);
+
 
   const tipBox = await tipB.locator("#wb-canvas").boundingBox();
   const TIP = { x: 220, y: 180 }; // canvas-relative CSS px: the held corner
@@ -416,7 +474,15 @@ async function main() {
   await sleep(300);
   await tipB.mouse.down();
   await tipB.mouse.move(tipBox.x + TIP.x, tipBox.y + TIP.y, { steps: 10 });
-  await sleep(800); // still HOLDING — trailing fused frames flushed
+  // Still HOLDING — wait for the dot to ride the tip, not a fixed 800ms.
+  await tipA.waitForFunction(([who, tx, ty, w, h]) => {
+    const el = [...document.querySelectorAll("#cursors > div")]
+      .find((d) => (d.querySelector(".badge")?.textContent || "") === who);
+    if (!el) return false;
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return Math.abs(parseFloat(el.style.left) / r.width - tx / w) < 0.02 &&
+      Math.abs(parseFloat(el.style.top) / r.height - ty / h) < 0.02;
+  }, [USER_EMAIL, TIP.x, TIP.y, tipBox.width, tipBox.height], { timeout: 10000 });
 
   const dot5 = await readCursor(tipA);
   const wrap5 = await tipA.evaluate(() => {
@@ -448,9 +514,12 @@ async function main() {
   const doc6 = "wb-stale-" + process.pid;
   const stA = await makeCtx("S-A");
   const stB = await makeCtx("S-B");
+
   await gotoBoard(stA, `${BASE}/whiteboard/${doc6}?clientID=wb-stale-a`);
   await gotoBoard(stB, `${BASE}/whiteboard/${doc6}?clientID=wb-stale-b`);
-  await sleep(900);
+  await waitForCanvas(stA);
+  await waitForCanvas(stB);
+
 
   let aborted = 0;
   await stB.route("**/api/whiteboard/**/presence*", async (route) => {
@@ -470,7 +539,19 @@ async function main() {
   await stB.mouse.move(stBox.x + 120, stBox.y + 100, { steps: 5 });
   await sleep(150);
   await stB.mouse.move(stBox.x + T2.x, stBox.y + T2.y, { steps: 5 });
-  await sleep(1200); // HOLDING: fresh T2 frames plus the stale retry landed
+  // HOLDING: wait for the dot to settle on T2, then a short tail so the
+  // stale retry (~300ms after the abort) has landed before sampling.
+  // Sampling on arrival alone could pass before the retry arrives and miss
+  // the regression this test exists for.
+  await stA.waitForFunction(([who, tx, ty, w, h]) => {
+    const el = [...document.querySelectorAll("#cursors > div")]
+      .find((d) => (d.querySelector(".badge")?.textContent || "") === who);
+    if (!el) return false;
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return Math.abs(parseFloat(el.style.left) / r.width - tx / w) < 0.02 &&
+      Math.abs(parseFloat(el.style.top) / r.height - ty / h) < 0.02;
+  }, [USER_EMAIL, T2.x, T2.y, stBox.width, stBox.height], { timeout: 10000 });
+  await sleep(500);
 
   if (aborted === 0) {
     bad("no draft frame was aborted — the stale-retry path was never exercised");
@@ -510,16 +591,22 @@ async function main() {
   const doc7 = "wb-end-" + process.pid;
   const endA = await makeCtx("E-A");
   const endB = await makeCtx("E-B");
+
   await gotoBoard(endA, `${BASE}/whiteboard/${doc7}?clientID=wb-end-a`);
   await gotoBoard(endB, `${BASE}/whiteboard/${doc7}?clientID=wb-end-b`);
-  await sleep(900);
+  await waitForCanvas(endA);
+  await waitForCanvas(endB);
+
 
   const END_REGION = { x: 50, y: 50, w: 190, h: 150 };
   const endBox = await endB.locator("#wb-canvas").boundingBox();
   await endB.mouse.move(endBox.x + 60, endBox.y + 60);
   await endB.mouse.down();
   await endB.mouse.move(endBox.x + 220, endBox.y + 180, { steps: 10 });
-  await sleep(1000); // HOLDING STILL — quiescent, trailing frames flushed
+  // HOLDING STILL — wait for the live draft to paint, plus a short tail so
+  // trailing frames flush and the hold is genuinely quiescent.
+  await waitForInk(endA, [END_REGION]);
+  await sleep(300);
 
   const heldInk = await endA.evaluate(inkInRegion(END_REGION.x, END_REGION.y, END_REGION.w, END_REGION.h));
   if (heldInk === 0) {
@@ -573,9 +660,12 @@ async function main() {
   const doc8 = "wb-skew-" + process.pid;
   const skA = await makeCtx("K-A");
   const skB = await makeCtx("K-B");
+
   await gotoBoard(skA, `${BASE}/whiteboard/${doc8}?clientID=wb-skew-a`);
   await gotoBoard(skB, `${BASE}/whiteboard/${doc8}?clientID=wb-skew-b`);
-  await sleep(900);
+  await waitForCanvas(skA);
+  await waitForCanvas(skB);
+
 
   let delayed = 0;
   await skB.route("**/api/whiteboard/**/presence*", async (route) => {
@@ -596,7 +686,8 @@ async function main() {
   await skB.mouse.down();
   await skB.mouse.move(skBox.x + SKTIP.x, skBox.y + SKTIP.y, { steps: 10 });
   // still HOLDING: sample mid-skew-window, then after convergence
-  await sleep(200);
+  const skewT0 = Date.now();
+  await sleep(200); // KEPT: the mid sample instant IS the measurement
   const readDotPct = async (pg) => {
     const d = await readCursor(pg);
     const w = await pg.evaluate(() => {
@@ -607,7 +698,17 @@ async function main() {
   };
   const skExp = { x: SKTIP.x / skBox.width, y: SKTIP.y / skBox.height };
   const mid = await readDotPct(skA);
-  await sleep(700); // past the 400ms delayed cursor landing
+  // Past the 400ms delayed cursor landing AND converged: wait for both,
+  // not a fixed 700ms. The elapsed guard preserves the "late sample"
+  // meaning (after the skew window, not just early convergence via drafts).
+  await skA.waitForFunction(([t0, ex, ey]) => {
+    if (Date.now() - t0 < 450) return false;
+    const el = [...document.querySelectorAll("#cursors > div")].find((d) => d.querySelector(".badge"));
+    if (!el) return false;
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return Math.abs(parseFloat(el.style.left) / r.width - ex) < 0.03 &&
+      Math.abs(parseFloat(el.style.top) / r.height - ey) < 0.03;
+  }, [skewT0, skExp.x, skExp.y], { timeout: 10000 });
   const late = await readDotPct(skA);
 
   if (delayed === 0) {
@@ -641,9 +742,12 @@ async function main() {
   const doc9 = "wb-neg-" + process.pid;
   const ngA = await makeCtx("N-A");
   const ngB = await makeCtx("N-B");
+
   await gotoBoard(ngA, `${BASE}/whiteboard/${doc9}?clientID=wb-neg-a`);
   await gotoBoard(ngB, `${BASE}/whiteboard/${doc9}?clientID=wb-neg-b`);
-  await sleep(900);
+  await waitForCanvas(ngA);
+  await waitForCanvas(ngB);
+
 
   const ngBox = await ngB.locator("#wb-canvas").boundingBox();
   const NGTIP = { x: 60, y: 60 }; // dragged UP-LEFT to here; w,h negative
@@ -651,7 +755,15 @@ async function main() {
   await sleep(300);
   await ngB.mouse.down();
   await ngB.mouse.move(ngBox.x + NGTIP.x, ngBox.y + NGTIP.y, { steps: 10 });
-  await sleep(800); // HOLDING
+  // HOLDING — wait for the dot to ride the tip, not a fixed 800ms.
+  await ngA.waitForFunction(([who, tx, ty, w, h]) => {
+    const el = [...document.querySelectorAll("#cursors > div")]
+      .find((d) => (d.querySelector(".badge")?.textContent || "") === who);
+    if (!el) return false;
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return Math.abs(parseFloat(el.style.left) / r.width - tx / w) < 0.02 &&
+      Math.abs(parseFloat(el.style.top) / r.height - ty / h) < 0.02;
+  }, [USER_EMAIL, NGTIP.x, NGTIP.y, ngBox.width, ngBox.height], { timeout: 10000 });
 
   const ngDot = await readCursor(ngA);
   const ngWrap = await ngA.evaluate(() => {

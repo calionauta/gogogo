@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
+// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
 package collab
 
 import (
@@ -15,7 +15,7 @@ import (
 // web-only transport. It uses the SSE hub (same fan-out as the todo
 // feature) instead of NATS pub/sub: cursors are broadcast to every other
 // client on the doc's stream. Presence is volatile — there is no
-// PocketBase persistence.
+// snapshot persistence.
 //
 // Coordinates are normalized (0..1) so any viewport can place a remote
 // cursor regardless of the peer's canvas size. A heartbeat keeps the

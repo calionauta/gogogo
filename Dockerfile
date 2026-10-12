@@ -96,20 +96,19 @@ COPY --from=builder /out/etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # base has no user to own with.
 COPY --from=builder /tmp /tmp
 
-# PocketBase (used by the binary for its admin UI) and the Go runtime
-# expect a writable HOME for some operations. Set it to /tmp.
+# The Go runtime expects a writable HOME for some operations. Set it to /tmp.
 ENV HOME=/tmp \
     XDG_CONFIG_HOME=/tmp \
     XDG_CACHE_HOME=/tmp
 
-# PocketBase reads the encryption key from an env var; we document
-# it here so operators know to set ENCRYPTION_ENV before starting
-# the container. See bin/init-secrets for the age-encrypted workflow.
+# The credits plugin reads its encryption key from an env var
+# (CREDITS_ENC_KEY); operators set secrets via the age-encrypted workflow.
+# See bin/init-secrets for the age-encrypted workflow.
 # ENCRYPTION_ENV=
 
-# PocketBase default-data dir: write to /tmp/data so the container
+# Default data dir: write to /tmp/data so the container
 # is stateless. For a real deployment, mount a volume here.
-ENV PB_DATA_DIR=/tmp/data
+ENV DATA_DIR=/tmp/data
 
 # Run as non-root: scratch has no /etc/passwd, so we use the
 # numeric UID directly. 65532 is the standard "nonroot" UID used

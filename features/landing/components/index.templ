@@ -1,0 +1,101 @@
+// SCOPE:feature - REMOVE by deleting features/landing/ (components move with it) + the
+// call site in router/router.go. The landing page is a marketing
+// shell: logo + about text + "Access demo site" CTA. It does NOT
+// call the database, does NOT authenticate the user (guests and
+// signed-in users see the same hero), and registers only the
+// GET / route.
+//
+// Content policy: the about text is sourced from the project's
+// own README so the page mirrors the repo, not an LLM summary.
+// Source lines (README.md): the tagline block (~7-9) carries the
+// project positioning; the rest of the README is not surfaced.
+package components
+
+import (
+	"github.com/calionauta/gogogo/features/authviews"
+	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
+)
+
+// Index renders the landing page. userEmail is empty for guests
+// (Sign in CTA shows) and the authed email for signed-in users.
+// buildLabel/buildCommit are surfaced on the version badge so the
+// landing page matches the navbar's build feedback.
+templ Index(userEmail string, buildLabel string, buildCommit string) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="light">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>gogogo</title>
+			<link rel="stylesheet" href="/static/app.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			@authviews.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
+			<script defer type="module" src="/static/datastar.js"></script>
+			@sounds.SoundAssets()
+			<script src="/static/iconify-icon.min.js"></script>
+			<style>
+				/* Hero layout: narrow column on desktop, full width on
+				   mobile. The visual hierarchy is logo → about → CTA,
+				   matching the README ordering. */
+				.landing-hero {
+					min-height: calc(100vh - 4rem);
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					padding: 2rem 1rem;
+				}
+				.landing-card {
+					max-width: 44rem;
+					width: 100%;
+				}
+				.landing-logo {
+					max-width: 28rem;
+					width: 100%;
+					height: auto;
+					margin-left: auto;
+					margin-right: auto;
+					display: block;
+				}
+				.landing-about {
+					color: var(--color-base-content);
+					line-height: 1.7;
+					font-size: 0.95rem;
+				}
+			</style>
+		</head>
+		<body class="bg-base-100 min-h-screen">
+			@authviews.Navbar(userEmail, "", buildLabel, buildCommit)
+			<main class="landing-hero">
+				<div class="landing-card">
+					<header class="text-center mb-6">
+						<img class="landing-logo" src="/static/logo.png" alt="gogogo"/>
+					</header>
+
+					<section class="landing-about mb-8">
+						<p>
+							Go full-stack template. Single binary, no dependencies.
+							Database &amp; Auth. Reactive UI. Background jobs.
+							Offline-first. Real-time multi-user. Durable workflows.
+							Desktop &amp; Android capable.
+						</p>
+					</section>
+
+					<div class="text-center">
+						<a href="/todo" class="btn btn-primary btn-lg" data-variant="primary">
+							Access demo site
+						</a>
+						if userEmail == "" {
+							<p class="text-sm text-base-content/60 mt-3">
+								You'll be asked to sign in with the demo credentials.
+							</p>
+						}
+					</div>
+				</div>
+			</main>
+			@components.OfflineBanner(true)
+		</body>
+	</html>
+}

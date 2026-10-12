@@ -5,20 +5,21 @@ second column names the **technology** that powers it.
 
 | Feature | Powered by | Runtime opt-out | What it does |
 |---|---|---|---|
-| **Auth** | PocketBase | — (middleware stays; login UI removable) | Cookie sessions, demo login, per-request user loading |
-| **Todo app + realtime** | PocketBase realtime + SSE Hub | — | DB actions (create/toggle/delete) stream per-user via the `owner` rule. SSE Hub carries ephemeral signals (toasts, clients count, AI suggest) |
+| **Auth** | Owned argon2id + sessions | — (middleware stays; login UI removable) | Cookie sessions, demo login, per-request user loading |
+| **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — | DB actions (create/toggle/delete) stream per-user via the `owner` column. Ephemeral signals carry toasts, clients count, AI suggest |
 | **Background jobs + retry** | `goqite` + `retry-go` | — | Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`) |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase` |
-| **Ask AI (generative UI)** | Catalog + SSE morphs, no client JS | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless) | Model picks cards, tables, sections from a fixed registry; unknown types fail closed; worker streams the render over a dedicated SSE hub (`/genui`) |
+| **Ask AI (generative UI)** | Catalog + SSE morphs, no client JS | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (bundle with Chat) | Model picks cards, tables, sections from a fixed registry; unknown types fail closed; worker streams the render over a dedicated SSE hub (`/genui`) |
+| **Chat (conversation)** | Catalog answers + persisted history | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (bundle with Ask AI) | Conversation over the same catalog: prompts persist per owner, answers render inline as text plus components; unknown output degrades to a safe prose bubble; dedicated SSE hub (`/chat`) |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
-| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | — | Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-first outbox replay, PocketBase-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL) |
-| **Shared notes** | Loro Text (server-owned) + SSE Hub | — | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged), live index via PB realtime, snapshots in the `notes` collection |
+| **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode | Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-first outbox replay, Turso-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL) |
+| **Shared notes** | Loro Text (server-owned) + SSE Hub | `trim whiteboard` (bundle with whiteboard + collab transport) | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged), live index via the Hub record event, snapshots in the `notes` table |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
 | **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: heartbeat roster + exactly-one presenter lock, supervised with restart budget. Demo at `/room/` with a crash hook |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
 | **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` | NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync |
 | **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI | `UI_SKIN` | DaisyUI (default) or BasecoatUI (shadcn-style OKLCH tokens). Switch via env var or `?skin=`. See [UI skins](ui-skins.md) |
-| **Pluggable persistence** | `pb` / `crdt` EntityStore | `ENTITY_STORE` | `pb` (default: PocketBase records + admin UI works) or `crdt` (Loro per-owner doc + JetStream transport). Same `EntityStore[T]` interface |
+| **Persistence** | Turso (sqlc) | — | One data layer: `internal/db` migrations + generated queries, no strategy switch |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset | Leaf-Node JetStream replication of Loro updates for desktop/edge clients |
 | **Landing page** | Templ | — | The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo` |
 | **Read-only config view** | Templ | — | Auth-gated `GET /config`: env-decrypted values, masked secrets, runtime constants. Never mutates state |
@@ -26,11 +27,12 @@ second column names the **technology** that powers it.
 ## Adding a new feature
 
 1. Create `features/<name>/` with its HTTP handlers + Templ components.
-2. Wire it in `router/router.go` → `Init()` with a single function call.
+2. Wire it in `internal/server/chi.go` — build the handler in `BootChi`,
+   mount the routes in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback, and
    **Datastar** for the reactive frontend.
 4. Add a `SCOPE:` annotation — `make check-scope` enforces it.
-5. Add a `RegisterRoutes(se, deps)` function and call it from `router.Init`.
+5. Add a `Routes()` method on your handler and mount it in `buildChiMux`.
 
 The [Todo feature](todo-example.md) is the full reference implementation.
 
@@ -41,19 +43,19 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Landing page | `/` | Public. Same page for guests and signed-in users |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
 | Ask AI demo | `/genui` | Auth-gated. Keyless demo answers; live model with `GOAI_API_KEY` |
+| Chat demo | `/chat` | Auth-gated. Persisted per-owner history; same catalog as Ask |
 | Whiteboard | `/whiteboard` | Auth-gated |
 | Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
 | Config view | `/config` | Auth-gated, read-only |
-| PocketBase admin | `/_/` | Superuser auth |
 | DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps |
 
 Details in [Admin & Dashboard](admin-dashboard.md).
 
 ## Removing a feature
 
-Every feature package carries a `SCOPE:removal=feature` annotation. The rule:
+Every feature package carries a `SCOPE:feature` annotation. The rule:
 delete the package directory, delete its dependents, remove the wiring call
-from `router/router.go` → `Init()`, and — if it was a plugin — remove the
+from `internal/server/chi.go`, and — if it was a plugin — remove the
 `start*` call in `cmd/web/main.go`. Full checklist in
 [Scope taxonomy](scope-taxonomy.md#removing-a-component).
 
@@ -65,7 +67,7 @@ attributed per feature.
 
 | Feature | Files | Raw | Gzip |
 |---|---|---|---|
-| Todo, Room, Landing, Config, Ask AI | inline only (no extra JS) | 0 KB | 0 KB |
+| Todo, Room, Landing, Config, Ask AI, Chat | inline only (no extra JS) | 0 KB | 0 KB |
 | Shared notes | `notes.js` | 28 KB | 10 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 19 KB |
 | Shared core (every page) | `datastar.js` + `theme.js` | 40 KB | 16 KB |

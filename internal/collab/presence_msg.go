@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
+// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
 package collab
 
 import (
@@ -26,7 +26,7 @@ type PresenceMsg struct {
 	Y    float64 `json:"y"`
 	TS   int64   `json:"ts"`
 	// CTS is the SENDER-captured timestamp (Unix millis at frame build).
-	// The server re-stamps TS on receipt, which destroys capture order —
+	// The server re-stamps TS on receipt, which destroys capture order
 	// so receivers adjudicate staleness with CTS, compared only within one
 	// sender's frames (per-user key), where the sender clock is monotonic
 	// and cross-machine skew cannot intrude. A retried POST keeps its

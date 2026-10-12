@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: flags, plan,
+// SCOPE:plugin — installer engine: flags, plan,
 // apply, prove, and exit codes shared by the CLI and the MCP server.
 package installer
 
@@ -20,6 +20,7 @@ type options struct {
 	owner    string
 	plugins  string
 	features string
+	preset   string
 	noTUI    bool
 	dir      string
 	yes      bool
@@ -76,6 +77,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	keep := parseKeep(opt.plugins, opt.features)
 	drop := planTrim(keep)
 	plan := buildPlan(opt.name, opt.owner, opt.dir, keep, drop, opt.dryRun)
+	plan.Preset = opt.preset
 	if opt.check {
 		return runCheck(opt, stdout)
 	}
@@ -118,6 +120,8 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	fs.StringVar(&opt.owner, "owner", "calionauta", "GitHub owner/org for the module path")
 	fs.StringVar(&opt.plugins, "plugins", "", "comma-separated plugins to KEEP (default: all; none drops all)")
 	fs.StringVar(&opt.features, "features", "", "comma-separated features to KEEP (default: all; none drops all)")
+	fs.StringVar(&opt.preset, "preset", "",
+		"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with --plugins/--features)")
 	fs.BoolVar(&opt.noTUI, "no-tui", false, "non-interactive mode (requires --name)")
 	fs.StringVar(&opt.dir, "dir", "", "target checkout directory (default: ./<name>)")
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
@@ -164,6 +168,9 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 		return opt, err
 	}
 	if err := checkKeepIDs(opt.plugins, opt.features); err != nil {
+		return opt, err
+	}
+	if err := resolvePreset(&opt); err != nil {
 		return opt, err
 	}
 	if opt.dir == "" {
@@ -238,7 +245,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name, removedIDs(drop)); err != nil {
+	if err := writeAgents(opt.dir, opt.name, drop); err != nil {
 		return err
 	}
 	printReceiptText(stdout, rc)
@@ -277,7 +284,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name, removedIDs(drop)); err != nil {
+	if err := writeAgents(opt.dir, opt.name, drop); err != nil {
 		return err
 	}
 	// Silence prove chatter in JSON mode: discard its progress lines,
@@ -345,6 +352,11 @@ func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) e
 		return &ExitError{code: 2, msg: fmt.Sprintf(
 			"go mod tidy failed (%v):\n%s", err, tailLines(string(out), proofTidyTailLines))}
 	}
+	// Regenerate the route inventory so the tree is green immediately.
+	fmt.Fprintln(stdout, "gogogo: prove: api-routes inventory …")
+	// Warn-only here (failure is a stale doc, not a broken tree); the gate
+	// below treats the same error as fatal.
+	_ = proveAPIRoutesDoc(ctx, dir, stdout)
 	fmt.Fprintln(stdout, "gogogo: prove: go build ./cmd/web …")
 	tmp, err := os.CreateTemp("", "gogogo-proof-*")
 	if err != nil {
@@ -366,6 +378,23 @@ func runIn(ctx context.Context, dir, name string, args ...string) ([]byte, error
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	return cmd.CombinedOutput()
+}
+
+// proveAPIRoutesDoc regenerates the route inventory in the target tree.
+// It returns the regen error (callers decide warn-only vs fatal) after
+// printing the WARN with the manual regen command, so no failure mode is
+// silent. Shared with the preset composition gate, which proves it on
+// copies.
+func proveAPIRoutesDoc(ctx context.Context, dir string, stdout io.Writer) error {
+	if out, err := runIn(ctx, dir, "go", "test", "./internal/capabilities/",
+		"-run", "TestApiRoutesDocFresh", "-update", "-count=1"); err != nil {
+		fmt.Fprintf(stdout,
+			"gogogo: WARN: api-routes regen failed (%v) — run "+
+				"`go test ./internal/capabilities/ -run TestApiRoutesDocFresh -update` manually:\n%s\n",
+			err, tailLines(string(out), proofTidyTailLines))
+		return err
+	}
+	return nil
 }
 
 func tailLines(s string, n int) string {
@@ -447,11 +476,10 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Units (id, kind). Kind follows the servant principle, not the directory:
   a plugin serves other capabilities (sounds, skins, credits serve pages);
   a feature is a terminal user surface (todo, whiteboard, landing, config).
-  --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here —
+  --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here
   todo (reference implementation), auth (middleware is core), queue (core),
   nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
-  offline-sync (runtime: OFFLINE_SYNC_ENABLED=false),
-  entity-store (runtime: ENTITY_STORE=pb|crdt).`)
+  offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)
 	fmt.Fprintln(w, "\n  Trim units:")
 	for _, u := range Units() {
 		fmt.Fprintf(w, "    %-12s %-7s %s\n", u.ID, u.Kind, u.Summary)

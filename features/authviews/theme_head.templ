@@ -1,0 +1,27 @@
+package authviews
+
+// ThemeHead renders the no-flash theme bootstrap. Place it as the FIRST
+// child of every page <head>: it reads the persisted theme from
+// localStorage (falling back to the OS preference, then "light") and sets
+// the `data-theme` attribute on <html> BEFORE first paint, so the page
+// never flashes the wrong theme. The actual toggle logic lives in
+// /static/theme.js (loaded with the rest of the page scripts).
+templ ThemeHead() {
+	<link rel="stylesheet" href="/static/chrome.css"/>
+	<script>
+		(function() {
+			try {
+				var theme = localStorage.getItem('themeMode');
+				if (theme !== 'light' && theme !== 'dark') {
+					theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+				}
+				var html = document.documentElement;
+				html.dataset.theme = theme;
+				html.classList.toggle('dark', theme === 'dark');
+				html.dataset.signals = JSON.stringify({theme: theme});
+			} catch(e) {
+				document.documentElement.dataset.theme = 'light';
+			}
+		})();
+	</script>
+}

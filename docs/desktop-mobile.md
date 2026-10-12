@@ -1,8 +1,8 @@
 # Desktop & Mobile
 
-The same Go backend (PocketBase + queue + router + handlers) runs as a
+The same Go backend (flat stack: Turso + owned auth + queue + handlers) runs as a
 **native desktop app** via Wails v3. The desktop build reuses 100% of the
-business logic — it boots `internal/server.Run`, serves PocketBase in a
+business logic — it boots `internal/server.StartChi`, serves the chi stack in a
 goroutine, and points the webview at it through a reverse proxy.
 
 It is a **separate build target**, not part of the default web build/test loop.
@@ -88,13 +88,28 @@ reconnect. Without it, it runs a standalone embedded NATS for local realtime.
 On top of that transport, **Loro CRDT** collaboration (`internal/collab`)
 publishes whiteboard updates on `app.sync.<docID>` and ephemeral multi-user
 **cursors** on `app.presence.<docID>`. The central server persists resolved
-Loro snapshots to PocketBase (the `whiteboards` collection) and streams
-presence to browser clients via SSE (`GET /api/collab/presence/{docID}`).
+Loro snapshots to the shared store and streams presence to browser clients
+via SSE (`GET /api/collab/presence/{docID}`).
 
-## Native window PoC (gogpu/ui)
+## Which backend `cmd/desktop` boots
 
-`cmd/gui` is a **second frontend over the same backend** (PocketBase +
-`EntityStore` + `features/auth.Login` / `ResolveOwner`) — no
+`cmd/desktop` boots the **flat chi stack** (`internal/server.StartChi`) and
+points the Wails webview at it through a reverse proxy, so the desktop and
+the web frontend share the same business logic. It sets `cfg.ChiAddr` to
+`<host>:<port>` itself rather than relying on `CHI_ADDR` from the
+environment, which keeps the seam explicit at the one place it needs to be.
+
+Everything else in the file — the Leaf Node / embedded NATS choice, the
+collab demo publish, the presence ticker, the proxy, `OnShutdown` — is
+backend-agnostic and unchanged. The previous command-line passthrough
+(the old `RootCmd.SetArgs(os.Args[1:])` for `serve --http …`) is gone with it:
+there is no subcommand to forward, the stack serves on the configured
+address.
+
+## Native window (gogpu/ui)
+
+`cmd/gui` is a **second frontend over the same backend** (Turso +
+sqlc queries + `internal/auth` (`Login` / `SessionByToken`) — no
 `*core.RequestEvent`, no cookies, no HTTP router, no webview. It proves the
 domain layer is transport-agnostic: login + todo add/toggle/delete through the
 exact store the web handlers use, with cross-frontend visibility on a 2s poll
@@ -106,7 +121,7 @@ make run-gui  # open the window (needs DISPLAY/GPU; not exercised in CI)
 ```
 
 Like `cmd/desktop` it is a separate target: excluded from `web-packages.sh`
-(web CI) and validated by the `gui-poc` job in
+(web CI) and validated by the `gui` job in
 `.github/workflows/desktop.yml` (gofumpt + vet + govulncheck + race tests +
 build, all headless). Full `golangci-lint` is a **manual local step by
 design** — linting wgpu/naga is minutes-cold per push and only catches style.
@@ -121,7 +136,7 @@ outbox/replay), no JetStream push (poll only), native `add()` does not trigger
 the onboarding workflow, session token in a `0600` file (no OS keyring).
 
 **To remove:** delete `cmd/gui/`, drop the `gui` Makefile target and the
-`gui-poc` job. No script change needed — it is already excluded from web CI.
+`gui` job. No script change needed — it is already excluded from web CI.
 
 ## Related
 

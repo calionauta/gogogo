@@ -1,4 +1,4 @@
-// SCOPE:layer=feature,removal=feature — Session token persistence for the gogpu/ui POC
+// SCOPE:feature — Session token persistence for the gogpu/ui native window
 package main
 
 import (
@@ -10,8 +10,8 @@ import (
 )
 
 // tokenFileName is the session file inside the app's DataDir. It holds
-// the PocketBase auth token minted at login ("remember me"). Mode 0600:
-// the token is a bearer credential — anyone who reads it IS the user.
+// the auth stack's session token minted at login ("remember me"). Mode
+// 0600: the token is a bearer credential — anyone who reads it IS the user.
 //
 //nolint:gosec // G101: this is a filename, not a credential value.
 const tokenFileName = ".gui-session-token"

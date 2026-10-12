@@ -67,8 +67,9 @@ shares the same shape — siblings differ only by name:
     │   └── .env                     ← non-secret env (DATABASE_URL, APP_URL, ...)
     ├── secrets/
     │   └── gogogo.env   ← mode 600, regenerated every deploy from GH Secrets
-    ├── data/
-    │   └── pb_data/                 ← persistent volume, survives restarts
+    ├── data/                        ← persistent volume, survives restarts
+    │   (bind-mounted into the container at /var/lib/<app>/data —
+    │   app.db, queue.db, nats/, dagnats/; see deploy/docker-compose.prod.yml)
     ├── repo/                        ← git clone of this repo (source for env/.env + deploy-prod.sh)
     └── scripts/
         └── deploy-prod.sh           ← the on-server deploy runner (mode 700)
@@ -108,6 +109,12 @@ shares the same shape — siblings differ only by name:
 > - Never `scp` into the server's repo clone — `git pull --ff-only` aborts on a
 >   dirty tree. Use the deploy workflow, which ships the binary and compose file
 >   to `bin/` and `compose/` instead.
+
+> Password brute-force throttling lives here, not in the app — the app
+> deliberately tracks no per-email login attempts (that would let anyone
+> lock anyone else out; see `internal/auth/ratelimit.go`). Rate-limit
+> `/login` and `/api/auth/*` at this ingress (Caddy `rate_limit` or the
+> Cloudflare WAF) before exposing the box.
 
 ## After setup, every push to `master` deploys
 

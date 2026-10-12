@@ -47,7 +47,6 @@ const fail = (msg) => {
 };
 
 const tmp = mkdtempSync(join(tmpdir(), "gogogo-smoke-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
@@ -87,6 +86,25 @@ async function api(method, path, { body, token } = {}) {
   return { status: res.status, json };
 }
 
+// signupCookie registers (idempotently) the smoke user and returns the
+// gogogo_auth cookie value the owned auth mints — the same cookie a
+// browser login would carry, so the page context authenticates without
+// any token plumbing.
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Smoke User" }),
+  });
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
+}
+
 async function waitForHealth(timeoutMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -105,7 +123,7 @@ async function pendingMutationCount(page) {
   return page.evaluate(() =>
     Promise.race([
       new Promise((resolve, reject) => {
-        const open = indexedDB.open("pb-offline-queue", 1);
+        const open = indexedDB.open("gogogo-offline-queue", 1);
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;
@@ -133,6 +151,19 @@ async function waitForServiceWorkerControl(page) {
   if (!(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) {
     await page.reload({ waitUntil: "load" });
     await page.evaluate(() => navigator.serviceWorker.ready);
+  }
+}
+
+// timedWait wraps page.waitForFunction with elapsed logging: when an
+// offline/sync wait flakes under parallel CI load, the log shows HOW
+// LONG each convergence step took instead of a bare timeout — the next
+// flake arrives as data (tight margin vs. starvation), not a mystery.
+async function timedWait(page, name, fn, arg, opts) {
+  const start = Date.now();
+  try {
+    return await page.waitForFunction(fn, arg, opts);
+  } finally {
+    console.log(`  ⏱ ${name}: ${Date.now() - start}ms`);
   }
 }
 
@@ -230,7 +261,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
 
   try {
     await context.setOffline(true);
-    await page.waitForFunction(() =>
+    await timedWait(page, "offline-banner-queued", () =>
       document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
     );
 
@@ -244,7 +275,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // Chromium, which is fine for users (they click too) but breaks the
     // headless harness; Enter on the input bypasses the question.
     await titleInput.press("Enter");
-    await page.waitForFunction(() =>
+    await timedWait(page, "offline-input-cleared", () =>
       document.querySelector('input[name="title"]')?.value === "",
     );
 
@@ -276,8 +307,8 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // data-pending swap that DaisyUI gets is unreliable across skins.
     // The pending-count drain is the single source of truth for
     // "the server accepted the replay".
-    await page.waitForFunction(async () => {
-      const open = indexedDB.open("pb-offline-queue", 1);
+    await timedWait(page, "offline-queue-drain", async () => {
+      const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
         open.onerror = () => reject(open.error);
         open.onsuccess = () => resolve(open.result);
@@ -297,7 +328,9 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // button would block). The other skins handle the optimistic→server
     // swap differently, so this guard is daisyui-only.
     if (skin === "daisyui") {
-      await page.waitForFunction(
+      await timedWait(
+        page,
+        "daisyui-optimistic-swap",
         (t) => {
           const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
           for (const el of els) {
@@ -311,8 +344,8 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
         { timeout: 20000 },
       );
     }
-    await page.waitForFunction(async () => {
-      const open = indexedDB.open("pb-offline-queue", 1);
+    await timedWait(page, "offline-queue-drain-2", async () => {
+      const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
         open.onerror = () => reject(open.error);
         open.onsuccess = () => resolve(open.result);
@@ -476,12 +509,13 @@ async function verifyOfflineUx(page, context) {
   console.log("  ✓ logout purged the cached todo page (clear-pages)");
 }
 
+let tracePath = "";
 try {
   if (providedBin) {
     console.log(`→ Using prebuilt binary ${bin}…`);
   } else {
     console.log("→ Building binary (./cmd/web)…");
-    // 240s: the unified binary embeds PocketBase+NATS+DagNats+Loro etc., and
+    // 240s: the unified binary embeds Turso+NATS+DagNats+Loro etc., and
     // `go build ./cmd/web` can exceed 180s on a cold cache, tripping a false
     // failure right after a clean ci-local pass. Prefer using SMOKE_BIN to
     // reuse the binary ci-local already built.
@@ -491,10 +525,34 @@ try {
     });
   }
 
-  console.log(`→ Starting server on ${BASE} (data dir ${pbDir})…`);
-  server = spawn(bin, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
+  console.log(`→ Starting server on ${BASE} (data dir ${runtimeDir})…`);
+  // Fail fast on a busy port: an orphaned server from an interrupted run
+  // holds 8099 and the fresh one exits(1), which surfaces later as a
+  // confusing "signup failed". Never kill implicitly (it could be a dev
+  // server) — say exactly what to do instead. Any TCP answer means busy,
+  // regardless of status; only connection-refused means free.
+  try {
+    await fetch(`${BASE}/health`);
+    throw new Error(
+      `port ${PORT} already serves (orphan server?) — free it, then re-run ` +
+        `(lsof -ti :${PORT} to find it)`,
+    );
+  } catch (e) {
+    if (String(e.message || e).includes("already serves")) throw e;
+    // Unreachable: the port is free, boot normally.
+  }
+  // The flat binary has no CLI subcommands: listen address + data dir
+  // ride env vars (same as production), and the owned auth issues the
+  // session cookie at signup — no superuser/collection API anymore.
+  server = spawn(bin, [], {
     stdio: "ignore",
-    env: runtimeEnv,
+    env: {
+      ...runtimeEnv,
+      HOST: "127.0.0.1",
+      PORT: String(PORT),
+      TURSO_DB_PATH: join(runtimeDir, "app.db"),
+      GOAKT_ENABLED: process.env.SMOKE_ROOM === "0" ? "false" : "true",
+    },
   });
   server.on("exit", (code) => {
     if (code && code !== 0) console.error(`server exited with code ${code}`);
@@ -502,36 +560,13 @@ try {
 
   await waitForHealth();
 
-  console.log("→ Creating superuser + test user…");
-  const upsert = spawnSync(
-    bin,
-    ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS],
-    { encoding: "utf8", env: runtimeEnv },
-  );
-  if (upsert.status !== 0) {
-    throw new Error(`superuser upsert failed: ${upsert.stderr || upsert.stdout}`);
+  console.log(`→ Signing up the smoke user (${USER_EMAIL})…`);
+  let userToken = "";
+  for (let i = 0; i < 10 && !userToken; i++) {
+    userToken = await signupCookie(USER_EMAIL, USER_PASS);
+    if (!userToken) await new Promise((res) => setTimeout(res, 500));
   }
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  if (!su.json?.token) throw new Error("superuser auth failed: " + JSON.stringify(su.json));
-  const suToken = su.json.token;
-
-  // Create a regular app user (retry briefly in case seeding is still in flight).
-  let created = false;
-  for (let i = 0; i < 10 && !created; i++) {
-    const r = await api("POST", "/api/collections/users/records", {
-      token: suToken,
-      body: { email: USER_EMAIL, password: USER_PASS, passwordConfirm: USER_PASS },
-    });
-    if (r.status === 200 || r.status === 400) created = true; // 400 = already exists
-    else await new Promise((res) => setTimeout(res, 500));
-  }
-  const auth = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: USER_EMAIL, password: USER_PASS },
-  });
-  if (!auth.json?.token) throw new Error("user auth failed: " + JSON.stringify(auth.json));
-  const userToken = auth.json.token;
+  if (!userToken) throw new Error("smoke signup failed: no session cookie");
 
   console.log(`→ Launching headless Chromium; testing routes: ${GATED_ROUTES.join(", ")}`);
   const skipped = ROUTES.filter((r) => !hasFeature(r.slice(1)));
@@ -545,6 +580,14 @@ try {
   const pageErrors = [];
   const consoleErrors = [];
   const page = await context.newPage();
+  // Trace-on-retry (see scripts/ci-fanout.sh): the fan-out sets SMOKE_TRACE
+  // only for the serial retry run, so the passing run stays light and a
+  // flake arrives with a full timeline (actions, DOM, network) attached.
+  // Playwright's own guidance is the same shape: traces on retry, never on.
+  tracePath = process.env.SMOKE_TRACE || "";
+  if (tracePath) {
+    await context.tracing.start({ screenshots: true, snapshots: true });
+  }
   page.on("pageerror", (err) =>
     pageErrors.push({ msg: String(err), stack: err.stack || "", url: page.url() }),
   );
@@ -653,10 +696,25 @@ try {
     fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
   }
 
+  // Stop tracing BEFORE closing: the finally below can only save a trace
+  // while the context is open, and the happy path closes it here — which
+  // is exactly why passing retries used to arrive without timelines.
+  if (tracePath) {
+    await context.tracing.stop({ path: tracePath });
+    console.log(`  ⏱ trace saved: ${tracePath}`);
+  }
   await context.close();
 } catch (e) {
   fail(e.stack || String(e));
 } finally {
+  if (tracePath) {
+    try {
+      await context.tracing.stop({ path: tracePath });
+    } catch {
+      // The context may already be closed on the happy path; a failed
+      // stop must not mask the real result.
+    }
+  }
   if (browser) await browser.close().catch(() => {});
   if (server) server.kill("SIGKILL");
   rmSync(tmp, { recursive: true, force: true });

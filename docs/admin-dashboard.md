@@ -6,51 +6,26 @@ Three built-in surfaces, available as soon as the binary boots:
 |---|---|---|
 | **Landing page** | `/` | Public marketing hero (tagline + CTA). Guests and signed-in users see the same page; no DB read, no auth gate |
 | **Read-only config view** | `/config` | Auth-gated view of the running binary: env-decrypted values, masked secrets, runtime constants. Never mutates state. Source: `features/config/` |
-| **PocketBase admin** | `/_/` | Data browser, REST playground, superuser management, backups, logs |
+| **Session probe** | `/api/session` | `{"authed": bool}` for the shared session banner's poll — a tab open for days outlives its cookie, and this is how the banner says so. Never 401s: a probe is a poll, not a gate |
+| **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `:8090` / `/dagnats/` | Workflow runs, step inspection, JSON API for durable workflows |
 
-## PocketBase admin UI (`/_/`)
+There is no database admin UI in the binary (no `/_/` dashboard ships
+away with the old framework). Inspect data with `sqlite3` against the Turso file
+(`TURSO_DB_PATH`, default `data/app.db`) — same SQLite dialect — and back it
+up with `scripts/backup.sh`. For production, lock `/config` behind your
+ingress (IP allowlist, oauth2-proxy in front) like any authed surface —
+or set `RBAC_ENABLED=true` with `ADMIN_EMAILS` (then `/config` is
+admin-only in-app; see [Configuration](configuration.md)).
 
-- **Visual data browser** for every collection (todos, users, …) with
-  sort/filter/CSV export
-- **REST + JS SDK playground** for the endpoints PocketBase generated from your
-  schema
-- **Superuser management** (create the first one via the install link printed in
-  the server logs)
-- **File storage** (S3-compatible uploads, images, attachments)
-- **Backups** (SQLite snapshot, download + restore)
-- **Logs** (requests, errors, slow queries)
+## App session cookie (why one)
 
-This is **not** a custom admin panel — it's the upstream PocketBase UI,
-embedded in the same binary on the same port. No extra service to deploy, no
-extra auth to wire. For production, point a Cloudflare Tunnel / Caddy ingress
-at the same `/_/` path and lock it down (IP allowlist, oauth2-proxy in front,
-or just PocketBase's own superuser auth).
-
-## App session cookie vs `pb_auth` (why two)
-
-The app **never** reuses PocketBase's own `pb_auth` cookie. PocketBase keeps
-the superuser (`_superusers`) and regular users as **separate auth namespaces
-with different endpoints**, and a single client holds only **one** auth state
-(one cookie). Sharing `pb_auth` for the app session clobbers the admin session
-in the same browser — and vice versa. This is a well-known PocketBase gotcha
-([#5050](https://github.com/pocketbase/pocketbase/issues/5050),
-[#1780](https://github.com/pocketbase/pocketbase/issues/1780)).
-
-So login issues **two** cookies:
-
-- `gogogo_auth` — the app's own session cookie, read by `LoadAuthFromCookie`.
-- `pb_auth` — the same token under PocketBase's native name, so PB-native
-  surfaces (notably the `/api/realtime` SSE channel for record-change
-  subscriptions) authenticate as the same user. Without it, realtime record
-  events are silently dropped by PB's per-subscriber access check.
-
-The split is **intentional, not tech debt** — keep the two cookies separate.
-
-**Best practice:** run the admin UI on a separate origin/port so even `pb_auth`
-never collides between admin and app. PocketBase's default admin port is
-`:8090`, but note that this repo already uses `:8090` for the DagNats console
-(below) — give the admin UI a different port, e.g. `:8091/_/`.
+Login issues a single cookie: `gogogo_auth` — an opaque session token (only
+its SHA-256 reaches the `sessions` table), read by `internal/auth.Session`.
+HttpOnly + SameSite=Lax; `Secure` follows the environment (off in dev over
+plain HTTP, on in production). Logout revokes the row; unknown and expired
+sessions fail closed. There is no second cookie and no separate admin
+namespace to clobber — one cookie, one session.
 
 ## DagNats console
 
@@ -67,14 +42,12 @@ In the demo deployment it is reachable at
 | What | URL |
 |---|---|
 | **Todo & Whiteboard demo app** | [gogogo.calionauta.com](https://gogogo.calionauta.com/) |
-| **Live PocketBase admin dashboard** | [gogogo.calionauta.com/_/](https://gogogo.calionauta.com/_/) |
 | **Durable workflow engine (DagNats)** | [gogogo.calionauta.com/dagnats/](https://gogogo.calionauta.com/dagnats/) |
 
 Log in with a seeded demo account (`demo1@demo.app` / `demo1234456`;
-`demo2@demo.app` takes the same password). The demo's
-`users` collection is **locked** — visitors can log in as the demo users but
-cannot create or delete accounts through the API or the dashboard (only the
-superuser can).
+`demo2@demo.app` takes the same password). Anyone can sign up on the demo
+— it is a demo, not a locked-down app — and the demo user from the login
+placeholder is seeded on every fresh boot (`internal/demo`).
 
 The demo runs the unified build. DagNats + NATS share a **single embedded
 JetStream** on `:4222` — DagNats boots it and the whiteboard SyncWorker

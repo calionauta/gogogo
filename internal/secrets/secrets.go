@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — Secret management with age (age-encryption.org)
+// SCOPE:core — Secret management with age (age-encryption.org)
 // Package secrets decrypts a per-project environment file using age
 // (https://age-encryption.org). Designed to make "no vault, no cloud" the
 // default for single-binary Go apps:

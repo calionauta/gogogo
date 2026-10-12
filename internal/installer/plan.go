@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: plan preview, receipts, and JSON envelopes
+// SCOPE:plugin — installer engine: plan preview, receipts, and JSON envelopes
 package installer
 
 import (
@@ -43,6 +43,9 @@ type scaffoldPlan struct {
 	Keep         []keptUnit `json:"keepUnits"`
 	Drop         []planUnit `json:"drop"`
 	DryRun       bool       `json:"dryRun"`
+	// Preset names the --preset that produced this plan ("" for explicit
+	// keep lists). Additive: parsers that ignore unknown fields are unaffected.
+	Preset string `json:"preset,omitempty"`
 }
 
 func buildPlan(name, owner, dir string, keep keepSet, drop []trimUnit, dryRun bool) scaffoldPlan {
@@ -115,6 +118,9 @@ func needsTemplGen(drop []trimUnit) bool {
 func printPlanText(w io.Writer, p scaffoldPlan) {
 	fmt.Fprintf(w, "gogogo: scaffolding %s\n", p.Module)
 	fmt.Fprintf(w, "  dir:            %s\n", p.Dir)
+	if p.Preset != "" {
+		fmt.Fprintf(w, "  preset:         %s\n", p.Preset)
+	}
 	fmt.Fprintf(w, "  keep plugins:   %s\n", strings.Join(p.KeepPlugins, ", "))
 	fmt.Fprintf(w, "  keep features:  %s\n", strings.Join(p.KeepFeatures, ", "))
 	if len(p.Drop) == 0 {

@@ -1,22 +1,22 @@
-// SCOPE:layer=feature,removal=feature — gogpu/ui native window over the existing backend
+// SCOPE:feature — gogpu/ui native window over the existing backend
 //
 // Command gui is a proof of concept: a native desktop window built with
 // gogpu/ui (pure-Go GPU rendering, zero CGO, no webview, no JavaScript)
-// that runs on the SAME backend as the web app — PocketBase, the demo
-// user seed, and the EntityStore contract in features/store.
+// that runs on the SAME backend as the web app — the flat stack: owned
+// auth (internal/auth), the sqlc todos (internal/db), and the todo model.
 //
 // What this proves, and what it does not:
 //
 //	Proved: the domain layer is genuinely transport-agnostic. Auth
-//	  (features/auth.Login + ResolveOwner), persistence
-//	  (store.EntityStore) and the todo model are consumed here with
-//	  no *core.RequestEvent, no cookie, and no HTTP router. If the web
-//	  app could be deleted and this app kept, the layering held.
-//	  Cross-frontend visibility holds too: a todo created in the web
-//	  app appears here within one poll tick (same collection).
+//	  (internal/auth.Login + SessionByToken), persistence (the same
+//	  dbgen queries the chi handlers call) and the todo model are
+//	  consumed here with no *http.Request, no cookie, and no HTTP
+//	  router. If the web app could be deleted and this app kept, the
+//	  layering held. Cross-frontend visibility holds too: a todo created
+//	  in the web app appears here within one poll tick (same database).
 //	Not proved: no offline sync (this window is ONLINE-ONLY — mutations
 //	  run synchronously against the local DB and fail visibly when it
-//	  is unreachable; there is no outbox, no replay, no Loro merge —
+//	  is unreachable; there is no outbox, no replay, no Loro merge
 //	  see the whiteboard's whiteboard.js outbox for what that would
 //	  take), no durable workflow trigger (handleCreate resumes the
 //	  onboarding workflow; the native add() does not — the trigger
@@ -25,26 +25,29 @@
 //	  only, no JetStream subscription), no theming parity with the
 //	  web skins.
 //
-// Note there is no pb.Start() and no HTTP listener here. app.Bootstrap()
-// opens the database without serving; the store reads and writes through
-// the App handle directly. That is the proof in miniature — the web tier
-// is genuinely optional for a native frontend.
+// Note there is no HTTP listener here. openGUIStore + dbschema.Migrate prepare the
+// database without serving; the store reads and writes through the
+// queries directly. That is the proof in miniature — the web tier is
+// genuinely optional for a native frontend.
 //
 // It is deliberately NOT part of `make build` / `make test`: it is a
-// separate native target like cmd/desktop, validated by the gui-poc job
+// separate native target like cmd/desktop, validated by the gui job
 // in .github/workflows/desktop.yml (CGO_ENABLED=0, pure Go, so it builds
 // headless anywhere `go` is; tests run headless too, no window/GPU).
 //
 // To remove: delete cmd/gui/, drop the `gui` target from the Makefile,
-// drop the gui-poc job from desktop.yml, and re-add cmd/gui to
+// drop the gui job from desktop.yml, and re-add cmd/gui to
 // scripts/web-packages.sh's exclusion... (it is currently excluded;
 // removing the directory needs no script change).
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -54,29 +57,24 @@ import (
 	"github.com/gogpu/ui/desktop"
 	"github.com/gogpu/ui/theme/material3"
 	"github.com/gogpu/ui/widget"
-	"github.com/pocketbase/pocketbase"
 
 	"github.com/calionauta/gogogo/config"
-	"github.com/calionauta/gogogo/db"
-	"github.com/calionauta/gogogo/features/auth"
-	"github.com/calionauta/gogogo/features/store/pbstore"
+	"github.com/calionauta/gogogo/internal/auth"
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/demo"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
-// todosCollection is the same PocketBase collection the web app writes.
-// Reading the identical table is what makes this a second frontend
-// rather than a parallel app.
-const todosCollection = "todos"
-
 // pollInterval is the realtime-read tick: how often the window
-// re-reads the collection. No push channel exists in the POC, so this
+// re-reads the collection. No push channel exists in the native window, so this
 // is what makes another frontend's writes visible here. 2s is the
 // KISS point — fast enough to feel live, slow enough that a local
 // SQLite re-list never shows up in profiles.
 const pollInterval = 2 * time.Second
 
-// Window chrome for the native POC.
+// Window chrome for the native window.
 const (
 	seedColorHex = 0x6750A4
 	windowWidth  = 520
@@ -92,20 +90,47 @@ func main() {
 func run() error {
 	cfg := config.Load()
 
-	pbApp, err := db.Init(cfg)
+	// The same flat stack the web app serves: app file + migrations +
+	// owned auth, minus the HTTP listener. No framework, no bootstrap
+	// hook — the queries below are the ones the chi handlers call.
+	//
+	// Opened through the ncruces `sqlite3` driver, never internal/db:
+	// importing that package links tursogo (purego), whose fakecgo
+	// collides with goffi's at CGO_ENABLED=0 link time — and this target
+	// is pure Go by requirement (see the gui job in desktop.yml).
+	sqlDB, err := openGUIStore(cfg)
 	if err != nil {
-		return fmt.Errorf("pocketbase init: %w", err)
+		return err
 	}
-	// Bootstrap (not Start) opens the database without serving HTTP.
-	if err := pbApp.Bootstrap(); err != nil {
-		return fmt.Errorf("pocketbase bootstrap: %w", err)
+	defer sqlDB.Close()
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		return fmt.Errorf("migrate: %w", merr)
 	}
-	// Seed directly instead of relying on SeedDefaults' OnServe hook:
-	// nothing is served here, so the hook would never fire and the
-	// window would open on a database with no todos collection.
-	if err := db.ApplySeeds(pbApp, cfg.OfflineSync.Enabled); err != nil {
-		return fmt.Errorf("seed: %w", err)
+
+	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
+	if aerr != nil {
+		return fmt.Errorf("auth: %w", aerr)
 	}
+	// Same seal-key rule as the web stack (see wireTOTPKey): env key wins,
+	// malformed fails the boot, else the auto-created file, else keyless
+	// with enrollment failing closed per operation.
+	key := cfg.Auth.TOTPEncKey
+	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" && len(key) == 0 {
+		return errors.New("auth: malformed AUTH_ENC_KEY (want 64 hex chars)")
+	}
+	if len(key) == 0 {
+		if fk, ferr := auth.LoadOrCreateKeyFile(cfg.DataDir); ferr != nil {
+			slog.Warn("gui: totp key file unavailable, TOTP enrollment disabled", "error", ferr)
+		} else {
+			key = fk[:]
+		}
+	}
+	if len(key) > 0 {
+		if err := a.SetTOTPEncKey(key); err != nil {
+			return fmt.Errorf("auth: %w", err)
+		}
+	}
+	demo.Ensure(context.Background(), a)
 
 	m3 := material3.New(widget.Hex(seedColorHex))
 
@@ -120,7 +145,7 @@ func run() error {
 		app.WithTheme(m3.AsTheme()),
 	)
 
-	st := newState(pbApp, pbstore.New(pbApp, todosCollection))
+	st := newState(guiStore{q: dbgen.New(sqlDB)}, a)
 	tokPath := tokenPath(cfg.DataDir)
 	restoreSession(st, tokPath)
 
@@ -169,7 +194,7 @@ func makeSignOut(st *windowState, tokPath string) func() {
 	}
 }
 
-// startPollLoop re-lists the collection on every tick so other
+// startPollLoop re-lists the store on every tick so other
 // frontends' writes appear without user action, rebuilds the UI, and
 // persists a fresh login token. I/O (refresh) runs off the UI thread
 // — refresh is pure data under stateMu and never touches widgets;
@@ -201,13 +226,13 @@ func restoreSession(st *windowState, tokPath string) {
 	if err != nil {
 		return
 	}
-	ownerID, err := auth.ResolveOwner(st.app, token)
+	sess, err := st.a.SessionByToken(context.Background(), token)
 	if err != nil {
 		slog.Warn("gui: saved session no longer valid, clearing", "error", err)
 		clearToken(tokPath)
 		return
 	}
-	st.adoptSession(token, ownerID)
+	st.adoptSession(token, sess.User.ID)
 }
 
 // persistSessionIfNeeded saves the live session token (0600) once per
@@ -231,12 +256,3 @@ func persistSessionIfNeeded(st *windowState, tokPath string) {
 		slog.Warn("gui: could not persist session", "error", err)
 	}
 }
-
-// Compile-time proof of the reuse claim: the store handed to the native
-// window is the exact type the HTTP handlers use, and the auth entry
-// point is transport-free.
-var (
-	_ = pbstore.New
-	_ = auth.Login
-	_ *pocketbase.PocketBase
-)

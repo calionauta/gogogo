@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: latest-release check (update nag, no auto-update)
+// SCOPE:plugin — installer engine: latest-release check (update nag, no auto-update)
 package installer
 
 import (

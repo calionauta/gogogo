@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — GoAkt lifecycle red-team tests.
+// SCOPE:plugin — GoAkt lifecycle red-team tests.
 package main
 
 import (

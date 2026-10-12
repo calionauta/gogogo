@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — shared peer-set mechanics for collab features
+// SCOPE:plugin — shared peer-set mechanics for collab features
 package collab
 
 import "sync"

@@ -23,6 +23,38 @@ func repoRoot(t *testing.T) string {
 	return filepath.Join(filepath.Dir(file), "..", "..")
 }
 
+// trimmedPaths reads the scaffold's trim provenance (AGENTS.md,
+// removed-paths:) without importing the installer (which would cycle:
+// installer imports this package). Paths listed there were deliberately
+// deleted at scaffold time, so the registry conformance tests skip them
+// instead of reporting a trimmed tree's own removals as missing.
+//
+// No provenance section (the full template, or a hand-made tree) yields an
+// empty set: strict, exactly as before. A "none" value also yields empty.
+func trimmedPaths(root string) map[string]bool {
+	out := map[string]bool{}
+	raw, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		return out
+	}
+	text := string(raw)
+	if !strings.Contains(text, "## Trim provenance") {
+		return out
+	}
+	for line := range strings.SplitSeq(text, "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "removed-paths:")
+		if !ok {
+			continue
+		}
+		for p := range strings.SplitSeq(strings.TrimSpace(rest), ",") {
+			if p = strings.TrimSpace(p); p != "" && p != "none" {
+				out[filepath.FromSlash(p)] = true
+			}
+		}
+	}
+	return out
+}
+
 func TestRegistryIDsUniqueAndWellFormed(t *testing.T) {
 	seen := map[string]bool{}
 	for _, c := range All {
@@ -62,12 +94,21 @@ func TestRegistryCoversPackages(t *testing.T) {
 	// package ships without lifecycle metadata (no installer story,
 	// no docs row, no runtime-off answer).
 	root := repoRoot(t)
+	checkRegistryCoversPackages(t, root)
+}
+
+func checkRegistryCoversPackages(t *testing.T, root string) {
+	t.Helper()
+	trimmed := trimmedPaths(root)
 	owned := map[string]bool{}
 	for _, c := range All {
 		for _, d := range c.Dirs {
 			owned[d] = true
 			full := filepath.Join(root, filepath.FromSlash(d))
 			if st, err := os.Stat(full); err != nil || !st.IsDir() {
+				if trimmed[filepath.FromSlash(d)] {
+					continue
+				}
 				t.Errorf("capability %q owns missing dir %q", c.ID, d)
 			}
 		}
@@ -93,13 +134,67 @@ func TestRegistryFilesExist(t *testing.T) {
 	// Owned files must exist: a stale Files entry means the installer
 	// deletes (or asserts) a path that is already gone.
 	root := repoRoot(t)
+	checkRegistryFilesExist(t, root)
+}
+
+func checkRegistryFilesExist(t *testing.T, root string) {
+	t.Helper()
+	trimmed := trimmedPaths(root)
 	for _, c := range All {
 		for _, f := range c.Files {
 			full := filepath.Join(root, filepath.FromSlash(f))
 			if _, err := os.Stat(full); err != nil {
+				if trimmed[filepath.FromSlash(f)] {
+					continue
+				}
 				t.Errorf("capability %q owns missing file %q", c.ID, f)
 			}
 		}
+	}
+}
+
+// TestRegistrySkipsTrimmedPaths pins the provenance contract: only paths
+// listed under a Trim-provenance removed-paths: line are skipped. The
+// integration (a trimmed tree staying green) is proven by scaffolding, not
+// here — a fake tree cannot host the full registry without reimplementing it.
+func TestRegistrySkipsTrimmedPaths(t *testing.T) {
+	dir := t.TempDir()
+	if got := trimmedPaths(dir); len(got) != 0 {
+		t.Errorf("missing AGENTS.md, want empty skip set, got %v", got)
+	}
+	// An AGENTS.md without a provenance section is not provenance
+	// (the template root itself has none): strict.
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"),
+		[]byte("# AGENTS\n\nNo provenance here.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := trimmedPaths(dir); len(got) != 0 {
+		t.Errorf("no provenance section, want empty skip set, got %v", got)
+	}
+	agents := "# AGENTS\n\n## Trim provenance\n\nremoved: genui\n" +
+		"removed-paths: features/chat, internal/server/genui_stubs_test.go\n"
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(agents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := trimmedPaths(dir)
+	for _, want := range []string{
+		filepath.FromSlash("features/chat"),
+		filepath.FromSlash("internal/server/genui_stubs_test.go"),
+	} {
+		if !got[want] {
+			t.Errorf("skip set missing %q, got %v", want, got)
+		}
+	}
+	if got["features/todo"] {
+		t.Errorf("unlisted path must stay strict, got %v", got)
+	}
+	// A "none" trim skips nothing (strict, like the full template).
+	agentsNone := "# AGENTS\n\n## Trim provenance\n\nremoved: none\nremoved-paths: none\n"
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(agentsNone), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := trimmedPaths(dir); len(got) != 0 {
+		t.Errorf("removed-paths: none, want empty skip set, got %v", got)
 	}
 }
 
@@ -166,7 +261,7 @@ func TestKindsFollowServantPrinciple(t *testing.T) {
 	// features/credits is a plugin, features/todo is a feature.
 	pluginIDs := []string{
 		"nats", "dagnats", "goakt", "llm", "collab", "datastar", "components",
-		"credits", "sounds", "skins", "entity-store", "offline-sync",
+		"credits", "sounds", "skins", "offline-sync",
 		"capabilities", "genui",
 	}
 	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room"}
@@ -197,7 +292,7 @@ func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exac
 	// source of truth both sides check. skins-extra maps to skins.
 	want := []string{
 		"dagnats", "goakt", "whiteboard", "landing", "config-view",
-		"credits", "sounds", "skins", "room",
+		"credits", "sounds", "skins", "room", "genui",
 	}
 	byID := ByID()
 	got := slices.Clone(OfferedIDs())
@@ -247,8 +342,11 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 	// part of the shipped tree the trim proof builds.
 	self := "internal/capabilities/capabilities_test.go"
 
-	// The unit individual what owns pkgDir, and the set of files it deletes.
+	// The unit individual what owns pkgDir, and the set of files it deletes:
+	// the Files list plus everything under its Dirs (a whole deleted
+	// directory needs no per-file entry).
 	var owned map[string]bool
+	var ownedDirs []string
 	for _, c := range All {
 		if !slices.Contains(c.Dirs, pkgDir) {
 			continue
@@ -256,6 +354,11 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 		owned = make(map[string]bool, len(c.Files))
 		for _, f := range c.Files {
 			owned[f] = true
+		}
+		for _, d := range c.Dirs {
+			if d != pkgDir {
+				ownedDirs = append(ownedDirs, d+"/")
+			}
 		}
 	}
 	if owned == nil {
@@ -265,7 +368,7 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 	// Scan the trees a trimmed checkout keeps: the unit's own imports can
 	// appear anywhere in cmd/, features/, internal/ or router/.
 	var offenders []string
-	for _, tree := range []string{"cmd", "features", "internal", "router"} {
+	for _, tree := range []string{"cmd", "features", "internal"} {
 		walkErr := filepath.WalkDir(filepath.Join(root, tree), func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -280,6 +383,11 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 			rel = filepath.ToSlash(rel)
 			if strings.HasPrefix(rel, pkgDir+"/") {
 				return nil // the package itself goes with the unit
+			}
+			for _, d := range ownedDirs {
+				if strings.HasPrefix(rel, d) {
+					return nil // a sibling deleted directory goes with it
+				}
 			}
 			// root-scoped read (os.Root), not os.ReadFile(path): the skill
 			// requires os.OpenRoot for a walk into a tree not fully under our

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: pre-apply requirement checks
+// SCOPE:plugin — installer engine: pre-apply requirement checks
 package installer
 
 import (

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -98,7 +99,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		t.Fatalf("reserve port: %v", portErr)
 	}
 	dataDir := filepath.Join(dir, "data")
-	// The queue boots before PocketBase creates --dir, and it opens
+	// The queue boots before the server creates --dir, and it opens
 	// DATABASE_PATH eagerly; a missing parent dir fails with "unable to open
 	// database file: lstat <dir>: no such file or directory". scripts/smoke.mjs
 	// mkdirs its runtime dir for the same reason — mirror it here instead of
@@ -108,21 +109,27 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binPath, "serve", "--http", fmt.Sprintf("127.0.0.1:%d", port), "--dir", dataDir)
+	// The flat binary has no CLI subcommands (the legacy serve/migrate/superuser
+	// are gone): the listen address and data dir ride env vars, same as
+	// production.
+	cmd := exec.CommandContext(ctx, binPath)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	// DATA_DIR/DATABASE_PATH must be absolute and inside the temp dir. The
 	// binary's defaults are relative (data/data.db, data/), so without these
 	// the goqite queue fails with "unable to open database file: lstat data:
-	// no such file or directory" whenever the process cwd has no data/ dir —
+	// no such file or directory" whenever the process cwd has no data/ dir
 	// an environment-dependent pass/fail. Pin both to the same temp tree
 	// scripts/smoke.mjs uses.
 	cmd.Env = append(os.Environ(),
 		"DATA_DIR="+dataDir,
 		"DATABASE_PATH="+filepath.Join(dataDir, "app.db"),
+		"TURSO_DB_PATH="+filepath.Join(dataDir, "app.db"),
+		"HOST=127.0.0.1",
+		"PORT="+strconv.Itoa(port),
 		// Disable the background subsystems this test does not exercise. The
 		// DagNats engine binds fixed ports (HTTP :8090, NATS :4222); leaving
-		// it on makes the test fail whenever anything else on the machine —
+		// it on makes the test fail whenever anything else on the machine
 		// another test package, a stray dev server — already holds them.
 		"NATS_ENABLED=false",
 		"DAGNATS_ENABLED=false",

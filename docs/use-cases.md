@@ -28,13 +28,13 @@ classification, plus the SSE hub that pushes updates to browsers.
 Not for: multi-step processes with state between steps (that is
 `dagnats`); timers bound to one specific entity (no owner here).
 
-### `database` — app data in PocketBase/SQLite (core)
+### `database` — app data in Turso/SQLite (core)
 
-What: collections, seeds, and the admin UI at `/_/`.
+What: sqlc queries, migrations, and seeds. No admin UI, no separate service.
 
 - Todos, users, credits ledger, any CRUD the product owns.
 
-Not for: realtime fan-out (that is `nats` + SSE or PB realtime);
+Not for: realtime fan-out (that is `nats` + SSE Hub record-sync);
 offline-first conflict resolution (that is `offline-sync` + `collab`).
 
 ### `auth` — cookie sessions + middleware (core)
@@ -139,12 +139,13 @@ Runtime off: `CREDITS_ENABLED=false` (default; unmetered but working).
 Not for: the model call itself (that is `llm`); subscriptions and
 invoicing (not included).
 
-### `entity-store` — where entities live (plugin, runtime switch)
+### `entity-store` — where entities live (core)
 
-What: `ENTITY_STORE=pb|crdt` — PocketBase rows (default, server
-authority) vs Loro CRDT docs (converge without a round-trip).
+What: Turso rows (server authority) vs Loro CRDT docs (converge without
+a round-trip). One store per entity — picked at design time, not a
+runtime switch.
 
-- `pb`: accounts, billing, anything needing server truth.
+- `sql`: accounts, billing, anything needing server truth.
 - `crdt`: canvases and docs edited offline on flaky networks.
 
 Not for: both at once per entity — one strategy per store.
@@ -185,7 +186,7 @@ the implementation reference; delete it manually when done reading.
   offline edits without a server round-trip → `collab` (+`offline-sync`
   for the outbox).
 - **Where entities live:** server truth, billing, accounts → `entity-store`
-  `pb`. Shared canvas/docs edited offline → `crdt`.
+  `sql`. Shared canvas/docs edited offline → `crdt`.
 - **Shared text: CRDT merge vs OT serialization:** every keystroke must
   survive concurrent typing with no central lock → `notes`
   (server-owned Loro Text over `collab`). Plain text with explicit
@@ -240,7 +241,7 @@ for entity actors.
 
 Stack pick: GoAkt grains (addressable owners with supervision and
 restart budgets) over NATS request-reply with manual locking (no single
-owner, races on failover) and over PB-record locking (polling, no
+owner, races on failover) and over record polling (polling, no
 supervision). Pro: exactly-one presenter survives crashes by design.
 Con: an actor runtime to learn and boot for what starts as a counter.
 

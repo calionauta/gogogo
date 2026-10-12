@@ -14,19 +14,19 @@ import (
 
 func TestStripLandingBlock(t *testing.T) {
 	dir := t.TempDir()
-	routerDir := filepath.Join(dir, "router")
+	routerDir := filepath.Join(dir, "internal", "server")
 	if err := os.MkdirAll(routerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Phase 2 Init shape: one bare call line per capability, no
+	// Flat buildChiMux shape: one route line per capability, no
 	// unit-specific comments (guidance lives in SCOPE headers).
 	give := "import (\n" +
-		"\t\"github.com/calionauta/gogogo/features/landing\"\n" +
+		"\tlandingchi \"github.com/calionauta/gogogo/features/landing/chi\"\n" +
 		")\n" +
-		"\t\tlanding.New(cfg).RegisterRoutes(se)\n" +
+		"\tmux.Handle(\"/\", landingH.Routes())\n" +
 		"\n" +
-		"\t\tcfgfeature.New(cfg).RegisterRoutes(se)\n"
-	if err := os.WriteFile(filepath.Join(routerDir, "router.go"), []byte(give), 0o600); err != nil {
+		"\tmux.Handle(\"/config\", configH.Routes())\n"
+	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	keep := keepAllBut("landing")
@@ -37,30 +37,31 @@ func TestStripLandingBlock(t *testing.T) {
 	if err := applyTrim(dir, drop, nil); err != nil {
 		t.Fatal(err)
 	}
-	out, _ := os.ReadFile(filepath.Join(routerDir, "router.go"))
-	if strings.Contains(string(out), "landing.New") {
-		t.Errorf("landing wiring survived trim:\n%s", out)
+	out, _ := os.ReadFile(filepath.Join(routerDir, "chi.go"))
+	if strings.Contains(string(out), `mux.Handle("/", landingH.Routes())`) {
+		t.Errorf("landing route survived trim:\n%s", out)
 	}
 	if strings.Contains(string(out), `features/landing"`) {
 		t.Errorf("landing import survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), "cfgfeature.New") {
+	if !strings.Contains(string(out), `mux.Handle("/config", configH.Routes())`) {
 		t.Errorf("config wiring was wrongly removed:\n%s", out)
 	}
 }
 
 func TestStripOnboardingCallLine(t *testing.T) {
-	// Phase 2 Init shape: the DagNats.Enabled guard moved inside
-	// registerOnboarding, so trimming is a single-line drop.
+	// Flat BootChi shape: the DagNats.Enabled guard lives inside
+	// bootOnboarding, so trimming is a single-line drop.
 	dir := t.TempDir()
-	routerDir := filepath.Join(dir, "router")
+	routerDir := filepath.Join(dir, "internal", "server")
 	if err := os.MkdirAll(routerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\t\t// Optional capabilities: one call each.\n" +
-		"\t\tregisterOnboarding(app, q, se, broadcaster, todoH, cfg)\n" +
-		"\t\tregisterWhiteboardStack(se, q, cfg)\n"
-	if err := os.WriteFile(filepath.Join(routerDir, "router.go"), []byte(give), 0o600); err != nil {
+	give := "\t// Optional capabilities: one wiring line each.\n" +
+		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
+		"\tshutdown = append(shutdown, onbShutdown...)\n" +
+		"\twbH := wbchi.NewHandler(queries, a, hub, persister, docs, cfg)\n"
+	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	keep := keepAllBut("dagnats")
@@ -77,14 +78,14 @@ func TestStripOnboardingCallLine(t *testing.T) {
 	if err := applyTrim(dir, drop, nil); err != nil {
 		t.Fatal(err)
 	}
-	out, _ := os.ReadFile(filepath.Join(routerDir, "router.go"))
-	if strings.Contains(string(out), "registerOnboarding") {
+	out, _ := os.ReadFile(filepath.Join(routerDir, "chi.go"))
+	if strings.Contains(string(out), "bootOnboarding(cfg, a, todoH, hub)") {
 		t.Errorf("onboarding wiring survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), "registerWhiteboardStack") {
+	if !strings.Contains(string(out), "wbchi.NewHandler(") {
 		t.Errorf("whiteboard wiring was wrongly removed:\n%s", out)
 	}
-	if !strings.Contains(string(out), "one call each") {
+	if !strings.Contains(string(out), "one wiring line each") {
 		t.Errorf("shared convention comment was wrongly removed:\n%s", out)
 	}
 }
@@ -102,13 +103,22 @@ func TestDagnatsUnitCoversCoupledTests(t *testing.T) {
 	for _, f := range c.Files {
 		have[f] = true
 	}
+	// A file under an owned directory goes with the unit without a per-file
+	// entry: the trim deletes the whole directory.
+	ownedDir := func(path string) bool {
+		for _, d := range c.Dirs {
+			if strings.HasPrefix(path, d+"/") {
+				return true
+			}
+		}
+		return false
+	}
 	for _, want := range []string{
-		"router/export_test.go",
-		"features/todo/handlers/onboarding_resume_test.go",
+		"features/onboarding/onboarding_test.go",
 		"internal/nats/single_nats_test.go",
 		"cmd/web/start_nats_test.go",
 	} {
-		if !have[want] {
+		if !have[want] && !ownedDir(want) {
 			t.Errorf("dagnats capability does not own coupled test %q", want)
 		}
 	}
@@ -256,10 +266,11 @@ func TestApplyReceiptCountsStrips(t *testing.T) {
 	}
 }
 
-func TestStripDagnatsMainKeepsTodoHWired(t *testing.T) {
-	// startDagNats is the only todoH use in cmd/web/main.go; after the
-	// strip the installer must leave a blank use or the build fails with
-	// "declared and not used: todoH".
+func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
+	// On the flat stack the todo handler rides the booted stack (Serve and
+	// AttachJetStream still use it), so the dagnats strip leaves no
+	// dangling reference — nothing to blank. The contract is: engine calls
+	// gone, the AttachJetStream line after them intact.
 	dir := t.TempDir()
 	webDir := filepath.Join(dir, "cmd", "web")
 	if err := os.MkdirAll(webDir, 0o755); err != nil {
@@ -267,11 +278,11 @@ func TestStripDagnatsMainKeepsTodoHWired(t *testing.T) {
 	}
 	give := "\tdefer shutdown()\n" +
 		"\n" +
-		"\t// DagNats owns the embedded NATS on :4222 and must boot first.\n" +
-		"\tstartDagNats(lifecycleCtx, cfg, pb, todoH)\n" +
+		"\t// DagNats owns the embedded NATS on :4222 and must boot before\n" +
+		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
-		"\tjs := startNATS(cfg)\n"
+		"\tstack.AttachJetStream(lifecycleCtx, js)\n"
 	if err := os.WriteFile(filepath.Join(webDir, "main.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -284,20 +295,18 @@ func TestStripDagnatsMainKeepsTodoHWired(t *testing.T) {
 	if strings.Contains(string(out), "startDagNats") || strings.Contains(string(out), "shutdownDagNats") {
 		t.Errorf("dagnats boot calls survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), "_ = todoH") {
-		t.Errorf("blank todoH use missing after trim:\n%s", out)
-	}
-	if !strings.Contains(string(out), "js := startNATS(cfg)") {
+	if !strings.Contains(string(out), "stack.AttachJetStream(lifecycleCtx, js)") {
 		t.Errorf("code after the strip was damaged:\n%s", out)
 	}
 }
 
-func TestStripWhiteboardRemovesCallLineAndDesktopPhaseC(t *testing.T) {
-	// Phase 2 Init shape: trimming the whiteboard is a single call-line
-	// drop in router.go. The desktop Phase C demo (brace-mode block) must
-	// go too, or `go mod tidy` (which parses cmd/desktop) fails.
+func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
+	// Flat BootChi/buildChiMux shape: trimming the whiteboard drops its
+	// handler construction lines. The desktop Phase C demo (brace-mode
+	// block) must go too, or `go mod tidy` (which parses cmd/desktop)
+	// fails on the orphaned import.
 	dir := t.TempDir()
-	routerDir := filepath.Join(dir, "router")
+	routerDir := filepath.Join(dir, "internal", "server")
 	desktopDir := filepath.Join(dir, "cmd", "desktop")
 	if err := os.MkdirAll(routerDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -305,16 +314,17 @@ func TestStripWhiteboardRemovesCallLineAndDesktopPhaseC(t *testing.T) {
 	if err := os.MkdirAll(desktopDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\t\t// Optional capabilities: one call each.\n" +
-		"\t\tregisterOnboarding(app, q, se, broadcaster, todoH, cfg)\n" +
-		"\t\tregisterWhiteboardStack(se, q, cfg)\n" +
+	give := "\t// Optional capabilities: one wiring line each.\n" +
+		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
+		"\twbchi.NewHandler(queries, a, hub, persister, docs, cfg),\n" +
 		"\n" +
-		"\t\tif cfg.OfflineSync.Enabled {\n"
-	if err := os.WriteFile(filepath.Join(routerDir, "router.go"), []byte(give), 0o600); err != nil {
+		"\tif cfg.OfflineSync.Enabled {\n"
+	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	dgive := "import (\n\t\"context\"\n\t\"time\"\n\n" +
 		"\t\"github.com/calionauta/gogogo/internal/collab\"\n)\n" +
+		"\n" +
 		"\t// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.\n" +
 		"\tif js != nil && nats.Conn() != nil {\n" +
 		"\t\tpub := collab.NewPublisher(nats.Conn())\n" +
@@ -329,11 +339,11 @@ func TestStripWhiteboardRemovesCallLineAndDesktopPhaseC(t *testing.T) {
 	if err := applyTrim(dir, drop, nil); err != nil {
 		t.Fatal(err)
 	}
-	out, _ := os.ReadFile(filepath.Join(routerDir, "router.go"))
-	if strings.Contains(string(out), "WhiteboardStack") || strings.Contains(string(out), "internal/collab") {
+	out, _ := os.ReadFile(filepath.Join(routerDir, "chi.go"))
+	if strings.Contains(string(out), "wbchi.NewHandler") || strings.Contains(string(out), "internal/collab") {
 		t.Errorf("whiteboard wiring survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), "registerOnboarding") {
+	if !strings.Contains(string(out), "bootOnboarding(cfg, a, todoH, hub)") {
 		t.Errorf("onboarding wiring was wrongly removed:\n%s", out)
 	}
 	dout, _ := os.ReadFile(filepath.Join(desktopDir, "main.go"))

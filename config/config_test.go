@@ -15,8 +15,13 @@ func TestParseCreditsEncKey(t *testing.T) {
 	if got := parseCreditsEncKey(hexKey); !bytes.Equal(got, key) {
 		t.Fatalf("hex key = %x, want %x", got, key)
 	}
-	if got := parseCreditsEncKey(string(key)); !bytes.Equal(got, key) {
-		t.Fatalf("raw key = %x, want %x", got, key)
+	// Raw 32-byte values are not keys anymore (no legacy shapes): they
+	// parse to nil and the plugin fails closed at BYOK configuration.
+	if got := parseCreditsEncKey(string(key)); got != nil {
+		t.Fatalf("raw key = %x, want nil", got)
+	}
+	if got := parseCreditsEncKey("short"); got != nil {
+		t.Fatalf("short key = %x, want nil", got)
 	}
 }
 

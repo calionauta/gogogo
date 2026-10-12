@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: unit ids, capability map, trim manifest
+// SCOPE:plugin — installer engine: unit ids, capability map, trim manifest
 package installer
 
 // Unit ids, the capability map and the per-unit trim manifest. Split out of
@@ -22,6 +22,7 @@ const (
 	unitCredits    = "credits"
 	unitSounds     = "sounds"
 	unitSkinsExtra = "skins-extra"
+	unitGenUI      = "genui"
 )
 
 // unitCaps maps installer units to registry capability ids.
@@ -34,6 +35,7 @@ var unitCaps = map[string][]string{
 	unitCredits:    {"credits"},
 	unitSounds:     {"sounds"},
 	unitSkinsExtra: {"skins"},
+	unitGenUI:      {"genui", "chat"},
 }
 
 // scaffoldFileMode matches a git checkout: scaffolded repo files are 0644
@@ -164,19 +166,36 @@ var soundsDropLines = []string{
 }
 
 // soundsToggleLines extends soundsDropLines for the navbar host, the only
-// layout rendering the mute toggle.
+// layout rendering the mute toggle (SoundAssets rides the page layouts,
+// so the navbar needs just the toggle + the import).
 var soundsToggleLines = []string{
-	`@sounds.SoundAssets()`,
 	`@sounds.SoundToggle()`,
 	soundsImportSuffix,
 }
 
 // navbarTempl owns the brand + section links retargeted by trim units.
-const navbarTempl = "features/auth/views.templ"
+const navbarTempl = "features/authviews/navbar.templ"
 
-// routerGoFile is the shared route-wiring file. Phase 2 Init is a flat
-// list of one call per capability, so trims here are single-line drops.
-const routerGoFile = "router/router.go"
+// chiGoFile is the shared route-wiring file — the successor of
+// router/router.go on the flat stack: BootChi composes one handler per
+// capability and buildChiMux mounts one route subtree per capability,
+// so trims here are line drops (both files live in this one source file).
+const chiGoFile = "internal/server/chi.go"
+
+// Repeated trim targets, hoisted so a typo in a path is a compile error
+// rather than a trim that silently matches nothing.
+const (
+	// chiTestFile is the composition test every unit edits instead of
+	// deleting: it builds one handler per feature, so trimming any of
+	// them means editing its imports and call sites.
+	chiTestFile = "internal/server/chi_test.go"
+	// creditsCallLine is the inlined credits construction both composition
+	// call sites share, closing paren included (a drop would take it).
+	creditsCallLine = "creditschi.NewHandler(a, nil))"
+)
+
+// chiMuxAnchor ends buildChiMux; capability route lines land above it.
+const chiMuxAnchor = "\treturn mux"
 
 // Skin import suffixes dropped from handler dispatch + blank imports when
 // skins-extra is trimmed.
@@ -185,50 +204,40 @@ const (
 	soundsImportSuffix = `features/sounds"`
 )
 
-var manifestUnits = []trimUnit{
-	{
-		id: unitDagnats,
-		extraDrops: []fileDrop{
-			{
-				path:    routerGoFile,
-				substrs: []string{"registerOnboarding(app, q, se, broadcaster, todoH, cfg)"},
-			},
-		},
-		mainStrips: []stripRule{
-			{
-				startMarker: "startDagNats(lifecycleCtx, cfg, pb, todoH)",
-				endMarker:   "defer shutdownDagNats()",
-				addAfter:    mainCallsAnchor,
-				// The lifecycle context exists ONLY to bound DagNats boot work,
-				// so removing the engine leaves its declaration unused and the
-				// build fails on `declared and not used: lifecycleCtx`. Drop the
-				// declaration, its defer, and the comment block that documents
-				// them — otherwise the trim leaves an orphaned three-line comment
-				// explaining a variable that no longer exists.
-				alsoDeleteContains: []string{
-					"lifecycleCtx, stopLifecycle :=",
-					"defer stopLifecycle()",
-					"// lifecycleCtx bounds background boot work",
-					"// watchdogs) to the process lifetime",
-					"// stops promptly instead of burning its own timeouts.",
-					// The DagNats boot preamble documents the call this rule is
-					// removing; leaving it produces a comment describing an absent
-					// engine (and two stray blank lines, which gofmt then flags in
-					// the scaffolded checkout).
-					"// DagNats owns the embedded NATS on :4222 and must boot first so the",
-					"// realtime broadcaster can attach to it. It's always compiled; when",
-					"// DAGNATS_ENABLED=false it no-ops.",
-				},
-			},
-			{
-				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",
-				endIsClosingBrace: true,
-				endBrace:          "\t}",
-				addBefore:         "\t// Phase 2: wire the CRDTStore JetStream transport when the chosen",
-			},
-		},
-		goModDrops: []string{"github.com/danmestas/dagnats"},
-	},
+// manifestUnits is every offered unit in canonical menu order. The order is
+// load-bearing: TestUnitMenusFollowRegistryKinds pins it, and the file
+// split (dagNats / feature / base) is by size, not by domain — so the order
+// is reconstructed here explicitly rather than by concatenating the slices.
+var manifestUnits = buildManifestUnits()
+
+func buildManifestUnits() []trimUnit {
+	byID := make(map[string]trimUnit)
+	for _, u := range dagNatsTrimUnit {
+		byID[u.id] = u
+	}
+	for _, u := range featureTrimUnits {
+		byID[u.id] = u
+	}
+	for _, u := range baseTrimUnits {
+		byID[u.id] = u
+	}
+	order := []string{
+		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
+		unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
+		unitGenUI,
+	}
+	out := make([]trimUnit, 0, len(order))
+	for _, id := range order {
+		u, ok := byID[id]
+		if !ok {
+			panic("installer: manifest unit missing: " + id)
+		}
+		out = append(out, u)
+	}
+	return out
+}
+
+var baseTrimUnits = []trimUnit{
 	{
 		id: unitGoAkt,
 		// Bundle rationale, same as whiteboard+collab: the room demo
@@ -236,20 +245,40 @@ var manifestUnits = []trimUnit{
 		// the demo is unproven surface — one unit is the honest shape.
 		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{"registerRoomStack(se, cfg)"},
+				path: chiGoFile,
+				substrs: []string{
+					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
+					// One argument per line: each drop removes exactly its
+					// feature's line, and add restores them.
+					"roomH *roomchi.Handler,",
+					"roomH,",
+					`mux.Handle("/room", roomH.Routes())`,
+					`mux.Handle("/room/", roomH.Routes())`,
+					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
+					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+				},
+			},
+			{
+				// The server test's room call sites go as line drops; the
+				// multi-line fakeRooms fixture goes as a block strip below.
+				// The mux table's "/room" element goes too (one element per
+				// line, so combined trims stay order-independent).
+				path: chiTestFile,
+				substrs: []string{
+					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
+					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+					"nil, // roomHandler: engine disabled",
+					"roomchi.NewHandler(cfg, a, fakeRooms{}),",
+					"\t\t\"/room\",",
+				},
 			},
 		},
+
 		mainStrips: []stripRule{
 			{
 				startMarker: "startGoAkt(context.Background(), cfg)",
 				endMarker:   "defer shutdownGoAkt()",
 				addAfter:    mainCallsAnchor,
-				// Removing the engine leaves its boot preamble (and the
-				// lifecycle comment it sits under) describing an absent
-				// engine — drop the block that documents them, or trim
-				// leaves an orphaned comment (and gofmt flags the stray
-				// blank lines in the scaffolded checkout).
 				alsoDeleteContains: []string{
 					"// GoAkt owns the room actor system (standalone, no network).",
 					"// always compiled; when GOAKT_ENABLED=false it no-ops.",
@@ -271,102 +300,62 @@ var manifestUnits = []trimUnit{
 					},
 				},
 			},
-		},
-	},
-	{
-		id: unitWhiteboard,
-		// Bundle rationale lives in the collab capability entry: one
-		// unit is the only honest shape (see internal/capabilities).
-		extraDrops: []fileDrop{
 			{
-				path:    routerGoFile,
-				substrs: []string{"registerWhiteboardStack(se, q, cfg)", "registerNotesStack(se, q, cfg)"},
-			},
-		},
-		desktopStrips: []stripRule{
-			{
-				startMarker: "// Edge sync (Phase C): publish local " +
-					"Loro updates on app.sync.<docID>.",
-				endIsClosingBrace: true,
-				endBrace:          "\t}",
-			},
-		},
-		desktopDropLines: []string{`internal/collab"`, `"context"`, `"time"`},
-		// No runtimeOff: the whiteboard has no boot-costly servers, so
-		// deletion is the off switch (a flag would be config surface
-		// with no benefit).
-		extraStrips: []fileStrip{
-			{
-				path: navbarTempl,
+				// The shutdown hook block: dropping its `if` line alone
+				// would leave the closing brace behind and break parsing,
+				// so it goes as a block. Same for the two helpers, which
+				// name deleted types in their signatures — dead code that
+				// does not compile still breaks the build. And the mux
+				// mount block, for the same brace reason.
+				path: chiGoFile,
 				rules: []stripRule{
 					{
-						startMarker: `<a href="/whiteboard"`,
-						endMarker:   `}>Collab whiteboard</a>`,
+						startMarker:       "if roomHost != nil {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
 					},
 					{
-						startMarker: `<a href="/notes"`,
-						endMarker:   `}>Collab notes</a>`,
+						startMarker:       "// bootRoomActor starts the GoAkt actor system",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+					{
+						startMarker:       "// stopRoomActor is the shutdown hook",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+					{
+						startMarker:       "\tif roomH != nil {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
+					},
+				},
+			},
+			{
+				// The multi-line fakeRooms fixture: line drops would orphan
+				// the method bodies.
+				path: chiTestFile,
+				rules: []stripRule{
+					{
+						startMarker: "// fakeRooms is the deterministic grain stand-in",
+						endMarker:   "func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }",
 					},
 				},
 			},
 		},
-	},
-	{
-		id: unitLanding,
-		extraDrops: []fileDrop{
-			{
-				path:    routerGoFile,
-				substrs: []string{`features/landing"`, "landing.New(cfg).RegisterRoutes(se)"},
-			},
-		},
-		replaces: []fileReplace{
-			{
-				path:        "features/auth/views.templ",
-				matchSubstr: `class="app-nav-brand"`,
-				old:         `href="/"`,
-				newStr:      `href="/todo"`,
-			},
-		},
-	},
-	{
-		id: unitConfigView,
-		extraDrops: []fileDrop{
-			{
-				path:    routerGoFile,
-				substrs: []string{`features/config"`, "cfgfeature.New(cfg).RegisterRoutes(se)"},
-			},
-		},
-		extraStrips: []fileStrip{
-			{
-				path: navbarTempl,
-				rules: []stripRule{
-					{
-						startMarker: `<a href="/config"`,
-						endMarker:   `}>Config</a>`,
-					},
-				},
-			},
-		},
-	},
-	{
-		id: unitCredits,
-		extraDrops: []fileDrop{
-			{
-				path:    routerGoFile,
-				substrs: []string{"wireCredits(cfg, se, todoH)"},
-			},
-		},
-		goModDrops: []string{"github.com/calionauta/ai-credits"},
 	},
 	{
 		id: unitSounds,
 		extraDrops: []fileDrop{
 			{path: navbarTempl, substrs: soundsToggleLines},
 			{path: "features/todo/components/layout.templ", substrs: soundsDropLines},
-			{path: "features/config/views.templ", substrs: soundsDropLines},
-			{path: "features/landing/views.templ", substrs: soundsDropLines},
-			{path: "features/whiteboard/components.templ", substrs: soundsDropLines},
-			{path: "features/notes/notes.templ", substrs: soundsDropLines},
+			{path: "features/config/components/page.templ", substrs: soundsDropLines},
+			{path: "features/landing/components/index.templ", substrs: soundsDropLines},
+			{path: "features/whiteboard/components/board.templ", substrs: soundsDropLines},
+			{path: "features/notes/components/notes.templ", substrs: soundsDropLines},
+			{path: "features/chat/components/chat.templ", substrs: soundsDropLines},
+			{path: "features/genui/components/components.templ", substrs: soundsDropLines},
+			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},
 	},
 	{
@@ -390,7 +379,7 @@ var manifestUnits = []trimUnit{
 				path: todoGoFile,
 				rules: []stripRule{
 					{
-						startMarker:       "\tif skinName == SkinBasecoat {",
+						startMarker:       "\tif skin == SkinBasecoat {",
 						endIsClosingBrace: true,
 						endBrace:          "\t}",
 					},
@@ -400,8 +389,9 @@ var manifestUnits = []trimUnit{
 				path: todoRepoFile,
 				rules: []stripRule{
 					{
-						startMarker: "\tcase SkinBasecoat:",
-						endMarker:   "return basecoat.TodoListRegion(signals)",
+						startMarker:       "\tif skin == SkinBasecoat {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
 					},
 				},
 			},

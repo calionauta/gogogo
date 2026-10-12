@@ -56,7 +56,7 @@ they can never be "missing a selector".
    canvas/op batching + Loro + outbox (`whiteboard.js`, `notes.js`),
    Service Worker + global controllers (`sw.js`, `session.js`,
    `theme.js`), stream bootstrap openers (no `data-on:load` on body),
-   PB-realtime subscribe (not Datastar events). A `setInterval`
+   Hub record-event subscribe (not Datastar events). A `setInterval`
    polling loop or `innerHTML` render is never acceptable for signal
    changes or fragment updates — use `data-effect` /
    `data-on-interval` + fragment morph (`docs/realtime-recipe.md`).
@@ -81,7 +81,7 @@ Tailwind input scans only `features/`, `web/`, `internal/` (`source(none)` + exp
 ## Realtime patterns (don't invent transports)
 
 `docs/realtime-recipe.md` is the recipe: hidden-`@get` permanent streams,
-`PbRealtimeResync` for record lists, fragment morphs with selector
+`ListResync` for record lists, fragment morphs with selector
 headers, `data-effect` for signal reactions (never polling), `fail()` on
 500s, and the conformance test that pins every `/api/*` URL to a Go
 route. MCP/CLI surfaces the same knowledge via `advise` (presets

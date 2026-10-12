@@ -58,20 +58,20 @@ func fixtureAddTrees(t *testing.T) (from, proj string) {
 	proj = t.TempDir()
 	writeFile(t, filepath.Join(from, "features", "landing", "landing.go"), "package landing\n")
 	writeFile(t, filepath.Join(proj, "go.mod"), "module example.com/proj\n\ngo 1.27\n")
-	routerFull := "import (\n" +
+	chiFull := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/config\"\n" +
-		"\t\"github.com/calionauta/gogogo/features/landing\"\n" +
+		"\tlandingchi \"github.com/calionauta/gogogo/features/landing/chi\"\n" +
 		")\n" +
-		"\t\tlanding.New(cfg).RegisterRoutes(se)\n" +
-		"\t\tcfgfeature.New(cfg).RegisterRoutes(se)\n" +
-		"\t\treturn se.Next()\n"
-	writeFile(t, filepath.Join(from, "router", "router.go"), routerFull)
-	routerTrimmed := "import (\n" +
+		"\tmux.Handle(\"/config\", configH.Routes())\n" +
+		"\tmux.Handle(\"/\", landingH.Routes())\n" +
+		"\treturn mux\n"
+	writeFile(t, filepath.Join(from, "internal", "server", "chi.go"), chiFull)
+	chiTrimmed := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/config\"\n" +
 		")\n" +
-		"\t\tcfgfeature.New(cfg).RegisterRoutes(se)\n" +
-		"\t\treturn se.Next()\n"
-	writeFile(t, filepath.Join(proj, "router", "router.go"), routerTrimmed)
+		"\tmux.Handle(\"/config\", configH.Routes())\n" +
+		"\treturn mux\n"
+	writeFile(t, filepath.Join(proj, "internal", "server", "chi.go"), chiTrimmed)
 	writeFile(t, filepath.Join(from, "go.mod"), "module example.com/tpl\n\ngo 1.27\n")
 	return from, proj
 }
@@ -87,6 +87,38 @@ func findUnit(t *testing.T, id string) trimUnit {
 	return trimUnit{}
 }
 
+// TestUnitPathsPresentPinsIdempotentReadd pins the gate's skip: a unit
+// whose owned paths all exist restores nothing, so add skips both the
+// copy and the reversibility refusal (re-adding what is there is a no-op,
+// not an error).
+func TestUnitPathsPresentPinsIdempotentReadd(t *testing.T) {
+	dir := t.TempDir()
+	u := findUnit(t, unitSounds)
+	if unitPathsPresent(dir, u) {
+		t.Fatal("empty dir reports sounds present")
+	}
+	for _, d := range u.meta().dirs {
+		if err := os.MkdirAll(filepath.Join(dir, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range u.meta().files {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, filepath.FromSlash(f))), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(f)), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !unitPathsPresent(dir, u) {
+		t.Fatal("complete dirs+files report sounds missing")
+	}
+	os.Remove(filepath.Join(dir, filepath.FromSlash(u.meta().files[0])))
+	if unitPathsPresent(dir, u) {
+		t.Fatal("one file missing still reports present")
+	}
+}
+
 func TestAddUnitRestoresLanding(t *testing.T) {
 	from, proj := fixtureAddTrees(t)
 	rc := &AddReceipt{ID: unitLanding, Warnings: []string{}}
@@ -96,12 +128,12 @@ func TestAddUnitRestoresLanding(t *testing.T) {
 	if rc.DirsCopied != 1 {
 		t.Errorf("DirsCopied = %d, want 1", rc.DirsCopied)
 	}
-	raw, _ := os.ReadFile(filepath.Join(proj, "router", "router.go"))
+	raw, _ := os.ReadFile(filepath.Join(proj, "internal", "server", "chi.go"))
 	out := string(raw)
-	if !strings.Contains(out, "landing.New(cfg).RegisterRoutes(se)") {
-		t.Errorf("call line not restored:\n%s", out)
+	if !strings.Contains(out, `mux.Handle("/", landingH.Routes())`) {
+		t.Errorf("route line not restored:\n%s", out)
 	}
-	if !strings.Contains(out, `features/landing"`) {
+	if !strings.Contains(out, `landingchi "github.com/calionauta/gogogo/features/landing/chi"`) {
 		t.Errorf("import not restored:\n%s", out)
 	}
 	// Import lands sorted: config before landing.
@@ -145,7 +177,7 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	proj := t.TempDir()
 	src := "\tdefer shutdown()\n" +
 		"\n" +
-		"\tstartDagNats(lifecycleCtx, cfg, pb, todoH)\n" +
+		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
 		"\tjs := startNATS(cfg)\n" +
@@ -179,7 +211,7 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	}
 	out, _ := os.ReadFile(filepath.Join(proj, "cmd", "web", "main.go"))
 	text := string(out)
-	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, pb, todoH)")
+	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)")
 	nats := strings.Index(text, "js := startNATS(cfg)")
 	strap := strings.Index(text, "ensureTriggerBootstrap()")
 	phase2 := strings.Index(text, "// Phase 2: wire the CRDTStore")

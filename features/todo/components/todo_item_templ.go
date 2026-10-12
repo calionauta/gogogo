@@ -166,7 +166,7 @@ func TodoItem(item todo.Todo) templ.Component {
 // to a year-less date that meant nothing when created was missing. A zero
 // CreatedAt renders empty rather than a nonsense "54y ago" from
 // time.Since(zero) — and created is populated correctly once the seed no
-// longer shadows PocketBase's system field (db/seed.go).
+// longer shadows the database's system field (internal/demo/demo.go).
 func timeAgo(t time.Time) string {
 	if t.IsZero() {
 		return ""

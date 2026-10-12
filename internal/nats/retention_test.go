@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — stream/KV retention bounds tests.
+// SCOPE:plugin — stream/KV retention bounds tests.
 package nats_test
 
 import (
@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/internal/nats"
+	natswire "github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // Retention is a correctness property here, not tuning: unbounded streams
-// grow forever for readers that never replay (PB is the truth), and
+// grow forever for readers that never replay (the database is the truth), and
 // coordination KV without TTL accumulates crashed members. These tests
 // pin the bounds so a future edit cannot silently drop them.
 
@@ -54,7 +55,7 @@ func TestCrudStreamIsBounded(t *testing.T) {
 	if js == nil {
 		t.Fatal("JetStream not available after StartEmbedded")
 	}
-	if nats.NewCrudPublisher(js) == nil {
+	if natswire.NewCrudPublisher(js) == nil {
 		t.Fatal("publisher is nil with JetStream up")
 	}
 	streamLimits(t, js, "APP_CRUD", 7*24*time.Hour, 512<<20)

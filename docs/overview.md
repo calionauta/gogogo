@@ -1,9 +1,9 @@
 # Overview
 
 A full-stack Go web app template that ships as **one binary**. No external
-database, no Redis, no queue service, no CDN, no JS build step. PocketBase
-(embedded SQLite) provides the database, auth, REST API, file storage, and
-admin UI; Datastar delivers reactive UI over server-rendered HTML and SSE.
+database, no Redis, no queue service, no CDN, no JS build step. Turso
+(embedded SQLite) provides the database, owned argon2id code provides auth,
+and Datastar delivers reactive UI over server-rendered HTML and SSE.
 
 Built to be useful: every decision favors practical outcomes over abstract
 ideals. The stack optimizes for simplicity, consistency, and shipping software
@@ -23,7 +23,7 @@ documents how to change or remove each piece.
 Frameworks call your code and keep you on their release train. This template
 does the opposite: it answers the stack decisions once, ships them wired and
 documented, and gets out of the way — you rename it, you own every line,
-there is nothing to upgrade. It does ship frameworks inside (PocketBase,
+there is nothing to upgrade. It does ship frameworks inside (DagNats,
 GoAkt, Wails), and each of them is removable per the [scope
 taxonomy](scope-taxonomy.md): nothing you keep is load-bearing by accident.
 For an LLM agent this means zero new DSL to learn — plain Go, stable
@@ -67,7 +67,7 @@ complementary layers in a single build and lets you opt out at runtime:
 | `goqite` | background jobs + SSE hub |
 | `dagnats` | durable multi-step workflows as declarative JSON |
 | Loro CRDT | conflict-free collaborative state |
-| PocketBase realtime | per-user-scoped record-change push |
+| SSE record stream | per-user-scoped record-change push + re-list |
 | SSE Hub | ephemeral signals over the Datastar protocol |
 | JetStream | cross-instance broadcast and state |
 | GoAkt grains | one addressable owner per room (roster, locks, supervision) |
@@ -82,8 +82,8 @@ A running deployment of this exact template is live at
 **[gogogo.calionauta.com](https://gogogo.calionauta.com/)** — log in with a
 seeded demo account (`demo1@demo.app` / `demo1234456`; `demo2@demo.app`
 takes the same password — a second browser or incognito window makes you
-both at once). The PocketBase admin dashboard
-is at [`/_/`](https://gogogo.calionauta.com/_/) and the DagNats workflow console
+both at once). The auth-gated env view is at [`/config`](https://gogogo.calionauta.com/config)
+(sign in first) and the DagNats workflow console
 at [`/dagnats/`](https://gogogo.calionauta.com/dagnats/). What each surface
 gives you: [Admin & Dashboard](admin-dashboard.md).
 

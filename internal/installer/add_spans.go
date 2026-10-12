@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: add span insertion and anchoring
+// SCOPE:plugin — installer engine: add span insertion and anchoring
 //
 // Span insertion and anchoring: putting a trimmed span back where it came
 // from, by locating the anchor line the strip rule recorded.
@@ -7,6 +7,7 @@ package installer
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -30,15 +31,97 @@ type spanAnchor struct {
 func anchorBefore(line string) spanAnchor { return spanAnchor{before: line} }
 func anchorAfter(line string) spanAnchor  { return spanAnchor{after: line} }
 
+// addSpanAnchor resolves where a strip span is re-inserted: main.go after
+// the shutdown defer, desktop before the Wails boot section, .templ/handler
+// files from templSpanAnchor. A rule's own addBefore/addAfter wins over the
+// path default (checked by the caller). Empty means the path is outside the
+// add convention — trim may strip it, add cannot restore it.
+func addSpanAnchor(path string) spanAnchor {
+	switch path {
+	case filepath.Join("cmd", "web", "main.go"):
+		return anchorAfter(mainCallsAnchor)
+	case filepath.Join("cmd", "desktop", "main.go"):
+		return anchorBefore(desktopBlockAnchor)
+	default:
+		if anchor, ok := templSpanAnchor(path); ok {
+			return anchor
+		}
+		return spanAnchor{}
+	}
+}
+
+// unitPathsPresent reports whether a unit's owned paths all exist in the
+// target tree: re-adding it restores nothing, so the reversibility gate
+// (and the copy step) skips it.
+func unitPathsPresent(root string, u trimUnit) bool {
+	m := u.meta()
+	for _, d := range m.dirs {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(d))); err != nil {
+			return false
+		}
+	}
+	for _, f := range m.files {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(f))); err != nil {
+			return false
+		}
+	}
+	return len(m.dirs)+len(m.files) > 0
+}
+
+// addManualWiring lists the trim edits `add` cannot reverse mechanically,
+// one repo-relative path + dropped line each. Restorable today: mux.Handle
+// call lines in chi.go (reinserted at the mux anchor), import lines
+// anywhere (merged into import blocks only when used), strips on anchored
+// paths, main/desktop strips, and go.mod drops (tidy re-adds). Everything
+// else — constructions, call args, signature params, test bodies, one-way
+// replaces, strips on unanchored paths — needs a human (or an LLM with the
+// exact lines below, which is why they are printed, not summarized).
+// Non-empty means add would leave a broken tree: callers refuse with this
+// recipe instead of writing code the proof then rejects.
+func addManualWiring(u trimUnit) []string {
+	var out []string
+	for _, ed := range u.extraDrops {
+		for _, sub := range ed.substrs {
+			if ed.path == chiGoFile && strings.HasPrefix(strings.TrimSpace(sub), "mux.Handle") {
+				continue
+			}
+			if strings.HasSuffix(sub, `"`) {
+				continue
+			}
+			out = append(out, ed.path+": "+sub)
+		}
+	}
+	for _, es := range u.extraStrips {
+		restorable := addSpanAnchor(es.path) != (spanAnchor{})
+		if !restorable {
+			for _, r := range es.rules {
+				if r.addBefore != "" || r.addAfter != "" {
+					restorable = true
+					break
+				}
+			}
+		}
+		if !restorable {
+			for _, r := range es.rules {
+				out = append(out, es.path+": block "+r.startMarker)
+			}
+		}
+	}
+	for _, rp := range u.replaces {
+		out = append(out, rp.path+": one-way replace "+rp.old)
+	}
+	return out
+}
+
 // templSpanAnchor maps edited .templ/navbar/handler files to anchors.
 // Files without an entry (sounds call sites, brand) stay manual by design.
 func templSpanAnchor(path string) (spanAnchor, bool) {
 	switch path {
 	case navbarTempl:
 		return spanAnchor{afterContains: navLinkAnchorSubstr}, true
-	case "features/todo/handlers/todo.go":
+	case todoGoFile:
 		return anchorBefore(todoLayoutAnchor), true
-	case "features/todo/handlers/todo_repo.go":
+	case todoRepoFile:
 		return anchorBefore(todoRegionAnchor), true
 	default:
 		return spanAnchor{}, false
@@ -129,4 +212,33 @@ func findAnchor(dstLines []string, anchor spanAnchor) (int, error) {
 		}
 	}
 	return -1, errors.New("cannot locate insertion anchor (evolved file?)")
+}
+
+// refuseIrreversible gates executeAdd: units whose trim edits add cannot
+// replay mechanically refuse here — before any mutation — with the exact
+// lines to re-add by hand plus the unit's follow-ups. Writing the
+// reversible subset and failing the proof mid-tree is worse than
+// refusing: a half-rewired checkout reads as broken either way, but only
+// the refusal leaves the tree untouched. Fully present units skip the
+// gate (idempotent re-add restores nothing). Split out of executeAdd for
+// the gocyclo gate.
+func refuseIrreversible(stdout io.Writer, opt addOptions) error {
+	for _, u := range opt.units {
+		if unitPathsPresent(opt.dir, u) {
+			continue
+		}
+		if manual := addManualWiring(u); len(manual) > 0 {
+			for _, line := range manual {
+				fmt.Fprintf(stdout, "gogogo: manual: %s\n", line)
+			}
+			for _, warn := range addFollowUps(u) {
+				fmt.Fprintf(stdout, "gogogo: manual follow-up: %s\n", warn)
+			}
+			return &ExitError{code: 1, msg: fmt.Sprintf(
+				"add %s is not fully reversible: re-add the %d line(s) above by hand "+
+					"(positions mirror the trim strips), then run `go build ./...`",
+				u.id, len(manual))}
+		}
+	}
+	return nil
 }

@@ -115,8 +115,8 @@ jobs:
           name: desktop-cross-preview
           path: build/cross/
 
-  gui-poc:
-    # The gogpu/ui native POC (cmd/gui) is pure Go with zero CGO, so it
+  gui:
+    # The gogpu/ui native window (cmd/gui) is pure Go with zero CGO, so it
     # needs no system headers — but its GPU deps (wgpu/naga) are heavy,
     # so it is validated here instead of in web CI (web-packages.sh
     # excludes cmd/gui for the same reason it excludes cmd/desktop).

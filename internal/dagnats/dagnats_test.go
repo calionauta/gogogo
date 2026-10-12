@@ -32,7 +32,7 @@ func startTestServer(t *testing.T, dataDir string) *Client {
 	// Register the same task handlers the app uses (names must match the
 	// workflow JSON). In the test they are no-ops — we validate the
 	// engine contract (greet -> await signal -> create x3 -> finalize),
-	// not PocketBase writes (covered by TodoHandler tests).
+	// not database writes (covered by TodoHandler tests).
 	shim := server.EmbeddedWorker(srv)
 	shim.Handle("onboarding-greet", func(ctx worker.TaskContext) error {
 		return ctx.Complete([]byte(`"welcomed"`))

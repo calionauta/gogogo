@@ -1,5 +1,123 @@
 ## [Unreleased]
 
+### Added
+
+- **Flat-stack dependency guard.** `cmd/check-flatdeps` (`make check-flatdeps`,
+  CI + pre-commit) now proves three invariants without booting: no banned
+  framework in the closure, no cross-feature domain imports (shared UI leaves
+  `authviews`, `sounds`, `genui/components` excepted), and `sql.Open` only in
+  owner packages (`internal/db/`, `internal/queue/`, `features/credits/`).
+  Both new checks are red-proofed (violation probes fail, clean tree passes).
+- **Suggest output contract.** `internal/llm` forces untrusted model text into
+  shape — max 3 items, trimmed, deduped, cut at 60 runes (rune- not byte-cut,
+  so multibyte tails stay valid UTF-8) — on both the JSON path and the
+  plain-text fallback.
+- **Worker shutdown leak assertions.** `goleak.VerifyNone` on the queue
+  shutdown tests, so a worker surviving `Stop()`/`Close()` fails the suite
+  instead of leaking silently.
+
+### Changed
+
+- **Offline replays reach every stream.** Mutation handlers fan out (Hub +
+  JetStream) before the `"replayed"` short-circuit, and replays no longer
+  exclude the queued `clientID` — a background replay is not the originating
+  interaction, so no-echo does not apply. Fixes the offline "Add button
+  stuck + todo lost" class the Playwright smoke caught (red-proof:
+  `TestChiTodoReplayReachesOriginator`).
+- **`CHI_ADDR` honored by `cmd/web`.** The env var was dead on the main
+  binary (only `cmd/desktop` read it); `listenAddr` unifies the rule —
+  override when set, `HOST:PORT` otherwise.
+- **Dead realtime subscription removed.** Every list page opened an
+  `EventSource` on `/api/realtime`, a route that died with the framework —
+  a 404 per page plus stale PB narrative. `PbRealtimeResync` becomes
+  `ListResync`: same hidden-`@get` button ids, same visibility refetch, no
+  subscription. Record sync arrives over each feature's SSE stream.
+- **Demo seed covers both accounts.** The flat port seeded only demo1 while
+  the login form promises demo1+demo2; `internal/demo` seeds both again
+  (red-proof: `TestEnsureSeedsBothDemoAccounts`).
+- **Dead `ENCRYPTION_KEY` removed.** The PB-era key has no consumer on the
+  flat stack (sessions are random tokens; BYOK has its own
+  `CREDITS_ENC_KEY`): field, `/config` row and mask entry gone, masking
+  tests re-pinned on `AdminToken`.
+- **ai-credits v0.5.0 (tursogo, no modernc).** The ledger library drops
+  `modernc.org/sqlite`; `modernc` leaves our `go.mod` and the binary
+  closure. Its write lock is now driver-proof (`immediateTx` forces the
+  upgrade up front), which the concurrent-reserve suite red-proofs.
+- **PocketBase is gone.** The framework layer the flat stack replaced is fully
+  removed: `db/` (app handle, seeds, idempotency hook), `router/` (route
+  wiring), `internal/routeutil`, `internal/collabpb`, `features/store`
+  (PBStore + CRDTStore — one data layer remains), `features/auth` (legacy
+  middleware), and every feature's PB handler pair. `cmd/web` serves only the
+  flat stack: `BootChi` → `startDagNats` → `startNATS` → `AttachJetStream` →
+  `Serve`, blocking on SIGINT/SIGTERM so cleanups drain in reverse order.
+  `cmd/gui` (native window) now runs on the same Turso + owned-auth layer.
+  `pocketbase` + `dbx` leave `go.mod`; the binary shrinks ~22% (141M → 110M).
+  No contract was lost silently: every PB-era test was re-pinned on the chi
+  slice that replaced it (cross-session create, notes caret/presence/rev
+  protocol, whiteboard peer counts + no-echo + 409, room roster resilience,
+  chat/genui workers, auth sessions + `/api/session`, theme toggle), and the
+  chi todo slice gained two fixes the migration exposed (`Signals.DagNatsEnabled`
+  registration truth, the `/static` + `/sw.js` + `/health` contract mounts).
+  `ENTITY_STORE` is gone with the strategy switch; `internal/db` IS the data
+  layer. Also gone with no replacement: the `/_/` admin UI (inspect with
+  `sqlite3` plus the read-only `/config` view) and file storage (no feature
+  uses uploads); auth collapses to a single `gogogo_auth` cookie and record
+  push to the SSE Hub record event.
+
+- **Flat architecture.** Removed the `internal/ports` + `internal/repos` +
+  `internal/backend` abstraction layer (a shallow pass-through with no
+  implementation wired into the app) and the `DB_BACKEND` selector. Data
+  access calls sqlc-generated functions directly from handlers.
+- **Turso, not libSQL.** Config names Turso Database; the libSQL Go driver and
+  the `LIBSQL_URL` fallback are gone (`turso.tech/database/tursogo` is the
+  driver).
+- **SCOPE is one axis.** The annotation is now `// SCOPE:<core|plugin|feature>`
+  — the redundant `layer=` axis, which only restated the directory, is
+  dropped, and `make check-scope` accepts only this form.
+- **Opt-in Casbin RBAC.** `RBAC_ENABLED=true` binds an enforcer built from the
+  embedded model + policy in `internal/rbac/casbin`.
+- **No “POC” language.** The native-window target, docs, CI job, and scripts no
+  longer describe anything as a proof-of-concept.
+- **SCOPE linter exempts generated files.** `make check-scope` now skips any
+  file carrying Go's standard `// Code generated … DO NOT EDIT.` marker, so
+  regenerating `sqlcgen` (or any future generator output) never needs a
+  hand-added annotation.
+
+### Added
+
+- **Flat data layer (`internal/db`).** Turso Database over the `tursogo`
+  `database/sql` driver (pure-Go, no CGO, no libSQL): connection + pragmas,
+  an embedded migration runner (`schema_migrations`), the core schema (users,
+  sessions, todos — incl. owner scoping and the partial `idem_key` dedupe
+  index the offline queue depends on), and sqlc query sources generated into
+  `internal/db/sqlcgen` (`package dbgen`, `emit_interface: false`). `make sqlc`
+  regenerates; `make check-generated` fails on drift when sqlc is on PATH.
+  Every path is covered by tests that run against the real driver.
+- **Chat conversation demo on the genui catalog.** `features/chat/` persists
+  both sides per owner (idempotent on `idem` + `idem#answer`, so SW replays
+  never duplicate), parses every answer through `ParseChatAnswer` (catalog
+  directives render, anything else degrades to a safe prose bubble — chat
+  never dies per message), and fans the answer over a dedicated SSE hub.
+  Page at `/chat` (`POST /api/chat/ask`, `GET /api/chat/stream`); history
+  store is in-memory behind `MessageStore`, PocketBase collection is the
+  documented upgrade path. Red-proofed worker/store/parse/render tests.
+- **Owned auth (`internal/auth`).** Argon2id passwords (~350ms, versioned
+  encoding), opaque sessions keyed by SHA-256, `gogogo_auth` cookie, plus
+  magic-link (single-use, silent nil), TOTP second factor (owned RFC 6238,
+  recovery codes, attempt throttle) and OAuth (generic x/oauth2 flow with
+  Google/GitHub presets, PKCE). Red-proofed against the real driver,
+  including RFC 6238 vectors and a stub-IdP flow.
+- **Chi todo slice (`features/todo/chi`).** Login/logout/index pages on the
+  shared templates plus the data endpoints and NATS bridge, served when
+  `CHI_ADDR` is set. Same paths and wire, contract-tested with `-race`.
+- **Queue on Turso.** goqite opens the queue file through `tursogo`; the
+  full queue suite runs on the new driver.
+- **PB-free UI package (`features/authviews`).** LoginPage, Navbar and
+  ThemeHead live here so flat-stack pages render without the framework;
+  the CRUD wire lives in `internal/natswire` for the same reason.
+- **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
+  no framework and only Turso is opened outside the transitional allowlist.
+
 ## 0.43.2 (2026-10-11)
 
 ## What's Changed
@@ -16,9 +134,8 @@
 
 **Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.43.0...v0.43.1
 
-## 0.43.0 (2026-10-10)
-
-## What's Changed
+## [0.43.0] - 2026-10-10
+### What's Changed
 * docs(llm): shared-key production warnings by @calionauta in https://github.com/calionauta/gogogo/pull/90
 * Ask feedback batch: own-hub delivery, TechBadges, suggest context by @calionauta in https://github.com/calionauta/gogogo/pull/92
 * ci(release): release-please owns versioning by @calionauta in https://github.com/calionauta/gogogo/pull/93
@@ -43,7 +160,7 @@
 - **Reactive doc-version watcher.** The 250ms `setInterval` poll is a
   `data-effect` subscription on `$docVersion` (pure fn in a synchronous
   script — module scripts load after Datastar init and throw; caught by
-  the new browser PoC `scripts/todo-docwatch.test.mjs`).
+  the new browser test `scripts/todo-docwatch.test.mjs`).
 - **Ask spinner releases on network failure** (`data-on:datastar-fetch`
   error stages on the form).
 - **Transport matrix + realtime recipe.** Queryable table in

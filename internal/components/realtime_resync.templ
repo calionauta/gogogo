@@ -1,74 +1,55 @@
-// SCOPE:core - shared PocketBase-realtime list resync (records half).
+// SCOPE:core - shared list resync (manual + visibility refetch half).
 package components
 
-// PbRealtimeResync subscribes to PocketBase realtime for one collection
-// name and re-fetches a list fragment on any record change. This is the
-// "records" half of the realtime strategy (record mutations are per-user
-// scoped by PB, so there is no cross-user broadcast leak); ephemeral
-// signals keep flowing through the SSE hub. Rendered ONCE per page.
+// ListResync renders the hidden @get button every list page refetches
+// through, plus the tab-visibility refetch. Record changes themselves
+// arrive live over each feature's SSE stream (the hub fans out a record
+// event and the stream re-lists); this button is the manual path —
+// backgrounded tabs refetch on visibility return, and feature scripts
+// (e.g. the todo doc-version watcher) click it programmatically.
+// Rendered ONCE per page.
 //
 // the button id must be unique on the page (each page's id is pinned by its
 // feature test). fragmentExpr is the Datastar @get argument as
 // client-side JS (e.g. a fragment path) — evaluated by Datastar
-// at click time, never by the server. The last argument is the PB subscription name.
+// at click time, never by the server.
 //
-// The script finds its button through the data-pb-resync marker (never
-// a second copy of the id) and reads that name back with getAttribute:
-// Templ never interpolates Go values inside <script> bodies, so values
-// cross that boundary only as data attributes.
-//
-// clientID reuses the stable per-tab id when RealtimeStream set one,
-// else a fresh random id — the same behavior the per-feature copies had.
-templ PbRealtimeResync(buttonID, fragmentExpr, topic string) {
+// Visibility refetch is a data-on:visibilitychange__document attribute on
+// the button itself (not a vanilla listener): the id interpolates into
+// attributes, so no script needs it. The load-time go() call stays a
+// script (bootstrap, same class as the SSE opener).
+templ ListResync(buttonID, fragmentExpr string) {
+	// Offline replays converge through this button too: the SW posts
+	// sync-end when its queue drains, the banner bridge dispatches
+	// gogogo:synced, and this refetch runs. The live SSE event is NOT
+	// enough — an offline tab stays visible, so the visibility refetch
+	// above never fires, and a replay broadcast that lands while the
+	// stream is still re-establishing is missed with nothing after it.
+	// Re-listing is idempotent, so the extra fetch on reconnect is safe.
 	<button
 		id={ buttonID }
 		type="button"
 		class="hidden"
 		data-on:click={ "@get(" + fragmentExpr + ")" }
-		data-pb-resync="1"
-		data-topic={ topic }
+		data-on:gogogo:synced__window={ "@get(" + fragmentExpr + ")" }
+		data-on:visibilitychange__document={ "if(!document.hidden){document.getElementById('" + buttonID + "').click()}" }
+		data-list-resync="1"
 		aria-hidden="true"
 	></button>
 	<script type="module">
-		// Hidden-@get-button + EventSource pattern (not data-on:load):
-		// Datastar v1 does not fire data-on:load on div/body, so a load
-		// attribute silently never opens anything. The button's @get is a
-		// real Datastar action (with proper context); this script clicks it.
-		function el() { return document.querySelector('[data-pb-resync]'); }
-		function subj() {
-			var b = el();
-			return b ? b.getAttribute('data-topic') : null;
-		}
-		var cid = window.__gogogoClientID || ('tab-' + Math.random().toString(36).slice(2, 10));
-		var es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(cid));
-		function sub(id) {
-			fetch('/api/realtime', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ clientId: id, action: 'subscribe', subscriptions: [subj()] })
-			}).catch(function () {});
-		}
+		// Hidden-@get-button pattern (not data-on:load): Datastar v1 does
+		// not fire data-on:load on div/body, so a load attribute silently
+		// never opens anything. The button's @get is a real Datastar
+		// action (with proper context); this script clicks it.
+		function el() { return document.querySelector('[data-list-resync]'); }
 		function go() {
 			var b = el();
 			if (b) { b.click(); }
 		}
-		es.addEventListener('PB_CONNECT', function (e) {
-			var msg;
-			try { msg = JSON.parse(e.data); } catch (_) { return; }
-			if (!msg.clientId) { return; }
-			// PocketBase sends RECORD events on `event: <name>`, NOT on
-			// the clientId channel (which carries only control messages
-			// like PB_CONNECT / PB_SUBSCRIBED).
-			es.addEventListener(subj(), function () { go(); });
-			sub(msg.clientId);
-			// Refetch: PB realtime has NO replay buffer, so a change from
-			// before the subscription went live would otherwise never
-			// arrive. Same on tab-visibility return (backgrounded tabs get
-			// their EventSource throttled/paused by the browser).
-			go();
-		});
-		document.addEventListener('visibilitychange', function () {
-			if (!document.hidden) { go(); }
-		});
+		// Refetch on load (a change from while the page was gone would
+		// otherwise never arrive). Visibility return is the data-on
+		// attribute above (backgrounded tabs get their streams
+		// throttled/paused by the browser).
+		go();
 	</script>
 }

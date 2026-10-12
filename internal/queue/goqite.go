@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=core — Job queue (goqite) + Worker Pool
+// SCOPE:core — Job queue (goqite) + Worker Pool
 // Package queue implements the background job subsystem: a goqite-backed
 // SQLite queue, an SSE hub for streaming progress to the browser, and a
 // worker pool that dispatches messages through a typed HandlerRegistry.
@@ -18,13 +18,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
-	_ "github.com/ncruces/go-sqlite3/driver"
 	"maragu.dev/goqite"
+	_ "turso.tech/database/tursogo"
 
 	"github.com/calionauta/gogogo/config"
 )
+
+// dirPerm is the mode for a created queue directory (read/execute for
+// group and others so backups and sidecars can inspect it).
+const dirPerm = 0o755
 
 // workerCount is the default number of concurrent workers in the pool.
 // Four balances throughput against SQLite write contention; raise it
@@ -60,19 +65,30 @@ type Queue struct {
 	workers *WorkerPool
 }
 
-// New opens a SQLite-backed goqite queue, applies the schema, and
+// New opens a Turso-backed goqite queue, applies the schema, and
 // returns a ready-to-use Queue with a fresh SSEHub and HandlerRegistry.
+// Turso Database is the template's single SQLite engine (see internal/db):
+// the queue file is just another Turso file, covered by the same backup.
 func New(cfg *config.Config) (*Queue, error) {
-	dbPath := cfg.DataDir + "/queue.db"
+	return NewAt(cfg.DataDir)
+}
+
+// NewAt opens a queue in an explicit directory (creating it), for stacks
+// that need their own queue file — the chi stack runs its own workers on
+// a separate file so the two stacks never compete for the same jobs.
+func NewAt(dataDir string) (*Queue, error) {
+	if err := os.MkdirAll(dataDir, dirPerm); err != nil {
+		return nil, fmt.Errorf("queue: create data dir %q: %w", dataDir, err)
+	}
+	dbPath := dataDir + "/queue.db"
 	// busy_timeout must be set in the DSN (a PRAGMA statement is not applied
-	// by the driver on open), matching the app DB's DSN in db/pocketbase.go.
+	// by the driver on open), matching the app DB's DSN in internal/db.
 	// Without it a concurrent writer gets SQLITE_BUSY immediately instead of
 	// waiting for the lock, so queue writes fail spuriously under contention.
-	// journal_mode(WAL) lets readers proceed while a writer holds the lock.
-	db, err := sql.Open("sqlite3",
-		"file:"+dbPath+"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
+	// Turso manages its own journaling, so no journal_mode pragma is needed.
+	db, err := sql.Open("turso", dbPath+"?_busy_timeout=10000")
 	if err != nil {
-		return nil, fmt.Errorf("queue: open sqlite at %s: %w", dbPath, err)
+		return nil, fmt.Errorf("queue: open turso at %s: %w", dbPath, err)
 	}
 
 	if err := applyGoqiteSchema(context.Background(), db); err != nil {

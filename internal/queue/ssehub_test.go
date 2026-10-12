@@ -81,7 +81,7 @@ func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
 func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
 	t.Parallel()
 	// goleak, not runtime.NumGoroutine: the count is process-global and races
-	// other tests' goroutines. This asserts the design invariant directly —
+	// other tests' goroutines. This asserts the design invariant directly
 	// replay is synchronous at Register(), so no goroutine outlives the loop.
 	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	for range 200 {

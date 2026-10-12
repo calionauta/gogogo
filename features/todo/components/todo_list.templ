@@ -55,7 +55,7 @@ templ TodoList(signals todo.Signals) {
 							<span class="text-base-content/30 mx-1">·</span>
 							<span>{ signals.OfflineLabel }</span>
 						</p>
-						@ic.TechBadge([]string{"PocketBase realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
+						@ic.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
 					</div>
 				</div>
 				<span class="online-pill" data-show="$connectedClients >= 0">
@@ -131,7 +131,7 @@ templ TodoList(signals todo.Signals) {
 							</div>
 							</div>
 							<div class="mt-2 text-[0.6rem] text-base-content/30 leading-relaxed">
-								Every CRUD mutation streams through PocketBase realtime, scoped to your own records. Open this page in two tabs to watch todos sync live.
+								Every CRUD mutation streams through the SSE Hub, scoped to your own records. Open this page in two tabs to watch todos sync live.
 							</div>
 						</div>
 					</div>
@@ -365,6 +365,7 @@ templ TodoList(signals todo.Signals) {
 										<span>Waiting for your next to-do. Add any task above to continue the workflow.</span>
 									</div>
 
+									<!-- trim:dagnats removes this entry button (the sole /api/onboarding ref; the gated panel/tab around it stay, mirroring runtime-disabled) -->
 									<button
 										class="btn btn-accent btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
 										data-attr:disabled="$onboardingActive && !$workflowCompleted"
@@ -412,7 +413,7 @@ templ TodoList(signals todo.Signals) {
 templ createForm(signals todo.Signals) {
 	<form
 		class="join w-full mb-4"
-		data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
+		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}); }"
 	>
 		<input
 			type="text"

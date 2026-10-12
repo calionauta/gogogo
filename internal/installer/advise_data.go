@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: advise data (presets, rules, stack signals)
+// SCOPE:plugin — installer engine: advise data (presets, rules, stack signals)
 package installer
 
 import "strings"
@@ -17,12 +17,12 @@ var advisePresets = []advisePreset{
 		},
 		Keep: []string{unitWhiteboard},
 		Note: "Single binary embeds NATS; multi-instance points at shared " +
-			"JetStream (docs/async-layers.md). Todo realtime stays " +
-			"regardless (PocketBase).",
+			"JetStream (docs/async-layers.md). Todo record sync stays " +
+			"regardless (SSE hub + stream re-list).",
 	},
 	{
 		Name: "realtime-transport",
-		Idea: "records via PB realtime, ephemeral via SSE hub, " +
+		Idea: "records via SSE stream re-list, ephemeral via SSE hub, " +
 			"cross-instance via JetStream — pick by traffic type",
 		Match: []string{
 			"transport", "broadcast", "websocket", "websockets",
@@ -33,7 +33,7 @@ var advisePresets = []advisePreset{
 		Note: "No single transport switch exists on purpose (records need " +
 			"per-user scoping, ephemeral needs fan-out). Matrix: " +
 			"docs/async-layers.md (Transport matrix). NATS_ENABLED=false " +
-			"is the cross-instance off switch; PB realtime is always on.",
+			"is the cross-instance off switch; the SSE record stream is always on.",
 	},
 	{
 		Name: "background-jobs",
@@ -75,11 +75,9 @@ var advisePresets = []advisePreset{
 		},
 		Keep: []string{
 			"offline-sync (runtime — enabled by default)",
-			"entity-store (runtime: ENTITY_STORE=pb|crdt)",
 		},
 		Note: "No trim involved: OFFLINE_SYNC_ENABLED=false is the off " +
-			"switch. CRDT store only when tabs must converge without a " +
-			"server round-trip.",
+			"switch.",
 	},
 	{
 		Name: "ai-features",
@@ -89,11 +87,12 @@ var advisePresets = []advisePreset{
 			unitCredits, "openai", "anthropic",
 			"generative", "genui", "assistant", "copilot",
 		},
-		Keep: []string{unitCredits},
+		Keep: []string{unitCredits, unitGenUI},
 		Note: "LLM itself is runtime (set GOAI_API_KEY); credits unit is " +
-			"the BYOK accounting. The Ask demo (features/genui, /genui) is " +
-			"the reference for model-rendered UI: catalog-constrained " +
-			"components over SSE, keyless demo via SIMULATE_LLM. " +
+			"the BYOK accounting, genui unit is the Ask + chat demos. Trim " +
+			"both (or the no-ai preset) for a tree with no model surface: " +
+			"catalog-constrained components over SSE, keyless demo via " +
+			"SIMULATE_LLM. " +
 			"Never commit a key — age file locally, " +
 			"provider secrets in prod.",
 	},
@@ -102,7 +101,8 @@ var advisePresets = []advisePreset{
 		Idea:  "read-only env and data views behind auth",
 		Match: []string{"admin", "config", "inspect", "dashboard", "observab"},
 		Keep:  []string{unitConfigView},
-		Note:  "Surfaces: /config (auth-gated env view), /_/ (PocketBase admin), /dagnats/ (workflow console).",
+		Note: "Surfaces: /config (auth-gated env view), /api/session " +
+			"(session probe for the shared banner), /dagnats/ (workflow console).",
 	},
 	{
 		Name: "marketing-site",
@@ -119,9 +119,9 @@ var advisePresets = []advisePreset{
 	{
 		Name:  "quiet-api",
 		Idea:  "delete the demo surfaces; keep auth, queue, router",
-		Match: []string{"api", "headless", "backend", "minimal", "embed", "library"},
+		Match: []string{"api", "headless", "backend", presetMinimal, "embed", "library"},
 		Keep:  []string{"(core only — auth middleware, queue, router)"},
-		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitSkinsExtra},
+		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitSkinsExtra, unitGenUI},
 		Note:  "Todo stays as the reference implementation — delete features/todo/ manually when done reading it.",
 	},
 	{
@@ -153,7 +153,7 @@ var adviseRules = []string{
 		"baseline benchmark is not a reason.",
 	"Prefer runtime switches over trim when unsure: NATS_ENABLED=false, " +
 		"DAGNATS_ENABLED=false, OFFLINE_SYNC_ENABLED=false, unset " +
-		"GOAI_API_KEY, ENTITY_STORE=pb|crdt, UI_SKIN. Trim deletes; " +
+		"GOAI_API_KEY, UI_SKIN. Trim deletes; " +
 		"switches flip back.",
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
@@ -171,7 +171,7 @@ var adviseRules = []string{
 		"`govulncheck ./...` before adding.",
 	"Fitting units to a use-case: docs/use-cases.md maps every " +
 		"core/plugin/feature to business-language cases, decision pairs " +
-		"(jobs vs workflows, pb vs crdt), and what has no unit yet " +
+		"(jobs vs workflows, sql rows vs crdt docs), and what has no unit yet " +
 		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
 }
 

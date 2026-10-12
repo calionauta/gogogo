@@ -1,0 +1,66 @@
+# Default Casbin policy, compiled into the binary via //go:embed.
+#
+# Subject is the coarse role resolved by the RBAC middleware
+# (internal/rbac/middleware.go) from the session, or "anonymous":
+#   admin      — users.role == 'admin' (promoted at boot from ADMIN_EMAILS)
+#   user       — any other authenticated user (unknown values included)
+#   anonymous  — no session
+#
+# Object is the request path (keyMatch2), action is the HTTP method
+# (regexMatch). Method checks inside feature routers stay theirs; this
+# policy gates/subtree access, not verbs.
+#
+# Fail-closed by construction: a route not listed here denies everyone
+# except admin. Adding a feature means adding its paths below (the
+# coverage test fails naming the gap).
+# This is a STARTING POINT: tune it for your app before enabling RBAC in
+# production (RBAC_ENABLED=true). The admin-only surface is /config (env
+# secrets view); everything else a login can reach, a user can reach.
+p, admin, /*, .*
+p, anonymous, /static/*, (GET|HEAD)
+p, anonymous, /sw.js, GET
+p, anonymous, /health, GET
+p, anonymous, /login, (GET|POST)
+p, anonymous, /logout, (GET|POST)
+p, anonymous, /, GET
+p, anonymous, /api/auth/*, .*
+p, anonymous, /api/session, GET
+p, user, /todo, .*
+p, user, /todo/*, .*
+p, user, /api/todos, .*
+p, user, /api/todos/*, .*
+p, user, /login, (GET|POST)
+p, user, /logout, (GET|POST)
+p, user, /whiteboard, .*
+p, user, /whiteboard/*, .*
+p, user, /api/whiteboard, .*
+p, user, /api/whiteboard/*, .*
+p, user, /api/whiteboards/*, .*
+p, user, /notes, .*
+p, user, /notes/*, .*
+p, user, /api/notes, .*
+p, user, /api/notes/*, .*
+p, user, /room, .*
+p, user, /room/*, .*
+p, user, /chat, .*
+p, user, /chat/*, .*
+p, user, /api/chat, .*
+p, user, /api/chat/*, .*
+p, user, /genui, .*
+p, user, /genui/*, .*
+p, user, /api/genui, .*
+p, user, /api/genui/*, .*
+p, user, /api/credits, .*
+p, user, /api/credits/*, .*
+p, user, /api/ai/*, .*
+p, user, /api/byok/*, .*
+p, user, /api/onboarding, .*
+p, user, /api/onboarding/*, .*
+p, user, /api/session, GET
+p, user, /static/*, (GET|HEAD)
+p, user, /sw.js, GET
+p, user, /health, GET
+p, user, /, GET
+p, user, /api/auth/*, .*
+p, admin, /config, .*
+p, admin, /config/, .*

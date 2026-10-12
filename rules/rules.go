@@ -118,17 +118,15 @@ func TickerLoopWithoutExit(m dsl.Matcher) {
 }
 
 // Scope: the repo has ZERO legitimate sql.Open("sqlite") (checked
-// repo-wide — every open uses the ncruces "sqlite3" name). Opening the
-// modernc "sqlite" name beside it would create a second pool against the
-// same files plus version-check coupling (PB warns when modernc versions
-// drift), for no benefit: both drivers are CGO-free and cross-compile.
-// PocketBase itself blank-imports modernc and DefaultDBConnect opens it,
-// so the dependency stays — this rule only forbids OUR code from
-// instantiating it. Proven by spike (both drivers registered, modernc
-// path live): removal is not an option, single-driver discipline is.
+// repo-wide — the app database opens the tursogo "turso" driver in
+// internal/db, and the ncruces "sqlite3" driver covers the test/gui
+// paths). The modernc "sqlite" driver is not a dependency anymore, so
+// opening that name would fail at runtime — and were it reintroduced
+// beside the others it would create a second pool against the same
+// files. This rule keeps OUR code from instantiating it.
 func ModerncDriverOpen(m dsl.Matcher) {
 	m.Match(`sql.Open("sqlite", $dsn)`).
-		Report(`sql.Open("sqlite") instantiates the modernc driver beside the ncruces "sqlite3" pool — two pools, one set of files, plus PB version-check coupling. Open "sqlite3" (see db/pocketbase.go)`)
+		Report(`sql.Open("sqlite") instantiates the modernc driver, which is not a dependency of this repo — the app database opens "turso" (see internal/db) and test/gui paths open "sqlite3". A second pool against the same files is never what you want.`)
 }
 
 // RawInternalString flags `c.String(statusInternal, ...)` in the todo
@@ -171,4 +169,24 @@ func LeakedErrText500(m dsl.Matcher) {
 func LeakedErrText500HTTP(m dsl.Matcher) {
 	m.Match(`c.String(http.StatusInternalServerError, $msg + $e.Error())`).
 		Report(`500 body concatenates err.Error() — the internal text ships to the client. Log it server-side and return a static public message`)
+}
+
+// SlogBypassesObservability flags bare `slog.Error/Warn` inside HTTP slices
+// (features/*/chi, non-test): request-scoped failures must carry the request
+// context (component tag + trace) via internal/observability, not a bare
+// package-level log that drops both. Helpers take ctx as a parameter for
+// exactly this reason (mustJSON, send, peerLeave, fail).
+//
+// Scope is DELIBERATELY Error/Warn-only in chi slices. Info/Debug stay free
+// (boot chatter, progress), and packages outside HTTP slices (queue workers
+// without a request,-ele installers, CLIs) keep plain slog — there is no
+// request context to carry there, so forcing observability would only add
+// `context.Background()` noise. PkgPath (not file name) scopes the rule so
+// a same-named file elsewhere never matches.
+func SlogBypassesObservability(m dsl.Matcher) {
+	m.Match(`slog.$Level($*_)`).
+		Where(m["Level"].Text.Matches(`^(Error|Warn)$`) &&
+			m.File().PkgPath.Matches(`features/[a-z0-9]+/chi`) &&
+			!m.File().Name.Matches(`_test\.go`)).
+		Report(`bare slog.$Level in an HTTP slice drops the request context — use observability.$Level with ctx (see internal/observability)`)
 }

@@ -8,7 +8,8 @@
 #     bin/gogogo        (chmod 755, replaced on every deploy)
 #     compose/docker-compose.prod.yml   (replaced on every deploy)
 #     env/.env                  (committed to repo, no secrets)
-#     data/pb_data/             (gitignored, persistent volume)
+#     data/                   (gitignored, persistent volume: app.db,
+#                              queue.db, nats/, dagnats/)
 #   /home/deploy/.secrets/gogogo.env  (mode 600, rendered every deploy from
 #                                   GH Secrets; the compose env_file points
 #                                   here. Never committed.)
@@ -35,7 +36,7 @@ COMPOSE_DIR="${APP_DIR}/compose"
 # keep this path in sync with the compose file.
 SECRETS_DIR="/home/deploy/.secrets"
 SECRETS_FILE="${SECRETS_DIR}/${PROJECT}.env"
-# Bind mount location for PocketBase SQLite WAL files. Must match
+# Bind mount location for the app SQLite files. Must match
 # the host path inside deploy/docker-compose.prod.yml.
 #
 # IMPORTANT: lives under the deploy user home (owned by deploy), NOT
@@ -84,7 +85,7 @@ if [ -f "${SECRETS_FILE}" ]; then
     echo "→ Secrets file mode set to 0600"
 fi
 
-# ── 4. Data dir ownership (PocketBase writes here) ──
+# ── 4. Data dir ownership (the app writes here) ──
 # The compose file bind-mounts ${DATA_DIR} (host) onto
 # /var/lib/${PROJECT}/data (container). The deploy user is non-root
 # and CANNOT chown to an arbitrary UID (65532). We therefore grant the
@@ -93,7 +94,7 @@ fi
 #      (harmless no-op otherwise).
 #   2. Prefer an ACL granting uid 65532 rwx (no other users affected),
 #      applied RECURSIVELY (-R) with a DEFAULT acl (-d) so subdirs the
-#      app or the calling workflow pre-create (e.g. data/pb_data) also
+#      app or the calling workflow pre-create also
 #      grant uid 65532 rwx. Without this the container (running as
 #      65532) cannot write its SQLite WAL files and crashes with
 #      permission denied.
@@ -103,7 +104,7 @@ if sudo -n true 2>/dev/null; then
     sudo -n chown -R 65532:65532 "${DATA_DIR}" 2>/dev/null || true
 fi
 if command -v setfacl >/dev/null 2>&1; then
-    # Recurse so existing deploy-owned subdirs (e.g. data/pb_data) get
+    # Recurse so existing deploy-owned subdirs get
     # the ACL + default ACL (new files inherit 65532 rwx). Errors on
     # container-owned .db files are expected (deploy can't chown/chmod
     # them) and harmless — those files are already owned by 65532 and

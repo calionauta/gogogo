@@ -177,8 +177,9 @@ func TestRunAdviseDispatch(t *testing.T) {
 //
 // A Go need that constrains itself to the standard library cannot use any
 // capability (each is or pulls a dependency), so the 24-row table was both
-// useless and misleading: an LLM reading it would recommend PocketBase for a
-// task whose spec forbids it. The scope now says so explicitly instead.
+// useless and misleading: an LLM reading it would recommend a managed
+// realtime backend for a task whose spec forbids it. The scope now says
+// so explicitly instead.
 func TestAdviseStdlibOnlyGoScope(t *testing.T) {
 	cases := []string{
 		"TCP RESP key-value server in Go, stdlib only, concurrent clients",
@@ -218,7 +219,7 @@ func TestAdviseStdlibOnlyGoScope(t *testing.T) {
 }
 
 // TestAdviseStdlibScopeDoesNotHijackTemplateNeeds is the reverse guard: the
-// stdlib scope must not swallow needs the template actually answers —
+// stdlib scope must not swallow needs the template actually answers
 // suppressing the capability table for someone who can use it is the most
 // expensive wrong answer this tool can give.
 func TestAdviseStdlibScopeDoesNotHijackTemplateNeeds(t *testing.T) {
@@ -245,7 +246,7 @@ func TestAdviseStdlibScopeDoesNotHijackTemplateNeeds(t *testing.T) {
 // TestAdviseConstraintNeedsStayOnGoScopes pins the post-detector ordering:
 // with no foreign branch left, a dependency constraint routes by the
 // constraint itself. "Rust server, no dependencies" cannot be answered as
-// Rust (nothing here knows Rust); it is answered as what it constrains to —
+// Rust (nothing here knows Rust); it is answered as what it constrains to
 // no template capabilities apply — with rules that no longer assume Go.
 func TestAdviseStdlibTextNamesTheMismatch(t *testing.T) {
 	out, err := Advise("Go CLI, no dependencies", planFormatText, "")

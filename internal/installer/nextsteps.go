@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — installer engine: post-scaffold next steps
+// SCOPE:plugin — installer engine: post-scaffold next steps
 package installer
 
 import (
@@ -18,7 +18,7 @@ func buildNextSteps(dir string, dropped []trimUnit) nextSteps {
 		App:   "http://localhost:8080 (PORT overrides)",
 		Todo:  "http://localhost:8080/todo",
 		Login: "demo1@demo.app and demo2@demo.app / demo1234456 (demo1 prefilled; open a second browser for contention)",
-		Admin: "http://localhost:8080/_/ (PocketBase — create the superuser on first visit)",
+		Admin: "http://localhost:8080/config (auth-gated env view — sign in first)",
 		Flows: "http://localhost:8080/dagnats/ (DagNats console)",
 	}
 	for _, u := range dropped {

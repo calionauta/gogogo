@@ -11,7 +11,7 @@ import (
 )
 
 // fakePersister records snapshots by docID so the test can assert the
-// SyncWorker converged + persisted without a real PocketBase.
+// SyncWorker converged + persisted without a real database.
 type fakePersister struct {
 	mu        sync.Mutex
 	snapshots map[string][]byte

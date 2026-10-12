@@ -17,6 +17,51 @@ import (
 
 var apiRefRE = regexp.MustCompile(`['"](/api/[^'"?]*)/?[^'"]*['"]`)
 
+// TestRegisteredAPIRoutesExcludesInstallerData pins the inventory's
+// honesty: the installer's own trim manifest names routes in its strip
+// literals (data, not served routes). Without the internal/installer
+// exclusion, every route-removing trim leaves its literals in the
+// regenerated doc and claims unserved routes — the whiteboard trim proved
+// it (sw.js refs covered by manifest literals, gate green on a broken
+// tree). Delete the exclusion and this fails.
+func TestRegisteredAPIRoutesExcludesInstallerData(t *testing.T) {
+	dir := t.TempDir()
+	writeGo := func(rel, body string) {
+		t.Helper()
+		p := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tree := range []string{"features", "internal", "cmd", "web"} {
+		if err := os.MkdirAll(filepath.Join(dir, tree), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeGo("internal/installer/trim_x.go",
+		"package installer\n\nvar x = `mux.Handle(\"/api/ghost/\", h.Routes())`\n")
+	writeGo("features/x/x.go",
+		"package x\n\nconst route = \"/api/real/\"\n")
+	routes := registeredAPIRoutes(t, dir)
+	for _, r := range routes {
+		if r == "/api/ghost/" {
+			t.Errorf("installer strip-literal %q inventoried as a route", r)
+		}
+	}
+	found := false
+	for _, r := range routes {
+		if r == "/api/real/" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("feature literal missing from inventory: %v", routes)
+	}
+}
+
 // TestTemplAPIURLsHaveRoutes pins the .templ → Go route contract: every
 // /api/* URL a template fires must match a route registered in Go.
 // A renamed handler without its template is otherwise a silent dead
@@ -71,10 +116,18 @@ func registeredAPIRoutes(t *testing.T, root string) []string {
 	defer func() { _ = rootFS.Close() }()
 	litRE := regexp.MustCompile(`"/api/[^"]*"`)
 	seen := map[string]bool{}
-	for _, tree := range []string{"features", "router", "internal"} {
+	for _, tree := range []string{"features", "internal", "cmd", "web"} {
 		err := filepath.WalkDir(filepath.Join(root, tree), func(p string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err
+			}
+			// The installer's own trim manifest names routes in its strip
+			// literals (data, not served routes): without this skip every
+			// route-removing trim leaves its literals in the inventory and
+			// the regenerated doc claims unserved routes.
+			if rel, rerr := filepath.Rel(root, p); rerr == nil &&
+				strings.HasPrefix(filepath.ToSlash(rel), "internal/installer/") {
+				return nil
 			}
 			name := d.Name()
 			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") ||

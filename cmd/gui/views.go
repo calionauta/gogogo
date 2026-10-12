@@ -1,7 +1,7 @@
-// SCOPE:layer=feature,removal=feature — gogpu/ui view builders for the POC
+// SCOPE:feature — gogpu/ui view builders for the native window
 //
 // Plain widgets only: Text, TextField, Button, Checkbox, Box. No canvas,
-// no custom drawing — the point of the POC is the backend wiring, and a
+// no custom drawing — the point of the native window is the backend wiring, and a
 // hand-rolled canvas would test gogpu's renderer instead.
 //
 // THREADING: builders run on the UI thread (event callbacks and the

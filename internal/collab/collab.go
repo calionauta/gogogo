@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
+// SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
 // To remove: delete internal/collab/ + features/whiteboard/ + router/whiteboard.go + router/collab_jetstream.go.
 // Package collab wraps the Loro CRDT for collaborative features
 // (whiteboard, shared docs). This is the local CRDT model; transport
@@ -50,7 +50,7 @@ func (d *Doc) ApplyUpdate(update []byte) error {
 }
 
 // EncodeSnapshot returns a self-contained snapshot of the full doc state.
-// Used to bootstrap a peer or to persist the resolved state to PocketBase.
+// Used to bootstrap a peer or to persist the resolved state to the snapshot store.
 func (d *Doc) EncodeSnapshot() []byte {
 	d.mu.Lock()
 	defer d.mu.Unlock()

@@ -1,4 +1,4 @@
-// SCOPE:layer=infra,removal=plugin — GoAkt room grain tests.
+// SCOPE:plugin — GoAkt room grain tests.
 package goakt
 
 import (
