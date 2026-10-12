@@ -101,9 +101,8 @@ var envMap = map[string]map[string]string{
 		"Dev":          "ENVIRONMENT",
 	},
 	groupStorage: {
-		keyDBPath:       "DATABASE_PATH",
-		keyDataDir:      "DATA_DIR",
-		"EncryptionKey": "ENCRYPTION_KEY",
+		keyDBPath:  "DATABASE_PATH",
+		keyDataDir: "DATA_DIR",
 	},
 	groupAdmin: {
 		"AdminToken": "ADMIN_UNLOCK_TOKEN",

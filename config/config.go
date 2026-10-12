@@ -8,9 +8,8 @@
 //	APP_NAME            (default: binary name)   — project name (secrets scope)
 //	LOG_LEVEL           (default: "INFO")
 //	DATABASE_PATH       (default: "data/data.db") — the SQLite file the
-//	                    credits ledger shares with PocketBase (see DATA_DIR)
+//	                    credits ledger opens (second connection, see DATA_DIR)
 //	DATA_DIR            (default: "data")
-//	ENCRYPTION_KEY      (default: "") — PocketBase encryption key
 //	ADMIN_UNLOCK_TOKEN  (default: "") — master password for admin endpoints
 //	GOAI_API_KEY        (default: "") — LLM provider API key
 //	GOAI_BASE_URL       (default: "https://api.openai.com/v1") // LLM base URL
@@ -95,9 +94,8 @@ type Config struct {
 	LogLevel string
 	Dev      bool
 
-	DBPath        string
-	DataDir       string
-	EncryptionKey string
+	DBPath  string
+	DataDir string
 
 	// AdminToken, when non-empty, unlocks the admin endpoints (e.g. the
 	// Todo "clear all" via token). Loaded from the age-decrypted
@@ -291,17 +289,16 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		AppName:       appName,
-		BuildLabel:    getEnv("BUILD_LABEL", "dev"),
-		BuildCommit:   getEnv("BUILD_COMMIT", ""),
-		Host:          getEnv("HOST", "0.0.0.0"),
-		Port:          port,
-		LogLevel:      getEnv("LOG_LEVEL", "INFO"),
-		Dev:           dev,
-		DBPath:        getEnv("DATABASE_PATH", "data/data.db"),
-		DataDir:       getEnv("DATA_DIR", "data"),
-		EncryptionKey: os.Getenv("ENCRYPTION_KEY"),
-		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
+		AppName:     appName,
+		BuildLabel:  getEnv("BUILD_LABEL", "dev"),
+		BuildCommit: getEnv("BUILD_COMMIT", ""),
+		Host:        getEnv("HOST", "0.0.0.0"),
+		Port:        port,
+		LogLevel:    getEnv("LOG_LEVEL", "INFO"),
+		Dev:         dev,
+		DBPath:      getEnv("DATABASE_PATH", "data/data.db"),
+		DataDir:     getEnv("DATA_DIR", "data"),
+		AdminToken:  os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{
 			APIKey: os.Getenv("GOAI_API_KEY"),
 		},

@@ -23,45 +23,47 @@ import (
 	"github.com/calionauta/gogogo/config"
 )
 
-// TestBuildPageData_MasksEncryptionKey asserts that the literal
-// encryption key never appears in the rendered Display string when
-// set, and that an unset value stays empty (not "***").
-func TestBuildPageData_MasksEncryptionKey(t *testing.T) {
+// TestBuildPageData_MasksAdminToken asserts that the literal admin
+// token never appears in the rendered Display string when set, and that
+// an unset value stays empty (not "***"). AdminToken is the representative
+// secret for the masking mechanism (the PB-era EncryptionKey row is gone
+// with the framework).
+func TestBuildPageData_MasksAdminToken(t *testing.T) {
 	cfg := &config.Config{
 		AppName:    "test-app",
 		BuildLabel: "test",
 	}
-	cfg.EncryptionKey = "supersecret-encryption-key-32bytes!"
+	cfg.AdminToken = "supersecret-admin-token-32bytes!"
 
 	pd := BuildPageData(cfg)
 
-	row := findRow(t, pd, "storage", "EncryptionKey")
+	row := findRow(t, pd, "admin", "AdminToken")
 	if row.Set != true {
-		t.Fatalf("EncryptionKey should be marked Set")
+		t.Fatalf("AdminToken should be marked Set")
 	}
 	if row.Masked != true {
-		t.Fatalf("EncryptionKey row must be Masked")
+		t.Fatalf("AdminToken row must be Masked")
 	}
 	if strings.Contains(row.Display, "supersecret") {
-		t.Fatalf("EncryptionKey Display leaks raw value: %q", row.Display)
+		t.Fatalf("AdminToken Display leaks raw value: %q", row.Display)
 	}
 	if row.Display == "" || row.Display == "***" {
-		t.Fatalf("EncryptionKey Display should have a partial mask, got %q", row.Display)
+		t.Fatalf("AdminToken Display should have a partial mask, got %q", row.Display)
 	}
 }
 
-// TestBuildPageData_EmptyEncryptionKeyStaysEmpty asserts that
+// TestBuildPageData_EmptyAdminTokenStaysEmpty asserts that
 // "unset" and "set" render differently — operators must be able
 // to distinguish them.
-func TestBuildPageData_EmptyEncryptionKeyStaysEmpty(t *testing.T) {
+func TestBuildPageData_EmptyAdminTokenStaysEmpty(t *testing.T) {
 	cfg := &config.Config{AppName: "test-app", BuildLabel: "test"}
 	pd := BuildPageData(cfg)
-	row := findRow(t, pd, "storage", "EncryptionKey")
+	row := findRow(t, pd, "admin", "AdminToken")
 	if row.Set {
-		t.Fatalf("EncryptionKey should not be Set when empty")
+		t.Fatalf("AdminToken should not be Set when empty")
 	}
 	if row.Display != "" {
-		t.Fatalf("EncryptionKey Display should be empty when unset, got %q", row.Display)
+		t.Fatalf("AdminToken Display should be empty when unset, got %q", row.Display)
 	}
 }
 
