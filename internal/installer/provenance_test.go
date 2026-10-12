@@ -29,7 +29,7 @@ func TestCheckAcceptsDeliberatelyTrimmedTree(t *testing.T) {
 	dir := t.TempDir()
 	scaffoldMinimalTree(t, dir)
 	// The tree records that whiteboard was removed on purpose.
-	if err := writeAgents(dir, "my-app", []string{"whiteboard"}); err != nil {
+	if err := writeAgents(dir, "my-app", []trimUnit{findUnit(t, "whiteboard")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -144,7 +144,7 @@ func scaffoldMinimalTree(t *testing.T, dir string) {
 func TestWriteAgentsPointsUpstream(t *testing.T) {
 	dir := t.TempDir()
 	// Sorted, as removedIDs produces it in the real apply path.
-	if err := writeAgents(dir, "my-app", []string{"sounds", "whiteboard"}); err != nil {
+	if err := writeAgents(dir, "my-app", []trimUnit{findUnit(t, "sounds"), findUnit(t, "whiteboard")}); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))

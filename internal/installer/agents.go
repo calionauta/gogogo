@@ -44,22 +44,29 @@ later, follow docs/scope-taxonomy.md#removing-a-component and prove with
 go build ./cmd/web.
 
 removed: __REMOVED__
+removed-paths: __REMOVED_PATHS__
 
 That removed: line is machine-read, not decoration: gogogo --check --dir . uses
 it to tell a deliberately trimmed tree (CHECK-TRIMMED, exit 0) apart from real
 manifest drift (CHECK-FAIL, exit 1). Keep it in sync if you remove units by
-hand; a tree with no removed: line is checked strictly.
+hand; a tree with no removed: line is checked strictly. The removed-paths:
+line lists the repo-relative dirs and files those units owned (same
+machine-read contract): the registry conformance tests skip exactly those
+paths, so a trimmed tree stays green instead of reporting its own deliberate
+removals as missing.
 `
 
-func writeAgents(dir, projectName string, removed []string) error {
+func writeAgents(dir, projectName string, drop []trimUnit) error {
 	out := strings.ReplaceAll(agentsTemplate, "__PROJECT__", projectName)
-	// "none" rather than an empty string, so the line is always parseable and
-	// always present — an empty value would read as a missing section.
-	list := "none"
+	// "none" rather than an empty string, so the lines are always parseable
+	// and always present — an empty value would read as a missing section.
+	removed := removedIDs(drop)
+	list := keepNone
 	if len(removed) > 0 {
 		list = strings.Join(removed, ", ")
 	}
 	out = strings.ReplaceAll(out, "__REMOVED__", list)
+	out = strings.ReplaceAll(out, "__REMOVED_PATHS__", removedPaths(drop))
 	t, err := openTree(dir)
 	if err != nil {
 		return err

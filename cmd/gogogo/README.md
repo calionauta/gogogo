@@ -110,6 +110,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
 | `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch blocks + imports stripped from `features/todo/chi/pages.go` + `features/todo/chi/chi.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
+| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; navbar Ask AI link stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`
@@ -129,10 +130,11 @@ env-blessed with the reason recorded.
 | Durable workflows (DagNats) | `DAGNATS_ENABLED=false` | `internal/dagnats/` + onboarding wiring | ✅ `dagnats` |
 | Entity actors (GoAkt rooms) | `GOAKT_ENABLED=false` | `internal/goakt/` + room demo | ✅ `goakt` |
 | Realtime (NATS JetStream) | `NATS_ENABLED=false` (in-memory fallback) | Manual — 15+ importers (`internal/nats` in handlers, collab, server, desktop); handler signatures carry NATS types | ❌ env-blessed (cascade too wide for line strips) |
-| Collaboration (Loro CRDT) | — (no servers at boot) | Bundled with `whiteboard` (see bundle rationale in manifest) | ✅ inside `whiteboard` |
+| Collaboration (Loro CRDT) | — (no servers at boot; `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode) | Bundled with `whiteboard` (see bundle rationale in manifest) | ✅ inside `whiteboard` |
 | Todo realtime (SSE Hub) | — (part of the Hub) | With `features/todo/` (manual, it is the reference) | ❌ |
 | LLM suggest (GoAI) | Unset `GOAI_API_KEY` (button hides) | Manual — handler + stepper UI live inside `features/todo` | ❌ env-blessed |
 | AI credits + BYOK | `CREDITS_ENABLED=false` (default) | `features/credits/` + wiring | ✅ `credits` |
+| Generative UI + chat | Unset `GOAI_API_KEY` (Ask shows unconfigured; chat stub in tests) | `features/genui/` + `features/chat/` + wiring | ✅ `genui` |
 | Offline sync | `OFFLINE_SYNC_ENABLED=false` | Manual — `config` struct field + `sw.js` + templ SW registration | ❌ env-blessed (struct-field cascade) |
 | UI skins | `UI_SKIN=daisyui` / `?skin=` | `web/skins/<name>/` + dispatch branches | ✅ `skins-extra` (non-default skins) |
 | Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |

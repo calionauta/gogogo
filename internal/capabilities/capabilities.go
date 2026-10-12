@@ -175,7 +175,10 @@ var All = []Capability{
 		Summary: "Loro CRDT transport: DocStore, sync workers, presence",
 		Dirs:    []string{"internal/collab"},
 		Note: "Shared by whiteboard + notes on the flat stack (their chi " +
-			"slices wire the transport). Files is empty on purpose: the " +
+			"slices wire the transport). Snapshot durability is runtime: " +
+			"COLLAB_SNAPSHOTS=memory keeps snapshots process-local (draw " +
+			"without Turso writes; docs start empty after a restart). " +
+			"Files is empty on purpose: the " +
 			"importers outside internal/collab are EDITED (line drops), " +
 			"never deleted — internal/server/chi.go is core.",
 		Reason: "Bundled into the whiteboard unit: whiteboard embeds collab " +
@@ -196,8 +199,23 @@ var All = []Capability{
 		ID:      "genui",
 		Kind:    KindPlugin,
 		Summary: "generative UI: LLM answers render as Templ directives over the SSE hub",
+		Offered: true,
 		Dirs:    []string{"features/genui"},
-		Reason:  "No installer unit yet: nothing to trim, nothing to add back — the directives ride the queue's SSE Hub.",
+		Files: []string{
+			// Owned by no dir: the composition test's model stubs are only
+			// used by the genui/chat constructions — trimming the unit must
+			// delete them too, or the trimmed tree keeps dead code that
+			// trips the deadcode gate (same shape as the dagnats Files).
+			"internal/server/genui_stubs_test.go",
+		},
+		Warns: []string{
+			"ci-local smoke: export SMOKE_FEATURES without genui " +
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
+		},
+		Note: "Deletion removes the Ask demo + chat demo (one bundle: chat " +
+			"imports genui components, so chat without genui does not " +
+			"compile — same honest shape as whiteboard+collab+notes). " +
+			"The navbar Ask AI link is stripped automatically.",
 	},
 	{
 		ID:      "components",
@@ -272,7 +290,10 @@ var All = []Capability{
 		Summary:   "conversation demo (persisted history + catalog answers on genui)",
 		DependsOn: []string{"genui"},
 		Dirs:      []string{"features/chat"},
-		Reason:    "No installer unit yet: nothing to trim, nothing to add back — same envelope rides the queue's SSE Hub.",
+		Reason: "Bundled into the genui unit: chat imports genui components " +
+			"(no-compile without it) and genui without chat is unproven " +
+			"surface — one unit is the honest shape, same as " +
+			"whiteboard+collab+notes.",
 	},
 	{
 		ID:         "goakt",

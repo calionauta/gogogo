@@ -43,7 +43,6 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
-	"github.com/calionauta/gogogo/internal/demo"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
@@ -178,6 +177,7 @@ func bootCredits(
 // the returned stack serves its mux and has cross-instance sync off
 // until AttachJetStream runs. js-free by design — the engine owns the
 // NATS, so JetStream is attached after boot, never passed into it.
+
 func BootChi(cfg *config.Config) (*ChiStack, error) {
 	sqlDB, err := db.Open(cfg)
 	if err != nil {
@@ -193,14 +193,22 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
-	// Fresh-install contract: the demo account the login form advertises
-	// (the legacy db.SeedDefaults pair). Idempotent Signup, so every boot
-	// after the first is a no-op.
-	demoCtx, cancelDemo := context.WithCancel(context.Background())
-	demo.Ensure(demoCtx, a)
-	cancelDemo()
+	// Fresh-install contract: the demo account the login form advertises.
+	// Idempotent Signup, so every boot after the first is a no-op.
+	seedDemoAccounts(a)
+	// At-rest TOTP encryption is opt-in by env (AUTH_ENC_KEY): a malformed
+	// key fails the boot rather than running half-encrypted.
+	if kerr := wireTOTPKey(a, cfg.Auth.TOTPEncKey); kerr != nil {
+		_ = sqlDB.Close()
+		return nil, kerr
+	}
 
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
+	// Retained (not passed anywhere here): the engine boots below
+	// (DagNats, GoAkt, credits) take bootCtx, and their trims drop those
+	// lines — combined trims would otherwise leave bootCtx unused, which
+	// does not compile. One explicit use keeps every composition green.
+	_ = bootCtx
 
 	hub := queue.NewSSEHub()
 	queries := dbgen.New(sqlDB)
@@ -220,7 +228,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
 	}
 
-	// Chi-owned queue: chat/genui workers run here so they never compete
+	// Chi-owned queue: feature workers run here so they never compete
 	// with the other stack's workers for the same jobs.
 	chiQ, qerr := queue.NewAt(filepath.Join(cfg.DataDir, "chi"))
 	if qerr != nil {
@@ -236,7 +244,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		simulatedLLM = llm.NewSimulated()
 	}
 	chatH := chatchi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
-		chatstore.NewMemStore(), chiChatResponder(realLLM, simulatedLLM))
+		chatstore.NewMemStore(), chatchi.ResponderFromLLM(realLLM, simulatedLLM))
 	chatH.RegisterHandlers(chiQ.Registry())
 	genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
 		comp.NewResponder(realLLM, simulatedLLM))
@@ -255,11 +263,11 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return nil, err
 	}
 
-	persister, perr := collab.NewTursoPersister(queries)
+	persister, perr := collab.SnapshotStore(cfg.Collab.Snapshots, queries)
 	if perr != nil {
 		cancelConsumer()
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("server: chi snapshots: %w", perr)
+		return nil, perr
 	}
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
@@ -333,22 +341,6 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 	}
 	stack.AttachJetStream(context.Background(), js)
 	return stack.Serve(cfg.ChiAddr)
-}
-
-// chiChatResponder bridges the genui model leg to the chat Responder:
-// identical method shape, distinct named types so neither feature imports
-// the other's handler.
-func chiChatResponder(real, simulated *llm.Client) chatstore.Responder {
-	return chiResponderAdapter{inner: comp.NewResponder(real, simulated)}
-}
-
-// chiResponderAdapter adapts comp.Responder to the chat store seam.
-type chiResponderAdapter struct {
-	inner comp.Responder
-}
-
-func (ad chiResponderAdapter) Respond(ctx context.Context, prompt string) (string, error) {
-	return ad.inner.Respond(ctx, prompt)
 }
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the

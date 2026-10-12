@@ -1,11 +1,20 @@
 // SCOPE:plugin — installer engine: the feature trim units (data only)
 //
-// Whiteboard, landing, config-view and credits: each wires into the flat
+// Whiteboard, landing, config-view, credits and genui: each wires into the
 // composition root, so their trims edit the shared signature, call site and
 // composition test. Grouped here so manifest_units.go stays under the
 // file-sizes gate; the grouping is by size, not by domain.
 
 package installer
+
+// 404-pin replacements shared by the route-removing units: without the
+// route the mux contract test must assert absence ("not here" beats a dead
+// route answering anything else). Consts, not literals — one per distinct
+// shape the test pins (goconst enforces it).
+const (
+	muxWant404    = "want 404"
+	muxGoneStatus = "http.StatusNotFound"
+)
 
 var featureTrimUnits = []trimUnit{
 	{
@@ -61,6 +70,19 @@ var featureTrimUnits = []trimUnit{
 					"notesachi.NewHandler(",
 				},
 			},
+			{
+				// The Service Worker intercepts every /api/* fetch: its
+				// stream-exclusion list names the notes/whiteboard streams,
+				// so the lines go with the unit — otherwise the shipped SW
+				// watches routes nothing serves (and the route gate fails
+				// the trimmed tree for exactly that). One-way (sw.js has
+				// no add anchor): re-add by hand, see addFollowUps.
+				path: "web/resources/static/sw.js",
+				substrs: []string{
+					`"/api/notes/", // notes`,
+					`"/api/whiteboard/" // whiteboard`,
+				},
+			},
 		},
 		replaces: []fileReplace{
 			{
@@ -111,7 +133,7 @@ var featureTrimUnits = []trimUnit{
 				path: chiGoFile,
 				rules: []stripRule{
 					{
-						startMarker: "persister, perr := collab.NewTursoPersister(queries)",
+						startMarker: "persister, perr := collab.SnapshotStore(cfg.Collab.Snapshots, queries)",
 						endMarker:   "docs.SetPersister(persister)",
 					},
 				},
@@ -161,6 +183,22 @@ var featureTrimUnits = []trimUnit{
 				old:         `href="/"`,
 				newStr:      `href="/todo"`,
 			},
+			{
+				// Landing owned the only root route: without it GET /
+				// 404s (pinned here, warned in the capability). One-way
+				// (add leaves the 404 pin): re-assert 200 by hand, see
+				// addFollowUps.
+				path:        chiTestFile,
+				matchSubstr: "landingRec.Code != http.StatusOK",
+				old:         "http.StatusOK",
+				newStr:      muxGoneStatus,
+			},
+			{
+				path:        chiTestFile,
+				matchSubstr: "mux GET / status = %d, want 200",
+				old:         "want 200",
+				newStr:      muxWant404,
+			},
 		},
 	},
 	{
@@ -195,6 +233,25 @@ var featureTrimUnits = []trimUnit{
 						endMarker:   `}>Config</a>`,
 					},
 				},
+			},
+		},
+		replaces: []fileReplace{
+			{
+				// The mux contract test pins anon /config as an auth
+				// redirect (303). Without the unit the route must 404
+				// (same rule as credits/landing: absence says "not
+				// here"). One-way (add leaves the 404 pin): re-assert
+				// 303 by hand, see addFollowUps.
+				path:        chiTestFile,
+				matchSubstr: "configRec.Code != http.StatusSeeOther",
+				old:         "http.StatusSeeOther",
+				newStr:      muxGoneStatus,
+			},
+			{
+				path:        chiTestFile,
+				matchSubstr: "mux anon /config status = %d, want 303",
+				old:         "want 303",
+				newStr:      muxWant404,
 			},
 		},
 	},
@@ -245,6 +302,24 @@ var featureTrimUnits = []trimUnit{
 				old:         creditsCallLine,
 				newStr:      ")",
 			},
+			{
+				// The mux contract test pins the credits route present
+				// (anon → 401 JSON). Without the unit the route must 404 —
+				// a dead route answering anything else is worse than one
+				// that says "not here" (same rule as the room-disabled
+				// test). One-way (add leaves the 404 pin): re-assert 401
+				// by hand, see addFollowUps.
+				path:        chiTestFile,
+				matchSubstr: "creditsRec.Code != http.StatusUnauthorized",
+				old:         "http.StatusUnauthorized",
+				newStr:      muxGoneStatus,
+			},
+			{
+				path:        chiTestFile,
+				matchSubstr: "want 401 JSON",
+				old:         "want 401 JSON",
+				newStr:      muxWant404,
+			},
 		},
 		extraStrips: []fileStrip{
 			{
@@ -267,5 +342,72 @@ var featureTrimUnits = []trimUnit{
 			},
 		},
 		goModDrops: []string{"github.com/calionauta/ai-credits"},
+	},
+	{
+		id: unitGenUI,
+		// Bundle rationale lives in the genui capability entry: chat imports
+		// genui components (no-compile without it), so one unit is the only
+		// honest shape (see internal/capabilities).
+		extraDrops: []fileDrop{
+			{
+				path: chiGoFile,
+				substrs: []string{
+					// Constructions are two lines each (handler + model leg):
+					// both go, and add restores them as call lines.
+					"chatH := chatchi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
+					"chatstore.NewMemStore(), chatchi.ResponderFromLLM(realLLM, simulatedLLM))",
+					"genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
+					"comp.NewResponder(realLLM, simulatedLLM))",
+					"chatH.RegisterHandlers(chiQ.Registry())",
+					"genuiH.RegisterHandlers(chiQ.Registry())",
+					// One argument per line: each drop removes exactly its
+					// feature's line, and add restores them.
+					"chatH,",
+					"genuiH,",
+					`mux.Handle("/chat", chatH.Routes())`,
+					`mux.Handle("/chat/", chatH.Routes())`,
+					`mux.Handle("/api/chat/", chatH.Routes())`,
+					`mux.Handle("/genui", genuiH.Routes())`,
+					`mux.Handle("/genui/", genuiH.Routes())`,
+					`mux.Handle("/api/genui/", genuiH.Routes())`,
+					`chatchi "github.com/calionauta/gogogo/features/chat/chi"`,
+					`chatstore "github.com/calionauta/gogogo/features/chat/store"`,
+					`genuichi "github.com/calionauta/gogogo/features/genui/chi"`,
+					`comp "github.com/calionauta/gogogo/features/genui/components"`,
+					"chatH *chatchi.Handler,",
+					"genuiH *genuichi.Handler,",
+				},
+			},
+			{
+				// The server test's genui imports and handler constructions
+				// go as line drops (both call sites each); the mux table's
+				// "/chat" and "/genui" elements go too (one element per
+				// line, so combined trims stay order-independent). The
+				// model stubs go with the unit's Files entry (a file
+				// delete, not a strip — strips on chi_test.go have no
+				// add anchor).
+				path: chiTestFile,
+				substrs: []string{
+					`chatchi "github.com/calionauta/gogogo/features/chat/chi"`,
+					`chatstore "github.com/calionauta/gogogo/features/chat/store"`,
+					`genuichi "github.com/calionauta/gogogo/features/genui/chi"`,
+					"chatchi.NewHandler(",
+					"genuichi.NewHandler(",
+					"\t\t\"/chat\",",
+					"\t\t\"/genui\",",
+				},
+			},
+		},
+		extraStrips: []fileStrip{
+			{
+				path: navbarTempl,
+				rules: []stripRule{
+					{
+						startMarker: `<a href="/genui"`,
+						endMarker:   `}>Ask AI</a>`,
+					},
+				},
+			},
+		},
 	},
 }

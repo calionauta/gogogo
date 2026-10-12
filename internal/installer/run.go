@@ -20,6 +20,7 @@ type options struct {
 	owner    string
 	plugins  string
 	features string
+	preset   string
 	noTUI    bool
 	dir      string
 	yes      bool
@@ -76,6 +77,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	keep := parseKeep(opt.plugins, opt.features)
 	drop := planTrim(keep)
 	plan := buildPlan(opt.name, opt.owner, opt.dir, keep, drop, opt.dryRun)
+	plan.Preset = opt.preset
 	if opt.check {
 		return runCheck(opt, stdout)
 	}
@@ -118,6 +120,8 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	fs.StringVar(&opt.owner, "owner", "calionauta", "GitHub owner/org for the module path")
 	fs.StringVar(&opt.plugins, "plugins", "", "comma-separated plugins to KEEP (default: all; none drops all)")
 	fs.StringVar(&opt.features, "features", "", "comma-separated features to KEEP (default: all; none drops all)")
+	fs.StringVar(&opt.preset, "preset", "",
+		"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with --plugins/--features)")
 	fs.BoolVar(&opt.noTUI, "no-tui", false, "non-interactive mode (requires --name)")
 	fs.StringVar(&opt.dir, "dir", "", "target checkout directory (default: ./<name>)")
 	fs.BoolVar(&opt.yes, "yes", false, "apply without asking (agents: always pin this)")
@@ -164,6 +168,9 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 		return opt, err
 	}
 	if err := checkKeepIDs(opt.plugins, opt.features); err != nil {
+		return opt, err
+	}
+	if err := resolvePreset(&opt); err != nil {
 		return opt, err
 	}
 	if opt.dir == "" {
@@ -238,7 +245,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name, removedIDs(drop)); err != nil {
+	if err := writeAgents(opt.dir, opt.name, drop); err != nil {
 		return err
 	}
 	printReceiptText(stdout, rc)
@@ -277,7 +284,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name, removedIDs(drop)); err != nil {
+	if err := writeAgents(opt.dir, opt.name, drop); err != nil {
 		return err
 	}
 	// Silence prove chatter in JSON mode: discard its progress lines,
@@ -344,6 +351,18 @@ func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) e
 	if out, err := runIn(ctx, dir, "go", "mod", "tidy"); err != nil {
 		return &ExitError{code: 2, msg: fmt.Sprintf(
 			"go mod tidy failed (%v):\n%s", err, tailLines(string(out), proofTidyTailLines))}
+	}
+	// Route-removing trims stale the generated inventory: regenerate it so
+	// the scaffolded tree is green immediately instead of failing its own
+	// drift test on first run. Warn-only (like templ generate): the drift
+	// test names the exact regen command if this step ever misses.
+	fmt.Fprintln(stdout, "gogogo: prove: api-routes inventory …")
+	if out, err := runIn(ctx, dir, "go", "test", "./internal/capabilities/",
+		"-run", "TestApiRoutesDocFresh", "-update", "-count=1"); err != nil {
+		fmt.Fprintf(stdout,
+			"gogogo: WARN: api-routes regen failed (%v) — run "+
+				"`go test ./internal/capabilities/ -run TestApiRoutesDocFresh -update` manually:\n%s\n",
+			err, tailLines(string(out), proofTidyTailLines))
 	}
 	fmt.Fprintln(stdout, "gogogo: prove: go build ./cmd/web …")
 	tmp, err := os.CreateTemp("", "gogogo-proof-*")

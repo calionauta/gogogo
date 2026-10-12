@@ -22,6 +22,7 @@ const (
 	unitCredits    = "credits"
 	unitSounds     = "sounds"
 	unitSkinsExtra = "skins-extra"
+	unitGenUI      = "genui"
 )
 
 // unitCaps maps installer units to registry capability ids.
@@ -34,6 +35,7 @@ var unitCaps = map[string][]string{
 	unitCredits:    {"credits"},
 	unitSounds:     {"sounds"},
 	unitSkinsExtra: {"skins"},
+	unitGenUI:      {"genui", "chat"},
 }
 
 // scaffoldFileMode matches a git checkout: scaffolded repo files are 0644
@@ -222,6 +224,7 @@ func buildManifestUnits() []trimUnit {
 	order := []string{
 		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
 		unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
+		unitGenUI,
 	}
 	out := make([]trimUnit, 0, len(order))
 	for _, id := range order {
@@ -258,12 +261,15 @@ var baseTrimUnits = []trimUnit{
 			{
 				// The server test's room call sites go as line drops; the
 				// multi-line fakeRooms fixture goes as a block strip below.
+				// The mux table's "/room" element goes too (one element per
+				// line, so combined trims stay order-independent).
 				path: chiTestFile,
 				substrs: []string{
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
 					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
 					"nil, // roomHandler: engine disabled",
 					"roomchi.NewHandler(cfg, a, fakeRooms{}),",
+					"\t\t\"/room\",",
 				},
 			},
 		},

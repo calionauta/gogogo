@@ -219,6 +219,10 @@ func addSpans(t *treeFS, from, root string, u trimUnit, rc *AddReceipt) error {
 func addFollowUps(u trimUnit) []string {
 	var out []string
 	switch u.id {
+	case unitWhiteboard:
+		out = append(out,
+			"sw.js still skips the notes/whiteboard streams: re-add the "+
+				"two exclusion lines in web/resources/static/sw.js if the bundle is back.")
 	case unitSounds:
 		out = append(out,
 			"sounds has no UI until call sites return: re-add "+
@@ -228,7 +232,26 @@ func addFollowUps(u trimUnit) []string {
 	case unitLanding:
 		out = append(out,
 			"navbar brand still points at /todo: point it back at / "+
-				"if the landing page is the front door again.")
+				"if the landing page is the front door again.",
+			"TestBuildChiMux still pins GET / as 404: re-assert 200 in "+
+				"internal/server/chi_test.go now the route is back.")
+	case unitConfigView:
+		out = append(out,
+			"TestBuildChiMux still pins /config as 404: re-assert the 303 "+
+				"auth redirect in internal/server/chi_test.go now the route is back.")
+	case unitGoAkt:
+		out = append(out,
+			"TestBuildChiMux pins fewer demo routes: re-add \"/room\" to "+
+				"its target table in internal/server/chi_test.go if the engine is back.")
+	case unitCredits:
+		out = append(out,
+			"TestBuildChiMux still pins /api/credits as 404: re-assert "+
+				"401 JSON in internal/server/chi_test.go now the route is back.")
+	case unitGenUI:
+		out = append(out,
+			"TestBuildChiMux pins fewer demo routes: re-add \"/chat\", "+
+				"\"/genui\" to its target table in internal/server/chi_test.go "+
+				"if the bundle is the front door again.")
 	}
 	return out
 }

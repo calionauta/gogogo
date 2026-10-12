@@ -185,18 +185,6 @@ func (fakeRooms) Acquire(_ context.Context, _, _ string) (appgoakt.AcquireResult
 
 func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }
 
-// stubResponder answers model calls with fixed output.
-type stubResponder struct{ raw string }
-
-func (s stubResponder) Respond(context.Context, string) (string, error) { return s.raw, nil }
-
-// stubGenuiResponder answers Ask calls with an empty catalog.
-type stubGenuiResponder struct{}
-
-func (stubGenuiResponder) Respond(context.Context, string) (string, error) {
-	return `{"components":[]}`, nil
-}
-
 // chiQForTest opens an isolated queue (no workers needed for routing).
 func chiQForTest(t *testing.T) *queue.Queue {
 	t.Helper()
@@ -214,6 +202,9 @@ func chiQForTest(t *testing.T) *queue.Queue {
 // a dead route answering 502 is worse than a 404 that says "not here".
 func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	cfg := config.Load()
+	// Retained: combined trims drop every cfg consumer below (see the
+	// TestBuildChiMux retain for the rule).
+	_ = cfg
 	sqlDB, err := db.OpenAt(t.TempDir() + "/noroom.db")
 	if err != nil {
 		t.Fatalf("db open: %v", err)
@@ -265,6 +256,10 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	todoH := todochi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), "daisyui")
 	cfg := config.Load()
+	// Retained: combined trims (landing, config, room, chat, genui) drop
+	// every cfg consumer below, which would not compile. Same rule as the
+	// bootCtx retain in chi.go.
+	_ = cfg
 	persister, perr := collab.NewTursoPersister(dbgen.New(sqlDB))
 	if perr != nil {
 		t.Fatalf("persister: %v", perr)
@@ -320,7 +315,14 @@ func TestBuildChiMux(t *testing.T) {
 	if configRec.Code != http.StatusSeeOther {
 		t.Fatalf("mux anon /config status = %d, want 303", configRec.Code)
 	}
-	for _, target := range []string{"/room", "/chat", "/genui"} {
+	// One element per line, deliberately: trimming a demo drops its lines
+	// without touching its neighbours (same rule as the buildChiMux call
+	// sites — a shared line would make combined trims order-dependent).
+	for _, target := range []string{
+		"/room",
+		"/chat",
+		"/genui",
+	} {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil))
 		if rec.Code != http.StatusSeeOther {

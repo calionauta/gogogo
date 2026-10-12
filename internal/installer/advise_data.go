@@ -87,11 +87,12 @@ var advisePresets = []advisePreset{
 			unitCredits, "openai", "anthropic",
 			"generative", "genui", "assistant", "copilot",
 		},
-		Keep: []string{unitCredits},
+		Keep: []string{unitCredits, unitGenUI},
 		Note: "LLM itself is runtime (set GOAI_API_KEY); credits unit is " +
-			"the BYOK accounting. The Ask demo (features/genui, /genui) is " +
-			"the reference for model-rendered UI: catalog-constrained " +
-			"components over SSE, keyless demo via SIMULATE_LLM. " +
+			"the BYOK accounting, genui unit is the Ask + chat demos. Trim " +
+			"both (or the no-ai preset) for a tree with no model surface: " +
+			"catalog-constrained components over SSE, keyless demo via " +
+			"SIMULATE_LLM. " +
 			"Never commit a key — age file locally, " +
 			"provider secrets in prod.",
 	},
@@ -118,9 +119,9 @@ var advisePresets = []advisePreset{
 	{
 		Name:  "quiet-api",
 		Idea:  "delete the demo surfaces; keep auth, queue, router",
-		Match: []string{"api", "headless", "backend", "minimal", "embed", "library"},
+		Match: []string{"api", "headless", "backend", presetMinimal, "embed", "library"},
 		Keep:  []string{"(core only — auth middleware, queue, router)"},
-		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitSkinsExtra},
+		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitSkinsExtra, unitGenUI},
 		Note:  "Todo stays as the reference implementation — delete features/todo/ manually when done reading it.",
 	},
 	{

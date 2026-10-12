@@ -76,6 +76,14 @@ func registeredAPIRoutes(t *testing.T, root string) []string {
 			if err != nil || d.IsDir() {
 				return err
 			}
+			// The installer's own trim manifest names routes in its strip
+			// literals (data, not served routes): without this skip every
+			// route-removing trim leaves its literals in the inventory and
+			// the regenerated doc claims unserved routes.
+			if rel, rerr := filepath.Rel(root, p); rerr == nil &&
+				strings.HasPrefix(filepath.ToSlash(rel), "internal/installer/") {
+				return nil
+			}
 			name := d.Name()
 			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") ||
 				strings.HasSuffix(name, "_templ.go") {

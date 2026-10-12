@@ -131,6 +131,12 @@ func TestNoNewVanillaJS(t *testing.T) {
 		t.Errorf("vanilla JS outside the allowlist (route through Datastar or justify in vanillaAllow): %s", v)
 	}
 	for rel, needles := range vanillaAllow {
+		// Trim-aware: a trimmed tree deletes whole features, so an entry
+		// whose file is gone is coverage of nothing, not a stale row. Only
+		// present files can carry convertible vanilla.
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			continue
+		}
 		for _, a := range needles {
 			if !used[rel][a.needle] {
 				t.Errorf("stale allowlist entry (convert it and delete the row): %s: %s", rel, a.needle)
