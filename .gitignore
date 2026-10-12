@@ -121,3 +121,4 @@ site/sitemap.xml
 
 # Autoresearch session state (branch-local, never committed)
 .auto/
+check-flatdeps
