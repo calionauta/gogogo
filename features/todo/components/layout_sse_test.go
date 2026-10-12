@@ -9,7 +9,38 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 )
 
-// TestLayoutRendersSSEOpener is a regression guard for the realtime
+// TestLayoutReconnectsStreamOnOnline pins the offline-kill contract:
+// going offline tears down the SSE stream (the browser kills network
+// connections), and nothing reopens it on reconnect — the tab stays
+// deaf to broadcasts (replays included) until a visibility change or
+// reload. The opener script must therefore re-click on the window
+// 'online' event, mirroring the visibilitychange handler. Without it,
+// the offline-then-online flow converges server-side (row + queue
+// drain) but the originating tab keeps only its optimistic row.
+func TestLayoutReconnectsStreamOnOnline(t *testing.T) {
+	signals := todo.Signals{
+		Todos:            nil,
+		Filter:           "all",
+		ItemCount:        0,
+		ConnectedClients: 1,
+		Suggestions:      []string{},
+	}
+
+	var buf bytes.Buffer
+	if err := Layout(
+		"Todos", signals, "demo@example.com",
+		"test", "test0000", true, "daisyui",
+	).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render layout: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, `addEventListener('online'`) {
+		t.Error("layout opener never re-clicks on window 'online'; " +
+			"a tab that went offline stays disconnected after reconnect " +
+			"and misses the replay broadcast")
+	}
+}
+
 // wiring. The browser only receives broadcasts if it actually opens the
 // persistent SSE stream. Datastar v1 does NOT fire data-on:load on a
 // <div>/<body>, so the previous `data-on:load={ "@get('/api/todos/stream')" }`
@@ -49,6 +80,7 @@ func TestLayoutRendersSSEOpener(t *testing.T) {
 		{"opener opens the SSE stream via @get", `/api/todos/stream`},
 		{"datastar-ready click wiring", `datastar-ready`},
 		{"fallback timeout click", `setTimeout(openSSE`},
+		{"offline-kill reconnect", `addEventListener('online'`},
 		// Guard against the previously-broken approach resurfacing: a real
 		// data-on:load="..." ATTRIBUTE on an element. The word
 		// "data-on:load" may appear inside a explanatory JS comment (which is
