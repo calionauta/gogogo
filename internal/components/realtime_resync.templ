@@ -19,11 +19,19 @@ package components
 // attributes, so no script needs it. The load-time go() call stays a
 // script (bootstrap, same class as the SSE opener).
 templ ListResync(buttonID, fragmentExpr string) {
+	// Offline replays converge through this button too: the SW posts
+	// sync-end when its queue drains, the banner bridge dispatches
+	// gogogo:synced, and this refetch runs. The live SSE event is NOT
+	// enough — an offline tab stays visible, so the visibility refetch
+	// above never fires, and a replay broadcast that lands while the
+	// stream is still re-establishing is missed with nothing after it.
+	// Re-listing is idempotent, so the extra fetch on reconnect is safe.
 	<button
 		id={ buttonID }
 		type="button"
 		class="hidden"
 		data-on:click={ "@get(" + fragmentExpr + ")" }
+		data-on:gogogo:synced__window={ "@get(" + fragmentExpr + ")" }
 		data-on:visibilitychange__document={ "if(!document.hidden){document.getElementById('" + buttonID + "').click()}" }
 		data-list-resync="1"
 		aria-hidden="true"

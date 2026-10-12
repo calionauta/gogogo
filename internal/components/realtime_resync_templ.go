@@ -55,7 +55,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buttonID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 23, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 30, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -68,26 +68,39 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 26, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 33, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:visibilitychange__document=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:gogogo:synced__window=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("if(!document.hidden){document.getElementById('" + buttonID + "').click()}")
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 27, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 34, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-list-resync=\"1\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// Hidden-@get-button pattern (not data-on:load): Datastar v1 does\n\t\t// not fire data-on:load on div/body, so a load attribute silently\n\t\t// never opens anything. The button's @get is a real Datastar\n\t\t// action (with proper context); this script clicks it.\n\t\tfunction el() { return document.querySelector('[data-list-resync]'); }\n\t\tfunction go() {\n\t\t\tvar b = el();\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\t// Refetch on load (a change from while the page was gone would\n\t\t// otherwise never arrive). Visibility return is the data-on\n\t\t// attribute above (backgrounded tabs get their streams\n\t\t// throttled/paused by the browser).\n\t\tgo();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-on:visibilitychange__document=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("if(!document.hidden){document.getElementById('" + buttonID + "').click()}")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 35, Col: 114}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-list-resync=\"1\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// Hidden-@get-button pattern (not data-on:load): Datastar v1 does\n\t\t// not fire data-on:load on div/body, so a load attribute silently\n\t\t// never opens anything. The button's @get is a real Datastar\n\t\t// action (with proper context); this script clicks it.\n\t\tfunction el() { return document.querySelector('[data-list-resync]'); }\n\t\tfunction go() {\n\t\t\tvar b = el();\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\t// Refetch on load (a change from while the page was gone would\n\t\t// otherwise never arrive). Visibility return is the data-on\n\t\t// attribute above (backgrounded tabs get their streams\n\t\t// throttled/paused by the browser).\n\t\tgo();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -35,6 +35,11 @@ func TestListResyncWiring(t *testing.T) {
 		`data-on:click`,
 		`/api/notes/fragment`,
 		`visibilitychange`,
+		// Replay-drain convergence: the SW posts sync-end when its queue
+		// drains and the banner bridge dispatches gogogo:synced — the
+		// live SSE broadcast alone is not enough (it can land while the
+		// tab's stream is still re-establishing after offline).
+		`gogogo:synced`,
 	} {
 		if !strings.Contains(notes, want) {
 			t.Errorf("notes render missing %q", want)

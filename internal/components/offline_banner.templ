@@ -98,6 +98,13 @@ templ OfflineBanner(offlineSync bool) {
 						// presence pills so the live "X online" count
 						// appears with the green pulse again.
 						reflectPresence(true);
+						// Notify Datastar consumers: the queue drained, so
+						// list pages refetch through their resync button
+						// (see ListResync's gogogo:synced listener). The live
+						// SSE broadcast is not enough on its own — it can land
+						// while the tab's stream is still re-establishing
+						// after offline, with nothing after it.
+						window.dispatchEvent(new CustomEvent("gogogo:synced"));
 					} else if (data.type === "sync-error") {
 						setState("offline");
 						// Check actual connectivity — a sync-error while
