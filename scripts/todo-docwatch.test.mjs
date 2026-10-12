@@ -143,7 +143,10 @@ try {
   });
 
   await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
-  await page.waitForTimeout(1500);
+  // Event waits, not a fixed nap: the stream response proves the opener
+  // fired, and the [data-effect] probe proves the watcher rendered.
+  await page.waitForResponse((res) => res.url().includes("/api/todos/stream"), { timeout: 10000 });
+  await page.waitForFunction(() => Boolean(document.querySelector("[data-effect]")), null, { timeout: 10000 });
 
   const hasEffect = await page.evaluate(() => Boolean(document.querySelector("[data-effect]")));
   if (!hasEffect) fail("no [data-effect] watcher element on /todo");

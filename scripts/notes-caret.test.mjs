@@ -174,12 +174,20 @@ async function main() {
   const docID = "notes-caret-" + process.pid;
   await A.goto(`${BASE}/notes/${docID}`, { waitUntil: "domcontentloaded" });
   await B.goto(`${BASE}/notes/${docID}`, { waitUntil: "domcontentloaded" });
-  await sleep(1000);
+  // Event waits, not a fixed nap: both editors mounted.
+  for (const pg of [A, B]) {
+    await pg.waitForFunction(() => !!document.getElementById("note-text"), null, { timeout: 10000 });
+  }
 
   // A authors three short lines (no wrapping: line number == visual row).
   await A.locator("#note-text").click();
   await typeText(A, "aaaa\nbbbb\ncccc", 25);
-  await sleep(1200);
+  // Wait for the mirror, not a fixed nap: B's textarea converges.
+  await B.waitForFunction(
+    () => document.getElementById("note-text").value === "aaaa\nbbbb\ncccc",
+    null,
+    { timeout: 10000 },
+  );
   const bSees = await B.evaluate(() => document.getElementById("note-text").value);
   if (bSees === "aaaa\nbbbb\ncccc") {
     ok("initial text mirrored to the peer");
@@ -199,14 +207,30 @@ async function main() {
     ta.setSelectionRange(4, 4);
   });
   await A.keyboard.type("X");
-  await sleep(150);
+  // B must have mirrored X before typing Z: position 10 only means
+  // "after bbbb" in the X-inclusive text. Wait for B's mirror (not A's
+  // local keystroke, which is instant) — same choreography as the old
+  // fixed nap, with no idle tail and no slow-box flake.
+  await B.waitForFunction(
+    () => document.getElementById("note-text").value.includes("X"),
+    null,
+    { timeout: 10000 },
+  );
   await B.evaluate(() => {
     const ta = document.getElementById("note-text");
     ta.focus();
     ta.setSelectionRange(10, 10);
   });
   await B.keyboard.type("Z");
-  await sleep(2500);
+  // Wait for convergence + first caret render, not a fixed 2500ms: the
+  // assertions below need a rendered dot and settled text, whenever
+  // the lag actually resolves.
+  await A.waitForFunction(
+    () => (window.__caretRenders || []).length > 0 &&
+      document.getElementById("note-text").value === "aaaaX\nbbbbZ\ncccc",
+    null,
+    { timeout: 15000 },
+  );
 
   const renders = await A.evaluate(() => window.__caretRenders);
   if (!renders.length) {
