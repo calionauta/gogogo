@@ -45,28 +45,40 @@ push/merge, or (b) the change touches an area the next tier checks.
 | **T2** lint scoped | `go vet` + `make lint-safe` (host-aware: scoped + memory-capped) + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
 | **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
-| **T4** full local gate | `make ci-local` | ~80s–4min | Full pre-push check (= CI) |
-| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~80s–4min | Same as T4, plus it commits the verification to git |
+| **T4** full local gate | `make ci-local` | ~6min | Full pre-push check (= CI) |
+| **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~6min | Same as T4, plus it commits the verification to git |
 
 ### Why the full gate is slow, and the fast sibling
 
-The full run is dominated by `go test -race`. It used to be dominated by a
-single package: `features/todo` (a real Turso + goqite + SSE fixture per
-test) was ~70s and over 60% of the suite. That fixture cost and the
-demonstration delays the tests waited out were both cut (see the 0.35 entry in
-[CHANGELOG.md](../CHANGELOG.md)), so the suite is now ~42s and `features/todo`
-~28s. Measured `ci-local`: **~82s** end to end (pre-fan-out; the race suite
-and the three Playwright suites now run in parallel via
-`scripts/ci-fanout.sh`, so the wall-clock is the slowest suite, not the
-sum — re-measure before quoting a new total). Everything else is cheap:
-templ ~0.7s, css-check ~2s, check-generated ~0.5s, check-scope ~0.25s, lint
-~3.5s, Playwright ~3s when cached.
+The full run is dominated by `go test -race`. Measured `ci-local`:
+**5:50** end to end (2026-10-12, 10-core Mac; the race suite and the three
+Playwright suites run in parallel via `scripts/ci-fanout.sh`, so the
+wall-clock is the slowest suite, not the sum). Heaviest race packages by
+package time (they overlap in parallel — wall is the max, not the sum):
+`internal/auth` ~292s (argon2id cost is intentional work, ~250ms per
+hash by calibration), `internal/installer` ~193s (trim build gates copy
+and vet the whole repo per unit), `features/notes/chi` ~188s,
+`features/todo/chi` ~173s, `features/whiteboard/chi` ~168s,
+`rules` ~110s (per-rule lint fixtures). Everything else is cheap:
+templ/regens <1s, css-check ~2s, lint ~8s, boot smoke ~14s. (The old
+~82s total predates the fan-out and the current suite size — do not quote
+it.)
+
+Browser suites under fan-out load can flake on wall-clock waits
+(IndexedDB drains, SSE swaps with 10-20s timeouts starve while the race
+suite hogs the machine — measured 2 in 4 parallel runs, 0 in 3 solo
+runs, always green on retry). `scripts/ci-fanout.sh` reruns a failed
+browser suite exactly once, serially, and labels a pass-on-retry as a
+flake; two consecutive failures mean the product regressed (the race
+suite never retries — a retried race is a hidden data race). Offline
+waits log their elapsed time (`⏱ <step>: <ms>` in `smoke.mjs`) so the
+next flake arrives with durations attached.
 
 `make ci-local-fast` runs the same cheap-but-decisive checks
 (`templ`, `datastar-lint`, `css-check`, `check-scope`) plus **scoped** lint and
 race tests, narrowed by `scripts/changed-packages.sh` to the packages your
 diff actually touches. Measured: **~2s** for a CSS-only change, **~10s** for a
-single-package Go change, versus ~82s full. It falls back to all packages when
+single-package Go change, versus ~6min full. It falls back to all packages when
 a shared file moves (`go.mod`, `config/`, `internal/db/`, `internal/capabilities/`) or
 when nothing changed.
 

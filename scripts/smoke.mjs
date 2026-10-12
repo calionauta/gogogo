@@ -154,6 +154,19 @@ async function waitForServiceWorkerControl(page) {
   }
 }
 
+// timedWait wraps page.waitForFunction with elapsed logging: when an
+// offline/sync wait flakes under parallel CI load, the log shows HOW
+// LONG each convergence step took instead of a bare timeout — the next
+// flake arrives as data (tight margin vs. starvation), not a mystery.
+async function timedWait(page, name, fn, arg, opts) {
+  const start = Date.now();
+  try {
+    return await page.waitForFunction(fn, arg, opts);
+  } finally {
+    console.log(`  ⏱ ${name}: ${Date.now() - start}ms`);
+  }
+}
+
 async function verifySingleOnlineTodoSubmit(page, skin) {
   if (skin !== "basecoat") return;
 
@@ -248,7 +261,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
 
   try {
     await context.setOffline(true);
-    await page.waitForFunction(() =>
+    await timedWait(page, "offline-banner-queued", () =>
       document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
     );
 
@@ -262,7 +275,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // Chromium, which is fine for users (they click too) but breaks the
     // headless harness; Enter on the input bypasses the question.
     await titleInput.press("Enter");
-    await page.waitForFunction(() =>
+    await timedWait(page, "offline-input-cleared", () =>
       document.querySelector('input[name="title"]')?.value === "",
     );
 
@@ -294,7 +307,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // data-pending swap that DaisyUI gets is unreliable across skins.
     // The pending-count drain is the single source of truth for
     // "the server accepted the replay".
-    await page.waitForFunction(async () => {
+    await timedWait(page, "offline-queue-drain", async () => {
       const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
         open.onerror = () => reject(open.error);
@@ -315,7 +328,9 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     // button would block). The other skins handle the optimistic→server
     // swap differently, so this guard is daisyui-only.
     if (skin === "daisyui") {
-      await page.waitForFunction(
+      await timedWait(
+        page,
+        "daisyui-optimistic-swap",
         (t) => {
           const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
           for (const el of els) {
@@ -329,7 +344,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
         { timeout: 20000 },
       );
     }
-    await page.waitForFunction(async () => {
+    await timedWait(page, "offline-queue-drain-2", async () => {
       const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
         open.onerror = () => reject(open.error);
