@@ -198,6 +198,14 @@ func (h *Handler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []byte)
 		return fmt.Errorf("decode retry payload: %w", err)
 	}
 	p.Raw = payload
+	if !retryDrivesUI(p.Operation) {
+		// A job that declares no stepper must not borrow one. Before this
+		// guard, genui_ask and chat_ask fell through to the retry demo and
+		// marked all three of ITS steps done — a demo the user never started,
+		// next to the worker's own "Ask failed" toast, which read as the
+		// opposite of what had happened.
+		return nil
+	}
 	isSuggest := p.Operation == signalJobSuggest || p.Operation == signalJobSuggestSimulated
 	if err := dshelpers.MergeSignals(sse, retrySignalFields(p)); err != nil {
 		return err
@@ -209,6 +217,24 @@ func (h *Handler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []byte)
 	}
 	msg, kind := retryToastMessage(p)
 	return emitToast(sse, msg, kind)
+}
+
+// retryDrivesUI reports whether an operation owns a UI stepper. Closed list:
+// the AI Suggest stepper (suggest / suggest_simulated) and the Queue + Retry
+// demo (retry-demo). Everything else emits nothing.
+//
+// The queue's RetryConfig.Do wraps EVERY handler, so any job type produces a
+// retry envelope with operation = job.Type. genui and chat deliver their own
+// result and toast and return nil unconditionally ("delivered, not retried"),
+// so their envelopes carried no information the UI needed — but the
+// dispatcher's else-branch read them as the retry demo and lit it.
+func retryDrivesUI(operation string) bool {
+	switch operation {
+	case signalJobSuggest, signalJobSuggestSimulated, signalJobRetryDemo:
+		return true
+	default:
+		return false
+	}
 }
 
 // applyTechStep merges the shared techstack stepper state. Terminal
