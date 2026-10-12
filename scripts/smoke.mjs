@@ -509,6 +509,7 @@ async function verifyOfflineUx(page, context) {
   console.log("  ✓ logout purged the cached todo page (clear-pages)");
 }
 
+let tracePath = "";
 try {
   if (providedBin) {
     console.log(`→ Using prebuilt binary ${bin}…`);
@@ -525,6 +526,21 @@ try {
   }
 
   console.log(`→ Starting server on ${BASE} (data dir ${runtimeDir})…`);
+  // Fail fast on a busy port: an orphaned server from an interrupted run
+  // holds 8099 and the fresh one exits(1), which surfaces later as a
+  // confusing "signup failed". Never kill implicitly (it could be a dev
+  // server) — say exactly what to do instead. Any TCP answer means busy,
+  // regardless of status; only connection-refused means free.
+  try {
+    await fetch(`${BASE}/health`);
+    throw new Error(
+      `port ${PORT} already serves (orphan server?) — free it, then re-run ` +
+        `(lsof -ti :${PORT} to find it)`,
+    );
+  } catch (e) {
+    if (String(e.message || e).includes("already serves")) throw e;
+    // Unreachable: the port is free, boot normally.
+  }
   // The flat binary has no CLI subcommands: listen address + data dir
   // ride env vars (same as production), and the owned auth issues the
   // session cookie at signup — no superuser/collection API anymore.
@@ -564,6 +580,14 @@ try {
   const pageErrors = [];
   const consoleErrors = [];
   const page = await context.newPage();
+  // Trace-on-retry (see scripts/ci-fanout.sh): the fan-out sets SMOKE_TRACE
+  // only for the serial retry run, so the passing run stays light and a
+  // flake arrives with a full timeline (actions, DOM, network) attached.
+  // Playwright's own guidance is the same shape: traces on retry, never on.
+  tracePath = process.env.SMOKE_TRACE || "";
+  if (tracePath) {
+    await context.tracing.start({ screenshots: true, snapshots: true });
+  }
   page.on("pageerror", (err) =>
     pageErrors.push({ msg: String(err), stack: err.stack || "", url: page.url() }),
   );
@@ -676,6 +700,14 @@ try {
 } catch (e) {
   fail(e.stack || String(e));
 } finally {
+  if (tracePath) {
+    try {
+      await context.tracing.stop({ path: tracePath });
+    } catch {
+      // The context may already be closed on the happy path; a failed
+      // stop must not mask the real result.
+    }
+  }
   if (browser) await browser.close().catch(() => {});
   if (server) server.kill("SIGKILL");
   rmSync(tmp, { recursive: true, force: true });

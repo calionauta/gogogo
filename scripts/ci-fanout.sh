@@ -12,8 +12,9 @@
 # standalone runs, all at offline-queue waits, all green on retry. So a
 # failed browser suite gets exactly one serial retry with the parallel
 # load gone: pass-on-retry is labeled a flake, two consecutive failures
-# mean the product regressed. The race suite never retries (a retried
-# race is a hidden data race).
+# mean the product regressed. The retry run records a Playwright trace
+# (SMOKE_TRACE) so the flake keeps its timeline. The race suite never
+# retries (a retried race is a hidden data race).
 #
 # Ports are collision-free by construction: race tests bind ephemeral
 # ports, smoke.mjs takes 8099, whiteboard 8131, notes 8132.
@@ -39,7 +40,7 @@ pid_notes=$!
 retry_browser() {
   local name="$1" script="$2"
   echo "  ↻ $name failed under load, retrying once serially…"
-  if SMOKE_BIN="$bin" node "scripts/$script" >"$logdir/$name.retry.log" 2>&1; then
+  if SMOKE_BIN="$bin" SMOKE_TRACE="$logdir/$name.retry.trace.zip" node "scripts/$script" >"$logdir/$name.retry.log" 2>&1; then
     echo "  ⚠️ $name passed on retry (flake under parallel load — see $logdir/$name.retry.log)"
   else
     echo "  ❌ $name FAILED twice (see $logdir/$name.log and $logdir/$name.retry.log)"
