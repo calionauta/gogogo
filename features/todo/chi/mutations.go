@@ -13,8 +13,8 @@ import (
 
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/natswire"
 )
 
@@ -55,8 +55,8 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: dedupe lookup failed", derr, "save failed")
 		return
 	default:
-		now := db.Now()
-		newID := db.NewID()
+		now := dbschema.Now()
+		newID := dbschema.NewID()
 		if _, cerr := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
 			ID: newID, Owner: owner, Title: title,
 			Completed: false, IdemKey: idemKey, Created: now, Updated: now,
@@ -158,7 +158,7 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, "todo: toggle read failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
 		return
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	if serr := h.Q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
 		Completed: !current.Completed, Updated: now, ID: id, Owner: owner,
 	}); serr != nil {

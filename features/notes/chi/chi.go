@@ -24,8 +24,8 @@ import (
 	notescomponents "github.com/calionauta/gogogo/features/notes/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -176,7 +176,7 @@ func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	docID := uuid.NewString()
-	now := db.Now()
+	now := dbschema.Now()
 	if err := h.q.UpsertNote(r.Context(), dbgen.UpsertNoteParams{
 		DocID: docID, Owner: sess.User.ID, Updated: now, Created: now,
 	}); err != nil {

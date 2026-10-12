@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 func TestChiOnboardingStepperSignals(t *testing.T) {
@@ -50,8 +50,8 @@ func TestChiOnboardingCompletedRelists(t *testing.T) {
 	// something to render.
 	owner := f.ownerOf(t, cookie)
 	if _, err := f.q.CreateTodo(context.Background(), dbgen.CreateTodoParams{
-		ID: db.NewID(), Owner: owner, Title: "my first todo",
-		Created: db.Now(), Updated: db.Now(),
+		ID: dbschema.NewID(), Owner: owner, Title: "my first todo",
+		Created: dbschema.Now(), Updated: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("seed todo: %v", err)
 	}

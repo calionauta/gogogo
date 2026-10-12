@@ -1,4 +1,9 @@
-package db
+// SCOPE:core — dbschema contract tests. They open through the ncruces
+// `sqlite3` driver on purpose: this package must stay tursogo-free (native
+// targets share it), so its tests prove the schema applies identically on a
+// different driver than the one internal/db opens — including the
+// single-Exec multi-statement migrations and the DSN-carried pragmas.
+package dbschema
 
 import (
 	"context"
@@ -6,14 +11,22 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 // openTestDB is the shared fixture: a migrated database on a temp file.
+// Pragmas ride the DSN (not one-off Execs) so every pooled connection gets
+// them — the same rule docs/code-quality.md states for production opens.
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	sqlDB, err := OpenAt(filepath.Join(t.TempDir(), "app.db"))
+	dsn := "file:" + filepath.Join(t.TempDir(), "app.db") +
+		"?_pragma=busy_timeout(10000)" +
+		"&_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(ON)"
+	sqlDB, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		t.Fatalf("OpenAt: %v", err)
+		t.Fatalf("open sqlite3: %v", err)
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	if err := Migrate(sqlDB); err != nil {

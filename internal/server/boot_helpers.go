@@ -13,8 +13,8 @@ import (
 	"github.com/calionauta/gogogo/config"
 	chifeatures "github.com/calionauta/gogogo/features/todo/chi"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -82,7 +82,7 @@ func promoteAdmins(emails []string, queries *dbgen.Queries) (int, error) {
 			return n, fmt.Errorf("server: promote lookup %s: %w", email, err)
 		}
 		if err := queries.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
-			Role: "admin", Updated: db.Now(), Email: email,
+			Role: "admin", Updated: dbschema.Now(), Email: email,
 		}); err != nil {
 			return n, fmt.Errorf("server: promote %s: %w", email, err)
 		}

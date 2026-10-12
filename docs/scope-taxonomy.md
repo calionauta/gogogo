@@ -82,7 +82,8 @@ the field or a `.templ` reader goes missing.
 |---|---|---|
 | `cmd/web/` | 🔴 CORE | Never — entry point |
 | `config/` | 🔴 CORE | Never — env config |
-| `internal/db/` | 🔴 CORE | Never — Turso connection + migrations + sqlc queries |
+| `internal/db/` | 🔴 CORE | Never — Turso connection open (tursogo); importing it links the driver |
+| `internal/dbschema/` | 🔴 CORE | Never — driver-free migrations + IDs/timestamps; shared with zero-CGO targets |
 | `internal/secrets/` | 🔴 CORE | Never — age loader |
 | `internal/queue/` | 🔴 CORE | Never — goqite + SSE Hub + workers + retry |
 | `internal/datastar/` | 🟡 PLUGIN | Delete + wiring call |

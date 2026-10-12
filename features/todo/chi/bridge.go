@@ -21,8 +21,8 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -126,10 +126,10 @@ func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *nats
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return recordEvent{}, fmt.Errorf("create lookup %s: %w", data.ID, err)
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	id := data.ID
 	if id == "" {
-		id = db.NewID()
+		id = dbschema.NewID()
 	}
 	if _, err := q.CreateTodo(ctx, dbgen.CreateTodoParams{
 		ID: id, Owner: owner, Title: data.Title,
@@ -147,7 +147,7 @@ func applyToggle(ctx context.Context, q *dbgen.Queries, owner string, data *nats
 	// Absolute post-state, matching what publishers send (see handleToggle:
 	// Done is the state after the local write).
 	if err := q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: data.Completed, Updated: db.Now(), ID: data.ID, Owner: owner,
+		Completed: data.Completed, Updated: dbschema.Now(), ID: data.ID, Owner: owner,
 	}); err != nil {
 		return recordEvent{}, fmt.Errorf("toggle apply %s: %w", data.ID, err)
 	}

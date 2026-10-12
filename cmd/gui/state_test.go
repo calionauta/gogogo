@@ -3,18 +3,24 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // The native window's whole claim is that the backend is reachable without HTTP.
-// These tests exercise the real windowState against a real Turso file with
-// the owned auth stack
-// no native window, no rendering — so they run headless in CI.
+// These tests exercise the real windowState against a real SQLite file with
+// the owned auth stack — no native window, no rendering, so they run
+// headless in CI.
+//
+// Opened through ncruces like production (openGUIStore): importing
+// internal/db here would link tursogo into the test binary and break the
+// CGO_ENABLED=0 gui build (purego/goffi fakecgo collision).
 
 const (
 	nativeEmail    = "native@demo.app"
@@ -24,13 +30,17 @@ const (
 func newNativeState(t *testing.T) *windowState {
 	t.Helper()
 
-	sqlDB, err := db.OpenAt(t.TempDir() + "/native.db")
+	sqlDB, err := sql.Open("sqlite3",
+		"file:"+filepath.Join(t.TempDir(), "native.db")+
+			"?_pragma=busy_timeout(10000)"+
+			"&_pragma=journal_mode(WAL)"+
+			"&_pragma=foreign_keys(ON)")
 	if err != nil {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if err := db.Migrate(sqlDB); err != nil {
-		t.Fatalf("migrate: %v", err)
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("migrate: %v", merr)
 	}
 
 	q := dbgen.New(sqlDB)

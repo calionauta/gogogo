@@ -24,8 +24,8 @@ import (
 	"github.com/calionauta/gogogo/features/whiteboard/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -147,7 +147,7 @@ func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	docID := uuid.NewString()
-	now := db.Now()
+	now := dbschema.Now()
 	if err := h.q.UpsertBoard(r.Context(), dbgen.UpsertBoardParams{
 		DocID: docID, Owner: sess.User.ID, Title: "", Updated: now, Created: now,
 	}); err != nil {
@@ -277,7 +277,7 @@ func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if berr := h.q.BumpBoardVersion(r.Context(), dbgen.BumpBoardVersionParams{
-		Updated: db.Now(), DocID: docID,
+		Updated: dbschema.Now(), DocID: docID,
 	}); berr != nil {
 		slog.Warn("whiteboard: bump version", "doc", docID, "error", berr)
 	}

@@ -1,5 +1,7 @@
 // SCOPE:core — ID and timestamp helpers shared by every store.
-package db
+// Lives in dbschema (not internal/db) so driver-free targets share it
+// without linking tursogo.
+package dbschema
 
 import (
 	"time"

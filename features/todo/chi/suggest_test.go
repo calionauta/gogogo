@@ -13,6 +13,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -30,7 +31,7 @@ func newSuggestFixture(tb testing.TB, withQueue, withLLM bool) *suggestFixture {
 		tb.Fatalf("db open: %v", err)
 	}
 	tb.Cleanup(func() { sqlDB.Close() })
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		tb.Fatalf("db migrate: %v", merr)
 	}
 	a, err := auth.New(dbgen.New(sqlDB), false)

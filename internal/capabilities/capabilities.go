@@ -77,9 +77,10 @@ var All = []Capability{
 		ID:      "database",
 		Kind:    KindCore,
 		Summary: "flat data layer: Turso Database connection + migrations + sqlc queries",
-		Dirs:    []string{"internal/db"},
+		Dirs:    []string{"internal/db", "internal/dbschema"},
 		Note: "Core: handlers call the generated dbgen.* functions directly; " +
-			"migrations under internal/db/migrations are the schema.",
+			"migrations under internal/dbschema/migrations are the schema (driver-free " +
+			"so zero-CGO targets share it; internal/db owns only the tursogo open).",
 	},
 	{
 		ID:      "appconfig",

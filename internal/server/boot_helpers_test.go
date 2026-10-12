@@ -12,6 +12,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // TestWireTOTPKeyPinsSealKeyRule pins the boot wiring without booting:
@@ -26,7 +27,7 @@ func TestWireTOTPKeyPinsSealKeyRule(t *testing.T) {
 			t.Fatalf("db open: %v", err)
 		}
 		t.Cleanup(func() { sqlDB.Close() })
-		if merr := db.Migrate(sqlDB); merr != nil {
+		if merr := dbschema.Migrate(sqlDB); merr != nil {
 			t.Fatalf("db migrate: %v", merr)
 		}
 		a, err := auth.New(dbgen.New(sqlDB), false)
@@ -70,7 +71,7 @@ func TestPromoteAdminsPinsPromotionOnly(t *testing.T) {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		t.Fatalf("db migrate: %v", merr)
 	}
 	a, aerr := auth.New(dbgen.New(sqlDB), false)

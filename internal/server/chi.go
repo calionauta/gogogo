@@ -42,6 +42,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
@@ -181,7 +182,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("server: chi db open: %w", err)
 	}
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi db migrate: %w", merr)
 	}

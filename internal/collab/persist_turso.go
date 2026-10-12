@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // TursoPersister implements Persister on the doc_snapshots table: one row
@@ -28,7 +28,7 @@ func NewTursoPersister(q *dbgen.Queries) (*TursoPersister, error) {
 // SaveSnapshot upserts the resolved snapshot for docID.
 func (p *TursoPersister) SaveSnapshot(docID string, snapshot []byte) error {
 	if err := p.q.UpsertSnapshot(context.Background(), dbgen.UpsertSnapshotParams{
-		DocID: docID, Snapshot: snapshot, Updated: db.Now(),
+		DocID: docID, Snapshot: snapshot, Updated: dbschema.Now(),
 	}); err != nil {
 		return fmt.Errorf("collab: save snapshot %s: %w", docID, err)
 	}

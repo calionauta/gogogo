@@ -33,8 +33,8 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // CookieName is the app's session cookie. Kept distinct from any provider
@@ -241,9 +241,9 @@ func (a *Auth) Signup(ctx context.Context, email, password, name string) (*User,
 	if err != nil {
 		return nil, "", err
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	row, err := a.q.CreateUser(ctx, dbgen.CreateUserParams{
-		ID: db.NewID(), Email: addr, PasswordHash: hash, Name: name,
+		ID: dbschema.NewID(), Email: addr, PasswordHash: hash, Name: name,
 		Created: now, Updated: now,
 	})
 	if err != nil {
@@ -266,12 +266,12 @@ func (a *Auth) openSession(ctx context.Context, userID string) (string, error) {
 	now := time.Now().UTC()
 	if err := a.q.CreateSession(ctx, dbgen.CreateSessionParams{
 		TokenHash: hash, UserID: userID,
-		Expires: now.Add(SessionTTL).Format(db.TimeFormat),
-		Created: now.Format(db.TimeFormat),
+		Expires: now.Add(SessionTTL).Format(dbschema.TimeFormat),
+		Created: now.Format(dbschema.TimeFormat),
 	}); err != nil {
 		return "", fmt.Errorf("auth: open session: %w", err)
 	}
-	_ = a.q.DeleteExpiredSessions(ctx, now.Format(db.TimeFormat))
+	_ = a.q.DeleteExpiredSessions(ctx, now.Format(dbschema.TimeFormat))
 	return token, nil
 }
 
@@ -308,7 +308,7 @@ func (a *Auth) Login(ctx context.Context, email, password string) (token string,
 		// login retries.
 		if fresh, herr := hashPassword(password); herr == nil {
 			_ = a.q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
-				PasswordHash: fresh, Updated: db.Now(), ID: row.ID,
+				PasswordHash: fresh, Updated: dbschema.Now(), ID: row.ID,
 			})
 		}
 	}
@@ -345,7 +345,7 @@ func (a *Auth) BeginTOTP(ctx context.Context, userID string) (secret, url, email
 		return "", "", "", err
 	}
 	if err := a.q.SetTOTPSecret(ctx, dbgen.SetTOTPSecretParams{
-		TotpSecret: stored, Updated: db.Now(), ID: userID,
+		TotpSecret: stored, Updated: dbschema.Now(), ID: userID,
 	}); err != nil {
 		return "", "", "", fmt.Errorf("auth: totp begin: %w", err)
 	}
@@ -367,7 +367,7 @@ func (a *Auth) VerifyTOTPEnroll(ctx context.Context, userID, code string) error 
 		return ErrBadCredentials
 	}
 	if err := a.q.VerifyTOTPFlag(ctx, dbgen.VerifyTOTPFlagParams{
-		Updated: db.Now(), ID: userID,
+		Updated: dbschema.Now(), ID: userID,
 	}); err != nil {
 		return fmt.Errorf("auth: totp enroll: %w", err)
 	}
@@ -414,7 +414,7 @@ func (a *Auth) SetTOTPEncKey(key []byte) error {
 // DisableTOTP removes second-factor enforcement. Callers gate this behind
 // a fresh password check (the HTTP route does).
 func (a *Auth) DisableTOTP(ctx context.Context, userID string) error {
-	if err := a.q.ClearTOTP(ctx, dbgen.ClearTOTPParams{Updated: db.Now(), ID: userID}); err != nil {
+	if err := a.q.ClearTOTP(ctx, dbgen.ClearTOTPParams{Updated: dbschema.Now(), ID: userID}); err != nil {
 		return fmt.Errorf("auth: totp disable: %w", err)
 	}
 	return nil

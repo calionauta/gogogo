@@ -25,7 +25,7 @@
 //	  only, no JetStream subscription), no theming parity with the
 //	  web skins.
 //
-// Note there is no HTTP listener here. db.Open + db.Migrate prepare the
+// Note there is no HTTP listener here. openGUIStore + dbschema.Migrate prepare the
 // database without serving; the store reads and writes through the
 // queries directly. That is the proof in miniature — the web tier is
 // genuinely optional for a native frontend.
@@ -43,6 +43,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -59,8 +60,8 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -89,15 +90,20 @@ func main() {
 func run() error {
 	cfg := config.Load()
 
-	// The same flat stack the web app serves: Turso file + migrations +
+	// The same flat stack the web app serves: app file + migrations +
 	// owned auth, minus the HTTP listener. No framework, no bootstrap
 	// hook — the queries below are the ones the chi handlers call.
-	sqlDB, err := db.Open(cfg)
+	//
+	// Opened through the ncruces `sqlite3` driver, never internal/db:
+	// importing that package links tursogo (purego), whose fakecgo
+	// collides with goffi's at CGO_ENABLED=0 link time — and this target
+	// is pure Go by requirement (see the gui job in desktop.yml).
+	sqlDB, err := openGUIStore(cfg)
 	if err != nil {
-		return fmt.Errorf("turso open: %w", err)
+		return err
 	}
 	defer sqlDB.Close()
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		return fmt.Errorf("migrate: %w", merr)
 	}
 
@@ -110,7 +116,7 @@ func run() error {
 	// with enrollment failing closed per operation.
 	key := cfg.Auth.TOTPEncKey
 	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" && len(key) == 0 {
-		return fmt.Errorf("auth: malformed AUTH_ENC_KEY (want 64 hex chars)")
+		return errors.New("auth: malformed AUTH_ENC_KEY (want 64 hex chars)")
 	}
 	if len(key) == 0 {
 		if fk, ferr := auth.LoadOrCreateKeyFile(cfg.DataDir); ferr != nil {

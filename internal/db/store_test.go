@@ -9,7 +9,23 @@ import (
 	"time"
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
+
+// openTestDB is the shared fixture: a migrated temp database via the
+// package's own OpenAt (tursogo, like production) plus dbschema.Migrate.
+func openTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	sqlDB, err := OpenAt(filepath.Join(t.TempDir(), "app.db"))
+	if err != nil {
+		t.Fatalf("OpenAt: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	if err := dbschema.Migrate(sqlDB); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	return sqlDB
+}
 
 // newStore is the fixture for every generated-query test: a migrated temp
 // database and a *dbgen.Queries built the same way a handler will build it.
@@ -20,9 +36,9 @@ func newStore(t *testing.T) *dbgen.Queries {
 
 func createUser(t *testing.T, q *dbgen.Queries, email string) dbgen.User {
 	t.Helper()
-	now := Now()
+	now := dbschema.Now()
 	u, err := q.CreateUser(context.Background(), dbgen.CreateUserParams{
-		ID:           NewID(),
+		ID:           dbschema.NewID(),
 		Email:        email,
 		PasswordHash: "hash",
 		Name:         "Demo",
@@ -59,7 +75,7 @@ func TestGeneratedUserQueries(t *testing.T) {
 	}
 
 	if uerr := q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
-		PasswordHash: "new-hash", Updated: Now(), ID: created.ID,
+		PasswordHash: "new-hash", Updated: dbschema.Now(), ID: created.ID,
 	}); uerr != nil {
 		t.Fatalf("UpdateUserPassword: %v", uerr)
 	}
@@ -93,8 +109,8 @@ func TestGeneratedTodoQueries(t *testing.T) {
 	ids := make([]string, 0, 2)
 	for _, title := range []string{"first", "second"} {
 		todo, err := q.CreateTodo(ctx, dbgen.CreateTodoParams{
-			ID: NewID(), Owner: owner, Title: title,
-			Completed: false, IdemKey: "", Created: Now(), Updated: Now(),
+			ID: dbschema.NewID(), Owner: owner, Title: title,
+			Completed: false, IdemKey: "", Created: dbschema.Now(), Updated: dbschema.Now(),
 		})
 		if err != nil {
 			t.Fatalf("CreateTodo(%q): %v", title, err)
@@ -119,7 +135,7 @@ func TestGeneratedTodoQueries(t *testing.T) {
 	}
 
 	if serr := q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: true, Updated: Now(), ID: ids[0], Owner: owner,
+		Completed: true, Updated: dbschema.Now(), ID: ids[0], Owner: owner,
 	}); serr != nil {
 		t.Fatalf("SetTodoCompleted: %v", serr)
 	}
@@ -134,7 +150,7 @@ func TestGeneratedTodoQueries(t *testing.T) {
 	// Owner scoping: another tenant's id matches nothing, so the update is a
 	// no-op and the read is a miss.
 	if err := q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: false, Updated: Now(), ID: ids[0], Owner: other,
+		Completed: false, Updated: dbschema.Now(), ID: ids[0], Owner: other,
 	}); err != nil {
 		t.Fatalf("cross-owner update: %v", err)
 	}
@@ -162,16 +178,16 @@ func TestGeneratedSessionQueries(t *testing.T) {
 	ctx := context.Background()
 	user := createUser(t, q, "demo1@demo.app").ID
 
-	future := time.Now().UTC().Add(time.Hour).Format(TimeFormat)
-	past := time.Now().UTC().Add(-time.Hour).Format(TimeFormat)
+	future := time.Now().UTC().Add(time.Hour).Format(dbschema.TimeFormat)
+	past := time.Now().UTC().Add(-time.Hour).Format(dbschema.TimeFormat)
 
 	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: "hash-live", UserID: user, Expires: future, Created: Now(),
+		TokenHash: "hash-live", UserID: user, Expires: future, Created: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("CreateSession(live): %v", err)
 	}
 	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: "hash-stale", UserID: user, Expires: past, Created: Now(),
+		TokenHash: "hash-stale", UserID: user, Expires: past, Created: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("CreateSession(stale): %v", err)
 	}
@@ -184,7 +200,7 @@ func TestGeneratedSessionQueries(t *testing.T) {
 		t.Fatalf("session user = %q, want %q", sess.UserID, user)
 	}
 
-	if err := q.DeleteExpiredSessions(ctx, Now()); err != nil {
+	if err := q.DeleteExpiredSessions(ctx, dbschema.Now()); err != nil {
 		t.Fatalf("DeleteExpiredSessions: %v", err)
 	}
 	if _, err := q.GetSession(ctx, "hash-stale"); !errors.Is(err, sql.ErrNoRows) {
@@ -199,7 +215,7 @@ func TestGeneratedSessionQueries(t *testing.T) {
 	}
 
 	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: "hash-2", UserID: user, Expires: future, Created: Now(),
+		TokenHash: "hash-2", UserID: user, Expires: future, Created: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("CreateSession(2): %v", err)
 	}
@@ -221,7 +237,7 @@ func TestOpenCreatesParentDir(t *testing.T) {
 		t.Fatalf("OpenAt: %v", err)
 	}
 	defer func() { _ = sqlDB.Close() }()
-	if err := Migrate(sqlDB); err != nil {
+	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
 }

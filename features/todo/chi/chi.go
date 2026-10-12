@@ -31,8 +31,8 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
-	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -128,9 +128,9 @@ func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner stri
 	if owner == "" {
 		return errors.New("todo: onboarding create requires an owner")
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	if _, err := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
-		ID: db.NewID(), Owner: owner, Title: title,
+		ID: dbschema.NewID(), Owner: owner, Title: title,
 		Completed: false, IdemKey: "", Created: now, Updated: now,
 	}); err != nil {
 		return fmt.Errorf("onboarding create %q: %w", title, err)
@@ -234,14 +234,14 @@ func (h *Handler) fail(w http.ResponseWriter, logMsg string, err error, publicMs
 }
 
 // toTodo maps a sqlc row onto the wire model. Timestamps are caller-written
-// RFC3339 (db.TimeFormat); a row that does not parse is data corruption,
+// RFC3339 (dbschema.TimeFormat); a row that does not parse is data corruption,
 // flagged as a 500 rather than rendered half-empty.
 func toTodo(row dbgen.Todo) (todo.Todo, error) {
-	created, err := time.Parse(db.TimeFormat, row.Created)
+	created, err := time.Parse(dbschema.TimeFormat, row.Created)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
 	}
-	updated, err := time.Parse(db.TimeFormat, row.Updated)
+	updated, err := time.Parse(dbschema.TimeFormat, row.Updated)
 	if err != nil {
 		return todo.Todo{}, fmt.Errorf("todo %s updated %q: %w", row.ID, row.Updated, err)
 	}

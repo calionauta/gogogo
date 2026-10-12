@@ -21,6 +21,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -43,7 +44,7 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 		tb.Fatalf("db open: %v", err)
 	}
 	tb.Cleanup(func() { sqlDB.Close() })
-	if merr := db.Migrate(sqlDB); merr != nil {
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
 		tb.Fatalf("db migrate: %v", merr)
 	}
 
@@ -57,10 +58,10 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 	q := dbgen.New(sqlDB)
 	// Identity first: applied ops reference users(id), exactly as a real
 	// signup would have created it.
-	owner := db.NewID()
+	owner := dbschema.NewID()
 	if _, err := sqlDB.ExecContext(context.Background(),
 		`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
-		owner, "bridge@example.com", "hash", "Bridge", db.Now(), db.Now(),
+		owner, "bridge@example.com", "hash", "Bridge", dbschema.Now(), dbschema.Now(),
 	); err != nil {
 		tb.Fatalf("bridge owner: %v", err)
 	}
@@ -219,7 +220,7 @@ func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
 		t.Fatalf("db open A: %v", err)
 	}
 	t.Cleanup(func() { sqlA.Close() })
-	if merr := db.Migrate(sqlA); merr != nil {
+	if merr := dbschema.Migrate(sqlA); merr != nil {
 		t.Fatalf("db migrate A: %v", merr)
 	}
 	authA, aerr := auth.New(dbgen.New(sqlA), false)
@@ -266,10 +267,10 @@ func newLoopInstanceB(t *testing.T, js natsio.JetStreamContext, userID string) (
 		t.Fatalf("db open B: %v", err)
 	}
 	t.Cleanup(func() { sqlB.Close() })
-	if merr := db.Migrate(sqlB); merr != nil {
+	if merr := dbschema.Migrate(sqlB); merr != nil {
 		t.Fatalf("db migrate B: %v", merr)
 	}
-	now := db.Now()
+	now := dbschema.Now()
 	if _, err := sqlB.ExecContext(context.Background(),
 		`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
 		userID, "loop@example.com", "hash", "Loop", now, now,

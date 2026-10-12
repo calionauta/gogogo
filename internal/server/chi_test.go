@@ -27,6 +27,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -82,7 +83,7 @@ func TestStartChiBoot(t *testing.T) {
 	if rerr := rows.Err(); rerr != nil {
 		t.Fatalf("rows: %v", rerr)
 	}
-	want, verr := db.Versions()
+	want, verr := dbschema.Versions()
 	if verr != nil {
 		t.Fatalf("expected versions: %v", verr)
 	}
@@ -210,7 +211,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if err := db.Migrate(sqlDB); err != nil {
+	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("db migrate: %v", err)
 	}
 	q := dbgen.New(sqlDB)
@@ -247,7 +248,7 @@ func TestBuildChiMux(t *testing.T) {
 		t.Fatalf("db open: %v", err)
 	}
 	t.Cleanup(func() { sqlDB.Close() })
-	if err := db.Migrate(sqlDB); err != nil {
+	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("db migrate: %v", err)
 	}
 	a, aerr := auth.New(dbgen.New(sqlDB), false)
