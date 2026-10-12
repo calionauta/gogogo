@@ -109,7 +109,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `config-view` | `features/config/` | Drop the `configchi.NewHandler` line, its import and the `/config` mounts; navbar Config link stripped |
 | `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
-| `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch blocks + imports stripped from `features/todo/chi/pages.go` + `features/todo/chi/handler.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
+| `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch blocks + imports stripped from `features/todo/chi/pages.go` + `features/todo/chi/chi.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`

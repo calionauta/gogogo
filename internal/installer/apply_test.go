@@ -326,7 +326,7 @@ func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 		"\t}\n" +
 		"\treturn components.TodoListRegion(signals)\n"
 	todoPath := filepath.Join(handlersDir, "pages.go")
-	repoPath := filepath.Join(handlersDir, "handler.go")
+	repoPath := filepath.Join(handlersDir, "chi.go")
 	if err := os.WriteFile(todoPath, []byte(todoGive), 0o600); err != nil {
 		t.Fatal(err)
 	}
