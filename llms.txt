@@ -1,0 +1,33 @@
+# llms.txt — agent entry index for gogogo
+
+> Read AGENTS.md first. It points here for orientation; this file points
+> everywhere else. Fetch only what the task needs — do not read the whole
+> tree "to be safe" (see `cali-code-navigation`: orient with ripwire first).
+
+## Start here (every task)
+
+- AGENTS.md — commands, don'ts, architecture seams (20-30 lines, normative)
+- ARCHITECTURE.md — module layout and seams
+- skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go/.templ)
+
+## By task
+
+- New feature or product plan: docs/overview.md, docs/features.md
+- Architecture details: docs/architecture.md, docs/architecture-decision.md
+- Config and env vars: docs/configuration.md
+- Local CI and gates: docs/local-ci.md
+- Realtime, queue, offline: docs/async-layers.md
+- Auth and sessions: features/auth/ (owned argon2id), internal/auth/
+- AI credits and billing: docs/llm-and-credits.md, features/credits/
+- Installer (trim/add units): internal/installer/, cmd/gogogo/README.md
+- HTTP route inventory (generated, do not edit): docs/api-routes.md
+- Deploy: docs/deploy.md
+- Troubleshooting: docs/troubleshooting.md
+
+## Invariants (do not relearn these)
+
+- Flat stack only: chi handlers + dbgen queries, no framework.
+- `go run ./cmd/check-flatdeps` proves it — run before committing.
+- Generated code is committed and drift-checked (`make check-generated`).
+- `//nolint` is last resort (skill documents the procedure; CI enforces it).
+- Never edit `site/docs/` (generated output).

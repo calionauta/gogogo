@@ -9,9 +9,10 @@ import (
 
 // MemStore is the demo MessageStore: append-only, owner-scoped,
 // idem-deduped, created-ordered, zero I/O. Production history wants a
-// PocketBase collection (owner + idem_key unique index, same shape as
-// the todo idempotency hook) — wire it behind MessageStore when the
-// demo grows history UI; the worker contract stays identical.
+// Turso-backed store (owner-scoped rows via dbgen, same shape as the todo
+// slice) — wire it behind MessageStore when chat grows history UI; the
+// worker contract stays identical. Until then history is volatile by
+// design, not by accident.
 type MemStore struct {
 	mu   sync.Mutex
 	msgs []Message

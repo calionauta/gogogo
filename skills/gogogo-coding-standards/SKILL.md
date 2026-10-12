@@ -133,6 +133,7 @@ Full strategy: `references/go-testing.md`.
 - `t.Parallel()` is the biggest single lever on wall-clock (per-test fixtures like PocketBase are the fixed cost). Audit first: no `t.Setenv`, no shared package global, no shared connection/server singleton — otherwise it is a red race, not a speed-up.
 - **Test/request timeouts must exceed SQLite's `busy_timeout`** (10s here), or a request cancels while the DB is still legitimately waiting for the lock — the "intermittent `context deadline exceeded`" that is really lock contention.
 - Test servers bind EPHEMERAL ports (`127.0.0.1:0`, NATS `-1`) and read the real address back from the server; a fixed port lets another package's test steal it under `-p N`, which reads as "needs `-p 1`" but is a collision.
+- **Constructors build, callers start; tests own the listener.** `BootChi` builds the stack without listening; `serveChiOnListener` serves an already-bound listener. Tests bind `127.0.0.1:0`, read the port back, and drive real HTTP through it — the automated preflight. Never add a serve path tests cannot borrow (a second constructor that binds its own port is untestable without a fixed port, which the rule above forbids).
 - Table-driven for multi-case logic. `t.Helper()` in helpers (`thelper`).
 - PB/SQLite: temp-dir instance + `Bootstrap()`, drive via `httptest`. LLM points: function-field injection, no VCR server.
 - `B.Loop` style for benchmarks (1.26 inlining fix). `AllocsPerRun` panics under `-parallel`.

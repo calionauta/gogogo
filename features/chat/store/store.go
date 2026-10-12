@@ -23,9 +23,15 @@ type Message struct {
 	Created    time.Time
 }
 
-// MessageStore is the persistence seam: production wires PocketBase,
-// tests wire the in-memory stub. Append is idempotent on
+// MessageStore is the persistence seam: production currently wires the
+// in-memory MemStore (history is volatile — lost on restart), tests wire
+// the in-memory stub. Append is idempotent on
 // (owner, idemKey); List returns created order for one owner only.
+//
+// The seam stays an interface with one production implementation on
+// purpose: chat history is the next Turso-backed store (owner-scoped rows
+// via dbgen, same shape as the todo slice), and the swap must not touch
+// the handler or the worker. See MemStore for the documented target.
 type MessageStore interface {
 	Append(ctx context.Context, owner string, m Message) error
 	List(ctx context.Context, owner string) ([]Message, error)
