@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -63,20 +63,20 @@ func (h *Handler) enqueueSuggest(w http.ResponseWriter, r *http.Request, jobType
 	clientID := r.URL.Query().Get("clientID")
 	payload, err := json.Marshal(map[string]string{"partial": partial, "userId": owner})
 	if err != nil {
-		h.fail(w, "todo: suggest marshal failed", err, "marshal failed")
+		h.fail(r.Context(), w, "todo: suggest marshal failed", err, "marshal failed")
 		return
 	}
 	job, err := json.Marshal(queue.Job{Type: jobType, ClientID: clientID, Payload: payload})
 	if err != nil {
-		h.fail(w, "todo: suggest job marshal failed", err, "marshal job failed")
+		h.fail(r.Context(), w, "todo: suggest job marshal failed", err, "marshal job failed")
 		return
 	}
 	if h.Queue == nil {
-		h.fail(w, "todo: suggest queue missing", errNoQueue, "enqueue failed")
+		h.fail(r.Context(), w, "todo: suggest queue missing", errNoQueue, "enqueue failed")
 		return
 	}
 	if err := h.Queue.Enqueue(r.Context(), job); err != nil {
-		h.fail(w, "todo: suggest enqueue failed", err, "enqueue failed")
+		h.fail(r.Context(), w, "todo: suggest enqueue failed", err, "enqueue failed")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
@@ -85,7 +85,8 @@ func (h *Handler) enqueueSuggest(w http.ResponseWriter, r *http.Request, jobType
 		signalSuggestErr:  "",
 		signalAiPending:   true,
 	}); err != nil {
-		slog.Error("todo: suggest ack failed", "error", err)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+		observability.Error(r.Context(), "todo: suggest ack failed", obsArgs...)
 	}
 }
 
@@ -133,7 +134,7 @@ func (h *Handler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job q
 			signalSuggestErr:  "AI suggest failed: LLM not configured",
 			signalAiPending:   false,
 		}
-		body, marshalErr := json.Marshal(queue.Job{Type: jobTypeSuggestResult, Payload: mustJSON(errResult)})
+		body, marshalErr := json.Marshal(queue.Job{Type: jobTypeSuggestResult, Payload: mustJSON(ctx, errResult)})
 		if marshalErr == nil {
 			if job.ClientID != "" {
 				hub.Send(job.ClientID, body)
@@ -154,12 +155,13 @@ func (h *Handler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job q
 	}
 	if err != nil {
 		result[signalSuggestErr] = "AI suggest failed: " + err.Error()
-		slog.Error("todo: suggest job failed", "job", job.Type, "error", err)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "job", job.Type, "error", err)
+		observability.Error(ctx, "todo: suggest job failed", obsArgs...)
 	} else {
 		result[signalSuggestions] = suggestions
 	}
 
-	body, marshalErr := json.Marshal(queue.Job{Type: jobTypeSuggestResult, Payload: mustJSON(result)})
+	body, marshalErr := json.Marshal(queue.Job{Type: jobTypeSuggestResult, Payload: mustJSON(ctx, result)})
 	if marshalErr != nil {
 		return fmt.Errorf("marshal suggest result: %w", marshalErr)
 	}
@@ -175,10 +177,11 @@ func (h *Handler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job q
 
 // mustJSON marshals for job envelopes; unmarshalable input cannot happen
 // from the shapes above, so failure is logged, never returned.
-func mustJSON(v any) []byte {
+func mustJSON(ctx context.Context, v any) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
-		slog.Error("todo: marshal envelope", "error", err)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+		observability.Error(ctx, "todo: marshal envelope", obsArgs...)
 		return []byte("{}")
 	}
 	return b

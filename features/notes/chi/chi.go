@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"html"
 	"io"
-	"log/slog"
 	"net/http"
 	"sync"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -126,7 +126,8 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		// Not an empty list: a failed query would render as "no notes yet",
 		// which is indistinguishable from the truth and leaves the operator
 		// with nothing to go on.
-		slog.Error("notes: list ids failed", "owner", sess.User.ID, "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "owner", sess.User.ID, "error", err)
+		observability.Error(r.Context(), "notes: list ids failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing notes")
 		return
 	}
@@ -160,7 +161,8 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Same contract as the index handler: an empty fragment is a lie the
 		// user cannot detect and the operator cannot diagnose.
-		slog.Error("notes: list fragment ids failed", "owner", sess.User.ID, "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "owner", sess.User.ID, "error", err)
+		observability.Error(r.Context(), "notes: list fragment ids failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing notes")
 		return
 	}
@@ -180,7 +182,8 @@ func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
 	if err := h.q.UpsertNote(r.Context(), dbgen.UpsertNoteParams{
 		DocID: docID, Owner: sess.User.ID, Updated: now, Created: now,
 	}); err != nil {
-		slog.Warn("notes: save new note", "doc", docID, "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", err)
+		observability.Warn(r.Context(), "notes: save new note", obsArgs...)
 	}
 	http.Redirect(w, r, "/notes/"+docID, http.StatusFound)
 }
@@ -199,7 +202,8 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 	if snap, ok := h.persister.LoadSnapshot(docID); ok {
 		d := h.docs.GetOrCreate(docID)
 		if err := d.ApplyUpdate(snap); err != nil {
-			slog.Warn("notes: rehydrate failed", "doc", docID, "error", err)
+			obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", err)
+			observability.Warn(r.Context(), "notes: rehydrate failed", obsArgs...)
 		}
 	}
 	text := h.docs.GetOrCreate(docID).Text()
@@ -235,9 +239,10 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			if mErr == nil {
 				h.hub.BroadcastExcept(joinMsg, clientID)
 			} else {
-				slog.Warn("notes: marshal join", "error", mErr)
+				obsArgs := append(observability.WithComponent("notes", "feature"), "error", mErr)
+				observability.Warn(r.Context(), "notes: marshal join", obsArgs...)
 			}
-			h.broadcastPeerCount(docID)
+			h.broadcastPeerCount(r.Context(), docID)
 			if text := h.docs.GetOrCreate(docID).Text(); text != "" {
 				h.revsMu.Lock()
 				rev := h.revs[docID]
@@ -249,8 +254,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		},
 		//nolint:contextcheck // leave chain ends in Hub.Broadcast, which
 		// takes no context; disconnects surface on the next failed write.
-		func() { h.peerLeave(docID, clientID) }); serr != nil {
-		slog.Warn("notes: stream failed", "doc", docID, "error", serr)
+		func() { h.peerLeave(r.Context(), docID, clientID) }); serr != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", serr)
+		observability.Warn(r.Context(), "notes: stream failed", obsArgs...)
 		return
 	}
 }
@@ -288,7 +294,7 @@ func (h *Handler) handleOp(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	text, err := h.applyOps(docID, from, h.displayName(sess, from), req.Ops, current+1, req.Caret)
+	text, err := h.applyOps(r.Context(), docID, from, h.displayName(sess, from), req.Ops, current+1, req.Caret)
 	if err != nil {
 		h.revsMu.Unlock()
 		writeText(w, http.StatusBadRequest, "apply op: "+err.Error())
@@ -304,7 +310,7 @@ func (h *Handler) handleOp(w http.ResponseWriter, r *http.Request) {
 // applyOps merges the batch, persists, and fans out to live peers.
 // rev is reserved by the caller; on error nothing broadcasts.
 func (h *Handler) applyOps(
-	docID, from, who string, ops []collab.TextOp, rev uint64, caret *CaretReport,
+	ctx context.Context, docID, from, who string, ops []collab.TextOp, rev uint64, caret *CaretReport,
 ) (string, error) {
 	d := h.docs.GetOrCreate(docID)
 	var text string
@@ -317,7 +323,8 @@ func (h *Handler) applyOps(
 	snapshot := d.EncodeSnapshot()
 	if h.persister != nil {
 		if pErr := h.persister.SaveSnapshot(docID, snapshot); pErr != nil {
-			slog.Warn("notes: persist snapshot failed", "doc", docID, "error", pErr)
+			obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", pErr)
+			observability.Warn(ctx, "notes: persist snapshot failed", obsArgs...)
 		}
 	}
 	payload, err := json.Marshal(NoteTextEvent{
@@ -325,7 +332,8 @@ func (h *Handler) applyOps(
 		Caret: caretOrNil(caret),
 	})
 	if err != nil {
-		slog.Warn("notes: marshal text", "doc", docID, "error", err)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", err)
+		observability.Warn(ctx, "notes: marshal text", obsArgs...)
 		return text, err
 	}
 	collab.Fanout(h.hub, nil, notesSyncSubject+docID, docID, from, nil, payload)

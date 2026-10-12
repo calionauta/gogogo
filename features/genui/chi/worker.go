@@ -46,11 +46,8 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		// identical. err.Error() carries no credentials; the same value is
 		// already logged and already sent by the chat slice.
 		msg := "Ask failed: " + err.Error()
-		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
-		// cancellation is handled by the surrounding ctx select.
-		h.sendResult(target, job.ClientID, nil, msg)
-		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-		h.sendToast(target, job.ClientID, msg, "error")
+		h.sendResult(ctx, target, job.ClientID, nil, msg)
+		h.sendToast(ctx, target, job.ClientID, msg, "error")
 		//nolint:nilerr // delivered as user-visible result; pool must not retry Ask.
 		return nil
 	}
@@ -60,26 +57,28 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		// Same reasoning as the responder error above: the parse failure's
 		// message is what tells you which directive the model got wrong.
 		msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
-		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-		h.sendResult(target, job.ClientID, nil, msg)
-		//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-		h.sendToast(target, job.ClientID, msg, "error")
+		h.sendResult(ctx, target, job.ClientID, nil, msg)
+		h.sendToast(ctx, target, job.ClientID, msg, "error")
 		//nolint:nilerr // same contract as above: delivered, not retried.
 		return nil
 	}
-	//nolint:contextcheck // SSEHub.Send/Broadcast take no context; worker
-	// cancellation is handled by the surrounding ctx select.
-	h.sendResult(target, job.ClientID, dirs, "")
-	//nolint:contextcheck // SSEHub.Send/Broadcast take no context; see above.
-	h.sendToast(target, job.ClientID, fmt.Sprintf("Rendered %d components", len(dirs)), "success")
+	h.sendResult(ctx, target, job.ClientID, dirs, "")
+	h.sendToast(ctx, target, job.ClientID, fmt.Sprintf("Rendered %d components", len(dirs)), "success")
 	return nil
 }
 
 // sendResult delivers the render payload to one tab (or broadcasts when
 // the job carries no client).
-func (h *Handler) sendResult(hub *queue.SSEHub, clientID string, dirs []comp.Directive, errMsg string) {
-	body := mustJSON(queue.Job{Type: "genui", Payload: mustJSON(genuiPayload{Directives: dirs, Error: errMsg})})
+func (h *Handler) sendResult(
+	ctx context.Context, hub *queue.SSEHub, clientID string, dirs []comp.Directive, errMsg string,
+) {
+	payload := mustJSON(ctx, genuiPayload{
+		Directives: dirs, Error: errMsg,
+	})
+	body := mustJSON(ctx, queue.Job{Type: "genui", Payload: payload})
 	if clientID == "" {
+		//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+		// cancellation flows through the surrounding ctx select.
 		hub.Broadcast(body)
 		return
 	}
@@ -87,10 +86,12 @@ func (h *Handler) sendResult(hub *queue.SSEHub, clientID string, dirs []comp.Dir
 }
 
 // sendToast delivers a toast to one tab (or broadcasts).
-func (h *Handler) sendToast(hub *queue.SSEHub, clientID, message, kind string) {
-	p := mustJSON(map[string]string{"toastType": kind, "message": message})
-	body := mustJSON(queue.Job{Type: "toast", Payload: p})
+func (h *Handler) sendToast(ctx context.Context, hub *queue.SSEHub, clientID, message, kind string) {
+	p := mustJSON(ctx, map[string]string{"toastType": kind, "message": message})
+	body := mustJSON(ctx, queue.Job{Type: "toast", Payload: p})
 	if clientID == "" {
+		//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+		// cancellation flows through the surrounding ctx select.
 		hub.Broadcast(body)
 		return
 	}

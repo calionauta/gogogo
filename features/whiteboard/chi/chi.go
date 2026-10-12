@@ -26,6 +26,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -130,7 +131,8 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Not an empty list: a failed query would render as "no boards",
 		// indistinguishable from the truth and invisible to the operator.
-		slog.Error("whiteboard: list boards failed", "owner", sess.User.ID, "error", err)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "owner", sess.User.ID, "error", err)
+		observability.Error(r.Context(), "whiteboard: list boards failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing boards")
 		return
 	}
@@ -151,7 +153,8 @@ func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
 	if err := h.q.UpsertBoard(r.Context(), dbgen.UpsertBoardParams{
 		DocID: docID, Owner: sess.User.ID, Title: "", Updated: now, Created: now,
 	}); err != nil {
-		slog.Warn("whiteboard: save new board", "doc", docID, "error", err)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", err)
+		observability.Warn(r.Context(), "whiteboard: save new board", obsArgs...)
 	}
 	http.Redirect(w, r, "/whiteboard/"+docID, http.StatusFound)
 }
@@ -166,7 +169,8 @@ func (h *Handler) handleListFragment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Same contract as the index handler: an empty fragment is a lie the
 		// user cannot detect and the operator cannot diagnose.
-		slog.Error("whiteboard: list fragment failed", "owner", sess.User.ID, "error", err)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "owner", sess.User.ID, "error", err)
+		observability.Error(r.Context(), "whiteboard: list fragment failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing boards")
 		return
 	}
@@ -216,23 +220,26 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			others := h.peerJoin(docID, clientID)
 			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "join"})
 			if mErr != nil {
-				slog.Warn("whiteboard: marshal join", "error", mErr)
+				obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", mErr)
+				observability.Warn(r.Context(), "whiteboard: marshal join", obsArgs...)
 				return
 			}
 			h.hub.BroadcastExcept(joinMsg, clientID)
 			if len(others) > 0 {
 				snap, sErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "snapshot", Peers: others})
 				if sErr != nil {
-					slog.Warn("whiteboard: marshal snapshot", "error", sErr)
+					obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", sErr)
+					observability.Warn(r.Context(), "whiteboard: marshal snapshot", obsArgs...)
 				} else if err := send(snap); err != nil {
 					return
 				}
 			}
-			h.broadcastPeerCount(docID)
+			h.broadcastPeerCount(r.Context(), docID)
 			if shapes := h.worker.Shapes(docID); len(shapes) > 0 {
 				payload, err := json.Marshal(collab.WebShapesEvent{Type: wireShapes, Doc: docID, From: "", Shapes: shapes})
 				if err != nil {
-					slog.Warn("whiteboard: marshal initial shapes", "error", err)
+					obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", err)
+					observability.Warn(r.Context(), "whiteboard: marshal initial shapes", obsArgs...)
 				} else {
 					_ = send(payload)
 				}
@@ -240,8 +247,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		},
 		//nolint:contextcheck // leave chain ends in Hub.Broadcast, which
 		// takes no context; disconnects surface on the next failed write.
-		func() { h.peerLeave(docID, clientID) }); serr != nil {
-		slog.Warn("whiteboard: stream failed", "doc", docID, "error", serr)
+		func() { h.peerLeave(r.Context(), docID, clientID) }); serr != nil {
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", serr)
+		observability.Warn(r.Context(), "whiteboard: stream failed", obsArgs...)
 		return
 	}
 }
@@ -279,7 +287,8 @@ func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	if berr := h.q.BumpBoardVersion(r.Context(), dbgen.BumpBoardVersionParams{
 		Updated: dbschema.Now(), DocID: docID,
 	}); berr != nil {
-		slog.Warn("whiteboard: bump version", "doc", docID, "error", berr)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", berr)
+		observability.Warn(r.Context(), "whiteboard: bump version", obsArgs...)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":       true,
@@ -313,7 +322,8 @@ func (h *Handler) handlePresence(w http.ResponseWriter, r *http.Request) {
 	msg.TS = time.Now().UnixMilli()
 	data, mErr := json.Marshal(msg)
 	if mErr != nil {
-		slog.Warn("whiteboard: marshal presence failed", "error", mErr)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", mErr)
+		observability.Warn(r.Context(), "whiteboard: marshal presence failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "marshal presence")
 		return
 	}

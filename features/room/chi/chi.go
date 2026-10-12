@@ -9,7 +9,6 @@ package chi
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	roomcomponents "github.com/calionauta/gogogo/features/room/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // roomSystem is the grain surface this slice needs. *goakt.Host satisfies
@@ -116,8 +116,9 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 // unavailable logs the grain failure and answers 502 without leaking it:
 // the previous generation swallowed the error whole, which is why a CI
 // 502 here could not be attributed to a route or a cause from the log.
-func (h *Handler) unavailable(w http.ResponseWriter, room, step string, err error) {
-	slog.Warn("room: grain unavailable", "room", room, "step", step, "error", err)
+func (h *Handler) unavailable(ctx context.Context, w http.ResponseWriter, room, step string, err error) {
+	obsArgs := append(observability.WithComponent("room", "feature"), "room", room, "step", step, "error", err)
+	observability.Warn(ctx, "room: grain unavailable", obsArgs...)
 	writeText(w, http.StatusBadGateway, "room engine unavailable")
 }
 
@@ -145,7 +146,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	id := roomID(r)
 	roster, err := h.readRoster(r.Context(), id)
 	if err != nil {
-		h.unavailable(w, id, "index", err)
+		h.unavailable(r.Context(), w, id, "index", err)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -160,7 +161,7 @@ func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
 	id := roomID(r)
 	roster, err := h.readRoster(r.Context(), id)
 	if err != nil {
-		h.unavailable(w, id, "roster", err)
+		h.unavailable(r.Context(), w, id, "roster", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, roster)
@@ -177,12 +178,12 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name s
 	ctx, cancel := context.WithTimeout(r.Context(), mutateTimeout)
 	defer cancel()
 	if err := h.rooms.Tell(ctx, id, msg(name)); err != nil {
-		h.unavailable(w, id, "tell", err)
+		h.unavailable(r.Context(), w, id, "tell", err)
 		return
 	}
 	roster, err := h.readRoster(ctx, id)
 	if err != nil {
-		h.unavailable(w, id, "read-after-tell", err)
+		h.unavailable(r.Context(), w, id, "read-after-tell", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, roster)

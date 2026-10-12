@@ -17,13 +17,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	natsio "github.com/nats-io/nats.go"
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/natswire"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -39,7 +39,8 @@ func RunCrudConsumer(
 	sub, err := js.Subscribe(natswire.CrudSubjectAll, func(msg *natsio.Msg) {
 		var p natswire.CrudPayload
 		if err := json.Unmarshal(msg.Data, &p); err != nil {
-			slog.Warn("chi crudconsumer: unmarshal", "error", err)
+			obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+			observability.Warn(ctx, "chi crudconsumer: unmarshal", obsArgs...)
 			return
 		}
 		if p.UserID == "" {
@@ -64,10 +65,12 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 		if isSkip(err) {
 			// Unknown identity: skip, do not map. Faking a mapping would
 			// corrupt tenant scoping.
-			slog.Warn("chi crudconsumer: unknown owner, skipping", "userId", p.UserID, "op", p.Op)
+			obsArgs := append(observability.WithComponent("todo", "feature"), "userId", p.UserID, "op", p.Op)
+			observability.Warn(ctx, "chi crudconsumer: unknown owner, skipping", obsArgs...)
 			return
 		}
-		slog.Warn("chi crudconsumer: owner lookup", "userId", p.UserID, "error", err)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "userId", p.UserID, "error", err)
+		observability.Warn(ctx, "chi crudconsumer: owner lookup", obsArgs...)
 		return
 	}
 	if p.Data == nil {
@@ -84,19 +87,22 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 	case natswire.CrudOpClearCompleted:
 		evt, err = applyClearCompleted(ctx, q, owner)
 	default:
-		slog.Warn("chi crudconsumer: unknown op", "op", p.Op)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "op", p.Op)
+		observability.Warn(ctx, "chi crudconsumer: unknown op", obsArgs...)
 		return
 	}
 	if err != nil {
 		if isSkip(err) {
 			return // redelivery / empty payload: nothing to do, stay quiet.
 		}
-		slog.Warn("chi crudconsumer: apply failed", "op", p.Op, "error", err)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "op", p.Op, "error", err)
+		observability.Warn(ctx, "chi crudconsumer: apply failed", obsArgs...)
 		return
 	}
 	payload, merr := json.Marshal(evt)
 	if merr != nil {
-		slog.Error("chi crudconsumer: marshal fan-out", "error", merr)
+		obsArgs := append(observability.WithComponent("todo", "feature"), "error", merr)
+		observability.Error(ctx, "chi crudconsumer: marshal fan-out", obsArgs...)
 		return
 	}
 	hub.BroadcastToUser(payload, p.UserID, "")

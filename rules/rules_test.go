@@ -73,6 +73,10 @@ type ruleFixture struct {
 	// minimum rather than an exact count is deliberate — see the enumeration
 	// note on TestRulesFire.
 	wantAtLeast int
+	// subdir places fixture.go under dir/subdir instead of dir root, so
+	// path-scoped rules (PkgPath) see a realistic package path. Empty
+	// means the module root.
+	subdir string
 }
 
 func goFile(body string) string {
@@ -83,6 +87,7 @@ func fixtures() []ruleFixture {
 	all := tickerFixtures()
 	all = append(all, moderncFixtures()...)
 	all = append(all, leakFixtures()...)
+	all = append(all, obsFixtures()...)
 	all = append(all,
 		ruleFixture{
 			name: "the corrected select shape stays quiet",
@@ -268,7 +273,7 @@ func TestRulesFire(t *testing.T) {
 	for _, tc := range fixtures() {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			writeFixtureModule(t, dir, rulesSrc, dslVersion, tc.source)
+			writeFixtureModule(t, dir, rulesSrc, dslVersion, tc)
 
 			out := runLint(t, bin, dir)
 			// A load failure also produces a "ruleguard:" line, so a zero could
@@ -341,7 +346,7 @@ func requireVersion(t *testing.T, cfg []byte) string {
 // writeFixtureModule lays out a minimal module that can actually LOAD rules.go:
 // the rules file copied in, the dsl dependency it imports, and a config pointing
 // gocritic at it by a path relative to the linted directory.
-func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion, source string) {
+func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion string, tc ruleFixture) {
 	t.Helper()
 
 	if err := os.MkdirAll(filepath.Join(dir, "rules"), 0o750); err != nil {
@@ -349,7 +354,14 @@ func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion, s
 	}
 	writeIn(t, filepath.Join(dir, "go.mod"),
 		"module fixture\n\ngo 1.22\n\nrequire github.com/quasilyte/go-ruleguard/dsl "+dslVersion+"\n")
-	writeIn(t, filepath.Join(dir, "fixture.go"), source)
+	if tc.subdir != "" {
+		if err := os.MkdirAll(filepath.Join(dir, filepath.FromSlash(tc.subdir)), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		writeIn(t, filepath.Join(dir, filepath.FromSlash(tc.subdir), "fixture.go"), tc.source)
+	} else {
+		writeIn(t, filepath.Join(dir, "fixture.go"), tc.source)
+	}
 	writeIn(t, filepath.Join(dir, "rules", "rules.go"), string(rulesSrc))
 
 	// Mirrors the project's own ruleguard block, minus every other linter, so a
