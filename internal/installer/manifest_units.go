@@ -180,6 +180,18 @@ const navbarTempl = "features/authviews/navbar.templ"
 // so trims here are line drops (both files live in this one source file).
 const chiGoFile = "internal/server/chi.go"
 
+// Repeated trim targets, hoisted so a typo in a path is a compile error
+// rather than a trim that silently matches nothing.
+const (
+	// chiTestFile is the composition test every unit edits instead of
+	// deleting: it builds one handler per feature, so trimming any of
+	// them means editing its imports and call sites.
+	chiTestFile = "internal/server/chi_test.go"
+	// creditsCallLine is the inlined credits construction both composition
+	// call sites share, closing paren included (a drop would take it).
+	creditsCallLine = "creditschi.NewHandler(a, nil))"
+)
+
 // chiMuxAnchor ends buildChiMux; capability route lines land above it.
 const chiMuxAnchor = "\treturn mux"
 
@@ -190,7 +202,37 @@ const (
 	soundsImportSuffix = `features/sounds"`
 )
 
-var manifestUnits = append(dagNatsTrimUnit, baseTrimUnits...)
+// manifestUnits is every offered unit in canonical menu order. The order is
+// load-bearing: TestUnitMenusFollowRegistryKinds pins it, and the file
+// split (dagNats / feature / base) is by size, not by domain — so the order
+// is reconstructed here explicitly rather than by concatenating the slices.
+var manifestUnits = buildManifestUnits()
+
+func buildManifestUnits() []trimUnit {
+	byID := make(map[string]trimUnit)
+	for _, u := range dagNatsTrimUnit {
+		byID[u.id] = u
+	}
+	for _, u := range featureTrimUnits {
+		byID[u.id] = u
+	}
+	for _, u := range baseTrimUnits {
+		byID[u.id] = u
+	}
+	order := []string{
+		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
+		unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
+	}
+	out := make([]trimUnit, 0, len(order))
+	for _, id := range order {
+		u, ok := byID[id]
+		if !ok {
+			panic("installer: manifest unit missing: " + id)
+		}
+		out = append(out, u)
+	}
+	return out
+}
 
 var baseTrimUnits = []trimUnit{
 	{
@@ -203,37 +245,34 @@ var baseTrimUnits = []trimUnit{
 				path: chiGoFile,
 				substrs: []string{
 					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
-					"if roomHost != nil {",
-					"shutdown = append(shutdown, func() { stopRoomActor(roomHost) })",
-					"roomH, chatH, genuiH, creditsH,",
+					// One argument per line: each drop removes exactly its
+					// feature's line, and add restores them.
+					"roomH *roomchi.Handler,",
+					"roomH,",
 					`mux.Handle("/room", roomH.Routes())`,
 					`mux.Handle("/room/", roomH.Routes())`,
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
+					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
 				},
 			},
 			{
-				// The server test compiles the room fixture (fakeRooms);
-				// the trim edits it out, it never deletes internal/server.
-				path: "internal/server/chi_test.go",
+				// The server test's room call sites go as line drops; the
+				// multi-line fakeRooms fixture goes as a block strip below.
+				path: chiTestFile,
 				substrs: []string{
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					"func (fakeRooms) Roster",
-					"func (fakeRooms) Acquire",
-					"func (fakeRooms) Tell",
-					"type fakeRooms struct",
+					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+					"nil, // roomHandler: engine disabled",
+					"roomchi.NewHandler(cfg, a, fakeRooms{}),",
 				},
 			},
 		},
+
 		mainStrips: []stripRule{
 			{
 				startMarker: "startGoAkt(context.Background(), cfg)",
 				endMarker:   "defer shutdownGoAkt()",
 				addAfter:    mainCallsAnchor,
-				// Removing the engine leaves its boot preamble (and the
-				// lifecycle comment it sits under) describing an absent
-				// engine — drop the block that documents them, or trim
-				// leaves an orphaned comment (and gofmt flags the stray
-				// blank lines in the scaffolded checkout).
 				alsoDeleteContains: []string{
 					"// GoAkt owns the room actor system (standalone, no network).",
 					"// always compiled; when GOAKT_ENABLED=false it no-ops.",
@@ -255,138 +294,49 @@ var baseTrimUnits = []trimUnit{
 					},
 				},
 			},
-		},
-	},
-	{
-		id: unitWhiteboard,
-		// Bundle rationale lives in the collab capability entry: one
-		// unit is the only honest shape (see internal/capabilities).
-		extraDrops: []fileDrop{
 			{
+				// The shutdown hook block: dropping its `if` line alone
+				// would leave the closing brace behind and break parsing,
+				// so it goes as a block. Same for the two helpers, which
+				// name deleted types in their signatures — dead code that
+				// does not compile still breaks the build. And the mux
+				// mount block, for the same brace reason.
 				path: chiGoFile,
-				substrs: []string{
-					"wbchi.NewHandler(queries, a, hub, persister, docs, cfg),",
-					"notesachi.NewHandler(queries, a, hub, persister, docs, cfg),",
-					`mux.Handle("/whiteboard", wbH.Routes())`,
-					`mux.Handle("/whiteboard/", wbH.Routes())`,
-					`mux.Handle("/api/whiteboard", wbH.Routes())`,
-					`mux.Handle("/api/whiteboard/", wbH.Routes())`,
-					`mux.Handle("/api/whiteboards/", wbH.Routes())`,
-					`mux.Handle("/notes", notesH.Routes())`,
-					`mux.Handle("/notes/", notesH.Routes())`,
-					`mux.Handle("/api/notes", notesH.Routes())`,
-					`mux.Handle("/api/notes/", notesH.Routes())`,
-					`	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"`,
-					`	notesachi "github.com/calionauta/gogogo/features/notes/chi"`,
-					`	"github.com/calionauta/gogogo/internal/collab"`,
-					"persister, perr := collab.NewTursoPersister(queries)",
-					"docs := collab.NewDocStore()",
-					"docs.SetPersister(persister)",
-				},
-			},
-			{
-				// The server test composes the collab persister/docs in
-				// TestBuildChiMux; the trim edits it, never deletes.
-				path: "internal/server/chi_test.go",
-				substrs: []string{
-					`"github.com/calionauta/gogogo/internal/collab"`,
-					"persister, perr := collab.NewTursoPersister",
-					"docs := collab.NewDocStore()",
-					"persister, docs",
-				},
-			},
-		},
-		desktopStrips: []stripRule{
-			{
-				startMarker: "// Edge sync (Phase C): publish local " +
-					"Loro updates on app.sync.<docID>.",
-				endIsClosingBrace: true,
-				endBrace:          "\t}",
-			},
-		},
-		desktopDropLines: []string{`internal/collab"`, `"context"`, `"time"`},
-		// No runtimeOff: the whiteboard has no boot-costly servers, so
-		// deletion is the off switch (a flag would be config surface
-		// with no benefit).
-		extraStrips: []fileStrip{
-			{
-				path: navbarTempl,
 				rules: []stripRule{
 					{
-						startMarker: `<a href="/whiteboard"`,
-						endMarker:   `}>Collab whiteboard</a>`,
+						startMarker:       "if roomHost != nil {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
 					},
 					{
-						startMarker: `<a href="/notes"`,
-						endMarker:   `}>Collab notes</a>`,
+						startMarker:       "// bootRoomActor starts the GoAkt actor system",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+					{
+						startMarker:       "// stopRoomActor is the shutdown hook",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+					{
+						startMarker:       "\tif roomH != nil {",
+						endIsClosingBrace: true,
+						endBrace:          "\t}",
 					},
 				},
 			},
-		},
-	},
-	{
-		id: unitLanding,
-		extraDrops: []fileDrop{
 			{
-				path: chiGoFile,
-				substrs: []string{
-					"landingchi.NewHandler(cfg, a)",
-					`landingchi "github.com/calionauta/gogogo/features/landing/chi"`,
-					`mux.Handle("/", landingH.Routes())`,
-				},
-			},
-		},
-		replaces: []fileReplace{
-			{
-				path:        navbarTempl,
-				matchSubstr: `class="app-nav-brand"`,
-				old:         `href="/"`,
-				newStr:      `href="/todo"`,
-			},
-		},
-	},
-	{
-		id: unitConfigView,
-		extraDrops: []fileDrop{
-			{
-				path: chiGoFile,
-				substrs: []string{
-					"configchi.NewHandler(cfg, a)",
-					`configchi "github.com/calionauta/gogogo/features/config/chi"`,
-					`mux.Handle("/config", configH.Routes())`,
-					`mux.Handle("/config/", configH.Routes())`,
-				},
-			},
-		},
-		extraStrips: []fileStrip{
-			{
-				path: navbarTempl,
+				// The multi-line fakeRooms fixture: line drops would orphan
+				// the method bodies.
+				path: chiTestFile,
 				rules: []stripRule{
 					{
-						startMarker: `<a href="/config"`,
-						endMarker:   `}>Config</a>`,
+						startMarker: "// fakeRooms is the deterministic grain stand-in",
+						endMarker:   "func (fakeRooms) Tell(_ context.Context, _ string, _ any) error { return nil }",
 					},
 				},
 			},
 		},
-	},
-	{
-		id: unitCredits,
-		extraDrops: []fileDrop{
-			{
-				path: chiGoFile,
-				substrs: []string{
-					"creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)",
-					`mux.Handle("/api/credits", creditsH.Routes())`,
-					`mux.Handle("/api/credits/", creditsH.Routes())`,
-					`mux.Handle("/api/ai/", creditsH.Routes())`,
-					`mux.Handle("/api/byok/", creditsH.Routes())`,
-					`"github.com/calionauta/gogogo/features/credits"`,
-					`creditschi "github.com/calionauta/gogogo/features/credits/chi"`,
-				},
-			},
-		},
-		goModDrops: []string{"github.com/calionauta/ai-credits"},
 	},
 	{
 		id: unitSounds,
@@ -399,6 +349,7 @@ var baseTrimUnits = []trimUnit{
 			{path: "features/notes/components/notes.templ", substrs: soundsDropLines},
 			{path: "features/chat/components/chat.templ", substrs: soundsDropLines},
 			{path: "features/genui/components/components.templ", substrs: soundsDropLines},
+			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},
 	},
 	{

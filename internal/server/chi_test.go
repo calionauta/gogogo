@@ -234,7 +234,8 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
 	mux := buildChiMux(a, todochi.NewHandler(q, a, hub, "daisyui"),
-		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+		landingchi.NewHandler(cfg, a),
+		configchi.NewHandler(cfg, a),
 		wbchi.NewHandler(q, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(q, a, hub, persister, docs, cfg),
 		nil, // roomHandler: engine disabled
@@ -270,11 +271,11 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 
-	hub := queue.NewSSEHub()
 	mux := buildChiMux(a, todoH,
-		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
-		wbchi.NewHandler(dbgen.New(sqlDB), a, hub, persister, docs, cfg),
-		notesachi.NewHandler(dbgen.New(sqlDB), a, hub, persister, docs, cfg),
+		landingchi.NewHandler(cfg, a),
+		configchi.NewHandler(cfg, a),
+		wbchi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
+		notesachi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		roomchi.NewHandler(cfg, a, fakeRooms{}),
 		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
 		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),

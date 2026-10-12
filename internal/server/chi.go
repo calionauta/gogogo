@@ -261,11 +261,19 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
+	// One argument per line, deliberately: every line belongs to exactly one
+	// feature, so trimming a feature drops its lines without touching its
+	// neighbours. A shared line would make a line drop take two features at
+	// once (and the add path restores these same lines — see routerCallLines).
 	mux := buildChiMux(a, todoH,
-		landingchi.NewHandler(cfg, a), configchi.NewHandler(cfg, a),
+		landingchi.NewHandler(cfg, a),
+		configchi.NewHandler(cfg, a),
 		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
-		roomH, chatH, genuiH, creditsH,
+		roomH,
+		chatH,
+		genuiH,
+		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
 	return &ChiStack{
@@ -402,9 +410,13 @@ func mountOnboarding(mux *http.ServeMux, onboardingH *onboarding.Handler) {
 // never changes this signature (see the mount block there).
 func buildChiMux(
 	a *auth.Auth, todoH *chi.Handler,
-	landingH *landingchi.Handler, configH *configchi.Handler,
-	wbH *wbchi.Handler, notesH *notesachi.Handler,
-	roomH *roomchi.Handler, chatH *chatchi.Handler, genuiH *genuichi.Handler,
+	landingH *landingchi.Handler,
+	configH *configchi.Handler,
+	wbH *wbchi.Handler,
+	notesH *notesachi.Handler,
+	roomH *roomchi.Handler,
+	chatH *chatchi.Handler,
+	genuiH *genuichi.Handler,
 	creditsH *creditschi.Handler,
 ) *http.ServeMux {
 	// Every sub-router serves absolute paths (the auth handler carries

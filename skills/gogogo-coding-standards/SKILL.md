@@ -164,6 +164,84 @@ Full rules: `references/datastar.md`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
 
+## Where new code goes (read this before creating a file)
+
+- **`src/css/` is the Tailwind input directory, not Go source.** It holds
+  `input.css` and `basecoat-input.css`, which compile to
+  `web/resources/static/*.min.css`. The name is a legacy of the CSS
+  convention and reads wrong in a Go repo; renaming it to `assets/css/`
+  touches `Makefile`, `package.json`, `docs/` and the CI workflow, so it
+  waits for a session that is not editing those files.
+- **New feature code goes in `features/<feature>/chi/`.** That package is the
+  live surface: chi routes, owned auth, `dbgen` queries called directly, the
+  same Templ components, the same SSE wire. The entry file is `chi.go` in
+  all nine slices (todo, chat, genui, credits, whiteboard, notes, room,
+  landing, config). Split a slice into more files by concern
+  (`mutations.go`, `stream.go`, `worker.go`) once `chi.go` passes ~200 lines,
+  the way `features/todo/chi/` already is.
+- **Never make a chi slice import another feature's chi package for shared
+  code.** Shared wire or UI goes in a framework-free package both import
+  (`features/todo/components`, `internal/dagnats`) or is copied chi-locally
+  — the step vocabulary duplicated between `features/onboarding` and
+  `features/todo/chi` is that trade, made deliberately so trimming one
+  cannot break the other.
+- **`internal/` packages are closed by the gate too.** `cmd/check-flatdeps`
+  lists the flat-stack packages that must stay framework-free; adding one
+  means adding it to that list, which is the review moment the guarantee
+  needs. Do not create an `internal/foo/` with a single file before checking
+  whether it is a file of an existing package.
+- **A package with zero importers is opt-in, not dead.** State that in the
+  package doc with the two exits: the trigger that wires it, and the exact
+  removal step if it never fires.
+
+## Two failure shapes no linter catches
+
+Both were shipped and neither `golangci-lint` nor `go vet` noticed, because
+both produce valid Go that does what the code says.
+
+**1. A checked error whose cause you replace with a literal.**
+
+```go
+raw, err := h.responder.Respond(ctx, p.Prompt)
+if err != nil {
+    h.sendResult(target, id, nil, "Ask failed: model unavailable")  // err discarded
+    return nil
+}
+```
+
+The branch is *handled*, so nothing complains — but the responder's own
+message ("no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)", or the
+provider's) was the only actionable part and it was thrown away. A missing key
+and a dead provider became indistinguishable to the user.
+
+Rule: **the cause reaches the caller or the log.** If you deliberately replace
+it, a test must assert the replacement still separates the causes you claim it
+does. `nilerr` catches the adjacent mistake (returning nil after checking
+err); it cannot catch this one.
+
+**2. A closed set with a wrong `default`.**
+
+```go
+isSuggest := p.Operation == jobSuggest || p.Operation == jobSuggestSimulated
+if isSuggest { return aiFields }
+return demoFields          // ← everything that is not suggest is the retry demo
+```
+
+`genui_ask` and `chat_ask` are neither, so they lit the Queue + Retry demo
+the user never started — and emitted `"genui_ask: completed"` beside the
+worker's own `"Ask failed"` toast, reading as the opposite of what happened.
+
+Rule: **when a value selects a UI target, ask which values own one instead of
+defaulting the rest to a target.** A `default` that performs an action is a
+bet that every future value wants it. `exhaustive` would help here only if the
+job types were typed enums rather than plain strings — they are not, so this
+is a review item, and the contract test that pins both directions (the three
+owners still light, everything else emits nothing) is what makes it stick.
+
+The trim gate is the third shape and the one with a mechanical answer: a strip
+rule whose marker no longer matches must be a **failure**, never a warning.
+See `internal/installer/trim_build_test.go`.
+
 ## Exception-to-go gate
 
 Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md` (normative).

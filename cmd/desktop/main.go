@@ -44,14 +44,14 @@ func main() {
 		if err != nil {
 			log.Printf("WARN: leaf node start failed, falling back to standalone NATS: %v", err)
 		} else {
-			nat, js = h, h.JS
+			nat, js = h, h.JS // leaf-node transport (nat feeds collab only)
 		}
 	} else if cfg.NATS.Enabled {
 		h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
 		if err != nil {
 			log.Printf("WARN: NATS start failed, in-memory broadcaster only: %v", err)
 		} else {
-			nat, js = h, h.JS
+			nat, js = h, h.JS // embedded transport (nat feeds collab only)
 		}
 	}
 
