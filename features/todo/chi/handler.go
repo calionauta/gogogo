@@ -279,13 +279,20 @@ func filterOf(r *http.Request) string {
 	return "all"
 }
 
+// resolveSkin reports the skin to render with. Basecoat is opt-in through
+// the query string and falls back to the configured default; anything else
+// normalises to daisyui. Each basecoat test is its own block on purpose:
+// trimming the extra skin then removes them without leaving an unused local,
+// which a normalise-then-special-case shape would.
 func (h *Handler) resolveSkin(r *http.Request) string {
-	skin := h.DefaultSkin
 	if q := r.URL.Query().Get("skin"); q != "" {
-		skin = q
+		if q == SkinBasecoat {
+			return q
+		}
+		return "daisyui"
 	}
-	if skin == SkinBasecoat {
-		return skin
+	if h.DefaultSkin == SkinBasecoat {
+		return SkinBasecoat
 	}
 	return "daisyui"
 }
