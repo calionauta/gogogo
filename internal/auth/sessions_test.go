@@ -91,7 +91,9 @@ func TestSessionProbeEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("signup: %v", err)
 	}
-	srv := httptest.NewServer(a.Handler())
+	mux := http.NewServeMux()
+	mux.Handle("/api/session", a.SessionProbeHandler())
+	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
 	probe := func(token string) bool {

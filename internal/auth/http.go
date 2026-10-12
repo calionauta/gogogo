@@ -23,14 +23,16 @@ func (a *Auth) Handler() http.Handler {
 	mux.HandleFunc("/api/auth/totp/disable", a.handleTOTPDisable)
 	mux.HandleFunc("/api/auth/totp/recovery", a.handleTOTPRecovery)
 	mux.HandleFunc("/api/auth/oauth/", a.handleOAuth)
-	// Session probe: the shared session banner (web/resources/static
-	// session.js) polls this to learn whether the cookie is still valid —
-	// a tab open for days outlives its cookie, and without this the
-	// banner cannot say so. Ported from the PB-era /api/session
-	// (features/auth/wiring.go) when that wiring died: one endpoint for
-	// every feature, answered by the owned Session validator.
-	mux.HandleFunc("/api/session", a.handleSessionProbe)
 	return mux
+}
+
+// SessionProbeHandler serves the shared session banner's poll as a
+// standalone handler: buildChiMux mounts it at the top-level /api/session
+// path (NOT under /api/auth/ — the auth sub-mux would prefix it into
+// /api/auth/api/session, a silent 404 the literal-scanning route gate
+// cannot see).
+func (a *Auth) SessionProbeHandler() http.Handler {
+	return http.HandlerFunc(a.handleSessionProbe)
 }
 
 // handleSessionProbe answers {"authed": bool} for the current request.

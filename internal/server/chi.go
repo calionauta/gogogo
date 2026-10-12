@@ -426,6 +426,9 @@ func buildChiMux(
 	// the landing root is the catch-all.
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
+	// Session probe at the top level (see SessionProbeHandler: inside the
+	// auth sub-mux this would prefix into /api/auth/api/session).
+	mux.Handle("/api/session", a.SessionProbeHandler())
 	mux.Handle("/api/todos", todoH.Routes())
 	mux.Handle("/api/todos/", todoH.Routes())
 	mux.Handle("/todo", todoH.Routes())
