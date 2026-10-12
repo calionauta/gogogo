@@ -70,7 +70,7 @@ templ NotesPage(email string, docID string, text string, rev uint64, buildLabel 
 			<script src="/static/iconify-icon.min.js"></script>
 			@sounds.SoundAssets()
 			<script defer src="/static/throttle.js"></script>
-			<script defer src="/static/notes.js"></script>
+			<script defer src="/static/notes/notes.js"></script>
 		</head>
 		<body>
 			@authviews.Navbar(email, "notes", buildLabel, buildCommit)

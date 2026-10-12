@@ -32,10 +32,12 @@ import (
 	genuichi "github.com/calionauta/gogogo/features/genui/chi"
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
+	"github.com/calionauta/gogogo/features/notes"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
 	"github.com/calionauta/gogogo/features/onboarding"
 	roomchi "github.com/calionauta/gogogo/features/room/chi"
 	"github.com/calionauta/gogogo/features/todo/chi"
+	"github.com/calionauta/gogogo/features/whiteboard"
 	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
@@ -464,22 +466,16 @@ func buildChiMux(
 	// path on 127.0.0.1:PORT. PocketBase served /health natively; the
 	// flat stack owns it now. Register before the landing catch-all so
 	// the exact path wins.
-	// Static assets: exact-prefix ETag handler (PB served /static through
-	// the router; the flat stack owns it now). Mounted before the landing
-	// catch-all so the subtree wins.
-	mux.Handle("/static/", resources.AssetHandler(resources.StaticFS(), "/static"))
+	// Core bundle + Service Worker (see static.go).
+	mountStatic(mux)
 
-	// The Service Worker is served from the ROOT URL so its scope is "/"
-	// (per spec scope defaults to the script's directory): a SW under
-	// /static/ would only cover /static/ and never intercept /api/*
-	// mutations — the offline "Add button stuck + todo lost" bug.
-	// Service-Worker-Allowed is belt-and-suspenders for the { scope: '/' }
-	// the client registers with.
-	swAssets := resources.AssetHandler(resources.StaticFS(), "/")
-	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Service-Worker-Allowed", "/")
-		swAssets.ServeHTTP(w, r)
-	})
+	// Feature packages embed their OWN assets (whiteboard.js + rough.min.js,
+	// notes.js) — not in the core bundle, so each mounts its own subtree and
+	// the longest match wins. These lines stay here on purpose: a feature
+	// trim drops exactly its line, and the add path restores it from the
+	// same list.
+	mux.Handle("/static/wb/", resources.AssetHandler(whiteboard.StaticFS(), "/static/wb"))
+	mux.Handle("/static/notes/", resources.AssetHandler(notes.StaticFS(), "/static/notes"))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		// The build tag is what a tab open across a deploy compares

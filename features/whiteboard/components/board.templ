@@ -6,7 +6,8 @@
 //templ is used only for the page shell; the canvas drawing and the
 //Datastar/SSE wiring live in whiteboard.js so the hand-drawn rendering
 //(rough.js) stays in plain JS. The shell loads two scripts: rough.js from
-///static/rough.min.js and whiteboard.js (both embedded static assets).
+///static/wb/rough.min.js and /static/wb/whiteboard.js (both embedded static
+// assets served from this package's StaticFS, not the core bundle).
 package components
 
 import (
@@ -91,7 +92,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
 			<script src="/static/iconify-icon.min.js"></script>
-			<script src="/static/rough.min.js"></script>
+			<script src="/static/wb/rough.min.js"></script>
 		</head>
 		<body>
 			@authviews.Navbar(email, "whiteboard", buildLabel, buildCommit)
@@ -122,7 +123,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 				</div>
 			</main>
 			<script defer src="/static/throttle.js"></script>
-			<script defer src="/static/whiteboard.js"></script>
+			<script defer src="/static/wb/whiteboard.js"></script>
 			<script>
 				// The doc id is carried on <main data-doc-id> (templ escapes
 				// attribute values safely). Reading it from the DOM avoids the

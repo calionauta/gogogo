@@ -30,6 +30,16 @@ var featureTrimUnits = []trimUnit{
 					`mux.Handle("/notes/", notesH.Routes())`,
 					`mux.Handle("/api/notes", notesH.Routes())`,
 					`mux.Handle("/api/notes/", notesH.Routes())`,
+					// The feature's own static subtree (whiteboard.js, notes.js):
+					// the core /static/ mount never served them, so each feature
+					// owns its mount line and its import below.
+					`mux.Handle("/static/wb/", resources.AssetHandler(whiteboard.StaticFS(), "/static/wb"))`,
+					`mux.Handle("/static/notes/", resources.AssetHandler(notes.StaticFS(), "/static/notes"))`,
+					`	"github.com/calionauta/gogogo/features/whiteboard"`,
+					`	"github.com/calionauta/gogogo/features/notes"`,
+					// The feature mounts above are the only use of the core
+					// resources package in chi.go; without them the import goes.
+					`	"github.com/calionauta/gogogo/web/resources"`,
 					`	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"`,
 					`	notesachi "github.com/calionauta/gogogo/features/notes/chi"`,
 					`	"github.com/calionauta/gogogo/internal/collab"`,
