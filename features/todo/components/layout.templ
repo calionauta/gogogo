@@ -129,7 +129,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, buildLabel st
 			@TodoList(signals)
 			<div id="toast-container"></div>
 			@RealtimeStream("/api/todos/stream")
-		@PbRealtimeRecords()
+		@RealtimeRecords()
 	</body>
 	</html>
 }

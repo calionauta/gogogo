@@ -3,7 +3,7 @@
 //
 // Wires the calionauta/ai-credits library (immutable ledger + pricing +
 // reservations + monthly grants + reconcile + BYOK relay) into the app's
-// PocketBase SQLite. The lib takes a *sql.DB; the app exposes neither via
+// SQLite database. The lib takes a *sql.DB; the app exposes neither via
 // app.DB() (it returns an opaque dbx.Builder hiding the concrete *sql.DB),
 // so — like the goqite queue (internal/queue) — we open a second connection
 // to the same DB file. WAL + busy_timeout make cross-connection writes safe.

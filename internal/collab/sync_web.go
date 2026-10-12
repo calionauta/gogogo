@@ -90,7 +90,7 @@ type WebShapesEvent struct {
 //   - The browser POSTs its Loro update bytes to /api/whiteboard/<id>/update.
 //   - The handler calls ApplyOp, which merges into the in-memory Doc
 //     (shared via DocStore with the NATS SyncWorker) and persists the
-//     resolved snapshot via the Persister (PocketBase).
+//     resolved snapshot via the Persister (Turso).
 //   - The worker broadcasts to the SSE hub (all instances) AND publishes
 //     to NATS (other instances via SyncWorker).
 type WebSyncWorker struct {
@@ -101,7 +101,7 @@ type WebSyncWorker struct {
 }
 
 // NewWebSyncWorker builds a web transport worker bound to the SSE hub.
-// The Persister is typically the PocketBase whiteboards collection.
+// The Persister is typically the Turso whiteboards table.
 // docs is the shared doc store (pass collab.NewDocStore() or reuse the
 // one passed to SyncWorker). nc is the NATS connection for cross-instance
 // publishing; pass nil for SSE-only mode.

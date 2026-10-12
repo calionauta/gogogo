@@ -177,8 +177,9 @@ func TestRunAdviseDispatch(t *testing.T) {
 //
 // A Go need that constrains itself to the standard library cannot use any
 // capability (each is or pulls a dependency), so the 24-row table was both
-// useless and misleading: an LLM reading it would recommend PocketBase for a
-// task whose spec forbids it. The scope now says so explicitly instead.
+// useless and misleading: an LLM reading it would recommend a managed
+// realtime backend for a task whose spec forbids it. The scope now says
+// so explicitly instead.
 func TestAdviseStdlibOnlyGoScope(t *testing.T) {
 	cases := []string{
 		"TCP RESP key-value server in Go, stdlib only, concurrent clients",

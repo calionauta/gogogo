@@ -1,11 +1,11 @@
-// SCOPE:feature — Whiteboard chi port tests (ported from features/whiteboard PB suite)
+// SCOPE:feature — Whiteboard chi port tests (ported from the legacy whiteboard suite)
 //
-// The PB suite pinned the collaborative whiteboard end to end over a live
+// The legacy suite pinned the collaborative whiteboard end to end over a live
 // SSE stream: session frame, authoritative peer counts, cursor relay with
 // string-coord tolerance, server-stamped anti-spoof user, no-echo shape
 // broadcast, stale-op 409 with current state, draw-after-clear, offline
 // replay, page rendering (doc id, redirect, one "online" label, theme
-// toggle wiring) and snapshot persistence. The PB handler died with the
+// toggle wiring) and snapshot persistence. The legacy handler died with the
 // framework boot; this file re-pins every one of those contracts against
 // the chi slice, which serves the same wire protocol.
 package chi

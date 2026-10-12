@@ -50,7 +50,7 @@ func (d *Doc) ApplyUpdate(update []byte) error {
 }
 
 // EncodeSnapshot returns a self-contained snapshot of the full doc state.
-// Used to bootstrap a peer or to persist the resolved state to PocketBase.
+// Used to bootstrap a peer or to persist the resolved state to the snapshot store.
 func (d *Doc) EncodeSnapshot() []byte {
 	d.mu.Lock()
 	defer d.mu.Unlock()

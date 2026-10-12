@@ -162,7 +162,7 @@ type Config struct {
 	// OfflineSync controls the hybrid offline-sync-online strategy.
 	// When enabled (default), the system works offline and syncs when
 	// online via Service Worker (web) + NATS CRUD proxy (desktop/edge).
-	// When disabled, all requests go directly to PocketBase with no
+	// When disabled, all requests go directly to the database with no
 	// offline caching or background sync — the simplest path for
 	// always-online deployments.
 	//
@@ -215,7 +215,7 @@ type Config struct {
 
 // CreditsConfig holds the env-driven knobs for the AI credits plugin. Every
 // field defaults to billing-off; the plugin is only live when Enabled is
-// true AND the lib's schema can be applied to the app PocketBase SQLite.
+// true AND the lib's schema can be applied to the app SQLite database.
 type CreditsConfig struct {
 	Enabled             bool
 	EncKey              []byte // CREDITS_ENC_KEY, 32 bytes; empty = BYOK store disabled

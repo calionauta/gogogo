@@ -37,7 +37,7 @@ var ExampleTodoTexts = []string{
 //     polling, no in-memory flag — the durable run simply suspends until
 //     the signal arrives (or a 50m timeout).
 //  3. onboarding-create-todo (x3, sequential) — each creates one example
-//     todo in the main PocketBase collection via the worker handler,
+//     todo in the main todos table via the worker handler,
 //     once the user's first todo has resumed the flow.
 //  4. onboarding-finalize         — marks the run complete.
 //

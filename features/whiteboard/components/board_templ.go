@@ -42,7 +42,7 @@ type BoardMeta struct {
 
 // BoardListWithRealtime renders the index of existing whiteboards with
 // live-update wiring so the list updates when another user creates a new
-// board. Follows the same pattern as the todo feature's PbRealtimeRecords:
+// board. Follows the same pattern as the todo feature's RealtimeRecords:
 // a hidden @get button the stream and the visibility refetch click.
 func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

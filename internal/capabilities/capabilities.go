@@ -110,8 +110,8 @@ var All = []Capability{
 		Dirs:    []string{"internal/auth", "features/authviews"},
 		Note: "Core middleware; the login page is a removable UI (manual). " +
 			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
-			"features/authviews holds the PB-free login/navbar/theme components. " +
-			"The legacy PB middleware (features/auth) is gone with the framework.",
+			"features/authviews holds the login/navbar/theme components. " +
+			"The legacy framework middleware (features/auth) is gone with the framework.",
 	},
 	{
 		ID:      "crudwire",

@@ -1,7 +1,7 @@
 // SCOPE:core — Demo-seed contract tests.
 //
 // The login form promises two demo accounts (demo1 prefilled, demo2 for
-// the second browser); the PB-era seed created both, and the flat port
+// the second browser); the legacy seed created both, and the flat port
 // initially seeded only demo1. These tests pin the pair: both log in
 // after Ensure, and re-running Ensure is a silent no-op (idempotent
 // Signup — duplicate emails answer ErrBadCredentials, not an error).

@@ -5,7 +5,7 @@
 // racing sessions agree on one presenter) and unit tests for the
 // readRoster retry (transient grain stall tolerated, permanent failure
 // bounded). Ported from features/room/web_test.go and
-// features/room/handler_resilience_test.go when the PB handler died.
+// features/room/handler_resilience_test.go when the legacy handler died.
 package chi
 
 import (

@@ -75,7 +75,7 @@ func main() {
 
 	// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.
 	// When running as a Leaf Node, these replicate to the central server
-	// (and the central SyncWorker persists them to PocketBase). When
+	// (and the central SyncWorker persists them to Turso). When
 	// standalone, they fan out to local realtime subscribers. The doc
 	// edit below is a minimal end-to-end smoke of the publish path.
 	if js != nil && nat != nil && nat.Conn != nil {

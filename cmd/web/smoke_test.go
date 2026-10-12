@@ -99,7 +99,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		t.Fatalf("reserve port: %v", portErr)
 	}
 	dataDir := filepath.Join(dir, "data")
-	// The queue boots before PocketBase creates --dir, and it opens
+	// The queue boots before the server creates --dir, and it opens
 	// DATABASE_PATH eagerly; a missing parent dir fails with "unable to open
 	// database file: lstat <dir>: no such file or directory". scripts/smoke.mjs
 	// mkdirs its runtime dir for the same reason — mirror it here instead of
@@ -109,7 +109,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	// The flat binary has no CLI subcommands (PB's serve/migrate/superuser
+	// The flat binary has no CLI subcommands (the legacy serve/migrate/superuser
 	// are gone): the listen address and data dir ride env vars, same as
 	// production.
 	cmd := exec.CommandContext(ctx, binPath)

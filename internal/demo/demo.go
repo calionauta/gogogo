@@ -1,6 +1,6 @@
-// SCOPE:core — Demo-user seed for fresh installs (the PB-era SeedDefaults pair)
+// SCOPE:core — Demo-user seed for fresh installs (the legacy SeedDefaults pair)
 //
-// PocketBase seeded a demo account on first boot (db/seed.go) so a fresh
+// The old stack seeded a demo account on first boot (db/seed.go) so a fresh
 // clone had a way in. The flat stack keeps that contract: one idempotent
 // call at boot (internal/server) and on the native window's first run
 // (cmd/gui) signs the same pair up. Signup is idempotent by design — a
@@ -16,7 +16,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 )
 
-// The pairs the login form advertises. Same values the PB seed used
+// The pairs the login form advertises. Same values the legacy seed used
 // (db/seed.go seeded both), so demos and docs keep working: demo1 is
 // prefilled, demo2 is the second browser for contention.
 const (

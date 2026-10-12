@@ -1,10 +1,10 @@
-// SCOPE:feature — Notes chi port tests (ported from features/notes PB suite)
+// SCOPE:feature — Notes chi port tests (ported from the legacy notes suite)
 //
-// The PB suite pinned ~20 behaviours of the notes slice over a live SSE
+// The legacy suite pinned ~20 behaviours of the notes slice over a live SSE
 // stream: caret atomicity, presence join/leave counts, typing relay,
 // session visibility, rev chain, stale-base 409, clamped inserts,
 // snapshot persistence, page rendering and the mirror-div recipe. The
-// PB handler died with the framework boot; this file re-pins every one
+// legacy handler died with the framework boot; this file re-pins every one
 // of those contracts against the chi slice, which serves the same wire
 // protocol over the same DocStore/hub.
 package chi

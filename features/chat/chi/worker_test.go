@@ -1,6 +1,6 @@
 // SCOPE:feature — Chi chat worker tests (ported from features/chat/handler_test.go)
 //
-// The worker is the same code the PB-handler era ran; the port keeps the
+// The worker is the same code the legacy-handler era ran; the port keeps the
 // red-proof on the chi copy: one Ask persists both sides of the
 // conversation in order, the originator's hub gets the chat envelope
 // (never the pool's), offline replays store once, and a down model

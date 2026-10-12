@@ -8,7 +8,7 @@ func TestCrudSubjects(t *testing.T) {
 		t.Fatalf("CrudSubjectAll = %q, want the shared wildcard", CrudSubjectAll)
 	}
 	if CrudDurable("myapp") != "myapp-crud" {
-		t.Fatalf("CrudDurable = %q, want the historical PB durable", CrudDurable("myapp"))
+		t.Fatalf("CrudDurable = %q, want the historical app durable", CrudDurable("myapp"))
 	}
 	if CrudDurable("myapp")+"-chi" != "myapp-crud-chi" {
 		t.Fatal("chi durable convention broken")

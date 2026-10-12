@@ -194,7 +194,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
 	// Fresh-install contract: the demo account the login form advertises
-	// (the PB-era db.SeedDefaults pair). Idempotent Signup, so every boot
+	// (the legacy db.SeedDefaults pair). Idempotent Signup, so every boot
 	// after the first is a no-op.
 	demoCtx, cancelDemo := context.WithCancel(context.Background())
 	demo.Ensure(demoCtx, a)
@@ -463,7 +463,7 @@ func buildChiMux(
 	mux.Handle("/api/ai/", creditsH.Routes())
 	mux.Handle("/api/byok/", creditsH.Routes())
 	// Healthcheck: the scratch image runs `app health`, which GETs this
-	// path on 127.0.0.1:PORT. PocketBase served /health natively; the
+	// path on 127.0.0.1:PORT. The legacy stack served /health natively; the
 	// flat stack owns it now. Register before the landing catch-all so
 	// the exact path wins.
 	// Core bundle + Service Worker (see static.go).
@@ -479,7 +479,7 @@ func buildChiMux(
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		// The build tag is what a tab open across a deploy compares
-		// against (stale-tab reload); PB stamped it natively, the flat
+		// against (stale-tab reload); the legacy stack stamped it natively, the flat
 		// stack owns it now. The body stays "ok" — the scratch image's
 		// healthcheck and the Playwright smoke both match on it.
 		w.Header().Set("X-Gogogo-Build", todoH.BuildLabel+"-"+todoH.BuildCommit)

@@ -11,7 +11,7 @@ import (
 )
 
 // Retention is a correctness property here, not tuning: unbounded streams
-// grow forever for readers that never replay (PB is the truth), and
+// grow forever for readers that never replay (the database is the truth), and
 // coordination KV without TTL accumulates crashed members. These tests
 // pin the bounds so a future edit cannot silently drop them.
 

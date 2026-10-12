@@ -96,7 +96,7 @@ templ RealtimeStream(streamURL string) {
 	</script>
 }
 
-// PbRealtimeRecords composes the todo page's two refetch paths. Record
+// RealtimeRecords composes the todo page's two refetch paths. Record
 // changes arrive live over the feature SSE stream (RealtimeStream, mounted
 // by the layout): the hub fans out a record event per mutation and the
 // stream re-lists scoped — per-user by construction, so there is no
@@ -105,14 +105,14 @@ templ RealtimeStream(streamURL string) {
 //   - the hidden @get button (ListResync) re-fetches the list fragment
 //     via Datastar's programmatic @get, morphing #todo-list in place;
 //   - DocVersionWatcher clicks it when the doc-version signal moves.
-templ PbRealtimeRecords() {
-	@ic.ListResync("pb-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')")
+templ RealtimeRecords() {
+	@ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')")
 	@DocVersionWatcher()
 }
 
 // DocVersionWatcher re-fetches the list when the SSE hub fans out a
 // doc-version-bumped event (cross-instance peer write). Split out of
-// PbRealtimeRecords so the shared resync component stays generic:
+// RealtimeRecords so the shared resync component stays generic:
 // record changes arrive over the stream, doc-version bumps through
 // this watcher, both ending on the same hidden @get button.
 //
@@ -135,7 +135,7 @@ templ DocVersionWatcher() {
 			}
 			if (v !== window.__gogogoDocVersionSeen) {
 				window.__gogogoDocVersionSeen = v;
-				var b = document.getElementById("pb-realtime-resync");
+				var b = document.getElementById("todo-realtime-resync");
 				if (b) { b.click(); }
 			}
 		};

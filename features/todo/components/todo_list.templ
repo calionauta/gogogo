@@ -55,7 +55,7 @@ templ TodoList(signals todo.Signals) {
 							<span class="text-base-content/30 mx-1">·</span>
 							<span>{ signals.OfflineLabel }</span>
 						</p>
-						@ic.TechBadge([]string{"PocketBase realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
+						@ic.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
 					</div>
 				</div>
 				<span class="online-pill" data-show="$connectedClients >= 0">
@@ -131,7 +131,7 @@ templ TodoList(signals todo.Signals) {
 							</div>
 							</div>
 							<div class="mt-2 text-[0.6rem] text-base-content/30 leading-relaxed">
-								Every CRUD mutation streams through PocketBase realtime, scoped to your own records. Open this page in two tabs to watch todos sync live.
+								Every CRUD mutation streams through the SSE Hub, scoped to your own records. Open this page in two tabs to watch todos sync live.
 							</div>
 						</div>
 					</div>

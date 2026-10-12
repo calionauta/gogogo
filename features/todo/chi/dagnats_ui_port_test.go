@@ -1,11 +1,11 @@
 // SCOPE:feature — Ported red-proofs for the chi todo slice
 //
-// Three contracts the PB handler suite pinned and the chi slice now
+// Three contracts the legacy handler suite pinned and the chi slice now
 // re-pins: the Durable Workflow UI flag is registration truth (not
 // config), fail() answers with the public message and never leaks the
 // internal error, and the techstack stepper releases the spinner only on
 // a terminal step. Ported from features/todo/handlers/{dagnats_ui,http_fail,
-// spinner_reset}_test.go when the PB handlers died.
+// spinner_reset}_test.go when the legacy handlers died.
 package chi
 
 import (

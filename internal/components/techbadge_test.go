@@ -17,11 +17,11 @@ import (
 func TestTechBadgeListsStack(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := components.TechBadge([]string{"PocketBase realtime", "SSE Hub"}).Render(context.Background(), &buf)
+	err := components.TechBadge([]string{"JetStream realtime", "SSE Hub"}).Render(context.Background(), &buf)
 	if err != nil {
 		t.Fatalf("TechBadge: %v", err)
 	}
-	for _, want := range []string{"Demonstrates:", "PocketBase realtime", "SSE Hub"} {
+	for _, want := range []string{"Demonstrates:", "JetStream realtime", "SSE Hub"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("TechBadge missing %q", want)
 		}

@@ -26,7 +26,7 @@ import (
 // TestBuildPageData_MasksAdminToken asserts that the literal admin
 // token never appears in the rendered Display string when set, and that
 // an unset value stays empty (not "***"). AdminToken is the representative
-// secret for the masking mechanism (the PB-era EncryptionKey row is gone
+// secret for the masking mechanism (the legacy EncryptionKey row is gone
 // with the framework).
 func TestBuildPageData_MasksAdminToken(t *testing.T) {
 	cfg := &config.Config{

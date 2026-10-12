@@ -2,7 +2,7 @@
 //
 // Session validates cookies over *http.Request; SessionByToken resolves
 // a raw token without a request — what cmd/gui's persisted "remember
-// me" file needs. The PB-era features/auth suite pinned the same
+// me" file needs. The legacy features/auth suite pinned the same
 // round-trip through Login + ResolveOwner; these tests pin the flat
 // equivalents: token → user, unknown token fails, and a revoked session
 // (logout) fails too.
@@ -81,7 +81,7 @@ func TestSessionByTokenRejectsRevokedSession(t *testing.T) {
 // TestSessionProbeEndpoint pins the ported /api/session contract the
 // shared banner polls: anonymous requests report authed=false (200, not
 // 401 — a probe is a poll, not a gate), a live session reports true, and
-// a logged-out session reports false again. Ported from the PB-era
+// a logged-out session reports false again. Ported from the legacy
 // features/auth/wiring.go endpoint, which died with the framework boot
 // while its client (static/session.js) kept polling.
 func TestSessionProbeEndpoint(t *testing.T) {

@@ -152,7 +152,7 @@ var adviseRules = []string{
 		"baseline benchmark is not a reason.",
 	"Prefer runtime switches over trim when unsure: NATS_ENABLED=false, " +
 		"DAGNATS_ENABLED=false, OFFLINE_SYNC_ENABLED=false, unset " +
-		"GOAI_API_KEY, ENTITY_STORE=pb|crdt, UI_SKIN. Trim deletes; " +
+		"GOAI_API_KEY, UI_SKIN. Trim deletes; " +
 		"switches flip back.",
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
@@ -170,7 +170,7 @@ var adviseRules = []string{
 		"`govulncheck ./...` before adding.",
 	"Fitting units to a use-case: docs/use-cases.md maps every " +
 		"core/plugin/feature to business-language cases, decision pairs " +
-		"(jobs vs workflows, pb vs crdt), and what has no unit yet " +
+		"(jobs vs workflows, sql rows vs crdt docs), and what has no unit yet " +
 		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
 }
 

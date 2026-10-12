@@ -120,7 +120,7 @@ const (
 // startDagNats boots the DagNats durable-workflow engine in the same
 // binary on its own HTTP port (cfg.DagNats.HTTPAddr, default :8090). It
 // registers the onboarding worker handlers (which write example todos to
-// the main PocketBase collection) and starts the engine.
+// the main todos table) and starts the engine.
 //
 // Single-NATS convention: DagNats owns the embedded NATS on the
 // conventional port 127.0.0.1:4222. When NATS is enabled, the realtime
@@ -255,10 +255,10 @@ func registerOnboardingWorkflowWithRetry(ctx context.Context, httpAddr string) {
 // Shutdown is wired internally — closing the process triggers graceful drain
 // via the server's own signal handling". That was not true, and the way it
 // failed is subtle: DagNats installs its OWN signal.Notify for
-// SIGINT/SIGTERM (server.waitAndShutdown), exactly as PocketBase does in
-// pb.Start/Execute. On a SIGTERM the Go runtime delivers the signal to EVERY
+// SIGINT/SIGTERM (server.waitAndShutdown), exactly as a second
+// signal.Notify owner would. On a SIGTERM the Go runtime delivers the signal to EVERY
 // registered channel, so both handlers run concurrently, and DagNats' shutdown
-// path completes (and the process exits) before pb.Start() returns and our
+// path completes (and the process exits) before our server's Start() returns and our
 // deferred cleanups run — so `q.Close()` (queue workers, SQLite handle) was
 // simply skipped. Observed with the real binary: the log ends at
 // "• stopping orchestrator..." and "queue workers stopped" never appears.

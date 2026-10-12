@@ -15,7 +15,7 @@
 // retry) are already in their own internal/* packages. Downstream
 // projects that grow to multiple features will appreciate having
 // this struct as the dependency container; feature handlers can
-// accept *Context instead of (pb, q, cfg, llm, broadcaster).
+// accept *Context instead of (store, q, cfg, llm, broadcaster).
 package app
 
 import (
@@ -37,8 +37,8 @@ import (
 //
 // The template's current feature handlers (features/todo) take
 // individual dependencies; future features can take *Context
-// instead. Context does NOT depend on PocketBase or NATS
-// the PocketBase *core.App reference and the realtime broadcaster
+// instead. Context does NOT depend on the database layer or NATS
+// the sqlc Queries reference and the realtime broadcaster
 // stay where they are (TodoHandler / router) because they're
 // tightly coupled to the request lifecycle.
 type Context struct {

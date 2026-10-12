@@ -1,4 +1,4 @@
-// SCOPE:feature — Chi notes wire types (mirrors the PB handler shapes)
+// SCOPE:feature — Chi notes wire types (mirrors the legacy handler shapes)
 //
 // These duplicate the framework handler's wire structs field-for-field so
 // the client speaks one protocol to either stack. The framework copies go

@@ -151,7 +151,8 @@ func TestChiBridgeSkipsForeignIdentity(t *testing.T) {
 
 	// An op for an unknown identity must skip without dying — and the
 	// bridge must stay alive for the next valid op.
-	f.pub.Publish(natswire.CrudOpCreate, "pb-record-id", &natswire.CrudOpData{ID: "bridge-foreign-1", Title: "PB"})
+	f.pub.Publish(natswire.CrudOpCreate, "foreign-id",
+		&natswire.CrudOpData{ID: "bridge-foreign-1", Title: "Foreign"})
 	time.Sleep(500 * time.Millisecond)
 	if n, _ := f.q.CountTodosByOwner(context.Background(), f.owner); n != 0 {
 		t.Fatalf("foreign op created %d rows, want 0", n)

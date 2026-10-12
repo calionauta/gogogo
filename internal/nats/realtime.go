@@ -31,7 +31,8 @@ type (
 	TodoBroadcaster interface {
 		// PublishTodoUpdate broadcasts a serialized todo event (JSON) to all
 		// connected clients. Used for ephemeral todo signals (e.g. workflow
-		// completion) — record mutations now flow through PocketBase realtime.
+		// completion) — record mutations now flow through the SSE Hub record
+		// event + JetStream CRUD stream instead.
 		PublishTodoUpdate(ctx context.Context, payload []byte) error
 		// Subscribe binds the broadcaster's transport to hub so published
 		// events are re-emitted to every connected client. No-op for the
@@ -74,8 +75,8 @@ func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*Je
 		Subjects: []string{todoSubject},
 		Storage:  natsio.FileStorage,
 		// Bounded fan-out: consumers are live-only (ephemeral Subscribe,
-		// no replay position) and catch-up runs through PB realtime +
-		// fragment re-fetch — so history older than a day is never read.
+		// no replay position) and catch-up runs through fragment re-fetch — so
+		// history older than a day is never read.
 		// Without MaxAge the stream grows forever for zero benefit.
 		MaxAge:   24 * time.Hour,
 		MaxBytes: 256 << 20,

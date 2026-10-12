@@ -1,4 +1,4 @@
-// SCOPE:feature — Whiteboard chi ported contracts (ported from features/whiteboard PB suite)
+// SCOPE:feature — Whiteboard chi ported contracts (ported from the legacy whiteboard suite)
 
 package chi
 

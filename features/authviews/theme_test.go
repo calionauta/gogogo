@@ -1,6 +1,6 @@
 // SCOPE:feature — Theme toggle contract (ported from features/auth/auth_test.go)
 //
-// The PB-era suite rendered the navbar from features/authviews and pinned
+// The legacy suite rendered the navbar from features/authviews and pinned
 // the single-toggle path (signal flip, icon sync, persistence order) plus
 // the shared storage key across ThemeHead, the button expression, and the
 // theme.js module — with one owner, one button, one storage key. The test

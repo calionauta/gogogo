@@ -1,8 +1,8 @@
 // SCOPE:feature — Chi todo cross-session propagation (red-proof for the realtime contract)
 //
-// Flat replacement for the PocketBase-native e2e that used to boot the
+// Flat replacement for the legacy e2e that used to boot the
 // real binary and drive /api/realtime (features/todo/realtime_propagation_test.go,
-// which died with the framework boot: nothing served PB anymore). The
+// which died with the framework boot: nothing served the old endpoint anymore). The
 // contract it guarded is unchanged — creating a todo in one tab must
 // surface in another already-open tab — and the chi stack answers it
 // through its own channels: the owner-scoped SSE hub (record-sync) fed

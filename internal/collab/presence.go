@@ -87,7 +87,7 @@ func PresenceSSEHandler(nc *natsio.Conn) http.HandlerFunc {
 // It is transport-agnostic: the same code runs on the desktop edge (over its
 // Leaf Node connection, so cursors replicate to central and other edges) and
 // on the central server (over the embedded NATS, so browser clients connected
-// to central receive them). No PocketBase persistence — presence is volatile.
+// to central receive them). No snapshot persistence — presence is volatile.
 type Presence struct {
 	nc        *natsio.Conn
 	hb        time.Duration // heartbeat interval

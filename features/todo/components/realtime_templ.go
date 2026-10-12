@@ -87,7 +87,7 @@ func RealtimeStream(streamURL string) templ.Component {
 	})
 }
 
-// PbRealtimeRecords composes the todo page's two refetch paths. Record
+// RealtimeRecords composes the todo page's two refetch paths. Record
 // changes arrive live over the feature SSE stream (RealtimeStream, mounted
 // by the layout): the hub fans out a record event per mutation and the
 // stream re-lists scoped — per-user by construction, so there is no
@@ -96,7 +96,7 @@ func RealtimeStream(streamURL string) templ.Component {
 //   - the hidden @get button (ListResync) re-fetches the list fragment
 //     via Datastar's programmatic @get, morphing #todo-list in place;
 //   - DocVersionWatcher clicks it when the doc-version signal moves.
-func PbRealtimeRecords() templ.Component {
+func RealtimeRecords() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -117,7 +117,7 @@ func PbRealtimeRecords() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = ic.ListResync("pb-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -131,7 +131,7 @@ func PbRealtimeRecords() templ.Component {
 
 // DocVersionWatcher re-fetches the list when the SSE hub fans out a
 // doc-version-bumped event (cross-instance peer write). Split out of
-// PbRealtimeRecords so the shared resync component stays generic:
+// RealtimeRecords so the shared resync component stays generic:
 // record changes arrive over the stream, doc-version bumps through
 // this watcher, both ending on the same hidden @get button.
 //
@@ -160,7 +160,7 @@ func DocVersionWatcher() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"pb-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"todo-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -118,17 +118,15 @@ func TickerLoopWithoutExit(m dsl.Matcher) {
 }
 
 // Scope: the repo has ZERO legitimate sql.Open("sqlite") (checked
-// repo-wide — every open uses the ncruces "sqlite3" name). Opening the
-// modernc "sqlite" name beside it would create a second pool against the
-// same files plus version-check coupling (PB warns when modernc versions
-// drift), for no benefit: both drivers are CGO-free and cross-compile.
-// PocketBase itself blank-imports modernc and DefaultDBConnect opens it,
-// so the dependency stays — this rule only forbids OUR code from
-// instantiating it. Proven by spike (both drivers registered, modernc
-// path live): removal is not an option, single-driver discipline is.
+// repo-wide — the app database opens the tursogo "turso" driver in
+// internal/db, and the ncruces "sqlite3" driver covers the test/gui
+// paths). The modernc "sqlite" driver is not a dependency anymore, so
+// opening that name would fail at runtime — and were it reintroduced
+// beside the others it would create a second pool against the same
+// files. This rule keeps OUR code from instantiating it.
 func ModerncDriverOpen(m dsl.Matcher) {
 	m.Match(`sql.Open("sqlite", $dsn)`).
-		Report(`sql.Open("sqlite") instantiates the modernc driver beside the ncruces "sqlite3" pool — two pools, one set of files, plus PB version-check coupling. Open "sqlite3" (see db/pocketbase.go)`)
+		Report(`sql.Open("sqlite") instantiates the modernc driver, which is not a dependency of this repo — the app database opens "turso" (see internal/db) and test/gui paths open "sqlite3". A second pool against the same files is never what you want.`)
 }
 
 // RawInternalString flags `c.String(statusInternal, ...)` in the todo

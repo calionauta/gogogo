@@ -2,7 +2,7 @@
 //
 // The window's claim is that the domain is transport-agnostic: the same
 // todos the chi handlers read and write are reachable here with no HTTP,
-// no cookie, no router. PBStore used to prove that over PocketBase
+// no cookie, no router. An EntityStore used to prove that over embedded
 // records; the flat proof runs the same sqlc queries the chi slice runs
 // (features/todo/chi), against the same Turso file. The thin guiStore
 // wrapper exists so windowState keeps the store-shaped seam its tests

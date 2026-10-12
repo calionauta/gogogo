@@ -120,7 +120,7 @@ type Signals struct {
 	RealtimeKind string `json:"realtimeKind"`
 
 	// StoreLabel describes the active data layer (e.g.
-	// "PocketBase records"). Surfaced in the page sub-header so a
+	// "Turso records"). Surfaced in the page sub-header so a
 	// tester can verify which persistence mode is running without
 	// grep-ing logs.
 	StoreLabel string `json:"storeLabel"`

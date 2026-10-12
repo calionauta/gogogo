@@ -32,7 +32,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 			<div class="toast" data-show="$loading"></div>
 			@components.ToastContainer()
 			@sseOpener()
-			@pbRealtime()
+			@realtimeResync()
 		</body>
 	</html>
 }
@@ -81,7 +81,7 @@ templ header(signals todo.Signals) {
 					<span class="text-base-content/30 mx-1">·</span>
 					<span>{ signals.OfflineLabel }</span>
 				</p>
-				@components.TechBadge([]string{"PocketBase realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
+				@components.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
 			</div>
 		</div>
 		<span class="online-pill" data-show="$connectedClients >= 0">
@@ -140,7 +140,7 @@ templ realtimeCard(signals todo.Signals) {
 				</span>
 			</div>
 			<p class="text-xs soft mt-2">
-				Every CRUD mutation streams through PocketBase realtime, scoped to your own records. Open this page in two tabs to watch todos sync live.
+				Every CRUD mutation streams through the SSE Hub, scoped to your own records. Open this page in two tabs to watch todos sync live.
 			</p>
 		</section>
 	</div>
@@ -560,6 +560,6 @@ templ sseOpener() {
 	</script>
 }
 
-templ pbRealtime() {
-	@components.ListResync("pb-realtime-resync", "'/api/todos/fragment?skin=basecoat'")
+templ realtimeResync() {
+	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?skin=basecoat'")
 }

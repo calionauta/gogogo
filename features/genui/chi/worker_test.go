@@ -1,6 +1,6 @@
 // SCOPE:feature — Chi genui worker tests (ported from features/genui/handler_test.go)
 //
-// The worker is the same code the PB-handler era ran; the port keeps the
+// The worker is the same code the legacy-handler era ran; the port keeps the
 // red-proof on the chi copy: async model → catalog directives → SSE on
 // the originator's OWN hub (never the pool's), fail-closed on unknown
 // directives, and spinner release when the model is down.

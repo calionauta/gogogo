@@ -37,7 +37,7 @@ import (
 //
 // Backend wiring is the flat stack's: guiStore (the sqlc queries the chi
 // handlers use) + internal/auth (owned argon2id + sessions). No
-// *core.App, no PocketBase, no cookie — the transport-free proof.
+// framework app handle, no database singleton, no cookie — the transport-free proof.
 type windowState struct {
 	mu sync.Mutex
 	st guiStore
