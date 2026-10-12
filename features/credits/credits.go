@@ -153,6 +153,7 @@ func (s *Service) Start(ctx context.Context) {
 		}
 		if s.Credits != nil {
 			go s.runSettlementOutbox(ctx)
+			go s.runReconcile(ctx)
 		}
 	})
 }
@@ -171,6 +172,32 @@ const settlementInterval = time.Minute
 func (s *Service) runSettlementOutbox(ctx context.Context) {
 	settlementLoop(ctx, settlementInterval, func(ctx context.Context) {
 		_ = s.Credits.ProcessSettlementOutbox(ctx, 100)
+	})
+}
+
+// reconcileInterval is the cadence of the drift check. Ten times slower
+// than settlement: reconcile is the safety net (expiring stuck reservations,
+// reporting ledger drift), not the hot path, and each run writes.
+const reconcileInterval = 10 * time.Minute
+
+// runReconcile periodically reconciles reservations against the ledger until
+// ctx is cancelled. Before this driver existed, Reconcile was implemented in
+// the library but never called in production — drift between reservations
+// and ledger went undetected. Mismatches are logged, not returned: there is
+// no caller to return to on a ticker, and a persistent mismatch must stay
+// visible in the operator's log rather than kill a background loop.
+func (s *Service) runReconcile(ctx context.Context) {
+	settlementLoop(ctx, reconcileInterval, func(ctx context.Context) {
+		mismatches, err := s.Credits.Reconcile(ctx)
+		if err != nil {
+			slog.Error("credits: reconcile failed", "error", err)
+			return
+		}
+		for _, m := range mismatches {
+			slog.Warn("credits: ledger drift detected",
+				"user", m.UserID,
+				"ledger_sum", m.LedgerSum, "balance", m.Balance)
+		}
 	})
 }
 
