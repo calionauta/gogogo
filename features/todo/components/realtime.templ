@@ -28,20 +28,31 @@ import ic "github.com/calionauta/gogogo/internal/components"
 //
 // VISIBILITY-RESILIENT RECONNECT:
 // Browsers throttle/pause EventSource when a tab is backgrounded, so a
-// backgrounded tab can miss SSE frames. We listen for visibilitychange and
-// re-open the stream when the tab becomes visible again (Datastar dedupes
-// duplicate permanent streams, and the server's replay buffer replays
-// events the tab missed while hidden). This makes realtime work regardless
-// of which tab/window currently has focus — the user never has to be
-// looking at the tab to receive updates.
+// backgrounded tab can miss SSE frames. The data-on:visibilitychange
+// attribute on the opener re-clicks when the tab becomes visible again
+// (Datastar dedupes duplicate permanent streams, and the server's replay
+// buffer replays events the tab missed while hidden). This makes realtime
+// work regardless of which tab/window currently has focus — the user never
+// has to be looking at the tab to receive updates.
 //
 // streamURL is the SSE endpoint to open (e.g. "/api/todos/stream"). Other
 // features pass their own endpoint; the mechanism is identical.
+//
+// REOPEN ON VISIBILITY/OFFLINE (Datastar attributes, not vanilla listeners):
+// Browsers throttle/pause EventSource on backgrounded tabs and kill network
+// connections when offline, so a tab can miss frames or go deaf. The two
+// data-on attributes below re-click the opener on window `online` and on
+// document `visibilitychange` (guarded to visible-only); the click re-runs
+// the permanent @get and Datastar re-establishes the stream. The script
+// holds only the pure open/reopen functions — Datastar owns the
+// subscriptions, mirroring DocVersionWatcher below.
 templ RealtimeStream(streamURL string) {
 	<button
 		id="sse-opener"
 		class="hidden"
 		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+		data-on:online__window="window.__gogogoSSEReopen()"
+		data-on:visibilitychange__document="if(!document.hidden){window.__gogogoSSEReopen()}"
 		aria-hidden="true"
 	></button>
 	<script type="module">
@@ -64,34 +75,17 @@ templ RealtimeStream(streamURL string) {
 				var b = document.getElementById('sse-opener');
 				if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
 			}
+			// Re-click after a disconnect: reset the opened flag (a stream
+			// the browser tore down never clears it) so the click below
+			// actually re-runs the permanent @get. Called by the data-on
+			// attributes above, never by vanilla listeners.
+			window.__gogogoSSEReopen = function () {
+				var b = document.getElementById('sse-opener');
+				if (b) { b.dataset.opened = ''; openSSE(); }
+			};
 			document.addEventListener('datastar-ready', openSSE);
 			// Fallback if datastar-ready already fired.
 			setTimeout(openSSE, 300);
-
-			// Re-open when the tab returns to the foreground: backgrounded
-			// tabs have their EventSource throttled/paused by the browser, so
-			// they can miss frames. Re-clicking the opener makes Datastar
-			// re-establish the permanent stream (the server replays missed
-			// events via its buffer). This keeps realtime working for tabs the
-			// user is NOT currently looking at.
-			document.addEventListener('visibilitychange', function () {
-				if (!document.hidden) {
-					var b = document.getElementById('sse-opener');
-					if (b) { b.dataset.opened = ''; openSSE(); }
-				}
-			});
-
-			// Re-open when connectivity returns: going offline tears down
-			// the SSE stream (the browser kills network connections), and
-			// without this the tab stays deaf after reconnect — replays
-			// broadcast to zero registered clients, so the originating tab
-			// keeps only its optimistic row even though the server row and
-			// the queue drain both converged. The stream handshake carries
-			// the full current list, so re-opening converges the tab.
-			window.addEventListener('online', function () {
-				var b = document.getElementById('sse-opener');
-				if (b) { b.dataset.opened = ''; openSSE(); }
-			});
 		})();
 	</script>
 }

@@ -36,15 +36,24 @@ import ic "github.com/calionauta/gogogo/internal/components"
 //
 // VISIBILITY-RESILIENT RECONNECT:
 // Browsers throttle/pause EventSource when a tab is backgrounded, so a
-// backgrounded tab can miss SSE frames. We listen for visibilitychange and
-// re-open the stream when the tab becomes visible again (Datastar dedupes
-// duplicate permanent streams, and the server's replay buffer replays
-// events the tab missed while hidden). This makes realtime work regardless
-// of which tab/window currently has focus — the user never has to be
-// looking at the tab to receive updates.
+// backgrounded tab can miss SSE frames. The data-on:visibilitychange
+// attribute on the opener re-clicks when the tab becomes visible again
+// (Datastar dedupes duplicate permanent streams, and the server's replay
+// buffer replays events the tab missed while hidden). This makes realtime
+// work regardless of which tab/window currently has focus — the user never
+// has to be looking at the tab to receive updates.
 //
 // streamURL is the SSE endpoint to open (e.g. "/api/todos/stream"). Other
 // features pass their own endpoint; the mechanism is identical.
+//
+// REOPEN ON VISIBILITY/OFFLINE (Datastar attributes, not vanilla listeners):
+// Browsers throttle/pause EventSource on backgrounded tabs and kill network
+// connections when offline, so a tab can miss frames or go deaf. The two
+// data-on attributes below re-click the opener on window `online` and on
+// document `visibilitychange` (guarded to visible-only); the click re-runs
+// the permanent @get and Datastar re-establishes the stream. The script
+// holds only the pure open/reopen functions — Datastar owns the
+// subscriptions, mirroring DocVersionWatcher below.
 func RealtimeStream(streamURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -73,13 +82,13 @@ func RealtimeStream(streamURL string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 44, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 53, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// Stable per-tab client id. Persisted in sessionStorage so a reload\n\t\t// reuses the same id (no leaked SSE registration on the server) and\n\t\t// every mutation POSTs the matching id for BroadcastExcept.\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\tif (!id) {\n\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t}\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\n\t\t\tfunction openSSE() {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }\n\t\t\t}\n\t\t\tdocument.addEventListener('datastar-ready', openSSE);\n\t\t\t// Fallback if datastar-ready already fired.\n\t\t\tsetTimeout(openSSE, 300);\n\n\t\t\t// Re-open when the tab returns to the foreground: backgrounded\n\t\t\t// tabs have their EventSource throttled/paused by the browser, so\n\t\t\t// they can miss frames. Re-clicking the opener makes Datastar\n\t\t\t// re-establish the permanent stream (the server replays missed\n\t\t\t// events via its buffer). This keeps realtime working for tabs the\n\t\t\t// user is NOT currently looking at.\n\t\t\tdocument.addEventListener('visibilitychange', function () {\n\t\t\t\tif (!document.hidden) {\n\t\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\t\tif (b) { b.dataset.opened = ''; openSSE(); }\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// Re-open when connectivity returns: going offline tears down\n\t\t\t// the SSE stream (the browser kills network connections), and\n\t\t\t// without this the tab stays deaf after reconnect — replays\n\t\t\t// broadcast to zero registered clients, so the originating tab\n\t\t\t// keeps only its optimistic row even though the server row and\n\t\t\t// the queue drain both converged. The stream handshake carries\n\t\t\t// the full current list, so re-opening converges the tab.\n\t\t\twindow.addEventListener('online', function () {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b) { b.dataset.opened = ''; openSSE(); }\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:online__window=\"window.__gogogoSSEReopen()\" data-on:visibilitychange__document=\"if(!document.hidden){window.__gogogoSSEReopen()}\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t// Stable per-tab client id. Persisted in sessionStorage so a reload\n\t\t// reuses the same id (no leaked SSE registration on the server) and\n\t\t// every mutation POSTs the matching id for BroadcastExcept.\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\tif (!id) {\n\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t}\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\n\t\t\tfunction openSSE() {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }\n\t\t\t}\n\t\t\t// Re-click after a disconnect: reset the opened flag (a stream\n\t\t\t// the browser tore down never clears it) so the click below\n\t\t\t// actually re-runs the permanent @get. Called by the data-on\n\t\t\t// attributes above, never by vanilla listeners.\n\t\t\twindow.__gogogoSSEReopen = function () {\n\t\t\t\tvar b = document.getElementById('sse-opener');\n\t\t\t\tif (b) { b.dataset.opened = ''; openSSE(); }\n\t\t\t};\n\t\t\tdocument.addEventListener('datastar-ready', openSSE);\n\t\t\t// Fallback if datastar-ready already fired.\n\t\t\tsetTimeout(openSSE, 300);\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
