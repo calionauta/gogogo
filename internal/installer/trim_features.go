@@ -28,8 +28,8 @@ var featureTrimUnits = []trimUnit{
 					// Single-argument lines: dropping removes exactly that
 					// argument, and the signature loses the parameters in
 					// replaces below, so both sides agree.
-					"wbchi.NewHandler(queries, a, hub, persister, docs, cfg),",
-					"notesachi.NewHandler(queries, a, hub, persister, docs, cfg),",
+					"wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
+					"noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
 					`mux.Handle("/whiteboard", wbH.Routes())`,
 					`mux.Handle("/whiteboard/", wbH.Routes())`,
 					`mux.Handle("/api/whiteboard", wbH.Routes())`,
@@ -49,11 +49,11 @@ var featureTrimUnits = []trimUnit{
 					// The feature mounts above are the only use of the core
 					// resources package in chi.go; without them the import goes.
 					`	"github.com/calionauta/gogogo/web/resources"`,
-					`	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"`,
-					`	notesachi "github.com/calionauta/gogogo/features/notes/chi"`,
+					`	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"`,
+					`	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"`,
 					`	"github.com/calionauta/gogogo/internal/collab"`,
-					"wbH *wbchi.Handler,",
-					"notesH *notesachi.Handler,",
+					"wbH *wbhandlers.Handler,",
+					"notesH *noteshandlers.Handler,",
 				},
 			},
 			{
@@ -64,10 +64,10 @@ var featureTrimUnits = []trimUnit{
 				path: chiTestFile,
 				substrs: []string{
 					`"github.com/calionauta/gogogo/internal/collab"`,
-					`wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"`,
-					`notesachi "github.com/calionauta/gogogo/features/notes/chi"`,
-					"wbchi.NewHandler(",
-					"notesachi.NewHandler(",
+					`wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"`,
+					`noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"`,
+					"wbhandlers.NewHandler(",
+					"noteshandlers.NewHandler(",
 				},
 			},
 			{
@@ -162,17 +162,17 @@ var featureTrimUnits = []trimUnit{
 				// (see routerCallLines).
 				path: chiGoFile,
 				substrs: []string{
-					"landingchi.NewHandler(cfg, a),",
-					"landingH *landingchi.Handler,",
-					`landingchi "github.com/calionauta/gogogo/features/landing/chi"`,
+					"landinghandlers.NewHandler(cfg, a),",
+					"landingH *landinghandlers.Handler,",
+					`landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`,
 					`mux.Handle("/", landingH.Routes())`,
 				},
 			},
 			{
 				path: chiTestFile,
 				substrs: []string{
-					`landingchi "github.com/calionauta/gogogo/features/landing/chi"`,
-					"landingchi.NewHandler(cfg, a),",
+					`landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`,
+					"landinghandlers.NewHandler(cfg, a),",
 				},
 			},
 		},
@@ -209,9 +209,9 @@ var featureTrimUnits = []trimUnit{
 				// exactly their feature's lines, and add restores them.
 				path: chiGoFile,
 				substrs: []string{
-					"configchi.NewHandler(cfg, a),",
-					"configH *configchi.Handler,",
-					`configchi "github.com/calionauta/gogogo/features/config/chi"`,
+					"confighandlers.NewHandler(cfg, a),",
+					"configH *confighandlers.Handler,",
+					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
 					`mux.Handle("/config", configH.Routes())`,
 					`mux.Handle("/config/", configH.Routes())`,
 				},
@@ -219,8 +219,8 @@ var featureTrimUnits = []trimUnit{
 			{
 				path: chiTestFile,
 				substrs: []string{
-					`configchi "github.com/calionauta/gogogo/features/config/chi"`,
-					"configchi.NewHandler(cfg, a),",
+					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
+					"confighandlers.NewHandler(cfg, a),",
 				},
 			},
 		},
@@ -266,8 +266,8 @@ var featureTrimUnits = []trimUnit{
 					`mux.Handle("/api/ai/", creditsH.Routes())`,
 					`mux.Handle("/api/byok/", creditsH.Routes())`,
 					`"github.com/calionauta/gogogo/features/credits"`,
-					`creditschi "github.com/calionauta/gogogo/features/credits/chi"`,
-					"creditsH *creditschi.Handler,",
+					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
+					"creditsH *creditshandlers.Handler,",
 					"creditsH,",
 				},
 			},
@@ -279,7 +279,7 @@ var featureTrimUnits = []trimUnit{
 				// occurrence, so both land.
 				path: chiTestFile,
 				substrs: []string{
-					`creditschi "github.com/calionauta/gogogo/features/credits/chi"`,
+					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
 				},
 			},
 		},
@@ -354,9 +354,9 @@ var featureTrimUnits = []trimUnit{
 				substrs: []string{
 					// Constructions are two lines each (handler + model leg):
 					// both go, and add restores them as call lines.
-					"chatH := chatchi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
-					"chatstore.NewMemStore(), chatchi.ResponderFromLLM(realLLM, simulatedLLM))",
-					"genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
+					"chatH := chathandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
+					"chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))",
+					"genuiH := genuihandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
 					"comp.NewResponder(realLLM, simulatedLLM))",
 					"chatH.RegisterHandlers(chiQ.Registry())",
 					"genuiH.RegisterHandlers(chiQ.Registry())",
@@ -370,12 +370,12 @@ var featureTrimUnits = []trimUnit{
 					`mux.Handle("/genui", genuiH.Routes())`,
 					`mux.Handle("/genui/", genuiH.Routes())`,
 					`mux.Handle("/api/genui/", genuiH.Routes())`,
-					`chatchi "github.com/calionauta/gogogo/features/chat/chi"`,
+					`chathandlers "github.com/calionauta/gogogo/features/chat/handlers"`,
 					`chatstore "github.com/calionauta/gogogo/features/chat/store"`,
-					`genuichi "github.com/calionauta/gogogo/features/genui/chi"`,
+					`genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"`,
 					`comp "github.com/calionauta/gogogo/features/genui/components"`,
-					"chatH *chatchi.Handler,",
-					"genuiH *genuichi.Handler,",
+					"chatH *chathandlers.Handler,",
+					"genuiH *genuihandlers.Handler,",
 				},
 			},
 			{
@@ -388,11 +388,11 @@ var featureTrimUnits = []trimUnit{
 				// add anchor).
 				path: chiTestFile,
 				substrs: []string{
-					`chatchi "github.com/calionauta/gogogo/features/chat/chi"`,
+					`chathandlers "github.com/calionauta/gogogo/features/chat/handlers"`,
 					`chatstore "github.com/calionauta/gogogo/features/chat/store"`,
-					`genuichi "github.com/calionauta/gogogo/features/genui/chi"`,
-					"chatchi.NewHandler(",
-					"genuichi.NewHandler(",
+					`genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"`,
+					"chathandlers.NewHandler(",
+					"genuihandlers.NewHandler(",
 					"\t\t\"/chat\",",
 					"\t\t\"/genui\",",
 				},

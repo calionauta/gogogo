@@ -58,8 +58,8 @@ wall-clock is the slowest suite, not the sum). Heaviest race packages by
 package time (they overlap in parallel — wall is the max, not the sum):
 `internal/auth` ~292s (argon2id cost is intentional work, ~250ms per
 hash by calibration), `internal/installer` ~193s (trim build gates copy
-and vet the whole repo per unit), `features/notes/chi` ~188s,
-`features/todo/chi` ~173s, `features/whiteboard/chi` ~168s,
+and vet the whole repo per unit), `features/notes/handlers` ~188s,
+`features/todo/handlers` ~173s, `features/whiteboard/handlers` ~168s,
 `rules` ~110s (per-rule lint fixtures). Everything else is cheap:
 templ/regens <1s, css-check ~2s, lint ~8s, boot smoke ~14s. (The old
 ~82s total predates the fan-out and the current suite size — do not quote

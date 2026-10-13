@@ -4,10 +4,10 @@
 // todos the chi handlers read and write are reachable here with no HTTP,
 // no cookie, no router. An EntityStore used to prove that over embedded
 // records; the flat proof runs the same sqlc queries the chi slice runs
-// (features/todo/chi), against the same Turso file. The thin guiStore
+// (features/todo/handlers), against the same Turso file. The thin guiStore
 // wrapper exists so windowState keeps the store-shaped seam its tests
 // drive — copying the three queries beats importing the handler (the
-// flat-deps gate forbids a features/todo/chi → cmd/gui edge anyway).
+// flat-deps gate forbids a features/todo/handlers → cmd/gui edge anyway).
 package main
 
 import (

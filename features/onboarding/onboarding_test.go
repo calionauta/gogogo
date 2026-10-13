@@ -4,7 +4,7 @@
 // unreachable engine surfaces as a workflow-error event rather than a
 // spinning stepper, and the step math maps engine statuses to the stepper.
 // The stream side (signal shape, re-list on completion) is proven in
-// features/todo/chi, which owns that wire.
+// features/todo/handlers, which owns that wire.
 package onboarding
 
 import (

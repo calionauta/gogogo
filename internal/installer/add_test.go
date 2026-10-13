@@ -60,7 +60,7 @@ func fixtureAddTrees(t *testing.T) (from, proj string) {
 	writeFile(t, filepath.Join(proj, "go.mod"), "module example.com/proj\n\ngo 1.27\n")
 	chiFull := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/config\"\n" +
-		"\tlandingchi \"github.com/calionauta/gogogo/features/landing/chi\"\n" +
+		"\tlandinghandlers \"github.com/calionauta/gogogo/features/landing/handlers\"\n" +
 		")\n" +
 		"\tmux.Handle(\"/config\", configH.Routes())\n" +
 		"\tmux.Handle(\"/\", landingH.Routes())\n" +
@@ -133,7 +133,7 @@ func TestAddUnitRestoresLanding(t *testing.T) {
 	if !strings.Contains(out, `mux.Handle("/", landingH.Routes())`) {
 		t.Errorf("route line not restored:\n%s", out)
 	}
-	if !strings.Contains(out, `landingchi "github.com/calionauta/gogogo/features/landing/chi"`) {
+	if !strings.Contains(out, `landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`) {
 		t.Errorf("import not restored:\n%s", out)
 	}
 	// Import lands sorted: config before landing.

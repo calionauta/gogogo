@@ -191,7 +191,7 @@ const (
 	chiTestFile = "internal/server/chi_test.go"
 	// creditsCallLine is the inlined credits construction both composition
 	// call sites share, closing paren included (a drop would take it).
-	creditsCallLine = "creditschi.NewHandler(a, nil))"
+	creditsCallLine = "creditshandlers.NewHandler(a, nil))"
 )
 
 // chiMuxAnchor ends buildChiMux; capability route lines land above it.
@@ -250,12 +250,12 @@ var baseTrimUnits = []trimUnit{
 					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
 					// One argument per line: each drop removes exactly its
 					// feature's line, and add restores them.
-					"roomH *roomchi.Handler,",
+					"roomH *roomhandlers.Handler,",
 					"roomH,",
 					`mux.Handle("/room", roomH.Routes())`,
 					`mux.Handle("/room/", roomH.Routes())`,
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 				},
 			},
 			{
@@ -266,9 +266,9 @@ var baseTrimUnits = []trimUnit{
 				path: chiTestFile,
 				substrs: []string{
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 					"nil, // roomHandler: engine disabled",
-					"roomchi.NewHandler(cfg, a, fakeRooms{}),",
+					"roomhandlers.NewHandler(cfg, a, fakeRooms{}),",
 					"\t\t\"/room\",",
 				},
 			},

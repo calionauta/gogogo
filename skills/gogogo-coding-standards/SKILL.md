@@ -179,12 +179,12 @@ Full rules: `references/datastar.md`.
   all nine slices (todo, chat, genui, credits, whiteboard, notes, room,
   landing, config). Split a slice into more files by concern
   (`mutations.go`, `stream.go`, `worker.go`) once `chi.go` passes ~200 lines,
-  the way `features/todo/chi/` already is.
+  the way `features/todo/handlers/` already is.
 - **Never make a chi slice import another feature's chi package for shared
   code.** Shared wire or UI goes in a framework-free package both import
   (`features/todo/components`, `internal/dagnats`) or is copied chi-locally
   — the step vocabulary duplicated between `features/onboarding` and
-  `features/todo/chi` is that trade, made deliberately so trimming one
+  `features/todo/handlers` is that trade, made deliberately so trimming one
   cannot break the other.
 - **`internal/` packages are closed by the gate too.** `cmd/check-flatdeps`
   lists the flat-stack packages that must stay framework-free; adding one
@@ -300,7 +300,7 @@ flat-stack migration (Oct 2026):
 1. **Split the ctx-free path out.** If the flagged call threads `ctx` into a
    branch that never touches I/O (signals + DOM patch only), extract that
    branch into a function that takes no `ctx`. No `ctx` in scope, no finding,
-   no suppression. (3 `contextcheck` hits in `features/todo/chi/dispatch.go`
+   no suppression. (3 `contextcheck` hits in `features/todo/handlers/dispatch.go`
    became 1 this way.)
 2. **Replace error-as-skip with a bool.** `if err != nil { return nil }` reads
    as swallowed failure (`nilerr`). When the error is really a skip signal

@@ -35,7 +35,7 @@ var flatPackages = []string{
 	"github.com/calionauta/gogogo/internal/db/sqlcgen",
 	"github.com/calionauta/gogogo/internal/natswire",
 	"github.com/calionauta/gogogo/internal/queue",
-	"github.com/calionauta/gogogo/features/todo/chi",
+	"github.com/calionauta/gogogo/features/todo/handlers",
 	"github.com/calionauta/gogogo/features/authviews",
 }
 
@@ -192,7 +192,7 @@ func checkCrossFeature() error {
 }
 
 // topFeature returns the feature name for a features/ import path:
-// features/todo/chi -> todo. Empty for non-feature paths.
+// features/todo/handlers -> todo. Empty for non-feature paths.
 func topFeature(importPath string) string {
 	rest, ok := strings.CutPrefix(importPath, featureModule)
 	if !ok {

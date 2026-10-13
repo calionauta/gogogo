@@ -4,13 +4,13 @@
 // durable run against DagNats, polling it, and fanning progress out to an
 // SSE hub. It deliberately does NOT own the stream side — decoding progress
 // envelopes and merging stepper signals belongs to the feature whose stream
-// renders them (features/todo/chi), because that is wire the stream owns.
+// renders them (features/todo/handlers), because that is wire the stream owns.
 //
 // The split is what makes the dagnats unit trimmable: deleting this package
 // (plus internal/dagnats and the boot wiring) removes the engine without
 // touching a line of the todo slice. The todo side keeps its wire constants
 // and renderers, which compile and simply never fire — no strip rules
-// needed inside features/todo/chi.
+// needed inside features/todo/handlers.
 //
 // Wire coupling, stated once: the progress envelope this package broadcasts
 // is {"step","total","phase","detail"} inside a queue.Job{Type:"progress"},

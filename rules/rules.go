@@ -172,12 +172,12 @@ func LeakedErrText500HTTP(m dsl.Matcher) {
 }
 
 // SlogBypassesObservability flags bare `slog.Error/Warn` inside HTTP slices
-// (features/*/chi, non-test): request-scoped failures must carry the request
+// (features/*/handlers, non-test): request-scoped failures must carry the request
 // context (component tag + trace) via internal/observability, not a bare
 // package-level log that drops both. Helpers take ctx as a parameter for
 // exactly this reason (mustJSON, send, peerLeave, fail).
 //
-// Scope is DELIBERATELY Error/Warn-only in chi slices. Info/Debug stay free
+// Scope is DELIBERATELY Error/Warn-only in HTTP slices. Info/Debug stay free
 // (boot chatter, progress), and packages outside HTTP slices (queue workers
 // without a request,-ele installers, CLIs) keep plain slog — there is no
 // request context to carry there, so forcing observability would only add
@@ -186,7 +186,7 @@ func LeakedErrText500HTTP(m dsl.Matcher) {
 func SlogBypassesObservability(m dsl.Matcher) {
 	m.Match(`slog.$Level($*_)`).
 		Where(m["Level"].Text.Matches(`^(Error|Warn)$`) &&
-			m.File().PkgPath.Matches(`features/[a-z0-9]+/chi`) &&
+			m.File().PkgPath.Matches(`features/[a-z0-9]+/handlers`) &&
 			!m.File().Name.Matches(`_test\.go`)).
 		Report(`bare slog.$Level in an HTTP slice drops the request context — use observability.$Level with ctx (see internal/observability)`)
 }
