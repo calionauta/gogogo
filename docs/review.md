@@ -73,3 +73,18 @@ is noise with confidence attached.
 by hand: delete `features/review/` + the `bootReview` helper, `reviewH`
 lines and `/review` mounts in `internal/server/chi.go` (+ the
 `newReviewHandlerForTest` fixture in its test) + `go mod tidy`.
+
+## Why no LLM gateway (Bifrost) yet
+
+An LLM gateway ([Bifrost](https://github.com/maximhq/bifrost),
+OpenAI-compatible, Prometheus metrics + OTel plugin) was evaluated and
+deferred — not rejected. One provider, provider-aware retry already in
+`goai`, budgets already in ai-credits: a gateway would add a control
+plane, its own log store, and a large dependency for zero current need.
+It pays when there are 2+ providers needing failover, measured cache-hit
+savings, or per-tenant governance. Adoption is config-only by design:
+point `GOAI_BASE_URL` at the local gateway endpoint *underneath*
+`llm.Client`, so the Biller choke point (one authorize + one settle per
+call) never moves. Our traces correlate with its spans via shared OTel
+plus the `traceparent` / `x-request-id` protocol — no code needed on
+either side until then.
