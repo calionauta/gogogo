@@ -3,6 +3,14 @@
 // The Casbin model (.conf) and policy (.csv) are compiled into the binary
 // with //go:embed, so no `.conf`/`.csv` file is ever read from disk at
 // runtime. A single binary carries its own authorization rules.
+//
+// Authoring guide: docs/rbac.md (lifecycle, file map, row anatomy,
+// checklists). Role vocabulary lives in roles.go; every policy invariant
+// an LLM can break is pinned by a red-proof test in rbac_test.go
+// (shape, flat, dedupe, coverage, viewer matrix) enforced in CI and by
+// the rbac-policy pre-commit hook. There is no upstream Casbin policy
+// linter for Go (only the online editor and load-time parse errors),
+// so those tests ARE this repo's Casbin lint.
 package rbac
 
 import (
