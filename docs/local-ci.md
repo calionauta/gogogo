@@ -128,6 +128,9 @@ constrained, instead of wedging a shared box no Makefile gate can see.
   at start (`reap-stale`, default 6h — a concurrent gate's fresh artifacts
   are never touched). Caches (go build, golangci, npm, Playwright browsers)
   are never listed anywhere, so hygiene never forces a rebuild.
+  Go-test orphans (`/tmp/Test*`, `/tmp/go-build*` from aborted runs —
+  `t.TempDir` only self-cleans on pass) reap at 24h (`TEST_STALE_MIN`,
+  longer margin since `Test*` is a generic prefix on a shared box).
   `make smoke-clean` stays the manual full clean.
 
 ### Why the browser smoke test stays on Playwright

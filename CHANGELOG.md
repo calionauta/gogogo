@@ -2,6 +2,13 @@
 
 ### Added
 
+- **Go-test orphans reaped with the smoke sweep.** `t.TempDir` self-cleans
+  on pass, but aborted runs orphan `/tmp/Test*` + `/tmp/go-build*`
+  (proven live). `reap-stale-smoke.sh` (already at every gate start) now
+  also reaps those past 24h (`TEST_STALE_MIN`) — longer margin than the 6h
+  smoke patterns, since `Test*` is a generic prefix on a shared box.
+  Verified with a planted 2-day-old decoy (reaped) beside a fresh dir
+  (kept).
 - **In-test host gate for heavy tests (`internal/hostgate`).** Makefile and
   script pre-flights cannot cover a bare `go test -run ...` invocation, and
   `TestTrimmedTreeStillBuilds` IS the heavy workload (repo copy + forked

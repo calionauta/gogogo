@@ -100,6 +100,9 @@ func TestServeChiOnListener(t *testing.T) {
 	cfg := config.Load()
 	cfg.Dev = true
 	cfg.Turso.DBPath = t.TempDir() + "/serve.db"
+	// DataDir MUST be temp: the default ("data") would plant chi/queue.db
+	// + totp_seal.key inside the repo on every run (hygiene leak).
+	cfg.DataDir = t.TempDir() + "/data"
 
 	bundle, err := BootChi(cfg)
 	if err != nil {
