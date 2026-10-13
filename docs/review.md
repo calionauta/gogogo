@@ -77,31 +77,48 @@ lines and `/review` mounts in `internal/server/chi.go` (+ the
 ## Why no LLM gateway (Bifrost) yet
 
 An LLM gateway ([Bifrost](https://github.com/maximhq/bifrost),
-OpenAI-compatible, Prometheus metrics + OTel plugin) was evaluated and
-deferred — not rejected. One provider, provider-aware retry already in
-`goai`, budgets already in ai-credits: a gateway would add a control
-plane, its own log store, and a large dependency for zero current need.
-It pays when there are 2+ providers needing failover, measured cache-hit
-savings, or per-tenant governance. Adoption is config-only by design:
-point `GOAI_BASE_URL` at the local gateway endpoint *underneath*
-`llm.Client`, so the Biller choke point (one authorize + one settle per
-call) never moves. Our traces correlate with its spans via shared OTel
-plus the `traceparent` / `x-request-id` protocol — no code needed on
-either side until then.
+Apache-2.0) was evaluated and **deferred — not rejected, and not
+implemented**. One provider, provider-aware retry already in `goai`,
+budgets already in ai-credits: a gateway would add a control plane, its
+own log store, and a large dependency for zero current need.
 
-Measured 2026-10-13 (`core` v1.12.0, scratch probe, same method as the
-Genkit probe): `bifrost.Init` + `Shutdown` clean, `CGO_ENABLED=0` builds,
-OpenRouter is a first-class provider, MCP connects in-process via
-`MCPConfig`, the logging plugin is opt-in (no plugin = zero writes, so
-zero-artifact holds by default). Weight: 140 modules in the graph,
-~+32MB dev / ~+24MB stripped — 2x the Genkit delta, carrying AWS + Azure
-SDKs, gRPC, sonic, fasthttp and mcp-go even when only OpenRouter is
-used. If adopted, it sits *under* `llm.Client` as smart transport (one
-retry layer only: Bifrost's, with `attempt_trail` — goai's native retry
-switches off on that path), never beside it. ai-credits keeps the
-per-user wallet (grants, reserve/settle in credits); Bifrost budgets
-(USD caps per provider/key, rate limits) are operator-side cost control,
-a different function — the bug to avoid is per-user charging in both,
-or two different deny errors for one call. Do
-not confuse with the host's `bifrost-stdio` service (BB's MCP gateway —
-a different project sharing the name).
+Verified facts (scratch probe + upstream docs, 2026-10-13; `core`
+v1.12.0 — do not confuse with the host's `bifrost-stdio` service, which
+is BB's MCP gateway, a different project sharing the name):
+
+- **Embeds cleanly**: `go get github.com/maximhq/bifrost/core` →
+  `bifrost.Init` + `Shutdown` (exit 0), `CGO_ENABLED=0` builds, so the
+  zero-CGO rule holds. 140 modules in the graph, **~+32MB dev / ~+24MB
+  stripped (2x the Genkit delta)**, carrying AWS + Azure SDKs, gRPC,
+  sonic, fasthttp and mcp-go even when only OpenRouter is used.
+- **OpenRouter is a first-class provider** (chat + stream) — the current
+  setup enters directly, no adapter.
+- **Observability is opt-in**: without the logging plugin there are
+  **zero writes** (zero-artifact holds by default). With it:
+  SQLite/Postgres, async (<0.1ms), `x-request-id` becomes the log ID,
+  `x-bf-lh-*` headers become metadata, `attempt_trail` records every
+  attempt and key rotation. OTel / Prometheus / Datadog are connectors.
+  No UI in embedded mode (that belongs to gateway mode).
+- **MCP is mechanism, not a feature**: in-process client via `MCPConfig`
+  exists, but each tool is permission + blast radius (allowlist, RBAC,
+  audit, prompt-injection via tool output) — a separate feature with
+  its own threat model.
+- **Keys stay ours in embedded mode**: our `Account` implementation
+  reads age-secrets/env and hands keys to Bifrost, which holds them in
+  memory only. (Persisted key storage is a gateway-mode concept.)
+- **Budgets are operator-side**: USD caps and rate limits per
+  provider/key (customer→team→key hierarchy) answer "how much did the
+  system spend" — ai-credits keeps the per-user wallet (grants,
+  reserve/settle). Different functions that can coexist; the bug to
+  avoid is per-user charging in both, or two different deny errors for
+  one call.
+- **If adopted, it sits *under* `llm.Client`** as smart transport, never
+  beside or above it: one retry layer only (Bifrost's, with
+  `attempt_trail` — goai's native retry switches off on that path),
+  billing untouched, Genkit unaware.
+
+Reconsider when: a second provider/key needs failover (e.g. OpenRouter
+free quota killing the demo), the first tool-using feature arrives, or
+measured cache-hit savings justify the weight. Next step then is a
+one-day spike with real calls (usage mapping, streaming, fallback with
+one bad key) — not a blind integration.
