@@ -252,6 +252,14 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.4 (2026-10-13)
+
+## What's Changed
+* fix(capabilities): register internal/hostgate, unbreak 0.44.3 gate by @calionauta in https://github.com/calionauta/gogogo/pull/119
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.3...v0.44.4
+
 ## 0.44.3 (2026-10-13)
 
 ## What's Changed
