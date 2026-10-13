@@ -246,7 +246,8 @@ func TestRBACPolicyShape(t *testing.T) {
 		}
 		sub, obj, act := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2]), strings.TrimSpace(parts[3])
 		if !knownSubjects[sub] {
-			t.Errorf("unknown subject %q (typo dead row): %q", sub, line)
+			t.Errorf("subject %q outside the role vocabulary "+
+				"(typo? or new role: add to roles.go AND knownSubjects): %q", sub, line)
 		}
 		if !strings.HasPrefix(obj, "/") {
 			t.Errorf("object %q is not a path: %q", obj, line)
@@ -255,7 +256,8 @@ func TestRBACPolicyShape(t *testing.T) {
 			t.Errorf("act %q does not compile: %v (%q)", act, err, line)
 		}
 		if sub == RoleViewer && strings.Contains(obj, "*") && !viewerWildcards[obj] {
-			t.Errorf("viewer wildcard %q outside the allowlist (enumerate instead): %q", obj, line)
+			t.Errorf("viewer wildcard %q outside the allowlist "+
+				"(enumerate paths, or extend viewerWildcards with reason): %q", obj, line)
 		}
 	}
 }

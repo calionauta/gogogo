@@ -47,6 +47,25 @@ hierarchy. Do not add a `g` line between them.
    `rbac: permissive allow (would deny)` lines, add the missing rows,
    then turn it off. Production posture is permissive=false.
 
+## Adapting this guard for your product
+
+`TestRBACPolicyShape` (plus flat/dedupe/coverage) pins *this* template's
+choices. Downloaders with new roles or surfaces hit it by design — the
+failure tells you what to decide, not just what broke:
+
+- **New role** (e.g. `editor`): add it to `roles.go` (subject
+  resolution), to `knownSubjects` in the shape test, to `policy.csv`,
+  and to the promotion path. Roles are vocabulary — one home each.
+- **Role hierarchy** (e.g. `owner` inherits `editor`): the flat test
+  will fail. That is the point — inheritance only adds permissions, so
+  delete the test deliberately and document why your hierarchy cannot
+  escalate anyone, or keep roles flat.
+- **Viewer-reachable wildcard** (e.g. read-only `/reports/*`): prefer
+  enumerated paths; if the subtree is genuinely safe, extend
+  `viewerWildcards` with a one-line justification.
+- **New feature paths**: extend `TestRBACPolicyCoversMuxRoutes` with
+  the mounts (fail-closed otherwise) and mirror the user block.
+
 ## Display hint vs enforcement
 
 `rbac.IsViewer(role)` is a DISPLAY hint only (disable buttons, show the
