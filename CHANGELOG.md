@@ -221,6 +221,14 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.2 (2026-10-13)
+
+## What's Changed
+* fix(installer): dagnats add-anchor follows single-hub boot + fast-gate guards by @calionauta in https://github.com/calionauta/gogogo/pull/114
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.1...v0.44.2
+
 ## 0.44.1 (2026-10-13)
 
 ## What's Changed
