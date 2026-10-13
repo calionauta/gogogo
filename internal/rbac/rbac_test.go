@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -210,6 +211,52 @@ func TestRBACRolesAreFlat(t *testing.T) {
 		t.Fatalf("grouping policy: %v", err)
 	} else if len(g) != 0 {
 		t.Errorf("grouping policy = %v, want empty (roles stay flat, see roles.go)", g)
+	}
+}
+
+// TestRBACPolicyShape is the mechanical contract for every future
+// policy edit (human or LLM): each row must name a known subject, a
+// path-shaped object, and a compilable act regex — and viewer rows may
+// only wildcard the three page/static surfaces below. A typo'd subject
+// (`p, users, ...`) or a broad viewer grant (`p, viewer, /api/*, ...`)
+// fails closed at runtime and would survive every Enforce test, so the
+// shape test is the only guard. Red-proof: add either planted row and
+// this goes red. See docs/rbac.md ("Adding a feature").
+func TestRBACPolicyShape(t *testing.T) {
+	knownSubjects := map[string]bool{
+		RoleAdmin: true, RoleUser: true, RoleViewer: true, RoleAnonymous: true,
+	}
+	// The only viewer wildcards: page renders and public surfaces.
+	// Everything else viewer reaches is enumerated exactly (the demo
+	// contract: read + create + toggle, nothing destructive, nothing
+	// paid). /api/*-shaped viewer rows are never acceptable.
+	viewerWildcards := map[string]bool{
+		"/todo/*": true, "/static/*": true, "/api/auth/*": true,
+		"/api/todos/*/toggle": true,
+	}
+	for line := range strings.SplitSeq(Policy(), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, ",")
+		if len(parts) != 4 || strings.TrimSpace(parts[0]) != "p" {
+			t.Errorf("policy line is not a 4-field p rule: %q", line)
+			continue
+		}
+		sub, obj, act := strings.TrimSpace(parts[1]), strings.TrimSpace(parts[2]), strings.TrimSpace(parts[3])
+		if !knownSubjects[sub] {
+			t.Errorf("unknown subject %q (typo dead row): %q", sub, line)
+		}
+		if !strings.HasPrefix(obj, "/") {
+			t.Errorf("object %q is not a path: %q", obj, line)
+		}
+		if _, err := regexp.Compile(act); err != nil {
+			t.Errorf("act %q does not compile: %v (%q)", act, err, line)
+		}
+		if sub == RoleViewer && strings.Contains(obj, "*") && !viewerWildcards[obj] {
+			t.Errorf("viewer wildcard %q outside the allowlist (enumerate instead): %q", obj, line)
+		}
 	}
 }
 

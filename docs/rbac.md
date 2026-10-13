@@ -31,12 +31,19 @@ hierarchy. Do not add a `g` line between them.
 1. Mount routes in `internal/server/chi.go` `buildChiMux` (one arg per line).
 2. Add `p, user, /prefix, .*` (+ `/prefix/*`) rows to
    `internal/rbac/casbin/policy.csv`, in the user block, paths sorted.
+   Subject must be exactly `admin`, `user`, `viewer` or `anonymous` —
+   a typo is a dead row (fail-closed, no error).
 3. If the feature has a restricted surface, add enumerated viewer rows
-   (never `.*` on a write subtree).
+   (never `.*` on a write subtree; viewer wildcards outside
+   `/todo/*`, `/static/*`, `/api/auth/*`, `/api/todos/*/toggle` fail
+   `TestRBACPolicyShape`).
 4. Extend `TestRBACPolicyCoversMuxRoutes` (`internal/rbac/rbac_test.go`)
    with the new paths — the test mirrors the mux and fails naming the
    gap (fail-closed: unlisted routes deny everyone but admin).
-5. Roll out with `RBAC_PERMISSIVE=true` for one deploy, read the
+5. Run `go test -count=1 -run 'TestRBAC' ./internal/rbac/` (the
+   `rbac-policy` pre-commit hook runs the shape subset on every commit
+   touching `internal/rbac/`).
+6. Roll out with `RBAC_PERMISSIVE=true` for one deploy, read the
    `rbac: permissive allow (would deny)` lines, add the missing rows,
    then turn it off. Production posture is permissive=false.
 

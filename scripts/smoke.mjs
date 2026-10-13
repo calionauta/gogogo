@@ -479,9 +479,11 @@ async function verifyOfflineUx(page, context) {
     await page.getByPlaceholder("Add a new todo...").waitFor({ state: "visible", timeout: 15000 });
     console.log("  ✓ offline navigation served the cached todo page");
 
-    // 4) logout form must wire the clear-pages purge message.
+    // 4) logout form must wire the clear-pages purge message. The form
+    // drives its own POST (native submit is swallowed by Datastar's
+    // data-on handler), so the contract lives on data-on:submit__prevent.
     const logoutForm = page.locator('form[action="/logout"]');
-    const onSubmit = await logoutForm.getAttribute("data-on:submit");
+    const onSubmit = await logoutForm.getAttribute("data-on:submit__prevent");
     if (!onSubmit || !onSubmit.includes("clear-pages")) {
       throw new Error("logout form does not post clear-pages to the service worker");
     }
