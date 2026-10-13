@@ -15,6 +15,14 @@
 - **Worker shutdown leak assertions.** `goleak.VerifyNone` on the queue
   shutdown tests, so a worker surviving `Stop()`/`Close()` fails the suite
   instead of leaking silently.
+- **T4 host-capacity pre-flight.** `scripts/check-host-capacity.sh` (wired
+  as the first `make ci-local` prerequisite) measures free RAM, cores,
+  5-minute load and free disk, and refuses the full gate on a box that
+  cannot carry it — full-repo lint + race suite + four parallel browser
+  suites pins a small shared host at 99% CPU and stops it answering.
+  Refused runs fall back to `make ci-local-fast` + PR CI; `CI_LOCAL_FORCE=1`
+  overrides. Each refusal branch is probe-verified (RAM/load/disk trip on
+  demand, capable box passes).
 
 ### Changed
 

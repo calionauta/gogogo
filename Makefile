@@ -190,6 +190,15 @@ check-sizes:
 	@[ -f .githooks/check-sizes.sh ] || bin/setup-hooks.sh >/dev/null 2>&1
 	@.githooks/check-sizes.sh
 
+# check-host-capacity is the T4 pre-flight. It measures this machine (free
+# RAM, cores, 5-min load, free disk) and refuses `make ci-local` when the box
+# cannot carry the full gate — full-repo lint + full race suite + four
+# parallel Playwright suites pins a small shared host at 99% CPU and stops it
+# answering (production and co-tenants starve). Same evidence-over-labels
+# approach as lint-safe, one level up. Override with CI_LOCAL_FORCE=1.
+check-host-capacity:
+	@bash scripts/check-host-capacity.sh
+
 # check-scope enforces that every non-test, non-generated .go file
 # under internal/ and features/ carries a leading doc-comment line
 # matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
@@ -301,7 +310,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -369,7 +378,7 @@ signoff: ci-local
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
-.PHONY: ci-local ci-local-fast signoff
+.PHONY: ci-local ci-local-fast signoff check-host-capacity
 
 .PHONY: site site-check
 
@@ -432,6 +441,7 @@ help:
 	@echo "  coverage       Run tests with coverage report (HTML)"
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  lint-safe      Host-aware lint: scoped + memory-capped (safe on shared hosts)"
+	@echo "  check-host-capacity  Pre-flight: refuse make ci-local when this box cannot carry it"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
