@@ -21,7 +21,17 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/calionauta/gogogo/internal/hostgate"
 )
+
+// trimVetParallel bounds how many trimmed-tree vets run at once. Each
+// subtest copies the whole repo and forks a full `go vet ./...` (which
+// itself parallelizes over all cores), so unbounded t.Parallel() on a
+// small shared host is a 4×4 oversubscription that wedges the box —
+// co-tenant agents share these cores. Two at a time keeps CI green in
+// comparable wall-clock while a 4-core box survives.
+var trimVetParallel = make(chan struct{}, 2)
 
 // skipInCopy are paths that must not land in the temp copy: VCS internals,
 // JS dependencies, the 127 MB prebuilt desktop binary, and the transient
@@ -142,9 +152,15 @@ func TestTrimmedTreeStillBuilds(t *testing.T) {
 	if testing.Short() {
 		t.Skip("copies and builds the whole repo per unit")
 	}
+	// The in-test host gate (not just the Makefile pre-flight): a bare
+	// `go test -run TestTrimmedTree...` bypasses every script gate, and
+	// this test IS the heavy workload (repo copy + forked vet per unit).
+	hostgate.SkipIfConstrained(t, "copies and vets the whole repo per unit")
 	for _, u := range manifestUnits {
 		t.Run(u.id, func(t *testing.T) {
 			t.Parallel()
+			trimVetParallel <- struct{}{}
+			defer func() { <-trimVetParallel }()
 			dir := trimAndRegenerate(t, u)
 			// vet, not build: `go build ./...` ignores _test.go, and the
 			// composition test is exactly the file a trim is most likely to
@@ -189,6 +205,7 @@ func TestTrimmedTreeRouteGateCatchesLoss(t *testing.T) {
 	if testing.Short() {
 		t.Skip("copies the whole repo")
 	}
+	hostgate.SkipIfConstrained(t, "copies the whole repo and vets the trimmed tree")
 	dir := trimAndRegenerate(t, findUnit(t, "sounds"))
 	const probe = "features/todo/components/zz_trim_probe.templ"
 	body := "package components\n\ntempl TrimProbe() {\n" +

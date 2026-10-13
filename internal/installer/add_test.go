@@ -60,7 +60,7 @@ func fixtureAddTrees(t *testing.T) (from, proj string) {
 	writeFile(t, filepath.Join(proj, "go.mod"), "module example.com/proj\n\ngo 1.27\n")
 	chiFull := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/config\"\n" +
-		"\tlandingchi \"github.com/calionauta/gogogo/features/landing/chi\"\n" +
+		"\tlandinghandlers \"github.com/calionauta/gogogo/features/landing/handlers\"\n" +
 		")\n" +
 		"\tmux.Handle(\"/config\", configH.Routes())\n" +
 		"\tmux.Handle(\"/\", landingH.Routes())\n" +
@@ -133,7 +133,7 @@ func TestAddUnitRestoresLanding(t *testing.T) {
 	if !strings.Contains(out, `mux.Handle("/", landingH.Routes())`) {
 		t.Errorf("route line not restored:\n%s", out)
 	}
-	if !strings.Contains(out, `landingchi "github.com/calionauta/gogogo/features/landing/chi"`) {
+	if !strings.Contains(out, `landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`) {
 		t.Errorf("import not restored:\n%s", out)
 	}
 	// Import lands sorted: config before landing.
@@ -152,7 +152,7 @@ func TestAddUnitRestoresLanding(t *testing.T) {
 
 func TestAddUnitRefusesForeignTree(t *testing.T) {
 	from, _ := fixtureAddTrees(t)
-	proj := t.TempDir() // no router/router.go, no go.mod
+	proj := t.TempDir() // no internal/server/chi.go, no go.mod
 	rc := &AddReceipt{}
 	if err := addUnit(from, proj, findUnit(t, unitLanding), rc); err == nil {
 		t.Fatal("expected refusal on non-scaffolded checkout")
@@ -173,9 +173,15 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	// Order is load-bearing: engine boot before startNATS, trigger
 	// bootstrap after it (it needs the connected NATS). The add must
 	// reproduce source order, not anchor order.
+	//
+	// The fixture mirrors cmd/web/main.go's REAL anchors
+	// (mainCallsAnchor="defer stopLifecycle()", the trigger-bootstrap
+	// addBefore, the shutdown comment) instead of invented markers, so a
+	// rename in the real file fails here rather than silently breaking
+	// `add` — which is exactly what the previous fixture masked.
 	from := t.TempDir()
 	proj := t.TempDir()
-	src := "\tdefer shutdown()\n" +
+	src := "\tdefer stopLifecycle()\n" +
 		"\n" +
 		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +
 		"\tdefer shutdownDagNats()\n" +
@@ -187,13 +193,13 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 		"\t\tensureTriggerBootstrap()\n" +
 		"\t}\n" +
 		"\n" +
-		"\t// Phase 2: wire the CRDTStore JetStream transport when the chosen\n"
+		"\t// The process is the server now (there is no framework run loop\n"
 	writeFile(t, filepath.Join(from, "cmd", "web", "main.go"), src)
-	dst := "\tdefer shutdown()\n" +
+	dst := "\tdefer stopLifecycle()\n" +
 		"\n" +
 		"\tjs := startNATS(cfg)\n" +
 		"\n" +
-		"\t// Phase 2: wire the CRDTStore JetStream transport when the chosen\n"
+		"\t// The process is the server now (there is no framework run loop\n"
 	writeFile(t, filepath.Join(proj, "cmd", "web", "main.go"), dst)
 	u := findUnit(t, unitDagnats)
 	tree := mustOpenTree(t, proj)
@@ -214,13 +220,13 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)")
 	nats := strings.Index(text, "js := startNATS(cfg)")
 	strap := strings.Index(text, "ensureTriggerBootstrap()")
-	phase2 := strings.Index(text, "// Phase 2: wire the CRDTStore")
-	if boot == -1 || nats == -1 || strap == -1 || phase2 == -1 {
+	server := strings.Index(text, "// The process is the server now")
+	if boot == -1 || nats == -1 || strap == -1 || server == -1 {
 		t.Fatalf("re-insertion incomplete:\n%s", text)
 	}
-	ordered := boot < nats && nats < strap && strap < phase2
+	ordered := boot < nats && nats < strap && strap < server
 	if !ordered {
-		t.Errorf("boot order violated (want boot < nats < bootstrap < phase2):\n%s", text)
+		t.Errorf("boot order violated (want boot < nats < bootstrap < server):\n%s", text)
 	}
 }
 

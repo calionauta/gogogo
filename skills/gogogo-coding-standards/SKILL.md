@@ -84,10 +84,10 @@ under **Core Go Rules**. Everything below is the delta this project adds on top.
 Full table: `references/go-concurrency-deltas.md`.
 
 - Owner + exit + wait for every `go`. Use `wg.Go` (Go 1.25), never `Add` inside the goroutine.
-- **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to `se.App.OnTerminate` (see `router/credits.go`). A worker started in `New` on `Background` can never be stopped.
+- **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to the stack's shutdown (see `bootCredits` in `internal/server/chi.go`). A worker started in `New` on `Background` can never be stopped.
 - **Whatever you start, you must make stoppable — and hold it.** A function that starts something long-lived owns its lifecycle: store the handle on the owner inside the starter (as `Queue.StartWorkers` does), not in a return value a caller can drop. `pool := Start(); _ = pool` is how a pool ran with no reachable `Stop()` while `Close()` shut the database out from under it.
 - **Only one component owns the process signal.** A dependency may register its own `signal.Notify` (DagNats does; any second owner races the same way). The runtime delivers a signal to EVERY channel, so two handlers race and whichever finishes first ends the process — skipping the other's deferred cleanup. Drive shutdown yourself via the library's explicit `Stop()`, and never write "shutdown is handled internally" without reading the code that does it. Verify by the EFFECTS (the cleanup actually ran), never by exit code alone.
-- Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/todo/handlers/onboarding.go`.
+- Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/onboarding/onboarding.go` (`shutdownCtx`).
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
 - Every long `select` has `<-ctx.Done()`. No `time.After` in hot loops (`NewTimer` + `Reset`).
@@ -179,12 +179,12 @@ Full rules: `references/datastar.md`.
   all nine slices (todo, chat, genui, credits, whiteboard, notes, room,
   landing, config). Split a slice into more files by concern
   (`mutations.go`, `stream.go`, `worker.go`) once `chi.go` passes ~200 lines,
-  the way `features/todo/chi/` already is.
+  the way `features/todo/handlers/` already is.
 - **Never make a chi slice import another feature's chi package for shared
   code.** Shared wire or UI goes in a framework-free package both import
   (`features/todo/components`, `internal/dagnats`) or is copied chi-locally
   — the step vocabulary duplicated between `features/onboarding` and
-  `features/todo/chi` is that trade, made deliberately so trimming one
+  `features/todo/handlers` is that trade, made deliberately so trimming one
   cannot break the other.
 - **`internal/` packages are closed by the gate too.** `cmd/check-flatdeps`
   lists the flat-stack packages that must stay framework-free; adding one
@@ -300,7 +300,7 @@ flat-stack migration (Oct 2026):
 1. **Split the ctx-free path out.** If the flagged call threads `ctx` into a
    branch that never touches I/O (signals + DOM patch only), extract that
    branch into a function that takes no `ctx`. No `ctx` in scope, no finding,
-   no suppression. (3 `contextcheck` hits in `features/todo/chi/dispatch.go`
+   no suppression. (3 `contextcheck` hits in `features/todo/handlers/dispatch.go`
    became 1 this way.)
 2. **Replace error-as-skip with a bool.** `if err != nil { return nil }` reads
    as swallowed failure (`nilerr`). When the error is really a skip signal

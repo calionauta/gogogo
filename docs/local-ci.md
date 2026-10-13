@@ -45,7 +45,7 @@ push/merge, or (b) the change touches an area the next tier checks.
 | **T2** lint scoped | `go vet` + `make lint-safe` (host-aware: scoped + memory-capped) + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
 | **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
-| **T4** full local gate | `make ci-local` | ~6min | Full pre-push check (= CI) |
+| **T4** full local gate | `make ci-local` (refuses first via `check-host-capacity` when the box cannot carry it) | ~6min | Full pre-push check (= CI) |
 | **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~6min | Same as T4, plus it commits the verification to git |
 
 ### Why the full gate is slow, and the fast sibling
@@ -58,8 +58,8 @@ wall-clock is the slowest suite, not the sum). Heaviest race packages by
 package time (they overlap in parallel — wall is the max, not the sum):
 `internal/auth` ~292s (argon2id cost is intentional work, ~250ms per
 hash by calibration), `internal/installer` ~193s (trim build gates copy
-and vet the whole repo per unit), `features/notes/chi` ~188s,
-`features/todo/chi` ~173s, `features/whiteboard/chi` ~168s,
+and vet the whole repo per unit), `features/notes/handlers` ~188s,
+`features/todo/handlers` ~173s, `features/whiteboard/handlers` ~168s,
 `rules` ~110s (per-rule lint fixtures). Everything else is cheap:
 templ/regens <1s, css-check ~2s, lint ~8s, boot smoke ~14s. (The old
 ~82s total predates the fan-out and the current suite size — do not quote
@@ -91,6 +91,47 @@ when nothing changed.
 Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
+
+`ci-local-fast` carries its own guards: a `--fast` capacity pre-flight
+(lighter floors — 3 GB RAM, 2 cores, 1.5 load/core, 1 GB disk) refuses a
+wedged box before scoped race starts, and past 8 changed packages
+(`FAST_MAX_PARALLEL_PKGS`) the race run degrades to serial (`-p 1`) to
+bound shared-host load. Refused means the same as T4: scope to one
+package by hand, or let the PR's CI be the gate.
+
+Heavy Go tests guard themselves too: `internal/hostgate.SkipIfConstrained`
+makes repo-copying suites (notably `TestTrimmedTreeStillBuilds`, one full
+`go vet ./...` per unit) skip — with measured reason — when off-CI and
+constrained, instead of wedging a shared box no Makefile gate can see.
+
+### Where T4 may run (host-capacity pre-flight)
+
+- **`make ci-local` refuses first on a box that cannot carry it.**
+  `scripts/check-host-capacity.sh` (the `check-host-capacity` prerequisite)
+  measures free RAM, cores, 5-minute load and free disk, then fails with the
+  offending dimension and the override. A small shared host (lint peak alone
+  is ~2.6 GB RSS; T4 stacks that with the race suite plus three Chromiums)
+  would otherwise pin at 99% CPU and stop answering, starving production and
+  co-tenants — that outage is what the gate exists to prevent.
+- **Refused != blocked.** Run `make ci-local-fast` locally and let the PR's
+  CI be the full gate. `CI_LOCAL_FORCE=1` overrides (thresholds via
+  `CI_LOCAL_MIN_RAM_MB` / `CI_LOCAL_MIN_CORES` /
+  `CI_LOCAL_MAX_LOAD_PER_CORE` / `CI_LOCAL_MIN_DISK_MB`), same convention as
+  `scripts/lint-safe.sh` one level down.
+- **The suite script guards itself too.** `scripts/test-web.sh` runs the same
+  pre-flight first (agents kept invoking it directly, bypassing the `make`
+  gate): it refuses off CI runners unless `CI=true` or `ALLOW_HEAVY=1`.
+- **Hygiene is automatic, and it cannot disturb a live run.** `ci-fanout.sh`
+  traps `INT`/`TERM` to kill its four suites with it (no orphans when the
+  gate is interrupted) and deletes its log dir on a green run (a red run
+  keeps every log for diagnosis). Both gates reap mtime-stale smoke corpses
+  at start (`reap-stale`, default 6h — a concurrent gate's fresh artifacts
+  are never touched). Caches (go build, golangci, npm, Playwright browsers)
+  are never listed anywhere, so hygiene never forces a rebuild.
+  Go-test orphans (`/tmp/Test*`, `/tmp/go-build*` from aborted runs —
+  `t.TempDir` only self-cleans on pass) reap at 24h (`TEST_STALE_MIN`,
+  longer margin since `Test*` is a generic prefix on a shared box).
+  `make smoke-clean` stays the manual full clean.
 
 ### Why the browser smoke test stays on Playwright
 
@@ -138,8 +179,8 @@ returns, so a silent stream waits one full heartbeat
 (`config.DefaultSSEHeartbeatInterval`, 15s) regardless of the window asked for.
 A caller requesting 6s got 15.5s. The fix is to read in a goroutine and
 `select` on a timer, closing the body on expiry so the reader unblocks — see
-`pumpSSEUntil` in `features/todo/sse_test.go`, guarded by
-`TestPumpSSEUntil_HonorsDeadlineWhileReadParked`.
+`features/todo/handlers/stream_propagation_test.go` (goroutine + `select` on
+`time.After`), guarded by ruleguard's `BlockingReadBehindDeadline`.
 
 **2. Parsing the SSE transcript as JSON.** A transcript is `event:`/`data:`
 lines, and each Datastar payload additionally carries a literal `signals `

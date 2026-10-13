@@ -19,9 +19,18 @@ import (
 // if a client (or a fork of this template) posts stringified numbers — the
 // server never 400s a perfectly good cursor event on a type-coercion nit.
 type PresenceMsg struct {
-	Type string  `json:"type"`
-	Doc  string  `json:"doc"`
-	User string  `json:"user"`
+	Type string `json:"type"`
+	Doc  string `json:"doc"`
+	User string `json:"user"`
+	// From is the sender's per-tab clientID (the ?clientID= query value the
+	// stream registered under), stamped by the server — never trusted from
+	// the body. User is the DISPLAY name (authed email when signed in), so
+	// two tabs of the same user share User but never From: clients key
+	// carets/cursors/typists by From (falling back to User for old senders)
+	// and render User as the label. Without this, same-user tabs overwrite
+	// each other's dots under one shared key and the peer's caret jumps
+	// while they type.
+	From string  `json:"from,omitempty"`
 	X    float64 `json:"x"`
 	Y    float64 `json:"y"`
 	TS   int64   `json:"ts"`
@@ -57,6 +66,7 @@ type presenceAlias struct {
 	Type string      `json:"type"`
 	Doc  string      `json:"doc"`
 	User string      `json:"user"`
+	From string      `json:"from,omitempty"`
 	X    json.Number `json:"x"`
 	Y    json.Number `json:"y"`
 	TS   int64       `json:"ts"`
@@ -77,6 +87,7 @@ func (m *PresenceMsg) UnmarshalJSON(b []byte) error {
 	m.Type = a.Type
 	m.Doc = a.Doc
 	m.User = a.User
+	m.From = a.From
 	m.TS = a.TS
 	m.CTS = 0
 	if a.CTS != "" {

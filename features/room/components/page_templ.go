@@ -5,11 +5,11 @@
 
 //
 
-// REMOVE by deleting features/room/ + the call site in router/router.go
+// REMOVE by deleting features/room/ + the /room roots in buildChiMux
 
-// + the navbar link lines in features/auth/views.templ (the unit's
+// (internal/server/chi.go) + the navbar links in features/authviews/navbar.templ
 
-// extraStrips cover both). No sounds import here on purpose: room views
+// (the unit's extraStrips cover both). No sounds import here on purpose: room views
 
 // stay dependency-free so the unit carries no DependsOn.
 

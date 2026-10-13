@@ -21,12 +21,41 @@ button.
 
 ```bash
 GOAI_API_KEY=sk-...
-GOAI_BASE_URL=https://api.groq.com/openai/v1
-GOAI_MODEL=llama-3.3-70b-versatile
+GOAI_BASE_URL=https://openrouter.ai/api/v1
+GOAI_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 ```
+
+The deploy default is OpenRouter with that free model (verified live and
+$0 in/out in Oct 2026; text→text with structured outputs, so Ask AI's
+JSON directives parse). A Groq key works the same way with its own slug:
+
+```bash
+GOAI_BASE_URL=https://api.groq.com/openai/v1
+GOAI_MODEL=openai/gpt-oss-20b
+```
+
+(`openai/gpt-oss-20b` verified alive on Groq's `/models`, 13 Oct 2026;
+`llama-3.1-8b-instant` is gone from the catalog, so a secrets file still
+naming it 404s after the triple is reunited. Generation here is plain
+text — no `response_format` — so any instruction-following chat model
+works.)
 
 Free-tier keys (e.g. OpenRouter `:free` models) work the same way, but read
 the warnings below before putting one in production.
+
+#### The triple must stay together
+
+`GOAI_API_KEY` + `GOAI_BASE_URL` + `GOAI_MODEL` belong to the SAME
+provider — a Groq key sent to OpenRouter fails every call with a 401
+(`Missing Authentication header`), and an OpenRouter model slug sent to
+Groq 404s. Keep all three in ONE place: the secrets file the deploy
+workflow renders (GH secret `GOAI_API_KEY` + GH vars `GOAI_BASE_URL` /
+`GOAI_MODEL`). `deploy/docker-compose.prod.yml` deliberately sets no
+LLM defaults of its own, because compose `environment` always wins over
+`env_file` — a default there would silently shadow the matching values
+and split the triple across providers (a real outage: Groq key +
+OpenRouter base). Provider auth failures in Ask/Chat/Suggest surface a
+key↔base hint (`llm.WithAuthHint`) pointing at this invariant.
 
 #### Sharing one provider key across production users
 

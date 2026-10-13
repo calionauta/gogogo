@@ -18,8 +18,8 @@ import (
 
 // Shared file paths for add/trim mechanics (goconst-quiet, single spelling).
 const (
-	todoGoFile   = "features/todo/chi/pages.go"
-	todoRepoFile = "features/todo/chi/chi.go"
+	todoGoFile   = "features/todo/handlers/pages.go"
+	todoRepoFile = "features/todo/handlers/chi.go"
 	dirMode      = 0o755
 )
 
@@ -27,15 +27,27 @@ const (
 // the target checkout. Keyed by file path (convention over configuration):
 // scaffolded trees keep these shapes, anything else fails fast.
 const (
-	// mainCallsAnchor is the shutdown defer; dagnats boot lines land below.
-	mainCallsAnchor = "\tdefer shutdown()"
-	// mainBlankUse is removed when dagnats comes back (todoH used again).
-	mainBlankUse = "\t_ = todoH // dagnats removed: handler stays wired via router"
+	// mainCallsAnchor is the lifecycle defer; dagnats/goakt boot spans
+	// land below it (above startNATS, which both must precede).
+	mainCallsAnchor = "\tdefer stopLifecycle()"
 	// desktopBlockAnchor opens the Wails boot section; the Phase C demo
 	// block lands above it.
 	desktopBlockAnchor = "\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)"
 	// navLinkAnchorSubstr marks the Todo nav link; section links land below.
 	navLinkAnchorSubstr = "}>Collab Todo</a>"
+	// todoListTempl carries the dagnats entry-button strip; the button is
+	// re-inserted above the last onboarding step item, which stays in the tree.
+	todoListTempl = "features/todo/components/todo_list.templ"
+	// todoEntryButtonAnchor survives the trim: the strip removes the button and
+	// its own trim marker, so the anchor must be a line OUTSIDE that span (the
+	// end of the stepper list). A marker inside the span is deleted with it and
+	// leaves `add` nowhere to insert.
+	todoEntryButtonAnchor = "\t\t\t\t\t\t\t\t\t\t>6. Finalize</li>"
+	// todoBasecoatTempl carries the same strip on the Basecoat skin, with its
+	// own layout and indent, so it gets its own anchor constant.
+	todoBasecoatTempl = "web/skins/basecoat/todo_basecoat.templ"
+	// todoBasecoatButtonAnchor is that skin's last onboarding step item.
+	todoBasecoatButtonAnchor = "\t\t\t6. Finalize"
 	// todoLayoutAnchor is the DaisyUI fallback; skin dispatches land above.
 	todoLayoutAnchor = "\t_ = components.Layout("
 	// todoRegionAnchor is the region fallback; skin cases land above.
@@ -80,12 +92,6 @@ func addUnit(from, root string, u trimUnit, rc *AddReceipt) error {
 	}
 	if err := addImports(t, from, root, u, rc); err != nil {
 		return err
-	}
-	if u.id == unitDagnats {
-		mp := filepath.Join(root, "cmd", "web", "main.go")
-		if err := dropLineContaining(t, mp, mainBlankUse); err != nil && !os.IsNotExist(err) {
-			return err
-		}
 	}
 	if err := rebaseModulePrefix(t, from, root, u, rc); err != nil {
 		return err

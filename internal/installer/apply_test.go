@@ -312,7 +312,7 @@ func TestLandingRetargetsBrand(t *testing.T) {
 
 func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
 	dir := t.TempDir()
-	handlersDir := filepath.Join(dir, "features", "todo", "chi")
+	handlersDir := filepath.Join(dir, "features", "todo", "handlers")
 	if err := os.MkdirAll(handlersDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-clean gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -190,6 +190,22 @@ check-sizes:
 	@[ -f .githooks/check-sizes.sh ] || bin/setup-hooks.sh >/dev/null 2>&1
 	@.githooks/check-sizes.sh
 
+# check-host-capacity is the T4 pre-flight. It measures this machine (free
+# RAM, cores, 5-min load, free disk) and refuses `make ci-local` when the box
+# cannot carry the full gate — full-repo lint + full race suite + four
+# parallel Playwright suites pins a small shared host at 99% CPU and stops it
+# answering (production and co-tenants starve). Same evidence-over-labels
+# approach as lint-safe, one level up. Override with CI_LOCAL_FORCE=1.
+check-host-capacity:
+	@bash scripts/check-host-capacity.sh
+
+# check-fast-capacity is the T3.5 pre-flight with the lighter budget
+# (see the --fast thresholds in scripts/check-host-capacity.sh). A big
+# changeset on a wedged box degrades further below via -p 1 instead of
+# wedging it.
+check-fast-capacity:
+	@bash scripts/check-host-capacity.sh --fast
+
 # check-scope enforces that every non-test, non-generated .go file
 # under internal/ and features/ carries a leading doc-comment line
 # matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
@@ -312,7 +328,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -340,11 +356,14 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+# Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
+# Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
+# runs serially (-p 1) to bound shared-host load.
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
-	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else go test -race -count=1 $$PKGS; fi
+	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else N=$$(echo $$PKGS | wc -w); if [ "$$N" -gt "$${FAST_MAX_PARALLEL_PKGS:-8}" ]; then echo "  ($$N changed packages > $${FAST_MAX_PARALLEL_PKGS:-8}: serial -p 1 to bound shared-host load)"; go test -race -count=1 -p 1 $$PKGS; else go test -race -count=1 $$PKGS; fi; fi
 	@echo "✅ ci-local-fast passed (full gate before push: make ci-local)"
 
 # smoke boots the built binary in a headless browser, fails on uncaught client
@@ -356,6 +375,16 @@ smoke:
 	@npx playwright install chromium
 	@node scripts/smoke.mjs
 
+# smoke-prod-image builds the production image, boots it, and asserts
+# /health → 200. The gate the 0.44.0 outage was missing: nothing ever
+# booted the final image, so a scratch runtime that cannot dlopen the
+# tursogo library reached production. Run after any change to
+# deploy/Dockerfile.prod, deploy/docker-compose.prod.yml, internal/db,
+# or the tursogo pin. CI runs it too (ci.yml, after the client smokes).
+smoke-prod-image:
+	@echo "→ Production image boot smoke test…"
+	@bash scripts/smoke-prod-image.sh
+
 # smoke-clean removes smoke/debug artifacts no test cleans up by itself.
 # The suite removes the binary and its tmp dirs on the happy path only; a
 # failed run, an interrupted run, or a manual `go build -o` leaves them
@@ -365,7 +394,7 @@ smoke:
 smoke-clean:
 	@echo "→ Removing smoke artifacts…"
 	@rm -f $(SMOKE_BIN)
-	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-* $(OS_TMPDIR)/gogogo-ci-logs
+	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/gogogo-prod-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-* $(OS_TMPDIR)/gogogo-ci-logs
 	@echo "  ✓ smoke artifacts removed (Playwright browsers kept: shared cache)"
 
 # signoff runs the full local CI then stamps the current commit green via
@@ -380,7 +409,15 @@ signoff: ci-local
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
-.PHONY: ci-local ci-local-fast signoff
+# reap-stale removes OUR smoke corpses older than SMOKE_STALE_MIN (default
+# 360) at gate start — kills and -9s skip every happy-path rm. Age-gated so a
+# concurrent gate's fresh artifacts are never touched; caches (go build,
+# golangci, npm, Playwright browsers) are never listed, so nothing rebuilds.
+reap-stale:
+	@echo "→ reaping stale smoke artifacts (6h+)..."
+	@bash scripts/reap-stale-smoke.sh
+
+.PHONY: ci-local ci-local-fast signoff check-host-capacity check-fast-capacity reap-stale
 
 .PHONY: site site-check
 
@@ -443,6 +480,8 @@ help:
 	@echo "  coverage       Run tests with coverage report (HTML)"
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  lint-safe      Host-aware lint: scoped + memory-capped (safe on shared hosts)"
+	@echo "  check-host-capacity  Pre-flight: refuse make ci-local when this box cannot carry it"
+	@echo "  reap-stale         Delete mtime-stale smoke artifacts (safe beside live runs)"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"

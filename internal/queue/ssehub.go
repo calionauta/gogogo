@@ -51,6 +51,15 @@ type SSEHub struct {
 	// owning user's clients only, preventing cross-user todo leaks.
 	userOf map[string]string
 
+	// docOf maps a connected clientID to the collaborative doc it is
+	// watching (the streamTag ServeStream registered with, i.e. the
+	// whiteboard/notes docID). Used by BroadcastToDoc/BroadcastExceptToDoc
+	// so a shapes/note-text event for docA never lands on a docB stream:
+	// without it every tab adopted the last broadcast from ANY doc and
+	// each side's edits overwrote the other's view. Clients without a
+	// doc (todo/genui/chat streams) receive no doc-scoped events.
+	docOf map[string]string
+
 	// maxBuffer is the per-client replay buffer ring length.
 	maxBuffer int
 
@@ -91,6 +100,7 @@ func NewSSEHub(opts ...HubOption) *SSEHub {
 		clients:   make(map[string]chan []byte),
 		buffer:    make(map[string][][]byte),
 		userOf:    make(map[string]string),
+		docOf:     make(map[string]string),
 		maxBuffer: config.DefaultReplayBufferSize,
 		onDrop: func(clientID string, _ []byte, reason string) {
 			obsArgs := append(observability.WithComponent("ssehub", "core"),
@@ -140,6 +150,7 @@ func (h *SSEHub) Unregister(clientID string) {
 	delete(h.clients, clientID)
 	delete(h.buffer, clientID)
 	delete(h.userOf, clientID)
+	delete(h.docOf, clientID)
 }
 
 // UnregisterIfCurrent removes a client only if the provided channel
@@ -163,6 +174,7 @@ func (h *SSEHub) UnregisterIfCurrent(clientID string, ch chan []byte) {
 		delete(h.clients, clientID)
 		delete(h.buffer, clientID)
 		delete(h.userOf, clientID)
+		delete(h.docOf, clientID)
 	}
 }
 
@@ -316,6 +328,12 @@ func (h *SSEHub) ServeStream(
 
 	ch := make(chan []byte, config.DefaultClientQueueSize)
 	h.Register(clientID, "", ch)
+	// Track the watched doc for doc-scoped fan-out. streamTag is the
+	// docID at every ServeStream call site (whiteboard/notes); an empty
+	// tag leaves the client out of doc broadcasts.
+	if streamTag != "" {
+		h.SetDoc(clientID, streamTag)
+	}
 	defer func() {
 		h.UnregisterIfCurrent(clientID, ch)
 		if onDisconnect != nil {

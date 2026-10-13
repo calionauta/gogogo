@@ -39,6 +39,6 @@
 // REMOVE (plugin): delete this package, drop @sounds.SoundAssets() from
 // the page layouts (features/todo/components/layout.templ, landing,
 // config, auth LoginPage, whiteboard) and @sounds.SoundToggle() from the
-// navbar (features/auth/views.templ), then delete
+// navbar (features/authviews/navbar.templ), then delete
 // web/resources/static/cuelume.js + web/resources/static/cuelume/.
 package sounds

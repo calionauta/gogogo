@@ -29,11 +29,16 @@ reference implementations are the spec.
 ## Server patterns
 
 - **Records** → Hub record event + fragment re-fetch (per-user scoped free).
-- **Ephemeral** → own SSEHub + worker `hub.Send(clientID, …)`; stream
+- **Ephemeral** → the shared queue hub (`chiQ.Hub()` — BootChi wires every
+  stream and every worker to this ONE hub; a second hub object silently
+  swallows worker feedback) + worker `hub.Send(clientID, …)`; stream
   loop with heartbeat (see `handleStream` in genui/whiteboard).
+  Collaborative docs scope fan-out per doc (`BroadcastExceptToDoc` /
+  `BroadcastToDoc` + a client-side `msg.doc` guard): a global broadcast
+  let any board/note overwrite every other board/note's view.
 - **Worker return contract** → return `err` (pool retries) ONLY when the
-  pool's hub is your feature's hub. Otherwise deliver the error result
-  to your own hub and return nil: `llm.Chat` already retries transient
+  failure is transient for the whole job. Otherwise deliver the error result
+  to the originator and return nil: `llm.Chat` already retries transient
   faults natively, and a pool retry re-runs the whole job while
   broadcasting retry noise to a foreign tab (lived bug: Ask answers
   surfaced on Todo). One attempt, immediate user-visible result.

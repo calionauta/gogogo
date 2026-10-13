@@ -86,7 +86,13 @@
     lastInputAt = Date.now();
     timer = setTimeout(sendDiff, 100);
     reportTyping();
-    maybeCaret();
+    // No maybeCaret() here on purpose: every text change ships its caret
+    // WITH the op batch 100ms later (atomic with its text). A standalone
+    // report from this handler is anchored to the stale serverText while
+    // our own keystroke is still unconfirmed, so it overwrote the exact
+    // dot with an approximate one — the per-letter line jump peers saw.
+    // Pure cursor moves still report via selectionchange, heartbeats via
+    // the 5s interval (both guarded while ops are unconfirmed).
     // Deliberately vanilla (not data-on:input__debounce): the timer,
     // lastInputAt (idle adopt), typing and caret reports share one
     // handler by design — splitting the timer into markup would scatter
@@ -109,7 +115,7 @@
   // copied from the live textarea, so zoom, fonts and wrapping can never
   // desync the math — static CSS guessing is what breaks across viewports).
   //
-  // A caret is stored as {line, pos, text, seen}: `pos` is an offset in
+  // A caret is stored as {label, line, pos, text, seen}: `pos` is an offset in
   // `text`, the exact document snapshot the reporter measured against (the
   // `note-text` event ships its text, so the two travel together). Measuring
   // the mirror against that snapshot — NOT against our own ta.value — is
@@ -120,7 +126,16 @@
   // that was one character behind — the reported "blinks at the start of the
   // line below, then snaps back". The snapshot makes the dot's line/column
   // exactly the reporter's, independent of our local render lag.
-  const carets = new Map(); // user -> {line, pos, text, seen}
+  //
+  // Identity: keyed by the sender's per-tab clientID (msg.from, stamped by
+  // the server), labeled with the display name (msg.user). Keying by the
+  // display name merged two tabs of the SAME user under one key: each tab's
+  // heartbeat overwrote the other's dot, so the peer's caret jumped lines
+  // while they typed — even with the other user idle. msg.from falls back
+  // to msg.user for senders that predate the field.
+  const carets = new Map(); // tabID -> {label, line, pos, text, seen}
+  function peerID(m) { return (m && (m.from || m.user)) || ""; }
+  function peerLabel(m) { return (m && (m.user || m.from)) || ""; }
   // shiftPeerOffsets transforms peer offsets through OUR unconfirmed local
   // ops (one-direction OT-lite): we know exactly what changed under their
   // reported positions, so their carets track our typing instead of
@@ -170,6 +185,12 @@
     }).catch(function () { /* ephemeral */ });
   }, 200);
   function maybeCaret(force) {
+    // While our own ops are unconfirmed the batch already carries the
+    // exact caret, so a standalone report (anchored to the stale
+    // serverText) must not overwrite it. Selectionchange fires on every
+    // keystroke too, which is why the guard lives here and not just at
+    // the input handler.
+    if (!force && (outbox.length || flushing)) return;
     const pos = force ? (ta.selectionStart || 0) : (document.activeElement !== ta ? -1 : (ta.selectionStart || 0));
     if (pos < 0) return;
     // Forced (heartbeat) resends even unmoved: expiry is time-based, so
@@ -239,13 +260,13 @@
   // and the last honest position is kept. This is what stops the "dot flashes
   // on the wrong line during the other user's typing delay" — text that
   // reaches us a frame before its caret snapshot is never used as a basis.
-  function setCaret(user, line, pos, text) {
+  function setCaret(id, label, line, pos, text) {
     if (typeof text === "string" && impliedLine(pos, text) !== line) {
-      const prev = carets.get(user);
+      const prev = carets.get(id);
       if (prev) prev.seen = Date.now();
       return;
     }
-    carets.set(user, { line: line, pos: pos, text: text, seen: Date.now() });
+    carets.set(id, { label: label, line: line, pos: pos, text: text, seen: Date.now() });
   }
   function renderCarets() {
     const layer = document.getElementById("caret-layer");
@@ -257,33 +278,34 @@
     layer.style.pointerEvents = "none";
     layer.innerHTML = "";
     const now = Date.now();
-    carets.forEach(function (c, user) {
-      if (now - c.seen > 8000) { carets.delete(user); return; }
+    carets.forEach(function (c, id) {
+      if (now - c.seen > 8000) { carets.delete(id); return; }
       const p = caretXY(c.pos, c.text);
       const x = p.x - ta.scrollLeft, y = p.y - ta.scrollTop;
       const ox = ta.offsetLeft, oy = ta.offsetTop;
       if (x < ox || y < oy || x > ox + ta.clientWidth || y > oy + ta.clientHeight) return;
+      const label = c.label || id;
       const dot = document.createElement("span");
-      dot.title = user + " · line " + c.line;
+      dot.title = label + " · line " + c.line;
       dot.style.position = "absolute";
       dot.style.left = Math.round(x) + "px";
       dot.style.top = Math.round(y) + "px";
       dot.style.width = "3px";
       dot.style.height = Math.max(12, Math.round(p.h)) + "px";
-      dot.style.background = peerColor(user);
+      dot.style.background = peerColor(label);
       dot.style.boxShadow = "0 0 0 1px rgba(255,255,255,.7)";
       layer.appendChild(dot);
       // Name flag in the caret's own color, floating above the line —
       // the balloon: who, exactly where. pointer-events none so it never
       // eats clicks meant for the textarea.
       const flag = document.createElement("span");
-      flag.textContent = user;
-      flag.title = user + " · line " + c.line;
+      flag.textContent = label;
+      flag.title = label + " · line " + c.line;
       flag.style.position = "absolute";
       flag.style.left = Math.round(x) + "px";
       flag.style.top = Math.round(y) + "px";
       flag.style.transform = "translate(2px,-100%)";
-      flag.style.background = peerColor(user);
+      flag.style.background = peerColor(label);
       flag.style.color = "#fff";
       flag.style.fontSize = "10px";
       flag.style.lineHeight = "1.4";
@@ -330,9 +352,11 @@
     if (!typing) return;
     const now = Date.now();
     const live = [];
-    typists.forEach(function (seen, user) {
-      if (now - seen < 6000) live.push(user);
-      else typists.delete(user);
+    typists.forEach(function (entry, id) {
+      const seen = (entry && typeof entry === "object") ? entry.seen : entry;
+      const label = (entry && typeof entry === "object" && entry.label) ? entry.label : id;
+      if (now - seen < 6000) live.push(label);
+      else typists.delete(id);
     });
     if (!live.length) { typing.textContent = ""; return; }
     const names = live.slice(0, 2).join(" and ");
@@ -527,6 +551,11 @@
     } catch (err) {
       return;
     }
+    // Doc guard (defense in depth — the hub already scopes fan-out per
+    // doc): an event for another note must never touch this note's text
+    // or carets. Without it a tab adopted any note's text and posted the
+    // mix back, ending with two notes each holding part of the other.
+    if (m.doc && m.doc !== DOC) return;
     if (m.type === "session") {
       // Initial per-connection auth state (also re-sent never: SSE is one
       // long request, so mid-stream expiry surfaces via op answers).
@@ -535,12 +564,13 @@
       return;
     }
     if (m.type === "note-text" && typeof m.text === "string" && typeof m.rev === "number") {
-      if (m.from !== CID) {
+      const sender = peerID(m);
+      if (sender !== CID) {
         adoptRemote(m.text, m.rev);
         // Atomic caret: rendered from the same event as the text it
         // belongs to — dot and letters can never disagree.
         if (m.caret && typeof m.caret.line === "number" && typeof m.caret.pos === "number") {
-          setCaret(m.from, Math.max(1, Math.round(m.caret.line)), Math.max(0, Math.round(m.caret.pos)), m.text);
+          setCaret(sender, peerLabel(m), Math.max(1, Math.round(m.caret.line)), Math.max(0, Math.round(m.caret.pos)), m.text);
           renderCarets();
         }
       }
@@ -556,29 +586,37 @@
       if (m.type === "count" && Array.isArray(m.peers)) {
         peers.textContent = m.peers.length + " online";
       }
-      if (m.type === "join" && m.user && m.user !== CID) chimeJoin();
+      if (m.type === "join" && peerID(m) && peerID(m) !== CID) chimeJoin();
     }
     // Typing pill: peers announce intent; a leave also clears a stuck
-    // typist immediately instead of waiting for the 6s expiry.
-    if (m.doc === DOC && m.user && m.user !== CID) {
-      if (m.type === "typing") typists.set(m.user, Date.now());
-      else if (m.type === "stopped" || m.type === "leave") typists.delete(m.user);
+    // typist immediately instead of waiting for the 6s expiry. Keyed by
+    // per-tab id (same-user tabs type independently); the pill shows the
+    // display label.
+    if (m.doc === DOC && peerID(m) && peerID(m) !== CID) {
+      const id = peerID(m), label = peerLabel(m);
+      if (m.type === "typing") typists.set(id, { label: label, seen: Date.now() });
+      else if (m.type === "stopped" || m.type === "leave") {
+        typists.delete(id);
+        if (m.user) typists.delete(m.user); // pre-from senders keyed by name
+      }
       renderTypists();
     }
     // Caret dots: positions are approximate (offsets reported against the
     // peer's text state), the tooltip line is exact. A leave clears the
     // dot at once instead of waiting for the 8s expiry.
-    if (m.doc === DOC && m.user && m.user !== CID) {
+    if (m.doc === DOC && peerID(m) && peerID(m) !== CID) {
+      const id = peerID(m);
       if (m.type === "caret" && typeof m.x === "number" && typeof m.y === "number") {
         // Standalone caret (selectionchange/heartbeat): no text snapshot on
         // the wire, so anchor to the authoritative text we hold. It is the
         // reporter's view minus any op still in flight, which is the closest
         // honest basis and far better than our possibly-diverged ta.value.
         // setCaret discards it when that basis cannot justify the line.
-        setCaret(m.user, Math.max(1, Math.round(m.x)), Math.max(0, Math.round(m.y)), serverText);
+        setCaret(id, peerLabel(m), Math.max(1, Math.round(m.x)), Math.max(0, Math.round(m.y)), serverText);
         renderCarets();
       } else if (m.type === "leave") {
-        carets.delete(m.user);
+        carets.delete(id);
+        if (m.user) carets.delete(m.user); // pre-from senders keyed by name
         renderCarets();
       }
     }

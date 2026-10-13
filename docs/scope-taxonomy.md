@@ -88,7 +88,7 @@ the field or a `.templ` reader goes missing.
 | `internal/queue/` | 🔴 CORE | Never — goqite + SSE Hub + workers + retry |
 | `internal/datastar/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/nats/` | 🟡 PLUGIN | Delete + wiring call (or `NATS_ENABLED=false`) |
-| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/chi/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
+| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/handlers/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
 | `internal/llm/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/components/` | 🟡 PLUGIN | Shared UI helpers (Toast + OfflineBanner) |
@@ -113,19 +113,21 @@ another package imports the deleted one. Check these when you trim:
 |---|---|---|
 | **Todo** | `features/todo/` | its own tests come automatically |
 | **Whiteboard** | `features/whiteboard/` (including `static/`), `internal/collab/` | its own tests come automatically |
-| **DagNats** | `internal/dagnats/`, `router/onboarding_dagnats.go` | ⚠️ `features/todo/onboarding_e2e_test.go` depends on it |
+| **DagNats** | `internal/dagnats/`, `features/onboarding/` | ⚠️ `features/todo/handlers/onboarding_test.go` and `internal/capabilities` reference it |
 | **NATS** | `internal/nats/` | ⚠️ `internal/collab` may depend on NATS |
-| **OfflineSync** | `config/config.go` (`OFFLINE_SYNC_ENABLED`), `sw.js`, `crudproxy.go` | `internal/nats/crudproxy_test.go` covers create/toggle/delete/clear_completed e2e with JetStream |
-| **LLM** | `internal/llm/` | ⚠️ `features/todo/suggest_test.go` |
+| **OfflineSync** | `config/config.go` (`OFFLINE_SYNC_ENABLED`), `sw.js`, `features/todo/handlers/bridge.go` | `internal/natswire/wire_test.go` + `features/todo/handlers/bridge_test.go` cover create/toggle/delete/clear_completed e2e with JetStream |
+| **LLM** | `internal/llm/` | ⚠️ `features/todo/handlers/suggest_test.go` |
 | **Turso queries** | (only layer) | There is no strategy switch anymore: handlers call `dbgen.*` directly |
-| **Idempotency** | `db/idempotency_hook.go` + `db/idempotency_seed.go` | Remove `RegisterIdempotencyHook(app)` + `enableTodosIdempotency(col)` from `db/seed.go`, and the hidden `name="idem_key"` input from `createForm` |
+| **Idempotency** | `internal/dbschema/migrations/0001_init.sql` (`todos_idem_key_unique`) + `features/todo/handlers/mutations.go` | Drop the partial unique index and the `GetTodoByIdemKey` dedupe branch, then the `idem_key` query param from `todo_list.templ` |
 | **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` from the navbar |
 | **Skins** | `web/skins/` | Drop blank imports + the `SkinSelector` navbar call |
 
-**After any removal, run `go test ./...`.** If a compilation error mentions the
+**After any removal, run `make test`** (not a bare `go test ./...` — that
+compiles `cmd/desktop`/`cmd/gui`, which need GTK + WebKit headers; see
+[desktop & mobile](desktop-mobile.md)). If a compilation error mentions the
 deleted package in a test file, delete that test file too. Cross-package tests
-like `features/todo/onboarding_e2e_test.go` depending on `internal/dagnats` are
-the usual culprit.
+that import a trimmed package are the usual culprit; `make check-flatdeps` and
+`gogogo --check` catch the wiring half before you build.
 
 ## Related
 

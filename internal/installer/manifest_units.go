@@ -182,8 +182,7 @@ var soundsToggleLines = []string{
 // navbarTempl owns the brand + section links retargeted by trim units.
 const navbarTempl = "features/authviews/navbar.templ"
 
-// chiGoFile is the shared route-wiring file — the successor of
-// router/router.go on the flat stack: BootChi composes one handler per
+// chiGoFile is the shared route-wiring file: BootChi composes one handler per
 // capability and buildChiMux mounts one route subtree per capability,
 // so trims here are line drops (both files live in this one source file).
 const chiGoFile = "internal/server/chi.go"
@@ -202,7 +201,7 @@ const (
 	chiTestFile = "internal/server/chi_test.go"
 	// creditsCallLine is the inlined credits construction both composition
 	// call sites share, closing paren included (a drop would take it).
-	creditsCallLine = "creditschi.NewHandler(a, nil))"
+	creditsCallLine = "creditshandlers.NewHandler(a, nil))"
 )
 
 // chiMuxAnchor ends buildChiMux; capability route lines land above it.
@@ -217,7 +216,7 @@ const (
 	// composition file wiring the handler (route root, boot helper,
 	// composition test): one const so the repeated literal is not a
 	// goconst finding, mirroring soundsImportSuffix.
-	reviewImportSuffix = `features/review/chi"`
+	reviewImportSuffix = `features/review/handlers"`
 )
 
 // manifestUnits is every offered unit in canonical menu order. The order is
@@ -266,12 +265,12 @@ var baseTrimUnits = []trimUnit{
 					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
 					// One argument per line: each drop removes exactly its
 					// feature's line, and add restores them.
-					"roomH *roomchi.Handler,",
+					"roomH *roomhandlers.Handler,",
 					"roomH,",
 					`mux.Handle("/room", roomH.Routes())`,
 					`mux.Handle("/room/", roomH.Routes())`,
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 				},
 			},
 			{
@@ -282,9 +281,9 @@ var baseTrimUnits = []trimUnit{
 				path: chiTestFile,
 				substrs: []string{
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
-					`roomchi "github.com/calionauta/gogogo/features/room/chi"`,
+					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 					"nil, // roomHandler: engine disabled",
-					"roomchi.NewHandler(cfg, a, fakeRooms{}),",
+					"roomhandlers.NewHandler(cfg, a, fakeRooms{}),",
 					"\t\t\"/room\",",
 				},
 			},

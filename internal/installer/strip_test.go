@@ -21,7 +21,7 @@ func TestStripLandingBlock(t *testing.T) {
 	// Flat buildChiMux shape: one route line per capability, no
 	// unit-specific comments (guidance lives in SCOPE headers).
 	give := "import (\n" +
-		"\tlandingchi \"github.com/calionauta/gogogo/features/landing/chi\"\n" +
+		"\tlandinghandlers \"github.com/calionauta/gogogo/features/landing/handlers\"\n" +
 		")\n" +
 		"\tmux.Handle(\"/\", landingH.Routes())\n" +
 		"\n" +
@@ -60,7 +60,7 @@ func TestStripOnboardingCallLine(t *testing.T) {
 	give := "\t// Optional capabilities: one wiring line each.\n" +
 		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
 		"\tshutdown = append(shutdown, onbShutdown...)\n" +
-		"\twbH := wbchi.NewHandler(queries, a, hub, persister, docs, cfg)\n"
+		"\twbH := wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg)\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestStripOnboardingCallLine(t *testing.T) {
 	if strings.Contains(string(out), "bootOnboarding(cfg, a, todoH, hub)") {
 		t.Errorf("onboarding wiring survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), "wbchi.NewHandler(") {
+	if !strings.Contains(string(out), "wbhandlers.NewHandler(") {
 		t.Errorf("whiteboard wiring was wrongly removed:\n%s", out)
 	}
 	if !strings.Contains(string(out), "one wiring line each") {
@@ -276,7 +276,7 @@ func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
 	if err := os.MkdirAll(webDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\tdefer shutdown()\n" +
+	give := "\tdefer stopLifecycle()\n" +
 		"\n" +
 		"\t// DagNats owns the embedded NATS on :4222 and must boot before\n" +
 		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +
@@ -316,7 +316,7 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 	}
 	give := "\t// Optional capabilities: one wiring line each.\n" +
 		"\tonboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)\n" +
-		"\twbchi.NewHandler(queries, a, hub, persister, docs, cfg),\n" +
+		"\twbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),\n" +
 		"\n" +
 		"\tif cfg.OfflineSync.Enabled {\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
@@ -340,7 +340,7 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _ := os.ReadFile(filepath.Join(routerDir, "chi.go"))
-	if strings.Contains(string(out), "wbchi.NewHandler") || strings.Contains(string(out), "internal/collab") {
+	if strings.Contains(string(out), "wbhandlers.NewHandler") || strings.Contains(string(out), "internal/collab") {
 		t.Errorf("whiteboard wiring survived trim:\n%s", out)
 	}
 	if !strings.Contains(string(out), "bootOnboarding(cfg, a, todoH, hub)") {

@@ -68,3 +68,69 @@ func TestLooksLikeTemplate(t *testing.T) {
 		}
 	})
 }
+
+// TestCheckAnchorReportsDeadAnchors is the red-proof for the half of the
+// manifest no gate used to read.
+//
+// A trim does not need the insertion anchor, so an anchor that no longer
+// exists in the target file stays invisible until someone runs `gogogo add`,
+// which then fails with "cannot locate insertion anchor (evolved file?)".
+// Both real anchors had rotted exactly that way — a `defer shutdown()` and a
+// `// Phase 2: CRDTStore` comment that died with the framework — while
+// `--check`, CI and pre-commit all stayed green, because every one of them
+// asserted only startMarker.
+//
+// checkAnchor and checkAnchors are driven directly with a synthetic reader,
+// so the cases never touch the real checkout.
+func TestCheckAnchorReportsDeadAnchors(t *testing.T) {
+	live := "package main\n\nfunc main() {\n\tdefer stopLifecycle()\n}\n"
+	read := func(p string) (string, bool) {
+		switch p {
+		case "cmd/web/main.go":
+			return live, true
+		case "cmd/desktop/main.go":
+			// The desktop anchor is a different line; each entry point must be
+			// probed against its OWN content.
+			return "package main\n\nfunc main() {\n\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)\n}\n", true
+		default:
+			return "", false
+		}
+	}
+
+	t.Run("rule anchor present passes", func(t *testing.T) {
+		var uc unitCheck
+		checkAnchor(&uc, "cmd/web/main.go", live, "\tdefer stopLifecycle()")
+		if len(uc.Problems) != 0 {
+			t.Errorf("a live anchor must not be reported: %v", uc.Problems)
+		}
+	})
+
+	t.Run("rule anchor absent is reported", func(t *testing.T) {
+		var uc unitCheck
+		checkAnchor(&uc, "cmd/web/main.go", live, "\tdefer DEAD()")
+		if len(uc.Problems) != 1 || !strings.Contains(uc.Problems[0], "dead add anchor") {
+			t.Errorf("a dead anchor must be reported, got %v", uc.Problems)
+		}
+	})
+
+	t.Run("empty anchor is the path default, not a problem", func(t *testing.T) {
+		var uc unitCheck
+		checkAnchor(&uc, "cmd/web/main.go", live, "")
+		if len(uc.Problems) != 0 {
+			t.Errorf("empty means 'use the default', validated elsewhere: %v", uc.Problems)
+		}
+	})
+
+	t.Run("default anchors are checked on both entry points", func(t *testing.T) {
+		if got := checkAnchors(read); len(got) != 0 {
+			t.Errorf("live defaults must pass, got %v", got)
+		}
+		dead := func(string) (string, bool) { return "package main\n", true }
+		got := checkAnchors(dead)
+		// cmd/web/main.go uses anchorAfter(mainCallsAnchor) and cmd/desktop
+		// anchorBefore(desktopBlockAnchor); both must be probed.
+		if len(got) != 2 {
+			t.Errorf("expected both entry points probed, got %v", got)
+		}
+	})
+}

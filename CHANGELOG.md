@@ -2,6 +2,37 @@
 
 ### Added
 
+- **Registry conformance pre-commit hook.** `TestRegistryCoversPackages`
+  only ran in CI, so an unregistered package (internal/hostgate) went red
+  there first. `bin/check-registry.sh` runs the instant conformance trio
+  pre-commit (same-implementation-as-CI, like api-routes); red-proofed by
+  removing the hostgate entry (fails) and restoring it (passes).
+- **hostgate in the capability registry.** `internal/hostgate` shipped
+  without lifecycle metadata and failed `TestRegistryCoversPackages` (red
+  0.44.3 CI, including inside trimmed preset trees). Registered as
+  non-offered core.
+- **Go-test orphans reaped with the smoke sweep.** `t.TempDir` self-cleans
+  on pass, but aborted runs orphan `/tmp/Test*` + `/tmp/go-build*`
+  (proven live). `reap-stale-smoke.sh` (already at every gate start) now
+  also reaps those past 24h (`TEST_STALE_MIN`) — longer margin than the 6h
+  smoke patterns, since `Test*` is a generic prefix on a shared box.
+  Verified with a planted 2-day-old decoy (reaped) beside a fresh dir
+  (kept).
+- **In-test host gate for heavy tests (`internal/hostgate`).** Makefile and
+  script pre-flights cannot cover a bare `go test -run ...` invocation, and
+  `TestTrimmedTreeStillBuilds` IS the heavy workload (repo copy + forked
+  `go vet ./...` per unit, unbounded parallel — the storm that wedged the
+  shared host). `hostgate.SkipIfConstrained` skips with dimensions, reason
+  and fallback when off-CI and constrained (RAM/load/temp-disk, env-tunable,
+  `CI_LOCAL_FORCE=1` overrides, CI never skips); the trim-build vets are
+  also capped at 2 concurrent. Unit-tested pure verdict.
+- **PR-body template check.** `.github/workflows/pr-body.yml` fails PRs whose
+  body still carries template placeholders (`Closes #NNN`, `Write this
+  yourself`, `Required, one line`) — GitHub pre-fills the template but
+  nothing made authors complete it. Bodies without template markers (bot
+  PRs, fully custom text) pass vacuously; prose quality stays review
+  judgment. AGENTS.md now orders agents to fill every section on `gh pr
+  create` (linked issue, motivation, one-line AI disclosure, verification).
 - **Review loop (`/review`, Genkit + goai + jev judge).** Paste text or a
   diff — a writer and a critic iterate bounded (`MaxIterations`), then a
   classifier judge delivers the verdict over ephemeral SSE, discarded
@@ -31,9 +62,91 @@
 - **Worker shutdown leak assertions.** `goleak.VerifyNone` on the queue
   shutdown tests, so a worker surviving `Stop()`/`Close()` fails the suite
   instead of leaking silently.
+- **T4 host-capacity pre-flight.** `scripts/check-host-capacity.sh` (wired
+  as the first `make ci-local` prerequisite) measures free RAM, cores,
+  5-minute load and free disk, and refuses the full gate on a box that
+  cannot carry it — full-repo lint + race suite + four parallel browser
+  suites pins a small shared host at 99% CPU and stops it answering.
+  Refused runs fall back to `make ci-local-fast` + PR CI; `CI_LOCAL_FORCE=1`
+  overrides. Each refusal branch is probe-verified (RAM/load/disk trip on
+  demand, capable box passes).
+- **Automatic smoke hygiene.** `ci-fanout.sh` traps `INT`/`TERM` (no orphaned
+  suites on interrupt) and removes its log dir on green runs only; both local
+  gates reap mtime-stale smoke corpses at start (`reap-stale`, 6h default —
+  concurrent runs untouched, caches never listed so nothing rebuilds).
 
 ### Changed
 
+- **Full-suite script refuses a wedged box.** `scripts/test-web.sh` (the
+  T4-equivalent workload agents kept launching by hand on the shared host)
+  now runs the `check-host-capacity` pre-flight first — skipped only on CI
+  runners (`CI=true`) or explicit `ALLOW_HEAVY=1`. Same refusal contract as
+  `make ci-local`.
+- **Dagnats add-anchor follows the single-hub boot.** `BootChi` declares
+  `shutdown := []func(){chiQ.Close}` (no bare `var shutdown` anymore), which
+  killed the dagnats unit's `addAfter` anchor and failed the `checkTree`
+  drift gate on master. The anchor now points at the live declaration line.
+- **ci-local-fast has a capacity pre-flight and a changeset budget.**
+  `check-host-capacity.sh --fast` (lighter floors: 3 GB RAM, 2 cores,
+  1.5 load/core, 1 GB disk) refuses a wedged box before scoped race starts,
+  and past 8 changed packages (`FAST_MAX_PARALLEL_PKGS`) the race run goes
+  serial (`-p 1`). AGENTS.md now forbids full-suite runs on the shared host
+  explicitly — the enforcement that was missing when two parallel sweeps
+  wedged it.
+- **Collab fan-out is doc-scoped.** The shared SSE hub broadcast every
+  whiteboard/notes event to every tab on every doc, so one board's shapes
+  overwrote another board's view ("drawings erased") and one note's text
+  was adopted by another note and posted back mixed (two notes each holding
+  part of the other). `SSEHub` now tracks each stream's doc (`SetDoc` at
+  `ServeStream`) and all collab legs use `BroadcastExceptToDoc` /
+  `BroadcastToDoc` (join/leave/count/cursor/draft/shapes/note-text), with a
+  client-side `msg.doc` guard in `whiteboard.js`/`notes.js` as defense in
+  depth. Red-proof: `TestSSEHubDocIsolation`,
+  `TestSSEHubDocBroadcastToDoc`, `TestWhiteboardCrossDocIsolation`,
+  `TestNotesCrossDocIsolation`.
+- **Notes rehydrate on cache miss.** `notes.NewHandler` never wired its
+  persister into the `DocStore`, so an op arriving after an evict/restart
+  applied to an empty doc and persisted the empty resolution over the good
+  snapshot (text lost). The store now rehydrates before the op, like the
+  whiteboard worker already did. Red-proof:
+  `TestNotesOpAfterEvictKeepsText`.
+- **Notes standalone carets pause while ops are unconfirmed.** Every
+  keystroke sent a caret anchored to the stale base AND a batch carrying
+  the exact caret; the stale one overwrote the exact dot, jumping it a
+  line per letter on the peer's screen. The input handler no longer sends
+  a standalone caret (the batch carries it atomically ≤100ms later) and
+  `maybeCaret` skips non-forced reports while the outbox is unconfirmed.
+- **Queue + Retry demo runs end to end again.** Two compounding defects:
+  `BootChi` built streams on a standalone hub while workers broadcast on
+  the queue's own hub (all worker feedback swallowed — stepper stuck on
+  step 1), and `handleRetryDemo` dropped the tab's `clientID` (feedback
+  unroutable). One shared hub (`chiQ.Hub()` for every stream and worker,
+  incl. chat/genui), the job carries its `clientID`, and retry feedback +
+  toasts route to the originator (`hub.Send`, broadcast fallback). The todo
+  online pill now uses `CountUserClients()` so other features' streams on
+  the shared hub don't inflate it. Red-proof:
+  `TestHandlersRetryDemoPropagatesClientID` and the production-boot
+  `TestRetryDemoReachesStream` (fails on the old wiring, passes on the new).
+- **Deploy LLM default is a live OpenRouter free model.** `llama-3.1-8b-instant`
+  no longer exists on OpenRouter, so Ask AI failed with "model does not
+  exist". Defaults are now `GOAI_BASE_URL=https://openrouter.ai/api/v1` +
+  `GOAI_MODEL=nvidia/nemotron-3-super-120b-a12b:free` (verified live against
+  the models API in Oct 2026: $0 in/out, text→text, structured outputs).
+  Override via env to pin another `:free` id — the free roster churns.
+- **Installer templates follow the single-hub wiring.** The trim/add
+  substrings still carried the old `queue.NewSSEHub()` chat/genui
+  constructions, so a trim+add cycle would have silently reverted the hub
+  unification. Templates updated, and `TestTrimSubstrsMatchLiveChiGo` now
+  pins every chi.go substring against the live file (red-proof: fails on
+  the old template).
+- **Chat is linked in the navbar.** `/chat` existed (route, worker, page)
+  but no nav entry pointed at it — reachable only by typing the URL. The
+  shared navbar now shows Chat next to Ask AI.
+- **Todo stream ignores foreign feature results.** On the shared hub a
+  genui/chat broadcast without clientID (Ask posted before its stream
+  connected) crossed the todo stream and was merged as `lastJob` noise.
+  The dispatcher now swallows `genui`/`chat` envelopes silently — their
+  own tabs render them. Red-proof: `TestDispatchIgnoresForeignResults`.
 - **Offline replays reach every stream.** Mutation handlers fan out (Hub +
   JetStream) before the `"replayed"` short-circuit, and replays no longer
   exclude the queued `clientID` — a background replay is not the originating
@@ -94,10 +207,73 @@
   embedded model + policy in `internal/rbac/casbin`.
 - **No “POC” language.** The native-window target, docs, CI job, and scripts no
   longer describe anything as a proof-of-concept.
+- **Feature slices renamed `chi` → `handlers`.** `features/*/chi`
+  (`package chi`) is now `features/*/handlers` (`package handlers`): inside
+  those files `chi.Router` always meant go-chi while the package itself was
+  also `chi`, forcing meaningless import aliases (`todochi`, `wbchi`, …).
+  Importers now use `todohandlers`, `noteshandlers`, etc. No behavior change
+  (pure rename: 52 files moved, import/alias/SCOPE/doc updates only).
 - **SCOPE linter exempts generated files.** `make check-scope` now skips any
   file carrying Go's standard `// Code generated … DO NOT EDIT.` marker, so
   regenerating `sqlcgen` (or any future generator output) never needs a
   hand-added annotation.
+- **Post-framework legacy prose purged.** SCOPE annotations, installer
+  anchors, docs, skills and CI comments that still pointed at deleted
+  paths (`router/*.go`, `db/seed.go`, `features/auth/views.templ`,
+  `pb_data/`, `routeutil`, `defer shutdown()`, `Phase 2: CRDTStore`)
+  now name the flat-stack call sites (`buildChiMux`, `fail()` in the todo
+  slice, `features/authviews`, `features/onboarding`, `features/credits`).
+  The orphan `docs/investigation/crdtstore-recordroundtrip.md` (236 lines
+  on the deleted CRDTStore) is gone, and `lefthook post-merge regen-assets`
+  uses `ORIG_HEAD` (`HEAD@{1}` never fired — lefthook rewrites `{1}`).
+  `gogogo add` anchor drift is now a `--check` failure (red-proofed), not
+  a silent no-op.
+- **Credits error bodies stop leaking internals.** The balance 500 and the
+  managed-request/checkout 400s returned `err.Error()` (gateway errors
+  wrap driver detail: `credits: reserve: …`); all three now log via
+  `internal/observability` and return static public messages.
+- **Leak rules rewritten for the flat stack.** The three ruleguard 500
+  guards matched Echo's `c.String(...)` (zero occurrences — the footgun
+  shipped through them); they now match the real shapes
+  (`writeJSON`/`writeText`/`http.Error` + `StatusInternalServerError` +
+  `.Error()`), with fixtures re-pinned and the suite green.
+
+### Fixed
+
+- **Ask AI / Chat 401 "Missing Authentication header" (split LLM triple).**
+  `deploy/docker-compose.prod.yml` set `GOAI_BASE_URL`/`GOAI_MODEL`
+  OpenRouter defaults in `environment`, which always wins over the secrets
+  `env_file` — so the Groq `GOAI_API_KEY` from the rendered secrets file
+  was sent to OpenRouter, and every Ask/Chat failed with OpenRouter's 401
+  (verified live: any `gsk_` key gets exactly that body). The compose file
+  no longer sets either var: the whole triple comes from the secrets file
+  the deploy workflow renders (GH secrets + vars), and its comment pins
+  the invariant. Provider auth failures in all three LLM workers (Ask,
+  Chat, Suggest) now append a key↔base mismatch hint via
+  `llm.WithAuthHint` instead of surfacing the raw provider string.
+  Red-proofed per path: `TestAuthHint` (unit), `TestHandlersGenuiAskAppendsAuthHint`,
+  `TestWorkerAppendsAuthHintOnProviderAuthFailure` (chat),
+  `TestHandlersSuggestAppendsAuthHint` (suggest), and
+  `TestDeployComposeKeepsLLMTripleInSecretsFile` (compose invariant) —
+  each verified to fail on the reverted production code.
+- **Collab notes caret jumps with same user in two tabs.** Presence and
+  op events keyed peers by display name (`User` = authed email), so two
+  tabs of one account shared a single caret entry and each tab's
+  heartbeat/caret overwrote the other's — the peer's dot changed position
+  and line while they typed, with the other user idle. Different users
+  never collided (distinct emails). The server now stamps the per-tab
+  `clientID` as `PresenceMsg.From` / `NoteTextEvent.From` (plus a display
+  `User`), and `notes.js` keys carets/typists by that id while rendering
+  the display name. Same-user tabs track independently. Whiteboard
+  cursors/drafts had the identical flaw and got the same split (key by
+  `from`, color/label by `user`). Red-proofed end to end:
+  `TestNotesSameUserTwoTabsKeepDistinctCarets` + join/leave `from`
+  asserts (fail without the server stamping), `TestPresenceMsg_FromRoundTrip`
+  (fails without the `From` field), `TestNotesCaretsKeyedByTabID` /
+  `TestWhiteboardCursorsKeyedByTabID` static JS contracts (fail on
+  name-keyed JS), the `notes-caret` / `whiteboard-client` same-user
+  browser sections (two dots on the peer), and
+  `TestWhiteboard_PresenceBroadcast`'s `from` assert.
 
 ### Added
 
@@ -133,6 +309,43 @@
   the CRUD wire lives in `internal/natswire` for the same reason.
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
+
+## 0.44.4 (2026-10-13)
+
+## What's Changed
+* fix(capabilities): register internal/hostgate, unbreak 0.44.3 gate by @calionauta in https://github.com/calionauta/gogogo/pull/119
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.3...v0.44.4
+
+## 0.44.3 (2026-10-13)
+
+## What's Changed
+* fix(guards): refuse full suite on wedged box, enforce PR template body by @calionauta in https://github.com/calionauta/gogogo/pull/116
+* Bb/hostgate tests thr s7gitfemc6 by @calionauta in https://github.com/calionauta/gogogo/pull/118
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.2...v0.44.3
+
+## 0.44.2 (2026-10-13)
+
+## What's Changed
+* fix(installer): dagnats add-anchor follows single-hub boot + fast-gate guards by @calionauta in https://github.com/calionauta/gogogo/pull/114
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.1...v0.44.2
+
+## 0.44.1 (2026-10-13)
+
+## What's Changed
+* fix(prod-image): boot the flat stack on alpine so tursogo can dlopen by @calionauta in https://github.com/calionauta/gogogo/pull/108
+* chore(ci-local): refuse T4 on hosts that cannot carry it by @calionauta in https://github.com/calionauta/gogogo/pull/109
+* refactor: rename features/*/chi to features/*/handlers by @calionauta in https://github.com/calionauta/gogogo/pull/110
+* refactor: purge post-PocketBase legacy residues, fix error-text leaks by @calionauta in https://github.com/calionauta/gogogo/pull/112
+* fix(collab): doc-scoped fan-out, single-hub boot, live OpenRouter model by @calionauta in https://github.com/calionauta/gogogo/pull/113
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.0...v0.44.1
 
 ## 0.44.0 (2026-10-12)
 
@@ -235,6 +448,15 @@
   (v0.13.3).** `<script` inside `//` comments no longer opens a region;
   `TestFallbackVersionTracksChangelog` ties the fallback constant to the
   release. Pin moved to v0.13.3 (CI + skill doc).
+- **Production image boots again (0.44.0 crash-loop).** The flat-stack
+  image inherited scratch + a static binary, but tursogo loads its Rust
+  library via dlopen — no loader, no boot (`Dynamic loading not
+  supported`, `/health` 502). `deploy/Dockerfile.prod` now runs on
+  Alpine (musl loader + libgcc_s), builds `CGO_ENABLED=1 -tags musl`
+  without `-static`, and `deploy/docker-compose.prod.yml` sets
+  `TURSO_GO_CACHE_DIR` on the data volume. `scripts/smoke-prod-image.sh`
+  boots the final image and asserts `/health` 200 in CI, closing the
+  pipeline gap that let an unbootable image reach production.
 
 ## [0.42.11] - 2026-10-09
 

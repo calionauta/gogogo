@@ -189,6 +189,50 @@ func TestSuggestContract_MultibyteTruncation(t *testing.T) {
 	}
 }
 
+// TestAuthHint pins the operator-facing auth hint: a provider 401 (e.g.
+// OpenRouter's "Missing Authentication header" when a Groq key is sent to
+// its base URL) must surface the key↔base mismatch hint, while model,
+// quota and transport errors pass through untouched — and no branch may
+// ever echo key material.
+func TestAuthHint(t *testing.T) {
+	authErrs := []string{
+		`llm: generate: 401 {"error":{"message":"Missing Authentication header","code":401}}`,
+		`llm: generate: invalid_api_key: Invalid API Key`,
+		`llm: stream: 401 Unauthorized`,
+		`credits: generate: incorrect api key provided`,
+	}
+	for _, msg := range authErrs {
+		if !IsAuthError(errors.New(msg)) {
+			t.Errorf("IsAuthError(%q) = false, want true", msg)
+		}
+		got := WithAuthHint(errors.New(msg)).Error()
+		if !strings.Contains(got, "GOAI_API_KEY") || !strings.Contains(got, "GOAI_BASE_URL") {
+			t.Errorf("WithAuthHint(%q) missing key↔base hint, got %q", msg, got)
+		}
+		if !strings.Contains(got, msg) {
+			t.Errorf("WithAuthHint(%q) dropped the provider message, got %q", msg, got)
+		}
+	}
+	plainErrs := []string{
+		"genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)",
+		`model "ghost-model" not found (404)`,
+		"rate limit exceeded (429), retry later",
+		"context deadline exceeded",
+		"boom",
+	}
+	for _, msg := range plainErrs {
+		if IsAuthError(errors.New(msg)) {
+			t.Errorf("IsAuthError(%q) = true, want false", msg)
+		}
+		if got := WithAuthHint(errors.New(msg)).Error(); got != msg {
+			t.Errorf("WithAuthHint(%q) rewrote a non-auth error, got %q", msg, got)
+		}
+	}
+	if WithAuthHint(nil) != nil {
+		t.Error("WithAuthHint(nil) should be nil")
+	}
+}
+
 // TestRetryIsGoAIsOwn: retry is now delegated to goai's native layer. A
 // real client gets goai's default (2) retries; NewSimulated disables goai
 // retry (0) so the queue WORKER is the demo's retry unit.

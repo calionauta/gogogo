@@ -1,0 +1,41 @@
+name: PR body
+# The PR template (.github/PULL_REQUEST_TEMPLATE.md) only works when its
+# placeholders get replaced: GitHub pre-fills it, but nothing makes the
+# author complete it — unfilled bodies ("Closes #NNN", "Write this
+# yourself") kept landing on merges. This job fails on the objective
+# leftovers. It deliberately does NOT police prose quality or checkboxes:
+# those are review judgment, not grep judgment.
+#
+# Bodies without any template marker (bot PRs like release-please, fully
+# custom bodies) pass vacuously: the check catches an untouched template,
+# it cannot force thought.
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the PR template was completed
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          fail=0
+          for marker in 'Closes #NNN' 'Write this yourself' 'Required, one line'; do
+            if printf '%s' "$BODY" | grep -qF "$marker"; then
+              echo "❌ PR body still contains template placeholder: $marker"
+              fail=1
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo ""
+            echo "Fill every .github/PULL_REQUEST_TEMPLATE.md section (linked issue,"
+            echo "motivation, one-line AI disclosure, verification) and push again."
+            exit 1
+          fi
+          echo "✓ PR body has no template leftovers"

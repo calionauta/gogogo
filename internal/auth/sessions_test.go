@@ -79,12 +79,12 @@ func TestSessionByTokenRejectsRevokedSession(t *testing.T) {
 	}
 }
 
-// TestSessionProbeEndpoint pins the ported /api/session contract the
-// shared banner polls: anonymous requests report authed=false (200, not
-// 401 — a probe is a poll, not a gate), a live session reports true, and
-// a logged-out session reports false again. Ported from the legacy
-// features/auth/wiring.go endpoint, which died with the framework boot
-// while its client (static/session.js) kept polling.
+// TestSessionProbeEndpoint pins the /api/session contract the shared
+// banner polls: anonymous requests report authed=false (200, not 401 — a
+// probe is a poll, not a gate), a live session reports true, and a
+// logged-out session reports false again. Its client is static/session.js;
+// the endpoint is mounted at the top level in buildChiMux, outside the
+// /api/auth/ sub-mux (see SessionProbeHandler).
 func TestSessionProbeEndpoint(t *testing.T) {
 	a := newSessionAuth(t)
 	ctx := context.Background()

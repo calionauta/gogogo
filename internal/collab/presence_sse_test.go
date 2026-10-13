@@ -16,7 +16,7 @@ import (
 
 // TestPresence_SSEBridgeE2E is the browser-side e2e guard for the central
 // presence bridge: it drives collab.PresenceSSEHandler (the exact handler
-// router/collab_jetstream.go registers at GET /api/collab/presence/{docID})
+// the whiteboard chi slice registers at GET /api/collab/presence/{docID})
 // over httptest, then publishes a cursor on app.presence.<docID> (as a
 // desktop edge would). The SSE response must carry the cursor event to the
 // browser client — proving the web UI will see live edge cursors.

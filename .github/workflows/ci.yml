@@ -127,7 +127,7 @@ jobs:
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
           # unavailable on the ubuntu runner; lint the web-facing packages only
-          # (same set as scripts/web-packages.sh; router/ and db/ left with
+          # (same set as scripts/web-packages.sh; router/ left with
           # the PB removal and must not come back here).
           args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
       - name: Install C toolchain (CGO for loro-go)
@@ -221,3 +221,13 @@ jobs:
         # line assertion is red-proofed (fails against the old basis).
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web node scripts/notes-caret.test.mjs
+      - name: Production image boot smoke test
+        # Builds deploy/Dockerfile.prod, boots the FINAL image (uid 65532,
+        # data volume, TURSO_GO_CACHE_DIR) and asserts /health → 200. This
+        # is the gate the 0.44.0 outage was missing: `go build` was green
+        # while the scratch image could never dlopen the tursogo library,
+        # so production crash-looped with 502s. Fails on the pre-fix
+        # Dockerfile (container exits during boot, logs shown). Runs on
+        # linux/amd64 here; the musl library exists per-arch, so the boot
+        # mechanism proven here covers the arm64 server build too.
+        run: bash scripts/smoke-prod-image.sh gogogo:prod-smoke-ci

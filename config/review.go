@@ -39,7 +39,7 @@ const DefaultJevModel = "featherless-ai/Qwen3.6-35B-A3B-classifier"
 
 // DefaultReviewConfidenceThreshold is the jev confidence below which a
 // verdict escalates to a human. Const, not literal: mnd + shared with
-// the review flow default (features/review/chi).
+// the review flow default (features/review/handlers).
 const DefaultReviewConfidenceThreshold = 0.7
 
 // loadReviewEnv fills Review from env, falling back to the demo

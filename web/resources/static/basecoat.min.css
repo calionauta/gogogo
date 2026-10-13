@@ -735,6 +735,9 @@
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
+  .tab-1 {
+    tab-size: 1;
+  }
   .step-error {
     color: var(--color-destructive);
     &::before {

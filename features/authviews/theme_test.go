@@ -1,13 +1,11 @@
-// SCOPE:feature — Theme toggle contract (ported from features/auth/auth_test.go)
+// SCOPE:feature — Theme toggle contract
 //
-// The legacy suite rendered the navbar from features/authviews and pinned
-// the single-toggle path (signal flip, icon sync, persistence order) plus
-// the shared storage key across ThemeHead, the button expression, and the
-// theme.js module — with one owner, one button, one storage key. The test
-// lived in features/auth and referenced its sibling theme_head.templ,
-// which moved to features/authviews in the flat port; the file died
-// referencing a path that no longer existed (red on bb/chat-demo). This
-// is the port, rooted where the templates actually live.
+// The suite renders the navbar from features/authviews and pins the
+// single-toggle path (signal flip, icon sync, persistence order) plus the
+// shared storage key across ThemeHead, the button expression, and the
+// theme.js module — one owner, one button, one storage key. Rooted where
+// the templates actually live: this package owns theme_head.templ and
+// navbar.templ.
 package authviews_test
 
 import (

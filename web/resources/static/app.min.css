@@ -7570,6 +7570,9 @@
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
+  .tab-1 {
+    tab-size: 1;
+  }
   @layer daisyui.l1.l2 {
     .alert-error {
       color: var(--color-error-content);

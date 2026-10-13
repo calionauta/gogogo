@@ -124,6 +124,16 @@ var All = []Capability{
 			"The engines behind it (internal/nats) stay a plugin.",
 	},
 	{
+		ID:      "hostgate",
+		Kind:    KindCore,
+		Summary: "host-capacity gate for heavy Go tests (skip on saturated boxes)",
+		Dirs:    []string{"internal/hostgate"},
+		Note: "Core test support: heavy suites (trim-build repo copies + " +
+			"forked vets) skip with reason off-CI when the box is constrained, " +
+			"instead of wedging a shared host. CI never skips. Customize " +
+			"thresholds via HOSTGATE_* env, never remove.",
+	},
+	{
 		ID:         "nats",
 		Kind:       KindPlugin,
 		Summary:    "NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes",
@@ -386,10 +396,10 @@ var All = []Capability{
 		},
 		Dirs: []string{"features/notes"},
 		Note: "Manual removal (or trim the whiteboard unit, which covers " +
-			"whiteboard+collab+notes): delete the dir + router/notes.go, " +
-			"drop registerNotesStack from router.Init, remove the Notes " +
-			"navbar link in features/auth/views.templ, delete " +
-			"ensureNotesCollection in db/seed.go, and remove this entry.",
+			"whiteboard+collab+notes): delete the dir + the notes roots in " +
+			"buildChiMux (internal/server/chi.go), remove the Notes " +
+			"navbar link in features/authviews/navbar.templ, and remove " +
+			"this entry.",
 	},
 	{
 		ID:      "landing",

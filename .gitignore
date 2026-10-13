@@ -48,7 +48,6 @@ dist/
 .cali-*/
 
 # Test/binary data artifacts
-internal/workflow/pb_data/
 *.db
 *.db-shm
 *.db-wal

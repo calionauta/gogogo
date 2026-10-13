@@ -289,6 +289,73 @@ async function main() {
     else bad(`final caret painted on line ${paintedLine}, want 2`);
   }
 
+  // ---------------------------------------------------------------------------
+  // Same user, two tabs: the peer must see TWO dots, not one.
+  //
+  // WHY THIS EXISTS: presence/caret events carry the display name (email),
+  // which is identical for two tabs of one account. Keying the caret map by
+  // that name merged both tabs under a single dot: each tab's report
+  // overwrote the other's, so the peer's caret jumped lines while they
+  // typed. The fix keys by the server-stamped per-tab id (msg.from) and
+  // renders the name as the label.
+  //
+  // RED-PROOFED: with name keying, A1's and A2's reports overwrite each
+  // other under one key and the observer never counts 2 dots, so the wait
+  // below times out and fails.
+  // ---------------------------------------------------------------------------
+  const doc2 = "notes-sameuser-" + process.pid;
+  const A1 = await ctxA.newPage();
+  const A2 = await ctxA.newPage(); // SAME context = SAME user as A1
+  const B2 = await ctxB.newPage(); // observer: a different user
+  A1.on("pageerror", (e) => pageErrors.push("A1: " + String(e)));
+  A2.on("pageerror", (e) => pageErrors.push("A2: " + String(e)));
+  B2.on("pageerror", (e) => pageErrors.push("B2: " + String(e)));
+  await gotoNote(A1, `${BASE}/notes/${doc2}`);
+  await gotoNote(B2, `${BASE}/notes/${doc2}`);
+  await A1.locator("#note-text").click();
+  await typeText(A1, "aaa", 25);
+  await B2.waitForFunction(
+    () => document.getElementById("note-text").value.includes("aaa"),
+    null,
+    { timeout: 10000 },
+  );
+  await gotoNote(A2, `${BASE}/notes/${doc2}`);
+  await A2.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  });
+  await typeText(A2, "\nbbb", 25);
+  await B2.waitForFunction(
+    () => document.getElementById("note-text").value === "aaa\nbbb",
+    null,
+    { timeout: 10000 },
+  );
+  // A1's caret sits at end of "aaa" (line 1), A2's at end of "bbb"
+  // (line 2). The observer must render one dot per TAB.
+  let sameUserDots = [];
+  try {
+    await B2.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .filter((d) => d.style.width === "3px").length === 2,
+      null,
+      { timeout: 12000 },
+    );
+    sameUserDots = await B2.evaluate(() => [...document.querySelectorAll("#caret-layer > span")]
+      .filter((d) => d.style.width === "3px").map((d) => d.title));
+  } catch {
+    sameUserDots = await B2.evaluate(() => [...document.querySelectorAll("#caret-layer > span")]
+      .filter((d) => d.style.width === "3px").map((d) => d.title));
+    bad(`same-user tabs merged into ${sameUserDots.length} dot(s), want 2 (titles: ${JSON.stringify(sameUserDots)})`);
+  }
+  if (sameUserDots.length === 2) {
+    ok("same-user tabs render as two dots on the peer");
+    const hasLine1 = sameUserDots.some((t) => /line 1/.test(t || ""));
+    const hasLine2 = sameUserDots.some((t) => /line 2/.test(t || ""));
+    if (hasLine1 && hasLine2) ok("each dot sits on its own tab's line (1 and 2)");
+    else bad(`dots do not track their tabs' lines: ${JSON.stringify(sameUserDots)}`);
+  }
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

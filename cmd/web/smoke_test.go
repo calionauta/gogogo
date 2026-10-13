@@ -40,9 +40,9 @@ func freeTCPPortForTest() (int, error) {
 	return port, nil
 }
 
-// Seeded demo credentials (db/seed.go). /todo is auth-gated: without a session
-// it 303-redirects to /login, so any assertion about its HTML must run against
-// a logged-in client.
+// Seeded demo credentials (internal/demo/demo.go). /todo is auth-gated: without
+// a session it 303-redirects to /login, so any assertion about its HTML must run
+// against a logged-in client.
 const (
 	demoEmail    = "demo1@demo.app"
 	demoPassword = "demo1234456"

@@ -11,8 +11,8 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo/config"
-	reviewchi "github.com/calionauta/gogogo/features/review/chi"
-	chifeatures "github.com/calionauta/gogogo/features/todo/chi"
+	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -56,12 +56,23 @@ func applyRBAC(
 	return rbac.MiddlewareWithPermissive(a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive)(mux), nil
 }
 
+// wireTodoDisplay copies the display-time config into the todo handler:
+// version badge, offline label and realtime label. Extracted from BootChi
+// to keep boot under the function-length gate; it is plain assignment with
+// no control flow of its own.
+func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
+	todoH.BuildLabel = cfg.BuildLabel
+	todoH.BuildCommit = cfg.BuildCommit
+	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
+	todoH.NATSEnabled = cfg.NATS.Enabled
+}
+
 // wireTodoLLM builds the LLM clients and attaches the todo slice's queue,
 // suggest and retry handlers. Split out of BootChi for the funlen gate.
 // The clients are both consumed here (todo wiring, always compiled) and
 // returned for the chat/genui constructions in BootChi (dropped by the
 // genui trim): either side alone keeps the composition green.
-func wireTodoLLM(todoH *chifeatures.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
+func wireTodoLLM(todoH *todohandlers.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
 	real = llm.New(cfg.GoAI.APIKey)
 	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
 		simulated = llm.NewSimulated()
@@ -139,16 +150,16 @@ func wireTOTPKey(a *auth.Auth, cfg *config.Config) error {
 // the review trim strips this whole block (see the installer unit).
 func bootReview(
 	cfg *config.Config, a *auth.Auth, realLLM *llm.Client,
-) *reviewchi.Handler {
-	g := reviewchi.NewGenkit()
-	runner := &reviewchi.Runner{
+) *reviewhandlers.Handler {
+	g := reviewhandlers.NewGenkit()
+	runner := &reviewhandlers.Runner{
 		G:            g,
-		Model:        reviewchi.DefineReviewModel(g, realLLM),
-		Judge:        reviewchi.NewJudgeClient(cfg),
+		Model:        reviewhandlers.DefineReviewModel(g, realLLM),
+		Judge:        reviewhandlers.NewJudgeClient(cfg),
 		Threshold:    cfg.Review.ConfidenceThreshold,
 		JudgeTimeout: cfg.Review.Timeout,
 	}
-	h := reviewchi.NewHandler(cfg, a, runner, realLLM)
+	h := reviewhandlers.NewHandler(cfg, a, runner, realLLM)
 	h.RegisterFlows()
 	return h
 }

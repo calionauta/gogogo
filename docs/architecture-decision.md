@@ -141,10 +141,21 @@ Two things are worth knowing before this becomes the only engine:
 
 - The module `github.com/tursodatabase/turso-go-platform-libs` carries a prebuilt
   Rust shared library per platform (~15 MB each, ~124 MB of module). The build
-  tag selects one; at first use it is written to a cache directory
-  (`TURSO_GO_CACHE_DIR`, else `os.UserCacheDir()`), verified against an embedded
-  SHA-256, and `dlopen`ed. A container whose cache directory is unwritable needs
-  `TURSO_GO_CACHE_DIR` pointed at a writable path.
+  tag selects one — and on musl runtimes that MUST be `-tags musl`
+  (libs/linux_*_musl); Go does not set the musl tag automatically, so without
+  it the glibc .so is embedded and dlopen fails on Alpine. At first use the
+  library is written to a cache directory (`TURSO_GO_CACHE_DIR`, else
+  `os.UserCacheDir()`), verified against an embedded SHA-256, and `dlopen`ed.
+  A container whose cache directory is unwritable needs `TURSO_GO_CACHE_DIR`
+  pointed at a writable path.
+- dlopen needs a dynamic loader in the image, full stop. A statically linked
+  binary (`-extldflags=-static`) or a scratch runtime panics at the first DB
+  open with `Dynamic loading not supported` — this crash-looped production on
+  the 0.44.0 migration. `deploy/Dockerfile.prod` therefore runs on Alpine
+  (musl loader + libgcc_s for the musl .so's NEEDED entries), builds with
+  `CGO_ENABLED=1 -tags musl` and no `-static`, and `scripts/smoke-prod-image.sh`
+  boots the final image and asserts /health in CI. Never move prod back to
+  scratch without re-proving the boot.
 - Turso Database is pre-1.0. Keep backups (`scripts/backup.sh`) — the driver's
   own README says the same thing.
 
@@ -169,9 +180,10 @@ rather than duplicate a shape: the framework stack fans its stepper progress
 out over JetStream, while the flat stack broadcasts to its own SSE hub. The
 poll loop that owns a run is local to the instance that started it, and the
 signal is ephemeral UI state, so no cross-instance guarantee is lost. The
-step vocabulary is a chi-local copy for the same reason the wire types are:
-`features/todo/chi` cannot import `features/todo/handlers` without dragging
-the framework into the flat stack, which the dependency gate forbids.
+step vocabulary is a handlers-local copy for the same reason the wire types are:
+the engine package (`features/onboarding`) must not be imported from the todo
+handlers, so the shared shape is duplicated rather than shared — the same
+boundary the dependency gate enforces for the framework.
 
 Conventions that outlive the transition: schema lives in
 `internal/db/migrations/*.sql`, applied in filename order and recorded in

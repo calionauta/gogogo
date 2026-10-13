@@ -43,9 +43,10 @@ func (p *Publisher) PublishUpdate(d *Doc, since *loro.VersionVector) error {
 }
 
 // Fanout delivers one committed change to both transports in fixed order:
-// SSE hub peers first (live tabs, exclude-originator), then raw bytes to
-// NATS for cross-instance server convergence (nil connection = SSE-only
-// mode, skip silently; empty payload = nothing to converge, skip).
+// SSE hub peers first (live tabs watching THIS doc, exclude-originator),
+// then raw bytes to NATS for cross-instance server convergence (nil
+// connection = SSE-only mode, skip silently; empty payload = nothing to
+// converge, skip).
 // Whiteboard (ApplyOp) and notes (applyOps) funnel through here so the
 // order, the drop policy, and the logging can never drift per feature.
 // event is the already-marshaled SSE payload; natsPayload is what the
@@ -53,8 +54,12 @@ func (p *Publisher) PublishUpdate(d *Doc, since *loro.VersionVector) error {
 // preserved as-is). Persistence stays with the caller: each feature owns
 // its collection and error policy. Fanout never fails the op: transport
 // errors log and the change is already durable + already live locally.
+//
+// The hub leg is DOC-SCOPED (BroadcastExceptToDoc): a global broadcast
+// let any board/note overwrite every other board/note's view, erasing
+// one side's drawings and duplicating notes across docs.
 func Fanout(hub *queue.SSEHub, nc *natsio.Conn, subject, docID, fromClientID string, natsPayload, event []byte) {
-	hub.BroadcastExcept(event, fromClientID)
+	hub.BroadcastExceptToDoc(event, docID, fromClientID)
 	if nc == nil || len(natsPayload) == 0 {
 		return
 	}

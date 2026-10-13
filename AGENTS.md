@@ -111,6 +111,7 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
 ## Releases (release-please owns versioning)
 
 - Agents push feature/fix branches and open normal PRs ONLY. Never open a release PR, never `git tag`, never edit version numbers.
+- When you open the PR (`gh pr create`), fill EVERY `.github/PULL_REQUEST_TEMPLATE.md` section in the body: real linked issue (or delete the line), motivation/approach written by you, the one-line AI disclosure, verification with red→green evidence. No placeholders (`Closes #NNN`, `Write this yourself`) — the `pr-body` CI fails the PR on them. Never submit an empty body.
 - Keep writing narrative entries under CHANGELOG `[Unreleased]` — the bot promotes them on release.
 - After a master merge, tell the user a `chore: release X.Y.Z` PR will appear for THEM to review and merge (merge creates the tag; `release.yml` builds from it). Never merge it autonomously.
 - Docs prose: one idea per paragraph, max three lines; 3+ items become a bold-lead list (`CONTRIBUTING.md`).
@@ -122,3 +123,16 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
   Use `make lint-safe` / `bash scripts/lint-safe.sh` (scopes to changed packages
   when RAM is tight, caps the run in a cgroup); otherwise `golangci-lint run <changed-pkgs>`.
 - NEVER `golangci-lint cache clean` — the cache is what keeps a run cheap.
+- NEVER full-suite `go test ./...` / `scripts/test-web.sh` / `make ci-local` on
+  this host — same wedge, plus co-tenant agents share these cores (a second
+  full run pushed this box to load 19). `make ci-local` refuses by itself via
+  `check-host-capacity`; do not bypass with `CI_LOCAL_FORCE=1` here. Use
+  scoped `go test <pkg>` or `make ci-local-fast` (carries its own
+  `--fast` pre-flight + serial degrade past 8 changed packages) and let the
+  PR's CI be the full gate.
+- NEVER bare `go vet ./...` here, and think twice before
+  `go test -run 'TestTrimmedTree...' ./internal/installer/` — each unit
+  copies the whole repo and forks a full vet (parallel storm that took this
+  box down). Those tests skip themselves on a saturated box via
+  `internal/hostgate` (CI never skips); if you see the hostgate SKIP, run
+  them on CI instead of forcing.

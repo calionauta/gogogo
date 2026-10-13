@@ -74,6 +74,11 @@
     } catch (e) {
       return;
     }
+    // Doc guard (defense in depth — the hub already scopes fan-out per
+    // doc): a shapes/presence event for another board must never touch
+    // this board's view. Without it one board's broadcast overwrote the
+    // other's shapes, "erasing" its drawings.
+    if (msg.doc && msg.doc !== docID) return;
     if (msg.type === "shapes") {
       shapes = msg.shapes || [];
       dropCommittedDrafts();
@@ -541,8 +546,17 @@
   // canvas origin — so a real cursor vanished and a ghost appeared the instant
   // anyone joined or left, with nobody moving. Split, each map has one owner.
   let roster = {}; // clientID -> true (connections on this doc)
-  let cursors = {}; // displayName -> {x, y, ts}
+  let cursors = {}; // tabID -> {x, y, ts, label} (one dot per TAB, not per user)
   const CURSOR_TTL = 8000; // no server-side cursor expiry: prune client-side
+
+  // Identity: cursor/draft frames are keyed by the sender's per-tab
+  // clientID (msg.from, stamped by the server), labeled with the display
+  // name (msg.user). Keying by the display name merged two tabs of the
+  // SAME user under one dot — and one shared cts stream, so two clocks
+  // took turns failing each other's staleness guard and the dot jumped.
+  // msg.from falls back to msg.user for senders that predate the field.
+  function peerID(m) { return (m && (m.from || m.user)) || ""; }
+  function peerLabel(m) { return (m && (m.user || m.from)) || ""; }
 
   // Per-user sender-captured timestamp of the last APPLIED frame. The server
   // re-stamps `ts` on receipt (destroying capture order), so staleness is
@@ -557,16 +571,17 @@
     lastCTS[u] = cts;
     return true;
   }
-  function applyCursor(u, x, y) {
-    cursors[u] = { x: x, y: y, ts: Date.now() };
+  function applyCursor(id, label, x, y) {
+    cursors[id] = { x: x, y: y, ts: Date.now(), label: label };
     renderCursors();
   }
   // Applies one draft frame: stores the shape (unless already committed or
   // older-captured than the last applied frame) and moves the sender's dot
   // to the frame's cursor — the live tip coupled at capture.
   function applyDraft(msg) {
+    const id = peerID(msg);
     if (!msg.shape || !msg.shape.id) {
-      delete drafts[msg.user];
+      delete drafts[id];
       return;
     }
     // Ignore a draft for a shape we already hold as committed (an
@@ -577,12 +592,12 @@
     // One logical stream per sender: cursor and draft share the cts guard,
     // so an older-captured frame moves neither the dot nor the shape — even
     // when two POSTs race each other through the server.
-    if (!freshEnough(msg.user, msg.cts)) return;
-    drafts[msg.user] = { shape: msg.shape, ts: Date.now() };
+    if (!freshEnough(id, msg.cts)) return;
+    drafts[id] = { shape: msg.shape, ts: Date.now() };
     // The frame's cursor IS this shape version's live tip (coupled at
     // capture), so the dot moves with the corner: same instant, zero skew.
     if (typeof msg.x === "number" && typeof msg.y === "number") {
-      applyCursor(msg.user, msg.x, msg.y);
+      applyCursor(id, peerLabel(msg), msg.x, msg.y);
     }
   }
 
@@ -623,12 +638,14 @@
       return;
     }
     if (msg.type === "cursor" && typeof msg.x === "number" && typeof msg.y === "number") {
-      // Keyed by the display name the SERVER stamped, so a client cannot spoof
-      // and two demo accounts read apart. A move refreshes the TTL. A frame
-      // older than the last applied one (a retried POST landing late) moves
-      // nothing — last-write-wins would drag the dot back in time.
-      if (!freshEnough(msg.user, msg.cts)) return;
-      applyCursor(msg.user, msg.x, msg.y);
+      // Keyed by the sender's per-tab id (labeled with the display name the
+      // SERVER stamped, so a client cannot spoof and two demo accounts read
+      // apart). A move refreshes the TTL. A frame older than the last
+      // applied one (a retried POST landing late) moves nothing —
+      // last-write-wins would drag the dot back in time.
+      const id = peerID(msg);
+      if (!freshEnough(id, msg.cts)) return;
+      applyCursor(id, peerLabel(msg), msg.x, msg.y);
       return;
     }
     if (msg.type === "draft") {
@@ -639,8 +656,9 @@
     if (msg.type === "draft-end") {
       // Guarded like any other frame: a stale (retried) end arriving after
       // newer drafts started must not wipe the live shape.
-      if (!freshEnough(msg.user, msg.cts)) return;
-      delete drafts[msg.user];
+      const id = peerID(msg);
+      if (!freshEnough(id, msg.cts)) return;
+      delete drafts[id];
       render();
     }
   }
@@ -648,14 +666,16 @@
     const r = wrap.getBoundingClientRect();
     cursorsEl.innerHTML = "";
     const now = Date.now();
-    Object.keys(cursors).forEach(function (u) {
-      const p = cursors[u];
-      if (now - p.ts > CURSOR_TTL) { delete cursors[u]; delete lastCTS[u]; return; }
-      // One color per user (hashed, deterministic across tabs with no
-      // server state) so two demo accounts read apart at a glance —
-      // same rule as notes carets.
+    Object.keys(cursors).forEach(function (id) {
+      const p = cursors[id];
+      if (now - p.ts > CURSOR_TTL) { delete cursors[id]; delete lastCTS[id]; return; }
+      // One color per user (hashed from the stable display label, so it is
+      // deterministic across tabs and reloads with no server state) so two
+      // demo accounts read apart at a glance — same rule as notes carets.
+      // The dot is per-tab (id); the color is per-user (label).
+      const label = p.label || id;
       let h = 0;
-      for (let i = 0; i < u.length; i++) h = (h * 31 + u.charCodeAt(i)) >>> 0;
+      for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
       const color = "hsl(" + (h % 360) + ",70%,45%)";
       const el = document.createElement("div");
       el.style.position = "absolute";
@@ -666,7 +686,7 @@
       el.innerHTML =
         '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M0 0 L0 12 L4 9 L7 14 L9 13 L6 8 L11 8 Z" fill="' + color + '"/></svg>' +
         '<span class="badge badge-sm ml-1" style="background:' + color + ';color:#fff">' +
-        escapeHtml(u) +
+        escapeHtml(label) +
         "</span>";
       cursorsEl.appendChild(el);
     });
