@@ -78,6 +78,14 @@ func unitPathsPresent(root string, u trimUnit) bool {
 // exact lines below, which is why they are printed, not summarized).
 // Non-empty means add would leave a broken tree: callers refuse with this
 // recipe instead of writing code the proof then rejects.
+// addManualWiring lists the pieces `add` cannot put back, so the receipt
+// names them instead of silently producing a tree that does not build.
+//
+// chi.go is deliberately NOT exempt here just because addRouterCalls places
+// some of its lines: the route call lands inside buildChiMux, where the
+// handler pointers it needs (onboardingH) do not exist, so the proof build
+// rejects the result. Reporting it as manual is what keeps the refusal
+// honest — the round-trip proves it (declared and not used: onboardingH).
 func addManualWiring(u trimUnit) []string {
 	var out []string
 	for _, ed := range u.extraDrops {
@@ -115,10 +123,20 @@ func addManualWiring(u trimUnit) []string {
 
 // templSpanAnchor maps edited .templ/navbar/handler files to anchors.
 // Files without an entry (sounds call sites, brand) stay manual by design.
+//
+// The path is the file the STRIP edits, not the file an anchor constant was
+// named after: the dagnats entry-button strip lives in todo_list.templ, so
+// that path needs its own entry. Without one it fell through to the zero
+// anchor and `gogogo add dagnats` refused with "no insertion anchor" — the
+// strip was correct, only the re-insertion site was missing.
 func templSpanAnchor(path string) (spanAnchor, bool) {
 	switch path {
 	case navbarTempl:
 		return spanAnchor{afterContains: navLinkAnchorSubstr}, true
+	case todoListTempl:
+		return anchorBefore(todoEntryButtonAnchor), true
+	case todoBasecoatTempl:
+		return anchorBefore(todoBasecoatButtonAnchor), true
 	case todoGoFile:
 		return anchorBefore(todoLayoutAnchor), true
 	case todoRepoFile:

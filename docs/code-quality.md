@@ -161,11 +161,11 @@ for {
 }
 ```
 
-- Bind the lifetime at WIRING time, not per request. In the router the shape
-  is `ctx, cancel := context.WithCancel(context.Background())` +
-  `se.App.OnTerminate().BindFunc(func(e *core.TerminateEvent) error { cancel(); return e.Next() })`,
-  then hand `ctx` to the worker. See `router/collab_jetstream.go`,
-  `router/realtime_jet.go`, and `router/credits.go`.
+- Bind the lifetime at WIRING time, not per request. In the composition root the
+  shape is `ctx, cancel := context.WithCancel(context.Background())` bound to the
+  stack's shutdown and drained via the `stop` func `Serve` returns,
+  then hand `ctx` to the worker. See `bootCredits` in `internal/server/chi.go`,
+  `AttachJetStream`, and `internal/queue/` (worker stop path).
 - **Never** store `context.Context` in a struct: the `containedctx` linter
   rejects it, and it is the usual cause of a context outliving its scope. Pass
   `ctx` as a parameter or hold a `done chan struct{}` + `sync.Once` (see
@@ -210,8 +210,10 @@ opens a DB. See `features/credits/lifecycle_test.go`.
 `busy_timeout(10000)` on the DB DSN, so a writer blocks up to 10s for the lock.
 A test or request timeout shorter than that cancels the request while the
 database is still legitimately waiting — an intermittent `context deadline
-exceeded` that looks like flakiness and is really lock contention
-(`features/todo/crud_test.go` uses 20s). Every SQLite DSN needs `busy_timeout`
+exceeded` that looks like flakiness and is really lock contention. `busyTimeoutMS`
+in `internal/db/db.go` is the single source for that value; keep any test HTTP
+client's timeout above it (`internal/queue/dsn_test.go` exercises the contention
+directly). Every SQLite DSN needs `busy_timeout`
 + `journal_mode(WAL)` **in the DSN**; a `PRAGMA` statement does not cover pooled
 connections (`internal/queue/goqite.go` once omitted it).
 

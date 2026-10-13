@@ -5,9 +5,9 @@
 
 // Depends on: internal/collab/ (CRDT). Static assets (rough.min.js,
 
-// whiteboard.js) live in this package's static/ directory and are served
+// whiteboard.js) live in this package's static/ directory and are mounted by
 
-// via router/whiteboard.go — they move with the feature on removal.
+// this feature's own chi slice — they move with the feature on removal.
 
 //
 

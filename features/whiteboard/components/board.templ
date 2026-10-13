@@ -1,7 +1,7 @@
 // SCOPE:feature - REMOVE if not using whiteboard.
 // Depends on: internal/collab/ (CRDT). Static assets (rough.min.js,
-// whiteboard.js) live in this package's static/ directory and are served
-// via router/whiteboard.go — they move with the feature on removal.
+// whiteboard.js) live in this package's static/ directory and are mounted by
+// this feature's own chi slice — they move with the feature on removal.
 //
 //templ is used only for the page shell; the canvas drawing and the
 //Datastar/SSE wiring live in whiteboard.js so the hand-drawn rendering

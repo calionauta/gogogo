@@ -276,7 +276,7 @@ func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
 	if err := os.MkdirAll(webDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\tdefer shutdown()\n" +
+	give := "\tdefer stopLifecycle()\n" +
 		"\n" +
 		"\t// DagNats owns the embedded NATS on :4222 and must boot before\n" +
 		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +

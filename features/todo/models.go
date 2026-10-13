@@ -1,5 +1,6 @@
 // SCOPE:feature — Todo MVC example (reference implementation)
-// To remove: delete features/todo/ and the todo block in router/router.go Init().
+// To remove: delete features/todo/ and the todo roots in buildChiMux
+// (internal/server/chi.go).
 package todo
 
 import "time"

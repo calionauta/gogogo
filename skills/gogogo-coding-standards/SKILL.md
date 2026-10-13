@@ -84,10 +84,10 @@ under **Core Go Rules**. Everything below is the delta this project adds on top.
 Full table: `references/go-concurrency-deltas.md`.
 
 - Owner + exit + wait for every `go`. Use `wg.Go` (Go 1.25), never `Add` inside the goroutine.
-- **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to `se.App.OnTerminate` (see `router/credits.go`). A worker started in `New` on `Background` can never be stopped.
+- **Constructors build, callers start.** `New` never spawns; expose `Start(ctx)` and bind `cancel` to the stack's shutdown (see `bootCredits` in `internal/server/chi.go`). A worker started in `New` on `Background` can never be stopped.
 - **Whatever you start, you must make stoppable — and hold it.** A function that starts something long-lived owns its lifecycle: store the handle on the owner inside the starter (as `Queue.StartWorkers` does), not in a return value a caller can drop. `pool := Start(); _ = pool` is how a pool ran with no reachable `Stop()` while `Close()` shut the database out from under it.
 - **Only one component owns the process signal.** A dependency may register its own `signal.Notify` (DagNats does; any second owner races the same way). The runtime delivers a signal to EVERY channel, so two handlers race and whichever finishes first ends the process — skipping the other's deferred cleanup. Drive shutdown yourself via the library's explicit `Stop()`, and never write "shutdown is handled internally" without reading the code that does it. Verify by the EFFECTS (the cleanup actually ran), never by exit code alone.
-- Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/todo/handlers/onboarding.go`.
+- Work that outlives the request (durable workflow poll) must NOT use `c.Request.Context()`. Derive from `Background` + a `done chan struct{}` (`synctest`-friendly, and `containedctx` forbids storing `ctx` in a struct). See `features/onboarding/onboarding.go` (`shutdownCtx`).
 - Fan-out with errors: `errgroup.WithContext` + `SetLimit(n)` instead of hand pools.
 - Channel direction at boundaries (`chan<-`, `<-chan`). Buffer 0 or 1; justify larger.
 - Every long `select` has `<-ctx.Done()`. No `time.After` in hot loops (`NewTimer` + `Reset`).

@@ -176,8 +176,7 @@ var soundsToggleLines = []string{
 // navbarTempl owns the brand + section links retargeted by trim units.
 const navbarTempl = "features/authviews/navbar.templ"
 
-// chiGoFile is the shared route-wiring file — the successor of
-// router/router.go on the flat stack: BootChi composes one handler per
+// chiGoFile is the shared route-wiring file: BootChi composes one handler per
 // capability and buildChiMux mounts one route subtree per capability,
 // so trims here are line drops (both files live in this one source file).
 const chiGoFile = "internal/server/chi.go"

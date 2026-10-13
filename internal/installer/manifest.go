@@ -4,7 +4,6 @@ package installer
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/calionauta/gogogo/internal/capabilities"
@@ -109,21 +108,15 @@ func applyUnit(t *treeFS, root string, u trimUnit, rc *UnitReceipt) error {
 }
 
 // applyWiringStrips removes web-main and desktop wiring blocks.
-// router/router.go needs no block strips: Init is a flat list of one call
-// per capability, so trimming is a single-line drop via extraDrops.
+// internal/server/chi.go needs no block strips: buildChiMux is a flat list
+// of one route-subtree per capability, so trimming is a single-line drop
+// via extraDrops.
 func applyWiringStrips(t *treeFS, root string, u trimUnit, rc *UnitReceipt) error {
 	if len(u.mainStrips) > 0 {
 		mp := filepath.Join(root, "cmd", "web", "main.go")
 		if err := stripFileCounted(t, mp, u.mainStrips, rc); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-	}
-	if u.id == unitDagnats {
-		// startDagNats was the only todoH use in main.go; keep the
-		// server.Run shape stable with an explicit blank use.
-		mp := filepath.Join(root, "cmd", "web", "main.go")
-		_ = insertAfterLine(t, mp, "\tdefer shutdown()",
-			"\t_ = todoH // dagnats removed: handler stays wired via router")
 	}
 	if len(u.desktopStrips) > 0 {
 		dp := filepath.Join(root, "cmd", "desktop", "main.go")
@@ -202,8 +195,6 @@ func stripFileCounted(t *treeFS, path string, rules []stripRule, rc *UnitReceipt
 	// because the collapse drops trailing blanks, and a source file that ends
 	// without a final newline is itself a gofmt violation.
 	kept = collapseBlankRuns(kept)
-	// NOTE: a dagnats-specific blank use (`_ = todoH`) is inserted by
-	// applyTrim (dagnats unit), not here — stripFileCounted stays generic.
 	out := strings.Join(kept, "\n") + "\n"
 	return t.WriteFile(path, []byte(out), scaffoldFileMode)
 }
@@ -298,27 +289,6 @@ func replaceInLine(t *treeFS, path, matchSubstr, old, newStr string) error {
 		}
 	}
 	return t.WriteFile(path, []byte(strings.Join(lines, "\n")), scaffoldFileMode)
-}
-
-// insertAfterLine inserts text as a new line directly after the first line
-// exactly equal to anchor. No-op when the anchor is missing or the text is
-// already present (idempotent).
-func insertAfterLine(t *treeFS, path, anchor, text string) error {
-	raw, err := t.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(raw), "\n")
-	if slices.Contains(lines, text) {
-		return nil
-	}
-	for i, l := range lines {
-		if l == anchor {
-			lines = append(lines[:i+1], append([]string{text}, lines[i+1:]...)...)
-			return t.WriteFile(path, []byte(strings.Join(lines, "\n")), scaffoldFileMode)
-		}
-	}
-	return nil
 }
 
 func dropLineContaining(t *treeFS, path, substr string) error {
