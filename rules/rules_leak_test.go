@@ -8,7 +8,10 @@ package gorules
 // err.Error() must fire; the same shape on a 400 (client recovery
 // reason) must stay quiet, and a static 500 without err text must stay
 // quiet. Raw sources (not goFile): the fixtures stub the slice-local
-// writeJSON/writeText helpers the real handlers use.
+// writeJSON/writeText helpers the real handlers use — those names are
+// load-bearing (the rules match them literally), so the subdir per
+// fixture (separate packages, byte-identical sources) resolves the
+// shared-module collisions instead of renames.
 func leakFixtures() []ruleFixture {
 	badJSON := `package fixture
 
@@ -93,12 +96,15 @@ func quiet(w http.ResponseWriter) {
 var _ = quiet
 `
 	return []ruleFixture{
-		{name: "500 JSON body with err.Error() is flagged", source: badJSON, wantAtLeast: 1},
-		{name: "500 text body with err.Error() is flagged", source: badText, wantAtLeast: 1},
-		{name: "400 body with err.Error() stays quiet", source: quiet400, wantAtLeast: 0},
-		{name: "500 http.Error with err.Error() is flagged", source: badHTTP, wantAtLeast: 1},
-		{name: "static 500 without err text stays quiet", source: quietStatic500, wantAtLeast: 0},
-		{name: "static 500 text without err stays quiet", source: quietStatic500Text, wantAtLeast: 0},
-		{name: "other status constants stay quiet", source: quietOtherStatus, wantAtLeast: 0},
+		{name: "500 JSON body with err.Error() is flagged", source: badJSON, wantAtLeast: 1, subdir: "leak-json"},
+		{name: "500 text body with err.Error() is flagged", source: badText, wantAtLeast: 1, subdir: "leak-text"},
+		{name: "400 body with err.Error() stays quiet", source: quiet400, wantAtLeast: 0, subdir: "leak-400"},
+		{name: "500 http.Error with err.Error() is flagged", source: badHTTP, wantAtLeast: 1, subdir: "leak-http"},
+		{name: "static 500 without err text stays quiet", source: quietStatic500, wantAtLeast: 0, subdir: "leak-static"},
+		{
+			name: "static 500 text without err stays quiet", source: quietStatic500Text,
+			wantAtLeast: 0, subdir: "leak-static-text",
+		},
+		{name: "other status constants stay quiet", source: quietOtherStatus, wantAtLeast: 0, subdir: "leak-other"},
 	}
 }

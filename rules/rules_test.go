@@ -51,14 +51,20 @@ import (
 // working directory, and a stray `package fixture` file inside this package
 // would break the build.
 //
-// KEEP THESE SUBTESTS SERIAL. Measured on the shared 8 GB host this repo is
-// developed on: the suite peaks at ~300 MB RSS and ~15s wall, which is one
-// golangci-lint invocation at a time (the subtest loop has no t.Parallel, and
-// each fixture's own cache is ~0.1 MB on disk). Adding t.Parallel here would run
-// N lints concurrently and multiply that: seven fixtures is ~2 GB of transient
-// RSS, on a box that also runs production. The serial loop is a deliberate
-// budget, not an oversight — if this ever needs to be faster, reduce the number
-// of fixtures rather than parallelising them.
+// WHY ONE SHARED MODULE. Each golangci-lint fork pays a full process,
+// type-check and ruleguard engine load (~6s each — twenty fixtures cost
+// 117s on CI). One module with one file per fixture costs one fork;
+// golangci-lint prints file paths, so per-fixture attribution stays
+// exact. The engine cache (go-critic#1522, per group inside one
+// process) and the isolated lint cache are shared instead of rebuilt.
+// The cache stays isolated to the fixture dir (never the machine's):
+// golangci-lint caches by file content, and entries from a deleted
+// TempDir poison later runs with absolute paths (measured upstream).
+//
+// KEEP THE SUBTESTS SHARING THE ONE OUTPUT (read-only). Parallelising
+// forks would multiply the ~300 MB RSS peak on the shared host that
+// also runs production — same budget reasoning as before, now nearly
+// free since there is only one fork left.
 //
 // A missing `golangci-lint` SKIPS rather than fails, so `go test ./...` stays
 // usable where only the compiled binary runs. The rule is still guarded where
@@ -250,38 +256,42 @@ func TestRulesFire(t *testing.T) {
 	}
 	dslVersion := requireVersion(t, cfgSrc)
 
-	for _, tc := range fixtures() {
+	fxs := fixtures()
+	dir := t.TempDir()
+	files := writeSharedFixtureModule(t, dir, rulesSrc, dslVersion, fxs)
+
+	// ONE lint run for all fixtures: each fork pays a full process,
+	// type-check and ruleguard engine load (~6s each, 117s for twenty).
+	// Output carries file paths, so per-fixture counts stay exact while
+	// the engine init (go-critic#1522 caches per group inside one
+	// process) and the lint cache are shared. The cache stays isolated
+	// to this dir (never the machine's): golangci-lint caches by file
+	// content, and entries from a deleted TempDir poison later runs
+	// with absolute paths (measured upstream) — see runLint.
+	out := runLint(t, bin, dir)
+	// A load failure also produces a "ruleguard:" line, so a zero could
+	// hide one. Check it first, loudly.
+	if strings.Contains(out, "empty rule set") {
+		t.Fatalf("ruleguard could not LOAD the rules (fixture problem, "+
+			"not a rule verdict):\n%s", out)
+	}
+	// A typecheck error in the fixture suppresses EVERY rule result and
+	// reads as zero hits, so surface it rather than reporting a miss.
+	if strings.Contains(out, "typecheck") {
+		t.Fatalf("fixture does not compile, so no rule could fire:\n%s", out)
+	}
+	// Same class: the linter never ran. Without this, a lock held by a
+	// concurrent `make lint` would look like "the rule does not fire".
+	if strings.Contains(out, "parallel golangci-lint is running") {
+		t.Fatalf("the linter refused to start (another instance holds the "+
+			"lock), so this is not a rule verdict:\n%s", out)
+	}
+
+	// Subtests share the one output (read-only): failures still name the
+	// exact fixture, without paying a fork each.
+	for i, tc := range fxs {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			writeFixtureModule(t, dir, rulesSrc, dslVersion, tc)
-
-			out := runLint(t, bin, dir)
-			// A load failure also produces a "ruleguard:" line, so a zero could
-			// hide one. Check it first, loudly.
-			if strings.Contains(out, "empty rule set") {
-				t.Fatalf("ruleguard could not LOAD the rules (fixture problem, "+
-					"not a rule verdict):\n%s", out)
-			}
-			// A typecheck error in the fixture suppresses EVERY rule result and
-			// reads as zero hits, so surface it rather than reporting a miss.
-			if strings.Contains(out, "typecheck") {
-				t.Fatalf("fixture does not compile, so no rule could fire:\n%s", out)
-			}
-			// Same class: the linter never ran. Without this, a lock held by a
-			// concurrent `make lint` would look like "the rule does not fire".
-			if strings.Contains(out, "parallel golangci-lint is running") {
-				t.Fatalf("the linter refused to start (another instance holds the "+
-					"lock), so this is not a rule verdict:\n%s", out)
-			}
-
-			got := strings.Count(out, "ruleguard:")
-			if got < tc.wantAtLeast {
-				t.Fatalf("ruleguard hits = %d, want at least %d\nlinter output:\n%s",
-					got, tc.wantAtLeast, out)
-			}
-			if tc.wantAtLeast == 0 && got != 0 {
-				t.Fatalf("expected no diagnostics on clean code, got %d\n%s", got, out)
-			}
+			assertFixtureHits(t, out, files[i], tc)
 		})
 	}
 }
@@ -321,44 +331,6 @@ func requireVersion(t *testing.T, cfg []byte) string {
 	t.Fatalf("go.mod no longer requires go-ruleguard/dsl — the rules file "+
 		"imports it, so it cannot be dropped without breaking ruleguard.\n%s", cfg)
 	return ""
-}
-
-// writeFixtureModule lays out a minimal module that can actually LOAD rules.go:
-// the rules file copied in, the dsl dependency it imports, and a config pointing
-// gocritic at it by a path relative to the linted directory.
-func writeFixtureModule(t *testing.T, dir string, rulesSrc []byte, dslVersion string, tc ruleFixture) {
-	t.Helper()
-
-	if err := os.MkdirAll(filepath.Join(dir, "rules"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	writeIn(t, filepath.Join(dir, "go.mod"),
-		"module fixture\n\ngo 1.22\n\nrequire github.com/quasilyte/go-ruleguard/dsl "+dslVersion+"\n")
-	if tc.subdir != "" {
-		if err := os.MkdirAll(filepath.Join(dir, filepath.FromSlash(tc.subdir)), 0o750); err != nil {
-			t.Fatal(err)
-		}
-		writeIn(t, filepath.Join(dir, filepath.FromSlash(tc.subdir), "fixture.go"), tc.source)
-	} else {
-		writeIn(t, filepath.Join(dir, "fixture.go"), tc.source)
-	}
-	writeIn(t, filepath.Join(dir, "rules", "rules.go"), string(rulesSrc))
-
-	// Mirrors the project's own ruleguard block, minus every other linter, so a
-	// fixture's diagnostic count has exactly one source.
-	writeIn(t, filepath.Join(dir, "golangci.yml"), `version: "2"
-linters:
-  enable: [gocritic]
-  settings:
-    gocritic:
-      enabled-checks: [ruleguard]
-      settings:
-        ruleguard:
-          rules: "rules/rules.go"
-  exclusions:
-    generated: lax
-    presets: [comments, common-false-positives, legacy, std-error-handling]
-`)
 }
 
 func writeIn(t *testing.T, path, content string) {
@@ -459,16 +431,22 @@ func moderncFixtures() []ruleFixture {
 		return "package fixture\n\nimport \"database/sql\"\n\nvar db, _ = sql.Open(\"" +
 			driver + "\", \"file:app.db\")\n\nvar _ = db\n"
 	}
+	// Distinct subdirs (separate packages): both fixtures declare `var db`
+	// and the name is irrelevant to the rule (it matches the driver
+	// string), so packages — not renames — resolve the collision with
+	// byte-identical sources.
 	return []ruleFixture{
 		{
 			name:        "modernc sqlite name is flagged",
 			source:      open("sqlite"),
 			wantAtLeast: 1,
+			subdir:      "modernc-flag",
 		},
 		{
 			name:        "ncruces sqlite3 name stays quiet",
 			source:      open("sqlite3"),
 			wantAtLeast: 0,
+			subdir:      "modernc-quiet",
 		},
 	}
 }
