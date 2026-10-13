@@ -2,6 +2,11 @@
 
 ### Added
 
+- **Registry conformance pre-commit hook.** `TestRegistryCoversPackages`
+  only ran in CI, so an unregistered package (internal/hostgate) went red
+  there first. `bin/check-registry.sh` runs the instant conformance trio
+  pre-commit (same-implementation-as-CI, like api-routes); red-proofed by
+  removing the hostgate entry (fails) and restoring it (passes).
 - **hostgate in the capability registry.** `internal/hostgate` shipped
   without lifecycle metadata and failed `TestRegistryCoversPackages` (red
   0.44.3 CI, including inside trimmed preset trees). Registered as
