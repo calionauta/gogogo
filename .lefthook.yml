@@ -134,4 +134,4 @@ pre-push:
 post-merge:
   jobs:
     - name: regen-assets
-      run: bash -c 'if git diff HEAD@{1} HEAD --name-only | grep -qE "\.(templ|css|go)$"; then echo "→ regenerating assets..."; make templ css-all; fi'
+      run: bash -c 'if git diff ORIG_HEAD HEAD --name-only | grep -qE "\.(templ|css|go)$"; then echo "→ regenerating assets..."; make templ css-all; fi'

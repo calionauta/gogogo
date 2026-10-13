@@ -49,8 +49,8 @@ Not for: API-token auth for machines (not included); BYOK accounting
 
 ### Plumbing (core, not a decision)
 
-`server` (shared boot), `secrets` (age env loader), `routeutil`
-(per-method routes), `app` (deps bundle). You never keep-or-drop these;
+`server` (shared boot), `secrets` (age env loader),
+`app` (deps bundle). You never keep-or-drop these;
 skip this section when deciding.
 
 ## Plugins

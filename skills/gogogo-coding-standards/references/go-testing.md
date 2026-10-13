@@ -156,7 +156,8 @@ still legitimately waiting, producing an intermittent
 `context deadline exceeded` that looks like flakiness and is not:
 
 - `requestTimeout` (test HTTP client) **must exceed** `busy_timeout` + handler
-  overhead. See `features/todo/crud_test.go` (20s vs 10s).
+  overhead (`busyTimeoutMS` in `internal/db/db.go` is the source for the 10s
+  default; `internal/queue/dsn_test.go` exercises the contention).
 - Every SQLite DSN needs `busy_timeout` + `journal_mode(WAL)` **in the DSN**
   (a `PRAGMA` statement does not cover pooled connections). `internal/queue/goqite.go`
   once opened without it, so concurrent queue writes failed with `SQLITE_BUSY`

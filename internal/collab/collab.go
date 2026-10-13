@@ -1,5 +1,6 @@
 // SCOPE:plugin — Loro CRDT + DocStore + sync workers + presence
-// To remove: delete internal/collab/ + features/whiteboard/ + router/whiteboard.go + router/collab_jetstream.go.
+// To remove: delete internal/collab/ + features/whiteboard/ and drop the
+// whiteboard roots from buildChiMux in internal/server/chi.go.
 // Package collab wraps the Loro CRDT for collaborative features
 // (whiteboard, shared docs). This is the local CRDT model; transport
 // is NATS Leaf Node — collab produces bytes, the SyncWorker

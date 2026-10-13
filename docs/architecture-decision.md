@@ -180,9 +180,10 @@ rather than duplicate a shape: the framework stack fans its stepper progress
 out over JetStream, while the flat stack broadcasts to its own SSE hub. The
 poll loop that owns a run is local to the instance that started it, and the
 signal is ephemeral UI state, so no cross-instance guarantee is lost. The
-step vocabulary is a chi-local copy for the same reason the wire types are:
-`features/todo/chi` cannot import `features/todo/handlers` without dragging
-the framework into the flat stack, which the dependency gate forbids.
+step vocabulary is a handlers-local copy for the same reason the wire types are:
+the engine package (`features/onboarding`) must not be imported from the todo
+handlers, so the shared shape is duplicated rather than shared — the same
+boundary the dependency gate enforces for the framework.
 
 Conventions that outlive the transition: schema lives in
 `internal/db/migrations/*.sql`, applied in filename order and recorded in

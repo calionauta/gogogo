@@ -352,10 +352,10 @@ var All = []Capability{
 		},
 		Dirs: []string{"features/notes"},
 		Note: "Manual removal (or trim the whiteboard unit, which covers " +
-			"whiteboard+collab+notes): delete the dir + router/notes.go, " +
-			"drop registerNotesStack from router.Init, remove the Notes " +
-			"navbar link in features/auth/views.templ, delete " +
-			"ensureNotesCollection in db/seed.go, and remove this entry.",
+			"whiteboard+collab+notes): delete the dir + the notes roots in " +
+			"buildChiMux (internal/server/chi.go), remove the Notes " +
+			"navbar link in features/authviews/navbar.templ, and remove " +
+			"this entry.",
 	},
 	{
 		ID:      "landing",

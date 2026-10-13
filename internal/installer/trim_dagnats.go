@@ -60,6 +60,11 @@ var dagNatsTrimUnit = []trimUnit{
 						startMarker:       "// mountOnboarding registers the onboarding routes",
 						endIsClosingBrace: true,
 						endBrace:          "}",
+						// Anchor on a function header no unit trims, using the WHOLE line
+						// (findAnchor compares exact lines). The marker must survive both
+						// the dagnats and the goakt trim, which remove the helpers around
+						// it; an anchor inside a removable span disappears with it.
+						addBefore: "func srvHandler(mux http.Handler) *http.Server {",
 					},
 					{
 						// The whole bootstrap helper: nothing calls it once
@@ -68,6 +73,9 @@ var dagNatsTrimUnit = []trimUnit{
 						startMarker:       "// bootOnboarding wires the DagNats onboarding slice",
 						endIsClosingBrace: true,
 						endBrace:          "}",
+						// Top-level anchor that survives every trim (see the mountOnboarding
+						// rule). Whole line: findAnchor compares exact lines.
+						addBefore: "func srvHandler(mux http.Handler) *http.Server {",
 					},
 					{
 						// One contiguous block: the call and the hook append.
@@ -78,6 +86,11 @@ var dagNatsTrimUnit = []trimUnit{
 						// trim leaves prose about absent code.
 						startMarker: "onboardingH, onbShutdown := bootOnboarding(",
 						endMarker:   "shutdown = append(shutdown, onbShutdown...)",
+						// Re-inserted just below the shutdown-hook declaration, which is
+						// what it appends to. NOT bootRoomActor: the goakt trim removes
+						// that, so anchoring there loses the spot on exactly the trees
+						// that need `add dagnats` to work.
+						addAfter: "\tvar shutdown []func()",
 						alsoDeleteContains: []string{
 							"// Onboarding wires before the actor boot",
 						},
@@ -106,7 +119,7 @@ var dagNatsTrimUnit = []trimUnit{
 				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",
 				endIsClosingBrace: true,
 				endBrace:          "\t}",
-				addBefore:         "\t// Phase 2: wire the CRDTStore JetStream transport when the chosen",
+				addBefore:         "\t// The process is the server now (there is no framework run loop",
 			},
 		},
 		goModDrops: []string{"github.com/danmestas/dagnats"},

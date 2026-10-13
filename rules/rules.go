@@ -37,7 +37,8 @@ import "github.com/quasilyte/go-ruleguard/dsl"
 // that only shows as memory growth under load.
 //
 // The one-shot idiom (a select reached once per call) is correct by
-// construction and must not be flagged — see features/todo/handlers/onboarding.go.
+// construction and must not be flagged — see features/onboarding/onboarding.go
+// (shutdownCtx).
 // fakeserver uses the receive form in a one-request handler, not a loop.
 func TimeAfterInSelect(m dsl.Matcher) {
 	m.Match(`<-time.After($d)`).
@@ -61,12 +62,13 @@ func TimeAfterInSelect(m dsl.Matcher) {
 //
 // The fix is not a shorter timeout: move the Read into a goroutine and select
 // on a timer, closing the body on expiry so the reader unblocks. See
-// pumpSSEUntil in features/todo/sse_test.go, and
-// TestPumpSSEUntil_HonorsDeadlineWhileReadParked which pins the guarantee.
+// features/todo/handlers/stream_propagation_test.go, and features/todo/handlers/bridge_test.go
+// for the shape (`go func(){ scanner.Scan(); close(seen) }()` + `select` on
+// `time.After`).
 func BlockingReadBehindDeadline(m dsl.Matcher) {
 	m.Match(`for time.Now().Before($deadline) { $*body }`).
 		Where(m["body"].Contains(`$x.Read($_)`)).
-		Report(`Read blocks until the next event, so the surrounding "for time.Now().Before(deadline)" does not bound it — a silent stream waits one heartbeat past the deadline. Read in a goroutine and select on a timer (see pumpSSEUntil in features/todo/sse_test.go)`)
+		Report(`Read blocks until the next event, so the surrounding "for time.Now().Before(deadline)" does not bound it — a silent stream waits one heartbeat past the deadline. Read in a goroutine and select on a timer (see features/todo/handlers/stream_propagation_test.go)`)
 }
 
 // TickerLoopWithoutExit flags `for range <ticker>.C` — a periodic loop with no
@@ -129,46 +131,41 @@ func ModerncDriverOpen(m dsl.Matcher) {
 		Report(`sql.Open("sqlite") instantiates the modernc driver, which is not a dependency of this repo — the app database opens "turso" (see internal/db) and test/gui paths open "sqlite3". A second pool against the same files is never what you want.`)
 }
 
-// RawInternalString flags `c.String(statusInternal, ...)` in the todo
-// handlers — a plain 500 with no log line and no separation between the
-// internal error and the public message. One site already leaked the
-// driver error into the response body ("enqueue failed: "+err.Error()).
+// LeakedErrText500JSON flags a 500 JSON body built with err.Error() — the
+// internal text ships to the client. The flat stack has no Echo: handlers
+// answer through local writeJSON/writeText helpers or net/http.
 //
-// The fix is fail() (features/todo/handlers/http_fail.go): log internal,
-// return a safe public string. The match is scoped by construction:
-// statusInternal is declared only in features/todo/handlers (todo.go),
-// so no other package can compile this shape. fail() itself calls
-// c.String(status, ...) with a variable — never this constant — so the
-// helper does not flag itself.
-func RawInternalString(m dsl.Matcher) {
-	m.Match(`c.String(statusInternal, $*_)`).
-		Where(!m.File().Name.Matches(`http_fail\.go`)).
-		Report(`c.String(statusInternal, ...) returns a bare 500 with no log line and no internal/public split — use fail() (see features/todo/handlers/http_fail.go)`)
+// The fix is the todo-slice shape (features/todo/handlers/chi.go fail()):
+// log the error via internal/observability, return a static public string.
+// Scope is DELIBERATELY 500-only. The 400 sites carry the reason the client
+// needs to recover, and the audience is the authenticated caller who sent
+// the bytes. Flagging those would push recovery reasons into logs the
+// client never sees. The credits slice (features/credits/handlers/chi.go)
+// keeps its 400s static for the same reason its 500 is static: gateway
+// errors wrap driver detail ("credits: reserve: ...") the client cannot act
+// on.
+func LeakedErrText500JSON(m dsl.Matcher) {
+	m.Match(`writeJSON($w, http.StatusInternalServerError, $*args)`).
+		Where(m["args"].Contains(`$_.Error()`)).
+		Report(`500 body built with err.Error() — the internal text ships to the client. Log it via observability and return a static public message (see features/todo/handlers/chi.go fail())`)
 }
 
-// LeakedErrText flags a 500 whose body concatenates err.Error() — the
-// internal text ships to the client. fail() exists for exactly this:
-// log the error, return a static public string.
-//
-// Scope is DELIBERATELY 500-only. The 400 sites ("decode op: "+err.Error(),
-// "apply op: "+err.Error()) carry the reason the client needs to recover
-// (stale base → resync against authoritative state, same recoverable-
-// conflict contract as the 409s beside them), and the audience is the
-// authenticated doc collaborator who sent the bytes. Flagging those
-// would push recovery reasons into logs the client never sees.
-func LeakedErrText500(m dsl.Matcher) {
-	m.Match(`c.String(statusInternal, $msg + $e.Error())`).
-		Where(!m.File().Name.Matches(`http_fail\.go`)).
-		Report(`500 body concatenates err.Error() — the internal text ships to the client. Use fail() with a static public message (see features/todo/handlers/http_fail.go)`)
+// LeakedErrText500Text is the same guard for the writeText spelling used by
+// the todo, notes, whiteboard, chat, genui and onboarding slices. Only the
+// FIRST m.Match in a rule function applies, so each spelling needs its own
+// function. Same 500-only scope as above.
+func LeakedErrText500Text(m dsl.Matcher) {
+	m.Match(`writeText($w, http.StatusInternalServerError, $*args)`).
+		Where(m["args"].Contains(`$_.Error()`)).
+		Report(`500 body built with err.Error() — the internal text ships to the client. Log it via observability and return a static public message (see features/todo/handlers/chi.go fail())`)
 }
 
-// LeakedErrText500HTTP is the same guard for the http.StatusInternalServerError
-// spelling used outside the todo handlers (whiteboard, notes). Only the
-// FIRST m.Match in a rule function applies, so the second spelling needs
-// its own function. Same 400 exclusion as above.
+// LeakedErrText500HTTP is the same guard for the net/http spelling used
+// outside the slices (internal/auth). Same 500-only scope as above.
 func LeakedErrText500HTTP(m dsl.Matcher) {
-	m.Match(`c.String(http.StatusInternalServerError, $msg + $e.Error())`).
-		Report(`500 body concatenates err.Error() — the internal text ships to the client. Log it server-side and return a static public message`)
+	m.Match(`http.Error($w, $msg, http.StatusInternalServerError)`).
+		Where(m["msg"].Contains(`$_.Error()`)).
+		Report(`500 body built with err.Error() — the internal text ships to the client. Log it server-side and return a static public message`)
 }
 
 // SlogBypassesObservability flags bare `slog.Error/Warn` inside HTTP slices

@@ -14,7 +14,7 @@ import (
 )
 
 // presenceSubject returns the pub/sub subject for a doc's presence.
-// Exported so the central SSE bridge (router/collab_jetstream.go) can
+// Exported so the central SSE bridge (features/whiteboard/chi) can
 // subscribe the same subject the edges publish to.
 func PresenceSubject(docID string) string { return "app.presence." + docID }
 

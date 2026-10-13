@@ -3,7 +3,7 @@
 // templ: version: v0.3.1020
 // SCOPE:feature - REMOVE by deleting features/landing/ (components move with it) + the
 
-// call site in router/router.go. The landing page is a marketing
+// landing catch-all root in buildChiMux (internal/server/chi.go). The landing page is a marketing
 
 // shell: logo + about text + "Access demo site" CTA. It does NOT
 

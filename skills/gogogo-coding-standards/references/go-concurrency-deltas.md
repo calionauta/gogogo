@@ -132,8 +132,8 @@ func (s *Service) loop(ctx context.Context) {
 }
 ```
 
-Wire the cancel at the router, exactly like the repo does
-(`router/credits.go`, `router/collab_jetstream.go`, `router/realtime_jet.go`):
+Wire the cancel at the composition root, exactly like the repo does
+(`bootCredits` in `internal/server/chi.go`, `bootRoomActor`, `AttachJetStream`):
 
 ```go
 ctx, cancel := context.WithCancel(context.Background())
@@ -149,7 +149,7 @@ A workflow poll that must keep running after the browser navigates away
 derives from `context.Background()`, then ties itself to app shutdown with a
 `done chan struct{}` (closed once via `sync.Once`) rather than a stored
 `context.Context` (which `containedctx` rejects anyway). See
-`features/todo/handlers/onboarding.go`.
+`features/onboarding/onboarding.go` (`shutdownCtx`).
 
 ### Store the handle on its owner, or its lifecycle is unreachable
 

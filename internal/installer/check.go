@@ -33,7 +33,11 @@ func checkTree(root string) []unitCheck {
 		cache[path] = string(raw)
 		return cache[path], true
 	}
-	out := make([]unitCheck, 0, len(manifestUnits))
+	out := make([]unitCheck, 0, len(manifestUnits)+1)
+	// Anchors first: a dead insertion anchor breaks `add` for every unit that
+	// shares it, so it is reported as its own pseudo-unit rather than buried
+	// inside whichever unit happens to be checked first.
+	out = append(out, unitCheck{ID: "anchors", Problems: checkAnchors(read)})
 	for _, u := range manifestUnits {
 		uc := unitCheck{ID: u.id}
 		checkOwnedPaths(root, u, &uc)
@@ -60,7 +64,18 @@ func checkOwnedPaths(root string, u trimUnit, uc *unitCheck) {
 	}
 }
 
-// checkRuleSets verifies every strip rule's start marker is present.
+// checkRuleSets verifies every strip rule's start marker is present, and that
+// the rule's own addBefore/addAfter anchor still exists in the file `add`
+// re-inserts into.
+//
+// The anchor half is not cosmetic. A trim works without it, so a dead anchor is
+// invisible until someone runs `gogogo add`: `insertSpan` finds no matching
+// line and fails with "cannot locate insertion anchor (evolved file?)", leaving
+// the unit un-restorable. Both anchors used to point at `defer shutdown()` and
+// a `// Phase 2: CRDTStore` comment that died with the framework, and every gate
+// stayed green because nothing checked them. An anchor is checked against the
+// main.go it will actually be inserted into (non-empty rules only; empty means
+// the path default in addSpanAnchor applies, which checkAnchors covers).
 func checkRuleSets(u trimUnit, uc *unitCheck, read func(string) (string, bool)) {
 	check := func(path string, rules []stripRule) {
 		raw, ok := read(path)
@@ -72,6 +87,8 @@ func checkRuleSets(u trimUnit, uc *unitCheck, read func(string) (string, bool)) 
 			if !strings.Contains(raw, r.startMarker) {
 				uc.Problems = append(uc.Problems, "missing marker in "+path+": "+r.startMarker)
 			}
+			checkAnchor(uc, path, raw, r.addBefore)
+			checkAnchor(uc, path, raw, r.addAfter)
 		}
 	}
 	check(filepath.Join("cmd", "web", "main.go"), u.mainStrips)
@@ -79,6 +96,45 @@ func checkRuleSets(u trimUnit, uc *unitCheck, read func(string) (string, bool)) 
 	for _, es := range u.extraStrips {
 		check(es.path, es.rules)
 	}
+}
+
+// checkAnchor reports an addBefore/addAfter anchor that is absent from the file
+// it must be inserted into. Empty is skipped: that means "use the path
+// default", validated once by checkAnchors rather than per rule.
+func checkAnchor(uc *unitCheck, path, raw, anchor string) {
+	if anchor == "" {
+		return
+	}
+	if !strings.Contains(raw, anchor) {
+		uc.Problems = append(uc.Problems, "dead add anchor in "+path+": "+anchor)
+	}
+}
+
+// checkAnchors verifies the shared insertion anchors (addSpanAnchor's defaults)
+// against the files they target, so a rename in cmd/web/main.go fails `--check`
+// instead of silently breaking every unit that relies on the default.
+func checkAnchors(read func(string) (string, bool)) []string {
+	var problems []string
+	for _, path := range []string{
+		filepath.Join("cmd", "web", "main.go"),
+		filepath.Join("cmd", "desktop", "main.go"),
+	} {
+		raw, ok := read(path)
+		if !ok {
+			problems = append(problems, "missing file "+path)
+			continue
+		}
+		// addSpanAnchor returns either a before- or an after-anchor depending on
+		// the path (cmd/web/main.go is anchorAfter(mainCallsAnchor), cmd/desktop
+		// is anchorBefore). Check whichever one it set, not just .before.
+		anchor := addSpanAnchor(path)
+		for _, want := range []string{anchor.before, anchor.after} {
+			if want != "" && !strings.Contains(raw, want) {
+				problems = append(problems, "dead anchor in "+path+": "+want)
+			}
+		}
+	}
+	return problems
 }
 
 // checkSubstrSets verifies every line-drop/replace marker is present.

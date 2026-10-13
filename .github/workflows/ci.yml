@@ -122,7 +122,7 @@ jobs:
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
           # unavailable on the ubuntu runner; lint the web-facing packages only
-          # (same set as scripts/web-packages.sh; router/ and db/ left with
+          # (same set as scripts/web-packages.sh; router/ left with
           # the PB removal and must not come back here).
           args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
       - name: Install C toolchain (CGO for loro-go)

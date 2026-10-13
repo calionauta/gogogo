@@ -161,8 +161,8 @@ returns, so a silent stream waits one full heartbeat
 (`config.DefaultSSEHeartbeatInterval`, 15s) regardless of the window asked for.
 A caller requesting 6s got 15.5s. The fix is to read in a goroutine and
 `select` on a timer, closing the body on expiry so the reader unblocks — see
-`pumpSSEUntil` in `features/todo/sse_test.go`, guarded by
-`TestPumpSSEUntil_HonorsDeadlineWhileReadParked`.
+`features/todo/handlers/stream_propagation_test.go` (goroutine + `select` on
+`time.After`), guarded by ruleguard's `BlockingReadBehindDeadline`.
 
 **2. Parsing the SSE transcript as JSON.** A transcript is `event:`/`data:`
 lines, and each Datastar payload additionally carries a literal `signals `

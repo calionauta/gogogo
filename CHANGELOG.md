@@ -100,6 +100,26 @@
   file carrying Go's standard `// Code generated … DO NOT EDIT.` marker, so
   regenerating `sqlcgen` (or any future generator output) never needs a
   hand-added annotation.
+- **Post-framework legacy prose purged.** SCOPE annotations, installer
+  anchors, docs, skills and CI comments that still pointed at deleted
+  paths (`router/*.go`, `db/seed.go`, `features/auth/views.templ`,
+  `pb_data/`, `routeutil`, `defer shutdown()`, `Phase 2: CRDTStore`)
+  now name the flat-stack call sites (`buildChiMux`, `fail()` in the todo
+  slice, `features/authviews`, `features/onboarding`, `features/credits`).
+  The orphan `docs/investigation/crdtstore-recordroundtrip.md` (236 lines
+  on the deleted CRDTStore) is gone, and `lefthook post-merge regen-assets`
+  uses `ORIG_HEAD` (`HEAD@{1}` never fired — lefthook rewrites `{1}`).
+  `gogogo add` anchor drift is now a `--check` failure (red-proofed), not
+  a silent no-op.
+- **Credits error bodies stop leaking internals.** The balance 500 and the
+  managed-request/checkout 400s returned `err.Error()` (gateway errors
+  wrap driver detail: `credits: reserve: …`); all three now log via
+  `internal/observability` and return static public messages.
+- **Leak rules rewritten for the flat stack.** The three ruleguard 500
+  guards matched Echo's `c.String(...)` (zero occurrences — the footgun
+  shipped through them); they now match the real shapes
+  (`writeJSON`/`writeText`/`http.Error` + `StatusInternalServerError` +
+  `.Error()`), with fixtures re-pinned and the suite green.
 
 ### Added
 

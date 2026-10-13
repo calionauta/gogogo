@@ -115,7 +115,13 @@ func (h *Handler) handleBalance(w http.ResponseWriter, r *http.Request) {
 	}
 	bal, err := svc.Credits.Balance(r.Context(), uid)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{jsonErrKey: err.Error()})
+		// Internal text stays in the log: a 500 body carrying err.Error()
+		// can leak driver/schema detail to the client. Same shape as the
+		// managed-request path below (log via observability, return a
+		// static public message).
+		obsArgs := append(observability.WithComponent("credits", "feature"), "error", err)
+		observability.Error(r.Context(), "credits: balance lookup failed", obsArgs...)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{jsonErrKey: "balance unavailable"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -147,7 +153,7 @@ func (h *Handler) handleManaged(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		obsArgs := append(observability.WithComponent("credits", "feature"), "error", err)
 		observability.Warn(r.Context(), "credits: managed request failed", obsArgs...)
-		writeJSON(w, http.StatusBadRequest, map[string]any{jsonErrKey: err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]any{jsonErrKey: "request failed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -171,7 +177,9 @@ func (h *Handler) handleCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	url, err := svc.HandleCheckout(r.Context(), uid, credits.CheckoutRequest{SKU: req.SKU})
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{jsonErrKey: err.Error()})
+		obsArgs := append(observability.WithComponent("credits", "feature"), "error", err)
+		observability.Warn(r.Context(), "credits: checkout failed", obsArgs...)
+		writeJSON(w, http.StatusBadRequest, map[string]any{jsonErrKey: "checkout failed"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"url": url})

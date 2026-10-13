@@ -1,6 +1,6 @@
 # .dockerignore — files excluded from the build context sent to
 # the Docker daemon. Without this, `COPY . .` would send the
-# entire working tree (node_modules/, .git/, pb_data/, *.db, etc.)
+# entire working tree (node_modules/, .git/, *.db, etc.)
 # wasting time and leaking data into the build context.
 #
 # In 2026 this is standard hygiene alongside a multi-stage build.
