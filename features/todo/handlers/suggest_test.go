@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/llm/fakeserver"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -125,5 +127,57 @@ func TestHandlersSuggestSimulatedEnqueues(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "aiPending") {
 		t.Fatalf("suggest-simulated ack missing aiPending (body: %s)", rec.Body.String())
+	}
+}
+
+// TestHandlersSuggestAppendsAuthHint is the red-proof for the split-triple
+// outage on the Suggest path: when the provider rejects the key (401), the
+// error pushed over SSE must carry the key↔base mismatch hint. It drives
+// handleSuggestJob against an in-process fake returning 401 (single
+// attempt, no retry, milliseconds). Reverting suggest.go to err.Error()
+// drops the hint and fails this test.
+func TestHandlersSuggestAppendsAuthHint(t *testing.T) {
+	srv := fakeserver.NewServer(
+		fakeserver.WithStatusSequence(401, 401, 401),
+		fakeserver.WithResponse("unreachable"),
+	)
+	t.Cleanup(srv.Close)
+	t.Setenv("GOAI_BASE_URL", srv.URL)
+	t.Setenv("GOAI_MODEL", "probe-model")
+
+	f := newSuggestFixture(t, false, false)
+	f.h.SetLLMClient(llm.New("test-key"))
+
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+
+	payload, _ := json.Marshal(map[string]string{"partial": "Plan my week", "userId": "u1"})
+	job := queue.Job{Type: signalJobSuggest, ClientID: "c1", Payload: payload}
+	_ = f.h.handleSuggestJob(context.Background(), hub, job)
+
+	select {
+	case raw := <-ch:
+		var envelope queue.Job
+		if err := json.Unmarshal(raw, &envelope); err != nil {
+			t.Fatalf("decode suggest envelope: %v", err)
+		}
+		if envelope.Type != jobTypeSuggestResult {
+			t.Fatalf("envelope type = %q, want %q", envelope.Type, jobTypeSuggestResult)
+		}
+		var result map[string]any
+		if err := json.Unmarshal(envelope.Payload, &result); err != nil {
+			t.Fatalf("decode suggest result: %v", err)
+		}
+		got, _ := result[signalSuggestErr].(string)
+		if !strings.Contains(got, "401") {
+			t.Fatalf("provider failure lost from suggest error, got %q", got)
+		}
+		if !strings.Contains(got, "GOAI_API_KEY") || !strings.Contains(got, "GOAI_BASE_URL") {
+			t.Fatalf("suggest auth failure missing the key↔base hint, got %q", got)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("no suggest result arrived on hub channel")
 	}
 }

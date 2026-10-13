@@ -52,7 +52,7 @@ func (h *Handler) peerLeave(ctx context.Context, docID, clientID string) {
 	h.peerNamesMu.Lock()
 	delete(h.peerNames, clientID)
 	h.peerNamesMu.Unlock()
-	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, Type: "leave"})
+	leaveMsg, lErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, From: clientID, Type: "leave"})
 	if lErr != nil {
 		obsArgs := append(observability.WithComponent("notes", "feature"), "error", lErr)
 		observability.Warn(ctx, "notes: marshal leave", obsArgs...)
@@ -88,8 +88,11 @@ func (h *Handler) displayName(sess *auth.ValidatedSession, clientID string) stri
 }
 
 // relay broadcasts one ephemeral presence event to the watchers of
-// docID (no persistence, no NATS).
+// docID (no persistence, no NATS). From is stamped from the sender's
+// clientID so peers can tell two tabs of the same user apart (User alone
+// cannot — it is the shared display email).
 func (h *Handler) relay(from, docID string, msg collab.PresenceMsg) error {
+	msg.From = from
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		return err

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -191,6 +192,12 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	if cur.User != wbEmail {
 		t.Fatalf("cursor user = %q, want the server-stamped %q (anti-spoof)", cur.User, wbEmail)
 	}
+	// Per-tab sender id travels with the display name: two tabs of one
+	// account must stay distinguishable (see the notes same-user caret
+	// report). Removing the server's From stamping empties this and fails.
+	if cur.From != "wbA" {
+		t.Fatalf("cursor from = %q, want the sending tab wbA", cur.From)
+	}
 	if math.Abs(cur.X-0.25) > 1e-6 || math.Abs(cur.Y-0.75) > 1e-6 {
 		t.Fatalf("cursor coords = (%v,%v), want (0.25,0.75)", cur.X, cur.Y)
 	}
@@ -360,6 +367,36 @@ func TestWhiteboard_BoardPageShowsLoggedInNav(t *testing.T) {
 	body := readAll(t, resp)
 	if !strings.Contains(body, "/logout") {
 		t.Fatal("board page missing the /logout link (navbar not logged-in-shaped)")
+	}
+}
+
+// TestWhiteboardCursorsKeyedByTabID pins the same-user cursor fix inside
+// static/whiteboard.js: cursor dots and live drafts are keyed by the
+// server-stamped per-tab id (msg.from) with a fallback to the display
+// name for senders that predate the field, and rendered with the display
+// name as the label. Keying by the display name merged two tabs of one
+// account under one dot (and one shared cts stream, so two clocks took
+// turns failing each other's staleness guard). Reverting the JS to name
+// keying (or dropping the fallback) fails this test; the live two-tab
+// behavior is covered by scripts/whiteboard-client.test.mjs (section 10)
+// and TestWhiteboard_PresenceBroadcast (server side).
+func TestWhiteboardCursorsKeyedByTabID(t *testing.T) {
+	raw, err := os.ReadFile("../static/whiteboard.js")
+	if err != nil {
+		t.Fatalf("read whiteboard.js: %v", err)
+	}
+	src := string(raw)
+	for _, want := range []string{
+		"m.from || m.user", // peerID: per-tab id, legacy fallback to name
+		"m.user || m.from", // peerLabel: display name first
+		"cursors[id] =",    // cursor dots keyed per tab, not per user
+		"drafts[id] =",     // live drafts keyed per tab, not per user
+		"peerID(msg)",      // inbound frames resolve identity via peerID
+		"peerLabel(msg)",   // ... and render via peerLabel
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("whiteboard.js missing tab-keyed cursor wiring %q", want)
+		}
 	}
 }
 

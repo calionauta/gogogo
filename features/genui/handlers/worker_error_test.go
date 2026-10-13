@@ -9,12 +9,15 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 func TestHandlersGenuiAskSurfacesRealError(t *testing.T) {
@@ -72,5 +75,55 @@ func TestHandlersGenuiAskSurfacesRealError(t *testing.T) {
 	// And the fixed string that hid it must not be what the user reads.
 	if strings.Contains(got, "model unavailable") {
 		t.Fatalf("the generic error string still stands in for the real one:\n%s", got)
+	}
+}
+
+// TestHandlersGenuiAskAppendsAuthHint is the red-proof for the split-triple
+// outage (a Groq key sent to OpenRouter's base URL): a provider auth failure
+// must reach the tab WITH the key↔base mismatch hint, not as the raw
+// provider string alone. Reverting the worker to err.Error() drops the hint
+// (and the llm import) and fails this test.
+func TestHandlersGenuiAskAppendsAuthHint(t *testing.T) {
+	t.Parallel()
+	const providerErr = `llm: generate: 401 {"error":{"message":"Missing Authentication header","code":401}}`
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+
+	h := &Handler{hub: hub, responder: stubResponder{err: errors.New(providerErr)}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "x", "userId": "u1"})
+	job := queue.Job{Type: "genui_ask", ClientID: "c1", Payload: payload}
+	if err := h.handleGenuiJob(context.Background(), hub, job); err != nil {
+		t.Fatalf("handleGenuiJob = %v, want nil (delivered, not retried)", err)
+	}
+	// The worker sends two envelopes (result + toast); the hint lives on
+	// the genui result.
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case raw := <-ch:
+			var envelope queue.Job
+			if err := json.Unmarshal(raw, &envelope); err != nil {
+				continue
+			}
+			if envelope.Type != "genui" {
+				continue
+			}
+			var p genuiPayload
+			if err := json.Unmarshal(envelope.Payload, &p); err != nil {
+				t.Fatalf("decode genui payload: %v", err)
+			}
+			if !strings.Contains(p.Error, "Missing Authentication header") {
+				t.Fatalf("provider message lost from Ask error, got %q", p.Error)
+			}
+			if !strings.Contains(p.Error, "GOAI_API_KEY") ||
+				!strings.Contains(p.Error, "GOAI_BASE_URL") {
+				t.Fatalf("Ask auth failure missing the key↔base hint, got %q", p.Error)
+			}
+			return
+		case <-deadline:
+			t.Fatal("no genui error result arrived on hub channel")
+		}
 	}
 }

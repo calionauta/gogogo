@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestNotesStreamSendsSessionEvent pins session visibility: a tab open
@@ -201,6 +202,29 @@ func TestNotesPresenceJoinCount(t *testing.T) {
 	}
 }
 
+// TestNotesJoinCarriesSenderID pins the per-tab identity on join: the
+// event carries the joining tab's clientID in from alongside the display
+// user, so peers can key the newcomer without merging same-user tabs.
+func TestNotesJoinCarriesSenderID(t *testing.T) {
+	server, _, cookie := notesPortFixture(t)
+	client := notesAuthedClient(t, server, cookie)
+	docID := "note-joinfrom"
+
+	logB, closeB := openNoteStream(t, client, server, docID, "cliB")
+	settleStream(t, logB, "cliB")
+	defer closeB()
+	_, closeC := openNoteStream(t, client, server, docID, "cliC")
+	settleStream(t, logB, "cliC")
+	defer closeC()
+
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
+		return msg["type"] == "join"
+	})
+	if msg["from"] != "cliC" {
+		t.Fatalf("join from = %v, want the joining tab cliC", msg["from"])
+	}
+}
+
 // TestNotesPresenceLeave pins the other half: closing C's stream makes B
 // observe leave + a count without C (no stale +1).
 func TestNotesPresenceLeave(t *testing.T) {
@@ -219,14 +243,105 @@ func TestNotesPresenceLeave(t *testing.T) {
 	})
 	closeC()
 
-	waitNoteEvent(t, logB, func(msg map[string]any) bool {
+	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "leave"
 	})
-	msg := waitNoteEvent(t, logB, func(msg map[string]any) bool {
+	if msg["from"] != "cliC" {
+		t.Fatalf("leave from = %v, want the departing tab cliC", msg["from"])
+	}
+	msg = waitNoteEvent(t, logB, func(msg map[string]any) bool {
 		return msg["type"] == "count" && !containsAll(peerIDs(msg), "cliC")
 	})
 	if !containsAll(peerIDs(msg), "cliB") {
 		t.Fatalf("count after leave = %v, want cliB present", peerIDs(msg))
+	}
+}
+
+// TestNotesSameUserTwoTabsKeepDistinctCarets is the regression guard for
+// the "peer caret jumps while I type" report: two tabs signed in as the
+// SAME user (same cookie/email, distinct clientIDs) must arrive at a peer
+// as two distinguishable senders. Both caret relays and op-attached carets
+// carry the per-tab From alongside the shared display User; without From
+// the peer keyed both dots by the one email and each tab's heartbeat
+// overwrote the other's position.
+func TestNotesSameUserTwoTabsKeepDistinctCarets(t *testing.T) {
+	server, _, cookie := notesPortFixture(t)
+	client := notesAuthedClient(t, server, cookie)
+	docID := "note-sameuser"
+
+	logB, closeB := openNoteStream(t, client, server, docID, "cliB")
+	settleStream(t, logB, "cliB")
+	defer closeB()
+
+	// Two tabs, one user: same authed client, distinct clientIDs.
+	if code := postPresence(t, client, server, docID, "tabA1", "caret", `{"line":1,"pos":3}`); code != http.StatusOK {
+		t.Fatalf("tabA1 caret status = %d", code)
+	}
+	if code := postPresence(t, client, server, docID, "tabA2", "caret", `{"line":4,"pos":9}`); code != http.StatusOK {
+		t.Fatalf("tabA2 caret status = %d", code)
+	}
+	seen := map[string]map[string]any{}
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) && len(seen) < 2 {
+		// Scan the transcript for caret events (the log is append-only,
+		// so re-scanning is cheap and never consumes).
+		logB.mu.Lock()
+		for _, msg := range logB.events {
+			if msg["type"] == "caret" {
+				if from, _ := msg["from"].(string); from == "tabA1" || from == "tabA2" {
+					seen[from] = msg
+				}
+			}
+		}
+		logB.mu.Unlock()
+		time.Sleep(50 * time.Millisecond)
+	}
+	if len(seen) != 2 {
+		t.Fatalf("peer saw %d distinct caret senders, want tabA1+tabA2", len(seen))
+	}
+	// Same display user on both (one account), distinct lines (no clobber).
+	if seen["tabA1"]["user"] != notesEmail || seen["tabA2"]["user"] != notesEmail {
+		t.Fatalf("caret display user wrong: %v / %v", seen["tabA1"]["user"], seen["tabA2"]["user"])
+	}
+	if seen["tabA1"]["x"] == seen["tabA2"]["x"] {
+		t.Fatalf("caret positions merged under one key: %v", seen)
+	}
+
+	// Op-attached carets travel the same split: From is the tab, User the
+	// account. Post one op per tab (sequential bases) and check both
+	// note-text events keep their sender.
+	if code, _ := postOp(t, client, server, docID, "tabA1",
+		`{"base":0,"ops":[{"t":"ins","i":0,"s":"ab"}],"caret":{"line":1,"pos":2}}`); code != http.StatusOK {
+		t.Fatalf("tabA1 op status = %d", code)
+	}
+	if code, _ := postOp(t, client, server, docID, "tabA2",
+		`{"base":1,"ops":[{"t":"ins","i":2,"s":"cd"}],"caret":{"line":1,"pos":4}}`); code != http.StatusOK {
+		t.Fatalf("tabA2 op status = %d", code)
+	}
+	froms := map[string]bool{}
+	users := map[string]bool{}
+	deadline = time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) && len(froms) < 2 {
+		logB.mu.Lock()
+		for _, msg := range logB.events {
+			if msg["type"] == "note-text" {
+				if from, _ := msg["from"].(string); from == "tabA1" || from == "tabA2" {
+					froms[from] = true
+					if user, _ := msg["user"].(string); user != "" {
+						users[user] = true
+					}
+				}
+			}
+		}
+		logB.mu.Unlock()
+		time.Sleep(50 * time.Millisecond)
+	}
+	if len(froms) != 2 {
+		t.Fatalf("note-text senders = %v, want tabA1+tabA2", froms)
+	}
+	// Display name still travels with the tab id: one account, two tabs.
+	if len(users) != 1 || !users[notesEmail] {
+		t.Fatalf("note-text display users = %v, want only %q", users, notesEmail)
 	}
 }
 

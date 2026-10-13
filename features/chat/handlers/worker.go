@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/features/chat/store"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -60,8 +61,10 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 			Owner: p.UserID, Role: roleAssistant, Text: "model unavailable",
 			IdemKey: p.Idem + "#answer", Created: time.Now(),
 		})
-		// drops by the hub's drop handler.
-		h.send(ctx, target, job.ClientID, chatEnvelope{Error: "model unavailable: " + err.Error()})
+		// Provider auth failures carry the key↔base mismatch hint
+		// (llm.WithAuthHint) so a split triple reads as actionable,
+		// not as a cryptic provider string.
+		h.send(ctx, target, job.ClientID, chatEnvelope{Error: "model unavailable: " + llm.WithAuthHint(err).Error()})
 		return nil
 	}
 	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.

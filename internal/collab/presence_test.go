@@ -1,6 +1,7 @@
 package collab
 
 import (
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -9,6 +10,32 @@ import (
 
 	"github.com/calionauta/gogogo/internal/nats"
 )
+
+// TestPresenceMsg_FromRoundTrip pins the per-tab sender identity: From
+// survives a marshal/unmarshal cycle (and old payloads without it decode
+// to ""), so same-user tabs stay distinguishable end to end.
+func TestPresenceMsg_FromRoundTrip(t *testing.T) {
+	in := PresenceMsg{Type: "caret", Doc: "d", User: "a@example.com", From: "tab-1", X: 2, Y: 5, TS: 7}
+	raw, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var out PresenceMsg
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if out.From != "tab-1" || out.User != "a@example.com" || out.X != 2 || out.Y != 5 {
+		t.Fatalf("round trip lost fields: %+v", out)
+	}
+	var legacy PresenceMsg
+	legacyRaw := `{"type":"caret","doc":"d","user":"a@example.com","x":1,"y":0}`
+	if err := json.Unmarshal([]byte(legacyRaw), &legacy); err != nil {
+		t.Fatalf("legacy unmarshal: %v", err)
+	}
+	if legacy.From != "" {
+		t.Fatalf("legacy payload should decode From empty, got %q", legacy.From)
+	}
+}
 
 // TestPresence_TwoPeersConverge is the Phase C presence regression guard:
 // two Presence sessions on the same doc over a real NATS JetStream must

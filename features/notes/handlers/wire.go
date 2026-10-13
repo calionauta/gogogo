@@ -23,11 +23,14 @@ const notesSyncSubject = "app.notes."
 
 // NoteTextEvent is the wire envelope broadcast to peers: the resolved text
 // after applying an op batch. Rev lets clients advance their base without
-// a round-trip.
+// a round-trip. From is the sender's per-tab clientID (echo suppression +
+// caret identity); User is the display name for labels. The two split when
+// one user holds two tabs — keying by User alone merged their carets.
 type NoteTextEvent struct {
 	Type string `json:"type"`
 	Doc  string `json:"doc"`
 	From string `json:"from"`
+	User string `json:"user,omitempty"`
 	Text string `json:"text"`
 	Rev  uint64 `json:"rev"`
 	// Caret travels WITH the text it belongs to (same event, zero lag).
