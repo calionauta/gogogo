@@ -67,6 +67,11 @@ func NewHandler(
 	if q == nil || a == nil || hub == nil || docs == nil || cfg == nil {
 		panic("notes chi: NewHandler with nil dependency")
 	}
+	// Wire the persister into the store: on a cache miss (eviction,
+	// restart) the doc rehydrates from the snapshot BEFORE the next op
+	// applies. Without this the op lands on an empty doc and the resolved
+	// snapshot is persisted over the good one, losing all prior text.
+	docs.SetPersister(persister)
 	return &Handler{
 		q: q, auth: a, hub: hub, cfg: cfg,
 		docs: docs, persister: persister,
@@ -237,7 +242,8 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			joinUser := h.displayName(sess, clientID)
 			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: joinUser, Type: "join"})
 			if mErr == nil {
-				h.hub.BroadcastExcept(joinMsg, clientID)
+				// Doc-scoped: a join on docA must not recreate rosters on docB.
+				h.hub.BroadcastExceptToDoc(joinMsg, docID, clientID)
 			} else {
 				obsArgs := append(observability.WithComponent("notes", "feature"), "error", mErr)
 				observability.Warn(r.Context(), "notes: marshal join", obsArgs...)

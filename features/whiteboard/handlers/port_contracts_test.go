@@ -34,7 +34,7 @@ func TestWhiteboard_StreamStartsWithSessionFrame(t *testing.T) {
 		}
 		return
 	}
-	t.Fatalf("no authed session frame on the board stream; events=%v", tailEvents(evs, 400))
+	t.Fatalf("no authed session frame on the board stream; events=%v", tailEvents(evs))
 }
 
 // TestWhiteboard_StaleOpReturns409 pins the lost-update guard: a stale
@@ -140,7 +140,7 @@ func TestWhiteboard_ShapeBroadcastAndPersist(t *testing.T) {
 
 	evsB := streamB.waitFor(func(ev string) bool { return shapesEventContains([]string{ev}, "shape-1") })
 	if !shapesEventContains(evsB, "shape-1") {
-		t.Fatalf("peer never received the shape; events=%s", tailEvents(evsB, 400))
+		t.Fatalf("peer never received the shape; events=%s", tailEvents(evsB))
 	}
 	// No-echo: A's own stream must not carry its shape back.
 	echo := streamA.drain(300 * time.Millisecond)
@@ -186,7 +186,7 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	evs := streamB.waitFor(func(ev string) bool { _, ok := cursorFromEvents([]string{ev}); return ok })
 	cur, ok := cursorFromEvents(evs)
 	if !ok {
-		t.Fatalf("peer never received the cursor; events=%s", tailEvents(evs, 400))
+		t.Fatalf("peer never received the cursor; events=%s", tailEvents(evs))
 	}
 	if cur.User != wbEmail {
 		t.Fatalf("cursor user = %q, want the server-stamped %q (anti-spoof)", cur.User, wbEmail)

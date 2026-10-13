@@ -14,4 +14,5 @@ func (h *SSEHub) Close() {
 	clear(h.clients)
 	clear(h.buffer)
 	clear(h.userOf)
+	clear(h.docOf)
 }

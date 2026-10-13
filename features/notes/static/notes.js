@@ -86,7 +86,13 @@
     lastInputAt = Date.now();
     timer = setTimeout(sendDiff, 100);
     reportTyping();
-    maybeCaret();
+    // No maybeCaret() here on purpose: every text change ships its caret
+    // WITH the op batch 100ms later (atomic with its text). A standalone
+    // report from this handler is anchored to the stale serverText while
+    // our own keystroke is still unconfirmed, so it overwrote the exact
+    // dot with an approximate one — the per-letter line jump peers saw.
+    // Pure cursor moves still report via selectionchange, heartbeats via
+    // the 5s interval (both guarded while ops are unconfirmed).
     // Deliberately vanilla (not data-on:input__debounce): the timer,
     // lastInputAt (idle adopt), typing and caret reports share one
     // handler by design — splitting the timer into markup would scatter
@@ -170,6 +176,12 @@
     }).catch(function () { /* ephemeral */ });
   }, 200);
   function maybeCaret(force) {
+    // While our own ops are unconfirmed the batch already carries the
+    // exact caret, so a standalone report (anchored to the stale
+    // serverText) must not overwrite it. Selectionchange fires on every
+    // keystroke too, which is why the guard lives here and not just at
+    // the input handler.
+    if (!force && (outbox.length || flushing)) return;
     const pos = force ? (ta.selectionStart || 0) : (document.activeElement !== ta ? -1 : (ta.selectionStart || 0));
     if (pos < 0) return;
     // Forced (heartbeat) resends even unmoved: expiry is time-based, so
@@ -527,6 +539,11 @@
     } catch (err) {
       return;
     }
+    // Doc guard (defense in depth — the hub already scopes fan-out per
+    // doc): an event for another note must never touch this note's text
+    // or carets. Without it a tab adopted any note's text and posted the
+    // mix back, ending with two notes each holding part of the other.
+    if (m.doc && m.doc !== DOC) return;
     if (m.type === "session") {
       // Initial per-connection auth state (also re-sent never: SSE is one
       // long request, so mid-stream expiry surfaces via op answers).

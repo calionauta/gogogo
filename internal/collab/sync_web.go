@@ -145,7 +145,9 @@ func (w *WebSyncWorker) ApplyUpdate(docID, fromClientID string, update []byte) (
 			slog.Warn("collab: persist snapshot failed", "doc", docID, "error", err)
 		}
 	}
-	// SSE Hub broadcast (in-process, to every browser on this instance).
+	// SSE Hub broadcast (in-process, to every browser watching THIS doc).
+	// Doc-scoped: a global broadcast let any doc's update land on every
+	// other doc's stream.
 	payload, err := json.Marshal(WebUpdateEvent{
 		Type: "update",
 		Doc:  docID,
@@ -156,7 +158,7 @@ func (w *WebSyncWorker) ApplyUpdate(docID, fromClientID string, update []byte) (
 		slog.Warn("collab: marshal update", "doc", docID, "error", err)
 		return len(snapshot), err
 	}
-	w.hub.BroadcastExcept(payload, fromClientID)
+	w.hub.BroadcastExceptToDoc(payload, docID, fromClientID)
 
 	// NATS broadcast (cross-instance): publish the raw Loro update so the
 	// SyncWorker on other instances (subscribed to app.sync.>) also

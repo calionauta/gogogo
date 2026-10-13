@@ -99,7 +99,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Todos:            todos,
 		Filter:           "all",
 		ItemCount:        len(todos),
-		ConnectedClients: h.Hub.Stats().Clients,
+		ConnectedClients: h.Hub.CountUserClients(),
 		Suggestions:      []string{},
 		SuggestErr:       "",
 		RealtimeKind:     h.realtimeKind(),

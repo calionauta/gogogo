@@ -52,7 +52,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		Todos:            todos,
 		Filter:           "all",
 		ItemCount:        len(todos),
-		ConnectedClients: h.Hub.Stats().Clients,
+		ConnectedClients: h.Hub.CountUserClients(),
 		ClientID:         clientID,
 		SidebarTab:       "queue",
 		DagNatsEnabled:   h.dagnatsUIEnabled(),

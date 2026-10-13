@@ -58,12 +58,14 @@ func (h *Handler) peerLeave(ctx context.Context, docID, clientID string) {
 		observability.Warn(ctx, "notes: marshal leave", obsArgs...)
 		return
 	}
-	h.hub.BroadcastExcept(leaveMsg, clientID)
+	// Doc-scoped like the join: a leave on docA must not touch docB rosters.
+	h.hub.BroadcastExceptToDoc(leaveMsg, docID, clientID)
 	h.broadcastPeerCount(ctx, docID)
 }
 
-// broadcastPeerCount sends the authoritative full peer set to every
-// connected client.
+// broadcastPeerCount sends the authoritative full peer set for THIS doc
+// to the clients watching it. Doc-scoped: a global broadcast merged
+// every doc's roster into one, so opening docB inflated docA's pill.
 func (h *Handler) broadcastPeerCount(ctx context.Context, docID string) {
 	msg, err := json.Marshal(collab.PresenceMsg{Doc: docID, Type: "count", Peers: h.peers.List(docID)})
 	if err != nil {
@@ -71,9 +73,7 @@ func (h *Handler) broadcastPeerCount(ctx context.Context, docID string) {
 		observability.Warn(ctx, "notes: marshal peer count", obsArgs...)
 		return
 	}
-	//nolint:contextcheck // SSEHub Broadcast takes no context; this is a
-	// best-effort fan-out, failures surface as the next poll.
-	h.hub.Broadcast(msg)
+	h.hub.BroadcastToDoc(msg, docID)
 }
 
 // displayName resolves the human identity for presence via the shared
@@ -87,13 +87,14 @@ func (h *Handler) displayName(sess *auth.ValidatedSession, clientID string) stri
 	return collab.DisplayName(email, clientID)
 }
 
-// relay broadcasts one ephemeral presence event (no persistence, no NATS).
-func (h *Handler) relay(from string, msg collab.PresenceMsg) error {
+// relay broadcasts one ephemeral presence event to the watchers of
+// docID (no persistence, no NATS).
+func (h *Handler) relay(from, docID string, msg collab.PresenceMsg) error {
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
-	h.hub.BroadcastExcept(payload, from)
+	h.hub.BroadcastExceptToDoc(payload, docID, from)
 	return nil
 }
 
@@ -119,7 +120,7 @@ func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 	if req.Typing {
 		typ = "typing"
 	}
-	if err := h.relay(from, collab.PresenceMsg{
+	if err := h.relay(from, docID, collab.PresenceMsg{
 		Doc:  docID,
 		User: h.displayName(sess, from),
 		Type: typ,
@@ -159,7 +160,7 @@ func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "pos must be >= 0")
 		return
 	}
-	if err := h.relay(from, collab.PresenceMsg{
+	if err := h.relay(from, docID, collab.PresenceMsg{
 		Doc:  docID,
 		User: h.displayName(sess, from),
 		Type: "caret",

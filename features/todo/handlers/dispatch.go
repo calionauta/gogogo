@@ -108,6 +108,14 @@ func (h *Handler) dispatchJob(sse *sdk.ServerSentEventGenerator, job queue.Job) 
 		return true, h.streamProgress(sse, job.Payload)
 	case jobTypeClients:
 		return true, h.streamClients(sse, job.Payload)
+	case "genui", "chat":
+		// Foreign feature results share this hub by design (single-hub
+		// wiring): their own tabs render them. Swallowed here so they
+		// never fall through to the lastJob debug merge below, which
+		// would overwrite that signal with noise on every foreign
+		// broadcast (e.g. an Ask answer posted before its stream
+		// connected, which falls back to a broadcast without clientID).
+		return true, nil
 	default:
 		return false, nil
 	}

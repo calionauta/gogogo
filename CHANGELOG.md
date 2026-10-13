@@ -30,6 +30,60 @@
 
 ### Changed
 
+- **Collab fan-out is doc-scoped.** The shared SSE hub broadcast every
+  whiteboard/notes event to every tab on every doc, so one board's shapes
+  overwrote another board's view ("drawings erased") and one note's text
+  was adopted by another note and posted back mixed (two notes each holding
+  part of the other). `SSEHub` now tracks each stream's doc (`SetDoc` at
+  `ServeStream`) and all collab legs use `BroadcastExceptToDoc` /
+  `BroadcastToDoc` (join/leave/count/cursor/draft/shapes/note-text), with a
+  client-side `msg.doc` guard in `whiteboard.js`/`notes.js` as defense in
+  depth. Red-proof: `TestSSEHubDocIsolation`,
+  `TestSSEHubDocBroadcastToDoc`, `TestWhiteboardCrossDocIsolation`,
+  `TestNotesCrossDocIsolation`.
+- **Notes rehydrate on cache miss.** `notes.NewHandler` never wired its
+  persister into the `DocStore`, so an op arriving after an evict/restart
+  applied to an empty doc and persisted the empty resolution over the good
+  snapshot (text lost). The store now rehydrates before the op, like the
+  whiteboard worker already did. Red-proof:
+  `TestNotesOpAfterEvictKeepsText`.
+- **Notes standalone carets pause while ops are unconfirmed.** Every
+  keystroke sent a caret anchored to the stale base AND a batch carrying
+  the exact caret; the stale one overwrote the exact dot, jumping it a
+  line per letter on the peer's screen. The input handler no longer sends
+  a standalone caret (the batch carries it atomically ≤100ms later) and
+  `maybeCaret` skips non-forced reports while the outbox is unconfirmed.
+- **Queue + Retry demo runs end to end again.** Two compounding defects:
+  `BootChi` built streams on a standalone hub while workers broadcast on
+  the queue's own hub (all worker feedback swallowed — stepper stuck on
+  step 1), and `handleRetryDemo` dropped the tab's `clientID` (feedback
+  unroutable). One shared hub (`chiQ.Hub()` for every stream and worker,
+  incl. chat/genui), the job carries its `clientID`, and retry feedback +
+  toasts route to the originator (`hub.Send`, broadcast fallback). The todo
+  online pill now uses `CountUserClients()` so other features' streams on
+  the shared hub don't inflate it. Red-proof:
+  `TestHandlersRetryDemoPropagatesClientID` and the production-boot
+  `TestRetryDemoReachesStream` (fails on the old wiring, passes on the new).
+- **Deploy LLM default is a live OpenRouter free model.** `llama-3.1-8b-instant`
+  no longer exists on OpenRouter, so Ask AI failed with "model does not
+  exist". Defaults are now `GOAI_BASE_URL=https://openrouter.ai/api/v1` +
+  `GOAI_MODEL=nvidia/nemotron-3-super-120b-a12b:free` (verified live against
+  the models API in Oct 2026: $0 in/out, text→text, structured outputs).
+  Override via env to pin another `:free` id — the free roster churns.
+- **Installer templates follow the single-hub wiring.** The trim/add
+  substrings still carried the old `queue.NewSSEHub()` chat/genui
+  constructions, so a trim+add cycle would have silently reverted the hub
+  unification. Templates updated, and `TestTrimSubstrsMatchLiveChiGo` now
+  pins every chi.go substring against the live file (red-proof: fails on
+  the old template).
+- **Chat is linked in the navbar.** `/chat` existed (route, worker, page)
+  but no nav entry pointed at it — reachable only by typing the URL. The
+  shared navbar now shows Chat next to Ask AI.
+- **Todo stream ignores foreign feature results.** On the shared hub a
+  genui/chat broadcast without clientID (Ask posted before its stream
+  connected) crossed the todo stream and was merged as `lastJob` noise.
+  The dispatcher now swallows `genui`/`chat` envelopes silently — their
+  own tabs render them. Red-proof: `TestDispatchIgnoresForeignResults`.
 - **Offline replays reach every stream.** Mutation handlers fan out (Hub +
   JetStream) before the `"replayed"` short-circuit, and replays no longer
   exclude the queued `clientID` — a background replay is not the originating

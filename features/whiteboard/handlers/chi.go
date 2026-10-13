@@ -224,7 +224,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 				observability.Warn(r.Context(), "whiteboard: marshal join", obsArgs...)
 				return
 			}
-			h.hub.BroadcastExcept(joinMsg, clientID)
+			h.hub.BroadcastExceptToDoc(joinMsg, docID, clientID)
 			if len(others) > 0 {
 				snap, sErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: clientID, Type: "snapshot", Peers: others})
 				if sErr != nil {
@@ -327,7 +327,8 @@ func (h *Handler) handlePresence(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusInternalServerError, "marshal presence")
 		return
 	}
-	h.hub.BroadcastExcept(data, from)
+	// Doc-scoped: a cursor/draft on docA must never move dots on docB.
+	h.hub.BroadcastExceptToDoc(data, docID, from)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

@@ -29,13 +29,14 @@ func (h *Handler) peerLeave(ctx context.Context, docID, clientID string) {
 		observability.Warn(ctx, "whiteboard: marshal leave", obsArgs...)
 		return
 	}
-	h.hub.BroadcastExcept(leaveMsg, clientID)
+	// Doc-scoped like the join: a leave on docA must not touch docB rosters.
+	h.hub.BroadcastExceptToDoc(leaveMsg, docID, clientID)
 	h.broadcastPeerCount(ctx, docID)
 }
 
-// broadcastPeerCount sends the authoritative peer set to every connected
-// client. Clients render "X online" directly from it instead of counting
-// locally, so every tab agrees even after missed leaves or reconnects.
+// broadcastPeerCount sends the authoritative peer set for THIS doc to
+// the clients watching it. Doc-scoped: a global broadcast merged every
+// doc's roster into one, so joining docA inflated docB's "X online".
 func (h *Handler) broadcastPeerCount(ctx context.Context, docID string) {
 	msg, err := json.Marshal(collab.PresenceMsg{Doc: docID, Type: "count", Peers: h.peers.List(docID)})
 	if err != nil {
@@ -43,7 +44,5 @@ func (h *Handler) broadcastPeerCount(ctx context.Context, docID string) {
 		observability.Warn(ctx, "whiteboard: marshal peer count", obsArgs...)
 		return
 	}
-	//nolint:contextcheck // SSEHub Broadcast takes no context; this is a
-	// best-effort fan-out, failures surface as the next poll.
-	h.hub.Broadcast(msg)
+	h.hub.BroadcastToDoc(msg, docID)
 }
