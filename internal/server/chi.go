@@ -282,6 +282,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
+	// Console rides the same mount-after-composition rule: the engine
+	// listener is loopback-only, so browsers reach it only through here.
+	mountConsoleProxy(mux, a, cfg)
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
 	// denies when on). A parse failure is a programmer error and fails the

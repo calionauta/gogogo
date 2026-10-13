@@ -86,3 +86,6 @@ p, viewer, /, GET
 p, viewer, /api/auth/*, .*
 p, admin, /config, .*
 p, admin, /config/, .*
+p, admin, /console, .*
+p, admin, /console/, .*
+p, admin, /console/*, .*

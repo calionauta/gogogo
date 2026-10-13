@@ -40,7 +40,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `NATS_STORE_DIR` | under `DATA_DIR` | JetStream storage directory |
 | `NATS_LEAFNODE_URL` | unset | When set, the desktop boots as a NATS Leaf Node replicating against your central server. Offline edits replay on reconnect. |
 | `DAGNATS_ENABLED` | `true` | Boot the DagNats durable workflow engine |
-| `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console |
+| `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console (loopback-only; browsers reach the console through the `/console/` reverse proxy on the app mux) |
 | `DAGNATS_NATS_PORT` | `4222` | Shared embedded JetStream port (DagNats boots it; the whiteboard SyncWorker attaches) |
 | `DAGNATS_STORE_DIR` | under `DATA_DIR` | DagNats store directory |
 | `DAGNATS_TRIGGER_BOOTSTRAP` | `true` | Seed one disabled placeholder trigger when the trigger bucket is empty. **Workaround for an upstream DagNats v0.0.24 bug** — without it the trigger console cannot create the first trigger. See [the workaround page](dagnats-bootstrap-workaround.md) before disabling or removing. |

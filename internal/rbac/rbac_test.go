@@ -92,26 +92,33 @@ func TestRBACPolicyCoversMuxRoutes(t *testing.T) {
 		"/static/app.min.css", "/sw.js", "/health", "/",
 	}
 	for _, path := range userOK {
-		allowUser, err := e.Enforce("user", path, "GET")
-		if err != nil {
-			t.Fatalf("enforce user %s: %v", path, err)
+		allowUser, uerr := e.Enforce("user", path, "GET")
+		if uerr != nil {
+			t.Fatalf("enforce user %s: %v", path, uerr)
 		}
-		allowAdmin, err := e.Enforce("admin", path, "GET")
-		if err != nil {
-			t.Fatalf("enforce admin %s: %v", path, err)
+		allowAdmin, aerr := e.Enforce("admin", path, "GET")
+		if aerr != nil {
+			t.Fatalf("enforce admin %s: %v", path, aerr)
 		}
 		if !allowUser && !allowAdmin {
 			t.Errorf("route %q denied for user and admin — policy gap", path)
 		}
 	}
-	for _, path := range []string{"/config", "/config/"} {
-		allowUser, err := e.Enforce("user", path, "GET")
-		if err != nil {
-			t.Fatalf("enforce user %s: %v", path, err)
+	for _, path := range []string{"/config", "/config/", "/console", "/console/"} {
+		denied, derr := e.Enforce("user", path, "GET")
+		if derr != nil {
+			t.Fatalf("enforce user %s: %v", path, derr)
 		}
-		if allowUser {
+		if denied {
 			t.Errorf("route %q allowed for user, want admin-only", path)
 		}
+	}
+	consoleAdmin, cerr := e.Enforce("admin", "/console/", "GET")
+	if cerr != nil {
+		t.Fatalf("enforce admin /console/: %v", cerr)
+	}
+	if !consoleAdmin {
+		t.Error("admin must reach the console proxy")
 	}
 }
 
