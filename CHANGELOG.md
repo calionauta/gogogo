@@ -210,6 +210,18 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.1 (2026-10-13)
+
+## What's Changed
+* fix(prod-image): boot the flat stack on alpine so tursogo can dlopen by @calionauta in https://github.com/calionauta/gogogo/pull/108
+* chore(ci-local): refuse T4 on hosts that cannot carry it by @calionauta in https://github.com/calionauta/gogogo/pull/109
+* refactor: rename features/*/chi to features/*/handlers by @calionauta in https://github.com/calionauta/gogogo/pull/110
+* refactor: purge post-PocketBase legacy residues, fix error-text leaks by @calionauta in https://github.com/calionauta/gogogo/pull/112
+* fix(collab): doc-scoped fan-out, single-hub boot, live OpenRouter model by @calionauta in https://github.com/calionauta/gogogo/pull/113
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.0...v0.44.1
+
 ## 0.44.0 (2026-10-12)
 
 ## What's Changed
