@@ -310,6 +310,15 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.6 (2026-10-13)
+
+## What's Changed
+* Test hardening follow-ups: shared ruleguard fixtures, boot-smoke diagnostics by @calionauta in https://github.com/calionauta/gogogo/pull/125
+* Deploy reconciler: scheduled drift check (tag deploys never fire) by @calionauta in https://github.com/calionauta/gogogo/pull/126
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.5...v0.44.6
+
 ## 0.44.5 (2026-10-13)
 
 ## What's Changed
