@@ -248,6 +248,15 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.3 (2026-10-13)
+
+## What's Changed
+* fix(guards): refuse full suite on wedged box, enforce PR template body by @calionauta in https://github.com/calionauta/gogogo/pull/116
+* Bb/hostgate tests thr s7gitfemc6 by @calionauta in https://github.com/calionauta/gogogo/pull/118
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.2...v0.44.3
+
 ## 0.44.2 (2026-10-13)
 
 ## What's Changed
