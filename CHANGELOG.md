@@ -2,6 +2,13 @@
 
 ### Added
 
+- **PR-body template check.** `.github/workflows/pr-body.yml` fails PRs whose
+  body still carries template placeholders (`Closes #NNN`, `Write this
+  yourself`, `Required, one line`) — GitHub pre-fills the template but
+  nothing made authors complete it. Bodies without template markers (bot
+  PRs, fully custom text) pass vacuously; prose quality stays review
+  judgment. AGENTS.md now orders agents to fill every section on `gh pr
+  create` (linked issue, motivation, one-line AI disclosure, verification).
 - **Flat-stack dependency guard.** `cmd/check-flatdeps` (`make check-flatdeps`,
   CI + pre-commit) now proves three invariants without booting: no banned
   framework in the closure, no cross-feature domain imports (shared UI leaves
@@ -30,6 +37,11 @@
 
 ### Changed
 
+- **Full-suite script refuses a wedged box.** `scripts/test-web.sh` (the
+  T4-equivalent workload agents kept launching by hand on the shared host)
+  now runs the `check-host-capacity` pre-flight first — skipped only on CI
+  runners (`CI=true`) or explicit `ALLOW_HEAVY=1`. Same refusal contract as
+  `make ci-local`.
 - **Dagnats add-anchor follows the single-hub boot.** `BootChi` declares
   `shutdown := []func(){chiQ.Close}` (no bare `var shutdown` anymore), which
   killed the dagnats unit's `addAfter` anchor and failed the `checkTree`

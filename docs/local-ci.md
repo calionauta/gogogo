@@ -113,6 +113,9 @@ package by hand, or let the PR's CI be the gate.
   `CI_LOCAL_MIN_RAM_MB` / `CI_LOCAL_MIN_CORES` /
   `CI_LOCAL_MAX_LOAD_PER_CORE` / `CI_LOCAL_MIN_DISK_MB`), same convention as
   `scripts/lint-safe.sh` one level down.
+- **The suite script guards itself too.** `scripts/test-web.sh` runs the same
+  pre-flight first (agents kept invoking it directly, bypassing the `make`
+  gate): it refuses off CI runners unless `CI=true` or `ALLOW_HEAVY=1`.
 - **Hygiene is automatic, and it cannot disturb a live run.** `ci-fanout.sh`
   traps `INT`/`TERM` to kill its four suites with it (no orphans when the
   gate is interrupted) and deletes its log dir on a green run (a red run

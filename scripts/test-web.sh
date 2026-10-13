@@ -19,6 +19,16 @@
 #   bash scripts/test-web.sh -count=1           # test-fast (no race)
 set -euo pipefail
 
+# Full-suite guard: this script runs EVERY web package (the T4-equivalent
+# workload). On a small shared host that wedges the box — and co-tenant
+# agents share these cores — so refuse first, exactly like `make ci-local`.
+# Skipped where it cannot bite: GitHub CI runners (CI=true) carry the load
+# by design, and ALLOW_HEAVY=1 is the explicit override (same convention
+# as CI_LOCAL_FORCE=1 one level up).
+if [ "${CI:-}" != "true" ] && [ "${ALLOW_HEAVY:-0}" != "1" ]; then
+	bash scripts/check-host-capacity.sh
+fi
+
 pkgs=$(bash scripts/web-packages.sh)
 # shellcheck disable=SC2086
 exec go test "$@" $pkgs
