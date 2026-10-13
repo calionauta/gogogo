@@ -99,6 +99,11 @@ wedged box before scoped race starts, and past 8 changed packages
 bound shared-host load. Refused means the same as T4: scope to one
 package by hand, or let the PR's CI be the gate.
 
+Heavy Go tests guard themselves too: `internal/hostgate.SkipIfConstrained`
+makes repo-copying suites (notably `TestTrimmedTreeStillBuilds`, one full
+`go vet ./...` per unit) skip — with measured reason — when off-CI and
+constrained, instead of wedging a shared box no Makefile gate can see.
+
 ### Where T4 may run (host-capacity pre-flight)
 
 - **`make ci-local` refuses first on a box that cannot carry it.**
@@ -123,6 +128,9 @@ package by hand, or let the PR's CI be the gate.
   at start (`reap-stale`, default 6h — a concurrent gate's fresh artifacts
   are never touched). Caches (go build, golangci, npm, Playwright browsers)
   are never listed anywhere, so hygiene never forces a rebuild.
+  Go-test orphans (`/tmp/Test*`, `/tmp/go-build*` from aborted runs —
+  `t.TempDir` only self-cleans on pass) reap at 24h (`TEST_STALE_MIN`,
+  longer margin since `Test*` is a generic prefix on a shared box).
   `make smoke-clean` stays the manual full clean.
 
 ### Why the browser smoke test stays on Playwright
