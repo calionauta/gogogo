@@ -37,7 +37,7 @@ func assertFixtureHits(t *testing.T, out, file string, tc ruleFixture) {
 // the copied rules and a minimal golangci config. Returns the file name
 // per fixture, aligned with fixtures(), for hit attribution.
 func writeSharedFixtureModule(
-	t *testing.T, dir string, rulesSrc []byte, dslVersion string, fxs []ruleFixture,
+	t *testing.T, dir string, rulesSrc []byte, dslVersion, goDirective string, fxs []ruleFixture,
 ) []string {
 	t.Helper()
 
@@ -45,7 +45,7 @@ func writeSharedFixtureModule(
 		t.Fatal(err)
 	}
 	writeIn(t, filepath.Join(dir, "go.mod"),
-		"module fixture\n\ngo 1.22\n\nrequire github.com/quasilyte/go-ruleguard/dsl "+dslVersion+"\n")
+		"module fixture\n\ngo "+goDirective+"\n\nrequire github.com/quasilyte/go-ruleguard/dsl "+dslVersion+"\n")
 	files := make([]string, len(fxs))
 	for i, tc := range fxs {
 		name := "fixture" + twoDigits(i) + ".go"

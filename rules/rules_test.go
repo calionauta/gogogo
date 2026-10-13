@@ -255,10 +255,11 @@ func TestRulesFire(t *testing.T) {
 		t.Fatal(err)
 	}
 	dslVersion := requireVersion(t, cfgSrc)
+	goDirective := requireGoDirective(t)
 
 	fxs := fixtures()
 	dir := t.TempDir()
-	files := writeSharedFixtureModule(t, dir, rulesSrc, dslVersion, fxs)
+	files := writeSharedFixtureModule(t, dir, rulesSrc, dslVersion, goDirective, fxs)
 
 	// ONE lint run for all fixtures: each fork pays a full process,
 	// type-check and ruleguard engine load (~6s each, 117s for twenty).
@@ -330,6 +331,24 @@ func requireVersion(t *testing.T, cfg []byte) string {
 	}
 	t.Fatalf("go.mod no longer requires go-ruleguard/dsl — the rules file "+
 		"imports it, so it cannot be dropped without breaking ruleguard.\n%s", cfg)
+	return ""
+}
+
+// requireGoDirective extracts the `go` directive the project pins, so the
+// fixture module speaks the same language version. Hardcoding it here
+// would drift on every toolchain bump (same rule as requireVersion).
+func requireGoDirective(t *testing.T) string {
+	t.Helper()
+	mod, err := os.ReadFile(filepath.Join("..", "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line := range strings.SplitSeq(string(mod), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "go "); ok && v != "" {
+			return v
+		}
+	}
+	t.Fatal("go.mod has no `go` directive — the fixture module cannot pick a language version")
 	return ""
 }
 
