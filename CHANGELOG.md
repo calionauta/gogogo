@@ -30,6 +30,17 @@
 
 ### Changed
 
+- **Dagnats add-anchor follows the single-hub boot.** `BootChi` declares
+  `shutdown := []func(){chiQ.Close}` (no bare `var shutdown` anymore), which
+  killed the dagnats unit's `addAfter` anchor and failed the `checkTree`
+  drift gate on master. The anchor now points at the live declaration line.
+- **ci-local-fast has a capacity pre-flight and a changeset budget.**
+  `check-host-capacity.sh --fast` (lighter floors: 3 GB RAM, 2 cores,
+  1.5 load/core, 1 GB disk) refuses a wedged box before scoped race starts,
+  and past 8 changed packages (`FAST_MAX_PARALLEL_PKGS`) the race run goes
+  serial (`-p 1`). AGENTS.md now forbids full-suite runs on the shared host
+  explicitly — the enforcement that was missing when two parallel sweeps
+  wedged it.
 - **Collab fan-out is doc-scoped.** The shared SSE hub broadcast every
   whiteboard/notes event to every tab on every doc, so one board's shapes
   overwrote another board's view ("drawings erased") and one note's text

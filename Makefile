@@ -199,6 +199,13 @@ check-sizes:
 check-host-capacity:
 	@bash scripts/check-host-capacity.sh
 
+# check-fast-capacity is the T3.5 pre-flight with the lighter budget
+# (see the --fast thresholds in scripts/check-host-capacity.sh). A big
+# changeset on a wedged box degrades further below via -p 1 instead of
+# wedging it.
+check-fast-capacity:
+	@bash scripts/check-host-capacity.sh --fast
+
 # check-scope enforces that every non-test, non-generated .go file
 # under internal/ and features/ carries a leading doc-comment line
 # matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
@@ -338,11 +345,14 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
+# Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
+# Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
+# runs serially (-p 1) to bound shared-host load.
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
-	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else go test -race -count=1 $$PKGS; fi
+	@PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed — ran cheap checks only)"; else N=$$(echo $$PKGS | wc -w); if [ "$$N" -gt "$${FAST_MAX_PARALLEL_PKGS:-8}" ]; then echo "  ($$N changed packages > $${FAST_MAX_PARALLEL_PKGS:-8}: serial -p 1 to bound shared-host load)"; go test -race -count=1 -p 1 $$PKGS; else go test -race -count=1 $$PKGS; fi; fi
 	@echo "✅ ci-local-fast passed (full gate before push: make ci-local)"
 
 # smoke boots the built binary in a headless browser, fails on uncaught client
@@ -396,7 +406,7 @@ reap-stale:
 	@echo "→ reaping stale smoke artifacts (6h+)..."
 	@bash scripts/reap-stale-smoke.sh
 
-.PHONY: ci-local ci-local-fast signoff check-host-capacity reap-stale
+.PHONY: ci-local ci-local-fast signoff check-host-capacity check-fast-capacity reap-stale
 
 .PHONY: site site-check
 
