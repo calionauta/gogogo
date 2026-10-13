@@ -45,7 +45,7 @@ push/merge, or (b) the change touches an area the next tier checks.
 | **T2** lint scoped | `go vet` + `make lint-safe` (host-aware: scoped + memory-capped) + `make templ` / `make datastar-lint` (when `.templ` changed) | ~15–20s | Shadow, mnd, nolintlint, revive, staticcheck, Datastar attribute mistakes |
 | **T3** tests scoped | `go test -race -count=1 <changed-pkg>` | ~5–30s | Race detector on tests, business logic |
 | **T3.5** fast gate | `make ci-local-fast` | **~2–30s** | T1+T2 for the whole repo's cheap checks, plus race tests for **only the changed packages** (auto-detected) |
-| **T4** full local gate | `make ci-local` | ~6min | Full pre-push check (= CI) |
+| **T4** full local gate | `make ci-local` (refuses first via `check-host-capacity` when the box cannot carry it) | ~6min | Full pre-push check (= CI) |
 | **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~6min | Same as T4, plus it commits the verification to git |
 
 ### Why the full gate is slow, and the fast sibling
@@ -91,6 +91,29 @@ when nothing changed.
 Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
+
+### Where T4 may run (host-capacity pre-flight)
+
+- **`make ci-local` refuses first on a box that cannot carry it.**
+  `scripts/check-host-capacity.sh` (the `check-host-capacity` prerequisite)
+  measures free RAM, cores, 5-minute load and free disk, then fails with the
+  offending dimension and the override. A small shared host (lint peak alone
+  is ~2.6 GB RSS; T4 stacks that with the race suite plus three Chromiums)
+  would otherwise pin at 99% CPU and stop answering, starving production and
+  co-tenants — that outage is what the gate exists to prevent.
+- **Refused != blocked.** Run `make ci-local-fast` locally and let the PR's
+  CI be the full gate. `CI_LOCAL_FORCE=1` overrides (thresholds via
+  `CI_LOCAL_MIN_RAM_MB` / `CI_LOCAL_MIN_CORES` /
+  `CI_LOCAL_MAX_LOAD_PER_CORE` / `CI_LOCAL_MIN_DISK_MB`), same convention as
+  `scripts/lint-safe.sh` one level down.
+- **Hygiene is automatic, and it cannot disturb a live run.** `ci-fanout.sh`
+  traps `INT`/`TERM` to kill its four suites with it (no orphans when the
+  gate is interrupted) and deletes its log dir on a green run (a red run
+  keeps every log for diagnosis). Both gates reap mtime-stale smoke corpses
+  at start (`reap-stale`, default 6h — a concurrent gate's fresh artifacts
+  are never touched). Caches (go build, golangci, npm, Playwright browsers)
+  are never listed anywhere, so hygiene never forces a rebuild.
+  `make smoke-clean` stays the manual full clean.
 
 ### Why the browser smoke test stays on Playwright
 

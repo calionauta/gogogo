@@ -190,6 +190,15 @@ check-sizes:
 	@[ -f .githooks/check-sizes.sh ] || bin/setup-hooks.sh >/dev/null 2>&1
 	@.githooks/check-sizes.sh
 
+# check-host-capacity is the T4 pre-flight. It measures this machine (free
+# RAM, cores, 5-min load, free disk) and refuses `make ci-local` when the box
+# cannot carry the full gate — full-repo lint + full race suite + four
+# parallel Playwright suites pins a small shared host at 99% CPU and stops it
+# answering (production and co-tenants starve). Same evidence-over-labels
+# approach as lint-safe, one level up. Override with CI_LOCAL_FORCE=1.
+check-host-capacity:
+	@bash scripts/check-host-capacity.sh
+
 # check-scope enforces that every non-test, non-generated .go file
 # under internal/ and features/ carries a leading doc-comment line
 # matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
@@ -301,7 +310,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -329,7 +338,7 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"
@@ -379,7 +388,15 @@ signoff: ci-local
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
-.PHONY: ci-local ci-local-fast signoff
+# reap-stale removes OUR smoke corpses older than SMOKE_STALE_MIN (default
+# 360) at gate start — kills and -9s skip every happy-path rm. Age-gated so a
+# concurrent gate's fresh artifacts are never touched; caches (go build,
+# golangci, npm, Playwright browsers) are never listed, so nothing rebuilds.
+reap-stale:
+	@echo "→ reaping stale smoke artifacts (6h+)..."
+	@bash scripts/reap-stale-smoke.sh
+
+.PHONY: ci-local ci-local-fast signoff check-host-capacity reap-stale
 
 .PHONY: site site-check
 
@@ -442,6 +459,8 @@ help:
 	@echo "  coverage       Run tests with coverage report (HTML)"
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  lint-safe      Host-aware lint: scoped + memory-capped (safe on shared hosts)"
+	@echo "  check-host-capacity  Pre-flight: refuse make ci-local when this box cannot carry it"
+	@echo "  reap-stale         Delete mtime-stale smoke artifacts (safe beside live runs)"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"

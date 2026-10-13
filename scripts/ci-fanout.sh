@@ -25,6 +25,13 @@ logdir="${CI_LOG_DIR:?CI_LOG_DIR must be set}"
 bin="${SMOKE_BIN:?SMOKE_BIN must be set}"
 mkdir -p "$logdir"
 
+# Interrupt hygiene: if make is killed (SIGTERM/SIGINT — a wedged box, a
+# Ctrl-C), the four suites below would otherwise keep running orphaned,
+# holding their ports and burning the CPU the gate just freed. Kill them
+# with us. Firing after a normal run is harmless (PIDs already reaped).
+pid_race= pid_smoke= pid_wb= pid_notes=
+trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes 2>/dev/null || true' INT TERM
+
 bash scripts/test-web.sh -race -count=1 >"$logdir/race.log" 2>&1 &
 pid_race=$!
 SMOKE_BIN="$bin" node scripts/smoke.mjs >"$logdir/smoke.log" 2>&1 &
@@ -83,4 +90,14 @@ if [ "$fail" -ne 0 ]; then
   done
   exit 1
 fi
+# Green run: nobody reads these logs afterwards (no caller references
+# CI_LOG_DIR again, and CI runs the suites as separate steps, not via this
+# script), so remove them — a red run keeps everything above for diagnosis.
+# The basename guard keeps a mistyped CI_LOG_DIR from nuking an unrelated
+# path; caches (go build, golangci, npm, Playwright browsers) are never
+# listed here, so this never forces a rebuild.
+case "${logdir##*/}" in
+  gogogo-ci-logs) rm -rf "$logdir" ;;
+  *) echo "  (keeping logs: unexpected CI_LOG_DIR name $logdir)" ;;
+esac
 echo "✅ fan-out: all suites green"
