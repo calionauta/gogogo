@@ -98,7 +98,10 @@ zero-artifact holds by default). Weight: 140 modules in the graph,
 SDKs, gRPC, sonic, fasthttp and mcp-go even when only OpenRouter is
 used. If adopted, it sits *under* `llm.Client` as smart transport (one
 retry layer only: Bifrost's, with `attempt_trail` — goai's native retry
-switches off on that path), never beside it; its virtual-key budgets
-stay off (ai-credits owns budgets — two ledgers is a design bug). Do
+switches off on that path), never beside it. ai-credits keeps the
+per-user wallet (grants, reserve/settle in credits); Bifrost budgets
+(USD caps per provider/key, rate limits) are operator-side cost control,
+a different function — the bug to avoid is per-user charging in both,
+or two different deny errors for one call. Do
 not confuse with the host's `bifrost-stdio` service (BB's MCP gateway —
 a different project sharing the name).
