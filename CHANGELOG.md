@@ -219,6 +219,15 @@
   (v0.13.3).** `<script` inside `//` comments no longer opens a region;
   `TestFallbackVersionTracksChangelog` ties the fallback constant to the
   release. Pin moved to v0.13.3 (CI + skill doc).
+- **Production image boots again (0.44.0 crash-loop).** The flat-stack
+  image inherited scratch + a static binary, but tursogo loads its Rust
+  library via dlopen — no loader, no boot (`Dynamic loading not
+  supported`, `/health` 502). `deploy/Dockerfile.prod` now runs on
+  Alpine (musl loader + libgcc_s), builds `CGO_ENABLED=1 -tags musl`
+  without `-static`, and `deploy/docker-compose.prod.yml` sets
+  `TURSO_GO_CACHE_DIR` on the data volume. `scripts/smoke-prod-image.sh`
+  boots the final image and asserts `/health` 200 in CI, closing the
+  pipeline gap that let an unbootable image reach production.
 
 ## [0.42.11] - 2026-10-09
 

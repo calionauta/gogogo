@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-clean gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -345,6 +345,16 @@ smoke:
 	@npx playwright install chromium
 	@node scripts/smoke.mjs
 
+# smoke-prod-image builds the production image, boots it, and asserts
+# /health → 200. The gate the 0.44.0 outage was missing: nothing ever
+# booted the final image, so a scratch runtime that cannot dlopen the
+# tursogo library reached production. Run after any change to
+# deploy/Dockerfile.prod, deploy/docker-compose.prod.yml, internal/db,
+# or the tursogo pin. CI runs it too (ci.yml, after the client smokes).
+smoke-prod-image:
+	@echo "→ Production image boot smoke test…"
+	@bash scripts/smoke-prod-image.sh
+
 # smoke-clean removes smoke/debug artifacts no test cleans up by itself.
 # The suite removes the binary and its tmp dirs on the happy path only; a
 # failed run, an interrupted run, or a manual `go build -o` leaves them
@@ -354,7 +364,7 @@ smoke:
 smoke-clean:
 	@echo "→ Removing smoke artifacts…"
 	@rm -f $(SMOKE_BIN)
-	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-* $(OS_TMPDIR)/gogogo-ci-logs
+	@rm -rf $(OS_TMPDIR)/gogogo-smoke-* $(OS_TMPDIR)/gogogo-prod-smoke-* $(OS_TMPDIR)/wb-client-test-* $(OS_TMPDIR)/notes-caret-test-* $(OS_TMPDIR)/gogogo-docwatch-* $(OS_TMPDIR)/gogogo-ci-logs
 	@echo "  ✓ smoke artifacts removed (Playwright browsers kept: shared cache)"
 
 # signoff runs the full local CI then stamps the current commit green via

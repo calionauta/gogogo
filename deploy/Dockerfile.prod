@@ -1,18 +1,24 @@
 # syntax=docker/dockerfile:1.7
 #
-# deploy/Dockerfile.prod — production image, built on the GH Actions
-# runner (linux/amd64) and deployed to the user's own server via
-# SSH. The runtime contract is identical to the project's top-level
-# Dockerfile (scratch + ca-certificates.crt + /tmp + USER 65532);
-# the only reason this lives at deploy/Dockerfile.prod is so the
-# dev Dockerfile (which uses alpine for build tooling) and the
-# production one don't compete for the same image tag in local dev.
+# deploy/Dockerfile.prod — production image, built on the server
+# (scripts/deploy-prod.sh runs `docker compose build` there; the GH
+# Actions deploy workflow SSHes in and invokes it). Runtime contract:
+# alpine + ca-certificates + libgcc + /tmp + USER 65532.
 #
-# See top-level Dockerfile for the rationale on the base image and
-# the CSS-build step. This file is a near-copy because the dev and
-# prod paths have identical runtime requirements; the only
-# difference is the CSS build runs *inside* the GH Action's build
-# step rather than inside the local `make dev` step.
+# Why alpine and not scratch: the flat stack's database driver
+# (tursogo) is a Rust shared library loaded at runtime via dlopen
+# (see internal/db). Scratch has no dynamic loader, so the binary
+# panics on boot (`Dynamic loading not supported`) — that exact
+# crash-loop took production down on the PocketBase→flat migration
+# (0.44.0). Alpine ships musl's loader; the builder compiles with
+# -tags musl so the embedded musl-linked library is the one extracted
+# and loaded. Do NOT "simplify" this back to scratch: a static binary
+# cannot dlopen, and tursogo has no static-link mode.
+#
+# Build pipeline: Tailwind v4 + DaisyUI v5 CSS build runs here (npm),
+# Templ generates, then the Go binary compiles with CGO_ENABLED=1
+# (purego needs a real libc dlopen) dynamically linked against musl
+# (no -extldflags=-static: a static binary cannot dlopen at all).
 
 # ────────────────────────────
 # Stage 1: builder
@@ -47,26 +53,34 @@ RUN go tool templ generate && \
     npm run build --silent && \
     # Inject build metadata. ARGs declared at top of file. See
     # top-level Dockerfile for rationale.
+    #
+    # -tags musl: turso-go-platform-libs embeds one prebuilt Rust
+    # library per platform; the `musl` tag selects libs/linux_*_musl
+    # (linked against libc.musl). Without it the glibc .so is
+    # embedded and dlopen fails on this musl runtime. Go does not
+    # set the musl tag automatically — pass it explicitly.
+    #
+    # CGO_ENABLED=1 and NO -extldflags=-static: purego loads the
+    # library with the real libc dlopen, which requires a dynamically
+    # linked binary. A static binary dies at first DB open with
+    # "Dynamic loading not supported" (production 0.44.0).
     CGO_ENABLED=1 GOOS=linux go build \
-        -trimpath -ldflags="-s -w -extldflags=-static -X main.Version=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildTime=${BUILDTIME}" \
+        -tags musl \
+        -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildTime=${BUILDTIME}" \
         -o /out/app ./cmd/web/
 
-# Stash the ca-certificates bundle so the runtime stage can copy it
-# without needing a shell.
-RUN mkdir -p /out/etc/ssl/certs && \
-    cp /etc/ssl/certs/ca-certificates.crt /out/etc/ssl/certs/
-
 # ────────────────────────────
-# Stage 2: runtime (scratch)
+# Stage 2: runtime (alpine)
 # ────────────────────────────
-FROM scratch
-
-# The static Go binary. CGO_ENABLED=0 + -ldflags="-s -w" means no
-# libc dependency; the binary runs on the empty scratch image.
-COPY --from=builder /out/app /app
-
+# Alpine, not scratch: the app dlopens the tursogo Rust library at
+# first DB open, which needs musl's dynamic loader
+# (/lib/ld-musl-*.so.1) plus libgcc_s (the musl .so's NEEDED entries).
 # ca-certificates for HTTPS to LLM providers (OpenAI, Groq, etc.).
-COPY --from=builder /out/etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates libgcc
+
+# The dynamically-linked Go binary (CGO_ENABLED=1, musl).
+COPY --from=builder /out/app /app
 
 # The app's DATA_DIR is set to /var/lib/<app>/data (absolute, via compose
 # env), which bind-mounts to the host volume ACL-granted to uid 65532
@@ -76,24 +90,20 @@ COPY --from=builder /out/etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # — no separate data dir is created and no extra writable path is needed.
 WORKDIR /var/lib/gogogo/data
 
-# Go's runtime expects /tmp to be writable (e.g. for memory-mapped
-# file backings in some stdlib paths). scratch has no /tmp, so
-# create it. The app data dir also lives in /tmp by default;
-# we mount a real volume there in the compose file for persistence.
-COPY --from=builder /tmp /tmp
-
+# Alpine ships a writable /tmp, which the Go runtime expects (and which
+# backs $HOME/.cache when TURSO_GO_CACHE_DIR is unset — production sets
+# it to the data volume instead; see deploy/docker-compose.prod.yml).
 ENV HOME=/tmp \
     XDG_CONFIG_HOME=/tmp \
     XDG_CACHE_HOME=/tmp
 
-# Run as non-root: scratch has no /etc/passwd, so we use the
-# numeric UID directly. 65532 is the standard "nonroot" UID used
-# by the distroless nonroot images.
+# Run as non-root: numeric UID works without an /etc/passwd entry.
+# 65532 is the standard "nonroot" UID used by distroless images.
 USER 65532:65532
 
 EXPOSE 8080
 
-# Healthcheck needs a shell — scratch has none. The compose file
-# uses a wget-based HTTP check instead. See deploy/docker-compose.prod.yml.
+# Exec-form healthcheck needs no shell: `/app health` GETs /health
+# internally (scratch-compatible and alpine-compatible alike).
 
 ENTRYPOINT ["/app"]
