@@ -69,6 +69,8 @@ const MANIFEST = [
     desc: "Core / Plugin / Feature: the rule for deciding what is safe to delete." },
   { group: "Core", slug: "configuration", file: "configuration.md",
     desc: "Every environment variable and runtime constant." },
+  { group: "Core", slug: "rbac", file: "rbac.md",
+    desc: "Casbin RBAC: role vocabulary, the feature checklist, and hint-vs-enforcement." },
   { group: "Core", slug: "exception-to-go", file: "exception-to-go.md",
     desc: "Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules." },
   { group: "Core", slug: "native-language-tradeoffs", file: "native-language-tradeoffs.md",

@@ -50,7 +50,7 @@ func applyRBAC(a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *ht
 	} else if n > 0 {
 		slog.Info("server: rbac admin promotion", "rows", n)
 	}
-	return rbac.Middleware(a, enforcer, cfg.RBACEnabled)(mux), nil
+	return rbac.MiddlewareWithPermissive(a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive)(mux), nil
 }
 
 // wireTodoLLM builds the LLM clients and attaches the todo slice's queue,

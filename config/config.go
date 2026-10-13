@@ -201,6 +201,14 @@ type Config struct {
 	// starting point — tune it for your app before enabling in production.
 	RBACEnabled bool
 
+	// RBACPermissive turns enforcement into audit-before-enforce
+	// (RBAC_PERMISSIVE, default false): would-be denies are warn-logged
+	// and the request proceeds. Set it for one deploy after adding a
+	// feature's paths, read the "permissive allow" lines, then turn it
+	// off. Only meaningful with RBACEnabled=true; production posture is
+	// permissive=false. See docs/rbac.md.
+	RBACPermissive bool
+
 	// AdminEmails promotes existing users to the admin role at boot
 	// (ADMIN_EMAILS, comma-separated, matched lowercase). Promotion only,
 	// never provisioning: the address must already own a row (sign up or
@@ -351,6 +359,7 @@ func Load() *Config {
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
 	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
+	cfg.RBACPermissive = envBool("RBAC_PERMISSIVE", false)
 	cfg.loadAuthEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")

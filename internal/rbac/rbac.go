@@ -49,19 +49,12 @@ func NewEnforcer() (*casbin.Enforcer, error) {
 	return e, nil
 }
 
-// Enforce checks whether subject may perform action on object, using a
-// freshly built enforcer. For hot paths, build once with NewEnforcer and
-// call EnforceWith (or e.Enforce directly).
-func Enforce(sub, obj, act string) (bool, error) {
-	e, err := NewEnforcer()
-	if err != nil {
-		return false, err
-	}
-	return e.Enforce(sub, obj, act)
-}
-
 // EnforceWith runs the decision against an already-built enforcer — the hot
-// path for a request middleware, which builds once and reuses.
+// path for a request middleware, which builds once and reuses. There is
+// deliberately no per-call Enforce(sub, obj, act) helper that builds an
+// enforcer internally: parsing model + policy per request is pure waste,
+// and its presence invites the next LLM to call it from a handler.
+// Tests build once with NewEnforcer and call e.Enforce directly.
 func EnforceWith(e *casbin.Enforcer, sub, obj, act string) (bool, error) {
 	return e.Enforce(sub, obj, act)
 }

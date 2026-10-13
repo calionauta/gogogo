@@ -14,17 +14,26 @@ import (
 )
 
 func TestSubjectOfPinsRoles(t *testing.T) {
-	if got := subjectOf(nil, nil); got != roleAnonymous {
+	if got := subjectOf(nil, nil); got != RoleAnonymous {
 		t.Errorf("nil session = %q, want anonymous", got)
 	}
-	if got := subjectOf(&auth.ValidatedSession{}, nil); got != roleUser {
+	if got := subjectOf(nil, context.DeadlineExceeded); got != RoleAnonymous {
+		t.Errorf("session error = %q, want anonymous (fail closed)", got)
+	}
+	if got := subjectOf(&auth.ValidatedSession{}, nil); got != RoleUser {
 		t.Errorf("empty role = %q, want user (never escalate, never lock out)", got)
 	}
-	if got := subjectOf(&auth.ValidatedSession{Role: "admin"}, nil); got != roleAdmin {
+	if got := subjectOf(&auth.ValidatedSession{Role: "admin"}, nil); got != RoleAdmin {
 		t.Errorf("admin = %q, want admin", got)
 	}
-	if got := subjectOf(&auth.ValidatedSession{Role: "superuser"}, nil); got != roleUser {
+	if got := subjectOf(&auth.ValidatedSession{Role: "viewer"}, nil); got != RoleViewer {
+		t.Errorf("viewer = %q, want viewer (never flattened to user)", got)
+	}
+	if got := subjectOf(&auth.ValidatedSession{Role: "superuser"}, nil); got != RoleUser {
 		t.Errorf("unknown role = %q, want user (least surprise)", got)
+	}
+	if got := subjectOf(&auth.ValidatedSession{Role: "Admin"}, nil); got != RoleUser {
+		t.Errorf("case-variant role = %q, want user (exact match only)", got)
 	}
 }
 
@@ -112,5 +121,52 @@ func TestMiddlewareEnforcesPinsDecisions(t *testing.T) {
 	}
 	if code := get("/config", "bogus-token"); code != http.StatusForbidden {
 		t.Errorf("bogus session /config = %d, want 403", code)
+	}
+}
+
+// TestMiddlewarePermissivePinsAuditMode pins the rollout posture:
+// permissive=true lets a would-be deny through (for log-driven policy
+// completion), permissive=false denies it. Red-proof: hard-code
+// permissive false in the middleware and the first assertion goes red;
+// hard-code true and the second goes red.
+func TestMiddlewarePermissivePinsAuditMode(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := db.OpenAt(t.TempDir() + "/rbac-permissive.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("enforcer: %v", err)
+	}
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	_, userTok, serr := a.Signup(ctx, "perm@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	drive := func(permissive bool) int {
+		t.Helper()
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config", nil)
+		// #nosec G124 — test-only request cookie; never traverses a network.
+		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
+		rec := httptest.NewRecorder()
+		MiddlewareWithPermissive(a, e, true, permissive)(next).ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := drive(true); code != http.StatusOK {
+		t.Errorf("permissive user /config = %d, want audit-mode 200", code)
+	}
+	if code := drive(false); code != http.StatusForbidden {
+		t.Errorf("enforcing user /config = %d, want 403", code)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/internal/auth"
@@ -156,10 +157,28 @@ func TestRBACPolicyBaseline(t *testing.T) {
 	}
 }
 
+// TestRBACPolicyHasNoDuplicateLines pins the dedupe cleanup: every
+// non-comment policy line must appear once. Duplicates don't change
+// decisions, so no Enforce test can catch them — this text-level test
+// is the only guard. Red-proof: duplicate any p, line and this goes red.
+func TestRBACPolicyHasNoDuplicateLines(t *testing.T) {
+	seen := map[string]int{}
+	for line := range strings.SplitSeq(Policy(), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		seen[line]++
+		if seen[line] > 1 {
+			t.Errorf("duplicate policy line: %q", line)
+		}
+	}
+}
+
 // TestRBACViewerSubject pins the viewer passthrough: the exact string
 // "viewer" resolves to itself (never flattened to user, never
 // escalated), unknown strings still fall back to user, and failures
-// stay anonymous. Red-proof: return roleUser for viewer and the
+// stay anonymous. Red-proof: return RoleUser for viewer and the
 // enforcement test below goes red with it.
 func TestRBACViewerSubject(t *testing.T) {
 	sess := &auth.ValidatedSession{User: &auth.User{ID: "u1", Email: "v@example.com"}, Role: "viewer"}

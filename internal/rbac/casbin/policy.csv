@@ -21,7 +21,6 @@ p, admin, /*, .*
 # This is a STARTING POINT: tune it for your app before enabling RBAC in
 # production (RBAC_ENABLED=true). The admin-only surface is /config (env
 # secrets view); everything else a login can reach, a user can reach.
-p, admin, /*, .*
 p, anonymous, /static/*, (GET|HEAD)
 p, anonymous, /sw.js, GET
 p, anonymous, /health, GET
