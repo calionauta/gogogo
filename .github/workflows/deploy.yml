@@ -100,6 +100,14 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+  # Reconciliation: tag pushes made by release-please (GITHUB_TOKEN) do
+  # not start workflow runs, so the tag-deploy arm below never fires and
+  # the site badge lags the release until a human dispatches. The schedule
+  # closes that gap: every 30 min it compares the running build (the
+  # X-Gogogo-Build header) with master HEAD and deploys only on mismatch.
+  schedule:
+    - cron: "*/30 * * * *"
+
 env:
   APP_NAME: ${{ github.event.repository.name }}
 
@@ -115,9 +123,45 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────
+  # 0. Reconcile: is production behind master HEAD?
+  # ─────────────────────────────────────────────
+  reconcile:
+    runs-on: ubuntu-latest
+    outputs:
+      behind: ${{ steps.check.outputs.behind }}
+    steps:
+      - id: check
+        run: |
+          # Push, tag and manual events always deploy (existing behavior);
+          # only the schedule consults the running build.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "behind=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          HEAD_SHA=$(git ls-remote "https://github.com/${{ github.repository }}.git" refs/heads/master | cut -c1-7)
+          # Badge format X-Gogogo-Build: <version>-<short-sha>, pinned by
+          # assertHealthCarriesBuildTag. Unparseable (site down, format
+          # drift) fails open toward freshness: a needless redeploy is
+          # cheap, a stale site is the bug.
+          BADGE=$(curl -fsSL -D - -o /dev/null https://gogogo.calionauta.com/health 2>/dev/null | tr -d '\r' | grep -i '^x-gogogo-build:' | awk '{print $2}' | rev | cut -d- -f1 | rev || true)
+          if [ -z "$HEAD_SHA" ]; then
+            echo "behind=true" >> "$GITHUB_OUTPUT"
+            echo "ls-remote failed; deploying to be safe"
+            exit 0
+          fi
+          if [ "$BADGE" = "$HEAD_SHA" ]; then
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            echo "production runs $BADGE = master HEAD; nothing to do"
+          else
+            echo "behind=true" >> "$GITHUB_OUTPUT"
+            echo "production runs ${BADGE:-unknown}, master is $HEAD_SHA; deploying"
+          fi
+  # ─────────────────────────────────────────────
   # 1. Build + test on linux/amd64
   # ─────────────────────────────────────────────
   build:
+    needs: reconcile
+    if: needs.reconcile.outputs.behind == 'true'
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
