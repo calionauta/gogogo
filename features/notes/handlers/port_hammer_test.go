@@ -111,6 +111,35 @@ func TestNotesCaretRecipePinsMirrorProps(t *testing.T) {
 	}
 }
 
+// TestNotesCaretsKeyedByTabID pins the same-user caret fix inside
+// static/notes.js: carets and typists are keyed by the server-stamped
+// per-tab id (msg.from) with a fallback to the display name for senders
+// that predate the field, and rendered with the display name as the
+// label. Keying by the display name merged two tabs of one account under
+// a single dot, so the peer's caret jumped lines while they typed.
+// Reverting the JS to name keying (or dropping the fallback) fails this
+// test; the live two-tab behavior is covered by scripts/notes-caret.test.mjs
+// and TestNotesSameUserTwoTabsKeepDistinctCarets (server side).
+func TestNotesCaretsKeyedByTabID(t *testing.T) {
+	raw, err := os.ReadFile("../static/notes.js")
+	if err != nil {
+		t.Fatalf("read notes.js: %v", err)
+	}
+	src := string(raw)
+	for _, want := range []string{
+		"m.from || m.user", // peerID: per-tab id, legacy fallback to name
+		"m.user || m.from", // peerLabel: display name first
+		"carets.set(id,",   // caret dots keyed per tab, not per user
+		"typists.set(id,",  // typing pill keyed per tab, not per user
+		"peerID(m)",        // inbound frames resolve identity via peerID
+		"peerLabel(m)",     // ... and render via peerLabel
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("notes.js missing tab-keyed caret wiring %q", want)
+		}
+	}
+}
+
 // TestNotesIndexLoadsDatastarRuntime pins the live-index wiring: the
 // resync button is a Datastar @get, so the page must load the runtime.
 func TestNotesIndexLoadsDatastarRuntime(t *testing.T) {

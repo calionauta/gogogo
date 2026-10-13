@@ -154,7 +154,9 @@ func (h *Handler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job q
 		signalAiPending:   false,
 	}
 	if err != nil {
-		result[signalSuggestErr] = "AI suggest failed: " + err.Error()
+		// Provider auth failures carry the key↔base mismatch hint
+		// (llm.WithAuthHint), same as the Ask/Chat workers.
+		result[signalSuggestErr] = "AI suggest failed: " + llm.WithAuthHint(err).Error()
 		obsArgs := append(observability.WithComponent("todo", "feature"), "job", job.Type, "error", err)
 		observability.Error(ctx, "todo: suggest job failed", obsArgs...)
 	} else {

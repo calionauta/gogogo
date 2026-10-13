@@ -240,7 +240,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 			h.peerJoin(docID, clientID)
 			joinUser := h.displayName(sess, clientID)
-			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: joinUser, Type: "join"})
+			joinMsg, mErr := json.Marshal(collab.PresenceMsg{Doc: docID, User: joinUser, From: clientID, Type: "join"})
 			if mErr == nil {
 				// Doc-scoped: a join on docA must not recreate rosters on docB.
 				h.hub.BroadcastExceptToDoc(joinMsg, docID, clientID)
@@ -334,7 +334,7 @@ func (h *Handler) applyOps(
 		}
 	}
 	payload, err := json.Marshal(NoteTextEvent{
-		Type: wireNoteText, Doc: docID, From: who, Text: text, Rev: rev,
+		Type: wireNoteText, Doc: docID, From: from, User: who, Text: text, Rev: rev,
 		Caret: caretOrNil(caret),
 	})
 	if err != nil {

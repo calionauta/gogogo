@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/zendev-sh/goai"
@@ -44,6 +45,51 @@ import (
 // without an API key. The HTTP handler should surface this as a
 // user-facing 503 with a clear "configure GOAI_API_KEY" message.
 var ErrNoAPIKey = errors.New("llm: GOAI_API_KEY is not configured")
+
+// AuthHintSuffix is appended to provider authentication failures (401s,
+// "missing authentication" / "invalid key" bodies) so the operator sees
+// the actionable cause instead of the raw provider string. The classic
+// trigger is a split triple: GOAI_API_KEY from one provider sent to
+// another provider's GOAI_BASE_URL (compose `environment` shadowing the
+// secrets file does exactly this — see deploy/docker-compose.prod.yml).
+// It names env vars only, never key material.
+const AuthHintSuffix = " (check that GOAI_API_KEY belongs to GOAI_BASE_URL:" +
+	" a key from one provider sent to another provider's base URL fails auth)"
+
+// IsAuthError reports whether err looks like a provider authentication
+// failure (bad/missing credentials), as opposed to a model, quota, or
+// transport error. Matching is substring-based over the wrapped chain:
+// providers phrase it as 401, "missing authentication", "invalid (api)
+// key", "unauthorized", or "incorrect api key".
+func IsAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	for _, sub := range []string{
+		"401",
+		"missing authentication",
+		"invalid_api_key",
+		"invalid api key",
+		"unauthorized",
+		"incorrect api key",
+	} {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// WithAuthHint returns err unchanged unless it is an authentication
+// failure, in which case it appends AuthHintSuffix. Workers surface the
+// result to the user, so the hint must stay free of key material.
+func WithAuthHint(err error) error {
+	if err == nil || !IsAuthError(err) {
+		return err
+	}
+	return errors.New(err.Error() + AuthHintSuffix)
+}
 
 // DefaultBaseURL is the OpenAI public API. The template ships with
 // OpenAI as a fallback so New() never returns nil; users override

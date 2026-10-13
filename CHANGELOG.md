@@ -217,6 +217,43 @@
   (`writeJSON`/`writeText`/`http.Error` + `StatusInternalServerError` +
   `.Error()`), with fixtures re-pinned and the suite green.
 
+### Fixed
+
+- **Ask AI / Chat 401 "Missing Authentication header" (split LLM triple).**
+  `deploy/docker-compose.prod.yml` set `GOAI_BASE_URL`/`GOAI_MODEL`
+  OpenRouter defaults in `environment`, which always wins over the secrets
+  `env_file` — so the Groq `GOAI_API_KEY` from the rendered secrets file
+  was sent to OpenRouter, and every Ask/Chat failed with OpenRouter's 401
+  (verified live: any `gsk_` key gets exactly that body). The compose file
+  no longer sets either var: the whole triple comes from the secrets file
+  the deploy workflow renders (GH secrets + vars), and its comment pins
+  the invariant. Provider auth failures in all three LLM workers (Ask,
+  Chat, Suggest) now append a key↔base mismatch hint via
+  `llm.WithAuthHint` instead of surfacing the raw provider string.
+  Red-proofed per path: `TestAuthHint` (unit), `TestHandlersGenuiAskAppendsAuthHint`,
+  `TestWorkerAppendsAuthHintOnProviderAuthFailure` (chat),
+  `TestHandlersSuggestAppendsAuthHint` (suggest), and
+  `TestDeployComposeKeepsLLMTripleInSecretsFile` (compose invariant) —
+  each verified to fail on the reverted production code.
+- **Collab notes caret jumps with same user in two tabs.** Presence and
+  op events keyed peers by display name (`User` = authed email), so two
+  tabs of one account shared a single caret entry and each tab's
+  heartbeat/caret overwrote the other's — the peer's dot changed position
+  and line while they typed, with the other user idle. Different users
+  never collided (distinct emails). The server now stamps the per-tab
+  `clientID` as `PresenceMsg.From` / `NoteTextEvent.From` (plus a display
+  `User`), and `notes.js` keys carets/typists by that id while rendering
+  the display name. Same-user tabs track independently. Whiteboard
+  cursors/drafts had the identical flaw and got the same split (key by
+  `from`, color/label by `user`). Red-proofed end to end:
+  `TestNotesSameUserTwoTabsKeepDistinctCarets` + join/leave `from`
+  asserts (fail without the server stamping), `TestPresenceMsg_FromRoundTrip`
+  (fails without the `From` field), `TestNotesCaretsKeyedByTabID` /
+  `TestWhiteboardCursorsKeyedByTabID` static JS contracts (fail on
+  name-keyed JS), the `notes-caret` / `whiteboard-client` same-user
+  browser sections (two dots on the peer), and
+  `TestWhiteboard_PresenceBroadcast`'s `from` assert.
+
 ### Added
 
 - **Flat data layer (`internal/db`).** Turso Database over the `tursogo`

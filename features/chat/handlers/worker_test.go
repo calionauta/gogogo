@@ -160,3 +160,35 @@ func TestWorkerReleasesThinkingOnModelDown(t *testing.T) {
 		t.Fatal("no error envelope arrived on hub channel")
 	}
 }
+
+// TestWorkerAppendsAuthHintOnProviderAuthFailure is the red-proof for the
+// split-triple outage on the chat path: a provider 401 must reach the tab
+// WITH the key↔base mismatch hint. Reverting the worker to err.Error()
+// drops the hint and fails this test.
+func TestWorkerAppendsAuthHintOnProviderAuthFailure(t *testing.T) {
+	t.Parallel()
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+	mem := newMemStore()
+
+	const providerErr = `llm: generate: 401 {"error":{"message":"Missing Authentication header","code":401}}`
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{err: errors.New(providerErr)}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "x", "userId": "u1", "idem": "k10"})
+	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
+
+	_ = h.handleChatJob(context.Background(), hub, job)
+	select {
+	case raw := <-ch:
+		got := string(raw)
+		if !strings.Contains(got, "Missing Authentication header") {
+			t.Fatalf("provider message lost from chat error, got: %s", got)
+		}
+		if !strings.Contains(got, "GOAI_API_KEY") || !strings.Contains(got, "GOAI_BASE_URL") {
+			t.Fatalf("chat auth failure missing the key↔base hint, got: %s", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no error envelope arrived on hub channel")
+	}
+}

@@ -11,6 +11,7 @@ import (
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -44,11 +45,13 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		// message. Replacing it with a fixed "model unavailable" hid the only
 		// actionable part, so a missing key and a dead provider looked
 		// identical. err.Error() carries no credentials; the same value is
-		// already logged and already sent by the chat slice.
-		msg := "Ask failed: " + err.Error()
+		// already logged and already sent by the chat slice. Provider auth
+		// failures get the key↔base mismatch hint (llm.WithAuthHint).
+		msg := "Ask failed: " + llm.WithAuthHint(err).Error()
 		h.sendResult(ctx, target, job.ClientID, nil, msg)
 		h.sendToast(ctx, target, job.ClientID, msg, "error")
-		//nolint:nilerr // delivered as user-visible result; pool must not retry Ask.
+		// Delivered as user-visible result; the pool must not retry Ask,
+		// so the worker swallows the error and returns nil.
 		return nil
 	}
 	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.

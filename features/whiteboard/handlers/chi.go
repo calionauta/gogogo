@@ -319,6 +319,9 @@ func (h *Handler) handlePresence(w http.ResponseWriter, r *http.Request) {
 	}
 	msg.Doc = docID
 	msg.User = collab.DisplayName(email, from)
+	// Per-tab sender id (see PresenceMsg.From): cursor/draft frames from
+	// two tabs of the same user must not share one client-side key.
+	msg.From = from
 	msg.TS = time.Now().UnixMilli()
 	data, mErr := json.Marshal(msg)
 	if mErr != nil {

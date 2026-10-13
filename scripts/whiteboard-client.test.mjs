@@ -802,6 +802,51 @@ async function main() {
   }
   await ngB.mouse.up();
 
+  // ---------------------------------------------------------------------------
+  // 10. Same user, two tabs: the peer must see TWO cursor dots, not one.
+  //
+  // WHY THIS EXISTS: cursor/draft frames carry the display name (email),
+  // identical for two tabs of one account (every page in this file shares
+  // one cookie). Keying cursors by that name merged both tabs under a
+  // single dot — and a single cts stream, so two clocks took turns failing
+  // each other's staleness guard. The fix keys by the server-stamped
+  // per-tab id (msg.from) and renders the name as the label.
+  //
+  // RED-PROOFED: with name keying, the second tab's cursor overwrites the
+  // first under one key and the observer never counts 2 badges, so the
+  // wait below times out and fails.
+  // ---------------------------------------------------------------------------
+  const doc10 = "wb-sameuser-" + process.pid;
+  const obA = await makeCtx("O-A");
+  const mvB = await makeCtx("O-B");
+  const mvC = await makeCtx("O-C");
+
+  await gotoBoard(obA, `${BASE}/whiteboard/${doc10}?clientID=wb-same-a`);
+  await gotoBoard(mvB, `${BASE}/whiteboard/${doc10}?clientID=wb-same-b`);
+  await gotoBoard(mvC, `${BASE}/whiteboard/${doc10}?clientID=wb-same-c`);
+  await waitForCanvas(obA);
+  await waitForCanvas(mvB);
+  await waitForCanvas(mvC);
+
+  const boxB = await mvB.locator("#wb-canvas").boundingBox();
+  const boxC = await mvC.locator("#wb-canvas").boundingBox();
+  await mvB.mouse.move(boxB.x + boxB.width * 0.2, boxB.y + boxB.height * 0.3);
+  await mvC.mouse.move(boxC.x + boxC.width * 0.7, boxC.y + boxC.height * 0.7);
+  // Both movers share one account (one badge label); the observer must
+  // still render one dot per TAB.
+  let sameUserBadges = 0;
+  try {
+    await obA.waitForFunction((who) => [...document.querySelectorAll("#cursors > div")]
+      .filter((d) => (d.querySelector(".badge")?.textContent || "") === who).length === 2,
+      USER_EMAIL, { timeout: 15000 });
+    sameUserBadges = 2;
+  } catch {
+    sameUserBadges = await obA.evaluate((who) => [...document.querySelectorAll("#cursors > div")]
+      .filter((d) => (d.querySelector(".badge")?.textContent || "") === who).length, USER_EMAIL);
+    bad(`same-user tabs merged into ${sameUserBadges} cursor dot(s), want 2`);
+  }
+  if (sameUserBadges === 2) ok("same-user tabs render as two cursor dots on the peer");
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {
