@@ -92,6 +92,13 @@ Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
 
+`ci-local-fast` carries its own guards: a `--fast` capacity pre-flight
+(lighter floors — 3 GB RAM, 2 cores, 1.5 load/core, 1 GB disk) refuses a
+wedged box before scoped race starts, and past 8 changed packages
+(`FAST_MAX_PARALLEL_PKGS`) the race run degrades to serial (`-p 1`) to
+bound shared-host load. Refused means the same as T4: scope to one
+package by hand, or let the PR's CI be the gate.
+
 ### Where T4 may run (host-capacity pre-flight)
 
 - **`make ci-local` refuses first on a box that cannot carry it.**

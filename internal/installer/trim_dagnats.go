@@ -89,8 +89,9 @@ var dagNatsTrimUnit = []trimUnit{
 						// Re-inserted just below the shutdown-hook declaration, which is
 						// what it appends to. NOT bootRoomActor: the goakt trim removes
 						// that, so anchoring there loses the spot on exactly the trees
-						// that need `add dagnats` to work.
-						addAfter: "\tvar shutdown []func()",
+						// that need `add dagnats` to work. The declaration is the
+						// single-hub line (not the old `var shutdown []func()`).
+						addAfter: "\tshutdown := []func(){chiQ.Close}",
 						alsoDeleteContains: []string{
 							"// Onboarding wires before the actor boot",
 						},

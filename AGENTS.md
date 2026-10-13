@@ -122,3 +122,10 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
   Use `make lint-safe` / `bash scripts/lint-safe.sh` (scopes to changed packages
   when RAM is tight, caps the run in a cgroup); otherwise `golangci-lint run <changed-pkgs>`.
 - NEVER `golangci-lint cache clean` — the cache is what keeps a run cheap.
+- NEVER full-suite `go test ./...` / `scripts/test-web.sh` / `make ci-local` on
+  this host — same wedge, plus co-tenant agents share these cores (a second
+  full run pushed this box to load 19). `make ci-local` refuses by itself via
+  `check-host-capacity`; do not bypass with `CI_LOCAL_FORCE=1` here. Use
+  scoped `go test <pkg>` or `make ci-local-fast` (carries its own
+  `--fast` pre-flight + serial degrade past 8 changed packages) and let the
+  PR's CI be the full gate.

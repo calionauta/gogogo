@@ -28,15 +28,35 @@
 # Overrides:
 #   CI_LOCAL_FORCE=1   run anyway (prints the failed dimensions first).
 #
-# Usage: bash scripts/check-host-capacity.sh
+# Usage: bash scripts/check-host-capacity.sh [--fast]
 #   Exit 0: the box can carry T4. Exit 1: it cannot — run
 #   `make ci-local-fast` locally and let the PR's CI be the full gate.
+#
+#   --fast checks the lighter ci-local-fast budget instead (scoped lint +
+#   race on changed packages only, no browsers): lower floors, same
+#   contract. ci-local-fast runs this first so a wedged box degrades to
+#   single-package runs instead of wedging further.
 set -euo pipefail
 
 MIN_RAM_MB=${CI_LOCAL_MIN_RAM_MB:-6144}
 MIN_CORES=${CI_LOCAL_MIN_CORES:-4}
 MAX_LOAD_PER_CORE=${CI_LOCAL_MAX_LOAD_PER_CORE:-0.75}
 MIN_DISK_MB=${CI_LOCAL_MIN_DISK_MB:-2048}
+
+if [ "${1:-}" = "--fast" ]; then
+	# Fast-gate budget: no full lint peak, no Chromium, only the changed
+	# packages under race. Still refuses a box that is out of RAM,
+	# saturated, or nearly full — on those, even scoped race wedges.
+	MIN_RAM_MB=${CI_LOCAL_FAST_MIN_RAM_MB:-3072}
+	MIN_CORES=${CI_LOCAL_FAST_MIN_CORES:-2}
+	MAX_LOAD_PER_CORE=${CI_LOCAL_FAST_MAX_LOAD_PER_CORE:-1.5}
+	MIN_DISK_MB=${CI_LOCAL_FAST_MIN_DISK_MB:-1024}
+	GATE_NAME="make ci-local-fast (T3.5)"
+	FALLBACK_MSG="run single-package scopes (go test <pkg>) when the load settles,"
+else
+	GATE_NAME="make ci-local (T4)"
+	FALLBACK_MSG="run 'make ci-local-fast' locally"
+fi
 
 # --- capability probe: measured, never assumed -------------------------------
 mem_total_mb=0
@@ -61,7 +81,7 @@ disk_avail_mb=$(df -m . | awk 'NR==2{print $4}')
 
 fail=0
 
-echo "host capacity for make ci-local (T4): ${cores} cores, ${mem_avail_mb} MB avail / ${mem_total_mb} MB total, load5 ${load5}, disk ${disk_avail_mb} MB free"
+echo "host capacity for ${GATE_NAME}: ${cores} cores, ${mem_avail_mb} MB avail / ${mem_total_mb} MB total, load5 ${load5}, disk ${disk_avail_mb} MB free"
 
 if [ "$mem_avail_mb" -lt "$MIN_RAM_MB" ]; then
   echo "  ❌ RAM: ${mem_avail_mb} MB available < ${MIN_RAM_MB} MB required"
@@ -81,7 +101,7 @@ fi
 load_per_core_x100=$(awk -v l="$load5" -v c="$cores" 'BEGIN{printf "%d", (l/c)*100}')
 max_x100=$(awk -v m="$MAX_LOAD_PER_CORE" 'BEGIN{printf "%d", m*100}')
 if [ "$load_per_core_x100" -gt "$max_x100" ]; then
-  echo "  ❌ load: 5-min avg per core ${load5}/${cores} > ${MAX_LOAD_PER_CORE} — box already saturated, T4 would wedge it"
+  echo "  ❌ load: 5-min avg per core ${load5}/${cores} > ${MAX_LOAD_PER_CORE} — box already saturated, ${GATE_NAME} would wedge it"
   fail=1
 else
   echo "  ✓ load: 5-min avg per core ${load5}/${cores} (<= ${MAX_LOAD_PER_CORE})"
@@ -96,15 +116,15 @@ fi
 
 if [ "$fail" -ne 0 ]; then
   if [ "${CI_LOCAL_FORCE:-0}" = "1" ]; then
-    echo "⚠️  CI_LOCAL_FORCE=1: running T4 on an undersized box anyway (expect swap/CPU wedge)"
+    echo "⚠️  CI_LOCAL_FORCE=1: running ${GATE_NAME} on an undersized box anyway (expect swap/CPU wedge)"
     exit 0
   fi
   echo ""
-  echo "✗ this box cannot carry make ci-local: run 'make ci-local-fast' locally"
+  echo "✗ this box cannot carry ${GATE_NAME}: ${FALLBACK_MSG}"
   echo "  and let the PR's CI be the full gate. Override with CI_LOCAL_FORCE=1"
   echo "  (thresholds: CI_LOCAL_MIN_RAM_MB / CI_LOCAL_MIN_CORES /"
   echo "  CI_LOCAL_MAX_LOAD_PER_CORE / CI_LOCAL_MIN_DISK_MB)."
   exit 1
 fi
 
-echo "✅ host can carry make ci-local"
+echo "✅ host can carry ${GATE_NAME}"
