@@ -88,3 +88,17 @@ point `GOAI_BASE_URL` at the local gateway endpoint *underneath*
 call) never moves. Our traces correlate with its spans via shared OTel
 plus the `traceparent` / `x-request-id` protocol — no code needed on
 either side until then.
+
+Measured 2026-10-13 (`core` v1.12.0, scratch probe, same method as the
+Genkit probe): `bifrost.Init` + `Shutdown` clean, `CGO_ENABLED=0` builds,
+OpenRouter is a first-class provider, MCP connects in-process via
+`MCPConfig`, the logging plugin is opt-in (no plugin = zero writes, so
+zero-artifact holds by default). Weight: 140 modules in the graph,
+~+32MB dev / ~+24MB stripped — 2x the Genkit delta, carrying AWS + Azure
+SDKs, gRPC, sonic, fasthttp and mcp-go even when only OpenRouter is
+used. If adopted, it sits *under* `llm.Client` as smart transport (one
+retry layer only: Bifrost's, with `attempt_trail` — goai's native retry
+switches off on that path), never beside it; its virtual-key budgets
+stay off (ai-credits owns budgets — two ledgers is a design bug). Do
+not confuse with the host's `bifrost-stdio` service (BB's MCP gateway —
+a different project sharing the name).
