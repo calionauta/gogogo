@@ -14,9 +14,64 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+// tailBuffer keeps the last max bytes written across both child streams
+// (os/exec may write stdout/stderr concurrently, hence the mutex). Boot
+// logs are verbose; the failure message only needs the tail.
+type tailBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+	max int
+}
+
+func newTailBuffer(max int) *tailBuffer { return &tailBuffer{max: max} }
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(p) >= b.max {
+		p = p[len(p)-b.max:]
+		b.buf.Reset()
+	} else if over := b.buf.Len() + len(p) - b.max; over > 0 {
+		b.buf.Next(over)
+	}
+	return b.buf.Write(p)
+}
+
+func (b *tailBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// TestTailBufferKeepsSuffix pins the diagnostic contract: unbounded
+// writes never grow memory, and what survives is the tail (where boot
+// failures log). Red-proof: return the head instead and the suffix
+// assertion goes red.
+func TestTailBufferKeepsSuffix(t *testing.T) {
+	b := newTailBuffer(8)
+	if _, err := b.Write([]byte("hello world, this is long")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if got := b.String(); got != " is long" {
+		t.Errorf("tail = %q, want suffix %q", got, " is long")
+	}
+	// Incremental writes evict the oldest bytes, keeping the tail: the
+	// boot-failure evidence is whatever the child wrote last.
+	if _, err := b.Write([]byte("!!!")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if got := b.String(); got != " long!!!" {
+		t.Errorf("tail after append = %q, want %q", got, " long!!!")
+	}
+	if got, want := b.buf.Len(), 8; got != want {
+		t.Errorf("buffered = %d bytes, want capped at %d", got, want)
+	}
+}
 
 // freeTCPPortForTest reserves an ephemeral TCP port and releases it, returning
 // the number for the child binary to bind. There is a small window between the
@@ -113,8 +168,14 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	// are gone): the listen address and data dir ride env vars, same as
 	// production.
 	cmd := exec.CommandContext(ctx, binPath)
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
+	// The child streams boot logs for up to two minutes — unbounded
+	// capture would hold it all, and io.Discard (the old shape) left the
+	// "binary never became healthy" failure with zero diagnostics (a real
+	// CI mystery on a loaded runner). tailBuffer keeps the last 32KB from
+	// both streams for the failure message below.
+	childLog := newTailBuffer(32 << 10)
+	cmd.Stdout = childLog
+	cmd.Stderr = childLog
 	// DATA_DIR/DATABASE_PATH must be absolute and inside the temp dir. The
 	// binary's defaults are relative (data/data.db, data/), so without these
 	// the goqite queue fails with "unable to open database file: lstat data:
@@ -159,7 +220,7 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	base := fmt.Sprintf("http://127.0.0.1:%d", port)
 
 	if err := waitForHealthy(ctx, base); err != nil {
-		t.Fatalf("binary never became healthy: %v", err)
+		t.Fatalf("binary never became healthy: %v\n--- child output (tail) ---\n%s", err, childLog.String())
 	}
 	assertHealthCarriesBuildTag(ctx, t, base)
 
