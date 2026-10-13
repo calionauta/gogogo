@@ -18,11 +18,11 @@ Owner resolution has three choke points; everything else funnels through them:
    cookie clear) and `Session` (resolve-or-redirect). Public endpoints
    simply do not mount it; nothing else changes.
 2. Per-feature owner helpers — `ownerSession` in
-   `features/todo/chi/chi.go` (the reference shape), plus session reads in
-   `features/notes/chi/chi.go`, `features/whiteboard/chi/chi.go`,
-   `features/chat/chi/chi.go`, `features/genui/chi/chi.go`,
-   `features/room/chi/chi.go`, `features/landing/chi/chi.go`,
-   `features/config/chi/chi.go`, `features/credits/chi/chi.go`,
+   `features/todo/handlers/chi.go` (the reference shape), plus session reads in
+   `features/notes/handlers/chi.go`, `features/whiteboard/handlers/chi.go`,
+   `features/chat/handlers/chi.go`, `features/genui/handlers/chi.go`,
+   `features/room/handlers/chi.go`, `features/landing/handlers/chi.go`,
+   `features/config/handlers/chi.go`, `features/credits/handlers/chi.go`,
    `features/onboarding/onboarding.go`. Fourteen call sites total —
    replace each with a fixed owner constant (e.g. `"public"`) seeded once.
 3. `internal/demo/` — the fresh-install demo account. Delete the call in
@@ -40,9 +40,9 @@ TestApiRoutesDocFresh -update`.
 ## B. No-Turso (keep auth, swap the driver)
 
 `internal/db/` is the only data layer: `db.Open` + migrations +
-`dbgen.*` callsites in six feature files (`features/todo/chi/chi.go`,
-`mutations.go`, `pages.go`, `bridge.go`, `features/notes/chi/chi.go`,
-`features/whiteboard/chi/chi.go`). Replacing Turso means re-pointing
+`dbgen.*` callsites in six feature files (`features/todo/handlers/chi.go`,
+`mutations.go`, `pages.go`, `bridge.go`, `features/notes/handlers/chi.go`,
+`features/whiteboard/handlers/chi.go`). Replacing Turso means re-pointing
 those callsites at your driver — there is no strategy switch by design
 (handlers call `dbgen.*` directly; one data layer, no abstraction tax).
 The local-file default (`TURSO_DB_PATH`, embedded, zero-ops) is already

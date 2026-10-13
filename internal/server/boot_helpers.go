@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo/config"
-	chifeatures "github.com/calionauta/gogogo/features/todo/chi"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -51,7 +51,7 @@ func applyRBAC(a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *ht
 // The clients are both consumed here (todo wiring, always compiled) and
 // returned for the chat/genui constructions in BootChi (dropped by the
 // genui trim): either side alone keeps the composition green.
-func wireTodoLLM(todoH *chifeatures.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
+func wireTodoLLM(todoH *todohandlers.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
 	real = llm.New(cfg.GoAI.APIKey)
 	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
 		simulated = llm.NewSimulated()

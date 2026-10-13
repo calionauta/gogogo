@@ -244,7 +244,7 @@ func TestAddManualWiringPinsReversibility(t *testing.T) {
 	// place (the proof failure that motivated the gate).
 	found := false
 	for _, line := range addManualWiring(findUnit(t, unitLanding)) {
-		if strings.Contains(line, "landingchi.NewHandler(cfg, a),") {
+		if strings.Contains(line, "landinghandlers.NewHandler(cfg, a),") {
 			found = true
 		}
 	}

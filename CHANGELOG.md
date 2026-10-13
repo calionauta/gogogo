@@ -78,6 +78,12 @@
   embedded model + policy in `internal/rbac/casbin`.
 - **No “POC” language.** The native-window target, docs, CI job, and scripts no
   longer describe anything as a proof-of-concept.
+- **Feature slices renamed `chi` → `handlers`.** `features/*/chi`
+  (`package chi`) is now `features/*/handlers` (`package handlers`): inside
+  those files `chi.Router` always meant go-chi while the package itself was
+  also `chi`, forcing meaningless import aliases (`todochi`, `wbchi`, …).
+  Importers now use `todohandlers`, `noteshandlers`, etc. No behavior change
+  (pure rename: 52 files moved, import/alias/SCOPE/doc updates only).
 - **SCOPE linter exempts generated files.** `make check-scope` now skips any
   file carrying Go's standard `// Code generated … DO NOT EDIT.` marker, so
   regenerating `sqlcgen` (or any future generator output) never needs a

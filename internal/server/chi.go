@@ -23,21 +23,21 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/config"
-	chatchi "github.com/calionauta/gogogo/features/chat/chi"
+	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	configchi "github.com/calionauta/gogogo/features/config/chi"
+	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	"github.com/calionauta/gogogo/features/credits"
-	creditschi "github.com/calionauta/gogogo/features/credits/chi"
-	genuichi "github.com/calionauta/gogogo/features/genui/chi"
+	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
 	comp "github.com/calionauta/gogogo/features/genui/components"
-	landingchi "github.com/calionauta/gogogo/features/landing/chi"
+	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
+	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
-	notesachi "github.com/calionauta/gogogo/features/notes/chi"
+	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
-	roomchi "github.com/calionauta/gogogo/features/room/chi"
-	"github.com/calionauta/gogogo/features/todo/chi"
+	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/features/whiteboard"
-	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
+	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -75,7 +75,7 @@ type ChiStack struct {
 	// TodoHandler is the todo slice handle engines wire against: the
 	// DagNats onboarding worker creates example todos through it, so
 	// cmd/web passes this to startDagNats before NATS exists.
-	TodoHandler *chi.Handler
+	TodoHandler *todohandlers.Handler
 }
 
 // startCrudConsumer runs the JetStream CRUD consumer for cross-instance
@@ -87,7 +87,7 @@ func startCrudConsumer(
 	q *dbgen.Queries, hub *queue.SSEHub,
 ) {
 	go func() {
-		if cerr := chi.RunCrudConsumer(ctx, js, appName, q, hub); cerr != nil {
+		if cerr := todohandlers.RunCrudConsumer(ctx, js, appName, q, hub); cerr != nil {
 			slog.Error("server: chi crud consumer stopped", "error", cerr)
 		}
 	}()
@@ -102,7 +102,7 @@ func startCrudConsumer(
 // contextcheck rule wants, and it keeps the hook's lifetime independent).
 func bootRoomActor(
 	ctx context.Context, cfg *config.Config, a *auth.Auth,
-) (*roomchi.Handler, *appgoakt.Host) {
+) (*roomhandlers.Handler, *appgoakt.Host) {
 	if !cfg.GoAkt.Enabled {
 		return nil, nil
 	}
@@ -112,7 +112,7 @@ func bootRoomActor(
 		return nil, nil
 	}
 	appgoakt.SetDefault(host)
-	return roomchi.NewHandler(cfg, a, host), host
+	return roomhandlers.NewHandler(cfg, a, host), host
 }
 
 // stopRoomActor is the shutdown hook for the GoAkt host. Its timeout
@@ -132,7 +132,7 @@ func stopRoomActor(host *appgoakt.Host) {
 // boot never registers the route and the resume hook stays off. Split from
 // BootChi to keep boot under the length gate, mirroring bootCredits.
 func bootOnboarding(
-	cfg *config.Config, a *auth.Auth, todoH *chi.Handler, hub *queue.SSEHub,
+	cfg *config.Config, a *auth.Auth, todoH *todohandlers.Handler, hub *queue.SSEHub,
 ) (*onboarding.Handler, []func()) {
 	if !cfg.DagNats.Enabled {
 		return nil, nil
@@ -149,8 +149,8 @@ func bootOnboarding(
 func bootCredits(
 	ctx context.Context, cfg *config.Config, shutdown []func(),
 	sqlDB *sql.DB, cancelConsumer context.CancelFunc, a *auth.Auth,
-) (*creditschi.Handler, []func(), error) {
-	ledgerDB, lerr := creditschi.OpenTursoLedger(cfg.DataDir)
+) (*creditshandlers.Handler, []func(), error) {
+	ledgerDB, lerr := creditshandlers.OpenTursoLedger(cfg.DataDir)
 	if lerr != nil {
 		cancelConsumer()
 		_ = sqlDB.Close()
@@ -166,10 +166,10 @@ func bootCredits(
 		return nil, shutdown, fmt.Errorf("server: chi credits: %w", cerr)
 	}
 	if creditsSvc == nil {
-		return creditschi.NewHandler(a, nil), shutdown, nil
+		return creditshandlers.NewHandler(a, nil), shutdown, nil
 	}
 	creditsSvc.Start(ctx)
-	return creditschi.NewHandler(a, creditsSvc), shutdown, nil
+	return creditshandlers.NewHandler(a, creditsSvc), shutdown, nil
 }
 
 // BootChi boots the flat stack without listening and without JetStream:
@@ -211,7 +211,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 
 	hub := queue.NewSSEHub()
 	queries := dbgen.New(sqlDB)
-	todoH := chi.NewHandler(queries, a, hub, cfg.Skin)
+	todoH := todohandlers.NewHandler(queries, a, hub, cfg.Skin)
 	wireTodoDisplay(todoH, cfg)
 
 	// Shutdown hooks stop independent things: stepper, actor, queue,
@@ -243,10 +243,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// would not compile on trimmed trees. Same rule as the bootCtx retain.
 	_ = realLLM
 	_ = simulatedLLM
-	chatH := chatchi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
-		chatstore.NewMemStore(), chatchi.ResponderFromLLM(realLLM, simulatedLLM))
+	chatH := chathandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
+		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))
 	chatH.RegisterHandlers(chiQ.Registry())
-	genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
+	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
 		comp.NewResponder(realLLM, simulatedLLM))
 	genuiH.RegisterHandlers(chiQ.Registry())
 	chiQ.StartWorkers()
@@ -269,10 +269,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// neighbours. A shared line would make a line drop take two features at
 	// once (and the add path restores these same lines — see routerCallLines).
 	mux := buildChiMux(a, todoH,
-		landingchi.NewHandler(cfg, a),
-		configchi.NewHandler(cfg, a),
-		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
-		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
+		landinghandlers.NewHandler(cfg, a),
+		confighandlers.NewHandler(cfg, a),
+		wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),
+		noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),
 		roomH,
 		chatH,
 		genuiH,
@@ -381,7 +381,7 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, stack *ChiStack) func
 // version badge, offline label and realtime label. Extracted from BootChi
 // to keep boot under the function-length gate; it is plain assignment with
 // no control flow of its own.
-func wireTodoDisplay(todoH *chi.Handler, cfg *config.Config) {
+func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
 	todoH.BuildLabel = cfg.BuildLabel
 	todoH.BuildCommit = cfg.BuildCommit
 	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
@@ -406,15 +406,15 @@ func mountOnboarding(mux *http.ServeMux, onboardingH *onboarding.Handler) {
 // the composition in BootChi, so adding or removing an optional surface
 // never changes this signature (see the mount block there).
 func buildChiMux(
-	a *auth.Auth, todoH *chi.Handler,
-	landingH *landingchi.Handler,
-	configH *configchi.Handler,
-	wbH *wbchi.Handler,
-	notesH *notesachi.Handler,
-	roomH *roomchi.Handler,
-	chatH *chatchi.Handler,
-	genuiH *genuichi.Handler,
-	creditsH *creditschi.Handler,
+	a *auth.Auth, todoH *todohandlers.Handler,
+	landingH *landinghandlers.Handler,
+	configH *confighandlers.Handler,
+	wbH *wbhandlers.Handler,
+	notesH *noteshandlers.Handler,
+	roomH *roomhandlers.Handler,
+	chatH *chathandlers.Handler,
+	genuiH *genuihandlers.Handler,
+	creditsH *creditshandlers.Handler,
 ) *http.ServeMux {
 	// Every sub-router serves absolute paths (the auth handler carries
 	// its /api/auth base path; chi routers match full paths too), and

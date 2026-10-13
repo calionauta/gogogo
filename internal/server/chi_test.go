@@ -13,16 +13,16 @@ import (
 	"testing"
 
 	"github.com/calionauta/gogogo/config"
-	chatchi "github.com/calionauta/gogogo/features/chat/chi"
+	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
-	configchi "github.com/calionauta/gogogo/features/config/chi"
-	creditschi "github.com/calionauta/gogogo/features/credits/chi"
-	genuichi "github.com/calionauta/gogogo/features/genui/chi"
-	landingchi "github.com/calionauta/gogogo/features/landing/chi"
-	notesachi "github.com/calionauta/gogogo/features/notes/chi"
-	roomchi "github.com/calionauta/gogogo/features/room/chi"
-	todochi "github.com/calionauta/gogogo/features/todo/chi"
-	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
+	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
+	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
+	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
+	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
+	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
+	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
+	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
+	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/collab"
 	"github.com/calionauta/gogogo/internal/db"
@@ -225,15 +225,15 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
-	mux := buildChiMux(a, todochi.NewHandler(q, a, hub, "daisyui"),
-		landingchi.NewHandler(cfg, a),
-		configchi.NewHandler(cfg, a),
-		wbchi.NewHandler(q, a, hub, persister, docs, cfg),
-		notesachi.NewHandler(q, a, hub, persister, docs, cfg),
+	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub, "daisyui"),
+		landinghandlers.NewHandler(cfg, a),
+		confighandlers.NewHandler(cfg, a),
+		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
+		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		nil, // roomHandler: engine disabled
-		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
-		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
-		creditschi.NewHandler(a, nil))
+		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
+		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		creditshandlers.NewHandler(a, nil))
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/room", nil))
@@ -255,7 +255,7 @@ func TestBuildChiMux(t *testing.T) {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	todoH := todochi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), "daisyui")
+	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), "daisyui")
 	cfg := config.Load()
 	// Retained: combined trims (landing, config, room, chat, genui) drop
 	// every cfg consumer below, which would not compile. Same rule as the
@@ -268,14 +268,14 @@ func TestBuildChiMux(t *testing.T) {
 	docs := collab.NewDocStore()
 
 	mux := buildChiMux(a, todoH,
-		landingchi.NewHandler(cfg, a),
-		configchi.NewHandler(cfg, a),
-		wbchi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		notesachi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		roomchi.NewHandler(cfg, a, fakeRooms{}),
-		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
-		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
-		creditschi.NewHandler(a, nil))
+		landinghandlers.NewHandler(cfg, a),
+		confighandlers.NewHandler(cfg, a),
+		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
+		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
+		roomhandlers.NewHandler(cfg, a, fakeRooms{}),
+		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
+		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		creditshandlers.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost, "/api/auth/signup/credential", strings.NewReader(body))

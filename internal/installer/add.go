@@ -18,8 +18,8 @@ import (
 
 // Shared file paths for add/trim mechanics (goconst-quiet, single spelling).
 const (
-	todoGoFile   = "features/todo/chi/pages.go"
-	todoRepoFile = "features/todo/chi/chi.go"
+	todoGoFile   = "features/todo/handlers/pages.go"
+	todoRepoFile = "features/todo/handlers/chi.go"
 	dirMode      = 0o755
 )
 

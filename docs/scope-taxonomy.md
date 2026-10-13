@@ -88,7 +88,7 @@ the field or a `.templ` reader goes missing.
 | `internal/queue/` | 🔴 CORE | Never — goqite + SSE Hub + workers + retry |
 | `internal/datastar/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/nats/` | 🟡 PLUGIN | Delete + wiring call (or `NATS_ENABLED=false`) |
-| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/chi/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
+| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/handlers/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
 | `internal/llm/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/components/` | 🟡 PLUGIN | Shared UI helpers (Toast + OfflineBanner) |

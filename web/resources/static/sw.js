@@ -13,7 +13,7 @@
 //
 // Idempotency: the UI generates a fresh UUID per click and sends it
 // as the `idem_key` form field on every create POST. The SW forwards
-// the form body verbatim on replay. The server (features/todo/chi
+// the form body verbatim on replay. The server (features/todo/handlers
 // mutations) looks up the todo by (owner, idem_key) and returns the
 // original instead of creating a duplicate; the (owner, idem_key)
 // unique index in internal/db/migrations backs the dedup at the DB
