@@ -310,6 +310,16 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.44.5 (2026-10-13)
+
+## What's Changed
+* fix(hooks): registry conformance runs pre-commit, not just CI by @calionauta in https://github.com/calionauta/gogogo/pull/121
+* fix(llm+collab): reunite split LLM triple, per-tab peer identity by @calionauta in https://github.com/calionauta/gogogo/pull/123
+* Review loop, RBAC viewer demo, console proxy, topbar fixes by @calionauta in https://github.com/calionauta/gogogo/pull/124
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.4...v0.44.5
+
 ## 0.44.4 (2026-10-13)
 
 ## What's Changed
