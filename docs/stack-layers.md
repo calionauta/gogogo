@@ -15,6 +15,8 @@ explains **why each choice is here**; for the layered async topology see
 | **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
 | **Durable workflows** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step durable workflows as declarative JSON over NATS JetStream |
 | **LLM SDK** | [GoAI](https://github.com/zendev-sh/goai) | Any provider: OpenAI, Anthropic, Groq, Ollama…; provider-aware retry and streaming |
+| **Typed AI flows** | [Genkit](https://genkit.dev) (Go, zero provider plugins) | Flows wrap model calls with validated schemas, streaming, OTel traces and a Dev UI — generation reaches providers only through the injectable LLM client, so the billing choke point holds |
+| **Classifier judge** | [go-jev](https://github.com/mattn/go-jev) + any Jev-compatible API | Decisions as typed choices with confidence instead of prose verdicts; orders of magnitude cheaper than a generative judge, most accurate on prose |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | Optional SQLite ledger: managed LLM reserve/settle billing, monthly entitlements, Stripe top-ups, encrypted per-user BYOK relay metering |
 | **Real-time** | [NATS JetStream](https://nats.io) | Multi-user realtime, cross-instance broadcast |
 | **Collaboration (CRDT)** | [loro-go](https://github.com/aholstenson/loro-go) | Conflict-free merging of whiteboard/notes state; converges offline edits with no last-write-wins data loss |
@@ -190,6 +192,37 @@ one SDK per vendor (a dependency each, untestable without network). Cost:
 the wrapper lags newest provider features and adds its own surface to
 learn. Revisit per provider when it blocks a capability you actually call.
 
+### Genkit (and not zenflow, and not raw goai calls)?
+
+Genkit is the typed-flow layer above the injectable client: schemas
+inferred from Go structs, progress streaming, per-step OTel spans, and a
+Dev UI with evals — with **zero provider plugins**, so generation still
+reaches providers only through `llm.Client` and the Biller choke point
+holds (one authorize + one settle per call). Raw goai calls stay right
+for single-shot generation (Suggest); the flow earns its ~16 MB when
+orchestration needs types, traces, and replayable runs. Rejected:
+zenflow (stale upstream, pre-1.0 API, YAML + coordinator overhead per
+run) and provider plugins/`compat_oai` (a second provider path around
+billing). Cost: a second mental model plus retry/billing discipline —
+Genkit retry and billing middlewares stay off, goai's native retry is
+the single layer. Revisit if a second AI feature does not need flows:
+unused orchestration is dead weight no matter the megabytes.
+
+### Classifier judge (and not a generative judge)?
+
+The review loop's judge is a decision API (Jev-compatible), not a
+chat completion: typed choices with confidence and probabilities instead
+of a prose verdict that needs parsing — ~100x cheaper per call, and more
+accurate exactly where the demo lives (prose; classifier judges trail on
+math/code/logic, which is why the code tab is second). Any server
+speaking `POST {state,model,questions}` works (TypeSafe, self-hosted
+SimpleJev, tensai) via `JEV_*` env; below-threshold confidence escalates
+to a human (confidence cascade). Cost: one more backend to configure and
+calibrate (~20 hand-labelled cases before trusting auto-accept).
+Revisit per workload: a rubric a classifier cannot express (open-ended
+reasoning quality) wants a generative judge behind the same terminal
+step — the flow does not care which backend answers.
+
 ### Generative UI catalog (and not a React GenUI SDK)?
 
 The model picks components from a fixed registry — `text_note`,
@@ -353,6 +386,14 @@ costs more than the opinions they replaced — the day the team wants a
 database GUI, a generic REST surface, or file uploads without writing
 them.
 
+PocketBase is rejected on a different axis than the databases above, so
+it gets its own sentence: `cmd/check-flatdeps` bans it by module prefix
+because it is a framework surface, not a database choice — embedded
+router, auth, and admin UI that would replace the owned seams (chi
+composition, argon2id sessions, age secrets) instead of the data layer.
+Swapping the store keeps every seam; adopting PocketBase deletes them.
+That is why the ban is mechanical (import path) rather than advisory.
+
 ### Datastar (and not htmx, and not a JS framework)?
 
 Datastar's own guide puts it plainly: backend reactivity like htmx plus
@@ -401,7 +442,9 @@ cheap-failure bet as the rest of the stack.
 `todo`, `whiteboard`, `room`, `notes` ship as working pages — not because
 every app needs a todo list, but because patterns teach better than prose:
 todo is the reference MVC, whiteboard the CRDT canvas, room the actor
-pattern, notes the collaborative text. Rejected: a minimal core with
+pattern, notes the collaborative text. The AI demos follow the same rule:
+Ask AI proves constrained generation, chat proves persisted history,
+review proves a typed multi-role loop with a classifier judge. Rejected: a minimal core with
 nothing to copy (every scaffold would re-derive the same wiring, badly).
 Cost: scaffold weight and trim burden — each demo is a unit the installer
 offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`,
@@ -424,6 +467,10 @@ The layers are not independent choices — they are designed to work together:
 - Record changes fan out through the SSE Hub record event, scoped per user by
   the owner column.
 - Single-owner decisions go to **GoAkt grains**: one addressable owner per room (roster, locks, supervision).
+- Multi-role AI runs go to a **Genkit flow**: writer and critic generate
+  through `llm.Client` (metered once per call), a Jev-compatible judge
+  classifies terminally, and the verdict streams back over ephemeral SSE,
+  discarded — per-role cost visible in the trace.
 
 ## Related
 

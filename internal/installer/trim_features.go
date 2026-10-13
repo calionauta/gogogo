@@ -209,7 +209,7 @@ var featureTrimUnits = []trimUnit{
 				// exactly their feature's lines, and add restores them.
 				path: chiGoFile,
 				substrs: []string{
-					"configchi.NewHandler(cfg, a),",
+					"configchi.NewHandler(cfg, a,",
 					"configH *configchi.Handler,",
 					`configchi "github.com/calionauta/gogogo/features/config/chi"`,
 					`mux.Handle("/config", configH.Routes())`,
@@ -220,7 +220,7 @@ var featureTrimUnits = []trimUnit{
 				path: chiTestFile,
 				substrs: []string{
 					`configchi "github.com/calionauta/gogogo/features/config/chi"`,
-					"configchi.NewHandler(cfg, a),",
+					"configchi.NewHandler(cfg, a,",
 				},
 			},
 		},

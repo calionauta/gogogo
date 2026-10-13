@@ -244,7 +244,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	hub := queue.NewSSEHub()
 	mux := buildChiMux(a, todochi.NewHandler(q, a, hub, "daisyui"),
 		landingchi.NewHandler(cfg, a),
-		configchi.NewHandler(cfg, a),
+		configchi.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbchi.NewHandler(q, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(q, a, hub, persister, docs, cfg),
 		nil, // roomHandler: engine disabled
@@ -287,7 +287,7 @@ func TestBuildChiMux(t *testing.T) {
 
 	mux := buildChiMux(a, todoH,
 		landingchi.NewHandler(cfg, a),
-		configchi.NewHandler(cfg, a),
+		configchi.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbchi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		notesachi.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		roomchi.NewHandler(cfg, a, fakeRooms{}),

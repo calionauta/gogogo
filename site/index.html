@@ -255,13 +255,13 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       <div class="card">
         <p class="step">Ask AI (generative UI)</p>
         <p class="tech">Catalog + SSE morphs, no client JS</p>
-        <p>The model picks cards, tables and sections from a fixed catalog; the server renders them. Keyless demo included.</p>
+        <p>The model picks cards, tables and sections from a fixed catalog; the server renders them. Keyless demo included. Proves constrained generation with unknown-type fail-closed.</p>
         <p class="off">Delete: <code>features/genui/</code></p>
       </div>
       <div class="card">
         <p class="step">Review loop</p>
         <p class="tech">Genkit flows + GoAI + Jev judge</p>
-        <p>A writer and a critic iterate, then a classifier judge delivers the verdict. Typed flows, per-step traces, any Jev-compatible judge via env.</p>
+        <p>A writer and a critic iterate, then a classifier judge delivers the verdict. Typed flows, per-step traces, any Jev-compatible judge via env. Proves a multi-role loop with per-role cost attribution and confidence cascade.</p>
         <p class="off">Delete: <code>features/review/</code></p>
       </div>
       <div class="card">

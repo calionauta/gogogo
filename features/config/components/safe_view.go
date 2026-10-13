@@ -51,6 +51,14 @@ type PageData struct {
 	AppName    string
 	BuildLabel string
 	Groups     []Group
+	// Role is the viewer's users.role at render time ("" when unknown).
+	// Display-only: enforcement stays in the RBAC middleware. The page
+	// template pairs it with RBACEnabled so the Casbin posture is
+	// visible where it is inspected, not just in policy.csv.
+	Role string
+	// RBACEnabled mirrors cfg.RBACEnabled: pass-through when false,
+	// enforced denies when true.
+	RBACEnabled bool
 }
 
 // Group is a labelled slice of Rows. Order is stable across
@@ -75,8 +83,9 @@ func BuildPageData(cfg *config.Config) PageData {
 	}
 
 	pd := PageData{
-		AppName:    cfg.AppName,
-		BuildLabel: cfg.BuildLabel,
+		AppName:     cfg.AppName,
+		BuildLabel:  cfg.BuildLabel,
+		RBACEnabled: cfg.RBACEnabled,
 	}
 
 	ageSet := os.Getenv("AGE_SECRET_KEY") != ""

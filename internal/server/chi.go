@@ -272,7 +272,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// once (and the add path restores these same lines — see routerCallLines).
 	mux := buildChiMux(a, todoH,
 		landingchi.NewHandler(cfg, a),
-		configchi.NewHandler(cfg, a),
+		configchi.NewHandler(cfg, a, queries),
 		wbchi.NewHandler(queries, a, hub, persister, docs, cfg),
 		notesachi.NewHandler(queries, a, hub, persister, docs, cfg),
 		roomH,

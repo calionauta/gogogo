@@ -311,7 +311,7 @@ var All = []Capability{
 		Kind:      KindFeature,
 		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
 		Offered:   true,
-		DependsOn: []string{"genkit", "llm"},
+		DependsOn: []string{"genkit"},
 		Dirs:      []string{"features/review"},
 		Warns: []string{
 			"The navbar Review link is stripped automatically.",
@@ -323,7 +323,12 @@ var All = []Capability{
 			"it), but the only .templ reader ships inside features/review " +
 			"— claiming it would fail the trimmed-tree conformance, the " +
 			"same reason SimulatedLLM is unclaimed. Trim removes the " +
-			"navbar link, so no dead UI either way.",
+			"navbar link, so no dead UI either way. " +
+			"DependsOn lists genkit only: llm is never trimmed " +
+			"(runtime-off is blessed), so declaring it would break " +
+			"`gogogo add review` (add fails on deps no unit provides) " +
+			"for zero mechanical gain — the LLM requirement rides the " +
+			"Summary and docs instead.",
 	},
 	{
 		ID:         "goakt",
