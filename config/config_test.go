@@ -90,3 +90,28 @@ func TestBuildTag(t *testing.T) {
 		})
 	}
 }
+
+// TestRBACPermissiveParsing pins the rollout flag wiring: RBAC_PERMISSIVE
+// parses like every other bool knob, defaulting to enforcing (false).
+// Red-proof: drop the envBool line in Load and the true-case goes red;
+// default it true and the default-case goes red (production must enforce).
+func TestRBACPermissiveParsing(t *testing.T) {
+	// Not parallel: t.Setenv forbids t.Parallel.
+	t.Setenv("RBAC_ENABLED", "true")
+	t.Setenv("RBAC_PERMISSIVE", "true")
+	if got := Load(); !got.RBACPermissive {
+		t.Errorf("RBACPermissive with RBAC_PERMISSIVE=true = false, want true")
+	}
+	t.Setenv("RBAC_PERMISSIVE", "false")
+	if got := Load(); got.RBACPermissive {
+		t.Errorf("RBACPermissive with RBAC_PERMISSIVE=false = true, want false")
+	}
+	// Unset must default to enforcing: production enforces unless the
+	// operator opts into audit mode explicitly.
+	if err := os.Unsetenv("RBAC_PERMISSIVE"); err != nil {
+		t.Fatalf("unset: %v", err)
+	}
+	if got := Load(); got.RBACPermissive {
+		t.Errorf("RBACPermissive unset = true, want default false")
+	}
+}

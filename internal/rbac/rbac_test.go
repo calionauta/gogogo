@@ -175,6 +175,23 @@ func TestRBACPolicyHasNoDuplicateLines(t *testing.T) {
 	}
 }
 
+// TestRBACRolesAreFlat pins the no-inheritance decision: the shipped
+// policy must contain zero grouping (g) rules. Casbin inheritance only
+// ADDS permissions, and viewer is a SUBSET of user — adding
+// `g, viewer, user` would silently escalate every viewer to full user.
+// Red-proof: add any g, line to policy.csv and this goes red.
+func TestRBACRolesAreFlat(t *testing.T) {
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	if g, err := e.GetGroupingPolicy(); err != nil {
+		t.Fatalf("grouping policy: %v", err)
+	} else if len(g) != 0 {
+		t.Errorf("grouping policy = %v, want empty (roles stay flat, see roles.go)", g)
+	}
+}
+
 // TestRBACViewerSubject pins the viewer passthrough: the exact string
 // "viewer" resolves to itself (never flattened to user, never
 // escalated), unknown strings still fall back to user, and failures

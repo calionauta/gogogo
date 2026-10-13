@@ -286,7 +286,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// middleware wraps the whole mux (pass-through when disabled, enforced
 	// denies when on). A parse failure is a programmer error and fails the
 	// boot loud. Split out of BootChi for the funlen gate.
-	handler, rerr := applyRBAC(a, cfg, queries, mux)
+	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
 		cancelConsumer()
 		_ = sqlDB.Close()

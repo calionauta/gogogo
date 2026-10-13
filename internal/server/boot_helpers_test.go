@@ -3,6 +3,8 @@ package server
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,7 +86,7 @@ func TestPromoteAdminsPinsPromotionOnly(t *testing.T) {
 		t.Fatalf("signup: %v", serr)
 	}
 	q := dbgen.New(sqlDB)
-	n, err := promoteAdmins([]string{"boss@example.com", "ghost@example.com"}, q)
+	n, err := promoteAdmins(ctx, []string{"boss@example.com", "ghost@example.com"}, q)
 	if err != nil {
 		t.Fatalf("promote: %v", err)
 	}
@@ -127,7 +129,7 @@ func TestPromoteViewersPinsViewerContract(t *testing.T) {
 		t.Fatalf("signup: %v", serr)
 	}
 	q := dbgen.New(sqlDB)
-	n, err := promoteRole([]string{"watcher@example.com", "ghost@example.com"}, rbac.RoleViewer, q)
+	n, err := promoteRole(ctx, []string{"watcher@example.com", "ghost@example.com"}, rbac.RoleViewer, q)
 	if err != nil {
 		t.Fatalf("promote: %v", err)
 	}
@@ -142,10 +144,10 @@ func TestPromoteViewersPinsViewerContract(t *testing.T) {
 		t.Fatalf("role = %q, want viewer", row.Role)
 	}
 	// Tie: viewer first, admin last — admin wins.
-	if _, verr := promoteRole([]string{"boss2@example.com"}, rbac.RoleViewer, q); verr != nil {
+	if _, verr := promoteRole(ctx, []string{"boss2@example.com"}, rbac.RoleViewer, q); verr != nil {
 		t.Fatalf("viewer promote: %v", verr)
 	}
-	if _, aerr := promoteAdmins([]string{"boss2@example.com"}, q); aerr != nil {
+	if _, aerr := promoteAdmins(ctx, []string{"boss2@example.com"}, q); aerr != nil {
 		t.Fatalf("admin promote: %v", aerr)
 	}
 	bossRow, err := q.GetUser(ctx, boss.ID)
@@ -154,5 +156,56 @@ func TestPromoteViewersPinsViewerContract(t *testing.T) {
 	}
 	if bossRow.Role != "admin" {
 		t.Fatalf("tied role = %q, want admin (admin wins ties)", bossRow.Role)
+	}
+}
+
+// TestApplyRBACWiresPermissive pins the boot wiring end to end: with
+// enforcement on, a plain user's request to an admin-only path allows
+// under permissive audit mode and denies when enforcing. The middleware
+// unit test pins the decision; this pins that applyRBAC actually passes
+// cfg.RBACPermissive through. Red-proof: hard-code false in applyRBAC
+// and the audit case goes red.
+func TestApplyRBACWiresPermissive(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := db.OpenAt(t.TempDir() + "/apply-rbac.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	_, userTok, serr := a.Signup(ctx, "permboot@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	q := dbgen.New(sqlDB)
+	drive := func(permissive bool) int {
+		t.Helper()
+		mux := http.NewServeMux()
+		mux.Handle("/config", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		cfg := &config.Config{RBACEnabled: true, RBACPermissive: permissive}
+		h, herr := applyRBAC(ctx, a, cfg, q, mux)
+		if herr != nil {
+			t.Fatalf("applyRBAC: %v", herr)
+		}
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config", nil)
+		// #nosec G124 — test-only request cookie; never traverses a network.
+		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := drive(true); code != http.StatusOK {
+		t.Errorf("permissive user /config via boot wiring = %d, want 200", code)
+	}
+	if code := drive(false); code != http.StatusForbidden {
+		t.Errorf("enforcing user /config via boot wiring = %d, want 403", code)
 	}
 }

@@ -35,17 +35,20 @@ func seedDemoAccounts(a *auth.Auth) {
 // rows, and wraps the mux in the middleware (pass-through when disabled,
 // enforced denies when on — the flag never rewires anything). Viewers
 // promote first so an address in both lists ends admin, never viewer.
-func applyRBAC(a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *http.ServeMux) (http.Handler, error) {
+// ctx is the boot context: promotion stops if the boot is cancelled.
+func applyRBAC(
+	ctx context.Context, a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *http.ServeMux,
+) (http.Handler, error) {
 	enforcer, err := rbac.NewEnforcer()
 	if err != nil {
 		return nil, fmt.Errorf("server: chi rbac: %w", err)
 	}
-	if n, err := promoteRole(cfg.ViewerEmails, rbac.RoleViewer, queries); err != nil {
+	if n, err := promoteRole(ctx, cfg.ViewerEmails, rbac.RoleViewer, queries); err != nil {
 		return nil, err
 	} else if n > 0 {
 		slog.Info("server: rbac viewer promotion", "rows", n)
 	}
-	if n, err := promoteAdmins(cfg.AdminEmails, queries); err != nil {
+	if n, err := promoteAdmins(ctx, cfg.AdminEmails, queries); err != nil {
 		return nil, err
 	} else if n > 0 {
 		slog.Info("server: rbac admin promotion", "rows", n)
@@ -77,17 +80,17 @@ func wireTodoLLM(todoH *chifeatures.Handler, chiQ *queue.Queue, cfg *config.Conf
 // operator list (ADMIN_EMAILS). Promotion only, never provisioning: unknown
 // addresses are skipped silently (anyone can claim an unowned address, so
 // absence must not fail the boot). Returns rows actually promoted.
-func promoteAdmins(emails []string, queries *dbgen.Queries) (int, error) {
-	return promoteRole(emails, "admin", queries)
+func promoteAdmins(ctx context.Context, emails []string, queries *dbgen.Queries) (int, error) {
+	return promoteRole(ctx, emails, "admin", queries)
 }
 
 // promoteRole sets users.role for existing rows matching the operator
 // list. Shared by admin and viewer promotion: same promotion-only,
 // skip-silently contract, role parameterized. Returns rows promoted.
-func promoteRole(emails []string, role string, queries *dbgen.Queries) (int, error) {
+func promoteRole(ctx context.Context, emails []string, role string, queries *dbgen.Queries) (int, error) {
 	n := 0
 	for _, email := range emails {
-		if _, err := queries.GetUserByEmail(context.Background(), email); err != nil {
+		if _, err := queries.GetUserByEmail(ctx, email); err != nil {
 			// Unowned address: skip silently (anyone can claim one, so
 			// absence must not fail the boot). Real lookup failures do.
 			if errors.Is(err, sql.ErrNoRows) {
@@ -95,7 +98,7 @@ func promoteRole(emails []string, role string, queries *dbgen.Queries) (int, err
 			}
 			return n, fmt.Errorf("server: promote lookup %s: %w", email, err)
 		}
-		if err := queries.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
+		if err := queries.SetUserRole(ctx, dbgen.SetUserRoleParams{
 			Role: role, Updated: dbschema.Now(), Email: email,
 		}); err != nil {
 			return n, fmt.Errorf("server: promote %s: %w", email, err)
