@@ -216,8 +216,8 @@ func TestPresetDryRunJSON(t *testing.T) {
 		ids = append(ids, u.ID)
 	}
 	slices.Sort(ids)
-	if !slices.Equal(ids, []string{"credits", "genui"}) {
-		t.Errorf("drops = %v, want [credits genui]", ids)
+	if !slices.Equal(ids, []string{"credits", "genui", "review"}) {
+		t.Errorf("drops = %v, want [credits genui review]", ids)
 	}
 }
 
@@ -233,7 +233,7 @@ func TestAddManualWiringPinsReversibility(t *testing.T) {
 	}
 	for _, id := range []string{
 		unitLanding, unitConfigView, unitWhiteboard, unitGoAkt,
-		unitCredits, unitGenUI, unitDagnats, unitSounds,
+		unitCredits, unitGenUI, unitDagnats, unitSounds, unitReview,
 	} {
 		got := addManualWiring(findUnit(t, id))
 		if len(got) == 0 {
@@ -271,8 +271,8 @@ func TestPresetKeepListsPinsResolution(t *testing.T) {
 	}
 	drop := dropIDs(planTrim(parseKeep(plugins, features)))
 	slices.Sort(drop)
-	if !slices.Equal(drop, []string{"credits", "genui"}) {
-		t.Errorf("no-ai drops = %v, want [credits genui]", drop)
+	if !slices.Equal(drop, []string{"credits", "genui", "review"}) {
+		t.Errorf("no-ai drops = %v, want [credits genui review]", drop)
 	}
 	if _, _, err := presetKeepLists("does-not-exist"); err == nil {
 		t.Error("presetKeepLists(unknown) = nil, want error listing presets")

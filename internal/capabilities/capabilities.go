@@ -171,6 +171,16 @@ var All = []Capability{
 			"deletion saves source only, never deps. Runtime-off is the blessed path.",
 	},
 	{
+		ID:      "genkit",
+		Kind:    KindPlugin,
+		Summary: "typed AI flows (Genkit Go): orchestration + traces above internal/llm",
+		Reason: "Single consumer (review): trimming the review unit plus " +
+			"`go mod tidy` drops github.com/firebase/genkit/go from the " +
+			"build. Generation reaches providers only through llm.Client, " +
+			"so no provider SDK rides along. Runtime-off needs no flag — " +
+			"without GOAI_API_KEY the flows 503 and the UI hides.",
+	},
+	{
 		ID:      "collab",
 		Kind:    KindPlugin,
 		Summary: "Loro CRDT transport: DocStore, sync workers, presence",
@@ -295,6 +305,25 @@ var All = []Capability{
 			"(no-compile without it) and genui without chat is unproven " +
 			"surface — one unit is the honest shape, same as " +
 			"whiteboard+collab+notes.",
+	},
+	{
+		ID:        "review",
+		Kind:      KindFeature,
+		Summary:   "review loop demo (writer → critic → classifier judge, streamed verdict)",
+		Offered:   true,
+		DependsOn: []string{"genkit", "llm"},
+		Dirs:      []string{"features/review"},
+		Warns: []string{
+			"The navbar Review link is stripped automatically.",
+			"ci-local smoke: export SMOKE_FEATURES without review " +
+				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
+		},
+		Note: "No UISignal claim by design: the run UI gates on the " +
+			"todo.Signals ReviewEnabled field at runtime (keyless hides " +
+			"it), but the only .templ reader ships inside features/review " +
+			"— claiming it would fail the trimmed-tree conformance, the " +
+			"same reason SimulatedLLM is unclaimed. Trim removes the " +
+			"navbar link, so no dead UI either way.",
 	},
 	{
 		ID:         "goakt",

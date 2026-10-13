@@ -177,18 +177,28 @@ func (c *Client) model() provider.LanguageModel {
 // ErrNoAPIKey if the client was built without a key (no retries — the
 // configuration problem won't fix itself on retry).
 func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
+	text, _, err := c.ChatWithUsage(ctx, prompt)
+	return text, err
+}
+
+// ChatWithUsage is Chat that also returns the provider-reported token usage.
+// Typed orchestrators (e.g. a Genkit model action) use it to populate usage
+// telemetry while metering stays inside the client: one authorize + one
+// settle per call, exactly like Chat. Do not reimplement authorize/settle
+// around it — that would double-reserve in the ledger.
+func (c *Client) ChatWithUsage(ctx context.Context, prompt string) (string, provider.Usage, error) {
 	if c.apiKey == "" {
-		return "", ErrNoAPIKey
+		return "", provider.Usage{}, ErrNoAPIKey
 	}
 	m := c.model()
 	if m == nil {
-		return "", ErrNoAPIKey
+		return "", provider.Usage{}, ErrNoAPIKey
 	}
 
 	// authorize before (fail-closed if a meter is set and billing fails)
 	settle, err := c.meterCall(ctx, prompt)
 	if err != nil {
-		return "", err
+		return "", provider.Usage{}, err
 	}
 
 	// Retry is delegated to goai's native layer (withRetry, default
@@ -221,7 +231,7 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 		if settle != nil {
 			settle(provider.Usage{}) // release, bill nothing
 		}
-		return "", fmt.Errorf("llm: generate: %w", genErr)
+		return "", provider.Usage{}, fmt.Errorf("llm: generate: %w", genErr)
 	}
 	obsArgs = append(observability.WithComponent("llm.goai", "plugin"),
 		"duration_ms", dur.Milliseconds())
@@ -229,7 +239,7 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 	if settle != nil {
 		settle(r.TotalUsage)
 	}
-	return r.Text, nil
+	return r.Text, r.TotalUsage, nil
 }
 
 // ChatSuggest is a higher-level helper for the "AI suggest next todo"

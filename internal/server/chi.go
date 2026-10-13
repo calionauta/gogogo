@@ -34,6 +34,7 @@ import (
 	"github.com/calionauta/gogogo/features/notes"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
 	"github.com/calionauta/gogogo/features/onboarding"
+	reviewchi "github.com/calionauta/gogogo/features/review/chi"
 	roomchi "github.com/calionauta/gogogo/features/room/chi"
 	"github.com/calionauta/gogogo/features/todo/chi"
 	"github.com/calionauta/gogogo/features/whiteboard"
@@ -249,6 +250,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	genuiH := genuichi.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
 		comp.NewResponder(realLLM, simulatedLLM))
 	genuiH.RegisterHandlers(chiQ.Registry())
+	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()
 
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
@@ -276,6 +278,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		roomH,
 		chatH,
 		genuiH,
+		reviewH,
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
@@ -414,6 +417,7 @@ func buildChiMux(
 	roomH *roomchi.Handler,
 	chatH *chatchi.Handler,
 	genuiH *genuichi.Handler,
+	reviewH *reviewchi.Handler,
 	creditsH *creditschi.Handler,
 ) *http.ServeMux {
 	// Every sub-router serves absolute paths (the auth handler carries
@@ -453,6 +457,9 @@ func buildChiMux(
 	mux.Handle("/genui", genuiH.Routes())
 	mux.Handle("/genui/", genuiH.Routes())
 	mux.Handle("/api/genui/", genuiH.Routes())
+	mux.Handle("/review", reviewH.Routes())
+	mux.Handle("/review/", reviewH.Routes())
+	mux.Handle("/api/review/", reviewH.Routes())
 	mux.Handle("/api/credits", creditsH.Routes())
 	mux.Handle("/api/credits/", creditsH.Routes())
 	mux.Handle("/api/ai/", creditsH.Routes())

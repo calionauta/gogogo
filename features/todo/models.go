@@ -113,6 +113,13 @@ type Signals struct {
 	// When true, the UI renders the "Run durable workflow" button.
 	DagNatsEnabled bool `json:"dagNatsEnabled"`
 
+	// ReviewEnabled reflects whether the review-loop UI should render:
+	// the review routes are wired AND a real LLM is configured
+	// (GOAI_API_KEY set — the review loop is real-LLM only, never
+	// simulated). Registration truth, not config truth: false when the
+	// review unit was trimmed even if the key is set.
+	ReviewEnabled bool `json:"reviewEnabled"`
+
 	// RealtimeKind describes the active broadcast transport so the
 	// diagnostics panel can label it accurately: "JetStream" when the
 	// NATS is enabled and a JetStream context is wired, else "in-memory".

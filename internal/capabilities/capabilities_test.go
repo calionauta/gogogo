@@ -260,11 +260,11 @@ func TestKindsFollowServantPrinciple(t *testing.T) {
 	// user surfaces (pages/journeys). Directories do not decide:
 	// features/credits is a plugin, features/todo is a feature.
 	pluginIDs := []string{
-		"nats", "dagnats", "goakt", "llm", "collab", "datastar", "components",
+		"nats", "dagnats", "goakt", "llm", "genkit", "collab", "datastar", "components",
 		"credits", "sounds", "skins", "offline-sync",
 		"capabilities", "genui",
 	}
-	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room"}
+	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room", "review"}
 	byID := ByID()
 	for _, id := range pluginIDs {
 		c, ok := byID[id]
@@ -292,7 +292,7 @@ func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exac
 	// source of truth both sides check. skins-extra maps to skins.
 	want := []string{
 		"dagnats", "goakt", "whiteboard", "landing", "config-view",
-		"credits", "sounds", "skins", "room", "genui",
+		"credits", "sounds", "skins", "room", "genui", "review",
 	}
 	byID := ByID()
 	got := slices.Clone(OfferedIDs())

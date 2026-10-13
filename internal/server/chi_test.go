@@ -20,6 +20,7 @@ import (
 	genuichi "github.com/calionauta/gogogo/features/genui/chi"
 	landingchi "github.com/calionauta/gogogo/features/landing/chi"
 	notesachi "github.com/calionauta/gogogo/features/notes/chi"
+	reviewchi "github.com/calionauta/gogogo/features/review/chi"
 	roomchi "github.com/calionauta/gogogo/features/room/chi"
 	todochi "github.com/calionauta/gogogo/features/todo/chi"
 	wbchi "github.com/calionauta/gogogo/features/whiteboard/chi"
@@ -29,6 +30,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -197,6 +199,22 @@ func chiQForTest(t *testing.T) *queue.Queue {
 	return q
 }
 
+// newReviewHandlerForTest builds the review handler with an unconfigured
+// LLM (no network on construction): routing-only, like chiQForTest. The
+// review trim strips this helper plus both call sites below.
+func newReviewHandlerForTest(cfg *config.Config, a *auth.Auth) *reviewchi.Handler {
+	g := reviewchi.NewGenkit()
+	client := llm.New("")
+	return reviewchi.NewHandler(cfg, a, &reviewchi.Runner{
+		G:            g,
+		Model:        reviewchi.DefineReviewModel(g, client),
+		Judge:        reviewchi.NewJudgeClient(cfg),
+		Threshold:    cfg.Review.ConfidenceThreshold,
+		JudgeTimeout: cfg.Review.Timeout,
+		JudgeName:    cfg.Review.Model,
+	}, client)
+}
+
 // TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router
 // suite's RegisterRoomStackDisabledRegistersNothing: when the actor system
 // is disabled the handler is nil and the mux must not carry /room at all —
@@ -233,6 +251,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		nil, // roomHandler: engine disabled
 		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
 		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		newReviewHandlerForTest(cfg, a),
 		creditschi.NewHandler(a, nil))
 
 	rec := httptest.NewRecorder()
@@ -275,6 +294,7 @@ func TestBuildChiMux(t *testing.T) {
 		roomchi.NewHandler(cfg, a, fakeRooms{}),
 		chatchi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
 		genuichi.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		newReviewHandlerForTest(cfg, a),
 		creditschi.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
@@ -323,6 +343,7 @@ func TestBuildChiMux(t *testing.T) {
 		"/room",
 		"/chat",
 		"/genui",
+		"/review",
 	} {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil))

@@ -119,6 +119,12 @@ func (s *Service) RunManaged(
 // fromGoAIUsage maps a goai provider.Usage into the lib's credits.Usage,
 // filling the shared fields and leaving CostMicrounits/CreditsCharged to the
 // caller (they depend on outcomes the mapper doesn't know).
+//
+// Cache-write has no lib field (credits.Usage only models cache-read in
+// CachedTokens), so write tokens fold into InputTokens: providers bill
+// writes at or above the base input rate, which is closer to reality than
+// the discounted read bucket — and keeps them counted instead of dropped
+// (hasTokens in biller.go counts them toward the settle/release decision).
 func fromGoAIUsage(requestID, userID, model string, u provider.Usage) credits.Usage {
 	return credits.Usage{
 		RequestID:       requestID,
@@ -126,7 +132,7 @@ func fromGoAIUsage(requestID, userID, model string, u provider.Usage) credits.Us
 		Provider:        "goai",
 		Model:           model,
 		BillingMode:     "managed",
-		InputTokens:     u.InputTokens,
+		InputTokens:     u.InputTokens + u.CacheWriteTokens,
 		OutputTokens:    u.OutputTokens,
 		CachedTokens:    u.CacheReadTokens,
 		ReasoningTokens: u.ReasoningTokens,

@@ -23,6 +23,7 @@ const (
 	unitSounds     = "sounds"
 	unitSkinsExtra = "skins-extra"
 	unitGenUI      = "genui"
+	unitReview     = "review"
 )
 
 // unitCaps maps installer units to registry capability ids.
@@ -36,6 +37,11 @@ var unitCaps = map[string][]string{
 	unitSounds:     {"sounds"},
 	unitSkinsExtra: {"skins"},
 	unitGenUI:      {"genui", "chat"},
+	// Bundle rationale mirrors whiteboard+collab: genkit is the review
+	// loop's only consumer, so one unit is the honest shape. genkit owns
+	// no dirs (external dep); trimming the unit plus `go mod tidy`
+	// drops it from the build.
+	unitReview: {"review", "genkit"},
 }
 
 // scaffoldFileMode matches a git checkout: scaffolded repo files are 0644
@@ -182,6 +188,11 @@ const navbarTempl = "features/authviews/navbar.templ"
 // so trims here are line drops (both files live in this one source file).
 const chiGoFile = "internal/server/chi.go"
 
+// bootHelpersFile holds the BootChi helpers (seed, RBAC, LLM, review)
+// that chi.go would otherwise outgrow: the file-size gate caps every
+// .go file at 500 lines, so wiring helpers live here.
+const bootHelpersFile = "internal/server/boot_helpers.go"
+
 // Repeated trim targets, hoisted so a typo in a path is a compile error
 // rather than a trim that silently matches nothing.
 const (
@@ -202,6 +213,11 @@ const chiMuxAnchor = "\treturn mux"
 const (
 	skinBasecoatImport = `web/skins/basecoat"`
 	soundsImportSuffix = `features/sounds"`
+	// reviewImportSuffix is the review feature import dropped from every
+	// composition file wiring the handler (route root, boot helper,
+	// composition test): one const so the repeated literal is not a
+	// goconst finding, mirroring soundsImportSuffix.
+	reviewImportSuffix = `features/review/chi"`
 )
 
 // manifestUnits is every offered unit in canonical menu order. The order is
@@ -224,7 +240,7 @@ func buildManifestUnits() []trimUnit {
 	order := []string{
 		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
 		unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
-		unitGenUI,
+		unitGenUI, unitReview,
 	}
 	out := make([]trimUnit, 0, len(order))
 	for _, id := range order {
@@ -355,6 +371,7 @@ var baseTrimUnits = []trimUnit{
 			{path: "features/notes/components/notes.templ", substrs: soundsDropLines},
 			{path: "features/chat/components/chat.templ", substrs: soundsDropLines},
 			{path: "features/genui/components/components.templ", substrs: soundsDropLines},
+			{path: "features/review/components/review.templ", substrs: soundsDropLines},
 			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},
 	},

@@ -63,6 +63,16 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `GOAI_MODEL` | `gpt-4o-mini` | Default model |
 | `SIMULATE_LLM` | anything but `false` | In-process fake LLM scripting 500 → retry → slow → 200, so you can watch the retry toasts without a provider key. Enabled unless explicitly set to `false` — including in production |
 
+### Review loop (jev judge)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `JEV_API_URL` | SimpleJev keyless demo (`.../v1/classifier`) | Any jev-compatible endpoint (`POST {state,model,questions}`): TypeSafe, self-hosted SimpleJev, tensai. Bare hosts expand to `/v1/systemone` |
+| `JEV_MODEL` | SimpleJev demo classifier | Judge model ID served by the endpoint |
+| `JEV_API_KEY` | unset | Judge credential (age-encrypted secrets file). Empty = keyless demo, no `Authorization` header |
+| `JEV_TIMEOUT` | `10s` | Per-attempt judge HTTP timeout |
+| `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
+
 ### AI credits + BYOK
 
 All dormant unless `CREDITS_ENABLED=true`.

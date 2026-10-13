@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo/config"
+	reviewchi "github.com/calionauta/gogogo/features/review/chi"
 	chifeatures "github.com/calionauta/gogogo/features/todo/chi"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -113,4 +114,26 @@ func wireTOTPKey(a *auth.Auth, cfg *config.Config) error {
 		return fmt.Errorf("server: chi auth: %w", err)
 	}
 	return nil
+}
+
+// bootReview wires the Genkit review-loop slice: one shared Genkit
+// instance, the gogogo/llm model action over the real LLM client (metered
+// exactly like todo suggest when a Biller is set), and the jev-compatible
+// judge from JEV_* env. Lives here (not chi.go) for the file-size gate;
+// the review trim strips this whole block (see the installer unit).
+func bootReview(
+	cfg *config.Config, a *auth.Auth, realLLM *llm.Client,
+) *reviewchi.Handler {
+	g := reviewchi.NewGenkit()
+	runner := &reviewchi.Runner{
+		G:            g,
+		Model:        reviewchi.DefineReviewModel(g, realLLM),
+		Judge:        reviewchi.NewJudgeClient(cfg),
+		Threshold:    cfg.Review.ConfidenceThreshold,
+		JudgeTimeout: cfg.Review.Timeout,
+		JudgeName:    cfg.Review.Model,
+	}
+	h := reviewchi.NewHandler(cfg, a, runner, realLLM)
+	h.RegisterFlows()
+	return h
 }

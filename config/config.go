@@ -35,6 +35,11 @@
 //	                       (see web/skins/)
 //	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
 //	                       enforces the embedded policy in internal/rbac/casbin
+//	JEV_API_URL          (default: SimpleJev demo) — jev-compatible judge endpoint
+//	JEV_MODEL            (default: demo classifier) — judge model ID
+//	JEV_API_KEY          (default: "") — keyless demo when empty (age secrets in prod)
+//	JEV_TIMEOUT          (default: 10s) — per-attempt judge HTTP timeout
+//	JEV_CONFIDENCE_THRESHOLD (default: 0.7) — escalate to human below this
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──
 //
@@ -236,6 +241,11 @@ type Config struct {
 
 	GoAI GoAIConfig
 
+	// Review holds the jev-compatible judge settings for features/review
+	// (JEV_* env, keyless SimpleJev demo by default). See config/review.go
+	// and docs/review.md for the customization contract.
+	Review ReviewConfig
+
 	// Credits gates the AI credits + BYOK plugin (lib calionauta/ai-credits).
 	// When Credits.Enabled is false the plugin registers no routes and
 	// credits.New is never built — the binary runs billing-free.
@@ -355,6 +365,7 @@ func Load() *Config {
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
 	cfg.ChiAddr = getEnv("CHI_ADDR", "")
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
+	cfg.loadReviewEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
 	cfg.Credits.DefaultMode = getEnv("CREDITS_DEFAULT_MODE", "explicit")

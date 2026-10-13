@@ -344,6 +344,87 @@ var featureTrimUnits = []trimUnit{
 		goModDrops: []string{"github.com/calionauta/ai-credits"},
 	},
 	{
+		id: unitReview,
+		// Bundle rationale lives in the unitCaps comment above: the
+		// review page is genkit's only consumer, so trimming the page
+		// plus `go mod tidy` is the whole removal (goModDrops below).
+		extraDrops: []fileDrop{
+			{
+				// The boot helper's feature import: the strip below
+				// removes its only consumer, so the import goes too
+				// (same rule as the chi.go import drops).
+				path: bootHelpersFile,
+				substrs: []string{
+					reviewImportSuffix,
+				},
+			},
+			{
+				path: chiGoFile,
+				substrs: []string{
+					// Construction is one line; the signature loses the
+					// parameter in the bootReview strip below.
+					"reviewH := bootReview(cfg, a, realLLM)",
+					// One argument per line: each drop removes exactly
+					// its feature's line, and add restores them.
+					"reviewH,",
+					`mux.Handle("/review", reviewH.Routes())`,
+					`mux.Handle("/review/", reviewH.Routes())`,
+					`mux.Handle("/api/review/", reviewH.Routes())`,
+					reviewImportSuffix,
+					"reviewH *reviewchi.Handler,",
+				},
+			},
+			{
+				// The composition test's import, helper call sites and
+				// mux-table element go as line drops; the helper itself
+				// goes as a strip below (its body would survive drops).
+				path: chiTestFile,
+				substrs: []string{
+					reviewImportSuffix,
+					`	"github.com/calionauta/gogogo/internal/llm"`,
+					"newReviewHandlerForTest(cfg, a),",
+					"\t\t\"/review\",",
+				},
+			},
+		},
+		extraStrips: []fileStrip{
+			{
+				path: navbarTempl,
+				rules: []stripRule{
+					{
+						startMarker: `<a href="/review"`,
+						endMarker:   `}>Review</a>`,
+					},
+				},
+			},
+			{
+				// The whole boot helper (lives in boot_helpers.go for the
+				// file-size gate): nothing calls it once the call line is
+				// dropped (same shape as the bootCredits strip).
+				path: bootHelpersFile,
+				rules: []stripRule{
+					{
+						startMarker:       "// bootReview wires the Genkit review-loop slice",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+				},
+			},
+			{
+				// The composition-test helper: same rule, test file.
+				path: chiTestFile,
+				rules: []stripRule{
+					{
+						startMarker:       "// newReviewHandlerForTest builds the review handler",
+						endIsClosingBrace: true,
+						endBrace:          "}",
+					},
+				},
+			},
+		},
+		goModDrops: []string{"github.com/firebase/genkit/go", "github.com/mattn/go-jev"},
+	},
+	{
 		id: unitGenUI,
 		// Bundle rationale lives in the genui capability entry: chat imports
 		// genui components (no-compile without it), so one unit is the only
