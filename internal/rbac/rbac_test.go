@@ -74,6 +74,7 @@ func TestRBACPolicyCoversMuxRoutes(t *testing.T) {
 		"/notes", "/notes/", "/api/notes", "/api/notes/",
 		"/room", "/room/", "/chat", "/chat/", "/api/chat/",
 		"/genui", "/genui/", "/api/genui/",
+		"/review", "/review/", "/api/review", "/api/review/",
 		"/api/credits", "/api/credits/", "/api/ai/", "/api/byok/",
 		"/api/onboarding", "/api/onboarding/",
 		"/api/auth/signup/credential", "/api/session",

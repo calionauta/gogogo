@@ -50,6 +50,10 @@ p, user, /genui, .*
 p, user, /genui/*, .*
 p, user, /api/genui, .*
 p, user, /api/genui/*, .*
+p, user, /review, .*
+p, user, /review/*, .*
+p, user, /api/review, .*
+p, user, /api/review/*, .*
 p, user, /api/credits, .*
 p, user, /api/credits/*, .*
 p, user, /api/ai/*, .*

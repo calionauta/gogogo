@@ -91,6 +91,10 @@ func reviewFixture(t *testing.T, critique string, judge *stubJudge) http.Handler
 		Judge:     judge,
 		Threshold: 0.7,
 	}, llm.New("test-key"))
+	// Register the flow like BootChi does: the Dev UI/eval path shares
+	// Runner.run, and registration itself must not panic on a second
+	// definition within one process (each fixture owns its instance).
+	h.RegisterFlows()
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
 	mux.Handle("/", h.Routes())

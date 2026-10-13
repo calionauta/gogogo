@@ -205,6 +205,7 @@ func groupTitle(group string) string {
 		{"storage", "Storage"},
 		{"admin", "Admin"},
 		{"ai", "AI (GoAI)"},
+		{"review", "Review (Jev)"},
 		{"nats", "NATS"},
 		{"dagnats", "DagNats"},
 		{"sync", "Sync"},
@@ -215,4 +216,32 @@ func groupTitle(group string) string {
 		}
 	}
 	return group
+}
+
+// TestBuildPageData_MasksJevKey asserts the judge credential never
+// renders raw while endpoint/model stay visible: red-proof for the
+// review group added with JEV_* env (same contract as AdminToken).
+func TestBuildPageData_MasksJevKey(t *testing.T) {
+	cfg := &config.Config{AppName: "test-app", BuildLabel: "test"}
+	cfg.Review.APIKey = "jev-operator-key-32bytes!!"
+	cfg.Review.APIURL = "https://jev.example.com/v1/classifier"
+	cfg.Review.Model = "demo-classifier"
+
+	pd := BuildPageData(cfg)
+
+	key := findRow(t, pd, "review", "APIKey")
+	if !key.Masked {
+		t.Fatalf("JEV APIKey row must be Masked")
+	}
+	if strings.Contains(key.Display, "jev-operator-key") {
+		t.Fatalf("JEV APIKey Display leaks raw value: %q", key.Display)
+	}
+	url := findRow(t, pd, "review", "APIURL")
+	if url.Display != "https://jev.example.com/v1/classifier" {
+		t.Fatalf("JEV APIURL Display = %q, want surfaced raw", url.Display)
+	}
+	model := findRow(t, pd, "review", "Model")
+	if model.Display != "demo-classifier" {
+		t.Fatalf("JEV Model Display = %q, want surfaced raw", model.Display)
+	}
 }

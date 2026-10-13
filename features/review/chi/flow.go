@@ -31,7 +31,7 @@ const (
 const (
 	MaxIterations      = 3
 	MaxRunDuration     = 90 * time.Second
-	MaxContentChars    = 6000
+	MaxContentRunes    = 6000
 	MaxJudgeStateRunes = 6000
 )
 
@@ -137,7 +137,7 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 	if content == "" {
 		return Verdict{}, errors.New("review: empty content")
 	}
-	content = truncateRunes(content, MaxContentChars)
+	content = truncateRunes(content, MaxContentRunes)
 	makerPrompt, criticPrompt := rolePrompts(tab)
 
 	emit := func(s string) {
