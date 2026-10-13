@@ -345,10 +345,18 @@ mounts one subtree per capability on a single stdlib `net/http.ServeMux`.
 Longest match wins, the landing `/` is the catch-all. The famous
 alternatives beat chi on microbenchmarks:
 
-- **Gin** (89k stars) — zero-alloc radix, custom context, 12 deps.
-- **Echo** (33k stars) — JSON/p99 balance, 8 deps.
-- **Chi** (22k stars) — zero deps, stdlib-pure; the one Supabase's own auth
+- **Gin** — zero-alloc radix, custom context, a dozen deps.
+- **Echo** — JSON/p99 balance, a handful of deps.
+- **Fiber** — fastest on synthetic benches (fasthttp), incompatible with
+  stdlib middleware, streaming SSE, `httptest` and HTTP/2; discarded.
+- **Chi** — zero deps, stdlib-pure; the one Supabase's own auth
   service uses — and the one this stack uses inside each capability.
+
+Gin/Echo wrap the `ResponseWriter` (Flush/SSE edge cases); chi passes the
+original writer through, which is what datastar-go SSE and the SSE Hub expect.
+
+No binding magic by decision — handlers parse explicitly (query/form/JSON
+with caps), matching the thin-seams rule.
 
 None of it matters here: routing is microseconds against milliseconds of
 SQLite, and the SQLite wisdom holds exactly — ignore artificial
