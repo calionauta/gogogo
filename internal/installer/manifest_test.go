@@ -133,7 +133,7 @@ func TestUnitMenusFollowRegistryKinds(t *testing.T) {
 		t.Errorf("plugin menu = %v, want %v", plugins, wantPlugins)
 	}
 	features := unitIDsOfKind(capabilities.KindFeature)
-	wantFeatures := []string{"whiteboard", "landing", "config-view"}
+	wantFeatures := []string{"whiteboard", "landing", "config-view", "review"}
 	if fmt.Sprint(features) != fmt.Sprint(wantFeatures) {
 		t.Errorf("feature menu = %v, want %v", features, wantFeatures)
 	}

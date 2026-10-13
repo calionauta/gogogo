@@ -93,6 +93,16 @@ in the dependency closure, no cross-feature domain imports (shared UI leaves
 `authviews`, `sounds`, `genui/components` excepted), and `sql.Open` only in
 owner packages (`internal/db/`, `internal/queue/`, `features/credits/`).
 
+Secret plumbing has its own gate, **`cmd/check-secrets-env`**
+(`make check-secrets-env`, same gate in CI and pre-commit):
+`os.Getenv`/`LookupEnv`/`Setenv` with secret-shaped names (`*_KEY`,
+`*_TOKEN`, `*_SECRET`, `*_PASSWORD`, …) may only run in owner files —
+`config/` (single source of truth), `internal/secrets/` (age loader),
+and the narrowly reasoned call sites listed in the tool. Values stay
+gitleaks' job; this tool guards *sites*, so a new credential either
+lands in config (documented, masked on `/config`, age-sourced) or fails
+with the file and line named.
+
 Adding a rule:
 
 - Patterns are **expressions**, not statements — `select { case ... }` does not

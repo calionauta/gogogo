@@ -98,6 +98,7 @@ the field or a `.templ` reader goes missing.
 | `web/skins/` | 🟡 PLUGIN | Delete + drop blank imports in `features/todo/components/skin_imports.go` + drop `SkinSelector` from navbar |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
+| `features/review/` | 🟢 FEATURE | Delete package + `bootReview`/`reviewH` lines + `/review` mounts in `internal/server/chi.go` (+ `newReviewHandlerForTest` in its test) + `go mod tidy` (drops genkit + go-jev) |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
 | `features/landing/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/config/` | 🟢 FEATURE | Delete package + wiring call |

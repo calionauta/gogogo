@@ -225,6 +225,17 @@ check-flatdeps:
 	@go run ./cmd/check-flatdeps
 	@echo "✅ flat-stack dependencies within bounds"
 
+# check-secrets-env proves secret env plumbing stays on the rails without
+# booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
+# (*_KEY, *_TOKEN, *_SECRET, *_PASSWORD, …) may only run in owner files
+# (config loader, secrets loader, narrow allowlist). Same implementation
+# the pre-commit secrets-env job runs — not a parallel bash
+# reimplementation. Values stay gitleaks' job (pre-commit + CI).
+check-secrets-env:
+	@echo "→ check-secrets-env (secret env site guard)..."
+	@go run ./cmd/check-secrets-env
+	@echo "✅ secret env stays on the rails"
+
 # check-dagnats-pin keeps docs/dagnats.md honest: the capability table is
 # verified against the go.mod pin, so a version bump without a doc update
 # fails here instead of shipping stale bounds. Pure grep, no network.
@@ -317,7 +328,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -345,10 +356,10 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, scoped to changed packages)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/changed-packages.sh); if [ -z "$$PKGS" ]; then echo "  (no Go packages changed)"; else golangci-lint run $$PKGS; fi; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (race, changed packages only)"

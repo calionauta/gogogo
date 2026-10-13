@@ -36,6 +36,7 @@ import (
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/internal/rbac"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
@@ -172,6 +173,40 @@ func (h *Handler) ownerSession(r *http.Request) (string, *auth.ValidatedSession,
 		return "", nil, errors.New("todo: empty session")
 	}
 	return sess.User.ID, sess, nil
+}
+
+// isViewerSession reports whether the request carries the restricted demo
+// role. Display hint only (delete affordances + paid-action visibility) —
+// enforcement stays in the RBAC policy, so callers never branch access on
+// this. Unknown/missing sessions are not viewers (fail-open display).
+func isViewerSession(sess *auth.ValidatedSession) bool {
+	return sess != nil && rbac.IsViewer(sess.Role)
+}
+
+// isViewer resolves the viewer flag for request paths carrying a session.
+// One extra indexed user lookup per render; mutations already issue
+// several writes, so this does not move their cost profile.
+func (h *Handler) isViewer(r *http.Request) bool {
+	sess, err := h.Auth.Session(r)
+	if err != nil {
+		return false
+	}
+	return isViewerSession(sess)
+}
+
+// viewerOwner resolves the viewer flag for stream paths, which know the
+// owner id but carry no session. A lookup miss fails open (affordance
+// shown, policy still enforces) — display must never lock out, only
+// enforcement denies.
+func (h *Handler) viewerOwner(ctx context.Context, owner string) bool {
+	if owner == "" || h.Q == nil {
+		return false
+	}
+	u, err := h.Q.GetUser(ctx, owner)
+	if err != nil {
+		return false
+	}
+	return rbac.IsViewer(u.Role)
 }
 
 // dagnatsUIEnabled reports the durable-workflow UI truth: REGISTRATION,
@@ -403,6 +438,9 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	signals := todo.Signals{
 		Todos: todos, Filter: filter, ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
+		IsViewer:       h.isViewer(r),
+		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
+		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
@@ -432,6 +470,9 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	signals := todo.Signals{
 		Todos: todos, Filter: filter, ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
+		IsViewer:       h.isViewer(r),
+		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
+		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
 	}
 	var buf bytes.Buffer
 	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {

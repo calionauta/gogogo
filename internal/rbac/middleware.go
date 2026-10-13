@@ -10,30 +10,6 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 )
 
-// roleAnonymous is the subject for requests without a valid session.
-// roleUser is the fallback for authenticated users whose row carries an
-// unknown role value: least surprise (they keep working), documented in
-// the migration that added the column.
-const (
-	roleAnonymous = "anonymous"
-	roleUser      = "user"
-	roleAdmin     = "admin"
-)
-
-// subjectOf resolves the decision subject: the session's role, "user" for
-// anything unrecognized, "anonymous" without a session. Unknown values
-// must not lock users out over a typo in the column — and must never
-// escalate: only the exact string "admin" elevates.
-func subjectOf(sess *auth.ValidatedSession, err error) string {
-	if err != nil || sess == nil {
-		return roleAnonymous
-	}
-	if sess.Role == roleAdmin {
-		return roleAdmin
-	}
-	return roleUser
-}
-
 // Middleware enforces the embedded policy, built once and reused
 // (EnforceWith hot path). Disabled is a pass-through with the same call
 // shape — the wiring stays identical, only the decision changes — so
@@ -42,6 +18,16 @@ func subjectOf(sess *auth.ValidatedSession, err error) string {
 // deny is a warn log with subject/object/action (the audit trail auth's
 // securitylog starts, enforcement completes).
 func Middleware(a *auth.Auth, e *casbin.Enforcer, enabled bool) func(http.Handler) http.Handler {
+	return MiddlewareWithPermissive(a, e, enabled, false)
+}
+
+// MiddlewareWithPermissive adds audit-before-enforce rollout: with
+// permissive true, would-be denies are warn-logged (with permissive=1)
+// and the request proceeds. Flip it off once the logs are clean —
+// see docs/rbac.md. Production posture is permissive=false.
+func MiddlewareWithPermissive(
+	a *auth.Auth, e *casbin.Enforcer, enabled, permissive bool,
+) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !enabled {
@@ -58,6 +44,12 @@ func Middleware(a *auth.Auth, e *casbin.Enforcer, enabled bool) func(http.Handle
 				return
 			}
 			if !allow {
+				if permissive {
+					slog.Warn("rbac: permissive allow (would deny)",
+						"sub", sub, "obj", r.URL.Path, "act", r.Method, "permissive", 1)
+					next.ServeHTTP(w, r)
+					return
+				}
 				slog.Warn("rbac: denied",
 					"sub", sub, "obj", r.URL.Path, "act", r.Method)
 				http.Error(w, "forbidden", http.StatusForbidden)

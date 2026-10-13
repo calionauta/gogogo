@@ -20,7 +20,12 @@ import (
 //     signal. Clicking the trash sets the id and the title (used in
 //     the modal's "Delete <title>?" body), then the modal handles the
 //     confirm/cancel flow.
-templ TodoItem(item todo.Todo) {
+//
+//   - canDelete is the RBAC display hint (false for the viewer role):
+//     the trash renders aria-disabled with the reason instead of
+//     opening the modal, and the click raises $permDenied. Enforcement
+//     stays server-side (policy.csv answers 403) — this only narrates.
+templ TodoItem(item todo.Todo, canDelete bool) {
 	<div
 		class="todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors"
 		id={"todo-" + item.ID}
@@ -37,17 +42,32 @@ templ TodoItem(item todo.Todo) {
 		<span class="flex-1">{ item.Title }</span>
 	}
 		<span class="text-xs text-base-content/40">{ timeAgo(item.CreatedAt) }</span>
-		<button
-			type="button"
-			class="btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95"
-			title="Delete todo"
-			data-cuelume-press="droplet"
-			data-on:click__prevent={ "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById('confirm-delete-modal').showModal()" }
-		 data-variant="ghost">
-			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
-			</svg>
-		</button>
+		if canDelete {
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95"
+				title="Delete todo"
+				data-cuelume-press="droplet"
+				data-on:click__prevent={ "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById('confirm-delete-modal').showModal()" }
+			 data-variant="ghost">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+				</svg>
+			</button>
+		} else {
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs opacity-50"
+				aria-disabled="true"
+				title="Delete (viewer role cannot delete)"
+				data-cuelume-press="droplet"
+				data-on:click__prevent={ "$permDenied = true" }
+			 data-variant="ghost">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+				</svg>
+			</button>
+		}
 	</div>
 }
 

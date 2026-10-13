@@ -43,7 +43,7 @@ var trimPresets = map[string]trimPreset{
 		Drop: []string{
 			unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
 			unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
-			unitGenUI,
+			unitGenUI, unitReview,
 		},
 		Note: "GET / 404s (landing owned the only root route); the navbar " +
 			"brand retargets to /todo. Todo stays as the reference " +
@@ -51,8 +51,8 @@ var trimPresets = map[string]trimPreset{
 	},
 	presetNoAI: {
 		Idea: "everything except model surface: drop the credits ledger " +
-			"plus the Ask + chat demos.",
-		Drop: []string{unitCredits, unitGenUI},
+			"plus the Ask + chat + review demos.",
+		Drop: []string{unitCredits, unitGenUI, unitReview},
 		Note: "Todo AI Suggest still works with GOAI_API_KEY, unmetered. " +
 			"The LLM client itself is runtime (unset GOAI_API_KEY hides the " +
 			"button) — the preset deletes the demo surfaces, not the client.",

@@ -33,6 +33,22 @@
   PRs, fully custom text) pass vacuously; prose quality stays review
   judgment. AGENTS.md now orders agents to fill every section on `gh pr
   create` (linked issue, motivation, one-line AI disclosure, verification).
+- **Review loop (`/review`, Genkit + goai + jev judge).** Paste text or a
+  diff — a writer and a critic iterate bounded (`MaxIterations`), then a
+  classifier judge delivers the verdict over ephemeral SSE, discarded
+  afterwards. Zero server-side artifacts (billing ledger only), real-LLM
+  only (no key → setup hint + 503, never simulated). Genkit brings typed
+  flows + per-step traces with zero provider plugins (generation reaches
+  providers only through `llm.Client`, so the Biller choke point holds);
+  the judge is any jev-compatible API via `JEV_*` env (SimpleJev demo by
+  default), escalating to a human below `JEV_CONFIDENCE_THRESHOLD`.
+  Trim with `gogogo trim review` (dropped by `minimal` + `no-ai`); see
+  `docs/review.md`. Red-proofed (loop bound, no-write, fail-closed).
+- **`llm.Client.ChatWithUsage`.** Usage-returning variant of `Chat` for
+  typed orchestrators (Genkit model action); metering stays inside the
+  client (one authorize + one settle). Plus a one-line audit fix:
+  `fromGoAIUsage` folds cache-write tokens into input instead of
+  dropping them.
 - **Flat-stack dependency guard.** `cmd/check-flatdeps` (`make check-flatdeps`,
   CI + pre-commit) now proves three invariants without booting: no banned
   framework in the closure, no cross-feature domain imports (shared UI leaves

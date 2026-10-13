@@ -51,6 +51,14 @@ type PageData struct {
 	AppName    string
 	BuildLabel string
 	Groups     []Group
+	// Role is the viewer's users.role at render time ("" when unknown).
+	// Display-only: enforcement stays in the RBAC middleware. The page
+	// template pairs it with RBACEnabled so the Casbin posture is
+	// visible where it is inspected, not just in policy.csv.
+	Role string
+	// RBACEnabled mirrors cfg.RBACEnabled: pass-through when false,
+	// enforced denies when true.
+	RBACEnabled bool
 }
 
 // Group is a labelled slice of Rows. Order is stable across
@@ -75,8 +83,9 @@ func BuildPageData(cfg *config.Config) PageData {
 	}
 
 	pd := PageData{
-		AppName:    cfg.AppName,
-		BuildLabel: cfg.BuildLabel,
+		AppName:     cfg.AppName,
+		BuildLabel:  cfg.BuildLabel,
+		RBACEnabled: cfg.RBACEnabled,
 	}
 
 	ageSet := os.Getenv("AGE_SECRET_KEY") != ""
@@ -121,16 +130,20 @@ func BuildPageData(cfg *config.Config) PageData {
 	pd.Groups = append(pd.Groups, Group{
 		Name: "AI (GoAI)",
 		Rows: []Row{
-			rowSecret("ai", "APIKey", cfg.GoAI.APIKey, "LLM provider API key (masked)."),
+			rowSecret("ai", keyAPIKey, cfg.GoAI.APIKey, "LLM provider API key (masked)."),
 			row("ai", "BaseURL", os.Getenv("GOAI_BASE_URL"), "OpenAI-compatible base URL."),
-			row("ai", "Model", os.Getenv("GOAI_MODEL"), "Model ID passed to the provider."),
+			row("ai", keyModel, os.Getenv("GOAI_MODEL"), "Model ID passed to the provider."),
 		},
 	})
 
+	// Review group — jev judge endpoint surfaced, API key masked.
+	// Values come from cfg.Review (JEV_* env); the key lives in the
+	// age-encrypted secrets file when set, keyless demo when empty.
+	pd.Groups = append(pd.Groups, reviewGroup(cfg))
+
 	// NATS group.
 	pd.Groups = append(pd.Groups, Group{
-		Name: "NATS",
-		Rows: []Row{
+		Name: "NATS", Rows: []Row{
 			rowBool("nats", "Enabled", cfg.NATS.Enabled, "Embedded NATS JetStream toggle."),
 			row("nats", "StoreDir", cfg.NATS.StoreDir, "Where NATS persists streams."),
 			rowURL(
@@ -178,6 +191,26 @@ func BuildPageData(cfg *config.Config) PageData {
 	})
 
 	return pd
+}
+
+// reviewGroup builds the jev judge section: endpoint surfaced, API key
+// masked. Split from BuildPageData for the funlen gate.
+func reviewGroup(cfg *config.Config) Group {
+	return Group{
+		Name: "Review (Jev)",
+		Rows: []Row{
+			rowSecret(groupReview, keyAPIKey, cfg.Review.APIKey,
+				"Judge API key (masked; empty = keyless demo endpoint)."),
+			row(groupReview, keyJevAPIURL, cfg.Review.APIURL,
+				"Jev-compatible judge endpoint (any POST state/model/questions server)."),
+			row(groupReview, keyModel, cfg.Review.Model, "Judge model ID."),
+			row(groupReview, keyJevTimeout, cfg.Review.Timeout.String(),
+				"Per-attempt judge HTTP timeout."),
+			row(groupReview, keyJevThreshold,
+				strconv.FormatFloat(cfg.Review.ConfidenceThreshold, 'f', 2, 64),
+				"Below this the verdict escalates to a human."),
+		},
+	}
 }
 
 // row builds a non-secret Row from a string value. The masking

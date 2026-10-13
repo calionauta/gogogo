@@ -8,6 +8,8 @@ import (
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 
+	"github.com/zendev-sh/goai/provider"
+
 	"github.com/calionauta/ai-credits/credits"
 )
 
@@ -86,4 +88,21 @@ func balanceFor(t *testing.T, s *Service, uid string) int64 {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// Cache-write tokens have no lib field: fromGoAIUsage folds them into
+// InputTokens (billed at base input rate) instead of dropping them, so the
+// audit stays consistent with the settle/release decision in hasTokens.
+func TestFromGoAIUsage_FoldsCacheWriteIntoInput(t *testing.T) {
+	u := provider.Usage{
+		InputTokens: 100, OutputTokens: 50, CacheReadTokens: 20,
+		CacheWriteTokens: 30, ReasoningTokens: 10,
+	}
+	got := fromGoAIUsage("req-1", "user-1", "fake-1", u)
+	if got.InputTokens != 130 {
+		t.Fatalf("InputTokens = %d, want 130 (100 + 30 cache-write)", got.InputTokens)
+	}
+	if got.OutputTokens != 50 || got.CachedTokens != 20 || got.ReasoningTokens != 10 {
+		t.Fatalf("other fields changed: %+v", got)
+	}
 }

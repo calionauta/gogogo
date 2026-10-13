@@ -89,6 +89,19 @@ templ Page(data PageData, userEmail string, buildLabel string, buildCommit strin
 					environment and the encrypted secrets file. Sensitive values
 					are masked; the literal key/token never reaches the browser.
 				</div>
+				<div class="config-banner" role="status">
+					<strong>Access control (Casbin).</strong>
+					if data.Role != "" {
+						<span>Signed in with role <code class="text-sm">{ data.Role }</code>.</span>
+					} else {
+						<span>Role unknown for this session.</span>
+					}
+					if data.RBACEnabled {
+						<span>RBAC enforcement is <strong>on</strong> — this page is admin-only.</span>
+					} else {
+						<span>RBAC enforcement is <strong>off</strong> (pass-through) — set <code class="text-sm">RBAC_ENABLED=true</code> to enforce.</span>
+					}
+				</div>
 
 				for _, group := range data.Groups {
 					<section class="config-group card bg-base-100 shadow-sm">

@@ -23,14 +23,14 @@ const SU_PASS = "SmokeSuperuserPass!123";
 const USER_EMAIL = "smoke-user@local.dev";
 const USER_PASS = "SmokeUserPass!123";
 
-const ROUTES = ["/todo", "/whiteboard", "/room", "/login", "/genui"];
+const ROUTES = ["/todo", "/whiteboard", "/room", "/login", "/genui", "/review"];
 
 // Trim-aware gating: a trimmed checkout must neither fail on routes that
 // no longer exist nor silently pass over them. SMOKE_FEATURES lists the
 // features present (default: the full template surface); trim output
 // (installer Warns) tells you the value to use. Unknown names fail fast:
 // a typo must never read as "trimmed".
-const ALL_FEATURES = ["todo", "whiteboard", "room", "login", "genui"];
+const ALL_FEATURES = ["todo", "whiteboard", "room", "login", "genui", "review"];
 const FEATURES = (process.env.SMOKE_FEATURES || ALL_FEATURES.join(",")).split(",");
 for (const f of FEATURES) {
   if (!ALL_FEATURES.includes(f)) {
@@ -479,9 +479,11 @@ async function verifyOfflineUx(page, context) {
     await page.getByPlaceholder("Add a new todo...").waitFor({ state: "visible", timeout: 15000 });
     console.log("  ✓ offline navigation served the cached todo page");
 
-    // 4) logout form must wire the clear-pages purge message.
+    // 4) logout form must wire the clear-pages purge message. The form
+    // drives its own POST (native submit is swallowed by Datastar's
+    // data-on handler), so the contract lives on data-on:submit__prevent.
     const logoutForm = page.locator('form[action="/logout"]');
-    const onSubmit = await logoutForm.getAttribute("data-on:submit");
+    const onSubmit = await logoutForm.getAttribute("data-on:submit__prevent");
     if (!onSubmit || !onSubmit.includes("clear-pages")) {
       throw new Error("logout form does not post clear-pages to the service worker");
     }

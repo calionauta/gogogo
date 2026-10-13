@@ -34,6 +34,7 @@ import (
 	"github.com/calionauta/gogogo/features/notes"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
+	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/features/whiteboard"
@@ -253,6 +254,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,
 		comp.NewResponder(realLLM, simulatedLLM))
 	genuiH.RegisterHandlers(chiQ.Registry())
+	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()
 
 	creditsH, shutdown, err := bootCredits(bootCtx, cfg, shutdown, sqlDB, cancelConsumer, a)
@@ -274,20 +276,24 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// once (and the add path restores these same lines — see routerCallLines).
 	mux := buildChiMux(a, todoH,
 		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a),
+		confighandlers.NewHandler(cfg, a, queries),
 		wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),
 		noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),
 		roomH,
 		chatH,
 		genuiH,
+		reviewH,
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
+	// Console rides the same mount-after-composition rule: the engine
+	// listener is loopback-only, so browsers reach it only through here.
+	mountConsoleProxy(mux, a, cfg)
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
 	// denies when on). A parse failure is a programmer error and fails the
 	// boot loud. Split out of BootChi for the funlen gate.
-	handler, rerr := applyRBAC(a, cfg, queries, mux)
+	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
 		cancelConsumer()
 		_ = sqlDB.Close()
@@ -381,17 +387,6 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, stack *ChiStack) func
 	}
 }
 
-// wireTodoDisplay copies the display-time config into the todo handler:
-// version badge, offline label and realtime label. Extracted from BootChi
-// to keep boot under the function-length gate; it is plain assignment with
-// no control flow of its own.
-func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
-	todoH.BuildLabel = cfg.BuildLabel
-	todoH.BuildCommit = cfg.BuildCommit
-	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
-	todoH.NATSEnabled = cfg.NATS.Enabled
-}
-
 // mountOnboarding registers the onboarding routes after the composition,
 // not inside it: buildChiMux takes one concrete pointer per feature, and
 // every extra parameter is a line every trim must edit. The optional mount
@@ -418,6 +413,7 @@ func buildChiMux(
 	roomH *roomhandlers.Handler,
 	chatH *chathandlers.Handler,
 	genuiH *genuihandlers.Handler,
+	reviewH *reviewhandlers.Handler,
 	creditsH *creditshandlers.Handler,
 ) *http.ServeMux {
 	// Every sub-router serves absolute paths (the auth handler carries
@@ -457,6 +453,9 @@ func buildChiMux(
 	mux.Handle("/genui", genuiH.Routes())
 	mux.Handle("/genui/", genuiH.Routes())
 	mux.Handle("/api/genui/", genuiH.Routes())
+	mux.Handle("/review", reviewH.Routes())
+	mux.Handle("/review/", reviewH.Routes())
+	mux.Handle("/api/review/", reviewH.Routes())
 	mux.Handle("/api/credits", creditsH.Routes())
 	mux.Handle("/api/credits/", creditsH.Routes())
 	mux.Handle("/api/ai/", creditsH.Routes())

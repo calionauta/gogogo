@@ -20,6 +20,7 @@ import (
 	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
+	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"
@@ -29,6 +30,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -200,6 +202,21 @@ func chiQForTest(t *testing.T) *queue.Queue {
 	return q
 }
 
+// newReviewHandlerForTest builds the review handler with an unconfigured
+// LLM (no network on construction): routing-only, like chiQForTest. The
+// review trim strips this helper plus both call sites below.
+func newReviewHandlerForTest(cfg *config.Config, a *auth.Auth) *reviewhandlers.Handler {
+	g := reviewhandlers.NewGenkit()
+	client := llm.New("")
+	return reviewhandlers.NewHandler(cfg, a, &reviewhandlers.Runner{
+		G:            g,
+		Model:        reviewhandlers.DefineReviewModel(g, client),
+		Judge:        reviewhandlers.NewJudgeClient(cfg),
+		Threshold:    cfg.Review.ConfidenceThreshold,
+		JudgeTimeout: cfg.Review.Timeout,
+	}, client)
+}
+
 // TestBuildChiMuxRoomDisabledPinsRouteAbsence is the port of the router
 // suite's RegisterRoomStackDisabledRegistersNothing: when the actor system
 // is disabled the handler is nil and the mux must not carry /room at all —
@@ -230,12 +247,13 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	hub := queue.NewSSEHub()
 	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub, "daisyui"),
 		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a),
+		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
 		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		newReviewHandlerForTest(cfg, a),
 		creditshandlers.NewHandler(a, nil))
 
 	rec := httptest.NewRecorder()
@@ -272,12 +290,13 @@ func TestBuildChiMux(t *testing.T) {
 
 	mux := buildChiMux(a, todoH,
 		landinghandlers.NewHandler(cfg, a),
-		confighandlers.NewHandler(cfg, a),
+		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		roomhandlers.NewHandler(cfg, a, fakeRooms{}),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(), stubResponder{raw: "{}"}),
 		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
+		newReviewHandlerForTest(cfg, a),
 		creditshandlers.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
 	req := httptest.NewRequestWithContext(context.Background(),
@@ -326,6 +345,7 @@ func TestBuildChiMux(t *testing.T) {
 		"/room",
 		"/chat",
 		"/genui",
+		"/review",
 	} {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil))

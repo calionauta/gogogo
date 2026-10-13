@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zendev-sh/goai/provider"
+
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -28,6 +30,20 @@ func TestChat_NoAPIKey_ReturnsErrNoAPIKey(t *testing.T) {
 	_, err := c.Chat(context.Background(), "hello")
 	if !errors.Is(err, ErrNoAPIKey) {
 		t.Fatalf("expected ErrNoAPIKey, got %v", err)
+	}
+}
+
+func TestChatWithUsage_NoAPIKey_ReturnsErrNoAPIKey(t *testing.T) {
+	// ChatWithUsage shares Chat's fail-soft contract: no key means
+	// ErrNoAPIKey with zero usage, so Genkit model actions surface a
+	// clean 503 instead of an opaque failure.
+	c := New("")
+	_, usage, err := c.ChatWithUsage(context.Background(), "hello")
+	if !errors.Is(err, ErrNoAPIKey) {
+		t.Fatalf("expected ErrNoAPIKey, got %v", err)
+	}
+	if usage != (provider.Usage{}) {
+		t.Fatalf("expected zero usage on config error, got %+v", usage)
 	}
 }
 

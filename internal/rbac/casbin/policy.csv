@@ -13,10 +13,14 @@
 # Fail-closed by construction: a route not listed here denies everyone
 # except admin. Adding a feature means adding its paths below (the
 # coverage test fails naming the gap).
+# The viewer role (users.role == 'viewer', promoted at boot from
+# VIEWER_EMAILS) is the RBAC demo: read + create + toggle on todos,
+# nothing destructive, nothing paid. Unlisted paths deny it like any
+# non-admin — the viewer sees only the todo surface by design.
+p, admin, /*, .*
 # This is a STARTING POINT: tune it for your app before enabling RBAC in
 # production (RBAC_ENABLED=true). The admin-only surface is /config (env
 # secrets view); everything else a login can reach, a user can reach.
-p, admin, /*, .*
 p, anonymous, /static/*, (GET|HEAD)
 p, anonymous, /sw.js, GET
 p, anonymous, /health, GET
@@ -50,6 +54,10 @@ p, user, /genui, .*
 p, user, /genui/*, .*
 p, user, /api/genui, .*
 p, user, /api/genui/*, .*
+p, user, /review, .*
+p, user, /review/*, .*
+p, user, /api/review, .*
+p, user, /api/review/*, .*
 p, user, /api/credits, .*
 p, user, /api/credits/*, .*
 p, user, /api/ai/*, .*
@@ -62,5 +70,25 @@ p, user, /sw.js, GET
 p, user, /health, GET
 p, user, /, GET
 p, user, /api/auth/*, .*
+p, viewer, /todo, .*
+p, viewer, /todo/*, .*
+p, viewer, /login, (GET|POST)
+p, viewer, /logout, (GET|POST)
+p, viewer, /api/todos, (GET|POST)
+p, viewer, /api/todos/fragment, .*
+p, viewer, /api/todos/stream, .*
+p, viewer, /api/todos/*/toggle, .*
+p, viewer, /api/session, GET
+p, viewer, /static/*, (GET|HEAD)
+p, viewer, /sw.js, GET
+p, viewer, /health, GET
+p, viewer, /, GET
+p, viewer, /api/auth/*, .*
 p, admin, /config, .*
 p, admin, /config/, .*
+p, admin, /console, .*
+p, admin, /console/, .*
+p, admin, /console/*, .*
+p, admin, /dagnats, .*
+p, admin, /dagnats/, .*
+p, admin, /dagnats/*, .*

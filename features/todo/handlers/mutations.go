@@ -110,7 +110,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
 		return
 	}
-	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
+	if err := h.patchListSelf(sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: create patch failed", err, "save failed")
 		return
 	}
@@ -122,7 +122,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 // patchListSelf tags the originating mutation as "self" (self-origin entry
 // animation) and patches the list with view transitions, merging the fresh
 // item count in the same SSE response.
-func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.Todo, skin string) error {
+func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request) error {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
 		signalItemCount:  len(todos),
@@ -132,8 +132,9 @@ func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.
 	signals := todo.Signals{
 		Todos: todos, Filter: "all", ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
+		IsViewer:       h.isViewer(r),
 	}
-	return patchSSE(sse, h.renderListRegion(signals, skin),
+	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())
 }
@@ -184,7 +185,7 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
+	if err := h.patchListSelf(sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: toggle patch failed", err, "toggle failed")
 	}
 }
@@ -264,7 +265,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: delete signals failed", err, "delete failed")
 		return
 	}
-	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
+	if err := h.patchListSelf(sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: delete patch failed", err, "delete failed")
 		return
 	}
@@ -307,7 +308,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(sse, todos, h.resolveSkin(r)); err != nil {
+	if err := h.patchListSelf(sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: clear patch failed", err, "clear failed")
 		return
 	}

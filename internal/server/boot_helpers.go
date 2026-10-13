@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo/config"
+	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -30,20 +31,40 @@ func seedDemoAccounts(a *auth.Auth) {
 	cancelDemo()
 }
 
-// applyRBAC builds one enforcer, promotes ADMIN_EMAILS rows, and wraps the
-// mux in the middleware (pass-through when disabled, enforced denies when
-// on — the flag never rewires anything).
-func applyRBAC(a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *http.ServeMux) (http.Handler, error) {
+// applyRBAC builds one enforcer, promotes VIEWER_EMAILS then ADMIN_EMAILS
+// rows, and wraps the mux in the middleware (pass-through when disabled,
+// enforced denies when on — the flag never rewires anything). Viewers
+// promote first so an address in both lists ends admin, never viewer.
+// ctx is the boot context: promotion stops if the boot is cancelled.
+func applyRBAC(
+	ctx context.Context, a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *http.ServeMux,
+) (http.Handler, error) {
 	enforcer, err := rbac.NewEnforcer()
 	if err != nil {
 		return nil, fmt.Errorf("server: chi rbac: %w", err)
 	}
-	if n, err := promoteAdmins(cfg.AdminEmails, queries); err != nil {
+	if n, err := promoteRole(ctx, cfg.ViewerEmails, rbac.RoleViewer, queries); err != nil {
+		return nil, err
+	} else if n > 0 {
+		slog.Info("server: rbac viewer promotion", "rows", n)
+	}
+	if n, err := promoteAdmins(ctx, cfg.AdminEmails, queries); err != nil {
 		return nil, err
 	} else if n > 0 {
 		slog.Info("server: rbac admin promotion", "rows", n)
 	}
-	return rbac.Middleware(a, enforcer, cfg.RBACEnabled)(mux), nil
+	return rbac.MiddlewareWithPermissive(a, enforcer, cfg.RBACEnabled, cfg.RBACPermissive)(mux), nil
+}
+
+// wireTodoDisplay copies the display-time config into the todo handler:
+// version badge, offline label and realtime label. Extracted from BootChi
+// to keep boot under the function-length gate; it is plain assignment with
+// no control flow of its own.
+func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
+	todoH.BuildLabel = cfg.BuildLabel
+	todoH.BuildCommit = cfg.BuildCommit
+	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
+	todoH.NATSEnabled = cfg.NATS.Enabled
 }
 
 // wireTodoLLM builds the LLM clients and attaches the todo slice's queue,
@@ -70,10 +91,17 @@ func wireTodoLLM(todoH *todohandlers.Handler, chiQ *queue.Queue, cfg *config.Con
 // operator list (ADMIN_EMAILS). Promotion only, never provisioning: unknown
 // addresses are skipped silently (anyone can claim an unowned address, so
 // absence must not fail the boot). Returns rows actually promoted.
-func promoteAdmins(emails []string, queries *dbgen.Queries) (int, error) {
+func promoteAdmins(ctx context.Context, emails []string, queries *dbgen.Queries) (int, error) {
+	return promoteRole(ctx, emails, "admin", queries)
+}
+
+// promoteRole sets users.role for existing rows matching the operator
+// list. Shared by admin and viewer promotion: same promotion-only,
+// skip-silently contract, role parameterized. Returns rows promoted.
+func promoteRole(ctx context.Context, emails []string, role string, queries *dbgen.Queries) (int, error) {
 	n := 0
 	for _, email := range emails {
-		if _, err := queries.GetUserByEmail(context.Background(), email); err != nil {
+		if _, err := queries.GetUserByEmail(ctx, email); err != nil {
 			// Unowned address: skip silently (anyone can claim one, so
 			// absence must not fail the boot). Real lookup failures do.
 			if errors.Is(err, sql.ErrNoRows) {
@@ -81,8 +109,8 @@ func promoteAdmins(emails []string, queries *dbgen.Queries) (int, error) {
 			}
 			return n, fmt.Errorf("server: promote lookup %s: %w", email, err)
 		}
-		if err := queries.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
-			Role: "admin", Updated: dbschema.Now(), Email: email,
+		if err := queries.SetUserRole(ctx, dbgen.SetUserRoleParams{
+			Role: role, Updated: dbschema.Now(), Email: email,
 		}); err != nil {
 			return n, fmt.Errorf("server: promote %s: %w", email, err)
 		}
@@ -113,4 +141,25 @@ func wireTOTPKey(a *auth.Auth, cfg *config.Config) error {
 		return fmt.Errorf("server: chi auth: %w", err)
 	}
 	return nil
+}
+
+// bootReview wires the Genkit review-loop slice: one shared Genkit
+// instance, the gogogo/llm model action over the real LLM client (metered
+// exactly like todo suggest when a Biller is set), and the jev-compatible
+// judge from JEV_* env. Lives here (not chi.go) for the file-size gate;
+// the review trim strips this whole block (see the installer unit).
+func bootReview(
+	cfg *config.Config, a *auth.Auth, realLLM *llm.Client,
+) *reviewhandlers.Handler {
+	g := reviewhandlers.NewGenkit()
+	runner := &reviewhandlers.Runner{
+		G:            g,
+		Model:        reviewhandlers.DefineReviewModel(g, realLLM),
+		Judge:        reviewhandlers.NewJudgeClient(cfg),
+		Threshold:    cfg.Review.ConfidenceThreshold,
+		JudgeTimeout: cfg.Review.Timeout,
+	}
+	h := reviewhandlers.NewHandler(cfg, a, runner, realLLM)
+	h.RegisterFlows()
+	return h
 }

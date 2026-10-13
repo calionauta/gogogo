@@ -27,6 +27,7 @@ const (
 	groupStorage = "storage"
 	groupAdmin   = "admin"
 	groupAI      = "ai"
+	groupReview  = "review"
 	groupNATS    = "nats"
 	groupDagNats = "dagnats"
 	groupSync    = "sync"
@@ -35,11 +36,16 @@ const (
 	// Field keys used 3+ times across mask.go + safe_view.go.
 	// Centralised so goconst stops flagging the same string in
 	// each map literal / row() argument.
-	keyAppName     = "AppName"
-	keyBuildLabel  = "BuildLabel"
-	keyBuildCommit = "BuildCommit"
-	keyDBPath      = "DBPath"
-	keyDataDir     = "DataDir"
+	keyAppName      = "AppName"
+	keyBuildLabel   = "BuildLabel"
+	keyBuildCommit  = "BuildCommit"
+	keyDBPath       = "DBPath"
+	keyDataDir      = "DataDir"
+	keyAPIKey       = "APIKey"
+	keyModel        = "Model"
+	keyJevAPIURL    = "APIURL"
+	keyJevTimeout   = "Timeout"
+	keyJevThreshold = "ConfidenceThreshold"
 )
 
 // masked returns a partial-mask of v suitable for display. The
@@ -108,9 +114,16 @@ var envMap = map[string]map[string]string{
 		"AdminToken": "ADMIN_UNLOCK_TOKEN",
 	},
 	groupAI: { //nolint:gosec // map of field-name → env-name, NOT credentials
-		"APIKey":  "GOAI_API_KEY",
+		keyAPIKey: "GOAI_API_KEY",
 		"BaseURL": "GOAI_BASE_URL",
-		"Model":   "GOAI_MODEL",
+		keyModel:  "GOAI_MODEL",
+	},
+	groupReview: { //nolint:gosec // map of field-name → env-name, NOT credentials
+		keyAPIKey:             "JEV_API_KEY",
+		"APIURL":              "JEV_API_URL",
+		keyModel:              "JEV_MODEL",
+		"Timeout":             "JEV_TIMEOUT",
+		"ConfidenceThreshold": "JEV_CONFIDENCE_THRESHOLD",
 	},
 	groupNATS: {
 		"Enabled":     "NATS_ENABLED",
@@ -158,7 +171,9 @@ func safeValue(group, key string) bool {
 	case groupAdmin:
 		return false
 	case groupAI:
-		return key == "BaseURL" || key == "Model"
+		return key == "BaseURL" || key == keyModel
+	case groupReview:
+		return key != keyAPIKey
 	case groupNATS:
 		return key != "LeafNodeURL"
 	case groupDagNats:

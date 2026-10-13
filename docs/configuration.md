@@ -40,7 +40,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `NATS_STORE_DIR` | under `DATA_DIR` | JetStream storage directory |
 | `NATS_LEAFNODE_URL` | unset | When set, the desktop boots as a NATS Leaf Node replicating against your central server. Offline edits replay on reconnect. |
 | `DAGNATS_ENABLED` | `true` | Boot the DagNats durable workflow engine |
-| `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console |
+| `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console (loopback-only; browsers reach the console through the `/console/` reverse proxy on the app mux) |
 | `DAGNATS_NATS_PORT` | `4222` | Shared embedded JetStream port (DagNats boots it; the whiteboard SyncWorker attaches) |
 | `DAGNATS_STORE_DIR` | under `DATA_DIR` | DagNats store directory |
 | `DAGNATS_TRIGGER_BOOTSTRAP` | `true` | Seed one disabled placeholder trigger when the trigger bucket is empty. **Workaround for an upstream DagNats v0.0.24 bug** — without it the trigger console cannot create the first trigger. See [the workaround page](dagnats-bootstrap-workaround.md) before disabling or removing. |
@@ -62,6 +62,16 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `GOAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible base URL |
 | `GOAI_MODEL` | `gpt-4o-mini` | Default model |
 | `SIMULATE_LLM` | anything but `false` | In-process fake LLM scripting 500 → retry → slow → 200, so you can watch the retry toasts without a provider key. Enabled unless explicitly set to `false` — including in production |
+
+### Review loop (jev judge)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `JEV_API_URL` | SimpleJev keyless demo (`.../v1/classifier`) | Any jev-compatible endpoint (`POST {state,model,questions}`): TypeSafe, self-hosted SimpleJev, tensai. Bare hosts expand to `/v1/systemone` |
+| `JEV_MODEL` | SimpleJev demo classifier | Judge model ID served by the endpoint |
+| `JEV_API_KEY` | unset | Judge credential (age-encrypted secrets file). Empty = keyless demo, no `Authorization` header |
+| `JEV_TIMEOUT` | `10s` | Per-attempt judge HTTP timeout |
+| `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
 
 ### AI credits + BYOK
 
@@ -97,7 +107,9 @@ server-side and records upstream JSON/SSE token usage with
 | `AUTH_ENC_KEY` | auto-created `totp_seal.key` | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset auto-creates a 0600 key file in the data dir (no operator action; backups must handle it like any secret). Set-but-malformed fails the boot. |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
 | `RBAC_ENABLED` | `false` | Enforce the embedded Casbin policy on every request (deny = 403 + warn log). `false` is pass-through with identical wiring. When on: anonymous reaches only the public surface (landing, login, auth endpoints, static, health); users reach everything except `/config`; admins reach all. |
+| `RBAC_PERMISSIVE` | `false` | Audit-before-enforce rollout: would-be denies are warn-logged (`permissive=1`) and the request proceeds. Set for one deploy after adding a feature's paths, then turn off. Only meaningful with `RBAC_ENABLED=true`. See [RBAC](rbac.md). |
 | `ADMIN_EMAILS` | unset | Comma-separated addresses promoted to `admin` at boot (existing rows only — never provisions; keep public signup closed while set, anyone can claim an unowned address). Required to reach `/config` with `RBAC_ENABLED=true`. |
+| `VIEWER_EMAILS` | unset | Comma-separated addresses promoted to the restricted `viewer` role at boot (same existing-rows-only contract). Viewers read, create and toggle todos; deletes and paid actions deny with 403 under enforcement and render disabled with a message. An address in both lists ends `admin`. See the RBAC demo in [Admin & Dashboard](admin-dashboard.md). |
 
 ### Build metadata
 

@@ -115,6 +115,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
 | `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch blocks + imports stripped from `features/todo/handlers/pages.go` + `features/todo/handlers/chi.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
 | `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; navbar Ask AI link stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
+| `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); navbar Review link stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`
@@ -139,6 +140,7 @@ env-blessed with the reason recorded.
 | LLM suggest (GoAI) | Unset `GOAI_API_KEY` (button hides) | Manual — handler + stepper UI live inside `features/todo` | ❌ env-blessed |
 | AI credits + BYOK | `CREDITS_ENABLED=false` (default) | `features/credits/` + wiring | ✅ `credits` |
 | Generative UI + chat | Unset `GOAI_API_KEY` (Ask shows unconfigured; chat stub in tests) | `features/genui/` + `features/chat/` + wiring | ✅ `genui` |
+| Review loop + typed AI flows | Unset `GOAI_API_KEY` (page shows setup hint; run 503s) | `features/review/` + wiring (Genkit bundled inside `review`) | ✅ `review` |
 | Offline sync | `OFFLINE_SYNC_ENABLED=false` | Manual — `config` struct field + `sw.js` + templ SW registration | ❌ env-blessed (struct-field cascade) |
 | UI skins | `UI_SKIN=daisyui` / `?skin=` | `web/skins/<name>/` + dispatch branches | ✅ `skins-extra` (non-default skins) |
 | Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |

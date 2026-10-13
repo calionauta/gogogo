@@ -90,3 +90,74 @@ func TestBuildTag(t *testing.T) {
 		})
 	}
 }
+
+// TestRBACPermissiveParsing pins the rollout flag wiring: RBAC_PERMISSIVE
+// parses like every other bool knob, defaulting to enforcing (false).
+// Red-proof: drop the envBool line in Load and the true-case goes red;
+// default it true and the default-case goes red (production must enforce).
+func TestRBACPermissiveParsing(t *testing.T) {
+	// Not parallel: t.Setenv forbids t.Parallel.
+	t.Setenv("RBAC_ENABLED", "true")
+	t.Setenv("RBAC_PERMISSIVE", "true")
+	if got := Load(); !got.RBACPermissive {
+		t.Errorf("RBACPermissive with RBAC_PERMISSIVE=true = false, want true")
+	}
+	t.Setenv("RBAC_PERMISSIVE", "false")
+	if got := Load(); got.RBACPermissive {
+		t.Errorf("RBACPermissive with RBAC_PERMISSIVE=false = true, want false")
+	}
+	// Unset must default to enforcing: production enforces unless the
+	// operator opts into audit mode explicitly.
+	if err := os.Unsetenv("RBAC_PERMISSIVE"); err != nil {
+		t.Fatalf("unset: %v", err)
+	}
+	if got := Load(); got.RBACPermissive {
+		t.Errorf("RBACPermissive unset = true, want default false")
+	}
+}
+
+// TestReviewEnvParsing pins the jev-compatible judge knobs: working
+// demo defaults when unset, operator overrides via env, out-of-range
+// and unparseable thresholds falling back to default (a typo must not
+// brick the boot, and must never silently become auto-accept-everything
+// at 0.0). Red-proof: drop the clamp in loadReviewEnv and the
+// out-of-range cases go red.
+func TestReviewEnvParsing(t *testing.T) {
+	// Not parallel: t.Setenv forbids t.Parallel.
+	t.Setenv("JEV_API_URL", "")
+	t.Setenv("JEV_MODEL", "")
+	t.Setenv("JEV_API_KEY", "")
+	t.Setenv("JEV_TIMEOUT", "")
+	t.Setenv("JEV_CONFIDENCE_THRESHOLD", "")
+	got := Load()
+	if got.Review.APIURL != DefaultJevAPIURL {
+		t.Errorf("default APIURL = %q, want demo %q", got.Review.APIURL, DefaultJevAPIURL)
+	}
+	if got.Review.Model != DefaultJevModel {
+		t.Errorf("default Model = %q, want demo %q", got.Review.Model, DefaultJevModel)
+	}
+	if got.Review.ConfidenceThreshold != DefaultReviewConfidenceThreshold {
+		t.Errorf("default threshold = %v, want %v", got.Review.ConfidenceThreshold, DefaultReviewConfidenceThreshold)
+	}
+
+	t.Setenv("JEV_API_URL", "http://127.0.0.1:8000/v1/classifier")
+	t.Setenv("JEV_MODEL", "jev-latest")
+	t.Setenv("JEV_CONFIDENCE_THRESHOLD", "0.9")
+	got = Load()
+	if got.Review.APIURL != "http://127.0.0.1:8000/v1/classifier" {
+		t.Errorf("override APIURL = %q", got.Review.APIURL)
+	}
+	if got.Review.Model != "jev-latest" {
+		t.Errorf("override Model = %q", got.Review.Model)
+	}
+	if got.Review.ConfidenceThreshold != 0.9 {
+		t.Errorf("override threshold = %v, want 0.9", got.Review.ConfidenceThreshold)
+	}
+
+	for _, bad := range []string{"2.0", "-0.5", "abc"} {
+		t.Setenv("JEV_CONFIDENCE_THRESHOLD", bad)
+		if got := Load(); got.Review.ConfidenceThreshold != DefaultReviewConfidenceThreshold {
+			t.Errorf("threshold %q = %v, want default %v", bad, got.Review.ConfidenceThreshold, DefaultReviewConfidenceThreshold)
+		}
+	}
+}

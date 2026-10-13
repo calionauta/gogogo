@@ -35,6 +35,11 @@
 //	                       (see web/skins/)
 //	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
 //	                       enforces the embedded policy in internal/rbac/casbin
+//	JEV_API_URL          (default: SimpleJev demo) — jev-compatible judge endpoint
+//	JEV_MODEL            (default: demo classifier) — judge model ID
+//	JEV_API_KEY          (default: "") — keyless demo when empty (age secrets in prod)
+//	JEV_TIMEOUT          (default: 10s) — per-attempt judge HTTP timeout
+//	JEV_CONFIDENCE_THRESHOLD (default: 0.7) — escalate to human below this
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──
 //
@@ -196,6 +201,14 @@ type Config struct {
 	// starting point — tune it for your app before enabling in production.
 	RBACEnabled bool
 
+	// RBACPermissive turns enforcement into audit-before-enforce
+	// (RBAC_PERMISSIVE, default false): would-be denies are warn-logged
+	// and the request proceeds. Set it for one deploy after adding a
+	// feature's paths, read the "permissive allow" lines, then turn it
+	// off. Only meaningful with RBACEnabled=true; production posture is
+	// permissive=false. See docs/rbac.md.
+	RBACPermissive bool
+
 	// AdminEmails promotes existing users to the admin role at boot
 	// (ADMIN_EMAILS, comma-separated, matched lowercase). Promotion only,
 	// never provisioning: the address must already own a row (sign up or
@@ -203,6 +216,15 @@ type Config struct {
 	// the list is set — anyone can claim an unowned address. Empty
 	// disables promotion entirely.
 	AdminEmails []string
+
+	// ViewerEmails promotes existing users to the restricted viewer role
+	// at boot (VIEWER_EMAILS, same comma-separated contract). Viewers
+	// read, create and toggle todos; deletes and paid actions deny with
+	// 403 under RBAC enforcement and render disabled with a message.
+	// Ties lose to AdminEmails (admin promotion runs last). Empty
+	// disables promotion entirely; demo1/demo2 stay full users unless
+	// listed here.
+	ViewerEmails []string
 
 	// Auth holds owned-auth settings.
 	Auth struct {
@@ -236,27 +258,15 @@ type Config struct {
 
 	GoAI GoAIConfig
 
+	// Review holds the jev-compatible judge settings for features/review
+	// (JEV_* env, keyless SimpleJev demo by default). See config/review.go
+	// and docs/review.md for the customization contract.
+	Review ReviewConfig
+
 	// Credits gates the AI credits + BYOK plugin (lib calionauta/ai-credits).
 	// When Credits.Enabled is false the plugin registers no routes and
 	// credits.New is never built — the binary runs billing-free.
 	Credits CreditsConfig
-}
-
-// CreditsConfig holds the env-driven knobs for the AI credits plugin. Every
-// field defaults to billing-off; the plugin is only live when Enabled is
-// true AND the lib's schema can be applied to the app SQLite database.
-type CreditsConfig struct {
-	Enabled             bool
-	EncKey              []byte // CREDITS_ENC_KEY, 32 bytes; empty = BYOK store disabled
-	DefaultMode         string // managed | byok | explicit
-	MonthlyCredits      int64
-	Model               string            // default managed model id (fallback GOAI_MODEL)
-	PricingFile         string            // optional JSON prices file; empty = lib defaults
-	ByokProviders       map[string]string // provider -> OpenAI-compatible base URL
-	StripeSecretKey     string
-	StripeWebhookSecret string
-	StripeSuccessURL    string
-	StripeCancelURL     string
 }
 
 // GoAIConfig holds the LLM client settings. Currently just an
@@ -349,12 +359,14 @@ func Load() *Config {
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
 	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
+	cfg.RBACPermissive = envBool("RBAC_PERMISSIVE", false)
 	cfg.loadAuthEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
 	cfg.ChiAddr = getEnv("CHI_ADDR", "")
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
+	cfg.loadReviewEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
 	cfg.Credits.DefaultMode = getEnv("CREDITS_DEFAULT_MODE", "explicit")

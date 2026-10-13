@@ -20,10 +20,10 @@ func TestRender_TodoItemCheckboxReflectsCompleted(t *testing.T) {
 	open := todo.Todo{ID: "def456", Title: "still open", Completed: false}
 
 	var bDone, bOpen bytes.Buffer
-	if err := TodoItem(done).Render(context.Background(), &bDone); err != nil {
+	if err := TodoItem(done, true).Render(context.Background(), &bDone); err != nil {
 		t.Fatalf("render done item: %v", err)
 	}
-	if err := TodoItem(open).Render(context.Background(), &bOpen); err != nil {
+	if err := TodoItem(open, true).Render(context.Background(), &bOpen); err != nil {
 		t.Fatalf("render open item: %v", err)
 	}
 	if !strings.Contains(bDone.String(), "checked") {
