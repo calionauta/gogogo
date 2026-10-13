@@ -12,7 +12,11 @@ import (
 // AUTH_ENC_KEY seals TOTP secrets (64 hex chars = 32 bytes). Malformed
 // values are dropped to empty (fail-safe: never a truncated key); a
 // set-but-malformed value fails the boot instead (checked where the key
-// is consumed). ADMIN_EMAILS promotes existing rows to admin at boot.
+// is consumed). ADMIN_EMAILS promotes existing rows to admin at boot,
+// VIEWER_EMAILS to the restricted viewer role (read + create + toggle
+// on todos; no deletes, no paid actions). Both are promotion-only and
+// never provision: unknown addresses are skipped, and an address in
+// both lists ends admin (admin promotion runs last).
 func (cfg *Config) loadAuthEnv() {
 	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" {
 		if key, err := hex.DecodeString(strings.TrimSpace(raw)); err == nil && len(key) == 32 {
@@ -23,6 +27,13 @@ func (cfg *Config) loadAuthEnv() {
 		for e := range strings.SplitSeq(raw, ",") {
 			if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
 				cfg.AdminEmails = append(cfg.AdminEmails, e)
+			}
+		}
+	}
+	if raw := os.Getenv("VIEWER_EMAILS"); raw != "" {
+		for e := range strings.SplitSeq(raw, ",") {
+			if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+				cfg.ViewerEmails = append(cfg.ViewerEmails, e)
 			}
 		}
 	}

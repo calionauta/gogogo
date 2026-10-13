@@ -31,13 +31,19 @@ func seedDemoAccounts(a *auth.Auth) {
 	cancelDemo()
 }
 
-// applyRBAC builds one enforcer, promotes ADMIN_EMAILS rows, and wraps the
-// mux in the middleware (pass-through when disabled, enforced denies when
-// on — the flag never rewires anything).
+// applyRBAC builds one enforcer, promotes VIEWER_EMAILS then ADMIN_EMAILS
+// rows, and wraps the mux in the middleware (pass-through when disabled,
+// enforced denies when on — the flag never rewires anything). Viewers
+// promote first so an address in both lists ends admin, never viewer.
 func applyRBAC(a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *http.ServeMux) (http.Handler, error) {
 	enforcer, err := rbac.NewEnforcer()
 	if err != nil {
 		return nil, fmt.Errorf("server: chi rbac: %w", err)
+	}
+	if n, err := promoteRole(cfg.ViewerEmails, rbac.RoleViewer, queries); err != nil {
+		return nil, err
+	} else if n > 0 {
+		slog.Info("server: rbac viewer promotion", "rows", n)
 	}
 	if n, err := promoteAdmins(cfg.AdminEmails, queries); err != nil {
 		return nil, err
@@ -72,6 +78,13 @@ func wireTodoLLM(todoH *chifeatures.Handler, chiQ *queue.Queue, cfg *config.Conf
 // addresses are skipped silently (anyone can claim an unowned address, so
 // absence must not fail the boot). Returns rows actually promoted.
 func promoteAdmins(emails []string, queries *dbgen.Queries) (int, error) {
+	return promoteRole(emails, "admin", queries)
+}
+
+// promoteRole sets users.role for existing rows matching the operator
+// list. Shared by admin and viewer promotion: same promotion-only,
+// skip-silently contract, role parameterized. Returns rows promoted.
+func promoteRole(emails []string, role string, queries *dbgen.Queries) (int, error) {
 	n := 0
 	for _, email := range emails {
 		if _, err := queries.GetUserByEmail(context.Background(), email); err != nil {
@@ -83,7 +96,7 @@ func promoteAdmins(emails []string, queries *dbgen.Queries) (int, error) {
 			return n, fmt.Errorf("server: promote lookup %s: %w", email, err)
 		}
 		if err := queries.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
-			Role: "admin", Updated: dbschema.Now(), Email: email,
+			Role: role, Updated: dbschema.Now(), Email: email,
 		}); err != nil {
 			return n, fmt.Errorf("server: promote %s: %w", email, err)
 		}

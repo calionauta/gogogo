@@ -113,6 +113,17 @@ type Signals struct {
 	// When true, the UI renders the "Run durable workflow" button.
 	DagNatsEnabled bool `json:"dagNatsEnabled"`
 
+	// IsViewer marks the restricted demo role (users.role == 'viewer'):
+	// delete affordances render disabled with a message, paid actions
+	// hide. Display hint only — enforcement stays in the RBAC policy,
+	// so a wrong value degrades to a 403, never to a write.
+	IsViewer bool `json:"isViewer"`
+
+	// PermDenied drives the "your role cannot do that" toast: set when a
+	// viewer reaches for a gated affordance. Seeded false; cleared by
+	// its close button (same lifecycle as the other ephemeral signals).
+	PermDenied bool `json:"permDenied"`
+
 	// ReviewEnabled reflects whether the review-loop UI should render:
 	// the review routes are wired AND a real LLM is configured
 	// (GOAI_API_KEY set — the review loop is real-LLM only, never

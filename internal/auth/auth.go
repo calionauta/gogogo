@@ -105,9 +105,11 @@ type User struct {
 type ValidatedSession struct {
 	User    *User
 	Expires time.Time
-	// Role is the coarse RBAC subject ('admin' or 'user', from users.role).
-	// The middleware reads it; handlers keep using User and never branch
-	// on roles themselves.
+	// Role is the coarse RBAC subject ('admin', 'viewer', or 'user',
+	// from users.role). The middleware reads it for enforcement; handlers
+	// may read it for display hints only (disabled affordances with a
+	// message) — never for access decisions, which stay in policy.csv.
+	// A wrong hint degrades to a 403; a wrong decision would be a write.
 	Role string
 }
 

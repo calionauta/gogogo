@@ -96,6 +96,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signals := todo.Signals{
+		IsViewer:         isViewerSession(sess),
 		Todos:            todos,
 		Filter:           "all",
 		ItemCount:        len(todos),

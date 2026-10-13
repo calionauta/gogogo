@@ -37,6 +37,25 @@ declarative JSON over NATS JetStream, kickstarted automatically on first login.
 In the demo deployment it is reachable at
 [`/dagnats/`](https://gogogo.calionauta.com/dagnats/) behind the same tunnel.
 
+## RBAC demo (viewer role)
+
+The Casbin demo needs no new page — it reuses Todo with a second role.
+`/config` shows your role and the enforcement posture (pass-through vs
+enforced) for whoever looks; the viewer contract below is what the
+enforcement proves:
+
+1. Sign up a third account (leave `demo1`/`demo2` full users — their job
+   is contention testing, which needs full CRUD).
+2. Set `RBAC_ENABLED=true` and `VIEWER_EMAILS=<that-address>`, reboot.
+3. Log in as the viewer: trash buttons render disabled with the reason,
+   clicking one raises the denial message, AI Suggest hides, and forced
+   deletes answer 403. Create and toggle keep working.
+
+Viewers are todo-scoped by design (other features 403 by omission, not
+by listing). Promotion is existing-rows-only and never provisions;
+an address in both email lists ends `admin`. RBAC stays RBAC — there
+is no ABAC surface until a consumer needs attribute policies.
+
 ## Try it live
 
 | What | URL |

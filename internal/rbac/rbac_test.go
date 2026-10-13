@@ -1,7 +1,17 @@
 // SCOPE:core — Tests for RBAC with embedded Casbin model/policy
 package rbac
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/db"
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
+)
 
 // TestRBACEmbeddedIsComplete proves the embedded assets are present and
 // non-empty — a missing //go:embed target would fail the build, but an
@@ -143,5 +153,130 @@ func TestRBACPolicyBaseline(t *testing.T) {
 		if got != c.want {
 			t.Errorf("Enforce(%q,%q,%q) = %v, want %v", c.sub, c.obj, c.act, got, c.want)
 		}
+	}
+}
+
+// TestRBACViewerSubject pins the viewer passthrough: the exact string
+// "viewer" resolves to itself (never flattened to user, never
+// escalated), unknown strings still fall back to user, and failures
+// stay anonymous. Red-proof: return roleUser for viewer and the
+// enforcement test below goes red with it.
+func TestRBACViewerSubject(t *testing.T) {
+	sess := &auth.ValidatedSession{User: &auth.User{ID: "u1", Email: "v@example.com"}, Role: "viewer"}
+	if got := subjectOf(sess, nil); got != "viewer" {
+		t.Fatalf("subjectOf(viewer) = %q, want viewer", got)
+	}
+	if !IsViewer("viewer") || IsViewer("user") || IsViewer("admin") || IsViewer("") {
+		t.Fatal("IsViewer must be true only for the exact viewer role")
+	}
+}
+
+// TestRBACViewerPolicy pins the demo contract: read + create + toggle
+// allowed, every destructive and every paid path denied. Unknown verdict
+// strings and unknown roles are covered by the closed-set rule in the
+// middleware (exact match or fallback), not here.
+func TestRBACViewerPolicy(t *testing.T) {
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	allow := []struct{ method, path string }{
+		{"GET", "/todo"},
+		{"GET", "/api/todos"},
+		{"POST", "/api/todos"},
+		{"POST", "/api/todos/abc123/toggle"},
+		{"GET", "/api/todos/stream"},
+	}
+	for _, a := range allow {
+		ok, err := e.Enforce("viewer", a.path, a.method)
+		if err != nil {
+			t.Fatalf("enforce viewer %s %s: %v", a.method, a.path, err)
+		}
+		if !ok {
+			t.Errorf("viewer must reach %s %s", a.method, a.path)
+		}
+	}
+	deny := []struct{ method, path string }{
+		{"POST", "/api/todos/abc123/delete"},
+		{"POST", "/api/todos/completed/delete"},
+		{"GET", "/api/todos/abc123/confirm-delete"},
+		{"POST", "/api/todos/suggest"},
+		{"POST", "/api/todos/retry-demo"},
+		{"GET", "/config"},
+		{"GET", "/chat"},
+	}
+	for _, d := range deny {
+		ok, err := e.Enforce("viewer", d.path, d.method)
+		if err != nil {
+			t.Fatalf("enforce viewer %s %s: %v", d.method, d.path, err)
+		}
+		if ok {
+			t.Errorf("viewer must NOT reach %s %s", d.method, d.path)
+		}
+	}
+}
+
+// TestRBACMiddlewareViewerEnforcement is the money test for the viewer
+// demo: through the real middleware with enforcement on, a viewer
+// DELETE is denied while create/toggle-shaped traffic passes. Unit
+// policy tests pin the matrix; this pins the wiring (subject
+// resolution + middleware + enforcer together).
+func TestRBACMiddlewareViewerEnforcement(t *testing.T) {
+	sqlDB, err := db.OpenAt(t.TempDir() + "/rbac-viewer.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	ctx := context.Background()
+	if _, _, serr := a.Signup(ctx, "watcher@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	q := dbgen.New(sqlDB)
+	if serr := q.SetUserRole(ctx, dbgen.SetUserRoleParams{
+		Role: RoleViewer, Updated: dbschema.Now(), Email: "watcher@example.com",
+	}); serr != nil {
+		t.Fatalf("set viewer role: %v", serr)
+	}
+	token, _, lerr := a.Login(ctx, "watcher@example.com", "Correct-horse-99!")
+	if lerr != nil {
+		t.Fatalf("login: %v", err)
+	}
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	h := Middleware(a, e, true)(next)
+
+	// #nosec G124 — test-only request cookie.
+	cookie := &http.Cookie{Name: auth.CookieName, Value: token}
+	drive := func(method, target string) int {
+		t.Helper()
+		req := httptest.NewRequestWithContext(ctx, method, target, nil)
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := drive(http.MethodPost, "/api/todos/abc/delete"); code != http.StatusForbidden {
+		t.Errorf("viewer DELETE status = %d, want 403", code)
+	}
+	if code := drive(http.MethodPost, "/api/todos"); code != http.StatusOK {
+		t.Errorf("viewer create status = %d, want 200", code)
+	}
+	if code := drive(http.MethodPost, "/api/todos/abc/toggle"); code != http.StatusOK {
+		t.Errorf("viewer toggle status = %d, want 200", code)
+	}
+	if code := drive(http.MethodGet, "/todo"); code != http.StatusOK {
+		t.Errorf("viewer page status = %d, want 200", code)
 	}
 }

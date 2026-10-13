@@ -56,6 +56,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		ClientID:         clientID,
 		SidebarTab:       "queue",
 		DagNatsEnabled:   h.dagnatsUIEnabled(),
+		IsViewer:         h.viewerOwner(r.Context(), owner),
 	}); err != nil {
 		h.fail(r.Context(), w, "todo: stream handshake failed", err, "error opening stream")
 		return
@@ -109,6 +110,7 @@ func (h *Handler) applyRecordEvent(
 	signals := todo.Signals{
 		Todos: todos, Filter: "all", ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
+		IsViewer:       h.viewerOwner(ctx, owner),
 	}
 	//nolint:contextcheck // SSE-sink boundary: patchSSE ends in datastar-go
 	// sinks, which take no context; disconnects surface as write errors.
@@ -138,6 +140,7 @@ func (h *Handler) applyWorkflowCompleted(
 	// third-party boundary); see patchSSE.
 	return renderWorkflowDone(sse, h.renderListRegion(todo.Signals{
 		Todos: todos, Filter: "all", ItemCount: len(todos),
+		IsViewer: h.viewerOwner(ctx, owner),
 	}, "daisyui"))
 }
 

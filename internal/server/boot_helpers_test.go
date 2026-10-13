@@ -13,6 +13,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/rbac"
 )
 
 // TestWireTOTPKeyPinsSealKeyRule pins the boot wiring without booting:
@@ -96,5 +97,62 @@ func TestPromoteAdminsPinsPromotionOnly(t *testing.T) {
 	}
 	if row.Role != "admin" {
 		t.Fatalf("role = %q, want admin", row.Role)
+	}
+}
+
+// TestPromoteViewersPinsViewerContract mirrors the admin promotion pin:
+// existing rows take the viewer role, ghosts skip silently, and an
+// address in both lists ends admin (admin promotion runs last — ties
+// escalate, never restrict, so a typo cannot lock an admin out).
+func TestPromoteViewersPinsViewerContract(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := db.OpenAt(t.TempDir() + "/promote-viewer.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	watcher, _, serr := a.Signup(ctx, "watcher@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	boss, _, serr := a.Signup(ctx, "boss2@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	q := dbgen.New(sqlDB)
+	n, err := promoteRole([]string{"watcher@example.com", "ghost@example.com"}, rbac.RoleViewer, q)
+	if err != nil {
+		t.Fatalf("promote: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("promoted = %d, want 1 (ghost skipped, not provisioned)", n)
+	}
+	row, err := q.GetUser(ctx, watcher.ID)
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if row.Role != rbac.RoleViewer {
+		t.Fatalf("role = %q, want viewer", row.Role)
+	}
+	// Tie: viewer first, admin last — admin wins.
+	if _, verr := promoteRole([]string{"boss2@example.com"}, rbac.RoleViewer, q); verr != nil {
+		t.Fatalf("viewer promote: %v", verr)
+	}
+	if _, aerr := promoteAdmins([]string{"boss2@example.com"}, q); aerr != nil {
+		t.Fatalf("admin promote: %v", aerr)
+	}
+	bossRow, err := q.GetUser(ctx, boss.ID)
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if bossRow.Role != "admin" {
+		t.Fatalf("tied role = %q, want admin (admin wins ties)", bossRow.Role)
 	}
 }

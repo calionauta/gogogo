@@ -18,18 +18,35 @@ const (
 	roleAnonymous = "anonymous"
 	roleUser      = "user"
 	roleAdmin     = "admin"
+	// RoleViewer is the restricted demo role: read + create + toggle on
+	// todos, no deletes, no paid actions. Resolved from users.role like
+	// admin; unknown values still fall back to user below.
+	RoleViewer = "viewer"
 )
+
+// IsViewer reports whether a session role gets the restricted demo
+// surface (disabled delete affordances + message instead of modal).
+// This is the reusable permission check: display hint only —
+// enforcement stays in policy.csv, so a wrong answer here degrades to
+// a 403, never to an unauthorized write.
+func IsViewer(role string) bool {
+	return role == RoleViewer
+}
 
 // subjectOf resolves the decision subject: the session's role, "user" for
 // anything unrecognized, "anonymous" without a session. Unknown values
 // must not lock users out over a typo in the column — and must never
-// escalate: only the exact string "admin" elevates.
+// escalate: only the exact strings "admin" and "viewer" leave the user
+// default, and viewer can only lose permissions, never gain.
 func subjectOf(sess *auth.ValidatedSession, err error) string {
 	if err != nil || sess == nil {
 		return roleAnonymous
 	}
 	if sess.Role == roleAdmin {
 		return roleAdmin
+	}
+	if sess.Role == RoleViewer {
+		return RoleViewer
 	}
 	return roleUser
 }

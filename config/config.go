@@ -209,6 +209,15 @@ type Config struct {
 	// disables promotion entirely.
 	AdminEmails []string
 
+	// ViewerEmails promotes existing users to the restricted viewer role
+	// at boot (VIEWER_EMAILS, same comma-separated contract). Viewers
+	// read, create and toggle todos; deletes and paid actions deny with
+	// 403 under RBAC enforcement and render disabled with a message.
+	// Ties lose to AdminEmails (admin promotion runs last). Empty
+	// disables promotion entirely; demo1/demo2 stay full users unless
+	// listed here.
+	ViewerEmails []string
+
 	// Auth holds owned-auth settings.
 	Auth struct {
 		// TOTPEncKey seals TOTP secrets (AUTH_ENC_KEY, 64 hex chars).
@@ -250,23 +259,6 @@ type Config struct {
 	// When Credits.Enabled is false the plugin registers no routes and
 	// credits.New is never built — the binary runs billing-free.
 	Credits CreditsConfig
-}
-
-// CreditsConfig holds the env-driven knobs for the AI credits plugin. Every
-// field defaults to billing-off; the plugin is only live when Enabled is
-// true AND the lib's schema can be applied to the app SQLite database.
-type CreditsConfig struct {
-	Enabled             bool
-	EncKey              []byte // CREDITS_ENC_KEY, 32 bytes; empty = BYOK store disabled
-	DefaultMode         string // managed | byok | explicit
-	MonthlyCredits      int64
-	Model               string            // default managed model id (fallback GOAI_MODEL)
-	PricingFile         string            // optional JSON prices file; empty = lib defaults
-	ByokProviders       map[string]string // provider -> OpenAI-compatible base URL
-	StripeSecretKey     string
-	StripeWebhookSecret string
-	StripeSuccessURL    string
-	StripeCancelURL     string
 }
 
 // GoAIConfig holds the LLM client settings. Currently just an
