@@ -1,70 +1,90 @@
-# RBAC (Casbin)
+# RBAC (Casbin): the complete guide
 
-Role-based access control, opt-in via `RBAC_ENABLED=true`. Enforcement is
-Casbin (model + policy compiled into the binary); authentication stays in
-`internal/auth`. This page is the authoring checklist — model theory lives
-in the [Casbin docs](https://casbin.apache.org/docs/how-it-works).
+Role-based access control, opt-in via `RBAC_ENABLED=true`. Casbin
+decides; `internal/auth` authenticates. If you are an LLM adding a
+feature, read "Adding a feature" and follow it mechanically — the
+tests fail naming the exact gap when you skip a step.
 
-## Vocabulary (one home)
+## How a request flows
 
-`internal/rbac/roles.go` owns the four subjects:
+1. The middleware (`internal/rbac/middleware.go`, wired once in
+   `BootChi`) resolves the session to a **subject**: `admin`, `user`,
+   `viewer`, or `anonymous`. Unknown `users.role` values fall back to
+   `user` — never up, never lockout.
+2. It calls `Enforce(subject, path, method)` against the embedded
+   policy. Deny (or enforcer error) answers **403 with no body** and a
+   warn log carrying subject/object/action.
+3. Disabled (`RBAC_ENABLED=false`) the middleware passes everything
+   through with identical wiring.
 
-| Subject | Source | Policy |
-|---|---|---|
-| `admin` | `ADMIN_EMAILS` | `/*` — everything |
-| `user` | any other session | feature subtrees, `.*` per subtree |
-| `viewer` | `VIEWER_EMAILS` | enumerated todo paths only (read + create + toggle) |
-| `anonymous` | no session | static, health, `/`, login, signup |
+## File map
 
-Ties lose to admin (viewer promotion runs first). Unknown `users.role`
-values fall back to `user` — never up.
+- **`internal/rbac/casbin/model.conf`** — the model. Request, policy
+  and matchers; change it only to change the authorization *model*
+  (you won't — RBAC + RESTful covers this template).
+- **`internal/rbac/casbin/policy.csv`** — the rules. The only file you
+  edit for routine changes. Compiled into the binary via `//go:embed`,
+  so no config file is read at runtime.
+- **`internal/rbac/rbac.go`** — builds the enforcer once; `EnforceWith`
+  reuses it on the hot path. There is deliberately no per-call helper
+  that rebuilds it.
+- **`internal/rbac/roles.go`** — the role vocabulary: constants,
+  `IsViewer` display hint, `subjectOf` resolution, and why roles stay
+  flat. One home for the concept "role".
+- **`internal/rbac/middleware.go`** — the HTTP wrapper, including
+  permissive audit mode. Thin by design.
+- **`internal/server/boot_helpers.go`** (`applyRBAC`, `promoteRole`) —
+  builds the enforcer, promotes `VIEWER_EMAILS` then `ADMIN_EMAILS`
+  rows (ties end `admin`), wraps the mux.
 
-## Why the roles are flat
+## The model, in one paragraph
 
-Casbin inheritance (`g, a, b`) only ADDS permissions. Viewer is a
-SUBSET of user, so `g, viewer, user` would escalate every viewer to a
-full user. The subset is expressed by enumerating viewer paths, not by
-hierarchy. Do not add a `g` line between them.
+Every decision is `Enforce(subject, path, method)`. A row `p, user,
+/todo/*, .*` allows when the subject has the role (`g`), the path
+matches (`keyMatch2`: `*` spans `/`), and the method matches
+(`regexMatch`: `(GET|POST)` or `.*`). Effect: any allow wins. No
+`g,` rows ship — roles are flat (see below).
+
+## Policy row anatomy
+
+- **Blocks are ordered by role**: `admin` (`/*` — everything), then
+  `anonymous` (public minimum), then `user` (whole subtrees), then
+  `viewer` (enumerated paths only). Keep a new row inside its role's
+  block, paths sorted.
+- **Subject must be exact**: `admin`, `user`, `viewer`, `anonymous. A
+  typo is a dead row — fail-closed, no error, only the shape test
+  sees it.
+- **Users get subtrees** (`/prefix`, `/prefix/*`); **viewers get
+  enumerated paths**. Viewer wildcards outside `/todo/*`, `/static/*`,
+  `/api/auth/*`, `/api/todos/*/toggle` fail the shape test.
+- **Fail-closed by construction**: a route with no row denies everyone
+  but admin. Adding a route without adding its rows is a 403 bug, and
+  the coverage test names it.
 
 ## Adding a feature (checklist)
 
 1. Mount routes in `internal/server/chi.go` `buildChiMux` (one arg per line).
-2. Add `p, user, /prefix, .*` (+ `/prefix/*`) rows to
-   `internal/rbac/casbin/policy.csv`, in the user block, paths sorted.
-   Subject must be exactly `admin`, `user`, `viewer` or `anonymous` —
-   a typo is a dead row (fail-closed, no error).
-3. If the feature has a restricted surface, add enumerated viewer rows
-   (never `.*` on a write subtree; viewer wildcards outside
-   `/todo/*`, `/static/*`, `/api/auth/*`, `/api/todos/*/toggle` fail
-   `TestRBACPolicyShape`).
-4. Extend `TestRBACPolicyCoversMuxRoutes` (`internal/rbac/rbac_test.go`)
-   with the new paths — the test mirrors the mux and fails naming the
-   gap (fail-closed: unlisted routes deny everyone but admin).
-5. Run `go test -count=1 -run 'TestRBAC' ./internal/rbac/` (the
-   `rbac-policy` pre-commit hook runs the shape subset on every commit
+2. Add `p, user, /prefix, .*` (+ `/prefix/*`) rows in the user block.
+3. Add enumerated viewer rows only if the feature has a viewer-safe
+   surface (read/create/toggle class — never deletes, never paid).
+4. Extend `TestRBACPolicyCoversMuxRoutes` with the new mounts.
+5. Run `go test -count=1 ./internal/rbac/` (~2s; the
+   `rbac-policy` pre-commit hook runs the shape subset on commits
    touching `internal/rbac/`).
 6. Roll out with `RBAC_PERMISSIVE=true` for one deploy, read the
    `rbac: permissive allow (would deny)` lines, add the missing rows,
    then turn it off. Production posture is permissive=false.
 
-## Adapting this guard for your product
+## Roles: vocabulary, promotion, flatness
 
-`TestRBACPolicyShape` (plus flat/dedupe/coverage) pins *this* template's
-choices. Downloaders with new roles or surfaces hit it by design — the
-failure tells you what to decide, not just what broke:
-
-- **New role** (e.g. `editor`): add it to `roles.go` (subject
-  resolution), to `knownSubjects` in the shape test, to `policy.csv`,
-  and to the promotion path. Roles are vocabulary — one home each.
-- **Role hierarchy** (e.g. `owner` inherits `editor`): the flat test
-  will fail. That is the point — inheritance only adds permissions, so
-  delete the test deliberately and document why your hierarchy cannot
-  escalate anyone, or keep roles flat.
-- **Viewer-reachable wildcard** (e.g. read-only `/reports/*`): prefer
-  enumerated paths; if the subtree is genuinely safe, extend
-  `viewerWildcards` with a one-line justification.
-- **New feature paths**: extend `TestRBACPolicyCoversMuxRoutes` with
-  the mounts (fail-closed otherwise) and mirror the user block.
+- **Vocabulary**: four subjects, owned by `roles.go`. Ties lose to
+  admin (viewer promotion runs first).
+- **Promotion** (`ADMIN_EMAILS` / `VIEWER_EMAILS`, comma-separated,
+  matched lowercase): existing rows only, never provisions, unknown
+  addresses skip silently. Set them, reboot, done.
+- **Flatness**: Casbin inheritance only ADDS permissions, and viewer
+  is a SUBSET of user — `g, viewer, user` would escalate every viewer.
+  The subset is enumerated paths, not hierarchy. Do not add a `g` line.
 
 ## Display hint vs enforcement
 
@@ -73,9 +93,49 @@ reason). Enforcement stays in `policy.csv`, so a wrong hint degrades to
 a 403, never to an unauthorized write. Never gate a mutation on
 `IsViewer` in a handler — the middleware already denied it.
 
+## Env reference
+
+- **`RBAC_ENABLED`** (default `false`) — enforce or pass through.
+- **`RBAC_PERMISSIVE`** (default `false`) — audit-before-enforce;
+  would-be denies logged with `permissive=1` and allowed through.
+- **`ADMIN_EMAILS` / `VIEWER_EMAILS`** (unset) — boot promotion lists.
+
+## Test map (what pins what)
+
+- **Shape** (`TestRBACPolicyShape`): subjects, paths, acts, viewer
+  allowlist — the typo catcher. Pre-commit subset.
+- **Flat + dedupe**: no `g` rows, no duplicate lines.
+- **Coverage** (`TestRBACPolicyCoversMuxRoutes`): every mux mount
+  decided for user-or-admin; `/config`, `/console`, `/dagnats` denied
+  for user.
+- **Viewer matrix + middleware**: allow/deny decisions plus a real
+  viewer through the real middleware (create/toggle pass, delete 403s).
+- **Display** (`TestTodoViewerDeleteAffordanceDisabled`,
+  `TestTodoSuggestTabVisibility`): the UI narrates the role.
+- **Boot wiring** (`TestApplyRBACWiresPermissive`,
+  `TestPromoteViewersPinsViewerContract`): flags and promotion reach
+  the middleware.
+
+## Adapting this guard for your product
+
+The tests pin *this* template's choices. Downloaders with new roles or
+surfaces hit them by design — each failure tells you what to decide:
+
+- **New role** (e.g. `editor`): add it to `roles.go`, to
+  `knownSubjects`, to `policy.csv`, and to the promotion path.
+- **Role hierarchy** (e.g. `owner` inherits `editor`): the flat test
+  fails on purpose — delete it deliberately and document why your
+  hierarchy cannot escalate anyone, or keep roles flat.
+- **Viewer-reachable wildcard** (e.g. read-only `/reports/*`): prefer
+  enumerated paths; if the subtree is genuinely safe, extend
+  `viewerWildcards` with a one-line justification.
+- **New feature paths**: extend the coverage test (fail-closed
+  otherwise) and mirror the user block.
+
 ## What RBAC does not do
 
-No ownership ("only their own"), no time/IP context, no per-record
-sharing — those are ABAC/ReBAC and are YAGNI until a feature needs
-them. No domains (multi-tenancy): one role set per user until a second
-tenant exists. No deny-override or priority lines.
+- **No ownership** ("only their own"), no time/IP context, no
+  per-record sharing — ABAC/ReBAC, YAGNI until a feature needs them.
+- **No domains** (multi-tenancy): one role set per user until a second
+  tenant exists.
+- **No deny-override or priority lines**.
