@@ -22,9 +22,10 @@ import (
 // mountConsoleProxy exposes the engine console at /console/ when the
 // engine is enabled. Guest fence is RequireSession (401, fail-closed);
 // role fence is the outer RBAC middleware (policy.csv: admin-only).
-// The session email rides X-Forwarded-User/Email so the console audit
-// attributes operator actions (upstream trusts it only when its own
-// DAGNATS_CONSOLE_TRUST_FORWARDED_AUTH is set; otherwise ignored).
+// Upstream on loopback needs no engine-side auth changes (its
+// AuthLoopback mode passes loopback clients); the X-Forwarded stamp
+// below only takes effect on non-loopback deploys with forwarded-auth
+// enabled upstream.
 func mountConsoleProxy(mux *http.ServeMux, a *auth.Auth, cfg *config.Config) {
 	if !cfg.DagNats.Enabled {
 		return
@@ -46,9 +47,13 @@ func mountConsoleProxy(mux *http.ServeMux, a *auth.Auth, cfg *config.Config) {
 }
 
 // forwardConsoleUser stamps the validated session email for the
-// upstream audit. RequireSession runs first, so a missing session here
-// is impossible — empty email degrades to an unattributed console hit,
-// never to a bypass (the gate already passed).
+// upstream audit. On the default loopback engine listener upstream
+// runs AuthLoopback (open, attributed "loopback") and ignores the
+// headers — the stamp is for non-loopback deploys where the operator
+// enabled DAGNATS_CONSOLE_TRUST_FORWARDED_AUTH. RequireSession runs
+// first, so a missing session here is impossible — empty email
+// degrades to an unattributed console hit, never to a bypass (the
+// gate already passed).
 func forwardConsoleUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if email := sessionEmail(r); email != "" {
