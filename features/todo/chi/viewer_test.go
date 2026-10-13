@@ -10,6 +10,7 @@ import (
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/llm"
 )
 
 // TestTodoViewerDeleteAffordanceDisabled pins the RBAC display hint:
@@ -68,5 +69,41 @@ func TestTodoViewerDeleteAffordanceDisabled(t *testing.T) {
 	}
 	if !strings.Contains(userBody, "showModal()") {
 		t.Fatalf("plain user page must render the modal-opening trash")
+	}
+}
+
+// TestTodoSuggestTabVisibility pins the LLM signal wiring the viewer
+// gate depends on: a configured LLM shows AI Suggest to plain users
+// and hides it from viewers. Red-proof: without the render-site
+// assignment this fails on the first assertion (the tab never shows).
+func TestTodoSuggestTabVisibility(t *testing.T) {
+	f := newChiFixture(t)
+	f.h.SetLLMClient(llm.New("test-key"))
+
+	userCookie := f.signup("sugg-user@example.com")
+	userRec := f.do(http.MethodGet, "/todo", "", userCookie)
+	if userRec.Code != http.StatusOK {
+		t.Fatalf("user /todo status = %d", userRec.Code)
+	}
+	if !strings.Contains(userRec.Body.String(), `>AI Suggest</button>`) {
+		t.Fatalf("configured LLM must render the AI Suggest tab")
+	}
+
+	viewerCookie := f.signup("sugg-viewer@example.com")
+	if err := f.q.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
+		Role: "viewer", Updated: dbschema.Now(), Email: "sugg-viewer@example.com",
+	}); err != nil {
+		t.Fatalf("set viewer role: %v", err)
+	}
+	viewRec := f.do(http.MethodGet, "/todo", "", viewerCookie)
+	if viewRec.Code != http.StatusOK {
+		t.Fatalf("viewer /todo status = %d", viewRec.Code)
+	}
+	// The label also lives in an HTML comment, so assert the gated
+	// affordances (tab button + panel), not the bare string.
+	for _, gated := range []string{`>AI Suggest</button>`, `data-show="$sidebarTab === 'ai'"`} {
+		if strings.Contains(viewRec.Body.String(), gated) {
+			t.Fatalf("viewer must not see the AI Suggest tab (paid action): found %q", gated)
+		}
 	}
 }

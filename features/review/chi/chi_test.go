@@ -13,6 +13,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	jev "github.com/mattn/go-jev"
+	"github.com/zendev-sh/goai/provider"
 	"go.uber.org/goleak"
 
 	"github.com/calionauta/gogogo/config"
@@ -21,6 +22,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/llm/fakeserver"
 )
 
 // errJudgeDown simulates an unreachable classifier backend.
@@ -347,5 +349,49 @@ func TestReviewGenkitLeavesNoGoroutines(t *testing.T) {
 	if _, err := r.run(context.Background(),
 		ReviewInput{Tab: TabText, Content: "hello"}, nil); err != nil {
 		t.Fatalf("run: %v", err)
+	}
+}
+
+// stubBiller counts authorize/settle calls through the llm choke point.
+type stubBiller struct {
+	authorizes int
+	settles    int
+}
+
+func (s *stubBiller) Authorize(_ context.Context, _, _ string) (llm.Settle, error) {
+	s.authorizes++
+	return func(_ provider.Usage) { s.settles++ }, nil
+}
+
+// TestReviewModelBillsThroughChokePoint pins the single-meter invariant:
+// a Genkit Generate through the gogogo/llm action must authorize once
+// and settle once inside llm.Client — never zero (bypass), never two
+// (a Genkit billing middleware beside the Biller). Red-proof: rewire
+// the model fn around the client and authorizes stays 0 (red); wrap a
+// second settle and settles reads 2 (red).
+func TestReviewModelBillsThroughChokePoint(t *testing.T) {
+	srv := fakeserver.NewServer(fakeserver.WithResponse("hello world"))
+	defer srv.Close()
+	t.Setenv("GOAI_BASE_URL", srv.URL)
+
+	client := llm.New("test-key")
+	meter := &stubBiller{}
+	client.SetMeter(meter)
+
+	g := NewGenkit()
+	model := DefineReviewModel(g, client)
+	resp, err := genkit.Generate(context.Background(), g,
+		ai.WithModel(model), ai.WithPrompt("hi"))
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if resp.Text() != "hello world" {
+		t.Fatalf("text = %q, want fakeserver passthrough", resp.Text())
+	}
+	if meter.authorizes != 1 {
+		t.Fatalf("authorizes = %d, want exactly 1", meter.authorizes)
+	}
+	if meter.settles != 1 {
+		t.Fatalf("settles = %d, want exactly 1", meter.settles)
 	}
 }

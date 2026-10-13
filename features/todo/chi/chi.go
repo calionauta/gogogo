@@ -439,6 +439,8 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		Todos: todos, Filter: filter, ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       h.isViewer(r),
+		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
+		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
@@ -469,6 +471,8 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 		Todos: todos, Filter: filter, ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       h.isViewer(r),
+		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
+		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
 	}
 	var buf bytes.Buffer
 	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {

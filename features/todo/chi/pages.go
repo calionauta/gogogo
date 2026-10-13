@@ -97,6 +97,8 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	signals := todo.Signals{
 		IsViewer:         isViewerSession(sess),
+		LLMEnabled:       h.LLM != nil && h.LLM.Configured(),
+		SimulatedLLM:     h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
 		Todos:            todos,
 		Filter:           "all",
 		ItemCount:        len(todos),
