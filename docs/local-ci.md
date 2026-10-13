@@ -99,6 +99,11 @@ wedged box before scoped race starts, and past 8 changed packages
 bound shared-host load. Refused means the same as T4: scope to one
 package by hand, or let the PR's CI be the gate.
 
+Heavy Go tests guard themselves too: `internal/hostgate.SkipIfConstrained`
+makes repo-copying suites (notably `TestTrimmedTreeStillBuilds`, one full
+`go vet ./...` per unit) skip — with measured reason — when off-CI and
+constrained, instead of wedging a shared box no Makefile gate can see.
+
 ### Where T4 may run (host-capacity pre-flight)
 
 - **`make ci-local` refuses first on a box that cannot carry it.**

@@ -130,3 +130,9 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
   scoped `go test <pkg>` or `make ci-local-fast` (carries its own
   `--fast` pre-flight + serial degrade past 8 changed packages) and let the
   PR's CI be the full gate.
+- NEVER bare `go vet ./...` here, and think twice before
+  `go test -run 'TestTrimmedTree...' ./internal/installer/` — each unit
+  copies the whole repo and forks a full vet (parallel storm that took this
+  box down). Those tests skip themselves on a saturated box via
+  `internal/hostgate` (CI never skips); if you see the hostgate SKIP, run
+  them on CI instead of forcing.

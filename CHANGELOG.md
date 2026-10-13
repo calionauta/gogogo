@@ -2,6 +2,14 @@
 
 ### Added
 
+- **In-test host gate for heavy tests (`internal/hostgate`).** Makefile and
+  script pre-flights cannot cover a bare `go test -run ...` invocation, and
+  `TestTrimmedTreeStillBuilds` IS the heavy workload (repo copy + forked
+  `go vet ./...` per unit, unbounded parallel — the storm that wedged the
+  shared host). `hostgate.SkipIfConstrained` skips with dimensions, reason
+  and fallback when off-CI and constrained (RAM/load/temp-disk, env-tunable,
+  `CI_LOCAL_FORCE=1` overrides, CI never skips); the trim-build vets are
+  also capped at 2 concurrent. Unit-tested pure verdict.
 - **PR-body template check.** `.github/workflows/pr-body.yml` fails PRs whose
   body still carries template placeholders (`Closes #NNN`, `Write this
   yourself`, `Required, one line`) — GitHub pre-fills the template but
