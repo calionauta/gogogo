@@ -29,6 +29,14 @@ services:
       PORT: "8080"
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATA_DIR: /var/lib/gogogo/data
+      # tursogo extracts its native library to TURSO_GO_CACHE_DIR at first
+      # DB open (default $HOME/.cache, i.e. /tmp for uid 65532). Point it at
+      # the data volume instead: /tmp may be tiny or shared, and persisting
+      # the extracted + hash-verified .so avoids re-extracting every boot.
+      # The directory is created by the app before first use. (Without this,
+      # scratch-era images died even earlier with `mkdir /tmp/turso-go:
+      # permission denied` — production 0.44.0.)
+      TURSO_GO_CACHE_DIR: /var/lib/gogogo/data/.turso-cache
       # LLM (these three lines are wired by the GH Action deploy;
       # GOAI_API_KEY + GOAI_BASE_URL + GOAI_MODEL come from the
       # secrets env_file below, never committed). GOAI_BASE_URL /
@@ -67,9 +75,9 @@ services:
       # env points at, so the in-container path is unchanged.
       - /home/deploy/services/${APP_NAME:-gogogo}/data:/var/lib/${APP_NAME:-gogogo}/data
     healthcheck:
-      # Exec form (no shell) — the image is scratch, so wget/curl and
-      # CMD-SHELL are unavailable. `/app health` is a built-in
-      # scratch-compatible subcommand that GETs /health internally.
+      # Exec form (no shell needed) — `/app health` is a built-in
+      # subcommand that GETs /health internally. (Survives base-image
+      # changes: it worked on scratch and works on alpine alike.)
       test: ["CMD", "/app", "health"]
       interval: 30s
       timeout: 5s

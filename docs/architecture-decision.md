@@ -141,10 +141,21 @@ Two things are worth knowing before this becomes the only engine:
 
 - The module `github.com/tursodatabase/turso-go-platform-libs` carries a prebuilt
   Rust shared library per platform (~15 MB each, ~124 MB of module). The build
-  tag selects one; at first use it is written to a cache directory
-  (`TURSO_GO_CACHE_DIR`, else `os.UserCacheDir()`), verified against an embedded
-  SHA-256, and `dlopen`ed. A container whose cache directory is unwritable needs
-  `TURSO_GO_CACHE_DIR` pointed at a writable path.
+  tag selects one — and on musl runtimes that MUST be `-tags musl`
+  (libs/linux_*_musl); Go does not set the musl tag automatically, so without
+  it the glibc .so is embedded and dlopen fails on Alpine. At first use the
+  library is written to a cache directory (`TURSO_GO_CACHE_DIR`, else
+  `os.UserCacheDir()`), verified against an embedded SHA-256, and `dlopen`ed.
+  A container whose cache directory is unwritable needs `TURSO_GO_CACHE_DIR`
+  pointed at a writable path.
+- dlopen needs a dynamic loader in the image, full stop. A statically linked
+  binary (`-extldflags=-static`) or a scratch runtime panics at the first DB
+  open with `Dynamic loading not supported` — this crash-looped production on
+  the 0.44.0 migration. `deploy/Dockerfile.prod` therefore runs on Alpine
+  (musl loader + libgcc_s for the musl .so's NEEDED entries), builds with
+  `CGO_ENABLED=1 -tags musl` and no `-static`, and `scripts/smoke-prod-image.sh`
+  boots the final image and asserts /health in CI. Never move prod back to
+  scratch without re-proving the boot.
 - Turso Database is pre-1.0. Keep backups (`scripts/backup.sh`) — the driver's
   own README says the same thing.
 
