@@ -2,6 +2,10 @@
 
 ### Added
 
+- **hostgate in the capability registry.** `internal/hostgate` shipped
+  without lifecycle metadata and failed `TestRegistryCoversPackages` (red
+  0.44.3 CI, including inside trimmed preset trees). Registered as
+  non-offered core.
 - **Go-test orphans reaped with the smoke sweep.** `t.TempDir` self-cleans
   on pass, but aborted runs orphan `/tmp/Test*` + `/tmp/go-build*`
   (proven live). `reap-stale-smoke.sh` (already at every gate start) now

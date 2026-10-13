@@ -124,6 +124,16 @@ var All = []Capability{
 			"The engines behind it (internal/nats) stay a plugin.",
 	},
 	{
+		ID:      "hostgate",
+		Kind:    KindCore,
+		Summary: "host-capacity gate for heavy Go tests (skip on saturated boxes)",
+		Dirs:    []string{"internal/hostgate"},
+		Note: "Core test support: heavy suites (trim-build repo copies + " +
+			"forked vets) skip with reason off-CI when the box is constrained, " +
+			"instead of wedging a shared host. CI never skips. Customize " +
+			"thresholds via HOSTGATE_* env, never remove.",
+	},
+	{
 		ID:         "nats",
 		Kind:       KindPlugin,
 		Summary:    "NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes",
