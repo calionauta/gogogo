@@ -23,6 +23,10 @@
   Refused runs fall back to `make ci-local-fast` + PR CI; `CI_LOCAL_FORCE=1`
   overrides. Each refusal branch is probe-verified (RAM/load/disk trip on
   demand, capable box passes).
+- **Automatic smoke hygiene.** `ci-fanout.sh` traps `INT`/`TERM` (no orphaned
+  suites on interrupt) and removes its log dir on green runs only; both local
+  gates reap mtime-stale smoke corpses at start (`reap-stale`, 6h default —
+  concurrent runs untouched, caches never listed so nothing rebuilds).
 
 ### Changed
 

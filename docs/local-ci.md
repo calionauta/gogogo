@@ -106,6 +106,14 @@ just stops a CSS tweak from paying for the todo suite.
   `CI_LOCAL_MIN_RAM_MB` / `CI_LOCAL_MIN_CORES` /
   `CI_LOCAL_MAX_LOAD_PER_CORE` / `CI_LOCAL_MIN_DISK_MB`), same convention as
   `scripts/lint-safe.sh` one level down.
+- **Hygiene is automatic, and it cannot disturb a live run.** `ci-fanout.sh`
+  traps `INT`/`TERM` to kill its four suites with it (no orphans when the
+  gate is interrupted) and deletes its log dir on a green run (a red run
+  keeps every log for diagnosis). Both gates reap mtime-stale smoke corpses
+  at start (`reap-stale`, default 6h — a concurrent gate's fresh artifacts
+  are never touched). Caches (go build, golangci, npm, Playwright browsers)
+  are never listed anywhere, so hygiene never forces a rebuild.
+  `make smoke-clean` stays the manual full clean.
 
 ### Why the browser smoke test stays on Playwright
 
