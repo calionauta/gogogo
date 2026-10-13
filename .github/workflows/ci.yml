@@ -57,20 +57,6 @@ jobs:
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
           /usr/local/go/bin/go version
-      - name: Cache Go modules and build cache
-        # Cold runners re-download every module and recompile the world:
-        # the ~6min Test step and ~2min Lint are mostly that. Key on the
-        # Go version + go.sum so a dep bump invalidates precisely; weekly
-        # fallback key keeps some warmth across dep changes. Never
-        # `go clean -cache` anywhere in CI — the cache is the speedup.
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: go-1.27.2-${{ runner.os }}-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-1.27.2-${{ runner.os }}-
       - name: Generate templ
         run: go tool templ generate
       - name: Check generated templ files are committed
