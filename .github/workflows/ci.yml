@@ -89,6 +89,11 @@ jobs:
         # flatdeps-lint job: no banned framework in the closure, no
         # cross-feature domain imports, sql.Open only in owner packages.
         run: go run ./cmd/check-flatdeps
+      - name: Check-secrets-env (secret env sites)
+        # Same gate as `make check-secrets-env` and the pre-commit
+        # secrets-env job: secret-shaped env reads only in owner files
+        # (config loader, secrets loader, narrow allowlist).
+        run: go run ./cmd/check-secrets-env
       - name: Check-dagnats-pin (doc pin vs go.mod)
         # Local-only check (grep, no network): the capability table in
         # docs/dagnats.md is verified against the go.mod pin.

@@ -59,6 +59,8 @@ const MANIFEST = [
     desc: "How to add live UI: client/server patterns, checklist, no invented transports." },
   { group: "Core", slug: "features", file: "features.md",
     desc: "Every capability and its runtime opt-out." },
+  { group: "Core", slug: "review", file: "review.md",
+    desc: "The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge." },
   { group: "Core", slug: "use-cases", file: "use-cases.md",
     desc: "What each core, plugin, and feature is for, in business language." },
   { group: "Core", slug: "architecture-decision", file: "architecture-decision.md",

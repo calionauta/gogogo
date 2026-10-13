@@ -30,26 +30,6 @@ type JudgeClient interface {
 // Compile-time check that the mattn client satisfies the seam.
 var _ JudgeClient = (*jev.Client)(nil)
 
-// JudgeUsageRecord is one metered judge call. Kept parallel to (not inside)
-// the ai-credits Usage: the review handler must not import the credits
-// feature (that would couple two trimmable units), so metering stays a
-// narrow interface with a nil-safe default.
-type JudgeUsageRecord struct {
-	UserID       string
-	Model        string
-	InputTokens  int
-	OutputTokens int
-	Verdict      string
-	Confidence   float64
-}
-
-// JudgeMeter records one judge call for billing/analytics. Nil means
-// log-and-skip: the loop runs observable (slog + streamed token counts)
-// but unmetered, the same posture as llm without SetMeter.
-type JudgeMeter interface {
-	RecordJudgeUsage(ctx context.Context, rec JudgeUsageRecord)
-}
-
 // NewJudgeClient builds the judge backend from config. A bare host expands
 // via jev.Endpoint to /v1/systemone; a URL carrying a path (like the
 // SimpleJev /v1/classifier default) is used as-given. Empty APIKey sends

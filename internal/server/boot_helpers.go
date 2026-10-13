@@ -131,7 +131,6 @@ func bootReview(
 		Judge:        reviewchi.NewJudgeClient(cfg),
 		Threshold:    cfg.Review.ConfidenceThreshold,
 		JudgeTimeout: cfg.Review.Timeout,
-		JudgeName:    cfg.Review.Model,
 	}
 	h := reviewchi.NewHandler(cfg, a, runner, realLLM)
 	h.RegisterFlows()

@@ -144,7 +144,6 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	runner := *h.runner
-	runner.UserID = sess.User.ID
 	// The run executes synchronously in this goroutine: each phase chunk
 	// forwards straight to SSE (no channels, no goroutines, nothing to
 	// leak). The registered Genkit flow (same Runner.run) serves the Dev

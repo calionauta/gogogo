@@ -71,9 +71,6 @@ type Runner struct {
 	// Zero means a sane default; the client already enforces JEV_TIMEOUT
 	// per attempt underneath.
 	JudgeTimeout time.Duration
-	Meter        JudgeMeter
-	UserID       string
-	JudgeName    string
 }
 
 // DefineReviewFlow registers the streaming review flow: progress strings
@@ -192,18 +189,21 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 		}, nil
 	}
 
-	decision := DecisionRevise
-	rationale := "The judge requested revisions: " + critique
+	// Closed set with a safe default: anything the judge returns outside
+	// approve/revise escalates to a human. A default that auto-accepts
+	// would bless every future verdict string sight unseen.
+	decision := DecisionNeedsHuman
+	rationale := "The judge returned an unrecognized verdict; a human should decide."
 	switch {
 	case ans == DecisionApprove && confidence >= r.threshold():
 		decision = DecisionApprove
 		rationale = "Approved by the automated judge (confidence " + formatConfidence(confidence) + ")."
 	case ans == DecisionApprove:
 		// Leans approve but below threshold: escalate, don't auto-accept.
-		decision = DecisionNeedsHuman
 		rationale = "The judge leans approve but confidence " + formatConfidence(confidence) +
 			" is below threshold; a human should decide."
-	case severity != "":
+	case ans == DecisionRevise:
+		decision = DecisionRevise
 		rationale = "The judge requested revisions (severity " + severity + "): " + critique
 	}
 	return Verdict{
@@ -261,16 +261,13 @@ func (r *Runner) judge(ctx context.Context, state, verdictQ, severityQ string) (
 	if a := resp.Answers["severity"]; a != nil {
 		severity = a.Choice
 	}
-	if r.Meter != nil {
-		inTokens, outTokens := 0, 0
-		if resp.Usage.InputTokens != 0 || resp.Usage.OutputTokens != 0 {
-			inTokens, outTokens = resp.Usage.InputTokens, resp.Usage.OutputTokens
-		}
-		r.Meter.RecordJudgeUsage(ctx, JudgeUsageRecord{
-			UserID: r.UserID, Model: r.JudgeName,
-			InputTokens: inTokens, OutputTokens: outTokens,
-			Verdict: verdict, Confidence: confidence,
-		})
-	}
+	// Judge usage stays observable (slog below + streamed token counts),
+	// not ledger-metered: the handler must not import the credits feature
+	// (that would couple two trimmable units). Wire a meter only with a
+	// consumer-side seam, never a second choke point beside llm.Biller.
+	obsArgs := append(observability.WithComponent("review", "feature"),
+		"verdict", verdict, "confidence", confidence,
+		"input_tokens", resp.Usage.InputTokens)
+	observability.Info(ctx, "review: judge answered", obsArgs...)
 	return verdict, severity, confidence, nil
 }

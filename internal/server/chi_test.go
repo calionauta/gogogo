@@ -211,7 +211,6 @@ func newReviewHandlerForTest(cfg *config.Config, a *auth.Auth) *reviewchi.Handle
 		Judge:        reviewchi.NewJudgeClient(cfg),
 		Threshold:    cfg.Review.ConfidenceThreshold,
 		JudgeTimeout: cfg.Review.Timeout,
-		JudgeName:    cfg.Review.Model,
 	}, client)
 }
 

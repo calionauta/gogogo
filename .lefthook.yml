@@ -38,6 +38,10 @@ pre-commit:
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"
 
+    - name: secrets-env
+      run: go run ./cmd/check-secrets-env
+      glob: "{internal,features,config,cmd}/**/*.go"
+
     - name: dagnats-pin
       run: bash bin/check-dagnats-pin.sh
       glob: "{go.mod,go.sum,docs/dagnats.md,internal/dagnats/**}"

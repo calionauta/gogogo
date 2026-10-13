@@ -5,6 +5,18 @@ then a classifier judge delivers the verdict. Text is the default tab
 (no code literacy needed, and classifier judges are most accurate on
 prose); code is the second tab.
 
+## Where this sits (plugin, not layer)
+
+The scope taxonomy has no "layer" axis — the directory is the layer
+(`features/` = product) and the annotation is the removal class. In
+those terms: `review` is a **feature** (terminal user surface, trim it
+and `/review` is gone) and `genkit` is a **plugin capability** (serves
+the feature; nothing user-facing disappears without it, but review
+stops working). Genkit is not a framework (proven by
+`cmd/check-flatdeps`), not a second LLM client (zero provider plugins;
+generation reaches providers only through `llm.Client`), and not core
+(trim + `go mod tidy` removes it from the build).
+
 ## How it runs
 
 Synchronous in the request scope: one POST streams phased progress over

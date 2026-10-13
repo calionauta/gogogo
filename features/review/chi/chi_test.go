@@ -6,12 +6,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	jev "github.com/mattn/go-jev"
+	"go.uber.org/goleak"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -67,15 +69,6 @@ func echoModel(t *testing.T, g *genkit.Genkit, wantCritique string) ai.Model {
 		})
 }
 
-// stubMeter records judge metering calls.
-type stubMeter struct {
-	recs []JudgeUsageRecord
-}
-
-func (s *stubMeter) RecordJudgeUsage(_ context.Context, rec JudgeUsageRecord) {
-	s.recs = append(s.recs, rec)
-}
-
 func reviewFixture(t *testing.T, critique string, judge *stubJudge) http.Handler {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/review.db")
@@ -97,8 +90,6 @@ func reviewFixture(t *testing.T, critique string, judge *stubJudge) http.Handler
 		Model:     echoModel(t, g, critique),
 		Judge:     judge,
 		Threshold: 0.7,
-		Meter:     &stubMeter{},
-		JudgeName: "stub-judge",
 	}, llm.New("test-key"))
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
@@ -269,5 +260,88 @@ func TestReviewRunWithoutLLMKeyFailsClosed(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("keyless run status = %d, want 503", rec.Code)
+	}
+}
+
+// TestReviewUnknownVerdictEscalates pins the closed-set default: a judge
+// answering outside approve/revise must escalate, never auto-accept.
+// Red-proof: change the default to DecisionRevise and this goes red.
+func TestReviewUnknownVerdictEscalates(t *testing.T) {
+	mux := reviewFixture(t, "APPROVE",
+		&stubJudge{verdict: "maybe", severity: "low", confidence: 0.99})
+	cookie := reviewSignup(t, mux, "weird@example.com")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/review/run", strings.NewReader("tab=text&content=Some+draft+text"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("run status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), DecisionNeedsHuman) {
+		t.Fatalf("unknown verdict must escalate:\n%s", rec.Body.String())
+	}
+}
+
+// TestReviewHandlerOwnsNoPersistence is the zero-artifact tripwire: the
+// Handler (and Runner) must never gain DB/queue/store/nats/credits
+// fields. Persistence would arrive as a struct field first — this fails
+// at that moment, before any write exists to catch. Red-proof: add
+// `db *sql.DB` to Handler and watch it go red.
+func TestReviewHandlerOwnsNoPersistence(t *testing.T) {
+	banned := []string{
+		"sql.DB", "queue.Queue", "sqlcgen", "dbschema", "nats.",
+		"credits.", "collab.", "Queue", "Store", "Ledger",
+	}
+	check := func(name string, v any) {
+		t.Helper()
+		rt := reflect.TypeOf(v)
+		if rt.Kind() == reflect.Pointer {
+			rt = rt.Elem()
+		}
+		for f := range rt.Fields() {
+			ft := f.Type.String()
+			for _, b := range banned {
+				if strings.Contains(ft, b) {
+					t.Errorf("%s field %q has banned persistence type %q",
+						name, f.Name, ft)
+				}
+			}
+		}
+	}
+	check("Handler", Handler{})
+	check("Runner", Runner{})
+}
+
+// TestReviewGenkitLeavesNoGoroutines guards the sync-by-design contract:
+// no `go` statements exist in this package, so a full run must leave no
+// goroutines behind. IgnoreCurrent covers the test runner; the SQLite
+// connectionOpener is the driver's own (same ignores as the queue suite).
+// NOTE: this package stays sequential on purpose — t.Parallel siblings
+// (argon2 password hashing during signup) stay in flight while goleak
+// snapshots, which reads as a leak. Speed sacrificed for a truthful
+// assertion; see the skill's "audit first" rule.
+func TestReviewGenkitLeavesNoGoroutines(t *testing.T) {
+	defer goleak.VerifyNone(t,
+		goleak.IgnoreCurrent(),
+		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+		// genkit.Inits discarded signal.NotifyContext stop func parks one
+		// signal_loop goroutine per Init call: third-party, process-lifetime
+		// by design, inert for us (our flows run on the request ctx, never
+		// the Init-derived one). Production Inits once; tests Init per
+		// fixture. Anything OUR code spawns is still caught below.
+		goleak.IgnoreTopFunction("os/signal.NotifyContext.func1"),
+	)
+	g := NewGenkit()
+	model := echoModel(t, g, "APPROVE")
+	r := &Runner{
+		G: g, Model: model,
+		Judge:     &stubJudge{verdict: DecisionApprove, confidence: 0.9},
+		Threshold: 0.7,
+	}
+	if _, err := r.run(context.Background(),
+		ReviewInput{Tab: TabText, Content: "hello"}, nil); err != nil {
+		t.Fatalf("run: %v", err)
 	}
 }
