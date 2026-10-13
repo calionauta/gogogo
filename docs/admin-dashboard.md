@@ -40,7 +40,10 @@ workflow runs here — declarative JSON over NATS JetStream, kickstarted
 automatically on first login.
 
 In the demo deployment it is reachable at
-[`/console/`](https://gogogo.calionauta.com/console/) behind the same tunnel.
+[`/console/`](https://gogogo.calionauta.com/console/) behind the same tunnel
+(the topbar links the branded alias
+[`/dagnats/`](https://gogogo.calionauta.com/dagnats/), which re-roots onto
+the same tree).
 
 ## RBAC demo (viewer role)
 

@@ -44,6 +44,27 @@ func mountConsoleProxy(mux *http.ServeMux, a *auth.Auth, cfg *config.Config) {
 	mux.Handle("/console", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/console/", http.StatusMovedPermanently)
 	}))
+	// /dagnats/ is the branded alias: same console, DagNats name in the
+	// address bar. Upstream owns the /console/ paths (absolute assets,
+	// actions and API calls), so the alias strips its prefix and
+	// re-roots onto /console/; absolute in-console links still land on
+	// /console/ (upstream HTML, not ours to rewrite).
+	alias := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(target)
+			r.Out.URL.Path = "/console/" + strings.TrimPrefix(
+				strings.TrimPrefix(r.In.URL.Path, "/dagnats/"), "/")
+			r.Out.URL.RawQuery = r.In.URL.RawQuery
+		},
+		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, _ error) {
+			http.Error(w, "workflow engine unavailable", http.StatusBadGateway)
+		},
+	}
+	aliasGated := a.RequireSession(forwardConsoleUser(alias))
+	mux.Handle("/dagnats/", aliasGated)
+	mux.Handle("/dagnats", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/dagnats/", http.StatusMovedPermanently)
+	}))
 }
 
 // forwardConsoleUser stamps the validated session email for the

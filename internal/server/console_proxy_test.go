@@ -157,12 +157,66 @@ func TestConsoleBareRedirect(t *testing.T) {
 	cfg.DagNats.HTTPAddr = "127.0.0.1:1"
 	mountConsoleProxy(mux, a, cfg)
 
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/console", nil))
-	if rec.Code != http.StatusMovedPermanently {
-		t.Errorf("/console status = %d, want 301", rec.Code)
+	for _, tc := range []struct{ from, to string }{
+		{"/console", "/console/"},
+		{"/dagnats", "/dagnats/"},
+	} {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, tc.from, nil))
+		if rec.Code != http.StatusMovedPermanently {
+			t.Errorf("%s status = %d, want 301", tc.from, rec.Code)
+		}
+		if loc := rec.Header().Get("Location"); loc != tc.to {
+			t.Errorf("%s Location = %q, want %q", tc.from, loc, tc.to)
+		}
 	}
-	if loc := rec.Header().Get("Location"); loc != "/console/" {
-		t.Errorf("/console Location = %q, want /console/", loc)
+}
+
+// TestConsoleAliasRerootsPinsBrand pins the /dagnats/ alias: the branded
+// entry strips its prefix and lands on the upstream /console/ tree,
+// keeping the DagNats name in the address bar. Red-proof: mount the
+// alias as an identity proxy and the path assertion goes red (backend
+// would see /dagnats/..., which upstream does not serve).
+func TestConsoleAliasRerootsPinsBrand(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := db.OpenAt(t.TempDir() + "/console-alias.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	_, userTok, serr := a.Signup(ctx, "alias@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	var seenPath string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenPath = r.URL.RequestURI()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(backend.Close)
+
+	mux := http.NewServeMux()
+	cfg := &config.Config{}
+	cfg.DagNats.Enabled = true
+	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
+	mountConsoleProxy(mux, a, cfg)
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/dagnats/triggers?x=1", nil)
+	// #nosec G124 — test-only request cookie; never traverses a network.
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("aliased status = %d, want 200", rec.Code)
+	}
+	if seenPath != "/console/triggers?x=1" {
+		t.Errorf("backend saw path %q, want rerooted /console/triggers?x=1", seenPath)
 	}
 }

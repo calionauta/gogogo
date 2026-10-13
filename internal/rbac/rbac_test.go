@@ -104,7 +104,7 @@ func TestRBACPolicyCoversMuxRoutes(t *testing.T) {
 			t.Errorf("route %q denied for user and admin — policy gap", path)
 		}
 	}
-	for _, path := range []string{"/config", "/config/", "/console", "/console/"} {
+	for _, path := range []string{"/config", "/config/", "/console", "/console/", "/dagnats", "/dagnats/"} {
 		denied, derr := e.Enforce("user", path, "GET")
 		if derr != nil {
 			t.Fatalf("enforce user %s: %v", path, derr)

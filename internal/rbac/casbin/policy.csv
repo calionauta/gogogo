@@ -89,3 +89,6 @@ p, admin, /config/, .*
 p, admin, /console, .*
 p, admin, /console/, .*
 p, admin, /console/*, .*
+p, admin, /dagnats, .*
+p, admin, /dagnats/, .*
+p, admin, /dagnats/*, .*
