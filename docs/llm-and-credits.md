@@ -21,8 +21,17 @@ button.
 
 ```bash
 GOAI_API_KEY=sk-...
+GOAI_BASE_URL=https://openrouter.ai/api/v1
+GOAI_MODEL=nvidia/nemotron-3-super-120b-a12b:free
+```
+
+The deploy default is OpenRouter with that free model (verified live and
+$0 in/out in Oct 2026; text→text with structured outputs, so Ask AI's
+JSON directives parse). A Groq key works the same way with its own slug:
+
+```bash
 GOAI_BASE_URL=https://api.groq.com/openai/v1
-GOAI_MODEL=llama-3.3-70b-versatile
+GOAI_MODEL=<a current groq slug>
 ```
 
 Free-tier keys (e.g. OpenRouter `:free` models) work the same way, but read

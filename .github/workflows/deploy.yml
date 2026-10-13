@@ -302,8 +302,8 @@ jobs:
             umask 077
             cat > \"$SECRETS_DIR/${APP_NAME}.env.tmp\" <<EOF2
           GOAI_API_KEY=$GOAI_API_KEY
-          GOAI_BASE_URL=${GOAI_BASE_URL:-https://api.groq.com/openai/v1}
-          GOAI_MODEL=${GOAI_MODEL:-llama-3.1-8b-instant}
+          GOAI_BASE_URL=${GOAI_BASE_URL:-https://openrouter.ai/api/v1}
+          GOAI_MODEL=${GOAI_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}
           ADMIN_UNLOCK_TOKEN=$ADMIN_UNLOCK_TOKEN
           EOF2
             mv \"$SECRETS_DIR/${APP_NAME}.env.tmp\" \"$SECRETS_DIR/${APP_NAME}.env\"

@@ -74,6 +74,11 @@
     } catch (e) {
       return;
     }
+    // Doc guard (defense in depth — the hub already scopes fan-out per
+    // doc): a shapes/presence event for another board must never touch
+    // this board's view. Without it one board's broadcast overwrote the
+    // other's shapes, "erasing" its drawings.
+    if (msg.doc && msg.doc !== docID) return;
     if (msg.type === "shapes") {
       shapes = msg.shapes || [];
       dropCommittedDrafts();

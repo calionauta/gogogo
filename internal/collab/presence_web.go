@@ -151,17 +151,18 @@ func (p *WebPresence) expireStale() {
 	}
 }
 
-// broadcast fans a presence event to every other connected client on the
-// doc's stream (exclude the originator to avoid an echo loop). Marshal
-// errors are logged and dropped — a single malformed cursor must not
-// break the presence loop.
+// broadcast fans a presence event to every other connected client
+// watching THIS doc (exclude the originator to avoid an echo loop).
+// Doc-scoped like every other collab leg: a global broadcast merged
+// all docs' rosters into one. Marshal errors are logged and dropped —
+// a single malformed cursor must not break the presence loop.
 func (p *WebPresence) broadcast(clientID string, msg PresenceMsg) {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		slog.Warn("collab: marshal presence", "error", err)
 		return
 	}
-	p.hub.BroadcastExcept(data, clientID)
+	p.hub.BroadcastExceptToDoc(data, p.doc, clientID)
 }
 
 // Roster returns a snapshot copy of currently-present peers (excluding self).

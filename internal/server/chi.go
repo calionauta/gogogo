@@ -209,14 +209,28 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// does not compile. One explicit use keeps every composition green.
 	_ = bootCtx
 
-	hub := queue.NewSSEHub()
+	// Chi-owned queue: feature workers run here so they never compete
+	// with the other stack's workers for the same jobs. Its hub is the
+	// SINGLE hub every stream and every worker shares: workers broadcast
+	// to chiQ.Hub(), so every handler below is built with that same hub.
+	// A second hub object silently swallows all worker feedback (the
+	// Queue + Retry demo stuck on step 1 was exactly this: the todo
+	// stream listened on a standalone hub while workers broadcast on
+	// the queue's own hub).
+	chiQ, qerr := queue.NewAt(filepath.Join(cfg.DataDir, "chi"))
+	if qerr != nil {
+		cancelConsumer()
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("server: chi queue: %w", qerr)
+	}
+	hub := chiQ.Hub()
 	queries := dbgen.New(sqlDB)
 	todoH := todohandlers.NewHandler(queries, a, hub, cfg.Skin)
 	wireTodoDisplay(todoH, cfg)
 
 	// Shutdown hooks stop independent things: stepper, actor, queue,
 	// ledger. The order is arbitrary.
-	var shutdown []func()
+	shutdown := []func(){chiQ.Close}
 
 	// Onboarding wires before the actor boot so its hook lands first.
 	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
@@ -227,26 +241,16 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
 	}
 
-	// Chi-owned queue: feature workers run here so they never compete
-	// with the other stack's workers for the same jobs.
-	chiQ, qerr := queue.NewAt(filepath.Join(cfg.DataDir, "chi"))
-	if qerr != nil {
-		cancelConsumer()
-		_ = sqlDB.Close()
-		return nil, fmt.Errorf("server: chi queue: %w", qerr)
-	}
-	shutdown = append(shutdown, chiQ.Close)
-
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
 	// Retained: the chat/genui constructions below consume these, and the
 	// genui trim drops those lines — without an explicit use the locals
 	// would not compile on trimmed trees. Same rule as the bootCtx retain.
 	_ = realLLM
 	_ = simulatedLLM
-	chatH := chathandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
+	chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,
 		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))
 	chatH.RegisterHandlers(chiQ.Registry())
-	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),
+	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,
 		comp.NewResponder(realLLM, simulatedLLM))
 	genuiH.RegisterHandlers(chiQ.Registry())
 	chiQ.StartWorkers()

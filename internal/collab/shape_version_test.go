@@ -270,9 +270,12 @@ func TestStaleOpIsNotPersistedOrBroadcast(t *testing.T) {
 	p := NewMemoryPersister()
 	store := NewDocStoreWithPersister(p, 64, time.Minute)
 	hub := queue.NewSSEHub()
-	// A client subscribed so we can detect any broadcast.
+	// A client subscribed so we can detect any broadcast. It watches
+	// "doc": fan-out is doc-scoped, so an untracked client receives
+	// nothing by design.
 	ch := make(chan []byte, 8)
 	hub.Register("watcher", "", ch)
+	hub.SetDoc("watcher", "doc")
 	worker := NewWebSyncWorker(hub, p, store, nil)
 
 	if _, err := worker.ApplyOp("doc", "a", ShapeOp{Op: "add", Shape: Shape{ID: "s", Type: "rect", X: 0}}); err != nil {

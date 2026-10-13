@@ -40,9 +40,13 @@ services:
       # LLM (these three lines are wired by the GH Action deploy;
       # GOAI_API_KEY + GOAI_BASE_URL + GOAI_MODEL come from the
       # secrets env_file below, never committed). GOAI_BASE_URL /
-      # GOAI_MODEL default to Groq (OpenAI-compatible) when unset.
-      GOAI_BASE_URL: ${GOAI_BASE_URL:-https://api.groq.com/openai/v1}
-      GOAI_MODEL: ${GOAI_MODEL:-llama-3.1-8b-instant}
+      # GOAI_MODEL default to OpenRouter with a verified-free default
+      # model (Oct 2026: nvidia/nemotron-3-super-120b-a12b:free, $0 in +
+      # out, text->text, structured outputs for Ask AI). The free catalog
+      # rotates — re-check https://openrouter.ai/models?order=free when
+      # Ask starts 404ing, and override via env to pin another :free id.
+      GOAI_BASE_URL: ${GOAI_BASE_URL:-https://openrouter.ai/api/v1}
+      GOAI_MODEL: ${GOAI_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}
       # Realtime — binary built with -tags jetstream.
       NATS_ENABLED: "true"
       NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo}/data/nats

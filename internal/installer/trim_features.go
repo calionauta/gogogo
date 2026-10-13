@@ -353,10 +353,12 @@ var featureTrimUnits = []trimUnit{
 				path: chiGoFile,
 				substrs: []string{
 					// Constructions are two lines each (handler + model leg):
-					// both go, and add restores them as call lines.
-					"chatH := chathandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
+					// both go, and add restores them as call lines. Hub is the
+					// shared chiQ.Hub() (single-hub wiring: a private hub here
+					// would swallow worker feedback again).
+					"chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,",
 					"chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))",
-					"genuiH := genuihandlers.NewHandler(cfg, a, chiQ, queue.NewSSEHub(),",
+					"genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,",
 					"comp.NewResponder(realLLM, simulatedLLM))",
 					"chatH.RegisterHandlers(chiQ.Registry())",
 					"genuiH.RegisterHandlers(chiQ.Registry())",

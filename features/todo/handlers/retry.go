@@ -28,7 +28,10 @@ func (h *Handler) handleRetryDemo(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: retry-demo queue missing", errNoQueue, "enqueue failed")
 		return
 	}
-	body, err := json.Marshal(queue.Job{Type: signalJobRetryDemo})
+	// Thread the originating tab through the job: the worker routes
+	// per-attempt feedback back to it. Dropping the clientID left the
+	// feedback unroutable and the stepper stuck on step 1 forever.
+	body, err := json.Marshal(queue.Job{Type: signalJobRetryDemo, ClientID: r.URL.Query().Get("clientID")})
 	if err != nil {
 		h.fail(r.Context(), w, "todo: retry-demo marshal failed", err, "enqueue failed")
 		return
@@ -51,7 +54,7 @@ func (h *Handler) RegisterRetryHandlers(reg *queue.HandlerRegistry) {
 	reg.Register(signalJobRetryDemo, h.handleRetryDemoJob)
 }
 
-func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, _ queue.Job) error {
+func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, job queue.Job) error {
 	const maxAttempts = 3
 	attempt := 0
 	err := retry.Do(
@@ -61,7 +64,7 @@ func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, _ q
 			if attempt < maxAttempts {
 				opErr = fmt.Errorf("simulated transient failure on attempt %d", attempt)
 			}
-			broadcastRetryFeedback(ctx, hub, attempt, opErr)
+			broadcastRetryFeedback(ctx, hub, job.ClientID, attempt, opErr)
 			return opErr
 		},
 		retry.Attempts(maxAttempts),
@@ -70,17 +73,28 @@ func (h *Handler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub, _ q
 		retry.Context(ctx),
 	)
 	if err != nil {
-		//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
-		// cancellation is handled by the surrounding ctx select.
-		hub.Broadcast(toastJob("Queue + retry demo failed", "error"))
+		sendToOriginator(ctx, hub, job.ClientID, toastJob("Queue + retry demo failed", "error"))
 		return err
 	}
-	//nolint:contextcheck // same SSE-sink boundary as above.
-	hub.Broadcast(toastJob("Queue + retry OK — 3 attempts", "success"))
+	sendToOriginator(ctx, hub, job.ClientID, toastJob("Queue + retry OK — 3 attempts", "success"))
 	return nil
 }
 
-func broadcastRetryFeedback(ctx context.Context, hub *queue.SSEHub, attempt int, opErr error) {
+// sendToOriginator delivers a worker envelope to the tab that started
+// the job, falling back to a broadcast when the job carries no client
+// (a global demo every tab watches). Targeted delivery keeps one user's
+// demo progress off every other user's stream.
+func sendToOriginator(_ context.Context, hub *queue.SSEHub, clientID string, body []byte) {
+	if clientID == "" {
+		//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
+		// cancellation flows through the surrounding ctx select.
+		hub.Broadcast(body)
+		return
+	}
+	hub.Send(clientID, body)
+}
+
+func broadcastRetryFeedback(ctx context.Context, hub *queue.SSEHub, clientID string, attempt int, opErr error) {
 	status := "attempt"
 	if opErr == nil {
 		status = "success"
@@ -95,9 +109,7 @@ func broadcastRetryFeedback(ctx context.Context, hub *queue.SSEHub, attempt int,
 		"status":    status,
 		"error":     msg,
 	})
-	//nolint:contextcheck // SSEHub.Broadcast takes no context; worker
-	// cancellation flows through the surrounding ctx select.
-	hub.Broadcast(mustJSON(ctx, queue.Job{Type: "retry", Payload: payload}))
+	sendToOriginator(ctx, hub, clientID, mustJSON(ctx, queue.Job{Type: "retry", Payload: payload}))
 }
 
 func toastJob(message, kind string) []byte {

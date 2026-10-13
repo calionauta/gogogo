@@ -287,7 +287,11 @@ func shapesEventContains(events []string, id string) bool {
 	return false
 }
 
-func tailEvents(events []string, n int) string {
+// tailEvents renders the last few events for failure messages. The window
+// is fixed (every caller passed 400): a parameter nobody varies is a
+// lie about flexibility, and the unparam gate rejects it.
+func tailEvents(events []string) string {
+	const n = 400
 	if len(events) <= n {
 		return strings.Join(events, "\n")
 	}
