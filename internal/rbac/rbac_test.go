@@ -89,7 +89,8 @@ func TestRBACPolicyCoversMuxRoutes(t *testing.T) {
 		"/api/credits", "/api/credits/", "/api/ai/", "/api/byok/",
 		"/api/onboarding", "/api/onboarding/",
 		"/api/auth/signup/credential", "/api/session",
-		"/static/app.min.css", "/sw.js", "/health", "/",
+		"/static/app.min.css", "/static/notes/app.js", "/static/wb/board.js",
+		"/sw.js", "/health", "/",
 	}
 	for _, path := range userOK {
 		allowUser, uerr := e.Enforce("user", path, "GET")
@@ -119,6 +120,19 @@ func TestRBACPolicyCoversMuxRoutes(t *testing.T) {
 	}
 	if !consoleAdmin {
 		t.Error("admin must reach the console proxy")
+	}
+	// Pinned user-allow (not just user-or-admin): the feature static
+	// subtrees must stay reachable for plain users — the admin /* would
+	// mask a lost /static/* row in the loop above. Red-proof: drop the
+	// static wildcard and this goes red.
+	for _, path := range []string{"/static/notes/app.js", "/static/wb/board.js"} {
+		allow, err := e.Enforce("user", path, "GET")
+		if err != nil {
+			t.Fatalf("enforce user %s: %v", path, err)
+		}
+		if !allow {
+			t.Errorf("route %q denied for user, want static wildcard to cover it", path)
+		}
 	}
 }
 
