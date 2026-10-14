@@ -118,6 +118,12 @@ jobs:
         # A skill's YAML frontmatter is parsed by the skill HOST, never by this
         # build — so a syntax error ships silently. Real YAML parser, not regex.
         run: go run ./cmd/check-skill-frontmatter
+      - name: Check CI job self-provisioning
+        # Each job runs on its own runner: using node/go without installing
+        # them earlier in the SAME job fails (the missing-npm-ci that broke
+        # the first parallel run). Local ci-local cannot catch this class —
+        # a dev box always has everything warm.
+        run: bash bin/check-ci-deps.sh
       - name: Datastar-lint
         # Pinned, not @latest: a new release can raise a rule to ERROR severity
         # and start failing the build with no code change here. Bump this

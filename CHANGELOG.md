@@ -110,6 +110,10 @@
 - **Skip summary on green gates.** `ci-fanout.sh` prints host-gated `SKIP`
   lines before log cleanup, so green-with-skips is never misread as full
   green (race log is now `-v`).
+- **CI job self-provisioning guard.** `bin/check-ci-deps.sh` (pre-commit +
+  CI) fails a job that runs `node`/`go` without installing them earlier in
+  the same job — the missing-`npm ci` that broke the first parallel run,
+  which local gates cannot catch (a dev box always has everything warm).
 
 ### Changed
 
