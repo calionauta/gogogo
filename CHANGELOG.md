@@ -97,6 +97,31 @@
   Four places that claimed the master deploy waits for CI (`deploy.yml`,
   `local-ci.md`, lefthook pre-push comment, `AGENTS.md`) now state the
   parallel truth: deploy compiles only, PR CI is the pre-merge gate.
+- **Parallel CI jobs.** `ci.yml` runs `checks` | `race` | `browser` |
+  `prod-image` on isolated runners — wall-clock is the slowest job, not the
+  serial sum. Same steps verbatim (`deadcode` moved earlier, one shared
+  binary across the client suites, image boot fails fast instead of last).
+  A `ci` aggregator job preserves the branch-protection status context
+  (parallel jobs cannot provide a stable name).
+- **Commit-time vulnerability scan.** `govulncheck` runs pre-commit on
+  `go.mod`/`go.sum` (same script as pre-push/CI), so a vulnerable dependency
+  fails the commit instead of the push.
+- **Reconciler ships green SHAs only.** The schedule drift check deploys
+  `master` HEAD only when it carries green CI, and skips docs-only pushes
+  whose badge already matches validated code.
+- **Skip summary on green gates.** `ci-fanout.sh` prints host-gated `SKIP`
+  lines before log cleanup, so green-with-skips is never misread as full
+  green (race log is now `-v`).
+- **CI job self-provisioning guard.** `bin/check-ci-deps.sh` (pre-commit +
+  CI) fails a job that runs `node`/`go` without installing them earlier in
+  the same job — the missing-`npm ci` that broke the first parallel run,
+  which local gates cannot catch (a dev box always has everything warm).
+- **Reliable module downloads.** `GOPROXY` uses the pipe form
+  (`proxy|direct`: any proxy error falls back to git, verified empirically)
+  and every Go download leg warms with bounded retries (`bin/go-mod-download.sh`
+  in CI jobs, the same loop inline in `Dockerfile.prod`, which has no bash) —
+  the proxy's transient `INTERNAL_ERROR`s killed cold-cache `go list`, `go test`
+  and a 268s image build that `go` does not retry itself.
 
 ### Changed
 

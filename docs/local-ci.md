@@ -116,14 +116,38 @@ to "see it working" (including a clickable URL for a human), run this:
 make dev                          # live-reload on :8080 (own DATA_DIR, never prod's)
 make ci-local-fast                # gate the change: cheap checks + scoped race tests
 node scripts/smoke.mjs            # boot the real binary, exercise offline replay
-tailscale serve --bg 8080         # HTTPS URL on your tailnet; `funnel` for off-tailnet
-tailscale serve status            # the URL to share
+command -v tailscale >/dev/null && tailscale serve --bg 8080 || echo "no Tailscale here: share http://localhost:8080 instead"
+tailscale serve status            # the URL to share (skip if no Tailscale)
 tailscale serve reset             # take it down when done (+ `make smoke-clean`)
 ```
+
+Tailscale ([tailscale.com/download](https://tailscale.com/download)) puts
+your machines on a private WireGuard mesh. It is **optional locally** (only
+for the shareable URL above) and **required for server deploys**, where CI
+reaches the box over the tailnet instead of a public SSH port
+(`docs/deploy.md`).
 
 Use `SIMULATE_LLM=true` for the keyless LLM path, and prefer the PR flow for
 anything beyond a look-and-click: PR CI is the gate that runs before merge,
 while a direct `master` push ships without waiting for it.
+
+### Machine-safety map
+
+Every gate probes the machine with evidence and degrades instead of wedging
+it. The contract, in one place:
+
+| Gate | Probe | Bound | Fallback | Tells you |
+|---|---|---|---|---|
+| pre-commit (lint) | free RAM + cores (`lint-safe.sh`) | GOMEMLIMIT/GOMAXPROCS/nice/cgroup cap | changed packages only | evidence line on every run |
+| `ci-local-fast` | `--fast` pre-flight (3 GB / 2 cores / load 1.5 / 1 GB) | serial `-p 1` past 8 pkgs | single-pkg runs + PR CI | refuse message + override |
+| `ci-local`, `test-web.sh` | full pre-flight (6 GB / 4 cores / 0.75 / 2 GB) | refuses first | fast + PR CI | refuse message + override |
+| heavy Go tests | `hostgate` (RAM/load/disk, tunable) | skip, never force | CI never skips | `Skipf` reason + fan-out summary |
+| CI jobs | none needed — isolated GitHub-hosted runners | browser serial in-job, race never retried | per-job retry | — |
+| homolog-light | none needed — heaviest step is one binary build | — | localhost URL without Tailscale | — |
+
+No global pre-commit guard by choice: refusing hooks would skip
+`secrets-scan`, which must see every commit — the heavy job (lint) is capped
+instead, and `govulncheck` only runs on `go.mod`/`go.sum` changes.
 
 ### Where T4 may run (host-capacity pre-flight)
 
@@ -276,6 +300,14 @@ by hand, so when a step is added to one, add it to the other:
 | browser smoke (Playwright) | ✓ | ✓ |
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 
+CI runs the rows above as four parallel jobs (`checks` | `race` | `browser` |
+`prod-image`) — wall-clock is the slowest job, not the sum. A `ci`
+aggregator job (green only when all four are) preserves the single status
+context branch protection requires. Each job provisions its own toolchain and deps (`bin/check-ci-deps.sh`, pre-commit +
+CI, fails a job that uses `node`/`go` without installing them first).
+`make ci-local` runs the same set locally, cheap steps first, then the
+race+browser fan-out (`scripts/ci-fanout.sh`).
+
 **The generated-artifact checks are the ones that regressed.** `_templ.go`
 (71 files) and `web/resources/static/app.min.css` are both *committed and
 embedded in the binary*. Both CIs used to only **generate** them and then run
@@ -291,6 +323,18 @@ commit `d50d0fb`, where caching was turned off deliberately rather than
 overlooked. Do not re-enable it to save seconds without reading that first;
 the CSS/templ diffs above add no such risk because they compare text, not
 extract archives.
+
+Cold caches have a second cost: every Go job downloads the full module graph,
+and the proxy answers those storms with transient HTTP/2 `INTERNAL_ERROR`s
+(twice in one day: a 156s `go list` death, a `go test` naming the dagnats and
+goakt zips). Two mitigations, in `ci.yml` and the image builder: `GOPROXY`
+uses the pipe form (`proxy|direct`, so a proxy error falls back to git —
+comma only falls back on 404/410), and every Go download leg warms with
+bounded retries (`bin/go-mod-download.sh` in CI jobs, the same loop inline
+in `Dockerfile.prod`, which has no bash) — still failing fast on a real
+outage. `vendor/` stays out: hermetic, but the tree, the template clones
+and the scanners all pay for it on every change — re-evaluate only if
+proxy flakes survive the retry.
 
 ## When CI goes red
 

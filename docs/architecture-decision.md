@@ -172,6 +172,30 @@ trim the unit and `go mod tidy` drops the dependency. A plugin is "removable
 without touching core"; it says nothing about where the code is hosted. See
 [Scope taxonomy](scope-taxonomy.md).
 
+## Validation strategy: local gates + parallel CI, no staging
+
+"Does it work" is answered locally, not on a server: `make dev` serves the
+change in seconds, `make ci-local-fast` gates it in ~2–30s, and the
+[homolog-light recipe](local-ci.md#homolog-light-staging-without-a-server)
+adds a shareable URL via `tailscale serve` when a human needs to click.
+There is no staging environment by design — a second stack would duplicate
+ports, data dirs, secrets, tunnel routes and memory on the shared box while
+answering a question the local loop already answers.
+
+CI runs the same gate as `make ci-local` as four parallel jobs (`checks` |
+`race` | `browser` | `prod-image`); wall-clock is the slowest job, not the
+sum. The master deploy does not wait for CI (parallel workflows, [deploy](deploy.md)),
+so the pre-merge PR check is the gate that runs before code lands, and the
+schedule reconciler only ships SHAs with green CI.
+
+Rejected, with revisit triggers: a permanent homolog slot (one branch at a
+time plus stale-slot ambiguity — revisit if human validation routinely needs
+a stable URL without the dev machine on); per-PR preview envs (needs quotas
+plus a bigger box than the shared 8 GB one); a deploy blocked on CI (adds the
+slowest job to every production deploy for an escape the PR flow already
+covers); coverage floors (gameable — the bar is behavioral: race, browser
+and red-proofed regression tests).
+
 ## Current state and remaining work
 
 The migration is complete. The flat stack is the only stack: auth, the

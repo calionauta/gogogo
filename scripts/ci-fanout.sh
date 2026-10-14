@@ -32,7 +32,10 @@ mkdir -p "$logdir"
 pid_race= pid_smoke= pid_wb= pid_notes=
 trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes 2>/dev/null || true' INT TERM
 
-bash scripts/test-web.sh -race -count=1 >"$logdir/race.log" 2>&1 &
+# -v: SKIP lines (notably internal/hostgate's constrained-box skips) only
+# print in verbose mode; the green-path summary below counts on them. Logs
+# are deleted on green anyway, and on red the extra detail aids diagnosis.
+bash scripts/test-web.sh -race -count=1 -v >"$logdir/race.log" 2>&1 &
 pid_race=$!
 SMOKE_BIN="$bin" node scripts/smoke.mjs >"$logdir/smoke.log" 2>&1 &
 pid_smoke=$!
@@ -89,6 +92,14 @@ if [ "$fail" -ne 0 ]; then
     tail -n 30 "$log"
   done
   exit 1
+fi
+# Skip summary: host-gated suites skip locally when the box is constrained
+# and CI covers them — say so explicitly, so a green run with skips is never
+# misread as a full green. (Browser suites never skip; only race.log matters.)
+skips=$(grep -h -e '--- SKIP:' "$logdir"/race.log 2>/dev/null | sed 's/^ *//' | sort -u || true)
+if [ -n "$skips" ]; then
+  echo "  ⏭ skipped locally (host-gated — CI runs these):"
+  printf '%s\n' "$skips" | sed 's/^/    /'
 fi
 # Green run: nobody reads these logs afterwards (no caller references
 # CI_LOG_DIR again, and CI runs the suites as separate steps, not via this
