@@ -70,10 +70,10 @@ else
 fi
 
 mkdir -p "$BIN_DIR"
-tar -xzf "$TARBALL" -C "$BIN_DIR" gogogo gogogo-mcp
-chmod +x "$BIN_DIR/gogogo" "$BIN_DIR/gogogo-mcp"
+tar -xzf "$TARBALL" -C "$BIN_DIR" gogogo gogogo-mcp gogogo-gui
+chmod +x "$BIN_DIR/gogogo" "$BIN_DIR/gogogo-mcp" "$BIN_DIR/gogogo-gui"
 
-echo "installed: $BIN_DIR/gogogo $BIN_DIR/gogogo-mcp ($TAG)"
+echo "installed: $BIN_DIR/gogogo $BIN_DIR/gogogo-mcp $BIN_DIR/gogogo-gui ($TAG)"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) echo "note: $BIN_DIR is not on PATH — add: export PATH=\"\$BIN_DIR:\$PATH\"" ;;
@@ -85,7 +85,7 @@ esac
 # user-space toolchain (rustup-style, into $GO_DIR).
 #
 # The toolchain is deliberately NOT symlinked into $BIN_DIR as `go`. $BIN_DIR
-# is on PATH by design (the two binaries live there), so a `go` symlink would
+# is on PATH by design (the three binaries live there), so a `go` symlink would
 # make `command -v go` resolve to the bootstrapped toolchain for the whole
 # shell — shadowing a system Go (e.g. /usr/local/go, installed later) and, in
 # a directory that may be shared, looking like the CLI itself. The toolchain

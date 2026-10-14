@@ -125,7 +125,10 @@ Like `cmd/desktop` it is a separate target: excluded from `web-packages.sh`
 `.github/workflows/desktop.yml` (gofumpt + vet + govulncheck + race tests +
 build, all headless). Full `golangci-lint` is a **manual local step by
 design** — linting wgpu/naga is minutes-cold per push and only catches style.
-Run `make lint-gui` before committing any `cmd/gui` change.
+Run `make lint-gui` before committing any `cmd/gui` change. Unlike the Wails
+shell below, gui is pure Go (`CGO_ENABLED=0`), so it ships in the release
+archives next to the CLI (`gogogo-gui`, all six OS×arch, installed by
+`install.sh`).
 
 **Rules for `cmd/gui`:** the UI tree is only touched on the UI thread
 (`uiMu` serializes `SetRoot`); background poll produces data under `stateMu`
@@ -137,6 +140,24 @@ the onboarding workflow, session token in a `0600` file (no OS keyring).
 
 **To remove:** delete `cmd/gui/`, drop the `gui` Makefile target and the
 `gui` job. No script change needed — it is already excluded from web CI.
+
+## Dropping the Wails shell (opt-out)
+
+The Wails desktop is opt-in weight: beta framework, CGO + system headers,
+signing/notarization swamp if you ever distribute. If your product is
+web-deployed, drop it — `gui` remains the native story and keeps shipping:
+
+```bash
+rm -rf cmd/desktop/          # the shell (nothing outside imports wails)
+# then drop the desktop* Makefile targets (+ WAILS_VERSION) and the
+# linux-desktop job from .github/workflows/desktop.yml (keep gui)
+go mod tidy                   # drops wails from go.mod
+go build ./...                # must stay green (proven clean)
+```
+
+No script change is required for the drop itself; `scripts/desktop-build.sh`
+serves only these targets, so delete it alongside when nothing references
+them anymore.
 
 ## Related
 
