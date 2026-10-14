@@ -64,11 +64,7 @@ jobs:
         # which is a separate, reliable path. Version must match the
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
-          curl -fsSL https://go.dev/dl/go1.27.2.linux-amd64.tar.gz -o /tmp/go.tgz
-          sudo rm -rf /usr/local/go
-          sudo tar -C /usr/local -xzf /tmp/go.tgz
-          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-          /usr/local/go/bin/go version
+          bash bin/install-go-toolchain.sh
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -214,11 +210,7 @@ jobs:
         # which is a separate, reliable path. Version must match the
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
-          curl -fsSL https://go.dev/dl/go1.27.2.linux-amd64.tar.gz -o /tmp/go.tgz
-          sudo rm -rf /usr/local/go
-          sudo tar -C /usr/local -xzf /tmp/go.tgz
-          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-          /usr/local/go/bin/go version
+          bash bin/install-go-toolchain.sh
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -256,11 +248,7 @@ jobs:
         # which is a separate, reliable path. Version must match the
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
-          curl -fsSL https://go.dev/dl/go1.27.2.linux-amd64.tar.gz -o /tmp/go.tgz
-          sudo rm -rf /usr/local/go
-          sudo tar -C /usr/local -xzf /tmp/go.tgz
-          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-          /usr/local/go/bin/go version
+          bash bin/install-go-toolchain.sh
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
