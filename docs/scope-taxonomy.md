@@ -51,6 +51,28 @@ domain doesn't need it.**
 description — it lists exactly what to remove in `internal/server/chi.go`
 (the flat route composition) and `cmd/web/`.
 
+## Demo-only markup
+
+Some surfaces exist only to advertise the template itself: the
+`TechBadge` stack list every feature page renders, and the demo-accounts
+block on `/login` (the seeded pair, their roles, and the Casbin
+exercise). They teach gogogo's architecture and say nothing about a
+product's own domain, so a trimmed product must delete them.
+
+The machine handle is a `data-demo="<name>"` attribute on the element's
+wrapper. Two ship: `data-demo="tech-stack"` (every `TechBadge`) and
+`data-demo="demo-accounts"` (the login card). To strip them from a
+product build:
+
+```
+grep -rn 'data-demo=' features/ internal/ web/
+```
+
+Delete each matched element (or the template branch around it). Tests
+(`internal/components/techbadge_test.go`,
+`features/authviews/login_test.go`) pin the handles, so an accidental
+rename fails CI instead of shipping quietly.
+
 ## Removing a component
 
 The flat stack composes every capability in two places, both inside

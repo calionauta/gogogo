@@ -8,6 +8,12 @@ import (
 // LoginPage is the standalone /login page (no navbar; the user isn't
 // logged in yet). DaisyUI form with the demo credentials prefilled so
 // the user just has to click "Sign in".
+//
+// The demo block below (data-demo="demo-accounts") is TEMPLATE DEMO-ONLY:
+// it advertises the seeded demo pair, their roles, and the Casbin
+// exercise. Agents adapting gogogo into their own product must delete
+// every element carrying a data-demo attribute — see
+// docs/scope-taxonomy.md#demo-only-markup.
 templ LoginPage(next string, errMsg string) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
@@ -75,9 +81,10 @@ templ LoginPage(next string, errMsg string) {
 						</div>
 					</form>
 					<div class="divider text-xs text-base-content/40">or be both at once</div>
-					<div class="text-xs text-base-content/60 space-y-1">
-						<p><strong>Demo 1:</strong> <code>demo1@demo.app</code> · <strong>Demo 2:</strong> <code>demo2@demo.app</code> (<code>demo1234456</code> unlocks both accounts)</p>
+					<div data-demo="demo-accounts" class="text-xs text-base-content/60 space-y-1">
+						<p><strong>Demo 1 · admin:</strong> <code>demo1@demo.app</code> · <strong>Demo 2 · viewer:</strong> <code>demo2@demo.app</code> (<code>demo1234456</code> unlocks both accounts). Demo 1 also sees the operator surfaces (<code>/config</code> and the Dashboard menu item); Demo 2 does not.</p>
 						<p>One browser holds one login (shared cookie) — open a <strong>second browser or incognito window</strong> and sign in as the other demo. That is how you prove contention (room presenter lock), per-user todos, and authorship.</p>
+						<p>Permissions are the per-request decision of <strong>Casbin</strong> over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Demo 1 is seeded the <code>admin</code> role, Demo 2 the restricted <code>viewer</code> role (reads, creates and toggles todos — no deletes, no paid actions). Turn enforcement on with <code>RBAC_ENABLED=true</code>; re-map any address without a rebuild with the boot lists <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code> (existing rows only).</p>
 					</div>
 				</div>
 			</div>

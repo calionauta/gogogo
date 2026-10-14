@@ -2,6 +2,22 @@
 
 ### Added
 
+- **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
+  stamps demo1 `admin` and demo2 the restricted `viewer`, so the login card's
+  permission split (admin reaches `/config`; viewer loses deletes + AI Suggest)
+  is true by construction. The navbar gates the operator surfaces to admin and
+  shows the session role. Roles are `users.role`; `RBAC_ENABLED=true` enforces,
+  and `ADMIN_EMAILS`/`VIEWER_EMAILS` re-map without a rebuild.
+- **Dynamic RBAC example: ABAC + a DB-backed policy.** `internal/rbac` gained an
+  ABAC `Object` with matcher functions (`pathMatch`, `attrOK`) and a Casbin
+  `persist.Adapter` over a new `casbin_rule` table, selected with
+  `RBAC_POLICY_SOURCE=db` (embedded policy stays the default). Taught in
+  `docs/rbac.md` ("Dynamic permissions"). `internal/db/sqlc.yaml`'s schema path
+  was corrected (`../dbschema/migrations`), so `make sqlc` / `sqlc-check` work
+  again.
+- **`data-demo` removal handle.** The `TechBadge` and the login demo-accounts
+  block carry `data-demo` attributes, so agents strip the template's
+  self-advertisement with one grep (`docs/scope-taxonomy.md`).
 - **Registry conformance pre-commit hook.** `TestRegistryCoversPackages`
   only ran in CI, so an unregistered package (internal/hostgate) went red
   there first. `bin/check-registry.sh` runs the instant conformance trio

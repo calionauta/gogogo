@@ -28,6 +28,10 @@ tests fail naming the exact gap when you skip a step.
 - **`internal/rbac/rbac.go`** — builds the enforcer once; `EnforceWith`
   reuses it on the hot path. There is deliberately no per-call helper
   that rebuilds it.
+- **`internal/rbac/dynamic.go`** — the ABAC `Object` and the matcher
+  functions `pathMatch` / `attrOK` the model names.
+- **`internal/rbac/adapter.go`** — the DB-backed `persist.Adapter`
+  (`RBAC_POLICY_SOURCE=db`) and the one-time seed from `policy.csv`.
 - **`internal/rbac/roles.go`** — the role vocabulary: constants,
   `IsViewer` display hint, `subjectOf` resolution, and why roles stay
   flat. One home for the concept "role".
@@ -39,11 +43,12 @@ tests fail naming the exact gap when you skip a step.
 
 ## The model, in one paragraph
 
-Every decision is `Enforce(subject, path, method)`. A row `p, user,
+Every decision is `Enforce(subject, obj, act)` where `obj` is a path
+string or an ABAC `Object` (see "Dynamic permissions"). A row `p, user,
 /todo/*, .*` allows when the subject has the role (`g`), the path
-matches (`keyMatch2`: `*` spans `/`), and the method matches
-(`regexMatch`: `(GET|POST)` or `.*`). Effect: any allow wins. No
-`g,` rows ship — roles are flat (see below).
+matches (`pathMatch`, which is `keyMatch2`: `*` spans `/`), the method
+matches (`regexMatch`: `(GET|POST)` or `.*`), and `attrOK` passes. Effect:
+any allow wins. No `g,` rows ship — roles are flat (see below).
 
 ## Policy row anatomy
 
@@ -98,6 +103,9 @@ a 403, never to an unauthorized write. Never gate a mutation on
 - **`RBAC_ENABLED`** (default `false`) — enforce or pass through.
 - **`RBAC_PERMISSIVE`** (default `false`) — audit-before-enforce;
   would-be denies logged with `permissive=1` and allowed through.
+- **`RBAC_POLICY_SOURCE`** (default `embedded`) — `embedded` reads the
+  compiled-in `policy.csv`; `db` loads the `casbin_rule` table instead.
+  Any other value falls back to `embedded`.
 - **`ADMIN_EMAILS` / `VIEWER_EMAILS`** (unset) — boot promotion lists.
 
 ## Test map (what pins what)
@@ -132,10 +140,44 @@ surfaces hit them by design — each failure tells you what to decide:
 - **New feature paths**: extend the coverage test (fail-closed
   otherwise) and mirror the user block.
 
+## Dynamic permissions
+
+Three dynamic inputs sit on top of the static policy. All are no-ops for
+a bare path string, so the default decisions never change.
+
+**1. ABAC attributes** (`internal/rbac/dynamic.go`). The request `obj`
+may be an `Object` instead of a path string:
+
+```go
+rbac.Object{Path: "/api/todos/abc", SubjectID: userID, Owner: rec.Owner}
+```
+
+The matcher's `attrOK(r.sub, r.obj)` passes a bare string and an
+ownerless Object; an Object with an owner allows admin or the owner
+(`SubjectID == Owner`). The middleware already passes an Object carrying
+`Path`, `SubjectID` and the client `IP`; a surface that needs ownership
+fills `Owner` from its own record loader. Add a tenant or IP rule by
+extending `attrsOK` — no model change needed.
+
+**2. Code-defined conditions.** The matcher functions are plain Go, so
+any conditional (a computed flag, a variable, a DB read) can gate a
+decision: register another function with `e.AddFunction("myCond", fn)`
+in `dynamic.go` and name it in `model.conf`. This is the seam for
+"permissions from code".
+
+**3. Policy in the database** (`internal/rbac/adapter.go`). With
+`RBAC_POLICY_SOURCE=db` the enforcer loads its rules from the
+`casbin_rule` table instead of `policy.csv`. The first boot seeds the
+table from the embedded policy, so switching source changes no decision
+until a row is edited; an insert/delete then takes effect on the next
+build. `DBAdapter` is a full `persist.Adapter`, so `e.AddPolicy` /
+`e.RemovePolicy` write through to the table too. The embedded policy
+stays the default and is still what the shape/coverage tests pin.
+
 ## What RBAC does not do
 
-- **No ownership** ("only their own"), no time/IP context, no
-  per-record sharing — ABAC/ReBAC, YAGNI until a feature needs them.
+- **No per-record sharing / ReBAC** — single-owner ABAC ships (see
+  above); sharing one record between users is still a per-feature job.
 - **No domains** (multi-tenancy): one role set per user until a second
-  tenant exists.
+  tenant exists. `Object.Tenant` is a reserved hook.
 - **No deny-override or priority lines**.

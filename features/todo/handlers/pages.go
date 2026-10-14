@@ -117,7 +117,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if skin == SkinBasecoat {
 		_ = basecoat.TodoPage(
 			"Todos — gogogo",
-			signals, sess.User.Email,
+			signals, sess.User.Email, sess.Role,
 			h.BuildLabel, h.BuildCommit,
 			h.OfflineSyncEnabled,
 			skin,
@@ -126,7 +126,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = components.Layout(
 		"Todos — gogogo",
-		signals, sess.User.Email,
+		signals, sess.User.Email, sess.Role,
 		h.BuildLabel, h.BuildCommit,
 		h.OfflineSyncEnabled,
 		skin,

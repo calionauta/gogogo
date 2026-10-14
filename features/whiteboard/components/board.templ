@@ -26,7 +26,7 @@ type BoardMeta struct {
 // live-update wiring so the list updates when another user creates a new
 // board. Follows the same pattern as the todo feature's RealtimeRecords:
 // a hidden @get button the stream and the visibility refetch click.
-templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
+templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
@@ -43,7 +43,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 			@components.OfflineSyncScript(offlineSync)
 		</head>
 		<body>
-			@authviews.Navbar(email, "whiteboard", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			<main class="container mx-auto p-4">
 				<div class="flex items-center justify-between mb-4">
@@ -78,7 +78,7 @@ templ WhiteboardListFragment(boards []BoardMeta) {
 // Board renders the interactive canvas for one whiteboard doc. The
 // client connects to the SSE stream and listens for shape + presence
 // events; drawing POSTs Loro updates back to the server.
-templ Board(email string, docID string, buildLabel string, buildCommit string, offlineSync bool) {
+templ Board(email string, userRole string, docID string, buildLabel string, buildCommit string, offlineSync bool) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
@@ -95,7 +95,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 			<script src="/static/wb/rough.min.js"></script>
 		</head>
 		<body>
-			@authviews.Navbar(email, "whiteboard", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			@components.SessionBanner(email != "")
 			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ docID }>

@@ -107,7 +107,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	email := sess.User.Email
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = chatcomponents.ChatIndex(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {

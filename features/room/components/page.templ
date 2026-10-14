@@ -21,7 +21,7 @@ import (
 // polls JSON (heartbeat every 5s, roster every 3s) and re-renders the
 // roster block from the response — whole-snapshot polling, no event
 // log, matching the grain's pull-friendly Roster response.
-templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) {
+templ Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="light">
 		<head>
@@ -35,7 +35,7 @@ templ Page(email string, roomID string, roster appgoakt.Roster, buildLabel strin
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
-			@authviews.Navbar(email, "room", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "room", buildLabel, buildCommit)
 			@components.SessionBanner(email != "")
 			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>
 				<h1 class="text-2xl font-bold">Room: { roomID }</h1>

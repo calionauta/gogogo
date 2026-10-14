@@ -128,18 +128,20 @@ func writeText(w http.ResponseWriter, code int, msg string) {
 	_, _ = w.Write([]byte(msg))
 }
 
-// owner resolves the member email or redirects guests to sign-in.
-func (h *Handler) owner(w http.ResponseWriter, r *http.Request) (string, bool) {
+// owner resolves the member email + role, or redirects guests to
+// sign-in. The role rides along so the page can show it and gate the
+// operator surfaces (navbar); it is a display value, never a gate.
+func (h *Handler) owner(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 	sess, err := h.auth.Session(r)
 	if err != nil || sess.User == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return "", false
+		return "", "", false
 	}
-	return sess.User.Email, true
+	return sess.User.Email, sess.Role, true
 }
 
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
-	email, ok := h.owner(w, r)
+	email, role, ok := h.owner(w, r)
 	if !ok {
 		return
 	}
@@ -151,11 +153,11 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = roomcomponents.Page(email, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = roomcomponents.Page(email, role, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.owner(w, r); !ok {
+	if _, _, ok := h.owner(w, r); !ok {
 		return
 	}
 	id := roomID(r)
@@ -170,7 +172,7 @@ func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
 // mutate applies a fire-and-forget grain message for the member, then
 // answers with the fresh roster (one round trip per click).
 func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name string) any) {
-	name, ok := h.owner(w, r)
+	name, _, ok := h.owner(w, r)
 	if !ok {
 		return
 	}

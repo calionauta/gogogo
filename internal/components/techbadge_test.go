@@ -26,4 +26,10 @@ func TestTechBadgeListsStack(t *testing.T) {
 			t.Errorf("TechBadge missing %q", want)
 		}
 	}
+	// The demo-only handle is what lets an agent strip the template's
+	// self-advertisement with one grep. Red-proof: drop the attribute and
+	// this goes red. See docs/scope-taxonomy.md#demo-only-markup.
+	if !strings.Contains(buf.String(), `data-demo="tech-stack"`) {
+		t.Errorf("TechBadge missing the data-demo handle for template removal")
+	}
 }

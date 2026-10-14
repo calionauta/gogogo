@@ -95,7 +95,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // generated templ internals take no context beyond
 	// the Render call itself, which already receives r.Context().
-	_ = comp.GenuiIndex(userEmail, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = comp.GenuiIndex(userEmail, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 // handleAsk validates and enqueues an Ask job, acking with a spinner

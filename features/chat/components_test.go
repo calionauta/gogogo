@@ -22,7 +22,7 @@ import (
 func TestChatPageWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := chatcomponents.ChatIndex("a@b.c", "dev", "").Render(context.Background(), &buf); err != nil {
+	if err := chatcomponents.ChatIndex("a@b.c", "user", "dev", "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
 	html := buf.String()

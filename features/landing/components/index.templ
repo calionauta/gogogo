@@ -21,7 +21,7 @@ import (
 // (Sign in CTA shows) and the authed email for signed-in users.
 // buildLabel/buildCommit are surfaced on the version badge so the
 // landing page matches the navbar's build feedback.
-templ Index(userEmail string, buildLabel string, buildCommit string) {
+templ Index(userEmail string, userRole string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="light">
 		<head>
@@ -67,7 +67,7 @@ templ Index(userEmail string, buildLabel string, buildCommit string) {
 			</style>
 		</head>
 		<body class="bg-base-100 min-h-screen">
-			@authviews.Navbar(userEmail, "", buildLabel, buildCommit)
+			@authviews.Navbar(userEmail, userRole, "", buildLabel, buildCommit)
 			<main class="landing-hero">
 				<div class="landing-card">
 					<header class="text-center mb-6">

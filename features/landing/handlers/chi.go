@@ -40,10 +40,12 @@ func (h *Handler) Routes() chi.Router {
 
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	email := ""
+	role := ""
 	if sess, err := h.auth.Session(r); err == nil && sess.User != nil {
 		email = sess.User.Email
+		role = sess.Role
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.Index(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = components.Index(email, role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }

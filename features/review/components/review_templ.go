@@ -22,7 +22,7 @@ import (
 // form, live phased progress, verdict fragment. The run button gates on
 // signals.ReviewEnabled — without a configured LLM the page shows the
 // setup hint instead of a dead button.
-func ReviewIndex(email string, buildLabel string, buildCommit string, signals Signals) templ.Component {
+func ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -84,7 +84,7 @@ func ReviewIndex(email string, buildLabel string, buildCommit string, signals Si
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.Navbar(email, "review", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.Navbar(email, userRole, "review", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

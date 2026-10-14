@@ -138,7 +138,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = notescomponents.NotesIndex(email, ids, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = notescomponents.NotesIndex(email, sess.Role, ids, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 // listNoteIDs returns the owner's note ids, newest first. Owner-scoped:
@@ -217,7 +217,7 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 	h.revsMu.Unlock()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = notescomponents.NotesPage(sess.User.Email, docID, text, rev,
+	_ = notescomponents.NotesPage(sess.User.Email, sess.Role, docID, text, rev,
 		h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 

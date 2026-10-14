@@ -22,12 +22,14 @@ import (
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
-// seedDemoAccounts signs the advertised demo pair up (idempotent: every
-// boot after the first is a no-op). Split out of BootChi so the composition
-// stays under the funlen gate; behavior unchanged.
-func seedDemoAccounts(a *auth.Auth) {
+// seedDemoAccounts signs the advertised demo pair up and stamps their
+// roles (demo1 admin, demo2 viewer) — idempotent, so every boot after the
+// first is a role refresh. Split out of BootChi so the composition stays
+// under the funlen gate. Runs BEFORE applyRBAC, so an ADMIN_EMAILS /
+// VIEWER_EMAILS promotion still wins over the seeded default.
+func seedDemoAccounts(a *auth.Auth, q *dbgen.Queries) {
 	demoCtx, cancelDemo := context.WithCancel(context.Background())
-	demo.Ensure(demoCtx, a)
+	demo.Ensure(demoCtx, a, q)
 	cancelDemo()
 }
 
@@ -42,6 +44,18 @@ func applyRBAC(
 	enforcer, err := rbac.NewEnforcer()
 	if err != nil {
 		return nil, fmt.Errorf("server: chi rbac: %w", err)
+	}
+	// Optional dynamic policy source: seed the casbin_rule table from the
+	// embedded policy (once) and load the enforcer from it, so the rules
+	// are editable at runtime. Default (embedded) reads no DB.
+	if cfg.RBACPolicySource == "db" {
+		if serr := rbac.SeedEmbeddedPolicy(ctx, queries); serr != nil {
+			return nil, fmt.Errorf("server: chi rbac seed: %w", serr)
+		}
+		if enforcer, err = rbac.NewEnforcerWithAdapter(rbac.NewDBAdapter(queries)); err != nil {
+			return nil, fmt.Errorf("server: chi rbac (db): %w", err)
+		}
+		slog.Info("server: rbac policy source", "source", "db")
 	}
 	if n, err := promoteRole(ctx, cfg.ViewerEmails, rbac.RoleViewer, queries); err != nil {
 		return nil, err
