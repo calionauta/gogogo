@@ -362,6 +362,14 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.45.0 (2026-10-14)
+
+## What's Changed
+* feat(demo/rbac): seed demo roles, gate operator UI, dynamic policy source by @calionauta in https://github.com/calionauta/gogogo/pull/128
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.44.6...v0.45.0
+
 ## 0.44.6 (2026-10-13)
 
 ## What's Changed
