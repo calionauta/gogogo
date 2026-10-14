@@ -90,6 +90,13 @@
   suites on interrupt) and removes its log dir on green runs only; both local
   gates reap mtime-stale smoke corpses at start (`reap-stale`, 6h default —
   concurrent runs untouched, caches never listed so nothing rebuilds).
+- **Homolog-light recipe (no staging env).** `docs/local-ci.md` documents the
+  staging-without-a-server loop (`make dev` + `make ci-local-fast` + smoke +
+  optional `tailscale serve` URL with localhost fallback and install/why
+  notes), so "does it work" is answered in seconds without a second stack.
+  Four places that claimed the master deploy waits for CI (`deploy.yml`,
+  `local-ci.md`, lefthook pre-push comment, `AGENTS.md`) now state the
+  parallel truth: deploy compiles only, PR CI is the pre-merge gate.
 - **Parallel CI jobs.** `ci.yml` runs `checks` | `race` | `browser` |
   `prod-image` on isolated runners — wall-clock is the slowest job, not the
   serial sum. Same steps verbatim (`deadcode` moved earlier, one shared
