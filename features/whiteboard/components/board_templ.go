@@ -105,7 +105,7 @@ func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.TechBadge([]string{"Loro CRDT", "NATS", "SSE Hub", "presence", "offline outbox"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.TechBadge([]string{"Loro CRDT", "NATS", "SSE Hub", "presence", "offline outbox"}, "Shared canvas, live cursors per tab. Offline strokes replay on reconnect.").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

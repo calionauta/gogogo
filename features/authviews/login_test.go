@@ -30,3 +30,26 @@ func TestLoginPageDisclosesAuthStack(t *testing.T) {
 		}
 	}
 }
+
+// TestLoginPageExplainsDemoRoles is the red-proof for the permissions
+// gap: the login card named the demo accounts but never said what they
+// may do — and demo1/demo2 carry no fixed role (roles come from the
+// server's ADMIN_EMAILS/VIEWER_EMAILS boot lists). The card must name
+// the Casbin exercise explicitly, inside the demo-accounts removal
+// handle so product trims take it with the rest of the showcase.
+func TestLoginPageExplainsDemoRoles(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := authviews.LoginPage("/", "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("LoginPage: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`data-demo="demo-accounts"`, "VIEWER_EMAILS", "RBAC_ENABLED",
+		"no fixed role", "/config", "admin-only",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("login page missing demo-role explanation %q", want)
+		}
+	}
+}

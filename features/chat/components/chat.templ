@@ -43,7 +43,7 @@ templ ChatIndexWithHistory(email string, buildLabel string, buildCommit string, 
 				<p class="text-sm text-base-content/60 mt-1 mb-1">
 					Ask anything — answers stream below as text plus interface.
 				</p>
-				@components.TechBadge([]string{"GenUI catalog", "SSE Hub", "queue worker", "memory history"})
+				@components.TechBadge([]string{"GenUI catalog", "SSE Hub", "queue worker", "memory history"}, "Multi-turn conversation. History per account, in-memory — lost on restart. Unshaped answers degrade to prose.")
 				<form
 					id="chat-composer"
 					class="mt-4"

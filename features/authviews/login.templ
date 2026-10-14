@@ -31,7 +31,7 @@ templ LoginPage(next string, errMsg string) {
 						Sign in to manage your todos
 					</p>
 					<div class="flex justify-center mb-6">
-						@components.TechBadge([]string{"password auth", "argon2id hashing", "owned sessions"})
+						@components.TechBadge([]string{"password auth", "argon2id hashing", "owned sessions"}, "")
 					</div>
 
 					if errMsg != "" {
@@ -79,9 +79,10 @@ templ LoginPage(next string, errMsg string) {
 						</div>
 					</form>
 					<div class="divider text-xs text-base-content/40">or be both at once</div>
-					<div class="text-xs text-base-content/60 space-y-1">
+					<div data-demo="demo-accounts" class="text-xs text-base-content/60 space-y-1">
 						<p><strong>Demo 1:</strong> <code>demo1@demo.app</code> · <strong>Demo 2:</strong> <code>demo2@demo.app</code> (<code>demo1234456</code> unlocks both accounts)</p>
 						<p>One browser holds one login (shared cookie) — open a <strong>second browser or incognito window</strong> and sign in as the other demo. That is how you prove contention (room presenter lock), per-user todos, and authorship.</p>
+						<p>Both demos are full users with no fixed role — roles come from the server's boot lists. To exercise Casbin RBAC: sign up a third account, set <code>RBAC_ENABLED=true</code> + <code>VIEWER_EMAILS=&lt;that-address&gt;</code>, reboot. The viewer reads, creates and toggles todos; deletes deny, AI Suggest hides, and <code>/config</code> stays admin-only.</p>
 					</div>
 				</div>
 			</div>

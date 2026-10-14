@@ -100,7 +100,7 @@ func ReviewIndex(email string, buildLabel string, buildCommit string, signals Si
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.TechBadge([]string{"Genkit flow", "goai model", "jev judge", "SSE progress"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.TechBadge([]string{"Genkit flow", "goai model", "jev judge", "SSE progress"}, "Real LLM only. Synchronous run, streamed verdict, discarded — nothing persisted.").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -2,9 +2,12 @@
 package components
 
 // TechBadge renders the stack a page demonstrates in one visual
-// language: labeled chips under the page subtitle. Data comes from the
-// feature (it knows what it demonstrates); this component owns the
-// look, so every page teaches the architecture identically.
+// language: labeled chips under the page subtitle, plus one muted
+// caption line naming the capability the chips alone cannot say
+// (multi-turn, volatile history, fail-closed — the behavior contract,
+// not just the nouns). Data comes from the feature (it knows what it
+// demonstrates); this component owns the look, so every page teaches
+// the architecture identically. Empty caption renders nothing.
 // Display-only: no states, no interactivity, nothing to fail.
 //
 // TEMPLATE DEMO-ONLY — delete when adapting gogogo into your own
@@ -12,13 +15,15 @@ package components
 // to your users). Keep it only in gogogo itself, where teaching the
 // architecture IS the point. Machine handle: the wrapper carries
 // data-demo="tech-stack", so the removal is one grep
-// (data-demo="tech-stack") away — agents trimming a product build must
-// delete every element carrying a data-demo attribute.
+// (data-demo="...") away — agents trimming a product build must delete
+// every element carrying a data-demo attribute. Sibling demo blocks
+// follow the same rule with their own handle (the login demo-accounts
+// block uses data-demo="demo-accounts").
 //
 // Keep the "Demonstrates:" lead so the conformance test's literal
 // survives the redesign; chips carry the legibility (badge per item,
 // two accent cycles, wrap-friendly).
-templ TechBadge(items []string) {
+templ TechBadge(items []string, caption string) {
 	<div class="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Demonstrates" data-demo="tech-stack">
 		<span class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Demonstrates:</span>
 		for i, item := range items {
@@ -27,6 +32,9 @@ templ TechBadge(items []string) {
 			} else {
 				<span class="badge badge-secondary badge-outline badge-sm px-2.5 py-3 text-xs font-medium">{ item }</span>
 			}
+		}
+		if caption != "" {
+			<p class="w-full text-xs text-base-content/50 mt-1">{ caption }</p>
 		}
 	</div>
 }

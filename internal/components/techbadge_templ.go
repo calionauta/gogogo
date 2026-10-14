@@ -11,9 +11,12 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // TechBadge renders the stack a page demonstrates in one visual
-// language: labeled chips under the page subtitle. Data comes from the
-// feature (it knows what it demonstrates); this component owns the
-// look, so every page teaches the architecture identically.
+// language: labeled chips under the page subtitle, plus one muted
+// caption line naming the capability the chips alone cannot say
+// (multi-turn, volatile history, fail-closed — the behavior contract,
+// not just the nouns). Data comes from the feature (it knows what it
+// demonstrates); this component owns the look, so every page teaches
+// the architecture identically. Empty caption renders nothing.
 // Display-only: no states, no interactivity, nothing to fail.
 //
 // TEMPLATE DEMO-ONLY — delete when adapting gogogo into your own
@@ -21,13 +24,15 @@ import templruntime "github.com/a-h/templ/runtime"
 // to your users). Keep it only in gogogo itself, where teaching the
 // architecture IS the point. Machine handle: the wrapper carries
 // data-demo="tech-stack", so the removal is one grep
-// (data-demo="tech-stack") away — agents trimming a product build must
-// delete every element carrying a data-demo attribute.
+// (data-demo="...") away — agents trimming a product build must delete
+// every element carrying a data-demo attribute. Sibling demo blocks
+// follow the same rule with their own handle (the login demo-accounts
+// block uses data-demo="demo-accounts").
 //
 // Keep the "Demonstrates:" lead so the conformance test's literal
 // survives the redesign; chips carry the legibility (badge per item,
 // two accent cycles, wrap-friendly).
-func TechBadge(items []string) templ.Component {
+func TechBadge(items []string, caption string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -61,13 +66,13 @@ func TechBadge(items []string) templ.Component {
 				var templ_7745c5c3_Var2 string
 				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(item)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techbadge.templ`, Line: 26, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techbadge.templ`, Line: 31, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -79,19 +84,38 @@ func TechBadge(items []string) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(item)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techbadge.templ`, Line: 28, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techbadge.templ`, Line: 33, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div>")
+		if caption != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"w-full text-xs text-base-content/50 mt-1\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(caption)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techbadge.templ`, Line: 37, Col: 64}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -38,7 +38,7 @@ templ ReviewIndex(email string, buildLabel string, buildCommit string, signals S
 				<p class="text-sm text-base-content/60 mt-1 mb-1">
 					Paste text or a diff — a writer and a critic iterate, then a classifier judge delivers the verdict.
 				</p>
-				@components.TechBadge([]string{"Genkit flow", "goai model", "jev judge", "SSE progress"})
+				@components.TechBadge([]string{"Genkit flow", "goai model", "jev judge", "SSE progress"}, "Real LLM only. Synchronous run, streamed verdict, discarded — nothing persisted.")
 				if !signals.ReviewEnabled {
 					<div class="alert alert-warning mt-4" role="status">
 						<span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span>

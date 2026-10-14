@@ -85,7 +85,7 @@ func GenuiIndex(email string, buildLabel string, buildCommit string) templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.TechBadge([]string{"GenUI catalog", "SSE morphs", "goqite jobs", "GoAI"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.TechBadge([]string{"GenUI catalog", "SSE morphs", "goqite jobs", "GoAI"}, "Single question, no memory. Unknown types reject the whole answer.").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

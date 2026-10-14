@@ -108,7 +108,7 @@ func Page(email string, roomID string, roster appgoakt.Roster, buildLabel string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.TechBadge([]string{"GoAkt grains", "supervision", "JSON polling"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.TechBadge([]string{"GoAkt grains", "supervision", "JSON polling"}, "").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
