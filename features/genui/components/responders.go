@@ -1,4 +1,4 @@
-// SCOPE:feature — LLM responder legs (real/simulated/demo/err)
+// SCOPE:plugin — LLM responder legs (real/simulated/demo/err)
 package components
 
 import (

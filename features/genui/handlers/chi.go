@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP genui slice (Ask demo)
+// SCOPE:plugin — HTTP genui slice (Ask demo)
 //
 // Same routes, wire and components as the framework handlers: index page,
 // ask-to-queue with spinner ack, result stream, background worker. The chi

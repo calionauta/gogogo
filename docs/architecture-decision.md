@@ -184,9 +184,11 @@ Gone with the framework: the `db/` package (app handle + seeds), the
 `router/` package (route wiring), the `features/store` strategies
 (PBStore and CRDTStore — one data layer remains, sqlc over `internal/db`),
 `features/auth` (the legacy PB middleware), the PB handlers under every
-feature, the `internal/routeutil` + `internal/collabpb` helpers, and the
-transitional serve seam (`CHI_ADDR`) — `cfg.Host:cfg.Port` is the address
-now. `internal/db/` does not go away; it IS the data layer.
+feature, and the `internal/routeutil` + `internal/collabpb` helpers. One boot
+path remains: `cfg.Host:cfg.Port` is the address, with `CHI_ADDR` as the
+explicit override `cmd/desktop` sets so its webview proxy and the backend agree
+([configuration](configuration.md)). `internal/db/` does not go away; it IS the
+data layer.
 
 The onboarding slice is the one place the two stacks genuinely differ
 rather than duplicate a shape: the framework stack fans its stepper progress

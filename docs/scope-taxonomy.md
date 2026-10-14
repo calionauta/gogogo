@@ -100,7 +100,14 @@ the field or a `.templ` reader goes missing.
 
 ## What ships as what
 
-| Package | SCOPE | Remove by |
+The class is written twice — in the file's `SCOPE` line and as `Kind` in
+`internal/capabilities`. **The registry is the source of truth for kinds**;
+a file must not disagree with the unit that owns it, and
+`TestScopeAnnotationsMatchRegistryKind` fails the build when one does (it walks
+recursively, so a subpackage like `features/genui/handlers` is checked against
+its top-level unit too).
+
+| Package | Class | Remove by |
 |---|---|---|
 | `cmd/web/` | 🔴 CORE | Never — entry point |
 | `config/` | 🔴 CORE | Never — env config |
@@ -108,23 +115,37 @@ the field or a `.templ` reader goes missing.
 | `internal/dbschema/` | 🔴 CORE | Never — driver-free migrations + IDs/timestamps; shared with zero-CGO targets |
 | `internal/secrets/` | 🔴 CORE | Never — age loader |
 | `internal/queue/` | 🔴 CORE | Never — goqite + SSE Hub + workers + retry |
-| `internal/datastar/` | 🟡 PLUGIN | Delete + wiring call |
-| `internal/nats/` | 🟡 PLUGIN | Delete + wiring call (or `NATS_ENABLED=false`) |
-| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/handlers/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
-| `internal/llm/` | 🟡 PLUGIN | Delete + wiring call |
-| `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
-| `internal/components/` | 🟡 PLUGIN | Shared UI helpers (Toast + OfflineBanner) |
 | `internal/server/` | 🔴 CORE | Never — flat stack composition (BootChi + buildChiMux) |
 | `internal/auth/` | 🔴 CORE | Never — argon2id + sessions (owned auth) |
-| `features/authviews/` | 🟢 FEATURE | Login/navbar/theme components (manual removal) |
+| `internal/rbac/` | 🔴 CORE | Never — Casbin enforcer wired into the whole mux (`RBAC_ENABLED` decides whether it enforces) |
+| `internal/natswire/` | 🔴 CORE | Never — handlers name its types in signatures even with NATS off, so trimming would not compile |
+| `internal/demo/` | 🔴 CORE | Never — the fresh-clone way in (one idempotent seed) |
+| `internal/observability/` | 🔴 CORE | Never — slog + tracing |
+| `internal/hostgate/` | 🔴 CORE | Never — test-capacity gate (tune with `HOSTGATE_*`) |
+| `features/app/` | 🔴 CORE | Never — AppContext, handed to every handler |
+| `features/authviews/` | 🔴 CORE | Holds the shared navbar/theme every page renders; the login page itself is manual removal |
+| `web/resources/` | 🔴 CORE | Never — embedded static assets |
+| `internal/datastar/` | 🟡 PLUGIN | Swap for another implementation, or delete + the wiring call in every page (manual) |
+| `internal/components/` | 🟡 PLUGIN | Shared UI (Toast, SessionBanner, OfflineBanner, RealtimeResync) — 14 importers, so removal is manual |
+| `internal/nats/` | 🟡 PLUGIN | Delete + wiring call (or `NATS_ENABLED=false`) |
+| `internal/dagnats/` | 🟡 PLUGIN | Delete `features/onboarding/` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
+| `internal/llm/` | 🟡 PLUGIN | Delete + wiring call (or unset `GOAI_API_KEY`) |
+| `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
+| `internal/goakt/` | 🟡 PLUGIN | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
+| `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
 | `web/skins/` | 🟡 PLUGIN | Delete + drop blank imports in `features/todo/components/skin_imports.go` + drop `SkinSelector` from navbar |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
+| `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
+| `features/onboarding/` | 🟡 PLUGIN | The workflow engine side of the durable run — goes with `internal/dagnats/` |
+| `features/genui/` | 🟡 PLUGIN | The rendering capability behind Ask AI and Chat; one bundle with `features/chat/` — delete both + `internal/server/genui_stubs_test.go` |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
+| `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so the two trim together) |
 | `features/review/` | 🟢 FEATURE | Delete package + `bootReview`/`reviewH` lines + `/review` mounts in `internal/server/chi.go` (+ `newReviewHandlerForTest` in its test) + `go mod tidy` (drops genkit + go-jev) |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
+| `features/notes/` | 🟢 FEATURE | Manual: delete the dir + its roots in `buildChiMux` + the navbar link |
+| `features/room/` | 🟢 FEATURE | The room demo page; the engine behind it is the `goakt` plugin (either class is accepted for this dir — both units own it) |
 | `features/landing/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/config/` | 🟢 FEATURE | Delete package + wiring call |
-| `web/resources/` | 🔴 CORE | Never — embedded static assets |
 
 ## Cross-package test dependencies
 

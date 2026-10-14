@@ -93,6 +93,30 @@
 
 ### Changed
 
+- **The removal class is one value again, enforced.** `SCOPE` annotations and the
+  registry's `Kind` had drifted in six packages: `internal/components`,
+  `internal/datastar` and `features/genui` said `core`/`feature` while their
+  units say `plugin`, and `internal/natswire` said `plugin` while its unit says
+  `core` (handlers name its types in signatures even with NATS off). A reader
+  got opposite instructions depending on which file they opened. The registry is
+  the source of truth for kinds, so the files moved to match it, and
+  `TestScopeAnnotationsMatchRegistryKind` now fails the build on any new drift —
+  recursively, so a subpackage is checked against its top-level unit
+  (red-proofed by inverting an annotation, top-level and nested).
+- **`docs/scope-taxonomy.md` says what ships as what for the tree that exists.**
+  The table was missing `internal/rbac/`, `features/genui/`, `features/chat/`,
+  `internal/goakt/`, `internal/natswire/`, `internal/observability/`,
+  `internal/demo/`, `internal/hostgate/`, `internal/capabilities/`,
+  `internal/installer/` and `features/onboarding/`, and it called
+  `features/authviews/` a feature when the `auth` unit owns it. It also names the
+  source-of-truth rule so the next addition has somewhere to look.
+- **RBAC and the Genkit plugin are visible where the stack is described.**
+  `docs/features.md` gained the access-control row and marks Genkit as the
+  plugin the review feature rides; the landing page says so on the Review card.
+  Casbin was previously reachable only from `docs/rbac.md`.
+- **`CHI_ADDR` is documented as what it is.** The decision record called it a
+  removed transitional seam, but `cmd/web` honors it and `cmd/desktop` sets it.
+  `docs/desktop-mobile.md` no longer calls the flat stack "the chi stack".
 - **The stack docs split benefits from tradeoffs.** `docs/stack-layers.md` now
   states what each choice buys (Casbin and the stdlib router were missing from
   the table) and hands the cost side to the new `docs/stack-tradeoffs.md` —

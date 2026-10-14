@@ -1,4 +1,4 @@
-// SCOPE:feature — HTTP genui worker (model round-trip off the request path)
+// SCOPE:plugin — HTTP genui worker (model round-trip off the request path)
 package handlers
 
 import (

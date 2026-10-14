@@ -2,7 +2,7 @@
 
 The same Go backend (flat stack: Turso + owned auth + queue + handlers) runs as a
 **native desktop app** via Wails v3. The desktop build reuses 100% of the
-business logic — it boots `internal/server.StartChi`, serves the chi stack in a
+business logic — it boots `internal/server.StartChi`, serves the flat stack in a
 goroutine, and points the webview at it through a reverse proxy.
 
 It is a **separate build target**, not part of the default web build/test loop.
@@ -93,7 +93,7 @@ via SSE (`GET /api/collab/presence/{docID}`).
 
 ## Which backend `cmd/desktop` boots
 
-`cmd/desktop` boots the **flat chi stack** (`internal/server.StartChi`) and
+`cmd/desktop` boots the **flat stack** (`internal/server.StartChi`) and
 points the Wails webview at it through a reverse proxy, so the desktop and
 the web frontend share the same business logic. It sets `cfg.ChiAddr` to
 `<host>:<port>` itself rather than relying on `CHI_ADDR` from the

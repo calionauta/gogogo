@@ -1,4 +1,4 @@
-// SCOPE:plugin — Todo CRUD wire protocol (shared vocabulary, no framework types)
+// SCOPE:core — Todo CRUD wire protocol (shared vocabulary, no framework types)
 //
 // Package natswire owns the app.crud.todo.> wire: subjects, payload types
 // and the publisher. Every stack publishes and consumes the SAME subjects
