@@ -77,6 +77,18 @@
 
 ### Changed
 
+- **Stack disclosure unified: one GenUI name, login badge, Casbin chip, single presence.**
+  Ask AI and Chat named the same catalog differently ("component" vs
+  "GenUI") — both now say "GenUI catalog" (Ask is the fail-closed
+  single-shot showcase, Chat the persisted multi-turn conversation over
+  that same catalog). `/login` gains the shared TechBadge (password
+  auth, argon2id hashing, owned sessions), and todo shows its Casbin
+  RBAC chip (the viewer role demo lives on todos). The todo header
+  online-pill duplicated the Realtime card's count + transport, so the
+  card is now the single presence slot in both skins. TechBadge marks
+  itself demo-only (`data-demo="tech-stack"` handle + scope-taxonomy
+  note) for product trims. Red-proofed: login disclosure, single
+  presence per skin, demo handle.
 - **Full-suite script refuses a wedged box.** `scripts/test-web.sh` (the
   T4-equivalent workload agents kept launching by hand on the shared host)
   now runs the `check-host-capacity` pre-flight first — skipped only on CI

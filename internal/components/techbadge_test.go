@@ -26,4 +26,10 @@ func TestTechBadgeListsStack(t *testing.T) {
 			t.Errorf("TechBadge missing %q", want)
 		}
 	}
+	// The demo-only handle: product trims grep for data-demo to strip
+	// every showcase element (see the TechBadge doc comment). If this
+	// attribute goes missing, that trim silently keeps the badge.
+	if !strings.Contains(buf.String(), `data-demo="tech-stack"`) {
+		t.Error("TechBadge missing data-demo=\"tech-stack\" handle")
+	}
 }

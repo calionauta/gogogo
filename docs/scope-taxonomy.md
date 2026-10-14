@@ -91,7 +91,7 @@ the field or a `.templ` reader goes missing.
 | `internal/dagnats/` | 🟡 PLUGIN | Delete `features/todo/handlers/onboarding.go` + `cmd/web/dagnats.go` too (or `DAGNATS_ENABLED=false`) |
 | `internal/llm/` | 🟡 PLUGIN | Delete + wiring call |
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
-| `internal/components/` | 🟡 PLUGIN | Shared UI helpers (Toast + OfflineBanner) |
+| `internal/components/` | 🟡 PLUGIN | Shared UI helpers (Toast + OfflineBanner + TechBadge demo disclosure — TechBadge is template showcase, delete it in product builds) |
 | `internal/server/` | 🔴 CORE | Never — flat stack composition (BootChi + buildChiMux) |
 | `internal/auth/` | 🔴 CORE | Never — argon2id + sessions (owned auth) |
 | `features/authviews/` | 🟢 FEATURE | Login/navbar/theme components (manual removal) |

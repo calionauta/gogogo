@@ -117,7 +117,7 @@ func ChatIndexWithHistory(email string, buildLabel string, buildCommit string, h
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.TechBadge([]string{"GenUI catalog", "SSE Hub", "queue worker", "Turso history"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.TechBadge([]string{"GenUI catalog", "SSE Hub", "queue worker", "memory history"}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

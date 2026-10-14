@@ -81,14 +81,12 @@ templ header(signals todo.Signals) {
 					<span class="text-base-content/30 mx-1">·</span>
 					<span>{ signals.OfflineLabel }</span>
 				</p>
-				@components.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
+				@components.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox", "Casbin RBAC"})
 			</div>
 		</div>
-		<span class="online-pill" data-show="$connectedClients >= 0">
-			<span class="pulse-dot"></span>
-			<span data-text="$connectedClients + ' online'"></span>
-			<span class="hidden sm:inline"> · <span data-text="$realtimeKind"></span></span>
-		</span>
+		<!-- Presence lives in exactly one place: realtimeCard below
+		     (count + transport + what-it-means). The header pill
+		     duplicating those signals was removed. -->
 	</div>
 }
 

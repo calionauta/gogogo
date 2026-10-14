@@ -111,6 +111,37 @@ func TestRender_EmptyStateHintFollowsSignal(t *testing.T) {
 	}
 }
 
+// TestRender_SinglePresencePill pins one live-state slot per page: the
+// header pill and the Realtime card rendered the same two signals
+// ($connectedClients count + $realtimeKind), so the count appeared twice
+// with no added meaning. Presence now lives only in the Realtime card
+// (count + transport + what-it-means microcopy); the header keeps the
+// static TechBadge. A reintroduced second pill fails this test.
+func TestRender_SinglePresencePill(t *testing.T) {
+	signals := todo.Signals{
+		Todos:            nil,
+		Filter:           "all",
+		ItemCount:        0,
+		ConnectedClients: 1,
+		Suggestions:      []string{},
+		SidebarTab:       "queue",
+	}
+	var buf bytes.Buffer
+	if err := TodoList(signals).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render list: %v", err)
+	}
+	html := buf.String()
+	if n := strings.Count(html, "$connectedClients + ' online'"); n != 1 {
+		t.Errorf("presence count rendered %dx, want exactly 1 (Realtime card only)", n)
+	}
+	if n := strings.Count(html, `data-text="$realtimeKind"`); n != 1 {
+		t.Errorf("transport badge rendered %dx, want exactly 1 (Realtime card only)", n)
+	}
+	if !strings.Contains(html, "Demonstrates:") {
+		t.Error("header lost the TechBadge stack disclosure")
+	}
+}
+
 // TestRender_QueueRetryButtonEnabled is a regression guard for the
 // "suggest simulated button came disabled" bug. The Queue + Retry demo
 // button must render ENABLED (no static disabled attribute) so the

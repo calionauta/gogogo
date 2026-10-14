@@ -27,3 +27,22 @@ func TestTodoPageHasToastContainer(t *testing.T) {
 		}
 	}
 }
+
+// TestTodoPageSinglePresencePill pins one live-state slot per page on
+// the basecoat skin too: the header pill duplicated the Realtime card's
+// count + transport with no added meaning. Exactly one of each survives.
+func TestTodoPageSinglePresencePill(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	err := TodoPage("Todos", todo.Signals{}, "a@b.c", "dev", "", true, "basecoat").Render(context.Background(), &buf)
+	if err != nil {
+		t.Fatalf("TodoPage: %v", err)
+	}
+	html := buf.String()
+	if n := strings.Count(html, "$connectedClients + ' online'"); n != 1 {
+		t.Errorf("presence count rendered %dx, want exactly 1 (Realtime card only)", n)
+	}
+	if n := strings.Count(html, `data-text="$realtimeKind"`); n != 1 {
+		t.Errorf("transport badge rendered %dx, want exactly 1 (Realtime card only)", n)
+	}
+}
