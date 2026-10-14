@@ -222,4 +222,17 @@ go fix ./pkg/...          # 1.26+ revamp: dozens of fixers on the vet framework
 
 1.27 adds `atomictypes`, `embedlit`, `slicesbackward`, `unsafefuncs`. `go test` now runs the `stdversion` vet check by default (too-new stdlib symbols flagged per `go.mod` + tags). `errors.AsType` (generic `As`), `reflect.Type.Fields/Methods` iterators, `slog.NewMultiHandler` are available — prefer them over hand code.
 
-Hand-mutation red-proof for critical invariants: invert the guarded behavior, confirm the test fails, revert. Never commit the mutation.
+## Red-proof protocol (tests guarding new behavior)
+
+1. RED — write down the acceptance first: the observable behavior the test
+   pins, and what its failure looks like. Cases come from the human or a
+   fresh context — never self-certified in-loop.
+2. GREEN — implement until the acceptance holds, then keep the test.
+3. PROVE — hand-mutate the guarded code (invert the behavior, drop the
+   guard), watch the test fail, revert. Never commit the mutation.
+
+Scope: guards and regressions carry PROVE, not every test. Behavioral and
+contract level preferred; unit level where the invariant is pure (verdict
+functions, policy shape, registry conformance). No mandated TDD red-green
+cycle (evidence: ProgramBench + DeepSWE 2026) — the fail is demonstrated in
+PROVE, not required before GREEN.
