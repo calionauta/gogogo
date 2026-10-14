@@ -108,7 +108,6 @@ func BuildPageData(cfg *config.Config) PageData {
 	pd.Groups = append(pd.Groups, Group{
 		Name: "Storage",
 		Rows: []Row{
-			row("storage", keyDBPath, cfg.DBPath, "Turso database file path."),
 			row("storage", keyDataDir, cfg.DataDir, "Directory used by goqite, NATS, and DagNats."),
 		},
 	})

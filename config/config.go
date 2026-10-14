@@ -7,8 +7,6 @@
 //	ENVIRONMENT         (default: "development") — set to "production" for prod mode
 //	APP_NAME            (default: binary name)   — project name (secrets scope)
 //	LOG_LEVEL           (default: "INFO")
-//	DATABASE_PATH       (default: "data/data.db") — the SQLite file the
-//	                    credits ledger opens (second connection, see DATA_DIR)
 //	DATA_DIR            (default: "data")
 //	ADMIN_UNLOCK_TOKEN  (default: "") — master password for admin endpoints
 //	GOAI_API_KEY        (default: "") — LLM provider API key
@@ -99,7 +97,6 @@ type Config struct {
 	LogLevel string
 	Dev      bool
 
-	DBPath  string
 	DataDir string
 
 	// AdminToken, when non-empty, unlocks the admin endpoints (e.g. the
@@ -334,7 +331,6 @@ func Load() *Config {
 		Port:        port,
 		LogLevel:    getEnv("LOG_LEVEL", "INFO"),
 		Dev:         dev,
-		DBPath:      getEnv("DATABASE_PATH", "data/data.db"),
 		DataDir:     getEnv("DATA_DIR", "data"),
 		AdminToken:  os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{

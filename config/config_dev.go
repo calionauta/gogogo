@@ -7,9 +7,8 @@ import "os"
 
 func init() {
 	defaultDev := map[string]string{
-		"ENVIRONMENT":   "development",
-		"LOG_LEVEL":     "DEBUG",
-		"DATABASE_PATH": "data/dev.db",
+		"ENVIRONMENT": "development",
+		"LOG_LEVEL":   "DEBUG",
 	}
 
 	for k, v := range defaultDev {

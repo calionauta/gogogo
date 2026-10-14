@@ -22,7 +22,6 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `APP_NAME` | binary name | Project name (secrets scope); never empty |
 | `LOG_LEVEL` | `INFO` | slog level |
 | `DATA_DIR` | `data` | Root for runtime data |
-| `DATABASE_PATH` | `data/data.db` | SQLite file the credits ledger opens (second connection to the app DB) |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
 | `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |
 
