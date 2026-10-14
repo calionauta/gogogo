@@ -25,6 +25,80 @@ func TestCatalogRejectsUnknownComponent(t *testing.T) {
 	}
 }
 
+// TestParseToleratesTrailingBrace pins the Ask failure report ("could
+// not shape the answer (genui: decode directives: invalid character '}'
+// after top-level value)"): real models overshoot brace balancing on
+// props:{...} + array ] + outer } and emit one extra "}". The first
+// object is the answer; trailing garbage must not fail it.
+func TestParseToleratesTrailingBrace(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"text_note","props":{"text":"hi"}}]} }`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(trailing brace) = %v, want 1 directive", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+		t.Fatalf("parsed = %+v, want 1 text_note", dirs)
+	}
+}
+
+// TestParseToleratesDoubledObject pins the echo case: a model that
+// repeats the envelope twice still yields the first answer instead of
+// "invalid character '{' after top-level value".
+func TestParseToleratesDoubledObject(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"text_note","props":{"text":"hi"}}]}` +
+		` {"components":[{"type":"text_note","props":{"text":"hi again"}}]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(doubled) = %v, want 1 directive", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+		t.Fatalf("parsed = %+v, want first object's text_note", dirs)
+	}
+}
+
+// TestParseLiftsSectionPropsComponents pins the plan-my-day shape: the
+// model nests the section's list inside props ("components") instead of
+// the canonical "children". The list lifts into Children; the whole
+// answer renders instead of degrading to a raw-JSON text bubble.
+func TestParseLiftsSectionPropsComponents(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"section","props":{"title":"Today's Plan",` +
+		`"components":[{"type":"text_note","props":{"text":"hello"}}]}}]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(props.components) = %v, want 1 section", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "section" || len(dirs[0].Children) != 1 {
+		t.Fatalf("parsed = %+v, want section with 1 lifted child", dirs)
+	}
+	if _, err := RenderAll(dirs); err != nil {
+		t.Fatalf("RenderAll(lifted section): %v", err)
+	}
+}
+
+// TestParseKeepsFencesInsideProps guards the fence-strip ordering rule:
+// ``` inside a props string (a text_note showing a code sample) is
+// content, not wrapping — stripping it mangles valid JSON into a
+// fragment.
+func TestParseKeepsFencesInsideProps(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"text_note","props":{"text":"run ` + "```go" +
+		`\nfmt.Println(1)\n` + "```" + ` after lunch"}}]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(fences in props) = %v, want 1 directive", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+		t.Fatalf("parsed = %+v, want 1 text_note", dirs)
+	}
+	text, _ := dirs[0].Props["text"].(string)
+	if !strings.Contains(text, "```go") {
+		t.Fatalf("props text lost its code fences: %q", text)
+	}
+}
+
 // TestParseToleratesFencesAndProse pins the tolerant front-door: models
 // wrap JSON in fences and prose. The parser strips both (same philosophy
 // as llm.parseStringArray) instead of 400ing on valid content.

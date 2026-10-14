@@ -189,8 +189,11 @@
     // exact caret, so a standalone report (anchored to the stale
     // serverText) must not overwrite it. Selectionchange fires on every
     // keystroke too, which is why the guard lives here and not just at
-    // the input handler.
-    if (!force && (outbox.length || flushing)) return;
+    // the input handler. Heartbeats obey the same guard: an unconfirmed
+    // batch will deliver its atomic caret within ~100ms, while a
+    // standalone heartbeat sent mid-flight overwrites the exact dot
+    // with an approximate one — the peer-side line jump.
+    if (outbox.length || flushing) return;
     const pos = force ? (ta.selectionStart || 0) : (document.activeElement !== ta ? -1 : (ta.selectionStart || 0));
     if (pos < 0) return;
     // Forced (heartbeat) resends even unmoved: expiry is time-based, so
@@ -380,6 +383,29 @@
   // stale textarea forever — the peer's letters (and their mirrored text)
   // never appeared until someone typed again.
   let pendingAdopt = null;
+  // transformSelection shifts a saved (s,e) selection through the edit
+  // oldText -> newText (prefix/suffix diff): a peer insert above the
+  // caret pushes it forward instead of leaving it on a stale absolute
+  // offset — the "idle caret jumps while the other user types" report.
+  // Pure clamp (min(s,len)) kept characters visible but pointed at the
+  // wrong place on every remote adopt.
+  function transformSelection(s, e, oldText, newText) {
+    let p = 0;
+    while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++;
+    let so = 0;
+    while (so < oldText.length - p && so < newText.length - p &&
+      oldText[oldText.length - 1 - so] === newText[newText.length - 1 - so]) so++;
+    const shift = newText.length - oldText.length;
+    // Edit strictly before the caret: shift with it. Edit overlapping
+    // the caret: clamp to the cut point (ownership of the deleted range
+    // is gone — same approximation as shiftPeerOffsets).
+    function mapPos(pos) {
+      if (pos <= p) return pos;
+      if (pos >= oldText.length - so) return Math.max(0, Math.min(pos + shift, newText.length));
+      return p;
+    }
+    return [mapPos(s), mapPos(e)];
+  }
   function adoptRemote(text, rev) {
     if (typeof text !== "string") return;
     if (typeof rev === "number" && rev > REV) { REV = rev; serverText = text; }
@@ -388,10 +414,11 @@
     const focused = document.activeElement === ta;
     if (focused && Date.now() - lastInputAt < 1500) { pendingAdopt = { text: text, rev: rev }; return; }
     const s = ta.selectionStart, e = ta.selectionEnd;
+    const oldVal = ta.value;
     ta.value = text;
     clean = true;
     pendingAdopt = null;
-    if (focused) { try { ta.setSelectionRange(Math.min(s, text.length), Math.min(e, text.length)); } catch (err) {} }
+    if (focused) { try { const ns = transformSelection(s, e, oldVal, text); ta.setSelectionRange(ns[0], ns[1]); } catch (err) {} }
   }
   // Retry the deferred adopt once the focused-typist window has passed (or
   // the outbox drained). Cheap: it no-ops when nothing is pending.

@@ -12,8 +12,8 @@ import (
 
 // TestTechBadgeListsStack pins the shared disclosure contract: every
 // feature page names the stack it demonstrates in one visual language
-// (muted inline list), so visitors learn the architecture from any page
-// instead of guessing which demo exercises what.
+// (labeled chips under the subtitle), so visitors learn the architecture
+// from any page instead of guessing which demo exercises what.
 func TestTechBadgeListsStack(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer

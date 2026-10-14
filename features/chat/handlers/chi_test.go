@@ -168,3 +168,56 @@ func sessionOwner(t *testing.T, a *auth.Auth, cookie *http.Cookie) string {
 	}
 	return sess.User.ID
 }
+
+// TestHandlersChatIndexShowsHistory is the red-proof for the "only LLM
+// answers show" report: the worker persisted both sides, but the page
+// always mounted empty (handleIndex never read the store) and the live
+// stream only ever appended the assistant bubble. After ask+answer,
+// reloading /chat must show BOTH the user prompt and the answer text.
+func TestHandlersChatIndexShowsHistory(t *testing.T) {
+	mux, a, mem := chatFixture(t, stubResponder{
+		raw: `{"components":[{"type":"text_note","props":{"text":"hello there"}}]}`,
+	})
+	cookie := chatSignup(t, mux, "chat-history@example.com")
+
+	askRec := httptest.NewRecorder()
+	askReq := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/chat/ask?clientID=chat-h1",
+		strings.NewReader("prompt=hi+there"))
+	askReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	askReq.AddCookie(cookie)
+	mux.ServeHTTP(askRec, askReq)
+	if askRec.Code != http.StatusOK {
+		t.Fatalf("ask status = %d (%s)", askRec.Code, askRec.Body.String())
+	}
+
+	deadline := time.Now().Add(8 * time.Second)
+	for {
+		msgs, err := mem.List(context.Background(), sessionOwner(t, a, cookie))
+		if err == nil && len(msgs) == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("worker never persisted both sides (msgs=%+v err=%v)", msgs, err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	indexRec := httptest.NewRecorder()
+	indexReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/chat", nil)
+	indexReq.AddCookie(cookie)
+	mux.ServeHTTP(indexRec, indexReq)
+	if indexRec.Code != http.StatusOK {
+		t.Fatalf("index status = %d", indexRec.Code)
+	}
+	body := indexRec.Body.String()
+	if !strings.Contains(body, "hi there") {
+		t.Fatal("reloaded /chat missing the user prompt (history never loads)")
+	}
+	if !strings.Contains(body, "hello there") {
+		t.Fatal("reloaded /chat missing the assistant answer")
+	}
+	if !strings.Contains(body, "Demonstrates:") {
+		t.Fatal("reloaded /chat missing the TechBadge stack disclosure")
+	}
+}

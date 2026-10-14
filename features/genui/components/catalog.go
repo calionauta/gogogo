@@ -203,12 +203,16 @@ func checkAction(a Action) error {
 	return nil
 }
 
+// sectionComponent is the catalog container: prompts, validation and
+// renderers name it in one spelling so the registry never drifts.
+const sectionComponent = "section"
+
 // Registered reports whether name is a catalog component. Section is
 // a container, not a leaf renderer: it resolves here so prompts,
 // validation and tests name one registry, while Render handles its
 // children natively below.
 func Registered(name string) bool {
-	if name == "section" {
+	if name == sectionComponent {
 		return true
 	}
 	_, ok := renderers[name]
@@ -242,15 +246,16 @@ func renderDepth(d Directive, depth int) (templ.Component, error) {
 	if depth > maxDirectiveDepth {
 		return nil, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
 	}
-	if d.Component == "section" {
+	if d.Component == sectionComponent {
 		var title SectionProps
 		raw, err := json.Marshal(d.Props)
 		if err != nil {
 			return nil, fmt.Errorf("genui: encode section props: %w", err)
 		}
-		dec := json.NewDecoder(strings.NewReader(string(raw)))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&title); err != nil {
+		// Lenient on purpose: props-nested children are lifted before
+		// validation, but older payloads may still carry them; only
+		// the title matters here.
+		if err := json.Unmarshal(raw, &title); err != nil {
 			return nil, fmt.Errorf("genui: decode section props: %w", err)
 		}
 		if strings.TrimSpace(title.Title) == "" {
@@ -290,25 +295,39 @@ func PromptForCatalog() string {
 		"data_table {headers:[], rows:[[]]}, " +
 		"bar_chart {title, bars:[{label, value>=0}]}, " +
 		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
-		"section {title} holding nested components. " +
+		"section {title} with nested \"children\": " +
+		`{"type":"section","props":{"title":"..."},"children":[...]}. ` +
+		"Never put components inside props. " +
 		"No prose outside the JSON object."
 }
 
-// stripFences removes ```json fences models wrap answers in. Duplicates
-// three lines instead of importing an unexported helper: the catalog
-// owns its front door (same reason parseStringArray owns its own).
+// stripFences removes ```json fences models wrap answers in. Handles
+// fences wrapping the answer anywhere in the output ("Here you go:\n
+// ```json\n{...}\n```\nHope that helps!"): when a fence block opens
+// BEFORE the first "{" the first fenced block wins, otherwise the
+// input is returned trimmed. The ordering guard matters: fence runs
+// inside a props string (a text_note showing a code sample) must never
+// be treated as wrapping — that mangled valid JSON into a fragment.
 func stripFences(s string) string {
 	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "```") {
+	fence := strings.Index(s, "```")
+	if fence < 0 {
 		return s
 	}
-	if i := strings.Index(s, "\n"); i > 0 {
-		s = s[i+1:]
+	if brace := strings.IndexByte(s, '{'); brace >= 0 && brace < fence {
+		return s
 	}
-	if i := strings.LastIndex(s, "```"); i > 0 {
-		s = s[:i]
+	rest := s[fence+3:]
+	if nl := strings.Index(rest, "\n"); nl >= 0 {
+		rest = rest[nl+1:]
 	}
-	return strings.TrimSpace(s)
+	if end := strings.Index(rest, "```"); end >= 0 {
+		return strings.TrimSpace(rest[:end])
+	}
+	if strings.HasPrefix(s, "```") {
+		return strings.TrimSpace(rest)
+	}
+	return s
 }
 
 // rawDirective mirrors the model JSON including nesting; converted to
@@ -324,17 +343,34 @@ type rawDirective struct {
 // the catalog: one unknown type, undecodable props, over-deep nesting
 // or empty answer rejects the whole answer (a half-rendered generative
 // region is worse than an error toast with retry).
+//
+// Tolerance details (real-model output, not test fixtures): the first
+// JSON object is decoded with json.Decoder, so trailing garbage — an
+// extra "}" from overshot brace balancing, a echoed second object,
+// trailing prose — never fails the whole answer. A leading "Here you
+// go:" plus fences is stripped by stripFences first.
 func ParseDirectives(raw string) ([]Directive, error) {
 	s := stripFences(strings.TrimSpace(raw))
-	start, end := strings.IndexByte(s, '{'), strings.LastIndexByte(s, '}')
-	if start < 0 || end <= start {
+	start := strings.IndexByte(s, '{')
+	if start < 0 {
 		return nil, errors.New("genui: no JSON object found")
 	}
 	var envelope struct {
 		Components []rawDirective `json:"components"`
 	}
-	if err := json.Unmarshal([]byte(s[start:end+1]), &envelope); err != nil {
-		return nil, fmt.Errorf("genui: decode directives: %w", err)
+	dec := json.NewDecoder(strings.NewReader(s[start:]))
+	if err := dec.Decode(&envelope); err != nil {
+		// Decoder already tolerates trailing bytes; a failure here is a
+		// genuinely malformed object. Fall back to the legacy greedy
+		// first-{..last-} slice for inputs where a leading "{" belongs
+		// to prose (e.g. emoticons) and the real object starts later.
+		end := strings.LastIndexByte(s, '}')
+		if end <= start {
+			return nil, errors.New("genui: no JSON object found")
+		}
+		if err2 := json.Unmarshal([]byte(s[start:end+1]), &envelope); err2 != nil {
+			return nil, fmt.Errorf("genui: decode directives: %w", err)
+		}
 	}
 	if len(envelope.Components) == 0 {
 		return nil, errors.New("genui: no components in answer")
@@ -353,12 +389,28 @@ func ParseDirectives(raw string) ([]Directive, error) {
 // convertDirective validates one node (type registered, props decode,
 // depth budget) and its subtree. Render doubles as the validator so
 // parse and render can never disagree on what is legal.
+//
+// Section nesting accepts two wire shapes: canonical "children" and
+// the "components"/"children" array nested inside props (models emit
+// the latter when the prompt says "section holding nested
+// components" — see the plan-my-day report). Props-nested lists are
+// lifted into Children and removed from Props before validation, so
+// DisallowUnknownFields never rejects them. Lifting applies to section
+// only: leaf components stay fail-closed on unknown props, so a model
+// smuggling keys into text_note still rejects instead of silently
+// dropping data.
 func convertDirective(c rawDirective, depth int) (Directive, error) {
 	if depth > maxDirectiveDepth {
 		return Directive{}, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
 	}
 	if !Registered(c.Type) {
 		return Directive{}, fmt.Errorf("genui: unregistered component %q", c.Type)
+	}
+	if c.Type == sectionComponent && c.Props != nil {
+		if nested, ok := nestedChildren(c.Props); ok {
+			c.Props = withoutNestedKeys(c.Props)
+			c.Children = append(c.Children, nested...)
+		}
 	}
 	children := make([]Directive, 0, len(c.Children))
 	for _, child := range c.Children {
@@ -373,4 +425,39 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 		return Directive{}, err
 	}
 	return d, nil
+}
+
+// nestedChildren lifts a components/children array nested inside props
+// (the shape models emit for sections) into raw directives. Returns
+// ok=false when no such key exists.
+func nestedChildren(props map[string]any) ([]rawDirective, bool) {
+	for _, key := range []string{"components", "children"} {
+		v, ok := props[key]
+		if !ok {
+			continue
+		}
+		raw, err := json.Marshal(v)
+		if err != nil {
+			continue
+		}
+		var nested []rawDirective
+		if err := json.Unmarshal(raw, &nested); err != nil || len(nested) == 0 {
+			continue
+		}
+		return nested, true
+	}
+	return nil, false
+}
+
+// withoutNestedKeys returns props minus the lifted nesting keys, so
+// strict prop decoders never see them.
+func withoutNestedKeys(props map[string]any) map[string]any {
+	out := make(map[string]any, len(props))
+	for k, v := range props {
+		if k == "components" || k == "children" {
+			continue
+		}
+		out[k] = v
+	}
+	return out
 }

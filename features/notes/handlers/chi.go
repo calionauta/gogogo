@@ -280,6 +280,13 @@ func (h *Handler) handleOp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	from := r.URL.Query().Get("clientID")
+	if from == "" {
+		// No sender identity: echo suppression and caret keys both
+		// depend on From. A per-request id keeps the event keyed as
+		// its own peer instead of collapsing into the ""/user bucket
+		// that merges same-user tabs (the caret-jump report).
+		from = uuid.NewString()
+	}
 	var req opRequest
 	if uErr := json.Unmarshal(body, &req); uErr != nil {
 		writeText(w, http.StatusBadRequest, "decode op: "+uErr.Error())

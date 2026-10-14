@@ -105,9 +105,42 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := sess.User.Email
+	views := h.historyViews(r.Context(), sess.User.ID)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = chatcomponents.ChatIndex(email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = chatcomponents.ChatIndexWithHistory(email, h.cfg.BuildLabel, h.cfg.BuildCommit, views).Render(r.Context(), w)
+}
+
+// historyViews maps persisted messages to rendered bubbles for first
+// paint. Component directives re-render through the catalog so history
+// looks identical to live answers; a directive that no longer renders
+// falls back to its stored text.
+func (h *Handler) historyViews(ctx context.Context, owner string) []store.MessageView {
+	msgs, err := h.store.List(ctx, owner)
+	if err != nil || len(msgs) == 0 {
+		return nil
+	}
+	views := make([]store.MessageView, 0, len(msgs))
+	for _, m := range msgs {
+		switch m.Role {
+		case roleUser:
+			if m.Text == "" {
+				continue
+			}
+			views = append(views, store.MessageView{Role: roleUser, Text: m.Text})
+		case roleAssistant:
+			//nolint:contextcheck // pure CPU (catalog render); ctx enters at component Render instead.
+			comps, err := comp.RenderAll(m.Components)
+			if err != nil {
+				if m.Text != "" {
+					views = append(views, store.MessageView{Role: roleAssistant, Text: m.Text})
+				}
+				continue
+			}
+			views = append(views, store.MessageView{Role: roleAssistant, Text: m.Text, Components: comps})
+		}
+	}
+	return views
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +183,19 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: ask ack failed", obsArgs...)
 	}
+	// Optimistic user echo: the worker persists both sides but streams
+	// only the assistant bubble, so without this the user's own message
+	// never appears in the thread (the reported "only LLM answers show"
+	// bug). Rendered without the thinking skeleton: the spinner state
+	// already rides $chat_thinking (button shows Thinking…), and an
+	// appended skeleton here would never be removed (append-only
+	// patches have no retraction). Best-effort — a patch failure must
+	// not fail the enqueue.
+	//nolint:contextcheck // SSE emission ends in datastar-go sinks, which
+	// take no context; disconnects surface as write errors.
+	_ = dshelpers.RenderAndPatch(sse,
+		chatcomponents.ChatList([]store.MessageView{{Role: "user", Text: prompt}}, false, ""),
+		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
 }
 
 func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
@@ -232,6 +278,11 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 // renderDirectives re-validates worker output through the catalog
 // before it reaches the DOM: the envelope crossed JSON, so decode via
 // ParseDirectives-shaped validation instead of trusting the shape.
+//
+// Two wire shapes are accepted: the worker's validated Directive list
+// (capitalized Component/Props keys) and the raw model envelope
+// (lowercase type/props/children). Either path ends in RenderAll —
+// unrenderable output yields nil (text-only bubble), never markup.
 func renderDirectives(raw any) []templ.Component {
 	if raw == nil {
 		return nil
@@ -243,14 +294,17 @@ func renderDirectives(raw any) []templ.Component {
 	var envelope struct {
 		Components []comp.Directive `json:"components"`
 	}
-	if decErr := json.Unmarshal(blob, &envelope); decErr != nil {
-		return nil
+	if decErr := json.Unmarshal(blob, &envelope); decErr == nil && len(envelope.Components) > 0 {
+		if comps, renderErr := comp.RenderAll(envelope.Components); renderErr == nil {
+			return comps
+		}
 	}
-	comps, renderErr := comp.RenderAll(envelope.Components)
-	if renderErr != nil {
-		return nil
+	if dirs, perr := comp.ParseDirectives(string(blob)); perr == nil {
+		if comps, renderErr := comp.RenderAll(dirs); renderErr == nil {
+			return comps
+		}
 	}
-	return comps
+	return nil
 }
 
 func mustJSON(ctx context.Context, v any) []byte {

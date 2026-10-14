@@ -240,6 +240,44 @@
 
 ### Fixed
 
+- **Ask AI "could not shape the answer" on valid model output.**
+  `ParseDirectives` sliced first-`{`..last-`}` and unmarshalled it, so one
+  extra `}` from overshot brace balancing (or an echoed second object)
+  failed the whole answer. The parser now decodes the first object with
+  `json.Decoder` (trailing garbage ignored), strips fences anywhere in
+  the output, and accepts the section nesting models actually emit
+  (`props.components` lifts into `children`, section-only so leaves stay
+  fail-closed). The prompt now shows the canonical `children` shape.
+  Red-proofed: `TestParseToleratesTrailingBrace`,
+  `TestParseToleratesDoubledObject`, `TestParseLiftsSectionPropsComponents`
+  (each fails on the reverted parser with the exact reported errors);
+  `TestWorkerRejectsUnknownDirective` still pins fail-closed.
+- **Chat showed raw component JSON and hid user messages.** Three
+  independent gaps: the plan-my-day shape above (fixed in the catalog),
+  a fallback that dumped the raw envelope into the bubble, and history
+  that was persisted but never rendered (`handleIndex` never read the
+  store; the stream only appended assistant bubbles). The fallback now
+  mines human strings in document order via a token-stream walk (never
+  echoes envelope keys), the index loads `store.List` into bubbles, and
+  ask optimistically echoes the user prompt. Red-proofed:
+  `TestHandlersChatIndexShowsHistory`,
+  `TestParseChatAnswerNeverEchoesRawJSON`,
+  `TestParseChatAnswerFallbackKeepsDocumentOrder` (stable over repeated
+  runs; the map-based walk it replaces could shuffle per request).
+- **Review "Run review" never enabled; stack disclosure missing.**
+  Without a configured LLM the page hid the whole form, so users saw no
+  button at all. The form now always renders with a disabled button
+  carrying the reason, and review + chat carry the shared `TechBadge`
+  (redesigned from muted text to labeled chips — same "Demonstrates:"
+  contract). Red-proofed: `TestReviewIndexKeepsRunButtonWhenLLMDown`,
+  `TestReviewIndexEnablesRunButtonWhenLLMUp`.
+- **Collab notes caret follow-ups.** Heartbeats fired standalone caret
+  reports while ops were unconfirmed, overwriting the atomic batch caret
+  peers should see; remote adopts clamped the local selection instead of
+  shifting it through the peer's edit (idle carets visibly jumped); ops
+  without `clientID` collapsed into the empty-From bucket. Heartbeats now
+  obey the unconfirmed guard, adopts transform the selection
+  prefix/suffix-style, and the server mints an id for missing senders.
 - **Ask AI / Chat 401 "Missing Authentication header" (split LLM triple).**
   `deploy/docker-compose.prod.yml` set `GOAI_BASE_URL`/`GOAI_MODEL`
   OpenRouter defaults in `environment`, which always wins over the secrets

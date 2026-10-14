@@ -12,6 +12,13 @@ import (
 // list fed by the worker, result stream. Sounds ride the shared assets
 // (global press cue + toast observer) — zero custom sound JS by design.
 templ ChatIndex(email string, buildLabel string, buildCommit string) {
+	@ChatIndexWithHistory(email, buildLabel, buildCommit, nil)
+}
+
+// ChatIndexWithHistory is ChatIndex seeded with persisted bubbles so a
+// reload (or a second tab) shows the conversation, not an empty state.
+// Live answers still append into #chat-messages via the worker stream.
+templ ChatIndexWithHistory(email string, buildLabel string, buildCommit string, history []store.MessageView) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light', chat_thinking: false, chat_error: ''}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
@@ -33,11 +40,13 @@ templ ChatIndex(email string, buildLabel string, buildCommit string) {
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">
 				<h1 class="text-2xl font-bold">Chat</h1>
-				<p class="text-sm text-base-content/60 mt-1 mb-4">
+				<p class="text-sm text-base-content/60 mt-1 mb-1">
 					Ask anything — answers stream below as text plus interface.
 				</p>
+				@components.TechBadge([]string{"GenUI catalog", "SSE Hub", "queue worker", "Turso history"})
 				<form
 					id="chat-composer"
+					class="mt-4"
 					data-on:submit__prevent={ "@post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed — check your connection and try again.') : null"
 					data-cuelume="send"
@@ -65,7 +74,7 @@ templ ChatIndex(email string, buildLabel string, buildCommit string) {
 					</div>
 				</form>
 				<div class="mt-6">
-					@ChatList(nil, false, "")
+					@ChatList(history, false, "")
 				</div>
 			</main>
 			@components.ToastContainer()
