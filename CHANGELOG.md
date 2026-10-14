@@ -425,6 +425,18 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.47.0 (2026-10-14)
+
+## What's Changed
+* docs(stack): name Turso Database as the engine, not SQLite by @calionauta in https://github.com/calionauta/gogogo/pull/134
+* feat(native): gui ships in releases, Wails drop documented as opt-out by @calionauta in https://github.com/calionauta/gogogo/pull/135
+* fix(config): drop dead DATABASE_PATH (nothing opens it) by @calionauta in https://github.com/calionauta/gogogo/pull/137
+* feat(db): centralized transactions, busy classification, MVCC runbook by @calionauta in https://github.com/calionauta/gogogo/pull/136
+* ci(toolchain): shared installer with retries for the Go tarball by @calionauta in https://github.com/calionauta/gogogo/pull/139
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.46.0...v0.47.0
+
 ## 0.46.0 (2026-10-14)
 
 ## What's Changed
