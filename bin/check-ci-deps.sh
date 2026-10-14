@@ -43,9 +43,9 @@ for wf in .github/workflows/ci.yml .github/workflows/deploy.yml; do
     uses_npx=$(grep -E -c '(^|[[:space:];&|])npx ' "$tmpdir/j" || true)
     has_node_setup=$(grep -E -c 'actions/setup-node' "$tmpdir/j" || true)
     uses_go=$(grep -E -c '(^|[[:space:];&|"`$"(])go (build|test|tool|vet|run|install|list|env)' "$tmpdir/j" || true)
-    has_go=$(grep -E -c 'go\.dev/dl/go|setup-go' "$tmpdir/j" || true)
+    has_go=$(grep -E -c 'go\.dev/dl/go|setup-go|install-go-toolchain' "$tmpdir/j" || true)
     first_use=$(grep -E -n '(^|[[:space:];&|])(node (scripts/|-e)|npx |go (build|test|tool|vet|run|install|list|env))' "$tmpdir/j" | head -n 1 | cut -d: -f1)
-    first_prov=$(grep -E -n 'npm (ci|install)|actions/setup-node|go\.dev/dl/go|setup-go' "$tmpdir/j" | head -n 1 | cut -d: -f1)
+    first_prov=$(grep -E -n 'npm (ci|install)|actions/setup-node|go\.dev/dl/go|setup-go|install-go-toolchain' "$tmpdir/j" | head -n 1 | cut -d: -f1)
     if [ "$uses_node" -gt 0 ] && { [ "$has_npm" -eq 0 ] || { [ -n "$first_prov" ] && [ "$first_prov" -gt "$first_use" ]; }; }; then
       echo "❌ $wf job '$job' runs node without npm ci/install earlier in the same job"
       fail=1

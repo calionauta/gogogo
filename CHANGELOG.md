@@ -131,6 +131,11 @@
   in CI jobs, the same loop inline in `Dockerfile.prod`, which has no bash) —
   the proxy's transient `INTERNAL_ERROR`s killed cold-cache `go list`, `go test`
   and a 268s image build that `go` does not retry itself.
+- **Retried toolchain install.** The 5 `Install Go` steps (CI, desktop,
+  deploy) now share `bin/install-go-toolchain.sh`: same tarball, plus
+  bounded retries — a 4-minute download dying with HTTP/2 INTERNAL_ERROR
+  (curl 92) failed a whole job once. `check-ci-deps.sh` recognizes the
+  script as Go provisioning.
 - **Native window ships in releases.** `cmd/gui` (pure Go, `CGO_ENABLED=0`)
   builds for all six OS×arch (verified locally) and rides the release
   archives as `gogogo-gui`, installed by `install.sh` next to the CLI.

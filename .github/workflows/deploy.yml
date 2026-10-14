@@ -191,11 +191,7 @@ jobs:
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead.
         run: |
-          curl -fsSL https://go.dev/dl/go1.27.2.linux-amd64.tar.gz -o /tmp/go.tgz
-          sudo rm -rf /usr/local/go
-          sudo tar -C /usr/local -xzf /tmp/go.tgz
-          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-          /usr/local/go/bin/go version
+          bash bin/install-go-toolchain.sh
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
