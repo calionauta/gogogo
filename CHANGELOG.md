@@ -403,6 +403,16 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.46.0 (2026-10-14)
+
+## What's Changed
+* docs(ci): homolog-light recipe, deploy-does-not-wait-CI honesty by @calionauta in https://github.com/calionauta/gogogo/pull/130
+* ci: parallel jobs, govulncheck at commit time, green-SHA reconciler by @calionauta in https://github.com/calionauta/gogogo/pull/131
+* feat(sse): verified stream open, loud failure instead of silent death by @calionauta in https://github.com/calionauta/gogogo/pull/133
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.45.0...v0.46.0
+
 ## 0.45.0 (2026-10-14)
 
 ## What's Changed
