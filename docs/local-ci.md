@@ -131,6 +131,24 @@ Use `SIMULATE_LLM=true` for the keyless LLM path, and prefer the PR flow for
 anything beyond a look-and-click: PR CI is the gate that runs before merge,
 while a direct `master` push ships without waiting for it.
 
+### Machine-safety map
+
+Every gate probes the machine with evidence and degrades instead of wedging
+it. The contract, in one place:
+
+| Gate | Probe | Bound | Fallback | Tells you |
+|---|---|---|---|---|
+| pre-commit (lint) | free RAM + cores (`lint-safe.sh`) | GOMEMLIMIT/GOMAXPROCS/nice/cgroup cap | changed packages only | evidence line on every run |
+| `ci-local-fast` | `--fast` pre-flight (3 GB / 2 cores / load 1.5 / 1 GB) | serial `-p 1` past 8 pkgs | single-pkg runs + PR CI | refuse message + override |
+| `ci-local`, `test-web.sh` | full pre-flight (6 GB / 4 cores / 0.75 / 2 GB) | refuses first | fast + PR CI | refuse message + override |
+| heavy Go tests | `hostgate` (RAM/load/disk, tunable) | skip, never force | CI never skips | `Skipf` reason + fan-out summary |
+| CI jobs | none needed — isolated GitHub-hosted runners | browser serial in-job, race never retried | per-job retry | — |
+| homolog-light | none needed — heaviest step is one binary build | — | localhost URL without Tailscale | — |
+
+No global pre-commit guard by choice: refusing hooks would skip
+`secrets-scan`, which must see every commit — the heavy job (lint) is capped
+instead, and `govulncheck` only runs on `go.mod`/`go.sum` changes.
+
 ### Where T4 may run (host-capacity pre-flight)
 
 - **`make ci-local` refuses first on a box that cannot carry it.**

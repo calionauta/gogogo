@@ -90,6 +90,19 @@
   suites on interrupt) and removes its log dir on green runs only; both local
   gates reap mtime-stale smoke corpses at start (`reap-stale`, 6h default —
   concurrent runs untouched, caches never listed so nothing rebuilds).
+- **Parallel CI jobs.** `ci.yml` runs `checks` | `race` | `browser` |
+  `prod-image` on isolated runners — wall-clock is the slowest job, not the
+  serial sum. Same steps verbatim (`deadcode` moved earlier, one shared
+  binary across the client suites, image boot fails fast instead of last).
+- **Commit-time vulnerability scan.** `govulncheck` runs pre-commit on
+  `go.mod`/`go.sum` (same script as pre-push/CI), so a vulnerable dependency
+  fails the commit instead of the push.
+- **Reconciler ships green SHAs only.** The schedule drift check deploys
+  `master` HEAD only when it carries green CI, and skips docs-only pushes
+  whose badge already matches validated code.
+- **Skip summary on green gates.** `ci-fanout.sh` prints host-gated `SKIP`
+  lines before log cleanup, so green-with-skips is never misread as full
+  green (race log is now `-v`).
 
 ### Changed
 
