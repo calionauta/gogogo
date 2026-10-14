@@ -314,6 +314,13 @@ jobs:
         # line assertion is red-proofed (fails against the old basis).
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web node scripts/notes-caret.test.mjs
+      - name: SSE verified-open regression test
+        # The opener must fail LOUDLY when Datastar cannot load (bounded
+        # openState=failed), never leave a silent-dead stream: with Datastar
+        # route-aborted, the old opener never opens anything (red-proofed by
+        # stash). Uses its own port, serial like the suites above.
+        run: |
+          SMOKE_BIN=/tmp/gogogo-ci-web SSE_PROBE_PORT=8133 node scripts/sse-reopen.test.mjs
 
   prod-image:
     # Committed sources + Dockerfile only (no Go/Node): a broken image

@@ -95,6 +95,7 @@ templ StreamOpener(streamURL string) {
 		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
 		aria-hidden="true"
 	></button>
+	<script defer type="module" src="/static/sse-open.js"></script>
 	<script type="module">
 		// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven
 		// bootstrap as the todo RealtimeStream — Datastar v1 never fires
@@ -112,8 +113,7 @@ templ StreamOpener(streamURL string) {
 				window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
 			}
 			function openSSE() {
-				var b = document.getElementById('genui-stream-opener');
-				if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
+				window.__gogogoOpenVerified('genui-stream-opener');
 			}
 			document.addEventListener('datastar-ready', openSSE);
 			setTimeout(openSSE, 300);

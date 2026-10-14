@@ -75,6 +75,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 				data-on:click={ "@get('/api/chat/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
 				aria-hidden="true"
 			></button>
+			<script defer type="module" src="/static/sse-open.js"></script>
 			<script type="module">
 				// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven
 				// bootstrap as the todo RealtimeStream — Datastar v1 never fires
@@ -92,8 +93,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 						window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
 					}
 					function openSSE() {
-						var b = document.getElementById('chat-stream-opener');
-						if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
+						window.__gogogoOpenVerified('chat-stream-opener');
 					}
 					document.addEventListener('datastar-ready', openSSE);
 					setTimeout(openSSE, 300);

@@ -112,6 +112,13 @@
 - **Skip summary on green gates.** `ci-fanout.sh` prints host-gated `SKIP`
   lines before log cleanup, so green-with-skips is never misread as full
   green (race log is now `-v`).
+- **Verified SSE stream open.** `GET /api/stream/status` reports hub
+  registration per tab; the four Datastar stream openers click through a
+  shared verifier that re-clicks until registered and throws loudly past
+  its bound — the pre-binding fallback click used to poison the opener
+  into silent death on slow clients (red-proofed by aborting the Datastar
+  bundle: old tree silent, new tree loud; `scripts/sse-reopen.test.mjs`
+  runs in CI and the local fan-out).
 - **CI job self-provisioning guard.** `bin/check-ci-deps.sh` (pre-commit +
   CI) fails a job that runs `node`/`go` without installing them earlier in
   the same job — the missing-`npm ci` that broke the first parallel run,

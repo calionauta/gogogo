@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci-fanout.sh — race suite + three Playwright smoke suites in parallel.
+# ci-fanout.sh — race suite + four Playwright smoke suites in parallel.
 #
 # Parallel order surfaces UI failures in ~1min instead of after the ~2min
 # race suite. Each suite gets its own log under CI_LOG_DIR; the binary
@@ -17,7 +17,7 @@
 # retries (a retried race is a hidden data race).
 #
 # Ports are collision-free by construction: race tests bind ephemeral
-# ports, smoke.mjs takes 8099, whiteboard 8131, notes 8132.
+# ports, smoke.mjs takes 8099, whiteboard 8131, notes 8132, sse-reopen 8133.
 #
 # Usage: CI_LOG_DIR=<dir> SMOKE_BIN=<binary> bash scripts/ci-fanout.sh
 set -uo pipefail
@@ -26,11 +26,11 @@ bin="${SMOKE_BIN:?SMOKE_BIN must be set}"
 mkdir -p "$logdir"
 
 # Interrupt hygiene: if make is killed (SIGTERM/SIGINT — a wedged box, a
-# Ctrl-C), the four suites below would otherwise keep running orphaned,
+# Ctrl-C), the five suites below would otherwise keep running orphaned,
 # holding their ports and burning the CPU the gate just freed. Kill them
 # with us. Firing after a normal run is harmless (PIDs already reaped).
-pid_race= pid_smoke= pid_wb= pid_notes=
-trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes 2>/dev/null || true' INT TERM
+pid_race= pid_smoke= pid_wb= pid_notes= pid_sse=
+trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes $pid_sse 2>/dev/null || true' INT TERM
 
 # -v: SKIP lines (notably internal/hostgate's constrained-box skips) only
 # print in verbose mode; the green-path summary below counts on them. Logs
@@ -43,6 +43,8 @@ SMOKE_BIN="$bin" node scripts/whiteboard-client.test.mjs >"$logdir/whiteboard.lo
 pid_wb=$!
 SMOKE_BIN="$bin" node scripts/notes-caret.test.mjs >"$logdir/notes.log" 2>&1 &
 pid_notes=$!
+SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" node scripts/sse-reopen.test.mjs >"$logdir/sse.log" 2>&1 &
+pid_sse=$!
 
 # retry_browser reruns one failed browser suite serially: the parallel
 # load is gone by then, so a pass means "starved", not "broken". One
@@ -50,7 +52,7 @@ pid_notes=$!
 retry_browser() {
   local name="$1" script="$2"
   echo "  ↻ $name failed under load, retrying once serially…"
-  if SMOKE_BIN="$bin" SMOKE_TRACE="$logdir/$name.retry.trace.zip" node "scripts/$script" >"$logdir/$name.retry.log" 2>&1; then
+  if SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" SMOKE_TRACE="$logdir/$name.retry.trace.zip" node "scripts/$script" >"$logdir/$name.retry.log" 2>&1; then
     echo "  ⚠️ $name passed on retry (flake under parallel load — see $logdir/$name.retry.log)"
   else
     echo "  ❌ $name FAILED twice (see $logdir/$name.log and $logdir/$name.retry.log)"
@@ -64,12 +66,13 @@ browser_script() {
     smoke) echo "smoke.mjs" ;;
     whiteboard) echo "whiteboard-client.test.mjs" ;;
     notes) echo "notes-caret.test.mjs" ;;
+    sse) echo "sse-reopen.test.mjs" ;;
   esac
 }
 
 fail=0
 failed_logs=""
-for spec in "race:$pid_race" "smoke:$pid_smoke" "whiteboard:$pid_wb" "notes:$pid_notes"; do
+for spec in "race:$pid_race" "smoke:$pid_smoke" "whiteboard:$pid_wb" "notes:$pid_notes" "sse:$pid_sse"; do
   name="${spec%%:*}"
   pid="${spec##*:}"
   if wait "$pid"; then
