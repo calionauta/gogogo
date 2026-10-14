@@ -97,9 +97,12 @@ func banned(importPath string) bool {
 }
 
 func listDeps(pkg string) ([]string, error) {
-	out, err := exec.CommandContext(context.Background(), "go", "list", "-deps", pkg).Output()
+	// CombinedOutput: when the toolchain itself fails (cold module cache,
+	// proxy hiccup), the wrapped "exit status 1" alone is undebuggable —
+	// the underlying stderr must reach the log.
+	out, err := exec.CommandContext(context.Background(), "go", "list", "-deps", pkg).CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("go list %s: %w", pkg, err)
+		return nil, fmt.Errorf("go list %s: %w\n%s", pkg, err, out)
 	}
 	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
 }
@@ -155,9 +158,11 @@ func checkCrossFeature() error {
 	cmd := exec.CommandContext(context.Background(), "go", "list",
 		"-f", "{{.ImportPath}} {{join .Imports \" \"}}", "./features/...")
 	cmd.Dir = root
-	out, err := cmd.Output()
+	// CombinedOutput, same reason as listDeps: a toolchain failure must
+	// print its own stderr, not just "exit status 1".
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("go list ./features/...: %w", err)
+		return fmt.Errorf("go list ./features/...: %w\n%s", err, out)
 	}
 	var offenders []string
 	for line := range strings.Lines(strings.TrimSpace(string(out))) {
