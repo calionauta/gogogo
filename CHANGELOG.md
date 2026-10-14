@@ -137,6 +137,11 @@
   Dropping the Wails shell is documented (`docs/desktop-mobile.md`:
   delete `cmd/desktop/`, drop desktop targets + job, tidy — proven to
   build clean with wails gone).
+- **Centralized write transactions + contention logging.** `dbschema.Transact`
+  is the single home for multi-statement units (begin/commit/rollback,
+  busy classification, slow-txn debug) — adopted by migrations; single-statement
+  writes stay autocommit by design. `docs/db-concurrency.md` is the runbook
+  for ever enabling MVCC (status as probed, exact steps, red-proof plan).
 
 ### Changed
 

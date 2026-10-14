@@ -128,21 +128,14 @@ func applyMigration(sqlDB *sql.DB, version string) error {
 	if err != nil {
 		return fmt.Errorf("dbschema: read migration %s: %w", version, err)
 	}
-	tx, err := sqlDB.BeginTx(context.Background(), nil)
-	if err != nil {
-		return fmt.Errorf("dbschema: begin migration %s: %w", version, err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.ExecContext(context.Background(), string(sqlBytes)); err != nil {
-		return fmt.Errorf("dbschema: apply migration %s: %w", version, err)
-	}
-	if _, err := tx.ExecContext(context.Background(),
-		`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, version, Now()); err != nil {
-		return fmt.Errorf("dbschema: record migration %s: %w", version, err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("dbschema: commit migration %s: %w", version, err)
-	}
-	return nil
+	return Transact(context.Background(), sqlDB, "migrate "+version, func(ctx context.Context, tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, string(sqlBytes)); err != nil {
+			return fmt.Errorf("dbschema: apply migration %s: %w", version, err)
+		}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, version, Now()); err != nil {
+			return fmt.Errorf("dbschema: record migration %s: %w", version, err)
+		}
+		return nil
+	})
 }
