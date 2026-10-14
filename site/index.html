@@ -181,6 +181,12 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
         <p class="off">Always in</p>
       </div>
       <div class="card">
+        <p class="step">Roles and permissions without a service</p>
+        <p class="tech">Casbin + <code>users.role</code></p>
+        <p>Roles ride the user row; one Casbin model enforces them at the mux. Embedded policy by default, DB-backed when rules must change at runtime.</p>
+        <p class="off">Always wired · enforce: <code>RBAC_ENABLED=true</code></p>
+      </div>
+      <div class="card">
         <p class="step">Reactive UI with no JS framework</p>
         <p class="tech">Templ + Datastar over SSE</p>
         <p>Type-safe templates generated at build time, ~12&nbsp;KiB client. A broken template is a compile error.</p>
@@ -260,9 +266,9 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       </div>
       <div class="card">
         <p class="step">Review loop</p>
-        <p class="tech">Genkit flows + GoAI + Jev judge</p>
+        <p class="tech">Genkit flows (plugin) + GoAI + Jev judge</p>
         <p>A writer and a critic iterate, then a classifier judge delivers the verdict. Typed flows, per-step traces, any Jev-compatible judge via env. Proves a multi-role loop with per-role cost attribution and confidence cascade.</p>
-        <p class="off">Delete: <code>features/review/</code></p>
+        <p class="off">Delete: <code>features/review/</code> · drops the <code>genkit</code> plugin</p>
       </div>
       <div class="card">
         <p class="step">Desktop apps on the same backend</p>

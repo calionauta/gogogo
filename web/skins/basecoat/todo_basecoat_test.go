@@ -17,7 +17,8 @@ import (
 func TestTodoPageHasToastContainer(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := TodoPage("Todos", todo.Signals{}, "a@b.c", "dev", "", true, "basecoat").Render(context.Background(), &buf)
+	page := TodoPage("Todos", todo.Signals{}, "a@b.c", "user", "dev", "", true, "basecoat")
+	err := page.Render(context.Background(), &buf)
 	if err != nil {
 		t.Fatalf("TodoPage: %v", err)
 	}

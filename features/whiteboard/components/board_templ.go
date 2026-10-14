@@ -44,7 +44,7 @@ type BoardMeta struct {
 // live-update wiring so the list updates when another user creates a new
 // board. Follows the same pattern as the todo feature's RealtimeRecords:
 // a hidden @get button the stream and the visibility refetch click.
-func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
+func BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -93,7 +93,7 @@ func BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.Navbar(email, "whiteboard", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -219,7 +219,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 // Board renders the interactive canvas for one whiteboard doc. The
 // client connects to the SSE stream and listens for shape + presence
 // events; drawing POSTs Loro updates back to the server.
-func Board(email string, docID string, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
+func Board(email string, userRole string, docID string, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -273,7 +273,7 @@ func Board(email string, docID string, buildLabel string, buildCommit string, of
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.Navbar(email, "whiteboard", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

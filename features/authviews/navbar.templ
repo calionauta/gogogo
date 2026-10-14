@@ -14,7 +14,14 @@ import (
 // Review, Chat), then Room, then the operator-facing
 // Config tab at the end (not a content destination; an inspection
 // surface). The logo text always links to "/" — the landing page.
-templ Navbar(userEmail string, active string, buildLabel string, buildCommit string) {
+//
+// userRole is the session role ("admin" | "user" | "viewer" | "" for
+// guests). It gates the operator surfaces (Config tab + Dashboard menu
+// item) to admins and is shown in the user dropdown so a tester can tell
+// demo1 (admin) from demo2 (viewer) and read the permission the page is
+// exercising. The gate is a UI affordance; /config stays enforced by the
+// RBAC policy when RBAC_ENABLED=true.
+templ Navbar(userEmail string, userRole string, active string, buildLabel string, buildCommit string) {
 	<nav class="app-nav">
 		<div class="app-nav-start">
 			<a href="/" class="app-nav-brand">
@@ -47,9 +54,11 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "room",
 				}) }>Room</a>
-				<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
-					"is-active": active == "config",
-				}) }>Config</a>
+				if userRole == "admin" {
+					<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+						"is-active": active == "config",
+					}) }>Config</a>
+				}
 			</div>
 		</div>
 		<div class="app-nav-end">
@@ -87,14 +96,21 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 						<li>
 							<span class="font-mono text-xs break-all">{ userEmail }</span>
 						</li>
-						<li>
-							<a href="/config" class="flex items-center gap-2">
-								<svg xmlns="http://www.w3.org/2000/svg" class="app-menu-icon" viewBox="0 0 20 20" fill="currentColor">
-									<path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-4h2v4zm0-6H9V5h2v2z"/>
-								</svg>
-								Dashboard
-							</a>
-						</li>
+						if userRole != "" {
+							<li>
+								<span class="text-xs text-base-content/60">Role: <strong class="font-mono">{ userRole }</strong></span>
+							</li>
+						}
+						if userRole == "admin" {
+							<li>
+								<a href="/config" class="flex items-center gap-2">
+									<svg xmlns="http://www.w3.org/2000/svg" class="app-menu-icon" viewBox="0 0 20 20" fill="currentColor">
+										<path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-4h2v4zm0-6H9V5h2v2z"/>
+									</svg>
+									Dashboard
+								</a>
+							</li>
+						}
 						<li>
 							<a href="/dagnats/" class="flex items-center gap-2 cursor-pointer">
 								<svg xmlns="http://www.w3.org/2000/svg" class="app-menu-icon" viewBox="0 0 20 20" fill="currentColor">

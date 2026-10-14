@@ -40,7 +40,7 @@ import (
 // (Sign in CTA shows) and the authed email for signed-in users.
 // buildLabel/buildCommit are surfaced on the version badge so the
 // landing page matches the navbar's build feedback.
-func Index(userEmail string, buildLabel string, buildCommit string) templ.Component {
+func Index(userEmail string, userRole string, buildLabel string, buildCommit string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -81,7 +81,7 @@ func Index(userEmail string, buildLabel string, buildCommit string) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.Navbar(userEmail, "", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.Navbar(userEmail, userRole, "", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

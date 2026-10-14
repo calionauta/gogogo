@@ -52,7 +52,9 @@ const MANIFEST = [
   { group: "Core", slug: "architecture", file: "architecture.md",
     desc: "Directory layout, dependency direction, entry points, and route wiring gotchas." },
   { group: "Core", slug: "stack-layers", file: "stack-layers.md",
-    desc: "Every dependency and why it is in the box." },
+    desc: "Every dependency and what it buys, layer by layer." },
+  { group: "Core", slug: "stack-tradeoffs", file: "stack-tradeoffs.md",
+    desc: "What each choice rejected, what it costs to keep, and when to revisit: Turso vs SQLite vs Postgres, Datastar vs React, and the rest." },
   { group: "Core", slug: "async-layers", file: "async-layers.md",
     desc: "The seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync." },
   { group: "Core", slug: "realtime-recipe", file: "realtime-recipe.md",
@@ -92,7 +94,7 @@ const MANIFEST = [
   { group: "Operate", slug: "local-ci", file: "local-ci.md",
     desc: "The five-tier feedback loop and make signoff." },
   { group: "Operate", slug: "code-quality", file: "code-quality.md",
-    desc: "The 31 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
+    desc: "The 33 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
   { group: "Operate", slug: "troubleshooting", file: "troubleshooting.md",
     desc: "Symptoms and where they actually come from." },
   { group: "Operate", slug: "dagnats-bootstrap-workaround",
@@ -103,7 +105,12 @@ const MANIFEST = [
     desc: "DagNats capability table, version bounds, learned gotchas, and the add-a-workflow path for LLM agents." },
 ];
 
-const CSS = `*{box-sizing:border-box}body{margin:0;font:16px/1.65 system-ui,-apple-system,sans-serif;color:#1a1a1a;background:#fff}.wrap{display:flex;max-width:1080px;margin:0 auto}nav.side{width:250px;flex-shrink:0;padding:32px 24px;border-right:1px solid #e5e5e5;position:sticky;top:0;align-self:flex-start;max-height:100vh;overflow:auto}nav.side .home{display:block;font-weight:700;margin-bottom:16px;color:#1a1a1a;text-decoration:none}nav.side h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:16px 0 4px}nav.side a{display:block;padding:3px 0;color:#333;text-decoration:none;font-size:14px}nav.side a.cur{font-weight:700}nav.side a:hover{text-decoration:underline}main{flex:1;min-width:0;padding:32px 40px;max-width:720px}main h1{font-size:30px;line-height:1.25;margin:0 0 16px}main h2{font-size:22px;margin:32px 0 8px;border-bottom:1px solid #eee;padding-bottom:6px}main h3{font-size:17px;margin:24px 0 8px}main p,main li{color:#222}main a{color:#0b5fff}main code{font:13px ui-monospace,monospace;background:#f4f4f5;padding:2px 5px;border-radius:4px}main pre{background:#111;color:#eee;padding:14px 16px;border-radius:8px;overflow:auto;position:relative}main pre code{background:none;padding:0;color:inherit}.copy-btn{position:absolute;top:14px;right:16px;font-size:12px;line-height:1;padding:5px 10px;border:1px solid #444;border-radius:6px;background:#fff;color:#555;cursor:pointer;white-space:nowrap}.copy-btn:hover{color:#111;border-color:#999}.copy-btn.copied{color:#0b5fff;border-color:#0b5fff}.table-wrap{overflow-x:auto;margin:16px 0;-webkit-overflow-scrolling:touch}main table{border-collapse:collapse;width:100%;min-width:max-content;margin:0;font-size:14px}main th,main td{border:1px solid #ddd;padding:8px 10px;text-align:left;vertical-align:top}main th{background:#f7f7f8}main blockquote{border-left:3px solid #0b5fff;margin:16px 0;padding:4px 16px;background:#f5f8ff}main hr{border:none;border-top:1px solid #e5e5e5;margin:32px 0}.prevnext{display:flex;justify-content:space-between;gap:16px;margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:14px}@media(max-width:760px){nav.side{display:none}main{padding:24px 20px;max-width:100%}main pre{font-size:12.5px}}`;
+const CSS = `*{box-sizing:border-box}body{margin:0;font:16px/1.65 system-ui,-apple-system,sans-serif;color:#1a1a1a;background:#fff}.wrap{display:flex;max-width:1080px;margin:0 auto}nav.side{width:250px;flex-shrink:0;padding:32px 24px;border-right:1px solid #e5e5e5;position:sticky;top:0;align-self:flex-start;max-height:100vh;overflow:auto}nav.side .home{display:block;font-weight:700;margin-bottom:16px;color:#1a1a1a;text-decoration:none}nav.side h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:16px 0 4px}nav.side a{display:block;padding:3px 0;color:#333;text-decoration:none;font-size:14px}nav.side a.cur{font-weight:700}nav.side a:hover{text-decoration:underline}main{flex:1;min-width:0;padding:32px 40px;max-width:720px}main h1{font-size:30px;line-height:1.25;margin:0 0 16px}main h2{font-size:22px;margin:32px 0 8px;border-bottom:1px solid #eee;padding-bottom:6px}main h3{font-size:17px;margin:24px 0 8px}main p,main li{color:#222}main a{color:#0b5fff}main code{font:13px ui-monospace,monospace;background:#f4f4f5;padding:2px 5px;border-radius:4px}main pre{background:#111;color:#eee;padding:14px 16px;border-radius:8px;overflow:auto;position:relative}main pre code{background:none;padding:0;color:inherit}.copy-btn{position:absolute;top:14px;right:16px;font-size:12px;line-height:1;padding:5px 10px;border:1px solid #444;border-radius:6px;background:#fff;color:#555;cursor:pointer;white-space:nowrap}.copy-btn:hover{color:#111;border-color:#999}.copy-btn.copied{color:#0b5fff;border-color:#0b5fff}.table-wrap{overflow-x:auto;margin:16px 0;-webkit-overflow-scrolling:touch}main table{border-collapse:collapse;width:100%;min-width:max-content;margin:0;font-size:14px}main th,main td{border:1px solid #ddd;padding:8px 10px;text-align:left;vertical-align:top}main th{background:#f7f7f8}main blockquote{border-left:3px solid #0b5fff;margin:16px 0;padding:4px 16px;background:#f5f8ff}main hr{border:none;border-top:1px solid #e5e5e5;margin:32px 0}.prevnext{display:flex;justify-content:space-between;gap:16px;margin-top:40px;padding-top:16px;border-top:1px solid #eee;font-size:14px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:16px 0;padding:0;list-style:none}.card{display:flex;gap:12px;border:1px solid #e5e5e5;border-radius:12px;padding:14px 16px;background:#fafafa}.card .ic{font-size:22px;line-height:1.3}.card .card-body{min-width:0;font-size:14.5px;color:#333}.card .card-body strong:first-child{display:block;margin-bottom:2px;color:#111}@media(max-width:760px){nav.side{display:none}main{padding:24px 20px;max-width:100%}main pre{font-size:12.5px}.cards{grid-template-columns:1fr}}`;
+
+// A list whose every item opens with an emoji renders as a card grid on the
+// site and stays a plain list on GitHub / in llms-full.txt. Content decides the
+// layout, so the markdown needs no special syntax to stay portable.
+const EMOJI_RE = /^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/u;
 
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -191,7 +198,7 @@ function renderBody(md, pageDir) {
     if (/^\s*([-*]|\d+\.)\s+/.test(line)) {
       flushPara(para);
       const ordered = /^\s*\d+\.\s+/.test(line);
-      const items = [];
+      const texts = [];
       while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
         const parts = [lines[i].replace(/^\s*([-*]|\d+\.)\s+/, "")];
         i++;
@@ -203,8 +210,18 @@ function renderBody(md, pageDir) {
           parts.push(lines[i].trim());
           i++;
         }
-        items.push(`<li>${inline(parts.join(" "), pageDir)}</li>`);
+        texts.push(parts.join(" "));
       }
+      if (!ordered && texts.every((t) => EMOJI_RE.test(t))) {
+        out.push(`<div class="cards">${texts.map((t) => {
+          const m = t.match(EMOJI_RE);
+          const rest = t.slice(m[0].length).trim();
+          return `<div class="card"><span class="ic" aria-hidden="true">${esc(m[0])}</span>` +
+            `<div class="card-body">${inline(rest, pageDir)}</div></div>`;
+        }).join("")}</div>`);
+        continue;
+      }
+      const items = texts.map((t) => `<li>${inline(t, pageDir)}</li>`);
       out.push(ordered ? `<ol>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
       continue;
     }

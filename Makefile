@@ -318,7 +318,7 @@ sqlc-check:
 		echo "  ⚠ sqlc not on PATH — skipped the internal/db/sqlcgen freshness check"; \
 	fi
 
-# sqlc regenerates the flat data layer from internal/db/migrations + queries.
+# sqlc regenerates the flat data layer from internal/dbschema/migrations + queries.
 sqlc:
 	@command -v sqlc >/dev/null 2>&1 || { \
 		echo "  ❌ sqlc not found on PATH."; \

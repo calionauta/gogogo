@@ -1,4 +1,4 @@
-// SCOPE:feature — gogen-ui view helpers.
+// SCOPE:plugin — gogen-ui view helpers.
 package components
 
 import (

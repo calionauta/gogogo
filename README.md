@@ -62,7 +62,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 
 **Operate**
 - [local-ci](docs/local-ci.md) — the five-tier feedback loop and make signoff.
-- [code-quality](docs/code-quality.md) — the 31 linters, how to scope them, the Datastar-specific rules, and the `ruleguard` rules that encode project footguns as CI failures.
+- [code-quality](docs/code-quality.md) — the 33 linters, how to scope them, the Datastar-specific rules, and the `ruleguard` rules that encode project footguns as CI failures.
 - [troubleshooting](docs/troubleshooting.md) — symptoms and where they actually come from.
 - [dagnats-bootstrap-workaround](docs/dagnats-bootstrap-workaround.md) — the upstream DagNats bug behind the trigger console, and the removable seed that works around it.
 
@@ -121,6 +121,7 @@ dependencies and are left alone.
 |---|---|---|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([exception-to-go](docs/exception-to-go.md); the why: [motivation](docs/motivation.md)) |
 | **Zero-config database and auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
+| **Access control without a service** | [Casbin](https://casbin.org) + `users.role` | Roles on the user row, policy in one model, enforced before the handler; embedded policy by default, DB-backed when evolving ([rbac](docs/rbac.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
@@ -131,7 +132,7 @@ dependencies and are left alone.
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
 | **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption. No vault, no cloud |
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
-| **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (27) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
+| **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (33) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 
 Full table with the reasoning behind each choice:
 [stack-layers](docs/stack-layers.md). Client weight per feature

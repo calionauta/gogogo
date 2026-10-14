@@ -8,7 +8,7 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// SCOPE:core - Emits the Service Worker registration script when offline
+// SCOPE:plugin - Emits the Service Worker registration script when offline
 // sync is enabled. Centralised here so registration lives in ONE place
 // (DRY) and honours OFFLINE_SYNC_ENABLED (convention over configuration /
 // pluggable: setting the flag false fully opts the web layer out — no SW

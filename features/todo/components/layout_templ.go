@@ -28,7 +28,7 @@ import (
 // content as children. skinName selects the active skin for asset loading;
 // pass "" to default to "daisyui". userEmail is the empty string for
 // guests; the navbar shows a "Sign in" CTA instead.
-func Layout(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) templ.Component {
+func Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, skinName string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -86,7 +86,7 @@ func Layout(title string, signals todo.Signals, userEmail string, buildLabel str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.Navbar(userEmail, "todo", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.Navbar(userEmail, userRole, "todo", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

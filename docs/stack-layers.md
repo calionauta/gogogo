@@ -1,13 +1,18 @@
 # Stack in layers, not silos
 
-Everything you need to build a modern web app, in a single binary. This page
-explains **why each choice is here**; for the layered async topology see
-[Seven async layers](async-layers.md).
+Everything you need to build a modern web app, in a single binary. This page is
+the **benefits side**: what is in the box and what each piece buys you. The
+honest other half — what was rejected, what each choice costs, and when to
+revisit — lives in [Costs, tradeoffs & comparisons](stack-tradeoffs.md). For the
+layered async topology see [Seven async layers](async-layers.md).
 
-| Layer | Choice | Why |
-|-------|--------|-----|
+| Layer | Choice | What it buys |
+|-------|--------|--------------|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime |
-| **Database + Auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
+| **Database** | Turso (embedded SQLite, sqlc) | Zero-config SQLite, owned queries, file-local storage — no separate service. See [Turso vs SQLite vs the server databases](stack-tradeoffs.md#database-turso-and-the-server-databases-it-replaces). |
+| **Auth** | owned argon2id sessions (`gogogo_auth`) | Cookie sessions in your database; no auth service, no framework surface. |
+| **Authz / RBAC** | [Casbin](https://casbin.org) | Roles and policy in one model, enforced on routes and UI (`admin` / `user`), embedded policy by default and DB-backed when evolving — see [RBAC](rbac.md). |
+| **Routing** | stdlib `net/http.ServeMux` | One handler per capability, one subtree per capability; no router dependency, no framework surface ([why](stack-tradeoffs.md#routers-the-stdlib-and-that-ends-the-debate)). |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via the Tailwind v4 CLI; no JS framework build step. |
 | **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable: [BasecoatUI](https://basecoatui.com) | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens. See [UI skins](ui-skins.md). |
@@ -19,38 +24,66 @@ explains **why each choice is here**; for the layered async topology see
 | **Classifier judge** | [go-jev](https://github.com/mattn/go-jev) + any Jev-compatible API | Decisions as typed choices with confidence instead of prose verdicts; orders of magnitude cheaper than a generative judge, most accurate on prose |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | Optional SQLite ledger: managed LLM reserve/settle billing, monthly entitlements, Stripe top-ups, encrypted per-user BYOK relay metering |
 | **Real-time** | [NATS JetStream](https://nats.io) | Multi-user realtime, cross-instance broadcast |
+| **Offline sync** | Service Worker + NATS Leaf Node + idempotency key | The page keeps working offline: mutations queue in the browser and replay on reconnect, deduped by an idempotency key the database backs with a unique index (`OFFLINE_SYNC_ENABLED=false` turns it off) |
 | **Collaboration (CRDT)** | [loro-go](https://github.com/aholstenson/loro-go) | Conflict-free merging of whiteboard/notes state; converges offline edits with no last-write-wins data loss |
 | **Room ownership** | [GoAkt](https://github.com/Tochemey/goakt) | One addressable owner per room: heartbeat roster plus exactly-one presenter lock, supervised |
 | **Hand-drawn canvas** | [Rough.js](https://roughjs.com) (embedded) | Minimalist sketchy whiteboard rendering, embedded in the binary so it is removed with the whiteboard feature |
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
+| **Observability** | `log/slog` + [OpenTelemetry](https://opentelemetry.io) | Structured logs and traces from one wiring point (`internal/observability`) — no vendor SDK in the build |
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
 | **Native window (PoC)** | [gogpu/ui](https://github.com/gogpu/ui) (pure Go, zero CGO) | `cmd/gui`: a second frontend over the same Turso/sqlc store — no HTTP, no webview. See [Desktop & Mobile](desktop-mobile.md). |
 | **Linting** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | 33 linters: `govet`, `staticcheck`, `gosec`, `revive`, `gocritic`, `errcheck`, `ineffassign`, `unused`, `errorlint`, `nilerr`, `bodyclose`, `contextcheck`, `containedctx`, `sloglint`, `thelper`, `testifylint`, `gocyclo`, `gocognit`, `funlen`, `noctx`, `goconst`, `dupl`, `lll`, `mnd`, `tagliatelle`, `modernize`, `perfsprint`, `prealloc`, `fatcontext`, `usestdlibvars`, `nolintlint`, `unparam`, `forbidigo` (no bare `time.Sleep` in production — it is uncancellable) (see `.golangci.yml`); project-specific footguns live in [`rules/rules.go`](https://github.com/calionauta/gogogo/blob/master/rules/rules.go) via `gocritic`'s `ruleguard`; `datastar-lint` catches Datastar attribute/signal/expression mistakes (run via `make datastar-lint`). The rules an agent loads: [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards) |
 | **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build) + `deploy.yml` (cross-compiles the prod binary and ships it to the server on `master`; `make docker-image` pushes a multi-arch image to ghcr.io, locally, when you want one). Three off-path maintenance workflows: `stelow-drift.yml` (weekly, fails when the vendored stelow standards pin is stale) and `stelow-auto-bump.yml` (weekly, opens the bump PR) and `desktop.yml` |
 
-## Why `ncruces/go-sqlite3`?
+## How the pieces combine
 
-It is the pure-Go (no cgo) SQLite engine for the paths that open plain
-SQLite files directly (the native window registration, the credits test
-databases) — registered as the `sqlite3` `database/sql` driver. The app
-database itself (tables + queue) runs on `tursogo` (driver name `turso`).
+The layers are not independent choices — they are designed to work together:
 
-Being cgo-free means clean cross-compilation of the production binary (the
-deploy workflow builds `GOOS=linux` from any runner).
+- A handler returns a **Templ** component; **Datastar** decides whether the
+  response is a full page or an SSE patch.
+- Background work goes to **goqite**; the worker streams a **toast** back to
+  the originating browser through the **SSE Hub**, addressed by `clientID`.
+- Multi-step processes go to **DagNats**, whose state is durable on **JetStream**.
+- Collaborative state goes through **Loro CRDT**, so offline edits merge
+  without last-write-wins data loss.
+- Record changes fan out through the SSE Hub record event, scoped per user by
+  the owner column.
+- Single-owner decisions go to **GoAkt grains**: one addressable owner per room
+  (roster, locks, supervision).
+- Access decisions go to **Casbin**: one model, one policy, enforced before the
+  handler runs ([RBAC](rbac.md)).
+- Multi-role AI runs go to a **Genkit flow**: writer and critic generate
+  through `llm.Client` (metered once per call), a Jev-compatible judge
+  classifies terminally, and the verdict streams back over ephemeral SSE,
+  discarded — per-role cost visible in the trace.
 
-### Extensions: available, none loaded
+## Why no frontend framework?
 
-The ncruces tree ships extensions (`fts5`, `rtree`, `vec1` — SQLite's own
-vector extension — `bloom`, `unicode`, …), but nothing in this repo
-registers or loads any of them (verified: no `LoadExtension`, no
-`USING fts5/vec1` anywhere). The door is open — semantic search over
-todos via `vec1` would be one `Register` call away — but until a feature
-needs it, no extension loads. If you add one, document it here and pin
-a test that queries through it: an unloaded extension directory is not
-a capability.
+Datastar gives you reactivity with no client-side framework and no build step.
+The client is a single ~12 KiB script; state lives in signals that the server
+reads and writes over SSE. You get the ergonomics of a reactive UI without a
+`node_modules` tree, a bundler, or hydration — and the HTML that arrives over
+the wire is the same HTML the server rendered, so there is no second source of
+truth to drift.
 
-### Native dependencies (and not CGO by default)?
+CSS is the one build step, and it is a build step you run explicitly
+(`make css`), not one your users pay for at runtime: the compiled
+`app.min.css` is embedded into the binary with `//go:embed`.
+
+The rule behind the lightness: **the backend is the source of truth and
+the browser holds ephemeral intent plus cache, never authority.** Records
+live in Turso/SQLite, documents in Loro snapshots, jobs in goqite — the
+client renders what the server ships and reports what the user did. That
+is what keeps every feature between 0 and ~48 KB of JS (measured per
+feature: [Client weight](features.md#client-weight)). The honest boundary:
+offline outboxes and textarea drafts do live client-side, but as cache to
+be reconciled, never as truth to be defended.
+
+The alternative, and what it would cost, is in
+[Datastar vs htmx vs a JS framework](stack-tradeoffs.md#datastar-and-not-htmx-and-not-a-js-framework).
+
+## Native dependencies: pure Go first
 
 A native dependency is anything that is not pure Go: a C library via
 CGO, a shared object loaded through `purego`, a WASM engine like the
@@ -81,296 +114,37 @@ Two hard rules once native code is in:
   `desktop.yml` (gcc), the cross story (`GOOS=linux` from mac must still
   work), and the package-audit scan — never just `go.mod`.
 
-## Why no frontend framework?
+### Why `ncruces/go-sqlite3`?
 
-Datastar gives you reactivity with no client-side framework and no build step.
-The client is a single ~12 KiB script; state lives in signals that the server
-reads and writes over SSE. You get the ergonomics of a reactive UI without a
-`node_modules` tree, a bundler, or hydration — and the HTML that arrives over
-the wire is the same HTML the server rendered, so there is no second source of
-truth to drift.
+It is the pure-Go (no cgo) SQLite engine for the paths that open plain
+SQLite files directly (the native window registration, the credits test
+databases) — registered as the `sqlite3` `database/sql` driver. The app
+database itself (tables + queue) runs on `tursogo` (driver name `turso`).
 
-CSS is the one build step, and it is a build step you run explicitly
-(`make css`), not one your users pay for at runtime: the compiled
-`app.min.css` is embedded into the binary with `//go:embed`.
+Being cgo-free means clean cross-compilation of the production binary (the
+deploy workflow builds `GOOS=linux` from any runner).
 
-The rule behind the lightness: **the backend is the source of truth and
-the browser holds ephemeral intent plus cache, never authority.** Records
-live in Turso/SQLite, documents in Loro snapshots, jobs in goqite — the
-client renders what the server ships and reports what the user did. That
-is what keeps every feature between 0 and ~48 KB of JS (measured per
-feature: [Client weight](features.md#client-weight)). The honest boundary:
-offline outboxes and textarea drafts do live client-side, but as cache to
-be reconciled, never as truth to be defended.
+#### Extensions: available, none loaded
 
-## Why this one (and not that one)?
+The ncruces tree ships extensions (`fts5`, `rtree`, `vec1` — SQLite's own
+vector extension — `bloom`, `unicode`, …), but nothing in this repo
+registers or loads any of them (verified: no `LoadExtension`, no
+`USING fts5/vec1` anywhere). The door is open — semantic search over
+todos via `vec1` would be one `Register` call away — but until a feature
+needs it, no extension loads. If you add one, document it here and pin
+a test that queries through it: an unloaded extension directory is not
+a capability.
 
-One-line reasons live in the table. This section records the cost behind
-each choice — what was rejected, what it costs to keep, and when to
-revisit.
+The native-dependency cost — Turso's ~124 MB platform-lib module, the
+dlopen/`scratch` trap, the musl build tag — is documented in
+[Turso Database: the cost, stated plainly](stack-tradeoffs.md#turso-database-the-cost-stated-plainly).
 
-### Go (and not TypeScript / Python)?
-
-LLMs reach for TypeScript and Python by familiarity, not fitness — the same
-flywheel as React: TS grows on React/Next's back, Python on AI's (+7% in
-2025). Both are defensible defaults elsewhere; here they lose on three
-structural points.
-
-- **One artifact.** A static binary (~30 MB on `scratch`) against a runtime
-  plus `node_modules` plus a build step (Node), or an interpreter plus venv
-  plus a packaging matrix (Python).
-- **Concurrency by default.** Goroutines against a single-threaded event
-  loop (Node), or a GIL that in 2026 means running a second interpreter
-  (3.14t, opt-in) whose lock silently re-enables on any unmarked C
-  extension — with no stable ABI and no official container tag yet.
-- **Checkable output.** Millisecond builds and `gofmt` uniformity: agent
-  output is verified before it runs. A wide stdlib (http, json, testing,
-  pprof in the box) means fewer third-party tickets in the supply-chain
-  lottery — Node reaches for express/vitest, Python for fastapi/pytest, each
-  a dependency the Go version never installs. `go test -race` catches data
-  races in test with one command; neither rival has an equivalent. Cold
-  starts are milliseconds with megabytes of RSS — matters at the edge,
-  irrelevant on a VPS.
-
-Rejected: Node (single thread, build step per deploy, plus an install-time
-code-execution primitive — npm `preinstall`/`postinstall` hooks run on `npm
-install` before any import, the delivery mechanism behind the 2026 worm
-waves in `keyv`, `axios`, 140+ `@mastra/*` packages, and 639 `@antv`
-versions; Go has no equivalent hook, resolves through a checksum-backed
-proxy, and never executes dependency code at build time), Python (packaging
-converged with `uv` plus lockfiles in 2026 — no strawmanning `pip` — but
-the interpreter matrix plus the GIL migration remain, and raw speed is an
-order of magnitude off).
-
-Cost: a smaller hiring pool than TS, no ML/data ecosystem to speak of,
-slower raw single-core than C/Zig/Rust (a May-2026 cross-language suite
-puts Go ~2x off C and CPython ~40x on synthetic workloads — direction, not
-destiny).
-
-Revisit per workload: Python the day the app is ML/data-first (numpy/pandas
-have no Go equivalent worth fighting), TypeScript the day the team or the
-product is JS-only and the npm ecosystem pays the binary's rent.
-
-### goqite + retry-go (and not Redis)?
-
-A queue without a service to run: jobs persist in the SQLite the app
-already owns, retries back off with jitter, and one binary stays one
-binary. Rejected: Redis-style brokers (a second process to persist, secure,
-and operate) and JetStream as a job queue (it is the cross-instance
-broadcast, not a work queue with per-job retry semantics). Cost:
-single-process throughput — depth and worker latency are bounded by this
-box. Revisit when profiles show the queue, not the work, as the bottleneck.
-
-### DagNats (and not Temporal)?
-
-Workflows as declarative JSON, embedded in the binary, state durable on the
-JetStream the template already runs. No cluster to install, no second
-surface to learn. Rejected: Temporal (a server plus database plus SDKs for
-durability most apps never need at this scale). Cost: bounded dynamism by
-design — conditions-as-data (`skip_if`), bounded agent loops, planner
-fragments under `MaxSteps`/`MaxDepth`/`AllowedTasks` (full table:
-[dagnats](dagnats.md)). Revisit when a workflow needs unbounded iteration
-with no static bound, free-form expression evaluation the validators
-reject, dynamic topology beyond the planner bounds, multi-tenant operation
-(namespaces, per-team RBAC and audit — none documented upstream), or a
-hosted offering. Anything below that is a new DagNats primitive or a
-worker-side decision, not a new engine.
-
-### JetStream on by default (and not opt-in)?
-
-Durable workflows, cross-instance broadcast, and collab sync all assume it,
-so on-by-default keeps every feature working out of the box — and one env
-var switches it off. Cost: an embedded NATS server in every boot, its ports
-and storage in every deploy. Strictly single-instance with no workflows?
-`NATS_ENABLED=false` removes the cost entirely.
-
-### GoAI (and not the provider SDKs)?
-
-One injectable interface over any OpenAI-compatible provider, with a stub
-(`internal/llm/fakeserver`) that keeps real LLMs out of tests. Rejected:
-one SDK per vendor (a dependency each, untestable without network). Cost:
-the wrapper lags newest provider features and adds its own surface to
-learn. Revisit per provider when it blocks a capability you actually call.
-
-### Genkit (and not zenflow, and not raw goai calls)?
-
-Genkit is the typed-flow layer above the injectable client: schemas
-inferred from Go structs, progress streaming, per-step OTel spans, and a
-Dev UI with evals — with **zero provider plugins**, so generation still
-reaches providers only through `llm.Client` and the Biller choke point
-holds (one authorize + one settle per call). Raw goai calls stay right
-for single-shot generation (Suggest); the flow earns its ~16 MB when
-orchestration needs types, traces, and replayable runs. Rejected:
-zenflow (stale upstream, pre-1.0 API, YAML + coordinator overhead per
-run) and provider plugins/`compat_oai` (a second provider path around
-billing). Cost: a second mental model plus retry/billing discipline —
-Genkit retry and billing middlewares stay off, goai's native retry is
-the single layer. Revisit if a second AI feature does not need flows:
-unused orchestration is dead weight no matter the megabytes.
-
-### Classifier judge (and not a generative judge)?
-
-The review loop's judge is a decision API (Jev-compatible), not a
-chat completion: typed choices with confidence and probabilities instead
-of a prose verdict that needs parsing — ~100x cheaper per call, and more
-accurate exactly where the demo lives (prose; classifier judges trail on
-math/code/logic, which is why the code tab is second). Any server
-speaking `POST {state,model,questions}` works (TypeSafe, self-hosted
-SimpleJev, tensai) via `JEV_*` env; below-threshold confidence escalates
-to a human (confidence cascade). Cost: one more backend to configure and
-calibrate (~20 hand-labelled cases before trusting auto-accept).
-Revisit per workload: a rubric a classifier cannot express (open-ended
-reasoning quality) wants a generative judge behind the same terminal
-step — the flow does not care which backend answers.
-
-### Generative UI catalog (and not a React GenUI SDK)?
-
-The model picks components from a fixed registry — `text_note`,
-`plan_cards`, `data_table`, `bar_chart`, `action_buttons`, nestable
-`section`s — and the server renders them as Templ over SSE: no client
-framework, no JS bundle, trimmable like every feature.
-
-- **Rejected:** OpenUI/A2UI/AG-UI/CopilotKit renderers (all React/JS
-  with npm + SPA; none ships a Go/hypermedia renderer), free-form
-  model HTML (unreviewable, untestable, XSS surface), and the
-  community AG-UI Go SDK (version churn for ~10 string constants —
-  mirrored stdlib-only with a wire-compatibility test instead).
-- **Cost:** the catalog grows by developer PR only; recursion is
-  depth-capped; free-model rosters churn monthly (pin and monitor).
-- **Revisit when:** an external AG-UI client needs the stream, or a
-  renderer the model can't express in server-rendered HTML.
-
-### Loro, server-owned (and not Yjs / Automerge / OT)?
-
-The merge engine with the smallest client footprint: none. The server owns
-the Doc, browsers POST ops and render the JSON broadcast back — no JS CRDT
-library, no npm build step — and offline edits still merge without
-last-write-wins. Rejected: Yjs in the browser (a second CRDT system doing
-Loro's job, plus a bundler, plus a sync protocol that fits websockets
-better than the SSE + NATS transport here); Automerge (same overlap, same
-cost); OT in the style of the Datastar collab demo (server-serialized,
-plain text only, no offline merge — honest for notes, insufficient for
-rich text). Cost: every keystroke round-trips — no client-local editing —
-and the rich-text editor binding (cursor mapping, marks) is future work,
-as a `feature` package reusing `internal/collab`, never a new
-plugin.
-
-### age + `~/.secrets/` (and not Vault / KMS)?
-
-Secrets as encrypted files, decrypted at boot: zero services, zero bills,
-zero IAM. Rejected: Vault / cloud KMS (a service to run and pay for, so a
-single box can hold its own secrets). Cost: no rotation story, and
-distribution across instances is manual. Revisit when secrets outgrow one
-box or need audit trails.
-
-### Wails + gogpu/ui (and not Electron / Tauri)?
-
-Desktop shells over the same backend: Wails for a webview shell with
-offline edge sync, gogpu/ui for a pure-Go window with no webview and no
-HTTP at all. Rejected: Electron (a Chromium per app, its own update and CVE
-surface). Cost: the platform matrix and native debugging stay yours. Both
-are delete-with-the-package features, never core.
-
-### 30+ linters (and not `go vet` alone)?
-
-Tuned for agent-written code: unchecked errors, leaked contexts, unclosed
-bodies, weak crypto, template-signal mistakes — enforced in pre-commit
-hooks and CI, taught upfront via the coding-standards skill. Cost: CI
-minutes and a `//nolint` discipline curve. Revisit by deleting rules that
-never fire, not by adding more.
-
-### Turso/SQLite (and not Postgres, or Supabase/Firebase)?
-
-Database, auth, and record-scoped realtime in one embedded binary —
-plain SQLite underneath, speaking it through sqlc-generated queries.
-Rejected: assembling it yourself (router + SQL + session auth +
-an admin you write and secure), and outsourcing it (Supabase/Firebase move
-your data behind a network call, a bill, and someone else's changelog).
-Cost: embedded SQLite shapes the app — one file, its Go API surface,
-SQLite's single-writer ceiling. Revisit when the write load or the data
-model outgrows one embedded database.
-
-#### Postgres (and Supabase) — when it actually wins
-
-Postgres is the #1 database in the 2025 Stack Overflow survey (58%) and
-Supabase (13M+ developers) just bought Turso (Oct 2026) with an explicit
-thesis: SQLite to start, Postgres to scale, with a graduation path between
-them. Take that thesis at face value — it is also our revisit trigger.
-Postgres genuinely wins when:
-
-- sustained multi-writer contention on the same rows,
-- true horizontal writes across regions, or
-- heavy analytics the app itself must run.
-
-Until profiles prove one of those, "only Postgres scales" is premature:
-
-- a single NVMe box runs SQLite/WAL at 100k+ reads/s and ~10k writes/s,
-  readers never block the writer;
-- the first rungs of the ladder are batching (one transaction, not N
-  commits), a generous `busy_timeout`, and a write queue — not a second
-  database server.
-
-#### Scaling embedded SQLite — the honest ladder
-
-The stance is single-server vertical: 10k+ persistent realtime
-connections on a $4 VPS, a generous `busy_timeout` against a serialized
-writer with built-in `database is locked` retries. That covers small to
-midsize SaaS without trying. Past that, in order:
-
-1. **Disaster recovery** — Litestream streams WAL to S3-compatible storage
-   (v0.5 added LTX + VFS read replicas for moderate loads). Restores in
-   seconds; no app changes.
-2. **Read distribution** — libsql embedded replicas serve reads from a local
-   file at local-disk speed while writes forward to a primary. Caveat that
-   kills it for us today: embedded mode needs CGO, which conflicts with the
-   cgo-free `ncruces` stance that keeps cross-compilation clean (see [Why
-   `ncruces/go-sqlite3`?](#why-ncrucesgo-sqlite3)). Revisit only with the
-   unified build.
-3. **Community HA** — NATS-replicated SQLite (last-writer-wins or
-   static leader), libsql primary-replica topologies, Marmot+NATS multi-primary.
-   All third-party, all with the same asterisk: the record-event fan-out is
-   evaluated in-process, so it does not sync across nodes the way rows
-   do. Leader-for-writes is the only consistent topology; multi-primary is
-   eventual consistency wearing a costume.
-4. **Graduation** — a Postgres migration (the sqlc queries are portable SQL;
-   auth, sessions and realtime are already ours, so there is no framework
-   surface to replace). That is a project, not a flag flip — which is why
-   the trigger is measured write load, not anxiety.
-
-Write-heavy-global (payments, bidding, telemetry at planetary scale) skips
-the ladder and starts at Postgres. Everything else should have to prove it
-needs to leave.
-
-#### Cloud counterparts, if the box ever stops being enough
-
-Turso (embedded replicas, per-tenant databases, MVCC concurrent writes still
-in beta — not a bet this quarter), Cloudflare D1 (zero-config inside
-Workers, ~10 GB ceiling, Workers-only), Supabase Postgres (the graduation
-destination, now with Turso inside it). None of them change the default:
-the app runs whole on one box with zero cloud dependencies until the ladder
-above says otherwise.
-
-#### Routers: the stdlib, and that ends the debate
-
-The stack routes on a thin composition over Go's `net/http.ServeMux`. The famous alternatives beat it on microbenchmarks:
-
-- **Gin** (89k stars) — zero-alloc radix, custom context, 12 deps.
-- **Echo** (33k stars) — JSON/p99 balance, 8 deps.
-- **Chi** (22k stars) — zero deps, stdlib-pure; the one Supabase's own auth
-  service uses.
-
-None of it matters here: routing is microseconds against milliseconds of
-SQLite, and the SQLite wisdom holds exactly — ignore artificial
-benchmarks, apps bottleneck on DB operations. There is no router upgrade
-that moves our numbers; the day routing shows up in a profile, the database
-has already been the problem for months.
-
-### Why the flat stack?
+## Why the flat stack?
 
 Every data path is owned code with no framework between the handler and
 SQLite: sqlc-generated queries called directly (a wrong query is a
 compile error, not a runtime mismatch), an explicit schema in
-`internal/db/migrations`, owned argon2id sessions behind a single
+`internal/dbschema/migrations`, owned argon2id sessions behind a single
 `gogogo_auth` cookie, and per-user scoping in the queries themselves.
 Nothing is configured through a dashboard, a rule language, or a hook
 chain — there is less to learn because there is less there. The
@@ -378,102 +152,14 @@ decision record and the removal narrative live where history lives
 ([architecture-decision.md](architecture-decision.md), CHANGELOG
 `[Unreleased]`); this page describes only what runs today.
 
-Cost, stated plainly: we own every line above (auth, schema, realtime
-fan-out), Turso is pre-1.0 with heavyweight platform libs (~124 MB of
-module, `TURSO_GO_CACHE_DIR` caveat), and there is no admin UI, generic
-REST, or file storage to lean on. Revisit if owning the commodity parts
-costs more than the opinions they replaced — the day the team wants a
-database GUI, a generic REST surface, or file uploads without writing
-them.
-
-PocketBase is rejected on a different axis than the databases above, so
-it gets its own sentence: `cmd/check-flatdeps` bans it by module prefix
-because it is a framework surface, not a database choice — embedded
-router, auth, and admin UI that would replace the owned seams (chi
-composition, argon2id sessions, age secrets) instead of the data layer.
-Swapping the store keeps every seam; adopting PocketBase deletes them.
-That is why the ban is mechanical (import path) rather than advisory.
-
-### Datastar (and not htmx, and not a JS framework)?
-
-Datastar's own guide puts it plainly: backend reactivity like htmx plus
-frontend reactivity like Alpine, with no npm packages. Signals hold state,
-the backend drives DOM patches, and SSE streaming is a first-class
-primitive — unlike either. htmx overlap is real and acknowledged: simple
-hyperlink-style swaps stay simpler in htmx. What Datastar adds is the
-realtime half Delaney keeps pushing beyond htmx: persistent SSE streams the
-backend owns, which is exactly what the SSE Hub and the collab features
-stand on. Rejected: SPA frameworks (a bundler, hydration, a second source
-of truth in the client) for the default path. Cost: a younger, smaller
-ecosystem than React; persistent connections your proxies must allow; more
-logic lives in the backend by design. The repo pays down the newness with
-`datastar-lint` and the `internal/datastar` wrapper.
-
-#### React/Next: the flywheel is real, and so are its costs
-
-State of React 2025 names the mechanism honestly: React's ecosystem mass
-means more training data, which makes AI better at React, which brings more
-developers, which makes more data (React ~47%, Next.js ~21% in the 2025
-Stack Overflow survey). An LLM reaching for Next.js is usually reaching for
-familiarity, not fitness — the advantage holds regardless of technical
-merit, which is exactly why it should not decide the stack.
-
-The costs are structural, converging across independent 2026 production
-reports:
-
-- a misplaced `use client` pulls its whole subtree into the client bundle;
-- server/client boundaries multiply cache, transport, and debugging surface
-  (origin CPU per request, Flight payloads, hydration roots);
-- the apps that pay most — dashboards, admin panels, realtime
-  collaboration, the exact shape of this template's features — gain least,
-  because interactivity everywhere collapses the server-first advantage
-  while keeping its overhead.
-Datastar is 11.29 KiB full (~5 KiB core): signals, computed, effects, and
-SSE `patchElements`/`patchSignals` — everything realtime needs, no npm, no
-build step, no second source of truth to drift.
-
-And where React relies on discipline, this repo relies on a check:
-[datastar-lint](https://github.com/calionauta/datastar-lint) fails the
-build on signal/attribute/expression mistakes in seconds — the same
-cheap-failure bet as the rest of the stack.
-
-### Demo features shipped (and not a bare core)?
-
-`todo`, `whiteboard`, `room`, `notes` ship as working pages — not because
-every app needs a todo list, but because patterns teach better than prose:
-todo is the reference MVC, whiteboard the CRDT canvas, room the actor
-pattern, notes the collaborative text. The AI demos follow the same rule:
-Ask AI proves constrained generation, chat proves persisted history,
-review proves a typed multi-role loop with a classifier judge. Rejected: a minimal core with
-nothing to copy (every scaffold would re-derive the same wiring, badly).
-Cost: scaffold weight and trim burden — each demo is a unit the installer
-offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`,
-`credits`, `sounds`, `skins`) or a documented manual removal (`todo`,
-`notes`), and every demo rots if its pattern drifts from the core. Revisit
-per demo: anything nobody copies in real scaffolds is deletion candidate,
-not heritage.
-
-## How the pieces combine
-
-The layers are not independent choices — they are designed to work together:
-
-- A handler returns a **Templ** component; **Datastar** decides whether the
-  response is a full page or an SSE patch.
-- Background work goes to **goqite**; the worker streams a **toast** back to
-  the originating browser through the **SSE Hub**, addressed by `clientID`.
-- Multi-step processes go to **DagNats**, whose state is durable on **JetStream**.
-- Collaborative state goes through **Loro CRDT**, so offline edits merge
-  without last-write-wins data loss.
-- Record changes fan out through the SSE Hub record event, scoped per user by
-  the owner column.
-- Single-owner decisions go to **GoAkt grains**: one addressable owner per room (roster, locks, supervision).
-- Multi-role AI runs go to a **Genkit flow**: writer and critic generate
-  through `llm.Client` (metered once per call), a Jev-compatible judge
-  classifies terminally, and the verdict streams back over ephemeral SSE,
-  discarded — per-role cost visible in the trace.
+The cost side of that decision — what we own, what Turso is pre-1.0, and
+the PocketBase rejection — is in
+[The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost).
 
 ## Related
 
+- [Costs, tradeoffs & comparisons](stack-tradeoffs.md) — what was rejected and
+  what each choice costs.
 - [Features](features.md) — every capability and its runtime opt-out.
 - [Async layers](async-layers.md) — the seven layers and why each exists.
 - [Code quality for LLM agents](code-quality.md) — the lint set behind these choices.

@@ -4,43 +4,62 @@ Status: accepted (2026-10-11)
 
 ## Decision
 
-gogogo targets an explicit, flat stack: **chi** for routing, **sqlc-generated
-functions called directly from handlers** for data access, **Turso Database**
-(the Rust SQLite-compatible engine, driven by `turso.tech/database/tursogo`),
-**owned argon2id auth** (`internal/auth`: password hashes, opaque sessions,
-`gogogo_auth` cookie, zero auth dependencies), **casbin** for permissions,
-and **Datastar + Templ** for the UI. PocketBase, the limen auth library and
-the repo-interface abstraction layer (`internal/ports`, `internal/repos`,
-`internal/backend`) are removed.
+gogogo targets an explicit, flat stack: the **Go standard library mux**
+(`net/http`, composed one subtree per capability) for routing,
+**sqlc-generated functions called directly from handlers** for data access,
+**Turso Database** (the Rust SQLite-compatible engine, driven by
+`turso.tech/database/tursogo`), **owned argon2id auth** (`internal/auth`:
+password hashes, opaque sessions, `gogogo_auth` cookie, zero auth
+dependencies), **Casbin** for permissions, and **Datastar + Templ** for the UI.
+PocketBase, the limen auth library and the repo-interface abstraction layer
+(`internal/ports`, `internal/repos`, `internal/backend`) are removed.
 
 ## Why (evidence)
 
-**Shallow abstractions hurt LLM work.** Matt Pocock, *9 Ways AI Coding Has
-Rewired My Brain* (2026): "Bad codebases have lots of shallow modules with big
-interfaces. Good codebases have a few big modules with simple interfaces." The
-removed layer was three tiny interfaces with two one-line adapters each — a
-shallow pass-through that added files and deferred errors from compile time to
-runtime.
+The thesis is one sentence: **few deep modules beat many shallow ones.** The
+benefits, in the order they show up in daily work:
 
-**Direct calls catch errors earlier.** Calling `dbgen.CreateTodo` directly turns
-a wrong query name, a missing argument, or a changed column into a compile
-error instead of an interface mismatch found at runtime. That is the tight
-feedback loop AI coding depends on.
+- 🧩 **No shallow middle layer.** The removed layer was three tiny interfaces
+  with two one-line adapters each — files and indirection, no behavior. A
+  pass-through that only forwards a call is a cost with no return.
+- ⚡ **Errors arrive at compile time.** Calling `dbgen.CreateTodo` directly turns
+  a wrong query name, a missing argument, or a changed column into a build
+  failure instead of an interface mismatch discovered at runtime — the tight
+  feedback loop AI coding depends on.
+- 🗄️ **The database is a file.** Embedded SQLite through sqlc-generated queries:
+  no server to install, no connection string to rotate, no ORM model language,
+  no strategy switch between data layers.
+- 🔑 **Auth is owned code.** Password hashes, opaque sessions, and the
+  `gogogo_auth` cookie are a few hundred lines in `internal/auth` — zero auth
+  dependencies, and random session tokens mean there is nothing to rotate.
+- 🚀 **One artifact, one deploy.** No framework runtime, no orchestrator, no
+  configuration living in a dashboard.
+- 🧠 **Fewer concepts to hold.** A reader — agent or new teammate — follows
+  `handler → query → table` and is done. There is no framework chapter to
+  internalize before the first line of product code.
 
-**Turso, not libSQL.** Turso Database is the ground-up Rust rewrite of SQLite;
-`tursogo` is its Go driver. libSQL is the older fork and is not used.
+> "Bad codebases have lots of shallow modules with big interfaces. Good
+> codebases have a few big modules with simple interfaces."
+> — Matt Pocock, *9 Ways AI Coding Has Rewired My Brain* (2026)
 
 **Counterpoint, kept honest.** An abstraction is justified when there are
-genuinely interchangeable implementations — e.g. swapping LLM providers. The
-`internal/llm` client stays a (deep) module for exactly that reason.
+genuinely interchangeable implementations — swapping LLM providers is the real
+case. `internal/llm` stays a (deep) module for exactly that reason. The rule is
+not "no interfaces"; it is "no interfaces with one implementation and no
+behavior."
+
+**The cost is real, and it lives elsewhere.** Owning the commodity parts, a
+pre-1.0 engine, and the PocketBase rejection are stated plainly in
+[The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost) and
+[Turso Database: the cost, stated plainly](stack-tradeoffs.md#turso-database-the-cost-stated-plainly).
 
 ## Target directory structure
 
 | Concern | Location |
 |---|---|
-| HTTP handlers (chi) | `features/<name>/handler.go` |
+| HTTP handlers (std mux) | `features/<name>/handler.go` |
 | DB connection, pragmas, boot | `internal/db/db.go` |
-| Schema (the migrations ARE the schema) | `internal/db/migrations/*.sql` |
+| Schema (the migrations ARE the schema) | `internal/dbschema/migrations/*.sql` |
 | sqlc query sources | `internal/db/queries/<domain>.sql` |
 | sqlc config | `internal/db/sqlc.yaml` |
 | sqlc-generated Go (`package dbgen`) | `internal/db/sqlcgen/` |
@@ -63,8 +82,9 @@ import rewrite, deliberately deferred so no import path changes twice.
 - **Regenerate with `make sqlc`.** The output is committed, so a clone builds
   without sqlc installed; `make check-generated` regenerates and fails on drift
   when sqlc is on PATH (skips with a warning when it is not).
-- **Migrations are additive files**, applied in filename order by
-  `db.Migrate` on every boot and recorded in `schema_migrations`.
+- **Migrations are additive files** under `internal/dbschema/migrations`,
+  applied in filename order by `db.Migrate` on every boot and recorded in
+  `schema_migrations`.
 - **IDs are UUIDv7, generated in Go** (`db.NewID`), so the value exists before
   the insert and text ordering equals creation ordering.
 
@@ -93,8 +113,8 @@ exactly that moment.
 
 ## Auth plugins (owned): magic link, TOTP, OAuth
 
-The three live in `internal/auth` (tables in `internal/db/migrations`), red-proofed against the
-real driver — no new auth dependencies:
+The three live in `internal/auth` (tables in `internal/dbschema/migrations`),
+red-proofed against the real driver — no new auth dependencies:
 
 - **Magic link** (`magiclink.go`): single-use tokens consumed by DELETE,
   15-minute expiry, silent nil for unknown addresses, no auto-provisioning
@@ -116,6 +136,19 @@ real driver — no new auth dependencies:
   duplicating. Handshake states are short-lived and in-process (single-box
   caveat documented in code).
 
+## Authorization: Casbin, embedded by default
+
+Permissions are a Casbin model plus a policy file (`internal/rbac/casbin/`),
+enforced by middleware before the handler runs: `admin` reaches the operator
+surfaces, everyone else gets the product. Two roles cover the template; the
+policy is data, so a generated app re-maps without touching handlers, and
+`RBAC_POLICY_SOURCE=db` swaps the embedded file for the `casbin_rule` table when
+a project needs runtime-editable rules.
+
+The layer is deliberately thin: RBAC gates *routes*, and the UI only reflects
+what the middleware enforces. Which role sees a link is cosmetic; which role
+reaches the handler is the decision. Full guide: [RBAC](rbac.md).
+
 ## Why plugins live in-repo (not in plugin repos)
 
 The split follows consumers, not size. Auth methods, TOTP, magic links and
@@ -132,48 +165,30 @@ in would couple template releases to ledger releases with no consumer
 benefit. Same rule, both directions: shared-versioned code lives together,
 independently-consumed code lives apart.
 
-## Turso Database: the cost, stated plainly
-
-`tursogo` is a `database/sql` driver (`sql.Open("turso", path)`) loaded through
-purego, so there is **no CGO** and the cgo-free cross-compilation story holds.
-
-Two things are worth knowing before this becomes the only engine:
-
-- The module `github.com/tursodatabase/turso-go-platform-libs` carries a prebuilt
-  Rust shared library per platform (~15 MB each, ~124 MB of module). The build
-  tag selects one — and on musl runtimes that MUST be `-tags musl`
-  (libs/linux_*_musl); Go does not set the musl tag automatically, so without
-  it the glibc .so is embedded and dlopen fails on Alpine. At first use the
-  library is written to a cache directory (`TURSO_GO_CACHE_DIR`, else
-  `os.UserCacheDir()`), verified against an embedded SHA-256, and `dlopen`ed.
-  A container whose cache directory is unwritable needs `TURSO_GO_CACHE_DIR`
-  pointed at a writable path.
-- dlopen needs a dynamic loader in the image, full stop. A statically linked
-  binary (`-extldflags=-static`) or a scratch runtime panics at the first DB
-  open with `Dynamic loading not supported` — this crash-looped production on
-  the 0.44.0 migration. `deploy/Dockerfile.prod` therefore runs on Alpine
-  (musl loader + libgcc_s for the musl .so's NEEDED entries), builds with
-  `CGO_ENABLED=1 -tags musl` and no `-static`, and `scripts/smoke-prod-image.sh`
-  boots the final image and asserts /health in CI. Never move prod back to
-  scratch without re-proving the boot.
-- Turso Database is pre-1.0. Keep backups (`scripts/backup.sh`) — the driver's
-  own README says the same thing.
+**Plugin is a removal class, not a hosting location.** Genkit, GoAkt, DagNats,
+NATS and the rest are third-party packages that the template *wires* — each is
+registered in `internal/capabilities` with `SCOPE:plugin`, so the installer can
+trim the unit and `go mod tidy` drops the dependency. A plugin is "removable
+without touching core"; it says nothing about where the code is hosted. See
+[Scope taxonomy](scope-taxonomy.md).
 
 ## Current state and remaining work
 
 The migration is complete. The flat stack is the only stack: auth, the
 todo slice (pages + data + realtime bridge, AI suggest, retry demo and the
 durable onboarding workflow), the queue, whiteboard, notes, room, chat,
-genui, credits, the config view, the landing page, and the native GUI all
+genui, credits, the config view, RBAC, the landing page, and the native GUI all
 boot from `internal/server` on the same Turso + owned-auth data layer.
 
 Gone with the framework: the `db/` package (app handle + seeds), the
 `router/` package (route wiring), the `features/store` strategies
 (PBStore and CRDTStore — one data layer remains, sqlc over `internal/db`),
 `features/auth` (the legacy PB middleware), the PB handlers under every
-feature, the `internal/routeutil` + `internal/collabpb` helpers, and the
-transitional serve seam (`CHI_ADDR`) — `cfg.Host:cfg.Port` is the address
-now. `internal/db/` does not go away; it IS the data layer.
+feature, and the `internal/routeutil` + `internal/collabpb` helpers. One boot
+path remains: `cfg.Host:cfg.Port` is the address, with `CHI_ADDR` as the
+explicit override `cmd/desktop` sets so its webview proxy and the backend agree
+([configuration](configuration.md)). `internal/db/` does not go away; it IS the
+data layer.
 
 The onboarding slice is the one place the two stacks genuinely differ
 rather than duplicate a shape: the framework stack fans its stepper progress
@@ -186,7 +201,7 @@ handlers, so the shared shape is duplicated rather than shared — the same
 boundary the dependency gate enforces for the framework.
 
 Conventions that outlive the transition: schema lives in
-`internal/db/migrations/*.sql`, applied in filename order and recorded in
+`internal/dbschema/migrations/*.sql`, applied in filename order and recorded in
 `schema_migrations` — files are append-only history, never edited. Generated
 `sqlcgen` is committed. Docs describe structure and contracts; CHANGELOG
 keeps history.

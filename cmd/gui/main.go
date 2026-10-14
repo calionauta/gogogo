@@ -130,7 +130,7 @@ func run() error {
 			return fmt.Errorf("auth: %w", err)
 		}
 	}
-	demo.Ensure(context.Background(), a)
+	demo.Ensure(context.Background(), a, dbgen.New(sqlDB))
 
 	m3 := material3.New(widget.Hex(seedColorHex))
 

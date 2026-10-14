@@ -1,4 +1,4 @@
-// SCOPE:core - shared stack-disclosure badge.
+// SCOPE:plugin - shared stack-disclosure badge.
 package components
 
 import "strings"
@@ -8,6 +8,12 @@ import "strings"
 // from the feature (it knows what it demonstrates); this component owns
 // the look, so every page teaches the architecture identically.
 // Display-only: no states, no interactivity, nothing to fail.
+//
+// TEMPLATE DEMO-ONLY — this advertises the template's own internals,
+// which mean nothing to a product's users. Agents adapting gogogo into
+// their own product must delete it; the wrapper carries
+// data-demo="tech-stack", so the removal is one grep away (see
+// docs/scope-taxonomy.md#demo-only-markup).
 templ TechBadge(items []string) {
-	<p class="text-xs text-base-content/40 mt-1">Demonstrates: { strings.Join(items, " · ") }</p>
+	<p data-demo="tech-stack" class="text-xs text-base-content/40 mt-1">Demonstrates: { strings.Join(items, " · ") }</p>
 }

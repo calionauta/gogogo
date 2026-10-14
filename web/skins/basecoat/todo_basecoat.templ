@@ -10,7 +10,7 @@ import (
 	"github.com/calionauta/gogogo/web/skins"
 )
 
-templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
+templ TodoPage(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
@@ -22,7 +22,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 			@components.OfflineSyncScript(offlineSync)
 		</head>
 		<body class="surface text-base-content min-h-screen">
-			@authviews.Navbar(userEmail, "todo", buildLabel, buildCommit)
+			@authviews.Navbar(userEmail, userRole, "todo", buildLabel, buildCommit)
 			@skins.SkinSelector(skinName)
 			@components.OfflineBanner(offlineSync)
 			<main class="max-w-5xl mx-auto mt-8 px-4">

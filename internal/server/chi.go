@@ -193,9 +193,11 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
-	// Fresh-install contract: the demo account the login form advertises.
-	// Idempotent Signup, so every boot after the first is a no-op.
-	seedDemoAccounts(a)
+	// Fresh-install contract: the demo accounts the login form advertises,
+	// including their roles (demo1 admin, demo2 viewer). Idempotent, so
+	// every boot after the first is a role refresh.
+	queries := dbgen.New(sqlDB)
+	seedDemoAccounts(a, queries)
 	// At-rest TOTP encryption is opt-in by env (AUTH_ENC_KEY): a malformed
 	// key fails the boot rather than running half-encrypted.
 	if kerr := wireTOTPKey(a, cfg); kerr != nil {
@@ -225,7 +227,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return nil, fmt.Errorf("server: chi queue: %w", qerr)
 	}
 	hub := chiQ.Hub()
-	queries := dbgen.New(sqlDB)
 	todoH := todohandlers.NewHandler(queries, a, hub, cfg.Skin)
 	wireTodoDisplay(todoH, cfg)
 

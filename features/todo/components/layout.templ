@@ -20,7 +20,7 @@ import (
 // content as children. skinName selects the active skin for asset loading;
 // pass "" to default to "daisyui". userEmail is the empty string for
 // guests; the navbar shows a "Sign in" CTA instead.
-templ Layout(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
+templ Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
@@ -122,7 +122,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, buildLabel st
 			</style>
 		</head>
 		<body class="bg-base-200 min-h-screen">
-			@authviews.Navbar(userEmail, "todo", buildLabel, buildCommit)
+			@authviews.Navbar(userEmail, userRole, "todo", buildLabel, buildCommit)
 @skins.SkinSelector(skinName)
 			@components.OfflineBanner(offlineSync)
 			@components.SessionBanner(userEmail != "")

@@ -138,7 +138,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.BoardListWithRealtime(sess.User.Email, boards,
+	_ = components.BoardListWithRealtime(sess.User.Email, sess.Role, boards,
 		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled).Render(r.Context(), w)
 }
 
@@ -197,7 +197,7 @@ func (h *Handler) handleBoard(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.Board(sess.User.Email, docID,
+	_ = components.Board(sess.User.Email, sess.Role, docID,
 		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled).Render(r.Context(), w)
 }
 

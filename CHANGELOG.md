@@ -2,6 +2,22 @@
 
 ### Added
 
+- **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
+  stamps demo1 `admin` and demo2 the restricted `viewer`, so the login card's
+  permission split (admin reaches `/config`; viewer loses deletes + AI Suggest)
+  is true by construction. The navbar gates the operator surfaces to admin and
+  shows the session role. Roles are `users.role`; `RBAC_ENABLED=true` enforces,
+  and `ADMIN_EMAILS`/`VIEWER_EMAILS` re-map without a rebuild.
+- **Dynamic RBAC example: ABAC + a DB-backed policy.** `internal/rbac` gained an
+  ABAC `Object` with matcher functions (`pathMatch`, `attrOK`) and a Casbin
+  `persist.Adapter` over a new `casbin_rule` table, selected with
+  `RBAC_POLICY_SOURCE=db` (embedded policy stays the default). Taught in
+  `docs/rbac.md` ("Dynamic permissions"). `internal/db/sqlc.yaml`'s schema path
+  was corrected (`../dbschema/migrations`), so `make sqlc` / `sqlc-check` work
+  again.
+- **`data-demo` removal handle.** The `TechBadge` and the login demo-accounts
+  block carry `data-demo` attributes, so agents strip the template's
+  self-advertisement with one grep (`docs/scope-taxonomy.md`).
 - **Registry conformance pre-commit hook.** `TestRegistryCoversPackages`
   only ran in CI, so an unregistered package (internal/hostgate) went red
   there first. `bin/check-registry.sh` runs the instant conformance trio
@@ -77,6 +93,42 @@
 
 ### Changed
 
+- **The removal class is one value again, enforced.** `SCOPE` annotations and the
+  registry's `Kind` had drifted in six packages: `internal/components`,
+  `internal/datastar` and `features/genui` said `core`/`feature` while their
+  units say `plugin`, and `internal/natswire` said `plugin` while its unit says
+  `core` (handlers name its types in signatures even with NATS off). A reader
+  got opposite instructions depending on which file they opened. The registry is
+  the source of truth for kinds, so the files moved to match it, and
+  `TestScopeAnnotationsMatchRegistryKind` now fails the build on any new drift —
+  recursively, so a subpackage is checked against its top-level unit
+  (red-proofed by inverting an annotation, top-level and nested).
+- **`docs/scope-taxonomy.md` says what ships as what for the tree that exists.**
+  The table was missing `internal/rbac/`, `features/genui/`, `features/chat/`,
+  `internal/goakt/`, `internal/natswire/`, `internal/observability/`,
+  `internal/demo/`, `internal/hostgate/`, `internal/capabilities/`,
+  `internal/installer/` and `features/onboarding/`, and it called
+  `features/authviews/` a feature when the `auth` unit owns it. It also names the
+  source-of-truth rule so the next addition has somewhere to look.
+- **RBAC and the Genkit plugin are visible where the stack is described.**
+  `docs/features.md` gained the access-control row and marks Genkit as the
+  plugin the review feature rides; the landing page says so on the Review card.
+  Casbin was previously reachable only from `docs/rbac.md`.
+- **`CHI_ADDR` is documented as what it is.** The decision record called it a
+  removed transitional seam, but `cmd/web` honors it and `cmd/desktop` sets it.
+  `docs/desktop-mobile.md` no longer calls the flat stack "the chi stack".
+- **The stack docs split benefits from tradeoffs.** `docs/stack-layers.md` now
+  states what each choice buys (Casbin and the stdlib router were missing from
+  the table) and hands the cost side to the new `docs/stack-tradeoffs.md` —
+  rejected alternatives, the Turso cost that used to sit in the decision record,
+  and a three-way database comparison (Turso vs plain SQLite vs
+  Postgres/Supabase) that no longer implies SQLite and Turso are the same thing.
+  The decision record leads with the flat-stack benefits as an icon card grid;
+  the site builder renders any emoji-led list that way, so the page stays a
+  plain list on GitHub and in `llms-full.txt`.
+- **Stale schema path corrected in docs.** `internal/db/migrations` →
+  `internal/dbschema/migrations` in the decision record, `stack-layers.md`,
+  `CONTENT_WRITING.md`, the `Makefile` sqlc comment and the `sw.js` comment.
 - **Full-suite script refuses a wedged box.** `scripts/test-web.sh` (the
   T4-equivalent workload agents kept launching by hand on the shared host)
   now runs the `check-host-capacity` pre-flight first — skipped only on CI

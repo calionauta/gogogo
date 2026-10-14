@@ -13,7 +13,7 @@ import (
 // form, live phased progress, verdict fragment. The run button gates on
 // signals.ReviewEnabled — without a configured LLM the page shows the
 // setup hint instead of a dead button.
-templ ReviewIndex(email string, buildLabel string, buildCommit string, signals Signals) {
+templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals={ MarshalSignals(signals) } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
@@ -30,7 +30,7 @@ templ ReviewIndex(email string, buildLabel string, buildCommit string, signals S
 			@components.OfflineSyncScript(true)
 		</head>
 		<body>
-			@authviews.Navbar(email, "review", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "review", buildLabel, buildCommit)
 			@components.OfflineBanner(true)
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">

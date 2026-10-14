@@ -193,20 +193,19 @@ type Config struct {
 	}
 
 	// RBACEnabled turns on the opt-in Casbin RBAC middleware
-	// (RBAC_ENABLED, default false). When false the middleware is a
-	// no-op pass-through, so the default install behaves exactly as
-	// before. When true, router.Init binds an enforcer built from the
-	// go:embed'd model + policy in internal/rbac/casbin and denies any
-	// request the policy does not allow. Treat the embedded policy as a
-	// starting point — tune it for your app before enabling in production.
+	// (RBAC_ENABLED, default false): false is a no-op pass-through, true
+	// binds the enforcer built from internal/rbac/casbin and denies any
+	// request the policy does not allow. See docs/rbac.md.
 	RBACEnabled bool
 
-	// RBACPermissive turns enforcement into audit-before-enforce
-	// (RBAC_PERMISSIVE, default false): would-be denies are warn-logged
-	// and the request proceeds. Set it for one deploy after adding a
-	// feature's paths, read the "permissive allow" lines, then turn it
-	// off. Only meaningful with RBACEnabled=true; production posture is
-	// permissive=false. See docs/rbac.md.
+	// RBACPolicySource selects the RBAC rule source (RBAC_POLICY_SOURCE,
+	// default "embedded"): "embedded" reads policy.csv, "db" loads the
+	// casbin_rule table (seeded on first use). Anything else → embedded.
+	RBACPolicySource string
+
+	// RBACPermissive is audit-before-enforce (RBAC_PERMISSIVE, default
+	// false): would-be denies are warn-logged and allowed through. One
+	// deploy only, after adding a feature's paths. See docs/rbac.md.
 	RBACPermissive bool
 
 	// AdminEmails promotes existing users to the admin role at boot
@@ -358,8 +357,7 @@ func Load() *Config {
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
-	cfg.RBACEnabled = envBool("RBAC_ENABLED", false)
-	cfg.RBACPermissive = envBool("RBAC_PERMISSIVE", false)
+	cfg.loadRBACEnv()
 	cfg.loadAuthEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")

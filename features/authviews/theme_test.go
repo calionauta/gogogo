@@ -21,7 +21,8 @@ import (
 // TestThemeToggleSingleOwner pins the shared theme-toggle contract.
 func TestThemeToggleSingleOwner(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.Navbar("demo1@demo.app", "todo", "dev", "c0ffee").Render(context.Background(), &buf); err != nil {
+	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee")
+	if err := nb.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render navbar: %v", err)
 	}
 	html := buf.String()

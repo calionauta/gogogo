@@ -49,8 +49,10 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := ""
+	role := ""
 	if sess.User != nil {
 		email = sess.User.Email
+		role = sess.Role
 	}
 	data := components.BuildPageData(h.cfg)
 	// Role lookup is display-only: a miss renders "unknown", never a
@@ -62,5 +64,5 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.Page(data, email, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = components.Page(data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }

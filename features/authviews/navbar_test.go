@@ -21,7 +21,8 @@ import (
 // consume the 303 usefully).
 func TestNavbarLogoutActuallyPosts(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.Navbar("demo1@demo.app", "todo", "dev", "c0ffee").Render(context.Background(), &buf); err != nil {
+	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee")
+	if err := nb.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render navbar: %v", err)
 	}
 	html := buf.String()
@@ -51,5 +52,38 @@ func TestNavbarLogoutActuallyPosts(t *testing.T) {
 	}
 	if !strings.Contains(form, "clear-pages") {
 		t.Error("logout form must still tell the service worker to drop cached pages")
+	}
+}
+
+// TestNavbarGatesOperatorSurfacesToAdmin pins the role gate: the Config
+// tab and the Dashboard menu item render only for an admin session, and
+// the dropdown names the role so a tester can tell demo1 (admin) from
+// demo2 (viewer) and read the permission the page exercises. Red-proof:
+// drop the role check and the non-admin case sees /config.
+func TestNavbarGatesOperatorSurfacesToAdmin(t *testing.T) {
+	t.Parallel()
+	render := func(role string) string {
+		var buf bytes.Buffer
+		nb := authviews.Navbar("demo1@demo.app", role, "todo", "dev", "c0ffee")
+		if err := nb.Render(context.Background(), &buf); err != nil {
+			t.Fatalf("render navbar(%q): %v", role, err)
+		}
+		return buf.String()
+	}
+
+	admin := render("admin")
+	if !strings.Contains(admin, `href="/config"`) {
+		t.Error("admin navbar must expose the operator surfaces (Config tab / Dashboard)")
+	}
+	if !strings.Contains(admin, "Role:") {
+		t.Error("navbar must name the session role in the dropdown")
+	}
+
+	viewer := render("viewer")
+	if strings.Contains(viewer, `href="/config"`) {
+		t.Error("non-admin navbar must NOT link the operator Config surface")
+	}
+	if !strings.Contains(viewer, "viewer") {
+		t.Error("viewer navbar must name the role")
 	}
 }

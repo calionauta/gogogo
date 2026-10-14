@@ -29,7 +29,7 @@ func TestLayoutReconnectsStreamOnOnline(t *testing.T) {
 
 	var buf bytes.Buffer
 	if err := Layout(
-		"Todos", signals, "demo@example.com",
+		"Todos", signals, "demo@example.com", "user",
 		"test", "test0000", true, "daisyui",
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render layout: %v", err)
@@ -71,7 +71,7 @@ func TestLayoutRendersSSEOpener(t *testing.T) {
 
 	var buf bytes.Buffer
 	if err := Layout(
-		"Todos", signals, "demo@example.com",
+		"Todos", signals, "demo@example.com", "user",
 		"test", "test0000", true, "daisyui",
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render layout: %v", err)

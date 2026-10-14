@@ -144,7 +144,7 @@ func TestNotesCaretsKeyedByTabID(t *testing.T) {
 // resync button is a Datastar @get, so the page must load the runtime.
 func TestNotesIndexLoadsDatastarRuntime(t *testing.T) {
 	var buf bytes.Buffer
-	err := notescomponents.NotesIndex(notesEmail, []string{"abc"},
+	err := notescomponents.NotesIndex(notesEmail, "user", []string{"abc"},
 		"dev", "c0ffee").Render(context.Background(), &buf)
 	if err != nil {
 		t.Fatalf("render index: %v", err)

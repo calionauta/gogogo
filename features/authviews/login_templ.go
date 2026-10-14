@@ -15,6 +15,12 @@ import (
 // LoginPage is the standalone /login page (no navbar; the user isn't
 // logged in yet). DaisyUI form with the demo credentials prefilled so
 // the user just has to click "Sign in".
+//
+// The demo block below (data-demo="demo-accounts") is TEMPLATE DEMO-ONLY:
+// it advertises the seeded demo pair, their roles, and the Casbin
+// exercise. Agents adapting gogogo into their own product must delete
+// every element carrying a data-demo attribute — see
+// docs/scope-taxonomy.md#demo-only-markup.
 func LoginPage(next string, errMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -64,7 +70,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 35, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 41, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -82,13 +88,13 @@ func LoginPage(next string, errMsg string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 40, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 46, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo1@demo.app\" class=\"input w-full\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input w-full\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\" data-variant=\"primary\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo 1 prefilled — click <strong>Sign in</strong> to enter.</div></form><div class=\"divider text-xs text-base-content/40\">or be both at once</div><div class=\"text-xs text-base-content/60 space-y-1\"><p><strong>Demo 1:</strong> <code>demo1@demo.app</code> · <strong>Demo 2:</strong> <code>demo2@demo.app</code> (<code>demo1234456</code> unlocks both accounts)</p><p>One browser holds one login (shared cookie) — open a <strong>second browser or incognito window</strong> and sign in as the other demo. That is how you prove contention (room presenter lock), per-user todos, and authorship.</p></div></div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo1@demo.app\" class=\"input w-full\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input w-full\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\" data-variant=\"primary\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo 1 prefilled — click <strong>Sign in</strong> to enter.</div></form><div class=\"divider text-xs text-base-content/40\">or be both at once</div><div data-demo=\"demo-accounts\" class=\"text-xs text-base-content/60 space-y-1\"><p><strong>Demo 1 · admin:</strong> <code>demo1@demo.app</code> · <strong>Demo 2 · viewer:</strong> <code>demo2@demo.app</code> (<code>demo1234456</code> unlocks both accounts). Demo 1 also sees the operator surfaces (<code>/config</code> and the Dashboard menu item); Demo 2 does not.</p><p>One browser holds one login (shared cookie) — open a <strong>second browser or incognito window</strong> and sign in as the other demo. That is how you prove contention (room presenter lock), per-user todos, and authorship.</p><p>Permissions are the per-request decision of <strong>Casbin</strong> over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Demo 1 is seeded the <code>admin</code> role, Demo 2 the restricted <code>viewer</code> role (reads, creates and toggles todos — no deletes, no paid actions). Turn enforcement on with <code>RBAC_ENABLED=true</code>; re-map any address without a rebuild with the boot lists <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code> (existing rows only).</p></div></div></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
