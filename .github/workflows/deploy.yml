@@ -10,7 +10,10 @@
 # here explicitly. Docs, site/ and *.md are therefore excluded by construction.
 #
 # What the workflow does when it does run:
-#   1. Builds the project (lint + test + race + CSS build)
+#   1. Builds CSS + cross-compiles the prod binary (no lint/tests here —
+#      ci.yml runs those in a separate workflow, in parallel, as validator
+#      rather than gate: a master push ships without waiting for CI, so the
+#      pre-merge PR check is the gate that actually runs before code lands)
 #   2. Builds the production Docker image (linux/amd64 scratch)
 #   3. Brings up Tailscale in the GH runner (OAuth, scoped to this run)
 #   4. SCPs the binary + compose file to the server (via Tailscale)

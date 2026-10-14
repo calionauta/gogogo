@@ -1,9 +1,10 @@
 # Local CI
 
-Pushing to `master` triggers GitHub Actions: `ci.yml` runs the full gate, then
-`deploy.yml` ships to production. Run that **exact gate on your own machine**
-before pushing, so you don't wait on remote runners and don't push a broken
-commit.
+Pushing to `master` triggers GitHub Actions: `ci.yml` runs the full gate while
+`deploy.yml` builds + ships to production in parallel — the deploy does **not**
+wait for CI, so the pre-merge PR check is the gate that runs before code lands.
+Run that **exact gate on your own machine** before pushing, so you don't wait
+on remote runners and don't push a broken commit.
 
 ## gh-signoff
 
@@ -103,6 +104,26 @@ Heavy Go tests guard themselves too: `internal/hostgate.SkipIfConstrained`
 makes repo-copying suites (notably `TestTrimmedTreeStillBuilds`, one full
 `go vet ./...` per unit) skip — with measured reason — when off-CI and
 constrained, instead of wedging a shared box no Makefile gate can see.
+
+### Homolog light: staging without a server
+
+There is no staging environment by design — a second stack would duplicate
+ports, data dirs, secrets, tunnel routes and memory on the shared box while
+answering a question the local loop already answers in seconds. When you need
+to "see it working" (including a clickable URL for a human), run this:
+
+```bash
+make dev                          # live-reload on :8080 (own DATA_DIR, never prod's)
+make ci-local-fast                # gate the change: cheap checks + scoped race tests
+node scripts/smoke.mjs            # boot the real binary, exercise offline replay
+tailscale serve --bg 8080         # HTTPS URL on your tailnet; `funnel` for off-tailnet
+tailscale serve status            # the URL to share
+tailscale serve reset             # take it down when done (+ `make smoke-clean`)
+```
+
+Use `SIMULATE_LLM=true` for the keyless LLM path, and prefer the PR flow for
+anything beyond a look-and-click: PR CI is the gate that runs before merge,
+while a direct `master` push ships without waiting for it.
 
 ### Where T4 may run (host-capacity pre-flight)
 

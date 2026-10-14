@@ -87,7 +87,7 @@ Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SC
 
 ## Hooks
 
-Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt · mod-tidy · install-sh · scope-lint · skill-frontmatter · datastar-lint · generated-templ · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push.
+Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt · mod-tidy · install-sh · scope-lint · skill-frontmatter · datastar-lint · generated-templ · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push. Homolog light (no staging env): `make dev` + `make ci-local-fast` + smoke, share via `tailscale serve` — recipe in `docs/local-ci.md`.
 
 ## Gotchas (details in docs)
 
@@ -100,7 +100,7 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 - **Tests other packages share:** never write a package global in a fixture — a write one test doesn't need is a latent race the moment two tests overlap. Set such state once in `TestMain`, or not at all.
 - **Playwright in tests:** NEVER `waitUntil: "networkidle"` on a page that opens an SSE `EventSource` (whiteboard, notes) — the stream never lets the network go idle and `goto` burns its 30s timeout. Navigate with `waitUntil: "load"` + an explicit selector wait (`gotoBoard`/`gotoNote` in `scripts/`). Rule: if the page holds any long-lived connection, the readiness signal is a selector, never the network (`docs/local-ci.md`).
 - **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
-- **Deploy:** push-to-`master` → CI gate → deploy. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone (`git pull --ff-only`). Scratch healthcheck: `CMD ["/app","health"]` (`docs/deploy.md`).
+- **Deploy:** push-to-`master` ships in parallel with CI (deploy does NOT wait for it — PR CI is the pre-merge gate). Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone (`git pull --ff-only`). Scratch healthcheck: `CMD ["/app","health"]` (`docs/deploy.md`).
 - **Skins:** default DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Basecoat has its own vocab — read `docs/ui-skins.md` first.
 - **Config:** single source `config/config.go` (`docs/configuration.md`). **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
 
