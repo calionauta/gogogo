@@ -39,7 +39,7 @@ Go package, whose inner kernel happens to be implemented in a systems
 language (Zig) behind a small, stable ABI.
 
 ```
-Go application (95-99%+ : HTTP, auth, SQLite, jobs, realtime, LLM, UI, ...)
+Go application (95-99%+ : HTTP, auth, Turso storage, jobs, realtime, LLM, UI, ...)
       |
       | small, explicit native boundary (C ABI, ownership documented)
       v

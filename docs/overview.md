@@ -2,7 +2,7 @@
 
 A full-stack Go web app template that ships as **one binary**. No external
 database, no Redis, no queue service, no CDN, no JS build step. Turso
-(embedded SQLite) provides the database, owned argon2id code provides auth,
+(embedded Turso Database) provides the database, owned argon2id code provides auth,
 and Datastar delivers reactive UI over server-rendered HTML and SSE.
 
 Built to be useful: every decision favors practical outcomes over abstract

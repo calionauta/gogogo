@@ -8,7 +8,7 @@ kept current with the code.
 ## Principles
 
 - **Unified build.** One `go build ./cmd/web` compiles everything — no build
-  tags. `turso` (tursogo) is the always-on SQLite driver, registered by
+  tags. `turso` (tursogo) is the always-on Turso driver, registered by
   `internal/db`; handlers call the generated `dbgen.*` queries directly, so
   nothing is gated behind a tag. Opt out at runtime with env vars
   (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
