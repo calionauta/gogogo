@@ -1,4 +1,4 @@
-# GoReleaser v2 — prebuilt installer binaries (gogogo CLI + gogogo-mcp).
+# GoReleaser v2 — prebuilt installer binaries (gogogo CLI + gogogo-mcp + gogogo-gui).
 #
 # Trigger: push a v* tag (see .github/workflows/release.yml). Nothing runs
 # on normal pushes. Both binaries are pure Go (CGO_ENABLED=0), so the full
@@ -37,11 +37,25 @@ builds:
       - -s -w
       - -X main.version={{.Version}}
 
-# One archive per platform carrying both binaries: a single download for
+  - id: gui
+    # Native window (gogpu, pure Go, CGO_ENABLED=0): cross-compiles from one
+    # Linux runner like the CLIs above. Verified locally for the full matrix
+    # before wiring (GOOS × GOARCH builds, no version var to stamp in main).
+    main: ./cmd/gui
+    binary: gogogo-gui
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+
+# One archive per platform carrying all three binaries: a single download for
 # install.sh (no per-tool asset hunting).
 archives:
   - id: bundle
-    ids: [gogogo, gogogo-mcp]
+    ids: [gogogo, gogogo-mcp, gui]
     name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:
