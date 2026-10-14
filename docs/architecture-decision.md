@@ -196,6 +196,14 @@ slowest job to every production deploy for an escape the PR flow already
 covers); coverage floors (gameable — the bar is behavioral: race, browser
 and red-proofed regression tests).
 
+Stream liveness is owned the same way: the SSE opener verifies registration
+against `/api/stream/status` and fails loudly past its bound instead of dying
+silent (a pre-binding fallback click poisoned the opener on slow clients —
+proven by aborting the Datastar bundle and watching no stream ever open).
+Upstream watch: starfederation/datastar#1203 tracks silent SSE death with no
+native restart primitive — recheck it before building more machinery here; a
+native open-ack or restart handle replaces the status poll.
+
 ## Current state and remaining work
 
 The migration is complete. The flat stack is the only stack: auth, the

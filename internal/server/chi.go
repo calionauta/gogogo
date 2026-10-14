@@ -287,6 +287,12 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
+	// Stream liveness for verified SSE open (see StreamStatusHandler):
+	// mounted here, not in buildChiMux, because only BootChi holds the
+	// shared hub and the mount-after-composition rule keeps feature lines
+	// droppable. Public like /health; longest match wins over the landing
+	// catch-all regardless of registration order.
+	mux.HandleFunc("/api/stream/status", StreamStatusHandler(hub))
 	// Console rides the same mount-after-composition rule: the engine
 	// listener is loopback-only, so browsers reach it only through here.
 	mountConsoleProxy(mux, a, cfg)

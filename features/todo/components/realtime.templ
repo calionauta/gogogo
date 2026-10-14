@@ -51,16 +51,24 @@ templ RealtimeStream(streamURL string) {
 		id="sse-opener"
 		class="hidden"
 		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+		data-on:datastar-ready__document="window.__gogogoOpenVerified && window.__gogogoOpenVerified('sse-opener')"
 		data-on:online__window="window.__gogogoSSEReopen()"
 		data-on:visibilitychange__document="if(!document.hidden){window.__gogogoSSEReopen()}"
 		aria-hidden="true"
 	></button>
+	<script defer type="module" src="/static/sse-open.js"></script>
 	<script type="module">
-		// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): Datastar v1
-		// never fires data-on:load on div/body, so no declarative opener
-		// exists — the datastar-ready click + timeout fallback below is
-		// the bootstrap. Everything after bootstrap (reopen on online /
-		// visibility) is data-on attributes on the button above.
+		// The opener itself is declarative (data-on:datastar-ready on the
+		// button above — verified by probe to fire post-bind); this script
+		// holds only what has no Datastar primitive: per-tab clientID setup
+		// and the 300ms fallback for an already-fired ready (verified open,
+		// so an early click can no longer poison anything).
+		// The click itself is verified (__gogogoOpenVerified in the shared
+		// helper above re-clicks until the hub reports this tab registered):
+		// clicking before Datastar binds data-on:click is a silent no-op
+		// that used to poison dataset.opened and leave the stream dead.
+		// Upstream watch: starfederation/datastar#1203 (no native stream
+		// restart primitive; recheck before building more here).
 		// Stable per-tab client id. Persisted in sessionStorage so a reload
 		// reuses the same id (no leaked SSE registration on the server) and
 		// every mutation POSTs the matching id for BroadcastExcept.
@@ -77,19 +85,22 @@ templ RealtimeStream(streamURL string) {
 			}
 
 			function openSSE() {
-				var b = document.getElementById('sse-opener');
-				if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
+				if (typeof window.__gogogoOpenVerified === 'function') {
+					window.__gogogoOpenVerified('sse-opener');
+					return;
+				}
+				// Helper script still in flight (slow network): retry
+				// bounded, then loud — an opener that can never verify must
+				// fail visibly, matching the helper's own contract.
+				openSSE.misses = (openSSE.misses || 0) + 1;
+				if (openSSE.misses > 40) {
+					throw new Error('sse: helper sse-open.js never loaded');
+				}
+				setTimeout(openSSE, 300);
 			}
-			// Re-click after a disconnect: reset the opened flag (a stream
-			// the browser tore down never clears it) so the click below
-			// actually re-runs the permanent @get. Called by the data-on
-			// attributes above, never by vanilla listeners.
-			window.__gogogoSSEReopen = function () {
-				var b = document.getElementById('sse-opener');
-				if (b) { b.dataset.opened = ''; openSSE(); }
-			};
-			document.addEventListener('datastar-ready', openSSE);
-			// Fallback if datastar-ready already fired.
+			// The open itself is declarative (data-on:datastar-ready on
+			// the button, which fires post-bind); this fallback covers an
+			// already-fired ready only.
 			setTimeout(openSSE, 300);
 		})();
 	</script>

@@ -35,21 +35,6 @@ type vanillaAllowed struct {
 // vanillaAllow pins every legitimate vanilla island. Each reason was
 // proven against the primitive list — a new entry needs the same proof.
 var vanillaAllow = map[string][]vanillaAllowed{
-	// Stream bootstrap: Datastar v1 never fires data-on:load on div/body,
-	// so the hidden-button + script click is the only opener that works.
-	// Proven by TestLayoutRendersSSEOpener (remove the script, no stream).
-	"features/todo/components/realtime.templ": {
-		{"document.addEventListener('datastar-ready', openSSE);", "bootstrap: no data-on:load on body"},
-	},
-	"features/genui/components/components.templ": {
-		{"document.addEventListener('datastar-ready', openSSE);", "bootstrap: same proven opener shape"},
-	},
-	"features/chat/components/chat.templ": {
-		{"document.addEventListener('datastar-ready', openSSE);", "bootstrap: same proven opener shape"},
-	},
-	"web/skins/basecoat/todo_basecoat.templ": {
-		{"document.addEventListener('datastar-ready', openSSE);", "bootstrap: same proven opener shape"},
-	},
 	// SW postMessage bridge: no Datastar primitive receives service-worker
 	// messages. The bridge already re-enters Datastar by dispatching
 	// gogogo:queued (see data-on:gogogo:queued__window consumers); the

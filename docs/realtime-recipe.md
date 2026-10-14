@@ -7,9 +7,12 @@ reference implementations are the spec.
 ## Client patterns (all Datastar, no vanilla except bootstrap)
 
 1. **Permanent stream** (ephemeral signals): hidden `@get(url, {permanent:
-   true})` button clicked once on `datastar-ready` (+300ms fallback).
-   Reference: `RealtimeStream` in `features/todo/components/realtime.templ`.
+   true})` button opened by `data-on:datastar-ready__document` (+300ms
+   verified fallback for an already-fired ready). Reference: `RealtimeStream`
+   in `features/todo/components/realtime.templ`.
    Never `data-on:load` on div/body (v1 never fires it — silent no-op).
+   Never a blind click: every open resolves through `__gogogoOpenVerified`
+   (see "Verified open" below).
 2. **List resync on record change**: shared `ListResync` in
    `internal/components/realtime_resync.templ` (button id + fragment URL).
    Do not copy its script — call it.
@@ -25,6 +28,28 @@ reference implementations are the spec.
    for dead requests: `data-on:datastar-fetch` error stages on the form
    (reference: genui Ask form). Otherwise a network failure locks the UI
    until reload.
+
+## Verified open (streams must prove they opened)
+
+The opener clicks a Datastar `@get` it cannot observe — clicking before
+`data-on:click` binds is a silent no-op that also poisoned `dataset.opened`,
+leaving streams dead on slow clients (proven by aborting the Datastar bundle
+and watching no stream ever start; the originating tab gets no live broadcast
+by design, so a dead stream has no second chance). Every Datastar opener
+(todo, basecoat, genui, chat) therefore resolves through
+`window.__gogogoOpenVerified(buttonId)` (`web/resources/static/sse-open.js`):
+re-click until `GET /api/stream/status?clientID=` reports the tab registered
+in the shared hub, resolve on open, throw loudly past ~10s. A dead stream is
+fixed or loud, never silent. The `data-on:datastar-ready__document` opener
+itself was proven by probe to fire post-bind (a vanilla listener is not
+needed for it — the allowlist shrank accordingly).
+Raw-`EventSource` pages stay on native patterns instead: whiteboard replays
+through `onopen` flush + browser auto-reconnect; notes relies on
+auto-reconnect with only an error indicator (no flush hook — residual
+candidate, not covered here).
+Upstream watch: starfederation/datastar#1203 (silent SSE death, no native
+restart primitive as of v1.2.2) — recheck periodically before building more
+machinery here; a native open-ack or restart handle replaces the status poll.
 
 ## Server patterns
 

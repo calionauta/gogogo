@@ -299,6 +299,7 @@ by hand, so when a step is added to one, add it to the other:
 | build + **binary** boot smoke | ✓ | ✓ |
 | browser smoke (Playwright) | ✓ | ✓ |
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
+| SSE verified-open (slow-init opener proof) | ✓ | ✓ |
 
 CI runs the rows above as four parallel jobs (`checks` | `race` | `browser` |
 `prod-image`) — wall-clock is the slowest job, not the sum. A `ci`
