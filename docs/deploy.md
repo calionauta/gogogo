@@ -86,6 +86,13 @@ shares the same shape — siblings differ only by name:
 
 1. Install Docker and create a `deploy` user with SSH key access.
 2. Add the box to your Tailscale tailnet.
+
+> **New to Tailscale?** It is a private WireGuard mesh between your machines
+> ([install](https://tailscale.com/download), then `tailscale up` and approve
+> the machine in the admin console). The deploy needs it so the CI runner
+> reaches the server over the tailnet — no public SSH port, no static deploy
+> credential (auth is a short-lived OIDC JWT per run). Nothing in local
+> development needs it; it becomes required only at this step.
 3. Configure a Cloudflare Tunnel routing your domain (e.g.
    `fullstack.example.com`) to the Tailscale hostname on port 8080.
 4. Add the GitHub Actions secrets — see the header comment of

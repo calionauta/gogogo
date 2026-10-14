@@ -249,8 +249,9 @@ jobs:
         with:
           node-version: "20"
       - name: Build
-        # One binary for every suite below: boot smoke validates it, the
-        # client suites drive it (previously rebuilt per suite).
+        # One binary for the client suites below (previously rebuilt per
+        # suite). The boot smoke validates the endpoint contract from a fresh
+        # compile; the suites below prove this artifact boots and serves.
         run: go build -o /tmp/gogogo-ci-web ./cmd/web/
       - name: Binary boot smoke test
         # Boots the REAL compiled binary and asserts the raw SSE transport

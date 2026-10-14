@@ -116,10 +116,16 @@ to "see it working" (including a clickable URL for a human), run this:
 make dev                          # live-reload on :8080 (own DATA_DIR, never prod's)
 make ci-local-fast                # gate the change: cheap checks + scoped race tests
 node scripts/smoke.mjs            # boot the real binary, exercise offline replay
-tailscale serve --bg 8080         # HTTPS URL on your tailnet; `funnel` for off-tailnet
-tailscale serve status            # the URL to share
+command -v tailscale >/dev/null && tailscale serve --bg 8080 || echo "no Tailscale here: share http://localhost:8080 instead"
+tailscale serve status            # the URL to share (skip if no Tailscale)
 tailscale serve reset             # take it down when done (+ `make smoke-clean`)
 ```
+
+Tailscale ([tailscale.com/download](https://tailscale.com/download)) puts
+your machines on a private WireGuard mesh. It is **optional locally** (only
+for the shareable URL above) and **required for server deploys**, where CI
+reaches the box over the tailnet instead of a public SSH port
+(`docs/deploy.md`).
 
 Use `SIMULATE_LLM=true` for the keyless LLM path, and prefer the PR flow for
 anything beyond a look-and-click: PR CI is the gate that runs before merge,
