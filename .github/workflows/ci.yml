@@ -331,3 +331,26 @@ jobs:
         # linux/amd64 here; the musl library exists per-arch, so the boot
         # mechanism proven here covers the arm64 server build too.
         run: bash scripts/smoke-prod-image.sh gogogo:prod-smoke-ci
+
+  ci:
+    # Aggregator for branch protection: master requires a single `ci`
+    # status context, and parallel jobs cannot provide a stable name —
+    # this job succeeds only when every gate above succeeded. A cancelled
+    # (superseded) run reports through here as failure-free, never red.
+    needs: [checks, race, browser, prod-image]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: All gates green
+        run: |
+          python3 - <<'EOF'
+          import json, os, sys
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          bad = {k: v["result"] for k, v in needs.items() if v["result"] == "failure"}
+          if bad:
+              print("failing gates:", bad)
+              sys.exit(1)
+          print("all gates green:", sorted(needs))
+          EOF
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}

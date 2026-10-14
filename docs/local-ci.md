@@ -301,8 +301,9 @@ by hand, so when a step is added to one, add it to the other:
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 
 CI runs the rows above as four parallel jobs (`checks` | `race` | `browser` |
-`prod-image`) — wall-clock is the slowest job, not the sum. Each job
-provisions its own toolchain and deps (`bin/check-ci-deps.sh`, pre-commit +
+`prod-image`) — wall-clock is the slowest job, not the sum. A `ci`
+aggregator job (green only when all four are) preserves the single status
+context branch protection requires. Each job provisions its own toolchain and deps (`bin/check-ci-deps.sh`, pre-commit +
 CI, fails a job that uses `node`/`go` without installing them first).
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).

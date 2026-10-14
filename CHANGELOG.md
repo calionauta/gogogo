@@ -101,6 +101,8 @@
   `prod-image` on isolated runners — wall-clock is the slowest job, not the
   serial sum. Same steps verbatim (`deadcode` moved earlier, one shared
   binary across the client suites, image boot fails fast instead of last).
+  A `ci` aggregator job preserves the branch-protection status context
+  (parallel jobs cannot provide a stable name).
 - **Commit-time vulnerability scan.** `govulncheck` runs pre-commit on
   `go.mod`/`go.sum` (same script as pre-push/CI), so a vulnerable dependency
   fails the commit instead of the push.
