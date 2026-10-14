@@ -16,7 +16,7 @@
 // the form body verbatim on replay. The server (features/todo/handlers
 // mutations) looks up the todo by (owner, idem_key) and returns the
 // original instead of creating a duplicate; the (owner, idem_key)
-// unique index in internal/db/migrations backs the dedup at the DB
+// unique index in internal/dbschema/migrations backs the dedup at the DB
 // layer for the race window. Single-instance and multi-instance both
 // work because the dedup state lives in the database. See
 // docs/decisions.md for the full rationale.

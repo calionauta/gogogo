@@ -93,6 +93,18 @@
 
 ### Changed
 
+- **The stack docs split benefits from tradeoffs.** `docs/stack-layers.md` now
+  states what each choice buys (Casbin and the stdlib router were missing from
+  the table) and hands the cost side to the new `docs/stack-tradeoffs.md` —
+  rejected alternatives, the Turso cost that used to sit in the decision record,
+  and a three-way database comparison (Turso vs plain SQLite vs
+  Postgres/Supabase) that no longer implies SQLite and Turso are the same thing.
+  The decision record leads with the flat-stack benefits as an icon card grid;
+  the site builder renders any emoji-led list that way, so the page stays a
+  plain list on GitHub and in `llms-full.txt`.
+- **Stale schema path corrected in docs.** `internal/db/migrations` →
+  `internal/dbschema/migrations` in the decision record, `stack-layers.md`,
+  `CONTENT_WRITING.md`, the `Makefile` sqlc comment and the `sw.js` comment.
 - **Full-suite script refuses a wedged box.** `scripts/test-web.sh` (the
   T4-equivalent workload agents kept launching by hand on the shared host)
   now runs the `check-host-capacity` pre-flight first — skipped only on CI
