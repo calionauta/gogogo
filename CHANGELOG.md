@@ -114,6 +114,11 @@
   CI) fails a job that runs `node`/`go` without installing them earlier in
   the same job — the missing-`npm ci` that broke the first parallel run,
   which local gates cannot catch (a dev box always has everything warm).
+- **Reliable module downloads.** `GOPROXY` uses the pipe form
+  (`proxy|direct`: any proxy error falls back to git, verified empirically)
+  and every Go job warms the cache via `bin/go-mod-download.sh` (bounded
+  retries, still fails fast) — the proxy's transient `INTERNAL_ERROR`s
+  twice killed cold-cache jobs that `go` does not retry itself.
 
 ### Changed
 

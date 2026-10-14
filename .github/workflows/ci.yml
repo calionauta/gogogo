@@ -38,6 +38,12 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+env:
+  # Pipe, not comma: a dead proxy falls back to direct git on ANY error
+  # (comma only falls back on 404/410, so a proxy INTERNAL_ERROR is fatal).
+  # Verified empirically on go1.27.2 (dead-proxy probe: comma fails, pipe
+  # fetches). Sumdb verification is unchanged — fallback never skips hashes.
+  GOPROXY: https://proxy.golang.org|direct
 jobs:
   # CI runs as four parallel jobs, one concern each — wall-clock is the
   # slowest job, not the sum. Each job repeats checkout + Go install (~1min
@@ -63,6 +69,10 @@ jobs:
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
           /usr/local/go/bin/go version
+      - name: Warm module cache
+        # Cold runners download the full graph; the proxy answers storms
+        # with transient INTERNAL_ERRORs, which go does not retry itself.
+        run: bash bin/go-mod-download.sh
       - name: Generate templ
         run: go tool templ generate
       - name: Check generated templ files are committed
@@ -209,6 +219,10 @@ jobs:
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
           /usr/local/go/bin/go version
+      - name: Warm module cache
+        # Cold runners download the full graph; the proxy answers storms
+        # with transient INTERNAL_ERRORs, which go does not retry itself.
+        run: bash bin/go-mod-download.sh
       - name: Generate templ
         # Toolchain presence only — the checks job enforces that the
         # regenerated files are committed; tests build whatever is on
@@ -247,6 +261,10 @@ jobs:
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
           /usr/local/go/bin/go version
+      - name: Warm module cache
+        # Cold runners download the full graph; the proxy answers storms
+        # with transient INTERNAL_ERRORs, which go does not retry itself.
+        run: bash bin/go-mod-download.sh
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
         run: sudo apt-get update -qq && sudo apt-get install -y gcc

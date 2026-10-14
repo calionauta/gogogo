@@ -401,7 +401,8 @@ and modify safely.
   malformed input), and allocation/lifetime tests (no leak on error paths).
 - The native kernel gets a **benchmark** proving the claimed benefit on the
   same workload and machine class as the baseline.
-- **Hand-mutation red-proof** (per `AGENTS.md` testing discipline): invert
+- **Hand-mutation red-proof** (RED/GREEN/PROVE protocol in
+  `skills/gogogo-coding-standards/references/go-testing.md`): invert
   or remove the guarded behavior, confirm the test fails, then revert.
   Never commit a mutated line.
 - Fuzz the boundary where inputs are untrusted (parsers, codecs, protocol
