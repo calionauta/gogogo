@@ -221,7 +221,9 @@ So the honest comparison is:
   after). So writers still serialize here by configuration, not by engine
   ceiling: `busy_timeout` + short transactions stay the stance until
   something opts in AND adds conflict-retry handling
-  (concurrent conflicts error instead of blocking).
+  (concurrent conflicts error instead of blocking). Runbook for that day:
+  `docs/db-concurrency.md` (exact steps as probed, red-proof plan,
+  revisit triggers).
 - **vs Postgres.** Postgres is the #1 database in the 2025 Stack Overflow survey
   (58%). It genuinely wins when sustained multi-writer contention on the same
   rows, true horizontal writes across regions, or heavy in-app analytics show up.
