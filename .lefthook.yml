@@ -23,6 +23,13 @@ pre-commit:
     - name: mod-tidy
       run: bin/check-mod-tidy.sh
 
+    # Dependency CVEs fail the push (pre-push) and CI today; a go.mod/go.sum
+    # change surfaces them at commit time instead. Same script the pre-push
+    # hook and CI run (first run installs the tool, warm runs take seconds).
+    - name: govulncheck
+      run: bin/check-govulncheck.sh
+      glob: "{go.mod,go.sum}"
+
     # install.sh is the first thing a new user runs and it manipulates PATH;
     # it had no coverage at all. This guards the one contract that breaks
     # silently: never plant a `go` entry in $BIN_DIR (it shadows system Go).

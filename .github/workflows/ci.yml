@@ -39,7 +39,13 @@ concurrency:
 permissions:
   contents: read
 jobs:
-  ci:
+  # CI runs as four parallel jobs, one concern each — wall-clock is the
+  # slowest job, not the sum. Each job repeats checkout + Go install (~1min
+  # of accepted duplication) to stay independent and individually retryable.
+  # These runners are GitHub-hosted (4vCPU/16GB each); do NOT copy this
+  # fan-out onto a small self-hosted box — local `make ci-local` keeps its
+  # host-capacity gates for exactly that reason.
+  checks:
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -148,6 +154,13 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           PKGS=$(bash scripts/web-packages.sh)
           $(go env GOPATH)/bin/govulncheck $PKGS
+      - name: Deadcode (advisory)
+        # Matches bin/check-deadcode.sh: advisory only, scoped to the
+        # packages that are meant to be wired-up, so intentionally-unused
+        # library APIs (internal/llm, internal/datastar) stay off the radar.
+        run: |
+          go install golang.org/x/tools/cmd/deadcode@latest
+          $(go env GOPATH)/bin/deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Set up Node (CSS build)
         uses: actions/setup-node@v4
         with:
@@ -171,6 +184,33 @@ jobs:
             exit 1
           fi
           echo "✓ CSS bundles match their sources"
+
+  race:
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go 1.27.2 manually
+        # actions/setup-go extracts the toolchain via tar and has been
+        # intermittently corrupting it on this runner image. Install the
+        # official stable tarball from go.dev into /usr/local/go instead,
+        # which is a separate, reliable path. Version must match the
+        # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
+        run: |
+          curl -fsSL https://go.dev/dl/go1.27.2.linux-amd64.tar.gz -o /tmp/go.tgz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          /usr/local/go/bin/go version
+      - name: Generate templ
+        # Toolchain presence only — the checks job enforces that the
+        # regenerated files are committed; tests build whatever is on
+        # disk plus this regeneration.
+        run: go tool templ generate
+      - name: Install C toolchain (CGO for loro-go)
+        # internal/collab uses loro-go, a CGO binding to the Loro C library.
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc
       - name: Test
         # Plain parallel run: the DagNats tests used to bind fixed ports, and
         # two packages grabbed the same one, which forced `-p 1`. They now bind
@@ -179,8 +219,39 @@ jobs:
         # build needing GTK/WebKit dev libraries only present on the desktop
         # runners.
         run: bash scripts/test-web.sh -race -count=1 -v
+
+  browser:
+    # Build + boot smoke stay first (cheap gate); the three client suites
+    # run serially — fast enough, and it avoids the parallel-load starvation
+    # that ci-fanout.sh documents for the local run.
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go 1.27.2 manually
+        # actions/setup-go extracts the toolchain via tar and has been
+        # intermittently corrupting it on this runner image. Install the
+        # official stable tarball from go.dev into /usr/local/go instead,
+        # which is a separate, reliable path. Version must match the
+        # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
+        run: |
+          curl -fsSL https://go.dev/dl/go1.27.2.linux-amd64.tar.gz -o /tmp/go.tgz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          /usr/local/go/bin/go version
+      - name: Install C toolchain (CGO for loro-go)
+        # internal/collab uses loro-go, a CGO binding to the Loro C library.
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc
+      - name: Set up Node (Playwright)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - name: Build
-        run: go build -o /dev/null ./cmd/web/
+        # One binary for every suite below: boot smoke validates it, the
+        # client suites drive it (previously rebuilt per suite).
+        run: go build -o /tmp/gogogo-ci-web ./cmd/web/
       - name: Binary boot smoke test
         # Boots the REAL compiled binary and asserts the raw SSE transport
         # contract (GET /api/todos/stream -> 200 + text/event-stream) plus the
@@ -189,19 +260,11 @@ jobs:
         # a browser renders. Gated behind RUN_SMOKE=1 so `go test ./...` stays
         # port-free for developers.
         run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
-      - name: Deadcode (advisory)
-        # Matches bin/check-deadcode.sh: advisory only, scoped to the
-        # packages that are meant to be wired-up, so intentionally-unused
-        # library APIs (internal/llm, internal/datastar) stay off the radar.
-        run: |
-          go install golang.org/x/tools/cmd/deadcode@latest
-          $(go env GOPATH)/bin/deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Browser smoke test
         # Datastar is a global client runtime; exercise the rendered app in
         # Chromium so upgrades cannot pass Go checks while breaking signals.
         run: |
           npx playwright install --with-deps chromium
-          go build -o /tmp/gogogo-ci-web ./cmd/web/
           SMOKE_BIN=/tmp/gogogo-ci-web node scripts/smoke.mjs
       - name: Whiteboard client regression tests
         # The whiteboard client has no Go-side coverage for its transport
@@ -221,6 +284,13 @@ jobs:
         # line assertion is red-proofed (fails against the old basis).
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web node scripts/notes-caret.test.mjs
+
+  prod-image:
+    # Committed sources + Dockerfile only (no Go/Node): a broken image
+    # fails fast in parallel instead of after the whole suite.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Production image boot smoke test
         # Builds deploy/Dockerfile.prod, boots the FINAL image (uid 65532,
         # data volume, TURSO_GO_CACHE_DIR) and asserts /health → 200. This

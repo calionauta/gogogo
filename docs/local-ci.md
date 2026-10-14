@@ -276,6 +276,11 @@ by hand, so when a step is added to one, add it to the other:
 | browser smoke (Playwright) | ✓ | ✓ |
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 
+CI runs the rows above as four parallel jobs (`checks` | `race` | `browser` |
+`prod-image`) — wall-clock is the slowest job, not the sum. `make ci-local`
+runs the same set locally, cheap steps first, then the race+browser fan-out
+(`scripts/ci-fanout.sh`).
+
 **The generated-artifact checks are the ones that regressed.** `_templ.go`
 (71 files) and `web/resources/static/app.min.css` are both *committed and
 embedded in the binary*. Both CIs used to only **generate** them and then run
