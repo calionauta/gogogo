@@ -327,12 +327,14 @@ extract archives.
 Cold caches have a second cost: every Go job downloads the full module graph,
 and the proxy answers those storms with transient HTTP/2 `INTERNAL_ERROR`s
 (twice in one day: a 156s `go list` death, a `go test` naming the dagnats and
-goakt zips). Two mitigations, both in `ci.yml`: `GOPROXY` uses the pipe form
-(`proxy|direct`, so a proxy error falls back to git — comma only falls back
-on 404/410), and every Go job warms the cache first via `bin/go-mod-download.sh`
-(3 attempts, still fails fast on a real outage). `vendor/` stays out: hermetic,
-but the tree, the template clones and the scanners all pay for it on every
-change — re-evaluate only if proxy flakes survive the retry.
+goakt zips). Two mitigations, in `ci.yml` and the image builder: `GOPROXY`
+uses the pipe form (`proxy|direct`, so a proxy error falls back to git —
+comma only falls back on 404/410), and every Go download leg warms with
+bounded retries (`bin/go-mod-download.sh` in CI jobs, the same loop inline
+in `Dockerfile.prod`, which has no bash) — still failing fast on a real
+outage. `vendor/` stays out: hermetic, but the tree, the template clones
+and the scanners all pay for it on every change — re-evaluate only if
+proxy flakes survive the retry.
 
 ## When CI goes red
 

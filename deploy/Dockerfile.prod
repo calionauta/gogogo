@@ -36,7 +36,19 @@ WORKDIR /src
 
 # Install Go module deps first (cached independently of source).
 COPY go.mod go.sum ./
-RUN go mod download
+# Bounded retries + proxy fallback: the builder starts cold and
+# proxy.golang.org answers download storms with transient HTTP/2
+# INTERNAL_ERRORs, which go does not retry itself (observed killing this
+# exact step after 268s). Pipe form falls back to direct git on any proxy
+# error (comma only falls back on 404/410); sumdb verification is
+# unchanged. POSIX sh only — no bash in this image.
+ENV GOPROXY=https://proxy.golang.org|direct
+RUN for i in 1 2 3; do \
+      go mod download && break; \
+      echo "module download failed (attempt $i/3)"; \
+      if [ "$i" = 3 ]; then exit 1; fi; \
+      sleep 15; \
+    done
 
 # Install CSS build deps (Tailwind v4 CLI + DaisyUI v5).
 COPY package.json package-lock.json* ./
