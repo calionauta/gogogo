@@ -15,10 +15,10 @@ What carried over:
 - Stack choice: server-rendered hypermedia with Datastar instead of
   a JSON API + SPA.
 - Embedded NATS for realtime (northstar embeds NATS in `cmd/web`;
-  gogogo embeds NATS JetStream + Turso/SQLite in one binary).
+  gogogo embeds NATS JetStream + Turso Database in one binary).
 - `features/` + `router/` + `config/` layout and Air/esbuild live reload.
 
-What diverged: gogogo added Turso/SQLite persistence, goqite
+What diverged: gogogo added Turso Database persistence, goqite
 background jobs, DagNats durable workflows, offline sync with Service
 Worker + IndexedDB outbox, installer/MCP/CLI, and a trim-by-deleting
 template model. Northstar stays a minimal starter.

@@ -120,7 +120,7 @@ dependencies and are left alone.
 | Layer | Choice | Why |
 |---|---|---|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([exception-to-go](docs/exception-to-go.md); the why: [motivation](docs/motivation.md)) |
-| **Zero-config database and auth** | Turso (embedded SQLite, sqlc) + owned argon2id sessions | Zero-config SQLite, cookie sessions, file-local storage — no separate service |
+| **Zero-config database and auth** | Turso Database (SQLite-compatible, sqlc) + owned argon2id sessions | Zero-config Turso, cookie sessions, file-local storage — no separate service |
 | **Access control without a service** | [Casbin](https://casbin.org) + `users.role` | Roles on the user row, policy in one model, enforced before the handler; embedded policy by default, DB-backed when evolving ([rbac](docs/rbac.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
@@ -177,7 +177,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | Shared notes (server-owned Loro Text, live peer text) | delete `features/notes/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
 | Hybrid offline sync (Service Worker + Leaf Node) | `OFFLINE_SYNC_ENABLED=false` |
-| Single-store persistence (Turso/SQLite via sqlc) | — (core) |
+| Single-store persistence (Turso Database via sqlc) | — (core) |
 | Multi-instance realtime | `NATS_ENABLED=false` |
 | Public landing page + auth-gated config view | delete `features/landing/`, `features/config/` |
 | Wails v3 desktop/mobile + native window | delete `cmd/desktop/`, `cmd/gui/` |

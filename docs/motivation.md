@@ -75,7 +75,7 @@ plugins and features strip away at install. The live capability list is in
 The foundation — swapping any of this means a fork, not a toggle. Chosen by
 the criteria above:
 
-- **Turso (embedded SQLite) + owned auth** — database, cookie sessions, file-local storage. Zero config, zero separate service.
+- **Turso Database (SQLite-compatible) + owned auth** — database, cookie sessions, file-local storage. Zero config, zero separate service.
 - **Templ + Datastar over SSE** — server-rendered reactive UI, ~12 KiB client, no JS framework build step.
 - **goqite + SSE Hub (+ retry-go)** — background jobs with exponential backoff; progress streams to the browser. No Redis.
 - **age + `~/.secrets/`** — secrets encrypted at rest, decrypted at boot. No vault, no cloud.

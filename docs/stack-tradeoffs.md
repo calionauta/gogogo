@@ -213,6 +213,15 @@ So the honest comparison is:
   engine on the MVCC/multi-writer path. Choosing Turso is choosing the engine
   with the concurrent-write roadmap, at the cost of a pre-1.0 dependency; plain
   SQLite would be the more conservative pick with a shorter runway.
+  Status, probed (2026-10): the engine HAS concurrent writes (`BEGIN
+  CONCURRENT`, MVCC + group commit, Turso 0.8 benchmarks), but the pinned
+  `tursogo` rejects it unless MVCC is enabled — and nothing in this tree
+  enables it (WAL alone is not enough; proven reachable on the pin: the
+  pragma is accepted and two concurrent writers both commit, probe deleted
+  after). So writers still serialize here by configuration, not by engine
+  ceiling: `busy_timeout` + short transactions stay the stance until
+  something opts in AND adds conflict-retry handling
+  (concurrent conflicts error instead of blocking).
 - **vs Postgres.** Postgres is the #1 database in the 2025 Stack Overflow survey
   (58%). It genuinely wins when sustained multi-writer contention on the same
   rows, true horizontal writes across regions, or heavy in-app analytics show up.

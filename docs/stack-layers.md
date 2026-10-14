@@ -9,7 +9,7 @@ layered async topology see [Seven async layers](async-layers.md).
 | Layer | Choice | What it buys |
 |-------|--------|--------------|
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime |
-| **Database** | Turso (embedded SQLite, sqlc) | Zero-config SQLite, owned queries, file-local storage — no separate service. See [Turso vs SQLite vs the server databases](stack-tradeoffs.md#database-turso-and-the-server-databases-it-replaces). |
+| **Database** | Turso Database (SQLite-compatible, sqlc) | Zero-config Turso, owned queries, file-local storage — no separate service. See [Turso vs SQLite vs the server databases](stack-tradeoffs.md#database-turso-and-the-server-databases-it-replaces). |
 | **Auth** | owned argon2id sessions (`gogogo_auth`) | Cookie sessions in your database; no auth service, no framework surface. |
 | **Authz / RBAC** | [Casbin](https://casbin.org) | Roles and policy in one model, enforced on routes and UI (`admin` / `user`), embedded policy by default and DB-backed when evolving — see [RBAC](rbac.md). |
 | **Routing** | stdlib `net/http.ServeMux` | One handler per capability, one subtree per capability; no router dependency, no framework surface ([why](stack-tradeoffs.md#routers-the-stdlib-and-that-ends-the-debate)). |
@@ -73,7 +73,7 @@ CSS is the one build step, and it is a build step you run explicitly
 
 The rule behind the lightness: **the backend is the source of truth and
 the browser holds ephemeral intent plus cache, never authority.** Records
-live in Turso/SQLite, documents in Loro snapshots, jobs in goqite — the
+live in Turso, documents in Loro snapshots, jobs in goqite — the
 client renders what the server ships and reports what the user did. That
 is what keeps every feature between 0 and ~48 KB of JS (measured per
 feature: [Client weight](features.md#client-weight)). The honest boundary:
@@ -142,7 +142,7 @@ dlopen/`scratch` trap, the musl build tag — is documented in
 ## Why the flat stack?
 
 Every data path is owned code with no framework between the handler and
-SQLite: sqlc-generated queries called directly (a wrong query is a
+Turso: sqlc-generated queries called directly (a wrong query is a
 compile error, not a runtime mismatch), an explicit schema in
 `internal/dbschema/migrations`, owned argon2id sessions behind a single
 `gogogo_auth` cookie, and per-user scoping in the queries themselves.
