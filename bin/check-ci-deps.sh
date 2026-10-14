@@ -26,7 +26,7 @@ fail=0
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 
-for wf in .github/workflows/ci.yml .github/workflows/deploy.yml; do
+for wf in .github/workflows/ci.yml .github/workflows/deploy.yml .github/workflows/desktop.yml; do
   [ -f "$wf" ] || continue
   # Annotated lines lineno:job:text for everything under ^jobs:.
   awk '

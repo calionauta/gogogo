@@ -33,6 +33,12 @@ on:
 
 permissions:
   contents: read
+env:
+  # Pipe, not comma: a dead proxy falls back to direct git on ANY error
+  # (comma only falls back on 404/410). Same resilience as web CI —
+  # desktop jobs download cold too (wails3/govulncheck installs, vet,
+  # desktop-build.sh) and hit the same transient INTERNAL_ERRORs.
+  GOPROXY: https://proxy.golang.org|direct
 
 jobs:
   linux-desktop:
@@ -65,6 +71,10 @@ jobs:
           "$(go env GOPATH)/bin/wails3" doctor
       - name: Generate templ
         run: go tool templ generate
+      - name: Warm module cache
+        # Cold runner + proxy storms (see bin/go-mod-download.sh): the vet
+        # and desktop-build.sh below must not be the ones to discover it.
+        run: bash bin/go-mod-download.sh
       - name: Vet desktop target
         run: go vet ./cmd/desktop
       - name: Build desktop application
@@ -139,6 +149,9 @@ jobs:
         run: |
           go run mvdan.cc/gofumpt@v0.12.0 -l cmd/gui/ | tee /tmp/gofumpt.out
           test ! -s /tmp/gofumpt.out
+      - name: Warm module cache
+        # Same cold-runner proxy storms as web CI (see bin/go-mod-download.sh).
+        run: bash bin/go-mod-download.sh
       - name: Vet gui target
         run: go vet ./cmd/gui/
       # NOTE (CI weight): no golangci-lint here on purpose. Linting the

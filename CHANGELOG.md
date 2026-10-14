@@ -128,9 +128,9 @@
 - **Reliable module downloads.** `GOPROXY` uses the pipe form
   (`proxy|direct`: any proxy error falls back to git, verified empirically)
   and every Go download leg warms with bounded retries (`bin/go-mod-download.sh`
-  in CI jobs, the same loop inline in `Dockerfile.prod`, which has no bash) —
-  the proxy's transient `INTERNAL_ERROR`s killed cold-cache `go list`, `go test`
-  and a 268s image build that `go` does not retry itself.
+  in CI + desktop jobs, the same loop inline in `Dockerfile.prod`, which has no bash) —
+  the proxy's transient `INTERNAL_ERROR`s killed cold-cache `go list`, `go test`,
+  a desktop `go vet` and a 268s image build that `go` does not retry itself.
 
 ### Changed
 
