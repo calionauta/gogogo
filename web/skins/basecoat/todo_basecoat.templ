@@ -560,6 +560,7 @@ templ sseOpener() {
 		id="sse-opener"
 		class="hidden"
 		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=basecoat', { permanent: true })" }
+		data-on:datastar-ready__document="window.__gogogoOpenVerified('sse-opener')"
 		data-on:visibilitychange__document="if(!document.hidden){window.__gogogoSSEReopen()}"
 		aria-hidden="true"
 	></button>
@@ -581,8 +582,7 @@ templ sseOpener() {
 			function openSSE() {
 				window.__gogogoOpenVerified('sse-opener');
 			}
-			document.addEventListener('datastar-ready', openSSE);
-			// Fallback if datastar-ready already fired (safe now: verified).
+			// Declarative open above; fallback covers already-fired ready.
 			setTimeout(openSSE, 300);
 		})();
 	</script>

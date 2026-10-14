@@ -73,6 +73,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 				id="chat-stream-opener"
 				class="hidden"
 				data-on:click={ "@get('/api/chat/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+				data-on:datastar-ready__document="window.__gogogoOpenVerified('chat-stream-opener')"
 				aria-hidden="true"
 			></button>
 			<script defer type="module" src="/static/sse-open.js"></script>
@@ -95,7 +96,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 					function openSSE() {
 						window.__gogogoOpenVerified('chat-stream-opener');
 					}
-					document.addEventListener('datastar-ready', openSSE);
+					// Declarative open above; fallback covers already-fired ready.
 					setTimeout(openSSE, 300);
 				})();
 			</script>

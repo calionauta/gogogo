@@ -51,17 +51,18 @@ templ RealtimeStream(streamURL string) {
 		id="sse-opener"
 		class="hidden"
 		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+		data-on:datastar-ready__document="window.__gogogoOpenVerified('sse-opener')"
 		data-on:online__window="window.__gogogoSSEReopen()"
 		data-on:visibilitychange__document="if(!document.hidden){window.__gogogoSSEReopen()}"
 		aria-hidden="true"
 	></button>
 	<script defer type="module" src="/static/sse-open.js"></script>
 	<script type="module">
-		// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): Datastar v1
-		// never fires data-on:load on div/body, so no declarative opener
-		// exists — the datastar-ready click + timeout fallback below is
-		// the bootstrap. Everything after bootstrap (reopen on online /
-		// visibility) is data-on attributes on the button above.
+		// The opener itself is declarative (data-on:datastar-ready on the
+		// button above — verified by probe to fire post-bind); this script
+		// holds only what has no Datastar primitive: per-tab clientID setup
+		// and the 300ms fallback for an already-fired ready (verified open,
+		// so an early click can no longer poison anything).
 		// The click itself is verified (__gogogoOpenVerified in the shared
 		// helper above re-clicks until the hub reports this tab registered):
 		// clicking before Datastar binds data-on:click is a silent no-op
@@ -86,10 +87,9 @@ templ RealtimeStream(streamURL string) {
 			function openSSE() {
 				window.__gogogoOpenVerified('sse-opener');
 			}
-			document.addEventListener('datastar-ready', openSSE);
-			// Fallback if datastar-ready already fired (safe now: the
-			// verified open re-clicks until registered, so an early click
-			// can no longer poison the opener).
+			// The open itself is declarative (data-on:datastar-ready on
+			// the button, which fires post-bind); this fallback covers an
+			// already-fired ready only.
 			setTimeout(openSSE, 300);
 		})();
 	</script>
