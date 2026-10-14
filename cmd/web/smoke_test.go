@@ -154,8 +154,8 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		t.Fatalf("reserve port: %v", portErr)
 	}
 	dataDir := filepath.Join(dir, "data")
-	// The queue boots before the server creates --dir, and it opens
-	// DATABASE_PATH eagerly; a missing parent dir fails with "unable to open
+	// The queue boots before the server creates --dir, and it opens its
+	// queue file eagerly; a missing parent dir fails with "unable to open
 	// database file: lstat <dir>: no such file or directory". scripts/smoke.mjs
 	// mkdirs its runtime dir for the same reason — mirror it here instead of
 	// depending on a data/ dir happening to exist in the process cwd.
@@ -176,15 +176,14 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 	childLog := newTailBuffer(32 << 10)
 	cmd.Stdout = childLog
 	cmd.Stderr = childLog
-	// DATA_DIR/DATABASE_PATH must be absolute and inside the temp dir. The
-	// binary's defaults are relative (data/data.db, data/), so without these
-	// the goqite queue fails with "unable to open database file: lstat data:
-	// no such file or directory" whenever the process cwd has no data/ dir
-	// an environment-dependent pass/fail. Pin both to the same temp tree
+	// DATA_DIR must be absolute and inside the temp dir. The binary's
+	// default is relative (data/), so without this the goqite queue fails
+	// with "unable to open database file: lstat data: no such file or
+	// directory" whenever the process cwd has no data/ dir — an
+	// environment-dependent pass/fail. Pin both to the same temp tree
 	// scripts/smoke.mjs uses.
 	cmd.Env = append(os.Environ(),
 		"DATA_DIR="+dataDir,
-		"DATABASE_PATH="+filepath.Join(dataDir, "app.db"),
 		"TURSO_DB_PATH="+filepath.Join(dataDir, "app.db"),
 		"HOST=127.0.0.1",
 		"PORT="+strconv.Itoa(port),

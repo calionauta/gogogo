@@ -333,6 +333,12 @@
 
 ### Fixed
 
+- **Dead `DATABASE_PATH` config removed.** Nothing opened it: the app DB
+  rides `TURSO_DB_PATH`, the queue derives from `DATA_DIR`, and the credits
+  ledger opens its own Turso file — the var was only read into config and
+  displayed. Removed the field, its env read, dev default, config-UI row
+  and docs row (plus the smoke test's stale comment claiming the queue
+  opened it); boot smoke green without it.
 - **Ask AI / Chat 401 "Missing Authentication header" (split LLM triple).**
   `deploy/docker-compose.prod.yml` set `GOAI_BASE_URL`/`GOAI_MODEL`
   OpenRouter defaults in `environment`, which always wins over the secrets

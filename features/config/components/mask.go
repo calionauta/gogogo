@@ -39,7 +39,6 @@ const (
 	keyAppName      = "AppName"
 	keyBuildLabel   = "BuildLabel"
 	keyBuildCommit  = "BuildCommit"
-	keyDBPath       = "DBPath"
 	keyDataDir      = "DataDir"
 	keyAPIKey       = "APIKey"
 	keyModel        = "Model"
@@ -107,7 +106,6 @@ var envMap = map[string]map[string]string{
 		"Dev":          "ENVIRONMENT",
 	},
 	groupStorage: {
-		keyDBPath:  "DATABASE_PATH",
 		keyDataDir: "DATA_DIR",
 	},
 	groupAdmin: {
@@ -159,15 +157,15 @@ func envFromKey(group, key string) string {
 // filesystem-path that reveals /var/lib/... is hidden behind the
 // "set / not-set" boolean.
 //
-// (storage.DBPath and storage.DataDir reveal deployment paths,
-// not secrets — they are surfaced. NATS.LeafNodeURL carries
+// (storage.DataDir reveals deployment paths,
+// not secrets — it is surfaced. NATS.LeafNodeURL carries
 // credentials → masked.)
 func safeValue(group, key string) bool {
 	switch group {
 	case groupApp:
 		return true
 	case groupStorage:
-		return key == keyDBPath || key == keyDataDir
+		return key == keyDataDir
 	case groupAdmin:
 		return false
 	case groupAI:

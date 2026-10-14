@@ -121,14 +121,13 @@ func TestBuildPageData_LeafNodeURLStripsCredentials(t *testing.T) {
 }
 
 // TestBuildPageData_NonSecretFieldsSurfaced asserts that the
-// "safe to show" fields keep their literal values (DBPath,
-// DataDir, BuildLabel, AppName) so operators get useful context.
+// "safe to show" fields keep their literal values (DataDir,
+// BuildLabel, AppName) so operators get useful context.
 func TestBuildPageData_NonSecretFieldsSurfaced(t *testing.T) {
 	cfg := &config.Config{
 		AppName:    "production-app",
 		BuildLabel: "v1.2.3",
 		Host:       "127.0.0.1",
-		DBPath:     "/var/lib/test/data.db",
 		DataDir:    "/var/lib/test",
 	}
 	pd := BuildPageData(cfg)
@@ -141,7 +140,7 @@ func TestBuildPageData_NonSecretFieldsSurfaced(t *testing.T) {
 			t.Fatalf("AppName Display = %q, want production-app", row.Display)
 		}
 	}
-	for _, key := range []string{"DBPath", "DataDir"} {
+	for _, key := range []string{"DataDir"} {
 		row := findRow(t, pd, "storage", key)
 		if row.Masked {
 			t.Fatalf("%s should not be masked (path only)", key)
