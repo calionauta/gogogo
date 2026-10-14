@@ -248,6 +248,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Install JS deps
+        # The client suites import the playwright library: install from the
+        # lockfile. (Previously this arrived incidentally — make css ran npm
+        # ci earlier on the same runner. Separate jobs get separate runners.)
+        run: npm ci --no-audit --no-fund
       - name: Build
         # One binary for the client suites below (previously rebuilt per
         # suite). The boot smoke validates the endpoint contract from a fresh
