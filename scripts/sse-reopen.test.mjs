@@ -114,6 +114,35 @@ try {
     await context.close();
   }
 
+  // Case 3 — helper itself unloadable: the declarative opener must not
+  // throw ExecuteExpression (helper undefined); the fallback waits for it
+  // bounded and then fails loud with the helper message instead.
+  {
+    const context = await browser.newContext();
+    const token = await signupCookie(`sse-probe-${Date.now()}-c@local.dev`);
+    await context.addCookies([{ name: "gogogo_auth", value: token, url: BASE + "/" }]);
+    const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (err) => errors.push(String(err && err.message || err)));
+    await page.route("**/static/sse-open.js", (route) => route.abort());
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    try {
+      await page.waitForFunction(
+        () => window.__gogogoSSEOpenState === "failed" || document.querySelector("#todo-list") !== null,
+        null, { timeout: 1000 },
+      );
+    } catch {}
+    await new Promise((r) => setTimeout(r, 16000));
+    if (errors.some((m) => m.includes("ExecuteExpression") || m.includes("is not a function"))) {
+      throw new Error("declarative opener threw with helper absent (expected guarded no-op + loud fallback failure)");
+    }
+    if (!errors.some((m) => m.includes("sse-open.js never loaded"))) {
+      throw new Error("fallback did not fail loud on missing helper (errors seen: " + JSON.stringify(errors) + ")");
+    }
+    console.log("  ✓ helper-unloadable fails loud with the helper message, never ExecuteExpression");
+    await context.close();
+  }
+
   console.log("✅ SSE reopen verification passed");
 } finally {
   if (browser) await browser.close().catch(() => {});

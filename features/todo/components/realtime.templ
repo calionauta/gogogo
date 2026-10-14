@@ -51,7 +51,7 @@ templ RealtimeStream(streamURL string) {
 		id="sse-opener"
 		class="hidden"
 		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
-		data-on:datastar-ready__document="window.__gogogoOpenVerified('sse-opener')"
+		data-on:datastar-ready__document="window.__gogogoOpenVerified && window.__gogogoOpenVerified('sse-opener')"
 		data-on:online__window="window.__gogogoSSEReopen()"
 		data-on:visibilitychange__document="if(!document.hidden){window.__gogogoSSEReopen()}"
 		aria-hidden="true"
@@ -85,7 +85,18 @@ templ RealtimeStream(streamURL string) {
 			}
 
 			function openSSE() {
-				window.__gogogoOpenVerified('sse-opener');
+				if (typeof window.__gogogoOpenVerified === 'function') {
+					window.__gogogoOpenVerified('sse-opener');
+					return;
+				}
+				// Helper script still in flight (slow network): retry
+				// bounded, then loud — an opener that can never verify must
+				// fail visibly, matching the helper's own contract.
+				openSSE.misses = (openSSE.misses || 0) + 1;
+				if (openSSE.misses > 40) {
+					throw new Error('sse: helper sse-open.js never loaded');
+				}
+				setTimeout(openSSE, 300);
 			}
 			// The open itself is declarative (data-on:datastar-ready on
 			// the button, which fires post-bind); this fallback covers an

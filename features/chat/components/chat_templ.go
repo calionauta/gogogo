@@ -123,7 +123,7 @@ func ChatIndex(email string, userRole string, buildLabel string, buildCommit str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" data-on:datastar-ready__document=\"window.__gogogoOpenVerified('chat-stream-opener')\" aria-hidden=\"true\"></button><script defer type=\"module\" src=\"/static/sse-open.js\"></script><script type=\"module\">\n\t\t\t\t// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven\n\t\t\t\t// bootstrap as the todo RealtimeStream — Datastar v1 never fires\n\t\t\t\t// data-on:load on body, so the datastar-ready click + timeout\n\t\t\t\t// fallback below is the only opener that works.\n\t\t\t\t(function () {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\t\t\tif (!id) {\n\t\t\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t\t\t}\n\t\t\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\t}\n\t\t\t\t\tfunction openSSE() {\n\t\t\t\t\t\twindow.__gogogoOpenVerified('chat-stream-opener');\n\t\t\t\t\t}\n\t\t\t\t\t// Declarative open above; fallback covers already-fired ready.\n\t\t\t\t\tsetTimeout(openSSE, 300);\n\t\t\t\t})();\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" data-on:datastar-ready__document=\"window.__gogogoOpenVerified && window.__gogogoOpenVerified('chat-stream-opener')\" aria-hidden=\"true\"></button><script defer type=\"module\" src=\"/static/sse-open.js\"></script><script type=\"module\">\n\t\t\t\t// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven\n\t\t\t\t// bootstrap as the todo RealtimeStream — Datastar v1 never fires\n\t\t\t\t// data-on:load on body, so the datastar-ready click + timeout\n\t\t\t\t// fallback below is the only opener that works.\n\t\t\t\t(function () {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\t\t\tif (!id) {\n\t\t\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t\t\t}\n\t\t\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t\t\t} catch (e) {\n\t\t\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\t}\n\t\t\t\t\tfunction openSSE() {\n\t\t\t\t\t\tif (typeof window.__gogogoOpenVerified === 'function') {\n\t\t\t\t\t\t\twindow.__gogogoOpenVerified('chat-stream-opener');\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\topenSSE.misses = (openSSE.misses || 0) + 1;\n\t\t\t\t\t\tif (openSSE.misses > 40) {\n\t\t\t\t\t\t\tthrow new Error('sse: helper sse-open.js never loaded');\n\t\t\t\t\t\t}\n\t\t\t\t\t\tsetTimeout(openSSE, 300);\n\t\t\t\t\t}\n\t\t\t\t\t// Declarative open above; fallback covers already-fired ready.\n\t\t\t\t\tsetTimeout(openSSE, 300);\n\t\t\t\t})();\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -168,7 +168,7 @@ func ChatList(msgs []store.MessageView, thinking bool, errMsg string) templ.Comp
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 115, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 123, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -194,7 +194,7 @@ func ChatList(msgs []store.MessageView, thinking bool, errMsg string) templ.Comp
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 128, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 136, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -217,7 +217,7 @@ func ChatList(msgs []store.MessageView, thinking bool, errMsg string) templ.Comp
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 134, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 142, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
