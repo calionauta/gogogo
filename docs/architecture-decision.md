@@ -19,16 +19,17 @@ PocketBase, the limen auth library and the repo-interface abstraction layer
 The thesis is one sentence: **few deep modules beat many shallow ones.** The
 benefits, in the order they show up in daily work:
 
-- 🧩 **No shallow middle layer.** The removed layer was three tiny interfaces
-  with two one-line adapters each — files and indirection, no behavior. A
-  pass-through that only forwards a call is a cost with no return.
+- 🧩 **No shallow middle layer.** Handlers call `dbgen.*` queries directly —
+  no repository interfaces, no one-line adapters in between. A pass-through
+  that only forwards a call is a cost with no return.
 - ⚡ **Errors arrive at compile time.** Calling `dbgen.CreateTodo` directly turns
   a wrong query name, a missing argument, or a changed column into a build
   failure instead of an interface mismatch discovered at runtime — the tight
   feedback loop AI coding depends on.
-- 🗄️ **The database is a file.** Embedded SQLite through sqlc-generated queries:
-  no server to install, no connection string to rotate, no ORM model language,
-  no strategy switch between data layers.
+- 🗄️ **The database is a file.** Turso Database (SQLite-compatible file)
+  through sqlc-generated queries: no server to install, no connection
+  string to rotate, no ORM model language, no strategy switch between
+  data layers.
 - 🔑 **Auth is owned code.** Password hashes, opaque sessions, and the
   `gogogo_auth` cookie are a few hundred lines in `internal/auth` — zero auth
   dependencies, and random session tokens mean there is nothing to rotate.
