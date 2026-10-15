@@ -134,12 +134,17 @@ server renders them as Templ over SSE: no client framework, no JS bundle,
 trimmable like every feature.
 
 - **Rejected:** OpenUI/A2UI/AG-UI/CopilotKit renderers (all React/JS with npm +
-  SPA; none ships a Go/hypermedia renderer), free-form model HTML (unreviewable,
-  untestable, XSS surface), and the community AG-UI Go SDK (version churn for
-  ~10 string constants — mirrored stdlib-only with a wire-compatibility test
-  instead).
+  SPA; none ships a Go/hypermedia renderer), *unsanitized* free-form model
+  HTML (unreviewable, untestable, XSS surface), and the community AG-UI Go
+  SDK (version churn for ~10 string constants — mirrored stdlib-only with a
+  wire-compatibility test instead).
 - **Cost:** the catalog grows by developer PR only; recursion is depth-capped;
   free-model rosters churn monthly (pin and monitor).
+- **Exception, scoped:** chat's `html_block` lets the model compose visual
+  markup the catalog cannot express — but sanitized server-side through a
+  closed allowlist (structure + classes + safe links; scripts, styles,
+  handlers, media never survive), size-capped, red-proofed. Ask AI stays
+  catalog-only: constrained generation is its showcase.
 - **Revisit when:** an external AG-UI client needs the stream, or a renderer the
   model can't express in server-rendered HTML.
 

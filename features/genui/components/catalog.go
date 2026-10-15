@@ -68,6 +68,15 @@ type ActionButtonsProps struct {
 	Actions []Action `json:"actions"`
 }
 
+// HTMLBlockProps is model-composed visual markup for answers the fixed
+// catalog cannot express (a timeline, a comparison, a dashboard invented
+// for this request). The HTML is sanitized at parse time — the model
+// styles with Tailwind/DaisyUI classes, never scripts, styles, handlers
+// or media. Chat-only affordance: the Ask prompt never advertises it.
+type HTMLBlockProps struct {
+	HTML string `json:"html"`
+}
+
 // Plan is one actionable plan card.
 type Plan struct {
 	Title  string `json:"title"`
@@ -180,6 +189,17 @@ var renderers = map[string]renderer{
 		}
 		return GenuiActionButtons(p.Actions), nil
 	},
+	"html_block": func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[HTMLBlockProps](props)
+		if err != nil {
+			return nil, err
+		}
+		clean, err := SanitizeHTML(p.HTML)
+		if err != nil {
+			return nil, err
+		}
+		return GenuiHTMLBlock(clean), nil
+	},
 }
 
 // checkAction enforces the same-origin contract: action buttons post
@@ -291,6 +311,32 @@ func PromptForCatalog() string {
 		"bar_chart {title, bars:[{label, value>=0}]}, " +
 		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
 		"section {title} holding nested components. " +
+		"No prose outside the JSON object."
+}
+
+// PromptForChat is the chat affordance: the same structured catalog
+// plus html_block, with the model restricted to answering visually.
+// html_block carries Tailwind/DaisyUI markup the model composes for
+// THIS request (a timeline, a comparison, a mini dashboard) when no
+// catalog component fits — sanitized server-side, so scripts, styles,
+// handlers and media never reach the browser. The Ask demo keeps
+// PromptForCatalog (catalog-only is its showcase); chat gets the
+// invented-visual path because conversation, not decision, is its job.
+func PromptForChat() string {
+	return "Answer with a single JSON object shaped " +
+		`{"components":[{"type":"<name>","props":{...}}]} ` +
+		"using ONLY these components: " +
+		"text_note {text}, " +
+		"plan_cards {plans:[{title, detail}]}, " +
+		"data_table {headers:[], rows:[[]]}, " +
+		"bar_chart {title, bars:[{label, value>=0}]}, " +
+		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
+		"html_block {html: Tailwind/DaisyUI markup string invented for this answer}, " +
+		"section {title} holding nested components. " +
+		"Present the information in the most adequate visual form for the request: " +
+		"prefer a visual component over prose, and use html_block when the fixed " +
+		"catalog cannot express it. The html must be display markup only — no " +
+		"script, style, event handlers, forms or media. " +
 		"No prose outside the JSON object."
 }
 

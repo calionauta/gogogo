@@ -228,11 +228,15 @@ func TestRBACPolicyShape(t *testing.T) {
 	}
 	// The only viewer wildcards: page renders and public surfaces.
 	// Everything else viewer reaches is enumerated exactly (the demo
-	// contract: read + create + toggle, nothing destructive, nothing
-	// paid). /api/*-shaped viewer rows are never acceptable.
+	// contract: read + create + toggle + delete-own, nothing else
+	// destructive, nothing paid). /api/*-shaped viewer rows are never acceptable.
 	viewerWildcards := map[string]bool{
 		"/todo/*": true, "/static/*": true, "/api/auth/*": true,
 		"/api/todos/*/toggle": true,
+		// Delete-own verbs: the middleware gates the verb class, the
+		// handler enforces per-record ownership (canDeleteRow) — a
+		// viewer reaches these paths but only deletes their own rows.
+		"/api/todos/*/delete": true, "/api/todos/*/confirm-delete": true,
 	}
 	for line := range strings.SplitSeq(Policy(), "\n") {
 		line = strings.TrimSpace(line)
@@ -277,8 +281,11 @@ func TestRBACViewerSubject(t *testing.T) {
 	}
 }
 
-// TestRBACViewerPolicy pins the demo contract: read + create + toggle
-// allowed, every destructive and every paid path denied. Unknown verdict
+// TestRBACViewerPolicy pins the demo contract: read + create + toggle +
+// delete-own allowed (clear-completed deletes own rows only, so it rides
+// the same ownership; per-record enforcement lives in the handler — the
+// policy gates the verb class, never the row), every other destructive
+// and every paid path denied. Unknown verdict
 // strings and unknown roles are covered by the closed-set rule in the
 // middleware (exact match or fallback), not here.
 func TestRBACViewerPolicy(t *testing.T) {
@@ -292,6 +299,9 @@ func TestRBACViewerPolicy(t *testing.T) {
 		{"POST", "/api/todos"},
 		{"POST", "/api/todos/abc123/toggle"},
 		{"GET", "/api/todos/stream"},
+		{"POST", "/api/todos/abc123/delete"},
+		{"GET", "/api/todos/abc123/confirm-delete"},
+		{"POST", "/api/todos/completed/delete"},
 	}
 	for _, a := range allow {
 		ok, err := e.Enforce("viewer", a.path, a.method)
@@ -303,9 +313,6 @@ func TestRBACViewerPolicy(t *testing.T) {
 		}
 	}
 	deny := []struct{ method, path string }{
-		{"POST", "/api/todos/abc123/delete"},
-		{"POST", "/api/todos/completed/delete"},
-		{"GET", "/api/todos/abc123/confirm-delete"},
 		{"POST", "/api/todos/suggest"},
 		{"POST", "/api/todos/retry-demo"},
 		{"GET", "/config"},
@@ -322,11 +329,10 @@ func TestRBACViewerPolicy(t *testing.T) {
 	}
 }
 
-// TestRBACMiddlewareViewerEnforcement is the money test for the viewer
-// demo: through the real middleware with enforcement on, a viewer
-// DELETE is denied while create/toggle-shaped traffic passes. Unit
-// policy tests pin the matrix; this pins the wiring (subject
-// resolution + middleware + enforcer together).
+// TestRBACMiddlewareViewerEnforcement pins the verb-level split: through
+// the real middleware with enforcement on, a viewer DELETE passes the
+// middleware (the verb is allowed) — row ownership is the handler's
+// decision (canDeleteRow), pinned by the handler sharing tests.
 func TestRBACMiddlewareViewerEnforcement(t *testing.T) {
 	sqlDB, err := db.OpenAt(t.TempDir() + "/rbac-viewer.db")
 	if err != nil {
@@ -373,8 +379,8 @@ func TestRBACMiddlewareViewerEnforcement(t *testing.T) {
 		h.ServeHTTP(rec, req)
 		return rec.Code
 	}
-	if code := drive(http.MethodPost, "/api/todos/abc/delete"); code != http.StatusForbidden {
-		t.Errorf("viewer DELETE status = %d, want 403", code)
+	if code := drive(http.MethodPost, "/api/todos/abc/delete"); code != http.StatusOK {
+		t.Errorf("viewer DELETE verb passes middleware (ownership is the handler's job) status = %d, want 200", code)
 	}
 	if code := drive(http.MethodPost, "/api/todos"); code != http.StatusOK {
 		t.Errorf("viewer create status = %d, want 200", code)

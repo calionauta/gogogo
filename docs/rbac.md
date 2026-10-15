@@ -61,7 +61,9 @@ any allow wins. No `g,` rows ship — roles are flat (see below).
   sees it.
 - **Users get subtrees** (`/prefix`, `/prefix/*`); **viewers get
   enumerated paths**. Viewer wildcards outside `/todo/*`, `/static/*`,
-  `/api/auth/*`, `/api/todos/*/toggle` fail the shape test.
+  `/api/auth/*`, `/api/todos/*/toggle`, `/api/todos/*/delete`,
+  `/api/todos/*/confirm-delete` fail the shape test. Delete verbs are
+  verb-class grants — row ownership stays in the handler.
 - **Fail-closed by construction**: a route with no row denies everyone
   but admin. Adding a route without adding its rows is a 403 bug, and
   the coverage test names it.
@@ -71,7 +73,8 @@ any allow wins. No `g,` rows ship — roles are flat (see below).
 1. Mount routes in `internal/server/chi.go` `buildChiMux` (one arg per line).
 2. Add `p, user, /prefix, .*` (+ `/prefix/*`) rows in the user block.
 3. Add enumerated viewer rows only if the feature has a viewer-safe
-   surface (read/create/toggle class — never deletes, never paid).
+   surface (read/create/toggle class, plus delete-own — never shared
+   deletes, never paid).
 4. Extend `TestRBACPolicyCoversMuxRoutes` with the new mounts.
 5. Run `go test -count=1 ./internal/rbac/` (~2s; the
    `rbac-policy` pre-commit hook runs the shape subset on commits
@@ -117,7 +120,8 @@ a 403, never to an unauthorized write. Never gate a mutation on
   decided for user-or-admin; `/config`, `/console`, `/dagnats` denied
   for user.
 - **Viewer matrix + middleware**: allow/deny decisions plus a real
-  viewer through the real middleware (create/toggle pass, delete 403s).
+  viewer through the real middleware (create/toggle/delete-own pass at
+  the verb; row ownership denies in the handler).
 - **Display** (`TestTodoViewerDeleteAffordanceDisabled`,
   `TestTodoSuggestTabVisibility`): the UI narrates the role.
 - **Boot wiring** (`TestApplyRBACWiresPermissive`,

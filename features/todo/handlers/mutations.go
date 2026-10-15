@@ -229,6 +229,13 @@ func (h *Handler) handleConfirmDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: confirm-delete map failed", err, "delete failed")
 		return
 	}
+	// Same rule as the destructive act (canDeleteRow, enforced here): the
+	// modal wiring is only handed out for rows the requester may delete.
+	_, role := h.roleOf(r)
+	if !canDeleteRow(role, owner, item) {
+		writeText(w, http.StatusForbidden, "cannot delete this todo")
+		return
+	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"confirmingDeleteId":    item.ID,

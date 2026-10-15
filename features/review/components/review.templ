@@ -35,13 +35,20 @@ templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit 
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">
 				<h1 class="text-2xl font-bold">Review</h1>
-				<p class="text-sm text-base-content/60 mt-1 mb-4">
+				<p class="text-sm text-base-content/60 mt-1 mb-1">
 					Paste text or a diff — a writer and a critic iterate, then a classifier judge delivers the verdict.
 				</p>
+				@components.TechStack([]components.TechItem{
+					{Name: "Genkit flows", Note: "writer/critic/judge loop"},
+					{Name: "GoAI", Note: "provider client for the LLM"},
+					{Name: "SSE stream", Note: "phases stream with heartbeats"},
+					{Name: "Jev judge", Note: "compatible classifier verdict"},
+				})
+				<div class="mb-4"></div>
 				if signals.ReviewEnabled {
 					<form
 						id="review-composer"
-						data-on:submit__prevent={ "@post('/api/review/run', {contentType: 'form'})" }
+						data-on:submit__prevent={ "$review_pending = true; $review_error = ''; @post('/api/review/run', {contentType: 'form'})" }
 						data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($review_pending = false, $review_error = 'Request failed — check your connection and try again.') : null"
 						data-cuelume="send"
 					>

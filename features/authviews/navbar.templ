@@ -11,7 +11,7 @@ import (
 // so the navbar can highlight it. The order of nav items is fixed
 // and intentional: collab features first (Todo, Whiteboard, Notes) so the
 // common paths are adjacent to the logo, then the LLM demos (Ask AI,
-// Review, Chat), then Room, then the operator-facing
+// Chat, Review — conversation before verdict), then Room, then the operator-facing
 // Config tab at the end (not a content destination; an inspection
 // surface). The logo text always links to "/" — the landing page.
 //
@@ -45,12 +45,12 @@ templ Navbar(userEmail string, userRole string, active string, buildLabel string
 				<a href="/genui" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "genui",
 				}) }>Ask AI</a>
-				<a href="/review" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
-					"is-active": active == "review",
-				}) }>Review</a>
 				<a href="/chat" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "chat",
 				}) }>Chat</a>
+				<a href="/review" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+					"is-active": active == "review",
+				}) }>Review</a>
 				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "room",
 				}) }>Room</a>

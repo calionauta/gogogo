@@ -3,8 +3,9 @@
 // Demo1 and demo2 must prove live collab from two browsers: a 'public' todo
 // created by one login is listed, toggled and re-rendered by the other,
 // while 'private' rows stay invisible across tenants. Visibility is listing
-// scope only — what a role may DO stays in the handler (viewer never
-// deletes; owner deletes own; admin deletes any visible row).
+// scope only — what a role may DO stays in the handler (owner always
+// deletes own, viewer included; viewer never deletes shared; admin
+// deletes any visible row).
 package handlers
 
 import (
@@ -141,15 +142,19 @@ func TestHandlersSharedTodoViewerAndAdmin(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("set viewer role: %v", err)
 	}
-	// Viewer creates their own row, then cannot delete it.
+	// Viewer creates their own row, then deletes it: owners always delete
+	// their own rows, viewer included (restrictions apply to shared rows).
 	f.do(http.MethodPost, "/api/todos", "title=Viewer+own", viewerC)
 	viewerID := f.ownerOf(t, viewerC)
 	vrows, _ := f.q.ListTodosByOwner(ctx, viewerID)
 	if len(vrows) != 1 {
 		t.Fatalf("viewer setup rows = %d, want 1", len(vrows))
 	}
-	if rec := f.do(http.MethodPost, "/api/todos/"+vrows[0].ID+"/delete", "", viewerC); rec.Code != http.StatusForbidden {
-		t.Errorf("viewer delete own: status = %d, want 403", rec.Code)
+	if rec := f.do(http.MethodPost, "/api/todos/"+vrows[0].ID+"/delete", "", viewerC); rec.Code != http.StatusOK {
+		t.Errorf("viewer delete own: status = %d, want 200", rec.Code)
+	}
+	if n, _ := f.q.CountTodosByOwner(ctx, viewerID); n != 0 {
+		t.Errorf("after viewer delete own count = %d, want 0", n)
 	}
 
 	adminC := f.signup("admin-y@example.com")
@@ -233,8 +238,9 @@ func TestHandlersMutationsPreserveTabSlice(t *testing.T) {
 	}
 }
 
-// TestCanDeleteRow pins the shared delete rule in one place: viewer never,
-// owner always, admin on any visible row, plain peer never.
+// TestCanDeleteRow pins the shared delete rule in one place: owner always
+// (every role, viewer included), viewer never on shared, admin on any
+// visible row, plain peer never.
 func TestCanDeleteRow(t *testing.T) {
 	mine := todo.Todo{ID: "1", Owner: "u1", Visibility: todo.VisibilityPrivate}
 	shared := todo.Todo{ID: "2", Owner: "u1", Visibility: todo.VisibilityPublic}
@@ -245,8 +251,9 @@ func TestCanDeleteRow(t *testing.T) {
 		item todo.Todo
 		want bool
 	}{
-		{"viewer own private", "viewer", "u1", mine, false},
-		{"viewer shared", "viewer", "u2", shared, false},
+		{"viewer own private", "viewer", "u1", mine, true},
+		{"viewer own shared", "viewer", "u1", shared, true},
+		{"viewer foreign shared", "viewer", "u2", shared, false},
 		{"owner own private", "user", "u1", mine, true},
 		{"owner own shared", "user", "u1", shared, true},
 		{"peer shared", "user", "u2", shared, false},

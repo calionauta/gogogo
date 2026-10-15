@@ -4,6 +4,8 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	sdk "github.com/starfederation/datastar-go/datastar"
@@ -134,7 +136,16 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	ctx = llm.WithUserID(ctx, sess.User.ID)
 
-	sse := sdk.NewSSE(w, r)
+	// Heartbeat the SSE stream while the synchronous run works: a review
+	// loop is several LLM calls with minutes of silence between the
+	// pending ack and the verdict, and proxies kill idle streams —
+	// leaving the button disabled forever with no error. Comments are
+	// SSE-ignored so they only reset idle timers. All writes go through
+	// the locked writer so a heartbeat can never interleave a patch.
+	lw := &lockedWriter{w: w}
+	sse := sdk.NewSSE(lw, r)
+	stopBeat := heartbeat(ctx, lw)
+	defer stopBeat()
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalReviewPending: true, signalReviewError: "",
 	}); err != nil {
@@ -180,3 +191,70 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 // phaseSignal is the transient progress signal (writer/reviewer/judge).
 // Seeded empty; each streamed chunk overwrites it.
 const phaseSignal = "review_phase"
+
+// heartbeatEvery is comfortably below common proxy idle timeouts
+// (60s+) while adding negligible bytes to a minutes-long run. A var
+// (not const) so tests observe a beat without sleeping 15s.
+var heartbeatEvery = 15 * time.Second
+
+// lockedWriter serializes every byte written to one SSE response.
+// handleRun's synchronous phases and the heartbeat ticker write from
+// different goroutines; without the mutex a comment could split a
+// patch event mid-write and Datastar would drop both halves.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  http.ResponseWriter
+}
+
+func (l *lockedWriter) Header() http.Header { return l.w.Header() }
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
+}
+
+func (l *lockedWriter) WriteHeader(statusCode int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.w.WriteHeader(statusCode)
+}
+
+func (l *lockedWriter) Flush() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if f, ok := l.w.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// heartbeat writes SSE comments until ctx ends or stop runs. Comments
+// carry no semantics — they only reset proxy idle timers. The loop
+// selects on ctx.Done (never a bare ticker range) and stop is
+// idempotent so defer + early exits share it safely.
+func heartbeat(ctx context.Context, lw *lockedWriter) (stop func()) {
+	t := time.NewTicker(heartbeatEvery)
+	done := make(chan struct{})
+	var once sync.Once
+	stop = func() {
+		once.Do(func() {
+			t.Stop()
+			close(done)
+		})
+	}
+	go func() {
+		defer stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case <-t.C:
+				_, _ = lw.Write([]byte(": heartbeat\n\n"))
+				lw.Flush()
+			}
+		}
+	}()
+	return stop
+}

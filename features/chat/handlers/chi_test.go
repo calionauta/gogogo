@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -167,4 +168,35 @@ func sessionOwner(t *testing.T, a *auth.Auth, cookie *http.Cookie) string {
 		t.Fatalf("ownerOf: %v", err)
 	}
 	return sess.User.ID
+}
+
+// TestRenderDirectivesSanitizesInventedVisual pins the end of the
+// html_block path: worker output re-validated through the catalog
+// renders sanitized markup in the bubble — a script in the model's
+// answer never reaches the DOM.
+func TestRenderDirectivesSanitizesInventedVisual(t *testing.T) {
+	t.Parallel()
+	raw := []any{map[string]any{
+		"Component": "html_block",
+		"Props": map[string]any{
+			"html": `<div class="stats"><script>alert(1)</script><p>done</p></div>`,
+		},
+	}}
+	comps := renderDirectives(raw)
+	if len(comps) != 1 {
+		t.Fatalf("renderDirectives(html_block) = %d comps, want 1", len(comps))
+	}
+	var buf bytes.Buffer
+	if err := comps[0].Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render html_block: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{`class="stats"`, "<p>done</p>"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("bubble missing %q (got %.200q…)", want, html)
+		}
+	}
+	if strings.Contains(html, "<script") {
+		t.Errorf("script survived into the bubble: %.200q…", html)
+	}
 }

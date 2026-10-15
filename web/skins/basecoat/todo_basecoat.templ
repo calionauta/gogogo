@@ -126,17 +126,11 @@ templ tasksCard(signals todo.Signals) {
 			if signals.ItemCount > 0 {
 				<div class="flex justify-between items-center mt-4 pt-3 border-t border-base-200">
 					<span class="text-sm soft" data-text="$itemCount + ' items'"></span>
-					if !signals.IsViewer {
-						<button type="button" class="btn" data-variant="outline" data-size="sm"
-							data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat'); break; }">
-							Clear my completed
-						</button>
-					} else {
-						<button type="button" class="btn" data-variant="outline" data-size="sm" style="opacity:.5;" aria-disabled="true" title="Clear completed (viewer role cannot delete)"
-							data-on:click__prevent={ "$permDenied = true" }>
-							Clear my completed
-						</button>
-					}
+					<button type="button" class="btn" data-variant="outline" data-size="sm"
+						title="Delete your own completed todos (shared rows by others stay)"
+						data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat'); break; }">
+						Clear my completed
+					</button>
 				</div>
 			}
 		</section>
