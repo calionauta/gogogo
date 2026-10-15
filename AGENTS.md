@@ -23,7 +23,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | Turso (tursogo v0.8.2, sqlc querie
 - `/skill:cali-ops-deploy-github-tailscale` — server layout, deploy user, secret tables.
 - **Agent tooling (install once per machine, index per repo):** `ripwire` (required, orient-first — install via `redhat-et/ripwire`, no daemon, no index step, call via bash); `cymbal` (`brew install cymbal`, then `cymbal index .` once per repo, auto-refresh after); `xerj` (required for docs/prose — `curl -fsSL https://xerj.org/get | sh`, then `xerj --insecure --data-dir ~/.xerj-data &` + `xerj autoindex .`, MCP via `xerj mcp`; keep its data dir OUTSIDE the repo, never commit indexes); `sem` (`brew install sem-cli`, no setup, cache outside the repo; if `sem --version` prints GNU parallel, put brew/cargo bin first in PATH).
 - **Tool decision rule:** symbol/call-graph questions (who calls X, blast radius, tests to run, diff impact) → ripwire first (`ripwire . --for="<task>"`), cymbal to drill (`investigate`/`trace`/`impact`/`changed`). What changed / history / review evidence → `sem diff` (entities, not lines), `sem history` (blame, hotspots, co-change), `sem certify` (range certificate). Meaning/concept questions over code AND prose (docs audits, stale/contradiction sweeps, reference coding, cross-session memory) → xerj — cymbal/ripwire don't read prose.
-- **Docs rule:** after ANY behavior change, sweep `docs/` + the site map (`site/build.mjs` MANIFEST) with xerj for staleness vs the diff and confirm with `sem diff` (it diffs Markdown by heading — proves docs moved with code), update the doc in the SAME commit, verify with `make site-check` (docs-staleness hook stays advisory). Changelog entries under CHANGELOG `[Unreleased]` are narrative — draft from `sem diff --format markdown` + `sem certify` evidence, never from memory.
+- **Docs rule:** after ANY behavior change, sweep `docs/` + the site map (`site/build.mjs` MANIFEST) for staleness vs the diff — concept sweeps via xerj, exact-claim checks via grep/`sem` (verified: xerj lexical retrieval underperforms both on this corpus) — and confirm with `sem diff` (it diffs Markdown by heading — proves docs moved with code), update the doc in the SAME commit, verify with `make site-check` (docs-staleness hook stays advisory). Changelog entries under CHANGELOG `[Unreleased]` are narrative — draft from `sem diff --format markdown` + `sem certify` evidence, never from memory.
 
 ## Commands
 
@@ -47,7 +47,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | Turso (tursogo v0.8.2, sqlc querie
 
 - NO HTMX/Alpine (Datastar), NO `fmt.Sprintf` HTML (Templ), NO `log` (`log/slog`).
 - Driver is `turso` (tursogo, registered by `internal/db`) — the only data layer; handlers call `dbgen.*` directly, no strategy switch. NO removing goqite for JetStream; different problems.
-- NO hand-rolled IDs on rows — use `db.NewID()` (UUIDv7 string, matches every owner column).
+- NO hand-rolled IDs on rows — use `dbschema.NewID()` (UUIDv7 string, matches every owner column).
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
 - NO secrets in git, chat-visible commands, or test fixtures — keys live in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets`; `gitleaks` pre-commit + CI enforce it. Never print secret values (lengths/names only).

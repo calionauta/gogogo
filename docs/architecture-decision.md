@@ -13,6 +13,9 @@ password hashes, opaque sessions, `gogogo_auth` cookie, zero auth
 dependencies), **Casbin** for permissions, and **Datastar + Templ** for the UI.
 PocketBase, the limen auth library and the repo-interface abstraction layer
 (`internal/ports`, `internal/repos`, `internal/backend`) are removed.
+Routing composes on the standard-library mux (one subtree per capability);
+the `chi` names are historical — feature sub-routers still use `go-chi/chi`
+for URL params, a leaf dependency, not a framework.
 
 ## Why (evidence)
 
@@ -57,7 +60,7 @@ pre-1.0 engine, and the PocketBase rejection are stated plainly in
 
 | Concern | Location |
 |---|---|
-| HTTP handlers (std mux) | `features/<name>/handler.go` |
+| HTTP handlers (std mux composition, chi sub-routers) | `features/<name>/handlers/*.go` |
 | DB connection, pragmas, boot | `internal/db/db.go` |
 | Schema (the migrations ARE the schema) | `internal/dbschema/migrations/*.sql` |
 | sqlc query sources | `internal/db/queries/<domain>.sql` |
@@ -83,9 +86,9 @@ import rewrite, deliberately deferred so no import path changes twice.
   without sqlc installed; `make check-generated` regenerates and fails on drift
   when sqlc is on PATH (skips with a warning when it is not).
 - **Migrations are additive files** under `internal/dbschema/migrations`,
-  applied in filename order by `db.Migrate` on every boot and recorded in
+  applied in filename order by `dbschema.Migrate` on every boot and recorded in
   `schema_migrations`.
-- **IDs are UUIDv7, generated in Go** (`db.NewID`), so the value exists before
+- **IDs are UUIDv7, generated in Go** (`dbschema.NewID`), so the value exists before
   the insert and text ordering equals creation ordering.
 
 ## Auth: owned argon2id, with the library path written down
@@ -116,19 +119,19 @@ exactly that moment.
 The three live in `internal/auth` (tables in `internal/dbschema/migrations`),
 red-proofed against the real driver — no new auth dependencies:
 
-- **Magic link** (`magiclink.go`): single-use tokens consumed by DELETE,
+- 🔗 **Magic link** (`magiclink.go`): single-use tokens consumed by DELETE,
   15-minute expiry, silent nil for unknown addresses, no auto-provisioning
   (passwordless signup stays an explicit per-app choice, not a spam vector).
   Delivery is an injected `MagicSender` — the template has no opinion on
   SMTP vs API senders. Disabled without a sender (fail closed).
-- **TOTP second factor** (`totp.go`): owned RFC 6238 (the usual library
+- 🔢 **TOTP second factor** (`totp.go`): owned RFC 6238 (the usual library
   scored 0/10 maintained in 2026), verified against the RFC Appendix B
   vectors. `totp_secret` empty means off; `totp_verified` guards the
   enroll-then-confirm window so abandoned setups never lock anyone out.
   Password login withholds the session (`totp_required`) until
   `/api/auth/totp/login` closes it. The form login says so plainly —
   the shared form has no code field.
-- **Social login** (`oauth.go`): generic authorization-code flow over
+- 👤 **Social login** (`oauth.go`): generic authorization-code flow over
   `golang.org/x/oauth2` (already in the module graph), with Google and
   GitHub presets (GitHub reads `/user/emails` for the verified primary).
   Endpoints are data so tests point them at stubs. Links land in
@@ -209,8 +212,9 @@ native open-ack or restart handle replaces the status poll.
 The migration is complete. The flat stack is the only stack: auth, the
 todo slice (pages + data + realtime bridge, AI suggest, retry demo and the
 durable onboarding workflow), the queue, whiteboard, notes, room, chat,
-genui, credits, the config view, RBAC, the landing page, and the native GUI all
-boot from `internal/server` on the same Turso + owned-auth data layer.
+genui, credits, the config view, RBAC, the landing page, and the desktop shell
+all boot from `internal/server` on the same Turso + owned-auth data layer
+(the native GUI keeps its own standalone store in `cmd/gui`).
 
 Gone with the framework: the `db/` package (app handle + seeds), the
 `router/` package (route wiring), the `features/store` strategies
