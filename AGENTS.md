@@ -21,6 +21,9 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | Turso (tursogo v0.8.2, sqlc querie
 - `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, exception-to-go gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles live in the vendored `skills/stelow-workflow-coding-standards` (upstream [stelow](https://github.com/calionauta/stelow), pinned in its `UPSTREAM_SHA` — never edit the vendored copy in place). Drift: `bin/check-stelow-drift.sh` detects, `scripts/refresh-stelow.sh` fixes (a scheduled workflow opens the bump PR).
 - `cali-code-navigation` — ripwire orient-first navigation. Use when landing cold in unfamiliar code or tracing callers.
 - `/skill:cali-ops-deploy-github-tailscale` — server layout, deploy user, secret tables.
+- **Agent tooling (install once per machine, index per repo):** `ripwire` (required, orient-first — install via `redhat-et/ripwire`, no daemon, no index step, call via bash); `cymbal` (`brew install cymbal`, then `cymbal index .` once per repo, auto-refresh after); `xerj` opt-in server (`curl -fsSL https://xerj.org/get | sh`, then `xerj --insecure --data-dir ~/.xerj-data &` + `xerj autoindex .`, MCP via `xerj mcp`; keep its data dir OUTSIDE the repo, never commit indexes).
+- **Tool decision rule:** symbol/call-graph questions (who calls X, blast radius, tests to run, diff impact) → ripwire first (`ripwire . --for="<task>"`), cymbal to drill (`investigate`/`trace`/`impact`/`changed`). Meaning/concept questions over code AND prose (docs audits, stale/contradiction sweeps, reference coding, cross-session memory) → xerj.
+- **Docs rule:** after ANY behavior change, sweep `docs/` + the site map (`site/build.mjs` MANIFEST) with xerj for staleness vs the diff, update the doc in the SAME commit, verify with `make site-check` (docs-staleness hook stays advisory).
 
 ## Commands
 
@@ -87,7 +90,7 @@ Every non-test, non-generated `.go` under `internal/`/`features/` carries `// SC
 
 ## Hooks
 
-Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt · mod-tidy · install-sh · scope-lint · skill-frontmatter · datastar-lint · generated-templ · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push. Homolog light (no staging env): `make dev` + `make ci-local-fast` + smoke, share via `tailscale serve` — recipe in `docs/local-ci.md`.
+Blocking gates live at git level via lefthook (`make setup`; wrappers committed in `.githooks/`). Pre-commit (parallel, glob-filtered): file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint · agents-md-staleness · docs-staleness (advisory). Pre-push (light): govulncheck · deadcode. Post-merge: regen-assets. Agent-level hooks keep only what git cannot (post-build hints). Details: `docs/local-ci.md` — T1 format/build → T2 scoped lint → T3 scoped tests → T3.5 `ci-local-fast` → T4 `ci-local` → T5 `signoff`, then push. Homolog light (no staging env): `make dev` + `make ci-local-fast` + smoke, share via `tailscale serve` — recipe in `docs/local-ci.md`.
 
 ## Gotchas (details in docs)
 
