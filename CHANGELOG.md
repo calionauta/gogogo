@@ -19,6 +19,20 @@
   of template copies); "Clear completed" is honestly labeled "Clear my
   completed" (it only ever deletes the requester's own rows). Red-proofed
   in `features/todo/handlers/sharing_test.go` (+ Hub pref tests).
+  Slice-preserving endpoints: every list-affecting mutation (toggle,
+  clear, delete-confirm, realtime resync, both skins) carries
+  filter+scope+clientID, so acting from Mine/Shared never yanks the tab
+  back to All (template URL-contract tests in both skins).
+- **`make verify-ci` (post-push).** Deploy ships on push without waiting
+  for CI; `bin/verify-ci.sh` (over the cali-ops-verify-ci skill) checks
+  default-branch CI + live `/health` with a bounded wait, JSON out.
+  Documented in `docs/local-ci.md`. It caught a real red race job on its
+  first run (parallel timer tests tripping the goleak guard — fixed by
+  de-parallelizing the new hub tests).
+- **Docs indexing gaps closed.** `docs/api-routes.md` (load-bearing
+  inventory, test-pinned) was in neither the site map nor any doc link —
+  now in `site/build.mjs` beside `no-auth-no-db-recipe.md`, and the
+  `local-ci.md` hooks table lists the full pre-commit job set.
 - **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
   stamps demo1 `admin` and demo2 the restricted `viewer`, so the login card's
   permission split (admin reaches `/config`; viewer loses deletes + AI Suggest)
