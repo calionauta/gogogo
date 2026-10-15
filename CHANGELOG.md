@@ -513,6 +513,14 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.49.0 (2026-10-15)
+
+## What's Changed
+* Owner deletes own, review heartbeat, chat html_block by @calionauta in https://github.com/calionauta/gogogo/pull/145
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.48.1...v0.49.0
+
 ## 0.48.1 (2026-10-15)
 
 ## What's Changed
