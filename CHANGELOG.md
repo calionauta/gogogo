@@ -492,6 +492,15 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.48.0 (2026-10-15)
+
+## What's Changed
+* Shared vs private todos + collab UI fixes by @calionauta in https://github.com/calionauta/gogogo/pull/140
+* Point LLMs at ripwire/cymbal/xerj + decision rule by @calionauta in https://github.com/calionauta/gogogo/pull/141
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.47.0...v0.48.0
+
 ## 0.47.0 (2026-10-14)
 
 ## What's Changed
