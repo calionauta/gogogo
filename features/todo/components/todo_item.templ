@@ -38,7 +38,7 @@ templ TodoItem(item todo.Todo) {
 			type="checkbox"
 			class="checkbox checkbox-primary checkbox-sm"
 			checked?={ item.Completed }
-			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all'))" }
+			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))" }
 		/>
 		if item.Completed {
 			<span class="flex-1 line-through text-base-content/50">{ item.Title }</span>

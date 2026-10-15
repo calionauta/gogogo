@@ -344,6 +344,22 @@ proxy flakes survive the retry.
 3. Fix and commit.
 4. `make signoff` again — green means it would pass on a re-run.
 
+## Post-push: verify what shipped
+
+Deploy fires on push to `master` without waiting for CI, so the pre-push
+gate is half the story. After pushing, run:
+
+```bash
+make verify-ci
+```
+
+It checks default-branch CI plus the live `/health` endpoint with a
+bounded wait (never `gh run watch`), prints one JSON line, exits 0/1.
+Pending (CI outruns the cap) means re-run later, not failure. PR
+branches skip this — they verify through the PR's own CI gate instead.
+Engine: the `cali-ops-verify-ci` skill script, pinned here to
+`calionauta/gogogo` + the live URL.
+
 ## What the local loop has caught
 
 CI runs the same checks as `make ci-local`. What signoff does is run them

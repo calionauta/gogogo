@@ -409,6 +409,12 @@ signoff: ci-local
 	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
+# verify-ci confirms what push-to-master shipped: default-branch CI plus
+# the live /health endpoint, bounded wait, JSON out, exit 0/1. Post-push
+# only (PR branches verify through the PR's own CI gate instead).
+verify-ci:
+	@bash bin/verify-ci.sh
+
 # reap-stale removes OUR smoke corpses older than SMOKE_STALE_MIN (default
 # 360) at gate start — kills and -9s skip every happy-path rm. Age-gated so a
 # concurrent gate's fresh artifacts are never touched; caches (go build,
@@ -493,6 +499,7 @@ help:
 	@echo "  ci-local       Full pre-push gate (= CI): lint, race tests, build, browser smoke"
 	@echo "  ci-local-fast  Fast gate: cheap checks + race tests for changed packages only (~2-30s)"
 	@echo "  signoff        ci-local + gh signoff stamp (safe to push)"
+	@echo "  verify-ci      Post-push check: default-branch CI + live /health (bounded, JSON)"
 	@echo "  css-install    Install CSS build dependencies (npm)"
 	@echo "  dev            Live reload with Air"
 	@echo "  templ          Generate Templ components"

@@ -128,7 +128,7 @@ templ tasksCard(signals todo.Signals) {
 					<span class="text-sm soft" data-text="$itemCount + ' items'"></span>
 					if !signals.IsViewer {
 						<button type="button" class="btn" data-variant="outline" data-size="sm"
-							data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat'); break; }">
+							data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat'); break; }">
 							Clear my completed
 						</button>
 					} else {
@@ -496,7 +496,7 @@ templ todoItem(item todo.Todo) {
 			if item.Completed {
 				checked
 			}
-			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?skin=basecoat')" }
+			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')" }
 		/>
 		<section style="flex: 1;">
 			if item.Completed {
@@ -553,7 +553,7 @@ templ deleteConfirmModal() {
 				</button>
 				<button type="button" class="btn" data-size="sm" data-variant="destructive"
 					data-attr:disabled="$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">
+					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat')">
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
 						<span class="spinner" data-show="$deleting"></span>
@@ -609,5 +609,5 @@ templ sseOpener() {
 }
 
 templ realtimeResync() {
-	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?skin=basecoat'")
+	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')")
 }

@@ -256,7 +256,9 @@ func TestSSEHub_CountUserClients_ExcludesEmptyUserID(t *testing.T) {
 // (whiteboard/doc connections, which would choke on a todo record event)
 // are skipped.
 func TestSSEHub_BroadcastToAllUsers_SharedRows(t *testing.T) {
-	t.Parallel()
+	// No t.Parallel here: this package guards a no-goroutine invariant
+	// with goleak under t.Parallel, and timer goroutines from a
+	// parallel test trip it. Sequential tests run exclusively.
 	h := NewSSEHub()
 	u1a := make(chan []byte, 10) // originator
 	u1b := make(chan []byte, 10) // same user, other tab
@@ -293,7 +295,9 @@ func TestSSEHub_BroadcastToAllUsers_SharedRows(t *testing.T) {
 // unknown tabs default to all/all, and unregister drops the pref so a
 // recycled clientID never inherits a dead tab's slice.
 func TestSSEHub_ViewPrefsPreservedPerTab(t *testing.T) {
-	t.Parallel()
+	// No t.Parallel here: this package guards a no-goroutine invariant
+	// with goleak under t.Parallel, and timer goroutines from a
+	// parallel test trip it. Sequential tests run exclusively.
 	h := NewSSEHub()
 	ch := make(chan []byte, 10)
 	h.Register("tab-1", "u1", ch)

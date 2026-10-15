@@ -201,6 +201,38 @@ func TestHandlersRecordRelistPreservesTabSlice(t *testing.T) {
 	}
 }
 
+// TestHandlersMutationsPreserveTabSlice pins the URL contract every
+// list-affecting mutation must honor: toggle/clear/delete re-list with
+// the request's filter AND scope, so acting from Mine/Shared never
+// yanks the tab back to All. Red-proof: drop &scope= from any mutation
+// URL and the first assertion fails (shared row leaks back in).
+func TestHandlersMutationsPreserveTabSlice(t *testing.T) {
+	f := newHandlersFixture(t)
+	a := f.signup("slice-a@example.com")
+	b := f.signup("slice-b@example.com")
+	ctx := context.Background()
+
+	f.do(http.MethodPost, "/api/todos", "title=Shared+board&visibility=public", a)
+	f.do(http.MethodPost, "/api/todos", "title=Mine+only", b)
+	ownerB := f.ownerOf(t, b)
+	rows, _ := f.q.ListTodosByOwner(ctx, ownerB)
+	if len(rows) != 1 {
+		t.Fatalf("setup rows = %d, want 1", len(rows))
+	}
+
+	toggle := f.do(http.MethodPost, "/api/todos/"+rows[0].ID+"/toggle?filter=all&scope=mine", "", b)
+	if toggle.Code != http.StatusOK {
+		t.Fatalf("toggle: status = %d", toggle.Code)
+	}
+	tbody := toggle.Body.String()
+	if !strings.Contains(tbody, "Mine only") {
+		t.Error("mine-scoped toggle response must keep B's own row")
+	}
+	if strings.Contains(tbody, "Shared board") {
+		t.Error("mine-scoped toggle response must not pull A's shared row back in")
+	}
+}
+
 // TestCanDeleteRow pins the shared delete rule in one place: viewer never,
 // owner always, admin on any visible row, plain peer never.
 func TestCanDeleteRow(t *testing.T) {
