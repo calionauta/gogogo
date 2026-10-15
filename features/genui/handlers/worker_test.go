@@ -108,6 +108,58 @@ func TestWorkerRejectsUnknownDirective(t *testing.T) {
 	}
 }
 
+// TestWorkerRendersRepeatedEnvelopeKey drives the production failure
+// end to end at the layer the user actually hit: the model repeats the
+// envelope wrapper as an array element (so the raw answer is not JSON)
+// and nests a section's children under "components". The worker must
+// deliver directives — not a "could not shape the answer" error — and
+// dispatching them must render the section's table, child included.
+// Red-proof: without the repair this fails with the production error, and
+// the section renders empty (children silently dropped).
+func TestWorkerRendersRepeatedEnvelopeKey(t *testing.T) {
+	t.Parallel()
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+
+	h := &Handler{hub: hub, responder: stubResponder{raw: `{"components":[` +
+		`{"type":"section","props":{"title":"My Day Plan"},"components":[` +
+		`{"type":"data_table","props":{"headers":["Time","Activity"],` +
+		`"rows":[["08:00 AM","Breakfast"]]}}]},` +
+		`"components":[{"type":"action_buttons","props":{"actions":[` +
+		`{"label":"Add Activity","method":"POST","url":"/add-activity"}]}}]]}`}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "plan my day", "userId": "u1"})
+	job := queue.Job{Type: "genui_ask", ClientID: "c1", Payload: payload}
+
+	if err := h.handleGenuiJob(context.Background(), hub, job); err != nil {
+		t.Fatalf("handleGenuiJob(repeated envelope key): %v", err)
+	}
+	var envelope []byte
+	select {
+	case envelope = <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no result arrived on hub channel")
+	}
+	if strings.Contains(string(envelope), "could not shape") {
+		t.Fatalf("repairable answer was rejected instead of rendered: %s", envelope)
+	}
+	rec := httptest.NewRecorder()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/genui/stream", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.dispatchStreamMessage(sdk.NewSSE(rec, req), envelope); err != nil {
+		t.Fatalf("dispatch repaired answer: %v", err)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"My Day Plan", "08:00 AM", "Add Activity"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rendered answer missing %q:\n%s", want, body)
+		}
+	}
+}
+
 // TestWorkerReleasesSpinnerWhenModelDown proves the unconfigured path:
 // no responder output still releases the Ask button spinner. The worker
 // delivers an error envelope; the dispatcher turns it into
