@@ -213,7 +213,8 @@ It is the only command you need on day one.
 Either way the installer verifies tools before touching anything and fails
 fast with the exact install command when something is missing. `make setup` (optional
 but recommended) — activates the lefthook git hooks so
-formatting, lint, and the CSS staleness check run on every commit. Requires
+formatting, lint, and the CSS staleness check run on every commit, and verifies
+the agent tooling (`make check-agent-tools`: ripwire, cymbal, xerj, sem). Requires
 `go install github.com/evilmartians/lefthook@latest`.
 
 There is no build-tag matrix. `make build` and `go build ./cmd/web` compile
@@ -249,7 +250,7 @@ make ci-local      # Full local gate (= CI): templ + datastar-lint + css-check +
 make gui           # Native gogpu/ui window: headless race tests + CGO_ENABLED=0 build
 make run-gui       # Open the native window (needs DISPLAY/GPU; not exercised in CI)
 make signoff       # `make ci-local` + `gh signoff -f` stamp. Default pre-push gate
-make setup         # Activate lefthook git hooks
+make setup         # Activate lefthook git hooks + verify agent tooling
 make docker-image  # Build and push multi-arch image to ghcr.io
 ```
 

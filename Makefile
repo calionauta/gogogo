@@ -432,6 +432,13 @@ deps:
 
 setup:
 	@bin/setup-hooks.sh
+	@bash bin/check-agent-tools.sh
+
+# check-agent-tools enforces the AGENTS.md tooling section (ripwire,
+# cymbal, xerj, sem): fails with install lines when any is missing.
+# Runs inside `setup`; run standalone on a fresh machine first.
+check-agent-tools:
+	@bash bin/check-agent-tools.sh
 
 # Rename the project identity (module path, binary, container, titles, deploy
 # paths). This repo is a GitHub template, so a fresh copy still says
@@ -500,6 +507,7 @@ help:
 	@echo "  ci-local-fast  Fast gate: cheap checks + race tests for changed packages only (~2-30s)"
 	@echo "  signoff        ci-local + gh signoff stamp (safe to push)"
 	@echo "  verify-ci      Post-push check: default-branch CI + live /health (bounded, JSON)"
+	@echo "  check-agent-tools  Verify ripwire/cymbal/xerj/sem installed (AGENTS.md tooling)"
 	@echo "  css-install    Install CSS build dependencies (npm)"
 	@echo "  dev            Live reload with Air"
 	@echo "  templ          Generate Templ components"

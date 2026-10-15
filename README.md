@@ -242,7 +242,7 @@ make dev           # Live reload with Air (regenerates templ + CSS)
 make build         # Build binary (unified: everything included)
 make ci-local      # Full local gate (= CI): templ, lint, checks, build, boot smoke, parallel fan-out (race + browser smokes)
 make signoff       # ci-local + gh signoff stamp — the recommended pre-push gate
-make setup         # Activate lefthook git hooks
+make setup         # Activate lefthook git hooks + verify agent tooling
 make site          # Rebuild the docs site from docs/*.md
 ```
 

@@ -2,7 +2,21 @@
 
 ### Added
 
-- **Shared vs private todos (two-browser collab demo).** Every todo is
+- **Agent tooling is enforced, not just documented.** `make check-agent-tools`
+  (`bin/check-agent-tools.sh`, runs in `make setup`) fails with install
+  lines when ripwire/cymbal/xerj/sem is missing; AGENTS.md marks all four
+  required with a decision rule (call-graph to ripwire/cymbal, meaning
+  over prose to xerj, diffs/history to sem).
+- **Docs index rebuilt around a hierarchy.** The site sidebar was a flat
+  mix (how-to recipes before the strategy record); the manifest now reads
+  Get started (strategy up front) / Agents / Core / Async / AI / Frontend
+  / Ship / Operate, and the three orphan pages (`api-routes`,
+  `no-auth-no-db-recipe`, `db-concurrency`) join the map. No document
+  merged or lost — order only.
+- **Architecture decision is current and visual.** Fixed stale
+  identifiers (`dbschema.Migrate`/`NewID`, `handlers/` layout, desktop
+  vs GUI boot) and disclosed the historical `chi` names; auth plugins
+  render as site cards; the landing AI-ready section links the strategy.- **Shared vs private todos (two-browser collab demo).** Every todo is
   `private` (owner only, the old behaviour) or `public` (every login lists
   it), via a `visibility` column (`0010_todo_visibility`, existing rows
   default private) and a Shared checkbox on the create form. Listing,
@@ -32,8 +46,7 @@
 - **Docs indexing gaps closed.** `docs/api-routes.md` (load-bearing
   inventory, test-pinned) was in neither the site map nor any doc link —
   now in `site/build.mjs` beside `no-auth-no-db-recipe.md`, and the
-  `local-ci.md` hooks table lists the full pre-commit job set.
-- **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
+  `local-ci.md` hooks table lists the full pre-commit job set.- **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
   stamps demo1 `admin` and demo2 the restricted `viewer`, so the login card's
   permission split (admin reaches `/config`; viewer loses deletes + AI Suggest)
   is true by construction. The navbar gates the operator surfaces to admin and
