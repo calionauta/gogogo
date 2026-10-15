@@ -21,7 +21,10 @@ generation reaches providers only through `llm.Client`), and not core
 
 Synchronous in the request scope: one POST streams phased progress over
 ephemeral SSE and patches a single verdict fragment. Disconnect cancels
-the run; `MaxRunDuration` (90s) bounds it either way. Nothing persists —
+the run; `MaxRunDuration` (90s) bounds it either way. A 15s heartbeat
+holds the stream open between phases so proxies never kill it idle
+(a dead stream used to leave the Run button disabled with no error).
+Nothing persists —
 no queue jobs, no DagNats runs, no database writes. The billing ledger
 is the only write (generative calls via `llm.Client`'s meter when wired;
 the judge call is recorded once when a judge meter is wired).

@@ -24,6 +24,16 @@ func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error
 	return r.client.Chat(ctx, PromptForCatalog()+"\nUser request: "+prompt)
 }
 
+// chatLLMResponder asks a real model with the chat affordance: the
+// structured catalog plus the invented-visual html_block path.
+type chatLLMResponder struct {
+	client *llm.Client
+}
+
+func (r chatLLMResponder) Respond(ctx context.Context, prompt string) (string, error) {
+	return r.client.Chat(ctx, PromptForChat()+"\nUser request: "+prompt)
+}
+
 // demoResponder is the keyless showcase: deterministic directives
 // exercising every catalog component, labeled as demo data. Same
 // role as SIMULATE_LLM in todo — the feature works with zero keys.
@@ -57,6 +67,19 @@ func (e errResponder) Respond(_ context.Context, _ string) (string, error) {
 func NewResponder(real, simulated *llm.Client) Responder {
 	if real != nil && real.Configured() {
 		return llmResponder{client: real}
+	}
+	if simulated != nil && simulated.Configured() {
+		return demoResponder{}
+	}
+	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
+}
+
+// NewChatResponder is the chat leg: same fallback shape as NewResponder,
+// but the real model gets the chat affordance (catalog + invented-visual
+// html_block) instead of the catalog-only Ask prompt.
+func NewChatResponder(real, simulated *llm.Client) Responder {
+	if real != nil && real.Configured() {
+		return chatLLMResponder{client: real}
 	}
 	if simulated != nil && simulated.Configured() {
 		return demoResponder{}

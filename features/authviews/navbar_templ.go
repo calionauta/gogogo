@@ -19,7 +19,7 @@ import (
 // so the navbar can highlight it. The order of nav items is fixed
 // and intentional: collab features first (Todo, Whiteboard, Notes) so the
 // common paths are adjacent to the logo, then the LLM demos (Ask AI,
-// Review, Chat), then Room, then the operator-facing
+// Chat, Review — conversation before verdict), then Room, then the operator-facing
 // Config tab at the end (not a content destination; an inspection
 // surface). The logo text always links to "/" — the landing page.
 //
@@ -177,13 +177,13 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 = []any{templ.Classes("app-nav-link", map[string]bool{
-			"is-active": active == "review",
+			"is-active": active == "chat",
 		})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"/review\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"/chat\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -196,18 +196,18 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">Review</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">Chat</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 = []any{templ.Classes("app-nav-link", map[string]bool{
-			"is-active": active == "chat",
+			"is-active": active == "review",
 		})}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var14...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<a href=\"/chat\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<a href=\"/review\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -220,7 +220,7 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">Chat</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">Review</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

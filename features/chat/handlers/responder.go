@@ -16,7 +16,7 @@ import (
 // genui bundle deletes it with features/chat — the composition root keeps
 // only line-drops, never a block strip.
 func ResponderFromLLM(real, simulated *llm.Client) store.Responder {
-	return responderAdapter{inner: comp.NewResponder(real, simulated)}
+	return responderAdapter{inner: comp.NewChatResponder(real, simulated)}
 }
 
 // responderAdapter adapts comp.Responder to the chat store seam.

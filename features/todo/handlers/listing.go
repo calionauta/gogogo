@@ -30,16 +30,18 @@ func (h *Handler) roleOf(r *http.Request) (owner string, role string) {
 	return sess.User.ID, sess.Role
 }
 
-// canDeleteRow is the shared delete rule for HTTP + display: viewer
-// never, owner always, admin on any visible row. Callers have already
+// canDeleteRow is the shared delete rule for HTTP + display: the owner
+// always deletes their own rows (every role, viewer included — a viewer
+// restriction applies to shared rows, never to your own private todos);
+// otherwise viewer never, admin on any visible row. Callers have already
 // proven the row visible to the requester (GetTodoVisible), so this
 // only decides the destructive act — never the listing.
 func canDeleteRow(role, requester string, item todo.Todo) bool {
-	if rbac.IsViewer(role) {
-		return false
-	}
 	if requester != "" && requester == item.Owner {
 		return true
+	}
+	if rbac.IsViewer(role) {
+		return false
 	}
 	return role == rbac.RoleAdmin
 }

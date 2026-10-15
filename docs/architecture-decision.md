@@ -47,7 +47,13 @@ benefits, in the order they show up in daily work:
 
 **Counterpoint, kept honest.** An abstraction is justified when there are
 genuinely interchangeable implementations — swapping LLM providers is the real
-case. `internal/llm` stays a (deep) module for exactly that reason. The rule is
+case. `internal/llm` stays a (deep) module for exactly that reason: one
+`Client` over the `goai` provider packages (any OpenAI-compatible backend
+via the `GOAI_*` triple, real or simulated key), carrying the owned
+behavior the app actually depends on — usage metering with per-user
+settlement, auth-failure hints, fake/simulated legs for keyless dev and
+tests, and streaming. No feature names a provider; swapping one is env,
+not code. The rule is
 not "no interfaces"; it is "no interfaces with one implementation and no
 behavior."
 

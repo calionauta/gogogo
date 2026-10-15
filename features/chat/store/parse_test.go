@@ -26,6 +26,26 @@ func TestParseChatAnswerPrefersDirectives(t *testing.T) {
 	}
 }
 
+// TestParseChatAnswerAcceptsInventedVisual pins the chat-only affordance:
+// an html_block envelope parses to directives (Ask never advertises it,
+// chat renders it sanitized). The raw-HTML half is covered in genui's
+// sanitize tests; here the contract is only that the envelope flows.
+func TestParseChatAnswerAcceptsInventedVisual(t *testing.T) {
+	t.Parallel()
+	envelope := `{"components":[{"type":"html_block",` +
+		`"props":{"html":"<div class=\"stats\"><p>done</p></div>"}}]}`
+	dirs, fallback, err := ParseChatAnswer(envelope)
+	if err != nil {
+		t.Fatalf("ParseChatAnswer(html_block): %v", err)
+	}
+	if fallback {
+		t.Fatal("ParseChatAnswer(html_block) fell back to prose, want directives")
+	}
+	if len(dirs) != 1 || dirs[0].Component != "html_block" {
+		t.Fatalf("parsed = %+v, want 1 html_block", dirs)
+	}
+}
+
 // TestParseChatAnswerFallsBackToProse proves the degradation half:
 // plain prose, unknown components, and garbage all become one safe
 // prose bubble (HTML-escaped at render, never raw).

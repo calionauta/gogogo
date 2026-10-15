@@ -14,8 +14,10 @@
 # except admin. Adding a feature means adding its paths below (the
 # coverage test fails naming the gap).
 # The viewer role (users.role == 'viewer', promoted at boot from
-# VIEWER_EMAILS) is the RBAC demo: read + create + toggle on todos,
-# nothing destructive, nothing paid. Unlisted paths deny it like any
+# VIEWER_EMAILS) is the RBAC demo: read + create + toggle on todos, plus
+# delete-own (a viewer restriction applies to shared rows, never to your
+# own private todos — ownership is enforced per-record in the handler).
+# Nothing else destructive, nothing paid. Unlisted paths deny it like any
 # non-admin — the viewer sees only the todo surface by design.
 p, admin, /*, .*
 # This is a STARTING POINT: tune it for your app before enabling RBAC in
@@ -78,6 +80,8 @@ p, viewer, /api/todos, (GET|POST)
 p, viewer, /api/todos/fragment, .*
 p, viewer, /api/todos/stream, .*
 p, viewer, /api/todos/*/toggle, .*
+p, viewer, /api/todos/*/delete, POST
+p, viewer, /api/todos/*/confirm-delete, GET
 p, viewer, /api/session, GET
 p, viewer, /static/*, (GET|HEAD)
 p, viewer, /sw.js, GET

@@ -38,7 +38,7 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 					components from a fixed catalog and this page renders them.
 				</p>
 				@components.TechStack([]components.TechItem{
-				{Name: "component catalog", Note: "LLM picks cards, tables, charts"},
+				{Name: "component catalog", Note: "fixed registry only — the model cannot emit raw HTML here"},
 				{Name: "SSE morphs", Note: "streams render in place"},
 				{Name: "goqite jobs", Note: "slow LLM calls run queued"},
 				{Name: "GoAI", Note: "provider client for the LLM"},
@@ -232,6 +232,16 @@ templ GenuiTextNote(text string) {
 			<h3 class="card-title text-base">Note</h3>
 			<p class="text-sm">{ text }</p>
 		</div>
+	</div>
+}
+
+// GenuiHTMLBlock renders model-composed visual markup. The string arrives
+// pre-sanitized (SanitizeHTML at parse time) — templ.Raw is safe here
+// because nothing unsanitized ever reaches this call, and the renderer
+// map is the only constructor. Never pass raw model output directly.
+templ GenuiHTMLBlock(sanitizedHTML string) {
+	<div class="genui-html">
+		@templ.Raw(sanitizedHTML)
 	</div>
 }
 

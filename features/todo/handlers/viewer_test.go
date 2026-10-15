@@ -14,10 +14,12 @@ import (
 )
 
 // TestTodoViewerDeleteAffordanceDisabled pins the RBAC display hint:
-// a viewer sees aria-disabled trash + the denial message wiring, and
-// the isViewer signal; a plain user sees the modal opener. Enforcement
-// is NOT asserted here (policy.csv owns it, pinned in internal/rbac) —
-// only that the UI narrates the role it was given.
+// a viewer has full rights over their own rows (modal-opening trash,
+// like any owner) but sees aria-disabled trash + the denial wiring on
+// shared rows they don't own. Enforcement is NOT asserted here
+// (policy.csv owns the verb, canDeleteRow owns the row — pinned in
+// internal/rbac and the sharing tests) — only that the UI narrates
+// what the server stamped on each row.
 func TestTodoViewerDeleteAffordanceDisabled(t *testing.T) {
 	f := newHandlersFixture(t)
 	ctx := context.Background()
@@ -30,9 +32,14 @@ func TestTodoViewerDeleteAffordanceDisabled(t *testing.T) {
 	}
 
 	userCookie := f.signup("maker-todo@example.com")
+	// The other login shares one row so the viewer has a foreign shared
+	// row to look at (viewer restrictions apply to shared, never own).
+	if rec := f.do(http.MethodPost, "/api/todos",
+		"title=shared+probe&visibility=public", userCookie); rec.Code != http.StatusOK {
+		t.Fatalf("user share create status = %d (%s)", rec.Code, rec.Body.String())
+	}
 
-	// A trash button only renders with rows: the viewer creates one
-	// (allowed), then re-reads the page.
+	// The viewer creates their own row (allowed), then re-reads the page.
 	createRec := f.do(http.MethodPost, "/api/todos", "title=viewer+probe", viewerCookie)
 	if createRec.Code != http.StatusOK {
 		t.Fatalf("viewer create status = %d (%s)", createRec.Code, createRec.Body.String())
@@ -45,14 +52,16 @@ func TestTodoViewerDeleteAffordanceDisabled(t *testing.T) {
 	if !strings.Contains(viewBody, `"isViewer":true`) {
 		t.Fatalf("viewer page must seed isViewer:true")
 	}
+	// Own row: modal-opening trash, like any owner.
+	if !strings.Contains(viewBody, "showModal()") {
+		t.Fatalf("viewer page must render the modal-opening trash for their own row")
+	}
+	// Foreign shared row: disabled affordance + denial wiring instead.
 	if !strings.Contains(viewBody, `aria-disabled="true"`) {
-		t.Fatalf("viewer page must render disabled delete affordance")
+		t.Fatalf("viewer page must render disabled delete affordance on shared rows")
 	}
 	if !strings.Contains(viewBody, "$permDenied = true") {
 		t.Fatalf("viewer delete must wire the denial message")
-	}
-	if strings.Contains(viewBody, "showModal()") {
-		t.Fatalf("viewer page must not render the modal-opening trash")
 	}
 
 	createUser := f.do(http.MethodPost, "/api/todos", "title=user+probe", userCookie)

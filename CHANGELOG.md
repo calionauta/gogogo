@@ -2,6 +2,19 @@
 
 ### Added
 
+- **Viewer owns their private todos.** Delete restrictions now apply to
+  shared rows, never your own: owner deletes own in every role (policy
+  grants the delete verbs, `canDeleteRow` enforces per-record, Clear
+  stays own-scoped). Red-proofed across policy, middleware, handler and
+  UI affordance tests.
+- **Review run survives idle proxies.** A 15s SSE heartbeat holds the
+  stream between LLM phases (a killed stream left Run disabled with no
+  error); submit sets pending explicitly.
+- **Chat invents visuals, Ask stays catalog.** New `html_block` lets the
+  chat model compose Tailwind/DaisyUI markup the catalog cannot express
+  — sanitized server-side through a closed allowlist (red-proofed),
+  advertised only in the chat prompt. Chat/Review pages gain TechStack
+  notes; navbar order is now Ask AI, Chat, Review.
 - **Agent tooling is enforced, not just documented.** `make check-agent-tools`
   (`bin/check-agent-tools.sh`, runs in `make setup`) fails with install
   lines when ripwire/cymbal/xerj/sem is missing; AGENTS.md marks all four
