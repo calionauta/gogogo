@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/nats"
@@ -26,7 +26,7 @@ func startNATS(cfg *config.Config) nats.JetStreamLike {
 		addr := fmt.Sprintf("127.0.0.1:%d", cfg.DagNats.NATSPort)
 		h, err := nats.ConnectExisting(addr)
 		if err != nil {
-			log.Printf("WARN: NATS connect to DagNats-owned server failed, falling back to in-memory broadcaster: %v", err)
+			slog.Warn("NATS connect to DagNats-owned server failed, falling back to in-memory broadcaster", "error", err)
 			return nil
 		}
 		return h.JS
@@ -37,7 +37,7 @@ func startNATS(cfg *config.Config) nats.JetStreamLike {
 		// (e.g. a read-only or full store dir). Fall back to the
 		// in-memory broadcaster so realtime still works within the
 		// instance.
-		log.Printf("WARN: NATS startup failed, falling back to in-memory broadcaster: %v", err)
+		slog.Warn("NATS startup failed, falling back to in-memory broadcaster", "error", err)
 		return nil
 	}
 	return h.JS

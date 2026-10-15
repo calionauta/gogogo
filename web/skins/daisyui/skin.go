@@ -7,7 +7,7 @@
 package daisyui
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/a-h/templ"
 
@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	log.Println("skins: registering daisyui (core default)")
+	slog.Info("skins: registering daisyui (core default)")
 	skins.Register(skins.Skin{
 		Name:   "daisyui",
 		Assets: assets,

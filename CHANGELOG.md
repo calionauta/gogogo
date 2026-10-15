@@ -406,6 +406,15 @@
 
 ### Fixed
 
+- **Stdout is JSONL, no exceptions.** Bare `slog` calls used the default
+  text handler (ignoring `LOG_LEVEL`) and `log.Printf` wrote timestamps
+  everywhere — one `slog.SetDefault` plus converted call sites later,
+  every emitter is JSON on stdout (Genkit included: it respects a custom
+  default). Boot smoke proves zero non-JSON lines. Anything parsing the
+  old text format must switch to JSON keys.
+- **Debugging with DuckDB (recipe).** `docs/duckdb.md`: query slog JSONL
+  and attach the Turso file read-only (`TYPE sqlite, READ_ONLY`) after
+  checkpoint+copy — verified, including the WAL-invisibility trap.
 - **AI answers parse like the model writes.** `ParseDirectives` (the one
   source of truth both Ask and Chat share) now bridges children nested
   inside `props` and repairs trailing commas — raw model JSON rendered

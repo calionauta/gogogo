@@ -11,7 +11,8 @@
 package skins
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/a-h/templ"
@@ -39,7 +40,7 @@ func Register(s Skin) {
 	mu.Lock()
 	defer mu.Unlock()
 	if _, ok := skins[s.Name]; ok {
-		log.Panicf("skins: duplicate registration for %q", s.Name)
+		panic(fmt.Sprintf("skins: duplicate registration for %q", s.Name))
 	}
 	skins[s.Name] = s
 }
@@ -60,10 +61,10 @@ func Active(name string) Skin {
 	s, ok := skins["daisyui"]
 	mu.RUnlock()
 	if !ok {
-		log.Panicf("skins: default skin 'daisyui' not registered")
+		panic("skins: default skin 'daisyui' not registered")
 	}
 	if name != "" && name != "daisyui" {
-		log.Printf("skins: unknown skin %q, falling back to 'daisyui'", name)
+		slog.Warn("skins: unknown skin, falling back to 'daisyui'", "name", name)
 	}
 	return s
 }
