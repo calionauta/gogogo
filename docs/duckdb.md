@@ -7,10 +7,13 @@ questions that grep answers badly ("which requests were slow for
 viewer logins?", "how many shared todos exist?") become SQL — with the
 `duckdb -ui` browser when you want to click around.
 
-Install once (local machine only, never a dependency):
+Install once (local machine only, never a dependency — no CI, no prod,
+no repo files):
 
 ```bash
-brew install duckdb   # or: curl -fsSL https://xerj.org/get | sh
+brew install duckdb
+# Linux/Windows: a static binary from
+# https://github.com/duckdb/duckdb/releases (no install needed)
 ```
 
 ## Logs: filter, then query
