@@ -500,6 +500,14 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.48.1 (2026-10-15)
+
+## What's Changed
+* Version-aware deploy reconciler (badge lag fix) by @calionauta in https://github.com/calionauta/gogogo/pull/143
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.48.0...v0.48.1
+
 ## 0.48.0 (2026-10-15)
 
 ## What's Changed
