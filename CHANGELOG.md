@@ -393,6 +393,14 @@
 
 ### Fixed
 
+- **Deploy reconciler is version-aware (badge lag fixed for real).** The
+  push-deploy runs before the release tag exists and the tag-deploy arm
+  never fires for release-please tags, so production served new code
+  under the old badge (observed: `0.47.0` serving the v0.48.0 tree).
+  The schedule reconciler compared SHAs only — identical SHAs meant no
+  deploy. It now also compares the badge version against the latest tag
+  and redeploys on mismatch (empty tag lookup skips rather than forcing
+  a restart). Verified against live state before merging.
 - **User dropdown: invisible rows + snap-shut menu.** The info rows (email,
   role) inherited body text, which in dark mode is near-white on the
   always-white menu card — readable only when selected. They now carry an

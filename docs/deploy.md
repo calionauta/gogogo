@@ -199,13 +199,14 @@ binary"), so the badge on the running box matches the tag that produced it.
 > so the deploy triggered by the *push* runs before the tag exists and
 > `git describe --tags --abbrev=0` resolves to the **previous** tag — the box
 > would run the new code while reporting the old version. (Observed for real: the
-> v0.36.1 push deployed a binary labelled `0.36.0`, and again at v0.44.5:
-> header `0.44.4-4343bb7` serving the #124 code.) `deploy.yml` keeps a
+> v0.36.1 push deployed a binary labelled `0.36.0`, and again at v0.48.0:
+> header `0.47.0-5095026` serving the tagged tree.) `deploy.yml` keeps a
 > `tags: ["v*"]` arm for that re-deploy, but tags created by release-please
 > use `GITHUB_TOKEN`, which starts no workflow runs — so the arm never
-> fires and the badge lags until a human dispatches. The `schedule`
-> reconciler (every 30 min, running build vs master HEAD, deploy only on
-> mismatch) closes the gap without depending on anyone. Tagging
+> fires. The `schedule` reconciler (every 30 min) closes the gap in both
+> dimensions: running build SHA vs master HEAD (code drift), and badge
+> version vs latest tag (label drift — redeploys the same code so the
+> badge reports what is running). Tagging
 > before CI passes would avoid the second restart, but a red CI would then
 > already be on the tag — not a trade worth making.
 
