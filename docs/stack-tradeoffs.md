@@ -140,6 +140,12 @@ trimmable like every feature.
   wire-compatibility test instead).
 - **Cost:** the catalog grows by developer PR only; recursion is depth-capped;
   free-model rosters churn monthly (pin and monitor).
+- **Tolerance is structural, never catalog.** The one shared parser repairs the
+  shape models get wrong — ```json fences, prose padding, trailing commas, a
+  repeated envelope key written as an array element, a section's children under
+  `components` instead of `children` — and no more. An unknown type, undecodable
+  props or over-deep nesting still rejects the whole answer: a repaired shape
+  can only ever render components the registry already knows.
 - **Exception, scoped:** chat's `html_block` lets the model compose visual
   markup the catalog cannot express — but sanitized server-side through a
   closed allowlist (structure + classes + safe links; scripts, styles,

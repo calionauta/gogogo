@@ -172,6 +172,56 @@ func TestParseBridgesChildrenInProps(t *testing.T) {
 	}
 }
 
+// TestParseRepairsRepeatedEnvelopeKey pins the malformation that took Ask
+// down in production (`genui: decode directives: invalid character ':'
+// after array element`) and silently degraded chat to a raw-prose bubble.
+// The model writes the envelope wrapper twice, the second time where an
+// ARRAY ELEMENT belongs:
+//
+//	{"components":[{section…},"components":[{action_buttons…}]]}
+//
+// That is not JSON at all, yet the intent — two sibling components — is
+// unambiguous, so the repair drops the redundant label (and the wrapper's
+// own brackets) and splices its elements into the current array. The same
+// output also nests a section's children under "components" instead of
+// "children": the section must keep its table, not silently lose it.
+// Red-proof: remove either half and this fails (parse error / empty
+// section children).
+func TestParseRepairsRepeatedEnvelopeKey(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[` +
+		`{"type":"section","props":{"title":"My Day Plan"},"components":[` +
+		`{"type":"data_table","props":{"headers":["Time","Activity"],` +
+		`"rows":[["08:00 AM","Breakfast"]]}}]},` +
+		`"components":[{"type":"action_buttons","props":{"actions":[` +
+		`{"label":"Add Activity","method":"POST","url":"/add-activity"}]}}]]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(repeated envelope key): %v", err)
+	}
+	if len(dirs) != 2 {
+		t.Fatalf("parsed = %+v, want 2 top-level directives", dirs)
+	}
+	if dirs[0].Component != "section" || dirs[1].Component != "action_buttons" {
+		t.Fatalf("parsed components = %s, %s; want section, action_buttons",
+			dirs[0].Component, dirs[1].Component)
+	}
+	if len(dirs[0].Children) != 1 || dirs[0].Children[0].Component != "data_table" {
+		t.Fatalf("section children = %+v, want 1 data_table", dirs[0].Children)
+	}
+}
+
+// TestParseRepairsRepeatedEnvelopeKeyOnlyMalformed guards the repair's
+// blast radius: valid JSON must pass through byte-identical, including a
+// legitimate array whose string elements are values (no label to drop).
+func TestParseRepairsRepeatedEnvelopeKeyOnlyMalformed(t *testing.T) {
+	t.Parallel()
+	valid := `{"components":[{"type":"data_table","props":{"headers":["a","b"],"rows":[["x","y"]]}}]}`
+	if got := repairJSON(valid); got != valid {
+		t.Fatalf("repairJSON mutated valid JSON:\n got %q\nwant %q", got, valid)
+	}
+}
+
 // TestParseRepairsTrailingCommas pins the other half of model sloppiness:
 // trailing commas before } and ] are stripped (outside string literals
 // only), so small-model output parses without a second billable call.

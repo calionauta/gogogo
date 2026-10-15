@@ -310,7 +310,7 @@ func PromptForCatalog() string {
 		"data_table {headers:[], rows:[[]]}, " +
 		"bar_chart {title, bars:[{label, value>=0}]}, " +
 		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
-		"section {title} holding nested components. " +
+		"section {title, children:[<component>]} holding nested components. " +
 		"No prose outside the JSON object."
 }
 
@@ -332,7 +332,7 @@ func PromptForChat() string {
 		"bar_chart {title, bars:[{label, value>=0}]}, " +
 		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
 		"html_block {html: Tailwind/DaisyUI markup string invented for this answer}, " +
-		"section {title} holding nested components. " +
+		"section {title, children:[<component>]} holding nested components. " +
 		"Present the information in the most adequate visual form for the request: " +
 		"prefer a visual component over prose, and use html_block when the fixed " +
 		"catalog cannot express it. The html must be display markup only — no " +
@@ -359,10 +359,17 @@ func stripFences(s string) string {
 
 // rawDirective mirrors the model JSON including nesting; converted to
 // Directive only after validation passes at every level.
+//
+// Children and Components are the same slot under two names: the prompt
+// asks for "children", and models answer with the envelope's own
+// "components" (the wrapper key they just saw) at least as often. Both
+// resolve to nested directives; accepting only one silently dropped the
+// children (a section rendered empty instead of erroring).
 type rawDirective struct {
-	Type     string         `json:"type"`
-	Props    map[string]any `json:"props"`
-	Children []rawDirective `json:"children,omitempty"`
+	Type       string         `json:"type"`
+	Props      map[string]any `json:"props"`
+	Children   []rawDirective `json:"children,omitempty"`
+	Components []rawDirective `json:"components,omitempty"`
 }
 
 // ParseDirectives extracts and validates the component list from raw
@@ -419,48 +426,6 @@ func childrenFromProps(props map[string]any) ([]rawDirective, bool) {
 	return out, true
 }
 
-// repairJSON strips trailing commas before } and ] — the most common
-// small-model malformation. The scan respects string literals (a comma
-// inside "a, b" or an escaped quote never triggers), so valid JSON
-// passes through byte-identical and strictness is otherwise unchanged.
-func repairJSON(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	inStr, esc := false, false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case esc:
-			esc = false
-			b.WriteByte(c)
-		case c == '\\' && inStr:
-			esc = true
-			b.WriteByte(c)
-		case c == '"':
-			inStr = !inStr
-			b.WriteByte(c)
-		case !inStr && c == ',':
-			if followedByCloser(s, i) {
-				continue
-			}
-			b.WriteByte(c)
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return b.String()
-}
-
-// followedByCloser reports whether the next non-blank byte closes the
-// current object or array — the trailing-comma shape repairJSON drops.
-func followedByCloser(s string, i int) bool {
-	j := i + 1
-	for j < len(s) && (s[j] == ' ' || s[j] == '\t' || s[j] == '\n' || s[j] == '\r') {
-		j++
-	}
-	return j < len(s) && (s[j] == '}' || s[j] == ']')
-}
-
 // convertDirective validates one node (type registered, props decode,
 // depth budget) and its subtree. Render doubles as the validator so
 // parse and render can never disagree on what is legal.
@@ -474,7 +439,7 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 	// Models habitually nest children inside props (the envelope shape
 	// puts everything under "props"); bridge them to the directive
 	// level and drop the key so strict prop decoding still passes.
-	rawChildren := c.Children
+	rawChildren := append(append([]rawDirective(nil), c.Children...), c.Components...)
 	if len(rawChildren) == 0 {
 		if bridged, ok := childrenFromProps(c.Props); ok {
 			rawChildren = bridged

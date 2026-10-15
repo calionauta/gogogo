@@ -46,6 +46,32 @@ func TestParseChatAnswerAcceptsInventedVisual(t *testing.T) {
 	}
 }
 
+// TestParseChatAnswerRepeatedWrapperRenders pins the production symptom
+// this fixes: a model answer that repeats the envelope key as an array
+// element (invalid JSON, so ParseDirectives errored) used to hit the
+// fallback and drop the whole raw string into a prose bubble — the
+// chatbot's answer displayed as literal JSON. It must render as
+// components instead: the section keeps its table, the second group
+// joins it as a sibling.
+func TestParseChatAnswerRepeatedWrapperRenders(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[` +
+		`{"type":"section","props":{"title":"My Day Plan"},"components":[` +
+		`{"type":"data_table","props":{"headers":["Time"],"rows":[["08:00 AM"]]}}]},` +
+		`"components":[{"type":"action_buttons","props":{"actions":[` +
+		`{"label":"Add Activity","method":"POST","url":"/add-activity"}]}}]]}`
+	dirs, fallback, err := ParseChatAnswer(raw)
+	if err != nil {
+		t.Fatalf("ParseChatAnswer(repeated wrapper): %v", err)
+	}
+	if fallback {
+		t.Fatal("chat answered with raw JSON in a prose bubble; want rendered components")
+	}
+	if len(dirs) != 2 || dirs[0].Component != "section" || len(dirs[0].Children) != 1 {
+		t.Fatalf("parsed = %+v, want section(table) + sibling action_buttons", dirs)
+	}
+}
+
 // TestParseChatAnswerFallsBackToProse proves the degradation half:
 // plain prose, unknown components, and garbage all become one safe
 // prose bubble (HTML-escaped at render, never raw).

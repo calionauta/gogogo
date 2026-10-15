@@ -421,6 +421,16 @@
   as text bubbles before, plus Ask failing closed on syntax slips.
   Strictness kept for unknown types and bad props. Composers bind
   their inputs, guard double-submit explicitly, and clear on ack.
+- **Ask stops failing on a repeated envelope key.** A model that writes
+  the `components` wrapper twice — the second time where an array element
+  belongs — emits `invalid character ':' after array element`, so Ask
+  failed closed with "could not shape the answer" and chat dropped the
+  literal JSON into a prose bubble. The repair pass now drops the
+  redundant label and its brackets (the elements splice into the array
+  they were meant to extend), and a section reads its children whether
+  they arrive under `children` or `components`; both prompts now name the
+  key. Catalog strictness is unchanged — the guard is a hand-mutation that
+  restores the exact production error.
 - **One click, one answer.** goqite re-delivered jobs after its 5s
   default visibility window (up to MaxReceive=3) while slow LLM calls
   still ran — triple bubbles from a single submit, since persistence
