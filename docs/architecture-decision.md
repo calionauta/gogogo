@@ -4,18 +4,26 @@ Status: accepted (2026-10-11)
 
 ## Decision
 
-gogogo targets an explicit, flat stack: the **Go standard library mux**
-(`net/http`, composed one subtree per capability) for routing,
-**sqlc-generated functions called directly from handlers** for data access,
-**Turso Database** (the Rust SQLite-compatible engine, driven by
-`turso.tech/database/tursogo`), **owned argon2id auth** (`internal/auth`:
-password hashes, opaque sessions, `gogogo_auth` cookie, zero auth
-dependencies), **Casbin** for permissions, and **Datastar + Templ** for the UI.
-PocketBase, the limen auth library and the repo-interface abstraction layer
-(`internal/ports`, `internal/repos`, `internal/backend`) are removed.
-Routing composes on the standard-library mux (one subtree per capability);
-the `chi` names are historical — feature sub-routers still use `go-chi/chi`
-for URL params, a leaf dependency, not a framework.
+gogogo targets an explicit, flat stack — one card per choice, details in
+the sections below:
+
+- 🧭 **Routing: standard-library mux.** `net/http`, one subtree per
+  capability (`internal/server/chi.go`). The `chi` names are historical —
+  feature sub-routers still use `go-chi/chi` for URL params, a leaf
+  dependency, not a framework.
+- 🗄️ **Data: sqlc functions called directly.** Handlers call `dbgen.*`
+  — no repository layer, no strategy switch — over Turso Database
+  (SQLite-compatible, embedded).
+- 🔑 **Auth: owned argon2id.** `internal/auth`: password hashes, opaque
+  sessions, `gogogo_auth` cookie, zero auth dependencies.
+- 🛡️ **Permissions: Casbin.** Model plus embedded policy, enforced by
+  middleware before handlers run.
+- 🖥️ **UI: Datastar + Templ.** Hypermedia over SSE, no client
+  framework, no build step for app JS.
+
+Removed: PocketBase, the limen auth library, and the repo-interface
+abstraction layer (`internal/ports`, `internal/repos`,
+`internal/backend`).
 
 ## Why (evidence)
 
