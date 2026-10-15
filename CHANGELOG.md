@@ -534,6 +534,15 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.50.0 (2026-10-15)
+
+## What's Changed
+* Parse like models write, guard double-submit, clear composers by @calionauta in https://github.com/calionauta/gogogo/pull/147
+* Stdout is JSONL + DuckDB debugging recipe by @calionauta in https://github.com/calionauta/gogogo/pull/149
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.49.0...v0.50.0
+
 ## 0.49.0 (2026-10-15)
 
 ## What's Changed
