@@ -47,7 +47,10 @@ benefits, in the order they show up in daily work:
 
 **Counterpoint, kept honest.** An abstraction is justified when there are
 genuinely interchangeable implementations — swapping LLM providers is the real
-case. `internal/llm` stays a (deep) module for exactly that reason. The rule is
+case. `internal/llm` stays a (deep) module for exactly that reason: it wraps
+the `goai` provider clients with owned behavior (metering, auth-failure hints,
+simulated/fake legs) behind a small interface, so the app never names a
+provider. The rule is
 not "no interfaces"; it is "no interfaces with one implementation and no
 behavior."
 

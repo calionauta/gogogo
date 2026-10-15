@@ -86,7 +86,7 @@ func GenuiIndex(email string, userRole string, buildLabel string, buildCommit st
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = components.TechStack([]components.TechItem{
-			{Name: "component catalog", Note: "LLM picks cards, tables, charts"},
+			{Name: "component catalog", Note: "fixed registry only — the model cannot emit raw HTML here"},
 			{Name: "SSE morphs", Note: "streams render in place"},
 			{Name: "goqite jobs", Note: "slow LLM calls run queued"},
 			{Name: "GoAI", Note: "provider client for the LLM"},
