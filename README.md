@@ -233,7 +233,7 @@ the same code path with the same receipts and proof):
 
 Sign in as `demo1@demo.app` / `demo1234456` (`demo2@demo.app` takes the same
 password — open a second browser or incognito window to be both at once and
-prove contention, per-user todos, and authorship).
+prove contention, shared-vs-private todos, and authorship).
 
 ## Commands
 

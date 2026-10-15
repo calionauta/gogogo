@@ -110,7 +110,7 @@ func TestGeneratedTodoQueries(t *testing.T) {
 	for _, title := range []string{"first", "second"} {
 		todo, err := q.CreateTodo(ctx, dbgen.CreateTodoParams{
 			ID: dbschema.NewID(), Owner: owner, Title: title,
-			Completed: false, IdemKey: "", Created: dbschema.Now(), Updated: dbschema.Now(),
+			Completed: false, IdemKey: "", Visibility: "private", Created: dbschema.Now(), Updated: dbschema.Now(),
 		})
 		if err != nil {
 			t.Fatalf("CreateTodo(%q): %v", title, err)

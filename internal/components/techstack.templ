@@ -1,0 +1,44 @@
+// SCOPE:plugin - shared stack-disclosure badge.
+package components
+
+// TechItem is one stack tag plus its one-line role note: what the
+// layer DOES in the feature rendering it (not what the layer is in
+// the abstract). Keep Name to 2-3 words and Note to one clause so
+// the row stays scannable.
+type TechItem struct {
+	Name string
+	Note string
+}
+
+// TechStack renders the stack a page demonstrates in one visual
+// language: legible pill tags under the page subtitle, with the
+// per-layer role notes one click away in a <details>. Data comes
+// from the feature (it knows what it demonstrates); this component
+// owns the look, so every page teaches the architecture identically.
+// Display-only: no states, no interactivity, nothing to fail.
+//
+// Pills use inline style (not a skin's badge classes) so the same
+// component reads well under DaisyUI and Basecoat alike.
+//
+// TEMPLATE DEMO-ONLY — this advertises the template's own internals,
+// which mean nothing to a product's users. Agents adapting gogogo into
+// their own product must delete it; the wrapper carries
+// data-demo="tech-stack", so the removal is one grep away (see
+// docs/scope-taxonomy.md#demo-only-markup).
+templ TechStack(items []TechItem) {
+	<div data-demo="tech-stack" class="mt-2">
+		<div style="display:flex;flex-wrap:wrap;gap:0.375rem;">
+			for _, it := range items {
+				<span title={ it.Note } style="display:inline-block;font-size:0.75rem;font-weight:600;line-height:1.5;padding:0.1rem 0.6rem;border:1px solid currentColor;border-radius:9999px;opacity:0.8;">{ it.Name }</span>
+			}
+		</div>
+		<details style="margin-top:0.375rem;">
+			<summary style="font-size:0.75rem;opacity:0.6;cursor:pointer;">What each layer does here</summary>
+			<ul style="margin-top:0.25rem;display:grid;gap:0.125rem;">
+				for _, it := range items {
+					<li style="font-size:0.75rem;opacity:0.7;"><strong>{ it.Name }:</strong> { it.Note }</li>
+				}
+			</ul>
+		</details>
+	</div>
+}

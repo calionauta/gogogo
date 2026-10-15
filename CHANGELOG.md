@@ -2,6 +2,23 @@
 
 ### Added
 
+- **Shared vs private todos (two-browser collab demo).** Every todo is
+  `private` (owner only, the old behaviour) or `public` (every login lists
+  it), via a `visibility` column (`0010_todo_visibility`, existing rows
+  default private) and a Shared checkbox on the create form. Listing,
+  toggle, delete and the NATS bridge are visibility-scoped; shared
+  mutations fan out to every login's streams (`BroadcastToAllUsers`, each
+  re-listing its own visible set) while private rows stay owner-only.
+  Visibility is listing scope, not permission: viewer never deletes, owner
+  deletes own, admin deletes any visible row (403 otherwise, 404 when the
+  row is not visible at all). Scope tabs (All / Mine / Shared) slice the
+  list; shared rows carry a badge + author. Follow-ups: record-event
+  re-lists preserve the tab's stored filter/scope (per-stream view prefs
+  in the Hub, tracked from tab clicks); per-row delete/authorship comes
+  server-stamped on the item (`IsMine`/`CanDelete`, one rule home instead
+  of template copies); "Clear completed" is honestly labeled "Clear my
+  completed" (it only ever deletes the requester's own rows). Red-proofed
+  in `features/todo/handlers/sharing_test.go` (+ Hub pref tests).
 - **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
   stamps demo1 `admin` and demo2 the restricted `viewer`, so the login card's
   permission split (admin reaches `/config`; viewer loses deletes + AI Suggest)
@@ -344,6 +361,29 @@
 
 ### Fixed
 
+- **User dropdown: invisible rows + snap-shut menu.** The info rows (email,
+  role) inherited body text, which in dark mode is near-white on the
+  always-white menu card — readable only when selected. They now carry an
+  explicit ink color in both modes. The menu also closed mid-travel: the
+  `margin-top` gap between trigger and menu dropped `:hover` before the
+  pointer reached the first item. An invisible `::before` bridge now covers
+  the gap.
+- **Single presence slot (regression of the 0.46 unification).** The header
+  pill AND the standalone Realtime card both rendered `X online` + transport
+  — the header pill had been re-added after the release that removed it.
+  The card is gone (it carried no action, only a second copy); presence
+  lives in the header pill, with what-it-means in its tooltip. Both skins.
+- **Login demo block is visual, not a paragraph.** The three-paragraph
+  wall is now two account cards (Demo 1 admin / Demo 2 viewer), a
+  password + two-browser collab strip, and the Casbin mechanics behind a
+  `<details>`. Same facts, same `data-demo="demo-accounts"` removal
+  handle.
+- **`TechBadge` → `TechStack`: legible pills + per-layer notes.** The muted
+  `text-xs` inline list is now readable pill tags with a "What each layer
+  does here" notes list, in one shared skin-agnostic component (inline
+  styling, so DaisyUI and Basecoat read alike). All six call sites carry
+  per-feature role notes; the `data-demo="tech-stack"` removal handle
+  stays.
 - **Dead `DATABASE_PATH` config removed.** Nothing opened it: the app DB
   rides `TURSO_DB_PATH`, the queue derives from `DATA_DIR`, and the credits
   ledger opens its own Turso file — the var was only read into config and

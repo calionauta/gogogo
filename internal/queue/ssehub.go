@@ -60,6 +60,13 @@ type SSEHub struct {
 	// doc (todo/genui/chat streams) receive no doc-scoped events.
 	docOf map[string]string
 
+	// viewOf maps a connected clientID to the listing slice its tab last
+	// asked for (filter + scope, stored on every list/fragment fetch).
+	// applyRecordEvent re-lists with the tab's own prefs, so a remote
+	// mutation refreshes the rows without yanking the tab out of the
+	// Mine/Shared/Active slice it was looking at.
+	viewOf map[string]ViewPref
+
 	// maxBuffer is the per-client replay buffer ring length.
 	maxBuffer int
 
@@ -101,6 +108,7 @@ func NewSSEHub(opts ...HubOption) *SSEHub {
 		buffer:    make(map[string][][]byte),
 		userOf:    make(map[string]string),
 		docOf:     make(map[string]string),
+		viewOf:    make(map[string]ViewPref),
 		maxBuffer: config.DefaultReplayBufferSize,
 		onDrop: func(clientID string, _ []byte, reason string) {
 			obsArgs := append(observability.WithComponent("ssehub", "core"),
@@ -151,6 +159,7 @@ func (h *SSEHub) Unregister(clientID string) {
 	delete(h.buffer, clientID)
 	delete(h.userOf, clientID)
 	delete(h.docOf, clientID)
+	delete(h.viewOf, clientID)
 }
 
 // UnregisterIfCurrent removes a client only if the provided channel
@@ -175,6 +184,7 @@ func (h *SSEHub) UnregisterIfCurrent(clientID string, ch chan []byte) {
 		delete(h.buffer, clientID)
 		delete(h.userOf, clientID)
 		delete(h.docOf, clientID)
+		delete(h.viewOf, clientID)
 	}
 }
 
@@ -275,28 +285,6 @@ func (h *SSEHub) Broadcast(data []byte) {
 	observability.Debug(context.Background(), "ssehub: Broadcast", obsArgs...)
 	for id, ch := range h.clients {
 		h.deliverOrDrop(id, ch, data, "slow-client-broadcast")
-	}
-}
-
-// BroadcastToUser sends data to all currently connected clients that
-// belong to userID, EXCEPT excludeClientID. This is the per-user scoped
-// variant of Broadcast used for record mutations: a todo
-// create/toggle/delete is delivered only to the owning user's open tabs,
-// never to another user's (cross-user leak), and never back to the
-// originating tab (which already patched its own DOM via the per-request
-// SSE response, so a redundant full-list re-render would clobber its
-// local view). Drop policy is identical to Broadcast.
-func (h *SSEHub) BroadcastToUser(data []byte, userID, excludeClientID string) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for id, ch := range h.clients {
-		if id == excludeClientID {
-			continue
-		}
-		if h.userOf[id] != userID {
-			continue
-		}
-		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-user")
 	}
 }
 

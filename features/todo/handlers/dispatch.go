@@ -49,12 +49,12 @@ const (
 	retryStatusSuccess = "success"
 )
 
-// dispatchEnvelope routes one hub message: record events re-list scoped,
-// job envelopes fan out to their typed renderer. Unknown types merge as
-// lastJob (never an error — a foreign producer sharing nothing must
-// still not break this stream).
+// dispatchEnvelope routes one hub message: record events re-list scoped
+// to the tab's stored view prefs (clientID), job envelopes fan out to
+// their typed renderer. Unknown types merge as lastJob (never an error —
+// a foreign producer sharing nothing must still not break this stream).
 func (h *Handler) dispatchEnvelope(
-	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool, payload []byte,
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner, clientID string, hasOwner bool, payload []byte,
 ) error {
 	if job, ok := asJob(payload); ok {
 		//nolint:contextcheck // job renderers are ctx-free by design (signals
@@ -66,11 +66,11 @@ func (h *Handler) dispatchEnvelope(
 		// unknown type: fall through to the record path below.
 	} else {
 		// Not a job envelope: try the record shape directly.
-		return h.streamRecordEvent(ctx, sse, owner, hasOwner, payload)
+		return h.streamRecordEvent(ctx, sse, owner, clientID, hasOwner, payload)
 	}
 	// Unknown job type: it may still be a record event in disguise.
 	// Otherwise surface for debugging without breaking the stream.
-	if err := h.streamRecordEvent(ctx, sse, owner, hasOwner, payload); err == nil {
+	if err := h.streamRecordEvent(ctx, sse, owner, clientID, hasOwner, payload); err == nil {
 		return nil
 	}
 	return dshelpers.MergeSignals(sse, map[string]any{
@@ -125,7 +125,7 @@ func (h *Handler) dispatchJob(sse *sdk.ServerSentEventGenerator, job queue.Job) 
 // Exported-shape sibling of streamRecord, which takes the already-decoded
 // envelope from the direct-call path.
 func (h *Handler) streamRecordEvent(
-	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool, payload []byte,
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner, clientID string, hasOwner bool, payload []byte,
 ) error {
 	var evt recordEvent
 	if err := json.Unmarshal(payload, &evt); err != nil {
@@ -134,7 +134,7 @@ func (h *Handler) streamRecordEvent(
 	if evt.Event == "" {
 		return errors.New("decode todo event: no event field")
 	}
-	return h.applyRecordEvent(ctx, sse, owner, hasOwner, evt)
+	return h.applyRecordEvent(ctx, sse, owner, clientID, hasOwner, evt)
 }
 
 func (h *Handler) streamToast(sse *sdk.ServerSentEventGenerator, payload []byte) error {

@@ -25,7 +25,11 @@ import (
 //     the trash renders aria-disabled with the reason instead of
 //     opening the modal, and the click raises $permDenied. Enforcement
 //     stays server-side (policy.csv answers 403) — this only narrates.
-templ TodoItem(item todo.Todo, canDelete bool) {
+// TodoItem renders one row. Delete + authorship affordances come
+// server-stamped on the item (IsMine/CanDelete via listVisible) — the
+// template never re-derives the rule, so the rule has exactly one home
+// (canDeleteRow, enforced by the handler on POST).
+templ TodoItem(item todo.Todo) {
 	<div
 		class="todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors"
 		id={"todo-" + item.ID}
@@ -41,8 +45,14 @@ templ TodoItem(item todo.Todo, canDelete bool) {
 		} else {
 		<span class="flex-1">{ item.Title }</span>
 	}
+		if item.IsShared() {
+			<span class="badge badge-info badge-xs" title="Shared: every login sees this todo">Shared</span>
+			if !item.IsMine && item.OwnerEmail != "" {
+				<span class="text-xs text-base-content/40" title="Author">by { item.OwnerEmail }</span>
+			}
+		}
 		<span class="text-xs text-base-content/40">{ timeAgo(item.CreatedAt) }</span>
-		if canDelete {
+		if item.CanDelete {
 			<button
 				type="button"
 				class="btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95"
@@ -59,7 +69,7 @@ templ TodoItem(item todo.Todo, canDelete bool) {
 				type="button"
 				class="btn btn-ghost btn-xs opacity-50"
 				aria-disabled="true"
-				title="Delete (viewer role cannot delete)"
+title="Delete (only the author or an admin can delete — viewers never delete)"
 				data-cuelume-press="droplet"
 				data-on:click__prevent={ "$permDenied = true" }
 			 data-variant="ghost">

@@ -20,10 +20,10 @@ func TestRender_TodoItemCheckboxReflectsCompleted(t *testing.T) {
 	open := todo.Todo{ID: "def456", Title: "still open", Completed: false}
 
 	var bDone, bOpen bytes.Buffer
-	if err := TodoItem(done, true).Render(context.Background(), &bDone); err != nil {
+	if err := TodoItem(done).Render(context.Background(), &bDone); err != nil {
 		t.Fatalf("render done item: %v", err)
 	}
-	if err := TodoItem(open, true).Render(context.Background(), &bOpen); err != nil {
+	if err := TodoItem(open).Render(context.Background(), &bOpen); err != nil {
 		t.Fatalf("render open item: %v", err)
 	}
 	if !strings.Contains(bDone.String(), "checked") {
@@ -39,6 +39,46 @@ func TestRender_TodoItemCheckboxReflectsCompleted(t *testing.T) {
 	}
 	if !strings.Contains(bOpen.String(), "/api/todos/def456/toggle") {
 		t.Errorf("open item toggle must target its own id (def456)")
+	}
+}
+
+// TestRender_TodoItemServerStampedAffordances pins the single-home rule:
+// delete + authorship affordances render from the item's server-stamped
+// IsMine/CanDelete, never from template-side role comparisons. A shared
+// row owned by someone else renders the badge + author with a disabled
+// trash; an owned row renders the modal-opening trash.
+func TestRender_TodoItemServerStampedAffordances(t *testing.T) {
+	shared := todo.Todo{
+		ID: "s1", Title: "team board", Visibility: todo.VisibilityPublic,
+		Owner: "u1", OwnerEmail: "mate@example.com", IsMine: false, CanDelete: false,
+	}
+	var bShared bytes.Buffer
+	if err := TodoItem(shared).Render(context.Background(), &bShared); err != nil {
+		t.Fatalf("render shared item: %v", err)
+	}
+	html := bShared.String()
+	for _, want := range []string{"Shared</span>", "mate@example.com", `aria-disabled="true"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("shared foreign row must render %q", want)
+		}
+	}
+	if strings.Contains(html, "showModal()") {
+		t.Error("shared foreign row must not render the modal-opening trash")
+	}
+
+	mine := todo.Todo{
+		ID: "m1", Title: "my task", Visibility: todo.VisibilityPrivate,
+		Owner: "me", IsMine: true, CanDelete: true,
+	}
+	var bMine bytes.Buffer
+	if err := TodoItem(mine).Render(context.Background(), &bMine); err != nil {
+		t.Fatalf("render own item: %v", err)
+	}
+	if !strings.Contains(bMine.String(), "showModal()") {
+		t.Error("owned row must render the modal-opening trash")
+	}
+	if strings.Contains(bMine.String(), "Shared</span>") {
+		t.Error("private row must not render the Shared badge")
 	}
 }
 

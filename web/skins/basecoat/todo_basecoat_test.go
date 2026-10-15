@@ -22,7 +22,7 @@ func TestTodoPageHasToastContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TodoPage: %v", err)
 	}
-	for _, want := range []string{`id="toast-container"`, `Demonstrates:`} {
+	for _, want := range []string{`id="toast-container"`, `data-demo="tech-stack"`, `What each layer does here`} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("basecoat page missing %q", want)
 		}

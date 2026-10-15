@@ -21,19 +21,20 @@ func (q *Queries) CountTodosByOwner(ctx context.Context, owner string) (int64, e
 }
 
 const createTodo = `-- name: CreateTodo :one
-INSERT INTO todos (id, owner, title, completed, idem_key, created, updated)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, owner, title, completed, idem_key, created, updated
+INSERT INTO todos (id, owner, title, completed, idem_key, visibility, created, updated)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, owner, title, completed, idem_key, created, updated, visibility
 `
 
 type CreateTodoParams struct {
-	ID        string
-	Owner     string
-	Title     string
-	Completed bool
-	IdemKey   string
-	Created   string
-	Updated   string
+	ID         string
+	Owner      string
+	Title      string
+	Completed  bool
+	IdemKey    string
+	Visibility string
+	Created    string
+	Updated    string
 }
 
 func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, error) {
@@ -43,6 +44,7 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 		arg.Title,
 		arg.Completed,
 		arg.IdemKey,
+		arg.Visibility,
 		arg.Created,
 		arg.Updated,
 	)
@@ -55,6 +57,7 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 		&i.IdemKey,
 		&i.Created,
 		&i.Updated,
+		&i.Visibility,
 	)
 	return i, err
 }
@@ -85,8 +88,17 @@ func (q *Queries) DeleteTodo(ctx context.Context, arg DeleteTodoParams) error {
 	return err
 }
 
+const deleteTodoByID = `-- name: DeleteTodoByID :exec
+DELETE FROM todos WHERE id = ?
+`
+
+func (q *Queries) DeleteTodoByID(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteTodoByID, id)
+	return err
+}
+
 const getTodo = `-- name: GetTodo :one
-SELECT id, owner, title, completed, idem_key, created, updated FROM todos WHERE id = ? AND owner = ?
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE id = ? AND owner = ?
 `
 
 type GetTodoParams struct {
@@ -105,12 +117,13 @@ func (q *Queries) GetTodo(ctx context.Context, arg GetTodoParams) (Todo, error) 
 		&i.IdemKey,
 		&i.Created,
 		&i.Updated,
+		&i.Visibility,
 	)
 	return i, err
 }
 
 const getTodoByIdemKey = `-- name: GetTodoByIdemKey :one
-SELECT id, owner, title, completed, idem_key, created, updated FROM todos WHERE owner = ? AND idem_key = ? AND idem_key <> ''
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE owner = ? AND idem_key = ? AND idem_key <> ''
 `
 
 type GetTodoByIdemKeyParams struct {
@@ -129,17 +142,60 @@ func (q *Queries) GetTodoByIdemKey(ctx context.Context, arg GetTodoByIdemKeyPara
 		&i.IdemKey,
 		&i.Created,
 		&i.Updated,
+		&i.Visibility,
+	)
+	return i, err
+}
+
+const getTodoVisible = `-- name: GetTodoVisible :one
+SELECT todos.id, todos.owner, todos.title, todos.completed, todos.idem_key, todos.created, todos.updated, todos.visibility, users.email AS owner_email
+FROM todos JOIN users ON users.id = todos.owner
+WHERE todos.id = ? AND (todos.owner = ? OR todos.visibility = 'public')
+`
+
+type GetTodoVisibleParams struct {
+	ID    string
+	Owner string
+}
+
+type GetTodoVisibleRow struct {
+	ID         string
+	Owner      string
+	Title      string
+	Completed  bool
+	IdemKey    string
+	Created    string
+	Updated    string
+	Visibility string
+	OwnerEmail string
+}
+
+func (q *Queries) GetTodoVisible(ctx context.Context, arg GetTodoVisibleParams) (GetTodoVisibleRow, error) {
+	row := q.db.QueryRowContext(ctx, getTodoVisible, arg.ID, arg.Owner)
+	var i GetTodoVisibleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Owner,
+		&i.Title,
+		&i.Completed,
+		&i.IdemKey,
+		&i.Created,
+		&i.Updated,
+		&i.Visibility,
+		&i.OwnerEmail,
 	)
 	return i, err
 }
 
 const listTodosByOwner = `-- name: ListTodosByOwner :many
 
-SELECT id, owner, title, completed, idem_key, created, updated FROM todos WHERE owner = ? ORDER BY created DESC, id DESC
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE owner = ? ORDER BY created DESC, id DESC
 `
 
-// Todos: the reference vertical slice. Every statement is owner-scoped, so a
-// handler cannot leak another tenant's row by forgetting a filter.
+// Todos: the reference vertical slice. Listing is visibility-scoped:
+// a user sees their own rows plus every 'public' row (the collab demo),
+// never another user's 'private' rows. Every statement carries that scope
+// so a handler cannot leak a private row by forgetting a filter.
 func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, error) {
 	rows, err := q.db.QueryContext(ctx, listTodosByOwner, owner)
 	if err != nil {
@@ -157,6 +213,59 @@ func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, e
 			&i.IdemKey,
 			&i.Created,
 			&i.Updated,
+			&i.Visibility,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleTodos = `-- name: ListVisibleTodos :many
+SELECT todos.id, todos.owner, todos.title, todos.completed, todos.idem_key, todos.created, todos.updated, todos.visibility, users.email AS owner_email
+FROM todos JOIN users ON users.id = todos.owner
+WHERE todos.owner = ? OR todos.visibility = 'public'
+ORDER BY todos.created DESC, todos.id DESC
+`
+
+type ListVisibleTodosRow struct {
+	ID         string
+	Owner      string
+	Title      string
+	Completed  bool
+	IdemKey    string
+	Created    string
+	Updated    string
+	Visibility string
+	OwnerEmail string
+}
+
+func (q *Queries) ListVisibleTodos(ctx context.Context, owner string) ([]ListVisibleTodosRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleTodos, owner)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleTodosRow{}
+	for rows.Next() {
+		var i ListVisibleTodosRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Owner,
+			&i.Title,
+			&i.Completed,
+			&i.IdemKey,
+			&i.Created,
+			&i.Updated,
+			&i.Visibility,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -185,6 +294,42 @@ type SetTodoCompletedParams struct {
 func (q *Queries) SetTodoCompleted(ctx context.Context, arg SetTodoCompletedParams) error {
 	_, err := q.db.ExecContext(ctx, setTodoCompleted,
 		arg.Completed,
+		arg.Updated,
+		arg.ID,
+		arg.Owner,
+	)
+	return err
+}
+
+const setTodoCompletedByID = `-- name: SetTodoCompletedByID :exec
+UPDATE todos SET completed = ?, updated = ? WHERE id = ?
+`
+
+type SetTodoCompletedByIDParams struct {
+	Completed bool
+	Updated   string
+	ID        string
+}
+
+func (q *Queries) SetTodoCompletedByID(ctx context.Context, arg SetTodoCompletedByIDParams) error {
+	_, err := q.db.ExecContext(ctx, setTodoCompletedByID, arg.Completed, arg.Updated, arg.ID)
+	return err
+}
+
+const setTodoVisibility = `-- name: SetTodoVisibility :exec
+UPDATE todos SET visibility = ?, updated = ? WHERE id = ? AND owner = ?
+`
+
+type SetTodoVisibilityParams struct {
+	Visibility string
+	Updated    string
+	ID         string
+	Owner      string
+}
+
+func (q *Queries) SetTodoVisibility(ctx context.Context, arg SetTodoVisibilityParams) error {
+	_, err := q.db.ExecContext(ctx, setTodoVisibility,
+		arg.Visibility,
 		arg.Updated,
 		arg.ID,
 		arg.Owner,
