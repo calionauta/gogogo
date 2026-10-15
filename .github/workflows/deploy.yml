@@ -105,9 +105,11 @@ on:
 
   # Reconciliation: tag pushes made by release-please (GITHUB_TOKEN) do
   # not start workflow runs, so the tag-deploy arm below never fires and
-  # the site badge lags the release until a human dispatches. The schedule
-  # closes that gap: every 30 min it compares the running build (the
-  # X-Gogogo-Build header) with master HEAD and deploys only on mismatch.
+  # the site badge would lag the release until the next code push. The
+  # schedule closes that gap in two dimensions: the running build SHA vs
+  # master HEAD (code drift), and the running badge version vs the latest
+  # tag (label drift — same code, old label, e.g. header 0.47.0 serving
+  # the v0.48.0 tree). Either mismatch deploys.
   schedule:
     - cron: "*/30 * * * *"
 
@@ -150,7 +152,15 @@ jobs:
           # assertHealthCarriesBuildTag. Unparseable (site down, format
           # drift) fails open toward freshness: a needless redeploy is
           # cheap, a stale site is the bug.
-          BADGE=$(curl -fsSL -D - -o /dev/null https://gogogo.calionauta.com/health 2>/dev/null | tr -d '\r' | grep -i '^x-gogogo-build:' | awk '{print $2}' | rev | cut -d- -f1 | rev || true)
+          BUILD_TAG=$(curl -fsSL -D - -o /dev/null https://gogogo.calionauta.com/health 2>/dev/null | tr -d '\r' | grep -i '^x-gogogo-build:' | awk '{print $2}' || true)
+          BADGE=$(printf '%s' "$BUILD_TAG" | rev | cut -d- -f1 | rev)
+          # Badge version (everything before the trailing short SHA).
+          BADGE_VER=$(printf '%s' "$BUILD_TAG" | rev | cut -d- -f2- | rev)
+          # Latest release tag. Empty on ls-remote failure — the label
+          # check below skips then rather than forcing a restart over an
+          # infra hiccup.
+          LATEST_TAG=$(git ls-remote --tags "https://github.com/${{ github.repository }}.git" 'v*.*.*' 2>/dev/null | grep -v '\^{}' | awk -F/ '{print $NF}' | sort -V | tail -1 || true)
+          LATEST_VER="${LATEST_TAG#v}"
           # Last master SHA with green CI. Empty when the API fails or no run
           # exists yet — callers treat that as "unknown" (old HEAD-vs-badge
           # comparison), never as a reason to skip.
@@ -161,6 +171,15 @@ jobs:
             exit 0
           fi
           if [ "$BADGE" = "$HEAD_SHA" ]; then
+            # Same code — but the label may still lag: the push-deploy runs
+            # before the release tag exists, and the tag-deploy arm never
+            # fires for release-please tags. Redeploy on version mismatch so
+            # the badge reports what is actually running.
+            if [ -n "$LATEST_VER" ] && [ -n "$BADGE_VER" ] && [ "$BADGE_VER" != "$LATEST_VER" ]; then
+              echo "behind=true" >> "$GITHUB_OUTPUT"
+              echo "production runs $BADGE_VER, latest tag is $LATEST_VER; redeploying for the label"
+              exit 0
+            fi
             echo "behind=false" >> "$GITHUB_OUTPUT"
             echo "production runs $BADGE = master HEAD; nothing to do"
             exit 0
