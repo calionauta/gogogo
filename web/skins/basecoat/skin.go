@@ -6,7 +6,7 @@
 package basecoat
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/a-h/templ"
 
@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	log.Println("skins: registering basecoat")
+	slog.Info("skins: registering basecoat")
 	skins.Register(skins.Skin{
 		Name:   "basecoat",
 		Assets: assets,

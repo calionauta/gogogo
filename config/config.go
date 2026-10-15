@@ -48,7 +48,7 @@ package config
 
 import (
 	"encoding/hex"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -317,7 +317,7 @@ func Load() *Config {
 	if p := os.Getenv("PORT"); p != "" {
 		parsed, err := strconv.Atoi(p)
 		if err != nil {
-			log.Printf("config: invalid PORT=%q, using %d: %v", p, port, err)
+			slog.Warn("config: invalid PORT, using default", "port", p, "default", port, "error", err)
 		} else {
 			port = parsed
 		}

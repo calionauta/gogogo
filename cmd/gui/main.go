@@ -45,7 +45,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"sync"
@@ -83,7 +82,8 @@ const (
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("gui failed", "error", err)
+		os.Exit(1)
 	}
 }
 

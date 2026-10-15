@@ -19,6 +19,11 @@ func init() {
 		lvl = slog.LevelDebug
 	}
 	baseLogger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
+	// The default logger is the JSON one: every bare slog call anywhere
+	// (including third-party libs that respect a custom default, like
+	// Genkit) emits JSONL on stdout. Structured stdout is the rule —
+	// nothing human-formatted may write here (see cmd/web, web/skins).
+	slog.SetDefault(baseLogger)
 }
 
 func L() *slog.Logger {

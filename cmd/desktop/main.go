@@ -14,9 +14,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -42,14 +43,14 @@ func main() {
 	if cfg.NATS.LeafNodeURL != "" {
 		h, err := nats.StartLeafNode(cfg.NATS.StoreDir, cfg.NATS.LeafNodeURL)
 		if err != nil {
-			log.Printf("WARN: leaf node start failed, falling back to standalone NATS: %v", err)
+			slog.Warn("leaf node start failed, falling back to standalone NATS", "error", err)
 		} else {
 			nat, js = h, h.JS // leaf-node transport (nat feeds collab only)
 		}
 	} else if cfg.NATS.Enabled {
 		h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
 		if err != nil {
-			log.Printf("WARN: NATS start failed, in-memory broadcaster only: %v", err)
+			slog.Warn("NATS start failed, in-memory broadcaster only", "error", err)
 		} else {
 			nat, js = h, h.JS // embedded transport (nat feeds collab only)
 		}
@@ -67,10 +68,12 @@ func main() {
 	// empty, which cannot happen here.
 	stopChi, err := server.StartChi(cfg, js)
 	if err != nil {
-		log.Fatalf("boot failed: %v", err)
+		slog.Error("boot failed", "error", err)
+		os.Exit(1)
 	}
 	if stopChi == nil {
-		log.Fatalf("boot failed: chi stack did not start (no %s listener)", addr)
+		slog.Error("boot failed: chi stack did not start", "addr", addr)
+		os.Exit(1)
 	}
 
 	// Edge sync (Phase C): publish local Loro updates on app.sync.<docID>.
@@ -82,9 +85,9 @@ func main() {
 		pub := collab.NewPublisher(nat.Conn)
 		demoDoc := collab.NewDoc("desktop-demo")
 		if pubErr := pub.PublishUpdate(demoDoc, nil); pubErr != nil {
-			log.Printf("WARN: collab publish failed: %v", pubErr)
+			slog.Warn("collab publish failed", "error", pubErr)
 		} else {
-			log.Printf("desktop: published collab update for %s", demoDoc.ID())
+			slog.Info("desktop: published collab update", "doc", demoDoc.ID())
 		}
 
 		// Ephemeral presence: broadcast this desktop's cursor on the demo
@@ -120,8 +123,8 @@ func main() {
 	// (where the flat stack serves the UI) through this handler.
 	target, err := url.Parse("http://" + addr)
 	if err != nil {
-		//nolint:gocritic // log.Fatalf is intentional — main() exits here.
-		log.Fatalf("parse target url: %v", err)
+		slog.Error("parse target url", "error", err)
+		os.Exit(1) //nolint:gocritic // intentional exit in main; presCancel is best-effort.
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
@@ -138,8 +141,9 @@ func main() {
 		},
 	})
 
-	log.Printf("desktop: flat stack on %s, webview proxied", addr)
+	slog.Info("desktop: flat stack on webview proxy", "addr", addr)
 	if runErr := app.Run(); runErr != nil {
-		log.Fatalf("wails run: %v", runErr)
+		slog.Error("wails run", "error", runErr)
+		os.Exit(1)
 	}
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/danmestas/dagnats/server"
@@ -92,7 +92,7 @@ func createOnboardingTodo(ctx context.Context, todoH onboardingTodoCreator, step
 	// Previously owner was hardcoded to "" so the todos were created owner-less
 	// and never surfaced.
 	if err := todoH.CreateTodoForOnboarding(ctx, text, input.User); err != nil {
-		log.Printf("dagnats: create todo failed: %v", err)
+		slog.Error("dagnats: create todo failed", "error", err)
 		return step.Fail(err)
 	}
 	// Thread the remaining titles (and owner) forward so the next create-todo
@@ -159,7 +159,7 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 		if err := waitStep(ctxForStep(lifecycleCtx, ctx), cfg.DagNats.GreetPacing); err != nil {
 			return ctx.Fail(err)
 		}
-		log.Printf("dagnats: onboarding greet")
+		slog.Info("dagnats: onboarding greet")
 		// Thread the run input ({"user": ..., "todos": [...]}) through as
 		// this step's output so the downstream create-todo steps can read
 		// the owner + remaining titles from their own Input. Greet is the
@@ -173,14 +173,14 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 	// pattern and is how the durable run pauses for external input
 	// without polling or an in-memory flag.
 	shim.Handle("onboarding-await-first-todo", func(ctx worker.TaskContext) error {
-		log.Printf("dagnats: awaiting first todo signal for run %s", ctx.RunID())
+		slog.Info("dagnats: awaiting first todo signal", "run", ctx.RunID())
 		const signalTimeout = 50 * time.Minute
 		_, err := ctx.WaitForSignal("first-todo", signalTimeout)
 		if err != nil {
-			log.Printf("dagnats: await first-todo timed out/failed: %v", err)
+			slog.Warn("dagnats: await first-todo timed out/failed", "error", err)
 			return ctx.Fail(err)
 		}
-		log.Printf("dagnats: first todo signal received for run %s", ctx.RunID())
+		slog.Info("dagnats: first todo signal received", "run", ctx.RunID())
 		// Pass the owner payload through to the create-todo steps.
 		return ctx.Complete(ctx.Input())
 	})
@@ -193,7 +193,7 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 		return createOnboardingTodo(ctxForStep(lifecycleCtx, ctx), todoH, ctx)
 	})
 	shim.Handle("onboarding-finalize", func(ctx worker.TaskContext) error {
-		log.Printf("dagnats: onboarding finalized")
+		slog.Info("dagnats: onboarding finalized")
 		return ctx.Complete(ctx.Input())
 	})
 
@@ -205,10 +205,10 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 
 	go func() {
 		if err := srv.Run(); err != nil {
-			log.Printf("WARN: dagnats server stopped: %v", err)
+			slog.Warn("dagnats server stopped", "error", err)
 		}
 	}()
-	log.Printf("dagnats: listening on %s (NATS on :4222)", cfg.DagNats.HTTPAddr)
+	slog.Info("dagnats: listening", "addr", cfg.DagNats.HTTPAddr)
 }
 
 // registerOnboardingWorkflowWithRetry registers the onboarding workflow,
@@ -243,10 +243,10 @@ func registerOnboardingWorkflowWithRetry(ctx context.Context, httpAddr string) {
 			}
 			continue
 		}
-		log.Printf("dagnats: onboarding workflow registered")
+		slog.Info("dagnats: onboarding workflow registered")
 		return
 	}
-	log.Printf("WARN: dagnats workflow register failed after retries")
+	slog.Warn("dagnats workflow register failed after retries")
 }
 
 // shutdownDagNats stops the DagNats engine if this process started one.
@@ -286,11 +286,11 @@ func shutdownDagNats() {
 func ensureTriggerBootstrap() {
 	nc := appnats.Conn()
 	if nc == nil {
-		log.Printf("dagnats bootstrap: no NATS connection; skipping trigger seed")
+		slog.Info("dagnats bootstrap: no NATS connection; skipping trigger seed")
 		return
 	}
 	err := appdagnats.EnsureTriggerBucket(nc, onboardingWorkflowID)
 	if err != nil {
-		log.Printf("WARN: dagnats bootstrap skipped: %v", err)
+		slog.Warn("dagnats bootstrap skipped", "error", err)
 	}
 }

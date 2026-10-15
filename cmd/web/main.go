@@ -14,7 +14,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -62,12 +62,14 @@ func main() {
 	// `CMD ["/app", "health"]` (exec form) rather than a shell command.
 	if len(os.Args) > 1 && os.Args[1] == "health" {
 		if err := runHealthcheck(); err != nil {
-			log.Fatalf("healthcheck failed: %v", err)
+			slog.Error("healthcheck failed", "error", err)
+			os.Exit(1)
 		}
 		return
 	}
 	if err := run(); err != nil {
-		log.Fatalf("startup failed: %v", err)
+		slog.Error("startup failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -138,7 +140,7 @@ func run() error {
 		return err
 	}
 	defer stop()
-	log.Printf("listening on %s", addr)
+	slog.Info("listening", "addr", addr)
 
 	// WORKAROUND (upstream DagNats v0.0.24 bug): the trigger console cannot
 	// create the FIRST trigger because listing an empty bucket returns
@@ -160,6 +162,6 @@ func run() error {
 	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stopSignals()
 	<-ctx.Done()
-	log.Printf("shutting down")
+	slog.Info("shutting down")
 	return nil
 }
