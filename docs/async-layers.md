@@ -21,6 +21,12 @@ JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_
 GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
 ```
 
+Jobs run once: the queue visibility window (10min) exceeds the slowest
+legitimate job, so a slow LLM call is never re-executed mid-flight
+(goqite redelivers past the window, up to MaxReceive — persistence
+dedupes by idem key, live SSE sends do not, so keep handlers fast or
+the window long).
+
 ## Transport matrix (queryable)
 
 Which wire carries what, what it falls back to, and the switch. There is
