@@ -2,31 +2,8 @@ name: CI
 on:
   push:
     branches: [master]
-    # docs/ and site/ are not part of the application and cannot affect the Go
-    # build or the embedded CSS:
-    #   - docs/*.md is validated by pages.yml (site-check: links + anchors)
-    #     and the pre-commit hooks.
-    #   - site/ is the published landing page + docs generator. It loads its own
-    #     ./styles.css and uses zero Tailwind utilities, and src/css/input.css no
-    #     longer scans it (source(none) + explicit @source globs), so a landing
-    #     edit cannot change web/resources/static/app.min.css.
-    # That is what makes it safe to skip the full lint + race-test + build run.
-    paths-ignore:
-      - "docs/**"
-      - "site/**"
-      - "**.md"
-      - "LICENSE"
-      - ".stelow/**"
-      - ".gitignore"
   pull_request:
     branches: [master]
-    paths-ignore:
-      - "docs/**"
-      - "site/**"
-      - "**.md"
-      - "LICENSE"
-      - ".stelow/**"
-      - ".gitignore"
   workflow_dispatch:
 concurrency:
   # Cancel in-progress runs when a newer commit lands on the same ref (push+
@@ -45,13 +22,59 @@ env:
   # fetches). Sumdb verification is unchanged — fallback never skips hashes.
   GOPROXY: https://proxy.golang.org|direct
 jobs:
-  # CI runs as four parallel jobs, one concern each — wall-clock is the
-  # slowest job, not the sum. Each job repeats checkout + Go install (~1min
-  # of accepted duplication) to stay independent and individually retryable.
+  # CI runs as a one-job changeset classifier followed by four parallel gate
+  # jobs, one concern each — wall-clock is the slowest job, not the sum. Each
+  # job repeats checkout + Go install (~1min of accepted duplication) to stay
+  # independent and individually retryable.
   # These runners are GitHub-hosted (4vCPU/16GB each); do NOT copy this
   # fan-out onto a small self-hosted box — local `make ci-local` keeps its
   # host-capacity gates for exactly that reason.
+  changes:
+    # Changeset classifier: docs-only changes (docs/, site/, markdown,
+    # LICENSE, stelow notes, .gitignore) cannot affect the Go build or the
+    # embedded CSS — docs/*.md is validated by pages.yml (site-check) and
+    # the pre-commit hooks, and src/css/input.css no longer scans site/.
+    # The heavy jobs below skip on docs-only, but this workflow ALWAYS
+    # runs so the required `ci` status still reports (a trigger-level
+    # paths-ignore would skip the whole workflow and leave `ci` pending
+    # forever on docs PRs — the exact failure this replaces).
+    # Owned git-diff logic, no third-party action: PRs diff base...HEAD,
+    # pushes diff before...after, anything else (dispatch, shallow
+    # weirdness) fails open to a full run.
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        run: |
+          set -euo pipefail
+          BASE=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+          fi
+          # Fail OPEN: docs_only flips to true only when a diff was read
+          # AND every path in it is inert. A missing base (force-push,
+          # shallow history, dispatch) or a failed `git diff` leaves it
+          # false, because skipping the gates on an unreadable changeset
+          # would hide a real break instead of wasting a runner.
+          DOCS_ONLY="false"
+          if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            CHANGED="$(git diff --name-only "$BASE...HEAD" || true)"
+            if [ -n "$CHANGED" ] && ! printf '%s\n' "$CHANGED" | grep -qvE '^docs/|^site/|\.md$|^LICENSE$|^\.stelow/|^\.gitignore$'; then
+              DOCS_ONLY="true"
+            fi
+          fi
+          echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
+          echo "docs-only changeset: $DOCS_ONLY"
   checks:
+    needs: [changes]
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -198,6 +221,8 @@ jobs:
           echo "✓ CSS bundles match their sources"
 
   race:
+    needs: [changes]
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -233,6 +258,8 @@ jobs:
         run: bash scripts/test-web.sh -race -count=1 -v
 
   browser:
+    needs: [changes]
+    if: needs.changes.outputs.docs_only != 'true'
     # Build + boot smoke stay first (cheap gate); the three client suites
     # run serially — fast enough, and it avoids the parallel-load starvation
     # that ci-fanout.sh documents for the local run.
@@ -311,6 +338,8 @@ jobs:
           SMOKE_BIN=/tmp/gogogo-ci-web SSE_PROBE_PORT=8133 node scripts/sse-reopen.test.mjs
 
   prod-image:
+    needs: [changes]
+    if: needs.changes.outputs.docs_only != 'true'
     # Committed sources + Dockerfile only (no Go/Node): a broken image
     # fails fast in parallel instead of after the whole suite.
     runs-on: ubuntu-latest
@@ -332,7 +361,10 @@ jobs:
     # status context, and parallel jobs cannot provide a stable name —
     # this job succeeds only when every gate above succeeded. A cancelled
     # (superseded) run reports through here as failure-free, never red.
-    needs: [checks, race, browser, prod-image]
+    # Skipped gates (docs-only changesets) are green by construction:
+    # only `failure` fails this job, so the required status always
+    # reports even when the heavy jobs never ran.
+    needs: [changes, checks, race, browser, prod-image]
     if: always()
     runs-on: ubuntu-latest
     steps:

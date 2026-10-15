@@ -160,6 +160,14 @@
   binary across the client suites, image boot fails fast instead of last).
   A `ci` aggregator job preserves the branch-protection status context
   (parallel jobs cannot provide a stable name).
+- **Docs-only changesets still report `ci`.** A trigger-level
+  `paths-ignore` skipped the whole workflow, so a docs PR left the required
+  `ci` status pending forever and needed an admin bypass to merge.
+  `ci.yml` now always starts and classifies the changeset itself: when every
+  changed path is `docs/`, `site/`, `*.md`, `LICENSE`, `.stelow/` or
+  `.gitignore` the four heavy jobs skip while the `ci` aggregator reports
+  green. An unreadable diff (force-push, shallow history, dispatch) fails
+  open to a full run.
 - **Commit-time vulnerability scan.** `govulncheck` runs pre-commit on
   `go.mod`/`go.sum` (same script as pre-push/CI), so a vulnerable dependency
   fails the commit instead of the push.

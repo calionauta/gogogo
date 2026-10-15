@@ -304,7 +304,15 @@ by hand, so when a step is added to one, add it to the other:
 CI runs the rows above as four parallel jobs (`checks` | `race` | `browser` |
 `prod-image`) — wall-clock is the slowest job, not the sum. A `ci`
 aggregator job (green only when all four are) preserves the single status
-context branch protection requires. Each job provisions its own toolchain and deps (`bin/check-ci-deps.sh`, pre-commit +
+context branch protection requires.
+
+Those four skip on a **docs-only changeset** — a `changes` classifier job reads
+the PR (`base...HEAD`) or push (`before...after`) diff and marks it when every
+path is `docs/`, `site/`, `*.md`, `LICENSE`, `.stelow/` or `.gitignore`; an
+unreadable diff (force-push, shallow history, dispatch) fails **open** to a full
+run. A trigger-level `paths-ignore` would be cheaper but skips the workflow
+entirely, leaving the required `ci` status pending forever on a docs PR — the
+classifier always runs, so `ci` always reports. Each job provisions its own toolchain and deps (`bin/check-ci-deps.sh`, pre-commit +
 CI, fails a job that uses `node`/`go` without installing them first).
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).
