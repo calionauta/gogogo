@@ -65,13 +65,14 @@ type Session struct {
 }
 
 type Todo struct {
-	ID        string
-	Owner     string
-	Title     string
-	Completed bool
-	IdemKey   string
-	Created   string
-	Updated   string
+	ID         string
+	Owner      string
+	Title      string
+	Completed  bool
+	IdemKey    string
+	Created    string
+	Updated    string
+	Visibility string
 }
 
 type User struct {

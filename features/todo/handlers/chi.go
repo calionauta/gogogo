@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5"
@@ -36,7 +35,6 @@ import (
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
-	"github.com/calionauta/gogogo/internal/rbac"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
@@ -132,7 +130,7 @@ func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner stri
 	now := dbschema.Now()
 	if _, err := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
 		ID: dbschema.NewID(), Owner: owner, Title: title,
-		Completed: false, IdemKey: "", Created: now, Updated: now,
+		Completed: false, IdemKey: "", Visibility: todo.VisibilityPrivate, Created: now, Updated: now,
 	}); err != nil {
 		return fmt.Errorf("onboarding create %q: %w", title, err)
 	}
@@ -173,40 +171,6 @@ func (h *Handler) ownerSession(r *http.Request) (string, *auth.ValidatedSession,
 		return "", nil, errors.New("todo: empty session")
 	}
 	return sess.User.ID, sess, nil
-}
-
-// isViewerSession reports whether the request carries the restricted demo
-// role. Display hint only (delete affordances + paid-action visibility) —
-// enforcement stays in the RBAC policy, so callers never branch access on
-// this. Unknown/missing sessions are not viewers (fail-open display).
-func isViewerSession(sess *auth.ValidatedSession) bool {
-	return sess != nil && rbac.IsViewer(sess.Role)
-}
-
-// isViewer resolves the viewer flag for request paths carrying a session.
-// One extra indexed user lookup per render; mutations already issue
-// several writes, so this does not move their cost profile.
-func (h *Handler) isViewer(r *http.Request) bool {
-	sess, err := h.Auth.Session(r)
-	if err != nil {
-		return false
-	}
-	return isViewerSession(sess)
-}
-
-// viewerOwner resolves the viewer flag for stream paths, which know the
-// owner id but carry no session. A lookup miss fails open (affordance
-// shown, policy still enforces) — display must never lock out, only
-// enforcement denies.
-func (h *Handler) viewerOwner(ctx context.Context, owner string) bool {
-	if owner == "" || h.Q == nil {
-		return false
-	}
-	u, err := h.Q.GetUser(ctx, owner)
-	if err != nil {
-		return false
-	}
-	return rbac.IsViewer(u.Role)
 }
 
 // dagnatsUIEnabled reports the durable-workflow UI truth: REGISTRATION,
@@ -267,62 +231,6 @@ func (h *Handler) fail(ctx context.Context, w http.ResponseWriter, logMsg string
 	obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
 	observability.Error(ctx, logMsg, obsArgs...)
 	writeText(w, http.StatusInternalServerError, publicMsg)
-}
-
-// toTodo maps a sqlc row onto the wire model. Timestamps are caller-written
-// RFC3339 (dbschema.TimeFormat); a row that does not parse is data corruption,
-// flagged as a 500 rather than rendered half-empty.
-func toTodo(row dbgen.Todo) (todo.Todo, error) {
-	created, err := time.Parse(dbschema.TimeFormat, row.Created)
-	if err != nil {
-		return todo.Todo{}, fmt.Errorf("todo %s created %q: %w", row.ID, row.Created, err)
-	}
-	updated, err := time.Parse(dbschema.TimeFormat, row.Updated)
-	if err != nil {
-		return todo.Todo{}, fmt.Errorf("todo %s updated %q: %w", row.ID, row.Updated, err)
-	}
-	return todo.Todo{
-		ID:        row.ID,
-		Title:     row.Title,
-		Completed: row.Completed,
-		CreatedAt: created,
-		UpdatedAt: updated,
-	}, nil
-}
-
-// listOwner loads the owner's todos and applies the list filter in Go:
-// "" (all), "active", "completed". Unknown filters read as "all".
-func (h *Handler) listOwner(ctx context.Context, owner string, filter string) ([]todo.Todo, error) {
-	rows, err := h.Q.ListTodosByOwner(ctx, owner)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]todo.Todo, 0, len(rows))
-	for _, row := range rows {
-		item, err := toTodo(row)
-		if err != nil {
-			return nil, err
-		}
-		switch filter {
-		case "active":
-			if item.Completed {
-				continue
-			}
-		case "completed":
-			if !item.Completed {
-				continue
-			}
-		}
-		out = append(out, item)
-	}
-	return out, nil
-}
-
-func filterOf(r *http.Request) string {
-	if f := r.URL.Query().Get("filter"); f != "" {
-		return f
-	}
-	return "all"
 }
 
 // resolveSkin reports the skin to render with. Basecoat is opt-in through
@@ -386,14 +294,17 @@ type recordEvent struct {
 // publishSync fans a mutation out twice: Hub for this instance's streams,
 // JetStream for other instances. Both are best-effort after the Turso write
 // (the source of truth); either may lag without affecting correctness.
+// isPublic selects the Hub audience: a shared row refreshes every login's
+// streams (each re-lists its own visible set); a private row reaches only
+// the owner's tabs, as before.
 func (h *Handler) publishSync(
-	r *http.Request, owner string, evt recordEvent, op natswire.CrudOpType, data *natswire.CrudOpData,
+	r *http.Request, owner string, isPublic bool, evt recordEvent, op natswire.CrudOpType, data *natswire.CrudOpData,
 ) {
-	h.broadcastRecord(r, owner, evt)
+	h.broadcastRecord(r, owner, isPublic, evt)
 	h.Pub.Publish(op, owner, data)
 }
 
-// broadcastRecord publishes a mutation to the owner's other streams,
+// broadcastRecord publishes a mutation to the streams that may display it,
 // excluding the originating client when known (it already got the
 // synchronous patch below).
 //
@@ -403,7 +314,7 @@ func (h *Handler) publishSync(
 // the queued clientID would leave the tab that queued the mutation with
 // only its optimistic row forever. So replays fan out to every stream,
 // originator included.
-func (h *Handler) broadcastRecord(r *http.Request, owner string, evt recordEvent) {
+func (h *Handler) broadcastRecord(r *http.Request, owner string, isPublic bool, evt recordEvent) {
 	payload, err := json.Marshal(evt)
 	if err != nil {
 		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
@@ -417,6 +328,10 @@ func (h *Handler) broadcastRecord(r *http.Request, owner string, evt recordEvent
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		exclude = ""
 	}
+	if isPublic {
+		h.Hub.BroadcastToAllUsers(payload, exclude)
+		return
+	}
 	h.Hub.BroadcastToUser(payload, owner, exclude)
 }
 
@@ -429,19 +344,18 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		redirectLogin(w, r)
 		return
 	}
-	filter := filterOf(r)
-	todos, err := h.listOwner(r.Context(), owner, filter)
+	filter, scope := filterOf(r), scopeOf(r)
+	_, role := h.roleOf(r)
+	// Remember the tab's listing slice on its stream registration, so
+	// record-event re-lists preserve what the tab was looking at.
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope)
+	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
 	if err != nil {
-		h.fail(r.Context(), w, "todo: list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
+		h.fail(r.Context(), w, "todo: list failed",
+			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error listing todos")
 		return
 	}
-	signals := todo.Signals{
-		Todos: todos, Filter: filter, ItemCount: len(todos),
-		DagNatsEnabled: h.dagnatsUIEnabled(),
-		IsViewer:       h.isViewer(r),
-		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
-		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
-	}
+	signals := h.displaySignals(r, todos, filter, scope)
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
 		h.fail(r.Context(), w, "todo: list signals failed", err, "error listing todos")
@@ -461,19 +375,16 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 		redirectLogin(w, r)
 		return
 	}
-	filter := filterOf(r)
-	todos, err := h.listOwner(r.Context(), owner, filter)
+	filter, scope := filterOf(r), scopeOf(r)
+	_, role := h.roleOf(r)
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope)
+	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
 	if err != nil {
-		h.fail(r.Context(), w, "todo: fragment list failed", fmt.Errorf("filter %s: %w", filter, err), "error listing todos")
+		h.fail(r.Context(), w, "todo: fragment list failed",
+			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error listing todos")
 		return
 	}
-	signals := todo.Signals{
-		Todos: todos, Filter: filter, ItemCount: len(todos),
-		DagNatsEnabled: h.dagnatsUIEnabled(),
-		IsViewer:       h.isViewer(r),
-		LLMEnabled:     h.LLM != nil && h.LLM.Configured(),
-		SimulatedLLM:   h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
-	}
+	signals := h.displaySignals(r, todos, filter, scope)
 	var buf bytes.Buffer
 	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {
 		h.fail(r.Context(), w, "todo: fragment render failed", err, "error rendering list")

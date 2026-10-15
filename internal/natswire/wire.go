@@ -57,11 +57,14 @@ type CrudPayload struct {
 // CrudOpData carries the per-operation data. ID is REQUIRED for
 // toggle/delete (must match the row id on the target instance). For
 // create, the handler includes the locally generated ID so the remote
-// consumer reuses the same one.
+// consumer reuses the same one. Visibility travels on create so a
+// 'public' row fans out to every login on the receiving instance;
+// empty reads as "private" (pre-visibility publishers).
 type CrudOpData struct {
-	ID        string `json:"id,omitempty"`
-	Title     string `json:"title,omitempty"`
-	Completed bool   `json:"completed,omitempty"`
+	ID         string `json:"id,omitempty"`
+	Title      string `json:"title,omitempty"`
+	Completed  bool   `json:"completed,omitempty"`
+	Visibility string `json:"visibility,omitempty"`
 }
 
 // CrudPublisher publishes todo CRUD operations to JetStream.

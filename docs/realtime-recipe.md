@@ -53,7 +53,7 @@ machinery here; a native open-ack or restart handle replaces the status poll.
 
 ## Server patterns
 
-- **Records** → Hub record event + fragment re-fetch (per-user scoped free).
+- **Records** → Hub record event + fragment re-fetch (visibility scoped free: private to owner tabs, shared to every login).
 - **Ephemeral** → the shared queue hub (`chiQ.Hub()` — BootChi wires every
   stream and every worker to this ONE hub; a second hub object silently
   swallows worker feedback) + worker `hub.Send(clientID, …)`; stream

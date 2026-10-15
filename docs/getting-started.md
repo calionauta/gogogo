@@ -227,7 +227,7 @@ everything — the unified build era means you never pass `-tags`.
 2. Open `/` — public landing page, no auth.
 3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
    stream through the SSE hub. (`demo2@demo.app`, same password, keeps
-   a separate todo list — per-user isolation you can verify in a second browser.)
+   a separate private list, plus shared todos both logins see live — verify in a second browser.)
 4. Open `/config` — auth-gated read-only view of what the binary decided:
    env-decrypted values, masked secrets, runtime constants.
 5. Open `/whiteboard` — collaborative canvas; open it in a second window to

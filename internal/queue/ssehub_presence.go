@@ -1,0 +1,92 @@
+// SCOPE:core — SSE Hub audience targeting (who receives a fan-out).
+//
+// BroadcastToUser (one owner's tabs), BroadcastToAllUsers (every login's
+// streams — shared-row mutations, each re-listing its own visible set),
+// and the per-tab ViewPref store (filter + scope) that record-event
+// re-lists preserve. The registry itself (clients/userOf/docOf/viewOf
+// maps) stays in ssehub.go; this file only decides audiences.
+package queue
+
+// ViewPref is one tab's listing slice: the status filter plus the
+// sharing scope. Stored per stream clientID so record-event re-lists
+// preserve what the tab was looking at.
+type ViewPref struct {
+	Filter string
+	Scope  string
+}
+
+// ViewOf returns the stored listing slice for clientID, defaulting to
+// ("all", "all") for streams that never fetched (or for unknown ids) —
+// a tab with no stated preference sees everything visible, never less.
+func (h *SSEHub) ViewOf(clientID string) ViewPref {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if v, ok := h.viewOf[clientID]; ok && v.Filter != "" {
+		if v.Scope == "" {
+			v.Scope = "all"
+		}
+		return v
+	}
+	return ViewPref{Filter: "all", Scope: "all"}
+}
+
+// SetView stores the listing slice a tab just asked for. Called on every
+// list/fragment fetch carrying a clientID (tab clicks round-trip, so the
+// stored pref tracks the UI without any extra watcher).
+func (h *SSEHub) SetView(clientID, filter, scope string) {
+	if clientID == "" {
+		return
+	}
+	if filter == "" {
+		filter = "all"
+	}
+	if scope == "" {
+		scope = "all"
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.viewOf[clientID] = ViewPref{Filter: filter, Scope: scope}
+}
+
+// BroadcastToAllUsers sends data to all currently connected clients that
+// carry a user identity (non-empty userID), EXCEPT excludeClientID.
+// This is the shared-row variant of BroadcastToUser: a mutation to a
+// 'public' todo must refresh every login's list, not just the owner's —
+// while still excluding whiteboard/doc streams, which register without a
+// userID and would choke on a todo record event. Each receiving todo
+// stream re-lists its own visible set, so no private row ever leaks.
+func (h *SSEHub) BroadcastToAllUsers(data []byte, excludeClientID string) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for id, ch := range h.clients {
+		if id == excludeClientID {
+			continue
+		}
+		if h.userOf[id] == "" {
+			continue
+		}
+		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-all-users")
+	}
+}
+
+// BroadcastToUser sends data to all currently connected clients that
+// belong to userID, EXCEPT excludeClientID. This is the per-user scoped
+// variant of Broadcast used for record mutations: a mutation to a
+// 'private' todo is delivered only to the owning user's open tabs,
+// never to another user's (cross-user leak), and never back to the
+// originating tab (which already patched its own DOM via the per-request
+// SSE response, so a redundant full-list re-render would clobber its
+// local view). Drop policy is identical to Broadcast.
+func (h *SSEHub) BroadcastToUser(data []byte, userID, excludeClientID string) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for id, ch := range h.clients {
+		if id == excludeClientID {
+			continue
+		}
+		if h.userOf[id] != userID {
+			continue
+		}
+		h.deliverOrDrop(id, ch, data, "slow-client-broadcast-user")
+	}
+}

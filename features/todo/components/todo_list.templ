@@ -55,10 +55,18 @@ templ TodoList(signals todo.Signals) {
 							<span class="text-base-content/30 mx-1">·</span>
 							<span>{ signals.OfflineLabel }</span>
 						</p>
-						@ic.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
+						@ic.TechStack([]ic.TechItem{
+						{Name: "JetStream realtime", Note: "CRUD ops stream across instances"},
+						{Name: "SSE Hub", Note: "every open tab re-lists live"},
+						{Name: "goqite queue", Note: "AI + demo jobs run in background"},
+						{Name: "retry-go", Note: "transient failures retry with backoff"},
+						{Name: "DagNats workflows", Note: "durable onboarding pipeline"},
+						{Name: "offline outbox", Note: "offline mutations queue, then sync"},
+						{Name: "Casbin RBAC", Note: "per-request role permissions"},
+					})
 					</div>
 				</div>
-				<span class="online-pill" data-show="$connectedClients >= 0">
+				<span class="online-pill" data-show="$connectedClients >= 0" title="Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.">
 					<span class="pulse-dot"></span>
 					<span class="pill-online" data-text="$connectedClients + ' online'"></span>
 					<span class="pill-offline">offline</span>
@@ -83,9 +91,10 @@ templ TodoList(signals todo.Signals) {
 
 							@SuggestionsList(signals.Suggestions)
 
+							@scopeTabs(signals)
 							@filterTabs(signals)
 							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
-								<span>Your role (viewer) cannot delete todos. Ask an admin for a wider role, or keep adding.</span>
+								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 								<button type="button" class="btn btn-ghost btn-xs" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
 							@TodoListRegion(signals)
@@ -97,9 +106,9 @@ templ TodoList(signals todo.Signals) {
 									<button
 										class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
 										data-cuelume-press="droplet"
-										data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all')); break; }"
+										data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')); break; }"
 									 data-variant="ghost">
-										Clear completed
+										Clear my completed
 									</button>
 								} else {
 									<button
@@ -108,7 +117,7 @@ templ TodoList(signals todo.Signals) {
 										aria-disabled="true"
 										title="Clear completed (viewer role cannot delete)"
 										data-on:click__prevent={ "$permDenied = true" }>
-										Clear completed
+										Clear my completed
 									</button>
 								}
 								</div>
@@ -119,37 +128,13 @@ templ TodoList(signals todo.Signals) {
 
 				</div>
 
-				<!-- ──────────── RIGHT: ASYNC LAYERS (2/5) ──────────── -->
+				<!-- ──────────── RIGHT: ASYNC DEMOS (2/5) ──────────── -->
 				<div class="lg:col-span-2 space-y-4">
 
-					<!-- ─── Realtime Card ─── -->
-					<div class="card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300">
-						<div class="card-body p-4">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<div class="w-7 h-7 rounded-lg bg-info/10 text-info flex items-center justify-center">
-										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-											<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
-										</svg>
-									</div>
-									<span class="text-xs font-semibold">Realtime</span>
-								</div>
-								<span class="badge badge-xs badge-ghost" data-text="$realtimeKind" data-variant="ghost"></span>
-							</div>
-							<div class="mt-3">
-								<div class="flex items-center gap-2">
-									<span class="online-pill">
-									<span class="pulse-dot"></span>
-									<span class="pill-online" data-text="$connectedClients + ' online'"></span>
-									<span class="pill-offline">offline</span>
-								</span>
-							</div>
-							</div>
-							<div class="mt-2 text-[0.6rem] text-base-content/30 leading-relaxed">
-								Every CRUD mutation streams through the SSE Hub, scoped to your own records. Open this page in two tabs to watch todos sync live.
-							</div>
-						</div>
-					</div>
+				<!-- Presence lives in exactly one place: the header pill above
+				     (count + transport, with what-it-means in its tooltip). The
+				     standalone Realtime card duplicating those signals was removed —
+				     it carried no action, only a second copy. -->
 
 					<!-- ─── Async Demo Tabs: Queue + Retry | AI Suggest | Durable Workflow ───
 				This single card holds the three async-layer demos as DaisyUI tabs so
@@ -427,9 +412,10 @@ templ TodoList(signals todo.Signals) {
 // the user can't double-fire.
 templ createForm(signals todo.Signals) {
 	<form
-		class="join w-full mb-4"
-		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}); }"
+		class="w-full mb-4"
+		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}); }"
 	>
+		<div class="join w-full">
 		<input
 			type="text"
 			name="title"
@@ -450,7 +436,38 @@ templ createForm(signals todo.Signals) {
 				<span class="loading loading-spinner loading-xs" data-show="$loading"></span>
 			</span>
 		</button>
+		</div>
+		<label class="flex items-center gap-2 mt-2 text-xs text-base-content/60 cursor-pointer">
+			<input type="checkbox" name="visibility" value="public" class="checkbox checkbox-xs checkbox-info"/>
+			<span>Shared — every login sees this todo (private by default)</span>
+		</label>
 	</form>
+}
+
+// scopeTabs renders the listing slice (All / Mine / Shared). Like the
+// status tabs, clicks re-fetch with the other dimension preserved, and the
+// active state reads from the `$scope` signal so SSE patches stay in sync.
+templ scopeTabs(signals todo.Signals) {
+	<div class="tabs tabs-box mb-2 w-full" role="tablist" aria-label="Listing scope">
+		@scopeTab("All", "all")
+		@scopeTab("Mine", "mine")
+		@scopeTab("Shared", "shared")
+	</div>
+}
+
+// scopeTab renders one scope tab, preserving the current status filter.
+templ scopeTab(label, value string) {
+	<a
+		href="#"
+		role="tab"
+		class="tab tab-sm sm:tab-md transition-all"
+		data-cuelume-hover="tick"
+		data-cuelume-press="toggle"
+		data-class={ "{ 'tab-active': ($scope || 'all') === '" + value + "' }" }
+		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&clientID=' + encodeURIComponent($clientID || ''))" }
+	>
+		{ label }
+	</a>
 }
 
 // filterTabs renders the DaisyUI tabs (All / Active / Completed). Click
@@ -459,25 +476,25 @@ templ createForm(signals todo.Signals) {
 // in lockstep. The active state reads from the `$filter` signal so remote
 // patches from the broadcaster flip the right tab.
 templ filterTabs(signals todo.Signals) {
-	<div class="tabs tabs-box mb-4 w-full" role="tablist">
-		@filterTab("All", "all", "/api/todos?filter=all")
-		@filterTab("Active", "active", "/api/todos?filter=active")
-		@filterTab("Completed", "completed", "/api/todos?filter=completed")
+	<div class="tabs tabs-box mb-4 w-full" role="tablist" aria-label="Status filter">
+		@filterTab("All", "all")
+		@filterTab("Active", "active")
+		@filterTab("Completed", "completed")
 	</div>
 }
 
 // filterTab renders a single tab. Active state is driven by the
 // `$filter` signal via data-class so the SSR-rendered (current) state
 // matches live updates broadcast over SSE.
-templ filterTab(label, value, endpoint string) {
+templ filterTab(label, value string) {
 	<a
 		href="#"
 		role="tab"
 		class="tab tab-sm sm:tab-md transition-all"
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle"
-		data-class={ "{ 'tab-active': $filter === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('" + endpoint + "')" }
+		data-class={ "{ 'tab-active': ($filter || 'all') === '" + value + "' }" }
+		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))" }
 	>
 		{ label }
 	</a>
@@ -501,7 +518,7 @@ templ TodoListRegion(signals todo.Signals) {
 			</div>
 		}
 		for _, item := range signals.Todos {
-			@TodoItem(item, !signals.IsViewer)
+			@TodoItem(item)
 		}
 	</div>
 }
@@ -599,7 +616,7 @@ templ deleteConfirmModal() {
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
 					data-attr:disabled="$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all'))"
+					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))"
 				 data-variant="destructive">
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>

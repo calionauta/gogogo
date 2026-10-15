@@ -1,4 +1,4 @@
-// SCOPE:core — TechBadge render test.
+// SCOPE:core — TechStack render test.
 package components_test
 
 import (
@@ -10,26 +10,34 @@ import (
 	"github.com/calionauta/gogogo/internal/components"
 )
 
-// TestTechBadgeListsStack pins the shared disclosure contract: every
+// TestTechStackListsStack pins the shared disclosure contract: every
 // feature page names the stack it demonstrates in one visual language
-// (muted inline list), so visitors learn the architecture from any page
-// instead of guessing which demo exercises what.
-func TestTechBadgeListsStack(t *testing.T) {
+// (legible pill tags + one-line role notes), so visitors learn the
+// architecture from any page instead of guessing which demo exercises
+// what.
+func TestTechStackListsStack(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := components.TechBadge([]string{"JetStream realtime", "SSE Hub"}).Render(context.Background(), &buf)
+	err := components.TechStack([]components.TechItem{
+		{Name: "JetStream realtime", Note: "CRUD ops stream across instances"},
+		{Name: "SSE Hub", Note: "every open tab re-lists live"},
+	}).Render(context.Background(), &buf)
 	if err != nil {
-		t.Fatalf("TechBadge: %v", err)
+		t.Fatalf("TechStack: %v", err)
 	}
-	for _, want := range []string{"Demonstrates:", "JetStream realtime", "SSE Hub"} {
+	for _, want := range []string{
+		"JetStream realtime", "SSE Hub",
+		"CRUD ops stream across instances", "every open tab re-lists live",
+		"What each layer does here",
+	} {
 		if !strings.Contains(buf.String(), want) {
-			t.Errorf("TechBadge missing %q", want)
+			t.Errorf("TechStack missing %q", want)
 		}
 	}
 	// The demo-only handle is what lets an agent strip the template's
 	// self-advertisement with one grep. Red-proof: drop the attribute and
 	// this goes red. See docs/scope-taxonomy.md#demo-only-markup.
 	if !strings.Contains(buf.String(), `data-demo="tech-stack"`) {
-		t.Errorf("TechBadge missing the data-demo handle for template removal")
+		t.Errorf("TechStack missing the data-demo handle for template removal")
 	}
 }

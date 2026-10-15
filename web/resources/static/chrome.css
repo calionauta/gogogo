@@ -119,12 +119,50 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
   z-index: 60;
 }
+/* Hover bridge: an invisible strip covering the visual gap between the
+   trigger and the menu, so moving the pointer down to the items never
+   leaves :hover (a bare margin gap used to drop hover mid-travel and
+   snap the menu shut before the first item was reachable). */
+.app-dropdown-menu::before {
+  content: "";
+  position: absolute;
+  top: -0.4rem;
+  left: 0;
+  right: 0;
+  height: 0.4rem;
+}
 .app-dropdown:hover .app-dropdown-menu,
 .app-dropdown:focus-within .app-dropdown-menu { display: block; }
 .app-dropdown-menu .app-menu-title {
   display: block;
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
+  color: #64748b;
+}
+/* Info rows (email, role) are plain spans, not links: pin an explicit
+   ink color. They used to inherit body text, which in dark mode is
+   near-white on this always-white card — the "invisible first item"
+   bug (readable only when selected). */
+.app-dropdown-menu,
+.app-dropdown-menu li > span {
+  color: #334155;
+}
+.app-dropdown-menu li > span {
+  display: block;
+  padding: 0.25rem 0.5rem;
+}
+.app-dropdown-menu .app-menu-title > span {
+  padding: 0;
+  font-size: inherit;
+}
+html.dark .app-dropdown-menu,
+html.dark .app-dropdown-menu li > span,
+html.dark .app-dropdown-menu .app-menu-title,
+html.dark .app-dropdown-menu a,
+html.dark .app-dropdown-menu button {
+  color: #334155;
+}
+html.dark .app-dropdown-menu .app-menu-title {
   color: #64748b;
 }
 .app-dropdown-menu a,
