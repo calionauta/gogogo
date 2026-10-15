@@ -2,6 +2,21 @@
 
 ### Added
 
+- **Agent tooling is enforced, not just documented.** `make check-agent-tools`
+  (`bin/check-agent-tools.sh`, runs in `make setup`) fails with install
+  lines when ripwire/cymbal/xerj/sem is missing; AGENTS.md marks all four
+  required with a decision rule (call-graph to ripwire/cymbal, meaning
+  over prose to xerj, diffs/history to sem).
+- **Docs index rebuilt around a hierarchy.** The site sidebar was a flat
+  mix (how-to recipes before the strategy record); the manifest now reads
+  Get started (strategy up front) / Agents / Core / Async / AI / Frontend
+  / Ship / Operate, and the three orphan pages (`api-routes`,
+  `no-auth-no-db-recipe`, `db-concurrency`) join the map. No document
+  merged or lost — order only.
+- **Architecture decision is current and visual.** Fixed stale
+  identifiers (`dbschema.Migrate`/`NewID`, `handlers/` layout, desktop
+  vs GUI boot) and disclosed the historical `chi` names; auth plugins
+  render as site cards; the landing AI-ready section links the strategy.
 - **Demo roles ship with the seed; the login card explains RBAC.** `internal/demo`
   stamps demo1 `admin` and demo2 the restricted `viewer`, so the login card's
   permission split (admin reaches `/config`; viewer loses deletes + AI Suggest)
