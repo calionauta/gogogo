@@ -68,9 +68,12 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		return nil
 	}
 	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
-	dirs, _, _ := store.ParseChatAnswer(raw)
+	dirs, fallback, _ := store.ParseChatAnswer(raw)
+	// Fallback carries the whole raw answer inside its single text_note:
+	// Text stays empty so the bubble renders once (text + component with
+	// the same content rendered everything twice).
 	text := ""
-	if len(dirs) == 1 && dirs[0].Component == "text_note" {
+	if !fallback && len(dirs) == 1 && dirs[0].Component == "text_note" {
 		if t, ok := dirs[0].Props["text"].(string); ok {
 			text = t
 		}

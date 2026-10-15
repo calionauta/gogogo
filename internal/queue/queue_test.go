@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -171,4 +172,53 @@ func mustMarshal(t *testing.T, v any) []byte {
 		t.Fatalf("marshal: %v", err)
 	}
 	return b
+}
+
+// TestQueueSlowJobExecutesOnce pins the visibility contract behind
+// queueVisibilityTimeout: a job slower than goqite's 5s library default
+// must run exactly once, not redeliver mid-flight (up to MaxReceive=3
+// duplicate executions — observed live as triple chat answers from one
+// click, since persistence dedupes by idem but SSE sends do not).
+// Red-proof: drop the Timeout override and a 6s job executes twice
+// within the assert window.
+func TestQueueSlowJobExecutesOnce(t *testing.T) {
+	// No t.Parallel: the 14s+ runtime would overlap this package's
+	// goleak-guarded tests (same lesson as the hub timer tests —
+	// a parked goroutine trips their invariant).
+	dir := t.TempDir()
+	q, err := New(&config.Config{DataDir: dir})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer q.Close()
+
+	var executions atomic.Int32
+	done := make(chan struct{})
+	q.Registry().Register("slow", func(_ context.Context, _ *SSEHub, _ Job) error {
+		if executions.Add(1) == 1 {
+			close(done)
+		}
+		time.Sleep(6 * time.Second)
+		return nil
+	})
+
+	body := mustMarshal(t, Job{Type: "slow"})
+	if err = q.Enqueue(context.Background(), body); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+
+	wp := q.StartWorkers()
+	defer wp.Stop()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("slow job never started")
+	}
+	// Past the first execution AND the old 5s visibility window: any
+	// redelivery would have run the handler a second time by now.
+	time.Sleep(8 * time.Second)
+	if got := executions.Load(); got != 1 {
+		t.Fatalf("slow job executed %d times, want exactly 1", got)
+	}
 }

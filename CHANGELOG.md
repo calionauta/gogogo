@@ -412,6 +412,12 @@
   as text bubbles before, plus Ask failing closed on syntax slips.
   Strictness kept for unknown types and bad props. Composers bind
   their inputs, guard double-submit explicitly, and clear on ack.
+- **One click, one answer.** goqite re-delivered jobs after its 5s
+  default visibility window (up to MaxReceive=3) while slow LLM calls
+  still ran — triple bubbles from a single submit, since persistence
+  dedupes by idem but SSE sends do not. Queue visibility is now 10min
+  (red-proofed: a 6s job executes exactly once); fallback answers also
+  render once (text *or* component, never both).
 - **Deploy reconciler is version-aware (badge lag fixed for real).** The
   push-deploy runs before the release tag exists and the tag-deploy arm
   never fires for release-please tags, so production served new code
