@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/rbac"
 )
 
 // handleStream opens the chi-stack SSE stream: Hub-registered, owner-scoped,
@@ -42,7 +43,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	todos := []todo.Todo{}
 	if hasOwner {
 		var err error
-		todos, err = h.listOwner(r.Context(), owner, "all")
+		todos, err = h.listVisible(r.Context(), owner, h.roleOwner(r.Context(), owner), "all", "all")
 		if err != nil {
 			h.fail(r.Context(), w, "todo: list on stream open failed", err, "error listing todos")
 			return
@@ -51,12 +52,15 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	if err := dshelpers.MergeSignals(sse, todo.Signals{
 		Todos:            todos,
 		Filter:           "all",
+		Scope:            "all",
 		ItemCount:        len(todos),
 		ConnectedClients: h.Hub.CountUserClients(),
 		ClientID:         clientID,
 		SidebarTab:       "queue",
 		DagNatsEnabled:   h.dagnatsUIEnabled(),
 		IsViewer:         h.viewerOwner(r.Context(), owner),
+		IsAdmin:          h.roleOwner(r.Context(), owner) == rbac.RoleAdmin,
+		UserID:           owner,
 		LLMEnabled:       h.LLM != nil && h.LLM.Configured(),
 		SimulatedLLM:     h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
 	}); err != nil {
@@ -81,7 +85,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 			flusher.Flush()
 		case payload := <-ch:
-			if err := h.dispatchEnvelope(r.Context(), sse, owner, hasOwner, payload); err != nil {
+			if err := h.dispatchEnvelope(r.Context(), sse, owner, clientID, hasOwner, payload); err != nil {
 				obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
 				observability.Error(r.Context(), "todo: stream dispatch failed", obsArgs...)
 			}
@@ -90,19 +94,24 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 }
 
 // applyRecordEvent re-lists scoped on a decoded record event so each stream
-// renders its own tenant's rows. Anonymous streams (hasOwner == false)
-// have no tenant to re-list, so there is nothing to do — nil is the
-// correct result, not a swallowed error.
+// renders the rows its login may see (own + shared). The listing slice
+// comes from the tab's stored view prefs (clientID), so a remote mutation
+// refreshes the rows without yanking the tab out of the Mine/Shared/Active
+// slice it was looking at. Anonymous streams (hasOwner == false) have no
+// tenant to re-list, so there is nothing to do — nil is the correct
+// result, not a swallowed error.
 func (h *Handler) applyRecordEvent(
-	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool, evt recordEvent,
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner, clientID string, hasOwner bool, evt recordEvent,
 ) error {
 	if evt.Event == eventWorkflowCompleted {
-		return h.applyWorkflowCompleted(ctx, sse, owner, hasOwner)
+		return h.applyWorkflowCompleted(ctx, sse, owner, clientID, hasOwner)
 	}
 	if !hasOwner {
 		return nil
 	}
-	todos, err := h.listOwner(ctx, owner, "all")
+	view := h.Hub.ViewOf(clientID)
+	role := h.roleOwner(ctx, owner)
+	todos, err := h.listVisible(ctx, owner, role, view.Filter, view.Scope)
 	if err != nil {
 		return fmt.Errorf("re-list on %s: %w", evt.Event, err)
 	}
@@ -110,9 +119,11 @@ func (h *Handler) applyRecordEvent(
 		return err
 	}
 	signals := todo.Signals{
-		Todos: todos, Filter: "all", ItemCount: len(todos),
+		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
-		IsViewer:       h.viewerOwner(ctx, owner),
+		IsViewer:       rbac.IsViewer(role),
+		IsAdmin:        role == rbac.RoleAdmin,
+		UserID:         owner,
 	}
 	//nolint:contextcheck // SSE-sink boundary: patchSSE ends in datastar-go
 	// sinks, which take no context; disconnects surface as write errors.
@@ -126,7 +137,7 @@ func (h *Handler) applyRecordEvent(
 // the store, not the HTTP API), so they never crossed the request path —
 // without the explicit re-list here they would not appear until a reload.
 func (h *Handler) applyWorkflowCompleted(
-	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string, hasOwner bool,
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner, clientID string, hasOwner bool,
 ) error {
 	if err := h.applyOnboarding(sse, 0, 0, onbStatusCompleted, "Workflow completed", true); err != nil {
 		return err
@@ -134,15 +145,19 @@ func (h *Handler) applyWorkflowCompleted(
 	if !hasOwner {
 		return nil
 	}
-	todos, err := h.listOwner(ctx, owner, "all")
+	role := h.roleOwner(ctx, owner)
+	view := h.Hub.ViewOf(clientID)
+	todos, err := h.listVisible(ctx, owner, role, view.Filter, view.Scope)
 	if err != nil {
 		return fmt.Errorf("re-list after workflow: %w", err)
 	}
 	//nolint:contextcheck // datastar-go's sink takes no context (a
 	// third-party boundary); see patchSSE.
 	return renderWorkflowDone(sse, h.renderListRegion(todo.Signals{
-		Todos: todos, Filter: "all", ItemCount: len(todos),
-		IsViewer: h.viewerOwner(ctx, owner),
+		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
+		IsViewer: rbac.IsViewer(role),
+		IsAdmin:  role == rbac.RoleAdmin,
+		UserID:   owner,
 	}, "daisyui"))
 }
 

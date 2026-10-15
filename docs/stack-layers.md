@@ -47,8 +47,8 @@ The layers are not independent choices — they are designed to work together:
 - Multi-step processes go to **DagNats**, whose state is durable on **JetStream**.
 - Collaborative state goes through **Loro CRDT**, so offline edits merge
   without last-write-wins data loss.
-- Record changes fan out through the SSE Hub record event, scoped per user by
-  the owner column.
+- Record changes fan out through the SSE Hub record event, scoped by row
+  visibility (private rows to the owner's tabs, shared rows to every login).
 - Single-owner decisions go to **GoAkt grains**: one addressable owner per room
   (roster, locks, supervision).
 - Access decisions go to **Casbin**: one model, one policy, enforced before the
@@ -145,7 +145,7 @@ Every data path is owned code with no framework between the handler and
 Turso: sqlc-generated queries called directly (a wrong query is a
 compile error, not a runtime mismatch), an explicit schema in
 `internal/dbschema/migrations`, owned argon2id sessions behind a single
-`gogogo_auth` cookie, and per-user scoping in the queries themselves.
+`gogogo_auth` cookie, and visibility scoping in the queries themselves.
 Nothing is configured through a dashboard, a rule language, or a hook
 chain — there is less to learn because there is less there. The
 decision record and the removal narrative live where history lives

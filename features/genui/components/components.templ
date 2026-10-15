@@ -37,7 +37,12 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 					The model answers with interface, not just text: it picks
 					components from a fixed catalog and this page renders them.
 				</p>
-				@components.TechBadge([]string{"component catalog", "SSE morphs", "goqite jobs", "GoAI"})
+				@components.TechStack([]components.TechItem{
+				{Name: "component catalog", Note: "LLM picks cards, tables, charts"},
+				{Name: "SSE morphs", Note: "streams render in place"},
+				{Name: "goqite jobs", Note: "slow LLM calls run queued"},
+				{Name: "GoAI", Note: "provider client for the LLM"},
+				})
 				<!-- Network-failure release: the spinner is server-owned (the
 				     worker result clears it), so a dead @post with all
 				     retries failed would lock Ask until reload. datastar-fetch

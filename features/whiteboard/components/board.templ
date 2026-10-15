@@ -50,7 +50,13 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 					<h1 class="text-2xl font-bold">Collab whiteboards</h1>
 					<a class="btn btn-primary" data-variant="primary" href="/whiteboard/new">New whiteboard</a>
 				</div>
-				@components.TechBadge([]string{"Loro CRDT", "NATS", "SSE Hub", "presence", "offline outbox"})
+				@components.TechStack([]components.TechItem{
+				{Name: "Loro CRDT", Note: "offline-first shape merge"},
+				{Name: "NATS", Note: "cross-instance shape sync"},
+				{Name: "SSE Hub", Note: "live shape + cursor fan-out"},
+				{Name: "presence", Note: "peer count and live cursors"},
+				{Name: "offline outbox", Note: "edits queue offline, then sync"},
+				})
 				@WhiteboardListFragment(boards)
 			</main>
 			@components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'")

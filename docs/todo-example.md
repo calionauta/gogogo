@@ -10,11 +10,19 @@ teaches is visible here first — copy this shape when you add your own feature.
   BasecoatUI switchable — see [UI skins](ui-skins.md)).
 - **Database actions stream through the SSE Hub record event.** Todo
   `create`/`toggle`/`delete` fan out a record event; each subscribed
-  client re-fetches the fragment and morphs `#todo-list`. Delivery is per-user
-  scoped by the `owner` column, so a client only receives events for its own
-  records. The SSE Hub ephemeral channel is reserved for non-record signals
+  client re-fetches the fragment and morphs `#todo-list`. Delivery follows
+  row visibility: private rows reach only the owner's tabs
+  (`BroadcastToUser`), shared rows refresh every login's streams
+  (`BroadcastToAllUsers`, each re-listing its own visible set). The SSE Hub
+  ephemeral channel is reserved for non-record signals
   (success/retry toasts, live clients count, AI suggest) and the
   originating client's own synchronous patch.
+- **Sharing:** every todo is `private` (owner only) or `public` (every login
+  lists it — the two-browser collab demo). Visibility is listing scope, not
+  permission: viewer never deletes, owner deletes own, admin deletes any
+  visible row. Scope tabs (All / Mine / Shared) slice the list, and the tab
+  keeps its slice across live updates (the stream re-lists with the tab's
+  stored filter/scope, never yanking it back to All).
 - Stacked toast notifications (auto-dismiss, manual close, progress bar).
 - **UI sounds** via cuelume — see [UI sounds](ui-sounds.md).
 - Async jobs: the queue handles `toast`, `suggest_result` and `retry_demo`

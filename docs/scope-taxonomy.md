@@ -54,13 +54,13 @@ description — it lists exactly what to remove in `internal/server/chi.go`
 ## Demo-only markup
 
 Some surfaces exist only to advertise the template itself: the
-`TechBadge` stack list every feature page renders, and the demo-accounts
+`TechStack` pill + notes block every feature page renders, and the demo-accounts
 block on `/login` (the seeded pair, their roles, and the Casbin
 exercise). They teach gogogo's architecture and say nothing about a
 product's own domain, so a trimmed product must delete them.
 
 The machine handle is a `data-demo="<name>"` attribute on the element's
-wrapper. Two ship: `data-demo="tech-stack"` (every `TechBadge`) and
+wrapper. Two ship: `data-demo="tech-stack"` (every `TechStack`) and
 `data-demo="demo-accounts"` (the login card). To strip them from a
 product build:
 

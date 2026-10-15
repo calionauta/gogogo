@@ -51,14 +51,14 @@ func TestHandlersOnboardingCompletedRelists(t *testing.T) {
 	owner := f.ownerOf(t, cookie)
 	if _, err := f.q.CreateTodo(context.Background(), dbgen.CreateTodoParams{
 		ID: dbschema.NewID(), Owner: owner, Title: "my first todo",
-		Created: dbschema.Now(), Updated: dbschema.Now(),
+		Visibility: "private", Created: dbschema.Now(), Updated: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("seed todo: %v", err)
 	}
 
 	rec := httptest.NewRecorder()
 	sse := sseGen(t, rec)
-	if err := f.h.applyWorkflowCompleted(context.Background(), sse, owner, true); err != nil {
+	if err := f.h.applyWorkflowCompleted(context.Background(), sse, owner, "test-client", true); err != nil {
 		t.Fatalf("applyWorkflowCompleted: %v", err)
 	}
 	body := rec.Body.String()
@@ -77,7 +77,7 @@ func TestHandlersOnboardingAnonymousCompletedSkipsList(t *testing.T) {
 	f := newHandlersFixture(t)
 	rec := httptest.NewRecorder()
 	sse := sseGen(t, rec)
-	if err := f.h.applyWorkflowCompleted(context.Background(), sse, "", false); err != nil {
+	if err := f.h.applyWorkflowCompleted(context.Background(), sse, "", "test-client", false); err != nil {
 		t.Fatalf("anonymous applyWorkflowCompleted: %v", err)
 	}
 	if !strings.Contains(rec.Body.String(), `"workflowCompleted":true`) {

@@ -18,6 +18,16 @@ import (
 	"github.com/calionauta/gogogo/internal/natswire"
 )
 
+// createVisibility reads the create form's Shared checkbox: checked posts
+// "public", unchecked posts nothing (private default — the pre-sharing
+// behaviour). Anything else reads as private, never as shared.
+func createVisibility(r *http.Request) string {
+	if r.FormValue("visibility") == todo.VisibilityPublic {
+		return todo.VisibilityPublic
+	}
+	return todo.VisibilityPrivate
+}
+
 // context; disconnects surface as write errors, checked per call.
 //
 //nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
@@ -36,6 +46,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "title required")
 		return
 	}
+	visibility := createVisibility(r)
 	idemKey := r.FormValue("idem_key")
 	if idemKey == "" {
 		idemKey = uuid.New().String()
@@ -59,7 +70,8 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		newID := dbschema.NewID()
 		if _, cerr := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
 			ID: newID, Owner: owner, Title: title,
-			Completed: false, IdemKey: idemKey, Created: now, Updated: now,
+			Completed: false, IdemKey: idemKey, Visibility: visibility,
+			Created: now, Updated: now,
 		}); cerr != nil {
 			// A concurrent create may win the race on the partial unique
 			// index: re-read instead of 500ing a row that now exists.
@@ -89,16 +101,17 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// The previous stack fanned out at the record-write layer, independent
 	// of the HTTP response; this stack fans out here, so it must not sit
 	// behind the early return.
-	h.publishSync(r, owner,
+	h.publishSync(r, owner, visibility == todo.VisibilityPublic,
 		recordEvent{Event: "created", ID: createdID, Title: title},
-		natswire.CrudOpCreate, &natswire.CrudOpData{ID: createdID, Title: title})
+		natswire.CrudOpCreate, &natswire.CrudOpData{ID: createdID, Title: title, Visibility: visibility})
 
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
 		return
 	}
 
-	todos, err := h.listOwner(ctx, owner, filterOf(r))
+	_, role := h.roleOf(r)
+	todos, err := h.listVisible(ctx, owner, role, filterOf(r), scopeOf(r))
 	if err != nil {
 		h.fail(r.Context(), w, "todo: list after create failed", err, "error listing todos")
 		return
@@ -129,11 +142,7 @@ func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.
 	}); err != nil {
 		return err
 	}
-	signals := todo.Signals{
-		Todos: todos, Filter: "all", ItemCount: len(todos),
-		DagNatsEnabled: h.dagnatsUIEnabled(),
-		IsViewer:       h.isViewer(r),
-	}
+	signals := h.displaySignals(r, todos, filterOf(r), scopeOf(r))
 	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())
@@ -150,7 +159,10 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
-	current, err := h.Q.GetTodo(ctx, dbgen.GetTodoParams{ID: id, Owner: owner})
+	// Visibility-scoped read: own rows plus public rows. A private row of
+	// another user reads as "not found" — indistinguishable from missing,
+	// so existence never leaks across tenants.
+	row, err := h.Q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeText(w, http.StatusNotFound, "not found")
@@ -159,9 +171,14 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: toggle read failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
 		return
 	}
+	current, err := toVisibleOne(row)
+	if err != nil {
+		h.fail(r.Context(), w, "todo: toggle map failed", fmt.Errorf("id %s: %w", id, err), "toggle failed")
+		return
+	}
 	now := dbschema.Now()
-	if serr := h.Q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: !current.Completed, Updated: now, ID: id, Owner: owner,
+	if serr := h.Q.SetTodoCompletedByID(ctx, dbgen.SetTodoCompletedByIDParams{
+		Completed: !current.Completed, Updated: now, ID: id,
 	}); serr != nil {
 		h.fail(r.Context(), w, "todo: toggle save failed", fmt.Errorf("id %s: %w", id, serr), "toggle failed")
 		return
@@ -170,7 +187,7 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	// Fan-out before the replay short-circuit (see handleCreate): the
 	// "replayed" acknowledgment carries no patch, so the broadcast is the
 	// only path live tabs learn of the toggle through.
-	h.publishSync(r, owner,
+	h.publishSync(r, owner, current.IsShared(),
 		recordEvent{Event: "toggled", ID: id, Done: !current.Completed},
 		natswire.CrudOpToggle, &natswire.CrudOpData{ID: id, Completed: !current.Completed})
 
@@ -179,7 +196,8 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todos, err := h.listOwner(ctx, owner, filterOf(r))
+	_, role := h.roleOf(r)
+	todos, err := h.listVisible(ctx, owner, role, filterOf(r), scopeOf(r))
 	if err != nil {
 		h.fail(r.Context(), w, "todo: list after toggle failed", err, "error listing todos")
 		return
@@ -197,13 +215,18 @@ func (h *Handler) handleConfirmDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	item, err := h.Q.GetTodo(r.Context(), dbgen.GetTodoParams{ID: id, Owner: owner})
+	row, err := h.Q.GetTodoVisible(r.Context(), dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeText(w, http.StatusNotFound, "not found")
 			return
 		}
 		h.fail(r.Context(), w, "todo: confirm-delete read failed", err, "delete failed")
+		return
+	}
+	item, err := toVisibleOne(row)
+	if err != nil {
+		h.fail(r.Context(), w, "todo: confirm-delete map failed", err, "delete failed")
 		return
 	}
 	sse := sdk.NewSSE(w, r)
@@ -226,7 +249,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
-	item, err := h.Q.GetTodo(ctx, dbgen.GetTodoParams{ID: id, Owner: owner})
+	row, err := h.Q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeText(w, http.StatusNotFound, "not found")
@@ -235,7 +258,20 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: delete read failed", fmt.Errorf("id %s: %w", id, err), "delete failed")
 		return
 	}
-	if derr := h.Q.DeleteTodo(ctx, dbgen.DeleteTodoParams{ID: id, Owner: owner}); derr != nil {
+	item, err := toVisibleOne(row)
+	if err != nil {
+		h.fail(r.Context(), w, "todo: delete map failed", fmt.Errorf("id %s: %w", id, err), "delete failed")
+		return
+	}
+	// Delete rule (mirrors canDeleteRow, enforced here — the modal affordance
+	// is display-only): viewer never deletes, even their own row; owner
+	// deletes own; admin deletes any visible row.
+	_, role := h.roleOf(r)
+	if !canDeleteRow(role, owner, item) {
+		writeText(w, http.StatusForbidden, "viewer role cannot delete")
+		return
+	}
+	if derr := h.Q.DeleteTodoByID(ctx, item.ID); derr != nil {
 		h.fail(r.Context(), w, "todo: delete failed", fmt.Errorf("id %s: %w", id, derr), "delete failed")
 		return
 	}
@@ -243,7 +279,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	// Fan-out before the replay short-circuit (see handleCreate): the
 	// "replayed" acknowledgment carries no patch, so the broadcast is the
 	// only path live tabs learn of the delete through.
-	h.publishSync(r, owner,
+	h.publishSync(r, owner, item.IsShared(),
 		recordEvent{Event: "deleted", ID: item.ID},
 		natswire.CrudOpDelete, &natswire.CrudOpData{ID: item.ID})
 
@@ -252,7 +288,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todos, err := h.listOwner(ctx, owner, filterOf(r))
+	todos, err := h.listVisible(ctx, owner, role, filterOf(r), scopeOf(r))
 	if err != nil {
 		h.fail(r.Context(), w, "todo: list after delete failed", err, "error listing todos")
 		return
@@ -292,8 +328,10 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 
 	// Fan-out before the replay short-circuit (see handleCreate): the
 	// "replayed" acknowledgment carries no patch, so the broadcast is the
-	// only path live tabs learn of the clear through.
-	h.publishSync(r, owner,
+	// only path live tabs learn of the clear through. Clearing deletes only
+	// the requester's own completed rows, so the audience stays owner-scoped
+	// even when shared rows exist.
+	h.publishSync(r, owner, false,
 		recordEvent{Event: "cleared"},
 		natswire.CrudOpClearCompleted, nil)
 
@@ -302,7 +340,8 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todos, err := h.listOwner(ctx, owner, filterOf(r))
+	_, role := h.roleOf(r)
+	todos, err := h.listVisible(ctx, owner, role, filterOf(r), scopeOf(r))
 	if err != nil {
 		h.fail(r.Context(), w, "todo: list after clear failed", err, "error listing todos")
 		return

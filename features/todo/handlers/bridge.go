@@ -20,6 +20,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
+	"github.com/calionauta/gogogo/features/todo"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/natswire"
@@ -57,8 +58,10 @@ func RunCrudConsumer(
 }
 
 // applyCrudOp applies one wire operation to Turso and fans out locally.
-// Every branch is idempotent (redeliveries converge, never duplicate) and
-// owner-scoped (a forged op for another tenant matches nothing).
+// Every branch is idempotent (redeliveries converge, never duplicate).
+// Reads are visibility-scoped (a forged op for a row the sender cannot see
+// matches nothing); writes land by id only after that read proved the row
+// visible — the origin instance already authorized the act.
 func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p natswire.CrudPayload) {
 	owner, err := tenantOf(ctx, q, p.UserID)
 	if err != nil {
@@ -77,13 +80,14 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 		return
 	}
 	var evt recordEvent
+	var shared bool
 	switch p.Op {
 	case natswire.CrudOpCreate:
-		evt, err = applyCreate(ctx, q, owner, p.Data)
+		evt, shared, err = applyCreate(ctx, q, owner, p.Data)
 	case natswire.CrudOpToggle:
-		evt, err = applyToggle(ctx, q, owner, p.Data)
+		evt, shared, err = applyToggle(ctx, q, owner, p.Data)
 	case natswire.CrudOpDelete:
-		evt, err = applyDelete(ctx, q, owner, p.Data)
+		evt, shared, err = applyDelete(ctx, q, owner, p.Data)
 	case natswire.CrudOpClearCompleted:
 		evt, err = applyClearCompleted(ctx, q, owner)
 	default:
@@ -105,6 +109,12 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 		observability.Error(ctx, "chi crudconsumer: marshal fan-out", obsArgs...)
 		return
 	}
+	// Shared rows refresh every login's streams (each re-lists its own
+	// visible set); private rows reach only the owner's tabs.
+	if shared {
+		hub.BroadcastToAllUsers(payload, "")
+		return
+	}
 	hub.BroadcastToUser(payload, p.UserID, "")
 }
 
@@ -123,14 +133,22 @@ func tenantOf(ctx context.Context, q *dbgen.Queries, userID string) (string, err
 	return userID, nil
 }
 
-func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *natswire.CrudOpData) (recordEvent, error) {
+func applyCreate(ctx context.Context, q *dbgen.Queries, owner string,
+	data *natswire.CrudOpData,
+) (recordEvent, bool, error) {
 	if data.Title == "" {
-		return recordEvent{}, errSkip
+		return recordEvent{}, false, errSkip
 	}
 	if _, err := q.GetTodo(ctx, dbgen.GetTodoParams{ID: data.ID, Owner: owner}); err == nil {
-		return recordEvent{}, errSkip // redelivery: row already stands.
+		return recordEvent{}, false, errSkip // redelivery: row already stands.
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return recordEvent{}, fmt.Errorf("create lookup %s: %w", data.ID, err)
+		return recordEvent{}, false, fmt.Errorf("create lookup %s: %w", data.ID, err)
+	}
+	// Wire-compat: pre-visibility publishers send no flag — private default
+	// preserves the old listing behaviour for them.
+	visibility := data.Visibility
+	if visibility != todo.VisibilityPublic {
+		visibility = todo.VisibilityPrivate
 	}
 	now := dbschema.Now()
 	id := data.ID
@@ -139,35 +157,59 @@ func applyCreate(ctx context.Context, q *dbgen.Queries, owner string, data *nats
 	}
 	if _, err := q.CreateTodo(ctx, dbgen.CreateTodoParams{
 		ID: id, Owner: owner, Title: data.Title,
-		Completed: data.Completed, IdemKey: "", Created: now, Updated: now,
+		Completed: data.Completed, IdemKey: "", Visibility: visibility,
+		Created: now, Updated: now,
 	}); err != nil {
-		return recordEvent{}, fmt.Errorf("create apply %s: %w", id, err)
+		return recordEvent{}, false, fmt.Errorf("create apply %s: %w", id, err)
 	}
-	return recordEvent{Event: "created", ID: id, Title: data.Title}, nil
+	return recordEvent{Event: "created", ID: id, Title: data.Title}, visibility == todo.VisibilityPublic, nil
 }
 
-func applyToggle(ctx context.Context, q *dbgen.Queries, owner string, data *natswire.CrudOpData) (recordEvent, error) {
+func applyToggle(ctx context.Context, q *dbgen.Queries, owner string,
+	data *natswire.CrudOpData,
+) (recordEvent, bool, error) {
 	if data.ID == "" {
-		return recordEvent{}, errSkip
+		return recordEvent{}, false, errSkip
+	}
+	// Visibility-scoped read first: the row must be the sender's own or
+	// shared. The write then lands by id — a public row owned by someone
+	// else would match nothing under an owner guard.
+	row, err := q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: data.ID, Owner: owner})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return recordEvent{}, false, errSkip
+		}
+		return recordEvent{}, false, fmt.Errorf("toggle lookup %s: %w", data.ID, err)
 	}
 	// Absolute post-state, matching what publishers send (see handleToggle:
 	// Done is the state after the local write).
-	if err := q.SetTodoCompleted(ctx, dbgen.SetTodoCompletedParams{
-		Completed: data.Completed, Updated: dbschema.Now(), ID: data.ID, Owner: owner,
+	if err := q.SetTodoCompletedByID(ctx, dbgen.SetTodoCompletedByIDParams{
+		Completed: data.Completed, Updated: dbschema.Now(), ID: data.ID,
 	}); err != nil {
-		return recordEvent{}, fmt.Errorf("toggle apply %s: %w", data.ID, err)
+		return recordEvent{}, false, fmt.Errorf("toggle apply %s: %w", data.ID, err)
 	}
-	return recordEvent{Event: "toggled", ID: data.ID, Done: data.Completed}, nil
+	return recordEvent{Event: "toggled", ID: data.ID, Done: data.Completed}, row.Visibility == todo.VisibilityPublic, nil
 }
 
-func applyDelete(ctx context.Context, q *dbgen.Queries, owner string, data *natswire.CrudOpData) (recordEvent, error) {
+func applyDelete(ctx context.Context, q *dbgen.Queries, owner string,
+	data *natswire.CrudOpData,
+) (recordEvent, bool, error) {
 	if data.ID == "" {
-		return recordEvent{}, errSkip
+		return recordEvent{}, false, errSkip
 	}
-	if err := q.DeleteTodo(ctx, dbgen.DeleteTodoParams{ID: data.ID, Owner: owner}); err != nil {
-		return recordEvent{}, fmt.Errorf("delete apply %s: %w", data.ID, err)
+	// Same visibility-scoped read: only a visible row deletes (the origin
+	// instance already enforced viewer-never/owner-or-admin).
+	row, err := q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: data.ID, Owner: owner})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return recordEvent{}, false, errSkip
+		}
+		return recordEvent{}, false, fmt.Errorf("delete lookup %s: %w", data.ID, err)
 	}
-	return recordEvent{Event: "deleted", ID: data.ID}, nil
+	if err := q.DeleteTodoByID(ctx, data.ID); err != nil {
+		return recordEvent{}, false, fmt.Errorf("delete apply %s: %w", data.ID, err)
+	}
+	return recordEvent{Event: "deleted", ID: data.ID}, row.Visibility == todo.VisibilityPublic, nil
 }
 
 func applyClearCompleted(ctx context.Context, q *dbgen.Queries, owner string) (recordEvent, error) {

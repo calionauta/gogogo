@@ -44,7 +44,11 @@ templ Page(email string, userRole string, roomID string, roster appgoakt.Roster,
 					second browser and take the lock there — exactly one of
 					you wins. Press crash and watch the roster rebuild.
 				</p>
-				@components.TechBadge([]string{"GoAkt grains", "supervision", "JSON polling"})
+				@components.TechStack([]components.TechItem{
+				{Name: "GoAkt grains", Note: "presenter-lock actor"},
+				{Name: "supervision", Note: "crashed grains restart"},
+				{Name: "JSON polling", Note: "clients poll the lock state"},
+				})
 				<div class="card bg-base-200 shadow mt-4">
 					<div class="card-body">
 						<h2 class="card-title">

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/calionauta/gogogo/features/authviews"
-	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/features/todo/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
@@ -86,7 +85,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		redirectLogin(w, r)
 		return
 	}
-	todos, err := h.listOwner(r.Context(), owner, "all")
+	todos, err := h.listVisible(r.Context(), owner, sess.Role, "all", "all")
 	if err != nil {
 		// Not a fake empty list: an unrunnable query would render as "you
 		// have no todos", which is indistinguishable from the real thing and
@@ -95,22 +94,14 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: index list failed", err, "error listing todos")
 		return
 	}
-	signals := todo.Signals{
-		IsViewer:         isViewerSession(sess),
-		LLMEnabled:       h.LLM != nil && h.LLM.Configured(),
-		SimulatedLLM:     h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
-		Todos:            todos,
-		Filter:           "all",
-		ItemCount:        len(todos),
-		ConnectedClients: h.Hub.CountUserClients(),
-		Suggestions:      []string{},
-		SuggestErr:       "",
-		RealtimeKind:     h.realtimeKind(),
-		StoreLabel:       "Turso Database",
-		OfflineLabel:     h.offlineLabel(),
-		SidebarTab:       "queue",
-		DagNatsEnabled:   h.dagnatsUIEnabled(),
-	}
+	signals := h.displaySignals(r, todos, "all", "all")
+	signals.ConnectedClients = h.Hub.CountUserClients()
+	signals.Suggestions = []string{}
+	signals.SuggestErr = ""
+	signals.RealtimeKind = h.realtimeKind()
+	signals.StoreLabel = "Turso Database"
+	signals.OfflineLabel = h.offlineLabel()
+	signals.SidebarTab = "queue"
 	skin := h.resolveSkin(r)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

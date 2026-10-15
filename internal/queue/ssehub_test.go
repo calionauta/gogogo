@@ -250,8 +250,78 @@ func TestSSEHub_CountUserClients_ExcludesEmptyUserID(t *testing.T) {
 	}
 }
 
+// TestSSEHub_BroadcastToAllUsers_SharedRows pins the shared-row fan-out:
+// a 'public' mutation reaches every user-identified stream (each re-lists
+// its own visible set) except the originator — while user-less streams
+// (whiteboard/doc connections, which would choke on a todo record event)
+// are skipped.
+func TestSSEHub_BroadcastToAllUsers_SharedRows(t *testing.T) {
+	// No t.Parallel here: this package guards a no-goroutine invariant
+	// with goleak under t.Parallel, and timer goroutines from a
+	// parallel test trip it. Sequential tests run exclusively.
+	h := NewSSEHub()
+	u1a := make(chan []byte, 10) // originator
+	u1b := make(chan []byte, 10) // same user, other tab
+	u2c := make(chan []byte, 10) // different user
+	wb := make(chan []byte, 10)  // whiteboard: no userID
+	h.Register("u1a", "u1", u1a)
+	h.Register("u1b", "u1", u1b)
+	h.Register("u2c", "u2", u2c)
+	h.Register("wb-doc", "", wb)
+
+	h.BroadcastToAllUsers([]byte("shared-event"), "u1a")
+
+	for name, ch := range map[string]chan []byte{"u1b": u1b, "u2c": u2c} {
+		select {
+		case msg := <-ch:
+			if string(msg) != "shared-event" {
+				t.Errorf("%s got %q, want shared-event", name, msg)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("%s never received the shared event", name)
+		}
+	}
+	for name, ch := range map[string]chan []byte{"u1a-originator": u1a, "wb-doc": wb} {
+		select {
+		case msg := <-ch:
+			t.Errorf("%s must not receive the event (got %q)", name, msg)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+// TestSSEHub_ViewPrefsPreservedPerTab pins the L1 contract: a tab's last
+// list/fragment fetch stores its listing slice, re-lists read it back,
+// unknown tabs default to all/all, and unregister drops the pref so a
+// recycled clientID never inherits a dead tab's slice.
+func TestSSEHub_ViewPrefsPreservedPerTab(t *testing.T) {
+	// No t.Parallel here: this package guards a no-goroutine invariant
+	// with goleak under t.Parallel, and timer goroutines from a
+	// parallel test trip it. Sequential tests run exclusively.
+	h := NewSSEHub()
+	ch := make(chan []byte, 10)
+	h.Register("tab-1", "u1", ch)
+
+	if got := h.ViewOf("tab-1"); got != (ViewPref{Filter: "all", Scope: "all"}) {
+		t.Fatalf("default view = %+v, want all/all", got)
+	}
+	if got := h.ViewOf("ghost"); got != (ViewPref{Filter: "all", Scope: "all"}) {
+		t.Fatalf("unknown client view = %+v, want all/all", got)
+	}
+
+	h.SetView("tab-1", "active", "mine")
+	if got := h.ViewOf("tab-1"); got != (ViewPref{Filter: "active", Scope: "mine"}) {
+		t.Fatalf("stored view = %+v, want active/mine", got)
+	}
+
+	h.SetView("", "completed", "shared") // empty id: no-op, never panics
+	h.Unregister("tab-1")
+	if got := h.ViewOf("tab-1"); got != (ViewPref{Filter: "all", Scope: "all"}) {
+		t.Fatalf("view after unregister = %+v, want all/all", got)
+	}
+}
+
 // TestSSEHub_BroadcastToUser_ScopesByOwner asserts the per-user
-// contract: a record mutation is delivered only to clients owned by the
 // same user, and the originating client (excludeClientID) is skipped.
 // This guards the userOf map initialization bug where BroadcastToUser
 // silently delivered to nobody because userOf was a nil map.

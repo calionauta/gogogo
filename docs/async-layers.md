@@ -15,7 +15,7 @@ sits dormant until you don't.
 goqite       → background jobs + SSE Hub delivery (always on)
 dagnats      → durable multi-step workflows as JSON (opt-out: DAGNATS_ENABLED=false)
 Loro CRDT    → collaborative docs with offline merges (remove internal/collab/)
-SSE record   → record-change push, owner-scoped (always on)
+SSE record   → record-change push, visibility-scoped (always on)
 SSE ephemeral→ UI signals via Datastar protocol (always on, part of queue)
 JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_ENABLED=false)
 GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
@@ -24,13 +24,14 @@ GoAkt grains → one addressable owner per room: roster, locks, supervision (opt
 ## Transport matrix (queryable)
 
 Which wire carries what, what it falls back to, and the switch. There is
-deliberately no single transport switch: records need per-user scoping
-(free with the owner column), ephemeral traffic needs fan-out without
+deliberately no single transport switch: records need visibility scoping
+(private rows to the owner's tabs, shared rows to every login — free with
+the owner + visibility columns), ephemeral traffic needs fan-out without
 persistence — one knob would conflate both. Pick by traffic type:
 
 | Traffic | Mechanism | Default | Switch / fallback | Notes |
 |---|---|---|---|---|
-| Record mutations (CRUD) | SSE Hub record event + fragment re-fetch | always on | none (Hub-native; scoping comes from the owner column) | todo/whiteboard/notes lists resync fragments on it |
+| Record mutations (CRUD) | SSE Hub record event + fragment re-fetch | always on | none (Hub-native; scoping comes from the owner + visibility columns) | todo/whiteboard/notes lists resync fragments on it |
 | Ephemeral signals (toasts, progress, presence) | SSE Hub (Datastar SSE) | always on | in-process only; no cross-instance without JetStream | `BroadcastExcept` excludes the originator |
 | Cross-instance broadcast + CRUD proxy | NATS JetStream | on | `NATS_ENABLED=false` → in-memory hub; whiteboard/notes ops go SSE-only single-instance | `realtimeLabel()` surfaces the active transport in the UI |
 | Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | workers no-op when NATS is down | snapshots persist to Turso tables |
@@ -45,8 +46,9 @@ This is the distinction that matters most, and the one most templates get
 wrong.
 
 **The SSE Hub record event** pushes *record mutations*
-(create/toggle/delete) to subscribers, scoped per-user by the owner
-column. It is the mechanism for **database actions**.
+(create/toggle/delete) to subscribers, scoped by row visibility (private
+rows to the owner's tabs, shared rows to every login's streams). It is the
+mechanism for **database actions**.
 
 **The SSE Hub ephemeral channel** (`internal/queue/ssehub.go`) carries
 **ephemeral signals**: client count, LLM suggest feedback, workflow
@@ -77,8 +79,8 @@ dragging an existing shape, a resize handle, a live text selection.
 The rule of thumb: **commit on release, relay while moving.**
 
 > **Do not add a parallel SSE-hub re-render for record mutations.** If a record
-> changed, the Hub record event already delivers it, and the owner-scoped
-> re-list makes the delivery per-user for free.
+> changed, the Hub record event already delivers it, and the visibility-scoped
+> re-list makes the delivery correctly scoped for free.
 
 ## Cross-instance sync adds two more paths
 

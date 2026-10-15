@@ -11,7 +11,34 @@ type Todo struct {
 	Completed bool      `json:"completed"`
 	CreatedAt time.Time `json:"created"`
 	UpdatedAt time.Time `json:"updated"`
+	// Owner is the creating user's id. The UI uses it (with UserID below)
+	// to tell "mine" from "shared" and to gate per-row delete affordances.
+	Owner string `json:"owner"`
+	// OwnerEmail names the author of a shared row so collab partners can
+	// tell who wrote what. Empty on owner-scoped reads that need no author.
+	OwnerEmail string `json:"ownerEmail"`
+	// Visibility is "private" (owner only) or "public" (every login lists
+	// it). Listing scope only — what a role may DO stays in Casbin.
+	Visibility string `json:"visibility"`
+	// IsMine marks rows owned by the requesting login, so the UI can tell
+	// "mine" from "shared" (authorship badges) without shipping the
+	// viewer's identity into row-level comparisons.
+	IsMine bool `json:"isMine"`
+	// CanDelete is the per-row delete affordance, computed server-side by
+	// canDeleteRow (viewer never, owner always, admin on any visible row).
+	// Display-only — the handler re-enforces on POST.
+	CanDelete bool `json:"canDelete"`
 }
+
+// IsShared reports whether the row is visible beyond its owner.
+func (t Todo) IsShared() bool { return t.Visibility == VisibilityPublic }
+
+// Visibility values for Todo.Visibility. The DB CHECK constraint mirrors
+// this pair, so a third value fails at the store, not in the UI.
+const (
+	VisibilityPrivate = "private"
+	VisibilityPublic  = "public"
+)
 
 type Signals struct {
 	Todos     []Todo `json:"todos"`
@@ -119,6 +146,20 @@ type Signals struct {
 	// hide. Display hint only — enforcement stays in the RBAC policy,
 	// so a wrong value degrades to a 403, never to a write.
 	IsViewer bool `json:"isViewer"`
+
+	// IsAdmin marks the operator role (users.role == 'admin'): delete
+	// affordances render for any visible row, not just owned ones.
+	// Display hint only — enforcement stays in the handler, so a wrong
+	// value degrades to a 403, never to a write.
+	IsAdmin bool `json:"isAdmin"`
+
+	// UserID is the viewer's own owner id, so rows can tell "mine" from
+	// "shared" client-side (authorship badges, per-row delete gating).
+	UserID string `json:"userId"`
+
+	// Scope selects the listing slice: "all" (mine + shared), "mine", or
+	// "shared". Seeded "all"; the scope tabs drive it like $filter.
+	Scope string `json:"scope"`
 
 	// PermDenied drives the "your role cannot do that" toast: set when a
 	// viewer reaches for a gated affordance. Seeded false; cleared by

@@ -67,7 +67,7 @@ complementary layers in a single build and lets you opt out at runtime:
 | `goqite` | background jobs + SSE hub |
 | `dagnats` | durable multi-step workflows as declarative JSON |
 | Loro CRDT | conflict-free collaborative state |
-| SSE record stream | per-user-scoped record-change push + re-list |
+| SSE record stream | visibility-scoped record-change push + re-list |
 | SSE Hub | ephemeral signals over the Datastar protocol |
 | JetStream | cross-instance broadcast and state |
 | GoAkt grains | one addressable owner per room (roster, locks, supervision) |

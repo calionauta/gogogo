@@ -38,7 +38,8 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, userRole st
 }
 
 // TodoList renders the full layout — header, two-column grid (Tasks
-// on the left; Realtime card + Async Demo Tabs card on the right).
+// on the left; Async Demo Tabs card on the right). Presence lives in the
+// header pill (single slot); the standalone Realtime card was removed.
 // Mirrors the DaisyUI reference's layout so switching between skins
 // doesn't make components appear/disappear.
 templ TodoList(signals todo.Signals) {
@@ -53,9 +54,12 @@ templ TodoList(signals todo.Signals) {
 				@tasksCard(signals)
 			</div>
 
-			<!-- RIGHT: Realtime + Async Demo Tabs (2/5) -->
+			<!-- RIGHT: Async Demos (2/5). Presence lives in exactly one
+			     place: the header pill above (count + transport, with
+			     what-it-means in its tooltip). The standalone Realtime
+			     card duplicating those signals was removed — it carried
+			     no action, only a second copy. -->
 			<div class="lg:col-span-2 space-y-4">
-				@realtimeCard(signals)
 				@asyncDemosCard(signals)
 			</div>
 
@@ -81,10 +85,18 @@ templ header(signals todo.Signals) {
 					<span class="text-base-content/30 mx-1">·</span>
 					<span>{ signals.OfflineLabel }</span>
 				</p>
-				@components.TechBadge([]string{"JetStream realtime", "SSE Hub", "goqite queue", "retry-go", "DagNats workflows", "offline outbox"})
+				@components.TechStack([]components.TechItem{
+					{Name: "JetStream realtime", Note: "CRUD ops stream across instances"},
+					{Name: "SSE Hub", Note: "every open tab re-lists live"},
+					{Name: "goqite queue", Note: "AI + demo jobs run in background"},
+					{Name: "retry-go", Note: "transient failures retry with backoff"},
+					{Name: "DagNats workflows", Note: "durable onboarding pipeline"},
+					{Name: "offline outbox", Note: "offline mutations queue, then sync"},
+					{Name: "Casbin RBAC", Note: "per-request role permissions"},
+				})
 			</div>
 		</div>
-		<span class="online-pill" data-show="$connectedClients >= 0">
+		<span class="online-pill" data-show="$connectedClients >= 0" title="Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.">
 			<span class="pulse-dot"></span>
 			<span data-text="$connectedClients + ' online'"></span>
 			<span class="hidden sm:inline"> · <span data-text="$realtimeKind"></span></span>
@@ -107,7 +119,7 @@ templ tasksCard(signals todo.Signals) {
 			@SuggestionsList(signals.Suggestions)
 			@filterTabs(signals)
 			<div class="card" data-show="$permDenied" role="alert" style="border-color:var(--color-warning, #f59e0b);">
-				<span>Your role (viewer) cannot delete todos. Ask an admin for a wider role, or keep adding.</span>
+				<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 				<button type="button" class="btn" data-size="sm" data-variant="ghost" data-on:click={ "$permDenied = false" }>dismiss</button>
 			</div>
 			@TodoListRegion(signals)
@@ -116,43 +128,17 @@ templ tasksCard(signals todo.Signals) {
 					<span class="text-sm soft" data-text="$itemCount + ' items'"></span>
 					if !signals.IsViewer {
 						<button type="button" class="btn" data-variant="outline" data-size="sm"
-							data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat'); break; }">
-							Clear completed
+							data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat'); break; }">
+							Clear my completed
 						</button>
 					} else {
 						<button type="button" class="btn" data-variant="outline" data-size="sm" style="opacity:.5;" aria-disabled="true" title="Clear completed (viewer role cannot delete)"
 							data-on:click__prevent={ "$permDenied = true" }>
-							Clear completed
+							Clear my completed
 						</button>
 					}
 				</div>
 			}
-		</section>
-	</div>
-}
-
-// realtimeCard surfaces the live transport. Uses basecoat's
-// .online-pill + .pulse-dot (defined in chrome.css) for the
-// connection-state indicator and a small muted helper paragraph
-// under it.
-templ realtimeCard(signals todo.Signals) {
-	<div class="card">
-		<header>
-			<h2 class="card-title text-sm">Realtime</h2>
-			<div class="card-action">
-				<span class="badge" data-variant="outline" data-text="$realtimeKind"></span>
-			</div>
-		</header>
-		<section>
-			<div class="flex items-center gap-2">
-				<span class="online-pill">
-					<span class="pulse-dot"></span>
-					<span data-text="$connectedClients + ' online'"></span>
-				</span>
-			</div>
-			<p class="text-xs soft mt-2">
-				Every CRUD mutation streams through the SSE Hub, scoped to your own records. Open this page in two tabs to watch todos sync live.
-			</p>
 		</section>
 	</div>
 }
@@ -407,8 +393,9 @@ templ durableWorkflowPanel(signals todo.Signals) {
 
 // createForm owns the title input + Add button.
 templ createForm(signals todo.Signals) {
-	<form data-on:submit__prevent="$loading ? null : ($loading = true, @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}))"
-		class="flex gap-2 mb-4">
+	<form data-on:submit__prevent="$loading ? null : ($loading = true, @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}))"
+		class="mb-4">
+		<div class="flex gap-2">
 		<div class="flex-1">
 			<input type="text" name="title" class="input w-full" placeholder="Add a new todo..." data-bind="newTitle"/>
 		</div>
@@ -420,6 +407,11 @@ templ createForm(signals todo.Signals) {
 				<span>Adding</span>
 			</span>
 		</button>
+		</div>
+		<label class="flex items-center gap-2 mt-2 text-xs soft cursor-pointer">
+			<input type="checkbox" name="visibility" value="public"/>
+			<span>Shared — every login sees this todo (private by default)</span>
+		</label>
 	</form>
 }
 
@@ -428,14 +420,24 @@ templ createForm(signals todo.Signals) {
 // state from $filter (set by handleList's MergeSignals) so the SSE
 // patch from filter clicks + the broadcaster's patches all line up.
 templ filterTabs(signals todo.Signals) {
+	<div class="tabs mb-2" id="scope-tabs-basecoat">
+		<nav role="tablist" aria-label="Listing scope" aria-orientation="horizontal">
+			<button type="button" role="tab" aria-selected={ ternary(signals.Scope == "" || signals.Scope == "all", "true", "false") } tabindex={ ternary(signals.Scope == "" || signals.Scope == "all", "0", "-1") }
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=all&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">All</button>
+			<button type="button" role="tab" aria-selected={ ternary(signals.Scope == "mine", "true", "false") } tabindex={ ternary(signals.Scope == "mine", "0", "-1") }
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=mine&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Mine</button>
+			<button type="button" role="tab" aria-selected={ ternary(signals.Scope == "shared", "true", "false") } tabindex={ ternary(signals.Scope == "shared", "0", "-1") }
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=shared&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Shared</button>
+		</nav>
+	</div>
 	<div class="tabs mb-4" id="filter-tabs-basecoat">
-		<nav role="tablist" aria-orientation="horizontal">
+		<nav role="tablist" aria-label="Status filter" aria-orientation="horizontal">
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "all", "true", "false") } tabindex={ ternary(signals.Filter == "all", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all&skin=basecoat')">All</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">All</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "active", "true", "false") } tabindex={ ternary(signals.Filter == "active", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active&skin=basecoat')">Active</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Active</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "completed", "true", "false") } tabindex={ ternary(signals.Filter == "completed", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed&skin=basecoat')">Completed</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Completed</button>
 		</nav>
 	</div>
 }
@@ -457,7 +459,7 @@ templ TodoListRegion(signals todo.Signals) {
 			</div>
 		}
 		for _, item := range signals.Todos {
-			@todoItem(item, !signals.IsViewer)
+			@todoItem(item)
 		}
 	</div>
 }
@@ -484,13 +486,17 @@ templ SuggestionsList(suggestions []string) {
 	</div>
 }
 
-templ todoItem(item todo.Todo, canDelete bool) {
+// todoItem renders one row. Delete + authorship affordances come
+// server-stamped on the item (IsMine/CanDelete via listVisible) — the
+// template never re-derives the rule, so the rule has exactly one home
+// (canDeleteRow, enforced by the handler on POST).
+templ todoItem(item todo.Todo) {
 	<div class="item" data-variant="outline" data-size="sm" id={ "todo-" + item.ID }>
 		<input type="checkbox"
 			if item.Completed {
 				checked
 			}
-			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?skin=basecoat')" }
+			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')" }
 		/>
 		<section style="flex: 1;">
 			if item.Completed {
@@ -499,8 +505,14 @@ templ todoItem(item todo.Todo, canDelete bool) {
 				<span>{ item.Title }</span>
 			}
 		</section>
+		if item.IsShared() {
+			<span class="badge" data-variant="secondary" title="Shared: every login sees this todo">Shared</span>
+			if !item.IsMine && item.OwnerEmail != "" {
+				<span class="text-xs soft" title="Author">by { item.OwnerEmail }</span>
+			}
+		}
 		<span class="text-xs soft">{ timeAgo(item.CreatedAt) }</span>
-		if canDelete {
+		if item.CanDelete {
 			<button type="button" style="display:inline-flex;align-items:center;justify-content:center;width:1.75rem;height:1.75rem;border-radius:0.5rem;color:var(--color-destructive,#ef4444);background:transparent;border:none;cursor:pointer;" data-variant="destructive" aria-label="Delete"
 				data-on:click__prevent={ "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "" }>
 				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -508,7 +520,7 @@ templ todoItem(item todo.Todo, canDelete bool) {
 				</svg>
 			</button>
 		} else {
-			<button type="button" style="display:inline-flex;align-items:center;justify-content:center;width:1.75rem;height:1.75rem;border-radius:0.5rem;color:var(--color-destructive,#ef4444);background:transparent;border:none;cursor:pointer;opacity:.5;" data-variant="destructive" aria-label="Delete (viewer role cannot delete)" aria-disabled="true" title="Delete (viewer role cannot delete)"
+			<button type="button" style="display:inline-flex;align-items:center;justify-content:center;width:1.75rem;height:1.75rem;border-radius:0.5rem;color:var(--color-destructive,#ef4444);background:transparent;border:none;cursor:pointer;opacity:.5;" data-variant="destructive" aria-disabled="true" aria-label="Delete (only the author or an admin can delete — viewers never delete)" title="Delete (only the author or an admin can delete — viewers never delete)"
 				data-on:click__prevent={ "$permDenied = true" }>
 				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 					<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 012-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -541,7 +553,7 @@ templ deleteConfirmModal() {
 				</button>
 				<button type="button" class="btn" data-size="sm" data-variant="destructive"
 					data-attr:disabled="$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">
+					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat')">
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
 						<span class="spinner" data-show="$deleting"></span>
@@ -597,5 +609,5 @@ templ sseOpener() {
 }
 
 templ realtimeResync() {
-	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?skin=basecoat'")
+	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')")
 }

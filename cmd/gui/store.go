@@ -112,7 +112,7 @@ func (s guiStore) Create(ctx context.Context, title, owner, idemKey string) (tod
 	id := dbschema.NewID()
 	if _, cerr := s.q.CreateTodo(ctx, dbgen.CreateTodoParams{
 		ID: id, Owner: owner, Title: title,
-		Completed: false, IdemKey: idemKey, Created: now, Updated: now,
+		Completed: false, IdemKey: idemKey, Visibility: "private", Created: now, Updated: now,
 	}); cerr != nil {
 		return todo.Todo{}, fmt.Errorf("gui: create: %w", cerr)
 	}

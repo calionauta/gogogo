@@ -20,10 +20,10 @@ func TestRender_TodoItemCheckboxReflectsCompleted(t *testing.T) {
 	open := todo.Todo{ID: "def456", Title: "still open", Completed: false}
 
 	var bDone, bOpen bytes.Buffer
-	if err := TodoItem(done, true).Render(context.Background(), &bDone); err != nil {
+	if err := TodoItem(done).Render(context.Background(), &bDone); err != nil {
 		t.Fatalf("render done item: %v", err)
 	}
-	if err := TodoItem(open, true).Render(context.Background(), &bOpen); err != nil {
+	if err := TodoItem(open).Render(context.Background(), &bOpen); err != nil {
 		t.Fatalf("render open item: %v", err)
 	}
 	if !strings.Contains(bDone.String(), "checked") {
@@ -39,6 +39,99 @@ func TestRender_TodoItemCheckboxReflectsCompleted(t *testing.T) {
 	}
 	if !strings.Contains(bOpen.String(), "/api/todos/def456/toggle") {
 		t.Errorf("open item toggle must target its own id (def456)")
+	}
+}
+
+// TestRender_TodoItemServerStampedAffordances pins the single-home rule:
+// delete + authorship affordances render from the item's server-stamped
+// IsMine/CanDelete, never from template-side role comparisons. A shared
+// row owned by someone else renders the badge + author with a disabled
+// trash; an owned row renders the modal-opening trash.
+func TestRender_TodoItemServerStampedAffordances(t *testing.T) {
+	shared := todo.Todo{
+		ID: "s1", Title: "team board", Visibility: todo.VisibilityPublic,
+		Owner: "u1", OwnerEmail: "mate@example.com", IsMine: false, CanDelete: false,
+	}
+	var bShared bytes.Buffer
+	if err := TodoItem(shared).Render(context.Background(), &bShared); err != nil {
+		t.Fatalf("render shared item: %v", err)
+	}
+	html := bShared.String()
+	for _, want := range []string{"Shared</span>", "mate@example.com", `aria-disabled="true"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("shared foreign row must render %q", want)
+		}
+	}
+	if strings.Contains(html, "showModal()") {
+		t.Error("shared foreign row must not render the modal-opening trash")
+	}
+
+	mine := todo.Todo{
+		ID: "m1", Title: "my task", Visibility: todo.VisibilityPrivate,
+		Owner: "me", IsMine: true, CanDelete: true,
+	}
+	var bMine bytes.Buffer
+	if err := TodoItem(mine).Render(context.Background(), &bMine); err != nil {
+		t.Fatalf("render own item: %v", err)
+	}
+	if !strings.Contains(bMine.String(), "showModal()") {
+		t.Error("owned row must render the modal-opening trash")
+	}
+	if strings.Contains(bMine.String(), "Shared</span>") {
+		t.Error("private row must not render the Shared badge")
+	}
+}
+
+// TestRender_MutationURLsPreserveSlice pins the template half of the
+// tab-slice contract: every list-affecting endpoint (toggle, clear,
+// delete-confirm, realtime resync) carries filter + scope (+ clientID
+// where the handler needs originator exclusion), in both skins.
+// Red-proof: drop &scope= from any URL and this fails naming it.
+func TestRender_MutationURLsPreserveSlice(t *testing.T) {
+	t.Parallel()
+	signals := todo.Signals{
+		Filter: "all", Scope: "mine", ItemCount: 1,
+		Todos: []todo.Todo{{
+			ID: "x1", Title: "probe", Owner: "me",
+			Visibility: todo.VisibilityPrivate, IsMine: true, CanDelete: true,
+		}},
+	}
+	var bList, bItem, bSync bytes.Buffer
+	if err := TodoList(signals).Render(context.Background(), &bList); err != nil {
+		t.Fatalf("render TodoList: %v", err)
+	}
+	if err := TodoItem(signals.Todos[0]).Render(context.Background(), &bItem); err != nil {
+		t.Fatalf("render TodoItem: %v", err)
+	}
+	// The realtime resync path renders separately (Layout mounts it once
+	// outside the list), so it gets its own assertion surface.
+	if err := RealtimeRecords().Render(context.Background(), &bSync); err != nil {
+		t.Fatalf("render RealtimeRecords: %v", err)
+	}
+	for _, want := range []string{
+		"toggle?filter=",
+		"completed/delete?clientID=",
+		"confirmingDeleteId + '/delete?clientID=",
+	} {
+		if !strings.Contains(bList.String(), want) && !strings.Contains(bItem.String(), want) {
+			t.Errorf("daisyui markup missing list endpoint carrying slice state: %q", want)
+		}
+	}
+	if !strings.Contains(bSync.String(), "fragment?filter=") {
+		t.Error("realtime resync must re-fetch the list fragment")
+	}
+	pages := []string{bList.String(), bItem.String(), bSync.String()}
+	for _, page := range pages {
+		for _, endpoint := range []string{"toggle?", "completed/delete?", "/delete?clientID=", "fragment?filter="} {
+			idx := strings.Index(page, endpoint)
+			if idx < 0 {
+				continue
+			}
+			window := page[idx : idx+320]
+			if !strings.Contains(window, "scope=") {
+				t.Errorf("endpoint %q must carry &scope= (got %.120q…)", endpoint, window)
+			}
+		}
 	}
 }
 

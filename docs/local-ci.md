@@ -344,6 +344,22 @@ proxy flakes survive the retry.
 3. Fix and commit.
 4. `make signoff` again — green means it would pass on a re-run.
 
+## Post-push: verify what shipped
+
+Deploy fires on push to `master` without waiting for CI, so the pre-push
+gate is half the story. After pushing, run:
+
+```bash
+make verify-ci
+```
+
+It checks default-branch CI plus the live `/health` endpoint with a
+bounded wait (never `gh run watch`), prints one JSON line, exits 0/1.
+Pending (CI outruns the cap) means re-run later, not failure. PR
+branches skip this — they verify through the PR's own CI gate instead.
+Engine: the `cali-ops-verify-ci` skill script, pinned here to
+`calionauta/gogogo` + the live URL.
+
 ## What the local loop has caught
 
 CI runs the same checks as `make ci-local`. What signoff does is run them
@@ -369,7 +385,7 @@ no-op when lefthook is not installed).
 
 | Hook | Jobs | When |
 |------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · scope-lint · datastar-lint · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 

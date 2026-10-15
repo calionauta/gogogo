@@ -116,7 +116,7 @@ templ RealtimeStream(streamURL string) {
 //     via Datastar's programmatic @get, morphing #todo-list in place;
 //   - DocVersionWatcher clicks it when the doc-version signal moves.
 templ RealtimeRecords() {
-	@ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all')")
+	@ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '')")
 	@DocVersionWatcher()
 }
 
