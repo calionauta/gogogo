@@ -86,8 +86,17 @@ func TestWorkerPersistsBothSides(t *testing.T) {
 	if len(msgs) != 2 || msgs[0].Role != "user" || msgs[1].Role != "assistant" {
 		t.Fatalf("store = %+v, want [user assistant]", msgs)
 	}
-	if msgs[0].Text != "hi" || !strings.Contains(msgs[1].Text, "hello") {
-		t.Fatalf("texts = %q %q, want prompt + answer", msgs[0].Text, msgs[1].Text)
+	if msgs[0].Text != "hi" {
+		t.Fatalf("user text = %q, want prompt", msgs[0].Text)
+	}
+	// Fallback answers render once: empty Text with the single text_note
+	// component carrying the prose (setting both rendered everything
+	// twice in one bubble).
+	if msgs[1].Text != "" {
+		t.Fatalf("fallback Text = %q, want empty (component carries it)", msgs[1].Text)
+	}
+	if len(msgs[1].Components) != 1 || msgs[1].Components[0].Component != "text_note" {
+		t.Fatalf("fallback components = %+v, want 1 text_note", msgs[1].Components)
 	}
 	select {
 	case raw := <-ch:

@@ -104,6 +104,14 @@ func TestHandlersGenuiAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
+	// Same composer contract as chat: the ack takes the form at once
+	// (pending on, prompt cleared) instead of waiting for the worker.
+	ack := askRec.Body.String()
+	for _, want := range []string{`"genui_pending":true`, `"genuiPrompt":""`} {
+		if !strings.Contains(ack, want) {
+			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
+		}
+	}
 
 	// The worker renders through the queue: open the stream on a real
 	// server and wait for the rendered answer event.

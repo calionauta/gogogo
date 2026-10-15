@@ -106,6 +106,14 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
+	// The ack immediately takes the composer: thinking on (double-submit
+	// guard) and the prompt cleared (data-bound input follows the merge).
+	ack := askRec.Body.String()
+	for _, want := range []string{`"chat_thinking":true`, `"chatPrompt":""`} {
+		if !strings.Contains(ack, want) {
+			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
+		}
+	}
 
 	// The worker persists both sides: poll the memory store for the
 	// assistant answer with the stubbed text.
@@ -198,5 +206,43 @@ func TestRenderDirectivesSanitizesInventedVisual(t *testing.T) {
 	}
 	if strings.Contains(html, "<script") {
 		t.Errorf("script survived into the bubble: %.200q…", html)
+	}
+}
+
+// TestChatFallbackRendersOnce pins the double-render fix: when the model
+// answer degrades to prose, the worker stores empty Text with the single
+// text_note component — setting both rendered every fallback twice in
+// one bubble (raw JSON as paragraph AND as Note card).
+func TestChatFallbackRendersOnce(t *testing.T) {
+	mux, a, mem := chatFixture(t, stubResponder{raw: `not json at all {{{`})
+	cookie := chatSignup(t, mux, "fallback@example.com")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/chat/ask?clientID=fallback-t1",
+		strings.NewReader("prompt=hi"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ask status = %d", rec.Code)
+	}
+	owner := sessionOwner(t, a, cookie)
+	deadline := time.Now().Add(8 * time.Second)
+	for {
+		msgs, _ := mem.List(context.Background(), owner)
+		if len(msgs) == 2 {
+			if msgs[1].Text != "" {
+				t.Fatalf("fallback Text = %q, want empty (component carries it)", msgs[1].Text)
+			}
+			if len(msgs[1].Components) != 1 || msgs[1].Components[0].Component != "text_note" {
+				t.Fatalf("fallback components = %+v, want 1 text_note", msgs[1].Components)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("worker never answered")
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }

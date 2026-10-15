@@ -97,8 +97,9 @@ func NewAt(dataDir string) (*Queue, error) {
 	}
 
 	gq := goqite.New(goqite.NewOpts{
-		DB:   db,
-		Name: "default",
+		DB:      db,
+		Name:    "default",
+		Timeout: queueVisibilityTimeout,
 	})
 
 	return &Queue{
@@ -108,6 +109,17 @@ func NewAt(dataDir string) (*Queue, error) {
 		reg: NewHandlerRegistry(),
 	}, nil
 }
+
+// queueVisibilityTimeout is how long a received job stays invisible
+// before goqite re-delivers it (up to MaxReceive=3 total receives).
+// The 5s library default fits fast jobs, but this queue carries
+// unbounded LLM round-trips (chat/suggest): a 30s model call was
+// re-executed twice more while still running, and every execution
+// fanned its answer live (persistence dedupes by idem key, SSE sends
+// do not — hence triple answers from one click). 10 minutes covers
+// the slowest legitimate job; a crashed worker's job waits that long
+// to be picked up again, which is the documented trade.
+const queueVisibilityTimeout = 10 * time.Minute
 
 // applyGoqiteSchema creates the goqite table if it does not exist.
 // Safe to call on every startup: the SELECT-then-CREATE pattern is
