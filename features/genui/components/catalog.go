@@ -376,10 +376,11 @@ func ParseDirectives(raw string) ([]Directive, error) {
 	if start < 0 || end <= start {
 		return nil, errors.New("genui: no JSON object found")
 	}
+	body := repairJSON(s[start : end+1])
 	var envelope struct {
 		Components []rawDirective `json:"components"`
 	}
-	if err := json.Unmarshal([]byte(s[start:end+1]), &envelope); err != nil {
+	if err := json.Unmarshal([]byte(body), &envelope); err != nil {
 		return nil, fmt.Errorf("genui: decode directives: %w", err)
 	}
 	if len(envelope.Components) == 0 {
@@ -396,6 +397,70 @@ func ParseDirectives(raw string) ([]Directive, error) {
 	return dirs, nil
 }
 
+// childrenFromProps bridges the model's favorite nesting mistake:
+// children tucked inside props instead of beside type/props. It
+// round-trips the value through rawDirective so malformed entries fail
+// here (ok=false) instead of halfway through validation.
+func childrenFromProps(props map[string]any) ([]rawDirective, bool) {
+	raw, ok := props["children"]
+	if !ok || raw == nil {
+		return nil, false
+	}
+	blob, err := json.Marshal(raw)
+	if err != nil {
+		return nil, false
+	}
+	var out []rawDirective
+	dec := json.NewDecoder(strings.NewReader(string(blob)))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&out); err != nil {
+		return nil, false
+	}
+	return out, true
+}
+
+// repairJSON strips trailing commas before } and ] — the most common
+// small-model malformation. The scan respects string literals (a comma
+// inside "a, b" or an escaped quote never triggers), so valid JSON
+// passes through byte-identical and strictness is otherwise unchanged.
+func repairJSON(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inStr, esc := false, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case esc:
+			esc = false
+			b.WriteByte(c)
+		case c == '\\' && inStr:
+			esc = true
+			b.WriteByte(c)
+		case c == '"':
+			inStr = !inStr
+			b.WriteByte(c)
+		case !inStr && c == ',':
+			if followedByCloser(s, i) {
+				continue
+			}
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// followedByCloser reports whether the next non-blank byte closes the
+// current object or array — the trailing-comma shape repairJSON drops.
+func followedByCloser(s string, i int) bool {
+	j := i + 1
+	for j < len(s) && (s[j] == ' ' || s[j] == '\t' || s[j] == '\n' || s[j] == '\r') {
+		j++
+	}
+	return j < len(s) && (s[j] == '}' || s[j] == ']')
+}
+
 // convertDirective validates one node (type registered, props decode,
 // depth budget) and its subtree. Render doubles as the validator so
 // parse and render can never disagree on what is legal.
@@ -406,8 +471,18 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 	if !Registered(c.Type) {
 		return Directive{}, fmt.Errorf("genui: unregistered component %q", c.Type)
 	}
-	children := make([]Directive, 0, len(c.Children))
-	for _, child := range c.Children {
+	// Models habitually nest children inside props (the envelope shape
+	// puts everything under "props"); bridge them to the directive
+	// level and drop the key so strict prop decoding still passes.
+	rawChildren := c.Children
+	if len(rawChildren) == 0 {
+		if bridged, ok := childrenFromProps(c.Props); ok {
+			rawChildren = bridged
+			delete(c.Props, "children")
+		}
+	}
+	children := make([]Directive, 0, len(rawChildren))
+	for _, child := range rawChildren {
 		converted, err := convertDirective(child, depth+1)
 		if err != nil {
 			return Directive{}, err

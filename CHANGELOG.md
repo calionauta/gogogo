@@ -406,6 +406,12 @@
 
 ### Fixed
 
+- **AI answers parse like the model writes.** `ParseDirectives` (the one
+  source of truth both Ask and Chat share) now bridges children nested
+  inside `props` and repairs trailing commas — raw model JSON rendered
+  as text bubbles before, plus Ask failing closed on syntax slips.
+  Strictness kept for unknown types and bad props. Composers bind
+  their inputs, guard double-submit explicitly, and clear on ack.
 - **Deploy reconciler is version-aware (badge lag fixed for real).** The
   push-deploy runs before the release tag exists and the tag-deploy arm
   never fires for release-please tags, so production served new code

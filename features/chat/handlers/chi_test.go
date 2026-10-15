@@ -106,6 +106,14 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
+	// The ack immediately takes the composer: thinking on (double-submit
+	// guard) and the prompt cleared (data-bound input follows the merge).
+	ack := askRec.Body.String()
+	for _, want := range []string{`"chat_thinking":true`, `"chatPrompt":""`} {
+		if !strings.Contains(ack, want) {
+			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
+		}
+	}
 
 	// The worker persists both sides: poll the memory store for the
 	// assistant answer with the stubbed text.

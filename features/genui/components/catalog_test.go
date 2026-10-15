@@ -146,3 +146,46 @@ func TestSectionDepthCapped(t *testing.T) {
 		t.Fatal("ParseDirectives(5-deep) = nil error, want depth rejection")
 	}
 }
+
+// TestParseBridgesChildrenInProps pins the tolerance that fixes real
+// model output: children nested inside props (the envelope shape puts
+// everything under "props") bridge to directive level, and the key is
+// dropped so strict prop decoding still passes. Red-proof: remove the
+// bridge and this fails with an unknown-field error.
+func TestParseBridgesChildrenInProps(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"section",` +
+		`"props":{"title":"Today","children":[{"type":"plan_cards",` +
+		`"props":{"plans":[{"title":"Jog","detail":"30 min"}]}}]}}]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(children-in-props): %v", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "section" {
+		t.Fatalf("parsed = %+v, want 1 section", dirs)
+	}
+	if len(dirs[0].Children) != 1 || dirs[0].Children[0].Component != "plan_cards" {
+		t.Fatalf("section children = %+v, want 1 plan_cards", dirs[0].Children)
+	}
+	if _, ok := dirs[0].Props["children"]; ok {
+		t.Error("bridged children key must be dropped from props")
+	}
+}
+
+// TestParseRepairsTrailingCommas pins the other half of model sloppiness:
+// trailing commas before } and ] are stripped (outside string literals
+// only), so small-model output parses without a second billable call.
+// Valid JSON passes through untouched.
+func TestParseRepairsTrailingCommas(t *testing.T) {
+	t.Parallel()
+	dirs, err := ParseDirectives(`{"components":[{"type":"text_note","props":{"text":"hi",},},]}`)
+	if err != nil {
+		t.Fatalf("ParseDirectives(trailing commas): %v", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+		t.Fatalf("parsed = %+v, want 1 text_note", dirs)
+	}
+	if got := repairJSON(`{"a":"x, y","b":[1,]}`); got != `{"a":"x, y","b":[1]}` {
+		t.Fatalf("repairJSON mangled literals: %q", got)
+	}
+}

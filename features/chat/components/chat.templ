@@ -46,7 +46,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 				<div class="mb-4"></div>
 				<form
 					id="chat-composer"
-					data-on:submit__prevent={ "@post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
+					data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed — check your connection and try again.') : null"
 					data-cuelume="send"
 				>
@@ -55,6 +55,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 						<input
 							id="chat-prompt"
 							name="prompt"
+							data-bind="chatPrompt"
 							type="text"
 							required
 							minlength="1"

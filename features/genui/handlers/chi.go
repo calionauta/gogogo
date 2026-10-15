@@ -30,6 +30,7 @@ import (
 const (
 	signalGenuiPending = "genui_pending"
 	signalGenuiError   = "genui_error"
+	signalGenuiPrompt  = "genuiPrompt"
 )
 
 // Handler serves the Ask demo on chi: page, enqueue, stream, worker.
@@ -135,6 +136,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalGenuiPending: true,
 		signalGenuiError:   "",
+		signalGenuiPrompt:  "",
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("genui", "feature"), "error", err)
 		observability.Error(r.Context(), "genui: ask ack failed", obsArgs...)
