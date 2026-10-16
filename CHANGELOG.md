@@ -431,6 +431,17 @@
   ask ack now echoes the user's own bubble — which previously reached
   the DOM only on reload. History is server-rendered from the store, as
   the page copy always claimed.
+- **The Run button on /review is usable again.** The pre-paint theme
+  bootstrap wrote a fresh `data-signals` object, dropping the page's own
+  seeds before Datastar read the attribute. Datastar reads a signal that
+  never arrived as `""`, and its `data-attr:disabled` plugin sets the
+  attribute for `""` — so the button was born disabled, with no way out:
+  the only handler that clears `review_pending` lives on that button's own
+  (unsubmittable) form. The bootstrap now merges `theme` into the page's
+  JSON seeds, every page ships `data-signals` as JSON, and the smoke run
+  asserts per page that the seeded signal survives load and that no submit
+  control is born disabled. Ask and Chat had hidden the same loss: their
+  SSE handshake re-seeds `pending` on connect.
 - **Stdout is JSONL, no exceptions.** Bare `slog` calls used the default
   text handler (ignoring `LOG_LEVEL`) and `log.Printf` wrote timestamps
   everywhere — one `slog.SetDefault` plus converted call sites later,

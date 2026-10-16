@@ -18,7 +18,23 @@ templ ThemeHead() {
 				var html = document.documentElement;
 				html.dataset.theme = theme;
 				html.classList.toggle('dark', theme === 'dark');
-				html.dataset.signals = JSON.stringify({theme: theme});
+				// MERGE the theme into the page's seeded signals, never replace
+				// the object: <html data-signals> also carries the page's own
+				// state (review_pending, genui_pending, chat_thinking), and this
+				// script runs before Datastar reads the attribute. Writing a
+				// fresh object here dropped every seed, which left /review's Run
+				// button disabled on load with no way to submit — the only
+				// handler that clears the signal lives on that button's own
+				// (unsubmittable) form. The attribute is JSON on every page, so
+				// the merge parses it rather than pattern-matching on source.
+				var signals = {};
+				try {
+					signals = JSON.parse(html.dataset.signals || '{}') || {};
+				} catch (e) {
+					signals = {};
+				}
+				signals.theme = theme;
+				html.dataset.signals = JSON.stringify(signals);
 			} catch(e) {
 				document.documentElement.dataset.theme = 'light';
 			}
