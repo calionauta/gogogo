@@ -1,0 +1,65 @@
+package components
+
+// GenuiTodoList renders the viewer's own todos as a system panel: the app's
+// truth, hydrated server-side (see TodoListProps), so the model chooses a
+// slice and never the content.
+//
+// The rows are read-only by design. A write here would have to land on the
+// todo feature's own patch target to stay live, and this component does not
+// own one; a button that writes and leaves a stale list on screen reads as
+// broken, so the panel links to /todo instead.
+templ GenuiTodoList(filter string, rows []TodoRow) {
+	<div id="genui-todo-list" class="rounded-box border border-base-300 p-4">
+		<div class="flex items-baseline justify-between gap-2 mb-2">
+			<h3 class="font-semibold">{ todoListHeading(filter) }</h3>
+			<a href="/todo" class="link link-hover text-xs">Open in Todos</a>
+		</div>
+		if len(rows) == 0 {
+			<p class="text-sm opacity-60">Nothing matches this filter.</p>
+		} else {
+			<ul class="flex flex-col gap-1">
+				for _, row := range rows {
+					<li class="flex items-start gap-2">
+						<span class={ "mt-0.5 text-xs " + todoRowMarkClass(row.Done) }>{ todoRowMark(row.Done) }</span>
+						<span class={ todoRowTitleClass(row.Done) }>{ row.Title }</span>
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+// todoListHeading names the slice in the user's words. The filter is a
+// validated enum, so the last arm is the "all" case, not a fallback for
+// bad input.
+func todoListHeading(filter string) string {
+	switch filter {
+	case "open":
+		return "Your open todos"
+	case "done":
+		return "Your completed todos"
+	default:
+		return "Your todos"
+	}
+}
+
+func todoRowMark(done bool) string {
+	if done {
+		return "✓"
+	}
+	return "•"
+}
+
+func todoRowMarkClass(done bool) string {
+	if done {
+		return "text-success"
+	}
+	return "opacity-50"
+}
+
+func todoRowTitleClass(done bool) string {
+	if done {
+		return "line-through opacity-60"
+	}
+	return ""
+}

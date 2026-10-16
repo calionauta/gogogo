@@ -4,6 +4,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	sdk "github.com/starfederation/datastar-go/datastar"
@@ -12,6 +13,7 @@ import (
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -38,8 +40,20 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
 		return fmt.Errorf("genui: decode ask payload: %w", err)
 	}
-	raw, err := h.responder.Respond(ctx, p.Prompt)
+	dirs, _, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, comp.ParseDirectives)
 	if err != nil {
+		if _, invalid := errors.AsType[*comp.ValidationError](err); invalid {
+			// The model answered, but never in catalog shape — even after the
+			// bounded repair attempt. Its message names what the model got
+			// wrong, which is the only actionable part.
+			msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
+			observability.Warn(ctx, "genui: ask degraded to the error surface",
+				append(observability.WithComponent("genui", "feature"),
+					"outcome", "fallback", "err", err.Error())...)
+			h.sendResult(ctx, target, job.ClientID, nil, msg)
+			h.sendToast(ctx, target, job.ClientID, msg, "error")
+			return nil
+		}
 		// The responder's own error says what to do about it — "no LLM
 		// configured (GOAI_API_KEY or SIMULATE_LLM=true)", or the provider's
 		// message. Replacing it with a fixed "model unavailable" hid the only
@@ -54,18 +68,15 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		// so the worker swallows the error and returns nil.
 		return nil
 	}
-	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
-	dirs, err := comp.ParseDirectives(raw)
-	if err != nil {
-		// Same reasoning as the responder error above: the parse failure's
-		// message is what tells you which directive the model got wrong.
-		msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
-		h.sendResult(ctx, target, job.ClientID, nil, msg)
-		h.sendToast(ctx, target, job.ClientID, msg, "error")
-		//nolint:nilerr // same contract as above: delivered, not retried.
-		return nil
+	// The app's own panels carry real state, so the worker fills their rows
+	// here — the renderer has no store and must not get one, and a panel
+	// that cannot be hydrated is dropped rather than rendered empty.
+	hydrated, herr := comp.Hydrate(ctx, dirs, p.UserID, h.panels)
+	if herr != nil {
+		observability.Warn(ctx, "genui: panel hydration failed",
+			append(observability.WithComponent("genui", "feature"), "error", herr.Error())...)
 	}
-	h.sendResult(ctx, target, job.ClientID, dirs, "")
+	h.sendResult(ctx, target, job.ClientID, hydrated, "")
 	h.sendToast(ctx, target, job.ClientID, fmt.Sprintf("Rendered %d components", len(dirs)), "success")
 	return nil
 }

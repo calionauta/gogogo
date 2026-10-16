@@ -52,7 +52,8 @@ func TestCatalogListsRegistered(t *testing.T) {
 		if !Registered(want) {
 			t.Errorf("catalog missing %q (prompt advertises it)", want)
 		}
-		if PromptForCatalog() == "" || !strings.Contains(PromptForCatalog(), want) {
+		prompt := PromptForCatalog()
+		if prompt == "" || !strings.Contains(prompt, want) {
 			t.Errorf("prompt does not advertise %q", want)
 		}
 	}

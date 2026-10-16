@@ -3,6 +3,8 @@
 // what RENDERS, this file decides what the model is TOLD.
 package components
 
+import "strings"
+
 // PromptForCatalog generates the model instructions from the registry
 // (OpenUI pattern): the prompt advertises exactly the names that
 // resolve, so the model is never invited to emit components that fail
@@ -28,7 +30,7 @@ func PromptForCatalog() string {
 // classifier's guess. An empty, unknown or chat-only name (html_block) is
 // ignored, and the result is then byte-identical to PromptForCatalog().
 func PromptForCatalogLead(lead string) string {
-	if lead == "" || lead == htmlBlockName || !Registered(lead) {
+	if lead == "" || chatOnlyComponents(lead) || !Registered(lead) {
 		return PromptForCatalog()
 	}
 	return PromptForCatalog() + " Lead with " + lead + " as the top-level component."
@@ -56,7 +58,8 @@ func PromptForChat() string {
 		"data_table {headers:[], rows:[[]]}, " +
 		"plan_cards {plans:[{title, detail}]}, " +
 		"bar_chart {title, bars:[{label, value>=0}]}, " +
-		"section {title, children:[<component>]} holding nested components. " +
+		sectionFragment() +
+		panelsFragment() +
 		"Lead with html_block: build the visual this request asks for out of " +
 		"plain elements (div, span, p, headings, lists, table) and these " +
 		"classes ONLY -- a class outside this list renders unstyled: " +
@@ -67,5 +70,37 @@ func PromptForChat() string {
 		"svg and images are stripped, so put every style in a class. Use the " +
 		"catalog where markup cannot act: action_buttons to post to this app, " +
 		"text_note for a single line of text. " +
+		panelsGuidance() +
 		"No prose outside the JSON object."
+}
+
+// sectionFragment is the container's line: it is part of the catalog, not a
+// panel, so it is spelled out rather than registered.
+func sectionFragment() string {
+	return "section {title, children:[<component>]} holding nested components. "
+}
+
+// panelsFragment lists the registered system panels after the catalog. A
+// build with no panels wired advertises none — the list is the registry.
+func panelsFragment() string {
+	names := panelNames()
+	if len(names) == 0 {
+		return ""
+	}
+	return strings.Join(names, ", ") + ", "
+}
+
+// panelsGuidance is where each panel says when to reach for it: the text
+// lives with the component, so a panel cannot ship without its prompt line.
+func panelsGuidance() string {
+	names := panelNames()
+	if len(names) == 0 {
+		return ""
+	}
+	fragments := make([]string, 0, len(names))
+	for _, name := range names {
+		fragments = append(fragments, panels[name].prompt)
+	}
+	return "Reach for the app's OWN data when the request is about it (" +
+		strings.Join(fragments, "; ") + "). "
 }

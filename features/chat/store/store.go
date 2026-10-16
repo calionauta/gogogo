@@ -3,6 +3,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -84,6 +85,35 @@ func ParseChatAnswer(raw string) ([]components.Directive, bool, error) {
 		Component: "text_note",
 		Props:     map[string]any{"text": text},
 	}}, true, nil
+}
+
+// ParseChatAnswerForRepair is ParseChatAnswer with the repair policy on
+// top. Chat supports TWO answer shapes — a catalog envelope and prose —
+// so both validate here, and only the shape a repair can actually fix is
+// reported as a failure: a payload that failed validation with no prose
+// around it (the `unrenderable` bubble). Without this gate the repair
+// loop would spend a round-trip nudging a conversational prose answer
+// into JSON, making the bubble worse at the cost of a model call.
+func ParseChatAnswerForRepair(raw string) ([]components.Directive, error) {
+	dirs, fallback, err := ParseChatAnswer(raw)
+	if err != nil {
+		return nil, err
+	}
+	if fallback && isUnrenderable(dirs) {
+		return nil, errors.New("chat: answer was a payload with no prose to keep")
+	}
+	return dirs, nil
+}
+
+// isUnrenderable reports whether the fallback bubble carries nothing but
+// the "could not be rendered" placeholder, i.e. the answer was a payload
+// and nothing else.
+func isUnrenderable(dirs []components.Directive) bool {
+	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+		return false
+	}
+	text, _ := dirs[0].Props["text"].(string)
+	return text == unrenderable
 }
 
 // stripPayload removes the JSON payload a model answer was built around

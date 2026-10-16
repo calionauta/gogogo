@@ -10,6 +10,37 @@
 
 ### Added
 
+- **Chat can answer with the app's own panels.** When the question is
+  about the app ("what are my open todos?"), the best answer is the app's
+  own component with real data, not invented markup — the tool-based band
+  of generative UI. Chat's prompt now advertises
+  `todo_list {filter: open|done|all}`: the model picks the SLICE and never
+  the content (props are the render shape, so an answer that supplies rows
+  or any unnamed field fails closed), the worker hydrates rows from the
+  store (the renderer has no store and gets none), and a panel that cannot
+  be hydrated is DROPPED rather than shown empty — "you have no todos"
+  would be a claim the app has not earned. The panel is chat-only: Ask
+  never advertises it, so the router's labels cannot reach it either. Rows
+  render read-only with a link to /todo, because a write from here would
+  need the todo feature's patch target to stay live.
+
+- **Every AI answer reports its own outcome as one countable log line.**
+  `genui: catalog answer validated` carries `attempts`, `repaired` and
+  `components`; the terminal cases carry `outcome=fallback` (Ask) or
+  `outcome=degraded` (chat). Stdout is JSONL, so the repair rate and the
+  unrecoverable rate are a `read_json` query away (docs/duckdb.md) — the
+  two numbers that say whether the prompt or the catalog is the thing to
+  fix, instead of guessing.
+
+- **A rejected answer gets one repair before the user sees a failure.**
+  Catalog validation is a runtime gate, and both AI legs now feed the
+  validation error back to the model once (`AnswerWithRepair`, capped at
+  one extra call) before Ask shows "could not shape the answer" or chat
+  degrades to prose. The retry carries the failure and an excerpt of the
+  rejected answer, so it is a repair rather than a re-roll; a provider
+  error stays distinct from a shape error, so "no API key" never reads as
+  "the model returned bad JSON".
+
 - **Ask AI can ask a classifier which component to lead with.** A
   jev-compatible API (`JEV_ROUTER_ENABLED=true`, endpoint shared with the
   review judge) picks the catalog component an Ask answer leads with;

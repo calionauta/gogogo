@@ -239,3 +239,34 @@ func TestParseChatAnswerCapsProse(t *testing.T) {
 		t.Fatalf("prose not capped with ellipsis, len=%d", len(text))
 	}
 }
+
+// TestChatRepairPolicySparesProse is the gate that keeps the repair loop
+// out of chat's legitimate answers. Chat supports two shapes, and prose is
+// one of them: asking the model to say it again as JSON costs a
+// round-trip and makes the bubble worse. Red-proof: drop the
+// isUnrenderable gate and a prose answer is reported as a failure again.
+func TestChatRepairPolicySparesProse(t *testing.T) {
+	t.Parallel()
+	dirs, err := ParseChatAnswerForRepair("Here is my thinking, in prose alone.")
+	if err != nil {
+		t.Fatalf("prose answer reported as a failure worth repairing: %v", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+		t.Fatalf("dirs = %+v, want the prose bubble", dirs)
+	}
+}
+
+// TestChatRepairPolicyFlagsABarePayload is the other half: a payload that
+// failed validation with no prose around it is exactly what a repair can
+// fix, so it must be reported (and the final answer then degrades through
+// ParseChatAnswer, which keeps the unrenderable placeholder).
+func TestChatRepairPolicyFlagsABarePayload(t *testing.T) {
+	t.Parallel()
+	if _, err := ParseChatAnswerForRepair(`{"components":[{"type":"nope"}]}`); err == nil {
+		t.Fatal("a bare unvalidateable payload was accepted, want it sent back for repair")
+	}
+	// Prose beside the payload still counts as an answer to keep.
+	if _, err := ParseChatAnswerForRepair("I could not build that.\n```json\n{\"nope\":1}\n```"); err != nil {
+		t.Errorf("prose beside a payload was reported as a failure: %v", err)
+	}
+}

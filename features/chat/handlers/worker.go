@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -53,8 +54,9 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
-	raw, err := h.responder.Respond(ctx, p.Prompt)
-	if err != nil {
+	_, raw, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, store.ParseChatAnswerForRepair)
+	var invalid *comp.ValidationError
+	if err != nil && !errors.As(err, &invalid) {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Warn(ctx, "chat: model unavailable", obsArgs...)
 		_ = h.store.Append(ctx, p.UserID, store.Message{
@@ -67,8 +69,28 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		h.send(ctx, target, job.ClientID, chatEnvelope{Error: "model unavailable: " + llm.WithAuthHint(err).Error()})
 		return nil
 	}
-	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
+	// The loop validated through chat's own policy (catalog OR prose); the
+	// BUBBLE shape is still chat's: a prose answer is one text_note
+	// fallback whose text rides in the component, so Text stays empty and
+	// nothing renders twice. ParseChatAnswer is deterministic on the same
+	// raw answer.
+	//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
 	dirs, fallback, _ := store.ParseChatAnswer(raw)
+	// The app's own panels carry real state, so the worker fills their rows
+	// here — the renderer has no store and must not get one. A panel that
+	// cannot be hydrated is dropped rather than rendered empty (see
+	// components.Hydrate): "you have no todos" would be a lie.
+	hydrated, herr := comp.Hydrate(ctx, dirs, p.UserID, h.panels)
+	if herr != nil {
+		observability.Warn(ctx, "chat: panel hydration failed",
+			append(observability.WithComponent("chat", "feature"), "error", herr.Error())...)
+	}
+	dirs = hydrated
+	if invalid != nil {
+		observability.Warn(ctx, "chat: answer degraded to prose",
+			append(observability.WithComponent("chat", "feature"),
+				"outcome", "degraded")...)
+	}
 	// Fallback carries the whole raw answer inside its single text_note:
 	// Text stays empty so the bubble renders once (text + component with
 	// the same content rendered everything twice).

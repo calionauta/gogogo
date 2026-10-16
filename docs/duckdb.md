@@ -36,6 +36,14 @@ WHERE dur_ms > 500 ORDER BY dur_ms DESC;
 -- errors with context
 SELECT time, msg, error FROM read_json('/tmp/app.jsonl')
 WHERE level = 'ERROR';
+-- AI answer health: how often a catalog answer needed the repair attempt
+-- (attempts > 1) and how often even that failed (outcome=fallback in Ask,
+-- outcome=degraded in chat). Those two rates say whether the fix belongs
+-- in the prompt or in the catalog.
+SELECT level, msg, outcome, attempts, repaired, count(*) AS n
+FROM read_json('/tmp/app.jsonl')
+WHERE msg LIKE 'genui:%' OR msg LIKE 'chat:%'
+GROUP BY ALL ORDER BY n DESC;
 ```
 
 ## Database: checkpoint, copy, attach read-only
