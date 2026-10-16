@@ -76,6 +76,16 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	// raw answer.
 	//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
 	dirs, fallback, _ := store.ParseChatAnswer(raw)
+	// The app's own panels carry real state, so the worker fills their rows
+	// here — the renderer has no store and must not get one. A panel that
+	// cannot be hydrated is dropped rather than rendered empty (see
+	// components.Hydrate): "you have no todos" would be a lie.
+	hydrated, herr := comp.Hydrate(ctx, dirs, p.UserID, h.lister)
+	if herr != nil {
+		observability.Warn(ctx, "chat: panel hydration failed",
+			append(observability.WithComponent("chat", "feature"), "error", herr.Error())...)
+	}
+	dirs = hydrated
 	if invalid != nil {
 		observability.Warn(ctx, "chat: answer degraded to prose",
 			append(observability.WithComponent("chat", "feature"),

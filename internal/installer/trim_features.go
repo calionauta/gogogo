@@ -441,7 +441,8 @@ var featureTrimUnits = []trimUnit{
 					// shared chiQ.Hub() (single-hub wiring: a private hub here
 					// would swallow worker feedback again).
 					"chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,",
-					"chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))",
+					"chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM),",
+					"todohandlers.NewTodoListLister(queries))", // seam: capabilities/genui
 					"genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,",
 					"comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)))",
 					"chatH.RegisterHandlers(chiQ.Registry())",

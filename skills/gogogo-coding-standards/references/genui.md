@@ -42,6 +42,8 @@ check that holds each rule is named.
   component once and sample real compositions (good parts can still
   compose a bad page: heading order, focus traps).
 
+- **`todo_list` renders read-only, with a link to /todo.** A write from the panel would have to land on the todo feature's patch target to stay live, and the panel does not own one: a button that writes while the list on screen stays stale reads as broken, which is worse than a link. Making it interactive means giving the todo feature a patch target this component can host (or a return channel for the click) — its own slice, not a half-working button now.
+
 ## Validation, repair, fallback
 
 - Validation is a **runtime gate**, on every answer, not a CI check:
@@ -60,6 +62,7 @@ check that holds each rule is named.
 - The fallback is a **product surface**: Ask's error result plus toast,
   chat's prose bubble (`unrenderable` / `stripPayload`). Never the raw
   payload.
+- **The app's own components answer best when the question is about the app.** Chat's prompt also advertises `todo_list {filter: open|done|all}` — a panel of the viewer's own rows, hydrated by the worker from the store at answer time. The model chooses WHICH slice and never the content (props are the render shape; unknown fields fail closed), hydration happens in the worker because the renderer has no store, and a panel that cannot be hydrated is dropped rather than rendered empty. Chat-only: Ask never advertises it and the router's labels come from Ask's own vocabulary.
 - Measure it, do not guess: every answer logs one line
   (`genui: catalog answer validated` with attempts/repaired/components;
   terminal cases with `outcome=fallback|degraded`). The repair rate and

@@ -14,6 +14,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -31,7 +32,29 @@ func (s stubResponder) Respond(context.Context, string) (string, error) {
 	return s.raw, s.err
 }
 
+// stubLister stands in for the todo feature's hydration seam: the chat
+// handler never learns what a todo is, only that something can fill a
+// panel's rows.
+type stubLister struct {
+	rows []comp.TodoRow
+	err  error
+}
+
+func (s stubLister) ListFor(_ context.Context, _, _ string) ([]comp.TodoRow, error) {
+	return s.rows, s.err
+}
+
 func chatFixture(t *testing.T, responder store.Responder) (http.Handler, *auth.Auth, *store.MemStore) {
+	t.Helper()
+	return chatFixtureWith(t, responder, nil)
+}
+
+// chatFixtureWith is chatFixture with the genui hydration seam wired, so a
+// test can prove a system panel renders the store's rows (or is dropped
+// when no seam exists).
+func chatFixtureWith(
+	t *testing.T, responder store.Responder, lister comp.TodoLister,
+) (http.Handler, *auth.Auth, *store.MemStore) {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/chat.db")
 	if err != nil {
@@ -51,7 +74,7 @@ func chatFixture(t *testing.T, responder store.Responder) (http.Handler, *auth.A
 	}
 	t.Cleanup(q.Close)
 	mem := store.NewMemStore()
-	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), mem, responder)
+	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), mem, responder, lister)
 	h.RegisterHandlers(q.Registry())
 	q.StartWorkers()
 	mux := http.NewServeMux()

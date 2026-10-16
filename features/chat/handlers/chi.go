@@ -54,18 +54,23 @@ type Handler struct {
 	hub       *queue.SSEHub
 	store     store.MessageStore
 	responder store.Responder
+	// lister hydrates the app's own panel components in an answer (the
+	// genui catalog's hydration seam). Optional: nil drops the panel
+	// instead of rendering it empty, which is the right answer for a
+	// trimmed build.
+	lister comp.TodoLister
 }
 
 // NewHandler builds the chi chat handler. Nil deps panic: wire errors
 // surface at boot, not per request.
 func NewHandler(
 	cfg *config.Config, a *auth.Auth, q *queue.Queue, hub *queue.SSEHub,
-	st store.MessageStore, responder store.Responder,
+	st store.MessageStore, responder store.Responder, lister comp.TodoLister,
 ) *Handler {
 	if cfg == nil || a == nil || q == nil || hub == nil || st == nil || responder == nil {
 		panic("chat chi: NewHandler with nil dependency")
 	}
-	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, store: st, responder: responder}
+	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, store: st, responder: responder, lister: lister}
 }
 
 // Routes returns the chi router with the chat pages and API.

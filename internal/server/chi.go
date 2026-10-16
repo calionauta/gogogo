@@ -250,7 +250,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	_ = realLLM
 	_ = simulatedLLM
 	chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,
-		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))
+		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM),
+		todohandlers.NewTodoListLister(queries))
 	chatH.RegisterHandlers(chiQ.Registry())
 	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,
 		comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)))

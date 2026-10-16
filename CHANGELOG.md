@@ -2,6 +2,20 @@
 
 ### Added
 
+- **Chat can answer with the app's own panels.** When the question is
+  about the app ("what are my open todos?"), the best answer is the app's
+  own component with real data, not invented markup — the tool-based band
+  of generative UI. Chat's prompt now advertises
+  `todo_list {filter: open|done|all}`: the model picks the SLICE and never
+  the content (props are the render shape, so an answer that supplies rows
+  or any unnamed field fails closed), the worker hydrates rows from the
+  store (the renderer has no store and gets none), and a panel that cannot
+  be hydrated is DROPPED rather than shown empty — "you have no todos"
+  would be a claim the app has not earned. The panel is chat-only: Ask
+  never advertises it, so the router's labels cannot reach it either. Rows
+  render read-only with a link to /todo, because a write from here would
+  need the todo feature's patch target to stay live.
+
 - **Every AI answer reports its own outcome as one countable log line.**
   `genui: catalog answer validated` carries `attempts`, `repaired` and
   `components`; the terminal cases carry `outcome=fallback` (Ask) or

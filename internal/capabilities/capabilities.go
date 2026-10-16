@@ -228,6 +228,14 @@ var All = []Capability{
 			// delete them too, or the trimmed tree keeps dead code that
 			// trips the deadcode gate (same shape as the dagnats Files).
 			"internal/server/genui_stubs_test.go",
+			// The todo feature's panel seam: it exists only to feed the
+			// genui catalog (features/todo/handlers/genui_panel.go imports
+			// genui components), so it must go with the unit that defines
+			// the seam — otherwise `trim genui` leaves an import of a
+			// package it just deleted. The todo feature itself does not
+			// reference it anywhere.
+			"features/todo/handlers/genui_panel.go",
+			"features/todo/handlers/genui_panel_test.go",
 		},
 		Warns: []string{
 			"ci-local smoke: export SMOKE_FEATURES without genui " +
