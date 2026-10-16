@@ -54,7 +54,7 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
-	dirs, raw, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, comp.ParseDirectives)
+	_, raw, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, store.ParseChatAnswerForRepair)
 	var invalid *comp.ValidationError
 	if err != nil && !errors.As(err, &invalid) {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
@@ -69,14 +69,14 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		h.send(ctx, target, job.ClientID, chatEnvelope{Error: "model unavailable: " + llm.WithAuthHint(err).Error()})
 		return nil
 	}
-	// A rejected answer after the bounded repair still degrades: chat's
-	// contract is that a message never fails, so the last answer goes
-	// through the lenient path, which keeps the prose around the payload
-	// and hides the payload itself.
-	dirs, fallback := dirs, false
+	// The loop validated through chat's own policy (catalog OR prose); the
+	// BUBBLE shape is still chat's: a prose answer is one text_note
+	// fallback whose text rides in the component, so Text stays empty and
+	// nothing renders twice. ParseChatAnswer is deterministic on the same
+	// raw answer.
+	//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
+	dirs, fallback, _ := store.ParseChatAnswer(raw)
 	if invalid != nil {
-		//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
-		dirs, fallback, _ = store.ParseChatAnswer(raw)
 		observability.Warn(ctx, "chat: answer degraded to prose",
 			append(observability.WithComponent("chat", "feature"),
 				"outcome", "degraded")...)
