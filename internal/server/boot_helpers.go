@@ -18,6 +18,7 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
@@ -176,4 +177,31 @@ func bootReview(
 	h := reviewhandlers.NewHandler(cfg, a, runner, realLLM)
 	h.RegisterFlows()
 	return h
+}
+
+// startCrudConsumer runs the JetStream CRUD consumer for cross-instance
+// convergence until the boot context is cancelled. It is nil-safe on js
+// (RunCrudConsumer no-ops when NATS is disabled). Split from chi.go for
+// the file-sizes gate; the CRUD indexer it threads through must match the
+// one the HTTP path uses or the two write paths diverge.
+func startCrudConsumer(
+	ctx context.Context, js nats.JetStreamLike, appName string,
+	todoH *todohandlers.Handler, hub *queue.SSEHub,
+) {
+	go func() {
+		if cerr := todohandlers.RunCrudConsumer(ctx, js, appName, todoH.Q, todoH.Index, todoH.DB, hub); cerr != nil {
+			slog.Error("server: chi crud consumer stopped", "error", cerr)
+		}
+	}()
+}
+
+// bootFail tears down the two resources every mid-boot failure must release
+// (the consumer goroutine and the pool) and wraps the cause. Every early
+// return in BootChi goes through it: the pair was repeated seven times, which
+// is what pushed BootChi past the statement gate, and one of the copies had
+// already drifted (a missing cancelConsumer).
+func bootFail(cancelConsumer context.CancelFunc, sqlDB *sql.DB, msg string, err error) (*ChiStack, error) {
+	cancelConsumer()
+	_ = sqlDB.Close()
+	return nil, fmt.Errorf("server: chi %s: %w", msg, err)
 }

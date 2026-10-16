@@ -15,6 +15,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -78,6 +79,37 @@ type Handler struct {
 	// trimming the engine deletes its package without touching a line here.
 	// Nil (engine disabled, trimmed, or never wired) is a no-op.
 	Onboarding OnboardingResumer
+	// Search reads the search plugin's rankings, and Index writes its
+	// postings. Both are interfaces declared here with stdlib types only
+	// (the same rule as OnboardingResumer): the plugin lives in
+	// internal/search, and trimming it deletes its package and its two
+	// files in this one without touching these declarations. Nil (plugin
+	// trimmed, or never wired) means no search box and no index writes.
+	Search Searcher
+	Index  SearchIndexer
+	// DB is the pool the index writes ride a transaction on. Only read
+	// when Index is non-nil: with no index there is nothing to make atomic,
+	// and the mutation keeps its plain autocommit path.
+	DB *sql.DB
+}
+
+// Searcher is the read half of the search seam: text in, ranked ids out.
+// The query is owner-scoped by the implementation, and a caller narrows an
+// already visibility-scoped list by these ids — so search can never widen
+// what the viewer is allowed to see.
+type Searcher interface {
+	SearchIDs(ctx context.Context, owner, query string) ([]string, error)
+}
+
+// SearchIndexer is the write half: postings kept in step with the todo
+// rows they describe. Split from Searcher on purpose, mirroring the
+// plugin's own Source/Index split — the substring and fuzzy layers need no
+// index and no extra write, so their mode wires no SearchIndexer at all.
+// Every method takes the caller's transaction, so a row and its postings
+// commit or roll back together.
+type SearchIndexer interface {
+	IndexTodo(ctx context.Context, tx *sql.Tx, owner, docID, title string) error
+	DeleteTodo(ctx context.Context, tx *sql.Tx, owner, docID string) error
 }
 
 // OnboardingResumer is what the create path needs from the onboarding flow:
@@ -91,6 +123,14 @@ type OnboardingResumer interface {
 // SetOnboarding wires the durable-workflow resumer the create path resumes.
 // Nil disables the resume hook without failing boot.
 func (h *Handler) SetOnboarding(o OnboardingResumer) { h.Onboarding = o }
+
+// SetSearch wires the search plugin: the reader every list honours, the
+// optional indexer, and the pool its transactions ride. A nil indexer is
+// the norm (substring and fuzzy need no postings) and simply leaves the
+// mutations on their autocommit path. All three nil is the trimmed plugin.
+func (h *Handler) SetSearch(s Searcher, ix SearchIndexer, db *sql.DB) {
+	h.Search, h.Index, h.DB = s, ix, db
+}
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.
 func (h *Handler) SetPublisher(p *natswire.CrudPublisher) {
@@ -128,7 +168,7 @@ func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner stri
 		return errors.New("todo: onboarding create requires an owner")
 	}
 	now := dbschema.Now()
-	if _, err := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
+	if err := createTodoIndexed(ctx, h.Q, h.Index, h.DB, dbgen.CreateTodoParams{
 		ID: dbschema.NewID(), Owner: owner, Title: title,
 		Completed: false, IdemKey: "", Visibility: todo.VisibilityPrivate, Created: now, Updated: now,
 	}); err != nil {
@@ -142,6 +182,7 @@ func (h *Handler) CreateTodoForOnboarding(ctx context.Context, title, owner stri
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/api/todos", h.handleList)
+	r.Get("/api/todos/search", h.handleSearch)
 	r.Get("/api/todos/fragment", h.handleFragment)
 	r.Post("/api/todos", h.handleCreate)
 	r.Post("/api/todos/{id}/toggle", h.handleToggle)
@@ -348,11 +389,16 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	_, role := h.roleOf(r)
 	// Remember the tab's listing slice on its stream registration, so
 	// record-event re-lists preserve what the tab was looking at.
-	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope)
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, searchQueryOf(r))
 	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: list failed",
 			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error listing todos")
+		return
+	}
+	todos, err = h.narrowBySearch(r.Context(), owner, searchQueryOf(r), todos)
+	if err != nil {
+		h.fail(r.Context(), w, "todo: search failed", err, "error listing todos")
 		return
 	}
 	signals := h.displaySignals(r, todos, filter, scope)
@@ -377,11 +423,16 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	filter, scope := filterOf(r), scopeOf(r)
 	_, role := h.roleOf(r)
-	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope)
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, searchQueryOf(r))
 	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: fragment list failed",
 			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error listing todos")
+		return
+	}
+	todos, err = h.narrowBySearch(r.Context(), owner, searchQueryOf(r), todos)
+	if err != nil {
+		h.fail(r.Context(), w, "todo: fragment search failed", err, "error listing todos")
 		return
 	}
 	signals := h.displaySignals(r, todos, filter, scope)

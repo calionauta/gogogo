@@ -57,6 +57,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		ConnectedClients: h.Hub.CountUserClients(),
 		ClientID:         clientID,
 		SidebarTab:       "queue",
+		SearchEnabled:    h.searchEnabled(),
 		DagNatsEnabled:   h.dagnatsUIEnabled(),
 		IsViewer:         h.viewerOwner(r.Context(), owner),
 		IsAdmin:          h.roleOwner(r.Context(), owner) == rbac.RoleAdmin,
@@ -115,11 +116,16 @@ func (h *Handler) applyRecordEvent(
 	if err != nil {
 		return fmt.Errorf("re-list on %s: %w", evt.Event, err)
 	}
+	todos, err = h.narrowBySearch(ctx, owner, view.Query, todos)
+	if err != nil {
+		return fmt.Errorf("re-list search on %s: %w", evt.Event, err)
+	}
 	if err := dshelpers.MergeSignals(sse, map[string]any{signalItemCount: len(todos)}); err != nil {
 		return err
 	}
 	signals := todo.Signals{
 		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
+		SearchQuery: view.Query, SearchEnabled: h.searchEnabled(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       rbac.IsViewer(role),
 		IsAdmin:        role == rbac.RoleAdmin,
@@ -151,10 +157,15 @@ func (h *Handler) applyWorkflowCompleted(
 	if err != nil {
 		return fmt.Errorf("re-list after workflow: %w", err)
 	}
+	todos, err = h.narrowBySearch(ctx, owner, view.Query, todos)
+	if err != nil {
+		return fmt.Errorf("re-list search after workflow: %w", err)
+	}
 	//nolint:contextcheck // datastar-go's sink takes no context (a
 	// third-party boundary); see patchSSE.
 	return renderWorkflowDone(sse, h.renderListRegion(todo.Signals{
 		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
+		SearchQuery: view.Query, SearchEnabled: h.searchEnabled(),
 		IsViewer: rbac.IsViewer(role),
 		IsAdmin:  role == rbac.RoleAdmin,
 		UserID:   owner,

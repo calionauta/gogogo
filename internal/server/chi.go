@@ -56,12 +56,8 @@ import (
 const shutdownTimeout = 5 * time.Second
 
 // ChiStack is the booted flat stack, held apart so callers can attach
-// JetStream and serve in the order their boot graph requires. Boot owns
-// DB, auth, handlers, hubs, onboarding, credits, queues and workers —
-// everything that needs no engines. AttachJetStream installs the
-// cross-instance publisher + consumer, which need the NATS the DagNats
-// engine owns and therefore cannot exist at boot time. Serve binds the
-// listener. The zero value is not usable; build with BootChi.
+// JetStream and serve in the order their boot graph requires (see the file
+// header). The zero value is not usable; build with BootChi.
 type ChiStack struct {
 	sqlDB          *sql.DB
 	mux            http.Handler
@@ -77,21 +73,6 @@ type ChiStack struct {
 	// DagNats onboarding worker creates example todos through it, so
 	// cmd/web passes this to startDagNats before NATS exists.
 	TodoHandler *todohandlers.Handler
-}
-
-// startCrudConsumer runs the JetStream CRUD consumer for cross-instance
-// convergence until the boot context is cancelled. It is nil-safe on js
-// (RunCrudConsumer no-ops when NATS is disabled). Called from
-// AttachJetStream so it stays under boot's function-length gate.
-func startCrudConsumer(
-	ctx context.Context, js nats.JetStreamLike, appName string,
-	q *dbgen.Queries, hub *queue.SSEHub,
-) {
-	go func() {
-		if cerr := todohandlers.RunCrudConsumer(ctx, js, appName, q, hub); cerr != nil {
-			slog.Error("server: chi crud consumer stopped", "error", cerr)
-		}
-	}()
 }
 
 // bootRoomActor starts the GoAkt actor system and returns the room grains
@@ -222,13 +203,14 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// the queue's own hub).
 	chiQ, qerr := queue.NewAt(filepath.Join(cfg.DataDir, "chi"))
 	if qerr != nil {
-		cancelConsumer()
-		_ = sqlDB.Close()
-		return nil, fmt.Errorf("server: chi queue: %w", qerr)
+		return bootFail(cancelConsumer, sqlDB, "queue", qerr)
 	}
 	hub := chiQ.Hub()
 	todoH := todohandlers.NewHandler(queries, a, hub, cfg.Skin)
 	wireTodoDisplay(todoH, cfg)
+	if serr := bootSearch(cfg, todoH, sqlDB); serr != nil {
+		return bootFail(cancelConsumer, sqlDB, "search", serr)
+	}
 
 	// Shutdown hooks stop independent things: stepper, actor, queue,
 	// ledger. The order is arbitrary.
@@ -264,9 +246,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 
 	persister, perr := collab.SnapshotStore(cfg.Collab.Snapshots, queries)
 	if perr != nil {
-		cancelConsumer()
-		_ = sqlDB.Close()
-		return nil, perr
+		return bootFail(cancelConsumer, sqlDB, "collab snapshots", perr)
 	}
 	docs := collab.NewDocStore()
 	docs.SetPersister(persister)
@@ -301,9 +281,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// boot loud. Split out of BootChi for the funlen gate.
 	handler, rerr := applyRBAC(bootCtx, a, cfg, queries, mux)
 	if rerr != nil {
-		cancelConsumer()
-		_ = sqlDB.Close()
-		return nil, rerr
+		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
 	return &ChiStack{
 		sqlDB:          sqlDB,
@@ -327,7 +305,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 // StartChi passes Background) — the stack holds no context of its own.
 func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
 	s.TodoHandler.SetPublisher(natswire.NewCrudPublisher(js))
-	startCrudConsumer(ctx, js, s.appName, s.queries, s.hub)
+	startCrudConsumer(ctx, js, s.appName, s.TodoHandler, s.hub)
 }
 
 // Serve binds addr and serves the stack; the returned func stops it

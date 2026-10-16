@@ -30,6 +30,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | Variable | Default | Purpose |
 |---|---|---|
 | `UI_SKIN` | `daisyui` | Active UI skin: `daisyui` or `basecoat`. Can also be overridden per request with `?skin=`. Unknown values fall back to DaisyUI with a warning. |
+| `SEARCH_MODE` | `substring` | Todo search layer: `substring`, `fuzzy` or `bm25` (see [Features](features.md#the-surfaces-you-get)). An unknown value logs a warning and falls back to `substring` rather than failing the boot — a typo must never make the server unbootable. `bm25` is the only mode that writes an index (postings ride the row's transaction); `substring` and `fuzzy` cost no extra write. |
 
 ### Realtime and workflows
 

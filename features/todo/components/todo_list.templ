@@ -31,6 +31,8 @@ func marshalSignals(s todo.Signals) string {
 //   - $connectedClients: live SSE presence count
 //   - $onboardingStep / Phase / Detail / Active / Completed: durable workflow
 //   - $confirmingDeleteId: id of the todo whose delete-confirm modal is open
+//   - $searchQuery: active search text (empty = unfiltered); server-owned,
+//     patched on every search/list so a re-list cannot desync the box
 //   - $techStep, $techDone, $techPhase: diagnostics panel state machine
 //
 // Every mutation handler is responsible for patching the relevant
@@ -88,6 +90,8 @@ templ TodoList(signals todo.Signals) {
 							</h2>
 
 							@createForm(signals)
+
+							@searchBox(signals)
 
 							@SuggestionsList(signals.Suggestions)
 
@@ -432,6 +436,44 @@ templ createForm(signals todo.Signals) {
 			<span>Shared — every login sees this todo (private by default)</span>
 		</label>
 	</form>
+}
+
+// searchBox is the plugin's UI half: it exists only when a layer is wired
+// (signals.SearchEnabled). Typing re-fetches through `/api/todos/search` with
+// a 300ms debounce, and that handler patches the same `#todo-list` region the
+// filter tabs do — so the ranking shows up as the row order, with no results
+// panel to keep in sync and no client-side list to hydrate.
+//
+// The value binds to `$searchQuery` (not a local signal) so a record-event
+// re-list, which re-renders from the server's stored view, cannot leave a
+// stale term in the box: the server patches the signal with what it actually
+// filtered by. Clearing the box (empty value) re-lists unfiltered.
+templ searchBox(signals todo.Signals) {
+	if signals.SearchEnabled {
+		<div class="join w-full mb-3">
+			<span class="join-item btn btn-ghost btn-sm sm:btn-md no-animation pointer-events-none" aria-hidden="true">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+				</svg>
+			</span>
+			<input
+				type="search"
+				name="q"
+				class="input join-item flex-1 input-sm sm:input-md"
+				placeholder="Search todos..."
+				aria-label="Search todos"
+				data-bind="searchQuery"
+				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
+			/>
+			<button
+				type="button"
+				class="join-item btn btn-ghost btn-sm sm:btn-md"
+				aria-label="Clear search"
+				data-show="$searchQuery"
+				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
+			 data-variant="ghost">✕</button>
+		</div>
+	}
 }
 
 // scopeTabs renders the listing slice (All / Mine / Shared). Like the

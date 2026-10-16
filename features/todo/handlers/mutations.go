@@ -68,7 +68,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	default:
 		now := dbschema.Now()
 		newID := dbschema.NewID()
-		if _, cerr := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
+		if cerr := createTodoIndexed(ctx, h.Q, h.Index, h.DB, dbgen.CreateTodoParams{
 			ID: newID, Owner: owner, Title: title,
 			Completed: false, IdemKey: idemKey, Visibility: visibility,
 			Created: now, Updated: now,
@@ -278,7 +278,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusForbidden, "viewer role cannot delete")
 		return
 	}
-	if derr := h.Q.DeleteTodoByID(ctx, item.ID); derr != nil {
+	if derr := deleteTodoIndexed(ctx, h.Q, h.Index, h.DB, owner, item.ID); derr != nil {
 		h.fail(r.Context(), w, "todo: delete failed", fmt.Errorf("id %s: %w", id, derr), "delete failed")
 		return
 	}
@@ -327,7 +327,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	count, err := h.Q.DeleteCompletedByOwner(ctx, owner)
+	count, err := clearCompletedIndexed(ctx, h.Q, h.Index, h.DB, owner)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: clear completed failed", err, "clear failed")
 		return

@@ -116,6 +116,7 @@ templ tasksCard(signals todo.Signals) {
 		</header>
 		<section>
 			@createForm(signals)
+			@searchBox(signals)
 			@SuggestionsList(signals.Suggestions)
 			@filterTabs(signals)
 			<div class="card" data-show="$permDenied" role="alert" style="border-color:var(--color-warning, #f59e0b);">
@@ -407,6 +408,40 @@ templ createForm(signals todo.Signals) {
 			<span>Shared — every login sees this todo (private by default)</span>
 		</label>
 	</form>
+}
+
+// searchBox is the plugin's UI half: it exists only when a layer is wired
+// (signals.SearchEnabled). Typing re-fetches through `/api/todos/search` with
+// a 300ms debounce, and that handler patches the same `#todo-list` region the
+// filter tabs do — so the ranking shows up as the row order, with no results
+// panel to keep in sync and no client-side list to hydrate.
+//
+// `$searchQuery` is server-owned: every list/search patches it with what the
+// server actually filtered by, so a record-event re-list cannot leave a stale
+// term in the box. Clearing the box re-lists unfiltered.
+templ searchBox(signals todo.Signals) {
+	if signals.SearchEnabled {
+		<div class="flex gap-2 mb-3">
+			<div class="flex-1">
+				<input
+					type="search"
+					name="q"
+					class="input w-full"
+					placeholder="Search todos..."
+					aria-label="Search todos"
+					data-bind="searchQuery"
+					data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')"
+				/>
+			</div>
+			<button
+				type="button"
+				class="btn"
+				data-variant="outline"
+				aria-label="Clear search"
+				data-show="$searchQuery"
+				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">Clear</button>
+		</div>
+	}
 }
 
 // filterTabs renders the All / Active / Completed filter tabs.

@@ -31,6 +31,9 @@
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
 //	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui" or "basecoat"
 //	                       (see web/skins/)
+//	SEARCH_MODE          (default: "substring") — todo search layer:
+//	                       "substring" | "fuzzy" | "bm25"; unknown values
+//	                       fall back to substring (see config/search.go)
 //	RBAC_ENABLED         (default: false) — opt-in Casbin RBAC middleware;
 //	                       enforces the embedded policy in internal/rbac/casbin
 //	JEV_API_URL          (default: SimpleJev demo) — jev-compatible judge endpoint
@@ -47,11 +50,9 @@
 package config
 
 import (
-	"encoding/hex"
 	"log/slog"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -268,6 +269,11 @@ type Config struct {
 	// When Credits.Enabled is false the plugin registers no routes and
 	// credits.New is never built — the binary runs billing-free.
 	Credits CreditsConfig
+
+	// Search selects the todo search layer (SEARCH_MODE). The plugin is
+	// removable; the default (substring) is the layer that survives its
+	// removal. See config/search.go and docs/configuration.md.
+	Search SearchConfig
 }
 
 // GoAIConfig holds the LLM client settings. Currently just an
@@ -360,6 +366,7 @@ func Load() *Config {
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
 	cfg.loadRBACEnv()
 	cfg.loadAuthEnv()
+	cfg.loadSearchEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
@@ -383,37 +390,6 @@ func Load() *Config {
 	cfg.Credits.StripeCancelURL = getEnv("STRIPE_CANCEL_URL", "http://localhost:3000/credits?status=cancelled")
 
 	return cfg
-}
-
-const creditsEncKeyBytes = 32
-
-// parseCreditsEncKey accepts the secret-manager representation (64 hex
-// chars for 32 key bytes) and nothing else. Anything else yields nil, and
-// the credits plugin fails closed when a BYOK provider is configured
-// without a valid key.
-func parseCreditsEncKey(raw string) []byte {
-	raw = strings.TrimSpace(raw)
-	if len(raw) == hex.EncodedLen(creditsEncKeyBytes) {
-		if key, err := hex.DecodeString(raw); err == nil {
-			return key
-		}
-	}
-	return nil
-}
-
-// parseProviders parses the BYOK_PROVIDERS env var
-// ("openai=https://api.openai.com/v1,anthropic=https://api.anthropic.com/v1")
-// into a provider->base URL map. Malformed entries are dropped.
-func parseProviders(raw string) map[string]string {
-	out := map[string]string{}
-	for part := range strings.SplitSeq(raw, ",") {
-		k, v, ok := strings.Cut(strings.TrimSpace(part), "=")
-		if !ok || k == "" || v == "" {
-			continue
-		}
-		out[k] = v
-	}
-	return out
 }
 
 func getEnv(key, fallback string) string {

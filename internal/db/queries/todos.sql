@@ -49,6 +49,13 @@ SELECT * FROM todos WHERE owner = ? AND idem_key = ? AND idem_key <> '';
 -- name: DeleteCompletedByOwner :execrows
 DELETE FROM todos WHERE owner = ? AND completed = 1;
 
+-- name: ListCompletedIDsByOwner :many
+-- The completed rows an owner is about to clear, read INSIDE the clearing
+-- transaction. The search writer needs their ids to drop the matching
+-- postings in that same transaction: reading them outside would race a
+-- concurrent toggle into leaving an orphan posting behind.
+SELECT id FROM todos WHERE owner = ? AND completed = 1;
+
 -- name: SearchTodosByOwner :many
 -- The todo search plugin's cheapest layer, in SQL: the owner's rows whose
 -- title contains the query, case-insensitively. The caller builds the

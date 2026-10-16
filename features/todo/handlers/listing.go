@@ -189,6 +189,8 @@ func (h *Handler) displaySignals(r *http.Request, todos []todo.Todo, filter, sco
 	owner, role := h.roleOf(r)
 	return todo.Signals{
 		Todos: todos, Filter: filter, Scope: scope, ItemCount: len(todos),
+		SearchQuery:    searchQueryOf(r),
+		SearchEnabled:  h.searchEnabled(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       rbac.IsViewer(role),
 		IsAdmin:        role == rbac.RoleAdmin,
