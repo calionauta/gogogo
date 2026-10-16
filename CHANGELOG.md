@@ -2,6 +2,14 @@
 
 ### Added
 
+- **Every AI answer reports its own outcome as one countable log line.**
+  `genui: catalog answer validated` carries `attempts`, `repaired` and
+  `components`; the terminal cases carry `outcome=fallback` (Ask) or
+  `outcome=degraded` (chat). Stdout is JSONL, so the repair rate and the
+  unrecoverable rate are a `read_json` query away (docs/duckdb.md) — the
+  two numbers that say whether the prompt or the catalog is the thing to
+  fix, instead of guessing.
+
 - **A rejected answer gets one repair before the user sees a failure.**
   Catalog validation is a runtime gate, and both AI legs now feed the
   validation error back to the model once (`AnswerWithRepair`, capped at

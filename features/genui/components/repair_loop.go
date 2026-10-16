@@ -4,6 +4,8 @@ package components
 import (
 	"context"
 	"errors"
+
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // repairAttempts is how many EXTRA model calls a rejected answer may cost.
@@ -76,15 +78,25 @@ func AnswerWithRepair(
 	}
 	dirs, parseErr := parse(raw)
 	if parseErr == nil {
+		observability.Info(ctx, "genui: catalog answer validated",
+			append(observability.WithComponent("genui", "feature"),
+				"attempts", 1, "repaired", false, "components", len(dirs))...)
 		return dirs, raw, nil
 	}
-	for range repairAttempts {
+	for attempt := range repairAttempts {
 		raw, err = r.Respond(ctx, request+RepairFeedback(raw, parseErr))
 		if err != nil {
 			return nil, raw, err
 		}
 		dirs, parseErr = parse(raw)
 		if parseErr == nil {
+			// Countable from the log pipeline (stdout is JSONL): how often
+			// a rejected answer was rescued rather than shown as a failure
+			// is the number that says whether the prompt or the catalog is
+			// the thing to fix.
+			observability.Info(ctx, "genui: catalog answer validated",
+				append(observability.WithComponent("genui", "feature"),
+					"attempts", attempt+2, "repaired", true, "components", len(dirs))...)
 			return dirs, raw, nil
 		}
 	}

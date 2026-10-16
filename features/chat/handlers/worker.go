@@ -77,6 +77,9 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	if invalid != nil {
 		//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
 		dirs, fallback, _ = store.ParseChatAnswer(raw)
+		observability.Warn(ctx, "chat: answer degraded to prose",
+			append(observability.WithComponent("chat", "feature"),
+				"outcome", "degraded")...)
 	}
 	// Fallback carries the whole raw answer inside its single text_note:
 	// Text stays empty so the bubble renders once (text + component with

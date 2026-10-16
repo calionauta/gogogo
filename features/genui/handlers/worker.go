@@ -13,6 +13,7 @@ import (
 	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/llm"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -46,6 +47,9 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 			// bounded repair attempt. Its message names what the model got
 			// wrong, which is the only actionable part.
 			msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
+			observability.Warn(ctx, "genui: ask degraded to the error surface",
+				append(observability.WithComponent("genui", "feature"),
+					"outcome", "fallback", "err", err.Error())...)
 			h.sendResult(ctx, target, job.ClientID, nil, msg)
 			h.sendToast(ctx, target, job.ClientID, msg, "error")
 			return nil
