@@ -36,6 +36,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Hot path, allocation, SIMD, "should this be native?" | **Performance** + `references/go-perf.md` |
 | Any test, fixture, or flake | **Testing** + `references/go-testing.md` |
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
+| Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig (the native exception) | **Exception-to-go gate** + `references/exception-to-go.md` |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
