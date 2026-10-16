@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Fixed
+
+- **A stacked PR runs the checks.** `ci.yml` and `desktop.yml` filtered
+  `pull_request` to `branches: [master]`, so a PR whose base was another
+  branch triggered no CI at all — the required `ci` status never reported
+  and the diff could only be judged by reading it (a fix nearly landed
+  that way). The base filter is gone: every PR gets the same gates.
+
 ### Added
 
 - **Ask AI can ask a classifier which component to lead with.** A

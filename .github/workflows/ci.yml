@@ -3,7 +3,11 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
+    # No base-branch filter on purpose. With `branches: [master]` a pull
+    # request whose base is another branch — a stacked PR — triggered no
+    # CI at all: the required `ci` status never appeared, and the change
+    # under it could only be judged by reading the diff (PR #154 shipped
+    # that way). A PR against any base now gets the same gates.
   workflow_dispatch:
 concurrency:
   # Cancel in-progress runs when a newer commit lands on the same ref (push+

@@ -2,7 +2,8 @@ name: Desktop
 
 on:
   pull_request:
-    branches: [master]
+    # No base-branch filter: a stacked PR (base = another branch) ran no
+    # desktop build at all, same trap as ci.yml — see the comment there.
     # Docs, markdown, rules/ and the site/ landing page cannot affect the
     # desktop shell.
     # src/css/input.css scans only features/, web/ and internal/, so site/ edits

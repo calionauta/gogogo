@@ -6,6 +6,11 @@ wait for CI, so the pre-merge PR check is the gate that runs before code lands.
 Run that **exact gate on your own machine** before pushing, so you don't wait
 on remote runners and don't push a broken commit.
 
+The `pull_request` trigger carries **no base-branch filter**: a stacked PR
+(base = another feature branch) ran no check at all while the filter said
+`branches: [master]`, so its diff could only be judged by reading it. Every PR
+now gets the same gates regardless of base.
+
 ## gh-signoff
 
 We use [gh-signoff](https://github.com/basecamp/gh-signoff) — a GitHub CLI
