@@ -44,6 +44,13 @@ dist/
 .*/
 !.github/
 !.githooks/
+# The agent skill registry IS source: hosts that load project skills by name
+# read .agents/skills/<name>, and cmd/check-skill-frontmatter fails when it
+# drifts from skills/. One dot-directory earns the exception; the rest stay
+# ignored.
+!.agents/
+!.agents/skills/
+!.agents/skills/**
 # Cali agent workflow artifacts (execution critiques, UX audits, etc)
 .cali-*/
 

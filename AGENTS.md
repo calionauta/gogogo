@@ -18,6 +18,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | Turso (tursogo v0.8.2, sqlc querie
 
 ## Skills
 
+- **Load them, don't paraphrase them.** Both skills are registered for agent hosts at `.agents/skills/<name>` (symlinks to `skills/<name>`), so a host can open them BY NAME — read the SKILL.md before the first `.go`/`.templ` edit of a session, not after a gate fails. `cmd/check-skill-frontmatter` (pre-commit + CI) fails when a skill is unregistered or a link dangles; nothing else enforces that they were read.
 - `skills/gogogo-coding-standards` — Go + template rules (concurrency, perf, testing, Datastar, exception-to-go gate). Use when editing `.go`/`.templ`, spawning goroutines, wiring context, running lint/tests, profiling, or proposing native code. Universal principles live in the vendored `skills/stelow-workflow-coding-standards` (upstream [stelow](https://github.com/calionauta/stelow), pinned in its `UPSTREAM_SHA` — never edit the vendored copy in place). Drift: `bin/check-stelow-drift.sh` detects, `scripts/refresh-stelow.sh` fixes (a scheduled workflow opens the bump PR).
 - `cali-code-navigation` — ripwire orient-first navigation. Use when landing cold in unfamiliar code or tracing callers.
 - `/skill:cali-ops-deploy-github-tailscale` — server layout, deploy user, secret tables.

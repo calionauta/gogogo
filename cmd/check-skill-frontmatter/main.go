@@ -78,9 +78,10 @@ func main() {
 			problems = append(problems, problem{path: path, msg: p})
 		}
 	}
+	problems = append(problems, checkRegistry(root, skills)...)
 
 	if len(problems) == 0 {
-		fmt.Printf("✅ SKILL.md frontmatter valid (%d file(s))\n", len(skills))
+		fmt.Printf("✅ SKILL.md frontmatter valid + registered (%d file(s))\n", len(skills))
 		return
 	}
 	for _, p := range problems {
@@ -159,6 +160,65 @@ func checkSkill(path string) (string, bool) {
 	}
 
 	return "", true
+}
+
+// checkRegistry asserts every skill under skills/ is registered with the
+// host's skill loader at .agents/skills/<name>.
+//
+// A skill is inert until a host can find it BY NAME. Nothing in this repo
+// pointed any agent at skills/, so gogogo-coding-standards and
+// stelow-workflow-coding-standards were read as prose at best and skipped at
+// worst — while the rules they carry (patch targets, size gates, test shape)
+// were exactly the ones a change needed. .agents/skills/<name> is that
+// registration: agents that resolve skills from the project directory load
+// them by name, and the symlink keeps one copy of the content.
+//
+// Drift is checked in both directions: an unregistered skill never loads, and
+// a registry entry with no skill behind it (or a dangling link) advertises a
+// skill that is not there.
+func checkRegistry(root string, skills []string) []problem {
+	regDir := filepath.Join(root, ".agents", "skills")
+	entries, err := os.ReadDir(regDir)
+	if err != nil {
+		if len(skills) == 0 {
+			return nil
+		}
+		return []problem{{path: regDir, msg: "no host registry: run `mkdir -p .agents/skills` and link each skill " +
+			"(`ln -sfn ../../skills/<name> .agents/skills/<name>`) so hosts load it by name"}}
+	}
+	registered := map[string]bool{}
+	for _, e := range entries {
+		registered[e.Name()] = true
+	}
+	names := map[string]bool{}
+	var problems []problem
+	for _, path := range skills {
+		name := filepath.Base(filepath.Dir(path))
+		names[name] = true
+		if !registered[name] {
+			problems = append(problems, problem{path: regDir, msg: fmt.Sprintf(
+				"%s is not registered — run `ln -sfn ../../skills/%s .agents/skills/%s`, or hosts will never load it by name",
+				name, name, name)})
+			continue
+		}
+		// A link that does not resolve advertises a skill that is not there.
+		// #nosec G304 G703 -- local dev tool; the path is built from a walk of the repo.
+		if _, err := os.Stat(filepath.Join(regDir, name, "SKILL.md")); err != nil {
+			problems = append(problems, problem{
+				path: filepath.Join(regDir, name),
+				msg:  fmt.Sprintf("does not resolve to %s/SKILL.md (%v) — repair or drop the entry", name, err),
+			})
+		}
+	}
+	for name := range registered {
+		if !names[name] {
+			problems = append(problems, problem{
+				path: filepath.Join(regDir, name),
+				msg:  "registered but no skills/" + name + " behind it — remove the stale entry",
+			})
+		}
+	}
+	return problems
 }
 
 // extractFrontmatter returns the text between the leading `---` and the next
