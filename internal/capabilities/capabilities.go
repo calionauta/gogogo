@@ -283,6 +283,25 @@ var All = []Capability{
 		Note: "Call sites are stripped automatically (this used to be manual).",
 	},
 	{
+		ID:      "search",
+		Kind:    KindPlugin,
+		Summary: "search layers (substring, fuzzy, BM25) behind one seam",
+		Offered: true,
+		Dirs:    []string{"internal/search"},
+		Warns: []string{
+			"A consumer that loses this keeps working with the SQL-only " +
+				"substring layer: it holds a search.Searcher and degrades, " +
+				"which is the reason the plugin is swappable at all.",
+			"The postings tables exist only while SEARCH_MODE=bm25; the " +
+				"other modes add no write path.",
+		},
+		Note: "Deletion removes the layers and the capability entry. " +
+			"Deliberately no external engine: this app's driver ships no " +
+			"FTS5 module and no Turso native FTS (verified across tursogo " +
+			"v0.8.2/v0.8.3/v0.9.0-pre.1), and a second index store would " +
+			"put a row's truth in two places.",
+	},
+	{
 		ID:         "skins",
 		Kind:       KindPlugin,
 		Summary:    "pluggable UI skins (DaisyUI + Basecoat)",
