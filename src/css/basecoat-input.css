@@ -25,6 +25,16 @@
    input.css; the same reasoning applies here. */
 @source not "../../internal/installer/**";
 
+/* Model-authored html_block markup exists only at RUNTIME, so the classes the
+   prompt advertises are safelisted here too -- but only the skin-agnostic
+   half (ModelHTMLClasses). Basecoat has no DaisyUI semantic colours
+   (docs/ui-skins.md), so the themed half has nothing to resolve to here; the
+   html_block prompt asks the model to reach for a catalog component when it
+   wants those, and the bubble keeps its shape either way. Keep in step with
+   features/genui/components/htmlclasses.go -- TestModelHTMLClassVocabulary
+   fails when a safelist, the Go vocabulary and the built bundle disagree. */
+@source inline("flex inline-flex grid block items-center items-start justify-between justify-center grid-cols-1 grid-cols-2 grid-cols-3 grid-cols-4 sm:grid-cols-2 sm:grid-cols-3 col-span-2 gap-1 gap-2 gap-3 gap-4 w-full min-w-full max-w-md mx-auto overflow-x-auto p-2 p-3 p-4 px-3 px-4 py-2 py-3 mt-1 mt-2 mt-3 mt-4 mb-1 mb-2 mb-3 mb-4 text-xs text-sm text-base text-lg text-xl text-2xl font-semibold font-bold uppercase tracking-wide leading-relaxed whitespace-pre-wrap opacity-60 opacity-70 rounded rounded-lg border shadow shadow-md list-disc list-none text-left text-right truncate");
+
 @theme inline {
   --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.145 0.004 49.33);

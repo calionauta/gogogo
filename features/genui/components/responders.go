@@ -34,10 +34,12 @@ func (r chatLLMResponder) Respond(ctx context.Context, prompt string) (string, e
 	return r.client.Chat(ctx, PromptForChat()+"\nUser request: "+prompt)
 }
 
-// demoResponder is the keyless showcase: deterministic directives
-// exercising every catalog component, labeled as demo data. Same
-// role as SIMULATE_LLM in todo — the feature works with zero keys.
-type demoResponder struct{}
+// demoResponder is the keyless showcase: deterministic directives,
+// labeled as demo data. Same role as SIMULATE_LLM in todo — the feature
+// works with zero keys. The answer is a field because the two legs
+// demonstrate different halves of the split: Ask shows the catalog, Chat
+// shows the visual the model composes for the request (demoChatAnswer).
+type demoResponder struct{ answer string }
 
 const demoAnswer = `{"components":[` +
 	`{"type":"text_note","props":{"text":"Demo answer — connect GOAI_API_KEY for live model output."}},` +
@@ -51,8 +53,32 @@ const demoAnswer = `{"components":[` +
 	`{"type":"data_table","props":{"headers":["Component","Renders"],` +
 	`"rows":[["text_note","prose card"],["plan_cards","apply buttons"],["data_table","this table"]]}}]}`
 
-func (demoResponder) Respond(_ context.Context, _ string) (string, error) {
-	return demoAnswer, nil
+// demoChatAnswer is the keyless Chat showcase: the invented-visual half of
+// the split as its OWN answer, so a keyless run still shows the difference
+// between the two demos (both used to answer with the catalog). It is
+// sanitized and rendered exactly like a live answer — one class-only grid,
+// no styles, scripts or media — and HTML attributes are single-quoted so the
+// markup nests in JSON without escaping. Red-proof: render it without
+// SanitizeHTML and the class-only grid still works, but the assertion that
+// the chat demo carries an html_block is what fails if the two answers are
+// ever collapsed back into one.
+const demoChatAnswer = `{"components":[` +
+	`{"type":"html_block","props":{"html":"` +
+	`<div class='grid grid-cols-1 sm:grid-cols-3 gap-3'>` +
+	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Monday</p>` +
+	`<p class='font-semibold'>Ship the smoke guard</p></div>` +
+	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Tuesday</p>` +
+	`<p class='font-semibold'>Read the parser diff</p></div>` +
+	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Wednesday</p>` +
+	`<p class='font-semibold'>Write the handoff note</p></div>` +
+	`</div>` +
+	`"}},` +
+	`{"type":"text_note","props":{"text":"Demo answer — connect GOAI_API_KEY and the model ` +
+	`composes this markup itself, for the request it was given."}}` +
+	`]}`
+
+func (d demoResponder) Respond(_ context.Context, _ string) (string, error) {
+	return d.answer, nil
 }
 
 type errResponder struct{ err error }
@@ -69,20 +95,22 @@ func NewResponder(real, simulated *llm.Client) Responder {
 		return llmResponder{client: real}
 	}
 	if simulated != nil && simulated.Configured() {
-		return demoResponder{}
+		return demoResponder{answer: demoAnswer}
 	}
 	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
 }
 
 // NewChatResponder is the chat leg: same fallback shape as NewResponder,
-// but the real model gets the chat affordance (catalog + invented-visual
-// html_block) instead of the catalog-only Ask prompt.
+// but the real model gets the chat affordance (invented visual first,
+// catalog for what markup cannot do) instead of the catalog-only Ask
+// prompt, and the keyless demo answers with its own invented-visual
+// demoChatAnswer rather than the catalog demo.
 func NewChatResponder(real, simulated *llm.Client) Responder {
 	if real != nil && real.Configured() {
 		return chatLLMResponder{client: real}
 	}
 	if simulated != nil && simulated.Configured() {
-		return demoResponder{}
+		return demoResponder{answer: demoChatAnswer}
 	}
 	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
 }
