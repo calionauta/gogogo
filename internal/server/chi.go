@@ -244,9 +244,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
-	// Retained for the trimmed tree: the genui trim drops the constructions
-	// below, and an unused local would not compile there.
-	_, _ = realLLM, simulatedLLM
+	_, _ = realLLM, simulatedLLM // retained: the genui trim drops their users
 	// panels: the data half of the AI components (see components.Hydrate).
 	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}
 	chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,

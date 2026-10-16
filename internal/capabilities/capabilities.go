@@ -222,18 +222,11 @@ var All = []Capability{
 		Summary: "generative UI: LLM answers render as Templ directives over the SSE hub",
 		Offered: true,
 		Dirs:    []string{"features/genui"},
+		// Owned by no dir: the composition test's model stubs, and the todo
+		// panel that exists only to feed this catalog (both would otherwise
+		// outlive the unit and trip the deadcode or import gate).
 		Files: []string{
-			// Owned by no dir: the composition test's model stubs are only
-			// used by the genui/chat constructions — trimming the unit must
-			// delete them too, or the trimmed tree keeps dead code that
-			// trips the deadcode gate (same shape as the dagnats Files).
 			"internal/server/genui_stubs_test.go",
-			// The todo feature's panel seam: it exists only to feed the
-			// genui catalog (features/todo/handlers/genui_panel.go imports
-			// genui components), so it must go with the unit that defines
-			// the seam — otherwise `trim genui` leaves an import of a
-			// package it just deleted. The todo feature itself does not
-			// reference it anywhere.
 			"features/todo/handlers/genui_panel.go",
 			"features/todo/handlers/genui_panel_test.go",
 		},
@@ -288,21 +281,15 @@ var All = []Capability{
 		Summary: "search layers (substring, fuzzy, BM25) behind one seam",
 		Offered: true,
 		Dirs:    []string{"internal/search"},
-		// The todo half of the seam imports internal/search, so it goes with
-		// the unit that owns the package (same shape as genui's panel file).
+		// The todo half of the seam imports internal/search, so it goes here.
 		Files: []string{"features/todo/handlers/search_source.go", "features/todo/handlers/search_source_test.go"},
 		Warns: []string{
-			"A consumer that loses this keeps working with the SQL-only " +
-				"substring layer: it holds a search.Searcher and degrades, " +
-				"which is the reason the plugin is swappable at all.",
-			"The postings tables exist only while SEARCH_MODE=bm25; the " +
-				"other modes add no write path.",
+			"A consumer that loses this keeps the SQL substring layer: it " +
+				"holds a search.Searcher and degrades (that is why it is swappable).",
 		},
-		Note: "Deletion removes the layers and the capability entry. " +
-			"Deliberately no external engine: this app's driver ships no " +
-			"FTS5 module and no Turso native FTS (verified across tursogo " +
-			"v0.8.2/v0.8.3/v0.9.0-pre.1), and a second index store would " +
-			"put a row's truth in two places.",
+		Note: "No external engine on purpose: this driver ships no FTS5 and no " +
+			"Turso native FTS (tursogo v0.8.2/v0.8.3/v0.9.0-pre.1), and a " +
+			"second index store would put a row's truth in two places.",
 	},
 	{
 		ID:         "skins",
