@@ -314,29 +314,36 @@ func PromptForCatalog() string {
 		"No prose outside the JSON object."
 }
 
-// PromptForChat is the chat affordance: the same structured catalog
-// plus html_block, with the model restricted to answering visually.
-// html_block carries Tailwind/DaisyUI markup the model composes for
-// THIS request (a timeline, a comparison, a mini dashboard) when no
-// catalog component fits — sanitized server-side, so scripts, styles,
-// handlers and media never reach the browser. The Ask demo keeps
-// PromptForCatalog (catalog-only is its showcase); chat gets the
-// invented-visual path because conversation, not decision, is its job.
+// PromptForChat is the chat affordance, and it is deliberately not the Ask
+// prompt: Ask demonstrates answers shaped by a fixed catalog, chat answers
+// with a component invented for THIS request. The model composes
+// Tailwind/DaisyUI markup itself — sanitized server-side, so scripts,
+// styles, handlers and media never reach the browser — and reaches for the
+// catalog only where markup cannot act (a form posting to this app) or
+// would render a fact worse than the catalog already does.
+//
+// html_block is advertised FIRST on purpose: that order is the difference
+// between the two features. With the catalog listed first the model answers
+// with the nearest catalog component and chat reads exactly like Ask, which
+// is what a user reported. Ask's prompt never names html_block at all.
 func PromptForChat() string {
 	return "Answer with a single JSON object shaped " +
 		`{"components":[{"type":"<name>","props":{...}}]} ` +
 		"using ONLY these components: " +
+		"html_block {html: markup you invent for this answer}, " +
 		"text_note {text}, " +
-		"plan_cards {plans:[{title, detail}]}, " +
-		"data_table {headers:[], rows:[[]]}, " +
-		"bar_chart {title, bars:[{label, value>=0}]}, " +
 		"action_buttons {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, " +
-		"html_block {html: Tailwind/DaisyUI markup string invented for this answer}, " +
+		"data_table {headers:[], rows:[[]]}, " +
+		"plan_cards {plans:[{title, detail}]}, " +
+		"bar_chart {title, bars:[{label, value>=0}]}, " +
 		"section {title, children:[<component>]} holding nested components. " +
-		"Present the information in the most adequate visual form for the request: " +
-		"prefer a visual component over prose, and use html_block when the fixed " +
-		"catalog cannot express it. The html must be display markup only — no " +
-		"script, style, event handlers, forms or media. " +
+		"Lead with html_block: build the visual this request asks for out of " +
+		"Tailwind/DaisyUI classes (cards, grids, badges, progress bars, " +
+		"timelines) rather than reaching for the nearest catalog component or " +
+		"answering in prose. The html must be display markup only — no script, " +
+		"style, event handlers, forms or media. Use the catalog where markup " +
+		"cannot act: action_buttons to post to this app, text_note for a single " +
+		"line of text. " +
 		"No prose outside the JSON object."
 }
 
@@ -373,28 +380,49 @@ type rawDirective struct {
 }
 
 // ParseDirectives extracts and validates the component list from raw
-// model output. Tolerant of fences and surrounding prose, strict about
-// the catalog: one unknown type, undecodable props, over-deep nesting
-// or empty answer rejects the whole answer (a half-rendered generative
-// region is worse than an error toast with retry).
+// model output. Tolerant of fences, surrounding prose and the structural
+// slips small models make, strict about the catalog: one unknown type,
+// undecodable props, over-deep nesting or empty answer rejects the whole
+// answer (a half-rendered generative region is worse than an error toast
+// with retry).
+//
+// Strict JSON is tried first, so a well-formed answer decodes exactly as
+// encoding/json would decode it and no tolerance can bend it. Only when
+// that fails does the tolerant reader take over, and it feeds the SAME
+// catalog validation — it can recover a shape, never invent a component.
 func ParseDirectives(raw string) ([]Directive, error) {
-	s := stripFences(strings.TrimSpace(raw))
-	start, end := strings.IndexByte(s, '{'), strings.LastIndexByte(s, '}')
+	body := stripFences(strings.TrimSpace(raw))
+	if dirs, err := parseStrict(body); err == nil {
+		return dirs, nil
+	}
+	return parseTolerant(body)
+}
+
+// parseStrict is the well-formed path: the answer's outer object, decoded
+// by encoding/json and converted.
+func parseStrict(body string) ([]Directive, error) {
+	start, end := strings.IndexByte(body, '{'), strings.LastIndexByte(body, '}')
 	if start < 0 || end <= start {
 		return nil, errors.New("genui: no JSON object found")
 	}
-	body := repairJSON(s[start : end+1])
 	var envelope struct {
 		Components []rawDirective `json:"components"`
 	}
-	if err := json.Unmarshal([]byte(body), &envelope); err != nil {
+	if err := json.Unmarshal([]byte(body[start:end+1]), &envelope); err != nil {
 		return nil, fmt.Errorf("genui: decode directives: %w", err)
 	}
-	if len(envelope.Components) == 0 {
+	return convertAll(envelope.Components)
+}
+
+// convertAll validates a directive list, stopping at the first failure.
+// Both parse paths end here, which is what keeps them from disagreeing
+// about what the catalog accepts.
+func convertAll(raw []rawDirective) ([]Directive, error) {
+	if len(raw) == 0 {
 		return nil, errors.New("genui: no components in answer")
 	}
-	dirs := make([]Directive, 0, len(envelope.Components))
-	for _, c := range envelope.Components {
+	dirs := make([]Directive, 0, len(raw))
+	for _, c := range raw {
 		d, err := convertDirective(c, 0)
 		if err != nil {
 			return nil, err
@@ -405,25 +433,34 @@ func ParseDirectives(raw string) ([]Directive, error) {
 }
 
 // childrenFromProps bridges the model's favorite nesting mistake:
-// children tucked inside props instead of beside type/props. It
+// children tucked inside props instead of beside type/props, under
+// "children" or under "components" (the envelope key it just saw). It
 // round-trips the value through rawDirective so malformed entries fail
-// here (ok=false) instead of halfway through validation.
+// here (ok=false) instead of halfway through validation, and removes the
+// key so strict prop decoding still passes.
+//
+// The tolerant reader handles this shape too, from the tree; this keeps
+// the strict path's verdict identical for the answers both can read.
 func childrenFromProps(props map[string]any) ([]rawDirective, bool) {
-	raw, ok := props["children"]
-	if !ok || raw == nil {
-		return nil, false
+	for _, key := range []string{"children", "components"} {
+		raw, ok := props[key]
+		if !ok || raw == nil {
+			continue
+		}
+		delete(props, key)
+		blob, err := json.Marshal(raw)
+		if err != nil {
+			continue
+		}
+		var out []rawDirective
+		dec := json.NewDecoder(strings.NewReader(string(blob)))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&out); err != nil {
+			continue
+		}
+		return out, true
 	}
-	blob, err := json.Marshal(raw)
-	if err != nil {
-		return nil, false
-	}
-	var out []rawDirective
-	dec := json.NewDecoder(strings.NewReader(string(blob)))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&out); err != nil {
-		return nil, false
-	}
-	return out, true
+	return nil, false
 }
 
 // convertDirective validates one node (type registered, props decode,
@@ -438,12 +475,12 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 	}
 	// Models habitually nest children inside props (the envelope shape
 	// puts everything under "props"); bridge them to the directive
-	// level and drop the key so strict prop decoding still passes.
+	// level (childrenFromProps drops the key, so strict prop decoding
+	// still applies to what is left).
 	rawChildren := append(append([]rawDirective(nil), c.Children...), c.Components...)
 	if len(rawChildren) == 0 {
 		if bridged, ok := childrenFromProps(c.Props); ok {
 			rawChildren = bridged
-			delete(c.Props, "children")
 		}
 	}
 	children := make([]Directive, 0, len(rawChildren))

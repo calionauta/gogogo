@@ -56,19 +56,26 @@ type MessageView struct {
 // truncates with an ellipsis instead of breaking layout.
 const proseCap = 2000
 
+// unrenderable is the fallback bubble for an answer whose payload failed
+// validation with no prose left around it. The payload itself is never
+// shown: a chat bubble holding a wall of JSON is the failure this
+// replaces, and "could not be rendered" is at least readable.
+const unrenderable = "The model's answer could not be rendered."
+
 // ParseChatAnswer prefers catalog directives and degrades to prose.
 // Valid envelope with registered components renders as components;
 // anything else (prose, unknown types, bad props, markup, empty)
-// becomes one safe text_note bubble. Never errors — chat degrades,
+// becomes one safe text_note bubble carrying the model's PROSE, with the
+// payload it failed on stripped out. Never errors — chat degrades,
 // it does not fail per message (unlike the Ask demo's fail-closed
 // showcase, where strictness is the point being demonstrated).
 func ParseChatAnswer(raw string) ([]components.Directive, bool, error) {
 	if dirs, err := components.ParseDirectives(raw); err == nil {
 		return dirs, false, nil
 	}
-	text := strings.TrimSpace(raw)
+	text := stripPayload(raw)
 	if text == "" {
-		text = "…"
+		text = unrenderable
 	}
 	if len(text) > proseCap {
 		text = text[:proseCap] + "…"
@@ -77,4 +84,35 @@ func ParseChatAnswer(raw string) ([]components.Directive, bool, error) {
 		Component: "text_note",
 		Props:     map[string]any{"text": text},
 	}}, true, nil
+}
+
+// stripPayload removes the JSON payload a model answer was built around
+// — fenced or bare — and keeps the prose written around it. The fallback
+// bubble is for reading, and JSON is not reading: printing the envelope
+// is exactly what a live run showed the user, so a payload that failed
+// the catalog leaves the conversation as prose alone. Prose on both sides
+// of the block survives; an unterminated fence means the payload ran on,
+// so nothing after it is prose.
+func stripPayload(raw string) string {
+	var b strings.Builder
+	rest := raw
+	for {
+		open := strings.Index(rest, "```")
+		if open < 0 {
+			b.WriteString(rest)
+			break
+		}
+		b.WriteString(rest[:open])
+		rest = rest[open+3:]
+		closed := strings.Index(rest, "```")
+		if closed < 0 {
+			break
+		}
+		rest = rest[closed+3:]
+	}
+	text := b.String()
+	if start, end := strings.IndexByte(text, '{'), strings.LastIndexByte(text, '}'); start >= 0 && end > start {
+		text = text[:start] + text[end+1:]
+	}
+	return strings.TrimSpace(text)
 }

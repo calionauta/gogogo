@@ -1,176 +1,250 @@
 // SCOPE:plugin — the tolerant front door of the component catalog.
 package components
 
-import "strings"
+import (
+	"errors"
+	"maps"
+	"strconv"
+	"strings"
+)
 
-// repairJSON normalizes the two malformations small models produce most
-// often, and leaves valid JSON byte-identical. Labels go first: dropping
-// a wrapper can expose a comma the second pass then has to strip.
+// maxReaderDepth bounds how far the tolerant reader descends. The catalog
+// itself allows three levels (maxDirectiveDepth); this is the reader's own
+// stack guard against attacker-shaped input (a wall of '['), not a catalog
+// rule.
+const maxReaderDepth = 32
+
+// reader walks the model's answer as a JSON-ish token stream instead of
+// trusting it to BE JSON.
 //
-// Every scan respects string literals (a comma or colon inside "a, b"
-// never triggers), so strictness is otherwise unchanged — what does not
-// parse is still the strict decoder's call.
-func repairJSON(s string) string {
-	return stripTrailingCommas(dropRedundantLabels(s))
+// One mechanism replaces a pile of string repairs, because small models
+// emit the same structural slips over and over and each one used to cost a
+// repair of its own: the envelope key repeated where an array element
+// belongs, a section's children parked inside "props", a closer that does
+// not match the open bracket, a comma or colon between nothing, output cut
+// off mid-answer. Those are one shape — "JSON-ish" — so they get one
+// tolerant reader, and the guarantee that matters is unchanged: the result
+// still goes through the catalog, so a component the registry does not know
+// rejects the whole answer.
+//
+// Nothing here errors. Reading is best-effort; the strict catalog
+// validation afterwards decides what is acceptable, and an answer that
+// survives reading without a single registered component is rejected there
+// ("no components in answer") rather than here.
+type reader struct {
+	src   string
+	pos   int
+	depth int
 }
 
-// stripTrailingCommas drops the comma in ",}" and ",]": the most common
-// small-model malformation.
-func stripTrailingCommas(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	inStr, esc := false, false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case esc:
-			esc = false
-			b.WriteByte(c)
-		case c == '\\' && inStr:
-			esc = true
-			b.WriteByte(c)
-		case c == '"':
-			inStr = !inStr
-			b.WriteByte(c)
-		case !inStr && c == ',':
-			if followedByCloser(s, i) {
-				continue
-			}
-			b.WriteByte(c)
-		default:
-			b.WriteByte(c)
+// value reads one value: object, array, string, or scalar. Past the depth
+// cap it stops reading and consumes the rest of the input: the enclosing
+// loops exit on end-of-input, and anything nested deeper than the cap is
+// not a catalog component anyway.
+func (r *reader) value() any {
+	r.skipSpace()
+	if r.pos >= len(r.src) {
+		return nil
+	}
+	if r.depth >= maxReaderDepth {
+		r.pos = len(r.src)
+		return nil
+	}
+	r.depth++
+	defer func() { r.depth-- }()
+	switch r.src[r.pos] {
+	case '{':
+		return r.object()
+	case '[':
+		return r.array()
+	case '"':
+		return r.str()
+	default:
+		return r.scalar()
+	}
+}
+
+// object reads a keyed value. Unkeyed values are read and dropped, any
+// closer closes it (bracket confusion is common), and end-of-input returns
+// what arrived — a truncated answer is still worth rendering.
+func (r *reader) object() map[string]any {
+	r.pos++ // '{'
+	out := map[string]any{}
+	for {
+		r.skipSpace()
+		if r.pos >= len(r.src) {
+			return out
 		}
-	}
-	return b.String()
-}
-
-// frame is one open bracket, so the scan below knows whether a string
-// literal sits in element position (inside an array) and which brackets
-// belong to a wrapper it dropped.
-type frame struct {
-	ch   byte // '[' or '{'
-	drop bool // redundant wrapper: emit neither bracket
-}
-
-// dropRedundantLabels removes a repeated envelope key used where an
-// array ELEMENT belongs. The model writes the wrapper twice, `{"components":
-// [{…},"components":[{…}]]}`, which is not JSON at all (Go: "invalid
-// character ':' after array element") even though the intent — two
-// sibling components — is unambiguous. The label and its colon go; when
-// the value is an array its brackets go too, so its elements splice into
-// the array they were meant to extend.
-func dropRedundantLabels(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	var stack []frame
-	inStr, esc := false, false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case esc:
-			esc = false
-			b.WriteByte(c)
-		case c == '\\' && inStr:
-			esc = true
-			b.WriteByte(c)
-		case c == '"':
-			if !inStr {
-				if resume, wrap, ok := redundantKey(s, i, stack); ok {
-					stack = pushWrapper(stack, wrap)
-					i = resume
-					continue
-				}
-			}
-			inStr = !inStr
-			b.WriteByte(c)
-		case inStr:
-			b.WriteByte(c)
-		case c == '[' || c == '{':
-			stack = append(stack, frame{ch: c})
-			b.WriteByte(c)
-		case c == ']' || c == '}':
-			if f, ok := pop(&stack); ok && f.drop {
-				continue
-			}
-			b.WriteByte(c)
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return b.String()
-}
-
-// pushWrapper records that the just-dropped label also owned the value's
-// brackets, so neither bracket is emitted (its elements splice in).
-func pushWrapper(stack []frame, wrap bool) []frame {
-	if !wrap {
-		return stack
-	}
-	return append(stack, frame{ch: '[', drop: true})
-}
-
-// pop removes the innermost open bracket.
-func pop(stack *[]frame) (frame, bool) {
-	if len(*stack) == 0 {
-		return frame{}, false
-	}
-	f := (*stack)[len(*stack)-1]
-	*stack = (*stack)[:len(*stack)-1]
-	return f, true
-}
-
-// redundantKey reports whether the string literal starting at i is a
-// repeated wrapper label sitting in array-element position, and where
-// the scan resumes once the label (and, when wrap, the value's own
-// brackets) has been dropped. A string in object position is a real key
-// and never matches; the same is true of every string element of a valid
-// array, because none is followed by a colon.
-func redundantKey(s string, i int, stack []frame) (resume int, wrap, ok bool) {
-	if len(stack) == 0 || stack[len(stack)-1].ch != '[' {
-		return 0, false, false
-	}
-	end := skipString(s, i)
-	if end < 0 {
-		return 0, false, false
-	}
-	colon := skipBlank(s, end)
-	if colon >= len(s) || s[colon] != ':' {
-		return 0, false, false
-	}
-	value := skipBlank(s, colon+1)
-	if wrap = value < len(s) && s[value] == '['; wrap {
-		value++ // the wrapper bracket is consumed here, not by the scan
-	}
-	return value - 1, wrap, true
-}
-
-// skipString returns the index just past the string literal starting at
-// i, or -1 when it never closes (the repair then leaves the bytes alone
-// and the strict decode reports the real damage).
-func skipString(s string, i int) int {
-	for j := i + 1; j < len(s); j++ {
-		switch s[j] {
-		case '\\':
-			j++ // the escaped byte can only have been ' or \.
+		switch r.src[r.pos] {
+		case '}', ']':
+			r.pos++
+			return out
+		case ',':
+			r.pos++
 		case '"':
-			return j + 1
+			key := r.str()
+			r.skipSpace()
+			if r.pos >= len(r.src) || r.src[r.pos] != ':' {
+				continue // a string with no value: noise, not a key
+			}
+			r.pos++              // ':'
+			out[key] = r.value() // last key wins, like encoding/json
+		default:
+			r.value() // unkeyed value: consume it and ignore it
 		}
 	}
-	return -1
 }
 
-// skipBlank returns the first non-blank index at or after i (len(s) when
-// the rest is blank).
-func skipBlank(s string, i int) int {
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') {
-		i++
+// array reads elements until a closer or the end. A repeated wrapper key
+// needs no special case here: its label reads as a string element and its
+// colon as an unreadable scalar, and toRaw drops both scalars and splices
+// the array that follows.
+func (r *reader) array() []any {
+	r.pos++ // '['
+	out := []any{}
+	for {
+		r.skipSpace()
+		if r.pos >= len(r.src) {
+			return out
+		}
+		switch r.src[r.pos] {
+		case ']', '}':
+			r.pos++
+			return out
+		case ',':
+			r.pos++
+		default:
+			out = append(out, r.value())
+		}
 	}
-	return i
 }
 
-// followedByCloser reports whether the next non-blank byte closes the
-// current object or array — the trailing-comma shape repairJSON drops.
-func followedByCloser(s string, i int) bool {
-	j := skipBlank(s, i+1)
-	return j < len(s) && (s[j] == '}' || s[j] == ']')
+// str reads a string literal, unescaping it when it is well formed. An
+// unterminated literal keeps the bytes that arrived (truncated answers).
+func (r *reader) str() string {
+	start := r.pos
+	for i := start + 1; i < len(r.src); i++ {
+		switch r.src[i] {
+		case '\\':
+			i++ // the escaped byte can only follow a backslash
+		case '"':
+			lit := r.src[start : i+1]
+			r.pos = i + 1
+			if s, err := strconv.Unquote(lit); err == nil {
+				return s
+			}
+			return lit[1 : len(lit)-1]
+		}
+	}
+	r.pos = len(r.src)
+	if start+1 <= len(r.src) {
+		return r.src[start+1:]
+	}
+	return ""
+}
+
+// scalar reads a bare token: a number, a boolean, null, or something
+// neither (returned as the raw string, so the type mismatch is the prop
+// decoder's call, not a parse failure). A lone delimiter advances one byte
+// and yields nil, which keeps every loop in this file progressing.
+func (r *reader) scalar() any {
+	start := r.pos
+	for r.pos < len(r.src) && !strings.ContainsRune(",}]:{[ \t\r\n", rune(r.src[r.pos])) {
+		r.pos++
+	}
+	if r.pos == start {
+		r.pos++
+		return nil
+	}
+	tok := r.src[start:r.pos]
+	switch tok {
+	case "true":
+		return true
+	case "false":
+		return false
+	case "null":
+		return nil
+	}
+	if f, err := strconv.ParseFloat(tok, 64); err == nil {
+		return f
+	}
+	return tok
+}
+
+func (r *reader) skipSpace() {
+	for r.pos < len(r.src) {
+		switch r.src[r.pos] {
+		case ' ', '\t', '\n', '\r':
+			r.pos++
+		default:
+			return
+		}
+	}
+}
+
+// parseTolerant reads the answer, then validates every component it found
+// against the catalog (same conversion as the strict path, so the two can
+// never disagree on what is legal).
+func parseTolerant(body string) ([]Directive, error) {
+	start := strings.IndexByte(body, '{')
+	if start < 0 {
+		return nil, errors.New("genui: no JSON object found")
+	}
+	r := &reader{src: body, pos: start}
+	root, ok := r.value().(map[string]any)
+	if !ok {
+		return nil, errors.New("genui: no JSON object found")
+	}
+	return convertAll(toRaw(root["components"]))
+}
+
+// toRaw lifts every component object out of the tolerant tree. Arrays
+// splice — a repeated wrapper key leaves its value as a nested array
+// element whose entries belong to the enclosing list — and scalars (the
+// stray label itself, a misplaced comma) contribute nothing.
+func toRaw(v any) []rawDirective {
+	switch t := v.(type) {
+	case []any:
+		out := make([]rawDirective, 0, len(t))
+		for _, e := range t {
+			out = append(out, toRaw(e)...)
+		}
+		return out
+	case map[string]any:
+		return []rawDirective{fromObject(t)}
+	default:
+		return nil
+	}
+}
+
+// fromObject builds one directive from a node: its type, its props, and its
+// children wherever the model put them. Children arrive under "children" or
+// under "components" — the envelope key the model just read — either beside
+// the props or inside them (where the envelope shape invites everything).
+// The child keys are removed from props so the catalog's strict prop
+// decoding still applies to what is left.
+func fromObject(o map[string]any) rawDirective {
+	d := rawDirective{Type: asString(o["type"])}
+	if props, ok := o["props"].(map[string]any); ok {
+		d.Props = make(map[string]any, len(props))
+		maps.Copy(d.Props, props)
+	} else {
+		d.Props = map[string]any{}
+	}
+	for _, key := range []string{"children", "components"} {
+		kids := o[key]
+		if kids == nil {
+			kids = d.Props[key]
+		}
+		d.Children = append(d.Children, toRaw(kids)...)
+		delete(d.Props, key)
+	}
+	return d
+}
+
+// asString reads a node's type field; anything else is the empty string,
+// which the registry rejects (fail closed).
+func asString(v any) string {
+	s, _ := v.(string)
+	return s
 }

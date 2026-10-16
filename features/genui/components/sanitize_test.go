@@ -94,7 +94,11 @@ func TestSanitizeHTMLDropsActiveContent(t *testing.T) {
 
 // TestCatalogHTMLBlockPinsChatOnly pins the split: html_block resolves
 // in the shared registry (both features render it), but only the chat
-// prompt advertises it — the Ask showcase stays catalog-only.
+// prompt advertises it — the Ask showcase stays catalog-only. The split
+// is a direction, not a list: chat must LEAD with the invented visual
+// (html_block advertised before any catalog component), or the model
+// answers in the catalog again and the two features read as one — the
+// complaint that produced this test.
 func TestCatalogHTMLBlockPinsChatOnly(t *testing.T) {
 	t.Parallel()
 	if !Registered("html_block") {
@@ -108,6 +112,10 @@ func TestCatalogHTMLBlockPinsChatOnly(t *testing.T) {
 		if !strings.Contains(chat, want) {
 			t.Errorf("chat prompt missing %q", want)
 		}
+	}
+	invented, catalog := strings.Index(chat, "html_block"), strings.Index(chat, "text_note")
+	if invented < 0 || catalog < 0 || invented > catalog {
+		t.Errorf("chat prompt must advertise html_block before the catalog components (%d vs %d)", invented, catalog)
 	}
 	raw := `{"components":[{"type":"html_block",` +
 		`"props":{"html":"<div class=\"p-2\"><script>x</script><p>hi</p></div>"}}]}`

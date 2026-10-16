@@ -13,7 +13,7 @@ import (
 // (global press cue + toast observer) — zero custom sound JS by design.
 templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals="{theme: 'light', chat_thinking: false, chat_error: ''}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" data-signals={ `{"theme":"light","chat_thinking":false,"chat_error":""}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -34,13 +34,15 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 			<main class="container mx-auto p-4 max-w-2xl">
 				<h1 class="text-2xl font-bold">Chat</h1>
 				<p class="text-sm text-base-content/60 mt-1 mb-1">
-					Ask anything — answers stream below as text plus interface.
+					Ask anything. Each answer is built for the request: the model
+					composes its own markup, sanitized, instead of picking from a
+					fixed palette.
 				</p>
 				@components.TechStack([]components.TechItem{
+					{Name: "custom components", Note: "the model invents the markup for your question — Ask AI never gets this"},
+					{Name: "component catalog", Note: "cards, tables, charts for what markup does worse"},
 					{Name: "SSE Hub", Note: "answers stream to this tab live"},
 					{Name: "goqite queue", Note: "model round-trips run off-request"},
-					{Name: "component catalog", Note: "cards, tables, charts when they fit"},
-					{Name: "free-form HTML", Note: "visuals the catalog cannot express, sanitized — Ask AI never gets this"},
 					{Name: "owned sessions", Note: "history is per account"},
 				})
 				<div class="mb-4"></div>
@@ -136,7 +138,7 @@ templ ChatList(msgs []store.MessageView, thinking bool, errMsg string) {
 		if len(msgs) == 0 && !thinking && errMsg == "" {
 			<div class="rounded-lg border border-dashed border-base-300 p-6 text-center">
 				<p class="font-semibold">Ask anything — answers stream below</p>
-				<p class="text-sm text-base-content/60 mt-1">History persists per account; components render inline.</p>
+				<p class="text-sm text-base-content/60 mt-1">History persists per account; each answer is markup the model invented for that question.</p>
 			</div>
 		}
 		for _, m := range msgs {

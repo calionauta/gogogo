@@ -415,22 +415,31 @@
 - **Debugging with DuckDB (recipe).** `docs/duckdb.md`: query slog JSONL
   and attach the Turso file read-only (`TYPE sqlite, READ_ONLY`) after
   checkpoint+copy — verified, including the WAL-invisibility trap.
-- **AI answers parse like the model writes.** `ParseDirectives` (the one
-  source of truth both Ask and Chat share) now bridges children nested
-  inside `props` and repairs trailing commas — raw model JSON rendered
-  as text bubbles before, plus Ask failing closed on syntax slips.
-  Strictness kept for unknown types and bad props. Composers bind
+- **AI answers parse like the model writes.** `ParseDirectives` — the one
+  front door Ask and Chat share — reads an answer as a JSON-ish token
+  stream when strict `encoding/json` rejects it, so the structural slips a
+  small model actually makes stop costing the whole answer: the envelope
+  key repeated where an array element belongs (`invalid character ':' after
+  array element`), an object closed with the square bracket
+  (`invalid character ']' after object key:value pair` — the exact error
+  the Ask panel showed), a section's children parked inside `props` under
+  `children` or `components`, a trailing comma, a closer that does not
+  match, an answer cut off mid-token. Both paths end in the same catalog
+  validation, so nothing was loosened: one unknown type or undecodable
+  props still rejects the answer. A payload that fails validation now
+  leaves the prose the model wrote around it, so the chat bubble never
+  shows the literal JSON — red-proofed with the live plan answer from the
+  report (nested sections, chart and buttons render) and with the exact
+  decode error, which reverting the reader reproduces. Composers bind
   their inputs, guard double-submit explicitly, and clear on ack.
-- **Ask stops failing on a repeated envelope key.** A model that writes
-  the `components` wrapper twice — the second time where an array element
-  belongs — emits `invalid character ':' after array element`, so Ask
-  failed closed with "could not shape the answer" and chat dropped the
-  literal JSON into a prose bubble. The repair pass now drops the
-  redundant label and its brackets (the elements splice into the array
-  they were meant to extend), and a section reads its children whether
-  they arrive under `children` or `components`; both prompts now name the
-  key. Catalog strictness is unchanged — the guard is a hand-mutation that
-  restores the exact production error.
+- **Chat reads like Chat, not like Ask.** Both features answered with the
+  nearest catalog component, so the two demos looked identical. The chat
+  prompt now advertises `html_block` first and tells the model to build
+  the visual for the request out of its own Tailwind/DaisyUI markup,
+  keeping the catalog for what markup cannot do (a form posting to this
+  app, a single line of text) — sanitizing and the closed allowlist are
+  unchanged. Ask stays catalog-only and never names raw HTML. Both pages
+  say which half they are.
 - **One click, one answer.** goqite re-delivered jobs after its 5s
   default visibility window (up to MaxReceive=3) while slow LLM calls
   still ran — triple bubbles from a single submit, since persistence

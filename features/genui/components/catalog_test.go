@@ -181,10 +181,10 @@ func TestParseBridgesChildrenInProps(t *testing.T) {
 //	{"components":[{section…},"components":[{action_buttons…}]]}
 //
 // That is not JSON at all, yet the intent — two sibling components — is
-// unambiguous, so the repair drops the redundant label (and the wrapper's
-// own brackets) and splices its elements into the current array. The same
-// output also nests a section's children under "components" instead of
-// "children": the section must keep its table, not silently lose it.
+// unambiguous, so the stray label and its value splice into the list they
+// were meant to extend. The same output also nests a section's children
+// under "components" instead of "children": the section must keep its
+// table, not silently lose it.
 // Red-proof: remove either half and this fails (parse error / empty
 // section children).
 func TestParseRepairsRepeatedEnvelopeKey(t *testing.T) {
@@ -211,21 +211,108 @@ func TestParseRepairsRepeatedEnvelopeKey(t *testing.T) {
 	}
 }
 
-// TestParseRepairsRepeatedEnvelopeKeyOnlyMalformed guards the repair's
-// blast radius: valid JSON must pass through byte-identical, including a
-// legitimate array whose string elements are values (no label to drop).
-func TestParseRepairsRepeatedEnvelopeKeyOnlyMalformed(t *testing.T) {
+// TestParseLeavesValidJSONAlone pins the strict path: a well-formed answer
+// is decoded by encoding/json, so nothing tolerant can bend it — including
+// an array of strings (a data_table header), which must survive intact
+// rather than look like anything worth splicing.
+func TestParseLeavesValidJSONAlone(t *testing.T) {
 	t.Parallel()
-	valid := `{"components":[{"type":"data_table","props":{"headers":["a","b"],"rows":[["x","y"]]}}]}`
-	if got := repairJSON(valid); got != valid {
-		t.Fatalf("repairJSON mutated valid JSON:\n got %q\nwant %q", got, valid)
+	raw := `{"components":[{"type":"data_table","props":` +
+		`{"headers":["Time","Activity"],"rows":[["08:00 AM","Breakfast"]]}}]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(valid): %v", err)
+	}
+	headers, _ := dirs[0].Props["headers"].([]any)
+	if len(headers) != 2 || headers[0] != "Time" || headers[1] != "Activity" {
+		t.Fatalf("headers = %#v, want [Time Activity] untouched", dirs[0].Props["headers"])
 	}
 }
 
-// TestParseRepairsTrailingCommas pins the other half of model sloppiness:
-// trailing commas before } and ] are stripped (outside string literals
-// only), so small-model output parses without a second billable call.
-// Valid JSON passes through untouched.
+// TestParseChildrenInsideProps covers the shape the chat demo received: the
+// model parks a section's children inside "props" under the envelope key it
+// just read ("components"). That is valid JSON but fails strict prop
+// decoding, so the whole answer was rejected and the conversation displayed
+// the raw JSON in a prose bubble. Several nested sections, as in the report.
+func TestParseChildrenInsideProps(t *testing.T) {
+	t.Parallel()
+	section := func(title, child string) string {
+		return `{"type":"section","props":{"title":"` + title +
+			`","components":[{"type":"plan_cards","props":{"plans":[{"title":"` + child +
+			`","detail":"x"}]}}]}}`
+	}
+	raw := `{"components":[` + section("Morning", "Breakfast") + `,` +
+		section("Midday", "Lunch") + `,` + section("Evening", "Gym") + `]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(children in props): %v", err)
+	}
+	if len(dirs) != 3 {
+		t.Fatalf("parsed = %+v, want 3 sections", dirs)
+	}
+	for i, want := range []string{"Morning", "Midday", "Evening"} {
+		if dirs[i].Component != "section" || dirs[i].Props["title"] != want {
+			t.Errorf("dirs[%d] = %+v, want section %q", i, dirs[i], want)
+		}
+		if len(dirs[i].Children) != 1 || dirs[i].Children[0].Component != "plan_cards" {
+			t.Errorf("dirs[%d] children = %+v, want 1 plan_cards", i, dirs[i].Children)
+		}
+	}
+}
+
+// TestParseRepairsMismatchedCloser covers the other production error
+// (`invalid character ']' after object key:value pair`): the model closes an
+// object with the bracket it just used. A closer that does not match the
+// open bracket still closes it; valid JSON is unaffected, since no valid
+// document ever ends an object with ']'.
+func TestParseRepairsMismatchedCloser(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"section","props":{"title":"Today"],` +
+		`"children":[{"type":"text_note","props":{"text":"hi"}}]}]}`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(mismatched closer): %v", err)
+	}
+	if len(dirs) != 1 || dirs[0].Component != "section" || dirs[0].Props["title"] != "Today" {
+		t.Fatalf("parsed = %+v, want 1 section titled Today", dirs)
+	}
+	if len(dirs[0].Children) != 1 || dirs[0].Children[0].Component != "text_note" {
+		t.Fatalf("section children = %+v, want 1 text_note", dirs[0].Children)
+	}
+}
+
+// TestParseRendersTruncatedAnswer: a model cut off at its token limit still
+// gets the components that arrived on screen — the finished one whole, the
+// half-written one whatever survived — instead of the whole answer landing
+// as raw JSON in the transcript.
+func TestParseRendersTruncatedAnswer(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"type":"text_note","props":{"text":"whole"}},` +
+		`{"type":"plan_cards","props":{"plans":[{"title":"cut off her`
+	dirs, err := ParseDirectives(raw)
+	if err != nil {
+		t.Fatalf("ParseDirectives(truncated): %v", err)
+	}
+	if len(dirs) == 0 || dirs[0].Component != "text_note" || dirs[0].Props["text"] != "whole" {
+		t.Fatalf("parsed = %+v, want the intact text_note first", dirs)
+	}
+}
+
+// TestParseSurvivesDeeplyNestedGarbage: the reader's depth cap is a stack
+// guard, not a catalog rule — a wall of brackets must be rejected (or read
+// partially) without exhausting the stack.
+func TestParseSurvivesDeeplyNestedGarbage(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[` + strings.Repeat(`[`, 5000) +
+		`{"type":"text_note","props":{"text":"deep"}}`
+	if _, err := ParseDirectives(raw); err == nil {
+		t.Fatal("ParseDirectives(deep brackets) = nil error, want rejection")
+	}
+}
+
+// TestParseRepairsTrailingCommas pins model sloppiness that is not JSON at
+// all but whose intent is unambiguous: a comma before } or ], so a small
+// model's answer renders instead of costing a second billable call.
 func TestParseRepairsTrailingCommas(t *testing.T) {
 	t.Parallel()
 	dirs, err := ParseDirectives(`{"components":[{"type":"text_note","props":{"text":"hi",},},]}`)
@@ -234,8 +321,5 @@ func TestParseRepairsTrailingCommas(t *testing.T) {
 	}
 	if len(dirs) != 1 || dirs[0].Component != "text_note" {
 		t.Fatalf("parsed = %+v, want 1 text_note", dirs)
-	}
-	if got := repairJSON(`{"a":"x, y","b":[1,]}`); got != `{"a":"x, y","b":[1]}` {
-		t.Fatalf("repairJSON mangled literals: %q", got)
 	}
 }
