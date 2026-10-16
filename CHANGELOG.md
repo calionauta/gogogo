@@ -2,6 +2,15 @@
 
 ### Added
 
+- **A rejected answer gets one repair before the user sees a failure.**
+  Catalog validation is a runtime gate, and both AI legs now feed the
+  validation error back to the model once (`AnswerWithRepair`, capped at
+  one extra call) before Ask shows "could not shape the answer" or chat
+  degrades to prose. The retry carries the failure and an excerpt of the
+  rejected answer, so it is a repair rather than a re-roll; a provider
+  error stays distinct from a shape error, so "no API key" never reads as
+  "the model returned bad JSON".
+
 - **Ask AI can ask a classifier which component to lead with.** A
   jev-compatible API (`JEV_ROUTER_ENABLED=true`, endpoint shared with the
   review judge) picks the catalog component an Ask answer leads with;

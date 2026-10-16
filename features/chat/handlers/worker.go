@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -53,8 +54,9 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
-	raw, err := h.responder.Respond(ctx, p.Prompt)
-	if err != nil {
+	dirs, raw, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, comp.ParseDirectives)
+	var invalid *comp.ValidationError
+	if err != nil && !errors.As(err, &invalid) {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Warn(ctx, "chat: model unavailable", obsArgs...)
 		_ = h.store.Append(ctx, p.UserID, store.Message{
@@ -67,8 +69,15 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		h.send(ctx, target, job.ClientID, chatEnvelope{Error: "model unavailable: " + llm.WithAuthHint(err).Error()})
 		return nil
 	}
-	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
-	dirs, fallback, _ := store.ParseChatAnswer(raw)
+	// A rejected answer after the bounded repair still degrades: chat's
+	// contract is that a message never fails, so the last answer goes
+	// through the lenient path, which keeps the prose around the payload
+	// and hides the payload itself.
+	dirs, fallback := dirs, false
+	if invalid != nil {
+		//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
+		dirs, fallback, _ = store.ParseChatAnswer(raw)
+	}
 	// Fallback carries the whole raw answer inside its single text_note:
 	// Text stays empty so the bubble renders once (text + component with
 	// the same content rendered everything twice).

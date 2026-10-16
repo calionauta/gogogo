@@ -4,6 +4,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	sdk "github.com/starfederation/datastar-go/datastar"
@@ -38,8 +39,17 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
 		return fmt.Errorf("genui: decode ask payload: %w", err)
 	}
-	raw, err := h.responder.Respond(ctx, p.Prompt)
+	dirs, _, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, comp.ParseDirectives)
 	if err != nil {
+		if _, invalid := errors.AsType[*comp.ValidationError](err); invalid {
+			// The model answered, but never in catalog shape — even after the
+			// bounded repair attempt. Its message names what the model got
+			// wrong, which is the only actionable part.
+			msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
+			h.sendResult(ctx, target, job.ClientID, nil, msg)
+			h.sendToast(ctx, target, job.ClientID, msg, "error")
+			return nil
+		}
 		// The responder's own error says what to do about it — "no LLM
 		// configured (GOAI_API_KEY or SIMULATE_LLM=true)", or the provider's
 		// message. Replacing it with a fixed "model unavailable" hid the only
@@ -52,17 +62,6 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 		h.sendToast(ctx, target, job.ClientID, msg, "error")
 		// Delivered as user-visible result; the pool must not retry Ask,
 		// so the worker swallows the error and returns nil.
-		return nil
-	}
-	//nolint:contextcheck // pure CPU (catalog parse); ctx enters at component Render instead.
-	dirs, err := comp.ParseDirectives(raw)
-	if err != nil {
-		// Same reasoning as the responder error above: the parse failure's
-		// message is what tells you which directive the model got wrong.
-		msg := "Ask failed: could not shape the answer (" + err.Error() + ")"
-		h.sendResult(ctx, target, job.ClientID, nil, msg)
-		h.sendToast(ctx, target, job.ClientID, msg, "error")
-		//nolint:nilerr // same contract as above: delivered, not retried.
 		return nil
 	}
 	h.sendResult(ctx, target, job.ClientID, dirs, "")
