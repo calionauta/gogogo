@@ -6697,6 +6697,9 @@
   .mt-0 {
     margin-top: 0px;
   }
+  .mt-0\.5 {
+    margin-top: calc(var(--spacing) * 0.5);
+  }
   .mt-1 {
     margin-top: var(--spacing);
   }
@@ -7700,6 +7703,16 @@
   }
   .italic {
     font-style: italic;
+  }
+  @layer daisyui.l1.l2 {
+    .link-hover {
+      text-decoration-line: none;
+    }
+    @media (hover: hover) {
+      .link-hover:hover {
+        text-decoration-line: underline;
+      }
+    }
   }
   .line-through {
     text-decoration-line: line-through;

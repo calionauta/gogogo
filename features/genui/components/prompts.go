@@ -3,6 +3,8 @@
 // what RENDERS, this file decides what the model is TOLD.
 package components
 
+import "strings"
+
 // PromptForCatalog generates the model instructions from the registry
 // (OpenUI pattern): the prompt advertises exactly the names that
 // resolve, so the model is never invited to emit components that fail
@@ -28,7 +30,7 @@ func PromptForCatalog() string {
 // classifier's guess. An empty, unknown or chat-only name (html_block) is
 // ignored, and the result is then byte-identical to PromptForCatalog().
 func PromptForCatalogLead(lead string) string {
-	if lead == "" || lead == htmlBlockName || !Registered(lead) {
+	if lead == "" || chatOnlyComponents(lead) || !Registered(lead) {
 		return PromptForCatalog()
 	}
 	return PromptForCatalog() + " Lead with " + lead + " as the top-level component."
@@ -56,6 +58,7 @@ func PromptForChat() string {
 		"data_table {headers:[], rows:[[]]}, " +
 		"plan_cards {plans:[{title, detail}]}, " +
 		"bar_chart {title, bars:[{label, value>=0}]}, " +
+		"todo_list {filter: " + strings.Join(todoListFilters, "|") + "}, " +
 		"section {title, children:[<component>]} holding nested components. " +
 		"Lead with html_block: build the visual this request asks for out of " +
 		"plain elements (div, span, p, headings, lists, table) and these " +
@@ -66,6 +69,8 @@ func PromptForChat() string {
 		"script, style, inline style attributes, event handlers, forms, media, " +
 		"svg and images are stripped, so put every style in a class. Use the " +
 		"catalog where markup cannot act: action_buttons to post to this app, " +
-		"text_note for a single line of text. " +
+		"text_note for a single line of text, and todo_list when the request is " +
+		"about the user's OWN todos: it shows their real list, which invented " +
+		"markup cannot. " +
 		"No prose outside the JSON object."
 }

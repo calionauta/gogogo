@@ -95,6 +95,42 @@ type DataTableProps struct {
 	Rows    [][]string `json:"rows"`
 }
 
+// TodoListProps is the model's view of the app's OWN todo list — and the
+// reason it is a filter and not content: a system component shows real
+// state, so the model may only choose WHICH slice to show. Rows are filled
+// by the worker's hydration and never come from the model
+// (decodeProps' DisallowUnknownFields is what rejects an answer that
+// tries to supply them). Filter is a closed set; an open string here
+// would let the model invent a query the store cannot answer.
+type TodoListProps struct {
+	Filter string    `json:"filter"`
+	Rows   []TodoRow `json:"rows,omitempty"`
+}
+
+// TodoRow is one hydrated row: the app's truth, filled server-side.
+type TodoRow struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Done  bool   `json:"done"`
+}
+
+// todoListFilters is the closed set the filter prop accepts, in prompt
+// order. Named, not numbered: the store is asked for the named slice.
+var todoListFilters = []string{"open", "done", "all"}
+
+// todoListName is the app's own panel component: chat's tool-based answer
+// ("show me my todos") as opposed to a catalog primitive.
+const todoListName = "todo_list"
+
+// chatOnlyComponents are advertised in chat's prompt and never in Ask's:
+// the invented-markup escape hatch and the app's own panels. Chat's prompt
+// is where the model is told they exist; Ask never names them, and the
+// router's candidate set is derived from what Ask advertises, so a
+// classifier pick cannot reach them either (see CatalogComponents).
+func chatOnlyComponents(name string) bool {
+	return name == htmlBlockName || name == todoListName
+}
+
 // renderer decodes untrusted props into a component or fails.
 type renderer func(map[string]any) (templ.Component, error)
 
@@ -150,6 +186,16 @@ var renderers = map[string]renderer{
 			}
 		}
 		return GenuiPlanCards(p.Plans), nil
+	},
+	todoListName: func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[TodoListProps](props)
+		if err != nil {
+			return nil, err
+		}
+		if !slices.Contains(todoListFilters, p.Filter) {
+			return nil, fmt.Errorf("genui: todo_list filter %q is not one of %v", p.Filter, todoListFilters)
+		}
+		return GenuiTodoList(p.Filter, p.Rows), nil
 	},
 	"data_table": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[DataTableProps](props)
@@ -255,7 +301,7 @@ func Registered(name string) bool {
 func CatalogComponents() []string {
 	names := make([]string, 0, len(renderers)+1)
 	for name := range renderers {
-		if name == htmlBlockName {
+		if chatOnlyComponents(name) {
 			continue
 		}
 		names = append(names, name)
@@ -325,155 +371,4 @@ func renderDepth(d Directive, depth int) (templ.Component, error) {
 		props = map[string]any{}
 	}
 	return r(props)
-}
-
-// stripFences removes ```json fences models wrap answers in. Duplicates
-// three lines instead of importing an unexported helper: the catalog
-// owns its front door (same reason parseStringArray owns its own).
-func stripFences(s string) string {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "```") {
-		return s
-	}
-	if i := strings.Index(s, "\n"); i > 0 {
-		s = s[i+1:]
-	}
-	if i := strings.LastIndex(s, "```"); i > 0 {
-		s = s[:i]
-	}
-	return strings.TrimSpace(s)
-}
-
-// rawDirective mirrors the model JSON including nesting; converted to
-// Directive only after validation passes at every level.
-//
-// Children and Components are the same slot under two names: the prompt
-// asks for "children", and models answer with the envelope's own
-// "components" (the wrapper key they just saw) at least as often. Both
-// resolve to nested directives; accepting only one silently dropped the
-// children (a section rendered empty instead of erroring).
-type rawDirective struct {
-	Type       string         `json:"type"`
-	Props      map[string]any `json:"props"`
-	Children   []rawDirective `json:"children,omitempty"`
-	Components []rawDirective `json:"components,omitempty"`
-}
-
-// ParseDirectives extracts and validates the component list from raw
-// model output. Tolerant of fences, surrounding prose and the structural
-// slips small models make, strict about the catalog: one unknown type,
-// undecodable props, over-deep nesting or empty answer rejects the whole
-// answer (a half-rendered generative region is worse than an error toast
-// with retry).
-//
-// Strict JSON is tried first, so a well-formed answer decodes exactly as
-// encoding/json would decode it and no tolerance can bend it. Only when
-// that fails does the tolerant reader take over, and it feeds the SAME
-// catalog validation — it can recover a shape, never invent a component.
-func ParseDirectives(raw string) ([]Directive, error) {
-	body := stripFences(strings.TrimSpace(raw))
-	if dirs, err := parseStrict(body); err == nil {
-		return dirs, nil
-	}
-	return parseTolerant(body)
-}
-
-// parseStrict is the well-formed path: the answer's outer object, decoded
-// by encoding/json and converted.
-func parseStrict(body string) ([]Directive, error) {
-	start, end := strings.IndexByte(body, '{'), strings.LastIndexByte(body, '}')
-	if start < 0 || end <= start {
-		return nil, errors.New("genui: no JSON object found")
-	}
-	var envelope struct {
-		Components []rawDirective `json:"components"`
-	}
-	if err := json.Unmarshal([]byte(body[start:end+1]), &envelope); err != nil {
-		return nil, fmt.Errorf("genui: decode directives: %w", err)
-	}
-	return convertAll(envelope.Components)
-}
-
-// convertAll validates a directive list, stopping at the first failure.
-// Both parse paths end here, which is what keeps them from disagreeing
-// about what the catalog accepts.
-func convertAll(raw []rawDirective) ([]Directive, error) {
-	if len(raw) == 0 {
-		return nil, errors.New("genui: no components in answer")
-	}
-	dirs := make([]Directive, 0, len(raw))
-	for _, c := range raw {
-		d, err := convertDirective(c, 0)
-		if err != nil {
-			return nil, err
-		}
-		dirs = append(dirs, d)
-	}
-	return dirs, nil
-}
-
-// childrenFromProps bridges the model's favorite nesting mistake:
-// children tucked inside props instead of beside type/props, under
-// "children" or under "components" (the envelope key it just saw). It
-// round-trips the value through rawDirective so malformed entries fail
-// here (ok=false) instead of halfway through validation, and removes the
-// key so strict prop decoding still passes.
-//
-// The tolerant reader handles this shape too, from the tree; this keeps
-// the strict path's verdict identical for the answers both can read.
-func childrenFromProps(props map[string]any) ([]rawDirective, bool) {
-	for _, key := range []string{"children", "components"} {
-		raw, ok := props[key]
-		if !ok || raw == nil {
-			continue
-		}
-		delete(props, key)
-		blob, err := json.Marshal(raw)
-		if err != nil {
-			continue
-		}
-		var out []rawDirective
-		dec := json.NewDecoder(strings.NewReader(string(blob)))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&out); err != nil {
-			continue
-		}
-		return out, true
-	}
-	return nil, false
-}
-
-// convertDirective validates one node (type registered, props decode,
-// depth budget) and its subtree. Render doubles as the validator so
-// parse and render can never disagree on what is legal.
-func convertDirective(c rawDirective, depth int) (Directive, error) {
-	if depth > maxDirectiveDepth {
-		return Directive{}, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
-	}
-	if !Registered(c.Type) {
-		return Directive{}, fmt.Errorf("genui: unregistered component %q", c.Type)
-	}
-	// Models habitually nest children inside props (the envelope shape
-	// puts everything under "props"); bridge them to the directive
-	// level (childrenFromProps drops the key, so strict prop decoding
-	// still applies to what is left).
-	rawChildren := append(append([]rawDirective(nil), c.Children...), c.Components...)
-	if len(rawChildren) == 0 {
-		if bridged, ok := childrenFromProps(c.Props); ok {
-			rawChildren = bridged
-		}
-	}
-	children := make([]Directive, 0, len(rawChildren))
-	for _, child := range rawChildren {
-		converted, err := convertDirective(child, depth+1)
-		if err != nil {
-			return Directive{}, err
-		}
-		children = append(children, converted)
-	}
-	d := Directive{Component: c.Type, Props: c.Props, Children: children}
-	if _, err := renderDepth(d, depth); err != nil {
-		return Directive{}, err
-	}
-	return d, nil
 }
