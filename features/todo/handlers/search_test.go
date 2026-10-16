@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/features/todo"
@@ -252,6 +253,73 @@ func TestSearchDegradesWhenPluginAbsent(t *testing.T) {
 	if !contains(rec.Body.String(), "unaffected row") {
 		t.Error("without the plugin the list must show every visible row")
 	}
+}
+
+// TestMutationKeepsActiveSearchNarrowing pins a bug the browser smoke found:
+// a mutation re-lists through patchListSelf, and that re-list must respect the
+// tab's ACTIVE search. A mutation URL carries no `q`, so before the fix the
+// create/toggle/delete path re-rendered every visible row — silently dropping
+// the filter and (because the box binds the same signal) wiping what the user
+// had typed.
+//
+// Red-proof: make patchListSelf ignore ViewOf(...).Query and the every-row
+// assertion fails.
+func TestMutationKeepsActiveSearchNarrowing(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := newHandlersFixture(t)
+	wireBM25(t, f)
+	cookie := f.signup("midsearch@example.com")
+	me := f.ownerOf(t, cookie)
+
+	// Two rows: one matches "kestrel", one does not.
+	if err := createTodoIndexed(ctx, f.q, f.h.Index, f.h.DB, dbgen.CreateTodoParams{
+		ID: dbschema.NewID(), Owner: me, Title: "kestrel report",
+		Visibility: todo.VisibilityPrivate, Created: dbschema.Now(), Updated: dbschema.Now(),
+	}); err != nil {
+		t.Fatalf("indexed create: %v", err)
+	}
+	createStamped(t, f, me, "unrelated chore")
+
+	// The tab performs a search, which stores its query on the stream view.
+	const clientID = "tab-midsearch"
+	searchJSONWithClient(t, f, cookie, "kestrel", clientID)
+
+	// Now a mutation from the same tab: it must still narrow to the search.
+	form := url.Values{"title": {"kestrel follow-up"}}
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost,
+		"/api/todos?filter=all&scope=all&clientID="+clientID, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	f.r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create during search: status = %d (body: %s)", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !contains(body, "kestrel report") {
+		t.Errorf("matching row missing after mutation:\n%s", body)
+	}
+	if contains(body, "unrelated chore") {
+		t.Error("mutation dropped the active search and re-rendered a non-matching row")
+	}
+}
+
+// searchJSONWithClient is searchJSON with a clientID, so the tab's view prefs
+// are stored the way a live browser tab stores them.
+func searchJSONWithClient(
+	t *testing.T, f *handlersFixture, cookie *http.Cookie, query, clientID string,
+) *httptest.ResponseRecorder {
+	t.Helper()
+	target := "/api/todos/search?q=" + url.QueryEscape(query) + "&filter=all&scope=all&clientID=" + clientID
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	f.r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET %s: status = %d (body: %s)", target, rec.Code, rec.Body.String())
+	}
+	return rec
 }
 
 func postingCount(t *testing.T, db *sql.DB, owner, docID string) int {

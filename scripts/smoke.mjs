@@ -257,10 +257,19 @@ async function verifyTodoSearch(page, skin) {
 
   for (const title of [marker, other]) {
     const input = page.getByPlaceholder("Add a new todo...");
+    // Wait for the previous create to settle (its response clears the bound
+    // signal) before typing the next, or the two creates race and the second
+    // title can be truncated to empty by the first response's $newTitle = ''.
+    await input.fill("");
     await input.fill(title);
     await input.press("Enter");
     await page.locator('[id^="todo-"]:not(#todo-list)').filter({ hasText: title })
       .waitFor({ state: "visible", timeout: 20000 });
+    await input.waitFor({ state: "visible", timeout: 20000 });
+    await page.waitForFunction((t) => {
+      const el = document.querySelector('input[data-bind="newTitle"]');
+      return !el || el.value !== t;
+    }, title, { timeout: 20000 });
   }
 
   const box = page.getByPlaceholder("Search todos...");
@@ -275,7 +284,13 @@ async function verifyTodoSearch(page, skin) {
   await box.fill("searchable");
   await patch;
 
+  // The list is patched as one region, so narrowing REMOVES the non-matching
+  // rows. Waiting on the marker row would be vacuous — it is already visible
+  // from the create above, so that wait resolves before the patch arrives and
+  // the assertion samples a stale DOM (observed as a CI flake). The detach of
+  // the non-matching row IS the transition, so it is the readiness signal.
   const rows = page.locator('[id^="todo-"]:not(#todo-list)');
+  await rows.filter({ hasText: other }).waitFor({ state: "detached", timeout: 20000 });
   await rows.filter({ hasText: marker }).waitFor({ state: "visible", timeout: 20000 });
   const leaked = await rows.filter({ hasText: other }).count();
   if (leaked !== 0) {

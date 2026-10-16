@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -123,7 +124,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
 		return
 	}
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: create patch failed", err, "save failed")
 		return
 	}
@@ -135,22 +136,42 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 // patchListSelf tags the originating mutation as "self" (self-origin entry
 // animation) and patches the list with view transitions, merging the fresh
 // item count in the same SSE response.
-func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request) error {
+//
+// The re-list narrows by the tab's ACTIVE SEARCH (read from its stored view
+// prefs, since a mutation URL carries no `q`): without this, pressing toggle
+// or delete while a search is active would re-render every visible row and
+// silently drop the filter — and, because the search box binds to the same
+// signal, would also wipe what the user typed. The stored query is the same
+// authority the record-event re-list reads, so one tab cannot end up on a
+// different slice than another.
+//
+//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
+func (h *Handler) patchListSelf(
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request,
+) error {
+	query := h.Hub.ViewOf(r.URL.Query().Get("clientID")).Query
+	if owner, err := h.ownerID(r); err == nil {
+		narrowed, nerr := h.narrowBySearch(ctx, owner, query, todos)
+		if nerr != nil {
+			return nerr
+		}
+		todos = narrowed
+	}
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
 		signalItemCount:  len(todos),
+		"searchQuery":    query,
 	}); err != nil {
 		return err
 	}
 	signals := h.displaySignals(r, todos, filterOf(r), scopeOf(r))
+	signals.SearchQuery = query
 	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())
 }
 
 // context; disconnects surface as write errors, checked per call.
-//
-//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	owner, err := h.ownerID(r)
 	if err != nil {
@@ -203,7 +224,7 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: toggle patch failed", err, "toggle failed")
 	}
 }
@@ -308,7 +329,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: delete signals failed", err, "delete failed")
 		return
 	}
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: delete patch failed", err, "delete failed")
 		return
 	}
@@ -354,7 +375,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: clear patch failed", err, "clear failed")
 		return
 	}
