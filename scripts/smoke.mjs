@@ -23,14 +23,18 @@ const SU_PASS = "SmokeSuperuserPass!123";
 const USER_EMAIL = "smoke-user@local.dev";
 const USER_PASS = "SmokeUserPass!123";
 
-const ROUTES = ["/todo", "/whiteboard", "/room", "/login", "/genui", "/review"];
+// /chat is here for the same reason as the rest: it is a page the smoke can
+// load, and its live column is a Datastar patch target (#chat-messages) whose
+// failure mode was invisible without a browser (nested container → doubled
+// answers). Loading it catches a broken patch target and any JS error on load.
+const ROUTES = ["/todo", "/chat", "/whiteboard", "/room", "/login", "/genui", "/review"];
 
 // Trim-aware gating: a trimmed checkout must neither fail on routes that
 // no longer exist nor silently pass over them. SMOKE_FEATURES lists the
 // features present (default: the full template surface); trim output
 // (installer Warns) tells you the value to use. Unknown names fail fast:
 // a typo must never read as "trimmed".
-const ALL_FEATURES = ["todo", "whiteboard", "room", "login", "genui", "review"];
+const ALL_FEATURES = ["todo", "chat", "whiteboard", "room", "login", "genui", "review"];
 const FEATURES = (process.env.SMOKE_FEATURES || ALL_FEATURES.join(",")).split(",");
 for (const f of FEATURES) {
   if (!ALL_FEATURES.includes(f)) {

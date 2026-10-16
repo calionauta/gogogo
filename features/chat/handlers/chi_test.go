@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/html"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/chat/store"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -163,6 +165,75 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 		}
 	case <-time.After(4 * time.Second):
 		t.Fatal("stream handshake timed out")
+	}
+}
+
+// TestHandlersChatEchoesPromptAsOwnBubble pins the live conversation
+// contract: the ask ack APPENDS the user's own bubble into
+// #chat-messages before the worker answers. The appended fragment must
+// not carry the container id itself — a server-side patch targets every
+// match of its selector, so a nested #chat-messages doubled each answer.
+func TestHandlersChatEchoesPromptAsOwnBubble(t *testing.T) {
+	mux, _, _ := chatFixture(t, stubResponder{raw: `{"components":[{"type":"text_note","props":{"text":"ok"}}]}`})
+	cookie := chatSignup(t, mux, "echo@example.com")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/chat/ask?clientID=echo-t1",
+		strings.NewReader("prompt=plan+my+day"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ask status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	ack := rec.Body.String()
+	for _, want := range []string{
+		"datastar-patch-elements",
+		"selector #chat-messages",
+		"mode append",
+		"plan my day",
+		"chat-end",
+	} {
+		if !strings.Contains(ack, want) {
+			t.Errorf("ask ack missing %q (got %.400q…)", want, ack)
+		}
+	}
+	if strings.Contains(ack, `id="chat-messages"`) {
+		t.Errorf("the appended fragment carries the container id (nested #chat-messages): %.400q…", ack)
+	}
+}
+
+// TestHandlersChatRendersHistory pins the reload path: the page is built
+// from the store, so a conversation survives a refresh, and the first-run
+// guidance is driven by the seeded $chat_empty signal.
+func TestHandlersChatRendersHistory(t *testing.T) {
+	mux, a, mem := chatFixture(t, stubResponder{raw: "{}"})
+	cookie := chatSignup(t, mux, "history@example.com")
+	owner := sessionOwner(t, a, cookie)
+	ctx := context.Background()
+	if err := mem.Append(ctx, owner, store.Message{Role: "user", Text: "first question"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.Append(ctx, owner, store.Message{Role: "assistant", Text: "first answer"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/chat", nil)
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /chat status = %d", rec.Code)
+	}
+	html := html.UnescapeString(rec.Body.String())
+	for _, want := range []string{"first question", "first answer", `"chat_empty":false`, `id="chat-empty"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("/chat missing %q", want)
+		}
+	}
+	if got := strings.Count(html, `id="chat-messages"`); got != 1 {
+		t.Errorf("/chat holds %d #chat-messages containers, want exactly 1", got)
 	}
 }
 

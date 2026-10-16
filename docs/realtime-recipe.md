@@ -20,6 +20,15 @@ reference implementations are the spec.
    `datastar-mode: outer` headers (`handleListFragment` is the reference).
    Target element needs a top-level `id` + explicit selector or the patch
    throws `PatchElementsNoTargetsFound` (linted).
+   **An APPENDED fragment must not carry the target's `id`.** A server-side
+   patch resolves its selector to EVERY match, so appending the container
+   component into its own container nests a second copy of the id and each
+   later patch lands in both — one answer rendered twice from send #2 on
+   (lived bug: chat appended `ChatList` into `#chat-messages`). Split the
+   container from the body and append the body: `ChatList` owns the id and
+   the guidance, `ChatThread` is the fragment (`features/chat/components`).
+   State that leaves with the first message rides a signal the seed owns
+   (`data-show="$chat_empty"`), never a second patch.
 4. **Reactive trigger**: `data-effect="fn($signal)"` with a pure function
    in a *synchronous* script (module scripts load after Datastar init and
    throw — proven live by `scripts/todo-docwatch.test.mjs`). No polling
@@ -76,4 +85,6 @@ machinery here; a native open-ack or restart handle replaces the status poll.
 
 `make templ && make datastar-lint` green · `go test -race <pkg>` green ·
 no `setInterval` in new UI code · no `innerHTML` rendering (morph
-instead) · spinner has error release · empty + error states render.
+instead) · appended fragments carry no target `id` · one
+`#<container>` in the DOM after N patches · spinner has error release ·
+empty + error states render.

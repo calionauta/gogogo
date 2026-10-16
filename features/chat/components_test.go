@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
+	html2 "golang.org/x/net/html"
 
 	chatcomponents "github.com/calionauta/gogogo/features/chat/components"
 	"github.com/calionauta/gogogo/features/chat/store"
@@ -22,7 +23,7 @@ import (
 func TestChatPageWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := chatcomponents.ChatIndex("a@b.c", "user", "dev", "").Render(context.Background(), &buf); err != nil {
+	if err := chatcomponents.ChatIndex("a@b.c", "user", "dev", "", nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
 	html := buf.String()
@@ -37,47 +38,85 @@ func TestChatPageWiring(t *testing.T) {
 		`id="chat-stream-opener"`,
 		`/static/cuelume.js`,
 		`data-cuelume`,
+		`data-show="$chat_empty"`,
 		`Ask anything — answers stream below`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("chat page missing %q", want)
 		}
 	}
+	// Attribute values arrive entity-escaped; unescape before reading the
+	// seeded signal object as JSON.
+	seeded := html2.UnescapeString(html)
+	if !strings.Contains(seeded, `"chat_empty":true`) {
+		t.Errorf("page did not seed $chat_empty for an empty conversation")
+	}
+	if !strings.Contains(seeded, "chat_empty = false") {
+		t.Errorf("composer never clears $chat_empty — the guidance would sit under every answer")
+	}
 	if strings.Contains(html, "play(") || strings.Contains(html, "AudioContext") {
 		t.Errorf("chat page carries custom sound JS (global cues cover it)")
 	}
 }
 
-// TestChatListStates pins the three list states, each rendered alone:
-// empty guidance (never a blank column), thinking skeleton while the
-// worker runs, error with a retry affordance.
+// TestChatListStates pins the column states: empty guidance (never a
+// blank column) and the error bubble, plus the signal that hides the
+// guidance once a conversation starts.
 func TestChatListStates(t *testing.T) {
 	t.Parallel()
-	render := func(msgs []store.MessageView, thinking bool, errMsg string) string {
+	render := func(msgs []store.MessageView, errMsg string) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := chatcomponents.ChatList(msgs, thinking, errMsg).Render(context.Background(), &buf); err != nil {
+		if err := chatcomponents.ChatList(msgs, errMsg).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("ChatList: %v", err)
 		}
 		return buf.String()
 	}
-	empty := render(nil, false, "")
-	for _, want := range []string{`id="chat-messages"`, "Ask anything"} {
+	empty := render(nil, "")
+	for _, want := range []string{`id="chat-messages"`, "Ask anything", `data-show="$chat_empty"`} {
 		if !strings.Contains(empty, want) {
 			t.Errorf("empty list missing %q", want)
 		}
 	}
-	thinking := render(nil, true, "")
-	for _, want := range []string{"Thinking", "skeleton", `role="status"`} {
-		if !strings.Contains(thinking, want) {
-			t.Errorf("thinking state missing %q", want)
-		}
-	}
-	failed := render(nil, false, "model unavailable")
-	for _, want := range []string{"model unavailable", `role="alert"`, "Try again"} {
+	failed := render(nil, "model unavailable")
+	for _, want := range []string{"model unavailable", `role="alert"`, "chat-bubble-error"} {
 		if !strings.Contains(failed, want) {
 			t.Errorf("error state missing %q", want)
 		}
+	}
+}
+
+// TestChatThreadFragmentCarriesNoContainerID is the red-proof for the
+// duplicated-answer report: the fragment the SSE hub APPENDS into
+// #chat-messages must not carry that id itself. Datastar patches every
+// match of a server-side selector, so a nested #chat-messages made send
+// #2 append into two containers and render the answer twice.
+func TestChatThreadFragmentCarriesNoContainerID(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	msgs := []store.MessageView{{Role: "user", Text: "plan my day"}, {Role: "assistant", Text: "sure"}}
+	if err := chatcomponents.ChatThread(msgs, "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("ChatThread: %v", err)
+	}
+	frag := buf.String()
+	if strings.Contains(frag, `id="chat-messages"`) {
+		t.Errorf("appended fragment carries the container id (nests a second #chat-messages): %q", frag)
+	}
+	if strings.Contains(frag, `id="chat-empty"`) {
+		t.Errorf("appended fragment carries the empty state: %q", frag)
+	}
+	for _, want := range []string{"plan my day", "sure"} {
+		if !strings.Contains(frag, want) {
+			t.Errorf("fragment missing bubble %q", want)
+		}
+	}
+
+	buf.Reset()
+	if err := chatcomponents.ChatList(nil, "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("ChatList: %v", err)
+	}
+	if got := strings.Count(buf.String(), `id="chat-messages"`); got != 1 {
+		t.Errorf("ChatList holds %d #chat-messages containers, want exactly 1", got)
 	}
 }
 
@@ -98,7 +137,7 @@ func TestChatListRendersBubbles(t *testing.T) {
 		{Role: "assistant", Text: "", Components: []templ.Component{comp}},
 	}
 	var buf bytes.Buffer
-	if err := chatcomponents.ChatList(msgs, false, "").Render(context.Background(), &buf); err != nil {
+	if err := chatcomponents.ChatList(msgs, "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatList(bubbles): %v", err)
 	}
 	for _, want := range []string{"plan my day", "nested hi", "chat-end", "chat-start"} {

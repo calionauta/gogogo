@@ -31,6 +31,8 @@
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
+    --tracking-wide: 0.025em;
+    --leading-relaxed: 1.625;
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;
     --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -6335,6 +6337,9 @@
       }
     }
   }
+  .col-span-2 {
+    grid-column: span 2 / span 2;
+  }
   @layer daisyui.l1.l2.l3 {
     .hero {
       display: grid;
@@ -6734,9 +6739,6 @@
   .ml-1 {
     margin-left: var(--spacing);
   }
-  .ml-2 {
-    margin-left: calc(var(--spacing) * 2);
-  }
   @layer daisyui.l1.l2.l3 {
     .status {
       display: inline-block;
@@ -6986,9 +6988,6 @@
   .inline {
     display: inline;
   }
-  .inline-block {
-    display: inline-block;
-  }
   .inline-flex {
     display: inline-flex;
   }
@@ -7062,9 +7061,6 @@
   .w-16 {
     width: calc(var(--spacing) * 16);
   }
-  .w-32 {
-    width: calc(var(--spacing) * 32);
-  }
   .w-full {
     width: 100%;
   }
@@ -7089,6 +7085,9 @@
   .min-w-0 {
     min-width: 0px;
   }
+  .min-w-full {
+    min-width: 100%;
+  }
   .flex-1 {
     flex: 1;
   }
@@ -7108,27 +7107,6 @@
     transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
   }
   @layer daisyui.l1.l2.l3 {
-    .skeleton {
-      border-radius: var(--radius-box);
-      background-color: var(--color-base-300);
-      will-change: background-position;
-      background-image: linear-gradient( 105deg, #0000 0% 40%, var(--color-base-100) 50%, #0000 60% 100% );
-      background-size: 200% auto;
-      background-position-x: -50%;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .skeleton {
-        transition-duration: 15s;
-      }
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .skeleton {
-        animation: skeleton 1.8s ease-in-out infinite;
-      }
-      .skeleton:dir(rtl) {
-        animation-direction: reverse;
-      }
-    }
     .link {
       cursor: pointer;
       text-decoration-line: underline;
@@ -7154,6 +7132,12 @@
   .cursor-pointer {
     cursor: pointer;
   }
+  .list-disc {
+    list-style-type: disc;
+  }
+  .list-none {
+    list-style-type: none;
+  }
   .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
@@ -7162,6 +7146,9 @@
   }
   .grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .flex-col {
     flex-direction: column;
@@ -7174,6 +7161,9 @@
   }
   .items-center {
     align-items: center;
+  }
+  .items-start {
+    align-items: flex-start;
   }
   .justify-between {
     justify-content: space-between;
@@ -7195,6 +7185,9 @@
   }
   .gap-3 {
     gap: calc(var(--spacing) * 3);
+  }
+  .gap-4 {
+    gap: calc(var(--spacing) * 4);
   }
   .gap-5 {
     gap: calc(var(--spacing) * 5);
@@ -7239,8 +7232,10 @@
   :where(.divide-base-200 > :not(:last-child)) {
     border-color: var(--color-base-200);
   }
-  .self-start {
-    align-self: flex-start;
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .overflow-hidden {
     overflow: hidden;
@@ -7334,6 +7329,10 @@
     text-shadow: 0 1px oklch(0% 0 0 / var(--glass-text-shadow-opacity, 5%));
   }
   @layer daisyui.l1.l2 {
+    .chat-bubble-error {
+      background-color: var(--color-error);
+      color: var(--color-error-content);
+    }
     .chat-bubble-primary {
       background-color: var(--color-primary);
       color: var(--color-primary-content);
@@ -7365,6 +7364,17 @@
     @media (forced-colors: active) {
       .tabs-box > :is(:is(.tab-active), [aria-selected="true"], [aria-current="true"], [aria-current="page"]):not(.tab-disabled, [disabled] ) {
         border: 1px solid;
+      }
+    }
+    .table-zebra tbody tr:where(:nth-child(even)) {
+      background-color: var(--color-base-200);
+    }
+    .table-zebra tbody tr:where(:nth-child(even)) :where(.table-pin-cols tr th) {
+      background-color: var(--color-base-200);
+    }
+    @media (hover: hover) {
+      :is(:is(.table-zebra tbody tr.row-hover), .table-zebra tbody tr.row-hover:where(:nth-child(even))):hover {
+        background-color: var(--color-base-300);
       }
     }
   }
@@ -7480,11 +7490,17 @@
       padding-block: calc(0.25rem * 2);
     }
   }
+  .px-3 {
+    padding-inline: calc(var(--spacing) * 3);
+  }
   .px-4 {
     padding-inline: calc(var(--spacing) * 4);
   }
   .py-2 {
     padding-block: calc(var(--spacing) * 2);
+  }
+  .py-3 {
+    padding-block: calc(var(--spacing) * 3);
   }
   .py-4 {
     padding-block: calc(var(--spacing) * 4);
@@ -7503,6 +7519,9 @@
   }
   .text-left {
     text-align: left;
+  }
+  .text-right {
+    text-align: right;
   }
   .font-mono {
     font-family: var(--font-mono);
@@ -7541,6 +7560,10 @@
       font-size: 0.625rem;
     }
   }
+  .leading-relaxed {
+    --tw-leading: var(--leading-relaxed);
+    line-height: var(--leading-relaxed);
+  }
   .font-bold {
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
@@ -7552,6 +7575,10 @@
   .font-semibold {
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
+  }
+  .tracking-wide {
+    --tw-tracking: var(--tracking-wide);
+    letter-spacing: var(--tracking-wide);
   }
   .break-all {
     word-break: break-all;
@@ -7603,6 +7630,12 @@
     }
     .link-primary {
       color: var(--color-primary);
+    }
+    .progress-primary {
+      color: var(--color-primary);
+    }
+    .progress-success {
+      color: var(--color-success);
     }
   }
   .text-accent {
@@ -7679,6 +7712,9 @@
   }
   .opacity-50 {
     opacity: 50%;
+  }
+  .opacity-60 {
+    opacity: 60%;
   }
   .opacity-70 {
     opacity: 70%;
@@ -7840,6 +7876,10 @@
       --badge-color: var(--color-accent);
       --badge-fg: var(--color-accent-content);
     }
+    .badge-error {
+      --badge-color: var(--color-error);
+      --badge-fg: var(--color-error-content);
+    }
     .badge-info {
       --badge-color: var(--color-info);
       --badge-fg: var(--color-info-content);
@@ -7855,6 +7895,10 @@
     .badge-success {
       --badge-color: var(--color-success);
       --badge-fg: var(--color-success-content);
+    }
+    .badge-warning {
+      --badge-color: var(--color-warning);
+      --badge-fg: var(--color-warning-content);
     }
   }
   @layer daisyui.l1.l2.l3 {
@@ -7932,6 +7976,12 @@
     }
     .sm\:inline {
       display: inline;
+    }
+    .sm\:grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .sm\:grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     @layer daisyui.l1.l2 {
       .sm\:input-md {
@@ -8326,7 +8376,15 @@
   inherits: false;
   initial-value: solid;
 }
+@property --tw-leading {
+  syntax: "*";
+  inherits: false;
+}
 @property --tw-font-weight {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-tracking {
   syntax: "*";
   inherits: false;
 }
@@ -8487,7 +8545,9 @@
       --tw-space-y-reverse: 0;
       --tw-divide-y-reverse: 0;
       --tw-border-style: solid;
+      --tw-leading: initial;
       --tw-font-weight: initial;
+      --tw-tracking: initial;
       --tw-shadow: 0 0 #0000;
       --tw-shadow-color: initial;
       --tw-shadow-alpha: 100%;
