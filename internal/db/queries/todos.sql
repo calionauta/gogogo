@@ -48,3 +48,13 @@ SELECT * FROM todos WHERE owner = ? AND idem_key = ? AND idem_key <> '';
 
 -- name: DeleteCompletedByOwner :execrows
 DELETE FROM todos WHERE owner = ? AND completed = 1;
+
+-- name: SearchTodosByOwner :many
+-- The todo search plugin's cheapest layer, in SQL: the owner's rows whose
+-- title contains the query, case-insensitively. The caller builds the
+-- pattern in Go, so the user's text needs no escaping here. No ranking:
+-- that is what the other layers are for.
+SELECT * FROM todos
+WHERE owner = ? AND lower(title) LIKE lower(?)
+ORDER BY completed, created DESC
+LIMIT ?;

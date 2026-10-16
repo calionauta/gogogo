@@ -280,6 +280,55 @@ func (q *Queries) ListVisibleTodos(ctx context.Context, owner string) ([]ListVis
 	return items, nil
 }
 
+const searchTodosByOwner = `-- name: SearchTodosByOwner :many
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos
+WHERE owner = ? AND lower(title) LIKE lower(?)
+ORDER BY completed, created DESC
+LIMIT ?
+`
+
+type SearchTodosByOwnerParams struct {
+	Owner string
+	LOWER string
+	Limit int64
+}
+
+// The todo search plugin's cheapest layer, in SQL: the owner's rows whose
+// title contains the query, case-insensitively. The caller builds the
+// pattern in Go, so the user's text needs no escaping here. No ranking:
+// that is what the other layers are for.
+func (q *Queries) SearchTodosByOwner(ctx context.Context, arg SearchTodosByOwnerParams) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, searchTodosByOwner, arg.Owner, arg.LOWER, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Todo{}
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.Owner,
+			&i.Title,
+			&i.Completed,
+			&i.IdemKey,
+			&i.Created,
+			&i.Updated,
+			&i.Visibility,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setTodoCompleted = `-- name: SetTodoCompleted :exec
 UPDATE todos SET completed = ?, updated = ? WHERE id = ? AND owner = ?
 `
