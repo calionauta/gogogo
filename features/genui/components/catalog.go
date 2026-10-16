@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -96,6 +97,15 @@ type DataTableProps struct {
 
 // renderer decodes untrusted props into a component or fails.
 type renderer func(map[string]any) (templ.Component, error)
+
+// sectionName is the one container component: it resolves like a leaf
+// (see Registered) and renders its children instead of props.
+const sectionName = "section"
+
+// htmlBlockName is chat's invented-markup affordance. Ask never
+// advertises it (see PromptForChat vs PromptForCatalog), so anything that
+// chooses a component for Ask must treat this name as out of catalog.
+const htmlBlockName = "html_block"
 
 func decodeProps[T any](props map[string]any) (T, error) {
 	var out T
@@ -189,7 +199,7 @@ var renderers = map[string]renderer{
 		}
 		return GenuiActionButtons(p.Actions), nil
 	},
-	"html_block": func(props map[string]any) (templ.Component, error) {
+	htmlBlockName: func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[HTMLBlockProps](props)
 		if err != nil {
 			return nil, err
@@ -228,11 +238,31 @@ func checkAction(a Action) error {
 // validation and tests name one registry, while Render handles its
 // children natively below.
 func Registered(name string) bool {
-	if name == "section" {
+	if name == sectionName {
 		return true
 	}
 	_, ok := renderers[name]
 	return ok
+}
+
+// CatalogComponents lists the names an Ask answer may lead with: every
+// leaf renderer plus the section container, sorted, minus html_block.
+// html_block is chat's affordance — Ask never advertises it, so the
+// router must never offer it as a label (a pick outside this set is
+// ignored, which is what keeps a router on but wrong from changing the
+// prompt). Derived from the registry, not spelled out: a new component
+// becomes routable by adding its one map entry.
+func CatalogComponents() []string {
+	names := make([]string, 0, len(renderers)+1)
+	for name := range renderers {
+		if name == htmlBlockName {
+			continue
+		}
+		names = append(names, name)
+	}
+	names = append(names, sectionName)
+	slices.Sort(names)
+	return names
 }
 
 // Render resolves one validated directive to its component. Unknown
@@ -262,7 +292,7 @@ func renderDepth(d Directive, depth int) (templ.Component, error) {
 	if depth > maxDirectiveDepth {
 		return nil, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
 	}
-	if d.Component == "section" {
+	if d.Component == sectionName {
 		var title SectionProps
 		raw, err := json.Marshal(d.Props)
 		if err != nil {

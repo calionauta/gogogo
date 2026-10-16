@@ -20,6 +20,20 @@ func PromptForCatalog() string {
 		"No prose outside the JSON object."
 }
 
+// PromptForCatalogLead is PromptForCatalog with the router's pick named as
+// the lead component. The catalog stays fully advertised on purpose: the
+// router decides which component the answer LEADS with, never which
+// components may render — a section still needs its children, and a request
+// that genuinely needs two views must not be truncated to one by a
+// classifier's guess. An empty, unknown or chat-only name (html_block) is
+// ignored, and the result is then byte-identical to PromptForCatalog().
+func PromptForCatalogLead(lead string) string {
+	if lead == "" || lead == htmlBlockName || !Registered(lead) {
+		return PromptForCatalog()
+	}
+	return PromptForCatalog() + " Lead with " + lead + " as the top-level component."
+}
+
 // PromptForChat is the chat affordance, and it is deliberately not the Ask
 // prompt: Ask demonstrates answers shaped by a fixed catalog, chat answers
 // with a component invented for THIS request. The model composes

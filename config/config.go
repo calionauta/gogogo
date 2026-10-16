@@ -259,6 +259,11 @@ type Config struct {
 	// and docs/review.md for the customization contract.
 	Review ReviewConfig
 
+	// AskRouter opts the Ask AI page into that same jev-compatible
+	// endpoint as a component router (JEV_ROUTER_* env, off by default).
+	// See config/ask_router.go and docs/configuration.md.
+	AskRouter AskRouterConfig
+
 	// Credits gates the AI credits + BYOK plugin (lib calionauta/ai-credits).
 	// When Credits.Enabled is false the plugin registers no routes and
 	// credits.New is never built — the binary runs billing-free.
@@ -361,6 +366,7 @@ func Load() *Config {
 	cfg.ChiAddr = getEnv("CHI_ADDR", "")
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 	cfg.loadReviewEnv()
+	cfg.loadAskRouterEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
 	cfg.Credits.DefaultMode = getEnv("CREDITS_DEFAULT_MODE", "explicit")

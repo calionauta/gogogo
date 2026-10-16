@@ -2,6 +2,16 @@
 
 ### Added
 
+- **Ask AI can ask a classifier which component to lead with.** A
+  jev-compatible API (`JEV_ROUTER_ENABLED=true`, endpoint shared with the
+  review judge) picks the catalog component an Ask answer leads with;
+  off by default, and the prompt is then byte-identical to the
+  catalog-only one (`TestAskPromptRouterOffIsUnchanged`). The pick is a
+  HINT, never a narrowing: the catalog stays fully advertised, so a
+  section still gets its children, and every miss — confidence below
+  `JEV_ROUTER_CONFIDENCE_THRESHOLD`, a label outside the registry,
+  chat's `html_block`, a dead endpoint — falls back to the whole
+  catalog instead of failing the request.
 - **The class vocabulary model markup may use is safelisted, and the
   prompt shows exactly it.** An invented `html_block` exists only at
   runtime, so Tailwind never scanned its classes: measured on this tree,

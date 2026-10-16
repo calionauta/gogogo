@@ -253,7 +253,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))
 	chatH.RegisterHandlers(chiQ.Registry())
 	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,
-		comp.NewResponder(realLLM, simulatedLLM))
+		comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)))
 	genuiH.RegisterHandlers(chiQ.Registry())
 	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()

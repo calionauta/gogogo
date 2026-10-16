@@ -161,3 +161,43 @@ func TestReviewEnvParsing(t *testing.T) {
 		}
 	}
 }
+
+// TestAskRouterEnvParsing pins the Ask router's opt-in knob: OFF unless
+// JEV_ROUTER_ENABLED is set (the compatibility guarantee — an existing
+// install must be untouched by this feature), and a threshold that resets
+// to the default rather than failing the boot. Red-proof: default Enabled
+// to true in loadAskRouterEnv and the first assertion goes red.
+func TestAskRouterEnvParsing(t *testing.T) {
+	// Not parallel: t.Setenv forbids t.Parallel.
+	t.Setenv("JEV_ROUTER_ENABLED", "")
+	t.Setenv("JEV_ROUTER_CONFIDENCE_THRESHOLD", "")
+	got := Load()
+	if got.AskRouter.Enabled {
+		t.Error("AskRouter.Enabled unset = true, want the opt-in default false")
+	}
+	if got.AskRouter.ConfidenceThreshold != DefaultAskRouterConfidenceThreshold {
+		t.Errorf("default threshold = %v, want %v", got.AskRouter.ConfidenceThreshold, DefaultAskRouterConfidenceThreshold)
+	}
+
+	t.Setenv("JEV_ROUTER_ENABLED", "true")
+	t.Setenv("JEV_ROUTER_CONFIDENCE_THRESHOLD", "0.9")
+	got = Load()
+	if !got.AskRouter.Enabled {
+		t.Error("JEV_ROUTER_ENABLED=true = false")
+	}
+	if got.AskRouter.ConfidenceThreshold != 0.9 {
+		t.Errorf("override threshold = %v, want 0.9", got.AskRouter.ConfidenceThreshold)
+	}
+
+	t.Setenv("JEV_ROUTER_ENABLED", "off")
+	if got := Load(); got.AskRouter.Enabled {
+		t.Error(`JEV_ROUTER_ENABLED="off" = true, want envBool's false`)
+	}
+	for _, bad := range []string{"2.0", "-0.5", "abc"} {
+		t.Setenv("JEV_ROUTER_CONFIDENCE_THRESHOLD", bad)
+		if got := Load(); got.AskRouter.ConfidenceThreshold != DefaultAskRouterConfidenceThreshold {
+			t.Errorf("threshold %q = %v, want default %v",
+				bad, got.AskRouter.ConfidenceThreshold, DefaultAskRouterConfidenceThreshold)
+		}
+	}
+}
