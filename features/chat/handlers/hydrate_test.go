@@ -19,8 +19,8 @@ import (
 // and the stored directive keeps empty rows.
 func TestChatHydratesSystemPanel(t *testing.T) {
 	answer := `{"components":[{"type":"todo_list","props":{"filter":"open"}}]}`
-	lister := stubLister{rows: []comp.TodoRow{{ID: "t1", Title: "real row"}}}
-	mux, a, mem := chatFixtureWith(t, stubResponder{raw: answer}, lister)
+	panels := []comp.PanelProvider{stubPanel{rows: []comp.TodoRow{{ID: "t1", Title: "real row"}}}}
+	mux, a, mem := chatFixtureWith(t, stubResponder{raw: answer}, panels)
 	cookie := chatSignup(t, mux, "panel@example.com")
 
 	rec := httptest.NewRecorder()

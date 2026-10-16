@@ -244,17 +244,17 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
-	// Retained: the chat/genui constructions below consume these, and the
-	// genui trim drops those lines — without an explicit use the locals
-	// would not compile on trimmed trees. Same rule as the bootCtx retain.
-	_ = realLLM
-	_ = simulatedLLM
+	// Retained for the trimmed tree: the genui trim drops the constructions
+	// below, and an unused local would not compile there.
+	_, _ = realLLM, simulatedLLM
+	// panels: the data half of the AI components (see components.Hydrate).
+	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}
 	chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,
 		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM),
-		todohandlers.NewTodoListLister(queries))
+		panels)
 	chatH.RegisterHandlers(chiQ.Registry())
 	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,
-		comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)))
+		comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)), panels)
 	genuiH.RegisterHandlers(chiQ.Registry())
 	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()

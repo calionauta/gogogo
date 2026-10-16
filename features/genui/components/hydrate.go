@@ -6,52 +6,60 @@ import (
 	"maps"
 )
 
-// TodoLister is the seam that fills a system component's rows from the
-// app's own store. It lives at the consumer: the catalog needs rows, the
-// store owns them, and this package must not learn what a todo is (no
-// dbgen, no RBAC import). The todo feature implements it and chi.go wires
-// it.
-type TodoLister interface {
-	// ListFor returns the viewer's OWN rows for one validated filter.
-	ListFor(ctx context.Context, owner, filter string) ([]TodoRow, error)
-}
-
-// Hydrate fills every system component's rows from the store.
+// Hydrate fills every registered system component's props from its provider.
 //
-// A system component with no lister is DROPPED, not rendered empty: an
-// empty panel would tell the user "you have no todos", which is a lie the
-// app must not tell when it simply was not wired (a trimmed build). A
-// component whose lister errors is also dropped, and the error is returned
-// for the caller to log — the answer keeps its other components either way,
-// because losing a panel must not lose the answer.
-func Hydrate(ctx context.Context, dirs []Directive, owner string, l TodoLister) ([]Directive, error) {
+// A REGISTERED panel with no provider (trimmed build) is DROPPED, not
+// rendered empty: an empty panel would tell the user "you have no todos",
+// which is a lie the app must not tell when nothing was wired. A panel whose
+// provider errors is dropped too, and the first error is returned for the log
+// — the answer keeps its other components either way, because losing a panel
+// must not lose the answer.
+//
+// It returns a NEW slice with fresh prop maps. Writing through the caller's
+// map (maps are references) would make the returned slice redundant and
+// hide the aliasing from any test written against the return value.
+func Hydrate(
+	ctx context.Context, dirs []Directive, owner string, providers []PanelProvider,
+) ([]Directive, error) {
+	byName := make(map[string]PanelProvider, len(providers))
+	for _, p := range providers {
+		byName[p.Component()] = p
+	}
 	var firstErr error
 	kept := make([]Directive, 0, len(dirs))
 	for _, d := range dirs {
-		if d.Component != todoListName {
-			kept = append(kept, d)
+		provider, wired := byName[d.Component]
+		if !wired {
+			// A registered panel without a provider is dropped; anything
+			// that is not a registered panel passes through untouched.
+			if !IsPanel(d.Component) {
+				kept = append(kept, d)
+			}
 			continue
 		}
-		if l == nil {
-			continue
-		}
-		filter, _ := d.Props["filter"].(string)
-		rows, err := l.ListFor(ctx, owner, filter)
+		props, err := provider.Fill(ctx, owner, d.Props)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
 			continue
 		}
-		// Clone the props before filling: the caller's map is not ours to
-		// mutate, and a Hydrate that writes through its input would make the
-		// returned slice redundant — every caller would silently get the
-		// rows whether or not it used the result.
-		props := make(map[string]any, len(d.Props)+1)
-		maps.Copy(props, d.Props)
-		props["rows"] = rows
-		d.Props = props
+		filled := make(map[string]any, len(props))
+		maps.Copy(filled, props)
+		d.Props = filled
 		kept = append(kept, d)
 	}
 	return kept, firstErr
+}
+
+// PanelNamesIn reports which of dirs are system panels, so a caller can log
+// or count them without knowing their names.
+func PanelNamesIn(dirs []Directive) []string {
+	var out []string
+	for _, d := range dirs {
+		if IsPanel(d.Component) {
+			out = append(out, d.Component)
+		}
+	}
+	return out
 }

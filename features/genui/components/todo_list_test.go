@@ -17,7 +17,7 @@ func slicesContain(haystack []string, needle string) bool {
 // filter is a corrected answer rather than a query the store cannot answer.
 func TestTodoListValidatesTheFilter(t *testing.T) {
 	t.Parallel()
-	for _, filter := range todoListFilters {
+	for _, filter := range TodoListFilters {
 		raw := `{"components":[{"type":"todo_list","props":{"filter":"` + filter + `"}}]}`
 		dirs, err := ParseDirectives(raw)
 		if err != nil {

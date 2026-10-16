@@ -4,6 +4,7 @@ package components
 
 import (
 	"context"
+	"maps"
 	"testing"
 )
 
@@ -18,16 +19,16 @@ func TestHydrateDropsPanelsItCannotFill(t *testing.T) {
 	panel := Directive{Component: todoListName, Props: map[string]any{"filter": "open"}}
 	note := Directive{Component: "text_note", Props: map[string]any{"text": "here you go"}}
 
-	for name, lister := range map[string]TodoLister{
-		"no seam":     nil,
-		"query error": stubLister{err: context.DeadlineExceeded},
+	for name, providers := range map[string][]PanelProvider{
+		"no provider":     nil,
+		"provider errors": {stubPanel{err: context.DeadlineExceeded}},
 	} {
-		got, err := Hydrate(ctx, []Directive{panel, note}, "owner", lister)
+		got, err := Hydrate(ctx, []Directive{panel, note}, "owner", providers)
 		if len(got) != 1 || got[0].Component != "text_note" {
 			t.Errorf("%s: kept %+v, want only the text_note", name, got)
 		}
-		if lister != nil && err == nil {
-			t.Errorf("%s: a failing query was not reported", name)
+		if providers != nil && err == nil {
+			t.Errorf("%s: a failing fill was not reported", name)
 		}
 		if _, hasRows := panel.Props["rows"]; hasRows {
 			t.Errorf("%s: Hydrate wrote through the caller's props map", name)
@@ -43,12 +44,23 @@ func TestHydrateDropsPanelsItCannotFill(t *testing.T) {
 	}
 }
 
-// stubLister is the seam under test: rows or an error, never a store.
-type stubLister struct {
+// stubPanel is the seam under test: rows or an error, never a store. It is
+// a provider like production's, so the test exercises the registry path
+// rather than a special case.
+type stubPanel struct {
 	rows []TodoRow
 	err  error
 }
 
-func (s stubLister) ListFor(context.Context, string, string) ([]TodoRow, error) {
-	return s.rows, s.err
+func (s stubPanel) Component() string      { return todoListName }
+func (s stubPanel) PromptFragment() string { return "todo_list {filter}" }
+
+func (s stubPanel) Fill(_ context.Context, _ string, props map[string]any) (map[string]any, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	out := make(map[string]any, len(props)+1)
+	maps.Copy(out, props)
+	out["rows"] = s.rows
+	return out, nil
 }

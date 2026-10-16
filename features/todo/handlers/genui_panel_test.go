@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/features/todo"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -39,12 +40,16 @@ func TestTodoListListerFiltersAndScopes(t *testing.T) {
 		t.Fatalf("complete: %v", err)
 	}
 
-	l := NewTodoListLister(f.q)
+	p := NewTodoPanel(f.q)
+	if got := p.Component(); got != "todo_list" {
+		t.Fatalf("Component = %q, want todo_list (the catalog's registry key)", got)
+	}
 	for filter, want := range map[string]int{"open": 1, "done": 1, "all": 2} {
-		rows, err := l.ListFor(ctx, meID, filter)
+		props, err := p.Fill(ctx, meID, map[string]any{"filter": filter})
 		if err != nil {
 			t.Fatalf("%s: %v", filter, err)
 		}
+		rows, _ := props["rows"].([]comp.TodoRow)
 		if len(rows) != want {
 			t.Errorf("%s: %d rows, want %d (%+v)", filter, len(rows), want, rows)
 		}
@@ -53,6 +58,11 @@ func TestTodoListListerFiltersAndScopes(t *testing.T) {
 				t.Errorf("%s: another owner's row leaked into my panel", filter)
 			}
 		}
+	}
+	// A filter outside the closed set is refused here too, not just at parse
+	// time: the store must never receive a string a model chose.
+	if _, err := p.Fill(ctx, meID, map[string]any{"filter": "everything"}); err == nil {
+		t.Error("an unknown filter was accepted by the panel")
 	}
 }
 

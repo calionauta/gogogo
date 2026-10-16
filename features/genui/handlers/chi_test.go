@@ -47,7 +47,7 @@ func genuiFixture(t *testing.T, responder comp.Responder) http.Handler {
 		t.Fatalf("queue: %v", err)
 	}
 	t.Cleanup(q.Close)
-	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), responder)
+	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), responder, nil)
 	h.RegisterHandlers(q.Registry())
 	q.StartWorkers()
 	mux := http.NewServeMux()

@@ -436,15 +436,12 @@ var featureTrimUnits = []trimUnit{
 			{
 				path: chiGoFile,
 				substrs: []string{
-					// Constructions are two lines each (handler + model leg):
-					// both go, and add restores them as call lines. Hub is the
-					// shared chiQ.Hub() (single-hub wiring: a private hub here
-					// would swallow worker feedback again).
 					"chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,",
 					"chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM),",
-					"todohandlers.NewTodoListLister(queries))", // seam: capabilities/genui
+					"panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}",
+					"panels)",
 					"genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,",
-					"comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)))",
+					"comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg))",
 					"chatH.RegisterHandlers(chiQ.Registry())",
 					"genuiH.RegisterHandlers(chiQ.Registry())",
 					// One argument per line: each drop removes exactly its
@@ -480,6 +477,7 @@ var featureTrimUnits = []trimUnit{
 					`genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"`,
 					"chathandlers.NewHandler(",
 					"genuihandlers.NewHandler(",
+					"stubResponder{raw: \"{}\"}, nil),",
 					"\t\t\"/chat\",",
 					"\t\t\"/genui\",",
 				},

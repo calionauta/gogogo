@@ -4,6 +4,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,16 +33,23 @@ func (s stubResponder) Respond(context.Context, string) (string, error) {
 	return s.raw, s.err
 }
 
-// stubLister stands in for the todo feature's hydration seam: the chat
-// handler never learns what a todo is, only that something can fill a
-// panel's rows.
-type stubLister struct {
+// stubPanel stands in for a feature's panel provider: the chat handler never
+// learns what a todo is, only that something can fill a panel's rows.
+type stubPanel struct {
 	rows []comp.TodoRow
 	err  error
 }
 
-func (s stubLister) ListFor(_ context.Context, _, _ string) ([]comp.TodoRow, error) {
-	return s.rows, s.err
+func (s stubPanel) Component() string { return "todo_list" }
+
+func (s stubPanel) Fill(_ context.Context, _ string, props map[string]any) (map[string]any, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	out := make(map[string]any, len(props)+1)
+	maps.Copy(out, props)
+	out["rows"] = s.rows
+	return out, nil
 }
 
 func chatFixture(t *testing.T, responder store.Responder) (http.Handler, *auth.Auth, *store.MemStore) {
@@ -53,7 +61,7 @@ func chatFixture(t *testing.T, responder store.Responder) (http.Handler, *auth.A
 // test can prove a system panel renders the store's rows (or is dropped
 // when no seam exists).
 func chatFixtureWith(
-	t *testing.T, responder store.Responder, lister comp.TodoLister,
+	t *testing.T, responder store.Responder, panels []comp.PanelProvider,
 ) (http.Handler, *auth.Auth, *store.MemStore) {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/chat.db")
@@ -74,7 +82,7 @@ func chatFixtureWith(
 	}
 	t.Cleanup(q.Close)
 	mem := store.NewMemStore()
-	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), mem, responder, lister)
+	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), mem, responder, panels)
 	h.RegisterHandlers(q.Registry())
 	q.StartWorkers()
 	mux := http.NewServeMux()

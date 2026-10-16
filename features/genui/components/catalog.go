@@ -114,21 +114,29 @@ type TodoRow struct {
 	Done  bool   `json:"done"`
 }
 
-// todoListFilters is the closed set the filter prop accepts, in prompt
-// order. Named, not numbered: the store is asked for the named slice.
-var todoListFilters = []string{"open", "done", "all"}
+// TodoListFilters is the closed set the filter prop accepts, in prompt
+// order. Named, not numbered: the store is asked for the named slice, and a
+// panel's prompt fragment is built from this list so the advertised filters
+// cannot drift from the accepted ones.
+var TodoListFilters = []string{"open", "done", "all"}
+
+// TodoFiltersContain reports whether a filter is in the closed set. Exported
+// so a panel implementation validates against the same list the catalog does.
+func TodoFiltersContain(filter string) bool {
+	return slices.Contains(TodoListFilters, filter)
+}
 
 // todoListName is the app's own panel component: chat's tool-based answer
 // ("show me my todos") as opposed to a catalog primitive.
 const todoListName = "todo_list"
 
-// chatOnlyComponents are advertised in chat's prompt and never in Ask's:
-// the invented-markup escape hatch and the app's own panels. Chat's prompt
-// is where the model is told they exist; Ask never names them, and the
-// router's candidate set is derived from what Ask advertises, so a
-// classifier pick cannot reach them either (see CatalogComponents).
+// chatOnlyComponents are advertised in chat's prompt and never in Ask's: the
+// invented-markup escape hatch and the app's own panels. Chat's prompt is
+// where the model is told they exist; Ask never names them, and the router's
+// candidate set is derived from what Ask advertises, so a classifier pick
+// cannot reach them either (see CatalogComponents).
 func chatOnlyComponents(name string) bool {
-	return name == htmlBlockName || name == todoListName
+	return name == htmlBlockName || IsPanel(name)
 }
 
 // renderer decodes untrusted props into a component or fails.
@@ -192,8 +200,8 @@ var renderers = map[string]renderer{
 		if err != nil {
 			return nil, err
 		}
-		if !slices.Contains(todoListFilters, p.Filter) {
-			return nil, fmt.Errorf("genui: todo_list filter %q is not one of %v", p.Filter, todoListFilters)
+		if !TodoFiltersContain(p.Filter) {
+			return nil, fmt.Errorf("genui: todo_list filter %q is not one of %v", p.Filter, TodoListFilters)
 		}
 		return GenuiTodoList(p.Filter, p.Rows), nil
 	},
