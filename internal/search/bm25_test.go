@@ -15,7 +15,7 @@ import (
 // asserting a number.
 func TestBM25ScoreIsTheFormula(t *testing.T) {
 	t.Parallel()
-	b := BM25{Store: indexDocs(exampleCorpus().docs, "title")}
+	b := BM25{Index: indexDocs(exampleCorpus().docs, "title")}
 	hits, err := b.Search(context.Background(), Query{Text: "smoke", Field: "title"})
 	if err != nil {
 		t.Fatalf("search: %v", err)
@@ -35,7 +35,7 @@ func TestBM25ScoreIsTheFormula(t *testing.T) {
 // by position.
 func TestBM25RareTermOutranksCommonTerm(t *testing.T) {
 	t.Parallel()
-	b := BM25{Store: indexDocs(exampleCorpus().docs, "title")}
+	b := BM25{Index: indexDocs(exampleCorpus().docs, "title")}
 	hits, err := b.Search(context.Background(), Query{Text: "the invoice", Field: "title"})
 	if err != nil {
 		t.Fatalf("search: %v", err)

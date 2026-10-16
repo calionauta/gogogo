@@ -17,7 +17,7 @@ func TestNewSelectsByMode(t *testing.T) {
 		FuzzyMode:     Fuzzy{},
 		BM25Mode:      BM25{},
 	} {
-		got, err := New(mode, store)
+		got, err := New(mode, store, store)
 		if err != nil {
 			t.Fatalf("mode %q: %v", mode, err)
 		}
@@ -36,10 +36,10 @@ func TestNewSelectsByMode(t *testing.T) {
 			}
 		}
 	}
-	if _, err := New("turso-fts", store); err == nil {
+	if _, err := New("turso-fts", store, store); err == nil {
 		t.Error("an unknown mode was accepted, want an error naming the valid ones")
 	}
-	if _, err := New(FuzzyMode, nil); err == nil {
+	if _, err := New(FuzzyMode, nil, nil); err == nil {
 		t.Error("a nil store was accepted")
 	}
 }

@@ -38,7 +38,7 @@ func exampleCorpus() memStore {
 // reaches exactly the row and the tier the explanation promised.
 func TestFuzzyTiers(t *testing.T) {
 	t.Parallel()
-	f := Fuzzy{Store: exampleCorpus()}
+	f := Fuzzy{Source: exampleCorpus()}
 	for name, tc := range map[string]struct {
 		query string
 		want  string
@@ -69,7 +69,7 @@ func TestFuzzyTiers(t *testing.T) {
 // ranking the two rows that each match half of it.
 func TestFuzzyRejectsUnmatchedToken(t *testing.T) {
 	t.Parallel()
-	f := Fuzzy{Store: exampleCorpus()}
+	f := Fuzzy{Source: exampleCorpus()}
 	hits, err := f.Search(context.Background(), Query{Text: "smoke invoice", Field: "title"})
 	if err != nil {
 		t.Fatalf("search: %v", err)

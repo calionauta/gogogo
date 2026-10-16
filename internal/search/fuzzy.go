@@ -25,12 +25,12 @@ import (
 // as good as the token it had to stretch for. Ties break on the earliest
 // match, so equally good rows keep their list order.
 type Fuzzy struct {
-	Store Store
+	Source Source
 }
 
 // Search implements Searcher.
 func (f Fuzzy) Search(ctx context.Context, q Query) ([]Hit, error) {
-	docs, err := f.Store.Candidates(ctx, q)
+	docs, err := f.Source.Candidates(ctx, q)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ const (
 // (IDF), and a short document stating the term once outranks a long one
 // repeating it (saturation + length normalization).
 type BM25 struct {
-	Store Store
+	Index Index
 }
 
 // Search implements Searcher. A document matching only SOME terms still
@@ -38,11 +38,11 @@ func (b BM25) Search(ctx context.Context, q Query) ([]Hit, error) {
 	if len(terms) == 0 {
 		return nil, nil
 	}
-	postings, err := b.Store.Postings(ctx, q, terms)
+	postings, err := b.Index.Postings(ctx, q, terms)
 	if err != nil {
 		return nil, err
 	}
-	stats, err := b.Store.Stats(ctx, q)
+	stats, err := b.Index.Stats(ctx, q)
 	if err != nil {
 		return nil, err
 	}
