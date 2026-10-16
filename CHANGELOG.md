@@ -646,6 +646,21 @@
 - **`cmd/check-flatdeps` CI gate.** Proves the flat-stack packages import
   no framework and only Turso is opened outside the transitional allowlist.
 
+## 0.51.0 (2026-10-16)
+
+## What's Changed
+* Decision section as cards, not a paragraph by @calionauta in https://github.com/calionauta/gogogo/pull/150
+* fix(genui): read model answers as JSON-ish tokens, not strict JSON by @calionauta in https://github.com/calionauta/gogogo/pull/151
+* fix(ai): patch the answer, not its container — and style what the model invents by @calionauta in https://github.com/calionauta/gogogo/pull/154
+* fix(ui): the theme bootstrap merges page signals instead of replacing them by @calionauta in https://github.com/calionauta/gogogo/pull/153
+* ci: classify docs-only changesets instead of skipping the workflow by @calionauta in https://github.com/calionauta/gogogo/pull/152
+* feat(genui): let a jev-compatible classifier choose Ask's lead component by @calionauta in https://github.com/calionauta/gogogo/pull/156
+* ci: run the gates for a pull request against any base branch by @calionauta in https://github.com/calionauta/gogogo/pull/157
+* feat(genui): one bounded repair before a rejected answer reaches the user by @calionauta in https://github.com/calionauta/gogogo/pull/158
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.50.0...v0.51.0
+
 ## 0.50.0 (2026-10-15)
 
 ## What's Changed
