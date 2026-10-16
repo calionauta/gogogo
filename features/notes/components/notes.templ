@@ -9,7 +9,7 @@ import "github.com/calionauta/gogogo/internal/components"
 // NotesIndex lists existing shared notes with a button to start a new one.
 templ NotesIndex(email string, userRole string, docIDs []string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -62,7 +62,7 @@ templ NotesListFragment(docIDs []string) {
 // peers' resolved text unless the textarea is focused (no caret stealing).
 templ NotesPage(email string, userRole string, docID string, text string, rev uint64, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

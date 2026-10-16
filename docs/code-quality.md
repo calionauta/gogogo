@@ -143,6 +143,16 @@ live in `.templ` markup rather than Go:
   `__window`/`__document` modifiers) over vanilla JS for client-side logic.
   Inline JS only when unavoidable, kept adjacent to the markup so the behavior
   stays local.
+- `<html data-signals>` is JSON, and the pre-paint theme bootstrap
+  (`authviews.ThemeHead`) MERGES its `theme` key into it — never writes a fresh
+  object, which drops every seed on the page before Datastar reads the
+  attribute. A page that seeds state there (`review_pending`, `genui_pending`,
+  `chat_thinking`) must emit valid JSON for the merge to work.
+- A signal that never reached the store is read as `""`, and Datastar's
+  `data-attr:disabled` sets the attribute for `""` — so a wiped seed is a
+  control born disabled. Only its own submit handler clears it, so the page
+  cannot recover. A stream handshake that re-seeds the signal (Ask and Chat
+  merge `pending: false` on connect) can hide the loss; don't rely on it.
 
 The lint runs with `-only-errors` in CI so intentional custom attributes (the
 cuelume's `data-cuelume-*` attributes, for example) do not fail the gate.

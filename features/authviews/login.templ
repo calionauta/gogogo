@@ -16,7 +16,7 @@ import (
 // docs/scope-taxonomy.md#demo-only-markup.
 templ LoginPage(next string, errMsg string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

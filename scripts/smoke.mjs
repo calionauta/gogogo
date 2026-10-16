@@ -50,6 +50,20 @@ const fail = (msg) => {
   process.exitCode = 1;
 };
 
+// Per-page signals the SERVER seeds into <html data-signals>. The no-flash
+// theme bootstrap in <head> runs before Datastar reads that attribute, so it
+// must merge its `theme` key in — replacing the object dropped these seeds
+// and left /review's Run button disabled at load with no way to submit
+// (the only handler that clears the signal lives on the unwirable form).
+// Keyed by the routes this run visits (GATED_ROUTES).
+const SEEDED_SIGNALS = { "/genui": "genui_pending", "/review": "review_pending" };
+
+// Route → the submit control that must be USABLE on load. A disabled control
+// here means the page is born in a stuck state: nothing the user does can
+// clear a signal that only its own submit handler clears (and the form that
+// would is the one holding the dead button).
+const ENABLED_ON_LOAD = { "/genui": "button[data-attr\\:disabled]", "/review": "#review-composer button" };
+
 const tmp = mkdtempSync(join(tmpdir(), "gogogo-smoke-"));
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
@@ -624,6 +638,38 @@ try {
     const tag = pageErrors.length ? "❌" : "✓";
     console.log(`  ${tag} ${route} (console errors: ${consoleErrors.length})`);
     for (const ce of consoleErrors) console.log(`      console.error: ${ce}`);
+
+    const seeded = SEEDED_SIGNALS[route];
+    if (seeded) {
+      const live = await page.evaluate((name) => {
+        let signals = {};
+        try {
+          signals = JSON.parse(document.documentElement.dataset.signals || "{}");
+        } catch (e) {
+          return { parsed: false, has: false };
+        }
+        return { parsed: true, has: Object.prototype.hasOwnProperty.call(signals, name), value: signals[name] };
+      }, seeded);
+      if (!live.parsed) {
+        fail(`${route}: <html data-signals> is not parseable JSON after load`);
+      } else if (!live.has) {
+        fail(
+          `${route}: server-seeded $${seeded} vanished from <html data-signals> (the theme bootstrap must merge, not replace) — the page's controls start in the wrong state`,
+        );
+      } else {
+        console.log(`      seeded $${seeded} survived load (${JSON.stringify(live.value)})`);
+      }
+    }
+    const control = ENABLED_ON_LOAD[route];
+    if (control) {
+      const state = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        return el ? { present: true, disabled: el.disabled, text: (el.textContent || "").replace(/\s+/g, " ").trim() } : { present: false };
+      }, control);
+      if (state.present && state.disabled) {
+        fail(`${route}: ${state.text || control} is disabled on load with no run in flight — a dead control`);
+      }
+    }
   }
 
   pageErrors.length = 0;
