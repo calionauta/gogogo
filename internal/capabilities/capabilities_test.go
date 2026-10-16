@@ -292,7 +292,7 @@ func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exac
 	// source of truth both sides check. skins-extra maps to skins.
 	want := []string{
 		"dagnats", "goakt", "whiteboard", "landing", "config-view",
-		"credits", "sounds", "skins", "room", "genui", "review",
+		"credits", "sounds", "skins", "room", "genui", "review", "search",
 	}
 	byID := ByID()
 	got := slices.Clone(OfferedIDs())

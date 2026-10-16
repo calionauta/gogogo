@@ -24,6 +24,7 @@ const (
 	unitSkinsExtra = "skins-extra"
 	unitGenUI      = "genui"
 	unitReview     = "review"
+	unitSearch     = "search"
 )
 
 // unitCaps maps installer units to registry capability ids.
@@ -239,7 +240,7 @@ func buildManifestUnits() []trimUnit {
 	order := []string{
 		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
 		unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
-		unitGenUI, unitReview,
+		unitGenUI, unitReview, unitSearch,
 	}
 	out := make([]trimUnit, 0, len(order))
 	for _, id := range order {

@@ -427,6 +427,7 @@ var featureTrimUnits = []trimUnit{
 		// the require would leave `trim review` with an unresolvable import.
 		goModDrops: []string{"github.com/firebase/genkit/go"},
 	},
+	{id: unitSearch}, // dirs-only: no call site in the composition root yet
 	{
 		id: unitGenUI,
 		// Bundle rationale lives in the genui capability entry: chat imports

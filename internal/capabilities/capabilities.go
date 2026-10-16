@@ -288,6 +288,9 @@ var All = []Capability{
 		Summary: "search layers (substring, fuzzy, BM25) behind one seam",
 		Offered: true,
 		Dirs:    []string{"internal/search"},
+		// The todo half of the seam imports internal/search, so it goes with
+		// the unit that owns the package (same shape as genui's panel file).
+		Files: []string{"features/todo/handlers/search_source.go", "features/todo/handlers/search_source_test.go"},
 		Warns: []string{
 			"A consumer that loses this keeps working with the SQL-only " +
 				"substring layer: it holds a search.Searcher and degrades, " +
