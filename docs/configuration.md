@@ -71,6 +71,15 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `JEV_API_KEY` | unset | Judge credential (age-encrypted secrets file). Empty = keyless demo, no `Authorization` header |
 | `JEV_TIMEOUT` | `10s` | Per-attempt judge HTTP timeout |
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
+| `JEV_ROUTER_ENABLED` | `false` | Ask AI only: let the same jev-compatible endpoint choose which catalog component an answer leads with. Off = byte-identical prompt to the catalog-only one |
+| `JEV_ROUTER_CONFIDENCE_THRESHOLD` | `0.7` | Ask AI only: below this the pick is ignored and the whole catalog is offered |
+
+The Ask router (`JEV_ROUTER_*`) is opt-in and reuses the endpoint above —
+one jev-compatible API serves the judge and the router. Turning it on adds
+a leading hint to the prompt; it never removes a component from what the
+model may emit, and every failure (endpoint down, low confidence, a label
+outside the catalog) falls back to the full catalog, so Ask answers exactly
+as it did before. See [Ask AI](features.md).
 
 ### AI credits + BYOK
 

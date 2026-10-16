@@ -15,13 +15,15 @@ type Responder interface {
 	Respond(ctx context.Context, prompt string) (string, error)
 }
 
-// llmResponder asks a real model for catalog directives.
+// llmResponder asks a real model for catalog directives. The router, when
+// one is wired, only decides which component the prompt leads with.
 type llmResponder struct {
 	client *llm.Client
+	router Router
 }
 
 func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, PromptForCatalog()+"\nUser request: "+prompt)
+	return r.client.Chat(ctx, AskPrompt(ctx, r.router, prompt))
 }
 
 // chatLLMResponder asks a real model with the chat affordance: the
@@ -89,10 +91,12 @@ func (e errResponder) Respond(_ context.Context, _ string) (string, error) {
 
 // NewResponder picks the model leg: real key wins, simulated key gets
 // the deterministic demo, neither is a fail-closed error (the worker
-// releases the spinner through the error result either way).
-func NewResponder(real, simulated *llm.Client) Responder {
+// releases the spinner through the error result either way). router is
+// optional (nil = off) and is consulted only for the real-model leg: the
+// demo answers are fixed, so routing them would be a lie.
+func NewResponder(real, simulated *llm.Client, router Router) Responder {
 	if real != nil && real.Configured() {
-		return llmResponder{client: real}
+		return llmResponder{client: real, router: router}
 	}
 	if simulated != nil && simulated.Configured() {
 		return demoResponder{answer: demoAnswer}

@@ -422,7 +422,10 @@ var featureTrimUnits = []trimUnit{
 				},
 			},
 		},
-		goModDrops: []string{"github.com/firebase/genkit/go", "github.com/mattn/go-jev"},
+		// genkit goes with the page (review is its only consumer). go-jev
+		// stays: the Ask router (genui/handlers) imports it too, so dropping
+		// the require would leave `trim review` with an unresolvable import.
+		goModDrops: []string{"github.com/firebase/genkit/go"},
 	},
 	{
 		id: unitGenUI,
@@ -440,7 +443,7 @@ var featureTrimUnits = []trimUnit{
 					"chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,",
 					"chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM))",
 					"genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,",
-					"comp.NewResponder(realLLM, simulatedLLM))",
+					"comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)))",
 					"chatH.RegisterHandlers(chiQ.Registry())",
 					"genuiH.RegisterHandlers(chiQ.Registry())",
 					// One argument per line: each drop removes exactly its
