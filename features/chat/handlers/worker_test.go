@@ -201,3 +201,56 @@ func TestWorkerAppendsAuthHintOnProviderAuthFailure(t *testing.T) {
 		t.Fatal("no error envelope arrived on hub channel")
 	}
 }
+
+// TestWorkerDeliversComponentsForMalformedAnswer is the reported chat
+// symptom, end to end through the worker: the model parks a section's
+// children inside "props" under the envelope key (valid JSON, rejected by
+// strict prop decoding), and the tab must receive nested components — the
+// raw JSON used to land in a prose bubble instead. Reverting the tolerant
+// reader makes the delivered envelope carry the payload text.
+func TestWorkerDeliversComponentsForMalformedAnswer(t *testing.T) {
+	t.Parallel()
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+	mem := newMemStore()
+
+	raw := `{"components":[` +
+		`{"type":"section","props":{"title":"Today's Plan","components":[` +
+		`{"type":"section","props":{"title":"Morning","components":[` +
+		`{"type":"plan_cards","props":{"plans":[{"title":"Breakfast","detail":"7:30 AM"}]}}]}}]}}]}`
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{raw: raw}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "plan my day", "userId": "u1", "idem": "k7"})
+	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
+
+	if err := h.handleChatJob(context.Background(), hub, job); err != nil {
+		t.Fatalf("handleChatJob: %v", err)
+	}
+	msgs, err := mem.List(context.Background(), "u1")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("store holds %d messages, want user + answer", len(msgs))
+	}
+	answer := msgs[1]
+	if len(answer.Components) != 1 || answer.Components[0].Component != "section" {
+		t.Fatalf("persisted answer = %+v, want one section directive", answer.Components)
+	}
+	if len(answer.Components[0].Children) != 1 || answer.Components[0].Children[0].Component != "section" {
+		t.Fatalf("nested children = %+v, want the inner section", answer.Components[0].Children)
+	}
+	select {
+	case rawEnv := <-ch:
+		got := string(rawEnv)
+		if !strings.Contains(got, `"Component":"section"`) {
+			t.Fatalf("envelope missing the rendered directive, got: %s", got)
+		}
+		if strings.Contains(got, `components":[`) {
+			t.Fatalf("envelope carries the raw model JSON instead of components: %s", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no chat envelope arrived on hub channel")
+	}
+}

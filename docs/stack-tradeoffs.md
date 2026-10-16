@@ -140,11 +140,22 @@ trimmable like every feature.
   wire-compatibility test instead).
 - **Cost:** the catalog grows by developer PR only; recursion is depth-capped;
   free-model rosters churn monthly (pin and monitor).
+- **Tolerance is structural, never catalog.** The one shared parser repairs the
+  shape models get wrong — ```json fences, prose padding, trailing commas, a
+  repeated envelope key written as an array element, a section's children under
+  `components` instead of `children`, an object closed with `]`, an answer cut
+  off mid-token — and no more. An unknown type, undecodable props or over-deep
+  nesting still rejects the whole answer: a repaired shape can only ever render
+  components the registry already knows. A payload that fails validation
+  degrades to the prose the model wrote around it, so a chat bubble never
+  carries raw JSON.
 - **Exception, scoped:** chat's `html_block` lets the model compose visual
   markup the catalog cannot express — but sanitized server-side through a
   closed allowlist (structure + classes + safe links; scripts, styles,
-  handlers, media never survive), size-capped, red-proofed. Ask AI stays
-  catalog-only: constrained generation is its showcase.
+  handlers, media never survive), size-capped, red-proofed. It is chat's
+  default answer form, not a last resort: the chat prompt advertises it first
+  so the two demos do not read alike. Ask AI stays catalog-only and never
+  names raw HTML: constrained generation is its showcase.
 - **Revisit when:** an external AG-UI client needs the stream, or a renderer the
   model can't express in server-rendered HTML.
 
