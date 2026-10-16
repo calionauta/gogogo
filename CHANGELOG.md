@@ -2,6 +2,21 @@
 
 ### Added
 
+- **The class vocabulary model markup may use is safelisted, and the
+  prompt shows exactly it.** An invented `html_block` exists only at
+  runtime, so Tailwind never scanned its classes: measured on this tree,
+  `opacity-60` and `sm:grid-cols-3` — advertised by the prompt and used
+  by the keyless chat demo answer — were absent from `app.min.css` and
+  rendered unstyled. One Go list
+  (`features/genui/components/htmlclasses.go`) now feeds both the
+  `@source inline` safelist in each skin's stylesheet and the prompt,
+  with `TestModelHTMLClassVocabulary` failing (message names the fix)
+  when the list, a safelist and a built bundle disagree.
+- **Skills are registered for agent hosts.** `skills/<name>` is now
+  reachable BY NAME at `.agents/skills/<name>`, and
+  `cmd/check-skill-frontmatter` — already in pre-commit and CI — fails
+  when a skill is unregistered, a link dangles, or the registry holds a
+  stale entry. Documented rules only bind an agent that can load them.
 - **Viewer owns their private todos.** Delete restrictions now apply to
   shared rows, never your own: owner deletes own in every role (policy
   grants the delete verbs, `canDeleteRow` enforces per-record, Clear
@@ -406,6 +421,16 @@
 
 ### Fixed
 
+- **Chat appends the thread, not its container.** The SSE hub patched
+  the assistant answer by appending the whole message column into
+  `#chat-messages` — a server-side patch resolves its selector to every
+  match, so from send #2 on the answer rendered twice (measured in
+  Chromium: 4 containers, 3 answers for 2 questions). The container owns
+  the id and the first-run guidance (`data-show="$chat_empty"`), the
+  stream appends a `ChatThread` fragment that carries neither, and the
+  ask ack now echoes the user's own bubble — which previously reached
+  the DOM only on reload. History is server-rendered from the store, as
+  the page copy always claimed.
 - **Stdout is JSONL, no exceptions.** Bare `slog` calls used the default
   text handler (ignoring `LOG_LEVEL`) and `log.Printf` wrote timestamps
   everywhere — one `slog.SetDefault` plus converted call sites later,

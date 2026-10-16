@@ -105,10 +105,38 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
+	// History is server-rendered: the store is the conversation's source
+	// of truth, and the live patches below must land on the same shape a
+	// reload rebuilds.
+	msgs, err := h.store.List(r.Context(), sess.User.ID)
+	if err != nil {
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: load history failed", obsArgs...)
+		msgs = nil
+	}
 	email := sess.User.Email
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
+		messageViews(r.Context(), msgs)).Render(r.Context(), w)
+}
+
+// messageViews maps stored records to render views, re-validating the
+// directives through the catalog on the way: history re-renders through
+// the same components a live answer used, never raw model markup.
+func messageViews(ctx context.Context, msgs []store.Message) []store.MessageView {
+	out := make([]store.MessageView, 0, len(msgs))
+	for _, m := range msgs {
+		//nolint:contextcheck // pure CPU (catalog render); ctx is here for the log.
+		comps, err := comp.RenderAll(m.Components)
+		if err != nil {
+			obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+			observability.Error(ctx, "chat: render stored answer failed", obsArgs...)
+			comps = nil
+		}
+		out = append(out, store.MessageView{Role: m.Role, Text: m.Text, Components: comps})
+	}
+	return out
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
@@ -151,6 +179,21 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: ask ack failed", obsArgs...)
+		return
+	}
+	// Echo the prompt as the user's own bubble now, on the ack: the answer
+	// arrives later from the worker, so without this the composer clears
+	// and the question is only in the store until a reload. The patch
+	// APPENDS a thread fragment — the empty state above leaves through
+	// $chat_empty (cleared by the composer submit), never through a second
+	// #chat-messages.
+	//nolint:contextcheck // ends in datastar-go sinks, which take no context;
+	// a disconnect surfaces as a write error.
+	if err := dshelpers.RenderAndPatch(sse,
+		chatcomponents.ChatThread([]store.MessageView{{Role: roleUser, Text: prompt}}, ""),
+		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend()); err != nil {
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: prompt echo failed", obsArgs...)
 	}
 }
 
@@ -200,9 +243,9 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 
 // surface as write errors, checked per call.
 // dispatchStreamMessage routes one hub envelope: "chat" releases the
-// spinner and appends the assistant bubble into #chat-messages; anything
-// else is ignored (a foreign producer sharing nothing must still not
-// break this stream).
+// spinner and appends one thread fragment (the answer, or the error as
+// its own bubble) into #chat-messages; anything else is ignored (a
+// foreign producer sharing nothing must still not break this stream).
 func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg []byte) error {
 	var job queue.Job
 	if err := json.Unmarshal(msg, &job); err != nil {
@@ -222,12 +265,12 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 		return err
 	}
 	if p.Error != "" {
-		return dshelpers.RenderAndPatch(sse, chatcomponents.ChatList(nil, false, p.Error),
-			sdk.WithSelector("#chat-messages"))
+		return dshelpers.RenderAndPatch(sse, chatcomponents.ChatThread(nil, p.Error),
+			sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
 	}
 	comps := renderDirectives(p.Directives)
 	view := store.MessageView{Role: roleAssistant, Text: p.Text, Components: comps}
-	return dshelpers.RenderAndPatch(sse, chatcomponents.ChatList([]store.MessageView{view}, false, ""),
+	return dshelpers.RenderAndPatch(sse, chatcomponents.ChatThread([]store.MessageView{view}, ""),
 		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
 }
 
