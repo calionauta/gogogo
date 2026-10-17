@@ -2,6 +2,18 @@
 
 ### Fixed
 
+- **The search box seed writes nothing it does not own.** `Signals.SearchQuery`
+  is now `json:"-"` and the input carries `value={ signals.SearchQuery }`, so
+  `?q=` reaches the box through the element's own `value=` — `data-bind` creates
+  `$searchQuery` from it with `{ifMissing: true}` (upstream `bind.ts`) — instead
+  of a server merge. The old shape needed a `// datastar-lint:ignore` to excuse
+  the one legitimate write; the new one writes no client-owned signal at all, so
+  the suppression is gone and `make datastar-lint` reports zero findings. This
+  also closes the third door the lint did not read: a server-rendered
+  `data-signals:key` or `data-signals={obj}` re-applies on every morph and
+  clobbers live input exactly like a Go merge (datastar-lint v0.16.0 now reports
+  both, and honours the `ifmissing` modifier that makes them safe).
+
 - **A stacked PR runs the checks.** `ci.yml` and `desktop.yml` filtered
   `pull_request` to `branches: [master]`, so a PR whose base was another
   branch triggered no CI at all — the required `ci` status never reported

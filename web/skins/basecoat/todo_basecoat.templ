@@ -417,9 +417,10 @@ templ createForm(signals todo.Signals) {
 // filter tabs do — so the ranking shows up as the row order, with no results
 // panel to keep in sync and no client-side list to hydrate.
 //
-// `$searchQuery` is server-owned: every list/search patches it with what the
-// server actually filtered by, so a record-event re-list cannot leave a stale
-// term in the box. Clearing the box re-lists unfiltered.
+// The input OWNS `$searchQuery` (data-bind): it is the source of truth while
+// the user types, and the server never writes it — a re-list cannot clobber
+// the box (docs/realtime-recipe.md). `value={ signals.SearchQuery }` is the
+// one seed, on first render; bind.ts creates the signal from it.
 templ searchBox(signals todo.Signals) {
 	if signals.SearchEnabled {
 		<div class="flex gap-2 mb-3">
@@ -430,6 +431,7 @@ templ searchBox(signals todo.Signals) {
 					class="input w-full"
 					placeholder="Search todos..."
 					aria-label="Search todos"
+					value={ signals.SearchQuery }
 					data-bind="searchQuery"
 					data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')"
 				/>

@@ -51,10 +51,11 @@ type Signals struct {
 
 	// SearchQuery is the text in the search box, and SearchEnabled says
 	// whether a search layer is wired at all (false when the plugin was
-	// trimmed, which hides the input). SearchQuery rides the signals so a
-	// record-event re-list keeps the tab's active search instead of
-	// silently showing everything again.
-	SearchQuery   string `json:"searchQuery,omitempty"`
+	// trimmed, which hides the input). `json:"-"` keeps it OUT of
+	// data-signals on purpose: the input owns the signal (data-bind) and seeds
+	// it from `value=` on first render, so the server never writes it and a
+	// re-list cannot clobber the user's typing.
+	SearchQuery   string `json:"-"`
 	SearchEnabled bool   `json:"searchEnabled"`
 
 	// ConfirmDelete is the id of the todo whose delete-confirm modal is

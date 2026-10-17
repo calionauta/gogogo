@@ -201,18 +201,20 @@ func (h *Handler) displaySignals(r *http.Request, todos []todo.Todo, filter, sco
 
 // displaySignalsWithQuery is displaySignals plus an explicit SearchQuery, for
 // the single caller whose render is the page load: seeding the box from the
-// URL's ?q= is correct exactly once, before the client owns the signal.
+// URL's ?q= is correct exactly once, before the client owns the signal. The
+// field is `json:"-"`, so it is rendered into the input's value= rather than
+// written into data-signals — the element then seeds $searchQuery itself.
 func (h *Handler) displaySignalsWithQuery(
 	r *http.Request, todos []todo.Todo, filter, scope, query string,
 ) todo.Signals {
 	owner, role := h.roleOf(r)
 	return todo.Signals{
 		Todos: todos, Filter: filter, Scope: scope, ItemCount: len(todos),
-		// The ONE legitimate write to a bound signal in this tree: the initial
-		// page render, which seeds the search box from ?q= once, before the
-		// client owns it. Every other write to $searchQuery was the bug
+		// Rendered into the search input's value= (see searchBox), NOT merged
+		// into data-signals. The input owns $searchQuery via data-bind and seeds
+		// it from value= on first render, so a later re-list cannot clobber what
+		// the user typed. Writing it as a signal was the bug
 		// (docs/realtime-recipe.md).
-		// datastar-lint:ignore CLIENT_BOUND_SIGNAL_WRITTEN — page-render seed, the one legitimate write
 		SearchQuery:    query,
 		SearchEnabled:  h.searchEnabled(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),

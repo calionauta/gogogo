@@ -195,15 +195,22 @@ live in `.templ` markup rather than Go:
   `chatPrompt`/`genuiPrompt`, erasing text typed while a slow answer was still
   in flight. The counts are `datastar-lint`'s, not a hand tally: 9 findings on
   the pre-fix tree (7 mentioning `$searchQuery`, one of which was the missing
-  `omitempty` on the struct), and 1 after — the initial page render, the one
-  place `?q=` legitimately seeds the box before the client owns the signal.
-  No error remains.
-  The struct field must also be `omitempty`: without it the zero value still
-  marshals (`"x":""`), so removing the field from the merge *call* does not
-  stop the write — which is why the first fix attempt was a no-op.
-  `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` (error) and `CLIENT_BOUND_SIGNAL_WRITTEN`
-  (warning) gate both halves; the tag is the error because it survives a
-  reader "fixing" the obvious merge line.
+  `omitempty` on the struct), and **0 after**.
+  The struct field must also be `omitempty` **or excluded**: without
+  `omitempty` the zero value still marshals (`"x":""`), so removing the field
+  from the merge *call* does not stop the write — which is why the first fix
+  attempt was a no-op. `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` (error) and
+  `CLIENT_BOUND_SIGNAL_WRITTEN` (error) gate both halves, and since
+  datastar-lint v0.16.0 the write check reads **three doors** — a Go merge, a
+  `data-signals:key`, a `data-signals={obj}` — because a server-rendered
+  signals attribute re-applies on every morph.
+  **The zero finding is not a suppression.** `Signals.SearchQuery` is
+  `json:"-"`, so it never reaches `data-signals`; the input seeds
+  `$searchQuery` from its own `value=` (bind.ts merges with `{ifMissing:
+  true}`). The seed therefore never writes a client-owned signal, and there is
+  nothing to silence. Reach for `json:"-"` + `value=` before reaching for a
+  suppression: the lint reports `SUPPRESS_UNUSED` the moment a write is gone,
+  so an escape hatch cannot outlive its subject.
 - **A response that echoes the request's own signal is the same clobber.**
   `/search` derives no display value from `?q=` for that reason: the box is
   seeded once, from the initial `data-signals` render, and every later response

@@ -265,3 +265,52 @@ func TestRender_ResyncFragmentPreservesSearch(t *testing.T) {
 		t.Error("resync fragment URL omits the q parameter entirely")
 	}
 }
+
+// TestRender_SearchSeedRidesTheInputNotTheSignals pins the fix for the
+// clobbering bug at its source: the URL's ?q= must reach the box through the
+// input's own `value=` (which bind.ts turns into the signal with
+// {ifMissing: true}), NOT through a server-written `data-signals` entry.
+//
+// Why both halves matter:
+//   - if searchQuery reappears in data-signals, the server is writing a
+//     client-owned signal again — the exact bug (six call sites once wrote it,
+//     and a re-list mid-typing wiped the box);
+//   - if value= disappears, the seed is gone: ?q= no longer opens the box
+//     pre-filled, which is why the write existed in the first place.
+//
+// Red-proof: restore `json:"searchQuery,omitempty"` on Signals.SearchQuery and
+// pass a query — the JSON half fails. Remove `value={ signals.SearchQuery }`
+// from searchBox — the value= half fails.
+func TestRender_SearchSeedRidesTheInputNotTheSignals(t *testing.T) {
+	signals := todo.Signals{
+		Filter: "all", Scope: "all", SearchEnabled: true,
+		SearchQuery: "kestrel",
+	}
+	var buf bytes.Buffer
+	if err := TodoList(signals).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render todo list: %v", err)
+	}
+	html := buf.String()
+
+	// The signals payload must NOT carry searchQuery: `json:"-"` keeps it off
+	// the wire, so no merge can write the client-owned signal. templ escapes
+	// the JSON quotes, so the key appears as &#34;searchQuery&#34;.
+	if strings.Contains(html, `&#34;searchQuery&#34;`) || strings.Contains(html, `"searchQuery":`) {
+		t.Errorf("data-signals carries searchQuery — the server is writing a "+
+			"client-owned signal again; a re-list mid-typing would clobber the "+
+			"box. Keep it json:\"-\" and seed via value=.\n%s", html)
+	}
+
+	// The seed must ride the input's value=.
+	if !strings.Contains(html, `value="kestrel"`) {
+		t.Errorf("the search input lost its value= seed: ?q= no longer pre-fills "+
+			"the box. Expected value=\"kestrel\" in:\n%s", html)
+	}
+
+	// The input must still own the signal (data-bind), or value= seeds nothing
+	// the debounced handler reads.
+	if !strings.Contains(html, `data-bind="searchQuery"`) {
+		t.Error("the search input no longer binds $searchQuery: typing would " +
+			"not drive the debounced search")
+	}
+}
