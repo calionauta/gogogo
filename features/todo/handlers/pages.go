@@ -94,7 +94,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: index list failed", err, "error listing todos")
 		return
 	}
-	signals := h.displaySignals(r, todos, "all", "all")
+	// The page load is the one render where the URL's ?q= is authoritative: it
+	// seeds the box before the client owns $searchQuery (see displaySignals).
+	signals := h.displaySignalsWithQuery(r, todos, "all", "all", searchQueryOf(r))
 	signals.ConnectedClients = h.Hub.CountUserClients()
 	signals.Suggestions = []string{}
 	signals.SuggestErr = ""

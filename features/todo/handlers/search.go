@@ -96,7 +96,6 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	signals := h.displaySignals(r, todos, filter, scope)
-	signals.SearchQuery = query
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
 		h.fail(r.Context(), w, "todo: search signals failed", err, "error searching todos")

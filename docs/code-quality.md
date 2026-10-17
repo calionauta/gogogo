@@ -159,13 +159,23 @@ live in `.templ` markup rather than Go:
   round-trip). A background merge — stream handshake, record-event re-list,
   workflow re-list, mutation re-list — therefore overwrites live input, and the
   debounced request then reads the clobbered value and the feature silently does
-  nothing (lived bug: `searchQuery` was written by five such paths and the
-  search box lost its text mid-typing; the smoke caught it only intermittently).
+  nothing (lived bug: `searchQuery` was written by seven such paths — the
+  stream handshake, four re-list paths, the list endpoint, and the `/search`
+  response echoing its own `?q=` — and the search box lost its text mid-typing;
+  the smoke caught it only intermittently).
   The struct field must also be `omitempty`: without it the zero value still
   marshals (`"x":""`), so removing the field from the merge *call* does not
   stop the write — which is why the first fix attempt was a no-op.
   `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` (error) and `CLIENT_BOUND_SIGNAL_WRITTEN`
-  (warning) gate both halves.
+  (warning) gate both halves; the tag is the error because it survives a
+  reader "fixing" the obvious merge line.
+- **A response that echoes the request's own signal is the same clobber.**
+  `/search` derives no display value from `?q=` for that reason: the box is
+  seeded once, from the initial `data-signals` render, and every later response
+  patches rows only. A response that re-emits what its request carried lands
+  late and re-imposes an older value (`?q=kes` overwriting "kestrel"), so the
+  rule is not "don't write it in background paths" but "don't write it in any
+  response".
 - **A tab/scope click carries no search of its own**, so its URL must append
   `&q=$searchQuery`: the list handler reads a missing `q` as "clear the stored
   search", and omitting it drops the active search while the box still shows

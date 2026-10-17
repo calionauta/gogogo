@@ -18,16 +18,25 @@ The second half of the trap is serialization, and it is what makes this class
 survive a first, wrong fix: a Go struct field with a JSON tag but **no
 `omitempty`** still marshals (`"x":""`) for its zero value, so *removing the
 field from the merge call does not stop the write*. `make datastar-lint` gates
-both halves as errors — `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` and
-`CLIENT_BOUND_SIGNAL_WRITTEN` (the latter a warning: an explicit write may be
-intentional, e.g. clearing an input after a successful submit).
+both halves: `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` is an **error** (the tag
+survives a reader fixing the obvious merge line), `CLIENT_BOUND_SIGNAL_WRITTEN`
+a **warning** (an explicit write may be intentional, e.g. clearing an input
+after a successful submit).
 
 Live example: `newTitle` and `searchQuery` are both bound, both `omitempty`;
-six background paths use to write `searchQuery` (stream handshake, record-event
-re-list, workflow re-list, the mutation re-list, and `SetView` on every fetch)
-and the search box lost its text mid-typing. Lived bug, fixed in the search
-feature — the smoke caught it only intermittently, which is why the lint rule
-exists.
+seven paths wrote `searchQuery` (the stream handshake, record-event re-list,
+workflow re-list, mutation re-list, `SetView` on every fetch, the list
+endpoint, and the `/search` response echoing its own `?q=`) and the search box
+lost its text mid-typing. Lived bug, fixed in the search feature — the smoke
+caught it only intermittently, which is why the lint rule exists.
+
+The echo is worth stating separately, because it is the form a reader does not
+suspect: deriving a display signal from the request's own parameter feels like
+echoing state, not writing it. `/search` therefore seeds nothing — the box is
+seeded once from the initial `data-signals` render (`displaySignalsWithQuery`)
+and later responses patch rows only (`displaySignals` never sets the query). A
+late response to `?q=kes` then cannot re-impose "kes" over the "kestrel" the
+user has typed since.
 
 A filter/scope tab click carries **no** `q` of its own, so its URL must append
 `&q=$searchQuery`: the handler treats a missing `q` as "clear the stored

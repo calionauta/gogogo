@@ -165,10 +165,9 @@ func (h *Handler) patchListSelf(
 	}); err != nil {
 		return err
 	}
-	// displaySignals derives SearchQuery from the request's own ?q= and omits it
-	// when empty (`omitempty`), so a mutation never clobbers the box: the live
-	// text the user typed stays in charge. See the doc comment for why the
-	// stored view is not echoed here.
+	// displaySignals never sets SearchQuery (the box owns it), so a mutation
+	// cannot clobber live input. The rows still narrow by the STORED query
+	// above, so the slice stays correct without touching the signal.
 	signals := h.displaySignals(r, todos, filterOf(r), scopeOf(r))
 	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),

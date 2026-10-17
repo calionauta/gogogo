@@ -309,6 +309,54 @@ func TestMutationKeepsActiveSearchNarrowing(t *testing.T) {
 // searchJSONWithClient is searchJSON with a clientID, so the tab's view prefs
 // are stored the way a live browser tab stores them. It asserts the endpoint
 // answered and leaves reading the patch to the caller's own request.
+
+// TestLateSearchResponseDoesNotClobberTheBox pins the second half of the
+// client-owned rule, on the endpoint the first half was found on.
+//
+// The search box carries a 300ms debounce and fires @get with the CURRENT
+// $searchQuery. If a response echoes the query from its own request's ?q=, a
+// response that lands late re-imposes an OLDER value: request ?q=kes was
+// issued, the user typed on to "kestrel", and kes's response arrives last and
+// sets the box back to "kes". The box owns the signal, so no response may
+// write it -- the same clobber the stream handshake was fixed for, reachable
+// from /search and from the list endpoint instead.
+//
+// The box is seeded once per page load from the initial data-signals render,
+// which is covered separately; here the assertion is only that a patch
+// response stays silent about searchQuery.
+//
+// Red-proof: set SearchQuery from the request in displaySignals again and the
+// ?q=kes response re-emits it, failing this test.
+func TestLateSearchResponseDoesNotClobberTheBox(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := newHandlersFixture(t)
+	wireBM25(t, f)
+	cookie := f.signup("clobber@example.com")
+	owner := f.ownerOf(t, cookie)
+	if err := createTodoIndexed(ctx, f.q, f.h.Index, f.h.DB, dbgen.CreateTodoParams{
+		ID: dbschema.NewID(), Owner: owner, Title: "kestrel clobber probe",
+		Visibility: todo.VisibilityPrivate, Created: dbschema.Now(), Updated: dbschema.Now(),
+	}); err != nil {
+		t.Fatalf("indexed create: %v", err)
+	}
+
+	// Any query works to detect the echo -- what must NOT happen is the
+	// response writing the signal at all. (A term the index knows, so the
+	// narrowing assertion below is meaningful.)
+	body := searchJSON(t, f, cookie, "kestrel").Body.String()
+	if contains(body, `"searchQuery"`) {
+		t.Errorf("a /search response wrote the client-owned searchQuery signal "+
+			"(a late response for an older ?q= would re-impose it over what the "+
+			"user has typed since; response was for ?q=kestrel):\n%s", body)
+	}
+	// The narrowing itself must still happen: silence about the signal is not
+	// a licence to skip the search.
+	if !contains(body, "kestrel clobber probe") {
+		t.Errorf("the response stopped rendering the matching row:\n%s", body)
+	}
+}
+
 func searchJSONWithClient(
 	t *testing.T, f *handlersFixture, cookie *http.Cookie, query, clientID string,
 ) {
