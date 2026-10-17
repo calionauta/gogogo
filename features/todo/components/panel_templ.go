@@ -8,15 +8,23 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// GenuiTodoList renders the viewer's own todos as a system panel: the app's
-// truth, hydrated server-side (see TodoListProps), so the model chooses a
-// slice and never the content.
+import "github.com/calionauta/gogogo/features/todo"
+
+// Panel renders the viewer's own todos for the AI answer surfaces: the app's
+// truth, hydrated server-side by TodoPanel.Fill, so the model chooses a slice
+// and never the content.
+//
+// It lives with the feature, not in features/genui/components: the panel seam
+// is provider-based, so the generative-UI plugin knows names and props in the
+// abstract and never what a todo is. Moving it made genui's own package free
+// of feature knowledge (one direction of dependency, enforced by
+// check-flatdeps).
 //
 // The rows are read-only by design. A write here would have to land on the
 // todo feature's own patch target to stay live, and this component does not
 // own one; a button that writes and leaves a stale list on screen reads as
 // broken, so the panel links to /todo instead.
-func GenuiTodoList(filter string, rows []TodoRow) templ.Component {
+func Panel(filter string, rows []todo.PanelRows) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -37,14 +45,14 @@ func GenuiTodoList(filter string, rows []TodoRow) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"genui-todo-list\" class=\"rounded-box border border-base-300 p-4\"><div class=\"flex items-baseline justify-between gap-2 mb-2\"><h3 class=\"font-semibold\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"todo-panel\" class=\"rounded-box border border-base-300 p-4\"><div class=\"flex items-baseline justify-between gap-2 mb-2\"><h3 class=\"font-semibold\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(todoListHeading(filter))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components/todo_list.templ`, Line: 14, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/panel.templ`, Line: 22, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -81,7 +89,7 @@ func GenuiTodoList(filter string, rows []TodoRow) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var3).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components/todo_list.templ`, Line: 1, Col: 0}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/panel.templ`, Line: 1, Col: 0}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -94,7 +102,7 @@ func GenuiTodoList(filter string, rows []TodoRow) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(todoRowMark(row.Done))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components/todo_list.templ`, Line: 23, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/panel.templ`, Line: 31, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -116,7 +124,7 @@ func GenuiTodoList(filter string, rows []TodoRow) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var6).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components/todo_list.templ`, Line: 1, Col: 0}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/panel.templ`, Line: 1, Col: 0}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -129,7 +137,7 @@ func GenuiTodoList(filter string, rows []TodoRow) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(row.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/genui/components/todo_list.templ`, Line: 24, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/panel.templ`, Line: 32, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {

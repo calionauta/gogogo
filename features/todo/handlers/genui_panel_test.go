@@ -5,7 +5,6 @@ import (
 	"context"
 	"testing"
 
-	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/features/todo"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -49,7 +48,7 @@ func TestTodoListListerFiltersAndScopes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", filter, err)
 		}
-		rows, _ := props["rows"].([]comp.TodoRow)
+		rows, _ := props["rows"].([]todo.PanelRows)
 		if len(rows) != want {
 			t.Errorf("%s: %d rows, want %d (%+v)", filter, len(rows), want, rows)
 		}
