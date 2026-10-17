@@ -153,6 +153,23 @@ live in `.templ` markup rather than Go:
   control born disabled. Only its own submit handler clears it, so the page
   cannot recover. A stream handshake that re-seeds the signal (Ask and Chat
   merge `pending: false` on connect) can hide the loss; don't rely on it.
+- **A `data-bind` signal is client-owned: never write it from a server merge.**
+  The bound element is the source of truth while the user types, and the
+  server's copy always lags (a value only arrives after a debounced
+  round-trip). A background merge — stream handshake, record-event re-list,
+  workflow re-list, mutation re-list — therefore overwrites live input, and the
+  debounced request then reads the clobbered value and the feature silently does
+  nothing (lived bug: `searchQuery` was written by five such paths and the
+  search box lost its text mid-typing; the smoke caught it only intermittently).
+  The struct field must also be `omitempty`: without it the zero value still
+  marshals (`"x":""`), so removing the field from the merge *call* does not
+  stop the write — which is why the first fix attempt was a no-op.
+  `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` (error) and `CLIENT_BOUND_SIGNAL_WRITTEN`
+  (warning) gate both halves.
+- **A tab/scope click carries no search of its own**, so its URL must append
+  `&q=$searchQuery`: the list handler reads a missing `q` as "clear the stored
+  search", and omitting it drops the active search while the box still shows
+  the text.
 
 The lint runs with `-only-errors` in CI so intentional custom attributes (the
 cuelume's `data-cuelume-*` attributes, for example) do not fail the gate.

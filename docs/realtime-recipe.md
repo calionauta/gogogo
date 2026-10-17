@@ -6,6 +6,34 @@ reference implementations are the spec.
 
 ## Client patterns (all Datastar, no vanilla except bootstrap)
 
+**Signal ownership — read this before any merge.** A signal bound two-way to
+an input (`data-bind="x"`) is **client-owned**: that element is the source of
+truth while the user types. The server's copy is a mirror that always lags — a
+value only reaches the server after a debounced round-trip — so **any server
+merge that writes x overwrites live input**, and the element's next read (often
+the debounced request itself) sees the clobbered value. The symptom is a
+feature that silently does nothing.
+
+The second half of the trap is serialization, and it is what makes this class
+survive a first, wrong fix: a Go struct field with a JSON tag but **no
+`omitempty`** still marshals (`"x":""`) for its zero value, so *removing the
+field from the merge call does not stop the write*. `make datastar-lint` gates
+both halves as errors — `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` and
+`CLIENT_BOUND_SIGNAL_WRITTEN` (the latter a warning: an explicit write may be
+intentional, e.g. clearing an input after a successful submit).
+
+Live example: `newTitle` and `searchQuery` are both bound, both `omitempty`;
+six background paths use to write `searchQuery` (stream handshake, record-event
+re-list, workflow re-list, the mutation re-list, and `SetView` on every fetch)
+and the search box lost its text mid-typing. Lived bug, fixed in the search
+feature — the smoke caught it only intermittently, which is why the lint rule
+exists.
+
+A filter/scope tab click carries **no** `q` of its own, so its URL must append
+`&q=$searchQuery`: the handler treats a missing `q` as "clear the stored
+search", and omitting it drops the active search while the box still shows the
+text.
+
 1. **Permanent stream** (ephemeral signals): hidden `@get(url, {permanent:
    true})` button opened by `data-on:datastar-ready__document` (+300ms
    verified fallback for an already-fired ready). Reference: `RealtimeStream`
@@ -87,4 +115,6 @@ machinery here; a native open-ack or restart handle replaces the status poll.
 no `setInterval` in new UI code · no `innerHTML` rendering (morph
 instead) · appended fragments carry no target `id` · one
 `#<container>` in the DOM after N patches · spinner has error release ·
-empty + error states render.
+empty + error states render · no server merge writes a `data-bind`
+signal (and its struct field is `omitempty`) · every tab/scope URL that
+can round-trip carries `q=$searchQuery`.
