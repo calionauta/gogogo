@@ -159,10 +159,15 @@ live in `.templ` markup rather than Go:
   round-trip). A background merge — stream handshake, record-event re-list,
   workflow re-list, mutation re-list — therefore overwrites live input, and the
   debounced request then reads the clobbered value and the feature silently does
-  nothing (lived bug: `searchQuery` was written by seven such paths — the
-  stream handshake, four re-list paths, the list endpoint, and the `/search`
+  nothing (lived bug: `searchQuery` was written from six call sites — the
+  stream handshake, both list endpoints, the mutation re-list, and the `/search`
   response echoing its own `?q=` — and the search box lost its text mid-typing;
-  the smoke caught it only intermittently).
+  the smoke caught it only intermittently). The counts are `datastar-lint`'s,
+  not a hand tally: 9 findings on the pre-fix tree (7 mentioning
+  `$searchQuery`, one of which was the missing `omitempty` on the struct), and
+  2 after — the initial page render, which is the one place `?q=` legitimately
+  seeds the box, and `newTitle` cleared after a successful submit. No error
+  remains.
   The struct field must also be `omitempty`: without it the zero value still
   marshals (`"x":""`), so removing the field from the merge *call* does not
   stop the write — which is why the first fix attempt was a no-op.

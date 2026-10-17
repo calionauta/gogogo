@@ -24,11 +24,14 @@ a **warning** (an explicit write may be intentional, e.g. clearing an input
 after a successful submit).
 
 Live example: `newTitle` and `searchQuery` are both bound, both `omitempty`;
-seven paths wrote `searchQuery` (the stream handshake, record-event re-list,
-workflow re-list, mutation re-list, `SetView` on every fetch, the list
-endpoint, and the `/search` response echoing its own `?q=`) and the search box
-lost its text mid-typing. Lived bug, fixed in the search feature — the smoke
-caught it only intermittently, which is why the lint rule exists.
+six call sites wrote `searchQuery` (the stream handshake, both list endpoints,
+the mutation re-list, and the `/search` response echoing its own `?q=`), and
+the search box lost its text mid-typing. Lived bug, fixed in the search
+feature — the smoke caught it only intermittently, which is why the lint rule
+exists. The counts come from the lint itself, so they can be re-derived rather
+than trusted: 9 findings on the pre-fix tree, 2 after (both warnings, both
+intentional — the initial page render seeding the box, and `newTitle` cleared
+on submit), and no error either way.
 
 The echo is worth stating separately, because it is the form a reader does not
 suspect: deriving a display signal from the request's own parameter feels like
