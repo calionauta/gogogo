@@ -265,6 +265,10 @@ type Config struct {
 	// See config/ask_router.go and docs/configuration.md.
 	AskRouter AskRouterConfig
 
+	// GenUI holds the per-leg AI answer surfaces (GENUI_*_SURFACES env).
+	// See config/genui.go.
+	GenUI GenUIConfig
+
 	// Credits gates the AI credits + BYOK plugin (lib calionauta/ai-credits).
 	// When Credits.Enabled is false the plugin registers no routes and
 	// credits.New is never built — the binary runs billing-free.
@@ -374,6 +378,7 @@ func Load() *Config {
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 	cfg.loadReviewEnv()
 	cfg.loadAskRouterEnv()
+	cfg.loadGenUIEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
 	cfg.Credits.DefaultMode = getEnv("CREDITS_DEFAULT_MODE", "explicit")

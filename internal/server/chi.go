@@ -24,11 +24,9 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
-	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	"github.com/calionauta/gogogo/features/credits"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	comp "github.com/calionauta/gogogo/features/genui/components"
 	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
@@ -158,7 +156,6 @@ func bootCredits(
 // the returned stack serves its mux and has cross-instance sync off
 // until AttachJetStream runs. js-free by design — the engine owns the
 // NATS, so JetStream is attached after boot, never passed into it.
-
 func BootChi(cfg *config.Config) (*ChiStack, error) {
 	sqlDB, err := db.Open(cfg)
 	if err != nil {
@@ -226,16 +223,14 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 
 	realLLM, simulatedLLM := wireTodoLLM(todoH, chiQ, cfg)
-	_, _ = realLLM, simulatedLLM // retained: the genui trim drops their users
-	// panels: the data half of the AI components (see components.Hydrate).
-	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}
-	chatH := chathandlers.NewHandler(cfg, a, chiQ, hub,
-		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM),
-		panels)
-	chatH.RegisterHandlers(chiQ.Registry())
-	genuiH := genuihandlers.NewHandler(cfg, a, chiQ, hub,
-		comp.NewResponder(realLLM, simulatedLLM, genuihandlers.NewAskRouter(cfg)), panels)
-	genuiH.RegisterHandlers(chiQ.Registry())
+	// Retained for the trimmed tree: the genui trim drops the constructions
+	// below, and an unused local would not compile there.
+	_, _ = realLLM, simulatedLLM
+	chatH, genuiH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)
+	if err != nil {
+		cancelConsumer()
+		return nil, err
+	}
 	reviewH := bootReview(cfg, a, realLLM)
 	chiQ.StartWorkers()
 

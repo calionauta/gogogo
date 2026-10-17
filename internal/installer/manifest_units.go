@@ -234,6 +234,9 @@ func buildManifestUnits() []trimUnit {
 	for _, u := range featureTrimUnits {
 		byID[u.id] = u
 	}
+	for _, u := range genuiTrimUnits {
+		byID[u.id] = u
+	}
 	for _, u := range searchTrimUnit {
 		byID[u.id] = u
 	}

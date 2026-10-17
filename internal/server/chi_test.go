@@ -252,8 +252,8 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		noteshandlers.NewHandler(q, a, hub, persister, docs, cfg),
 		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}, nil),
-		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}, nil),
+			stubResponder{raw: "{}"}),
+		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
 		newReviewHandlerForTest(cfg, a),
 		creditshandlers.NewHandler(a, nil))
 
@@ -296,8 +296,8 @@ func TestBuildChiMux(t *testing.T) {
 		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		roomhandlers.NewHandler(cfg, a, fakeRooms{}),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
-			stubResponder{raw: "{}"}, nil),
-		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}, nil),
+			stubResponder{raw: "{}"}),
+		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
 		newReviewHandlerForTest(cfg, a),
 		creditshandlers.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
