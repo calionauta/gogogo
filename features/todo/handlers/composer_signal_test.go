@@ -4,6 +4,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -20,21 +21,25 @@ import (
 // write it. The rows must still be listed, and $loading must still clear.
 //
 // Red-proof: put `"newTitle": ""` back into the create merge and this fails.
+//
+// No wireBM25: the create path under test does not touch the search plugin,
+// and the `search` trim preset deletes search_test.go — which is where wireBM25
+// lives. A dependency on it here would break the trimmed tree's build (caught
+// by TestTrimmedTreeStillBuilds/search), so this file stays plugin-free.
 func TestCreateResponseDoesNotWriteTheComposerSignal(t *testing.T) {
 	f := newHandlersFixture(t)
-	wireBM25(t, f)
 	cookie := f.signup("composer@example.com")
 
 	body := f.do(http.MethodPost, "/api/todos", "title=composer+probe&filter=all", cookie).Body.String()
-	if contains(body, `"newTitle"`) {
+	if strings.Contains(body, `"newTitle"`) {
 		t.Errorf("the create response wrote the client-owned newTitle signal; a "+
 			"response landing after the user typed would erase it:\n%s", body)
 	}
 	// Silence about the signal is not a licence to skip the rest of the job.
-	if !contains(body, "composer probe") {
+	if !strings.Contains(body, "composer probe") {
 		t.Errorf("the response stopped listing the created row:\n%s", body)
 	}
-	if !contains(body, `"loading"`) {
+	if !strings.Contains(body, `"loading"`) {
 		t.Errorf("the response stopped clearing $loading, which would leave the "+
 			"submit button disabled:\n%s", body)
 	}
