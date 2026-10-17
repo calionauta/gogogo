@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	jev "github.com/mattn/go-jev"
 
@@ -69,15 +70,23 @@ func newJevRouter(client jevClient, threshold float64) *jevRouter {
 	return &jevRouter{client: client, threshold: threshold}
 }
 
-// Choose asks the classifier which catalog component should lead. Every
-// answer the classifier CAN give is either a confident, in-catalog name or
-// a fallback: a low-confidence pick, a label the catalog does not have (or
-// html_block, which only chat may emit), an empty choice. Each of those
-// returns ("", nil) — Ask keeps working with the whole catalog — and only a
-// transport failure or a response that does not answer the question at all
-// is an error, for AskPrompt to log.
+// Choose implements comp.Router for the default (Ask) vocabulary. Kept so the
+// interface's legacy 1-arg form stays honest; ChooseFor is what both legs call
+// so a pick is always confined to the surfaces the leg advertises.
 func (r *jevRouter) Choose(ctx context.Context, request string) (string, error) {
-	candidates := comp.CatalogComponents()
+	return r.ChooseFor(ctx, request, comp.DefaultSurfacesAsk)
+}
+
+// ChooseFor asks the classifier which component should lead, offering exactly
+// the names the leg advertises. Every answer the classifier CAN give is either
+// a confident, in-surface name or a fallback: a low-confidence pick, a label
+// the leg does not advertise (html_block on a leg with custom off, a panel on a
+// leg with native off), an empty choice. Each of those returns ("", nil) — the
+// leg keeps working with its whole vocabulary — and only a transport failure
+// or a response that does not answer the question at all is an error, for
+// AskPrompt/ConversationPrompt to log.
+func (r *jevRouter) ChooseFor(ctx context.Context, request string, surfaces []comp.Surface) (string, error) {
+	candidates := comp.CatalogComponentsFor(surfaces)
 	if len(candidates) == 0 || r.client == nil {
 		return "", nil
 	}
@@ -111,11 +120,13 @@ func (r *jevRouter) Choose(ctx context.Context, request string) (string, error) 
 				"chosen", name, "confidence", answer.Confidence, "threshold", r.threshold)...)
 		return "", nil
 	}
-	if !comp.Registered(name) || name == "html_block" {
-		// A name outside the catalog would either render nothing or reach
-		// chat's affordance, so it is a miss, not a pick.
+	if !slices.Contains(candidates, name) {
+		// The candidate set IS the advertised vocabulary, so this branch means
+		// the classifier answered with something the leg never offered (or the
+		// registry changed under it). A miss, not a pick.
 		observability.Info(ctx, "genui: ask router chose a name outside the catalog",
-			append(observability.WithComponent("genui", "feature"), "chosen", name)...)
+			append(observability.WithComponent("genui", "feature"),
+				"chosen", name, "surfaces", comp.Names(surfaces))...)
 		return "", nil
 	}
 	observability.Info(ctx, "genui: ask router chose the lead component",

@@ -39,23 +39,17 @@ type Handler struct {
 	q         *queue.Queue
 	hub       *queue.SSEHub
 	responder comp.Responder
-	// panels are the data half of the app's own components (see
-	// components.Hydrate). A REGISTERED panel with no provider is dropped
-	// rather than rendered empty — on both legs, because Ask can reach a
-	// registered panel the same way chat can.
-	panels []comp.PanelProvider
 }
 
 // NewHandler builds the chi genui handler. Nil deps panic: wire errors
 // surface at boot, not per request.
 func NewHandler(
 	cfg *config.Config, a *auth.Auth, q *queue.Queue, hub *queue.SSEHub, responder comp.Responder,
-	panels []comp.PanelProvider,
 ) *Handler {
 	if cfg == nil || a == nil || q == nil || hub == nil || responder == nil {
 		panic("genui chi: NewHandler with nil dependency")
 	}
-	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, responder: responder, panels: panels}
+	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, responder: responder}
 }
 
 // Routes returns the chi router with the Ask pages and API.

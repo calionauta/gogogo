@@ -15,8 +15,13 @@ import (
 // the other's handler. Lives here (not in internal/server) so trimming the
 // genui bundle deletes it with features/chat — the composition root keeps
 // only line-drops, never a block strip.
-func ResponderFromLLM(real, simulated *llm.Client) store.Responder {
-	return responderAdapter{inner: comp.NewChatResponder(real, simulated)}
+//
+// router and surfaces are the same values Ask gets (nil = off/defaults): both
+// legs share one surface vocabulary and one decision about which component
+// should lead, so the only difference left between them is the interaction
+// shape.
+func ResponderFromLLM(real, simulated *llm.Client, router comp.Router, surfaces []comp.Surface) store.Responder {
+	return responderAdapter{inner: comp.NewChatResponder(real, simulated, router, surfaces)}
 }
 
 // responderAdapter adapts comp.Responder to the chat store seam.

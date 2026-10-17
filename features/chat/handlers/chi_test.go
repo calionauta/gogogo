@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/net/html"
 
+	"github.com/a-h/templ"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/chat/store"
 	comp "github.com/calionauta/gogogo/features/genui/components"
@@ -33,14 +35,37 @@ func (s stubResponder) Respond(context.Context, string) (string, error) {
 	return s.raw, s.err
 }
 
-// stubPanel stands in for a feature's panel provider: the chat handler never
-// learns what a todo is, only that something can fill a panel's rows.
+// panelRowStub is the stub's row shape, deliberately local: the chat handler
+// never learns what a todo is, only that something can fill a panel's rows, so
+// proving that means NOT importing a feature package here.
+type panelRowStub struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// stubPanel stands in for a feature's panel provider.
 type stubPanel struct {
-	rows []comp.TodoRow
+	rows []panelRowStub
 	err  error
 }
 
 func (s stubPanel) Component() string { return "todo_list" }
+
+func (s stubPanel) Prompt() string { return "todo_list {filter} (stub)" }
+
+func (s stubPanel) Writable() []string { return []string{"filter"} }
+
+func (s stubPanel) Render(props map[string]any) (templ.Component, error) {
+	filter, _ := props["filter"].(string)
+	rows, _ := props["rows"].([]panelRowStub)
+	var b strings.Builder
+	b.WriteString(`<div data-filter="` + filter + `">`)
+	for _, r := range rows {
+		b.WriteString("<span>" + r.Title + "</span>")
+	}
+	b.WriteString("</div>")
+	return templ.Raw(b.String()), nil
+}
 
 func (s stubPanel) Fill(_ context.Context, _ string, props map[string]any) (map[string]any, error) {
 	if s.err != nil {
@@ -57,9 +82,13 @@ func chatFixture(t *testing.T, responder store.Responder) (http.Handler, *auth.A
 	return chatFixtureWith(t, responder, nil)
 }
 
-// chatFixtureWith is chatFixture with the genui hydration seam wired, so a
-// test can prove a system panel renders the store's rows (or is dropped
-// when no seam exists).
+// chatFixtureWith is chatFixture with a panel provider installed, so a test can
+// prove a system panel renders the store's rows.
+//
+// `panels` installs the PROCESS registry (there is no per-handler list any
+// more: the catalog is what the prompt advertises, and a handler-local copy
+// could disagree with it). A nil slice installs the fixture's default stub, so
+// every test in this package sees the same vocabulary the boot would give it.
 func chatFixtureWith(
 	t *testing.T, responder store.Responder, panels []comp.PanelProvider,
 ) (http.Handler, *auth.Auth, *store.MemStore) {
@@ -81,8 +110,14 @@ func chatFixtureWith(
 		t.Fatalf("queue: %v", err)
 	}
 	t.Cleanup(q.Close)
+	if panels == nil {
+		panels = []comp.PanelProvider{stubPanel{}}
+	}
+	if err := comp.InstallPanelRegistry(panels); err != nil {
+		t.Fatalf("install panel registry: %v", err)
+	}
 	mem := store.NewMemStore()
-	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), mem, responder, panels)
+	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), mem, responder)
 	h.RegisterHandlers(q.Registry())
 	q.StartWorkers()
 	mux := http.NewServeMux()

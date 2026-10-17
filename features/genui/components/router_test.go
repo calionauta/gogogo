@@ -15,7 +15,16 @@ type stubRouter struct {
 	err  error
 }
 
-func (s stubRouter) Choose(context.Context, string) (string, error) { return s.name, s.err }
+func (s stubRouter) Choose(ctx context.Context, request string) (string, error) {
+	return s.ChooseFor(ctx, request, DefaultSurfacesAsk)
+}
+
+// ChooseFor is the surface-aware form both legs call. It returns the stub's
+// name verbatim — including a name outside the given surfaces — so the tests
+// can prove the CALLER rejects it (that rejection is the contract).
+func (s stubRouter) ChooseFor(context.Context, string, []Surface) (string, error) {
+	return s.name, s.err
+}
 
 // TestAskPromptLeadsWithRouterPick is the feature's whole point: the
 // router's name reaches the prompt as the lead component. Red-proof: drop
@@ -23,7 +32,7 @@ func (s stubRouter) Choose(context.Context, string) (string, error) { return s.n
 // missing sentence.
 func TestAskPromptLeadsWithRouterPick(t *testing.T) {
 	t.Parallel()
-	got := AskPrompt(context.Background(), stubRouter{name: "bar_chart"}, "plot my week")
+	got := AskPrompt(context.Background(), stubRouter{name: "bar_chart"}, "plot my week", nil)
 	if !strings.Contains(got, "Lead with bar_chart as the top-level component.") {
 		t.Errorf("prompt did not lead with the router's pick:\n%s", got)
 	}
@@ -44,12 +53,12 @@ func TestAskPromptLeadsWithRouterPick(t *testing.T) {
 func TestAskPromptRouterOffIsUnchanged(t *testing.T) {
 	t.Parallel()
 	want := PromptForCatalog() + "\nUser request: plan my day"
-	if got := AskPrompt(context.Background(), nil, "plan my day"); got != want {
+	if got := AskPrompt(context.Background(), nil, "plan my day", nil); got != want {
 		t.Errorf("router-less prompt = %q, want the catalog prompt %q", got, want)
 	}
 	// A router with no confident pick answers ("", nil) — the same bytes,
 	// not merely a similar prompt.
-	if got := AskPrompt(context.Background(), stubRouter{}, "plan my day"); got != want {
+	if got := AskPrompt(context.Background(), stubRouter{}, "plan my day", nil); got != want {
 		t.Errorf("empty pick = %q, want the catalog prompt %q", got, want)
 	}
 }
@@ -60,7 +69,7 @@ func TestAskPromptRouterOffIsUnchanged(t *testing.T) {
 func TestAskPromptRouterFailureFallsBack(t *testing.T) {
 	t.Parallel()
 	want := PromptForCatalog() + "\nUser request: plan my day"
-	got := AskPrompt(context.Background(), stubRouter{err: errors.New("dial tcp: refused")}, "plan my day")
+	got := AskPrompt(context.Background(), stubRouter{err: errors.New("dial tcp: refused")}, "plan my day", nil)
 	if got != want {
 		t.Errorf("failed router changed the prompt: %q, want %q", got, want)
 	}
@@ -74,7 +83,7 @@ func TestAskPromptIgnoresNamesAskCannotUse(t *testing.T) {
 	t.Parallel()
 	want := PromptForCatalog() + "\nUser request: x"
 	for _, name := range []string{"html_block", "not_a_component", ""} {
-		if got := AskPrompt(context.Background(), stubRouter{name: name}, "x"); got != want {
+		if got := AskPrompt(context.Background(), stubRouter{name: name}, "x", nil); got != want {
 			t.Errorf("pick %q changed the prompt: %q, want %q", name, got, want)
 		}
 	}

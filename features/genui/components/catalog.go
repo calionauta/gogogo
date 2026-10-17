@@ -95,49 +95,21 @@ type DataTableProps struct {
 	Rows    [][]string `json:"rows"`
 }
 
-// TodoListProps is the model's view of the app's OWN todo list — and the
-// reason it is a filter and not content: a system component shows real
-// state, so the model may only choose WHICH slice to show. Rows are filled
-// by the worker's hydration and never come from the model
-// (decodeProps' DisallowUnknownFields is what rejects an answer that
-// tries to supply them). Filter is a closed set; an open string here
-// would let the model invent a query the store cannot answer.
-type TodoListProps struct {
-	Filter string    `json:"filter"`
-	Rows   []TodoRow `json:"rows,omitempty"`
-}
+// catalogLeafNames is the shared catalog band: one spelling per component, so a
+// rename cannot land in the registry but miss the prompt (or the reverse).
+// Declared one per line on purpose — a const BLOCK gets its '=' signs aligned
+// by gofumpt, which reads like an env file to the secret scanner.
+const (
+	textNoteName      = "text_note"
+	planCardsName     = "plan_cards"
+	dataTableName     = "data_table"
+	barChartName      = "bar_chart"
+	actionButtonsName = "action_buttons"
+)
 
-// TodoRow is one hydrated row: the app's truth, filled server-side.
-type TodoRow struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Done  bool   `json:"done"`
-}
-
-// TodoListFilters is the closed set the filter prop accepts, in prompt
-// order. Named, not numbered: the store is asked for the named slice, and a
-// panel's prompt fragment is built from this list so the advertised filters
-// cannot drift from the accepted ones.
-var TodoListFilters = []string{"open", "done", "all"}
-
-// TodoFiltersContain reports whether a filter is in the closed set. Exported
-// so a panel implementation validates against the same list the catalog does.
-func TodoFiltersContain(filter string) bool {
-	return slices.Contains(TodoListFilters, filter)
-}
-
-// todoListName is the app's own panel component: chat's tool-based answer
-// ("show me my todos") as opposed to a catalog primitive.
-const todoListName = "todo_list"
-
-// chatOnlyComponents are advertised in chat's prompt and never in Ask's: the
-// invented-markup escape hatch and the app's own panels. Chat's prompt is
-// where the model is told they exist; Ask never names them, and the router's
-// candidate set is derived from what Ask advertises, so a classifier pick
-// cannot reach them either (see CatalogComponents).
-func chatOnlyComponents(name string) bool {
-	return name == htmlBlockName || IsPanel(name)
-}
+// catalogLeafNames is the band's membership and order in one place: the
+// registry, the prompt fragments and the surface rules all read it.
+var catalogLeafNames = []string{textNoteName, planCardsName, dataTableName, barChartName, actionButtonsName}
 
 // renderer decodes untrusted props into a component or fails.
 type renderer func(map[string]any) (templ.Component, error)
@@ -194,16 +166,6 @@ var renderers = map[string]renderer{
 			}
 		}
 		return GenuiPlanCards(p.Plans), nil
-	},
-	todoListName: func(props map[string]any) (templ.Component, error) {
-		p, err := decodeProps[TodoListProps](props)
-		if err != nil {
-			return nil, err
-		}
-		if !TodoFiltersContain(p.Filter) {
-			return nil, fmt.Errorf("genui: todo_list filter %q is not one of %v", p.Filter, TodoListFilters)
-		}
-		return GenuiTodoList(p.Filter, p.Rows), nil
 	},
 	"data_table": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[DataTableProps](props)
@@ -295,28 +257,46 @@ func Registered(name string) bool {
 	if name == sectionName {
 		return true
 	}
+	if IsPanel(name) {
+		return true
+	}
 	_, ok := renderers[name]
 	return ok
 }
 
-// CatalogComponents lists the names an Ask answer may lead with: every
-// leaf renderer plus the section container, sorted, minus html_block.
-// html_block is chat's affordance — Ask never advertises it, so the
-// router must never offer it as a label (a pick outside this set is
-// ignored, which is what keeps a router on but wrong from changing the
-// prompt). Derived from the registry, not spelled out: a new component
-// becomes routable by adding its one map entry.
+// CatalogComponents lists the names a leg may lead with under the DEFAULT Ask
+// surface set. Kept as a wrapper so existing callers (and the router's default
+// path) read unchanged; new code should pass its surface set explicitly.
 func CatalogComponents() []string {
+	return CatalogComponentsFor(DefaultSurfacesAsk)
+}
+
+// CatalogComponentsFor lists the names a leg with this surface set may lead
+// with: every leaf renderer plus the section container, minus the bands the
+// set does not enable. Derived from the registry and the surface rules, not
+// spelled out: a new component becomes routable by adding its one map entry,
+// and a toggle moves a name in or out automatically.
+//
+// This is what keeps a router on-but-misconfigured from changing the prompt
+// (a pick outside this set is ignored) AND what lets native panels become
+// routable the moment a leg advertises them.
+func CatalogComponentsFor(surfaces []Surface) []string {
+	surfaces = NormalizeSurfaces(surfaces)
 	names := make([]string, 0, len(renderers)+1)
 	for name := range renderers {
-		if chatOnlyComponents(name) {
+		if !advertisedAs(name, surfaces) {
 			continue
 		}
 		names = append(names, name)
 	}
+	for _, name := range panelNames() {
+		if advertisedAs(name, surfaces) {
+			names = append(names, name)
+		}
+	}
 	names = append(names, sectionName)
 	slices.Sort(names)
-	return names
+	return slices.Compact(names)
 }
 
 // Render resolves one validated directive to its component. Unknown
@@ -340,6 +320,20 @@ func RenderAll(dirs []Directive) ([]templ.Component, error) {
 	return comps, nil
 }
 
+// renderChildren renders a container's nested directives, keeping the loop's
+// error arm out of renderDepth (one flat function beats a nested if).
+func renderChildren(children []Directive, depth int) ([]templ.Component, error) {
+	comps := make([]templ.Component, 0, len(children))
+	for _, child := range children {
+		comp, err := renderDepth(child, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		comps = append(comps, comp)
+	}
+	return comps, nil
+}
+
 // renderDepth is Render with a nesting budget: one enforcement point
 // for both the parse path and direct Render callers.
 func renderDepth(d Directive, depth int) (templ.Component, error) {
@@ -347,28 +341,28 @@ func renderDepth(d Directive, depth int) (templ.Component, error) {
 		return nil, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
 	}
 	if d.Component == sectionName {
-		var title SectionProps
-		raw, err := json.Marshal(d.Props)
+		// decodeProps, not a hand-rolled decoder: it is the same routine every
+		// leaf uses, so the container cannot accept props a leaf would reject
+		// (this inline copy was the one place that could drift).
+		title, err := decodeProps[SectionProps](d.Props)
 		if err != nil {
-			return nil, fmt.Errorf("genui: encode section props: %w", err)
-		}
-		dec := json.NewDecoder(strings.NewReader(string(raw)))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&title); err != nil {
-			return nil, fmt.Errorf("genui: decode section props: %w", err)
+			return nil, err
 		}
 		if strings.TrimSpace(title.Title) == "" {
 			return nil, errors.New("genui: section requires title")
 		}
-		children := make([]templ.Component, 0, len(d.Children))
-		for _, child := range d.Children {
-			comp, err := renderDepth(child, depth+1)
-			if err != nil {
-				return nil, err
-			}
-			children = append(children, comp)
+		children, err := renderChildren(d.Children, depth)
+		if err != nil {
+			return nil, err
 		}
 		return GenuiSection(title.Title, children), nil
+	}
+	// Installed panels render through their own provider, so no per-feature
+	// entry lives in the renderer table. Checked before the generative
+	// registry because a name can only be one or the other (the boot asserts
+	// that a panel name is not also a leaf).
+	if comp, isPanel, err := renderPanel(d.Component, d.Props); isPanel {
+		return comp, err
 	}
 	r, ok := renderers[d.Component]
 	if !ok {
