@@ -116,7 +116,7 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
 
 - Agents push feature/fix branches and open normal PRs ONLY. Never open a release PR, never `git tag`, never edit version numbers.
 - When you open the PR (`gh pr create`), fill EVERY `.github/PULL_REQUEST_TEMPLATE.md` section in the body: real linked issue (or delete the line), motivation/approach written by you, the one-line AI disclosure, verification with red→green evidence. No placeholders (`Closes #NNN`, `Write this yourself`) — the `pr-body` CI fails the PR on them. Never submit an empty body.
-- The bot owns `CHANGELOG.md`. Never hand-edit it and never write an `[Unreleased]` narrative section: release-please GENERATES each version section from the conventional commits (`changelog-type: default`) and nothing reads `[Unreleased]`. Put the *why* in the PR body, where review reads it.
+- The bot owns `CHANGELOG.md`. Never hand-edit it and never write an `[Unreleased]` narrative section: release-please GENERATES each version section and nothing reads `[Unreleased]`. Put the *why* in the PR body, where review reads it. Leave `changelog-type: github` alone — `default` parses raw commits and duplicates every merge commit whose body repeats the branch subject (`CHANGELOG.md` says why).
 - After a master merge, tell the user a `chore: release X.Y.Z` PR will appear for THEM to review and merge (merge creates the tag; `release-please.yml` dispatches `release.yml`, which builds the installer binaries from it). Never merge it autonomously.
 - Docs prose: one idea per paragraph, max three lines; 3+ items become a bold-lead list (`CONTRIBUTING.md`).
 
