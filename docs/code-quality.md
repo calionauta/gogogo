@@ -216,10 +216,20 @@ live in `.templ` markup rather than Go:
   search", and omitting it drops the active search while the box still shows
   the text.
 
-The lint runs with `-only-errors` in CI so intentional custom attributes (the
-cuelume's `data-cuelume-*` attributes, for example) do not fail the gate.
-Add genuinely intentional attributes to `.datastar-lint.yaml` under
-`attributes.allowed`.
+The lint runs with `-only-errors` in CI, which means only ERROR-severity
+findings ever gate. That is why the bound-signal write is ERROR: as a warning it
+was invisible to both gates, and the bug it describes shipped with the rule
+already in the tree. Custom attributes (the cuelume `data-cuelume-*` set,
+Basecoat's `data-size`/`data-variant`) are noise at that severity, so they live
+in `.datastar-lint.yaml` under `attributes.allowed` — each verified to have a
+consumer before listing, since an entry also hides a misspelling of a real
+attribute.
+
+The one legitimate write to a bound signal (the page-render seed, `?q=` into the
+search box) is silenced per line with a named reason:
+`// datastar-lint:ignore CLIENT_BOUND_SIGNAL_WRITTEN — <why>`. It is the only such
+directive in the tree and every applied suppression is printed in the run
+summary, so the count stays visible rather than becoming a habit.
 
 ## Concurrency and resources
 

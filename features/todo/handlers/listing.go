@@ -208,6 +208,11 @@ func (h *Handler) displaySignalsWithQuery(
 	owner, role := h.roleOf(r)
 	return todo.Signals{
 		Todos: todos, Filter: filter, Scope: scope, ItemCount: len(todos),
+		// The ONE legitimate write to a bound signal in this tree: the initial
+		// page render, which seeds the search box from ?q= once, before the
+		// client owns it. Every other write to $searchQuery was the bug
+		// (docs/realtime-recipe.md).
+		// datastar-lint:ignore CLIENT_BOUND_SIGNAL_WRITTEN — page-render seed, the one legitimate write
 		SearchQuery:    query,
 		SearchEnabled:  h.searchEnabled(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),

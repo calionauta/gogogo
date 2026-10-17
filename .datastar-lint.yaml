@@ -1,8 +1,42 @@
+# datastar-lint project config.
+#
+# `attributes.allowed` lists data-* attributes that belong to THIS project (or a
+# library it uses) rather than to Datastar. The check is a typo net: a real
+# Datastar attribute misspelt ("data-tex") is a silent no-op, so unknown names
+# are reported. Everything here was verified as intentional, not silenced in
+# bulk — a misspelt real attribute would be hidden by a careless entry.
+#
+# Two rules for adding an entry:
+#   1. It must have a consumer. Grep for it (JS `dataset.x` / `getAttribute`)
+#      before listing it; an attribute nothing reads is dead markup, not a
+#      custom attribute.
+#   2. Say who owns it. The comment below is what lets the next reader tell a
+#      project attribute from a mistake.
 attributes:
   allowed:
-    - data-tool
-    - data-doc-id
-    - data-component
-    - data-offline-sync
-    - data-pending
-    - data-test
+    # --- project attributes, read by this repo's own JS/tests ---
+    - data-tool            # tool-call rendering (genui)
+    - data-doc-id          # notes/whiteboard document id (read by notes.js)
+    - data-component        # component name on server-rendered partials
+    - data-offline-sync     # offline replay marker; smoke asserts it
+    - data-pending          # in-flight guard mirrored onto the DOM (tests)
+    - data-test             # test hooks (scripts/smoke.mjs selectors)
+    - data-rev              # notes CRDT revision; notes.js:56 reads dataset.rev
+    - data-room             # whiteboard/room id, read client-side
+    - data-authed           # auth state mirrored for the client
+    - data-active           # active-tab marker read by inline JS
+    - data-demo             # demo-mode flag on the landing page
+    - data-list-resync      # re-list trigger consumed by todo's client script
+    - data-sound-toggle     # notification sound preference (client-only)
+    - data-toast-action     # toast button wiring; no Datastar equivalent
+    - data-toast-cancel     # toast button wiring; no Datastar equivalent
+    # --- library attributes, older than Datastar ---
+    # cuelume is the UI sound-effects library (press/hover cues). These are ITS
+    # attributes, not ours and not Datastar's; the library reads them.
+    - data-cuelume
+    - data-cuelume-press
+    - data-cuelume-hover
+    # Basecoat's / this repo's size + variant scale (both UI skins use it).
+    # Verified not a typo of any Datastar attribute (edit distance > 2).
+    - data-size
+    - data-variant
