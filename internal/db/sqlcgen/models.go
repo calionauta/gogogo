@@ -57,6 +57,16 @@ type RecoveryCode struct {
 	Created  string
 }
 
+type SearchPosting struct {
+	Owner  string
+	Kind   string
+	DocID  string
+	Field  string
+	Term   string
+	Count  int64
+	Length int64
+}
+
 type Session struct {
 	TokenHash string
 	UserID    string

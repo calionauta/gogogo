@@ -7,12 +7,16 @@
 // maps) stays in ssehub.go; this file only decides audiences.
 package queue
 
-// ViewPref is one tab's listing slice: the status filter plus the
-// sharing scope. Stored per stream clientID so record-event re-lists
-// preserve what the tab was looking at.
+// ViewPref is one tab's listing slice: the status filter, the sharing
+// scope, and the active search text. Stored per stream clientID so
+// record-event re-lists preserve what the tab was looking at.
 type ViewPref struct {
 	Filter string
 	Scope  string
+	// Query is the tab's active search text. Empty means "no search" —
+	// the list shows everything visible. Kept with the filter/scope so a
+	// filter tab click (which carries no q) does not silently drop it.
+	Query string
 }
 
 // ViewOf returns the stored listing slice for clientID, defaulting to
@@ -31,9 +35,11 @@ func (h *SSEHub) ViewOf(clientID string) ViewPref {
 }
 
 // SetView stores the listing slice a tab just asked for. Called on every
-// list/fragment fetch carrying a clientID (tab clicks round-trip, so the
-// stored pref tracks the UI without any extra watcher).
-func (h *SSEHub) SetView(clientID, filter, scope string) {
+// list/fragment/search fetch carrying a clientID (tab clicks round-trip, so
+// the stored pref tracks the UI without any extra watcher). An empty query
+// CLEARS any stored search: that is how the box is emptied, and a fetch
+// with no q is the authoritative "show everything" signal for that tab.
+func (h *SSEHub) SetView(clientID, filter, scope, query string) {
 	if clientID == "" {
 		return
 	}
@@ -45,7 +51,7 @@ func (h *SSEHub) SetView(clientID, filter, scope string) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.viewOf[clientID] = ViewPref{Filter: filter, Scope: scope}
+	h.viewOf[clientID] = ViewPref{Filter: filter, Scope: scope, Query: query}
 }
 
 // BroadcastToAllUsers sends data to all currently connected clients that

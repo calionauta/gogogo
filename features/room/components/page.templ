@@ -23,7 +23,7 @@ import (
 // log, matching the grain's pull-friendly Roster response.
 templ Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-theme="light">
+	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

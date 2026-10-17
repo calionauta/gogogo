@@ -187,6 +187,37 @@ func (q *Queries) GetTodoVisible(ctx context.Context, arg GetTodoVisibleParams) 
 	return i, err
 }
 
+const listCompletedIDsByOwner = `-- name: ListCompletedIDsByOwner :many
+SELECT id FROM todos WHERE owner = ? AND completed = 1
+`
+
+// The completed rows an owner is about to clear, read INSIDE the clearing
+// transaction. The search writer needs their ids to drop the matching
+// postings in that same transaction: reading them outside would race a
+// concurrent toggle into leaving an orphan posting behind.
+func (q *Queries) ListCompletedIDsByOwner(ctx context.Context, owner string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listCompletedIDsByOwner, owner)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTodosByOwner = `-- name: ListTodosByOwner :many
 
 SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos WHERE owner = ? ORDER BY created DESC, id DESC
@@ -266,6 +297,55 @@ func (q *Queries) ListVisibleTodos(ctx context.Context, owner string) ([]ListVis
 			&i.Updated,
 			&i.Visibility,
 			&i.OwnerEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchTodosByOwner = `-- name: SearchTodosByOwner :many
+SELECT id, owner, title, completed, idem_key, created, updated, visibility FROM todos
+WHERE owner = ? AND lower(title) LIKE lower(?)
+ORDER BY completed, created DESC
+LIMIT ?
+`
+
+type SearchTodosByOwnerParams struct {
+	Owner string
+	LOWER string
+	Limit int64
+}
+
+// The todo search plugin's cheapest layer, in SQL: the owner's rows whose
+// title contains the query, case-insensitively. The caller builds the
+// pattern in Go, so the user's text needs no escaping here. No ranking:
+// that is what the other layers are for.
+func (q *Queries) SearchTodosByOwner(ctx context.Context, arg SearchTodosByOwnerParams) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, searchTodosByOwner, arg.Owner, arg.LOWER, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Todo{}
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.Owner,
+			&i.Title,
+			&i.Completed,
+			&i.IdemKey,
+			&i.Created,
+			&i.Updated,
+			&i.Visibility,
 		); err != nil {
 			return nil, err
 		}

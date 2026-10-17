@@ -23,7 +23,7 @@ import (
 // suffix the user is on (no leading slash).
 templ Page(data PageData, userEmail string, userRole string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-theme="light">
+	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -34,7 +34,6 @@ templ Page(data PageData, userEmail string, userRole string, buildLabel string, 
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
-			<script src="/static/iconify-icon.min.js"></script>
 			<style>
 				/* Tighten the table on small screens; the read-only
 				   nature of the page means we don't need a wide edit

@@ -75,7 +75,7 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 	ctx, cancel := context.WithCancel(context.Background())
 	tb.Cleanup(cancel)
 	go func() {
-		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", q, hub)
+		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", q, nil, nil, hub)
 	}()
 	return &bridgeFixture{tb: tb, q: q, hub: hub, pub: pub, owner: owner}
 }
@@ -280,7 +280,7 @@ func newLoopInstanceB(t *testing.T, js natsio.JetStreamContext, userID string) (
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() {
-		_ = RunCrudConsumer(ctx, js, "looptest", dbgen.New(sqlB), queue.NewSSEHub())
+		_ = RunCrudConsumer(ctx, js, "looptest", dbgen.New(sqlB), nil, nil, queue.NewSSEHub())
 	}()
 	time.Sleep(300 * time.Millisecond) // let the consumer subscribe.
 	return sqlB, dbgen.New(sqlB)

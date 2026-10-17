@@ -139,13 +139,20 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
-	// The ack immediately takes the composer: thinking on (double-submit
-	// guard) and the prompt cleared (data-bound input follows the merge).
+	// The ack raises the double-submit guard but does NOT touch the composer:
+	// $chatPrompt is bound two-way to the input, so the box owns it, and a
+	// response that cleared it wiped text typed after submit (reproduced in
+	// the browser). The client clears it on success; asserting its absence is
+	// what keeps the bug from coming back.
 	ack := askRec.Body.String()
-	for _, want := range []string{`"chat_thinking":true`, `"chatPrompt":""`} {
+	for _, want := range []string{`"chat_thinking":true`} {
 		if !strings.Contains(ack, want) {
 			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
 		}
+	}
+	if strings.Contains(ack, `"chatPrompt"`) {
+		t.Errorf("ask ack wrote the client-owned chatPrompt signal; a response "+
+			"landing after the user typed would erase the composer (got %.300q…)", ack)
 	}
 
 	// The worker persists both sides: poll the memory store for the

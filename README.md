@@ -171,6 +171,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | Ask AI: model renders catalog UI (cards, tables, sections) via SSE | `trim genui` (bundle with Chat), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
 | Chat: conversation over the same catalog, persisted per owner | `trim genui` (bundle with Ask AI), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
 | Review loop: writer → critic → classifier judge, streamed verdict | `trim review`, or no `GOAI_API_KEY` (real-LLM only; page shows a setup hint) |
+| Search layers for feature rows (substring in SQL, fuzzy tiers, BM25 over its own postings) | `trim search` (a consumer keeps the SQL substring layer) |
 | AI credits + BYOK relay + Stripe top-ups | `CREDITS_ENABLED=false` |
 | Collaborative whiteboard (CRDT + presence + offline outbox) | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` |
 | Room presence demo (GoAkt grains: roster + presenter lock) | delete `features/room/` |

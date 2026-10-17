@@ -148,16 +148,94 @@ live in `.templ` markup rather than Go:
   object, which drops every seed on the page before Datastar reads the
   attribute. A page that seeds state there (`review_pending`, `genui_pending`,
   `chat_thinking`) must emit valid JSON for the merge to work.
+- **A page that renders the navbar must wire `$theme`, or the toggle looks
+  broken.** The button lives in `Navbar`, so any page that includes the navbar
+  shows a toggle that runs — it flips `$theme` and calls `Theme.syncIcons`.
+  But `$theme` only *does* anything when `<html>` carries the three bindings,
+  and without them nothing observes the signal: the icon sync hides both icons
+  (the CSS reveals the moon only under `html.dark`) and the theme never
+  changes. Use the shared helper rather than copying the attributes:
+
+  ```templ
+  <html lang="en" { authviews.ThemeRootAttrs("")... }>
+  <!-- or, keeping the page's own seeds: -->
+  <html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(signals))... }>
+  ```
+
+  `ThemeRootAttrs` supplies `data-signals` + `data-attr:data-theme` +
+  `data-class:dark`. The copy-per-page form is what diverged: three pages
+  (`/config`, `/room`, the landing page) shipped the navbar with none of the
+  three, and the toggle silently did nothing. `features/authviews/theme_test.go`
+  scans for the wiring and fails on a new page that forgets it.
+- **`ThemeHead` is also what loads the iconify component.** `<iconify-icon>` is
+  a web component: without `/static/iconify-icon.min.js` the tag lays out at
+  0×0, so every icon — the theme toggle's sun/moon and the sound toggle — is
+  simply not there, and a toggle that swaps its icon looks like it vanishes.
+  The script lives in `ThemeHead` (one owner) rather than in each page; the
+  navbar uses iconify icons, so a page that renders the navbar and not
+  `ThemeHead` shows invisible icons. Eight pages had each copied the tag and
+  three had forgotten it — the same "every page must remember" shape that let
+  the theme bindings drift.
 - A signal that never reached the store is read as `""`, and Datastar's
   `data-attr:disabled` sets the attribute for `""` — so a wiped seed is a
   control born disabled. Only its own submit handler clears it, so the page
   cannot recover. A stream handshake that re-seeds the signal (Ask and Chat
   merge `pending: false` on connect) can hide the loss; don't rely on it.
+- **A `data-bind` signal is client-owned: never write it from a server merge.**
+  The bound element is the source of truth while the user types, and the
+  server's copy always lags (a value only arrives after a debounced
+  round-trip). A background merge — stream handshake, record-event re-list,
+  workflow re-list, mutation re-list — therefore overwrites live input, and the
+  debounced request then reads the clobbered value and the feature silently does
+  nothing (lived bug: `searchQuery` was written from six call sites — the
+  stream handshake, both list endpoints, the mutation re-list, and the `/search`
+  response echoing its own `?q=` — and the search box lost its text mid-typing;
+  the smoke caught it only intermittently). The composers carried the same
+  write: the create response cleared `newTitle` and both ask acks cleared
+  `chatPrompt`/`genuiPrompt`, erasing text typed while a slow answer was still
+  in flight. The counts are `datastar-lint`'s, not a hand tally: 9 findings on
+  the pre-fix tree (7 mentioning `$searchQuery`, one of which was the missing
+  `omitempty` on the struct), and **0 after**.
+  The struct field must also be `omitempty` **or excluded**: without
+  `omitempty` the zero value still marshals (`"x":""`), so removing the field
+  from the merge *call* does not stop the write — which is why the first fix
+  attempt was a no-op. `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` (error) and
+  `CLIENT_BOUND_SIGNAL_WRITTEN` (error) gate both halves, and since
+  datastar-lint v0.16.0 the write check reads **three doors** — a Go merge, a
+  `data-signals:key`, a `data-signals={obj}` — because a server-rendered
+  signals attribute re-applies on every morph.
+  **The zero finding is not a suppression.** `Signals.SearchQuery` is
+  `json:"-"`, so it never reaches `data-signals`; the input seeds
+  `$searchQuery` from its own `value=` (bind.ts merges with `{ifMissing:
+  true}`). The seed therefore never writes a client-owned signal, and there is
+  nothing to silence. Reach for `json:"-"` + `value=` before reaching for a
+  suppression: the lint reports `SUPPRESS_UNUSED` the moment a write is gone,
+  so an escape hatch cannot outlive its subject. This repo goes further:
+  `.datastar-lint.yaml` lists `CLIENT_BOUND_SIGNAL_WRITTEN` under
+  `suppressions.forbidden`, so a `// datastar-lint:ignore` for it is rejected
+  outright (`SUPPRESS_BLOCKED`) even with a reason. The lock is safe precisely
+  because the idiom above needs no suppression — a reviewer cannot be talked
+  past a comment the linter refuses to accept.
+- **A response that echoes the request's own signal is the same clobber.**
+  `/search` derives no display value from `?q=` for that reason: the box is
+  seeded once, by the input's own `value=` on first render, and every later
+  response patches rows only. A response that re-emits what its request carried lands
+  late and re-imposes an older value (`?q=kes` overwriting "kestrel"), so the
+  rule is not "don't write it in background paths" but "don't write it in any
+  response".
+- **A tab/scope click carries no search of its own**, so its URL must append
+  `&q=$searchQuery`: the list handler reads a missing `q` as "clear the stored
+  search", and omitting it drops the active search while the box still shows
+  the text.
 
-The lint runs with `-only-errors` in CI so intentional custom attributes (the
-cuelume's `data-cuelume-*` attributes, for example) do not fail the gate.
-Add genuinely intentional attributes to `.datastar-lint.yaml` under
-`attributes.allowed`.
+The lint runs with `-only-errors` in CI, which means only ERROR-severity
+findings ever gate. That is why the bound-signal write is ERROR: as a warning it
+was invisible to both gates, and the bug it describes shipped with the rule
+already in the tree. Custom attributes (the cuelume `data-cuelume-*` set,
+Basecoat's `data-size`/`data-variant`) are noise at that severity, so they live
+in `.datastar-lint.yaml` under `attributes.allowed` — each verified to have a
+consumer before listing, since an entry also hides a misspelling of a real
+attribute.
 
 ## Concurrency and resources
 

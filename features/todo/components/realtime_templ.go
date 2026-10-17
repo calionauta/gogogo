@@ -105,6 +105,11 @@ func RealtimeStream(streamURL string) templ.Component {
 //   - the hidden @get button (ListResync) re-fetches the list fragment
 //     via Datastar's programmatic @get, morphing #todo-list in place;
 //   - DocVersionWatcher clicks it when the doc-version signal moves.
+//
+// The fragment URL carries `q` as well as filter/scope: the endpoint (and the
+// SetView it performs) treats a missing q as "no search", so omitting it would
+// make every resync — load, visibility return, doc-version bump, offline sync —
+// re-render the full list and clear an active search out from under the box.
 func RealtimeRecords() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -126,7 +131,7 @@ func RealtimeRecords() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

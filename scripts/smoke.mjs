@@ -240,6 +240,69 @@ async function verifySingleOnlineTodoSubmit(page, skin) {
   console.log("  ✓ Basecoat rapid online submit sends one request");
 }
 
+// Verify the search box end to end: type a term that matches ONE of two
+// rows, and require the list to narrow to it. This is the smoke-level proof
+// that the endpoint, the layer and the `#todo-list` patch agree a unit test
+// can pass with the template wired to nothing.
+//
+// Deliberately asserts on a MIDDLE substring: the default layer is the SQL
+// filter, and an exact-match regression would show up here as "no match".
+async function verifyTodoSearch(page, skin) {
+  const marker = `searchable-${Date.now()}`;
+  const other = `unrelated-${Date.now()}`;
+  const skinPath = skin === "daisyui" ? "/todo" : `/todo?skin=${encodeURIComponent(skin)}`;
+
+  console.log(`-> Exercising todo search (skin=${skin})...`);
+  await page.goto(BASE + skinPath, { waitUntil: "load", timeout: 20000 });
+
+  for (const title of [marker, other]) {
+    const input = page.getByPlaceholder("Add a new todo...");
+    // The previous create's response no longer writes $newTitle (the box owns
+    // it and clears itself on success), so two creates no longer race. The
+    // clear is still worth doing: it makes each iteration start from a known
+    // empty box rather than depending on the last clear having landed.
+    await input.fill("");
+    await input.fill(title);
+    await input.press("Enter");
+    await page.locator('[id^="todo-"]:not(#todo-list)').filter({ hasText: title })
+      .waitFor({ state: "visible", timeout: 20000 });
+    // Readiness = the box cleared itself after the request succeeded. This is
+    // the client's own clear (the response no longer writes $newTitle, see
+    // todo_list.templ), so it is also what proves the create round-tripped
+    // before the next one starts.
+    await page.waitForFunction(() => {
+      const el = document.querySelector('input[data-bind="newTitle"]');
+      return !el || el.value === "";
+    }, null, { timeout: 20000 });
+  }
+
+  const box = page.getByPlaceholder("Search todos...");
+  if ((await box.count()) === 0) {
+    console.log("  -> search box absent (plugin trimmed), skipping");
+    return;
+  }
+  const patch = page.waitForResponse(
+    (r) => r.url().includes("/api/todos/search") && r.status() === 200,
+    { timeout: 20000 },
+  );
+  await box.fill("searchable");
+  await patch;
+
+  // The list is patched as one region, so narrowing REMOVES the non-matching
+  // rows. Waiting on the marker row would be vacuous — it is already visible
+  // from the create above, so that wait resolves before the patch arrives and
+  // the assertion samples a stale DOM (observed as a CI flake). The detach of
+  // the non-matching row IS the transition, so it is the readiness signal.
+  const rows = page.locator('[id^="todo-"]:not(#todo-list)');
+  await rows.filter({ hasText: other }).waitFor({ state: "detached", timeout: 20000 });
+  await rows.filter({ hasText: marker }).waitFor({ state: "visible", timeout: 20000 });
+  const leaked = await rows.filter({ hasText: other }).count();
+  if (leaked !== 0) {
+    throw new Error(`search did not narrow the list: ${leaked} non-matching row(s) still rendered`);
+  }
+  console.log(`  OK skin=${skin}: search narrowed the list to the matching row`);
+}
+
 async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   const title = `offline-smoke-${Date.now()}`;
   const skinPath = skin === "daisyui" ? "/todo" : `/todo?skin=${encodeURIComponent(skin)}`;
@@ -738,6 +801,7 @@ try {
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
     await verifySingleOnlineTodoSubmit(page, skin);
+    await verifyTodoSearch(page, skin);
     await verifyOfflineTodoQueue(page, context, skin);
     if (pageErrors.length > 0) {
       fail(`uncaught JS error during offline queue test (skin=${skin}): ${pageErrors.map((e) => e.msg).join(" | ")}`);

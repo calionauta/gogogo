@@ -104,13 +104,19 @@ func TestHandlersGenuiAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
-	// Same composer contract as chat: the ack takes the form at once
-	// (pending on, prompt cleared) instead of waiting for the worker.
+	// Same composer contract as chat: the ack raises the pending guard but
+	// does NOT touch the composer. $genuiPrompt is bound two-way to the input,
+	// so the box owns it; a response that cleared it wiped text typed after
+	// submit. The client clears it on success.
 	ack := askRec.Body.String()
-	for _, want := range []string{`"genui_pending":true`, `"genuiPrompt":""`} {
+	for _, want := range []string{`"genui_pending":true`} {
 		if !strings.Contains(ack, want) {
 			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
 		}
+	}
+	if strings.Contains(ack, `"genuiPrompt"`) {
+		t.Errorf("ask ack wrote the client-owned genuiPrompt signal; a response "+
+			"landing after the user typed would erase the composer (got %.300q…)", ack)
 	}
 
 	// The worker renders through the queue: open the stream on a real

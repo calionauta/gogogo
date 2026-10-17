@@ -42,12 +42,21 @@ const (
 
 type Signals struct {
 	Todos     []Todo `json:"todos"`
-	NewTitle  string `json:"newTitle"`
+	NewTitle  string `json:"newTitle,omitempty"`
 	Filter    string `json:"filter"` // "all", "active", "completed"
 	EditingID string `json:"editingId"`
 	EditTitle string `json:"editTitle"`
 	Loading   bool   `json:"loading"`
 	ItemCount int    `json:"itemCount"`
+
+	// SearchQuery is the text in the search box, and SearchEnabled says
+	// whether a search layer is wired at all (false when the plugin was
+	// trimmed, which hides the input). `json:"-"` keeps it OUT of
+	// data-signals on purpose: the input owns the signal (data-bind) and seeds
+	// it from `value=` on first render, so the server never writes it and a
+	// re-list cannot clobber the user's typing.
+	SearchQuery   string `json:"-"`
+	SearchEnabled bool   `json:"searchEnabled"`
 
 	// ConfirmDelete is the id of the todo whose delete-confirm modal is
 	// currently open. Empty string means no modal is shown. The title

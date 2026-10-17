@@ -116,6 +116,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `skins-extra` | `web/skins/basecoat/` | Blank import dropped from `features/todo/components/skin_imports.go`; the basecoat dispatch blocks + imports stripped from `features/todo/handlers/pages.go` + `features/todo/handlers/chi.go` (DaisyUI default stays). Warns: `?skin=` falls back to DaisyUI; the static bundle stays embedded (manual follow-up with the `css-basecoat` target) |
 | `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; navbar Ask AI link stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 | `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); navbar Review link stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
+| `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually
 later per `docs/scope-taxonomy.md`), `auth` (middleware is core), `queue`
