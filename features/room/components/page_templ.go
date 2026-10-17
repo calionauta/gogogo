@@ -58,7 +58,15 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Room — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, authviews.ThemeRootAttrs(""))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Room — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -66,7 +74,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -78,7 +86,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<main class=\"mx-auto max-w-2xl p-4\" data-room=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"mx-auto max-w-2xl p-4\" data-room=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -91,7 +99,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><h1 class=\"text-2xl font-bold\">Room: ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><h1 class=\"text-2xl font-bold\">Room: ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -104,7 +112,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</h1><p class=\"opacity-70\">One grain owns this roster and its presenter lock. Open a second browser and take the lock there — exactly one of you wins. Press crash and watch the roster rebuild.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</h1><p class=\"opacity-70\">One grain owns this roster and its presenter lock. Open a second browser and take the lock there — exactly one of you wins. Press crash and watch the roster rebuild.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -116,12 +124,12 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"card bg-base-200 shadow mt-4\"><div class=\"card-body\"><h2 class=\"card-title\">Presenter: <span id=\"room-presenter\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"card bg-base-200 shadow mt-4\"><div class=\"card-body\"><h2 class=\"card-title\">Presenter: <span id=\"room-presenter\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if roster.Presenter == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "(none)")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "(none)")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -136,7 +144,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span></h2><p class=\"text-sm opacity-70\">Room generation <span id=\"room-generation\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></h2><p class=\"text-sm opacity-70\">Room generation <span id=\"room-generation\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -149,12 +157,12 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span> (bumps on every restart)</p><ul id=\"room-roster\" class=\"menu\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span> (bumps on every restart)</p><ul id=\"room-roster\" class=\"menu\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, m := range roster.Members {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -167,12 +175,12 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</ul><div class=\"card-actions justify-end\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\">Take presenter</button> <button id=\"room-release\" class=\"btn\" type=\"button\">Release</button> <button id=\"room-leave\" class=\"btn\" type=\"button\">Leave</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\">Crash room</button></div></div></div></main><script>\n\t\t\t\t// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): this page\n\t\t\t\t// uses vanilla fetch + innerHTML roster + heartbeat/refresh\n\t\t\t\t// intervals. Converting means signals + @post morphs +\n\t\t\t\t// data-on-interval with interaction coverage: a feature\n\t\t\t\t// project, not a line edit. Pinned by the guard so it\n\t\t\t\t// cannot grow.\n\t\t\t\t// Adjacent polling loop (not SSE): heartbeat keeps this\n\t\t\t\t// member alive, roster refresh re-renders from snapshots.\n\t\t\t\t// Templ does not interpolate expressions inside <script>\n\t\t\t\t// (script bodies render verbatim), so the room id travels\n\t\t\t\t// as a data attribute on <main>, read back here.\n\t\t\t\t(function () {\n\t\t\t\t\tvar room = document.querySelector(\"main[data-room]\").getAttribute(\"data-room\");\n\t\t\t\t\tfunction post(path) {\n\t\t\t\t\t\treturn fetch(path + \"?room=\" + encodeURIComponent(room), {method: \"POST\"});\n\t\t\t\t\t}\n\t\t\t\t\tfunction render(roster) {\n\t\t\t\t\t\tvar names = \"\";\n\t\t\t\t\t\t(roster.members || []).forEach(function (m) { names += \"<li>\" + m.name + \"</li>\"; });\n\t\t\t\t\t\tdocument.getElementById(\"room-roster\").innerHTML = names;\n\t\t\t\t\t\tdocument.getElementById(\"room-presenter\").textContent = roster.presenter || \"(none)\";\n\t\t\t\t\t\tdocument.getElementById(\"room-generation\").textContent = roster.generation;\n\t\t\t\t\t}\n\t\t\t\t\tfunction refresh() {\n\t\t\t\t\t\tfetch(\"/room/roster?room=\" + encodeURIComponent(room))\n\t\t\t\t\t\t\t.then(function (r) { return r.json(); })\n\t\t\t\t\t\t\t.then(render);\n\t\t\t\t\t}\n\t\t\t\t\tdocument.getElementById(\"room-acquire\").addEventListener(\"click\", function () { post(\"/room/acquire\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-release\").addEventListener(\"click\", function () { post(\"/room/release\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-leave\").addEventListener(\"click\", function () { post(\"/room/leave\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-crash\").addEventListener(\"click\", function () { post(\"/room/crash\").then(refresh); });\n\t\t\t\t\tsetInterval(function () { post(\"/room/heartbeat\"); }, 5000);\n\t\t\t\t\tsetInterval(refresh, 3000);\n\t\t\t\t\tpost(\"/room/heartbeat\");\n\t\t\t\t})();\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</ul><div class=\"card-actions justify-end\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\">Take presenter</button> <button id=\"room-release\" class=\"btn\" type=\"button\">Release</button> <button id=\"room-leave\" class=\"btn\" type=\"button\">Leave</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\">Crash room</button></div></div></div></main><script>\n\t\t\t\t// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): this page\n\t\t\t\t// uses vanilla fetch + innerHTML roster + heartbeat/refresh\n\t\t\t\t// intervals. Converting means signals + @post morphs +\n\t\t\t\t// data-on-interval with interaction coverage: a feature\n\t\t\t\t// project, not a line edit. Pinned by the guard so it\n\t\t\t\t// cannot grow.\n\t\t\t\t// Adjacent polling loop (not SSE): heartbeat keeps this\n\t\t\t\t// member alive, roster refresh re-renders from snapshots.\n\t\t\t\t// Templ does not interpolate expressions inside <script>\n\t\t\t\t// (script bodies render verbatim), so the room id travels\n\t\t\t\t// as a data attribute on <main>, read back here.\n\t\t\t\t(function () {\n\t\t\t\t\tvar room = document.querySelector(\"main[data-room]\").getAttribute(\"data-room\");\n\t\t\t\t\tfunction post(path) {\n\t\t\t\t\t\treturn fetch(path + \"?room=\" + encodeURIComponent(room), {method: \"POST\"});\n\t\t\t\t\t}\n\t\t\t\t\tfunction render(roster) {\n\t\t\t\t\t\tvar names = \"\";\n\t\t\t\t\t\t(roster.members || []).forEach(function (m) { names += \"<li>\" + m.name + \"</li>\"; });\n\t\t\t\t\t\tdocument.getElementById(\"room-roster\").innerHTML = names;\n\t\t\t\t\t\tdocument.getElementById(\"room-presenter\").textContent = roster.presenter || \"(none)\";\n\t\t\t\t\t\tdocument.getElementById(\"room-generation\").textContent = roster.generation;\n\t\t\t\t\t}\n\t\t\t\t\tfunction refresh() {\n\t\t\t\t\t\tfetch(\"/room/roster?room=\" + encodeURIComponent(room))\n\t\t\t\t\t\t\t.then(function (r) { return r.json(); })\n\t\t\t\t\t\t\t.then(render);\n\t\t\t\t\t}\n\t\t\t\t\tdocument.getElementById(\"room-acquire\").addEventListener(\"click\", function () { post(\"/room/acquire\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-release\").addEventListener(\"click\", function () { post(\"/room/release\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-leave\").addEventListener(\"click\", function () { post(\"/room/leave\").then(refresh); });\n\t\t\t\t\tdocument.getElementById(\"room-crash\").addEventListener(\"click\", function () { post(\"/room/crash\").then(refresh); });\n\t\t\t\t\tsetInterval(function () { post(\"/room/heartbeat\"); }, 5000);\n\t\t\t\t\tsetInterval(refresh, 3000);\n\t\t\t\t\tpost(\"/room/heartbeat\");\n\t\t\t\t})();\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -9,7 +9,7 @@ make templ && make datastar-lint   # after any .templ change
 ```
 
 - `make datastar-lint` = `bin/datastar-lint -only-errors -r ./features ./internal` (`Makefile`). Two trees because the **Go analyzer** validates backend SDK calls (`sse.PatchElements`) which live under `internal/`; the HTML analyzer covers the `.templ` under `features/`. `-only-errors` keeps intentional custom attrs (`data-tool`, `data-doc-id`) green.
-- CI pins the version (`go install github.com/calionauta/datastar-lint@v0.13.3`), **not** `@latest`: a new release can raise a rule to ERROR and fail the build with no code change here.
+- CI pins the version (`go install github.com/calionauta/datastar-lint@v0.14.0`), **not** `@latest`: a new release can raise a rule to ERROR and fail the build with no code change here.
 - Locally use the wrapper (`bin/datastar-lint`); it forwards `"$@"` and adds `--analyzers html,go`. Never bypass it with raw flags — the wrapper is what supplies the analyzers.
 - Pre-commit runs it on `*.{templ,go}` (`bin/check-datastar.sh`, scanning `./features/ ./web/ ./internal/`). Air `pre_cmd` runs templgen + lint on every save (`.air.toml`).
 
@@ -69,6 +69,34 @@ values to inline scripts as unquoted data attributes
 datastar-lint nor the Go linters see this class — the browser smoke
 (`scripts/smoke.mjs`, which loads every page and fails on JS errors)
 is the gate that catches it.
+7. **A `data-bind` signal is client-owned: never write it from a server
+   response.** `datastar-lint` enforces this
+   (`CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` = error, `CLIENT_BOUND_SIGNAL_WRITTEN` =
+   warning) across all four write forms — literal and constant map keys,
+   struct-literal fields, field assignments — so this is a pointer, not the
+   rule: the two traps a reader still needs are that a response **echoing the
+   request's own parameter** is the same bug (a late `/search` reply for
+   `?q=kes` re-imposes "kes" over the "kestrel" typed since, which is why
+   `displaySignals` seeds nothing and the URL is authoritative only once, at
+   page load), and that `MarshalAndPatchSignalsIfMissing` /
+   `WithOnlyIfMissing(true)` is the documented escape hatch (a write routed
+   through it cannot overwrite an existing signal, so the check allows it).
+   Full reasoning and the lived bug: `docs/code-quality.md`,
+   `docs/realtime-recipe.md`.
+8. **A page that renders the navbar must wire `$theme`, and must render
+   `ThemeHead`.** The toggle lives in `Navbar`, so any page including the
+   navbar shows a working-looking button — but `$theme` only acts when `<html>`
+   carries `data-signals` + `data-attr:data-theme` + `data-class:dark`. Without
+   them the click hides BOTH icons (the CSS reveals the moon only under
+   `html.dark`) and the theme never changes: the button appears to vanish. Use
+   the helper, never a copy: `<html lang="en" { authviews.ThemeRootAttrs("")... }>`
+   (or `ThemeRootAttrs(MarshalSignals(signals))` to keep the page's own seeds).
+   `ThemeHead` is also the single owner of `/static/iconify-icon.min.js`: the
+   `<iconify-icon>` tag is a web component that lays out at 0×0 without it, so a
+   page missing the head shows invisible icons (theme + sound toggles). One
+   obligation, one place — three pages shipped the first bug and three the
+   second. Guards: `features/authviews/theme_test.go` (template scan) plus the
+   browser smoke.
 
 ## Scan roots (why landing edits are safe)
 

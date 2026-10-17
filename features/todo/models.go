@@ -42,12 +42,20 @@ const (
 
 type Signals struct {
 	Todos     []Todo `json:"todos"`
-	NewTitle  string `json:"newTitle"`
+	NewTitle  string `json:"newTitle,omitempty"`
 	Filter    string `json:"filter"` // "all", "active", "completed"
 	EditingID string `json:"editingId"`
 	EditTitle string `json:"editTitle"`
 	Loading   bool   `json:"loading"`
 	ItemCount int    `json:"itemCount"`
+
+	// SearchQuery is the text in the search box, and SearchEnabled says
+	// whether a search layer is wired at all (false when the plugin was
+	// trimmed, which hides the input). SearchQuery rides the signals so a
+	// record-event re-list keeps the tab's active search instead of
+	// silently showing everything again.
+	SearchQuery   string `json:"searchQuery,omitempty"`
+	SearchEnabled bool   `json:"searchEnabled"`
 
 	// ConfirmDelete is the id of the todo whose delete-confirm modal is
 	// currently open. Empty string means no modal is shown. The title

@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -68,7 +69,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	default:
 		now := dbschema.Now()
 		newID := dbschema.NewID()
-		if _, cerr := h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
+		if cerr := createTodoIndexed(ctx, h.Q, h.Index, h.DB, dbgen.CreateTodoParams{
 			ID: newID, Owner: owner, Title: title,
 			Completed: false, IdemKey: idemKey, Visibility: visibility,
 			Created: now, Updated: now,
@@ -118,12 +119,19 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"loading": false, "newTitle": "", signalItemCount: len(todos),
+		// newTitle is deliberately NOT written here: $newTitle is bound
+		// two-way to the composer (data-bind), so the box owns it. Writing
+		// "" from this response wiped text the user had already typed after
+		// submitting -- reproduced in the browser (type immediately after
+		// Enter and the input goes empty), and worked around in the smoke by
+		// waiting between creates. The client clears it after the request
+		// succeeds, and only if it still holds what was sent.
+		"loading": false, signalItemCount: len(todos),
 	}); err != nil {
 		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
 		return
 	}
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: create patch failed", err, "save failed")
 		return
 	}
@@ -135,13 +143,38 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 // patchListSelf tags the originating mutation as "self" (self-origin entry
 // animation) and patches the list with view transitions, merging the fresh
 // item count in the same SSE response.
-func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request) error {
+//
+// The re-list narrows by the tab's ACTIVE SEARCH (read from its stored view
+// prefs, since a mutation URL carries no `q`): without this, pressing toggle
+// or delete while a search is active would re-render every row the search had
+// excluded. The stored query is the same authority the record-event re-list
+// reads, so one tab cannot end up on a different slice than another.
+//
+// The $searchQuery SIGNAL is deliberately not written here — the box owns it
+// (see displaySignals), and a mutation URL carries no `q`, so the derived
+// value is empty and `omitempty` leaves the client's live text alone.
+//
+//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
+func (h *Handler) patchListSelf(
+	ctx context.Context, sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request,
+) error {
+	query := h.Hub.ViewOf(r.URL.Query().Get("clientID")).Query
+	if owner, err := h.ownerID(r); err == nil {
+		narrowed, nerr := h.narrowBySearch(ctx, owner, query, todos)
+		if nerr != nil {
+			return nerr
+		}
+		todos = narrowed
+	}
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
 		signalItemCount:  len(todos),
 	}); err != nil {
 		return err
 	}
+	// displaySignals never sets SearchQuery (the box owns it), so a mutation
+	// cannot clobber live input. The rows still narrow by the STORED query
+	// above, so the slice stays correct without touching the signal.
 	signals := h.displaySignals(r, todos, filterOf(r), scopeOf(r))
 	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),
@@ -149,8 +182,6 @@ func (h *Handler) patchListSelf(sse *sdk.ServerSentEventGenerator, todos []todo.
 }
 
 // context; disconnects surface as write errors, checked per call.
-//
-//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	owner, err := h.ownerID(r)
 	if err != nil {
@@ -203,7 +234,7 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: toggle patch failed", err, "toggle failed")
 	}
 }
@@ -278,7 +309,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusForbidden, "viewer role cannot delete")
 		return
 	}
-	if derr := h.Q.DeleteTodoByID(ctx, item.ID); derr != nil {
+	if derr := deleteTodoIndexed(ctx, h.Q, h.Index, h.DB, owner, item.ID); derr != nil {
 		h.fail(r.Context(), w, "todo: delete failed", fmt.Errorf("id %s: %w", id, derr), "delete failed")
 		return
 	}
@@ -308,7 +339,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: delete signals failed", err, "delete failed")
 		return
 	}
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: delete patch failed", err, "delete failed")
 		return
 	}
@@ -327,7 +358,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	count, err := h.Q.DeleteCompletedByOwner(ctx, owner)
+	count, err := clearCompletedIndexed(ctx, h.Q, h.Index, h.DB, owner)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: clear completed failed", err, "clear failed")
 		return
@@ -354,7 +385,7 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(sse, todos, r); err != nil {
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
 		h.fail(r.Context(), w, "todo: clear patch failed", err, "clear failed")
 		return
 	}

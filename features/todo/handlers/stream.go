@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
@@ -40,20 +41,29 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	h.Hub.Register(clientID, ownerStr, ch)
 	defer h.Hub.UnregisterIfCurrent(clientID, ch)
 
-	todos := []todo.Todo{}
-	if hasOwner {
-		var err error
-		todos, err = h.listVisible(r.Context(), owner, h.roleOwner(r.Context(), owner), "all", "all")
-		if err != nil {
-			h.fail(r.Context(), w, "todo: list on stream open failed", err, "error listing todos")
-			return
-		}
+	// The handshake re-lists the tab's OWN slice, not a blanket all/all.
+	//
+	// It deliberately does NOT echo SearchQuery. $searchQuery is bound two-way
+	// to the search box, so it is CLIENT-owned: the stored view only advances
+	// once a debounced search round-trips, so during the debounce window the
+	// server's value LAGS what the user has typed. Merging it back overwrote
+	// the live box with the previous value, and the debounced @get then read
+	// an empty $searchQuery and listed everything — the search silently doing
+	// nothing. The box is seeded on first render and patched by the search
+	// handler; a reconnect has nothing to add. The TODOS still come from the
+	// stored view, so a reconnect cannot re-render rows outside the slice.
+	view := h.Hub.ViewOf(clientID)
+	todos, err := h.handshakeTodos(r, hasOwner, owner, view)
+	if err != nil {
+		h.fail(r.Context(), w, "todo: list on stream open failed", err, "error listing todos")
+		return
 	}
 	if err := dshelpers.MergeSignals(sse, todo.Signals{
 		Todos:            todos,
-		Filter:           "all",
-		Scope:            "all",
+		Filter:           view.Filter,
+		Scope:            view.Scope,
 		ItemCount:        len(todos),
+		SearchEnabled:    h.searchEnabled(),
 		ConnectedClients: h.Hub.CountUserClients(),
 		ClientID:         clientID,
 		SidebarTab:       "queue",
@@ -100,6 +110,22 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 // slice it was looking at. Anonymous streams (hasOwner == false) have no
 // tenant to re-list, so there is nothing to do — nil is the correct
 // result, not a swallowed error.
+// handshakeTodos lists the slice a freshly-opened (or reconnected) stream
+// shows. Anonymous streams have no tenant to list, so they get an empty set
+// rather than an error — nil would marshal as null.
+func (h *Handler) handshakeTodos(
+	r *http.Request, hasOwner bool, owner string, view queue.ViewPref,
+) ([]todo.Todo, error) {
+	if !hasOwner {
+		return []todo.Todo{}, nil
+	}
+	todos, err := h.listVisible(r.Context(), owner, h.roleOwner(r.Context(), owner), view.Filter, view.Scope)
+	if err != nil {
+		return nil, err
+	}
+	return h.narrowBySearch(r.Context(), owner, view.Query, todos)
+}
+
 func (h *Handler) applyRecordEvent(
 	ctx context.Context, sse *sdk.ServerSentEventGenerator, owner, clientID string, hasOwner bool, evt recordEvent,
 ) error {
@@ -115,11 +141,24 @@ func (h *Handler) applyRecordEvent(
 	if err != nil {
 		return fmt.Errorf("re-list on %s: %w", evt.Event, err)
 	}
+	todos, err = h.narrowBySearch(ctx, owner, view.Query, todos)
+	if err != nil {
+		return fmt.Errorf("re-list search on %s: %w", evt.Event, err)
+	}
 	if err := dshelpers.MergeSignals(sse, map[string]any{signalItemCount: len(todos)}); err != nil {
 		return err
 	}
+	// SearchQuery is deliberately NOT set here. It is bound two-way to the
+	// search box, so it is CLIENT-owned: the stored view only advances once a
+	// debounced search round-trips, so during the debounce window the server's
+	// value LAGS what the user typed. Writing it from a background re-list
+	// (record event, workflow completion, reconnect) would reset the box
+	// mid-typing — and because Signals' field is `omitempty`, leaving it out
+	// means "do not touch" rather than "clear". The rows still come from the
+	// stored view, so the slice stays correct.
 	signals := todo.Signals{
 		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
+		SearchEnabled:  h.searchEnabled(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       rbac.IsViewer(role),
 		IsAdmin:        role == rbac.RoleAdmin,
@@ -151,13 +190,18 @@ func (h *Handler) applyWorkflowCompleted(
 	if err != nil {
 		return fmt.Errorf("re-list after workflow: %w", err)
 	}
+	todos, err = h.narrowBySearch(ctx, owner, view.Query, todos)
+	if err != nil {
+		return fmt.Errorf("re-list search after workflow: %w", err)
+	}
 	//nolint:contextcheck // datastar-go's sink takes no context (a
 	// third-party boundary); see patchSSE.
 	return renderWorkflowDone(sse, h.renderListRegion(todo.Signals{
 		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
-		IsViewer: rbac.IsViewer(role),
-		IsAdmin:  role == rbac.RoleAdmin,
-		UserID:   owner,
+		SearchEnabled: h.searchEnabled(),
+		IsViewer:      rbac.IsViewer(role),
+		IsAdmin:       role == rbac.RoleAdmin,
+		UserID:        owner,
 	}, "daisyui"))
 }
 

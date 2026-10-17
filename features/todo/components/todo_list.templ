@@ -31,6 +31,8 @@ func marshalSignals(s todo.Signals) string {
 //   - $connectedClients: live SSE presence count
 //   - $onboardingStep / Phase / Detail / Active / Completed: durable workflow
 //   - $confirmingDeleteId: id of the todo whose delete-confirm modal is open
+//   - $searchQuery: active search text (empty = unfiltered); server-owned,
+//     patched on every search/list so a re-list cannot desync the box
 //   - $techStep, $techDone, $techPhase: diagnostics panel state machine
 //
 // Every mutation handler is responsible for patching the relevant
@@ -88,6 +90,8 @@ templ TodoList(signals todo.Signals) {
 							</h2>
 
 							@createForm(signals)
+
+							@searchBox(signals)
 
 							@SuggestionsList(signals.Suggestions)
 
@@ -403,7 +407,7 @@ templ TodoList(signals todo.Signals) {
 templ createForm(signals todo.Signals) {
 	<form
 		class="w-full mb-4"
-		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}); }"
+		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null"
 	>
 		<div class="join w-full">
 		<input
@@ -434,6 +438,44 @@ templ createForm(signals todo.Signals) {
 	</form>
 }
 
+// searchBox is the plugin's UI half: it exists only when a layer is wired
+// (signals.SearchEnabled). Typing re-fetches through `/api/todos/search` with
+// a 300ms debounce, and that handler patches the same `#todo-list` region the
+// filter tabs do — so the ranking shows up as the row order, with no results
+// panel to keep in sync and no client-side list to hydrate.
+//
+// The value binds to `$searchQuery` (not a local signal) so a record-event
+// re-list, which re-renders from the server's stored view, cannot leave a
+// stale term in the box: the server patches the signal with what it actually
+// filtered by. Clearing the box (empty value) re-lists unfiltered.
+templ searchBox(signals todo.Signals) {
+	if signals.SearchEnabled {
+		<div class="join w-full mb-3">
+			<span class="join-item btn btn-ghost btn-sm sm:btn-md no-animation pointer-events-none" aria-hidden="true">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+				</svg>
+			</span>
+			<input
+				type="search"
+				name="q"
+				class="input join-item flex-1 input-sm sm:input-md"
+				placeholder="Search todos..."
+				aria-label="Search todos"
+				data-bind="searchQuery"
+				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
+			/>
+			<button
+				type="button"
+				class="join-item btn btn-ghost btn-sm sm:btn-md"
+				aria-label="Clear search"
+				data-show="$searchQuery"
+				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
+			 data-variant="ghost">✕</button>
+		</div>
+	}
+}
+
 // scopeTabs renders the listing slice (All / Mine / Shared). Like the
 // status tabs, clicks re-fetch with the other dimension preserved, and the
 // active state reads from the `$scope` signal so SSE patches stay in sync.
@@ -454,7 +496,7 @@ templ scopeTab(label, value string) {
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle"
 		data-class={ "{ 'tab-active': ($scope || 'all') === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&clientID=' + encodeURIComponent($clientID || ''))" }
+		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))" }
 	>
 		{ label }
 	</a>
@@ -465,6 +507,11 @@ templ scopeTab(label, value string) {
 // AND the `#todo-list` region, so the active state and the visible rows update
 // in lockstep. The active state reads from the `$filter` signal so remote
 // patches from the broadcaster flip the right tab.
+//
+// The URL carries `q=$searchQuery`: a tab click carries no search of its own,
+// and SetView treats a missing q as "clear the stored search", so omitting it
+// would drop the tab's active search on every tab click (the stored view would
+// say "no search" while the box still showed the text).
 templ filterTabs(signals todo.Signals) {
 	<div class="tabs tabs-box mb-4 w-full" role="tablist" aria-label="Status filter">
 		@filterTab("All", "all")
@@ -484,7 +531,7 @@ templ filterTab(label, value string) {
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle"
 		data-class={ "{ 'tab-active': ($filter || 'all') === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))" }
+		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))" }
 	>
 		{ label }
 	</a>

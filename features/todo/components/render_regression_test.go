@@ -237,3 +237,31 @@ func TestRender_QueueRetryButtonEnabled(t *testing.T) {
 		t.Errorf("Queue + retry button has a static disabled attribute; it must be enabled by default")
 	}
 }
+
+// TestRender_ResyncFragmentPreservesSearch is a regression guard for a real
+// user-facing bug the browser smoke caught: the resync fragment URL carried
+// filter and scope but NOT the search text. The fragment endpoint treats a
+// missing q as "no search" (and stores that on the tab's view), so every
+// resync — page load, visibility return, doc-version bump, offline sync —
+// re-rendered the full list and silently cleared an active search out from
+// under the search box. The URL must carry $searchQuery.
+func TestRender_ResyncFragmentPreservesSearch(t *testing.T) {
+	var buf bytes.Buffer
+	if err := RealtimeRecords().Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render realtime records: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, "/api/todos/fragment?") {
+		t.Fatalf("resync fragment URL missing from rendered realtime wiring:\n%s", html)
+	}
+	// The expression is emitted inside a data-on:click string, so the
+	// signal read appears as `$searchQuery` rather than a literal q value.
+	if !strings.Contains(html, "$searchQuery") {
+		t.Error("resync fragment URL omits $searchQuery: a resync would " +
+			"re-render the full list and clear the active search")
+	}
+	// templ HTML-escapes the ampersand, so the emitted form is "&amp;q=".
+	if !strings.Contains(html, "q=") {
+		t.Error("resync fragment URL omits the q parameter entirely")
+	}
+}

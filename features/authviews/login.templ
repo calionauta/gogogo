@@ -16,7 +16,7 @@ import (
 // docs/scope-taxonomy.md#demo-only-markup.
 templ LoginPage(next string, errMsg string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" { ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -24,7 +24,6 @@ templ LoginPage(next string, errMsg string) {
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			@ThemeHead()
-			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
 		</head>

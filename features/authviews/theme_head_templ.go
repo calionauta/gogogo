@@ -14,6 +14,19 @@ import templruntime "github.com/a-h/templ/runtime"
 // the `data-theme` attribute on <html> BEFORE first paint, so the page
 // never flashes the wrong theme. The actual toggle logic lives in
 // /static/theme.js (loaded with the rest of the page scripts).
+//
+// It also loads the iconify web component, which is what makes <iconify-icon>
+// render at all: the tag is inert without the script, laying out at 0x0, so a
+// page that carries the markup but not the script shows invisible icons. The
+// navbar's theme and sound toggles are iconify icons, so both are affected.
+// Eight pages had copied the tag; three had forgotten it, and the room page's
+// icons silently collapsed. That is the same "each page must remember" shape
+// that let the theme bindings drift, so the script lives here, with the other
+// per-page obligation, rather than being restated everywhere.
+//
+// It is not `defer`: iconify defines the custom element on load and upgrades
+// existing instances, but a plain tag starts the fetch earlier than the module
+// scripts, and the component tolerates being defined after the element exists.
 func ThemeHead() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -35,7 +48,7 @@ func ThemeHead() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<link rel=\"stylesheet\" href=\"/static/chrome.css\"><script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar theme = localStorage.getItem('themeMode');\n\t\t\t\tif (theme !== 'light' && theme !== 'dark') {\n\t\t\t\t\ttheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';\n\t\t\t\t}\n\t\t\t\tvar html = document.documentElement;\n\t\t\t\thtml.dataset.theme = theme;\n\t\t\t\thtml.classList.toggle('dark', theme === 'dark');\n\t\t\t\t// MERGE the theme into the page's seeded signals, never replace\n\t\t\t\t// the object: <html data-signals> also carries the page's own\n\t\t\t\t// state (review_pending, genui_pending, chat_thinking), and this\n\t\t\t\t// script runs before Datastar reads the attribute. Writing a\n\t\t\t\t// fresh object here dropped every seed, which left /review's Run\n\t\t\t\t// button disabled on load with no way to submit — the only\n\t\t\t\t// handler that clears the signal lives on that button's own\n\t\t\t\t// (unsubmittable) form. The attribute is JSON on every page, so\n\t\t\t\t// the merge parses it rather than pattern-matching on source.\n\t\t\t\tvar signals = {};\n\t\t\t\ttry {\n\t\t\t\t\tsignals = JSON.parse(html.dataset.signals || '{}') || {};\n\t\t\t\t} catch (e) {\n\t\t\t\t\tsignals = {};\n\t\t\t\t}\n\t\t\t\tsignals.theme = theme;\n\t\t\t\thtml.dataset.signals = JSON.stringify(signals);\n\t\t\t} catch(e) {\n\t\t\t\tdocument.documentElement.dataset.theme = 'light';\n\t\t\t}\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<link rel=\"stylesheet\" href=\"/static/chrome.css\"><script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar theme = localStorage.getItem('themeMode');\n\t\t\t\tif (theme !== 'light' && theme !== 'dark') {\n\t\t\t\t\ttheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';\n\t\t\t\t}\n\t\t\t\tvar html = document.documentElement;\n\t\t\t\thtml.dataset.theme = theme;\n\t\t\t\thtml.classList.toggle('dark', theme === 'dark');\n\t\t\t\t// MERGE the theme into the page's seeded signals, never replace\n\t\t\t\t// the object: <html data-signals> also carries the page's own\n\t\t\t\t// state (review_pending, genui_pending, chat_thinking), and this\n\t\t\t\t// script runs before Datastar reads the attribute. Writing a\n\t\t\t\t// fresh object here dropped every seed, which left /review's Run\n\t\t\t\t// button disabled on load with no way to submit — the only\n\t\t\t\t// handler that clears the signal lives on that button's own\n\t\t\t\t// (unsubmittable) form. The attribute is JSON on every page, so\n\t\t\t\t// the merge parses it rather than pattern-matching on source.\n\t\t\t\tvar signals = {};\n\t\t\t\ttry {\n\t\t\t\t\tsignals = JSON.parse(html.dataset.signals || '{}') || {};\n\t\t\t\t} catch (e) {\n\t\t\t\t\tsignals = {};\n\t\t\t\t}\n\t\t\t\tsignals.theme = theme;\n\t\t\t\thtml.dataset.signals = JSON.stringify(signals);\n\t\t\t} catch(e) {\n\t\t\t\tdocument.documentElement.dataset.theme = 'light';\n\t\t\t}\n\t\t})();\n\t</script><script src=\"/static/iconify-icon.min.js\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

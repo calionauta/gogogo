@@ -35,7 +35,6 @@ import (
 const (
 	signalChatThinking = "chat_thinking"
 	signalChatError    = "chat_error"
-	signalChatPrompt   = "chatPrompt"
 )
 
 // chatEnvelope is the worker → tab envelope: answer text, rendered
@@ -180,7 +179,9 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalChatThinking: true,
 		signalChatError:    "",
-		signalChatPrompt:   "",
+		// $chatPrompt is NOT written here: it is bound two-way to the composer,
+		// so the box owns it and a response that clears it can wipe text typed
+		// after submit. The client clears it on success.
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: ask ack failed", obsArgs...)

@@ -32,7 +32,8 @@ import (
 // (NATS disabled) is a no-op returning nil — the chi stack then converges
 // in-process through the Hub only.
 func RunCrudConsumer(
-	ctx context.Context, js natsio.JetStreamContext, appName string, q *dbgen.Queries, hub *queue.SSEHub,
+	ctx context.Context, js natsio.JetStreamContext, appName string,
+	q *dbgen.Queries, ix SearchIndexer, db *sql.DB, hub *queue.SSEHub,
 ) error {
 	if js == nil {
 		return nil
@@ -47,7 +48,7 @@ func RunCrudConsumer(
 		if p.UserID == "" {
 			return
 		}
-		applyCrudOp(ctx, q, hub, p)
+		applyCrudOp(ctx, q, ix, db, hub, p)
 		_ = msg.Ack()
 	}, natsio.Durable(natswire.CrudDurable(appName)+"-chi"), natsio.ManualAck())
 	if err != nil {
@@ -62,7 +63,10 @@ func RunCrudConsumer(
 // Reads are visibility-scoped (a forged op for a row the sender cannot see
 // matches nothing); writes land by id only after that read proved the row
 // visible — the origin instance already authorized the act.
-func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p natswire.CrudPayload) {
+func applyCrudOp(
+	ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
+	hub *queue.SSEHub, p natswire.CrudPayload,
+) {
 	owner, err := tenantOf(ctx, q, p.UserID)
 	if err != nil {
 		if isSkip(err) {
@@ -83,13 +87,13 @@ func applyCrudOp(ctx context.Context, q *dbgen.Queries, hub *queue.SSEHub, p nat
 	var shared bool
 	switch p.Op {
 	case natswire.CrudOpCreate:
-		evt, shared, err = applyCreate(ctx, q, owner, p.Data)
+		evt, shared, err = applyCreate(ctx, q, ix, db, owner, p.Data)
 	case natswire.CrudOpToggle:
 		evt, shared, err = applyToggle(ctx, q, owner, p.Data)
 	case natswire.CrudOpDelete:
-		evt, shared, err = applyDelete(ctx, q, owner, p.Data)
+		evt, shared, err = applyDelete(ctx, q, ix, db, owner, p.Data)
 	case natswire.CrudOpClearCompleted:
-		evt, err = applyClearCompleted(ctx, q, owner)
+		evt, err = applyClearCompleted(ctx, q, ix, db, owner)
 	default:
 		obsArgs := append(observability.WithComponent("todo", "feature"), "op", p.Op)
 		observability.Warn(ctx, "chi crudconsumer: unknown op", obsArgs...)
@@ -133,7 +137,7 @@ func tenantOf(ctx context.Context, q *dbgen.Queries, userID string) (string, err
 	return userID, nil
 }
 
-func applyCreate(ctx context.Context, q *dbgen.Queries, owner string,
+func applyCreate(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB, owner string,
 	data *natswire.CrudOpData,
 ) (recordEvent, bool, error) {
 	if data.Title == "" {
@@ -155,7 +159,7 @@ func applyCreate(ctx context.Context, q *dbgen.Queries, owner string,
 	if id == "" {
 		id = dbschema.NewID()
 	}
-	if _, err := q.CreateTodo(ctx, dbgen.CreateTodoParams{
+	if err := createTodoIndexed(ctx, q, ix, db, dbgen.CreateTodoParams{
 		ID: id, Owner: owner, Title: data.Title,
 		Completed: data.Completed, IdemKey: "", Visibility: visibility,
 		Created: now, Updated: now,
@@ -191,7 +195,7 @@ func applyToggle(ctx context.Context, q *dbgen.Queries, owner string,
 	return recordEvent{Event: "toggled", ID: data.ID, Done: data.Completed}, row.Visibility == todo.VisibilityPublic, nil
 }
 
-func applyDelete(ctx context.Context, q *dbgen.Queries, owner string,
+func applyDelete(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB, owner string,
 	data *natswire.CrudOpData,
 ) (recordEvent, bool, error) {
 	if data.ID == "" {
@@ -206,14 +210,16 @@ func applyDelete(ctx context.Context, q *dbgen.Queries, owner string,
 		}
 		return recordEvent{}, false, fmt.Errorf("delete lookup %s: %w", data.ID, err)
 	}
-	if err := q.DeleteTodoByID(ctx, data.ID); err != nil {
+	if err := deleteTodoIndexed(ctx, q, ix, db, owner, data.ID); err != nil {
 		return recordEvent{}, false, fmt.Errorf("delete apply %s: %w", data.ID, err)
 	}
 	return recordEvent{Event: "deleted", ID: data.ID}, row.Visibility == todo.VisibilityPublic, nil
 }
 
-func applyClearCompleted(ctx context.Context, q *dbgen.Queries, owner string) (recordEvent, error) {
-	if _, err := q.DeleteCompletedByOwner(ctx, owner); err != nil {
+func applyClearCompleted(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
+	owner string,
+) (recordEvent, error) {
+	if _, err := clearCompletedIndexed(ctx, q, ix, db, owner); err != nil {
 		return recordEvent{}, fmt.Errorf("clear apply: %w", err)
 	}
 	return recordEvent{Event: "cleared"}, nil

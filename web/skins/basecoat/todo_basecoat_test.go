@@ -68,4 +68,17 @@ func TestBasecoatMutationURLsPreserveSlice(t *testing.T) {
 			t.Errorf("basecoat endpoint %q must carry &scope= (got %.120q…)", endpoint, window)
 		}
 	}
+	// The resync fragment must ALSO carry the active search: the endpoint
+	// treats a missing q as "no search" (and stores that on the tab view),
+	// so a resync without it re-renders the full list and clears the box.
+	sync := bSync.String()
+	syncIdx := strings.Index(sync, "fragment?filter=")
+	if syncIdx < 0 {
+		t.Fatal("basecoat resync fragment URL missing")
+	}
+	syncWindow := sync[syncIdx:]
+	if !strings.Contains(syncWindow, "$searchQuery") {
+		t.Error("basecoat resync fragment URL omits $searchQuery: a resync " +
+			"would re-render the full list and clear the active search")
+	}
 }

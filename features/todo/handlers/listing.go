@@ -185,10 +185,36 @@ func scopeOf(r *http.Request) string {
 // identity (viewer/admin/userID for per-row delete gating and authorship
 // badges), scope + filter (tab state), and capability flags. Callers merge
 // their ephemeral keys on top.
+//
+// SearchQuery is deliberately NOT derived here, even though a request may
+// carry ?q=. $searchQuery is bound two-way to the search box, so the box owns
+// it: any response that echoes the request's query can re-impose an OLDER
+// value. A late response to ?q=kes landing after the user typed "kestrel"
+// would set the box back to "kes" — the same clobber the handshake was fixed
+// for, on the login page and the /search response instead. The box is seeded
+// once per page load from the initial data-signals render, which is the one
+// place the URL's ?q= is authoritative; the search handler patches the list
+// only. Use displaySignalsWithQuery for that one initial render.
 func (h *Handler) displaySignals(r *http.Request, todos []todo.Todo, filter, scope string) todo.Signals {
+	return h.displaySignalsWithQuery(r, todos, filter, scope, "")
+}
+
+// displaySignalsWithQuery is displaySignals plus an explicit SearchQuery, for
+// the single caller whose render is the page load: seeding the box from the
+// URL's ?q= is correct exactly once, before the client owns the signal.
+func (h *Handler) displaySignalsWithQuery(
+	r *http.Request, todos []todo.Todo, filter, scope, query string,
+) todo.Signals {
 	owner, role := h.roleOf(r)
 	return todo.Signals{
 		Todos: todos, Filter: filter, Scope: scope, ItemCount: len(todos),
+		// The ONE legitimate write to a bound signal in this tree: the initial
+		// page render, which seeds the search box from ?q= once, before the
+		// client owns it. Every other write to $searchQuery was the bug
+		// (docs/realtime-recipe.md).
+		// datastar-lint:ignore CLIENT_BOUND_SIGNAL_WRITTEN — page-render seed, the one legitimate write
+		SearchQuery:    query,
+		SearchEnabled:  h.searchEnabled(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       rbac.IsViewer(role),
 		IsAdmin:        role == rbac.RoleAdmin,

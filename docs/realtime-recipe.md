@@ -6,6 +6,52 @@ reference implementations are the spec.
 
 ## Client patterns (all Datastar, no vanilla except bootstrap)
 
+**Signal ownership — read this before any merge.** A signal bound two-way to
+an input (`data-bind="x"`) is **client-owned**: that element is the source of
+truth while the user types. The server's copy is a mirror that always lags — a
+value only reaches the server after a debounced round-trip — so **any server
+merge that writes x overwrites live input**, and the element's next read (often
+the debounced request itself) sees the clobbered value. The symptom is a
+feature that silently does nothing.
+
+The second half of the trap is serialization, and it is what makes this class
+survive a first, wrong fix: a Go struct field with a JSON tag but **no
+`omitempty`** still marshals (`"x":""`) for its zero value, so *removing the
+field from the merge call does not stop the write*. `make datastar-lint` gates
+both halves: `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` is an **error** (the tag
+survives a reader fixing the obvious merge line), `CLIENT_BOUND_SIGNAL_WRITTEN`
+a **warning** (an explicit write may be intentional, e.g. clearing an input
+after a successful submit).
+
+Live example: `newTitle` and `searchQuery` are both bound, both `omitempty`.
+The search box lost its text mid-typing because six call sites wrote
+`searchQuery` (the stream handshake, both list endpoints, the mutation
+re-list, and the `/search` response echoing its own `?q=`). The same class hit
+the composers: the create response cleared `newTitle`, and both ask acks
+cleared `chatPrompt`/`genuiPrompt` — a late answer erased whatever the user had
+started typing, which is exactly when an ask ack lands. In every case the fix
+is the same shape: the response raises only the in-flight guard, and the
+**client** clears the box after its own request succeeds.
+
+The only remaining write is deliberate and singular: the initial page render
+seeds `searchQuery` from `?q=` once, before the client owns the signal. The
+counts come from the lint itself, so they can be re-derived rather than
+trusted: `make datastar-lint` reports one `CLIENT_BOUND_SIGNAL_WRITTEN`
+warning on this tree (that seed) and no error.
+
+The echo is worth stating separately, because it is the form a reader does not
+suspect: deriving a display signal from the request's own parameter feels like
+echoing state, not writing it. `/search` therefore seeds nothing — the box is
+seeded once from the initial `data-signals` render (`displaySignalsWithQuery`)
+and later responses patch rows only (`displaySignals` never sets the query). A
+late response to `?q=kes` then cannot re-impose "kes" over the "kestrel" the
+user has typed since.
+
+A filter/scope tab click carries **no** `q` of its own, so its URL must append
+`&q=$searchQuery`: the handler treats a missing `q` as "clear the stored
+search", and omitting it drops the active search while the box still shows the
+text.
+
 1. **Permanent stream** (ephemeral signals): hidden `@get(url, {permanent:
    true})` button opened by `data-on:datastar-ready__document` (+300ms
    verified fallback for an already-fired ready). Reference: `RealtimeStream`
@@ -87,4 +133,6 @@ machinery here; a native open-ack or restart handle replaces the status poll.
 no `setInterval` in new UI code · no `innerHTML` rendering (morph
 instead) · appended fragments carry no target `id` · one
 `#<container>` in the DOM after N patches · spinner has error release ·
-empty + error states render.
+empty + error states render · no server merge writes a `data-bind`
+signal (and its struct field is `omitempty`) · every tab/scope URL that
+can round-trip carries `q=$searchQuery`.

@@ -10,6 +10,25 @@
 
 ### Added
 
+- **Todo search, with the layers you can afford.** One `Searcher` seam,
+  three selectable layers via `SEARCH_MODE`: `substring` (the default — the
+  SQL filter over rows the list already had an index for), `fuzzy` (typo
+  tolerant, scored in memory against the owner's rows), and `bm25` (an
+  inverted index in the same database, ranked in Go). Search only ever
+  NARROWS what you were already allowed to see: a hit whose row is not in
+  your visible set is dropped rather than revived, so a forged or stale
+  posting cannot surface a title the list would hide. Only `bm25` writes an
+  index, and those postings ride the same transaction as the row they
+  describe — a row with no index entry, or an index entry outliving its row,
+  is not a state this can reach. The write path covers all three ways a row
+  changes (the HTTP handlers, the cross-instance CRUD bridge, and the
+  onboarding seeder), because a second path that skipped the index would
+  recreate exactly the divergence the design exists to prevent. No external
+  engine: this driver ships no FTS5 (checked across three tursogo versions)
+  and a separate index store would put a row's truth in two places. Set
+  `SEARCH_MODE=bm25` when the corpus grows enough that ranking matters; the
+  default costs nothing.
+
 - **Chat can answer with the app's own panels.** When the question is
   about the app ("what are my open todos?"), the best answer is the app's
   own component with real data, not invented markup — the tool-based band
