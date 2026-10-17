@@ -20,6 +20,12 @@ func (ix SQLIndex) IndexDoc(
 	if len(tokens) == 0 {
 		return nil
 	}
+	// indexLen is the RAW token count: BM25's length normalization measures the
+	// document, which really has that many words. The TERM is folded instead,
+	// because the term column is the persisted key and a folded query can only
+	// find a folded key.
+	indexLen := len(tokens)
+	tokens = stemAll(tokens)
 	counts := make(map[string]int, len(tokens))
 	for _, t := range tokens {
 		counts[t]++
@@ -29,7 +35,7 @@ func (ix SQLIndex) IndexDoc(
 			`INSERT INTO search_postings
 			   (owner, kind, doc_id, field, term, count, length)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			owner, kind, docID, field, term, n, len(tokens),
+			owner, kind, docID, field, term, n, indexLen,
 		); err != nil {
 			return fmt.Errorf("search: index %s/%s term %q: %w", kind, docID, term, err)
 		}

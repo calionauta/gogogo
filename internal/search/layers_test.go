@@ -10,7 +10,7 @@ import "testing"
 // must not pick a layer the operator did not ask for.
 func TestNewSelectsByMode(t *testing.T) {
 	t.Parallel()
-	store := indexDocs(exampleCorpus().docs, "title")
+	store := indexDocs(exampleCorpus().docs)
 	for mode, want := range map[string]any{
 		"":            Substring{},
 		SubstringMode: Substring{},

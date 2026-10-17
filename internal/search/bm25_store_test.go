@@ -16,18 +16,30 @@ type indexedStore struct {
 	stat CorpusStats
 }
 
-func indexDocs(docs []Doc, field string) indexedStore {
+// indexDocs builds the postings a real store would hold for the corpus.
+//
+// The field is not a parameter: every caller indexes "title" (the only indexed
+// field the toy corpus has), and a parameter that is constant at every call
+// site is a constant (unparam is right).
+func indexDocs(docs []Doc) indexedStore {
+	const field = "title"
 	s := indexedStore{docs: docs}
 	var total int
 	for _, d := range docs {
 		tokens := Tokenize(d.Fields[field])
 		total += len(tokens)
+		// Fold like production (sqlindex_write) does: the term is the folded
+		// key, the length is the raw token count. A test store indexing
+		// UNFOLDED terms would leave the write path untested and pass while
+		// the real index failed to match.
+		length := len(tokens)
+		tokens = stemAll(tokens)
 		counts := map[string]int{}
 		for _, t := range tokens {
 			counts[t]++
 		}
 		for term, n := range counts {
-			s.post = append(s.post, Posting{DocID: d.ID, Field: field, Term: term, Count: n, Length: len(tokens)})
+			s.post = append(s.post, Posting{DocID: d.ID, Field: field, Term: term, Count: n, Length: length})
 		}
 	}
 	s.stat = CorpusStats{Docs: len(docs), AvgLen: float64(total) / float64(len(docs))}

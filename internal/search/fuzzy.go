@@ -34,7 +34,12 @@ func (f Fuzzy) Search(ctx context.Context, q Query) ([]Hit, error) {
 	if err != nil {
 		return nil, err
 	}
-	terms := Tokenize(q.Text)
+	// The QUERY terms are folded; the FIELD tokens inside scoreDoc stay raw.
+	// That asymmetry is deliberate and is what keeps highlight offsets
+	// correct: a position is found by searching the normalized field text for
+	// a raw field token, and a stem ("happili") is not a substring of the
+	// document ("happily"). Raw tokens for locating, stems for comparing.
+	terms := stemAll(Tokenize(q.Text))
 	if len(terms) == 0 {
 		return nil, nil
 	}

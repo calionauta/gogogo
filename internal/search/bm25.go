@@ -34,7 +34,7 @@ type BM25 struct {
 // scores — BM25 sums per term — which is the deliberate difference from the
 // fuzzy layer's AND semantics: that is what ranking means.
 func (b BM25) Search(ctx context.Context, q Query) ([]Hit, error) {
-	terms := Tokenize(q.Text)
+	terms := stemAll(Tokenize(q.Text))
 	if len(terms) == 0 {
 		return nil, nil
 	}
