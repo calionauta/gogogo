@@ -69,6 +69,28 @@ values to inline scripts as unquoted data attributes
 datastar-lint nor the Go linters see this class — the browser smoke
 (`scripts/smoke.mjs`, which loads every page and fails on JS errors)
 is the gate that catches it.
+7. **A `data-bind` signal is client-owned: never write it from a server
+   response.** The bound element is the source of truth while the user types,
+   and Datastar writes any incoming signal value straight back into it
+   (`bind.ts` wraps `syncElement` in an effect), so a background merge — stream
+   handshake, record-event or workflow re-list, mutation re-list — overwrites
+   live input and the debounced request then reads the clobbered value. The
+   feature silently does nothing. Three forms all count as a write: a map key
+   (`map[string]any{"q": v}`), a struct-literal field (`Signals{Q: v}`, whose Go
+   name differs from the wire name), and a field assignment (`s.Q = v`). A
+   response that **echoes the request's own parameter** is the same bug wearing
+   a friendlier face: a late `/search` reply for `?q=kes` re-imposes "kes" over
+   the "kestrel" typed since, which is why `displaySignals` seeds nothing and
+   the URL is authoritative only once, at page load
+   (`displaySignalsWithQuery`). The struct field must be `omitempty` too:
+   without it the zero value still marshals (`"q":""`), so deleting the field
+   from the merge *call* is a no-op — that is how the first fix attempt failed.
+   `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` (error) and `CLIENT_BOUND_SIGNAL_WRITTEN`
+   (warning) gate both halves. `MarshalAndPatchSignalsIfMissing` /
+   `WithOnlyIfMissing(true)` is the documented escape hatch (the client applies
+   it only when the signal does not exist), so a write routed through it is not
+   flagged. Details and the lived bug: `docs/code-quality.md`,
+   `docs/realtime-recipe.md`.
 
 ## Scan roots (why landing edits are safe)
 

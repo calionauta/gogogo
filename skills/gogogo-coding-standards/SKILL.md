@@ -160,10 +160,11 @@ Full strategy: `references/go-testing.md`.
 
 Full rules: `references/datastar.md`.
 
-- Gate: `make datastar-lint` = `bin/datastar-lint -only-errors -r ./features ./internal`. Two trees because the **Go analyzer** checks backend SDK calls (`sse.PatchElements`) under `internal/`; the HTML analyzer covers `.templ` under `features/`. CI pins the version (`@v0.12.0`), not `@latest` — a release can raise a rule to ERROR and fail the build with no code change. Local wrapper forwards `"$@"` and supplies `--analyzers html,go`.
+- Gate: `make datastar-lint` = `bin/datastar-lint -only-errors -r ./features ./internal`. Two trees because the **Go analyzer** checks backend SDK calls (`sse.PatchElements`) under `internal/`; the HTML analyzer covers `.templ` under `features/`. CI pins the version (`.github/workflows/ci.yml`, currently `@v0.14.1`), not `@latest` — a release can raise a rule to ERROR and fail the build with no code change. Local wrapper forwards `"$@"` and supplies `--analyzers html,go,templ`.
 - **The SDK is method-only.** `sse.PatchElements(html, datastar.WithSelector("#id"))` — there is no `datastar.PatchElements(sse, …)` in any 1.x release (it does not compile). `PatchElementf`/`RemoveElementf`/`RemoveElementByID` take no options, so they cannot lack a selector. A wrapper forwarding `opts ...PatchElementOption` is correct and must not be flagged.
 - `PatchElements` top element needs `id` + `WithSelector` (else `PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
+- **A `data-bind` signal is client-owned — never write it from a server response.** A background merge (stream handshake, any re-list) overwrites live input, and an echo of the request's own parameter is the same bug; the field needs `omitempty` or the zero value marshals anyway. `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` / `_WRITTEN` gate both halves, and `WithOnlyIfMissing(true)` is the escape hatch. Full rule: `references/datastar.md` § Rules 7.
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
 
 ## Where new code goes (read this before creating a file)
