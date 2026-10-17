@@ -99,12 +99,18 @@ func convertAll(raw []rawDirective) ([]Directive, error) {
 // children tucked inside props instead of beside type/props, under
 // "children" or under "components" (the envelope key it just saw). It
 // round-trips the value through rawDirective so malformed entries fail
-// here (ok=false) instead of halfway through validation, and removes the
-// key so strict prop decoding still passes.
+// here instead of halfway through validation, and removes the key so strict
+// prop decoding still passes.
 //
-// The tolerant reader handles this shape too, from the tree; this keeps
-// the strict path's verdict identical for the answers both can read.
-func childrenFromProps(props map[string]any) ([]rawDirective, bool) {
+// A present-but-unusable value is an ERROR here, and that is this path's
+// deliberate half of the strict/tolerant split: strict JSON is only tried
+// first, so a shape this reader rejects is still handed to the tolerant one,
+// which SALVAGES it (toRaw drops a scalar children and keeps the rest of the
+// component — see fromObject). Erroring explicitly rather than leaving the
+// key for the props decoder means the message names props.children, which is
+// the field the model actually got wrong, instead of "unknown field
+// children" from a struct that was never meant to carry it.
+func childrenFromProps(props map[string]any) ([]rawDirective, bool, error) {
 	for _, key := range []string{"children", "components"} {
 		raw, ok := props[key]
 		if !ok || raw == nil {
@@ -113,17 +119,17 @@ func childrenFromProps(props map[string]any) ([]rawDirective, bool) {
 		delete(props, key)
 		blob, err := json.Marshal(raw)
 		if err != nil {
-			continue
+			return nil, false, fmt.Errorf("genui: encode props.%s: %w", key, err)
 		}
 		var out []rawDirective
 		dec := json.NewDecoder(strings.NewReader(string(blob)))
 		dec.DisallowUnknownFields()
-		if err := dec.Decode(&out); err != nil {
-			continue
+		if derr := dec.Decode(&out); derr != nil {
+			return nil, false, fmt.Errorf("genui: props.%s is not a component list: %w", key, derr)
 		}
-		return out, true
+		return out, true, nil
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 // convertDirective validates one node (type registered, props decode,
@@ -142,7 +148,11 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 	// still applies to what is left).
 	rawChildren := append(append([]rawDirective(nil), c.Children...), c.Components...)
 	if len(rawChildren) == 0 {
-		if bridged, ok := childrenFromProps(c.Props); ok {
+		bridged, ok, err := childrenFromProps(c.Props)
+		if err != nil {
+			return Directive{}, err
+		}
+		if ok {
 			rawChildren = bridged
 		}
 	}
@@ -155,6 +165,12 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 		children = append(children, converted)
 	}
 	d := Directive{Component: c.Type, Props: c.Props, Children: children}
+	// Panels are checked BEFORE the renderer, and on both parse paths (they
+	// all end here): a model answer that supplies a server-owned field is a
+	// shape error to repair, not something hydration silently overwrites.
+	if err := validatePanelProps(c.Type, d.Props); err != nil {
+		return Directive{}, err
+	}
 	if _, err := renderDepth(d, depth); err != nil {
 		return Directive{}, err
 	}

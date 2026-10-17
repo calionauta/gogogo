@@ -188,12 +188,22 @@ var All = []Capability{
 		Offered: true,
 		Dirs:    []string{"features/genui"},
 		// Owned by no dir: the composition test's model stubs, and the todo
-		// panel that exists only to feed this catalog (both would otherwise
-		// outlive the unit and trip the deadcode or import gate).
+		// feature's half of the panel seam (all of them would otherwise outlive
+		// the unit and trip the deadcode or import gate).
 		Files: []string{
 			"internal/server/genui_stubs_test.go",
+			// The panel seam: four files that exist ONLY to let the app answer
+			// with its own todos through this catalog. Nothing else in
+			// features/todo references them, so without genui they are dead code
+			// (the deadcode gate would report them, the repo forbids legacy, and
+			// the provider they implement has no registry left to register
+			// into). Their one caller (`NewTodoPanel` in bootAI) is removed by
+			// this unit's strip rule, which is what makes deleting them compile.
 			"features/todo/handlers/genui_panel.go",
 			"features/todo/handlers/genui_panel_test.go",
+			"features/todo/panel.go",
+			"features/todo/components/panel.templ",
+			"features/todo/components/panel_templ.go",
 		},
 		Warns: []string{
 			"ci-local smoke: export SMOKE_FEATURES without genui " +

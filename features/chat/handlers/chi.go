@@ -53,23 +53,18 @@ type Handler struct {
 	hub       *queue.SSEHub
 	store     store.MessageStore
 	responder store.Responder
-	// panels are the registered system components: each fills its own props
-	// from the app's store at answer time (the catalog's hydration seam).
-	// Empty drops such a panel rather than rendering it empty, which is the
-	// right answer for a build that wired none.
-	panels []comp.PanelProvider
 }
 
 // NewHandler builds the chi chat handler. Nil deps panic: wire errors
 // surface at boot, not per request.
 func NewHandler(
 	cfg *config.Config, a *auth.Auth, q *queue.Queue, hub *queue.SSEHub,
-	st store.MessageStore, responder store.Responder, panels []comp.PanelProvider,
+	st store.MessageStore, responder store.Responder,
 ) *Handler {
 	if cfg == nil || a == nil || q == nil || hub == nil || st == nil || responder == nil {
 		panic("chat chi: NewHandler with nil dependency")
 	}
-	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, store: st, responder: responder, panels: panels}
+	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, store: st, responder: responder}
 }
 
 // Routes returns the chi router with the chat pages and API.

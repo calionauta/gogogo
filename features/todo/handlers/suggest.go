@@ -128,23 +128,8 @@ func (h *Handler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job q
 	if job.Type == signalJobSuggestSimulated {
 		client = h.SimulatedLLM
 	}
-	if client == nil || !client.Configured() {
-		errResult := map[string]any{
-			signalSuggestions: []string{},
-			signalSuggestErr:  "AI suggest failed: LLM not configured",
-			signalAiPending:   false,
-		}
-		body, marshalErr := json.Marshal(queue.Job{Type: jobTypeSuggestResult, Payload: mustJSON(ctx, errResult)})
-		if marshalErr == nil {
-			if job.ClientID != "" {
-				hub.Send(job.ClientID, body)
-			} else {
-				//nolint:contextcheck // SSEHub.Broadcast takes no context;
-				// worker cancellation flows through the surrounding ctx.
-				hub.Broadcast(body)
-			}
-		}
-		return fmt.Errorf("llm client not configured for job %s", job.Type)
+	if !llmConfigured(h, job) {
+		return h.sendUnconfigured(ctx, hub, job, client)
 	}
 
 	suggestions, err := client.ChatSuggest(ctx, p.Partial)
@@ -175,6 +160,39 @@ func (h *Handler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job q
 	// cancellation flows through the surrounding ctx select.
 	hub.Broadcast(body)
 	return err
+}
+
+// llmConfigured reports whether the job's leg has a usable LLM client. Split
+// out so the worker reads as "guard, then work" instead of a nested delivery
+// inside an error arm.
+func llmConfigured(h *Handler, job queue.Job) bool {
+	client := h.LLM
+	if job.Type == signalJobSuggestSimulated {
+		client = h.SimulatedLLM
+	}
+	return client != nil && client.Configured()
+}
+
+// sendUnconfigured delivers the "no LLM" result and returns the worker error.
+// The error is returned (not swallowed) so the pool records the failure while
+// the user still gets visible SSE feedback instead of an endless spinner.
+func (h *Handler) sendUnconfigured(ctx context.Context, hub *queue.SSEHub, job queue.Job, _ *llm.Client) error {
+	errResult := map[string]any{
+		signalSuggestions: []string{},
+		signalSuggestErr:  "AI suggest failed: LLM not configured",
+		signalAiPending:   false,
+	}
+	body, marshalErr := json.Marshal(queue.Job{Type: jobTypeSuggestResult, Payload: mustJSON(ctx, errResult)})
+	if marshalErr == nil {
+		if job.ClientID != "" {
+			hub.Send(job.ClientID, body)
+		} else {
+			//nolint:contextcheck // SSEHub.Broadcast takes no context;
+			// worker cancellation flows through the surrounding ctx.
+			hub.Broadcast(body)
+		}
+	}
+	return fmt.Errorf("llm client not configured for job %s", job.Type)
 }
 
 // mustJSON marshals for job envelopes; unmarshalable input cannot happen

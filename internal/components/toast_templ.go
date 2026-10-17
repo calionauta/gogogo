@@ -20,13 +20,16 @@ import (
 )
 
 // toastSignalName returns a per-toast signal key so each toast's open state
-// is tracked independently.
+// is tracked independently. It delegates to the shared instance helper
+// (instance.go) so the naming shape has ONE definition: stacked toasts were
+// the first place this problem appeared, and every later per-instance
+// component must not invent a second spelling.
 func toastSignalName(toastID string) string {
-	return "toast_vis_" + toastID
+	return Signal("toast", toastID, "vis")
 }
 
 func makeToastSignals(toastID string) map[string]any {
-	return map[string]any{toastSignalName(toastID): false}
+	return Signals("toast", toastID, map[string]any{"vis": false})
 }
 
 // SafeJSON marshals a value to a JSON string with single quotes HTML-escaped
@@ -80,7 +83,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(toastID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 46, Col: 14}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 49, Col: 14}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +96,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(SafeJSON(makeToastSignals(toastID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 47, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 50, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -106,7 +109,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf(`{'open': $%s === true}`, toastSignalName(toastID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 48, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 51, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -119,7 +122,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf(`$%s = true`, toastSignalName(toastID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 49, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 52, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -137,7 +140,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf(`$%s = false`, toastSignalName(toastID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 51, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 54, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -155,7 +158,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf(`$%s = false`, toastSignalName(toastID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 54, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 57, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -208,7 +211,7 @@ func Toast(message string, toastType string, toastID string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 70, Col: 18}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/toast.templ`, Line: 73, Col: 18}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {

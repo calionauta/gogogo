@@ -15,25 +15,30 @@ type Responder interface {
 	Respond(ctx context.Context, prompt string) (string, error)
 }
 
-// llmResponder asks a real model for catalog directives. The router, when
-// one is wired, only decides which component the prompt leads with.
+// llmResponder asks a real model for catalog directives. The router, when one
+// is wired, only decides which component the prompt leads with.
 type llmResponder struct {
-	client *llm.Client
-	router Router
+	client   *llm.Client
+	router   Router
+	surfaces []Surface
 }
 
 func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, AskPrompt(ctx, r.router, prompt))
+	return r.client.Chat(ctx, AskPrompt(ctx, r.router, prompt, r.surfaces))
 }
 
-// chatLLMResponder asks a real model with the chat affordance: the
-// structured catalog plus the invented-visual html_block path.
+// chatLLMResponder asks a real model with the chat surface set (the catalog
+// plus, by default, the invented-visual html_block path) and, when one is
+// wired, the same router Ask uses — a conversation deserves the same decision
+// about which component should lead an answer.
 type chatLLMResponder struct {
-	client *llm.Client
+	client   *llm.Client
+	router   Router
+	surfaces []Surface
 }
 
 func (r chatLLMResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, PromptForChat()+"\nUser request: "+prompt)
+	return r.client.Chat(ctx, ConversationPrompt(ctx, r.router, prompt, r.surfaces))
 }
 
 // demoResponder is the keyless showcase: deterministic directives,
@@ -93,10 +98,11 @@ func (e errResponder) Respond(_ context.Context, _ string) (string, error) {
 // the deterministic demo, neither is a fail-closed error (the worker
 // releases the spinner through the error result either way). router is
 // optional (nil = off) and is consulted only for the real-model leg: the
-// demo answers are fixed, so routing them would be a lie.
-func NewResponder(real, simulated *llm.Client, router Router) Responder {
+// demo answers are fixed, so routing them would be a lie. surfaces is the
+// enabled answer vocabulary (nil = the Ask defaults).
+func NewResponder(real, simulated *llm.Client, router Router, surfaces []Surface) Responder {
 	if real != nil && real.Configured() {
-		return llmResponder{client: real, router: router}
+		return llmResponder{client: real, router: router, surfaces: surfaces}
 	}
 	if simulated != nil && simulated.Configured() {
 		return demoResponder{answer: demoAnswer}
@@ -105,13 +111,17 @@ func NewResponder(real, simulated *llm.Client, router Router) Responder {
 }
 
 // NewChatResponder is the chat leg: same fallback shape as NewResponder,
-// but the real model gets the chat affordance (invented visual first,
-// catalog for what markup cannot do) instead of the catalog-only Ask
-// prompt, and the keyless demo answers with its own invented-visual
-// demoChatAnswer rather than the catalog demo.
-func NewChatResponder(real, simulated *llm.Client) Responder {
+// but the real model gets the chat surface set (invented visual first,
+// catalog for what markup cannot do) instead of the Ask defaults, and the
+// keyless demo answers with its own invented-visual demoChatAnswer rather
+// than the catalog demo.
+//
+// The router is the SAME Router Ask uses (nil = off): once both legs speak
+// from one surface vocabulary, deciding which component should lead is not a
+// question specific to one-shot answers.
+func NewChatResponder(real, simulated *llm.Client, router Router, surfaces []Surface) Responder {
 	if real != nil && real.Configured() {
-		return chatLLMResponder{client: real}
+		return chatLLMResponder{client: real, router: router, surfaces: surfaces}
 	}
 	if simulated != nil && simulated.Configured() {
 		return demoResponder{answer: demoChatAnswer}

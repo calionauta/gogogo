@@ -340,6 +340,15 @@ jobs:
         # stash). Uses its own port, serial like the suites above.
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web SSE_PROBE_PORT=8133 node scripts/sse-reopen.test.mjs
+      - name: AI answer scroll regression test
+        # A new answer must scroll itself into view on a short window — the
+        # region was appended below the fold and the reply arrived
+        # off-screen (red-proofed by removing the anchors: scrollY 0 → 0).
+        # Drives BOTH legs (chat append, Ask outer-replace) with the keyless
+        # simulated LLM, so no provider key is involved. Own port, serial
+        # like the suites above.
+        run: |
+          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/chat-scroll.test.mjs
 
   prod-image:
     needs: [changes]

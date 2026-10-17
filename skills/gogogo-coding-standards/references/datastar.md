@@ -15,15 +15,81 @@ make templ && make datastar-lint   # after any .templ change
 
 ## API shape (read before writing a Go SDK call or rule)
 
-Pinned core: `web/resources/static/datastar.js` is Datastar **v1.0.3**
+Pinned core: `web/resources/static/datastar.js` is Datastar **v1.0.4**
 (self-hosted, no CDN). Current docs live at `https://data-star.dev`
 (guide + reference/attributes + reference/actions + reference/sse_events);
-`datastar-lint` is tested against v1.0.4. Version gaps already bitten:
-`data-on-signal-patch-filter` does NOT exist in v1.0.3 (use `data-effect`
+`datastar-lint` is tested against v1.0.4. The "Datastar v1.2.2" in
+AGENTS.md is the **Go SDK** (`datastar-go`, the server side); the two
+version independently — quote the bundle banner, not the SDK, when
+reasoning about browser behavior. Version gaps already bitten:
+`data-on-signal-patch-filter` does NOT exist in this core (use `data-effect`
 on the signal instead); `data-effect`, `data-init`, `data-on-interval`,
 `data-indicator`, `data-on:datastar-fetch` all verified present in the
 bundle. When the docs show an attribute, grep the bundle before using it
 — a silently-ignored attribute is worse than a missing one.
+
+**No signal scoping in this core — the one gap that shapes component design.**
+There is exactly ONE global signal store (`root` in `engine/signals.ts`),
+addressed by absolute dot paths, and `data-signals` never receives the
+element it sits on: a nested `data-signals` MERGES into that one store
+(later write wins) and does not shadow for its subtree. The docs agree
+("Signals are globally accessible from anywhere in the DOM").
+Consequences, all verified against this bundle:
+
+- Two instances of the same component collide on every generic name
+  (`$filter`, `$loading`, `$newTitle`): one input drives both. Nesting via
+  dot-notation is data depth, not DOM hierarchy.
+- A LEADING underscore hides a signal from requests, not from the store:
+  the request filter defaults to `exclude: /(^|\.)_/`. So `_foo` is
+  client-only state, not local state.
+- `data-scope-children` is dispatched by the core's morph code and has NO
+  listener in the core bundle (1 constant, 2 dispatches, 0
+  `addEventListener`s) — the core only ANNOUNCES that a scoped subtree was
+  patched. Its consumer is Rocket: `datastar-rocket.js` registers
+  `datastar-scope-children` itself (`this.addEventListener(we, this.#k)`) and
+  sets the marker on every component host. So it is a real extension seam,
+  not dead code — but it is useless without a plugin that listens, and it is
+  undocumented. Never build on it directly.
+- Rocket (`$$name`, per-instance paths under `_rocket.*`) is the intended
+  fix, and it is the consumer of that scope event. It is NOT in the core
+  bundle: core ships `datastar.js`/`-core`/`-aliased` only, and Rocket was
+  Pro-only until v1.0.4 made it a free, BETA bundle ("API is subject to
+  change") at `bundles/datastar-rocket.js` — verified, and it must be loaded
+  IN ADDITION to core, not instead of it. Two measured caveats before
+  adopting it:
+  1. **Its instance state lives in `_rocket.<instance>`, and the REQUEST path
+     keeps the core `_`-exclude.** Rocket's own expression default is
+     `exclude: /(?!)/` (it wants `$$x` visible to expressions), but the
+     `@get/@post` option default is still `exclude: /(^\.?|\\.)_/`. So
+     `_rocket.*` does NOT reach the server unless the call opts in via
+     `filterSignals`. A server-driven panel must read/write the shared
+     `__root` surface, not a local — the same shape as `$foo` today.
+  2. **Components render into a SHADOW ROOT by default** (`attachShadow`,
+     mode `open`, with `light` as the opt-out). Shadow DOM blocks
+     document-level CSS: our Tailwind/DaisyUI classes would resolve only
+     because CSS custom properties inherit through shadow boundaries and
+     `app.min.css` is loaded at document level — utility classes defined for
+     the document do NOT style shadow-internal elements. Any Rocket component
+     must use the `light` mode or restate styles inside.
+
+  **Verdict for this repo: do not adopt Rocket.** It buys automatic
+  per-instance naming, which the prefix helper already gives us for free
+  (`internal/components/instance.go`), and it costs a second 65 KB beta
+  bundle, a shadow-DOM/light-mode decision in every component, and a
+  beta API. Revisit if a component must exist 3+ times on one page with
+  independent state AND the prefix helper has become the bottleneck.
+
+  **What to do instead (house pattern):** prefix the signal names per
+  instance and give each instance its own patch-target id — one helper,
+  `internal/components/instance.go` (`InstanceID`, `SignalNames`, `Signals`),
+  which is the generalized form of the toast precedent. Two hard rules:
+  (1) never share an `id` between instances — no-selector patches resolve
+  via `getElementById` (FIRST match only) and selector patches hit EVERY
+  match, so one patch would morph both; (2) an un-prefixed reference fails
+  SILENTLY by falling through to the global store, which reads as
+  cross-talk, not as an error — the helper's `Signals` map is what makes
+  the names come from one place, and `make datastar-lint` is where the
+  mistake is caught.
 
 The Datastar Go SDK is **method-only**. Every patch call is a method on
 `*datastar.ServerSentEventGenerator` from `datastar.NewSSE(w, r)`:
@@ -119,6 +185,8 @@ Tailwind input scans only `features/`, `web/`, `internal/` (`source(none)` + exp
 `docs/realtime-recipe.md` is the recipe: hidden-`@get` permanent streams,
 `ListResync` for record lists, fragment morphs with selector
 headers, `data-effect` for signal reactions (never polling), `fail()` on
-500s, and the conformance test that pins every `/api/*` URL to a Go
-route. MCP/CLI surfaces the same knowledge via `advise` (presets
+500s, `ic.AutoScroll()` as the last child of an append-only feed (it
+rides the patch that carries the new item, so no listener is needed), and
+the conformance test that pins every `/api/*` URL to a Go route.
+MCP/CLI surfaces the same knowledge via `advise` (presets
 `realtime-transport`, `ai-features`); the skill is the execution half.

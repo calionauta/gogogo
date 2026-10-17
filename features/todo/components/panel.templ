@@ -1,15 +1,23 @@
 package components
 
-// GenuiTodoList renders the viewer's own todos as a system panel: the app's
-// truth, hydrated server-side (see TodoListProps), so the model chooses a
-// slice and never the content.
+import "github.com/calionauta/gogogo/features/todo"
+
+// Panel renders the viewer's own todos for the AI answer surfaces: the app's
+// truth, hydrated server-side by TodoPanel.Fill, so the model chooses a slice
+// and never the content.
+//
+// It lives with the feature, not in features/genui/components: the panel seam
+// is provider-based, so the generative-UI plugin knows names and props in the
+// abstract and never what a todo is. Moving it made genui's own package free
+// of feature knowledge (one direction of dependency, enforced by
+// check-flatdeps).
 //
 // The rows are read-only by design. A write here would have to land on the
 // todo feature's own patch target to stay live, and this component does not
 // own one; a button that writes and leaves a stale list on screen reads as
 // broken, so the panel links to /todo instead.
-templ GenuiTodoList(filter string, rows []TodoRow) {
-	<div id="genui-todo-list" class="rounded-box border border-base-300 p-4">
+templ Panel(filter string, rows []todo.PanelRows) {
+	<div id="todo-panel" class="rounded-box border border-base-300 p-4">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
 			<h3 class="font-semibold">{ todoListHeading(filter) }</h3>
 			<a href="/todo" class="link link-hover text-xs">Open in Todos</a>

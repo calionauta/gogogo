@@ -5,17 +5,59 @@ import (
 	"context"
 	"encoding/json"
 	"maps"
+	"os"
 	"strings"
 	"testing"
 
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/queue"
+
+	"github.com/a-h/templ"
 )
 
+// TestMain installs the stub panel so the renderer resolves "todo_list" —
+// the registry is process state installed at boot, and this package's tests
+// exercise the booted shape (see components/registry_test.go).
+func TestMain(m *testing.M) {
+	if err := comp.InstallPanelRegistry([]comp.PanelProvider{stubPanel{}}); err != nil {
+		panic("genui handlers: test registry install failed: " + err.Error())
+	}
+	os.Exit(m.Run())
+}
+
+// panelRowStub is this package's stub row shape. Deliberately local: the
+// catalog seam is provider-based, so proving it must not require importing a
+// feature package (that would invert the one-way dependency the seam keeps).
+type panelRowStub struct {
+	ID    string
+	Title string
+}
+
+// panelViewStub renders the stub rows as a raw fragment.
+func panelViewStub(filter string, rows []panelRowStub) templ.Component {
+	var b strings.Builder
+	b.WriteString(`<div data-filter="` + filter + `">`)
+	for _, r := range rows {
+		b.WriteString("<span>" + r.Title + "</span>")
+	}
+	b.WriteString("</div>")
+	return templ.Raw(b.String())
+}
+
 // stubPanel is a panel provider with no store behind it.
-type stubPanel struct{ rows []comp.TodoRow }
+type stubPanel struct{ rows []panelRowStub }
 
 func (stubPanel) Component() string { return "todo_list" }
+
+func (stubPanel) Prompt() string { return "todo_list {filter}" }
+
+func (stubPanel) Writable() []string { return []string{"filter"} }
+
+func (stubPanel) Render(props map[string]any) (templ.Component, error) {
+	rows, _ := props["rows"].([]panelRowStub)
+	filter, _ := props["filter"].(string)
+	return panelViewStub(filter, rows), nil
+}
 
 func (s stubPanel) Fill(_ context.Context, _ string, props map[string]any) (map[string]any, error) {
 	out := make(map[string]any, len(props)+1)
@@ -24,42 +66,39 @@ func (s stubPanel) Fill(_ context.Context, _ string, props map[string]any) (map[
 	return out, nil
 }
 
-// TestWorkerHydratesAppPanels pins the Ask leg: a registered panel is filled
-// from the provider before delivery, and dropped when no provider is wired.
-// Without this the panel would reach the renderer with no rows and draw an
-// empty list — a lie ("you have no todos") about data the worker has.
+// TestWorkerHydratesAppPanels pins the Ask leg: a panel is filled from its
+// provider before delivery. Without this the panel would reach the renderer
+// with no rows and draw an empty list — a lie ("you have no todos") about data
+// the worker has.
+//
+// The "no provider" arm this test used to carry is gone by construction:
+// Hydrate reads the installed registry, and InstallPanelRegistry refuses a
+// panel with no provider, so an unwired panel is a failed boot rather than a
+// delivered empty one. What remains to prove is that hydration HAPPENS, which
+// is what this now asserts.
 func TestWorkerHydratesAppPanels(t *testing.T) {
 	t.Parallel()
 	answer := `{"components":[{"type":"todo_list","props":{"filter":"open"}}]}`
-	for name, tc := range map[string]struct {
-		panels []comp.PanelProvider
-		want   string
-	}{
-		"hydrated": {
-			panels: []comp.PanelProvider{stubPanel{rows: []comp.TodoRow{{ID: "t1", Title: "real row"}}}},
-			want:   "real row",
-		},
-		"no provider": {want: ""},
-	} {
-		ownHub := queue.NewSSEHub()
-		ch := make(chan []byte, 8)
-		ownHub.Register("c1", "u1", ch)
-		h := &Handler{hub: ownHub, responder: stubResponder{raw: answer}, panels: tc.panels}
-		payload, _ := json.Marshal(map[string]string{"prompt": "my todos", "userId": "u1"})
-		_ = h.handleGenuiJob(context.Background(), nil, queue.Job{ClientID: "c1", Payload: payload})
-
-		select {
-		case msg := <-ch:
-			got := string(msg)
-			if tc.want != "" && !strings.Contains(got, tc.want) {
-				t.Errorf("%s: payload lacks the hydrated row: %s", name, got)
-			}
-			if tc.want == "" && strings.Contains(got, "todo_list") {
-				t.Errorf("%s: an unhydrated panel was delivered: %s", name, got)
-			}
-		default:
-			t.Fatalf("%s: nothing was delivered", name)
-		}
-		ownHub.Unregister("c1")
+	if err := comp.InstallPanelRegistry([]comp.PanelProvider{
+		stubPanel{rows: []panelRowStub{{ID: "t1", Title: "real row"}}},
+	}); err != nil {
+		t.Fatalf("install provider: %v", err)
 	}
+
+	ownHub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	ownHub.Register("c1", "u1", ch)
+	h := &Handler{hub: ownHub, responder: stubResponder{raw: answer}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "my todos", "userId": "u1"})
+	_ = h.handleGenuiJob(context.Background(), nil, queue.Job{ClientID: "c1", Payload: payload})
+
+	select {
+	case msg := <-ch:
+		if got := string(msg); !strings.Contains(got, "real row") {
+			t.Errorf("payload lacks the hydrated row: %s", got)
+		}
+	default:
+		t.Fatal("nothing was delivered")
+	}
+	ownHub.Unregister("c1")
 }

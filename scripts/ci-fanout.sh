@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci-fanout.sh — race suite + four Playwright smoke suites in parallel.
+# ci-fanout.sh — race suite + five Playwright smoke suites in parallel.
 #
 # Parallel order surfaces UI failures in ~1min instead of after the ~2min
 # race suite. Each suite gets its own log under CI_LOG_DIR; the binary
@@ -17,7 +17,8 @@
 # retries (a retried race is a hidden data race).
 #
 # Ports are collision-free by construction: race tests bind ephemeral
-# ports, smoke.mjs takes 8099, whiteboard 8131, notes 8132, sse-reopen 8133.
+# ports, smoke.mjs takes 8099, whiteboard 8131, notes 8132, sse-reopen 8133,
+# chat-scroll 18093.
 #
 # Usage: CI_LOG_DIR=<dir> SMOKE_BIN=<binary> bash scripts/ci-fanout.sh
 set -uo pipefail
@@ -29,8 +30,8 @@ mkdir -p "$logdir"
 # Ctrl-C), the five suites below would otherwise keep running orphaned,
 # holding their ports and burning the CPU the gate just freed. Kill them
 # with us. Firing after a normal run is harmless (PIDs already reaped).
-pid_race= pid_smoke= pid_wb= pid_notes= pid_sse=
-trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes $pid_sse 2>/dev/null || true' INT TERM
+pid_race= pid_smoke= pid_wb= pid_notes= pid_sse= pid_scroll=
+trap 'kill $pid_race $pid_smoke $pid_wb $pid_notes $pid_sse $pid_scroll 2>/dev/null || true' INT TERM
 
 # -v: SKIP lines (notably internal/hostgate's constrained-box skips) only
 # print in verbose mode; the green-path summary below counts on them. Logs
@@ -45,6 +46,10 @@ SMOKE_BIN="$bin" node scripts/notes-caret.test.mjs >"$logdir/notes.log" 2>&1 &
 pid_notes=$!
 SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" node scripts/sse-reopen.test.mjs >"$logdir/sse.log" 2>&1 &
 pid_sse=$!
+# Own port (18093): chat-scroll boots a second server, so sharing a port with
+# any suite above would make one of them fail for the wrong reason.
+SMOKE_BIN="$bin" node scripts/chat-scroll.test.mjs >"$logdir/chatscroll.log" 2>&1 &
+pid_scroll=$!
 
 # retry_browser reruns one failed browser suite serially: the parallel
 # load is gone by then, so a pass means "starved", not "broken". One
@@ -67,12 +72,13 @@ browser_script() {
     whiteboard) echo "whiteboard-client.test.mjs" ;;
     notes) echo "notes-caret.test.mjs" ;;
     sse) echo "sse-reopen.test.mjs" ;;
+    chatscroll) echo "chat-scroll.test.mjs" ;;
   esac
 }
 
 fail=0
 failed_logs=""
-for spec in "race:$pid_race" "smoke:$pid_smoke" "whiteboard:$pid_wb" "notes:$pid_notes" "sse:$pid_sse"; do
+for spec in "race:$pid_race" "smoke:$pid_smoke" "whiteboard:$pid_wb" "notes:$pid_notes" "sse:$pid_sse" "chatscroll:$pid_scroll"; do
   name="${spec%%:*}"
   pid="${spec##*:}"
   if wait "$pid"; then

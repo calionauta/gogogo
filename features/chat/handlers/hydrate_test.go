@@ -19,7 +19,7 @@ import (
 // and the stored directive keeps empty rows.
 func TestChatHydratesSystemPanel(t *testing.T) {
 	answer := `{"components":[{"type":"todo_list","props":{"filter":"open"}}]}`
-	panels := []comp.PanelProvider{stubPanel{rows: []comp.TodoRow{{ID: "t1", Title: "real row"}}}}
+	panels := []comp.PanelProvider{stubPanel{rows: []panelRowStub{{ID: "t1", Title: "real row"}}}}
 	mux, a, mem := chatFixtureWith(t, stubResponder{raw: answer}, panels)
 	cookie := chatSignup(t, mux, "panel@example.com")
 
@@ -54,7 +54,7 @@ func assertPanelRow(t *testing.T, dir comp.Directive) {
 	if dir.Component != "todo_list" {
 		t.Fatalf("component = %q, want the panel", dir.Component)
 	}
-	rows, ok := dir.Props["rows"].([]comp.TodoRow)
+	rows, ok := dir.Props["rows"].([]panelRowStub)
 	if !ok || len(rows) != 1 || rows[0].Title != "real row" {
 		t.Fatalf("rows = %#v, want the hydrated store row", dir.Props["rows"])
 	}

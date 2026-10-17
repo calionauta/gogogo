@@ -224,21 +224,30 @@ func buildAdviseIn(need, dir string) adviseDoc {
 			RuntimeOff: c.RuntimeOff, Note: c.Note,
 			Dirs: c.Dirs, Files: c.Files,
 		}
-		if unit, ok := owners[c.ID]; ok {
-			if unitKind[unit] == capabilities.KindFeature {
-				ac.Trim = "--features " + unit
-			} else {
-				ac.Trim = "--plugins " + unit
-			}
-		} else if c.RuntimeOff != "" {
-			ac.Trim = "not an installer unit (runtime switch)"
-		} else {
-			ac.Trim = "not an installer unit (core — always in)"
-		}
+		ac.Trim = adviseTrim(c, owners, unitKind)
 		doc.Capabilities = append(doc.Capabilities, ac)
 	}
 	doc.Presets = matched
 	return doc
+}
+
+// adviseTrim names the installer switch that removes a capability, so a
+// reader of the advise output knows the exact flag. The two non-unit cases
+// are spelled out by reason (runtime switch vs core) rather than left as an
+// empty cell — "no unit owns it" has two different meanings for the caller
+// deciding what to trim.
+func adviseTrim(c capabilities.Capability, owners map[string]string, unitKind map[string]capabilities.Kind) string {
+	unit, ok := owners[c.ID]
+	if !ok {
+		if c.RuntimeOff != "" {
+			return "not an installer unit (runtime switch)"
+		}
+		return "not an installer unit (core — always in)"
+	}
+	if unitKind[unit] == capabilities.KindFeature {
+		return "--features " + unit
+	}
+	return "--plugins " + unit
 }
 
 // matchPresets scores presets by keyword hits in need. Empty need returns

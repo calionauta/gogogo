@@ -143,6 +143,10 @@ templ ChatList(msgs []store.MessageView, errMsg string) {
 // state: this is the fragment the SSE hub appends into #chat-messages,
 // and a server-side patch targets EVERY match of its selector, so a
 // nested `#chat-messages` made each later answer append twice over.
+//
+// It ends with the scroll anchor (components.AutoScroll): the fragment IS
+// the newest message, so the node that arrives with it is the node that
+// brings it into view — on the answer patch and on the prompt echo alike.
 templ ChatThread(msgs []store.MessageView, errMsg string) {
 	if errMsg != "" {
 		<div class="chat chat-start">
@@ -167,4 +171,5 @@ templ ChatThread(msgs []store.MessageView, errMsg string) {
 			</div>
 		}
 	}
+	@components.AutoScroll()
 }

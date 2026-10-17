@@ -11,6 +11,10 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo/config"
+	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
+	chatstore "github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
+	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -204,4 +208,59 @@ func bootFail(cancelConsumer context.CancelFunc, sqlDB *sql.DB, msg string, err 
 	cancelConsumer()
 	_ = sqlDB.Close()
 	return nil, fmt.Errorf("server: chi %s: %w", msg, err)
+}
+
+// bootAI wires both AI legs. One helper because the two legs deliberately
+// share everything except their surface set and their interaction shape —
+// splitting them would be the two-features-drift problem in code form.
+//
+// The whole body has to stay in ONE function so the installer can strip it as
+// one brace-matched block (see the genui unit's extraStrips rule) and so the
+// two legs cannot disagree about "which surfaces exist". It lives here rather
+// than inline in BootChi for the statement budget.
+func bootAI(
+	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
+	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries,
+) (chatH *chathandlers.Handler, genuiH *genuihandlers.Handler, err error) {
+	// One answer surface per leg (GENUI_ASK_SURFACES / GENUI_CHAT_SURFACES,
+	// absent = the documented defaults). An unknown name is a BOOT error, not
+	// a logged warning: the value decides what the model may emit, so a typo
+	// that silently fell back would be a surface change with no signal at all
+	// — the exact failure mode the variable exists to let an operator control.
+	askSurfaces, err := comp.ParseSurfaces(cfg.GenUI.AskSurfaces, comp.DefaultSurfacesAsk)
+	if err != nil {
+		return nil, nil, fmt.Errorf("config: GENUI_ASK_SURFACES: %w", err)
+	}
+	chatSurfaces, err := comp.ParseSurfaces(cfg.GenUI.ChatSurfaces, comp.DefaultSurfacesChat)
+	if err != nil {
+		return nil, nil, fmt.Errorf("config: GENUI_CHAT_SURFACES: %w", err)
+	}
+	// The env path rejects an unknown name above; this is the same assertion
+	// for the set as it arrives here, so a future caller building one from
+	// literals cannot slip an unnamed band past the prompt (NormalizeSurfaces
+	// drops it silently, which would read as "the band did nothing").
+	if verr := comp.ValidateSurfaces(append(append([]comp.Surface(nil), askSurfaces...), chatSurfaces...)); verr != nil {
+		return nil, nil, verr
+	}
+	// panels: the data half of the AI components. Installed as the process
+	// catalog — this is the ONE place that decides which of the app's own data
+	// is answerable, and it comes from the same providers Hydrate will use, so
+	// the advertised vocabulary and the renderable one cannot drift.
+	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}
+	if perr := comp.InstallPanelRegistry(panels); perr != nil {
+		return nil, nil, perr
+	}
+	// One router for both legs: deciding which component should lead is not a
+	// question specific to one-shot answers.
+	askRouter := genuihandlers.NewAskRouter(cfg)
+	chatH = chathandlers.NewHandler(cfg, a, chiQ, hub,
+		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM, askRouter, chatSurfaces))
+	genuiH = genuihandlers.NewHandler(cfg, a, chiQ, hub,
+		comp.NewResponder(realLLM, simulatedLLM, askRouter, askSurfaces))
+	// Registered here, not by the caller: BootChi needs only the handlers for
+	// the mux, and hoisting registration keeps its error path to one line
+	// (the statement budget this helper exists to respect).
+	chatH.RegisterHandlers(chiQ.Registry())
+	genuiH.RegisterHandlers(chiQ.Registry())
+	return chatH, genuiH, nil
 }

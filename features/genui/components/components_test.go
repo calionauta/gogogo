@@ -31,6 +31,12 @@ func TestGenuiResultStates(t *testing.T) {
 			t.Errorf("empty result missing %q", want)
 		}
 	}
+	// The empty state is server-rendered at page load and never patched, so
+	// an anchor here would scroll the page on load for no reason — the
+	// anchor belongs to the answer, not to the region's birth state.
+	if strings.Contains(empty, "scrollIntoView") {
+		t.Errorf("empty state carries the scroll anchor — loading the Ask page would jump: %s", empty)
+	}
 
 	var errBuf bytes.Buffer
 	if err := components.GenuiResult(nil, "model exploded", true).Render(context.Background(), &errBuf); err != nil {
@@ -103,6 +109,12 @@ func TestGenuiResultRendersCatalog(t *testing.T) {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("full result missing %q", want)
 		}
+	}
+	// The scroll anchor must ride INSIDE the replaced region, after the
+	// components: the patch is an outer replace of #genui-result, so the
+	// node that arrives with the answer is what brings it into view.
+	if !strings.Contains(buf.String(), "scrollIntoView") {
+		t.Errorf("full result carries no scroll anchor — an answer longer than the page lands off-screen: %s", buf.String())
 	}
 }
 

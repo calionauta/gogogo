@@ -71,7 +71,7 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	// The app's own panels carry real state, so the worker fills their rows
 	// here — the renderer has no store and must not get one, and a panel
 	// that cannot be hydrated is dropped rather than rendered empty.
-	hydrated, herr := comp.Hydrate(ctx, dirs, p.UserID, h.panels)
+	hydrated, herr := comp.Hydrate(ctx, dirs, p.UserID)
 	if herr != nil {
 		observability.Warn(ctx, "genui: panel hydration failed",
 			append(observability.WithComponent("genui", "feature"), "error", herr.Error())...)

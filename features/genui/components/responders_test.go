@@ -90,8 +90,8 @@ func TestResponderSelection(t *testing.T) {
 		responder Responder
 		marker    string
 	}{
-		"ask":  {responder: NewResponder(nil, simulated, nil), marker: "connect GOAI_API_KEY for live model output"},
-		"chat": {responder: NewChatResponder(nil, simulated), marker: "the model composes this markup itself"},
+		"ask":  {responder: NewResponder(nil, simulated, nil, nil), marker: "connect GOAI_API_KEY for live model output"},
+		"chat": {responder: NewChatResponder(nil, simulated, nil, nil), marker: "the model composes this markup itself"},
 	} {
 		got, err := tc.responder.Respond(ctx, "plan my day")
 		if err != nil {
@@ -102,8 +102,8 @@ func TestResponderSelection(t *testing.T) {
 		}
 	}
 	for name, responder := range map[string]Responder{
-		"ask":  NewResponder(nil, nil, nil),
-		"chat": NewChatResponder(nil, nil),
+		"ask":  NewResponder(nil, nil, nil, nil),
+		"chat": NewChatResponder(nil, nil, nil, nil),
 	} {
 		_, err := responder.Respond(ctx, "plan my day")
 		if err == nil || !strings.Contains(err.Error(), "GOAI_API_KEY") {

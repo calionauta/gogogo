@@ -47,7 +47,10 @@ func genuiFixture(t *testing.T, responder comp.Responder) http.Handler {
 		t.Fatalf("queue: %v", err)
 	}
 	t.Cleanup(q.Close)
-	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), responder, nil)
+	if ierr := comp.InstallPanelRegistry([]comp.PanelProvider{stubPanel{}}); ierr != nil {
+		t.Fatalf("install panel registry: %v", ierr)
+	}
+	h := NewHandler(config.Load(), a, q, queue.NewSSEHub(), responder)
 	h.RegisterHandlers(q.Registry())
 	q.StartWorkers()
 	mux := http.NewServeMux()
