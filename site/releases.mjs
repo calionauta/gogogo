@@ -37,12 +37,11 @@ export function splitSections(md) {
 //   [Unreleased]                       (no date, no tag link; supported but
 //     no longer written — the file is release-please-owned)
 //   0.43.2 (2026-10-11)                (release-please with
-//     "changelog-type": "github" — bare semver, no brackets. HISTORICAL:
-//     v0.43.0–v0.50.0 were written this way. The matching "## What's Changed"
-//     subsection is folded back into the version body by loadReleases below,
-//     never rendered as its own page. The config is "default" now, so new
-//     sections use "[X.Y.Z](compare-url) (date)" with ### Features/Bug Fixes,
-//     but this fold must stay — it is what keeps the old sections parseable.)
+//     "changelog-type": "github" — bare semver, no brackets; the matching
+//     "## What's Changed" subsection is folded back into the version body
+//     by loadReleases below, never rendered as its own page. The config is
+//     "github" today (the type must not change — see CHANGELOG.md), so this
+//     is the live shape, not a historical one.)
 // NOTE: this diverges from the canonical skill copy (see header) which
 // predates the github changelog-type; re-apply on refresh.
 export function parseRelease(header) {

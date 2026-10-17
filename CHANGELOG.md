@@ -9,6 +9,12 @@ insertion regex (`\n###? v?[0-9[]`) only matches a version header that has a
 newline before it, so without the H1 the newest version section is missed and
 the new entry lands under an older one.
 
+`changelog-type` must stay `github`. This repo merges PRs with merge commits
+whose body repeats the branch's subject line, so release-please parses BOTH the
+merge commit and the branch commit. The `github` type takes its entries from the
+Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
+no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
+
 ## 0.50.0 (2026-10-15)
 
 ## What's Changed
