@@ -160,7 +160,7 @@ Full strategy: `references/go-testing.md`.
 
 Full rules: `references/datastar.md`.
 
-- Gate: `make datastar-lint` = `bin/datastar-lint -only-errors -r ./features ./internal`. Two trees because the **Go analyzer** checks backend SDK calls (`sse.PatchElements`) under `internal/`; the HTML analyzer covers `.templ` under `features/`. CI pins the version (`.github/workflows/ci.yml`, currently `@v0.16.1`), not `@latest` — a release can raise a rule to ERROR and fail the build with no code change. Local wrapper forwards `"$@"` and supplies `--analyzers html,go,templ`.
+- Gate: `make datastar-lint` = `bin/datastar-lint -only-errors -r ./features ./internal`. Two trees because the **Go analyzer** checks backend SDK calls (`sse.PatchElements`) under `internal/`; the HTML analyzer covers `.templ` under `features/`. CI pins the version (`.github/workflows/ci.yml`, currently `@v0.16.2`), not `@latest` — a release can raise a rule to ERROR and fail the build with no code change. Local wrapper forwards `"$@"` and supplies `--analyzers html,go,templ`.
 - **The SDK is method-only.** `sse.PatchElements(html, datastar.WithSelector("#id"))` — there is no `datastar.PatchElements(sse, …)` in any 1.x release (it does not compile). `PatchElementf`/`RemoveElementf`/`RemoveElementByID` take no options, so they cannot lack a selector. A wrapper forwarding `opts ...PatchElementOption` is correct and must not be flagged.
 - `PatchElements` top element needs `id` + `WithSelector` (else `PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
