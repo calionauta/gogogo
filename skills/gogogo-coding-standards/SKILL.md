@@ -164,7 +164,7 @@ Full rules: `references/datastar.md`.
 - **The SDK is method-only.** `sse.PatchElements(html, datastar.WithSelector("#id"))` — there is no `datastar.PatchElements(sse, …)` in any 1.x release (it does not compile). `PatchElementf`/`RemoveElementf`/`RemoveElementByID` take no options, so they cannot lack a selector. A wrapper forwarding `opts ...PatchElementOption` is correct and must not be flagged.
 - `PatchElements` top element needs `id` + `WithSelector` (else `PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
-- **A `data-bind` signal is client-owned — never write it from a server response.** A background merge (stream handshake, any re-list) overwrites live input, and an echo of the request's own parameter is the same bug; the field needs `omitempty` or the zero value marshals anyway. `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` / `_WRITTEN` gate both halves, and `WithOnlyIfMissing(true)` is the escape hatch. Full rule: `references/datastar.md` § Rules 7.
+- **A `data-bind` signal is client-owned — never write it from a server response.** Linted by `datastar-lint` (`CLIENT_BOUND_SIGNAL_*`), not prose: all four write forms are checked. The two traps the lint cannot see are in `references/datastar.md` § Rules 7.
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
 
 ## Where new code goes (read this before creating a file)
