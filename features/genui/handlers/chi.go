@@ -30,7 +30,6 @@ import (
 const (
 	signalGenuiPending = "genui_pending"
 	signalGenuiError   = "genui_error"
-	signalGenuiPrompt  = "genuiPrompt"
 )
 
 // Handler serves the Ask demo on chi: page, enqueue, stream, worker.
@@ -142,9 +141,9 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalGenuiPending: true,
 		signalGenuiError:   "",
-		// signalGenuiPrompt is NOT written: $genuiPrompt is bound two-way to
-		// the composer, so the box owns it and a response that clears it can
-		// wipe text typed after submit. The client clears it on success.
+		// $genuiPrompt is NOT written here: it is bound two-way to the composer,
+		// so the box owns it and a response that clears it can wipe text typed
+		// after submit. The client clears it on success.
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("genui", "feature"), "error", err)
 		observability.Error(r.Context(), "genui: ask ack failed", obsArgs...)
