@@ -1,0 +1,49 @@
+// SCOPE:plugin - scroll-to-latest hook for append-only feed regions.
+package components
+
+// AutoScrollExpr is the `data-init` expression the anchor runs. It is a
+// const (not inlined into the templ) so the scroll rule has exactly one
+// definition and a test can pin it: the assertion is on the string the
+// browser compiles, not on a copy of it.
+//
+// An IIFE because the IIFE is the statement boundary. Datastar compiles the
+// value as a function BODY (`Function(...names, expr)` — so a bare
+// `if (…) { … }` happens to parse, as long as its braces balance), and it
+// also rewrites a returnsValue expression as `return (<last statement>)`:
+// wrapping the rule in one function keeps it a single statement whatever
+// that rewrite does, and keeps the anchor's behavior readable as one unit.
+// `el` is the element carrying the attribute (Datastar's own binding).
+//
+// prefers-reduced-motion is an explicit branch, not a note: smooth
+// scrolling is a vestibular trigger, and a browser only suppresses it
+// automatically for the CSS property, not for scrollIntoView's option.
+const AutoScrollExpr = "(function () {" +
+	"if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {" +
+	"el.scrollIntoView();" +
+	"} else {" +
+	"el.scrollIntoView({ behavior: 'smooth', block: 'end' });" +
+	"}})()"
+
+// AutoScroll renders the scroll-to-latest anchor for an append-only feed
+// (the chat column, the Ask answer region).
+//
+// Why an element and not a listener: Datastar re-runs `data-init` on every
+// node its element morph inserts. The anchor is the LAST child of the feed
+// and travels inside the same patch that carries the new bubble, so the
+// node that arrives with the newest message is the node that scrolls
+// itself into view. That covers every patch shape the feeds use — append
+// (chat's prompt echo, answer, error bubble) and outer replace (the Ask
+// result region) — with zero vanilla JS, which is what keeps this out of
+// the TestNoNewVanillaJS allowlist.
+//
+// Why no id: several anchors coexist (one per appended chat fragment), so
+// an id here would duplicate on the page. The anchor is addressed only as
+// `el` from its own expression, so it needs none.
+//
+// Why no `hidden` class: a `display:none` element has no box, and
+// scrollIntoView on a boxless element is a no-op — the anchor must stay
+// laid out. An empty div has no height and nothing to show, so it is
+// already inert; only the assistive-tech opt-out is needed.
+templ AutoScroll() {
+	<div data-init={ AutoScrollExpr } aria-hidden="true"></div>
+}

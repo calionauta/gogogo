@@ -9,13 +9,16 @@ import (
 )
 
 // toastSignalName returns a per-toast signal key so each toast's open state
-// is tracked independently.
+// is tracked independently. It delegates to the shared instance helper
+// (instance.go) so the naming shape has ONE definition: stacked toasts were
+// the first place this problem appeared, and every later per-instance
+// component must not invent a second spelling.
 func toastSignalName(toastID string) string {
-	return "toast_vis_" + toastID
+	return Signal("toast", toastID, "vis")
 }
 
 func makeToastSignals(toastID string) map[string]any {
-	return map[string]any{toastSignalName(toastID): false}
+	return Signals("toast", toastID, map[string]any{"vis": false})
 }
 
 // SafeJSON marshals a value to a JSON string with single quotes HTML-escaped

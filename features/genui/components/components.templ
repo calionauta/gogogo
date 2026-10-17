@@ -164,6 +164,12 @@ templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 					@comp
 				</div>
 			}
+			// The region is replaced (outer), not appended, so the anchor
+			// must live inside the success branch: it is the last thing the
+			// patch puts on screen, and whichever node it lands in scrolls
+			// itself into view. The empty and error states are short enough
+			// to already be visible.
+			@components.AutoScroll()
 		}
 	</div>
 }

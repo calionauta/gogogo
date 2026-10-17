@@ -110,6 +110,12 @@ func TestChatThreadFragmentCarriesNoContainerID(t *testing.T) {
 			t.Errorf("fragment missing bubble %q", want)
 		}
 	}
+	// The scroll anchor travels INSIDE the fragment, last: the node the
+	// patch inserts is the node that scrolls the newest answer into view,
+	// so no listener and no vanilla JS is involved (see components.AutoScroll).
+	if !strings.Contains(frag, "scrollIntoView") {
+		t.Errorf("appended fragment carries no scroll anchor — a new answer lands off-screen: %q", frag)
+	}
 
 	buf.Reset()
 	if err := chatcomponents.ChatList(nil, "").Render(context.Background(), &buf); err != nil {
