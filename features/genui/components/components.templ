@@ -13,7 +13,7 @@ import (
 // single column: form first, result below — no dashboard density.
 templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals={ `{"theme":"light","genui_pending":false,"genui_error":""}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" { authviews.ThemeRootAttrs(`{"theme":"light","genui_pending":false,"genui_error":""}`)... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -23,7 +23,6 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(true)
 		</head>

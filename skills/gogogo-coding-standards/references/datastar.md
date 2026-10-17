@@ -91,6 +91,20 @@ is the gate that catches it.
    it only when the signal does not exist), so a write routed through it is not
    flagged. Details and the lived bug: `docs/code-quality.md`,
    `docs/realtime-recipe.md`.
+8. **A page that renders the navbar must wire `$theme`, and must render
+   `ThemeHead`.** The toggle lives in `Navbar`, so any page including the
+   navbar shows a working-looking button — but `$theme` only acts when `<html>`
+   carries `data-signals` + `data-attr:data-theme` + `data-class:dark`. Without
+   them the click hides BOTH icons (the CSS reveals the moon only under
+   `html.dark`) and the theme never changes: the button appears to vanish. Use
+   the helper, never a copy: `<html lang="en" { authviews.ThemeRootAttrs("")... }>`
+   (or `ThemeRootAttrs(MarshalSignals(signals))` to keep the page's own seeds).
+   `ThemeHead` is also the single owner of `/static/iconify-icon.min.js`: the
+   `<iconify-icon>` tag is a web component that lays out at 0×0 without it, so a
+   page missing the head shows invisible icons (theme + sound toggles). One
+   obligation, one place — three pages shipped the first bug and three the
+   second. Guards: `features/authviews/theme_test.go` (template scan) plus the
+   browser smoke.
 
 ## Scan roots (why landing edits are safe)
 

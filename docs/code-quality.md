@@ -148,6 +148,34 @@ live in `.templ` markup rather than Go:
   object, which drops every seed on the page before Datastar reads the
   attribute. A page that seeds state there (`review_pending`, `genui_pending`,
   `chat_thinking`) must emit valid JSON for the merge to work.
+- **A page that renders the navbar must wire `$theme`, or the toggle looks
+  broken.** The button lives in `Navbar`, so any page that includes the navbar
+  shows a toggle that runs — it flips `$theme` and calls `Theme.syncIcons`.
+  But `$theme` only *does* anything when `<html>` carries the three bindings,
+  and without them nothing observes the signal: the icon sync hides both icons
+  (the CSS reveals the moon only under `html.dark`) and the theme never
+  changes. Use the shared helper rather than copying the attributes:
+
+  ```templ
+  <html lang="en" { authviews.ThemeRootAttrs("")... }>
+  <!-- or, keeping the page's own seeds: -->
+  <html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(signals))... }>
+  ```
+
+  `ThemeRootAttrs` supplies `data-signals` + `data-attr:data-theme` +
+  `data-class:dark`. The copy-per-page form is what diverged: three pages
+  (`/config`, `/room`, the landing page) shipped the navbar with none of the
+  three, and the toggle silently did nothing. `features/authviews/theme_test.go`
+  scans for the wiring and fails on a new page that forgets it.
+- **`ThemeHead` is also what loads the iconify component.** `<iconify-icon>` is
+  a web component: without `/static/iconify-icon.min.js` the tag lays out at
+  0×0, so every icon — the theme toggle's sun/moon and the sound toggle — is
+  simply not there, and a toggle that swaps its icon looks like it vanishes.
+  The script lives in `ThemeHead` (one owner) rather than in each page; the
+  navbar uses iconify icons, so a page that renders the navbar and not
+  `ThemeHead` shows invisible icons. Eight pages had each copied the tag and
+  three had forgotten it — the same "every page must remember" shape that let
+  the theme bindings drift.
 - A signal that never reached the store is read as `""`, and Datastar's
   `data-attr:disabled` sets the attribute for `""` — so a wiped seed is a
   control born disabled. Only its own submit handler clears it, so the page

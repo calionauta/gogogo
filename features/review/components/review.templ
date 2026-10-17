@@ -15,7 +15,7 @@ import (
 // setup hint instead of a dead button.
 templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals={ MarshalSignals(signals) } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(signals))... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -25,7 +25,6 @@ templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit 
 			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(true)
 		</head>

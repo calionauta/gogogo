@@ -15,7 +15,7 @@ import (
 // observer) — zero custom sound JS by design.
 templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals={ MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}) } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}))... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -25,7 +25,6 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(true)
 		</head>

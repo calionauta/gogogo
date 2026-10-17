@@ -9,7 +9,7 @@ import "github.com/calionauta/gogogo/internal/components"
 // NotesIndex lists existing shared notes with a button to start a new one.
 templ NotesIndex(email string, userRole string, docIDs []string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -18,7 +18,6 @@ templ NotesIndex(email string, userRole string, docIDs []string, buildLabel stri
 			<link rel="stylesheet" href="/static/app.css"/>
 			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
-			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
@@ -62,7 +61,7 @@ templ NotesListFragment(docIDs []string) {
 // peers' resolved text unless the textarea is focused (no caret stealing).
 templ NotesPage(email string, userRole string, docID string, text string, rev uint64, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
-	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -72,7 +71,6 @@ templ NotesPage(email string, userRole string, docID string, text string, rev ui
 			@authviews.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
-			<script src="/static/iconify-icon.min.js"></script>
 			@sounds.SoundAssets()
 			<script defer src="/static/throttle.js"></script>
 			<script defer src="/static/notes/notes.js"></script>
