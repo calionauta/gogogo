@@ -190,12 +190,14 @@ live in `.templ` markup rather than Go:
   nothing (lived bug: `searchQuery` was written from six call sites — the
   stream handshake, both list endpoints, the mutation re-list, and the `/search`
   response echoing its own `?q=` — and the search box lost its text mid-typing;
-  the smoke caught it only intermittently). The counts are `datastar-lint`'s,
-  not a hand tally: 9 findings on the pre-fix tree (7 mentioning
-  `$searchQuery`, one of which was the missing `omitempty` on the struct), and
-  2 after — the initial page render, which is the one place `?q=` legitimately
-  seeds the box, and `newTitle` cleared after a successful submit. No error
-  remains.
+  the smoke caught it only intermittently). The composers carried the same
+  write: the create response cleared `newTitle` and both ask acks cleared
+  `chatPrompt`/`genuiPrompt`, erasing text typed while a slow answer was still
+  in flight. The counts are `datastar-lint`'s, not a hand tally: 9 findings on
+  the pre-fix tree (7 mentioning `$searchQuery`, one of which was the missing
+  `omitempty` on the struct), and 1 after — the initial page render, the one
+  place `?q=` legitimately seeds the box before the client owns the signal.
+  No error remains.
   The struct field must also be `omitempty`: without it the zero value still
   marshals (`"x":""`), so removing the field from the merge *call* does not
   stop the write — which is why the first fix attempt was a no-op.

@@ -50,7 +50,7 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 				     this form's own request. -->
 				<form
 					id="genui-ask-form"
-					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
+					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; var sent = $genuiPrompt; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($genuiPrompt === sent) $genuiPrompt = ''; }).catch(() => { $genui_pending = false; })" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null"
 				>
 					<label for="genui-prompt" class="form-control w-full">

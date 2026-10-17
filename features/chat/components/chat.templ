@@ -49,7 +49,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 				<div class="mb-4"></div>
 				<form
 					id="chat-composer"
-					data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; $chat_empty = false; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }
+					data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false; })" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed — check your connection and try again.') : null"
 					data-cuelume="send"
 				>

@@ -257,19 +257,23 @@ async function verifyTodoSearch(page, skin) {
 
   for (const title of [marker, other]) {
     const input = page.getByPlaceholder("Add a new todo...");
-    // Wait for the previous create to settle (its response clears the bound
-    // signal) before typing the next, or the two creates race and the second
-    // title can be truncated to empty by the first response's $newTitle = ''.
+    // The previous create's response no longer writes $newTitle (the box owns
+    // it and clears itself on success), so two creates no longer race. The
+    // clear is still worth doing: it makes each iteration start from a known
+    // empty box rather than depending on the last clear having landed.
     await input.fill("");
     await input.fill(title);
     await input.press("Enter");
     await page.locator('[id^="todo-"]:not(#todo-list)').filter({ hasText: title })
       .waitFor({ state: "visible", timeout: 20000 });
-    await input.waitFor({ state: "visible", timeout: 20000 });
-    await page.waitForFunction((t) => {
+    // Readiness = the box cleared itself after the request succeeded. This is
+    // the client's own clear (the response no longer writes $newTitle, see
+    // todo_list.templ), so it is also what proves the create round-tripped
+    // before the next one starts.
+    await page.waitForFunction(() => {
       const el = document.querySelector('input[data-bind="newTitle"]');
-      return !el || el.value !== t;
-    }, title, { timeout: 20000 });
+      return !el || el.value === "";
+    }, null, { timeout: 20000 });
   }
 
   const box = page.getByPlaceholder("Search todos...");

@@ -23,15 +23,21 @@ survives a reader fixing the obvious merge line), `CLIENT_BOUND_SIGNAL_WRITTEN`
 a **warning** (an explicit write may be intentional, e.g. clearing an input
 after a successful submit).
 
-Live example: `newTitle` and `searchQuery` are both bound, both `omitempty`;
-six call sites wrote `searchQuery` (the stream handshake, both list endpoints,
-the mutation re-list, and the `/search` response echoing its own `?q=`), and
-the search box lost its text mid-typing. Lived bug, fixed in the search
-feature — the smoke caught it only intermittently, which is why the lint rule
-exists. The counts come from the lint itself, so they can be re-derived rather
-than trusted: 9 findings on the pre-fix tree, 2 after (both warnings, both
-intentional — the initial page render seeding the box, and `newTitle` cleared
-on submit), and no error either way.
+Live example: `newTitle` and `searchQuery` are both bound, both `omitempty`.
+The search box lost its text mid-typing because six call sites wrote
+`searchQuery` (the stream handshake, both list endpoints, the mutation
+re-list, and the `/search` response echoing its own `?q=`). The same class hit
+the composers: the create response cleared `newTitle`, and both ask acks
+cleared `chatPrompt`/`genuiPrompt` — a late answer erased whatever the user had
+started typing, which is exactly when an ask ack lands. In every case the fix
+is the same shape: the response raises only the in-flight guard, and the
+**client** clears the box after its own request succeeds.
+
+The only remaining write is deliberate and singular: the initial page render
+seeds `searchQuery` from `?q=` once, before the client owns the signal. The
+counts come from the lint itself, so they can be re-derived rather than
+trusted: `make datastar-lint` reports one `CLIENT_BOUND_SIGNAL_WRITTEN`
+warning on this tree (that seed) and no error.
 
 The echo is worth stating separately, because it is the form a reader does not
 suspect: deriving a display signal from the request's own parameter feels like

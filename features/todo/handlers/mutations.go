@@ -119,7 +119,14 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"loading": false, "newTitle": "", signalItemCount: len(todos),
+		// newTitle is deliberately NOT written here: $newTitle is bound
+		// two-way to the composer (data-bind), so the box owns it. Writing
+		// "" from this response wiped text the user had already typed after
+		// submitting -- reproduced in the browser (type immediately after
+		// Enter and the input goes empty), and worked around in the smoke by
+		// waiting between creates. The client clears it after the request
+		// succeeds, and only if it still holds what was sent.
+		"loading": false, signalItemCount: len(todos),
 	}); err != nil {
 		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
 		return
