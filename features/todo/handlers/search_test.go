@@ -321,9 +321,9 @@ func TestMutationKeepsActiveSearchNarrowing(t *testing.T) {
 // write it -- the same clobber the stream handshake was fixed for, reachable
 // from /search and from the list endpoint instead.
 //
-// The box is seeded once per page load from the initial data-signals render,
-// which is covered separately; here the assertion is only that a patch
-// response stays silent about searchQuery.
+// The box is seeded once per page load from the input's own value= (covered
+// separately); here the assertion is only that a patch response stays silent
+// about searchQuery.
 //
 // Red-proof: set SearchQuery from the request in displaySignals again and the
 // ?q=kes response re-emits it, failing this test.
@@ -401,7 +401,9 @@ func indexOf(haystack, needle string) int {
 // only surfaced once the first was "fixed". A reconnect re-runs this merge, so
 // a handshake that listed all/all re-rendered rows the tab had filtered out,
 // and a handshake that echoed SearchQuery reset the search box mid-typing
-// (because Signals had no omitempty, the field was emitted even as "").
+// (at the time the field had no tag protection, so a stale "" was emitted and
+// written over the live text). SearchQuery is `json:"-"` now, so it cannot be
+// emitted at all; this asserts the handshake does not set it either.
 // Red-proof: echo SearchQuery from the handshake and the first assert fails;
 // list all/all and the second does.
 func TestStreamHandshakePreservesSearchAndSlice(t *testing.T) {
@@ -457,8 +459,8 @@ func TestStreamHandshakePreservesSearchAndSlice(t *testing.T) {
 	// search box, so it is client-owned: the stored view lags what the user
 	// typed by the debounce window, and merging that stale value back resets
 	// the box — the debounced @get then fires with q empty and lists
-	// everything. With `omitempty` on the field, a handshake that leaves it
-	// alone omits the key entirely.
+	// everything. The field is `json:"-"`, so a handshake that leaves it alone
+	// carries no key for it; this asserts the handshake leaves it alone.
 	if contains(body, `"searchQuery"`) {
 		t.Errorf("stream handshake wrote the client-owned searchQuery signal "+
 			"(a reconnect would clobber the search box):\n%s", body)

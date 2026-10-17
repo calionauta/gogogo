@@ -192,9 +192,11 @@ func scopeOf(r *http.Request) string {
 // value. A late response to ?q=kes landing after the user typed "kestrel"
 // would set the box back to "kes" — the same clobber the handshake was fixed
 // for, on the login page and the /search response instead. The box is seeded
-// once per page load from the initial data-signals render, which is the one
-// place the URL's ?q= is authoritative; the search handler patches the list
-// only. Use displaySignalsWithQuery for that one initial render.
+// once per page load — the value flows through Signals.SearchQuery into the
+// input's value=, and the input seeds $searchQuery from it (bind.ts, with
+// {ifMissing: true}). That is the one place the URL's ?q= is authoritative;
+// the search handler patches the list only. Use displaySignalsWithQuery for
+// that one initial render.
 func (h *Handler) displaySignals(r *http.Request, todos []todo.Todo, filter, scope string) todo.Signals {
 	return h.displaySignalsWithQuery(r, todos, filter, scope, "")
 }

@@ -157,5 +157,6 @@ no `setInterval` in new UI code · no `innerHTML` rendering (morph
 instead) · appended fragments carry no target `id` · one
 `#<container>` in the DOM after N patches · spinner has error release ·
 empty + error states render · no server merge writes a `data-bind`
-signal (and its struct field is `omitempty`) · every tab/scope URL that
+signal (and its struct field is off the wire — `json:"-"`, or `omitempty`
+where the server may set it later) · every tab/scope URL that
 can round-trip carries `q=$searchQuery`.

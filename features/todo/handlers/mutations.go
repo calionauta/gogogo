@@ -151,8 +151,8 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 // reads, so one tab cannot end up on a different slice than another.
 //
 // The $searchQuery SIGNAL is deliberately not written here — the box owns it
-// (see displaySignals), and a mutation URL carries no `q`, so the derived
-// value is empty and `omitempty` leaves the client's live text alone.
+// (see displaySignals), and the field is `json:"-"`, so a merge carries no key
+// for it at all and the client's live text is untouched.
 //
 //nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) patchListSelf(

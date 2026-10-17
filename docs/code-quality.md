@@ -218,8 +218,8 @@ live in `.templ` markup rather than Go:
   past a comment the linter refuses to accept.
 - **A response that echoes the request's own signal is the same clobber.**
   `/search` derives no display value from `?q=` for that reason: the box is
-  seeded once, from the initial `data-signals` render, and every later response
-  patches rows only. A response that re-emits what its request carried lands
+  seeded once, by the input's own `value=` on first render, and every later
+  response patches rows only. A response that re-emits what its request carried lands
   late and re-imposes an older value (`?q=kes` overwriting "kestrel"), so the
   rule is not "don't write it in background paths" but "don't write it in any
   response".
@@ -236,12 +236,6 @@ Basecoat's `data-size`/`data-variant`) are noise at that severity, so they live
 in `.datastar-lint.yaml` under `attributes.allowed` — each verified to have a
 consumer before listing, since an entry also hides a misspelling of a real
 attribute.
-
-The one legitimate write to a bound signal (the page-render seed, `?q=` into the
-search box) is silenced per line with a named reason:
-`// datastar-lint:ignore CLIENT_BOUND_SIGNAL_WRITTEN — <why>`. It is the only such
-directive in the tree and every applied suppression is printed in the run
-summary, so the count stays visible rather than becoming a habit.
 
 ## Concurrency and resources
 

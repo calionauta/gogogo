@@ -153,9 +153,10 @@ func (h *Handler) applyRecordEvent(
 	// debounced search round-trips, so during the debounce window the server's
 	// value LAGS what the user typed. Writing it from a background re-list
 	// (record event, workflow completion, reconnect) would reset the box
-	// mid-typing — and because Signals' field is `omitempty`, leaving it out
-	// means "do not touch" rather than "clear". The rows still come from the
-	// stored view, so the slice stays correct.
+	// mid-typing — and because Signals' field is `json:"-"`, it is never on the
+	// wire at all: the input seeds the signal from its own value=, so a merge
+	// simply has no key for it. The rows still come from the stored view, so the
+	// slice stays correct.
 	signals := todo.Signals{
 		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
 		SearchEnabled:  h.searchEnabled(),
