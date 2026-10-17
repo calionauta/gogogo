@@ -209,6 +209,16 @@ binary"), so the badge on the running box matches the tag that produced it.
 > badge reports what is running). Tagging
 > before CI passes would avoid the second restart, but a red CI would then
 > already be on the tag — not a trade worth making.
+>
+> **The one place that gap is bridged instead of reconciled.**
+> `release.yml` (the GoReleaser installer binaries, not the deploy) does not
+> wait for the schedule: `release-please.yml` dispatches it via
+> `workflow_dispatch` when it cuts a release, because that event is a
+> documented exception to the `GITHUB_TOKEN` anti-recursion rule. Before the
+> bridge existed, `on: push: tags` never fired for a release-please tag, so
+> v0.43.0–v0.50.0 published **zero** release assets and `install.sh latest`
+> 404'd on the tarball. `deploy.yml` keeps the schedule reconciler because a
+> deploy is idempotent and can wait; an installer download cannot.
 
 > The Dockerfile declares `ARG VERSION COMMIT BUILDTIME` at the stage top, **not
 > inline inside a `RUN` chain** — an inline `ARG` breaks the Buildkit parse.

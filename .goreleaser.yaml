@@ -1,7 +1,8 @@
 # GoReleaser v2 — prebuilt installer binaries (gogogo CLI + gogogo-mcp + gogogo-gui).
 #
-# Trigger: push a v* tag (see .github/workflows/release.yml). Nothing runs
-# on normal pushes. Both binaries are pure Go (CGO_ENABLED=0), so the full
+# Trigger: a v* tag push, or the workflow_dispatch release-please.yml fires
+# after it cuts a release (see .github/workflows/release.yml). Nothing runs on
+# normal pushes. All three binaries are pure Go (CGO_ENABLED=0), so the full
 # OS × arch matrix cross-compiles from one Linux runner.
 #
 # Deliberately v1-minimal: release archives + SHA256SUMS. No Homebrew
@@ -10,6 +11,17 @@
 version: 2
 
 project_name: gogogo
+
+release:
+  # release-please already created the GitHub Release (with its generated
+  # notes) before this runs. `keep-existing` preserves that body and uploads
+  # only the assets; `replace` would clobber the release notes with
+  # GoReleaser's own changelog. This is GoReleaser's default — pinned here
+  # because it is load-bearing for the release-please design.
+  mode: keep-existing
+  # Re-running a release (a failed upload, a manual re-dispatch) must not die
+  # on a 422 for an asset that is already attached.
+  replace_existing_artifacts: true
 
 builds:
   - id: gogogo
