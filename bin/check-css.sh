@@ -1,14 +1,20 @@
 #!/bin/bash
 # CSS staleness check — ported from .githooks/pre-commit.old.
-# If a staged templ/go change affects generated classes, rebuilds the
-# Tailwind v4 + DaisyUI v5 bundle and blocks if the result is unstaged.
+# If a staged templ/go change affects generated classes, rebuilds both
+# Tailwind bundles and blocks if the result is unstaged.
 #
-# It builds through `make css`, not `npm run build`, so it inherits
+# Build through the Makefile, not `npm run build`, so this inherits
 # css-install's dependency check: a node_modules tree whose Tailwind/DaisyUI
 # version differs from package-lock.json produces a bundle that differs from
 # the committed one, which would otherwise surface here as a FALSE "CSS is out
-# of date" on a commit that changed no CSS source. `make css` reinstalls on
+# of date" on a commit that changed no CSS source. The Makefile reinstalls on
 # mismatch before building, so this hook only ever reports a real staleness.
+#
+# BOTH skins, not just the DaisyUI bundle. This hook used to run `make css`
+# and diff `app.min.css` alone, so a stale `basecoat.min.css` passed
+# pre-commit, passed CI, and shipped — while `make css-check` (which builds
+# css-all) failed on the same clean tree. One command, `make css-all`, keeps
+# this hook, the Makefile's css-check, and CI in agreement.
 set -e
 
 grep -q "tailwindcss" package.json 2>/dev/null || exit 0
@@ -20,11 +26,16 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "→ Rebuilding CSS (Tailwind v4 + DaisyUI v5)..."
-make css >/dev/null
+echo "→ Rebuilding CSS (Tailwind v4 + DaisyUI v5 + Basecoat)..."
+make css-all >/dev/null
 
-if ! git diff --quiet --exit-code web/resources/static/app.min.css 2>/dev/null; then
-  echo "❌ CSS is out of date. Run \`make css\` and stage web/resources/static/app.min.css"
+stale=()
+git diff --quiet --exit-code web/resources/static/app.min.css 2>/dev/null || stale+=("app.min.css")
+git diff --quiet --exit-code web/resources/static/basecoat.min.css 2>/dev/null || stale+=("basecoat.min.css")
+
+if [ ${#stale[@]} -gt 0 ]; then
+  echo "❌ CSS is out of date: ${stale[*]}"
+  echo "   Run \`make css-all\` and stage web/resources/static/"
   exit 2
 fi
-echo "✅ CSS up to date"
+echo "✅ CSS up to date (both skins)"

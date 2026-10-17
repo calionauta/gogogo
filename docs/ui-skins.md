@@ -66,11 +66,12 @@ make css-basecoat # Basecoat
 make css-all     # every skin
 ```
 
-> Editing a `.templ` without `make templ && make css` leaves
-> `web/resources/static/app.min.css` stale. The pre-commit hook regenerates
-> `app.min.css` automatically whenever `.templ` or `.go` files change, and
-> `make ci-local` includes a `css-check` step that fails the gate if the
-> working CSS file is out of date.
+> Editing a `.templ` without `make templ && make css-all` leaves a bundle
+> stale — both `app.min.css` **and** `basecoat.min.css` are committed and
+> embedded. The pre-commit hook rebuilds **both** whenever `.templ`, `.go`
+> or `.css` files change, and CI diffs both after `make css-all`, so a
+> stale skin fails the gate instead of shipping. `make css` alone is the
+> DaisyUI bundle only: it is never sufficient to commit.
 
 ## Basecoat runtime gotcha
 
