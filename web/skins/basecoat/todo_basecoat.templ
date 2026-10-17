@@ -452,21 +452,21 @@ templ filterTabs(signals todo.Signals) {
 	<div class="tabs mb-2" id="scope-tabs-basecoat">
 		<nav role="tablist" aria-label="Listing scope" aria-orientation="horizontal">
 			<button type="button" role="tab" aria-selected={ ternary(signals.Scope == "" || signals.Scope == "all", "true", "false") } tabindex={ ternary(signals.Scope == "" || signals.Scope == "all", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=all&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">All</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=all&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">All</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Scope == "mine", "true", "false") } tabindex={ ternary(signals.Scope == "mine", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=mine&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Mine</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=mine&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Mine</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Scope == "shared", "true", "false") } tabindex={ ternary(signals.Scope == "shared", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=shared&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Shared</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=shared&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Shared</button>
 		</nav>
 	</div>
 	<div class="tabs mb-4" id="filter-tabs-basecoat">
 		<nav role="tablist" aria-label="Status filter" aria-orientation="horizontal">
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "all", "true", "false") } tabindex={ ternary(signals.Filter == "all", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">All</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">All</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "active", "true", "false") } tabindex={ ternary(signals.Filter == "active", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Active</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Active</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "completed", "true", "false") } tabindex={ ternary(signals.Filter == "completed", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Completed</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))">Completed</button>
 		</nav>
 	</div>
 }
@@ -638,5 +638,5 @@ templ sseOpener() {
 }
 
 templ realtimeResync() {
-	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')")
+	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')")
 }

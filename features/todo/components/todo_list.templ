@@ -496,7 +496,7 @@ templ scopeTab(label, value string) {
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle"
 		data-class={ "{ 'tab-active': ($scope || 'all') === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&clientID=' + encodeURIComponent($clientID || ''))" }
+		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))" }
 	>
 		{ label }
 	</a>
@@ -507,6 +507,11 @@ templ scopeTab(label, value string) {
 // AND the `#todo-list` region, so the active state and the visible rows update
 // in lockstep. The active state reads from the `$filter` signal so remote
 // patches from the broadcaster flip the right tab.
+//
+// The URL carries `q=$searchQuery`: a tab click carries no search of its own,
+// and SetView treats a missing q as "clear the stored search", so omitting it
+// would drop the tab's active search on every tab click (the stored view would
+// say "no search" while the box still showed the text).
 templ filterTabs(signals todo.Signals) {
 	<div class="tabs tabs-box mb-4 w-full" role="tablist" aria-label="Status filter">
 		@filterTab("All", "all")
@@ -526,7 +531,7 @@ templ filterTab(label, value string) {
 		data-cuelume-hover="tick"
 		data-cuelume-press="toggle"
 		data-class={ "{ 'tab-active': ($filter || 'all') === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))" }
+		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))" }
 	>
 		{ label }
 	</a>

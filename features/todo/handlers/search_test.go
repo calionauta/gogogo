@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calionauta/gogogo/features/todo"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -306,10 +307,11 @@ func TestMutationKeepsActiveSearchNarrowing(t *testing.T) {
 }
 
 // searchJSONWithClient is searchJSON with a clientID, so the tab's view prefs
-// are stored the way a live browser tab stores them.
+// are stored the way a live browser tab stores them. It asserts the endpoint
+// answered and leaves reading the patch to the caller's own request.
 func searchJSONWithClient(
 	t *testing.T, f *handlersFixture, cookie *http.Cookie, query, clientID string,
-) *httptest.ResponseRecorder {
+) {
 	t.Helper()
 	target := "/api/todos/search?q=" + url.QueryEscape(query) + "&filter=all&scope=all&clientID=" + clientID
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, target, nil)
@@ -319,7 +321,6 @@ func searchJSONWithClient(
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET %s: status = %d (body: %s)", target, rec.Code, rec.Body.String())
 	}
-	return rec
 }
 
 func postingCount(t *testing.T, db *sql.DB, owner, docID string) int {
@@ -342,4 +343,80 @@ func indexOf(haystack, needle string) int {
 		}
 	}
 	return -1
+}
+
+// TestStreamHandshakePreservesSearchAndSlice pins the reconnect contract: the
+// handshake must re-list the tab's OWN slice while leaving client-owned
+// signals alone.
+//
+// Both halves were real bugs the browser smoke caught — and the second one
+// only surfaced once the first was "fixed". A reconnect re-runs this merge, so
+// a handshake that listed all/all re-rendered rows the tab had filtered out,
+// and a handshake that echoed SearchQuery reset the search box mid-typing
+// (because Signals had no omitempty, the field was emitted even as "").
+// Red-proof: echo SearchQuery from the handshake and the first assert fails;
+// list all/all and the second does.
+func TestStreamHandshakePreservesSearchAndSlice(t *testing.T) {
+	t.Parallel()
+	f := newHandlersFixture(t)
+	wireBM25(t, f)
+	cookie := f.signup("streamsearch@example.com")
+	me := f.ownerOf(t, cookie)
+
+	if err := createTodoIndexed(context.Background(), f.q, f.h.Index, f.h.DB, dbgen.CreateTodoParams{
+		ID: dbschema.NewID(), Owner: me, Title: "kestrel report",
+		Visibility: todo.VisibilityPrivate, Created: dbschema.Now(), Updated: dbschema.Now(),
+	}); err != nil {
+		t.Fatalf("indexed create: %v", err)
+	}
+	createStamped(t, f, me, "unrelated chore")
+
+	// The tab searches, which stores its query on the stream view.
+	const clientID = "tab-streamsearch"
+	searchJSONWithClient(t, f, cookie, "kestrel", clientID)
+
+	// Then its stream reconnects (visibility return, blip, Datastar retry).
+	srv := httptest.NewServer(f.r)
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		srv.URL+"/api/todos/stream?clientID="+clientID, nil)
+	if err != nil {
+		t.Fatalf("stream request: %v", err)
+	}
+	req.AddCookie(cookie)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("stream open: %v", err)
+	}
+	defer resp.Body.Close()
+
+	buf := make([]byte, 8192)
+	readCh := make(chan int, 1)
+	go func() {
+		n, _ := resp.Body.Read(buf)
+		readCh <- n
+	}()
+	var body string
+	select {
+	case n := <-readCh:
+		body = string(buf[:n])
+	case <-time.After(4 * time.Second):
+		t.Fatal("stream handshake timed out")
+	}
+	// The handshake must NOT write $searchQuery. It is bound two-way to the
+	// search box, so it is client-owned: the stored view lags what the user
+	// typed by the debounce window, and merging that stale value back resets
+	// the box — the debounced @get then fires with q empty and lists
+	// everything. With `omitempty` on the field, a handshake that leaves it
+	// alone omits the key entirely.
+	if contains(body, `"searchQuery"`) {
+		t.Errorf("stream handshake wrote the client-owned searchQuery signal "+
+			"(a reconnect would clobber the search box):\n%s", body)
+	}
+	if contains(body, "unrelated chore") {
+		t.Error("stream handshake listed outside the tab's search slice: " +
+			"a reconnect would re-render a non-matching row")
+	}
 }

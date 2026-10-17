@@ -139,11 +139,13 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 //
 // The re-list narrows by the tab's ACTIVE SEARCH (read from its stored view
 // prefs, since a mutation URL carries no `q`): without this, pressing toggle
-// or delete while a search is active would re-render every visible row and
-// silently drop the filter — and, because the search box binds to the same
-// signal, would also wipe what the user typed. The stored query is the same
-// authority the record-event re-list reads, so one tab cannot end up on a
-// different slice than another.
+// or delete while a search is active would re-render every row the search had
+// excluded. The stored query is the same authority the record-event re-list
+// reads, so one tab cannot end up on a different slice than another.
+//
+// The $searchQuery SIGNAL is deliberately not written here — the box owns it
+// (see displaySignals), and a mutation URL carries no `q`, so the derived
+// value is empty and `omitempty` leaves the client's live text alone.
 //
 //nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) patchListSelf(
@@ -160,12 +162,14 @@ func (h *Handler) patchListSelf(
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
 		signalItemCount:  len(todos),
-		"searchQuery":    query,
 	}); err != nil {
 		return err
 	}
+	// displaySignals derives SearchQuery from the request's own ?q= and omits it
+	// when empty (`omitempty`), so a mutation never clobbers the box: the live
+	// text the user typed stays in charge. See the doc comment for why the
+	// stored view is not echoed here.
 	signals := h.displaySignals(r, todos, filterOf(r), scopeOf(r))
-	signals.SearchQuery = query
 	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())

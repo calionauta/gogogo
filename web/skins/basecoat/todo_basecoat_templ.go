@@ -928,7 +928,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=all&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">All</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=all&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">All</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -954,7 +954,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=mine&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Mine</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=mine&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Mine</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -980,7 +980,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=shared&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Shared</button></nav></div><div class=\"tabs mb-4\" id=\"filter-tabs-basecoat\"><nav role=\"tablist\" aria-label=\"Status filter\" aria-orientation=\"horizontal\"><button type=\"button\" role=\"tab\" aria-selected=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=shared&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Shared</button></nav></div><div class=\"tabs mb-4\" id=\"filter-tabs-basecoat\"><nav role=\"tablist\" aria-label=\"Status filter\" aria-orientation=\"horizontal\"><button type=\"button\" role=\"tab\" aria-selected=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1006,7 +1006,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=all&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">All</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=all&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">All</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1032,7 +1032,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=active&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Active</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=active&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Active</button> <button type=\"button\" role=\"tab\" aria-selected=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1058,7 +1058,7 @@ func filterTabs(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=completed&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Completed</button></nav></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=completed&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || ''))\">Completed</button></nav></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1480,7 +1480,7 @@ func realtimeResync() templ.Component {
 			templ_7745c5c3_Var65 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

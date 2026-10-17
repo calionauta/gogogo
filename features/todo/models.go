@@ -42,7 +42,7 @@ const (
 
 type Signals struct {
 	Todos     []Todo `json:"todos"`
-	NewTitle  string `json:"newTitle"`
+	NewTitle  string `json:"newTitle,omitempty"`
 	Filter    string `json:"filter"` // "all", "active", "completed"
 	EditingID string `json:"editingId"`
 	EditTitle string `json:"editTitle"`
@@ -54,7 +54,7 @@ type Signals struct {
 	// trimmed, which hides the input). SearchQuery rides the signals so a
 	// record-event re-list keeps the tab's active search instead of
 	// silently showing everything again.
-	SearchQuery   string `json:"searchQuery"`
+	SearchQuery   string `json:"searchQuery,omitempty"`
 	SearchEnabled bool   `json:"searchEnabled"`
 
 	// ConfirmDelete is the id of the todo whose delete-confirm modal is
