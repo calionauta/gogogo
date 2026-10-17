@@ -187,3 +187,45 @@ func SlogBypassesObservability(m dsl.Matcher) {
 			!m.File().Name.Matches(`_test\.go`)).
 		Report(`bare slog.$Level in an HTTP slice drops the request context — use observability.$Level with ctx (see internal/observability)`)
 }
+
+// StdoutBypassesSlog flags the two ways to log WITHOUT the structured logger:
+// fmt.Print/Printf/Println (stdout, no level, no component tag — invisible to
+// the JSONL pipeline the deploy/docs tooling reads) and the stdlib log
+// package's Printf/Fatalf/Panicf (its own timestamps, and log.Fatal skips
+// deferred cleanup). Both are mechanically checkable and were previously
+// unenforced: the repo had zero offenders by convention alone, which is the
+// condition that lets the first one through unnoticed.
+//
+// Not flagged, deliberately:
+//   - fmt.Fprint*(w, ...), which writes to an io.Writer the caller chose —
+//     that is rendering, not logging, and the HTML helpers rely on it.
+//   - anything in a _test.go file, where printing is the assertion mechanism
+//     (fixtures and examples).
+//
+// The fix is observability.Info/Warn/Error (or slog when there is genuinely no
+// request context — same boundary as SlogBypassesObservability).
+func StdoutBypassesSlog(m dsl.Matcher) {
+	m.Match(`fmt.$F($*_)`, `log.$F($*_)`).
+		Where(m["F"].Text.Matches(`^(Print|Printf|Println|Fatal|Fatalf|Panic|Panicf)$`) &&
+			!m.File().Name.Matches(`_test\.go`)).
+		Report(`stdout logging bypasses the structured logger — use observability.Info/Warn/Error (log/slog) so the line carries a level and a component tag; fmt.Fprint*(w, ...) to a chosen writer is fine`)
+}
+
+// HTMLInSprintf flags HTML built with fmt.Sprintf: a tag or a class attribute
+// indicates markup assembled by hand. This repo renders with Templ, which
+// escapes for the language it is in, so hand-built HTML bypasses that safety —
+// the exact concern the vendored stelow enforcement notes for legacy code, and
+// the one place its ast-grep snippet (never wired into any gate here) was
+// pointing at. Measured before adding: zero offenders, so this pins the
+// invariant instead of starting a cleanup.
+//
+// The match is the FORMAT string only, and it requires a tag or an HTML
+// attribute name, so innocuous uses stay quiet: fmt.Sprintf("%s: %d", ...),
+// a CLI column format, a <placeholder> in prose with no attribute and no
+// closing form. A false positive here costs one rephrase, not a false alarm.
+func HTMLInSprintf(m dsl.Matcher) {
+	m.Match(`fmt.Sprintf($format, $*_)`).
+		Where(m["format"].Text.Matches(`</?[a-zA-Z][a-zA-Z0-9]*[ >/]`) &&
+			!m.File().Name.Matches(`_test\.go`)).
+		Report(`HTML built with fmt.Sprintf bypasses Templ's escaping — return a templ.Component instead (Templ escapes per language: HTML, CSS, JS, URL)`)
+}

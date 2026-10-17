@@ -94,6 +94,8 @@ func fixtures() []ruleFixture {
 	all = append(all, moderncFixtures()...)
 	all = append(all, leakFixtures()...)
 	all = append(all, obsFixtures()...)
+	all = append(all, stdoutFixtures()...)
+	all = append(all, htmlFixtures()...)
 	all = append(all,
 		ruleFixture{
 			name: "the corrected select shape stays quiet",

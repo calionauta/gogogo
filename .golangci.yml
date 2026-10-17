@@ -34,6 +34,24 @@ linters:
     - usestdlibvars   # use stdlib constants (http.MethodGet, time.RFC3339, ...)
     - forbidigo       # no bare time.Sleep in production code (see settings below)
     - unparam         # a parameter constant at every call site is a constant in disguise
+    - nestif          # deeply nested ifs (readability; settings below pin the skill's depth)
+    - iface           # interface pollution: unused methods, single-implementation shapes
+    - interfacebloat  # interfaces that have grown past a usable contract
+    # NOT enabled: ireturn. It is a real SOLID/ISP signal, but here it fires on
+    # ~11 idiomatic factories that MUST return an interface
+    # (Routes) chi.Router, Render) templ.Component, SnapshotStore) — the
+    # seam IS the design, and an allow-list long enough to silence them would
+    # silence the rule. Measured before deciding; see the ISP note in
+    # skills/gogogo-coding-standards.
+    - recvcheck       # one receiver name/type per method set (gofmt cannot see this)
+    # NOT enabled: paralleltest. Measured at 50 findings, and most are correct as
+    # written — synctest tests virtualize time, fixed-port/global-fixture tests
+    # and goleak checks must serialize. Enabling it would buy 50 annotations
+    # whose reasons are all "this test genuinely cannot run in parallel", plus a
+    # standing invitation to bathe real leaks in t.Parallel() to silence it.
+    # NOT enabled: gochecknoglobals/varnamelen — both fire on this repo's
+    # deliberate registries (renderers, panels, capabilities.All) and on short
+    # receivers; the noise outweighs the signal. Measured, not assumed.
     # Note: stylecheck's ST* analyzers are bundled into `staticcheck` in
     # golangci-lint v2, so enabling staticcheck (above) already covers
     # them. `gofumpt` is a formatter, configured under `formatters:` below.
@@ -93,6 +111,12 @@ linters:
       statements: 60
     gocyclo:
       min-complexity: 15
+    nestif:
+      # The skill says "indentation depth <= 3"; nestif counts complexity, not
+      # depth, and 4 is what that maps to here. Measured at 4: exactly three
+      # findings repo-wide, all real and all fixed rather than excused. At the
+      # default (5) the three deepened without complaint.
+      min-complexity: 4
     gocognit:
       min-complexity: 60
     testifylint:
@@ -210,6 +234,11 @@ linters:
       - path: _test\.go
         linters:
           - forbidigo
+      # Generated templ files are machine output; the nesting and interface
+      # rules describe code a human should restructure, which cannot apply.
+      - path: (.+)_templ\.go
+        linters:
+          - nestif
 formatters:
   enable:
     - gofumpt
