@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "go",
-      "changelog-type": "github",
+      "changelog-type": "default",
       "bump-minor-pre-major": false,
       "include-v-in-tag": true
     }

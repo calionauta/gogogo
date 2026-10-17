@@ -150,7 +150,7 @@ Nothing is configured through a dashboard, a rule language, or a hook
 chain — there is less to learn because there is less there. The
 decision record and the removal narrative live where history lives
 ([architecture-decision.md](architecture-decision.md), CHANGELOG
-`[Unreleased]`); this page describes only what runs today.
+version sections); this page describes only what runs today.
 
 The cost side of that decision — what we own, what Turso is pre-1.0, and
 the PocketBase rejection — is in
