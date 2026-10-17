@@ -14,7 +14,7 @@ Go template: Datastar + Templ + Turso (sqlc) + owned auth + goqite + DagNats + N
 
 ## Stack (exact versions)
 
-Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | Turso (tursogo v0.8.2, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | GoAkt v4.6.1 | NATS JetStream | age v1.3.2 | uuid v1.6.0
+Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1.2.2 (Go SDK) | Turso (tursogo v0.8.2, sqlc queries) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.24 | GoAkt v4.6.1 | NATS JetStream | age v1.3.2 | uuid v1.6.0
 
 ## Skills
 

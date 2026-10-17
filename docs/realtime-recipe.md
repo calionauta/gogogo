@@ -102,7 +102,14 @@ text.
    in a *synchronous* script (module scripts load after Datastar init and
    throw — proven live by `scripts/todo-docwatch.test.mjs`). No polling
    loops for signal changes, ever.
-5. **Failure release**: server-owned spinners need a client-side release
+5. **Append-only feed**: end the fragment with `ic.AutoScroll()`. The
+   anchor travels inside the patch that carries the new item, and
+   Datastar re-runs `data-init` on every node an element morph inserts,
+   so the newest item scrolls itself into view with no listener and no
+   vanilla JS. Reference: `ChatThread` (append) and `GenuiResult`
+   (outer replace). Put it inside the branch that actually renders the
+   item — an anchor in the empty state scrolls the page on load.
+6. **Failure release**: server-owned spinners need a client-side release
    for dead requests: `data-on:datastar-fetch` error stages on the form
    (reference: genui Ask form). Otherwise a network failure locks the UI
    until reload.
@@ -126,8 +133,10 @@ through `onopen` flush + browser auto-reconnect; notes relies on
 auto-reconnect with only an error indicator (no flush hook — residual
 candidate, not covered here).
 Upstream watch: starfederation/datastar#1203 (silent SSE death, no native
-restart primitive as of v1.2.2) — recheck periodically before building more
-machinery here; a native open-ack or restart handle replaces the status poll.
+restart primitive as of the pinned JS core, v1.0.4 — the "v1.2.2" in
+AGENTS.md is the Go SDK, not the bundle) — recheck periodically before
+building more machinery here; a native open-ack or restart handle replaces
+the status poll.
 
 ## Server patterns
 
@@ -159,4 +168,5 @@ instead) · appended fragments carry no target `id` · one
 empty + error states render · no server merge writes a `data-bind`
 signal (and its struct field is off the wire — `json:"-"`, or `omitempty`
 where the server may set it later) · every tab/scope URL that
-can round-trip carries `q=$searchQuery`.
+can round-trip carries `q=$searchQuery` · append-only feeds end in
+`ic.AutoScroll()` (and their empty state does not).

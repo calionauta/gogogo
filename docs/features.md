@@ -14,7 +14,7 @@ being one.
 | **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — | DB actions (create/toggle/delete) stream visibility-scoped via `owner` + `visibility` (private rows to owner tabs, shared rows to every login). Ephemeral signals carry toasts, clients count, AI suggest |
 | **Background jobs + retry** | `goqite` + `retry-go` | — | Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`) |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset | LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase`. Proves the queue+retry path against a real provider, including Biller metering when wired |
-| **Ask AI (generative UI)** | Catalog + SSE morphs, no client JS | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (bundle with Chat) | Model picks cards, tables, sections from a fixed registry; unknown types fail closed; one bounded repair attempt feeds a rejected answer's validation error back to the model before the failure reaches the user; worker streams the render over a dedicated SSE hub (`/genui`). Optional `JEV_ROUTER_ENABLED=true` lets a jev-compatible classifier pick which catalog component the answer leads with (off by default; any failure falls back to the full catalog). Proves catalog-constrained generation (the model cannot emit arbitrary HTML) with unknown-type fail-closed |
+| **Ask AI (generative UI)** | Catalog + SSE morphs, no client JS | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (bundle with Chat) | Model picks cards, tables, sections from a fixed registry (plus the app's own native panels, which are always advertised on BOTH AI legs — an answer about the user's own data comes from the app's data); unknown types fail closed; one bounded repair attempt feeds a rejected answer's validation error back to the model before the failure reaches the user; worker streams the render over a dedicated SSE hub (`/genui`). Optional `JEV_ROUTER_ENABLED=true` lets a jev-compatible classifier pick which catalog component the answer leads with (off by default; any failure falls back to the full catalog). Proves catalog-constrained generation (the model cannot emit arbitrary HTML) with unknown-type fail-closed |
 | **Chat (conversation)** | Invented visuals (sanitized) + catalog fallback + persisted history + the app's own panels | `GOAI_API_KEY` unset (`SIMULATE_LLM` demo answers keyless), or `trim genui` (bundle with Ask AI) | Conversation where the answer is invented for the request: the model composes Tailwind/DaisyUI markup (`html_block`, advertised first in the prompt), sanitized server-side through a closed allowlist, and limited to a safelisted class vocabulary (anything outside it renders unstyled, so the prompt names the exact list), with the catalog kept for what markup cannot do — so chat does not read like Ask; and `todo_list {filter}` for questions about the user's OWN todos, whose rows the worker hydrates from the store (the model picks the slice, never the content; a panel that cannot be hydrated is dropped, not shown empty); prompts persist per owner and history is server-rendered on load, answers render inline as text plus components patched into the live column; a payload that fails validation degrades to the prose around it, never to raw JSON in the bubble; dedicated SSE hub (`/chat`). Proves persisted per-owner history with invented-but-safe visuals |
 | **Review loop** | Genkit flows (plugin) + GoAI + jev classifier judge | `GOAI_API_KEY` unset (real-LLM only; page shows a setup hint), or `trim review` | Writer → critic (bounded) → classifier judge, streamed verdict, discarded. Zero server-side artifacts (billing ledger only). Any jev-compatible judge via `JEV_*` env — see [Review loop](review.md). Proves a typed multi-role loop with a classifier judge, per-role cost attribution, and a confidence cascade to human approval |
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
@@ -58,6 +58,39 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps |
 
 Details in [Admin & Dashboard](admin-dashboard.md).
+
+## Ask AI vs Chat: two modes, one surface vocabulary
+
+The two AI legs answer with the same kinds of component. What still
+separates them is the interaction shape, not the vocabulary:
+
+| | Ask AI | Chat |
+|---|---|---|
+| Shape | one-shot: one request, one answer region | conversation: turns persisted per owner, history server-rendered |
+| A bad answer | loud: the region says it could not shape one | degrades to the prose around it |
+| Follow-up | none (a new request replaces the answer) | the previous turns are context |
+| Surfaces | the same three bands, minus `custom` by default | all three |
+
+**The three bands, split by who owns the content:**
+
+- **`catalog`** — the fixed generative registry. The model picks a
+  component name and fills typed props. Static: nothing depends on app
+  state.
+- **`custom`** — `html_block`. The model composes markup for this
+  request; sanitized server-side through a closed element allowlist and a
+  safelisted class vocabulary. This is the only band whose content the
+  model invents wholesale, and it is what makes Chat read unlike Ask.
+- **`native`** — the app's own panels (`todo_list {filter}`). The APP owns
+  the content (real rows from the store); the model picks only the slice.
+  Always on, on BOTH legs: an answer about the user's own data should come
+  from the app's data, and there is no reason to want a worse answer.
+
+Tune a leg's bands with `GENUI_ASK_SURFACES` / `GENUI_CHAT_SURFACES`
+(CSV; absent = the defaults above; an unknown name fails the boot).
+Turning `custom` off makes a leg catalog-only; `native` cannot be turned
+off. `JEV_ROUTER_ENABLED=true` lets a jev-compatible classifier pick which
+component an answer LEADS with — a hint, never a narrowing — and now
+serves both legs.
 
 ## Removing a feature
 
