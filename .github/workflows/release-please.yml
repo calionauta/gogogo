@@ -1,10 +1,15 @@
 name: release-please
 
-# Owns versioning: on every master push, opens (or updates) a
-# "chore: release X.Y.Z" PR promoting CHANGELOG [Unreleased] entries.
-# A human merges it; the merge creates the tag, and release.yml
-# (goreleaser, tag-driven) builds from there. Agents must NEVER open
-# release PRs or tag manually — see AGENTS.md.
+# Owns versioning. On every master push it opens (or updates) a
+# "chore(master): release X.Y.Z" PR from the conventional commits since the last
+# tag. A human merges it; the merge creates the tag and the GitHub Release, and
+# the trailing dispatch step then builds the installer binaries.
+#
+# What it does NOT do: promote CHANGELOG [Unreleased] entries. release-please
+# GENERATES the release notes from commits (changelog-type: github) and inserts
+# the version section; nothing reads [Unreleased]. See AGENTS.md, "Releases".
+#
+# Agents must NEVER open a release PR or tag manually.
 on:
   push:
     branches:
@@ -13,12 +18,31 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Needed for `gh workflow run` below: dispatching a workflow is an Actions
+  # write. Without it the step dies with HTTP 403 "Resource not accessible by
+  # integration", and the binaries silently never build (the bug this step
+  # exists to fix).
+  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+
+      # release-please creates the tag with GITHUB_TOKEN, and GitHub starts no
+      # workflow run from an event that token produced (anti-recursion) — so
+      # release.yml's `on: push: tags` never fires for it. workflow_dispatch is
+      # the documented exception, so bridge it explicitly. Skipped when no
+      # release was cut (the common case: most master pushes only refresh the
+      # release PR).
+      - name: Build release binaries
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh workflow run release.yml --ref master -f tag="$TAG"
