@@ -40,3 +40,17 @@ attributes:
     # Verified not a typo of any Datastar attribute (edit distance > 2).
     - data-size
     - data-variant
+
+# Rules that are always a bug in this project: a `// datastar-lint:ignore` for
+# one is REJECTED (SUPPRESS_BLOCKED) even with a reason.
+#
+# CLIENT_BOUND_SIGNAL_WRITTEN: the fix is never a suppression. Keep the field
+# off the wire (`json:"-"`) and seed the input from its own `value=` — data-bind
+# creates the signal with {ifMissing: true}, so the server never writes a
+# client-owned signal (docs/realtime-recipe.md). If you are reading this because
+# the gate blocked your suppression, that is the intended outcome: the two
+# shapes that need one (a Go merge, a data-signals attribute) both have an
+# idiom that does not.
+suppressions:
+  forbidden:
+    - CLIENT_BOUND_SIGNAL_WRITTEN

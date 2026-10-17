@@ -210,7 +210,12 @@ live in `.templ` markup rather than Go:
   true}`). The seed therefore never writes a client-owned signal, and there is
   nothing to silence. Reach for `json:"-"` + `value=` before reaching for a
   suppression: the lint reports `SUPPRESS_UNUSED` the moment a write is gone,
-  so an escape hatch cannot outlive its subject.
+  so an escape hatch cannot outlive its subject. This repo goes further:
+  `.datastar-lint.yaml` lists `CLIENT_BOUND_SIGNAL_WRITTEN` under
+  `suppressions.forbidden`, so a `// datastar-lint:ignore` for it is rejected
+  outright (`SUPPRESS_BLOCKED`) even with a reason. The lock is safe precisely
+  because the idiom above needs no suppression — a reviewer cannot be talked
+  past a comment the linter refuses to accept.
 - **A response that echoes the request's own signal is the same clobber.**
   `/search` derives no display value from `?q=` for that reason: the box is
   seeded once, from the initial `data-signals` render, and every later response
