@@ -1,4 +1,4 @@
-// SCOPE:feature — Theme toggle contract
+// SCOPE:core — Theme toggle contract
 //
 // This file owns the ONE place the `$theme` signal is wired to the document
 // element. Every page used to copy the same three attributes onto its own
