@@ -266,16 +266,54 @@ templ GenuiPlanCards(plans []Plan) {
 						if plan.Detail != "" {
 							<p class="text-sm text-base-content/70">{ plan.Detail }</p>
 						}
-						<div class="card-actions justify-end mt-2">
-							<form data-on:submit__prevent={ "@post('/api/todos?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }>
-								<input type="hidden" name="title" value={ plan.Title }/>
-								<button type="submit" class="btn btn-sm btn-primary">Apply</button>
-							</form>
+						<div class="card-actions justify-between items-center mt-2">
+							<!-- Apply saves the step to the user's todo list. The list
+							     itself lives on /todo, so the button says where the result
+							     goes: an unlabelled write on a page that cannot show the
+							     outcome is exactly what read as "I clicked and nothing
+							     happened" (the row was created, on a page the user was
+							     not on). -->
+							<span class="text-xs opacity-60">Saves to your todos</span>
+							<div class="flex items-center gap-2">
+								<a href="/todo" class="link link-hover text-xs">Open Todos</a>
+								<!-- idem_key is generated per CLICK and sent with the form:
+								     without it the create endpoint mints a fresh uuid for
+								     every request and a double-click (or a retried request
+								     Datastar replays) wrote the same plan twice. The composer
+								     on /todo does the same thing for the same reason. -->
+								<form data-on:submit__prevent={ "var k = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'plan-' + Date.now() + '-' + Math.random().toString(36).slice(2); @post('/api/todos?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&idem_key=' + encodeURIComponent(k), {contentType: 'form'})" }>
+									<input type="hidden" name="origin" value="genui"/>
+									<input type="hidden" name="title" value={ plan.Title }/>
+									<button type="submit" class="btn btn-sm btn-primary">Apply</button>
+								</form>
+							</div>
 						</div>
 					</div>
 				</li>
 			}
 		</ul>
+	</div>
+}
+
+// PanelUnavailable is the placeholder shown when a system panel's data could
+// not be loaded. The alternative — the panel silently vanishing — read to the
+// user as "the app has nothing for you" when the truth was "the app could not
+// fetch it", and the request itself had been understood.
+//
+// The copy deliberately does NOT say the list is empty and does not show the
+// underlying error: a fill failure is either an overflow bug or the model's
+// spelling, neither of which is user-facing text, and the useful instruction is
+// simply where the data actually is.
+templ PanelUnavailable(component string) {
+	<div class="rounded-box border border-dashed border-warning/50 p-4" role="status">
+		<div class="flex items-baseline justify-between gap-2 mb-2">
+			<h3 class="font-semibold">Couldn't load this</h3>
+			<a href="/todo" class="link link-hover text-xs">Open Todos</a>
+		</div>
+		<p class="text-sm opacity-70">
+			This reads your own data, and that read failed just now, so there is
+			nothing to show here. It is not empty — open the Todos page to see it.
+		</p>
 	</div>
 }
 

@@ -142,6 +142,12 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 	if !Registered(c.Type) {
 		return Directive{}, fmt.Errorf("genui: unregistered component %q", c.Type)
 	}
+	// Canonicalize a panel alias (`todos` → `todo_list`) before anything else
+	// looks at the name: models write the plural or a synonym often enough that
+	// rejecting it cost the user the whole answer (the panel was repaired, then
+	// dropped, and the bubble came back empty). Aliases are a spelling fix —
+	// only compiled-in entries resolve, so an unknown name still fails closed.
+	c.Type = ResolvePanelName(c.Type)
 	// Models habitually nest children inside props (the envelope shape
 	// puts everything under "props"); bridge them to the directive
 	// level (childrenFromProps drops the key, so strict prop decoding

@@ -1,5 +1,5 @@
-// SCOPE:plugin — a system panel that cannot be filled is dropped, never
-// rendered empty.
+// SCOPE:plugin — a system panel that cannot be filled is replaced by an
+// honest placeholder, never dropped and never rendered empty.
 package components
 
 import (
@@ -9,26 +9,24 @@ import (
 	"github.com/a-h/templ"
 )
 
-// TestHydrateDropsPanelsItCannotFill is the contract that keeps the app
-// honest: a panel whose query fails is REMOVED from the answer. Rendering it
-// empty would tell the user "you have no todos" — a claim the app has not
-// earned, and one the model never made. The other components of the same
-// answer survive.
+// TestHydrateReplacesPanelsItCannotFill is the contract that keeps the app
+// honest: a panel whose query fails keeps its SLOT in the answer as an
+// explicit "couldn't load this" placeholder.
 //
-// It uses the `test_panel` provider (installed once in TestMain as the
-// always-failing one) rather than swapping the registry for the duration.
-// That matters: an earlier version reinstalled `todo_list` and restored it in a
-// cleanup, which raced a parallel test and left a non-validating provider
-// installed — a cross-test failure whose cause was three files away. The
-// registry is immutable after boot in tests exactly as in production; a test
-// that needs a different behaviour asks for a DIFFERENT PANEL.
+// Two wrong answers bracket this one. Rendering the panel EMPTY would tell the
+// user "you have no todos" — a claim the app has not earned, and one the model
+// never made. DROPPING it (what this used to do) left the answer with a hole
+// where the only useful part was: the request had been understood, the model
+// emitted the right component, and the user saw nothing with no way to tell
+// that from an empty list. The placeholder names the failure and points at the
+// page that owns the data, and the other components of the answer survive
+// either way.
 //
-// The "no provider" case this test used to cover is gone by construction:
-// Hydrate reads the installed registry, and the boot asserts every advertised
-// panel HAS a provider (InstallPanelRegistry refuses an empty one), so a
-// registered-but-unwired panel is a failed boot rather than a runtime drop.
-// The failing-fill path is the one that can actually happen in production.
-func TestHydrateDropsPanelsItCannotFill(t *testing.T) {
+// It uses the always-failing provider installed once in TestMain rather than
+// swapping the registry: the registry is immutable after boot in tests exactly
+// as in production, and an earlier version that reinstalled a panel raced a
+// parallel test and failed three files away.
+func TestHydrateReplacesPanelsItCannotFill(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	panel := Directive{Component: failingPanelName, Props: map[string]any{"filter": "open"}}
@@ -38,11 +36,43 @@ func TestHydrateDropsPanelsItCannotFill(t *testing.T) {
 	if err == nil {
 		t.Error("a failing fill was not reported")
 	}
-	if len(got) != 1 || got[0].Component != "text_note" {
-		t.Errorf("kept %+v, want only the text_note", got)
+	if len(got) != 2 {
+		t.Fatalf("kept %d directives, want both (a failed panel keeps its slot): %+v", len(got), got)
+	}
+	if got[0].Component != failingPanelName {
+		t.Errorf("first kept = %q, want the failing panel's own name", got[0].Component)
+	}
+	if _, ok := got[0].Props["unavailable"].(string); !ok {
+		t.Errorf("the failed panel must carry an unavailable reason, got %+v", got[0].Props)
 	}
 	if _, hasRows := panel.Props["rows"]; hasRows {
 		t.Error("Hydrate wrote through the caller's props map")
+	}
+	if got[1].Component != "text_note" {
+		t.Errorf("the other components must survive, got %+v", got[1])
+	}
+}
+
+// TestRenderAllReplacesAFailingPanel pins the render half of the same
+// contract: a panel that cannot even render is replaced in place, while a
+// non-panel failure stays fatal (a half-rendered generative answer is worse
+// than an error).
+func TestRenderAllReplacesAFailingPanel(t *testing.T) {
+	t.Parallel()
+	// Empty props: the stub provider rejects a missing filter at render time,
+	// which is the unrecoverable case (hydration never ran, e.g. history).
+	dirs := []Directive{{Component: failingPanelName, Props: map[string]any{}}}
+	comps, err := RenderAll(dirs)
+	if err != nil {
+		t.Fatalf("a failing panel must not fail the whole answer: %v", err)
+	}
+	if len(comps) != 1 {
+		t.Fatalf("got %d components, want the placeholder", len(comps))
+	}
+
+	bad := []Directive{{Component: "text_note", Props: map[string]any{}}}
+	if _, err := RenderAll(bad); err == nil {
+		t.Error("a non-panel failure must stay fatal")
 	}
 }
 

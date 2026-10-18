@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/a-h/templ"
@@ -160,12 +161,58 @@ func equalStrings(a, b []string) bool {
 	return true
 }
 
-// IsPanel reports whether a catalog name is an installed system panel.
+// IsPanel reports whether a catalog name is an installed system panel — the
+// canonical name OR an alias the model is known to write instead.
 func IsPanel(name string) bool {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()
-	_, ok := registry.byName[name]
+	_, ok := registry.byName[resolvePanelAliasLocked(name)]
 	return ok
+}
+
+// panelAliases maps the names models reach for onto the canonical panel name.
+//
+// The canonical name is the component's, and the prompt advertises exactly
+// that; models still write the plural or a synonym (`todos`, `todo`,
+// `task_list` for `todo_list`). An unmatched name used to fail validation, so
+// the answer that should have rendered the user's real list was repaired,
+// re-answered, and finally dropped — the user saw an empty result for a
+// request the model had understood correctly. Aliases are a spelling fix, not
+// a vocabulary: aliasesFor() stays the single source, and a name with no alias
+// still fails closed (only compiled-in entries resolve, never model free text).
+//
+// Adding an alias: one line here, and the panel provider keeps its own name.
+var panelAliases = map[string]string{
+	"todos":     todoListPanel,
+	"todo":      todoListPanel,
+	"task_list": todoListPanel,
+	"tasks":     todoListPanel,
+}
+
+// todoListPanel is the canonical name the aliases above resolve to. Spelled
+// here (not imported from the todo feature) because this package must not know
+// what a todo is beyond the NAME the provider announced at boot — the alias
+// table is a spelling fix for that name, and a constant keeps the four entries
+// from drifting apart.
+const todoListPanel = "todo_list"
+
+// resolvePanelAliasLocked maps an alias to its canonical panel name. Callers
+// must hold registry.mu (read is enough); the map itself is read-only after
+// init, so a read lock satisfying the caller's contract is all this needs.
+func resolvePanelAliasLocked(name string) string {
+	if canonical, ok := panelAliases[strings.ToLower(strings.TrimSpace(name))]; ok {
+		return canonical
+	}
+	return name
+}
+
+// ResolvePanelName is the exported spelling fix for callers outside this
+// package (the parse path in catalog.go uses it): it returns the canonical
+// name for an alias, and the input unchanged when it is not an alias.
+func ResolvePanelName(name string) string {
+	registry.mu.RLock()
+	defer registry.mu.RUnlock()
+	return resolvePanelAliasLocked(name)
 }
 
 // panelNames is the registry's names, sorted, so the prompt and the guidance
@@ -182,7 +229,7 @@ func panelNames() []string {
 // error instead of being quietly overwritten at hydration.
 func validatePanelProps(name string, props map[string]any) error {
 	registry.mu.RLock()
-	p, ok := registry.byName[name]
+	p, ok := registry.byName[resolvePanelAliasLocked(name)]
 	registry.mu.RUnlock()
 	if !ok {
 		return nil
@@ -197,11 +244,12 @@ func validatePanelProps(name string, props map[string]any) error {
 	return nil
 }
 
-// panelProvider returns the installed provider for a name, or nil.
+// panelProvider returns the installed provider for a name (or its alias), or
+// nil.
 func panelProvider(name string) PanelProvider {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()
-	return registry.byName[name]
+	return registry.byName[resolvePanelAliasLocked(name)]
 }
 
 // renderPanel renders an installed panel through its own provider, which is

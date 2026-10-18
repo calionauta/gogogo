@@ -205,7 +205,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	hub := chiQ.Hub()
 	todoH := todohandlers.NewHandler(queries, a, hub, cfg.Skin)
 	wireTodoDisplay(todoH, cfg)
-	if serr := bootSearch(cfg, todoH, sqlDB); serr != nil {
+	if serr := bootSearch(bootCtx, cfg, todoH, sqlDB); serr != nil {
 		return bootFail(cancelConsumer, sqlDB, "search", serr)
 	}
 

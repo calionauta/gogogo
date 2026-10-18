@@ -157,6 +157,7 @@ func promptForSurfaces(surfaces []Surface) string {
 		customGuidance(surfaces) +
 		panelsFragment(surfaces) +
 		panelsGuidance(surfaces) +
+		dataRule(surfaces) +
 		"No prose outside the JSON object."
 }
 
@@ -196,6 +197,15 @@ func panelsFragment(surfaces []Surface) string {
 
 // panelsGuidance is where each panel says when to reach for it: the text
 // lives with the component, so a panel cannot ship without its prompt line.
+//
+// The opening sentence is a RULE, not a hint, and it is deliberately blunt.
+// Both legs used to end with a soft "reach for the app's OWN data when the
+// request is about it", which the model read as one option among several:
+// asked to "plan my days from to-dos" it invented todo titles in a data_table
+// instead of rendering the user's real list (live report). Inventing the
+// user's own data is the failure the panel exists to prevent, so the prompt
+// states the prohibition and the required answer shape, and each panel's own
+// line says what it shows.
 func panelsGuidance(surfaces []Surface) string {
 	if !HasSurfaces(surfaces, SurfaceNative) {
 		return ""
@@ -208,6 +218,21 @@ func panelsGuidance(surfaces []Surface) string {
 	for _, name := range names {
 		fragments = append(fragments, panelPrompt(name))
 	}
-	return "Reach for the app's OWN data when the request is about it (" +
-		strings.Join(fragments, "; ") + "). "
+	return "NEVER invent the user's own data (their todos, their records): you " +
+		"cannot see it, so any list, table or plan you write from imagination is " +
+		"fabricated. When the request depends on it, emit the panel below as the " +
+		"top-level component (nest others after it, never instead of it): " +
+		strings.Join(fragments, "; ") + ". "
+}
+
+// dataRule is the same prohibition compressed to one line, appended LAST by
+// promptForSurfaces so it lands immediately before the user's request. Split
+// out because placement is the point: mid-prompt guidance is exactly what a
+// long vocabulary beats into background.
+func dataRule(surfaces []Surface) string {
+	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
+		return ""
+	}
+	return "Reminder: the user's own data is reachable ONLY through the panel " +
+		"components above; never invent it."
 }

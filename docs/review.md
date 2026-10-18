@@ -33,6 +33,34 @@ The loop needs a real LLM (`GOAI_API_KEY`): without one the page shows a
 setup hint and the run API answers 503. There is deliberately no
 simulated path — the template's AI surface is real-LLM only.
 
+## What the verdict card shows
+
+A run has two halves and the card shows both, because one without the
+other is a decision nobody can audit:
+
+- **The exchange** — the writer's proposal, and (when the critic asked
+  for changes) the critic's own request, rendered verbatim.
+- **The decision** — verdict badge, confidence, round count, and a
+  rationale that names *both* what the critic concluded and what the
+  judge decided.
+
+Three rules keep the card honest, and each fixes a reported failure:
+
+- **A no-op is not an approval.** When the writer replies
+  `NO CHANGE NEEDED`, or the proposal is byte-identical to the input,
+  the run stops before the judge and returns `needs-human` with
+  "the editor proposed no change". Otherwise a trivial input came back
+  as `approve` (confidence 1.00) with the input echoed under
+  "Proposal", which reads as a broken rewrite.
+- **`APPROVE` means the draft is an improvement**, not merely
+  "no complaint" — the critic prompt requires the comparison. A
+  criticism-free pass over an unedited draft is exactly the case above.
+- **Each run replaces the previous verdict, and a failed run replaces
+  it too.** The result region renders a pending card before the loop
+  starts and an error card on failure; all three states carry
+  `id="review-result"` because that is the patch target (see
+  `docs/code-quality.md`, the outer-morph rule).
+
 ## The three roles
 
 - **Genkit orchestrates** (`github.com/firebase/genkit/go`, no provider
@@ -44,6 +72,8 @@ simulated path — the template's AI surface is real-LLM only.
 - **jev judges** (terminal, once per run): `mattn/go-jev` against any
   jev-compatible API. Below `JEV_CONFIDENCE_THRESHOLD` the verdict
   escalates to a human instead of auto-accepting (confidence cascade).
+  The judge is only consulted for a proposal that actually changed the
+  input — there is nothing to accept on a no-op (see above).
 
 ## Pointing at another jev-compatible API
 

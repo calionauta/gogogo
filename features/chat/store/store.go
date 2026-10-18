@@ -45,6 +45,16 @@ type Responder interface {
 	Respond(ctx context.Context, prompt string) (string, error)
 }
 
+// OwnerContext is the optional seam a responder implements when it can scope
+// itself to one account, so the leg can put the user's REAL data in the prompt
+// instead of letting the model invent it. The genui plugin owns the
+// implementation; declared here because this package consumes it (owning the
+// interface at the consumer is what keeps chat from depending on genui's
+// internals).
+type OwnerContext interface {
+	WithOwner(owner string) Responder
+}
+
 // MessageView is one rendered bubble: user text or assistant text plus
 // nested generative components inside the assistant bubble.
 type MessageView struct {
@@ -58,10 +68,19 @@ type MessageView struct {
 const proseCap = 2000
 
 // unrenderable is the fallback bubble for an answer whose payload failed
-// validation with no prose left around it. The payload itself is never
-// shown: a chat bubble holding a wall of JSON is the failure this
-// replaces, and "could not be rendered" is at least readable.
-const unrenderable = "The model's answer could not be rendered."
+// validation with no prose left around it. The raw payload is never shown (a
+// chat bubble holding a wall of JSON is the failure this replaces), but the
+// bubble must still be ANSWERABLE rather than cryptic: the previous text
+// ("The model's answer could not be rendered.") told the user nothing about
+// what to do, read as an app error, and was reported as a bug — the request had
+// in fact been understood, and rephrasing usually gets a real answer.
+//
+// What is deliberately NOT said: which component failed or why. Those messages
+// come from the catalog's validator, name internal props, and are for the log —
+// the actionable part is only ever "ask again, differently".
+const unrenderable = "I couldn't shape that into a visual answer. Ask again with a " +
+	"bit more detail — or, if you were asking about your own data (todos, " +
+	"records), the Ask AI page renders it directly from the app."
 
 // ParseChatAnswer prefers catalog directives and degrades to prose.
 // Valid envelope with registered components renders as components;

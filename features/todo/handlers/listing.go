@@ -217,8 +217,17 @@ func (h *Handler) displaySignalsWithQuery(
 		// it from value= on first render, so a later re-list cannot clobber what
 		// the user typed. Writing it as a signal was the bug
 		// (docs/realtime-recipe.md).
-		SearchQuery:    query,
-		SearchEnabled:  h.searchEnabled(),
+		SearchQuery:   query,
+		SearchEnabled: h.searchEnabled(),
+		// The mode + option list are SERVER signals (no `json:"-"`): the active
+		// layer is the server's decision, and the picker's options must be what
+		// boot actually built. `mode` here is the REQUESTED one; the handler
+		// callers that render a list overwrite SearchMode with the resolved
+		// active mode (activeSearchMode), so this default is only for callers
+		// with no request to resolve (the initial page render seeds from the
+		// default naturally).
+		SearchMode:     h.activeSearchMode(""),
+		SearchModes:    h.Search.Modes(),
 		DagNatsEnabled: h.dagnatsUIEnabled(),
 		IsViewer:       rbac.IsViewer(role),
 		IsAdmin:        role == rbac.RoleAdmin,

@@ -48,10 +48,15 @@ func (s *stubJudge) Evaluate(_ context.Context, _, _ any) (*jev.Response, error)
 	}}, nil
 }
 
-// echoModel registers a gogogo/llm action that never touches the network:
-// maker prompts get a canned proposal, critic prompts get wantCritique.
-// The APPROVE token distinguishes them (only critic prompts name it).
-func echoModel(t *testing.T, g *genkit.Genkit, wantCritique string) ai.Model {
+// echoModel registers a gogogo/llm action that never touches the network.
+//
+// Roles are told apart by the prompt's own opening, not by a token that may
+// appear in either: the maker prompt says "copy editor"/"programmer" and the
+// critic prompt "strict editor"/"strict code reviewer". An earlier version
+// keyed on the literal APPROVE, which broke as soon as the maker gained its
+// own NO CHANGE NEEDED escape hatch (and which made a maker prompt that
+// mentioned approval accidentally answer as the critic).
+func echoModel(t *testing.T, g *genkit.Genkit, makerReply, criticReply string) ai.Model {
 	t.Helper()
 	return genkit.DefineModelAction(g, ReviewModelName,
 		&ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true}},
@@ -60,9 +65,9 @@ func echoModel(t *testing.T, g *genkit.Genkit, wantCritique string) ai.Model {
 			for _, m := range req.Messages {
 				b.WriteString(m.Text())
 			}
-			text := "canned proposal"
-			if strings.Contains(b.String(), "APPROVE") {
-				text = wantCritique
+			text := makerReply
+			if strings.Contains(b.String(), "You are a strict") {
+				text = criticReply
 			}
 			return &ai.ModelResponse{
 				Message:      ai.NewModelTextMessage(text),
@@ -72,6 +77,14 @@ func echoModel(t *testing.T, g *genkit.Genkit, wantCritique string) ai.Model {
 }
 
 func reviewFixture(t *testing.T, critique string, judge *stubJudge) http.Handler {
+	t.Helper()
+	return reviewFixtureWithMaker(t, "canned proposal", critique, judge)
+}
+
+// reviewFixtureWithMaker is reviewFixture with the maker's reply chosen by the
+// caller — the no-change path needs a maker that declines, which the default
+// fixture can never produce.
+func reviewFixtureWithMaker(t *testing.T, makerReply, critique string, judge *stubJudge) http.Handler {
 	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/review.db")
 	if err != nil {
@@ -89,7 +102,7 @@ func reviewFixture(t *testing.T, critique string, judge *stubJudge) http.Handler
 	g := NewGenkit()
 	h := NewHandler(cfg, a, &Runner{
 		G:         g,
-		Model:     echoModel(t, g, critique),
+		Model:     echoModel(t, g, makerReply, critique),
 		Judge:     judge,
 		Threshold: 0.7,
 	}, llm.New("test-key"))
@@ -251,7 +264,7 @@ func TestReviewRunWithoutLLMKeyFailsClosed(t *testing.T) {
 	cfg := config.Load()
 	g := NewGenkit()
 	h := NewHandler(cfg, a, &Runner{
-		G: g, Model: echoModel(t, g, "APPROVE"),
+		G: g, Model: echoModel(t, g, "canned proposal", "APPROVE"),
 		Judge: &stubJudge{}, Threshold: 0.7,
 	}, llm.New(""))
 	mux := http.NewServeMux()
@@ -340,7 +353,7 @@ func TestReviewGenkitLeavesNoGoroutines(t *testing.T) {
 		goleak.IgnoreTopFunction("os/signal.NotifyContext.func1"),
 	)
 	g := NewGenkit()
-	model := echoModel(t, g, "APPROVE")
+	model := echoModel(t, g, "canned proposal", "APPROVE")
 	r := &Runner{
 		G: g, Model: model,
 		Judge:     &stubJudge{verdict: DecisionApprove, confidence: 0.9},
@@ -395,3 +408,5 @@ func TestReviewModelBillsThroughChokePoint(t *testing.T) {
 		t.Fatalf("settles = %d, want exactly 1", meter.settles)
 	}
 }
+
+// reviewRun fires one authenticated run and returns the SSE transcript.

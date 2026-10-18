@@ -7469,6 +7469,18 @@
       border-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
     }
   }
+  .border-error\/40 {
+    border-color: var(--color-error);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-error) 40%, transparent);
+    }
+  }
+  .border-warning\/50 {
+    border-color: var(--color-warning);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-warning) 50%, transparent);
+    }
+  }
   .glass {
     border: none;
     backdrop-filter: blur(var(--glass-blur, 40px));
@@ -7732,6 +7744,9 @@
   .break-all {
     word-break: break-all;
   }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
@@ -7841,6 +7856,9 @@
   .text-warning {
     color: var(--color-warning);
   }
+  .capitalize {
+    text-transform: capitalize;
+  }
   .normal-case {
     text-transform: none;
   }
@@ -7865,6 +7883,9 @@
   }
   .prose :where(a.btn:not(.btn-link)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     text-decoration-line: none;
+  }
+  .underline {
+    text-decoration-line: underline;
   }
   .opacity-30 {
     opacity: 30%;
@@ -7999,6 +8020,24 @@
     .floating-label:has(.input-sm) {
       --top-mul: 4;
       --font-size: 0.75rem;
+    }
+    .select-sm {
+      --sl-size-mul: 8;
+      --font-size-min: 0.75rem;
+      --option-px: 2.5;
+    }
+    .floating-label:has(.select-sm) {
+      --top-mul: 4;
+      --font-size: 0.75rem;
+    }
+    .select-xs {
+      --sl-size-mul: 6;
+      --font-size-min: 0.6875rem;
+      --option-px: 2;
+    }
+    .floating-label:has(.select-xs) {
+      --top-mul: 3;
+      --font-size: 0.6875rem;
     }
     .btn-accent {
       --btn-color: var(--color-accent);
@@ -8155,6 +8194,15 @@
       .floating-label:has(.sm\:input-md) {
         --top-mul: 5;
         --font-size: 0.875rem;
+      }
+      .sm\:select-sm {
+        --sl-size-mul: 8;
+        --font-size-min: 0.75rem;
+        --option-px: 2.5;
+      }
+      .floating-label:has(.sm\:select-sm) {
+        --top-mul: 4;
+        --font-size: 0.75rem;
       }
       .sm\:btn-md {
         --fontsize: 0.875rem;

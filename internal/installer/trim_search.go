@@ -32,7 +32,7 @@ var searchTrimUnit = []trimUnit{
 				path: chiGoFile,
 				rules: []stripRule{
 					{
-						startMarker:       "if serr := bootSearch(cfg, todoH, sqlDB); serr != nil {",
+						startMarker:       "if serr := bootSearch(bootCtx, cfg, todoH, sqlDB); serr != nil {",
 						endIsClosingBrace: true,
 						endBrace:          "\t}",
 					},

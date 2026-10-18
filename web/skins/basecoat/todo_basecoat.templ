@@ -433,7 +433,7 @@ templ searchBox(signals todo.Signals) {
 					aria-label="Search todos"
 					value={ signals.SearchQuery }
 					data-bind="searchQuery"
-					data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')"
+					data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')"
 				/>
 			</div>
 			<button
@@ -443,6 +443,48 @@ templ searchBox(signals todo.Signals) {
 				aria-label="Clear search"
 				data-show="$searchQuery"
 				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">Clear</button>
+		</div>
+		@searchModeSelect(signals)
+	}
+}
+
+// searchModeSelect is the basecoat skin's layer picker. Same contract as the
+// DaisyUI one (see features/todo/components/todo_list.templ): rendered only
+// with more than one wired layer, requests a mode through @get, and reflects
+// the server's resolved `searchMode`. Duplicated rather than shared because
+// the two skins have different component vocabularies (Basecoat's select has
+// no `select-sm`), the same reason every other control here is.
+// searchModeLabel names a layer in the user's words for the basecoat skin.
+// Spelled again rather than imported: the skin packages must not depend on
+// features/todo/components (that is the one-way dependency the skin seam keeps),
+// and an unknown name falls through as-is so a fourth layer still appears.
+func searchModeLabel(mode string) string {
+	switch mode {
+	case "substring":
+		return "exact"
+	case "fuzzy":
+		return "typo-tolerant"
+	case "bm25":
+		return "relevance"
+	default:
+		return mode
+	}
+}
+
+templ searchModeSelect(signals todo.Signals) {
+	if len(signals.SearchModes) > 1 {
+		<div class="flex items-center gap-2 mb-3 text-xs">
+			<span class="opacity-60">Match</span>
+			<select
+				name="mode"
+				class="select"
+				aria-label="Search matching mode"
+				data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')"
+			>
+				for _, m := range signals.SearchModes {
+					<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(m) }</option>
+				}
+			</select>
 		</div>
 	}
 }

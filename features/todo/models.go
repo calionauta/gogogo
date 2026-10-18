@@ -58,6 +58,18 @@ type Signals struct {
 	SearchQuery   string `json:"-"`
 	SearchEnabled bool   `json:"searchEnabled"`
 
+	// SearchMode is the ACTIVE layer (substring/fuzzy/bm25) and SearchModes
+	// the wired ones, in presentation order, for the selector.
+	//
+	// Both are server-written signals (no `json:"-"`): unlike the query text,
+	// the mode is a server decision — the operator picks the default and the
+	// server falls back when a requested layer is unwired — so the server is
+	// the authority and the select just reflects it. A select is also a
+	// server-rendered control, not a `data-bind` text box: it fires a request
+	// on change rather than mirroring a signal, so no clobber hazard exists.
+	SearchMode  string   `json:"searchMode,omitempty"`
+	SearchModes []string `json:"searchModes,omitempty"`
+
 	// ConfirmDelete is the id of the todo whose delete-confirm modal is
 	// currently open. Empty string means no modal is shown. The title
 	// is mirrored into ConfirmDeleteTitle so the modal body can name the

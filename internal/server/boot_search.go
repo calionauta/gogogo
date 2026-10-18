@@ -9,6 +9,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -18,35 +19,57 @@ import (
 	"github.com/calionauta/gogogo/internal/search"
 )
 
-// bootSearch builds the configured layer and wires both halves onto the todo
-// handler. Every mode needs the consumer's Source — even substring, whose SQL
-// lives in the consumer (the plugin supplies the seam, not the query). Only
-// bm25 needs the postings index, so only bm25 wires a write path; the
-// substring default costs no index and no extra write on the mutation path.
+// bootSearch wires the search plugin: every layer this build can serve, plus the
+// index heal that makes them interchangeable.
+//
+// ALL THREE LAYERS ARE ALWAYS WIRED. The mode is a runtime choice (the search
+// box's `Match` picker switches per request), so pinning one at boot would leave
+// the others unreachable without a restart; SEARCH_MODE now only decides which
+// one a tab STARTS on. That also means the bm25 index is always built and its
+// write path always on: one postings row per distinct term per mutation. The
+// index is the cost of offering relevance ranking, and it is the trade this
+// build makes deliberately — see docs/features.md for the alternative
+// (SEARCH_MODE=bm25-only) if a deployment wants to avoid that write.
+//
+// The heal closes the one gap the runtime choice opens: postings are a cache of
+// a Go-side pure function (search.Stem over search.Tokenize), so rows created
+// while bm25 was off have no postings and SQL cannot compute them — relevance
+// search would silently find nothing for every pre-existing todo. The heal
+// re-indexes exactly those rows at boot, through the same IndexDoc the mutation
+// path uses, which is what makes a healed index indistinguishable from an
+// incrementally written one.
 //
 // An error here is a config/plugin disagreement about the valid mode names,
 // the one bug that must not boot into silently different search behaviour:
 // config's normalizer already maps a typo onto the substring default, so the
 // plugin only ever sees a name it knows.
-func bootSearch(cfg *config.Config, todoH *todohandlers.Handler, sqlDB *sql.DB) error {
+func bootSearch(ctx context.Context, cfg *config.Config, todoH *todohandlers.Handler, sqlDB *sql.DB) error {
 	mode := cfg.Search.Mode
 	src := todohandlers.NewTodoSource(todoH.Q)
 
-	// The index is a bm25-only cost: a table to read and a write on every
-	// mutation. Every other mode leaves it nil, which is what makes the
-	// substring default free.
-	var idx search.SQLIndex
-	var ix todohandlers.SearchIndexer
-	if mode == config.SearchModeBM25 {
-		idx = search.SQLIndex{DB: sqlDB}
-		ix = todohandlers.NewTodoIndexer(idx)
-	}
-
-	layer, err := search.New(mode, src, idx)
-	if err != nil {
+	// New is still called for the configured mode: it is the validation gate,
+	// so a config/plugin disagreement fails the boot loudly instead of
+	// silently falling back inside a layer map.
+	idx := search.SQLIndex{DB: sqlDB}
+	if _, err := search.New(mode, src, idx); err != nil {
 		return fmt.Errorf("server: search layer %q: %w", mode, err)
 	}
-	todoH.SetSearch(todohandlers.NewTodoSearcher(layer), ix, sqlDB)
-	slog.Info("server: todo search wired", "mode", mode, "indexed", ix != nil)
+	layers := search.NewAll(src, idx)
+	set := todohandlers.SearchLayers{
+		ByMode:  make(map[string]todohandlers.Searcher, len(layers)),
+		Default: mode,
+		Order:   search.Modes(),
+	}
+	for name, layer := range layers {
+		set.ByMode[name] = todohandlers.NewTodoSearcher(layer)
+	}
+	ix := todohandlers.NewTodoIndexer(idx)
+	todoH.SetSearch(set, ix, sqlDB)
+
+	if err := todohandlers.HealSearchIndex(ctx, todoH.Q, ix, sqlDB); err != nil {
+		return fmt.Errorf("server: search index heal: %w", err)
+	}
+	slog.Info("server: todo search wired",
+		"default", mode, "modes", len(set.ByMode))
 	return nil
 }

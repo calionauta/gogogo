@@ -313,6 +313,16 @@ func RenderAll(dirs []Directive) ([]templ.Component, error) {
 	for _, d := range dirs {
 		comp, err := Render(d)
 		if err != nil {
+			// A panel that cannot render is replaced, not fatal. Panels are
+			// the only components whose props come from the store, so theirs is
+			// the one failure a user can hit through no fault of the model —
+			// and aborting the whole answer over it left the tab with nothing
+			// (the live "empty result" report). Non-panel failures stay fatal:
+			// those are a bad answer, and a half-rendered one is worse.
+			if IsPanel(d.Component) {
+				comps = append(comps, PanelUnavailable(d.Component))
+				continue
+			}
 			return nil, err
 		}
 		comps = append(comps, comp)

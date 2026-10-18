@@ -29,9 +29,6 @@ func createVisibility(r *http.Request) string {
 	return todo.VisibilityPrivate
 }
 
-// context; disconnects surface as write errors, checked per call.
-//
-//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	owner, err := h.ownerID(r)
 	if err != nil {
@@ -117,6 +114,26 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: list after create failed", err, "error listing todos")
 		return
 	}
+	h.respondCreated(ctx, w, r, todos, title)
+}
+
+// respondCreated streams the create's response: signals, the list patch, and a
+// toast whose SHAPE depends on whether the originating page can show the result.
+//
+// Split from handleCreate for the complexity gate, and because the two halves
+// answer different questions — the handler decides what to write, this decides
+// how to report it. A create fired from a page with no #todo-list (plan_cards'
+// Apply on /chat and /genui) still sends the list patch, and that patch matches
+// nothing there: the row was created and the page showed no change, which reads
+// as a dead button. So that origin gets a toast that does not auto-dismiss and
+// links to the page where the row actually is, keyed by a hidden form field
+// rather than by the URL — the todo page's own composer keeps its exact
+// previous behaviour.
+//
+//nolint:contextcheck // SSE emission ends in datastar-go sinks (no ctx param)
+func (h *Handler) respondCreated(
+	ctx context.Context, w http.ResponseWriter, r *http.Request, todos []todo.Todo, title string,
+) {
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		// newTitle is deliberately NOT written here: $newTitle is bound
@@ -128,17 +145,30 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		// succeeds, and only if it still holds what was sent.
 		"loading": false, signalItemCount: len(todos),
 	}); err != nil {
-		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
+		h.fail(ctx, w, "todo: create signals failed", err, "save failed")
 		return
 	}
+	foreign := r.FormValue("origin") == originGenui
 	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
-		h.fail(r.Context(), w, "todo: create patch failed", err, "save failed")
+		h.fail(ctx, w, "todo: create patch failed", err, "save failed")
+		return
+	}
+	if foreign {
+		if err := emitToastAction(sse, "Added to your todos: "+title, "Open Todos", "/todo"); err != nil {
+			h.fail(ctx, w, "todo: create toast failed", err, "save failed")
+		}
 		return
 	}
 	if err := emitToast(sse, "Added", "success"); err != nil {
-		h.fail(r.Context(), w, "todo: create toast failed", err, "save failed")
+		h.fail(ctx, w, "todo: create toast failed", err, "save failed")
 	}
 }
+
+// originGenui is the `origin` field value plan_cards sends. A named constant
+// because the markup writing it and the handler reading it live in different
+// packages, and a typo would silently restore the dead-button behaviour (the
+// field is optional, so nothing would fail loudly).
+const originGenui = "genui"
 
 // patchListSelf tags the originating mutation as "self" (self-origin entry
 // animation) and patches the list with view transitions, merging the fresh
@@ -160,7 +190,7 @@ func (h *Handler) patchListSelf(
 ) error {
 	query := h.Hub.ViewOf(r.URL.Query().Get("clientID")).Query
 	if owner, err := h.ownerID(r); err == nil {
-		narrowed, nerr := h.narrowBySearch(ctx, owner, query, todos)
+		narrowed, nerr := h.narrowBySearch(ctx, owner, query, h.Hub.ViewOf(r.URL.Query().Get("clientID")).Mode, todos)
 		if nerr != nil {
 			return nerr
 		}

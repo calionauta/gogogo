@@ -771,6 +771,9 @@
   .break-all {
     word-break: break-all;
   }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
@@ -834,6 +837,9 @@
   .text-secondary {
     color: oklch(0.97 0 0);
   }
+  .capitalize {
+    text-transform: capitalize;
+  }
   .normal-case {
     text-transform: none;
   }
@@ -845,6 +851,9 @@
   }
   .line-through {
     text-decoration-line: line-through;
+  }
+  .underline {
+    text-decoration-line: underline;
   }
   .opacity-30 {
     opacity: 30%;

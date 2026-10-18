@@ -47,6 +47,47 @@ func New(mode string, source Source, index Index) (Searcher, error) {
 	}
 }
 
+// Modes lists the layer names in presentation order (cheap to strongest).
+// The order is the prompt/UI contract: a caller renders a picker from this and
+// never hardcodes the names, so a fourth layer appears everywhere at once.
+func Modes() []string {
+	return []string{SubstringMode, FuzzyMode, BM25Mode}
+}
+
+// ModeValid reports whether a mode name is one this plugin builds.
+func ModeValid(mode string) bool {
+	switch mode {
+	case SubstringMode, FuzzyMode, BM25Mode:
+		return true
+	default:
+		return false
+	}
+}
+
+// NewAll builds every mode the caller has the inputs for, so a consumer can
+// offer the choice at RUNTIME instead of pinning it at boot.
+//
+// Every layer is built from the SAME source and index, so switching modes
+// changes only how the same set of rows is ranked — never which rows are
+// candidates. A mode whose required input is missing is simply absent from the
+// map (no index → no bm25), which is also how a trimmed build keeps working:
+// the caller renders a picker from the keys it got.
+//
+// Building all three costs nothing until one is used: the substring and fuzzy
+// layers are query-time structs, and BM25 only holds the (already-built)
+// index. The index's WRITE cost is the consumer's decision, unchanged by this.
+func NewAll(source Source, index Index) map[string]Searcher {
+	layers := make(map[string]Searcher, len(Modes()))
+	if source != nil {
+		layers[SubstringMode] = Substring{Source: source}
+		layers[FuzzyMode] = Fuzzy{Source: source}
+	}
+	if index != nil {
+		layers[BM25Mode] = BM25{Index: index}
+	}
+	return layers
+}
+
 // Substring is the first layer: the SOURCE does the work in its own SQL. It
 // has no ranking and no typo tolerance — it exists because it costs nothing
 // (no extra write, no scan in Go) and because it is the layer that still

@@ -93,12 +93,23 @@ templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit 
 	</html>
 }
 
-// ReviewResult renders one verdict: decision badge, rationale, proposal,
-// and the human approval gate when the judge escalated. Scalar params
-// keep the chi→components import one-directional (chi owns the Verdict
-// type; components must never import chi back).
-templ ReviewResult(decision string, rationale string, proposal string, confidence float64, rounds int, needsHuman bool) {
-	<div class="card bg-base-200 shadow">
+// ReviewResult renders one verdict: decision badge, rationale, the
+// editor pair's exchange (draft + critique when the critic asked for
+// changes), and the human approval gate when the judge escalated.
+//
+// The root carries `id="review-result"` because this component IS its own
+// patch target: handleRun patches with WithSelector("#review-result") in the
+// default `outer` mode, which SYNCS ATTRIBUTES FROM THE FRAGMENT — a fragment
+// whose root lacked the id removed it from the live node, so run #2 onward
+// matched nothing, logged PatchElementsNoTargetsFound, and left the previous
+// verdict on screen (lived bug: the result "never changed" and referenced the
+// earlier text). Same shape as GenuiResult and #todo-list: the patched region
+// is the component's own root, never a wrapper the fragment replaces.
+//
+// Scalar params keep the chi→components import one-directional (chi owns the
+// Verdict type; components must never import chi back).
+templ ReviewResult(decision string, rationale string, proposal string, critique string, criticVerdict string, confidence float64, rounds int, needsHuman bool) {
+	<div id="review-result" class="card bg-base-200 shadow">
 		<div class="card-body">
 			<h2 class="card-title">
 				Verdict: { decision }
@@ -111,10 +122,45 @@ templ ReviewResult(decision string, rationale string, proposal string, confidenc
 					<span>A human should decide — approve the proposal below or revise and re-run.</span>
 				</div>
 			}
+			if criticVerdict == criticRevised {
+				<h3 class="font-semibold mt-3 mb-1">Critique</h3>
+				<pre class="whitespace-pre-wrap text-sm bg-base-100 rounded p-3">{ critique }</pre>
+			}
 			if proposal != "" {
 				<h3 class="font-semibold mt-3 mb-1">Proposal</h3>
 				<pre class="whitespace-pre-wrap text-sm bg-base-100 rounded p-3">{ proposal }</pre>
 			}
+		</div>
+	</div>
+}
+
+// criticRevised mirrors the critic's "asked for changes" outcome, so the
+// critique is shown only when there IS one. Spelled here rather than imported:
+// this package must not depend on the chi slice that owns the Verdict type.
+const criticRevised = "revised"
+
+// ReviewPending is the run's opening state: pressing Run replaces the previous
+// verdict immediately, so a slow run can never look like a finished one. It
+// carries the same root id for the reason spelled out on ReviewResult — this
+// is the same patch target.
+templ ReviewPending() {
+	<div id="review-result" class="card bg-base-200/40 border border-dashed border-base-300" aria-busy="true">
+		<div class="card-body">
+			<p class="text-sm text-base-content/60">Reviewing… the verdict replaces this.</p>
+		</div>
+	</div>
+}
+
+// ReviewError is the failed-run state. It keeps the region alive (same root
+// id, so the next run still has a target) and states the failure instead of
+// leaving the previous verdict standing as if it were this run's answer.
+templ ReviewError(message string) {
+	<div id="review-result" class="card bg-base-200/40 border border-error/40">
+		<div class="card-body">
+			<div class="alert alert-error" role="alert">
+				<span>{ message }</span>
+			</div>
+			<p class="text-sm text-base-content/60 mt-2">Edit the content above and run again.</p>
 		</div>
 	</div>
 }
