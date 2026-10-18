@@ -121,7 +121,7 @@ async function signupSession(email) {
   for (let i = 0; i < 10; i++) {
     const cookie = await signupCookie(email, USER_PASS);
     if (cookie) return cookie;
-    await sleep(500);
+    await sleep(500); // poll interval: the first signup can race the migration
   }
   throw new Error(`signup failed for ${email}: no session cookie`);
 }
@@ -132,7 +132,7 @@ async function waitForServer() {
       const r = await fetch(BASE + "/health");
       if (r.ok) return true;
     } catch {}
-    await sleep(500);
+    await sleep(500); // poll interval: bounded health probe
   }
   return false;
 }
@@ -244,7 +244,7 @@ async function main() {
       // unroute() below must come after it, or fulfill throws on a
       // removed route.
       heldDelivered = (async () => {
-        await sleep(1200);
+        await sleep(1200); // KEPT: lag injected on purpose; the test awaits heldDelivered, not this nap
         await route.fulfill({ response });
       })();
       return;
@@ -551,7 +551,7 @@ async function main() {
     return Math.abs(parseFloat(el.style.left) / r.width - tx / w) < 0.02 &&
       Math.abs(parseFloat(el.style.top) / r.height - ty / h) < 0.02;
   }, [USER_EMAIL, T2.x, T2.y, stBox.width, stBox.height], { timeout: 10000 });
-  await sleep(500);
+  await sleep(500); // KEPT: settle window — the abort counted below happens asynchronously
 
   if (aborted === 0) {
     bad("no draft frame was aborted — the stale-retry path was never exercised");
@@ -621,7 +621,7 @@ async function main() {
         body: JSON.stringify({ type: "draft-end", doc, user: "anyone", cts: 1 }),
       });
     }, { doc: doc7, clientID: "wb-end-b" });
-    await sleep(600); // an unguarded end would have wiped the draft by now
+    await sleep(600); // KEPT: absence check — proving the draft survived needs a window
     const keptInk = await endA.evaluate(inkInRegion(END_REGION.x, END_REGION.y, END_REGION.w, END_REGION.h));
     if (keptInk > 0) {
       ok(`stale draft-end did not wipe the live draft (ink ${keptInk})`);
