@@ -105,6 +105,8 @@ const MANIFEST = [
     desc: "Admin surfaces, the single-cookie session, and the DagNats console." },
   { group: "Operate", slug: "local-ci", file: "local-ci.md",
     desc: "The five-tier feedback loop and make signoff." },
+  { group: "Operate", slug: "ci-triage", file: "ci-triage.md",
+    desc: "When CI fails on something variable: the 60-second triage, flake diagnosis, quarantine with an expiry, and why 100% is not the target." },
   { group: "Operate", slug: "code-quality", file: "code-quality.md",
     desc: "The 33 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
   { group: "Operate", slug: "troubleshooting", file: "troubleshooting.md",
