@@ -15,6 +15,28 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.51.0 (2026-10-18)
+
+## What's Changed
+* Decision section as cards, not a paragraph by @calionauta in https://github.com/calionauta/gogogo/pull/150
+* fix(genui): read model answers as JSON-ish tokens, not strict JSON by @calionauta in https://github.com/calionauta/gogogo/pull/151
+* fix(ai): patch the answer, not its container — and style what the model invents by @calionauta in https://github.com/calionauta/gogogo/pull/154
+* fix(ui): the theme bootstrap merges page signals instead of replacing them by @calionauta in https://github.com/calionauta/gogogo/pull/153
+* ci: classify docs-only changesets instead of skipping the workflow by @calionauta in https://github.com/calionauta/gogogo/pull/152
+* feat(genui): let a jev-compatible classifier choose Ask's lead component by @calionauta in https://github.com/calionauta/gogogo/pull/156
+* ci: run the gates for a pull request against any base branch by @calionauta in https://github.com/calionauta/gogogo/pull/157
+* feat(genui): one bounded repair before a rejected answer reaches the user by @calionauta in https://github.com/calionauta/gogogo/pull/158
+* feat(search): one seam, three layers, no external engine by @calionauta in https://github.com/calionauta/gogogo/pull/159
+* fix(release): build installer binaries via a workflow_dispatch bridge by @calionauta in https://github.com/calionauta/gogogo/pull/161
+* chore(release): one changelog writer, and correct the docs that said otherwise by @calionauta in https://github.com/calionauta/gogogo/pull/163
+* feat(genui): one answer surface per leg, a provider-based panel catalog, Datastar 1.0.4 by @calionauta in https://github.com/calionauta/gogogo/pull/164
+* feat(search): fold inflections with a Porter stemmer behind the seam by @calionauta in https://github.com/calionauta/gogogo/pull/165
+* fix(release): keep changelog-type github — default duplicated merge commits by @calionauta in https://github.com/calionauta/gogogo/pull/167
+* fix(css): build both skins where staleness is verified, and commit the stale bundle by @calionauta in https://github.com/calionauta/gogogo/pull/169
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.50.0...v0.51.0
+
 ## 0.50.0 (2026-10-15)
 
 ## What's Changed
