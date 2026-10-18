@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # smoke-prod-image.sh — boot the REAL production image and assert /health.
 #
-# The gap that took production down on the PocketBase→flat migration
-# (0.44.0): nothing ever booted the final image. `go build` was green,
-# the binary smoke test booted the host binary (glibc, real /tmp), but
-# the scratch image had no dynamic loader — so tursogo's dlopen panicked
-# on the first DB open and the container crash-looped with 502s.
+# Why this exists: nothing used to boot the final image. `go build` was green,
+# the binary smoke test booted the host binary (glibc, real /tmp), but the
+# scratch image had no dynamic loader — so tursogo's dlopen panicked on the
+# first DB open and the container crash-looped with 502s. An image that only
+# ever passed a build step reached production once; this is the gate that
+# makes "the built artifact" a verified thing rather than an assumption.
 #
 # This script builds deploy/Dockerfile.prod, runs it like production
 # (uid 65532, DATA_DIR on a mounted volume, TURSO_GO_CACHE_DIR on that

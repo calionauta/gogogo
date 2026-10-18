@@ -11,15 +11,10 @@
 // Run: node scripts/build-tag-reload.test.mjs (SMOKE_BIN reuses a build,
 // SMOKE_PORT overrides the port).
 //
-// REVIVED FROM POCKETBASE ERA. This harness could not boot: it spawned
-// `serve --http <addr> --dir <dir>` and then registered its user with
-// `superuser upsert` + `/api/collections/_superusers/auth-with-password` +
-// `/api/collections/users/records`. The flat binary takes NO CLI subcommands
-// (address and data dir ride env vars) and has no PocketBase collections, so
-// the process came up on a different port than the one polled and the run died
-// with "server did not become healthy" — for as long as the stack has been
-// flat, because nothing invoked this file. It is now on the flat boot + owned
-// auth path (the `gogogo_auth` cookie), matching the other harnesses.
+// Not invoked by any gate. It needs a browser, and the CI browser job already
+// runs five suites serially, so wiring a sixth in is a CI-budget decision rather
+// than a fix. It is kept because it is the only coverage of the refresh-loop
+// regression above, and it runs green on demand.
 import { chromium } from "playwright";
 import { spawn, execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";

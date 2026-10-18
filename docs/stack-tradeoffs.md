@@ -397,12 +397,14 @@ Revisit if owning the commodity parts costs more than the opinions they replaced
 the day the team wants a database GUI, a generic REST surface, or file uploads
 without writing them.
 
-PocketBase is rejected on a different axis: `cmd/check-flatdeps` bans it by
-module prefix because it is a framework surface, not a database choice — an
-embedded router, auth, and admin UI that would replace the owned seams (chi
-composition, argon2id sessions, age secrets) instead of the data layer. Swapping
-the store keeps every seam; adopting PocketBase deletes them. That is why the ban
-is mechanical (import path) rather than advisory.
+An embedded-framework option (an all-in-one router + auth + admin UI in one
+import) is rejected on a different axis: `cmd/check-flatdeps` bans it by module
+prefix because it is a framework SURFACE, not a database choice — it would
+replace the owned seams (chi composition, argon2id sessions, age secrets) instead
+of the data layer. Swapping the store keeps every seam; adopting the framework
+deletes them. That is why the ban is mechanical (import path) rather than
+advisory, and why the banned prefixes live in the guard rather than in this
+prose: a name in a doc is advice, a name in an import check is a gate.
 
 ## Related
 
