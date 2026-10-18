@@ -54,14 +54,20 @@ pid_scroll=$!
 # retry_browser reruns one failed browser suite serially: the parallel
 # load is gone by then, so a pass means "starved", not "broken". One
 # retry only — a second failure is the verdict, not a third run.
+#
+# The retry policy and the flake labelling live in scripts/run-browser-suite.sh,
+# shared with the CI steps (which used to run the suites bare, so a flake that
+# passed on retry locally just failed the build there). --attempts=1 because the
+# PARALLEL stage above already consumed the first attempt; letting the wrapper
+# retry as well would spend two more runs on a suite that already failed once.
 retry_browser() {
   local name="$1" script="$2"
   echo "  ↻ $name failed under load, retrying once serially…"
-  if SSE_PROBE_PORT=8133 SMOKE_BIN="$bin" SMOKE_TRACE="$logdir/$name.retry.trace.zip" node "scripts/$script" >"$logdir/$name.retry.log" 2>&1; then
-    echo "  ⚠️ $name passed on retry (flake under parallel load — see $logdir/$name.retry.log)"
+  if CI_LOG_DIR="$logdir" SUITE_NAME="$name" SMOKE_BIN="$bin" bash scripts/run-browser-suite.sh --attempts=1 "$script"; then
+    echo "  ⚠️ $name passed on retry (flake under parallel load — see $logdir/$name.log)"
   else
     echo "  ❌ $name FAILED twice (see $logdir/$name.log and $logdir/$name.retry.log)"
-    failed_logs="$failed_logs $logdir/$name.retry.log"
+    failed_logs="$failed_logs $logdir/$name.log"
     return 1
   fi
 }

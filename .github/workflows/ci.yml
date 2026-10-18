@@ -320,7 +320,7 @@ jobs:
         # Chromium so upgrades cannot pass Go checks while breaking signals.
         run: |
           npx playwright install --with-deps chromium
-          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/smoke.mjs
+          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
       - name: Whiteboard client regression tests
         # The whiteboard client has no Go-side coverage for its transport
         # handling: response ordering and the 409 conflict path only exist in
@@ -329,7 +329,7 @@ jobs:
         # drawn, because concurrent responses are not ordered). These tests
         # drive the page and assert on canvas pixels; both are red-proofed.
         run: |
-          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/whiteboard-client.test.mjs
+          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh whiteboard-client.test.mjs
       - name: Notes caret client regression tests
         # Cross-user caret positioning: the mirror-div must be measured against
         # the reporter's text snapshot, not the observer's (possibly stale)
@@ -338,14 +338,14 @@ jobs:
         # here by two real authenticated contexts typing concurrently. The
         # line assertion is red-proofed (fails against the old basis).
         run: |
-          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/notes-caret.test.mjs
+          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh notes-caret.test.mjs
       - name: SSE verified-open regression test
         # The opener must fail LOUDLY when Datastar cannot load (bounded
         # openState=failed), never leave a silent-dead stream: with Datastar
         # route-aborted, the old opener never opens anything (red-proofed by
         # stash). Uses its own port, serial like the suites above.
         run: |
-          SMOKE_BIN=/tmp/gogogo-ci-web SSE_PROBE_PORT=8133 node scripts/sse-reopen.test.mjs
+          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh sse-reopen.test.mjs SSE_PROBE_PORT=8133
       - name: AI answer scroll regression test
         # A new answer must scroll itself into view on a short window — the
         # region was appended below the fold and the reply arrived
@@ -354,7 +354,7 @@ jobs:
         # simulated LLM, so no provider key is involved. Own port, serial
         # like the suites above.
         run: |
-          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/chat-scroll.test.mjs
+          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh chat-scroll.test.mjs
 
   prod-image:
     needs: [changes]
