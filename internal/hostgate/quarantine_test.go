@@ -99,7 +99,8 @@ func TestValidateQuarantinesCatchesBadEntries(t *testing.T) {
 		"expired":    {quarantine{reason: good.reason, issue: good.issue, expires: "2026-01-01"}, "EXPIRED"},
 		"bad expiry": {quarantine{reason: good.reason, issue: good.issue, expires: "soon"}, "not 2006-01-02"},
 		"whitespace reason": {
-			quarantine{reason: "   ", issue: good.issue, expires: good.expires}, "no reason"},
+			quarantine{reason: "   ", issue: good.issue, expires: good.expires}, "no reason",
+		},
 	}
 	for name, tc := range bad {
 		errs := validateQuarantines(map[string]quarantine{name: tc.q}, now)

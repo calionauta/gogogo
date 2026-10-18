@@ -35,6 +35,15 @@
 # the one that just failed. The fan-out owns "retry with the parallel load gone";
 # this script owns "what a failed attempt means and how it is reported".
 #
+# SUITE_LOG_SUFFIX appends to the log basename, and the fan-out passes `.retry`
+# for the reason above: its retry must NOT write to `$name.log`, because that is
+# the file the parallel stage already filled with the FIRST failure — the
+# evidence the retry exists to preserve. (Written the naive way, the retry
+# silently overwrote the only record of what went wrong.)
+#
+# SMOKE_TRACE: if the caller already set one, it is honoured rather than
+# replaced, so the fan-out can attach its own trace path to a retry run.
+#
 # Exit: 0 = passed (first try or retry), 1 = failed (twice, or once under
 # --attempts=1). A flake exits 0 but is never silent.
 set -uo pipefail
@@ -64,9 +73,10 @@ if [ -z "$name" ]; then
 fi
 
 logdir="${CI_LOG_DIR:-}"
+suffix="${SUITE_LOG_SUFFIX:-}"
 if [ -n "$logdir" ]; then
   mkdir -p "$logdir"
-  first_log="$logdir/$name.log"
+  first_log="$logdir/$name$suffix.log"
   retry_log="$logdir/$name.retry.log"
   trace="$logdir/$name.retry.trace.zip"
 else
@@ -77,7 +87,7 @@ else
 fi
 
 run_suite() { # run_suite <logfile> [trace-path]
-  local log="$1" trace_path="${2:-}"
+  local log="$1" trace_path="${2:-${SMOKE_TRACE:-}}"
   if [ -n "$trace_path" ]; then
     env "${extra_env[@]}" SMOKE_TRACE="$trace_path" node "scripts/$script" >"$log" 2>&1
   else

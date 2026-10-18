@@ -57,14 +57,23 @@ pid_scroll=$!
 #
 # The retry policy and the flake labelling live in scripts/run-browser-suite.sh,
 # shared with the CI steps (which used to run the suites bare, so a flake that
-# passed on retry locally just failed the build there). --attempts=1 because the
-# PARALLEL stage above already consumed the first attempt; letting the wrapper
-# retry as well would spend two more runs on a suite that already failed once.
+# passed on retry locally just failed the build there). Three things are passed
+# in, and each is load-bearing:
+#
+#   --attempts=1     the PARALLEL stage above already consumed the first attempt;
+#                    letting the wrapper retry as well would run it three times.
+#   SUITE_LOG_SUFFIX the retry must not write `$name.log` — that file holds the
+#                    FIRST failure, which is the evidence this retry exists to
+#                    preserve. `.retry` is also the name the failure message below
+#                    already points at.
+#   SMOKE_TRACE      so the retry keeps its timeline, as the header above promises.
 retry_browser() {
   local name="$1" script="$2"
   echo "  ↻ $name failed under load, retrying once serially…"
-  if CI_LOG_DIR="$logdir" SUITE_NAME="$name" SMOKE_BIN="$bin" bash scripts/run-browser-suite.sh --attempts=1 "$script"; then
-    echo "  ⚠️ $name passed on retry (flake under parallel load — see $logdir/$name.log)"
+  if CI_LOG_DIR="$logdir" SUITE_NAME="$name" SUITE_LOG_SUFFIX=".retry" \
+     SMOKE_TRACE="$logdir/$name.retry.trace.zip" SMOKE_BIN="$bin" \
+     bash scripts/run-browser-suite.sh --attempts=1 "$script"; then
+    echo "  ⚠️ $name passed on retry (flake under parallel load — see $logdir/$name.retry.log)"
   else
     echo "  ❌ $name FAILED twice (see $logdir/$name.log and $logdir/$name.retry.log)"
     failed_logs="$failed_logs $logdir/$name.log"
