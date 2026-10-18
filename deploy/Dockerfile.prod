@@ -8,9 +8,10 @@
 # Why alpine and not scratch: the flat stack's database driver
 # (tursogo) is a Rust shared library loaded at runtime via dlopen
 # (see internal/db). Scratch has no dynamic loader, so the binary
-# panics on boot (`Dynamic loading not supported`) — that exact
-# crash-loop took production down on the PocketBase→flat migration
-# (0.44.0). Alpine ships musl's loader; the builder compiles with
+# panics on boot (`Dynamic loading not supported`) — and an image that
+# only ever passed `go build` reached production that way once, which
+# is why deploy/smoke-prod-image.sh boots the real image before it
+# ships. Alpine ships musl's loader; the builder compiles with
 # -tags musl so the embedded musl-linked library is the one extracted
 # and loaded. Do NOT "simplify" this back to scratch: a static binary
 # cannot dlopen, and tursogo has no static-link mode.

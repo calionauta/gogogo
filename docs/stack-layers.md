@@ -153,7 +153,7 @@ decision record and the removal narrative live where history lives
 version sections); this page describes only what runs today.
 
 The cost side of that decision — what we own, what Turso is pre-1.0, and
-the PocketBase rejection — is in
+which framework surface was rejected — is in
 [The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost).
 
 ## Related
