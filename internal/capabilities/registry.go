@@ -267,6 +267,7 @@ var All = []Capability{
 			"features/todo/handlers/search_source.go",
 			"features/todo/handlers/search_source_test.go",
 			"features/todo/handlers/search_test.go",
+			"features/todo/handlers/search_mode_test.go",
 			"features/todo/handlers/search_heal.go",
 			"features/todo/handlers/search_heal_test.go",
 			"internal/search/sqlindex_inventory.go",
