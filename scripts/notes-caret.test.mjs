@@ -94,7 +94,7 @@ async function signupSession(email) {
   for (let i = 0; i < 10; i++) {
     const cookie = await signupCookie(email, PASS);
     if (cookie) return cookie;
-    await sleep(500);
+    await sleep(500); // poll interval: the first signup can race the migration
   }
   throw new Error(`signup failed for ${email}: no session cookie`);
 }
@@ -104,7 +104,7 @@ async function waitForServer() {
     try {
       if ((await fetch(BASE + "/health")).ok) return true;
     } catch {}
-    await sleep(500);
+    await sleep(500); // poll interval: bounded health probe
   }
   return false;
 }

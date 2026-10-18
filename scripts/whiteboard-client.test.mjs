@@ -121,7 +121,7 @@ async function signupSession(email) {
   for (let i = 0; i < 10; i++) {
     const cookie = await signupCookie(email, USER_PASS);
     if (cookie) return cookie;
-    await sleep(500);
+    await sleep(500); // poll interval: the first signup can race the migration
   }
   throw new Error(`signup failed for ${email}: no session cookie`);
 }
@@ -132,7 +132,7 @@ async function waitForServer() {
       const r = await fetch(BASE + "/health");
       if (r.ok) return true;
     } catch {}
-    await sleep(500);
+    await sleep(500); // poll interval: bounded health probe
   }
   return false;
 }
@@ -244,7 +244,7 @@ async function main() {
       // unroute() below must come after it, or fulfill throws on a
       // removed route.
       heldDelivered = (async () => {
-        await sleep(1200);
+        await sleep(1200); // KEPT: lag injected on purpose; the test awaits heldDelivered, not this nap
         await route.fulfill({ response });
       })();
       return;
@@ -551,7 +551,7 @@ async function main() {
     return Math.abs(parseFloat(el.style.left) / r.width - tx / w) < 0.02 &&
       Math.abs(parseFloat(el.style.top) / r.height - ty / h) < 0.02;
   }, [USER_EMAIL, T2.x, T2.y, stBox.width, stBox.height], { timeout: 10000 });
-  await sleep(500);
+  await sleep(500); // KEPT: settle window — the abort counted below happens asynchronously
 
   if (aborted === 0) {
     bad("no draft frame was aborted — the stale-retry path was never exercised");
@@ -621,7 +621,7 @@ async function main() {
         body: JSON.stringify({ type: "draft-end", doc, user: "anyone", cts: 1 }),
       });
     }, { doc: doc7, clientID: "wb-end-b" });
-    await sleep(600); // an unguarded end would have wiped the draft by now
+    await sleep(600); // KEPT: absence check — proving the draft survived needs a window
     const keptInk = await endA.evaluate(inkInRegion(END_REGION.x, END_REGION.y, END_REGION.w, END_REGION.h));
     if (keptInk > 0) {
       ok(`stale draft-end did not wipe the live draft (ink ${keptInk})`);
@@ -779,6 +779,51 @@ async function main() {
   }
   // Ink must exist NEAR the tip corner (generous 30px box: rough.js wobbles,
   // but a mangled negative rect paints nowhere near its corner).
+  //
+  // WAIT FOR THE INK, not for the dot.
+  //
+  // The dot and the live corner are coupled BY DESIGN: `postFrame` sends one
+  // fused frame (type `cursor` when it carries no shape, `draft` when it does),
+  // and the receiving `applyDraft` also moves the dot (`applyCursor`) before
+  // `render()` repaints the canvas. So there is no channel skew to blame, and an
+  // earlier draft of this comment claiming "two different paths" was wrong —
+  // measured against the code, not assumed.
+  //
+  // What remains is a single-sample race, and it is the reason this test flaked:
+  // the code sampled `getImageData` ONCE, immediately after a wait that only
+  // proved the DOT had moved. It passed with `ink 97` on one run and `ink 0` on
+  // the next with the source BYTE-IDENTICAL between them (verified with
+  // `git diff` across the two commits — failing run 39081962940 and passing
+  // 39079507330 differ only in CSS/docs/CI). A Promise round-trip separates the
+  // wait from the sample, and during a held drag the throttled trailing send
+  // (~12Hz, `throttleTrailing`) keeps arriving: a later frame can repaint the
+  // canvas between them, and a frame whose draft is stale (`freshEnough`
+  // rejects it) repaints WITHOUT the live shape — which is ink 0 at the tip
+  // while the dot still reads correct.
+  //
+  // HONEST LIMIT: that trigger was NOT reproduced locally. Two attempts to build
+  // a deterministic RED failed to fire, and the second was genuinely
+  // unfalsifiable from outside — injecting lag on `/presence` delays the dot and
+  // the draft together, because they are one frame, so it cannot isolate the
+  // paint. What IS established is the weaker, sufficient claim: one sample of a
+  // surface that another code path can repaint is not a synchronization point.
+  //
+  // `waitForInk` is the repo's existing helper for exactly this — already used
+  // five other times in this file — and its comment states the contract: when it
+  // returns true the assertion below passes instantly; when it returns false the
+  // assertion fails with its detailed message. The sample is kept (not replaced)
+  // so the message still reports the count: the wait is the synchronization, the
+  // sample is the diagnosis.
+  //
+  // THE MARGIN IS THIN, and that is expected rather than a problem: the shape is
+  // a rough.js RECTANGLE WITH STROKE ONLY (no fill — see drawShape in
+  // whiteboard.js), so a 30x30 box at a corner catches two stroke edges and
+  // little else. Measured on this tree: ink 4 locally, ink 97-99 on CI (the CI
+  // canvas is larger, so the same 30 CSS px covers more device pixels). The
+  // assertion is `> 0` either way, which is the question it means to ask — "did
+  // the peer's draft paint near the logical tip" — and a mangled negative rect
+  // paints nowhere near its corner.
+  await waitForInk(ngA, [{ x: NGTIP.x - 15, y: NGTIP.y - 15, w: 30, h: 30 }]);
   const ngInk = await ngA.evaluate(
     (tip) => {
       const c = document.getElementById("wb-canvas");
@@ -798,7 +843,7 @@ async function main() {
   if (ngInk > 0) {
     ok(`ink painted at the negative-drag tip (ink ${ngInk})`);
   } else {
-    bad("no ink near the negative-drag tip — renderer mangles negative w/h");
+    bad("no ink near the negative-drag tip after waiting for it — renderer mangles negative w/h, or the peer's draft never painted");
   }
   await ngB.mouse.up();
 

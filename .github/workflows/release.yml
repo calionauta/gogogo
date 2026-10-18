@@ -57,3 +57,31 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Verify the assets actually landed on the release, because nothing did.
+      #
+      # This is the check that was missing for eight releases: release.yml was
+      # fixed to be dispatchable after v0.43.0–v0.50.0 shipped with zero assets,
+      # but the DISPATCH itself was broken (a `gh workflow run` with no
+      # repository to infer), so v0.51.0 shipped empty too — and every signal a
+      # human would see said "green". A build that produces nothing must not
+      # report success; that is a gate, not a log line.
+      #
+      # It asserts a COUNT and names what it found, so the failure says whether
+      # the release is empty or merely partial.
+      - name: Verify the release carries the installer assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          assets=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')
+          echo "release $TAG carries $assets asset(s)"
+          if [ "$assets" -eq 0 ]; then
+            echo "::error::release $TAG was published with NO assets — install.sh will 404 for it"
+            echo "Expected GoReleaser to attach the installer binaries. Check the"
+            echo "'Release' step above for a skipped or partially-failed build."
+            exit 1
+          fi
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[].name' | sed 's/^/  ✓ /'

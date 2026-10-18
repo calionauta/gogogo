@@ -216,6 +216,23 @@ check-scope:
 	@go run ./cmd/check-scope
 	@echo "✅ SCOPE annotations present"
 
+# check-quarantine fails when the known-flaky registry (internal/hostgate)
+# holds an entry that is malformed or EXPIRED — the part that keeps a
+# quarantine from becoming a silent deletion. Empty is the healthy state.
+check-quarantine:
+	@echo "→ check-quarantine (expired or malformed quarantines)..."
+	@go test ./internal/capabilities/ -run TestQuarantineRegistryIsValid -count=1
+	@echo "✅ no stale quarantines"
+
+# check-naps fails on a fixed wait in a Playwright harness that has no written
+# reason: a long sleep is an attempted synchronization, and the proxy-vs-effect
+# version of that mistake is the flake this repo has actually shipped. See
+# docs/ci-triage.md and internal/capabilities/nap_guard_test.go.
+check-naps:
+	@echo "→ check-naps (unjustified fixed waits in the browser harnesses)..."
+	@go test ./internal/capabilities/ -run TestNoFixedNapsInBrowserHarnesses -count=1
+	@echo "✅ no unjustified fixed waits"
+
 # check-flatdeps proves the flat-stack invariant without booting anything:# no banned framework in the closure, no cross-feature domain imports
 # (shared UI leaves excepted), sql.Open only in owner packages. Same
 # implementation the pre-commit flatdeps-lint job runs — not a parallel

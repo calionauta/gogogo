@@ -10,16 +10,24 @@
 //
 // Run: node scripts/build-tag-reload.test.mjs (SMOKE_BIN reuses a build,
 // SMOKE_PORT overrides the port).
+//
+// REVIVED FROM POCKETBASE ERA. This harness could not boot: it spawned
+// `serve --http <addr> --dir <dir>` and then registered its user with
+// `superuser upsert` + `/api/collections/_superusers/auth-with-password` +
+// `/api/collections/users/records`. The flat binary takes NO CLI subcommands
+// (address and data dir ride env vars) and has no PocketBase collections, so
+// the process came up on a different port than the one polled and the run died
+// with "server did not become healthy" — for as long as the stack has been
+// flat, because nothing invoked this file. It is now on the flat boot + owned
+// auth path (the `gogogo_auth` cookie), matching the other harnesses.
 import { chromium } from "playwright";
-import { spawn, spawnSync, execSync } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const PORT = Number(process.env.SMOKE_PORT || 18094);
 const BASE = `http://127.0.0.1:${PORT}`;
-const SU_EMAIL = "buildtag-superuser@local.dev";
-const SU_PASS = "BuildtagSuperuserPass!123";
 const USER_EMAIL = "buildtag-user@local.dev";
 const USER_PASS = "BuildtagUserPass!123";
 
@@ -29,7 +37,6 @@ const fail = (msg) => {
 };
 
 const tmp = mkdtempSync(join(tmpdir(), "gogogo-buildtag-"));
-const pbDir = join(tmp, "pb");
 const runtimeDir = join(tmp, "runtime");
 mkdirSync(runtimeDir, { recursive: true });
 const runtimeEnv = {
@@ -40,6 +47,10 @@ const runtimeEnv = {
   DAGNATS_ENABLED: "false",
   OFFLINE_SYNC_ENABLED: "true",
   GOGOGO_NO_BROWSER: "1",
+  // The flat binary reads these, not argv (see the header note).
+  HOST: "127.0.0.1",
+  PORT: String(PORT),
+  TURSO_DB_PATH: join(runtimeDir, "app.db"),
 };
 const providedBin = process.env.SMOKE_BIN;
 const bin = providedBin ? resolve(providedBin) : join(tmp, "web");
@@ -47,23 +58,23 @@ const bin = providedBin ? resolve(providedBin) : join(tmp, "web");
 let server = null;
 let browser = null;
 
-async function api(method, path, { body, token } = {}) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: "Bearer " + token } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+// signupCookie registers the user and returns the `gogogo_auth` cookie the
+// owned auth mints — the same cookie a browser login would carry, so the page
+// context authenticates with no token plumbing. Idempotent enough for a rerun
+// (a conflict means the user exists, which is all this needs).
+async function signupCookie(email, password) {
+  const res = await fetch(BASE + "/api/auth/signup/credential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name: "Build Tag" }),
   });
-  const text = await res.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    /* non-JSON */
-  }
-  return { status: res.status, json };
+  if (!res.ok) return "";
+  const setCookies = res.headers.getSetCookie
+    ? res.headers.getSetCookie()
+    : [res.headers.get("set-cookie")];
+  const line = (setCookies || []).find((c) => c && c.startsWith("gogogo_auth="));
+  if (!line) return "";
+  return line.split(";")[0].slice("gogogo_auth=".length);
 }
 
 async function waitForHealth(timeoutMs = 30000) {
@@ -75,7 +86,7 @@ async function waitForHealth(timeoutMs = 30000) {
     } catch {
       /* server not up yet */
     }
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500)); // poll interval
   }
   throw new Error("server did not become healthy in " + timeoutMs + "ms");
 }
@@ -92,41 +103,33 @@ try {
   }
 
   console.log(`→ Starting server on ${BASE}…`);
-  server = spawn(bin, ["serve", "--http", `127.0.0.1:${PORT}`, "--dir", pbDir], {
+  server = spawn(bin, [], {
     stdio: "ignore",
     env: runtimeEnv,
   });
   await waitForHealth();
 
-  const upsert = spawnSync(bin, ["superuser", "upsert", "--dir", pbDir, SU_EMAIL, SU_PASS], {
-    encoding: "utf8",
-    env: runtimeEnv,
-  });
-  if (upsert.status !== 0) throw new Error("superuser upsert failed");
-  const su = await api("POST", "/api/collections/_superusers/auth-with-password", {
-    body: { identity: SU_EMAIL, password: SU_PASS },
-  });
-  if (!su.json?.token) throw new Error("superuser auth failed");
-  await api("POST", "/api/collections/users/records", {
-    token: su.json.token,
-    body: { email: USER_EMAIL, password: USER_PASS, passwordConfirm: USER_PASS },
-  });
-  const auth = await api("POST", "/api/collections/users/auth-with-password", {
-    body: { identity: USER_EMAIL, password: USER_PASS },
-  });
-  if (!auth.json?.token) throw new Error("user auth failed");
+  const authCookie = await signupCookie(USER_EMAIL, USER_PASS);
+  if (!authCookie) throw new Error("signup did not return a gogogo_auth cookie");
 
   console.log("→ Loading /todo, poisoning the stored build tag…");
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const context = await browser.newContext();
-  await context.addCookies([{ name: "gogogo_auth", value: auth.json.token, url: BASE + "/" }]);
+  await context.addCookies([{ name: "gogogo_auth", value: authCookie, url: BASE + "/" }]);
 
   const pageErrors = [];
   const page = await context.newPage();
   page.on("pageerror", (err) => pageErrors.push(String(err)));
 
   await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
-  await page.waitForTimeout(1200); // first check stores the real tag
+  // Wait for the FIRST build check to have stored the current tag, instead of
+  // a 1200ms nap. The check writes the tag into sessionStorage; until it has,
+  // poisoning that key would be overwritten by the real value and the test
+  // would assert nothing. Polling the stored value is the readiness signal —
+  // the same signal the code under test produces, not a proxy for it.
+  await page.waitForFunction(() => sessionStorage.getItem("gogogo_build") !== null, null, {
+    timeout: 10000,
+  });
 
   // Poison: pretend this tab rendered under an older build.
   await page.evaluate(() => sessionStorage.setItem("gogogo_build", "stale/deadbeef"));
@@ -137,14 +140,21 @@ try {
   });
   // Fire the same trigger a returning tab fires.
   await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
-  await page.waitForTimeout(4000);
+  // Wait for the reload to be OBSERVED rather than for a 4s window to pass: the
+  // assertion wants exactly one navigation, so the navigation itself is the
+  // event to await. This resolves with the first one and times out if the bug
+  // (no reload at all) reproduces — a failure either way, but with a useful
+  // message instead of a silent count.
+  await page.waitForEvent("framenavigated", { timeout: 15000 }).catch(() => {});
   if (navigations !== 1) {
     fail(`stale tag caused ${navigations} reloads, want exactly 1 (loop or no reload)`);
   } else {
     console.log("  ✓ stale tag reloaded exactly once");
   }
-  // Stability: no further reloads once current.
-  await page.waitForTimeout(3000);
+  // Stability: no FURTHER reloads once current. This is an ABSENCE assertion,
+  // so a window is the only way to make it — there is no event that means
+  // "nothing else happened". Kept as a bounded settle window, and labelled.
+  await page.waitForTimeout(3000); // settle window: absence check, no event to await
   if (navigations !== 1) {
     fail(`tab kept reloading after settling (${navigations} total) — refresh loop`);
   } else {

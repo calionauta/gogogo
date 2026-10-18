@@ -689,8 +689,12 @@ try {
     if (route === "/todo") {
       await page.content().then((c) => writeFileSync("/tmp/served_todos.html", c));
     }
-    // Give inline scripts + SSE a moment to execute.
-    await page.waitForTimeout(1000);
+    // Give inline scripts + SSE a moment to execute before reading the error
+    // buffers. This is an ABSENCE assertion ("no pageerror fired"), so there is
+    // no event to await — the window IS the check, and it is labelled as such.
+    // A shorter window would let a late error escape into the next route's
+    // buffer, which is the failure this loop exists to prevent.
+    await page.waitForTimeout(1000); // settle window: absence check, no event to await
     if (pageErrors.length > 0) {
       fail(`uncaught JS error on ${route}: ${pageErrors.map((e) => e.msg).join(" | ")}`);
       for (const e of pageErrors) {
@@ -745,7 +749,10 @@ try {
   // presenter; crash must bump the room generation (supervisor restart).
   console.log("→ Exercising room roster + presenter lock + crash hook…");
   await page.goto(BASE + "/room", { waitUntil: "load", timeout: 20000 });
-  await page.waitForTimeout(1500);
+  // The room's own polling loop heartbeats on load; poll the roster endpoint
+  // for the member rather than napping 1500ms and hoping. The loop below
+  // already polls — this just removes the upfront nap, so the bounded retry
+  // carries the deadline instead of a fixed guess.
   // Heartbeat is fire-and-forget: poll briefly so transport timing, not
   // grain behavior, decides the verdict.
   let rosterHasUser = false;
@@ -755,7 +762,7 @@ try {
       const j = await r.json();
       return (j.members || []).some((m) => m.name === email);
     }, USER_EMAIL);
-    if (!rosterHasUser) await page.waitForTimeout(500);
+    if (!rosterHasUser) await page.waitForTimeout(500); // poll interval
   }
   if (!rosterHasUser) fail("room roster does not contain the logged-in user after heartbeat");
   const genBefore = await page.evaluate(async () => (await (await fetch("/room/roster")).json()).generation);
@@ -768,7 +775,7 @@ try {
   await page.evaluate(() => fetch("/room/crash", { method: "POST" }));
   let genAfter = genBefore;
   for (let i = 0; i < 40 && genAfter <= genBefore; i++) {
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(500); // poll interval
     genAfter = await page.evaluate(async () => (await (await fetch("/room/roster")).json()).generation);
   }
   if (genAfter <= genBefore) fail(`room generation stuck at ${genAfter} after crash (want > ${genBefore})`);
