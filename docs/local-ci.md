@@ -289,7 +289,7 @@ by hand, so when a step is added to one, add it to the other:
 |---|---|---|
 | templ generate | ✓ | ✓ |
 | generated `_templ.go` matches sources | ✓ `check-generated` | ✓ (also pre-commit, `**/*.templ`) |
-| CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
+| CSS bundle matches sources | ✓ `css-check` (both skins) | ✓ (after `npm ci`) |
 | SCOPE annotations | ✓ | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
@@ -323,12 +323,21 @@ CI, fails a job that uses `node`/`go` without installing them first).
 race+browser fan-out (`scripts/ci-fanout.sh`).
 
 **The generated-artifact checks are the ones that regressed.** `_templ.go`
-(71 files) and `web/resources/static/app.min.css` are both *committed and
-embedded in the binary*. Both CIs used to only **generate** them and then run
-every subsequent step against the freshly generated output — so a `.templ` (or
-`input.css`) edit whose regeneration was never committed passed lint, passed
-tests, passed both smoke tests, and shipped a binary rendering stale markup.
-Both now regenerate and **diff**, which is exactly what `css-check` does.
+(71 files) and the two committed CSS bundles (`app.min.css`, `basecoat.min.css`)
+are *committed and embedded in the binary*. Both CIs used to only **generate**
+them and then run every subsequent step against the freshly generated output —
+so a `.templ` (or `input.css`) edit whose regeneration was never committed
+passed lint, passed tests, passed both smoke tests, and shipped a binary
+rendering stale markup. Both now regenerate and **diff**, which is exactly what
+`css-check` does.
+
+**The Basecoat bundle slipped through that same hole a second time.** CI and
+`bin/check-css.sh` built only `app.min.css` while their diff named both files,
+so `basecoat.min.css` was compared against itself — the diff was empty by
+construction and could never fail, however stale the committed bundle was (it
+was, by 7 lines, until v0.51.0). `make css-check` builds `css-all` and did
+catch it, which is why CI and the hook disagreed. All three now build
+`css-all`: one command, no drift.
 
 This is deterministic, and that matters: the reason `actions/cache` is disabled
 in this repo (`skip-cache: true`, `cache: false`) is a *real, documented*

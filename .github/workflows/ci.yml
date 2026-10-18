@@ -205,13 +205,19 @@ jobs:
         with:
           node-version: "20"
       - name: CSS build
-        run: make css
+        # css-all, not css: BOTH bundles are committed and embedded, and the
+        # guard below names both. Building only app.min.css left
+        # basecoat.min.css untouched, so the working tree kept the committed
+        # (stale) bytes and the diff was empty by construction — the check
+        # could never fail on it. make css-check and bin/check-css.sh already
+        # build both; this brings CI in line.
+        run: make css-all
       - name: Check CSS bundle is committed
-        # `make css` writes web/resources/static/app.min.css, which is
-        # COMMITTED and embedded in the Go binary. Until now CI only BUILT it:
-        # a stale committed bundle passed every check, because the build
-        # overwrote it before anything compared. That is the same failure mode
-        # as unregenerated _templ.go, and it is what made a stale local
+        # `make css-all` writes app.min.css and basecoat.min.css, which are
+        # COMMITTED and embedded in the Go binary. Until now CI only BUILT
+        # app.min.css: a stale committed bundle passed every check, because the
+        # build overwrote it before anything compared. That is the same failure
+        # mode as unregenerated _templ.go, and it is what made a stale local
         # node_modules surface as a phantom "css-check failed" with no source
         # change. Source deps are pinned by package-lock.json + `npm ci`
         # (make css-install verifies the installed versions match the lockfile),

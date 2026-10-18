@@ -34,7 +34,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 | `make build` | Unified build, no lint/tests |
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` (`-only-errors` keeps intentional attrs) |
-| `make css` / `make css-check` | Rebuild / verify Tailwind bundle (scans `features/`, `web/`, `internal/`) |
+| `make css` / `make css-all` / `make css-check` | Rebuild one skin (DaisyUI) / every skin / verify BOTH are current (scans `features/`, `web/`, `internal/`; commit `css-all`) |
 | `make check-scope` | Assert `// SCOPE:<core|plugin|feature>` on every `internal/`+`features/` file |
 | `make test` | Race tests, parallel across packages (CI runs them — prefer scoped tests locally) |
 | `make check-generated` | Fail if committed `_templ.go` does not match the `.templ` sources |
