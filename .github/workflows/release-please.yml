@@ -40,9 +40,18 @@ jobs:
       # the documented exception, so bridge it explicitly. Skipped when no
       # release was cut (the common case: most master pushes only refresh the
       # release PR).
+      #
+      # `-R` IS LOAD-BEARING, and its absence is why v0.51.0 shipped with zero
+      # assets. `gh` infers the repository from the git remote, and this job has
+      # no checkout step (the release-please action needs none), so the first
+      # time this branch ever executed it died with "fatal: not a git
+      # repository". It went unnoticed because the step only runs when
+      # `release_created == 'true'` — i.e. exactly once per release, on the
+      # merge of the release PR, and every other run was a green SKIP. The
+      # repo was therefore never resolved for the one invocation that mattered.
       - name: Build release binaries
         if: ${{ steps.release.outputs.release_created == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag_name }}
-        run: gh workflow run release.yml --ref master -f tag="$TAG"
+        run: gh workflow run release.yml -R "$GITHUB_REPOSITORY" --ref master -f tag="$TAG"
