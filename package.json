@@ -14,8 +14,6 @@
     "build": "tailwindcss -i ./src/css/input.css -o ./web/resources/static/app.min.css"
   },
   "dependencies": {
-    "@pi-kaush/pi-double-paste": "^0.1.0",
-    "@pi-kaush/pi-welcome-screen": "^0.1.2",
     "basecoat-css": "^1.0.2"
   }
 }
