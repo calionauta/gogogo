@@ -32,6 +32,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, userRole st
 			<div class="toast" data-show="$loading"></div>
 			@components.ToastContainer()
 			@sseOpener()
+			@searchModeScript()
 			@realtimeResync()
 		</body>
 	</html>
@@ -448,6 +449,25 @@ templ searchBox(signals todo.Signals) {
 	}
 }
 
+// searchModeScript defines the reader the picker and every resync path call,
+// and the basecoat page renders it explicitly: this skin is a WHOLE-PAGE
+// replacement, so it never mounts features/todo/components' RealtimeRecords —
+// where the daisyui page defines this function. Skipping it broke the skin at
+// runtime only: `searchModeValue` is evaluated inside a data-on expression at
+// click/input time, so an undefined name threw there instead of at page load,
+// and the search box silently stopped sending anything (caught by the browser
+// smoke, invisible to a render test). Same global name as the daisyui one on
+// purpose: one name, whichever layout emitted it — never two definitions on a
+// page, since a page carries exactly one skin.
+templ searchModeScript() {
+	<script>
+		window.searchModeValue = function () {
+			var sel = document.querySelector('select[name="mode"]');
+			return sel ? sel.value : '';
+		};
+	</script>
+}
+
 // searchModeSelect is the basecoat skin's layer picker. Same contract as the
 // DaisyUI one (see features/todo/components/todo_list.templ): rendered only
 // with more than one wired layer, requests a mode through @get, and reflects
@@ -683,5 +703,5 @@ templ sseOpener() {
 }
 
 templ realtimeResync() {
-	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')")
+	@components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&mode=' + encodeURIComponent(searchModeValue()) + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')")
 }

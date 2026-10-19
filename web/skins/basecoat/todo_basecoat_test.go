@@ -82,3 +82,35 @@ func TestBasecoatMutationURLsPreserveSlice(t *testing.T) {
 			"would re-render the full list and clear the active search")
 	}
 }
+
+// TestSearchModeReaderIsDefinedOnTheBasecoatPage pins a bug the browser smoke
+// caught and no render test could see: the picker and every resync path call
+// searchModeValue(), but this skin is a WHOLE-PAGE replacement, so it never
+// mounts features/todo/components' RealtimeRecords — the only place the daisyui
+// page defines that function. The call sits inside a data-on expression, which
+// Datastar evaluates at click/input time, so the page loaded fine and the search
+// box then threw instead of sending. A render-level assertion is the right
+// guard: it is a property of the emitted markup, not of a live browser.
+//
+// RED: remove @searchModeScript() from TodoPage and this fails naming it.
+func TestSearchModeReaderIsDefinedOnTheBasecoatPage(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	signals := todo.Signals{
+		SearchEnabled: true,
+		SearchMode:    "substring",
+		SearchModes:   []string{"substring", "fuzzy"},
+	}
+	if err := TodoPage("Todos", signals, "a@b.c", "user", "dev", "", true, "basecoat").Render(
+		context.Background(), &buf); err != nil {
+		t.Fatalf("TodoPage: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, "window.searchModeValue") {
+		t.Fatal("basecoat page calls searchModeValue() but never defines it: " +
+			"every search keystroke and every resync would throw")
+	}
+	if n := strings.Count(html, "window.searchModeValue ="); n != 1 {
+		t.Errorf("searchModeValue must be defined exactly once on the page, got %d", n)
+	}
+}
