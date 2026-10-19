@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -164,4 +165,37 @@ func stripPayload(raw string) string {
 		text = text[:start] + text[end+1:]
 	}
 	return strings.TrimSpace(text)
+}
+
+// IDPrefix derives a DOM-id stem from a stored message.
+//
+// Every component a message rendered needs an id unique to that message,
+// because a chat thread keeps its history: two answers on one page would
+// otherwise mint the same ids (invalid HTML, and a selector that means "the
+// first match" — see internal/components/instance.go rule 1).
+//
+// Derived from IdemKey rather than a random value per render: the stem must be
+// STABLE across renders, or a page that re-renders an old answer would move its
+// ids and any patch already aimed at one would miss. The key is already unique
+// per message and already persisted, so it is the identity this needs without
+// adding a field. It is sanitized because the key arrives from the client and
+// becomes part of an id.
+func IDPrefix(m Message) string {
+	key := m.IdemKey
+	if key == "" {
+		// A message stored without a key (every user echo, and any record the
+		// store accepted without one) still needs a stable stem. CreatedUnixNano
+		// is stable because it is stamped once, at append.
+		key = fmt.Sprintf("t%d", m.Created.UnixNano())
+	}
+	var b strings.Builder
+	for _, r := range key {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	return "chat-" + b.String()
 }

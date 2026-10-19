@@ -31,7 +31,7 @@ func (s summarizingPanel) Fill(context.Context, string, map[string]any) (map[str
 }
 
 func (s summarizingPanel) Render(map[string]any) (templ.Component, error) {
-	return GenuiTextNote("ok"), nil
+	return GenuiTextNote("stub-id", "ok"), nil
 }
 
 func (s summarizingPanel) Summary(context.Context, string) (string, error) {

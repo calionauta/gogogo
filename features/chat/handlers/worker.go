@@ -115,11 +115,18 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 			text = t
 		}
 	}
-	_ = h.store.Append(ctx, p.UserID, store.Message{
+	answer := store.Message{
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
+	}
+	_ = h.store.Append(ctx, p.UserID, answer)
+	// The live patch carries the SAME id stem the stored copy will render with
+	// (store.IDPrefix), so a reload rebuilds the page with the ids this patch
+	// already used — otherwise a patch aimed at a component would miss after
+	// any refresh, and the two renders would disagree about what an id means.
+	h.send(ctx, target, job.ClientID, chatEnvelope{
+		Text: text, Directives: dirs, IDPrefix: store.IDPrefix(answer),
 	})
-	h.send(ctx, target, job.ClientID, chatEnvelope{Text: text, Directives: dirs})
 	return nil
 }
 

@@ -16,8 +16,8 @@ import "github.com/calionauta/gogogo/features/todo"
 // todo feature's own patch target to stay live, and this component does not
 // own one; a button that writes and leaves a stale list on screen reads as
 // broken, so the panel links to /todo instead.
-templ Panel(filter string, rows []todo.PanelRows) {
-	<div id="todo-panel" class="rounded-box border border-base-300 p-4">
+templ Panel(id string, filter string, rows []todo.PanelRows) {
+	<div id={ id } class="rounded-box border border-base-300 p-4">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
 			<h3 class="font-semibold">{ todoListHeading(filter) }</h3>
 			<a href="/todo" class="link link-hover text-xs">Open in Todos</a>

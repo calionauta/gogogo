@@ -25,13 +25,24 @@ func leafFragment(name string) string {
 	case textNoteName:
 		return textNoteName + " {text}, "
 	case planCardsName:
+		// The action shape appears only when this build actually offers one:
+		// advertising it with nothing declared invites an answer that names an
+		// endpoint nobody declared, which the validator then rejects — the
+		// whole answer lost for a field the prompt asked for. See actions.go.
+		if len(DeclaredActions()) > 0 {
+			return planCardsName + " {plans:[{title, detail, action?:" +
+				"{label, method:POST|GET, url:<one declared below>, fields:{}}}]}, "
+		}
 		return planCardsName + " {plans:[{title, detail}]}, "
 	case dataTableName:
 		return dataTableName + " {headers:[], rows:[[]]}, "
 	case barChartName:
 		return barChartName + " {title, bars:[{label, value>=0}]}, "
 	case actionButtonsName:
-		return actionButtonsName + " {actions:[{label, method:POST|GET, url:/same/origin/path, fields:{}}]}, "
+		if len(DeclaredActions()) > 0 {
+			return actionButtonsName + " {actions:[{label, method:POST|GET, url:<one declared below>, fields:{}}]}, "
+		}
+		return ""
 	}
 	return ""
 }
@@ -157,6 +168,7 @@ func promptForSurfaces(surfaces []Surface) string {
 		customGuidance(surfaces) +
 		panelsFragment(surfaces) +
 		panelsGuidance(surfaces) +
+		actionsFragmentIfAllowed(surfaces) +
 		dataRule(surfaces) +
 		"No prose outside the JSON object."
 }
@@ -234,5 +246,5 @@ func dataRule(surfaces []Surface) string {
 		return ""
 	}
 	return "Reminder: the user's own data is reachable ONLY through the panel " +
-		"components above; never invent it."
+		"components above; never invent it. "
 }

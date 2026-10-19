@@ -60,6 +60,12 @@ func TestMain(m *testing.M) {
 	if err := InstallPanelRegistry(providers); err != nil {
 		panic("components: test registry install failed: " + err.Error())
 	}
+	// Actions too: an undeclared action is refused (checkDeclaredAction), so a
+	// fixture that exercises action rendering has to declare it exactly as a
+	// feature does. Installed in TestMain because the registry is process scope.
+	if aerr := InstallActionRegistry([]ActionProvider{stubTestActions{}}); aerr != nil {
+		panic("components: test action registry install failed: " + aerr.Error())
+	}
 	os.Exit(m.Run())
 }
 
@@ -120,4 +126,31 @@ func (stubTestPanel) Render(props map[string]any) (templ.Component, error) {
 	}
 	rows, _ := props["rows"].([]TodoRowInTest)
 	return stubPanelView(filter, rows), nil
+}
+
+// stubTestActions declares the actions the catalog fixtures emit, so the
+// declared-action gate has something to accept. The URLs mirror what the
+// fixtures already used before the gate existed.
+type stubTestActions struct{}
+
+func (stubTestActions) Actions() []ActionSpec {
+	return []ActionSpec{
+		{
+			Label: "Apply", Method: "POST", URL: "/api/todos",
+			Fields: map[string]string{"title": "the todo's text"},
+			When:   "the user wants a task added to their list",
+		},
+		{
+			Label: "Add to Calendar", Method: "POST", URL: "/addToCalendar",
+			Fields: map[string]string{}, When: "the user wants a plan added to a calendar",
+		},
+		{
+			Label: "Set Reminder", Method: "POST", URL: "/setReminder",
+			Fields: map[string]string{}, When: "the user wants a reminder set",
+		},
+		{
+			Label: "Add Activity", Method: "POST", URL: "/add-activity",
+			Fields: map[string]string{}, When: "the user wants an activity added",
+		},
+	}
 }

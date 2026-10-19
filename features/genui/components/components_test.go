@@ -105,10 +105,22 @@ func TestGenuiResultRendersCatalog(t *testing.T) {
 	if err := components.GenuiResult(comps, "", false).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("components.GenuiResult(full): %v", err)
 	}
-	for _, want := range []string{"hello", "Ship it", "today", "A", "B", "1", "<table", "<h3", "Apply"} {
+	for _, want := range []string{"hello", "Ship it", "today", "A", "B", "1", "<table", "<h3"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("full result missing %q", want)
 		}
+	}
+	// A plan with NO action renders no button. That is the contract that lets
+	// the card be used for plans nobody can act on, and it is why "Apply" is
+	// not in the list above: an unactionable plan must not show a control that
+	// goes nowhere.
+	if strings.Contains(buf.String(), ">Apply<") {
+		t.Errorf("a plan without an action rendered a button: %s", buf.String())
+	}
+	// Every rendered component carries its instance id, so a page holding more
+	// than one can address each.
+	if !strings.Contains(buf.String(), `id="genui-`) {
+		t.Errorf("rendered components carry no instance id: %s", buf.String())
 	}
 	// The scroll anchor must ride INSIDE the replaced region, after the
 	// components: the patch is an outer replace of #genui-result, so the

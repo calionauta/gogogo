@@ -309,24 +309,6 @@ func emitToast(sse *sdk.ServerSentEventGenerator, message, toastType string) err
 	)
 }
 
-// emitToastAction appends a toast that does NOT auto-dismiss and carries a link
-// to where the result actually went.
-//
-// It exists for a write fired from a page that cannot show the outcome:
-// plan_cards' Apply posts to /api/todos from /chat and /genui, where the
-// patched list does not exist. There a 3s toast was the ONLY evidence the click
-// did anything, and a missed one reads as a dead button — which is exactly what
-// was reported. Keeping it on screen plus naming the destination is the honest
-// minimum when the page itself cannot change.
-func emitToastAction(sse *sdk.ServerSentEventGenerator, message, actionLabel, actionHref string) error {
-	return patchSSE(
-		sse,
-		ic.ToastAction(message, "success", ic.NewToastID(), actionLabel, actionHref),
-		sdk.WithSelectorID("toast-container"),
-		sdk.WithModeAppend(),
-	)
-}
-
 // signalItemCount is the Datastar signal carrying the visible-row count.
 // One const so a rename breaks loudly at every merge site instead of
 // silently desyncing the header badge from the list.

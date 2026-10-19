@@ -171,13 +171,25 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 		children = append(children, converted)
 	}
 	d := Directive{Component: c.Type, Props: c.Props, Children: children}
+	// The instance id is SERVER-owned: drop whatever the model sent under that
+	// key before validation. Dropping rather than rejecting is deliberate — a
+	// model emitting `_id` is a harmless tic (it sees ids everywhere else), and
+	// failing the whole answer over it would be a worse response than ignoring
+	// it. Removing it here is also what keeps validatePanelProps honest: a
+	// server-owned key present in the props would otherwise look like a model
+	// field the panel did not declare.
+	delete(d.Props, InstanceIDProp)
 	// Panels are checked BEFORE the renderer, and on both parse paths (they
 	// all end here): a model answer that supplies a server-owned field is a
 	// shape error to repair, not something hydration silently overwrites.
 	if err := validatePanelProps(c.Type, d.Props); err != nil {
 		return Directive{}, err
 	}
-	if _, err := renderDepth(d, depth); err != nil {
+	// Directives carry an id from parse time on: the handler that stores or
+	// patches an answer needs the same id the browser will see, and minting it
+	// here (rather than inside each component) is what makes that possible.
+	d.ensureInstanceID("")
+	if _, err := renderWithPrefix(d, "", new(int)); err != nil {
 		return Directive{}, err
 	}
 	return d, nil

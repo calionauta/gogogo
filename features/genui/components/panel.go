@@ -236,6 +236,14 @@ func validatePanelProps(name string, props map[string]any) error {
 	}
 	writable := p.Writable()
 	for key := range props {
+		// The instance id is SERVER-owned (see instance.go): the renderer adds
+		// it to every directive's props, so it is always present and never
+		// model-writable. Skipping it here is what keeps "every prop the model
+		// sent must be declared writable" a true statement about MODEL props,
+		// instead of one that has to make an exception per panel.
+		if key == InstanceIDProp {
+			continue
+		}
 		if !slices.Contains(writable, key) {
 			return fmt.Errorf("genui: %s prop %q is not model-writable (only %v)",
 				name, key, writable)

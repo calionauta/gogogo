@@ -15,6 +15,7 @@ import (
 	"maps"
 	"strings"
 
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/features/todo"
 	todoscomp "github.com/calionauta/gogogo/features/todo/components"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -51,6 +52,31 @@ func (p *TodoPanel) Prompt() string {
 		"check what is left, plan a day around them, summarize progress): it " +
 		"renders their REAL rows, so it is the only component allowed to answer " +
 		"with todo content"
+}
+
+// Actions implements comp.ActionProvider: the ONE write this feature offers to
+// model-authored cards, described so the prompt can advertise it and the
+// catalog can validate it.
+//
+// It lives HERE, not in features/genui/components, and that is the point of the
+// seam: todo owns its route and its payload, so genui never learns what a todo
+// is (the cross-feature import the flat-deps gate forbids). Before this, the
+// route was a literal inside the catalog's markup — the same knowledge in the
+// wrong package, where trimming genui would have broken it and no other feature
+// could reuse the component.
+func (p *TodoPanel) Actions() []comp.ActionSpec {
+	return []comp.ActionSpec{{
+		Label:  "Apply",
+		Method: "POST",
+		URL:    "/api/todos",
+		// Field names are the CONTRACT: checkDeclaredAction requires the
+		// model's field keys to match these exactly, so a card cannot smuggle
+		// in a field the route would read and this declaration never exposed.
+		Fields: map[string]string{
+			"title": "the todo's text",
+		},
+		When: "when you are suggesting concrete tasks to add to the user's own todo list",
+	}}
 }
 
 // Writable implements comp.PanelProvider: the model picks the SLICE and
@@ -169,5 +195,8 @@ func (p *TodoPanel) Render(props map[string]any) (templ.Component, error) {
 		return nil, fmt.Errorf("todo panel: filter %q is not one of %v", filter, todo.ListFilters)
 	}
 	rows, _ := props["rows"].([]todo.PanelRows)
-	return todoscomp.Panel(filter, rows), nil
+	// The id comes from the renderer (comp.InstanceIDProp), so two todo panels
+	// on one page — a chat thread keeps its history — do not collide.
+	id, _ := normalized[comp.InstanceIDProp].(string)
+	return todoscomp.Panel(id, filter, rows), nil
 }

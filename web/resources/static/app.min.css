@@ -7475,6 +7475,12 @@
       border-color: color-mix(in oklab, var(--color-error) 40%, transparent);
     }
   }
+  .border-success\/40 {
+    border-color: var(--color-success);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-success) 40%, transparent);
+    }
+  }
   .border-warning\/50 {
     border-color: var(--color-warning);
     @supports (color: color-mix(in lab, red, red)) {
@@ -7569,6 +7575,12 @@
   .bg-base-300 {
     background-color: var(--color-base-300);
   }
+  .bg-error\/10 {
+    background-color: var(--color-error);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-error) 10%, transparent);
+    }
+  }
   .bg-primary {
     background-color: var(--color-primary);
   }
@@ -7585,6 +7597,12 @@
     background-color: var(--color-secondary);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-secondary) 10%, transparent);
+    }
+  }
+  .bg-success\/10 {
+    background-color: var(--color-success);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-success) 10%, transparent);
     }
   }
   @layer daisyui.l1.l2.l3 {
@@ -7744,9 +7762,6 @@
   .break-all {
     word-break: break-all;
   }
-  .whitespace-nowrap {
-    white-space: nowrap;
-  }
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
@@ -7883,9 +7898,6 @@
   }
   .prose :where(a.btn:not(.btn-link)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     text-decoration-line: none;
-  }
-  .underline {
-    text-decoration-line: underline;
   }
   .opacity-30 {
     opacity: 30%;

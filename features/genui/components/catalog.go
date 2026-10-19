@@ -31,13 +31,30 @@ type Directive struct {
 // maxDirectiveDepth bounds nesting (top level counts as 0).
 const maxDirectiveDepth = 3
 
+// instanceID carries the server-assigned instance id through decodeProps.
+//
+// Embedded rather than added to each props struct: decodeProps is strict
+// (DisallowUnknownFields), and the id is on EVERY leaf's props, so a repeated
+// field would be ten places to forget. The field is unexported to the model by
+// construction — parse.go deletes the key before validation, so nothing a model
+// sends can reach it.
+type instanceID struct {
+	//nolint:tagliatelle // "_id" is the WIRE name and is deliberately not
+	// camelCase: the leading underscore marks the key as server-owned, which is
+	// the whole point of the field (see instance.go). Renaming it to "id" would
+	// make it look like a model-settable prop.
+	ID string `json:"_id"`
+}
+
 // TextNoteProps is a single prose card.
 type TextNoteProps struct {
+	instanceID
 	Text string `json:"text"`
 }
 
 // SectionProps titles a group of nested components.
 type SectionProps struct {
+	instanceID
 	Title string `json:"title"`
 }
 
@@ -50,6 +67,7 @@ type Bar struct {
 // BarChartProps is a pure-CSS bar chart: zero JS, zero chart lib, fully
 // server-rendered — the visual proof an answer is interface, not prose.
 type BarChartProps struct {
+	instanceID
 	Title string `json:"title"`
 	Bars  []Bar  `json:"bars"`
 }
@@ -66,6 +84,7 @@ type Action struct {
 
 // ActionButtonsProps is a row of action buttons.
 type ActionButtonsProps struct {
+	instanceID
 	Actions []Action `json:"actions"`
 }
 
@@ -75,22 +94,39 @@ type ActionButtonsProps struct {
 // styles with Tailwind/DaisyUI classes, never scripts, styles, handlers
 // or media. Chat-only affordance: the Ask prompt never advertises it.
 type HTMLBlockProps struct {
+	instanceID
 	HTML string `json:"html"`
 }
 
 // Plan is one actionable plan card.
+//
+// Action is OPTIONAL and is the only thing here a model uses to ask for a
+// write. It exists because the alternative — a hardcoded
+// `@post('/api/todos', ...)` inside the catalog's markup — put one feature's
+// endpoint inside a shared leaf: genui would then know what a todo is (the
+// cross-feature import the flat-deps gate forbids), and the SAME component
+// could not serve any other feature. As a validated prop the action is generic
+// (any same-origin path, see checkAction), the feature's knowledge stays in the
+// feature, and a plan with no action renders no button instead of a button
+// aimed at a page the user is not on.
 type Plan struct {
 	Title  string `json:"title"`
 	Detail string `json:"detail"`
+	// Action, when present, renders a submit button on this card's footer.
+	// Method+URL+Fields are the same contract action_buttons uses, so there is
+	// one vocabulary for "do something in this app" rather than two shapes.
+	Action *Action `json:"action,omitempty"`
 }
 
 // PlanCardsProps is a list of plan cards with apply buttons.
 type PlanCardsProps struct {
+	instanceID
 	Plans []Plan `json:"plans"`
 }
 
 // DataTableProps is a small read-only table.
 type DataTableProps struct {
+	instanceID
 	Headers []string   `json:"headers"`
 	Rows    [][]string `json:"rows"`
 }
@@ -150,7 +186,7 @@ var renderers = map[string]renderer{
 		if strings.TrimSpace(p.Text) == "" {
 			return nil, errors.New("genui: text_note requires text")
 		}
-		return GenuiTextNote(p.Text), nil
+		return GenuiTextNote(p.ID, p.Text), nil
 	},
 	"plan_cards": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[PlanCardsProps](props)
@@ -164,8 +200,24 @@ var renderers = map[string]renderer{
 			if strings.TrimSpace(plan.Title) == "" {
 				return nil, errors.New("genui: plan_cards plan requires title")
 			}
+			// A plan's action is checked TWICE, and both are needed.
+			//
+			// checkAction is the shape gate (same-origin path, POST|GET): it is
+			// what stops a card becoming a request-forgery button. That alone
+			// would still let the model aim at any same-origin route that
+			// happens to exist, so checkDeclaredAction narrows it to the actions
+			// FEATURES DECLARED (actions.go) — the model chooses WHICH offered
+			// action with what content, never which endpoint.
+			if plan.Action != nil {
+				if err := checkAction(*plan.Action); err != nil {
+					return nil, fmt.Errorf("genui: plan_cards action: %w", err)
+				}
+				if err := checkDeclaredAction(*plan.Action); err != nil {
+					return nil, fmt.Errorf("genui: plan_cards action: %w", err)
+				}
+			}
 		}
-		return GenuiPlanCards(p.Plans), nil
+		return GenuiPlanCards(p.ID, p.Plans), nil
 	},
 	"data_table": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[DataTableProps](props)
@@ -175,7 +227,7 @@ var renderers = map[string]renderer{
 		if len(p.Headers) == 0 || len(p.Rows) == 0 {
 			return nil, errors.New("genui: data_table requires headers and rows")
 		}
-		return GenuiDataTable(p.Headers, p.Rows), nil
+		return GenuiDataTable(p.ID, p.Headers, p.Rows), nil
 	},
 	"bar_chart": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[BarChartProps](props)
@@ -198,7 +250,7 @@ var renderers = map[string]renderer{
 		if peak <= 0 {
 			return nil, errors.New("genui: bar_chart needs a positive value to scale by")
 		}
-		return GenuiBarChart(p.Title, p.Bars, peak), nil
+		return GenuiBarChart(p.ID, p.Title, p.Bars, peak), nil
 	},
 	"action_buttons": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[ActionButtonsProps](props)
@@ -212,8 +264,14 @@ var renderers = map[string]renderer{
 			if err := checkAction(a); err != nil {
 				return nil, err
 			}
+			// Same declared-action gate as plan_cards: the shape check alone
+			// would allow any existing same-origin route, so without this a
+			// standalone button row could call an endpoint no feature offered.
+			if err := checkDeclaredAction(a); err != nil {
+				return nil, err
+			}
 		}
-		return GenuiActionButtons(p.Actions), nil
+		return GenuiActionButtons(p.ID, p.Actions), nil
 	},
 	htmlBlockName: func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[HTMLBlockProps](props)
@@ -224,7 +282,7 @@ var renderers = map[string]renderer{
 		if err != nil {
 			return nil, err
 		}
-		return GenuiHTMLBlock(clean), nil
+		return GenuiHTMLBlock(p.ID, clean), nil
 	},
 }
 
@@ -303,15 +361,28 @@ func CatalogComponentsFor(surfaces []Surface) []string {
 // names fail even if ParseDirectives was skipped — defense in depth,
 // same fail-closed shape as RequireOwner behind every handler.
 func Render(d Directive) (templ.Component, error) {
-	return renderDepth(d, 0)
+	return renderWithPrefix(d, "", new(int))
 }
 
 // RenderAll renders a directive list, stopping at the first failure
 // (a half-rendered generative region is worse than an error toast).
+//
+// An optional id prefix makes every id in this answer unique on a page that
+// already holds other answers: a chat thread keeps its history, so the second
+// answer's components would otherwise repeat the first one's ids. Callers that
+// replace a single region (Ask) pass nothing and let each component mint its
+// own; callers that append to a growing page (chat) pass a per-message stem.
 func RenderAll(dirs []Directive) ([]templ.Component, error) {
+	return RenderAllWithPrefix(dirs, "")
+}
+
+// RenderAllWithPrefix is RenderAll with an explicit id prefix, applied to every
+// component rendered from this list (see instance.go for why ids exist).
+func RenderAllWithPrefix(dirs []Directive, idPrefix string) ([]templ.Component, error) {
 	comps := make([]templ.Component, 0, len(dirs))
+	seq := 0
 	for _, d := range dirs {
-		comp, err := Render(d)
+		comp, err := renderWithPrefix(d, idPrefix, &seq)
 		if err != nil {
 			// A panel that cannot render is replaced, not fatal. Panels are
 			// the only components whose props come from the store, so theirs is
@@ -320,7 +391,7 @@ func RenderAll(dirs []Directive) ([]templ.Component, error) {
 			// (the live "empty result" report). Non-panel failures stay fatal:
 			// those are a bad answer, and a half-rendered one is worse.
 			if IsPanel(d.Component) {
-				comps = append(comps, PanelUnavailable(d.Component))
+				comps = append(comps, PanelUnavailable(d.Component, d.InstanceID()))
 				continue
 			}
 			return nil, err
@@ -332,10 +403,10 @@ func RenderAll(dirs []Directive) ([]templ.Component, error) {
 
 // renderChildren renders a container's nested directives, keeping the loop's
 // error arm out of renderDepth (one flat function beats a nested if).
-func renderChildren(children []Directive, depth int) ([]templ.Component, error) {
+func renderChildren(children []Directive, depth int, idPrefix string, seq *int) ([]templ.Component, error) {
 	comps := make([]templ.Component, 0, len(children))
 	for _, child := range children {
-		comp, err := renderDepth(child, depth+1)
+		comp, err := renderDepthAt(child, depth+1, idPrefix, seq)
 		if err != nil {
 			return nil, err
 		}
@@ -344,9 +415,17 @@ func renderChildren(children []Directive, depth int) ([]templ.Component, error) 
 	return comps, nil
 }
 
-// renderDepth is Render with a nesting budget: one enforcement point
-// for both the parse path and direct Render callers.
-func renderDepth(d Directive, depth int) (templ.Component, error) {
+// renderWithPrefix is the real renderer. idPrefix+seq build the id for a
+// directive that has none; a directive that already carries one keeps it (that
+// is the parse-time assignment, so the id a handler computed is the id the
+// browser sees).
+func renderWithPrefix(d Directive, idPrefix string, seq *int) (templ.Component, error) {
+	return renderDepthAt(d, 0, idPrefix, seq)
+}
+
+// renderDepthAt is renderWithPrefix with a nesting budget: one enforcement
+// point for both the parse path and direct Render callers.
+func renderDepthAt(d Directive, depth int, idPrefix string, seq *int) (templ.Component, error) {
 	if depth > maxDirectiveDepth {
 		return nil, fmt.Errorf("genui: directives nested deeper than %d", maxDirectiveDepth)
 	}
@@ -361,26 +440,49 @@ func renderDepth(d Directive, depth int) (templ.Component, error) {
 		if strings.TrimSpace(title.Title) == "" {
 			return nil, errors.New("genui: section requires title")
 		}
-		children, err := renderChildren(d.Children, depth)
+		children, err := renderChildren(d.Children, depth, idPrefix, seq)
 		if err != nil {
 			return nil, err
 		}
-		return GenuiSection(title.Title, children), nil
+		return GenuiSection(instanceIDFor(&d, idPrefix, seq), title.Title, children), nil
 	}
 	// Installed panels render through their own provider, so no per-feature
 	// entry lives in the renderer table. Checked before the generative
 	// registry because a name can only be one or the other (the boot asserts
 	// that a panel name is not also a leaf).
-	if comp, isPanel, err := renderPanel(d.Component, d.Props); isPanel {
+	//
+	// The id rides in the props, so a provider renders its own root id and two
+	// instances of the same panel cannot collide on a page holding a history.
+	props := d.Props
+	if props == nil {
+		props = map[string]any{}
+	}
+	props[InstanceIDProp] = instanceIDFor(&d, idPrefix, seq)
+	if comp, isPanel, err := renderPanel(d.Component, props); isPanel {
 		return comp, err
 	}
 	r, ok := renderers[d.Component]
 	if !ok {
 		return nil, fmt.Errorf("genui: unregistered component %q", d.Component)
 	}
-	props := d.Props
-	if props == nil {
-		props = map[string]any{}
-	}
 	return r(props)
+}
+
+// instanceIDFor resolves the id a directive should render with: the one it
+// already carries, else `prefix-N` when a prefix was supplied, else its own
+// random id. Advancing the shared sequence keeps siblings distinct without the
+// caller having to know how many components an answer contains.
+func instanceIDFor(d *Directive, idPrefix string, seq *int) string {
+	if id := d.InstanceID(); validInstanceID(id) {
+		return id
+	}
+	if idPrefix != "" {
+		*seq++
+		if id := fmt.Sprintf("%s%d", idPrefix, *seq); validInstanceID(id) {
+			d.ensureInstanceID(id)
+			return id
+		}
+	}
+	d.ensureInstanceID("")
+	return d.InstanceID()
 }

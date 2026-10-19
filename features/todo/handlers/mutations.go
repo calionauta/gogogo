@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo/features/todo"
+	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -117,18 +119,19 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	h.respondCreated(ctx, w, r, todos, title)
 }
 
-// respondCreated streams the create's response: signals, the list patch, and a
-// toast whose SHAPE depends on whether the originating page can show the result.
+// respondCreated streams the create's response: signals, the list patch, and —
+// when the caller names its own slot — an in-place answer instead.
 //
 // Split from handleCreate for the complexity gate, and because the two halves
-// answer different questions — the handler decides what to write, this decides
-// how to report it. A create fired from a page with no #todo-list (plan_cards'
-// Apply on /chat and /genui) still sends the list patch, and that patch matches
-// nothing there: the row was created and the page showed no change, which reads
-// as a dead button. So that origin gets a toast that does not auto-dismiss and
-// links to the page where the row actually is, keyed by a hidden form field
-// rather than by the URL — the todo page's own composer keeps its exact
-// previous behaviour.
+// answer different questions: the handler decides what to write, this decides
+// how to report it.
+//
+// Two callers, two shapes, and the difference is what the FIRST of them can
+// show. The todo page's composer owns #todo-list, so it gets the list patch and
+// a short toast. A model-authored card (plan_cards' Apply on /chat or /genui)
+// owns neither: it sends `_target`, so the response replaces THAT slot with the
+// outcome and the list patch is skipped — aiming at a region the page does not
+// have is exactly what made the click look inert while the row was created.
 //
 //nolint:contextcheck // SSE emission ends in datastar-go sinks (no ctx param)
 func (h *Handler) respondCreated(
@@ -148,15 +151,20 @@ func (h *Handler) respondCreated(
 		h.fail(ctx, w, "todo: create signals failed", err, "save failed")
 		return
 	}
-	foreign := r.FormValue("origin") == originGenui
-	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
-		h.fail(ctx, w, "todo: create patch failed", err, "save failed")
+	// An action fired from a model-authored card names its OWN slot, and that
+	// slot is the whole response. Reporting a card-level write with the page's
+	// list patch is what produced "I clicked and nothing happened": the patch's
+	// target is the todo list, which the page hosting the card does not have,
+	// so the browser matched nothing and the card looked inert — while the row
+	// was in fact created.
+	if target := formTarget(r); target != "" {
+		if aerr := h.answerCardAction(sse, target, title); aerr != nil {
+			h.fail(ctx, w, "todo: action result patch failed", aerr, "save failed")
+		}
 		return
 	}
-	if foreign {
-		if err := emitToastAction(sse, "Added to your todos: "+title, "Open Todos", "/todo"); err != nil {
-			h.fail(ctx, w, "todo: create toast failed", err, "save failed")
-		}
+	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
+		h.fail(ctx, w, "todo: create patch failed", err, "save failed")
 		return
 	}
 	if err := emitToast(sse, "Added", "success"); err != nil {
@@ -164,11 +172,61 @@ func (h *Handler) respondCreated(
 	}
 }
 
-// originGenui is the `origin` field value plan_cards sends. A named constant
-// because the markup writing it and the handler reading it live in different
-// packages, and a typo would silently restore the dead-button behaviour (the
-// field is optional, so nothing would fail loudly).
-const originGenui = "genui"
+// formTargetField is the hidden input a catalog action sends with its own card
+// id. Namespaced with the same leading underscore as the other server-owned
+// props so it is recognizable as "the framework told you this, not the model".
+const formTargetField = "_target"
+
+// formTarget reads the caller's own slot id, or "" when there is none.
+//
+// VALIDATED, not trusted: this value becomes a Datastar selector, so an
+// unconstrained one is a way to aim a patch at any element on the page (or, with
+// a crafted string, at something the responder did not intend). The same
+// character rule the instance ids are minted under is applied here, which means
+// only ids this app could have generated are accepted — a hand-written or
+// crafted value is ignored and the response falls back to the list patch.
+func formTarget(r *http.Request) string {
+	target := strings.TrimSpace(r.FormValue(formTargetField))
+	if !validTargetID(target) {
+		return ""
+	}
+	return target
+}
+
+// validTargetID mirrors the instance-id rule (letters, digits, - and _; not
+// starting with a digit; bounded length). Spelled here rather than imported
+// from features/genui/components because a trim removes that package and this
+// handler must keep compiling — and the rule is a security boundary, so it
+// wants to be visible next to the code that trusts it.
+func validTargetID(s string) bool {
+	if s == "" || len(s) > 64 {
+		return false
+	}
+	for i, r := range s {
+		ok := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_'
+		if !ok {
+			return false
+		}
+		if i == 0 && r >= '0' && r <= '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// answerCardAction replaces the clicked card with its outcome, in place.
+//
+// Returns the write error instead of failing here: the response is already an
+// open SSE stream at this point, so the caller owns the failure report (and it
+// needs the ResponseWriter to send it). No ctx parameter for that reason — the
+// only work left is a write to an already-open stream.
+func (h *Handler) answerCardAction(
+	sse *sdk.ServerSentEventGenerator, target, title string,
+) error {
+	return dshelpers.RenderAndPatch(sse,
+		ic.ActionResult(target, true, "Added to your todos: "+title, "Open Todos", "/todo"),
+		sdk.WithSelector("#"+target))
+}
 
 // patchListSelf tags the originating mutation as "self" (self-origin entry
 // animation) and patches the list with view transitions, merging the fresh

@@ -45,39 +45,25 @@ func SafeJSON(v any) string {
 // the SSE Hub, so any feature can produce toast notifications by calling
 // the same pattern: render Toast, append to #toast-container via SSE.
 templ Toast(message string, toastType string, toastID string) {
-	@toastElement(message, toastType, toastID, "", "", false)
-}
-
-// ToastAction is a toast with a link, and it does not auto-dismiss.
-//
-// Both differences serve one case: a write whose result lands on ANOTHER page
-// (plan_cards' Apply posts to /api/todos from /chat and /genui, where the
-// patched list does not exist). There the toast is the only evidence the click
-// did anything, so it must not vanish after 3s, and it must say where the row
-// went. A plain 3s "Added" was the entire feedback before, and a missed one
-// reads as a dead button.
-templ ToastAction(message string, toastType string, toastID string, actionLabel string, actionHref string) {
-	@toastElement(message, toastType, toastID, actionLabel, actionHref, true)
+	@toastElement(message, toastType, toastID)
 }
 
 // toastElement is the one implementation every shape shares: only the
 // auto-dismiss timers and the optional action link differ, and duplicating the
 // markup would let the versions drift (the dismiss timers must keep matching
 // the CSS progress bar).
-templ toastElement(message string, toastType string, toastID string, actionLabel string, actionHref string, persistent bool) {
+templ toastElement(message string, toastType string, toastID string) {
 	<div
 		id={ toastID }
 		data-signals={ SafeJSON(makeToastSignals(toastID)) }
 		data-class={ fmt.Sprintf(`{'open': $%s === true}`, toastSignalName(toastID)) }
 		data-init__delay.10ms={ fmt.Sprintf(`$%s = true`, toastSignalName(toastID)) }
-		if !persistent {
-			if toastType == "error" {
-				data-init__delay.8s={ fmt.Sprintf(`$%s = false`, toastSignalName(toastID)) }
-				data-init__delay.8500ms="el.remove()"
-			} else {
-				data-init__delay.3s={ fmt.Sprintf(`$%s = false`, toastSignalName(toastID)) }
-				data-init__delay.3500ms="el.remove()"
-			}
+		if toastType == "error" {
+			data-init__delay.8s={ fmt.Sprintf(`$%s = false`, toastSignalName(toastID)) }
+			data-init__delay.8500ms="el.remove()"
+		} else {
+			data-init__delay.3s={ fmt.Sprintf(`$%s = false`, toastSignalName(toastID)) }
+			data-init__delay.3500ms="el.remove()"
 		}
 		class="toast-msg mb-2"
 	>
@@ -93,9 +79,6 @@ templ toastElement(message string, toastType string, toastID string, actionLabel
 		>
 			@toastIcon(toastType)
 			<span>{ message }</span>
-			if actionHref != "" {
-				<a href={ actionHref } class="link link-hover text-xs font-semibold underline whitespace-nowrap">{ actionLabel }</a>
-			}
 			<button
 				data-on:click="el.closest('.toast-msg').remove()"
 				class="btn btn-xs btn-circle btn-ghost"
