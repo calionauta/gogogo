@@ -198,6 +198,14 @@ a 403, never to an unauthorized write. Never gate a mutation on
   `TestWhiteboardRefusesDrawOnUnregisteredDoc`): a write to an id with no
   metadata row is 404 and persists nothing, using the production registry
   (the transport fixtures' opt-out is not in play).
+- **No anonymous mutations** (`TestNoMutatingRouteIsAnonymous`,
+  `TestMutatingRouteScanIsNotVacuous`, `TestAnonymousPolicyIsMinimal`):
+  scans every mutating route in the source and fails if the policy lets
+  `anonymous` reach one, unless the path is on the documented
+  `publicWrites` list (signup/signin/signout/login/logout — all
+  signed-out by definition). The vacuity test stops a broken scanner from
+  reading as a pass, and the minimality test caps the anonymous block so a
+  wildcard cannot be widened quietly.
 
 ## Adapting this guard for your product
 
