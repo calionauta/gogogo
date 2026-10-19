@@ -198,6 +198,12 @@ a 403, never to an unauthorized write. Never gate a mutation on
   `TestWhiteboardRefusesDrawOnUnregisteredDoc`): a write to an id with no
   metadata row is 404 and persists nothing, using the production registry
   (the transport fixtures' opt-out is not in play).
+- **Claim-on-open** (`TestNotesOpenRegistersFreshId`,
+  `TestWhiteboardOpenRegistersFreshId` plus their `...NeverOpenedIdStillRefused`
+  counterparts): opening a fresh id registers it and the next write persists;
+  a write to an id that was never opened stays 404. The first pair is what a
+  browser run catches when this breaks — it shipped broken once and CI
+  reported "server has 0 shapes, want 2".
 - **No anonymous mutations** (`TestNoMutatingRouteIsAnonymous`,
   `TestMutatingRouteScanIsNotVacuous`, `TestAnonymousPolicyIsMinimal`):
   scans every mutating route in the source and fails if the policy lets
@@ -299,6 +305,13 @@ Both write paths - `POST /api/notes/{id}/op` and
 got a 200 and wrote a snapshot into `doc_snapshots` that no list ever
 showed: an orphan costing storage, resurrectable by anyone who guessed the
 id again.
+
+**A doc becomes real by an act of authorship, never by a write.** Opening a
+doc id nobody created yet REGISTERS it to the visitor (`claimDoc`, called from
+`/notes/{id}` and `/whiteboard/{id}`), which is how a shared link and a fresh
+id behave, and what the browser suites drive. The rule is therefore:
+open-then-write succeeds, write-without-opening is 404. Widening the registry
+into "upsert on write" would re-open the orphan this section exists to close.
 
 **How the rule is wired, and why it is a field.** The write path asks
 `registeredDoc`, which reads the `notes`/`boards` table. That is a FIELD on

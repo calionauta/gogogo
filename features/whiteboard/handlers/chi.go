@@ -214,6 +214,13 @@ func (h *Handler) handleBoard(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "missing doc id")
 		return
 	}
+	// Opening a board id nobody created yet REGISTERS it to this visitor (they
+	// become the author): a shared link, a fresh id, both tabs. The write path
+	// then requires the row, so an unregistered id cannot take a write.
+	if !h.claimDoc(r.Context(), docID, sess.User.ID) {
+		writeText(w, http.StatusInternalServerError, "open board")
+		return
+	}
 	if snap, ok := h.worker.LoadSnapshot(docID); ok {
 		slog.Info("whiteboard: rehydrated doc", "doc", docID, "bytes", len(snap))
 	}

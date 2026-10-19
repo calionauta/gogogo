@@ -215,6 +215,14 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "missing doc id")
 		return
 	}
+	// Opening a doc id nobody created yet REGISTERS it to this visitor (they
+	// become the author). That is the app's own bootstrap: a shared link, or
+	// two tabs on a fresh id. The write paths then require the row to exist,
+	// so an unregistered id can never take a write (see claimDoc).
+	if !h.claimDoc(r.Context(), docID, sess.User.ID) {
+		writeText(w, http.StatusInternalServerError, "open note")
+		return
+	}
 	if snap, ok := h.persister.LoadSnapshot(docID); ok {
 		d := h.docs.GetOrCreate(docID)
 		if err := d.ApplyUpdate(snap); err != nil {

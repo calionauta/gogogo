@@ -28,11 +28,18 @@
 // only _test.go files replace it, and they say so at the replacement site.
 // There is no env flag and no test-name sniffing: a bypass that a request
 // cannot reach is the only kind worth having.
+//
+// The other half is claim-on-open (claimDoc): visiting a doc id with no row
+// registers it, so "open a shared link, then type" works while a write into an
+// id nobody ever opened stays refused.
 package handlers
 
 import (
 	"context"
 
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
@@ -52,6 +59,10 @@ func canDeleteDoc(role, requester, author string) bool {
 // the write paths ask instead of calling the queries directly, so a
 // transport fixture can drive synthetic ids without disabling the check in
 // production code (see the header).
+//
+// It is only the READ side of registration. A doc becomes real by an act of
+// authorship — create, or the first signed-in visit — never by a write,
+// which is what keeps the orphan from coming back (see claimDoc).
 type docRegistry func(ctx context.Context, docID string) bool
 
 // registeredDoc is the production registry: the notes table is the index,
@@ -62,4 +73,36 @@ func (h *Handler) registeredDoc(ctx context.Context, docID string) bool {
 	}
 	_, err := h.q.GetNoteMeta(ctx, docID)
 	return err == nil
+}
+
+// claimDoc registers docID to userID when it has no metadata row yet, and
+// reports whether the doc is registered afterwards.
+//
+// This is what makes "visit a doc id nobody created yet" a supported act
+// rather than a 404: the first signed-in visitor becomes the author, which is
+// exactly the rule canDeleteDoc already reads. Without it the registry check
+// would reject the app's own bootstrap (two tabs opening a shared note by
+// URL) — and it did: the browser suite's whiteboard test drove an invented id
+// and the server held 0 shapes.
+//
+// Concurrent first visits race benignly: both upsert the same primary key
+// with their own owner, so exactly one becomes the author and neither
+// request fails.
+func (h *Handler) claimDoc(ctx context.Context, docID, userID string) bool {
+	if h.registry != nil {
+		return h.registry(ctx, docID)
+	}
+	now := dbschema.Now()
+	// UpsertNote is INSERT ... ON CONFLICT DO NOTHING, so the first visitor
+	// keeps authorship and a concurrent second visit is a no-op, not a race.
+	err := h.q.UpsertNote(ctx, dbgen.UpsertNoteParams{
+		DocID: docID, Owner: userID, Updated: now, Created: now,
+	})
+	if err != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"),
+			"doc", docID, "error", err)
+		observability.Warn(ctx, "notes: claim doc", obsArgs...)
+		return false
+	}
+	return true
 }
