@@ -201,6 +201,7 @@ var All = []Capability{
 			// this unit's strip rule, which is what makes deleting them compile.
 			"features/todo/handlers/genui_panel.go",
 			"features/todo/handlers/genui_panel_test.go",
+			"features/todo/handlers/genui_owner_test.go",
 			"features/todo/panel.go",
 			"features/todo/panel_filter_test.go",
 			"features/todo/components/panel.templ",

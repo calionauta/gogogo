@@ -54,6 +54,18 @@ func (p *TodoPanel) Prompt() string {
 		"with todo content"
 }
 
+// Aliases implements comp.PanelAliaiser: the spellings models are known to use
+// for this panel.
+//
+// Declared HERE rather than in the shared catalog, which is the point of the
+// seam: genui resolves them without knowing what a todo is. A hardcoded table in
+// that package would carry this feature's vocabulary into every build, reject
+// every future panel's synonyms, and couple the catalog to a feature it is
+// supposed to know nothing about.
+func (p *TodoPanel) Aliases() []string {
+	return []string{"todos", "todo", "task_list", "tasks"}
+}
+
 // Actions implements comp.ActionProvider: the ONE write this feature offers to
 // model-authored cards, described so the prompt can advertise it and the
 // catalog can validate it.

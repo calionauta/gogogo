@@ -135,6 +135,11 @@ func InstallPanelRegistry(providers []PanelProvider) error {
 		return err
 	}
 
+	aliases, aerr := collectPanelAliases(providers, byName)
+	if aerr != nil {
+		return aerr
+	}
+
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 	if registry.installed && !equalStrings(registry.inOrder, names) {
@@ -144,8 +149,51 @@ func InstallPanelRegistry(providers []PanelProvider) error {
 	}
 	registry.byName = byName
 	registry.inOrder = names
+	panelAliases = aliases
 	registry.installed = true
 	return nil
+}
+
+// collectPanelAliases folds each provider's declared aliases into one table,
+// rejecting anything ambiguous.
+//
+// Ambiguity is a BOOT error, not a last-write-wins: an alias that matches
+// another panel's canonical name would make the model's `todos` resolve
+// nondeterministically, and one that two providers both claim has no correct
+// answer at all. Failing here means the operator sees it at startup instead of
+// as an occasionally-wrong render.
+func collectPanelAliases(
+	providers []PanelProvider, byName map[string]PanelProvider,
+) (map[string]string, error) {
+	aliases := make(map[string]string)
+	for _, p := range providers {
+		canonical := p.Component()
+		declarer, ok := p.(PanelAliaiser)
+		if !ok {
+			continue
+		}
+		for _, raw := range declarer.Aliases() {
+			alias := strings.ToLower(strings.TrimSpace(raw))
+			if alias == "" {
+				return nil, fmt.Errorf("genui: panel %q declares an empty alias", canonical)
+			}
+			if alias == canonical {
+				// Declaring its own name as an alias is harmless noise, not an
+				// error: it resolves to itself either way.
+				continue
+			}
+			if _, isPanel := byName[alias]; isPanel {
+				return nil, fmt.Errorf("genui: panel %q declares alias %q, which is "+
+					"another panel's name", canonical, alias)
+			}
+			if owner, taken := aliases[alias]; taken && owner != canonical {
+				return nil, fmt.Errorf("genui: alias %q is claimed by both %q and %q",
+					alias, owner, canonical)
+			}
+			aliases[alias] = canonical
+		}
+	}
+	return aliases, nil
 }
 
 // equalStrings compares two sorted name lists.
@@ -172,29 +220,37 @@ func IsPanel(name string) bool {
 
 // panelAliases maps the names models reach for onto the canonical panel name.
 //
-// The canonical name is the component's, and the prompt advertises exactly
-// that; models still write the plural or a synonym (`todos`, `todo`,
-// `task_list` for `todo_list`). An unmatched name used to fail validation, so
-// the answer that should have rendered the user's real list was repaired,
-// re-answered, and finally dropped — the user saw an empty result for a
-// request the model had understood correctly. Aliases are a spelling fix, not
-// a vocabulary: aliasesFor() stays the single source, and a name with no alias
-// still fails closed (only compiled-in entries resolve, never model free text).
+// The canonical name is the component's, and the prompt advertises exactly that;
+// models still write the plural or a synonym (`todos`, `todo`, `task_list` for
+// `todo_list`). An unmatched name used to fail validation, so the answer that
+// should have rendered the user's real data was repaired, re-answered, and
+// finally dropped — the user saw an empty result for a request the model had
+// understood correctly.
 //
-// Adding an alias: one line here, and the panel provider keeps its own name.
-var panelAliases = map[string]string{
-	"todos":     todoListPanel,
-	"todo":      todoListPanel,
-	"task_list": todoListPanel,
-	"tasks":     todoListPanel,
-}
+// THE TABLE IS FILLED BY PROVIDERS, NOT SPELLED HERE. A hardcoded map is how
+// this seam would stop being generic: it knows `todo_list` and its synonyms while
+// every future panel's synonyms are rejected, and the shared catalog would
+// contain one feature's vocabulary — the very coupling the provider seam exists
+// to prevent. Instead a provider may announce its own aliases
+// (PanelAliaiser), and InstallPanelRegistry folds them in.
+//
+// Aliases are a spelling fix, not a vocabulary: only names a provider declared
+// resolve, and an unknown name still fails closed (never model free text).
+var panelAliases = map[string]string{}
 
-// todoListPanel is the canonical name the aliases above resolve to. Spelled
-// here (not imported from the todo feature) because this package must not know
-// what a todo is beyond the NAME the provider announced at boot — the alias
-// table is a spelling fix for that name, and a constant keeps the four entries
-// from drifting apart.
-const todoListPanel = "todo_list"
+// PanelAliaiser is the OPTIONAL third half of a panel's contract: the alternate
+// spellings a model is known to use for this panel's name.
+//
+// Optional like PanelSummarizer and ActionProvider — a provider that omits it
+// simply has no aliases, and every non-alias name behaves exactly as before.
+// Declaring them next to the component is what keeps the shared catalog free of
+// feature names: the package resolves them without knowing what any panel means.
+type PanelAliaiser interface {
+	// Aliases returns alternate names models use for this panel. Each must be
+	// distinct from every other panel's canonical name and aliases (the install
+	// rejects a collision), and must not be empty.
+	Aliases() []string
+}
 
 // resolvePanelAliasLocked maps an alias to its canonical panel name. Callers
 // must hold registry.mu (read is enough); the map itself is read-only after

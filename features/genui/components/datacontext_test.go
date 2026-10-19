@@ -38,17 +38,32 @@ func (s summarizingPanel) Summary(context.Context, string) (string, error) {
 	return s.summary, s.err
 }
 
-// TestDataContext_SkipsPanelsWithoutASummarizer pins the optionality: the
-// panels installed by TestMain render fine and implement no Summary, so the
-// context must come back empty instead of erroring or inventing a section.
+// TestDataContext_SkipsPanelsWithoutASummarizer pins the optionality: of the
+// panels installed by TestMain, only the one that implements Summary may
+// contribute text.
+//
+// The registry deliberately contains BOTH kinds (stubTestPanel renders and has
+// no Summary; digestStubPanel adds one), because "optional" is only proven by a
+// set that mixes them. An earlier version of this test asserted an EMPTY
+// context, which was only true while no summarizer existed at all — it would
+// now fail for the wrong reason (a digest exists) and, worse, it could never
+// have caught a provider being skipped by mistake.
 func TestDataContext_SkipsPanelsWithoutASummarizer(t *testing.T) {
 	t.Parallel()
 	got, err := DataContext(context.Background(), "owner")
 	if err != nil {
-		t.Fatalf("DataContext errored on panels without a summarizer: %v", err)
+		t.Fatalf("DataContext errored: %v", err)
 	}
-	if got != "" {
-		t.Errorf("DataContext = %q, want empty (no summarizer installed)", got)
+	if !strings.Contains(got, digestStubSummary) {
+		t.Errorf("DataContext = %q, want the summarizing panel's digest", got)
+	}
+	// Only the summarizer may speak: a non-summarizing panel that invented a
+	// section would be the bug this guards.
+	if lines := strings.Count(strings.TrimSpace(got), "\n") + 1; lines > 1 {
+		t.Errorf("DataContext emitted %d sections, want exactly the summarizer's 1: %q", lines, got)
+	}
+	if strings.Contains(got, panelNameInTest+":") {
+		t.Errorf("a panel WITHOUT Summary contributed a section: %q", got)
 	}
 }
 

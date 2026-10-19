@@ -53,8 +53,17 @@ type llmResponder struct {
 }
 
 func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, AskPrompt(ctx, r.router, prompt, r.surfaces)+
-		dataContextBlock(ctx, r.owner))
+	return r.client.Chat(ctx, r.composePrompt(ctx, prompt))
+}
+
+// composePrompt is the prompt this leg sends, as one named function.
+//
+// Extracted so the WIRING can be tested without a live client: the failure it
+// guards is a missing concatenation here, and a test that had to go through the
+// network (or assert on source text) would not catch it. Respond is now the
+// transport call and nothing else.
+func (r llmResponder) composePrompt(ctx context.Context, prompt string) string {
+	return AskPrompt(ctx, r.router, prompt, r.surfaces) + dataContextBlock(ctx, r.owner)
 }
 
 // WithOwner implements OwnerContext.
@@ -75,8 +84,13 @@ type chatLLMResponder struct {
 }
 
 func (r chatLLMResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, ConversationPrompt(ctx, r.router, prompt, r.surfaces)+
-		dataContextBlock(ctx, r.owner))
+	return r.client.Chat(ctx, r.composePrompt(ctx, prompt))
+}
+
+// composePrompt is the chat leg's counterpart to llmResponder.composePrompt,
+// extracted for the same testability reason.
+func (r chatLLMResponder) composePrompt(ctx context.Context, prompt string) string {
+	return ConversationPrompt(ctx, r.router, prompt, r.surfaces) + dataContextBlock(ctx, r.owner)
 }
 
 // WithOwner implements OwnerContext.

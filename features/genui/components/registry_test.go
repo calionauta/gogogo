@@ -53,7 +53,7 @@ import (
 // extra provider in place. A subprocess is the honest way to do that — relaxing
 // the guard for the test would delete the thing under test.
 func TestMain(m *testing.M) {
-	providers := []PanelProvider{stubTestPanel{}, failingStubPanel{}}
+	providers := []PanelProvider{stubTestPanel{}, failingStubPanel{}, digestStubPanel{}}
 	if os.Getenv("GOGOGO_TEST_TWO_PANELS") == "1" {
 		providers = append(providers, secondStubPanel{})
 	}
@@ -105,6 +105,12 @@ func stubPanelView(filter string, rows []TodoRowInTest) templ.Component {
 type stubTestPanel struct{}
 
 func (stubTestPanel) Component() string { return panelNameInTest }
+
+// stubTestPanel declares its aliases, which is now the ONLY way an alias
+// exists: the shared catalog holds none of its own (see PanelAliaiser). The
+// spellings mirror what the real todo provider announces, so the alias tests
+// exercise the same names a model actually writes.
+func (stubTestPanel) Aliases() []string { return []string{"todos", "todo", "task_list", "tasks"} }
 func (stubTestPanel) Prompt() string    { return "todo_list {filter: open|done|all} (test stub)" }
 func (stubTestPanel) Writable() []string {
 	return []string{"filter"}
@@ -153,4 +159,34 @@ func (stubTestActions) Actions() []ActionSpec {
 			Fields: map[string]string{}, When: "the user wants an activity added",
 		},
 	}
+}
+
+// digestStubPanel is the ONLY provider in the test registry that implements the
+// optional PanelSummarizer seam, and it is installed here because the registry
+// is install-once by construction (a runtime vocabulary change is exactly what
+// InstallPanelRegistry refuses). The wiring tests need a digest to exist;
+// tests that assert "no summarizer" behaviour use DataContext's own guard
+// instead of reinstalling.
+//
+// The digest is fixed, not derived from the store: the point of these tests is
+// the CONCATENATION into the prompt, not the query (the todo feature proves the
+// query, against a real database).
+type digestStubPanel struct{ stubTestPanel }
+
+const digestStubSummary = "3 todo(s) total (2 open, 1 done). Open: ship parser; write note."
+
+func (digestStubPanel) Component() string { return "digest_list" }
+
+// digestStubPanel must NOT inherit the stub's aliases: it embeds stubTestPanel
+// for the render methods, and the install correctly refuses an alias claimed by
+// two panels (which is what the collision guard caught here). Declaring its own
+// keeps the two panels unambiguous.
+func (digestStubPanel) Aliases() []string { return []string{"digest"} }
+
+func (digestStubPanel) Prompt() string {
+	return "digest_list {filter: open|done|all} (test stub with a prompt digest)"
+}
+
+func (digestStubPanel) Summary(context.Context, string) (string, error) {
+	return digestStubSummary, nil
 }
