@@ -222,10 +222,19 @@ templ GenuiBarChart(id string, title string, bars []Bar, peak float64) {
 // fields to a same-origin URL (validated server-side in checkAction).
 // Per-button forms beat one shared form — the fields travel with the
 // action they belong to, and each posts independently.
+// GenuiActionButtons renders a row of buttons that act in this app.
+//
+// It shares the subscribe-to-slot machinery with plan_cards (see planAction):
+// a button whose response cannot land anywhere is what read as "I clicked and
+// nothing happened", so an action here ALSO names its own slot and mints an
+// idempotency key. A button row on a page that hosts the target's region
+// behaves exactly as before; one on a page that does not gets its answer in
+// place instead of silently writing somewhere the user cannot see.
 templ GenuiActionButtons(id string, actions []Action) {
 	<div id={ id } class="flex flex-wrap gap-2">
-		for _, action := range actions {
-			<form data-on:submit__prevent={ "@" + actionVerb(action.Method) + "('" + action.URL + "', {contentType: 'form'})" }>
+		for i, action := range actions {
+			<form data-on:submit__prevent={ submitExpr(action, actionSlotID(id, i)) }>
+				<input type="hidden" name="_target" value={ actionSlotID(id, i) }/>
 				for key, val := range action.Fields {
 					<input type="hidden" name={ key } value={ val }/>
 				}
@@ -233,6 +242,14 @@ templ GenuiActionButtons(id string, actions []Action) {
 			</form>
 		}
 	</div>
+}
+
+// actionSlotID scopes one button's slot to its component instance, the same way
+// planCardID does for a plan card: two button rows on one page (a chat thread
+// keeps its history) must not share a slot, or the first answer replaces the
+// wrong button.
+func actionSlotID(instanceID string, index int) string {
+	return fmt.Sprintf("%s-act-%d", instanceID, index)
 }
 
 // GenuiTextNote renders a single prose card.
@@ -345,15 +362,25 @@ func submitExpr(action Action, target string) string {
 // underlying error: a fill failure is either an overflow bug or the model's
 // spelling, neither of which is user-facing text, and the useful instruction is
 // simply where the data actually is.
-templ PanelUnavailable(id string, component string) {
+// PanelUnavailable is the placeholder for a panel whose data could not be read.
+//
+// It takes the component NAME and the page that owns it, and hardcodes NEITHER:
+// the earlier version linked to "/todo" and said "open the Todos page" for every
+// panel, which is the same feature-coupling the seam exists to prevent — an
+// invoices panel would have pointed the user at the todo list. Both values come
+// from the provider, so a new panel gets a correct escape link for free.
+templ PanelUnavailable(id string, component string, homePage string) {
 	<div id={ id } class="rounded-box border border-dashed border-warning/50 p-4" role="status">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
 			<h3 class="font-semibold">Couldn't load this</h3>
-			<a href="/todo" class="link link-hover text-xs">Open Todos</a>
+			if homePage != "" {
+				<a href={ homePage } class="link link-hover text-xs">Open the page</a>
+			}
 		</div>
 		<p class="text-sm opacity-70">
-			This reads your own data, and that read failed just now, so there is
-			nothing to show here. It is not empty — open the Todos page to see it.
+			This reads your own data ({ component }), and that read failed just now,
+			so there is nothing to show here. It is not empty — open the page to
+			see it.
 		</p>
 	</div>
 }

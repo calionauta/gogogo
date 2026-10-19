@@ -13,6 +13,7 @@
 package components
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -203,5 +204,105 @@ func TestDeclaredActionsAreSortedForAStablePrompt(t *testing.T) {
 		if specs[i-1].URL > specs[i].URL {
 			t.Fatalf("DeclaredActions not sorted: %q before %q", specs[i-1].URL, specs[i].URL)
 		}
+	}
+}
+
+// TestUnavailablePlaceholderKeepsItsSlotID is the regression for a gap found in
+// review: the placeholder REPLACED a failing panel but dropped its instance id,
+// so the region rendered with an empty id. That is not cosmetic — the id is the
+// slot's address, so a later successful answer could not morph the placeholder
+// and stacked a second panel beside it instead.
+func TestUnavailablePlaceholderKeepsItsSlotID(t *testing.T) {
+	t.Parallel()
+	dir := Directive{Component: failingPanelName, Props: map[string]any{"filter": "open"}}
+	dir.ensureInstanceID("slot-keep-me")
+
+	got, err := Hydrate(context.Background(), []Directive{dir}, "owner")
+	if err == nil {
+		t.Error("a failing fill was not reported")
+	}
+	if len(got) != 1 {
+		t.Fatalf("kept %d directives, want the placeholder", len(got))
+	}
+	if id := got[0].InstanceID(); id != "slot-keep-me" {
+		t.Fatalf("placeholder id = %q, want the slot's original id", id)
+	}
+
+	comps, rerr := RenderAll(got)
+	if rerr != nil {
+		t.Fatalf("render placeholder: %v", rerr)
+	}
+	var b strings.Builder
+	if rerr := comps[0].Render(t.Context(), &b); rerr != nil {
+		t.Fatalf("render: %v", rerr)
+	}
+	if strings.Contains(b.String(), `id=""`) {
+		t.Errorf("placeholder rendered an empty id attribute:\n%s", b.String())
+	}
+	if !strings.Contains(b.String(), `id="slot-keep-me"`) {
+		t.Errorf("placeholder lost its slot id:\n%s", b.String())
+	}
+}
+
+// TestActionButtonsAnswerInPlace pins the second gap: action_buttons rendered a
+// bare form with no `_target` and no `idem_key`, so clicking a button on a page
+// that does not host the target's region changed nothing on screen (and a
+// double-click created the resource twice). Both are now the same machinery
+// plan_cards uses.
+func TestActionButtonsAnswerInPlace(t *testing.T) {
+	t.Parallel()
+	dirs, err := ParseDirectives(`{"components":[{"type":"action_buttons","props":{"actions":[
+		{"label":"Apply","method":"POST","url":"/api/todos","fields":{"title":"x"}}]}}]}`)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	comps, rerr := RenderAll(dirs)
+	if rerr != nil {
+		t.Fatalf("render: %v", rerr)
+	}
+	var b strings.Builder
+	if rerr := comps[0].Render(t.Context(), &b); rerr != nil {
+		t.Fatalf("render: %v", rerr)
+	}
+	html := b.String()
+	if !strings.Contains(html, `name="_target"`) {
+		t.Errorf("action_buttons carries no _target, so a click cannot answer in place:\n%s", html)
+	}
+	if !strings.Contains(html, "idem_key") {
+		t.Errorf("action_buttons carries no idem_key, so a double-click duplicates:\n%s", html)
+	}
+	// The slot must be scoped to the instance, not a bare constant, or two
+	// button rows on one page would share it.
+	if !strings.Contains(html, "-act-0") {
+		t.Errorf("the action slot is not scoped to its component instance:\n%s", html)
+	}
+}
+
+// TestUnavailablePlaceholderUsesTheProvidersOwnPage pins the fourth seam: the
+// placeholder used to hardcode "/todo" and say "open the Todos page" for EVERY
+// panel, so a future invoices panel would have pointed the user at the todo
+// list — in the one moment they are already confused. The link and the name now
+// come from the provider.
+func TestUnavailablePlaceholderUsesTheProvidersOwnPage(t *testing.T) {
+	t.Parallel()
+	dir := Directive{Component: failingPanelName, Props: map[string]any{"filter": "open"}}
+	dir.ensureInstanceID("p1")
+	got, _ := Hydrate(context.Background(), []Directive{dir}, "owner")
+	comps, err := RenderAll(got)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	var b strings.Builder
+	if rerr := comps[0].Render(t.Context(), &b); rerr != nil {
+		t.Fatalf("render: %v", rerr)
+	}
+	html := b.String()
+	// The stub provider declares "/todo", so the placeholder must use it — and
+	// must name the component that failed.
+	if !strings.Contains(html, `href="/todo"`) {
+		t.Errorf("the placeholder did not use the provider's page:\n%s", html)
+	}
+	if !strings.Contains(html, failingPanelName) {
+		t.Errorf("the placeholder does not name the failing panel:\n%s", html)
 	}
 }

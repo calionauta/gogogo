@@ -53,7 +53,7 @@ func Hydrate(
 			if firstErr == nil {
 				firstErr = err
 			}
-			kept = append(kept, unavailableDirective(d.Component, err))
+			kept = append(kept, unavailableDirective(d, err))
 			continue
 		}
 		props, err := provider.Fill(ctx, owner, d.Props)
@@ -61,7 +61,7 @@ func Hydrate(
 			if firstErr == nil {
 				firstErr = err
 			}
-			kept = append(kept, unavailableDirective(d.Component, err))
+			kept = append(kept, unavailableDirective(d, err))
 			continue
 		}
 		filled := make(map[string]any, len(props))
@@ -78,12 +78,19 @@ func Hydrate(
 // renderers turn it into a link to the page that owns the data. The reason is
 // deliberately not shown to the user — it is logged by the caller, and
 // overflow errors/models' spelling mistakes are not user-facing text.
-func unavailableDirective(component string, err error) Directive {
+func unavailableDirective(d Directive, err error) Directive {
+	// The instance id is CARRIED OVER, not dropped. It is this slot's DOM id:
+	// losing it rendered a placeholder with an empty id, so the region a user
+	// can see had no address — a later successful answer could not morph it in
+	// place and stacked a second panel beside it instead (measured: the
+	// placeholder came back with `id=""`).
 	return Directive{
-		Component: component,
+		Component: d.Component,
 		Props: map[string]any{
-			"unavailable": unavailableReason(err),
+			InstanceIDProp:  d.InstanceID(),
+			UnavailableProp: unavailableReason(err),
 		},
+		Children: d.Children,
 	}
 }
 

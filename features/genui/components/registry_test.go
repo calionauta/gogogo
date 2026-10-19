@@ -110,6 +110,8 @@ func (stubTestPanel) Component() string { return panelNameInTest }
 // exists: the shared catalog holds none of its own (see PanelAliaiser). The
 // spellings mirror what the real todo provider announces, so the alias tests
 // exercise the same names a model actually writes.
+func (stubTestPanel) HomePage() string { return "/todo" }
+
 func (stubTestPanel) Aliases() []string { return []string{"todos", "todo", "task_list", "tasks"} }
 func (stubTestPanel) Prompt() string    { return "todo_list {filter: open|done|all} (test stub)" }
 func (stubTestPanel) Writable() []string {

@@ -85,6 +85,32 @@ separates them is the interaction shape, not the vocabulary:
   Always on, on BOTH legs: an answer about the user's own data should come
   from the app's data, and there is no reason to want a worse answer.
 
+**Actions are declared by features, never written by the model.** A catalog
+component can offer a write (`plan_cards`' per-plan button,
+`action_buttons`), but the URL, method and field NAMES must match an action
+a feature declared (`ActionProvider.Actions`) — the model chooses *which
+offered action, with what content*, never *which endpoint*. That closes both
+failure modes at once: told nothing it invents `/api/todos/add` and the
+button 404s; told everything it could aim a card at any same-origin route.
+The vocabulary it may use appears in the prompt because boot advertises the
+declarations.
+
+**Every rendered component carries a server-assigned instance id**, and that
+id is the component's patch slot. The model cannot set it (it is stripped
+before validation — an id becomes a selector, so a model-chosen one could
+aim a patch at any element), and it is namespaced per answer, so a page
+holding two answers (a chat thread keeps its history) has no duplicate ids.
+An action form sends `_target` with its own slot, which is how a write
+answers **in place**: the control the user clicked is what changes, instead
+of a patch aimed at a region this page does not host — the difference
+between "it worked" and "I clicked and nothing happened".
+
+A panel whose data cannot be read is replaced by a placeholder that keeps
+its slot id, names the panel, and links to the page the PROVIDER says owns
+the data (no shared component hardcodes a feature's route). A write that
+fails does the same in place, because a plain-text error response renders
+nowhere when the form was submitted by `@post` from a card.
+
 Tune a leg's bands with `GENUI_ASK_SURFACES` / `GENUI_CHAT_SURFACES`
 (CSV; absent = the defaults above; an unknown name fails the boot).
 Turning `custom` off makes a leg catalog-only; `native` cannot be turned

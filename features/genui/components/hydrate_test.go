@@ -101,6 +101,11 @@ func TestHydratePassesNonPanelsThrough(t *testing.T) {
 // InstallPanelRegistry rejects.
 type failingStubPanel struct{}
 
+// HomePage is declared so the placeholder's escape link has a real target; a
+// provider that omits it renders a link-less card, which the generic test
+// covers separately.
+func (failingStubPanel) HomePage() string { return "/todo" }
+
 // failingPanelName is deliberately NOT the working stub's name
 // (panelNameInTest): distinct panels, so neither test can disturb the other's
 // fixture.

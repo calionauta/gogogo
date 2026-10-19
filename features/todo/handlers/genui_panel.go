@@ -54,6 +54,12 @@ func (p *TodoPanel) Prompt() string {
 		"with todo content"
 }
 
+// HomePage implements comp.PanelHomer: the page that shows this data in full.
+//
+// Declared here, not in the shared placeholder, for the same reason the aliases
+// are: genui must not know a todo page exists.
+func (p *TodoPanel) HomePage() string { return "/todo" }
+
 // Aliases implements comp.PanelAliaiser: the spellings models are known to use
 // for this panel.
 //

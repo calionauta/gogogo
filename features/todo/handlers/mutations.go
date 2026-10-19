@@ -7,14 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo/features/todo"
-	ic "github.com/calionauta/gogogo/internal/components"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -41,8 +39,19 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "invalid form")
 		return
 	}
+	// A card action's failures must land WHERE THE CLICK HAPPENED. A plain-text
+	// 400 is invisible to the user when the form was submitted from a model
+	// authored card by `@post` (Datastar shows nothing for an error response
+	// body), so the button would look dead — the same class of bug as answering
+	// a successful write on the wrong page. A card gets an in-place failure
+	// card; every other caller keeps the text response it already expects.
+	target := formTarget(r)
 	title := r.FormValue("title")
 	if title == "" {
+		if target != "" {
+			h.answerCardFailure(w, r, target, "A todo needs a title.")
+			return
+		}
 		writeText(w, http.StatusBadRequest, "title required")
 		return
 	}
@@ -50,6 +59,18 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	idemKey := r.FormValue("idem_key")
 	if idemKey == "" {
 		idemKey = uuid.New().String()
+	} else if !validIdemKey(idemKey) {
+		// The key is CLIENT-SUPPLIED and stored in a TEXT column, so an
+		// unbounded value is a cheap way to write arbitrarily large rows (the
+		// unique index keeps them distinct, so repeats do not collide). Any
+		// honest client sends a UUID; the two bounds below admit that and every
+		// browser-generated variant while refusing the abuse.
+		if target != "" {
+			h.answerCardFailure(w, r, target, "That request could not be read. Try again.")
+			return
+		}
+		writeText(w, http.StatusBadRequest, "invalid idem_key")
+		return
 	}
 
 	// Idempotent replay: a retried create with the same dedupe token
@@ -172,62 +193,6 @@ func (h *Handler) respondCreated(
 	}
 }
 
-// formTargetField is the hidden input a catalog action sends with its own card
-// id. Namespaced with the same leading underscore as the other server-owned
-// props so it is recognizable as "the framework told you this, not the model".
-const formTargetField = "_target"
-
-// formTarget reads the caller's own slot id, or "" when there is none.
-//
-// VALIDATED, not trusted: this value becomes a Datastar selector, so an
-// unconstrained one is a way to aim a patch at any element on the page (or, with
-// a crafted string, at something the responder did not intend). The same
-// character rule the instance ids are minted under is applied here, which means
-// only ids this app could have generated are accepted — a hand-written or
-// crafted value is ignored and the response falls back to the list patch.
-func formTarget(r *http.Request) string {
-	target := strings.TrimSpace(r.FormValue(formTargetField))
-	if !validTargetID(target) {
-		return ""
-	}
-	return target
-}
-
-// validTargetID mirrors the instance-id rule (letters, digits, - and _; not
-// starting with a digit; bounded length). Spelled here rather than imported
-// from features/genui/components because a trim removes that package and this
-// handler must keep compiling — and the rule is a security boundary, so it
-// wants to be visible next to the code that trusts it.
-func validTargetID(s string) bool {
-	if s == "" || len(s) > 64 {
-		return false
-	}
-	for i, r := range s {
-		ok := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_'
-		if !ok {
-			return false
-		}
-		if i == 0 && r >= '0' && r <= '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// answerCardAction replaces the clicked card with its outcome, in place.
-//
-// Returns the write error instead of failing here: the response is already an
-// open SSE stream at this point, so the caller owns the failure report (and it
-// needs the ResponseWriter to send it). No ctx parameter for that reason — the
-// only work left is a write to an already-open stream.
-func (h *Handler) answerCardAction(
-	sse *sdk.ServerSentEventGenerator, target, title string,
-) error {
-	return dshelpers.RenderAndPatch(sse,
-		ic.ActionResult(target, true, "Added to your todos: "+title, "Open Todos", "/todo"),
-		sdk.WithSelector("#"+target))
-}
-
 // patchListSelf tags the originating mutation as "self" (self-origin entry
 // animation) and patches the list with view transitions, merging the fresh
 // item count in the same SSE response.
@@ -246,9 +211,13 @@ func (h *Handler) answerCardAction(
 func (h *Handler) patchListSelf(
 	ctx context.Context, sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request,
 ) error {
-	query := h.Hub.ViewOf(r.URL.Query().Get("clientID")).Query
+	// Read the tab's stored view ONCE: two ViewOf calls take two separate read
+	// locks, so a concurrent SetView (the same tab issuing another fetch) could
+	// be observed between them and the query and mode would come from different
+	// snapshots — a search narrowed by one mode and labelled by another.
+	view := h.Hub.ViewOf(r.URL.Query().Get("clientID"))
 	if owner, err := h.ownerID(r); err == nil {
-		narrowed, nerr := h.narrowBySearch(ctx, owner, query, h.Hub.ViewOf(r.URL.Query().Get("clientID")).Mode, todos)
+		narrowed, nerr := h.narrowBySearch(ctx, owner, view.Query, view.Mode, todos)
 		if nerr != nil {
 			return nerr
 		}

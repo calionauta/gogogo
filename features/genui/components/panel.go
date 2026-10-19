@@ -238,6 +238,19 @@ func IsPanel(name string) bool {
 // resolve, and an unknown name still fails closed (never model free text).
 var panelAliases = map[string]string{}
 
+// PanelHomer is the OPTIONAL fourth half: the page that OWNS this panel's data.
+//
+// The placeholder shown when a fill fails tells the user where to go instead.
+// Without this the shared component hardcoded "/todo", which pointed an invoices
+// panel at the todo list — feature coupling in the one place a user is already
+// confused. A provider that omits it gets a link-less placeholder rather than a
+// wrong one.
+type PanelHomer interface {
+	// HomePage returns the same-origin path that renders this data in full
+	// (e.g. "/todo"). Empty means "no page to offer".
+	HomePage() string
+}
+
 // PanelAliaiser is the OPTIONAL third half of a panel's contract: the alternate
 // spellings a model is known to use for this panel's name.
 //
@@ -330,6 +343,20 @@ func renderPanel(name string, props map[string]any) (templ.Component, bool, erro
 	}
 	comp, err := p.Render(props)
 	return comp, true, err
+}
+
+// panelHomePage returns the page a panel says owns its data, or "".
+func panelHomePage(name string) string {
+	registry.mu.RLock()
+	p, ok := registry.byName[name]
+	registry.mu.RUnlock()
+	if !ok {
+		return ""
+	}
+	if h, isHomer := p.(PanelHomer); isHomer {
+		return h.HomePage()
+	}
+	return ""
 }
 
 // panelPrompt returns one panel's guidance line, or "" when not installed.

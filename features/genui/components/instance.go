@@ -38,6 +38,11 @@ import (
 // safelist exists to deny.
 const InstanceIDProp = "_id"
 
+// UnavailableProp marks a panel whose data could not be read: Hydrate sets it,
+// the renderer turns it into PanelUnavailable. Server-owned like the id — it is
+// the renderer's signal, never a model's prop.
+const UnavailableProp = "unavailable"
+
 // idPrefix namespaces generated ids so they are recognizable in a DOM
 // inspector and cannot collide with the hand-written ids this app uses for
 // patch targets (#todo-list, #chat-messages, #review-result).
