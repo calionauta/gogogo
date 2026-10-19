@@ -53,6 +53,12 @@ func notesPortFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersister, 
 	mem := collab.NewMemoryPersister()
 	h := NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), mem,
 		collab.NewDocStore(), config.Load())
+	// Transport fixtures drive synthetic doc ids ("note-hammer",
+	// "doc-stale-port") on purpose: they exercise the wire, not the index.
+	// Opting out HERE, explicitly, is what keeps the write contract on for
+	// every real request (see permissions.go). A test that wants the contract
+	// must clear this field.
+	h.registry = func(context.Context, string) bool { return true }
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
 	mux.Handle("/", h.Routes())

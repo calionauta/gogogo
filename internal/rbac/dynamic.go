@@ -20,9 +20,11 @@ package rbac
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+	"sync"
 
-	"github.com/casbin/casbin/v2"
-	"github.com/casbin/casbin/v2/util"
+	"github.com/casbin/casbin/v3"
 )
 
 // Object is the ABAC form of a request object. It upgrades the plain path
@@ -72,10 +74,66 @@ func objPath(obj any) string {
 	return ""
 }
 
-// pathMatches is keyMatch2 with the same shape Casbin's built-in would
-// have — kept as a named function so model.conf reads as one vocabulary.
+// pathMatches decides whether a request path is covered by a policy
+// object. It keeps keyMatch2's SHAPE — `*` spans `/`, `:name` matches one
+// segment — with one deliberate difference: every literal run is escaped.
+//
+// Casbin's util.KeyMatch2 rewrites the object into a regexp and leaves
+// metacharacters live, so `p, anonymous, /sw.js, GET` also allows
+// `/swXjs` and a future `p, user, /api/v1.0/*, .*` would allow
+// `/api/v1X0/...`. That is a silent over-grant nobody can see in the CSV.
+// Escaping the literals makes the object mean exactly what it reads.
+//
+// Compilation is cached: the enforcer consults the same handful of
+// patterns on every request, and Casbin's built-in recompiles per call.
 func pathMatches(path, pattern string) bool {
-	return util.KeyMatch2(path, pattern)
+	re, err := patternRegexp(pattern)
+	if err != nil {
+		// An uncompilable object is a policy bug. Fail closed: the caller
+		// (attrOK/pathMatch) returns false and the middleware denies.
+		return false
+	}
+	return re.MatchString(path)
+}
+
+// patternCache memoizes compiled policy objects. Keys are the objects
+// themselves; the value is a *regexp.Regexp. Untrusted input never reaches
+// this map — only the embedded or DB-loaded policy does.
+// policyFields is the arity of a "p, sub, obj, act" CSV row.
+const policyFields = 4
+
+var patternCache sync.Map // map[string]*regexp.Regexp
+
+// patternRegexp compiles one policy object into an anchored regexp:
+//
+//   - -> .*   (spans segments, keyMatch2 semantics)
+//     :name  -> [^/]+ (one segment)
+//     other  -> QuoteMeta(other)
+//
+// Segments are split on `/` so escaping never swallows a separator.
+func patternRegexp(pattern string) (*regexp.Regexp, error) {
+	if cached, ok := patternCache.Load(pattern); ok {
+		if re, ok := cached.(*regexp.Regexp); ok {
+			return re, nil
+		}
+	}
+	segments := strings.Split(pattern, "/")
+	for i, seg := range segments {
+		switch {
+		case seg == "*":
+			segments[i] = ".*"
+		case strings.HasPrefix(seg, ":"):
+			segments[i] = "[^/]+"
+		default:
+			segments[i] = regexp.QuoteMeta(seg)
+		}
+	}
+	re, err := regexp.Compile("^" + strings.Join(segments, "/") + "$")
+	if err != nil {
+		return nil, fmt.Errorf("rbac: policy object %q: %w", pattern, err)
+	}
+	patternCache.Store(pattern, re)
+	return re, nil
 }
 
 // attrsOK is the ownership clause. A bare string has no attributes, so it
@@ -104,4 +162,45 @@ func asObject(obj any) (Object, bool) {
 		}
 	}
 	return Object{}, false
+}
+
+// ValidatePolicyObjects is the authoring guard for policy.csv: every
+// object must be a plain path, a `*` segment, or a `:name` segment.
+//
+// It exists because pathMatches escapes literals, so a metacharacter is
+// no longer an over-grant risk — but it silently becomes a LITERAL dot or
+// plus, which is never what an author meant. Catching it at
+// enforcer-build time (NewEnforcer, NewEnforcerWithAdapter) turns a
+// silent semantic change into a boot failure naming the row. A `.` is
+// allowed (real paths carry file extensions: /sw.js); every other regex
+// metacharacter is refused, because a path never needs one.
+//
+// Deliberately not a regexp-shape check: the point is that objects are
+// paths, not patterns. A reviewer reading the CSV can trust that.
+func ValidatePolicyObjects(policyCSV string) error {
+	lineNo := 0
+	for line := range strings.SplitSeq(policyCSV, "\n") {
+		lineNo++
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, ",")
+		if len(parts) != policyFields {
+			continue // the shape test owns arity; nothing to validate here
+		}
+		obj := strings.TrimSpace(parts[2])
+		for seg := range strings.SplitSeq(obj, "/") {
+			if seg == "*" || strings.HasPrefix(seg, ":") {
+				continue
+			}
+			if strings.ContainsAny(seg, "+()[]{}|^$?\\") {
+				return fmt.Errorf(
+					"rbac: policy line %d object %q contains regex metacharacter in segment %q "+
+						"(objects are paths: use `*` for a whole segment, `:name` for a placeholder)",
+					lineNo, obj, seg)
+			}
+		}
+	}
+	return nil
 }

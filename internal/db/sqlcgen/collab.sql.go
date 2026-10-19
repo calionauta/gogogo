@@ -23,28 +23,102 @@ func (q *Queries) BumpBoardVersion(ctx context.Context, arg BumpBoardVersionPara
 	return err
 }
 
-const listBoardsByOwner = `-- name: ListBoardsByOwner :many
-
-SELECT doc_id, owner, title, version, updated, created FROM boards WHERE owner = ? ORDER BY updated DESC, doc_id DESC LIMIT 50
+const deleteBoard = `-- name: DeleteBoard :exec
+DELETE FROM boards WHERE doc_id = ?
 `
 
+func (q *Queries) DeleteBoard(ctx context.Context, docID string) error {
+	_, err := q.db.ExecContext(ctx, deleteBoard, docID)
+	return err
+}
+
+const deleteNote = `-- name: DeleteNote :exec
+DELETE FROM notes WHERE doc_id = ?
+`
+
+func (q *Queries) DeleteNote(ctx context.Context, docID string) error {
+	_, err := q.db.ExecContext(ctx, deleteNote, docID)
+	return err
+}
+
+const getBoardMeta = `-- name: GetBoardMeta :one
+SELECT boards.doc_id, boards.owner, users.email AS owner_email
+FROM boards JOIN users ON users.id = boards.owner
+WHERE boards.doc_id = ?
+`
+
+type GetBoardMetaRow struct {
+	DocID      string
+	Owner      string
+	OwnerEmail string
+}
+
+func (q *Queries) GetBoardMeta(ctx context.Context, docID string) (GetBoardMetaRow, error) {
+	row := q.db.QueryRowContext(ctx, getBoardMeta, docID)
+	var i GetBoardMetaRow
+	err := row.Scan(&i.DocID, &i.Owner, &i.OwnerEmail)
+	return i, err
+}
+
+const getNoteMeta = `-- name: GetNoteMeta :one
+SELECT notes.doc_id, notes.owner, users.email AS owner_email
+FROM notes JOIN users ON users.id = notes.owner
+WHERE notes.doc_id = ?
+`
+
+type GetNoteMetaRow struct {
+	DocID      string
+	Owner      string
+	OwnerEmail string
+}
+
+func (q *Queries) GetNoteMeta(ctx context.Context, docID string) (GetNoteMetaRow, error) {
+	row := q.db.QueryRowContext(ctx, getNoteMeta, docID)
+	var i GetNoteMetaRow
+	err := row.Scan(&i.DocID, &i.Owner, &i.OwnerEmail)
+	return i, err
+}
+
+const listBoards = `-- name: ListBoards :many
+
+SELECT boards.doc_id, boards.version, boards.updated, boards.created,
+       boards.owner, users.email AS owner_email
+FROM boards JOIN users ON users.id = boards.owner
+ORDER BY boards.updated DESC, boards.doc_id DESC
+LIMIT 50
+`
+
+type ListBoardsRow struct {
+	DocID      string
+	Version    int64
+	Updated    string
+	Created    string
+	Owner      string
+	OwnerEmail string
+}
+
 // Boards and notes metadata: the list pages read these, never the docs.
-func (q *Queries) ListBoardsByOwner(ctx context.Context, owner string) ([]Board, error) {
-	rows, err := q.db.QueryContext(ctx, listBoardsByOwner, owner)
+//
+// Listing is SHARED: every signed-in user sees every doc, and the row
+// carries the author's email so the index can name who started it. Owner
+// is authorship, not a visibility filter - it is what the delete rule
+// reads (author or admin), never what the list scopes by.
+func (q *Queries) ListBoards(ctx context.Context) ([]ListBoardsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBoards)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Board{}
+	items := []ListBoardsRow{}
 	for rows.Next() {
-		var i Board
+		var i ListBoardsRow
 		if err := rows.Scan(
 			&i.DocID,
-			&i.Owner,
-			&i.Title,
 			&i.Version,
 			&i.Updated,
 			&i.Created,
+			&i.Owner,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -59,24 +133,37 @@ func (q *Queries) ListBoardsByOwner(ctx context.Context, owner string) ([]Board,
 	return items, nil
 }
 
-const listNotesByOwner = `-- name: ListNotesByOwner :many
-SELECT doc_id, owner, updated, created FROM notes WHERE owner = ? ORDER BY updated DESC, doc_id DESC LIMIT 50
+const listNotes = `-- name: ListNotes :many
+SELECT notes.doc_id, notes.updated, notes.created,
+       notes.owner, users.email AS owner_email
+FROM notes JOIN users ON users.id = notes.owner
+ORDER BY notes.updated DESC, notes.doc_id DESC
+LIMIT 50
 `
 
-func (q *Queries) ListNotesByOwner(ctx context.Context, owner string) ([]Note, error) {
-	rows, err := q.db.QueryContext(ctx, listNotesByOwner, owner)
+type ListNotesRow struct {
+	DocID      string
+	Updated    string
+	Created    string
+	Owner      string
+	OwnerEmail string
+}
+
+func (q *Queries) ListNotes(ctx context.Context) ([]ListNotesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listNotes)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Note{}
+	items := []ListNotesRow{}
 	for rows.Next() {
-		var i Note
+		var i ListNotesRow
 		if err := rows.Scan(
 			&i.DocID,
-			&i.Owner,
 			&i.Updated,
 			&i.Created,
+			&i.Owner,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}

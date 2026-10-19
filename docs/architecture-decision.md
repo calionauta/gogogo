@@ -164,7 +164,18 @@ a project needs runtime-editable rules.
 
 The layer is deliberately thin: RBAC gates *routes*, and the UI only reflects
 what the middleware enforces. Which role sees a link is cosmetic; which role
-reaches the handler is the decision. Full guide: [RBAC](rbac.md).
+reaches the handler is the decision.
+
+Two boundaries the template does not blur. **Route-level is not
+record-level.** Authorization has exactly two homes: `policy.csv` decides
+"may this role call this verb on this subtree", and `canDeleteDoc` /
+`canDeleteRow` decide "may this caller touch THIS row" - the per-record half
+cannot live in a static policy because the row is not known until the handler
+loads it. That split is what OWASP ASVS 5.0 V8.2 asks for (function-level AND
+data-specific checks, to defeat IDOR/BOLA). **RBAC is not authentication.**
+`RBAC_ENABLED` defaults to false, so every handler that touches user data
+checks the session itself; a policy row is never the only guard. Full guide:
+[RBAC](rbac.md).
 
 ## Why plugins live in-repo (not in plugin repos)
 

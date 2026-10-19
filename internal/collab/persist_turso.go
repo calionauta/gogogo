@@ -48,6 +48,18 @@ func (p *TursoPersister) LoadSnapshot(docID string) ([]byte, bool) {
 	return row.Snapshot, true
 }
 
+// DeleteSnapshot drops the persisted snapshot for a removed doc. The
+// snapshot table has no foreign key to the metadata rows (it is keyed by
+// the opaque doc id only), so the caller deletes both halves; a doc that
+// was created and never written to has no row here and deleting it is a
+// no-op, not an error.
+func (p *TursoPersister) DeleteSnapshot(docID string) error {
+	if err := p.q.DeleteSnapshot(context.Background(), docID); err != nil {
+		return fmt.Errorf("collab: delete snapshot %s: %w", docID, err)
+	}
+	return nil
+}
+
 // Compile-time guard: TursoPersister satisfies Persister wherever the
 // in-memory fake or the previous-stack persister was accepted.
 var _ Persister = (*TursoPersister)(nil)

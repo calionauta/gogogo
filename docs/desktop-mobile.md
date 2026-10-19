@@ -69,6 +69,41 @@ request and push to `master`, using Ubuntu 24.04 with GTK4 + WebKitGTK 6.0. The
 same workflow offers a manual `cross-preview` job (`gh workflow run Desktop`)
 that builds win+mac+linux previews and uploads them as an artifact.
 
+## The other native-shell option: nanoui (Zig)
+
+Wails is the shipped desktop path: same Go binary, webview front end. When
+the requirement is a *native* UI instead (drawn by the OS/GPU, not HTML in a
+webview), the named direction is [`justrach/nanoui`](https://github.com/justrach/nanoui)
+— desktop apps in Zig, immediate-mode views, Metal on macOS and a CPU
+rasterizer on Linux/Windows, optional webview pages with a generated typed TS
+client, headless `ui.Tester`, ~0.7 MB, MIT.
+
+```zig
+const Counter = struct {
+    n: i64 = 0,
+    fn view(s: *Counter, c: *ui.Context) void {
+        const col = ui.div(c).column().sizeFull().center().gap(16);
+        defer col.end();
+        ui.textf(c, .{ .size = 56, .weight = .bold }, "{d}", .{s.n});
+        if (ui.button(c, "Increment", .{ .variant = .primary }).clicked) s.n += 1;
+    }
+};
+```
+
+Relation to the Wails path, so the two are not confused:
+
+- **Both are separate binaries.** nanoui is a peer of `cmd/desktop`, not a
+  library linked into `cmd/web` — nothing crosses a C ABI, and the Go
+  binary stays the product.
+- **Wails reuses the whole Go app; nanoui would not.** A nanoui shell talks
+  to the Go server over HTTP (it can serve a page from it), so it does not
+  pull `internal/server` in-process the way `cmd/desktop` does.
+- **Pinning.** nanoui is 0.x; pin a release tag in `build.zig.zon`, the same
+  discipline as the `wails/v3` pin (`go.mod` + `WAILS_VERSION` + workflow).
+- **Not wired here.** No Zig toolchain in this repo (see
+  [exception-to-go](exception-to-go.md)); adopting it is a project with its
+  own justification, starting from `zig build run-gallery` on a clone.
+
 ## Mobile (Android) is opt-in, not in CI
 
 Wails v3 targets Android from the same `main.go` (Go → `libwails.so`, WebView

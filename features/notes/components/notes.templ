@@ -6,8 +6,31 @@ import "github.com/calionauta/gogogo/features/authviews"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
 
-// NotesIndex lists existing shared notes with a button to start a new one.
-templ NotesIndex(email string, userRole string, docIDs []string, buildLabel string, buildCommit string) {
+// NoteMeta is one row of the shared notes index, and the identity the note
+// page renders.
+//
+// Author/IsMine/CanDelete are stamped by the handler (single home:
+// canDeleteDoc): the list is SHARED — every signed-in user sees every
+// note — while the destructive act stays with the author (and an admin).
+// Templates only render what the server decided, never re-derive the rule.
+type NoteMeta struct {
+	DocID     string
+	Author    string // author email, "" when unknown
+	IsMine    bool
+	CanDelete bool
+}
+
+// notesDialogID / notesSignals are the notes page's delete-confirmation
+// wiring. Named once because three places must agree: the row button that
+// sets the signals, the dialog that reads them, and the page that seeds
+// them. A typo in any one is a dialog that never opens.
+const (
+	notesDialogID = "confirm-delete-note"
+	notesSignals  = `{"confirmNoteId":"","confirmNoteAuthor":"","deletingNote":false}`
+)
+
+// NotesIndex lists every shared note with a button to start a new one.
+templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
@@ -22,44 +45,117 @@ templ NotesIndex(email string, userRole string, docIDs []string, buildLabel stri
 		</head>
 		<body>
 			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit)
-			<main class="p-4 max-w-2xl mx-auto">
+			<main class="p-4 max-w-2xl mx-auto" data-signals={ notesSignals }>
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Shared notes</h1>
 					<a class="btn btn-sm btn-primary" href="/notes/new">New note</a>
 				</div>
+				<p class="text-xs text-base-content/60 mb-2">
+					Every note is shared: anyone signed in can open and edit it. Only its author
+					(or an admin) can delete it.
+				</p>
 				@components.TechStack([]components.TechItem{
 				{Name: "Loro Text", Note: "CRDT text merge across tabs"},
 				{Name: "SSE Hub", Note: "doc versions stream to tabs"},
 				{Name: "NATS", Note: "cross-instance sync"},
 				{Name: "SSE record sync", Note: "record changes re-list live"},
 				})
-				@NotesListFragment(docIDs)
+				@NotesListFragment(notes)
 			</main>
+			@deleteNoteModal()
 			@components.ListResync("notes-realtime-resync", "'/api/notes/fragment'")
 		</body>
 	</html>
 }
 
 // NotesListFragment renders just the notes list. Target of the
-// @get('/api/notes/fragment') resync above.
-templ NotesListFragment(docIDs []string) {
+// @get('/api/notes/fragment') resync and of the delete patch.
+templ NotesListFragment(notes []NoteMeta) {
 	<div id="notes-list">
-		if len(docIDs) == 0 {
+		if len(notes) == 0 {
 			<p class="text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
 		} else {
 			<ul class="menu bg-base-200 rounded-box w-full">
-				for _, id := range docIDs {
-					<li><a href={ templ.URL("/notes/" + id) }>{ id }</a></li>
+				for _, n := range notes {
+					<li>
+						<div class="flex items-center justify-between gap-2">
+							<a href={ templ.URL("/notes/" + n.DocID) } class="flex-1">
+								<span class="font-mono text-sm">{ n.DocID }</span>
+								@authorBadge(n.Author, n.IsMine)
+							</a>
+							if n.CanDelete {
+								<button
+									type="button"
+									class="btn btn-ghost btn-xs text-error"
+									title="Delete this note"
+									data-on:click__prevent={ "$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()" }
+								 data-variant="ghost">
+									<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
+								</button>
+							}
+						</div>
+					</li>
 				}
 			</ul>
 		}
 	</div>
 }
 
+// authorBadge names who started the doc; "you" replaces the email on your
+// own rows so the shared list still reads at a glance.
+templ authorBadge(author string, isMine bool) {
+	if author != "" {
+		if isMine {
+			<span class="badge badge-xs badge-primary ml-2" title={ "Author: " + author }>you</span>
+		} else {
+			<span class="text-xs text-base-content/50 ml-2" title="Author">by { author }</span>
+		}
+	}
+}
+
+// deleteNoteModal is the single confirmation dialog for the list. The
+// $confirmNoteId/$confirmNoteAuthor signals carry the target, so one dialog
+// serves every row — the pattern the todo list also uses. The server
+// answers the POST with the re-rendered list fragment, so no reload.
+templ deleteNoteModal() {
+	<dialog id={ notesDialogID } class="modal" data-on:close="$confirmNoteId = ''; $confirmNoteAuthor = ''; $deletingNote = false">
+		<div class="modal-box">
+			<h3 class="font-bold text-lg text-error">Delete this note?</h3>
+			<p class="py-4 text-sm">
+				This permanently removes the note and its text
+				<span class="text-base-content/60" data-text="$confirmNoteAuthor ? 'started by ' + $confirmNoteAuthor : ''"></span>.
+				Any other tab still holding it open loses the text on reload.
+			</p>
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-ghost btn-sm"
+					data-on:click={ "document.getElementById('" + notesDialogID + "').close()" }
+				 data-variant="ghost">
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn btn-error btn-sm"
+					data-attr:disabled="$deletingNote"
+					data-on:click={ "$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')" }
+				 data-variant="destructive">
+					Delete
+				</button>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button data-on:click={ "document.getElementById('" + notesDialogID + "').close()" }>close</button>
+		</form>
+	</dialog>
+}
+
 // NotesPage renders one shared note: a textarea bound to the server-owned
 // Loro Text. Typing POSTs prefix/suffix-diffed ops; the SSE stream applies
 // peers' resolved text unless the textarea is focused (no caret stealing).
-templ NotesPage(email string, userRole string, docID string, text string, rev uint64, buildLabel string, buildCommit string) {
+// meta carries the doc id plus who started it, so the page and the index
+// read the same row instead of threading three loose strings.
+templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev uint64, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
@@ -77,11 +173,12 @@ templ NotesPage(email string, userRole string, docID string, text string, rev ui
 		</head>
 		<body>
 			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit)
-			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ docID } data-rev={ strconv.FormatUint(rev, 10) }>
+			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ meta.DocID } data-rev={ strconv.FormatUint(rev, 10) }>
 				<h1 class="sr-only">Shared note</h1>
 				<div class="flex items-center justify-between mb-2">
 					<a class="btn btn-sm btn-ghost" href="/notes">Back</a>
 					<span class="flex items-center gap-2">
+						@authorBadge(meta.Author, meta.IsMine)
 						<span id="peer-pill" class="text-xs text-base-content/60" title="Tabs on this note" aria-live="polite">1 online</span>
 						<span id="typing-pill" class="text-xs text-base-content/60 italic" title="Who is typing" aria-live="polite"></span>
 						<span id="rtt-pill" class="text-xs text-base-content/40" title="Last save round-trip"></span>

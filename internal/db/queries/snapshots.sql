@@ -7,3 +7,6 @@ ON CONFLICT (doc_id) DO UPDATE SET snapshot = excluded.snapshot, updated = exclu
 
 -- name: GetSnapshot :one
 SELECT * FROM doc_snapshots WHERE doc_id = ?;
+
+-- name: DeleteSnapshot :exec
+DELETE FROM doc_snapshots WHERE doc_id = ?;

@@ -150,6 +150,24 @@ func (s *DocStore) Evict(id string) {
 	delete(s.lastUsed, id)
 }
 
+// Forget drops a doc from the cache AND deletes its persisted snapshot: the
+// doc is gone for good, not merely unloaded. Evict alone is not enough for a
+// delete — a resident doc would keep answering reads, and a later
+// GetOrCreate would rehydrate the snapshot the metadata row no longer lists.
+// The in-memory drop happens before the store delete so no request can
+// observe a cached doc whose snapshot is already gone.
+func (s *DocStore) Forget(id string) error {
+	s.mu.Lock()
+	delete(s.docs, id)
+	delete(s.lastUsed, id)
+	p := s.persister
+	s.mu.Unlock()
+	if p == nil {
+		return nil
+	}
+	return p.DeleteSnapshot(id)
+}
+
 // evictLocked drops idle docs until the cache is within maxDocs. Callers must
 // hold s.mu.
 //

@@ -62,9 +62,14 @@ pre-commit:
     # survives every Enforce test, so only TestRBACPolicyShape catches
     # it. Same-implementation-as-CI rule: the test itself, scoped by
     # -run so the argon2 suites stay out of the hook.
+    # The FULL rbac guard, not just the shape subset: the shape test catches
+    # a typo, but a route with no row (or one only admin reaches) is a 403
+    # for every real user and was exactly what shipped once. Both packages
+    # together are ~15s warm; the coverage half needs internal/server
+    # because that is where the mux lives.
     - name: rbac-policy
-      run: go test -count=1 -run 'TestRBACPolicyShape|TestRBACPolicyHasNoDuplicateLines|TestRBACRolesAreFlat' ./internal/rbac/
-      glob: "{internal/rbac/**,internal/server/chi*.go}"
+      run: go test -count=1 ./internal/rbac/ -run 'TestRBAC'
+      glob: "{internal/rbac/**,internal/server/**,internal/auth/**,features/**/handlers/**,config/**}"
 
     - name: dagnats-pin
       run: bash bin/check-dagnats-pin.sh

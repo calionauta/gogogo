@@ -11,16 +11,35 @@
 package components
 
 import (
+	"strconv"
+
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 )
 
 // BoardMeta is a list-row summary of a saved whiteboard.
+//
+// Author/IsMine/CanDelete are stamped by the handler (single home:
+// canDeleteDoc): the list is SHARED — every signed-in user sees every
+// board — while deleting stays with the author (and an admin). Templates
+// render what the server decided; they never re-derive the rule.
 type BoardMeta struct {
-	DocID  string
-	DocVer int
+	DocID     string
+	DocVer    int
+	Author    string // author email, "" when unknown
+	IsMine    bool
+	CanDelete bool
 }
+
+// boardDialogID / boardSignals are the board index's delete-confirmation
+// wiring. Named once because three places must agree: the row button that
+// sets the signals, the dialog that reads them, and the page that seeds
+// them. A typo in any one is a dialog that never opens.
+const (
+	boardDialogID = "confirm-delete-board"
+	boardSignals  = `{"confirmBoardId":"","confirmBoardAuthor":"","deletingBoard":false}`
+)
 
 // BoardListWithRealtime renders the index of existing whiteboards with
 // live-update wiring so the list updates when another user creates a new
@@ -44,11 +63,15 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 		<body>
 			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
-			<main class="container mx-auto p-4">
+			<main class="container mx-auto p-4" data-signals={ boardSignals }>
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Collab whiteboards</h1>
 					<a class="btn btn-primary" data-variant="primary" href="/whiteboard/new">New whiteboard</a>
 				</div>
+				<p class="text-xs text-base-content/60 mb-2">
+					Every whiteboard is shared: anyone signed in can open and draw on it. Only its
+					author (or an admin) can delete it.
+				</p>
 				@components.TechStack([]components.TechItem{
 				{Name: "Loro CRDT", Note: "offline-first shape merge"},
 				{Name: "NATS", Note: "cross-instance shape sync"},
@@ -58,38 +81,113 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 				})
 				@WhiteboardListFragment(boards)
 			</main>
+			@deleteBoardModal()
 			@components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'")
 		</body>
 	</html>
 }
 
 // WhiteboardListFragment renders just the whiteboard list grid. It is the
-// target of the @get('/api/whiteboards/fragment') resync and carries the
-// id="whiteboard-list" selector that the server sets datastar-selector for.
+// target of the @get('/api/whiteboards/fragment') resync, of the delete
+// patch, and it carries the id="whiteboard-list" selector that the server
+// sets datastar-selector for.
 templ WhiteboardListFragment(boards []BoardMeta) {
 	<div id="whiteboard-list" class="grid gap-2">
 		if len(boards) == 0 {
 			<p class="text-base-content/60">No whiteboards yet. Create one to start drawing together.</p>
 		}
 		for _, b := range boards {
-			<a class="card card-bordered bg-base-200 p-4 hover:bg-base-300" href={ "/whiteboard/" + b.DocID }>
-				<div class="font-mono text-sm">{ b.DocID }</div>
-				<div class="text-xs text-base-content/60">version { b.DocVer }</div>
-			</a>
+			<div class="card card-bordered bg-base-200 p-4 flex flex-row items-center gap-2 hover:bg-base-300">
+				<a class="flex-1 min-w-0" href={ templ.URL("/whiteboard/" + b.DocID) }>
+					<div class="font-mono text-sm truncate">{ b.DocID }</div>
+					<div class="text-xs text-base-content/60 flex items-center gap-2">
+						<span>version { strconv.Itoa(b.DocVer) }</span>
+						@authorBadge(b.Author, b.IsMine)
+					</div>
+				</a>
+				if b.CanDelete {
+					@deleteBoardButton(b.DocID, b.Author)
+				}
+			</div>
 		}
 	</div>
+}
+
+// deleteBoardButton is the per-row trash that opens the shared confirm
+// dialog: it only sets the two signals the dialog reads, so one dialog
+// serves every row. Rendered only where the server granted the right, so
+// the affordance and the enforcement agree.
+templ deleteBoardButton(docID string, author string) {
+	<button
+		type="button"
+		class="btn btn-ghost btn-xs text-error"
+		title="Delete this whiteboard"
+		data-on:click__prevent={ "$confirmBoardId = " + strconv.Quote(docID) + "; $confirmBoardAuthor = " + strconv.Quote(author) + "; document.getElementById('" + boardDialogID + "').showModal()" }
+	 data-variant="ghost">
+		<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
+	</button>
+}
+
+// authorBadge names who started the board; "you" replaces the email on
+// your own rows so a shared list still reads at a glance.
+templ authorBadge(author string, isMine bool) {
+	if author != "" {
+		if isMine {
+			<span class="badge badge-xs badge-primary" title={ "Author: " + author }>you</span>
+		} else {
+			<span title="Author">by { author }</span>
+		}
+	}
+}
+
+// deleteBoardModal is the single confirmation dialog for the index.
+// Datastar signals ($confirmBoardId, $confirmBoardAuthor) carry the target
+// so one dialog serves every row — the pattern the todo list also uses.
+// The server answers the POST with the re-rendered list fragment, so no
+// reload, and peers' lists refresh through the same record broadcast.
+templ deleteBoardModal() {
+	<dialog id={ boardDialogID } class="modal" data-on:close="$confirmBoardId = ''; $confirmBoardAuthor = ''; $deletingBoard = false">
+		<div class="modal-box">
+			<h3 class="font-bold text-lg text-error">Delete this whiteboard?</h3>
+			<p class="py-4 text-sm">
+				This permanently removes the board and every shape on it
+				<span class="text-base-content/60" data-text="$confirmBoardAuthor ? 'started by ' + $confirmBoardAuthor : ''"></span>.
+				Any other tab still drawing on it loses the canvas on reload.
+			</p>
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-ghost btn-sm"
+					data-on:click={ "document.getElementById('" + boardDialogID + "').close()" }
+				 data-variant="ghost">
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn btn-error btn-sm"
+					data-attr:disabled="$deletingBoard"
+					data-on:click={ "$deletingBoard = true; document.getElementById('" + boardDialogID + "').close(); @post('/api/whiteboard/' + encodeURIComponent($confirmBoardId) + '/delete')" }
+				 data-variant="destructive">
+					Delete
+				</button>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button data-on:click={ "document.getElementById('" + boardDialogID + "').close()" }>close</button>
+		</form>
+	</dialog>
 }
 
 // Board renders the interactive canvas for one whiteboard doc. The
 // client connects to the SSE stream and listens for shape + presence
 // events; drawing POSTs Loro updates back to the server.
-templ Board(email string, userRole string, docID string, buildLabel string, buildCommit string, offlineSync bool) {
+templ Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Collab whiteboard { docID } — gogogo</title>
+			<title>Collab whiteboard { meta.DocID } — gogogo</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 				<link rel="stylesheet" href="/static/app.css"/>
 			@authviews.ThemeHead()
@@ -102,7 +200,7 @@ templ Board(email string, userRole string, docID string, buildLabel string, buil
 			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			@components.SessionBanner(email != "")
-			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ docID }>
+			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ meta.DocID }>
 				<div class="toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto">
 					<button class="btn btn-sm" data-tool="rect">Rectangle</button>
 					<button class="btn btn-sm" data-tool="ellipse">Ellipse</button>
@@ -119,6 +217,9 @@ templ Board(email string, userRole string, docID string, buildLabel string, buil
 						<span class="pill-offline">offline</span>
 					</div>
 					<span id="net-status" class="text-xs text-warning hidden" title="Connection status"></span>
+					<span class="text-xs text-base-content/60 flex items-center gap-2">
+						@authorBadge(meta.Author, meta.IsMine)
+					</span>
 					<a class="btn btn-sm btn-ghost" data-variant="ghost" href="/whiteboard">Back</a>
 				</div>
 				<div class="relative flex-1 overflow-hidden" id="canvas-wrap" style="background-color:#ffffff;">

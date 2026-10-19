@@ -192,6 +192,15 @@ linters:
         linters:
           - unused
           - lll
+      # Standalone CLIs and gate binaries print to stdout BY DESIGN: the output
+      # is the product (a shell script or a human reads it) and several run
+      # before the app logger could exist. StdoutBypassesSlog targets the HTTP
+      # slices and internal packages, not these, so the rule is scoped here
+      # rather than in Go (ruleguard's PkgPath shape differs between the real
+      # module and the fixture harness, which made an in-rule exemption lie).
+      - path: ^(cmd|scripts)/
+        linters:
+          - gocritic
       # Ignore length checks in templ-generated files
       - path: (.+)_templ\.go
         linters:

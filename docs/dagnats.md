@@ -1,6 +1,6 @@
 # DagNats durable workflows
 
-Pinned: DagNats v0.0.24 (go.mod). Bump procedure: `bin/check-dagnats-pin.sh`
+Pinned: DagNats v0.0.28 (go.mod). Bump procedure: `bin/check-dagnats-pin.sh`
 fails when these drift — then diff upstream `CHANGELOG.md` between the two
 tags, update the capability table below, and move the pin in the same commit.
 
@@ -14,7 +14,7 @@ await-first-todo (signal) → 3× create-todo → finalize.
 Remove via the `SCOPE` header in `internal/dagnats/dagnats.go` (package +
 `cmd/web/dagnats.go` + wiring calls).
 
-## Capability table (DagNats v0.0.24)
+## Capability table (DagNats v0.0.28)
 
 Verified against the pinned module, not marketing prose. "Bounded
 dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
@@ -32,6 +32,26 @@ dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
 | Subworkflows | child runs from KV defs | `dag/subworkflow.go` |
 | No free-form expressions | comparisons + dotpaths only; no CEL/eval | closed `validOps` set in `dag/condition.go` |
 | No unbounded loops | every loop surface has a static ceiling | `checkLoopBounds`, planner bounds |
+
+## Behavior changes between the template's old pin and v0.0.28
+
+Verified against the module's `CHANGELOG.md`, not prose. These matter
+because each one changes engine behavior under an unchanged workflow def:
+
+- **Cron `backfill: true` now replays.** A missed fire is replayed once per
+  matching minute since the last run (100/trigger cap). It used to be stored
+  and ignored, so a restarted engine silently skipped the window.
+- **Subject-trigger `debounce` now takes effect.** A burst inside `period`
+  starts ONE run with the last payload. It was previously validated and
+  ignored, so every message started a run — a def relying on the old
+  accidental behavior now sees fewer, later runs.
+- **`SetupAll` provisions `triggers`, `trigger_state`, `signals`,
+  `checkpoints`, `concurrency_runs`** (and `console_audit`), instead of
+  depending on `dagnats serve` having run first.
+- **KV buckets created outside `SetupAll` are no longer single-replica in a
+  cluster.**
+- **Malformed defs fail validation instead of panicking** at run start, and
+  an incomplete `cancel_on` entry is rejected upfront.
 
 ## Gotchas learned here (not upstream)
 

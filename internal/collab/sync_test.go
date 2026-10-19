@@ -31,6 +31,13 @@ func (f *fakePersister) LoadSnapshot(docID string) ([]byte, bool) {
 	return s, ok
 }
 
+func (f *fakePersister) DeleteSnapshot(docID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.snapshots, docID)
+	return nil
+}
+
 func (f *fakePersister) get(docID string) []byte {
 	f.mu.Lock()
 	defer f.mu.Unlock()

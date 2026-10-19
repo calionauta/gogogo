@@ -238,6 +238,16 @@ func (w *WebSyncWorker) LoadSnapshot(docID string) ([]byte, bool) {
 	return snap, true
 }
 
+// Forget drops a doc from the shared cache and deletes its persisted
+// snapshot — the durable half of removing a board. Peer tabs still holding
+// the stream keep rendering their own copy until they reload; the next
+// op they post lands on a fresh, empty doc, which is the honest state of a
+// deleted board (it is not silently restored, and not merged into a
+// survivor).
+func (w *WebSyncWorker) Forget(docID string) error {
+	return w.docs.Forget(docID)
+}
+
 // WebUpdateEvent is the wire envelope for a web transport update, sent
 // over the SSE hub to peers. Data is the raw Loro update bytes.
 type WebUpdateEvent struct {

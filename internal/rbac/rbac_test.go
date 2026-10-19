@@ -69,70 +69,41 @@ func TestRBACEnforcement(t *testing.T) {
 	}
 }
 
-// TestRBACPolicyCoversMuxRoutes pins policy against the real mux: every
-// subtree buildChiMux mounts must decide allow for user or admin — never
-// silent-deny. Adding a feature means adding its paths here AND in
-// policy.csv (fail-closed by construction: an unlisted route denies).
-// Mirror: internal/server/chi.go buildChiMux.
-func TestRBACPolicyCoversMuxRoutes(t *testing.T) {
+// TestRBACUserCannotReachOperatorSurfaces pins the admin-only DECISION
+// (not just the route list): a plain user is denied every operator
+// surface. The route-coverage lint lives in internal/server
+// (TestRBACCoverageMatchesRealMux) because only that package can import
+// both the mux and this one without a cycle; this test keeps the policy
+// side honest on its own.
+//
+// Red-proof: widen any row to cover /config for user and this goes red.
+func TestRBACUserCannotReachOperatorSurfaces(t *testing.T) {
 	e, err := NewEnforcer()
 	if err != nil {
 		t.Fatalf("NewEnforcer: %v", err)
 	}
-	userOK := []string{
-		"/todo", "/todo/", "/api/todos", "/api/todos/",
-		"/login", "/logout", "/whiteboard", "/whiteboard/",
-		"/api/whiteboard", "/api/whiteboard/", "/api/whiteboards/",
-		"/notes", "/notes/", "/api/notes", "/api/notes/",
-		"/room", "/room/", "/chat", "/chat/", "/api/chat/",
-		"/genui", "/genui/", "/api/genui/",
-		"/review", "/review/", "/api/review", "/api/review/",
-		"/api/credits", "/api/credits/", "/api/ai/", "/api/byok/",
-		"/api/onboarding", "/api/onboarding/",
-		"/api/auth/signup/credential", "/api/session",
-		"/static/app.min.css", "/static/notes/app.js", "/static/wb/board.js",
-		"/sw.js", "/health", "/",
+	opSurfaces := []string{
+		"/config", "/config/", "/console", "/console/", "/console/x",
+		"/dagnats", "/dagnats/", "/dagnats/x",
 	}
-	for _, path := range userOK {
-		allowUser, uerr := e.Enforce("user", path, "GET")
-		if uerr != nil {
-			t.Fatalf("enforce user %s: %v", path, uerr)
-		}
-		allowAdmin, aerr := e.Enforce("admin", path, "GET")
-		if aerr != nil {
-			t.Fatalf("enforce admin %s: %v", path, aerr)
-		}
-		if !allowUser && !allowAdmin {
-			t.Errorf("route %q denied for user and admin — policy gap", path)
+	for _, path := range opSurfaces {
+		for _, method := range []string{"GET", "POST"} {
+			denied, derr := e.Enforce("user", path, method)
+			if derr != nil {
+				t.Fatalf("enforce user %s %s: %v", method, path, derr)
+			}
+			if denied {
+				t.Errorf("user reaches operator surface %s %s, want admin-only", method, path)
+			}
 		}
 	}
-	for _, path := range []string{"/config", "/config/", "/console", "/console/", "/dagnats", "/dagnats/"} {
-		denied, derr := e.Enforce("user", path, "GET")
-		if derr != nil {
-			t.Fatalf("enforce user %s: %v", path, derr)
+	for _, path := range []string{"/config", "/console/", "/dagnats/"} {
+		ok, cerr := e.Enforce("admin", path, "GET")
+		if cerr != nil {
+			t.Fatalf("enforce admin %s: %v", path, cerr)
 		}
-		if denied {
-			t.Errorf("route %q allowed for user, want admin-only", path)
-		}
-	}
-	consoleAdmin, cerr := e.Enforce("admin", "/console/", "GET")
-	if cerr != nil {
-		t.Fatalf("enforce admin /console/: %v", cerr)
-	}
-	if !consoleAdmin {
-		t.Error("admin must reach the console proxy")
-	}
-	// Pinned user-allow (not just user-or-admin): the feature static
-	// subtrees must stay reachable for plain users — the admin /* would
-	// mask a lost /static/* row in the loop above. Red-proof: drop the
-	// static wildcard and this goes red.
-	for _, path := range []string{"/static/notes/app.js", "/static/wb/board.js"} {
-		allow, err := e.Enforce("user", path, "GET")
-		if err != nil {
-			t.Fatalf("enforce user %s: %v", path, err)
-		}
-		if !allow {
-			t.Errorf("route %q denied for user, want static wildcard to cover it", path)
+		if !ok {
+			t.Errorf("admin cannot reach %s", path)
 		}
 	}
 }
@@ -226,17 +197,29 @@ func TestRBACPolicyShape(t *testing.T) {
 	knownSubjects := map[string]bool{
 		RoleAdmin: true, RoleUser: true, RoleViewer: true, RoleAnonymous: true,
 	}
-	// The only viewer wildcards: page renders and public surfaces.
-	// Everything else viewer reaches is enumerated exactly (the demo
-	// contract: read + create + toggle + delete-own, nothing else
-	// destructive, nothing paid). /api/*-shaped viewer rows are never acceptable.
+	// The only viewer wildcards: page renders, public surfaces, and the
+	// shared docs below. A blanket `/api/*`-shaped viewer row stays
+	// unacceptable — the demo contract is read + create + toggle +
+	// delete-own on todos, and open-edit/author-delete on shared docs,
+	// nothing else destructive, nothing paid.
+	//
+	// Shared collaborative docs. The wildcard is the point and not a
+	// loophole: a shared doc's id is unknowable in advance, so enumerating
+	// per-doc paths is impossible. Both features keep their destructive
+	// verb (doc/delete) inside the SAME pattern - keyMatch2 lets `*` cross
+	// `/` - so the middleware cannot be what makes a new verb safe.
+	// canDeleteDoc on the row (author or admin) is that guard, and each
+	// feature's permissions_test pins it. Widening the set of SUBTREES
+	// below is the part that must stay deliberate.
 	viewerWildcards := map[string]bool{
 		"/todo/*": true, "/static/*": true, "/api/auth/*": true,
 		"/api/todos/*/toggle": true,
 		// Delete-own verbs: the middleware gates the verb class, the
-		// handler enforces per-record ownership (canDeleteRow) — a
+		// handler enforces per-record ownership (canDeleteRow) - a
 		// viewer reaches these paths but only deletes their own rows.
 		"/api/todos/*/delete": true, "/api/todos/*/confirm-delete": true,
+		"/whiteboard/*": true, "/api/whiteboard/*": true,
+		"/notes/*": true, "/api/notes/*": true,
 	}
 	for line := range strings.SplitSeq(Policy(), "\n") {
 		line = strings.TrimSpace(line)
@@ -302,6 +285,19 @@ func TestRBACViewerPolicy(t *testing.T) {
 		{"POST", "/api/todos/abc123/delete"},
 		{"GET", "/api/todos/abc123/confirm-delete"},
 		{"POST", "/api/todos/completed/delete"},
+		// The collab surface: notes and whiteboards are SHARED, so a
+		// viewer opens and EDITS any of them — that is what makes the demo
+		// prove collaboration from two browsers. Delete rides the same
+		// wildcard; the per-doc author/admin rule lives in each feature's
+		// canDeleteDoc and is pinned by that package's permission test.
+		{"GET", "/whiteboard"},
+		{"GET", "/whiteboard/abc"},
+		{"POST", "/api/whiteboard/abc/update"},
+		{"GET", "/api/whiteboards/fragment"},
+		{"GET", "/notes"},
+		{"GET", "/notes/abc"},
+		{"POST", "/api/notes/abc/op"},
+		{"GET", "/api/notes/fragment"},
 	}
 	for _, a := range allow {
 		ok, err := e.Enforce("viewer", a.path, a.method)
@@ -390,5 +386,101 @@ func TestRBACMiddlewareViewerEnforcement(t *testing.T) {
 	}
 	if code := drive(http.MethodGet, "/todo"); code != http.StatusOK {
 		t.Errorf("viewer page status = %d, want 200", code)
+	}
+}
+
+// TestRBACPathMatcherEscapesLiterals pins the matcher's one deviation from
+// Casbin's util.KeyMatch2: policy objects are PATHS, so a literal is
+// matched literally. LaputaKeyMatch2 leaves regex metacharacters live, so
+// `p, anonymous, /sw.js, GET` also allows a request for `/swXjs` — a
+// silent over-grant invisible in the CSV. Red-proof: revert pathMatches to
+// util.KeyMatch2 and the /swXjs case below goes green (i.e. this fails).
+func TestRBACPathMatcherEscapesLiterals(t *testing.T) {
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	cases := []struct {
+		sub, path string
+		want      bool
+		why       string
+	}{
+		{"anonymous", "/sw.js", true, "the exact path still matches"},
+		{"anonymous", "/swXjs", false, "a dot is a dot, not a wildcard"},
+		{"anonymous", "/swajs", false, "same, other byte"},
+		{"user", "/notes/x", true, "a trailing /* still spans segments"},
+		{"user", "/api/notes/abc/delete", true, "documented keyMatch2 semantics: * crosses /"},
+		{"viewer", "/api/notes/abc/op", true, "shared-doc write rides the same wildcard"},
+		{"user", "/notez/x", false, "a bare prefix is not a match"},
+	}
+	for _, c := range cases {
+		got, eerr := e.Enforce(c.sub, c.path, "GET")
+		if eerr != nil {
+			t.Fatalf("enforce %s %s: %v", c.sub, c.path, eerr)
+		}
+		if got != c.want {
+			t.Errorf("Enforce(%q, %q, GET) = %v, want %v (%s)", c.sub, c.path, got, c.want, c.why)
+		}
+	}
+}
+
+// TestRBACPolicyObjectsCarryNoMetacharacters pins ValidatePolicyObjects:
+// the shipped policy is clean, and a planted object with a regex
+// metacharacter is REFUSED at enforcer-build time rather than silently
+// changing meaning. A dot stays legal (real paths have extensions).
+// Red-proof: delete the ValidatePolicyObjects call from NewEnforcer and
+// the planted-policy half stops returning an error.
+func TestRBACPolicyObjectsCarryNoMetacharacters(t *testing.T) {
+	if err := ValidatePolicyObjects(Policy()); err != nil {
+		t.Fatalf("shipped policy rejected: %v", err)
+	}
+	bad := []string{
+		"p, user, /api/v1.0/(v2)/*, .*",
+		"p, user, /api/x+/*, .*",
+		"p, user, /api/[abc]/*, .*",
+		"p, user, /api/{id}/*, .*",
+	}
+	for _, row := range bad {
+		if err := ValidatePolicyObjects(row); err == nil {
+			t.Errorf("ValidatePolicyObjects accepted a metacharacter object: %q", row)
+		}
+	}
+	ok := []string{
+		"p, user, /sw.js, GET",
+		"p, user, /api/notes/*, .*",
+		"p, user, /api/notes/:id/op, POST",
+	}
+	for _, row := range ok {
+		if err := ValidatePolicyObjects(row); err != nil {
+			t.Errorf("ValidatePolicyObjects rejected a legal path %q: %v", row, err)
+		}
+	}
+}
+
+// TestRBACStreamStatusStaysReachable pins the realtime invariant that a
+// 403 broke: web/resources/static/sse-open.js polls
+// /api/stream/status to decide whether a stream opened, and treats any
+// non-2xx as "not registered" — then rethrows. With RBAC_ENABLED=true and
+// no row for this path, every realtime surface (todo, chat, genui) failed
+// loudly for a signed-in user. The probe is public by contract (one
+// boolean for an opaque per-tab id), so EVERY subject must reach it.
+// Red-proof: drop the three /api/stream/status rows and this goes red.
+func TestRBACStreamStatusStaysReachable(t *testing.T) {
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	for _, sub := range []string{RoleAnonymous, RoleViewer, RoleUser, RoleAdmin} {
+		ok, eerr := e.Enforce(sub, "/api/stream/status", "GET")
+		if eerr != nil {
+			t.Fatalf("enforce %s: %v", sub, eerr)
+		}
+		if !ok {
+			t.Errorf("subject %q cannot reach /api/stream/status: sse-open.js would report every healthy stream as dead", sub)
+		}
+	}
+	// Method hygiene: the probe is a GET-only read.
+	if ok, _ := e.Enforce(RoleUser, "/api/stream/status", "POST"); ok {
+		t.Error("POST /api/stream/status allowed for user, want GET only")
 	}
 }
