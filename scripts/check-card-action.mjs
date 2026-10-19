@@ -16,7 +16,7 @@
 //
 // Usage: node scripts/check-card-action.mjs <base-url>
 import { chromium } from "playwright";
-const BASE = "http://127.0.0.1:8096";
+const BASE = process.argv[2] || "http://127.0.0.1:8096";
 const b = await chromium.launch();
 const p = await b.newPage();
 const fails = [];
