@@ -299,7 +299,7 @@ by hand, so when a step is added to one, add it to the other:
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | golangci-lint (33 linters) | ✓ | ✓ |
 | govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
-| deadcode (advisory) | ✅ pre-push hook | ✓ |
+| deadcode (advisory, version-pinned) | ✅ pre-push hook | ✓ |
 | `go test -race` (parallel, all pkgs) | ✓ | ✓ |
 | build + **binary** boot smoke | ✓ | ✓ |
 | browser smoke (Playwright) | ✓ | ✓ |
@@ -409,6 +409,13 @@ no-op when lefthook is not installed).
 |------|------|------|
 | `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) · stelow-drift (advisory) · govulncheck/ci-deps (glob-scoped) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
+
+External tools are **version-pinned in `go.mod`** (the `tool` directive, already
+used for `templ`) and run through `go tool`, never `go install @latest`. That is
+what keeps a scan from disagreeing with the toolchain about which module
+version it is type-checking — the mismatch that made `deadcode` report
+type-check errors as "dead code found". Add another tool the same way:
+`go get -tool <pkg>@<version>`, then call it as `go tool <name>`.
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
 > If the pre-commit hook reports every job green but still exits non-zero, read
