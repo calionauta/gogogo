@@ -136,6 +136,12 @@ Claude or any AI assistant does NOT co-author anything here. Never add `Co-Autho
   scoped `go test <pkg>` or `make ci-local-fast` (carries its own
   `--fast` pre-flight + serial degrade past 8 changed packages) and let the
   PR's CI be the full gate.
+- `deadcode` (pre-push) is **host-gated** and skips itself: it peaks at
+  3.28 GB RSS, more than a full lint. A push once sat in that hook for 23
+  minutes at load 18. If you see `deadcode SKIPPED`, that is the gate
+  working — the push proceeds and CI runs the scan with real capacity. Do
+  not add `DEADCODE_FORCE=1` here to "get the scan", and do not re-run a
+  push just because it printed a skip.
 - NEVER bare `go vet ./...` here, and think twice before
   `go test -run 'TestTrimmedTree...' ./internal/installer/` — each unit
   copies the whole repo and forks a full vet (parallel storm that took this
