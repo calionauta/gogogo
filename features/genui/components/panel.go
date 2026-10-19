@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/a-h/templ"
@@ -134,6 +135,11 @@ func InstallPanelRegistry(providers []PanelProvider) error {
 		return err
 	}
 
+	aliases, aerr := collectPanelAliases(providers, byName)
+	if aerr != nil {
+		return aerr
+	}
+
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 	if registry.installed && !equalStrings(registry.inOrder, names) {
@@ -143,8 +149,51 @@ func InstallPanelRegistry(providers []PanelProvider) error {
 	}
 	registry.byName = byName
 	registry.inOrder = names
+	panelAliases = aliases
 	registry.installed = true
 	return nil
+}
+
+// collectPanelAliases folds each provider's declared aliases into one table,
+// rejecting anything ambiguous.
+//
+// Ambiguity is a BOOT error, not a last-write-wins: an alias that matches
+// another panel's canonical name would make the model's `todos` resolve
+// nondeterministically, and one that two providers both claim has no correct
+// answer at all. Failing here means the operator sees it at startup instead of
+// as an occasionally-wrong render.
+func collectPanelAliases(
+	providers []PanelProvider, byName map[string]PanelProvider,
+) (map[string]string, error) {
+	aliases := make(map[string]string)
+	for _, p := range providers {
+		canonical := p.Component()
+		declarer, ok := p.(PanelAliaiser)
+		if !ok {
+			continue
+		}
+		for _, raw := range declarer.Aliases() {
+			alias := strings.ToLower(strings.TrimSpace(raw))
+			if alias == "" {
+				return nil, fmt.Errorf("genui: panel %q declares an empty alias", canonical)
+			}
+			if alias == canonical {
+				// Declaring its own name as an alias is harmless noise, not an
+				// error: it resolves to itself either way.
+				continue
+			}
+			if _, isPanel := byName[alias]; isPanel {
+				return nil, fmt.Errorf("genui: panel %q declares alias %q, which is "+
+					"another panel's name", canonical, alias)
+			}
+			if owner, taken := aliases[alias]; taken && owner != canonical {
+				return nil, fmt.Errorf("genui: alias %q is claimed by both %q and %q",
+					alias, owner, canonical)
+			}
+			aliases[alias] = canonical
+		}
+	}
+	return aliases, nil
 }
 
 // equalStrings compares two sorted name lists.
@@ -160,12 +209,79 @@ func equalStrings(a, b []string) bool {
 	return true
 }
 
-// IsPanel reports whether a catalog name is an installed system panel.
+// IsPanel reports whether a catalog name is an installed system panel — the
+// canonical name OR an alias the model is known to write instead.
 func IsPanel(name string) bool {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()
-	_, ok := registry.byName[name]
+	_, ok := registry.byName[resolvePanelAliasLocked(name)]
 	return ok
+}
+
+// panelAliases maps the names models reach for onto the canonical panel name.
+//
+// The canonical name is the component's, and the prompt advertises exactly that;
+// models still write the plural or a synonym (`todos`, `todo`, `task_list` for
+// `todo_list`). An unmatched name used to fail validation, so the answer that
+// should have rendered the user's real data was repaired, re-answered, and
+// finally dropped — the user saw an empty result for a request the model had
+// understood correctly.
+//
+// THE TABLE IS FILLED BY PROVIDERS, NOT SPELLED HERE. A hardcoded map is how
+// this seam would stop being generic: it knows `todo_list` and its synonyms while
+// every future panel's synonyms are rejected, and the shared catalog would
+// contain one feature's vocabulary — the very coupling the provider seam exists
+// to prevent. Instead a provider may announce its own aliases
+// (PanelAliaiser), and InstallPanelRegistry folds them in.
+//
+// Aliases are a spelling fix, not a vocabulary: only names a provider declared
+// resolve, and an unknown name still fails closed (never model free text).
+var panelAliases = map[string]string{}
+
+// PanelHomer is the OPTIONAL fourth half: the page that OWNS this panel's data.
+//
+// The placeholder shown when a fill fails tells the user where to go instead.
+// Without this the shared component hardcoded "/todo", which pointed an invoices
+// panel at the todo list — feature coupling in the one place a user is already
+// confused. A provider that omits it gets a link-less placeholder rather than a
+// wrong one.
+type PanelHomer interface {
+	// HomePage returns the same-origin path that renders this data in full
+	// (e.g. "/todo"). Empty means "no page to offer".
+	HomePage() string
+}
+
+// PanelAliaiser is the OPTIONAL third half of a panel's contract: the alternate
+// spellings a model is known to use for this panel's name.
+//
+// Optional like PanelSummarizer and ActionProvider — a provider that omits it
+// simply has no aliases, and every non-alias name behaves exactly as before.
+// Declaring them next to the component is what keeps the shared catalog free of
+// feature names: the package resolves them without knowing what any panel means.
+type PanelAliaiser interface {
+	// Aliases returns alternate names models use for this panel. Each must be
+	// distinct from every other panel's canonical name and aliases (the install
+	// rejects a collision), and must not be empty.
+	Aliases() []string
+}
+
+// resolvePanelAliasLocked maps an alias to its canonical panel name. Callers
+// must hold registry.mu (read is enough); the map itself is read-only after
+// init, so a read lock satisfying the caller's contract is all this needs.
+func resolvePanelAliasLocked(name string) string {
+	if canonical, ok := panelAliases[strings.ToLower(strings.TrimSpace(name))]; ok {
+		return canonical
+	}
+	return name
+}
+
+// ResolvePanelName is the exported spelling fix for callers outside this
+// package (the parse path in catalog.go uses it): it returns the canonical
+// name for an alias, and the input unchanged when it is not an alias.
+func ResolvePanelName(name string) string {
+	registry.mu.RLock()
+	defer registry.mu.RUnlock()
+	return resolvePanelAliasLocked(name)
 }
 
 // panelNames is the registry's names, sorted, so the prompt and the guidance
@@ -182,13 +298,21 @@ func panelNames() []string {
 // error instead of being quietly overwritten at hydration.
 func validatePanelProps(name string, props map[string]any) error {
 	registry.mu.RLock()
-	p, ok := registry.byName[name]
+	p, ok := registry.byName[resolvePanelAliasLocked(name)]
 	registry.mu.RUnlock()
 	if !ok {
 		return nil
 	}
 	writable := p.Writable()
 	for key := range props {
+		// The instance id is SERVER-owned (see instance.go): the renderer adds
+		// it to every directive's props, so it is always present and never
+		// model-writable. Skipping it here is what keeps "every prop the model
+		// sent must be declared writable" a true statement about MODEL props,
+		// instead of one that has to make an exception per panel.
+		if key == InstanceIDProp {
+			continue
+		}
 		if !slices.Contains(writable, key) {
 			return fmt.Errorf("genui: %s prop %q is not model-writable (only %v)",
 				name, key, writable)
@@ -197,11 +321,12 @@ func validatePanelProps(name string, props map[string]any) error {
 	return nil
 }
 
-// panelProvider returns the installed provider for a name, or nil.
+// panelProvider returns the installed provider for a name (or its alias), or
+// nil.
 func panelProvider(name string) PanelProvider {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()
-	return registry.byName[name]
+	return registry.byName[resolvePanelAliasLocked(name)]
 }
 
 // renderPanel renders an installed panel through its own provider, which is
@@ -218,6 +343,20 @@ func renderPanel(name string, props map[string]any) (templ.Component, bool, erro
 	}
 	comp, err := p.Render(props)
 	return comp, true, err
+}
+
+// panelHomePage returns the page a panel says owns its data, or "".
+func panelHomePage(name string) string {
+	registry.mu.RLock()
+	p, ok := registry.byName[name]
+	registry.mu.RUnlock()
+	if !ok {
+		return ""
+	}
+	if h, isHomer := p.(PanelHomer); isHomer {
+		return h.HomePage()
+	}
+	return ""
 }
 
 // panelPrompt returns one panel's guidance line, or "" when not installed.

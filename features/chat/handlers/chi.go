@@ -43,6 +43,10 @@ type chatEnvelope struct {
 	Text       string `json:"text,omitempty"`
 	Directives any    `json:"directives,omitempty"`
 	Error      string `json:"error,omitempty"`
+	// IDPrefix is the DOM-id stem this answer's components render under. The
+	// worker computes it from the message it just stored (store.IDPrefix), so
+	// the live patch and a later reload agree on every id.
+	IDPrefix string `json:"idPrefix,omitempty"`
 }
 
 // Handler serves the Ask demo on chi: page, enqueue, stream, worker.
@@ -127,7 +131,11 @@ func messageViews(ctx context.Context, msgs []store.Message) []store.MessageView
 	out := make([]store.MessageView, 0, len(msgs))
 	for _, m := range msgs {
 		//nolint:contextcheck // pure CPU (catalog render); ctx is here for the log.
-		comps, err := comp.RenderAll(m.Components)
+		// Prefix by the message's own idempotency key: a thread keeps every
+		// answer on the page, so without a per-message stem the second answer's
+		// components would repeat the first one's DOM ids — invalid HTML, and a
+		// selector that silently means "the first match".
+		comps, err := comp.RenderAllWithPrefix(m.Components, store.IDPrefix(m))
 		if err != nil {
 			obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 			observability.Error(ctx, "chat: render stored answer failed", obsArgs...)
@@ -269,7 +277,7 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 		return dshelpers.RenderAndPatch(sse, chatcomponents.ChatThread(nil, p.Error),
 			sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
 	}
-	comps := renderDirectives(p.Directives)
+	comps := renderDirectivesWithPrefix(p.Directives, p.IDPrefix)
 	view := store.MessageView{Role: roleAssistant, Text: p.Text, Components: comps}
 	return dshelpers.RenderAndPatch(sse, chatcomponents.ChatThread([]store.MessageView{view}, ""),
 		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
@@ -279,6 +287,13 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 // before it reaches the DOM: the envelope crossed JSON, so decode via
 // ParseDirectives-shaped validation instead of trusting the shape.
 func renderDirectives(raw any) []templ.Component {
+	return renderDirectivesWithPrefix(raw, "")
+}
+
+// renderDirectivesWithPrefix is renderDirectives with an instance-id stem, so
+// two answers on one page never mint the same component ids (see
+// internal/components/instance.go rule 1).
+func renderDirectivesWithPrefix(raw any, idPrefix string) []templ.Component {
 	if raw == nil {
 		return nil
 	}
@@ -292,7 +307,7 @@ func renderDirectives(raw any) []templ.Component {
 	if decErr := json.Unmarshal(blob, &envelope); decErr != nil {
 		return nil
 	}
-	comps, renderErr := comp.RenderAll(envelope.Components)
+	comps, renderErr := comp.RenderAllWithPrefix(envelope.Components, idPrefix)
 	if renderErr != nil {
 		return nil
 	}

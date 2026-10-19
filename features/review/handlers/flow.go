@@ -51,12 +51,24 @@ type ReviewInput struct {
 }
 
 // Verdict is the typed flow output.
+//
+// Critique and CriticVerdict travel with the verdict on purpose: the run
+// has two halves (the editor pair's exchange, then the judge's decision)
+// and a verdict card showing only the final proposal left the user unable
+// to tell a real rewrite from a no-op (live report: pasting "fala manooo!"
+// returned "Proposal: fala manooo!" under "Approved" — the loop had
+// approved its own zero-change output, with nothing on screen saying the
+// proposal was byte-identical to the draft). The critic's own words are
+// the part that explains WHY, so they are part of the result, not a log
+// line.
 type Verdict struct {
-	Decision   string  `json:"decision"`
-	Rationale  string  `json:"rationale"`
-	Confidence float64 `json:"confidence"`
-	Rounds     int     `json:"rounds"`
-	Proposal   string  `json:"proposal"`
+	Decision      string  `json:"decision"`
+	Rationale     string  `json:"rationale"`
+	Confidence    float64 `json:"confidence"`
+	Rounds        int     `json:"rounds"`
+	Proposal      string  `json:"proposal"`
+	Critique      string  `json:"critique"`
+	CriticVerdict string  `json:"criticVerdict"`
 }
 
 // Runner owns one review topology: the Genkit model action for the
@@ -84,19 +96,65 @@ func (r *Runner) DefineReviewFlow() *core.Flow[ReviewInput, Verdict, string] {
 }
 
 // rolePrompts returns the (maker, critic) system prompts for a tab.
+//
+// The APPROVE contract carries one obligation beyond "looks fine": the
+// critic must have actually COMPARED. The first version asked only for
+// readiness, so a criticism-free pass counted as an approval even when the
+// proposal was identical to the draft — which is what made a trivial input
+// come back as a confident "approve" with the input echoed as the result.
+// A critic that reports APPROVE now has to say the proposal is an
+// improvement over the original, and a maker has to state when nothing
+// needed changing rather than returning the input unchanged in silence.
 func rolePrompts(tab string) (maker, critic string) {
 	if tab == TabCode {
 		return "You are a programmer. Fix the bug(s) in the following diff/code. " +
-				"Return ONLY the corrected code, no commentary.",
+				"Return ONLY the corrected code, no commentary. If the code has no " +
+				"bug and no improvement to make, say exactly: NO CHANGE NEEDED, and " +
+				"nothing else.",
 			"You are a strict code reviewer. Review the proposed fix against the " +
-				"original. If it is correct and complete, reply with exactly: APPROVE. " +
-				"Otherwise reply with: REVISE: <one paragraph of concrete required changes>."
+				"original and decide whether the proposal is an IMPROVEMENT — a fix " +
+				"for a real defect or a real readability gain. If the proposal is " +
+				"identical to the original, or differs only cosmetically, reply with " +
+				"exactly: REVISE: <what is still wrong or missing>. Only if the code " +
+				"is correct and the proposal adds something real over the original, " +
+				"reply with exactly: APPROVE. Otherwise reply with: REVISE: <one " +
+				"paragraph of concrete required changes>."
 	}
 	return "You are a copy editor. Improve the following text for clarity and " +
-			"tone. Return ONLY the improved text, no commentary.",
-		"You are a strict editor. Review the draft below against the original. " +
-			"If it is ready to publish, reply with exactly: APPROVE. Otherwise " +
-			"reply with: REVISE: <one paragraph of concrete required changes>."
+			"tone. Return ONLY the improved text, no commentary. If the text " +
+			"needs no edit at all, say exactly: NO CHANGE NEEDED, and nothing else.",
+		"You are a strict editor. Review the draft below against the original and " +
+			"decide whether the draft is an IMPROVEMENT over the original. If the " +
+			"draft is identical to the original, or differs only in punctuation or " +
+			"other trivia, that is not an improvement: reply with exactly: " +
+			"REVISE: <what is still weak>. If the draft is clearly better, reply " +
+			"with exactly: APPROVE. Otherwise reply with: REVISE: <one paragraph " +
+			"of concrete required changes>."
+}
+
+// noChangeNeeded is the maker's escape hatch: it reports that the input
+// needed no editing rather than echoing it back as if it had rewritten it.
+// Matched case-insensitively on a prefix, the same tolerance isApproval
+// gives the critic (models pad and punctuate these tokens).
+const noChangeNeeded = "NO CHANGE NEEDED"
+
+// isNoChange reports whether a maker reply declared the input unedited.
+func isNoChange(made string) bool {
+	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(made)), noChangeNeeded)
+}
+
+// criticVerdict names the critic's own outcome, so the result can say what
+// the editor pair concluded independently of what the judge decided.
+const (
+	CriticApproved = "approved"
+	CriticRevised  = "revised"
+)
+
+// unchanged reports whether the proposal is byte-identical to the input
+// after trimming. The result surface uses it to refuse a silent no-op:
+// "the editor changed nothing" is a fact the user is entitled to.
+func unchanged(original, proposal string) bool {
+	return strings.TrimSpace(original) == strings.TrimSpace(proposal)
 }
 
 // truncateRunes caps s at n runes (jev demo endpoints enforce small
@@ -147,33 +205,85 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 		_ = send(ctx, s)
 	}
 
-	proposal := content
-	critique := ""
-	rounds := 0
+	proposal, critique, criticVerdict, rounds, declined, err := r.editLoop(
+		ctx, content, makerPrompt, criticPrompt, emit)
+	if err != nil {
+		return Verdict{}, err
+	}
+
+	// A maker that declared "no change needed" (or a proposal that is
+	// byte-identical to the input) has nothing for the judge to accept:
+	// asking it to bless a non-edit would report a confident "approve" next
+	// to a proposal the user cannot tell apart from their own text.
+	if declined || unchanged(content, proposal) {
+		return Verdict{
+			Decision: DecisionNeedsHuman, Confidence: 0, Rounds: rounds,
+			Proposal: proposal, Critique: critique, CriticVerdict: criticVerdict,
+			Rationale: "The editor proposed no change: the draft reads the same as your " +
+				"input, so there is nothing for the judge to accept. Edit the text " +
+				"and run again if you expected a rewrite.",
+		}, nil
+	}
+
+	return r.judgeAndDecide(ctx, content, proposal, critique, criticVerdict, rounds, emit)
+}
+
+// editLoop runs the writer/critic exchange and reports what came out of it.
+//
+// Extracted from run() because the loop body is the whole of run's branch
+// count (gocyclo): the maker's decline, the critic's verdict, the iteration
+// bound and the ctx check are four decisions that have nothing to do with the
+// judge, and keeping them in one function with it made both harder to read.
+// The `declined` flag is returned rather than folded into the proposal so the
+// caller can tell "the maker said nothing needed changing" from "the maker
+// rewrote it identically" — both escalate, but only the first means the critic
+// was never consulted.
+func (r *Runner) editLoop(
+	ctx context.Context, content, makerPrompt, criticPrompt string, emit func(string),
+) (proposal, critique, criticVerdict string, rounds int, declined bool, err error) {
 	makerInput := content
 	for {
 		emit("writer")
-		made, err := r.generate(ctx, makerPrompt+"\n\n"+makerInput)
-		if err != nil {
-			return Verdict{}, err
+		made, gerr := r.generate(ctx, makerPrompt+"\n\n"+makerInput)
+		if gerr != nil {
+			return "", "", "", rounds, false, gerr
+		}
+		if isNoChange(made) {
+			// The maker declined to edit: show the input back, and do not ask
+			// the critic to approve a proposal that IS the original (that path
+			// is what produced "approve" over a byte-identical card).
+			return content, critique, criticVerdict, rounds, true, nil
 		}
 		proposal = strings.TrimSpace(made)
 		emit("reviewer")
-		crit, err := r.generate(ctx, criticPrompt+"\n\nOriginal:\n"+content+"\n\nDraft:\n"+proposal)
-		if err != nil {
-			return Verdict{}, err
+		crit, gerr := r.generate(ctx, criticPrompt+"\n\nOriginal:\n"+content+"\n\nDraft:\n"+proposal)
+		if gerr != nil {
+			return "", "", "", rounds, false, gerr
 		}
 		critique = strings.TrimSpace(crit)
 		rounds++
-		if isApproval(critique) || rounds >= MaxIterations {
-			break
+		if isApproval(critique) {
+			return proposal, critique, CriticApproved, rounds, false, nil
+		}
+		criticVerdict = CriticRevised
+		if rounds >= MaxIterations {
+			return proposal, critique, criticVerdict, rounds, false, nil
 		}
 		makerInput = "A critic said:\n" + critique + "\n\nAddress every point. Original:\n" + content
 		if ctx.Err() != nil {
-			return Verdict{}, ctx.Err()
+			return "", "", "", rounds, false, ctx.Err()
 		}
 	}
+}
 
+// judgeAndDecide is the terminal half of run(): one judge call, then the
+// closed-set decision. Split from run() for the same complexity reason as
+// editLoop, and because the judge is the one step whose failure policy
+// (escalate, never fail) is worth reading on its own.
+func (r *Runner) judgeAndDecide(
+	ctx context.Context, content, proposal, critique, criticVerdict string,
+	rounds int, emit func(string),
+) (Verdict, error) {
 	emit("judge")
 	state := truncateRunes("Original:\n"+content+"\n\nProposal:\n"+proposal+"\n\nCritique:\n"+critique, MaxJudgeStateRunes)
 	verdictQuestion := "Should the proposal be accepted? Answer with exactly one of the allowed choices."
@@ -184,8 +294,9 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 		observability.Warn(ctx, "review: judge unavailable, escalating to human", obsArgs...)
 		return Verdict{
 			Decision:   DecisionNeedsHuman,
-			Rationale:  "The automated judge is unavailable; a human should decide.",
+			Rationale:  "The automated judge is unavailable; a human should decide. " + criticNote(criticVerdict),
 			Confidence: 0, Rounds: rounds, Proposal: proposal,
+			Critique: critique, CriticVerdict: criticVerdict,
 		}, nil
 	}
 
@@ -193,23 +304,45 @@ func (r *Runner) run(ctx context.Context, in ReviewInput, send core.StreamCallba
 	// approve/revise escalates to a human. A default that auto-accepts
 	// would bless every future verdict string sight unseen.
 	decision := DecisionNeedsHuman
-	rationale := "The judge returned an unrecognized verdict; a human should decide."
+	rationale := "The judge returned an unrecognized verdict; a human should decide. " + criticNote(criticVerdict)
 	switch {
 	case ans == DecisionApprove && confidence >= r.threshold():
 		decision = DecisionApprove
-		rationale = "Approved by the automated judge (confidence " + formatConfidence(confidence) + ")."
+		rationale = "Approved by the automated judge (confidence " + formatConfidence(confidence) + "). " +
+			criticNote(criticVerdict)
 	case ans == DecisionApprove:
 		// Leans approve but below threshold: escalate, don't auto-accept.
 		rationale = "The judge leans approve but confidence " + formatConfidence(confidence) +
-			" is below threshold; a human should decide."
+			" is below threshold; a human should decide. " + criticNote(criticVerdict)
 	case ans == DecisionRevise:
 		decision = DecisionRevise
-		rationale = "The judge requested revisions (severity " + severity + "): " + critique
+		// No critique quoted here: the Critique block below renders it verbatim,
+		// and a rationale that repeats it makes the card read as a wall.
+		rationale = "The judge requested revisions (severity " + severity + "). " +
+			criticNote(criticVerdict)
 	}
 	return Verdict{
 		Decision: decision, Rationale: rationale,
 		Confidence: confidence, Rounds: rounds, Proposal: proposal,
+		Critique: critique, CriticVerdict: criticVerdict,
 	}, nil
+}
+
+// criticNote names what the editor pair concluded, so a verdict is never a
+// bare decision with no trace of the exchange that produced it. It is a
+// standalone sentence meant to close a rationale; the critique TEXT is
+// rendered by the result's own Critique block (the revise branch), so this
+// deliberately does not quote it — the judge's revise rationale already
+// carries the request, and a third copy reads as a wall of text.
+func criticNote(criticVerdict string) string {
+	switch criticVerdict {
+	case CriticApproved:
+		return "The critic approved the draft."
+	case CriticRevised:
+		return "The critic asked for changes; its request is below."
+	default:
+		return "The critic was not consulted (the writer proposed no change)."
+	}
 }
 
 // threshold returns the effective confidence threshold (config default;

@@ -1,0 +1,41 @@
+package components
+
+// ActionResult is what replaces the control a user acted on, IN PLACE.
+//
+// WHY IN A SHARED LEAF, not in the answer catalog. The form that posts an action
+// lives in the generative-UI catalog (a model-authored card), but the RESPONSE
+// is rendered by whichever feature owns the route — and genui is trimmable, so
+// a feature-owned handler cannot import it. This package is the layer that
+// survives every trim (every page layout already calls into it), which is what
+// makes it the right home for a UI leaf that two features must agree on.
+//
+// WHY IN PLACE, and not a toast. The reported failure was "I clicked Apply and
+// nothing happened": the write went to a page the user was not on, so the only
+// feedback was a toast that could be missed, and the page in front of them
+// never changed. A response that replaces the clicked card cannot be missed and
+// cannot lie — the control that is gone is proof the request landed.
+//
+// It carries a LINK rather than a copy of the created row: this page does not
+// own that data, and rendering a second, possibly stale view of it here is how
+// two sources of truth for the same rows appear.
+templ ActionResult(id string, ok bool, message string, linkLabel string, linkHref string) {
+	if ok {
+		<div id={ id } class="card bg-success/10 border border-success/40" role="status">
+			<div class="card-body p-4">
+				<div class="flex items-center gap-2">
+					<span class="text-success" aria-hidden="true">✓</span>
+					<span class="text-sm font-medium">{ message }</span>
+				</div>
+				if linkLabel != "" && linkHref != "" {
+					<a href={ linkHref } class="link link-hover text-xs mt-1">{ linkLabel }</a>
+				}
+			</div>
+		</div>
+	} else {
+		<div id={ id } class="card bg-error/10 border border-error/40" role="alert">
+			<div class="card-body p-4">
+				<span class="text-sm">{ message }</span>
+			</div>
+		</div>
+	}
+}

@@ -65,3 +65,25 @@ SELECT * FROM todos
 WHERE owner = ? AND lower(title) LIKE lower(?)
 ORDER BY completed, created DESC
 LIMIT ?;
+
+-- name: ListTodosForIndex :many
+-- Every row's (id, owner, title) -- the input the search index heal needs.
+--
+-- Exists because the postings table is a CACHE of a Go-side pure function
+-- (search.Stem over search.Tokenize), so it cannot be rebuilt by SQL: a row
+-- created before bm25 was wired has no postings and SQL has no way to
+-- compute them. The heal reads these rows and writes their postings through
+-- the same IndexDoc the mutation path uses, which is what makes the rebuilt
+-- index identical to an incrementally written one.
+--
+-- Columns are named rather than a star: the heal wants three fields and
+-- nothing else, and a star would silently start pulling new columns into a
+-- full-table read.
+--
+-- ASCII ONLY, and that is load-bearing: sqlc truncates the tail of a
+-- statement when a comment above it contains a multi-byte character
+-- (reproduced with an em dash, an en dash, an arrow and a right single
+-- quote -- the generated SQL came out as "FROM tod", silently, with sqlc
+-- exiting 0). Keep this comment ASCII, and if a query ever generates a
+-- suspiciously short statement, check for non-ASCII bytes before anything else.
+SELECT id, owner, title FROM todos;

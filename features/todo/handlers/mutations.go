@@ -29,9 +29,6 @@ func createVisibility(r *http.Request) string {
 	return todo.VisibilityPrivate
 }
 
-// context; disconnects surface as write errors, checked per call.
-//
-//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	owner, err := h.ownerID(r)
 	if err != nil {
@@ -42,8 +39,19 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "invalid form")
 		return
 	}
+	// A card action's failures must land WHERE THE CLICK HAPPENED. A plain-text
+	// 400 is invisible to the user when the form was submitted from a model
+	// authored card by `@post` (Datastar shows nothing for an error response
+	// body), so the button would look dead — the same class of bug as answering
+	// a successful write on the wrong page. A card gets an in-place failure
+	// card; every other caller keeps the text response it already expects.
+	target := formTarget(r)
 	title := r.FormValue("title")
 	if title == "" {
+		if target != "" {
+			h.answerCardFailure(w, r, target, "A todo needs a title.")
+			return
+		}
 		writeText(w, http.StatusBadRequest, "title required")
 		return
 	}
@@ -51,6 +59,18 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	idemKey := r.FormValue("idem_key")
 	if idemKey == "" {
 		idemKey = uuid.New().String()
+	} else if !validIdemKey(idemKey) {
+		// The key is CLIENT-SUPPLIED and stored in a TEXT column, so an
+		// unbounded value is a cheap way to write arbitrarily large rows (the
+		// unique index keeps them distinct, so repeats do not collide). Any
+		// honest client sends a UUID; the two bounds below admit that and every
+		// browser-generated variant while refusing the abuse.
+		if target != "" {
+			h.answerCardFailure(w, r, target, "That request could not be read. Try again.")
+			return
+		}
+		writeText(w, http.StatusBadRequest, "invalid idem_key")
+		return
 	}
 
 	// Idempotent replay: a retried create with the same dedupe token
@@ -117,6 +137,27 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: list after create failed", err, "error listing todos")
 		return
 	}
+	h.respondCreated(ctx, w, r, todos, title)
+}
+
+// respondCreated streams the create's response: signals, the list patch, and —
+// when the caller names its own slot — an in-place answer instead.
+//
+// Split from handleCreate for the complexity gate, and because the two halves
+// answer different questions: the handler decides what to write, this decides
+// how to report it.
+//
+// Two callers, two shapes, and the difference is what the FIRST of them can
+// show. The todo page's composer owns #todo-list, so it gets the list patch and
+// a short toast. A model-authored card (plan_cards' Apply on /chat or /genui)
+// owns neither: it sends `_target`, so the response replaces THAT slot with the
+// outcome and the list patch is skipped — aiming at a region the page does not
+// have is exactly what made the click look inert while the row was created.
+//
+//nolint:contextcheck // SSE emission ends in datastar-go sinks (no ctx param)
+func (h *Handler) respondCreated(
+	ctx context.Context, w http.ResponseWriter, r *http.Request, todos []todo.Todo, title string,
+) {
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		// newTitle is deliberately NOT written here: $newTitle is bound
@@ -128,15 +169,27 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 		// succeeds, and only if it still holds what was sent.
 		"loading": false, signalItemCount: len(todos),
 	}); err != nil {
-		h.fail(r.Context(), w, "todo: create signals failed", err, "save failed")
+		h.fail(ctx, w, "todo: create signals failed", err, "save failed")
+		return
+	}
+	// An action fired from a model-authored card names its OWN slot, and that
+	// slot is the whole response. Reporting a card-level write with the page's
+	// list patch is what produced "I clicked and nothing happened": the patch's
+	// target is the todo list, which the page hosting the card does not have,
+	// so the browser matched nothing and the card looked inert — while the row
+	// was in fact created.
+	if target := formTarget(r); target != "" {
+		if aerr := h.answerCardAction(sse, target, title); aerr != nil {
+			h.fail(ctx, w, "todo: action result patch failed", aerr, "save failed")
+		}
 		return
 	}
 	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
-		h.fail(r.Context(), w, "todo: create patch failed", err, "save failed")
+		h.fail(ctx, w, "todo: create patch failed", err, "save failed")
 		return
 	}
 	if err := emitToast(sse, "Added", "success"); err != nil {
-		h.fail(r.Context(), w, "todo: create toast failed", err, "save failed")
+		h.fail(ctx, w, "todo: create toast failed", err, "save failed")
 	}
 }
 
@@ -158,9 +211,13 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) patchListSelf(
 	ctx context.Context, sse *sdk.ServerSentEventGenerator, todos []todo.Todo, r *http.Request,
 ) error {
-	query := h.Hub.ViewOf(r.URL.Query().Get("clientID")).Query
+	// Read the tab's stored view ONCE: two ViewOf calls take two separate read
+	// locks, so a concurrent SetView (the same tab issuing another fetch) could
+	// be observed between them and the query and mode would come from different
+	// snapshots — a search narrowed by one mode and labelled by another.
+	view := h.Hub.ViewOf(r.URL.Query().Get("clientID"))
 	if owner, err := h.ownerID(r); err == nil {
-		narrowed, nerr := h.narrowBySearch(ctx, owner, query, todos)
+		narrowed, nerr := h.narrowBySearch(ctx, owner, view.Query, view.Mode, todos)
 		if nerr != nil {
 			return nerr
 		}

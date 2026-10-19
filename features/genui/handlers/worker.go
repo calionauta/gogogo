@@ -40,7 +40,16 @@ func (h *Handler) handleGenuiJob(ctx context.Context, hub *queue.SSEHub, job que
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
 		return fmt.Errorf("genui: decode ask payload: %w", err)
 	}
-	dirs, _, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, comp.ParseDirectives)
+	// Scope the responder to the asker BEFORE answering, when the leg supports
+	// it: the model needs the user's real rows to reason about a request like
+	// "plan my days from to-dos", and without them it can only invent them
+	// (the reported failure). A responder with nothing to fetch (demo,
+	// simulated, tests) simply does not implement the seam.
+	responder := h.responder
+	if scoped, ok := responder.(comp.OwnerContext); ok {
+		responder = scoped.WithOwner(p.UserID)
+	}
+	dirs, _, err := comp.AnswerWithRepair(ctx, responder, p.Prompt, comp.ParseDirectives)
 	if err != nil {
 		if _, invalid := errors.AsType[*comp.ValidationError](err); invalid {
 			// The model answered, but never in catalog shape — even after the

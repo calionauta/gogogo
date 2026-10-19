@@ -121,8 +121,34 @@ templ RealtimeStream(streamURL string) {
 // make every resync — load, visibility return, doc-version bump, offline sync —
 // re-render the full list and clear an active search out from under the box.
 templ RealtimeRecords() {
-	@ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || '')")
+	@searchModeScript()
+	@ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || '')")
 	@DocVersionWatcher()
+}
+
+// searchModeScript defines the one function that reads the SELECTED search mode
+// off the picker, so the box, the picker and every resync path ask the server
+// for the same layer.
+//
+// A PLAIN script, not a module and not deferred — the same reason
+// __gogogoDocWatch is one: the data-on expressions that call it are bound by
+// Datastar at init, which runs before deferred modules, so a module-scoped
+// function would be undefined at that moment. The body only defines a
+// function, so nothing runs at parse time.
+//
+// It reads the DOM instead of a signal on purpose. The ACTIVE mode is
+// server-owned (the server falls back when a layer is unwired), while the
+// control only ever REQUESTS one; a data-bind signal would make the request
+// value authoritative and the two could drift when the server overrides it.
+// An absent picker (single wired layer, or none) returns "", which the server
+// reads as "use the default".
+templ searchModeScript() {
+	<script>
+		window.searchModeValue = function () {
+			var sel = document.querySelector('select[name="mode"]');
+			return sel ? sel.value : '';
+		};
+	</script>
 }
 
 // DocVersionWatcher re-fetches the list when the SSE hub fans out a

@@ -45,6 +45,14 @@ func SafeJSON(v any) string {
 // the SSE Hub, so any feature can produce toast notifications by calling
 // the same pattern: render Toast, append to #toast-container via SSE.
 templ Toast(message string, toastType string, toastID string) {
+	@toastElement(message, toastType, toastID)
+}
+
+// toastElement is the one implementation every shape shares: only the
+// auto-dismiss timers and the optional action link differ, and duplicating the
+// markup would let the versions drift (the dismiss timers must keep matching
+// the CSS progress bar).
+templ toastElement(message string, toastType string, toastID string) {
 	<div
 		id={ toastID }
 		data-signals={ SafeJSON(makeToastSignals(toastID)) }

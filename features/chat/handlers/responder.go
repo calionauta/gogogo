@@ -32,3 +32,12 @@ type responderAdapter struct {
 func (ad responderAdapter) Respond(ctx context.Context, prompt string) (string, error) {
 	return ad.inner.Respond(ctx, prompt)
 }
+
+// WithOwner implements store.OwnerContext by forwarding to the genui leg, which
+// owns the data-digest implementation.
+func (ad responderAdapter) WithOwner(owner string) store.Responder {
+	if scoped, ok := ad.inner.(comp.OwnerContext); ok {
+		return responderAdapter{inner: scoped.WithOwner(owner)}
+	}
+	return ad
+}

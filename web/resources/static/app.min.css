@@ -7469,6 +7469,24 @@
       border-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
     }
   }
+  .border-error\/40 {
+    border-color: var(--color-error);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-error) 40%, transparent);
+    }
+  }
+  .border-success\/40 {
+    border-color: var(--color-success);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-success) 40%, transparent);
+    }
+  }
+  .border-warning\/50 {
+    border-color: var(--color-warning);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-warning) 50%, transparent);
+    }
+  }
   .glass {
     border: none;
     backdrop-filter: blur(var(--glass-blur, 40px));
@@ -7557,6 +7575,12 @@
   .bg-base-300 {
     background-color: var(--color-base-300);
   }
+  .bg-error\/10 {
+    background-color: var(--color-error);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-error) 10%, transparent);
+    }
+  }
   .bg-primary {
     background-color: var(--color-primary);
   }
@@ -7573,6 +7597,12 @@
     background-color: var(--color-secondary);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-secondary) 10%, transparent);
+    }
+  }
+  .bg-success\/10 {
+    background-color: var(--color-success);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-success) 10%, transparent);
     }
   }
   @layer daisyui.l1.l2.l3 {
@@ -7841,6 +7871,9 @@
   .text-warning {
     color: var(--color-warning);
   }
+  .capitalize {
+    text-transform: capitalize;
+  }
   .normal-case {
     text-transform: none;
   }
@@ -8000,6 +8033,24 @@
       --top-mul: 4;
       --font-size: 0.75rem;
     }
+    .select-sm {
+      --sl-size-mul: 8;
+      --font-size-min: 0.75rem;
+      --option-px: 2.5;
+    }
+    .floating-label:has(.select-sm) {
+      --top-mul: 4;
+      --font-size: 0.75rem;
+    }
+    .select-xs {
+      --sl-size-mul: 6;
+      --font-size-min: 0.6875rem;
+      --option-px: 2;
+    }
+    .floating-label:has(.select-xs) {
+      --top-mul: 3;
+      --font-size: 0.6875rem;
+    }
     .btn-accent {
       --btn-color: var(--color-accent);
       --btn-fg: var(--color-accent-content);
@@ -8155,6 +8206,15 @@
       .floating-label:has(.sm\:input-md) {
         --top-mul: 5;
         --font-size: 0.875rem;
+      }
+      .sm\:select-sm {
+        --sl-size-mul: 8;
+        --font-size-min: 0.75rem;
+        --option-px: 2.5;
+      }
+      .floating-label:has(.sm\:select-sm) {
+        --top-mul: 4;
+        --font-size: 0.75rem;
       }
       .sm\:btn-md {
         --fontsize: 0.875rem;

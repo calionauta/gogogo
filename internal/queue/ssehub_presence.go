@@ -17,6 +17,11 @@ type ViewPref struct {
 	// the list shows everything visible. Kept with the filter/scope so a
 	// filter tab click (which carries no q) does not silently drop it.
 	Query string
+	// Mode is the tab's selected search layer. Kept here for the same reason
+	// as Query: a record-event re-list must rank with the layer the user chose,
+	// or the order would silently revert to the default mid-session. Empty
+	// means "use the operator's default".
+	Mode string
 }
 
 // ViewOf returns the stored listing slice for clientID, defaulting to
@@ -39,7 +44,7 @@ func (h *SSEHub) ViewOf(clientID string) ViewPref {
 // the stored pref tracks the UI without any extra watcher). An empty query
 // CLEARS any stored search: that is how the box is emptied, and a fetch
 // with no q is the authoritative "show everything" signal for that tab.
-func (h *SSEHub) SetView(clientID, filter, scope, query string) {
+func (h *SSEHub) SetView(clientID, filter, scope, query, mode string) {
 	if clientID == "" {
 		return
 	}
@@ -51,7 +56,13 @@ func (h *SSEHub) SetView(clientID, filter, scope, query string) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.viewOf[clientID] = ViewPref{Filter: filter, Scope: scope, Query: query}
+	// mode is carried over when the caller does not name one: a filter-tab
+	// click or a mutation re-list has no opinion about the layer and must not
+	// reset the user's choice to the default.
+	if mode == "" {
+		mode = h.viewOf[clientID].Mode
+	}
+	h.viewOf[clientID] = ViewPref{Filter: filter, Scope: scope, Query: query, Mode: mode}
 }
 
 // BroadcastToAllUsers sends data to all currently connected clients that

@@ -250,6 +250,21 @@ func bootAI(
 	if perr := comp.InstallPanelRegistry(panels); perr != nil {
 		return nil, nil, perr
 	}
+	// actions: what the app offers to model-authored cards. Same providers,
+	// same reasoning as the panel registry above — a feature declares the
+	// action next to the route that implements it, and this is the one place
+	// that collects them. Without this the model is told nothing and invents a
+	// path (the button then 404s), or is told everything and can aim at any
+	// route; the declaration is what makes neither happen.
+	var actionProviders []comp.ActionProvider
+	for _, p := range panels {
+		if ap, ok := p.(comp.ActionProvider); ok {
+			actionProviders = append(actionProviders, ap)
+		}
+	}
+	if aerr := comp.InstallActionRegistry(actionProviders); aerr != nil {
+		return nil, nil, aerr
+	}
 	// One router for both legs: deciding which component should lead is not a
 	// question specific to one-shot answers.
 	askRouter := genuihandlers.NewAskRouter(cfg)

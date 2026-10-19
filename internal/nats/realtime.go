@@ -70,7 +70,7 @@ type JetStreamBroadcaster struct {
 // clients. Safe to construct once per process (a second consumer on the
 // same durable name is rejected by JetStream).
 func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*JetStreamBroadcaster, error) {
-	if _, err := js.AddStream(&natsio.StreamConfig{
+	if err := EnsureStreamOn(js, &natsio.StreamConfig{
 		Name:     todoStream,
 		Subjects: []string{todoSubject},
 		Storage:  natsio.FileStorage,
@@ -81,11 +81,7 @@ func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*Je
 		MaxAge:   24 * time.Hour,
 		MaxBytes: 256 << 20,
 	}); err != nil {
-		// AddStream only errors on genuine misconfiguration; an existing
-		// stream is not an error.
-		if err.Error() != "stream already exists" {
-			return nil, err
-		}
+		return nil, err
 	}
 	b := &JetStreamBroadcaster{js: js, hub: hub}
 	// Auto-subscribe so the broadcaster is live the moment it is built.

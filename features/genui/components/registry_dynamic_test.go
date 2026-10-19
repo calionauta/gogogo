@@ -34,7 +34,15 @@ import (
 // the registry needs no edit to admit it.
 type secondStubPanel struct{}
 
-func (secondStubPanel) Component() string  { return "notes_list" }
+func (secondStubPanel) Component() string { return "notes_list" }
+
+// secondStubPanel declares its OWN aliases, and that is the generic-seam proof:
+// the shared catalog knows nothing about notes, so this panel's synonyms resolve
+// only because its provider announced them. Before the alias table moved behind
+// PanelAliaiser, this line could not exist — every alias in the system was
+// hardcoded to todo_list.
+func (secondStubPanel) Aliases() []string { return []string{"notes", "note"} }
+
 func (secondStubPanel) Prompt() string     { return "notes_list {limit} — the user's own recent notes" }
 func (secondStubPanel) Writable() []string { return []string{"limit"} }
 func (secondStubPanel) Fill(_ context.Context, _ string, props map[string]any) (map[string]any, error) {
@@ -71,6 +79,14 @@ func TestAddingAPanelNeedsOnlyAProvider(t *testing.T) {
 	}
 	if !IsPanel("notes_list") {
 		t.Fatal("the extra provider was not installed — the boot contract is broken")
+	}
+	// Its aliases came from the provider, not from a table in this package: a
+	// feature the catalog has never heard of is reachable by the words a model
+	// would actually write.
+	for _, alias := range []string{"notes", "note"} {
+		if !IsPanel(alias) {
+			t.Errorf("alias %q does not resolve — aliases are not provided by the panel", alias)
+		}
 	}
 
 	// 1. The prompt advertises it (name and its own guidance line).
@@ -187,9 +203,9 @@ func TestInstallRegistryRejectsHalfPanels(t *testing.T) {
 // other set would be a change by definition. Not parallel, since its subject is
 // the mutation path itself.
 func TestInstallRegistryRefusesAVocabularyChange(t *testing.T) {
-	// Capacity 3: the set plus the one panel the change below tries to add.
-	packageSet := make([]PanelProvider, 0, 3)
-	packageSet = append(packageSet, stubTestPanel{}, failingStubPanel{})
+	// Capacity 4: the set plus the one panel the change below tries to add.
+	packageSet := make([]PanelProvider, 0, 4)
+	packageSet = append(packageSet, stubTestPanel{}, failingStubPanel{}, digestStubPanel{})
 	// Same set: allowed (idempotent).
 	if err := InstallPanelRegistry(packageSet); err != nil {
 		t.Fatalf("re-installing the same vocabulary failed: %v", err)
