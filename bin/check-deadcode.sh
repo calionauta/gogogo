@@ -43,7 +43,10 @@ cd "$(git rev-parse --show-toplevel)" || {
     exit 0
 }
 
-if ! which deadcode >/dev/null 2>&1; then
+# DEADCODE_BIN lets a caller pin the binary (and lets the contract test drive
+# the "missing tool" branch without touching PATH).
+deadcode_bin=${DEADCODE_BIN:-$(command -v deadcode || true)}
+if [ -z "$deadcode_bin" ] || [ ! -x "$deadcode_bin" ]; then
     echo "⚡ deadcode not installed (go install golang.org/x/tools/cmd/deadcode@latest) — skipping"
     exit 0
 fi
@@ -104,7 +107,7 @@ prefix=()
 command -v nice >/dev/null 2>&1 && prefix+=(nice -n 15)
 command -v ionice >/dev/null 2>&1 && prefix+=(ionice -c2 -n7)
 
-"${prefix[@]}" deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
+"${prefix[@]}" "$deadcode_bin" -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
     >"$out_file" 2>"$err_file"
 status=$?
 
