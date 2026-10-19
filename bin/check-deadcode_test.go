@@ -20,6 +20,19 @@ import (
 // environment, so no host measurement is involved and the assertions are
 // about behaviour, not about this machine.
 
+// requireDeadcode skips when the tool is absent. The guard tests exist to pin
+// the CAPACITY decision, and the script short-circuits on a missing binary
+// before that decision — so without this skip every case fails on a runner
+// that has no deadcode installed (which is exactly what CI did first).
+// The skip is honest, not a dodge: pre-push never runs the scan without the
+// binary either, and the "no deadcode" message is asserted below.
+func requireDeadcode(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("deadcode"); err != nil {
+		t.Skip("deadcode not installed; the capacity gate is unreachable without it")
+	}
+}
+
 func scriptPath(t *testing.T) string {
 	t.Helper()
 	wd, err := os.Getwd()
@@ -49,6 +62,7 @@ func runScript(t *testing.T, extraEnv ...string) (string, int) {
 // TestDeadcodeGuardSkipsOnLowRAM pins the RAM ceiling: a box that cannot hold
 // the measured peak must SKIP, loudly, and must not fail the push.
 func TestDeadcodeGuardSkipsOnLowRAM(t *testing.T) {
+	requireDeadcode(t)
 	out, code := runScript(t, "DEADCODE_MIN_RAM_MB=999999")
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0 (the guard is advisory; it must never block a push)\n%s", code, out)
@@ -68,6 +82,7 @@ func TestDeadcodeGuardSkipsOnLowRAM(t *testing.T) {
 // that actually wedged the push. A near-zero ceiling forces the branch on any
 // machine, including an idle CI runner.
 func TestDeadcodeGuardSkipsOnSaturatedLoad(t *testing.T) {
+	requireDeadcode(t)
 	out, code := runScript(t, "DEADCODE_MAX_LOAD_PER_CORE=0.000001")
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0\n%s", code, out)
@@ -83,6 +98,7 @@ func TestDeadcodeGuardSkipsOnSaturatedLoad(t *testing.T) {
 // TestDeadcodeGuardSkipNamesTheOverride pins discoverability: whoever hits the
 // skip must learn how to run the scan anyway, without reading the source.
 func TestDeadcodeGuardSkipNamesTheOverride(t *testing.T) {
+	requireDeadcode(t)
 	out, _ := runScript(t, "DEADCODE_MIN_RAM_MB=999999")
 	if !strings.Contains(out, "DEADCODE_FORCE=1") {
 		t.Errorf("the skip must name DEADCODE_FORCE=1 as the override, got:\n%s", out)
@@ -93,6 +109,7 @@ func TestDeadcodeGuardSkipNamesTheOverride(t *testing.T) {
 // pre-push: whatever the host, whatever deadcode reports, the hook exits 0.
 // A gate that can fail a push for an advisory scan is the bug this replaced.
 func TestDeadcodeGuardAloneNeverFails(t *testing.T) {
+	requireDeadcode(t)
 	if _, code := runScript(t, "DEADCODE_MAX_LOAD_PER_CORE=0.000001"); code != 0 {
 		t.Errorf("skip path exit = %d, want 0", code)
 	}
@@ -108,5 +125,21 @@ func TestDeadcodeGuardAloneNeverFails(t *testing.T) {
 	}
 	if !strings.Contains(out, "advisory only") {
 		t.Errorf("the completed run must say it was advisory, got:\n%s", out)
+	}
+}
+
+// TestDeadcodeGuardMissingBinaryIsNotAFailure pins the branch CI actually
+// takes. It runs with PATH stripped of the tool, so it holds on every runner
+// (including the ones that skip the capacity tests above) and fails if the
+// script ever turns "not installed" into a red push.
+func TestDeadcodeGuardMissingBinaryIsNotAFailure(t *testing.T) {
+	// DEADCODE_BIN pins the binary, so the branch is drivable whether or not
+	// this machine has the tool: a path that cannot be executed.
+	out, code := runScript(t, "DEADCODE_BIN="+filepath.Join(t.TempDir(), "no-such-deadcode"))
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0 (a missing advisory tool must never block a push)\n%s", code, out)
+	}
+	if !strings.Contains(out, "skipping") {
+		t.Errorf("expected a skip message naming the missing tool, got:\n%s", out)
 	}
 }
