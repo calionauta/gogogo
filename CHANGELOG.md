@@ -15,6 +15,17 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.51.1 (2026-10-18)
+
+## What's Changed
+* fix(release): the binary bridge never ran, plus the flake hardening that found it by @calionauta in https://github.com/calionauta/gogogo/pull/170
+* docs: stop narrating the removed framework in comments and prose by @calionauta in https://github.com/calionauta/gogogo/pull/172
+* fix(ci): parse the workflow YAML, and judge each gh subcommand on its own by @calionauta in https://github.com/calionauta/gogogo/pull/173
+* chore(deps): drop two agent plugins from the project's package.json by @calionauta in https://github.com/calionauta/gogogo/pull/174
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.51.0...v0.51.1
+
 ## 0.51.0 (2026-10-18)
 
 ## What's Changed
