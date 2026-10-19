@@ -59,8 +59,15 @@ func TestTodoListListerFiltersAndScopes(t *testing.T) {
 		}
 	}
 	// A filter outside the closed set is refused here too, not just at parse
-	// time: the store must never receive a string a model chose.
-	if _, err := p.Fill(ctx, meID, map[string]any{"filter": "everything"}); err == nil {
+	// time: the store must never be asked for a slice named by a model.
+	//
+	// "sort by date" is the probe rather than a plausible synonym on purpose.
+	// todo.NormalizeFilter deliberately maps the SPELLINGS a model invents for
+	// this enum ("ALL", "everything", "completed" → the canonical value), and
+	// that tolerance is pinned in features/todo/panel_filter_test.go. What must
+	// still fail closed is a value that is not a spelling of any member — using
+	// a synonym here would test the tolerance, not the refusal.
+	if _, err := p.Fill(ctx, meID, map[string]any{"filter": "sort by date"}); err == nil {
 		t.Error("an unknown filter was accepted by the panel")
 	}
 }

@@ -32,7 +32,7 @@ func TestSSEHub_CloseClearsClients(t *testing.T) {
 // than an internal-state check.
 func TestSSEHub_CloseClearsViewPref(t *testing.T) {
 	h := NewSSEHub()
-	h.SetView("c1", "active", "mine", "kestrel")
+	h.SetView("c1", "active", "mine", "kestrel", "fuzzy")
 	// Also arm the other per-client maps, so the assertion below would catch
 	// any of them surviving too.
 	h.Register("c1", "u1", make(chan []byte, 4))

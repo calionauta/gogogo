@@ -153,6 +153,17 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		observability.Error(ctx, "review: run ack failed", obsArgs...)
 		return
 	}
+	// Replace the previous verdict with the pending state BEFORE the loop
+	// starts. Without it a second run left run #1's card on screen for the
+	// whole (minutes-long) LLM window, so the tab looked finished while the
+	// new run was still working — and if the new run then failed, the stale
+	// card was all the user ever saw for that request.
+	if err := dshelpers.RenderAndPatch(sse, reviewcomponents.ReviewPending(),
+		sdk.WithSelector("#review-result")); err != nil {
+		obsArgs := append(observability.WithComponent("review", "feature"), "error", err)
+		observability.Error(ctx, "review: pending patch failed", obsArgs...)
+		return
+	}
 
 	runner := *h.runner
 	// The run executes synchronously in this goroutine: each phase chunk
@@ -171,6 +182,12 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		_ = dshelpers.MergeSignals(sse, map[string]any{
 			signalReviewPending: false, signalReviewError: "review failed: " + runErr.Error(),
 		})
+		// The error gets the region too: a signals-only failure left the
+		// pending card (or the previous verdict) on screen with the message
+		// parked in a one-line banner, which is how a failed run read as a
+		// finished one.
+		_ = dshelpers.RenderAndPatch(sse, reviewcomponents.ReviewError("review failed: "+runErr.Error()),
+			sdk.WithSelector("#review-result"))
 		return
 	}
 	_ = dshelpers.MergeSignals(sse, map[string]any{
@@ -183,8 +200,9 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		signalReviewProposal:   verdict.Proposal,
 	})
 	_ = dshelpers.RenderAndPatch(sse, reviewcomponents.ReviewResult(
-		verdict.Decision, verdict.Rationale, verdict.Proposal,
-		verdict.Confidence, verdict.Rounds, verdict.Decision == DecisionNeedsHuman),
+		verdict.Decision, verdict.Rationale, verdict.Proposal, verdict.Critique,
+		verdict.CriticVerdict, verdict.Confidence, verdict.Rounds,
+		verdict.Decision == DecisionNeedsHuman),
 		sdk.WithSelector("#review-result"))
 }
 

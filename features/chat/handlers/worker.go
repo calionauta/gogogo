@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/calionauta/gogogo/features/chat/store"
@@ -54,7 +55,21 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
-	_, raw, err := comp.AnswerWithRepair(ctx, h.responder, p.Prompt, store.ParseChatAnswerForRepair)
+	// Scope the responder to the asker (real data) and carry the recent
+	// conversation. Both fix the same reported failure from two sides: the
+	// answer invented the user's data because it could not see it, and could not
+	// follow a follow-up ("and tomorrow?") because it could not see the thread.
+	// The store read happens BEFORE this turn's assistant reply is appended, so
+	// the context is the history the user is replying to.
+	responder := h.responder
+	if scoped, ok := responder.(store.OwnerContext); ok {
+		responder = scoped.WithOwner(p.UserID)
+	}
+	prompt := p.Prompt
+	if history := h.recentHistory(ctx, p.UserID); history != "" {
+		prompt = history + "\n" + prompt
+	}
+	_, raw, err := comp.AnswerWithRepair(ctx, responder, prompt, store.ParseChatAnswerForRepair)
 	var invalid *comp.ValidationError
 	if err != nil && !errors.As(err, &invalid) {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
@@ -100,12 +115,71 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 			text = t
 		}
 	}
-	_ = h.store.Append(ctx, p.UserID, store.Message{
+	answer := store.Message{
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
+	}
+	_ = h.store.Append(ctx, p.UserID, answer)
+	// The live patch carries the SAME id stem the stored copy will render with
+	// (store.IDPrefix), so a reload rebuilds the page with the ids this patch
+	// already used — otherwise a patch aimed at a component would miss after
+	// any refresh, and the two renders would disagree about what an id means.
+	h.send(ctx, target, job.ClientID, chatEnvelope{
+		Text: text, Directives: dirs, IDPrefix: store.IDPrefix(answer),
 	})
-	h.send(ctx, target, job.ClientID, chatEnvelope{Text: text, Directives: dirs})
 	return nil
+}
+
+// historyTurns bounds how many past messages ride the prompt, and
+// historyMessageCap how much of each. Both exist because the thread is prompt
+// overhead on EVERY request: a long conversation would otherwise crowd out the
+// question being asked.
+const (
+	historyTurns      = 6
+	historyMessageCap = 400
+)
+
+// recentHistory renders the last few exchanges as prompt context, or "".
+//
+// WHY: the worker answered every message from the prompt alone, so a follow-up
+// ("and tomorrow?", "do the second one") had no referent and the model
+// re-invented the subject.
+//
+// The current user message has already been appended by the time this runs, so
+// the tail is dropped: it IS the prompt, and repeating it would double it.
+func (h *Handler) recentHistory(ctx context.Context, owner string) string {
+	msgs, err := h.store.List(ctx, owner)
+	if err != nil {
+		observability.Warn(ctx, "chat: history read failed",
+			append(observability.WithComponent("chat", "feature"), "error", err.Error())...)
+		return ""
+	}
+	if len(msgs) <= 1 {
+		return ""
+	}
+	msgs = msgs[:len(msgs)-1]
+	if len(msgs) > historyTurns {
+		msgs = msgs[len(msgs)-historyTurns:]
+	}
+	var b strings.Builder
+	b.WriteString("Recent conversation (oldest first, context only — answer the new message):\n")
+	for _, m := range msgs {
+		text := strings.TrimSpace(m.Text)
+		if text == "" {
+			// A components-only answer still counts as a turn, but its content is
+			// rendered markup the model cannot read back; naming the shape keeps
+			// the thread honest without dumping JSON into the prompt.
+			text = "[answered with an interface]"
+		}
+		if len(text) > historyMessageCap {
+			text = text[:historyMessageCap] + "..."
+		}
+		b.WriteString(m.Role)
+		b.WriteString(": ")
+		b.WriteString(text)
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // send delivers one chat envelope to a tab (or broadcasts when the job

@@ -2,6 +2,9 @@
 package components
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
@@ -178,8 +181,8 @@ templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 // answers read as documents (week plan holding its table) instead of
 // flat stacks. One nesting primitive beats per-case layouts: the model
 // composes from the same catalog, never invents structure.
-templ GenuiSection(title string, children []templ.Component) {
-	<section class="rounded-lg border border-base-300 bg-base-100">
+templ GenuiSection(id string, title string, children []templ.Component) {
+	<section id={ id } class="rounded-lg border border-base-300 bg-base-100">
 		<h3 class="font-semibold px-4 pt-3">{ title }</h3>
 		<div class="p-4 pt-2 flex flex-col gap-3">
 			for _, child := range children {
@@ -193,8 +196,8 @@ templ GenuiSection(title string, children []templ.Component) {
 // library, fully server-rendered and morphable. Values print as text
 // next to every bar, so nothing is conveyed by color alone (and
 // DaisyUI theme tokens keep both modes legible).
-templ GenuiBarChart(title string, bars []Bar, peak float64) {
-	<div>
+templ GenuiBarChart(id string, title string, bars []Bar, peak float64) {
+	<div id={ id }>
 		<h3 class="font-semibold mb-2">{ title }</h3>
 		<ul class="flex flex-col gap-2">
 			for i, bar := range bars {
@@ -219,10 +222,19 @@ templ GenuiBarChart(title string, bars []Bar, peak float64) {
 // fields to a same-origin URL (validated server-side in checkAction).
 // Per-button forms beat one shared form — the fields travel with the
 // action they belong to, and each posts independently.
-templ GenuiActionButtons(actions []Action) {
-	<div class="flex flex-wrap gap-2">
-		for _, action := range actions {
-			<form data-on:submit__prevent={ "@" + actionVerb(action.Method) + "('" + action.URL + "', {contentType: 'form'})" }>
+// GenuiActionButtons renders a row of buttons that act in this app.
+//
+// It shares the subscribe-to-slot machinery with plan_cards (see planAction):
+// a button whose response cannot land anywhere is what read as "I clicked and
+// nothing happened", so an action here ALSO names its own slot and mints an
+// idempotency key. A button row on a page that hosts the target's region
+// behaves exactly as before; one on a page that does not gets its answer in
+// place instead of silently writing somewhere the user cannot see.
+templ GenuiActionButtons(id string, actions []Action) {
+	<div id={ id } class="flex flex-wrap gap-2">
+		for i, action := range actions {
+			<form data-on:submit__prevent={ submitExpr(action, actionSlotID(id, i)) }>
+				<input type="hidden" name="_target" value={ actionSlotID(id, i) }/>
 				for key, val := range action.Fields {
 					<input type="hidden" name={ key } value={ val }/>
 				}
@@ -232,9 +244,17 @@ templ GenuiActionButtons(actions []Action) {
 	</div>
 }
 
+// actionSlotID scopes one button's slot to its component instance, the same way
+// planCardID does for a plan card: two button rows on one page (a chat thread
+// keeps its history) must not share a slot, or the first answer replaces the
+// wrong button.
+func actionSlotID(instanceID string, index int) string {
+	return fmt.Sprintf("%s-act-%d", instanceID, index)
+}
+
 // GenuiTextNote renders a single prose card.
-templ GenuiTextNote(text string) {
-	<div class="card bg-base-200/40">
+templ GenuiTextNote(id string, text string) {
+	<div id={ id } class="card bg-base-200/40">
 		<div class="card-body p-4">
 			<h3 class="card-title text-base">Note</h3>
 			<p class="text-sm">{ text }</p>
@@ -246,8 +266,8 @@ templ GenuiTextNote(text string) {
 // pre-sanitized (SanitizeHTML at parse time) — templ.Raw is safe here
 // because nothing unsanitized ever reaches this call, and the renderer
 // map is the only constructor. Never pass raw model output directly.
-templ GenuiHTMLBlock(sanitizedHTML string) {
-	<div class="genui-html">
+templ GenuiHTMLBlock(id string, sanitizedHTML string) {
+	<div id={ id } class="genui-html">
 		@templ.Raw(sanitizedHTML)
 	</div>
 }
@@ -255,23 +275,22 @@ templ GenuiHTMLBlock(sanitizedHTML string) {
 // GenuiPlanCards renders one plan per card, each with its own apply
 // button (per-card actions beat one shared button: the choice stays
 // next to the option it acts on).
-templ GenuiPlanCards(plans []Plan) {
-	<div>
+templ GenuiPlanCards(id string, plans []Plan) {
+	<div id={ id }>
 		<h3 class="font-semibold mb-2">Plans</h3>
 		<ul class="flex flex-col gap-2">
-			for _, plan := range plans {
-				<li class="card bg-base-200/40">
+			for i, plan := range plans {
+				<li class="card bg-base-200/40" id={ planCardID(id, i) }>
 					<div class="card-body p-4">
 						<h3 class="card-title text-base">{ plan.Title }</h3>
 						if plan.Detail != "" {
 							<p class="text-sm text-base-content/70">{ plan.Detail }</p>
 						}
-						<div class="card-actions justify-end mt-2">
-							<form data-on:submit__prevent={ "@post('/api/todos?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'})" }>
-								<input type="hidden" name="title" value={ plan.Title }/>
-								<button type="submit" class="btn btn-sm btn-primary">Apply</button>
-							</form>
-						</div>
+						if plan.Action != nil {
+							<div class="card-actions justify-end mt-2">
+								@planAction(planCardID(id, i), *plan.Action)
+							</div>
+						}
 					</div>
 				</li>
 			}
@@ -279,11 +298,98 @@ templ GenuiPlanCards(plans []Plan) {
 	</div>
 }
 
+// planCardID scopes a card's id to its component instance, so two plan_cards on
+// one page (a chat thread keeps its history) address different cards and a
+// response can replace exactly the one that was clicked.
+func planCardID(instanceID string, index int) string {
+	return fmt.Sprintf("%s-plan-%d", instanceID, index)
+}
+
+// planAction renders one card's submit button.
+//
+// WHAT THE FORM TELLS THE SERVER, and why each piece is there:
+//
+//   - _target is this card's OWN id. The component knows where it lives, so the
+//     response can replace exactly this slot — which is what "the result comes
+//     back to the region the page owns" means in practice. Without it, a write
+//     fired here had to be reported on another page (the todo list) that this
+//     page does not host, which is what read as "I clicked and nothing
+//     happened": the row WAS created, somewhere else.
+//   - idem_key is minted per CLICK. The endpoint creates a fresh uuid when none
+//     is sent, so a double-click (or a request Datastar retries) wrote the same
+//     plan twice.
+//   - the action's Fields are the model's payload (title, and whatever else the
+//     target route expects). They arrive as hidden inputs rather than as query
+//     params because the route reads a form body.
+//
+// The method/url/fields come from the VALIDATED action (same-origin path,
+// POST|GET — see checkAction), so this markup never decides where a request
+// goes: it renders what the catalog already accepted.
+templ planAction(target string, action Action) {
+	<form data-on:submit__prevent={ submitExpr(action, target) }>
+		<input type="hidden" name="_target" value={ target }/>
+		for k, v := range action.Fields {
+			<input type="hidden" name={ k } value={ v }/>
+		}
+		<button type="submit" class="btn btn-sm btn-primary">{ action.Label }</button>
+	</form>
+}
+
+// submitExpr builds the Datastar submit handler: mint an idempotency key, then
+// send the whole form to the validated path.
+//
+// A function (not inlined into the template) because the same expression is
+// what makes the double-submit bug impossible, and it should be readable in one
+// place instead of being one long attribute.
+func submitExpr(action Action, target string) string {
+	var b strings.Builder
+	b.WriteString("var k = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2); ")
+	b.WriteString("@")
+	b.WriteString(actionVerb(action.Method))
+	b.WriteString("'")
+	b.WriteString(action.URL)
+	b.WriteString("?idem_key=' + encodeURIComponent(k) + '&clientID=' + encodeURIComponent(window.__gogogoClientID || '')")
+	b.WriteString(", {contentType: 'form'})")
+	return b.String()
+}
+
+// PanelUnavailable is the placeholder shown when a system panel's data could
+// not be loaded. The alternative — the panel silently vanishing — read to the
+// user as "the app has nothing for you" when the truth was "the app could not
+// fetch it", and the request itself had been understood.
+//
+// The copy deliberately does NOT say the list is empty and does not show the
+// underlying error: a fill failure is either an overflow bug or the model's
+// spelling, neither of which is user-facing text, and the useful instruction is
+// simply where the data actually is.
+// PanelUnavailable is the placeholder for a panel whose data could not be read.
+//
+// It takes the component NAME and the page that owns it, and hardcodes NEITHER:
+// the earlier version linked to "/todo" and said "open the Todos page" for every
+// panel, which is the same feature-coupling the seam exists to prevent — an
+// invoices panel would have pointed the user at the todo list. Both values come
+// from the provider, so a new panel gets a correct escape link for free.
+templ PanelUnavailable(id string, component string, homePage string) {
+	<div id={ id } class="rounded-box border border-dashed border-warning/50 p-4" role="status">
+		<div class="flex items-baseline justify-between gap-2 mb-2">
+			<h3 class="font-semibold">Couldn't load this</h3>
+			if homePage != "" {
+				<a href={ homePage } class="link link-hover text-xs">Open the page</a>
+			}
+		</div>
+		<p class="text-sm opacity-70">
+			This reads your own data ({ component }), and that read failed just now,
+			so there is nothing to show here. It is not empty — open the page to
+			see it.
+		</p>
+	</div>
+}
+
 // GenuiDataTable renders a small read-only table. Horizontally scrolls
 // instead of squeezing (no 200%-zoom truncation), headers are real th
 // elements with scope so screen readers announce them.
-templ GenuiDataTable(headers []string, rows [][]string) {
-	<div>
+templ GenuiDataTable(id string, headers []string, rows [][]string) {
+	<div id={ id }>
 		<h3 class="font-semibold mb-2">Table</h3>
 		<div class="overflow-x-auto">
 			<table class="table table-sm">

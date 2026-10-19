@@ -22,7 +22,30 @@ func TestMain(m *testing.M) {
 	if err := comp.InstallPanelRegistry([]comp.PanelProvider{stubPanel{}}); err != nil {
 		panic("genui handlers: test registry install failed: " + err.Error())
 	}
+	// Actions too: an answer naming an undeclared action is refused
+	// (checkDeclaredAction), so a fixture emitting one has to declare it the way
+	// a feature would. Process scope, hence TestMain.
+	if aerr := comp.InstallActionRegistry([]comp.ActionProvider{stubActions{}}); aerr != nil {
+		panic("genui handlers: test action registry install failed: " + aerr.Error())
+	}
 	os.Exit(m.Run())
+}
+
+// stubActions declares the actions the worker fixtures emit.
+type stubActions struct{}
+
+func (stubActions) Actions() []comp.ActionSpec {
+	return []comp.ActionSpec{
+		{
+			Label: "Add Activity", Method: "POST", URL: "/add-activity",
+			Fields: map[string]string{}, When: "the user wants an activity added to a plan",
+		},
+		{
+			Label: "Apply", Method: "POST", URL: "/api/todos",
+			Fields: map[string]string{"title": "the todo's text"},
+			When:   "the user wants a task added",
+		},
+	}
 }
 
 // panelRowStub is this package's stub row shape. Deliberately local: the

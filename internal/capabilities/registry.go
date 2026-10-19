@@ -201,7 +201,9 @@ var All = []Capability{
 			// this unit's strip rule, which is what makes deleting them compile.
 			"features/todo/handlers/genui_panel.go",
 			"features/todo/handlers/genui_panel_test.go",
+			"features/todo/handlers/genui_owner_test.go",
 			"features/todo/panel.go",
+			"features/todo/panel_filter_test.go",
 			"features/todo/components/panel.templ",
 			"features/todo/components/panel_templ.go",
 		},
@@ -258,14 +260,18 @@ var All = []Capability{
 		Dirs:    []string{"internal/search"},
 		// Every file that imports internal/search goes here, or trimming
 		// leaves a dangling import: the consumer half of the seam, its test,
-		// and the composition-root wiring. The handler's search SLICE
-		// (features/todo/handlers/search.go) deliberately does NOT — it
+		// the boot heal, and the composition-root wiring. The handler's search
+		// SLICE (features/todo/handlers/search.go) deliberately does NOT — it
 		// holds a stdlib-only interface, so it survives and the endpoint
 		// keeps answering with the unfiltered list (the degrade path).
 		Files: []string{
 			"features/todo/handlers/search_source.go",
 			"features/todo/handlers/search_source_test.go",
 			"features/todo/handlers/search_test.go",
+			"features/todo/handlers/search_mode_test.go",
+			"features/todo/handlers/search_heal.go",
+			"features/todo/handlers/search_heal_test.go",
+			"internal/search/sqlindex_inventory.go",
 			"internal/server/boot_search.go",
 		},
 		Warns: []string{

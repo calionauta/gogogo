@@ -123,7 +123,7 @@ func (h *Handler) handshakeTodos(
 	if err != nil {
 		return nil, err
 	}
-	return h.narrowBySearch(r.Context(), owner, view.Query, todos)
+	return h.narrowBySearch(r.Context(), owner, view.Query, view.Mode, todos)
 }
 
 func (h *Handler) applyRecordEvent(
@@ -141,7 +141,7 @@ func (h *Handler) applyRecordEvent(
 	if err != nil {
 		return fmt.Errorf("re-list on %s: %w", evt.Event, err)
 	}
-	todos, err = h.narrowBySearch(ctx, owner, view.Query, todos)
+	todos, err = h.narrowBySearch(ctx, owner, view.Query, view.Mode, todos)
 	if err != nil {
 		return fmt.Errorf("re-list search on %s: %w", evt.Event, err)
 	}
@@ -191,7 +191,7 @@ func (h *Handler) applyWorkflowCompleted(
 	if err != nil {
 		return fmt.Errorf("re-list after workflow: %w", err)
 	}
-	todos, err = h.narrowBySearch(ctx, owner, view.Query, todos)
+	todos, err = h.narrowBySearch(ctx, owner, view.Query, view.Mode, todos)
 	if err != nil {
 		return fmt.Errorf("re-list search after workflow: %w", err)
 	}

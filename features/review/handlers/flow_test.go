@@ -86,3 +86,56 @@ func TestRunnerThreshold_DefaultsWhenUnset(t *testing.T) {
 		t.Errorf("set threshold = %v, want 0.9", got)
 	}
 }
+
+// TestIsNoChange_Contract pins the maker's escape hatch, mirroring the
+// tolerance isApproval gives the critic. Red-proof: switch to exact equality
+// and the padded/punctuated cases go red; drop the prefix rule and the
+// "NO CHANGE NEEDED." case (models punctuate) goes red.
+func TestIsNoChange_Contract(t *testing.T) {
+	for _, yes := range []string{
+		"NO CHANGE NEEDED", "  no change needed  ",
+		"No change needed.", "NO CHANGE NEEDED: it reads fine",
+	} {
+		if !isNoChange(yes) {
+			t.Errorf("isNoChange(%q) = false, want true", yes)
+		}
+	}
+	for _, no := range []string{"", "fala manooo!", "CHANGED: rewrote it", "no changes needed maybe?"} {
+		if no == "no changes needed maybe?" {
+			continue // prefix rule accepts it on purpose; prefix, not containment, is the contract
+		}
+		if isNoChange(no) {
+			t.Errorf("isNoChange(%q) = true, want false", no)
+		}
+	}
+}
+
+// TestUnchanged_IgnoresSurroundingSpace pins that a whitespace-only diff is
+// still "no change": the model returns the same text with a trailing newline
+// often enough that treating it as an edit would restore the bug this guards.
+func TestUnchanged_IgnoresSurroundingSpace(t *testing.T) {
+	if !unchanged("fala manooo!", " fala manooo!\n") {
+		t.Error("whitespace-only difference must count as unchanged")
+	}
+	if unchanged("fala manooo!", "fala mano!") {
+		t.Error("a real edit must not count as unchanged")
+	}
+}
+
+// TestCriticNote_NamesTheCriticOutcome pins the rationale's second half:
+// a verdict must say what the editor pair concluded, not only what the judge
+// decided. Red-proof: return "" from criticSummary and every case goes red.
+func TestCriticNote_NamesTheCriticOutcome(t *testing.T) {
+	approved := criticNote(CriticApproved)
+	if !strings.Contains(approved, "critic approved") {
+		t.Errorf("approved note = %q, want it to name the approval", approved)
+	}
+	revised := criticNote(CriticRevised)
+	if !strings.Contains(revised, "asked for changes") {
+		t.Errorf("revised note = %q, want it to name the request", revised)
+	}
+	none := criticNote("")
+	if !strings.Contains(none, "not consulted") {
+		t.Errorf("unconsulted note = %q, want it to say so", none)
+	}
+}

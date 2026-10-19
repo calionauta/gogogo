@@ -131,11 +131,60 @@ func RealtimeRecords() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = searchModeScript().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ic.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = DocVersionWatcher().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// searchModeScript defines the one function that reads the SELECTED search mode
+// off the picker, so the box, the picker and every resync path ask the server
+// for the same layer.
+//
+// A PLAIN script, not a module and not deferred — the same reason
+// __gogogoDocWatch is one: the data-on expressions that call it are bound by
+// Datastar at init, which runs before deferred modules, so a module-scoped
+// function would be undefined at that moment. The body only defines a
+// function, so nothing runs at parse time.
+//
+// It reads the DOM instead of a signal on purpose. The ACTIVE mode is
+// server-owned (the server falls back when a layer is unwired), while the
+// control only ever REQUESTS one; a data-bind signal would make the request
+// value authoritative and the two could drift when the server overrides it.
+// An absent picker (single wired layer, or none) returns "", which the server
+// reads as "use the default".
+func searchModeScript() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\twindow.searchModeValue = function () {\n\t\t\tvar sel = document.querySelector('select[name=\"mode\"]');\n\t\t\treturn sel ? sel.value : '';\n\t\t};\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -169,12 +218,12 @@ func DocVersionWatcher() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"todo-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"todo-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

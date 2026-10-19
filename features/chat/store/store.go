@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -45,6 +46,16 @@ type Responder interface {
 	Respond(ctx context.Context, prompt string) (string, error)
 }
 
+// OwnerContext is the optional seam a responder implements when it can scope
+// itself to one account, so the leg can put the user's REAL data in the prompt
+// instead of letting the model invent it. The genui plugin owns the
+// implementation; declared here because this package consumes it (owning the
+// interface at the consumer is what keeps chat from depending on genui's
+// internals).
+type OwnerContext interface {
+	WithOwner(owner string) Responder
+}
+
 // MessageView is one rendered bubble: user text or assistant text plus
 // nested generative components inside the assistant bubble.
 type MessageView struct {
@@ -58,10 +69,19 @@ type MessageView struct {
 const proseCap = 2000
 
 // unrenderable is the fallback bubble for an answer whose payload failed
-// validation with no prose left around it. The payload itself is never
-// shown: a chat bubble holding a wall of JSON is the failure this
-// replaces, and "could not be rendered" is at least readable.
-const unrenderable = "The model's answer could not be rendered."
+// validation with no prose left around it. The raw payload is never shown (a
+// chat bubble holding a wall of JSON is the failure this replaces), but the
+// bubble must still be ANSWERABLE rather than cryptic: the previous text
+// ("The model's answer could not be rendered.") told the user nothing about
+// what to do, read as an app error, and was reported as a bug — the request had
+// in fact been understood, and rephrasing usually gets a real answer.
+//
+// What is deliberately NOT said: which component failed or why. Those messages
+// come from the catalog's validator, name internal props, and are for the log —
+// the actionable part is only ever "ask again, differently".
+const unrenderable = "I couldn't shape that into a visual answer. Ask again with a " +
+	"bit more detail — or, if you were asking about your own data (todos, " +
+	"records), the Ask AI page renders it directly from the app."
 
 // ParseChatAnswer prefers catalog directives and degrades to prose.
 // Valid envelope with registered components renders as components;
@@ -145,4 +165,37 @@ func stripPayload(raw string) string {
 		text = text[:start] + text[end+1:]
 	}
 	return strings.TrimSpace(text)
+}
+
+// IDPrefix derives a DOM-id stem from a stored message.
+//
+// Every component a message rendered needs an id unique to that message,
+// because a chat thread keeps its history: two answers on one page would
+// otherwise mint the same ids (invalid HTML, and a selector that means "the
+// first match" — see internal/components/instance.go rule 1).
+//
+// Derived from IdemKey rather than a random value per render: the stem must be
+// STABLE across renders, or a page that re-renders an old answer would move its
+// ids and any patch already aimed at one would miss. The key is already unique
+// per message and already persisted, so it is the identity this needs without
+// adding a field. It is sanitized because the key arrives from the client and
+// becomes part of an id.
+func IDPrefix(m Message) string {
+	key := m.IdemKey
+	if key == "" {
+		// A message stored without a key (every user echo, and any record the
+		// store accepted without one) still needs a stable stem. CreatedUnixNano
+		// is stable because it is stamped once, at append.
+		key = fmt.Sprintf("t%d", m.Created.UnixNano())
+	}
+	var b strings.Builder
+	for _, r := range key {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	return "chat-" + b.String()
 }

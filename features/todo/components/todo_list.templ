@@ -467,7 +467,7 @@ templ searchBox(signals todo.Signals) {
 				aria-label="Search todos"
 				value={ signals.SearchQuery }
 				data-bind="searchQuery"
-				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
+				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
 			/>
 			<button
 				type="button"
@@ -477,6 +477,74 @@ templ searchBox(signals todo.Signals) {
 				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
 			 data-variant="ghost">✕</button>
 		</div>
+		@searchModeSelect(signals)
+	}
+}
+
+// searchModeSelect renders the layer picker (substring / fuzzy / bm25) when the
+// operator wired more than one.
+//
+// WHY a select and not tabs: the three layers are the SAME results ranked
+// differently, not different views of the data — a segmented control would
+// imply content changes. A compact select says "how should this be matched".
+//
+// It is a real <form>-less control wired through @get (the same mechanism the
+// box uses) rather than a data-bind signal, because the ACTIVE mode is a
+// server decision: the server falls back when a layer is unwired, so it is the
+// authority on what is actually in effect (`searchMode` signal) while the
+// select just requests a change. Rendering it from signals.SearchModes is what
+// keeps the options in step with what boot actually built — no hardcoded list.
+//
+// Hidden entirely with one wired layer: a picker with a single option is noise,
+// and the substring-only build (the trimmed/plugin-free case) must look exactly
+// as it did before.
+templ searchModeSelect(signals todo.Signals) {
+	if len(signals.SearchModes) > 1 {
+		<label class="flex items-center gap-2 mb-3 text-xs text-base-content/60">
+			<span>Match</span>
+			<select
+				name="mode"
+				class="select select-xs sm:select-sm"
+				aria-label="Search matching mode"
+				data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
+			>
+				for _, m := range signals.SearchModes {
+					<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(m) }</option>
+				}
+			</select>
+			<span class="opacity-70">{ searchModeHint(signals.SearchMode) }</span>
+		</label>
+	}
+}
+
+// searchModeLabel names a layer in the user's words. Unknown names fall through
+// as-is rather than being hidden: a fourth layer added to the plugin should
+// appear in the picker immediately, even before it gets a friendly label.
+func searchModeLabel(mode string) string {
+	switch mode {
+	case "substring":
+		return "exact"
+	case "fuzzy":
+		return "typo-tolerant"
+	case "bm25":
+		return "relevance"
+	default:
+		return mode
+	}
+}
+
+// searchModeHint says what the selected layer does, so the choice is not a
+// guess. Kept to one short clause per mode.
+func searchModeHint(mode string) string {
+	switch mode {
+	case "substring":
+		return "matches the letters you type"
+	case "fuzzy":
+		return "tolerates typos and partial words"
+	case "bm25":
+		return "ranks by relevance, best first"
+	default:
+		return ""
 	}
 }
 

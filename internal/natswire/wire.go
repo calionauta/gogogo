@@ -15,6 +15,8 @@ import (
 	"time"
 
 	natsio "github.com/nats-io/nats.go"
+
+	"github.com/calionauta/gogogo/internal/nats"
 )
 
 // CRUD stream and subject constants.
@@ -87,7 +89,7 @@ func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
 	if js == nil {
 		return nil
 	}
-	if _, err := js.AddStream(&natsio.StreamConfig{
+	err := nats.EnsureStreamOn(js, &natsio.StreamConfig{
 		Name:     crudStreamName,
 		Subjects: []string{crudSubjectPrefix + ">"},
 		Storage:  natsio.FileStorage,
@@ -97,11 +99,10 @@ func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
 		// consumer outage; MaxBytes caps disk either way.
 		MaxAge:   7 * 24 * time.Hour,
 		MaxBytes: 512 << 20,
-	}); err != nil {
-		if err.Error() != "stream already exists" {
-			slog.Warn("crudproxy: add stream failed", "error", err)
-			return nil
-		}
+	})
+	if err != nil {
+		slog.Warn("crudproxy: add stream failed", "error", err)
+		return nil
 	}
 	return &CrudPublisher{js: js}
 }

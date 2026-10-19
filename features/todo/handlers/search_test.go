@@ -35,7 +35,7 @@ func TestSearchSubstringIsTheDefaultLayer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("search.New: %v", err)
 	}
-	f.h.SetSearch(NewTodoSearcher(layer), nil, nil)
+	f.h.SetSearch(testSearchLayers(search.SubstringMode, layer), nil, nil)
 	cookie := f.signup("substring@example.com")
 	me := f.ownerOf(t, cookie)
 	createStamped(t, f, me, "deploy the parser diff")
@@ -68,7 +68,7 @@ func wireBM25(t *testing.T, f *handlersFixture) {
 	if err != nil {
 		t.Fatalf("search.New: %v", err)
 	}
-	f.h.SetSearch(NewTodoSearcher(layer), NewTodoIndexer(ix), f.sqlDB)
+	f.h.SetSearch(testSearchLayers(search.BM25Mode, layer), NewTodoIndexer(ix), f.sqlDB)
 }
 
 // createStamped inserts a todo with the timestamps the list path parses
@@ -470,3 +470,6 @@ func TestStreamHandshakePreservesSearchAndSlice(t *testing.T) {
 			"a reconnect would re-render a non-matching row")
 	}
 }
+
+// testSearchLayers builds a one-layer set for a fixture, which is the shape a
+// single-mode build has in production.

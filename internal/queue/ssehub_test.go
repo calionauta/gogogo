@@ -309,12 +309,12 @@ func TestSSEHub_ViewPrefsPreservedPerTab(t *testing.T) {
 		t.Fatalf("unknown client view = %+v, want all/all", got)
 	}
 
-	h.SetView("tab-1", "active", "mine", "smoke")
-	if got := h.ViewOf("tab-1"); got != (ViewPref{Filter: "active", Scope: "mine", Query: "smoke"}) {
-		t.Fatalf("stored view = %+v, want active/mine/smoke", got)
+	h.SetView("tab-1", "active", "mine", "smoke", "fuzzy")
+	if got := h.ViewOf("tab-1"); got != (ViewPref{Filter: "active", Scope: "mine", Query: "smoke", Mode: "fuzzy"}) {
+		t.Fatalf("stored view = %+v, want active/mine/smoke/fuzzy", got)
 	}
 
-	h.SetView("", "completed", "shared", "") // empty id: no-op, never panics
+	h.SetView("", "completed", "shared", "", "") // empty id: no-op, never panics
 	h.Unregister("tab-1")
 	if got := h.ViewOf("tab-1"); got != (ViewPref{Filter: "all", Scope: "all"}) {
 		t.Fatalf("view after unregister = %+v, want all/all", got)

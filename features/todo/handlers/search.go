@@ -22,20 +22,46 @@ func searchQueryOf(r *http.Request) string {
 	return r.URL.Query().Get("q")
 }
 
+// searchModeOf reads the tab's selected search layer. Empty means "whatever
+// the operator made the default", which is what a fresh tab (and every request
+// that never touched the selector) sends.
+//
+// The value is passed through to SearchLayers.For, which falls back to the
+// default for an unknown name — so a hand-edited URL cannot pick an unwired
+// layer, and cannot error either.
+func searchModeOf(r *http.Request) string {
+	return r.URL.Query().Get(searchModeParam)
+}
+
+// searchModeParam is the query parameter the selector writes and the handler
+// reads. One const because the markup and the handler are different files, and
+// a typo would silently pin every tab to the default.
+const searchModeParam = "mode"
+
 // narrowBySearch reorders and filters an already-scoped list down to the
 // ranked hits. `order` is the plugin's ranking, best first; a row missing
-// from it is not a match. When Search is nil (plugin trimmed) or the query
+// from it is not a match. When no layer is wired (plugin trimmed) or the query
 // is empty, the list is returned untouched — the degrade path the plugin's
 // own capability note promises.
+//
+// mode selects the LAYER (substring/fuzzy/bm25) for this request; an unwired
+// or unknown name falls back to the default inside SearchLayers.For, so the
+// choice can never break search.
 //
 // Rows are matched by rank, NOT re-filtered by re-running the layer: the
 // caller already scoped the set (visibility + filter + scope), so this can
 // only ever narrow it.
-func (h *Handler) narrowBySearch(ctx context.Context, owner, query string, todos []todo.Todo) ([]todo.Todo, error) {
-	if h.Search == nil || query == "" {
+func (h *Handler) narrowBySearch(
+	ctx context.Context, owner, query, mode string, todos []todo.Todo,
+) ([]todo.Todo, error) {
+	if !h.Search.Enabled() || query == "" {
 		return todos, nil
 	}
-	ids, err := h.Search.SearchIDs(ctx, owner, query)
+	layer, _ := h.Search.For(mode)
+	if layer == nil {
+		return todos, nil
+	}
+	ids, err := layer.SearchIDs(ctx, owner, query)
 	if err != nil {
 		return nil, fmt.Errorf("search %q: %w", query, err)
 	}
@@ -61,7 +87,7 @@ func (h *Handler) narrowBySearch(ctx context.Context, owner, query string, todos
 
 // searchEnabled reports whether a search layer is wired, which is what the
 // templates gate the input on: trimmed plugin, no box.
-func (h *Handler) searchEnabled() bool { return h.Search != nil }
+func (h *Handler) searchEnabled() bool { return h.Search.Enabled() }
 
 // handleSearch answers the search box: it re-lists the caller's visible set,
 // narrowed to the ranked hits, and patches the same `#todo-list` region the
@@ -80,8 +106,9 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query := searchQueryOf(r)
+	mode := searchModeOf(r)
 	filter, scope := filterOf(r), scopeOf(r)
-	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, query)
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, query, mode)
 	_, role := h.roleOf(r)
 
 	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
@@ -90,12 +117,13 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error searching todos")
 		return
 	}
-	todos, err = h.narrowBySearch(r.Context(), owner, query, todos)
+	todos, err = h.narrowBySearch(r.Context(), owner, query, mode, todos)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: search failed", err, "error searching todos")
 		return
 	}
 	signals := h.displaySignals(r, todos, filter, scope)
+	signals.SearchMode = h.activeSearchMode(mode)
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
 		h.fail(r.Context(), w, "todo: search signals failed", err, "error searching todos")

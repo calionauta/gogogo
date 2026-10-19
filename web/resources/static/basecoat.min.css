@@ -840,6 +840,9 @@
   .text-secondary {
     color: oklch(0.97 0 0);
   }
+  .capitalize {
+    text-transform: capitalize;
+  }
   .normal-case {
     text-transform: none;
   }

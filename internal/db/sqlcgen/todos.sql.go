@@ -259,6 +259,58 @@ func (q *Queries) ListTodosByOwner(ctx context.Context, owner string) ([]Todo, e
 	return items, nil
 }
 
+const listTodosForIndex = `-- name: ListTodosForIndex :many
+SELECT id, owner, title FROM todos
+`
+
+type ListTodosForIndexRow struct {
+	ID    string
+	Owner string
+	Title string
+}
+
+// Every row's (id, owner, title) -- the input the search index heal needs.
+//
+// Exists because the postings table is a CACHE of a Go-side pure function
+// (search.Stem over search.Tokenize), so it cannot be rebuilt by SQL: a row
+// created before bm25 was wired has no postings and SQL has no way to
+// compute them. The heal reads these rows and writes their postings through
+// the same IndexDoc the mutation path uses, which is what makes the rebuilt
+// index identical to an incrementally written one.
+//
+// Columns are named rather than a star: the heal wants three fields and
+// nothing else, and a star would silently start pulling new columns into a
+// full-table read.
+//
+// ASCII ONLY, and that is load-bearing: sqlc truncates the tail of a
+// statement when a comment above it contains a multi-byte character
+// (reproduced with an em dash, an en dash, an arrow and a right single
+// quote -- the generated SQL came out as "FROM tod", silently, with sqlc
+// exiting 0). Keep this comment ASCII, and if a query ever generates a
+// suspiciously short statement, check for non-ASCII bytes before anything else.
+func (q *Queries) ListTodosForIndex(ctx context.Context) ([]ListTodosForIndexRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTodosForIndex)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTodosForIndexRow{}
+	for rows.Next() {
+		var i ListTodosForIndexRow
+		if err := rows.Scan(&i.ID, &i.Owner, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVisibleTodos = `-- name: ListVisibleTodos :many
 SELECT todos.id, todos.owner, todos.title, todos.completed, todos.idem_key, todos.created, todos.updated, todos.visibility, users.email AS owner_email
 FROM todos JOIN users ON users.id = todos.owner

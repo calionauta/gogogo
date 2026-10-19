@@ -85,20 +85,18 @@ type Handler struct {
 	// internal/search, and trimming it deletes its package and its two
 	// files in this one without touching these declarations. Nil (plugin
 	// trimmed, or never wired) means no search box and no index writes.
-	Search Searcher
+	//
+	// It is a SLICE, keyed by mode name, because the layer is a runtime choice:
+	// SEARCH_MODE picks the default a tab starts on, and the box's mode selector
+	// switches between the wired ones without a restart. One entry is the normal
+	// case for a trimmed build (substring only), which is also why every reader
+	// degrades to the first entry when a requested mode is absent.
+	Search SearchLayers
 	Index  SearchIndexer
 	// DB is the pool the index writes ride a transaction on. Only read
 	// when Index is non-nil: with no index there is nothing to make atomic,
 	// and the mutation keeps its plain autocommit path.
 	DB *sql.DB
-}
-
-// Searcher is the read half of the search seam: text in, ranked ids out.
-// The query is owner-scoped by the implementation, and a caller narrows an
-// already visibility-scoped list by these ids — so search can never widen
-// what the viewer is allowed to see.
-type Searcher interface {
-	SearchIDs(ctx context.Context, owner, query string) ([]string, error)
 }
 
 // SearchIndexer is the write half: postings kept in step with the todo
@@ -124,12 +122,12 @@ type OnboardingResumer interface {
 // Nil disables the resume hook without failing boot.
 func (h *Handler) SetOnboarding(o OnboardingResumer) { h.Onboarding = o }
 
-// SetSearch wires the search plugin: the reader every list honours, the
+// SetSearch wires the search plugin: the readers every list honours, the
 // optional indexer, and the pool its transactions ride. A nil indexer is
 // the norm (substring and fuzzy need no postings) and simply leaves the
-// mutations on their autocommit path. All three nil is the trimmed plugin.
-func (h *Handler) SetSearch(s Searcher, ix SearchIndexer, db *sql.DB) {
-	h.Search, h.Index, h.DB = s, ix, db
+// mutations on their autocommit path. An empty set is the trimmed plugin.
+func (h *Handler) SetSearch(layers SearchLayers, ix SearchIndexer, db *sql.DB) {
+	h.Search, h.Index, h.DB = layers, ix, db
 }
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.
@@ -299,6 +297,9 @@ func (h *Handler) renderListRegion(signals todo.Signals, skin string) templ.Comp
 	return components.TodoListRegion(signals)
 }
 
+// emitToast appends one toast to #toast-container; it self-removes after 3s
+// (8s for errors) and needs no action from the user. Used by the todo page's
+// own mutations, where the list visibly updates in the same response.
 func emitToast(sse *sdk.ServerSentEventGenerator, message, toastType string) error {
 	return patchSSE(
 		sse,
@@ -389,19 +390,20 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	_, role := h.roleOf(r)
 	// Remember the tab's listing slice on its stream registration, so
 	// record-event re-lists preserve what the tab was looking at.
-	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, searchQueryOf(r))
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, searchQueryOf(r), searchModeOf(r))
 	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: list failed",
 			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error listing todos")
 		return
 	}
-	todos, err = h.narrowBySearch(r.Context(), owner, searchQueryOf(r), todos)
+	todos, err = h.narrowBySearch(r.Context(), owner, searchQueryOf(r), searchModeOf(r), todos)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: search failed", err, "error listing todos")
 		return
 	}
 	signals := h.displaySignals(r, todos, filter, scope)
+	signals.SearchMode = h.activeSearchMode(searchModeOf(r))
 	sse := sdk.NewSSE(w, r)
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
 		h.fail(r.Context(), w, "todo: list signals failed", err, "error listing todos")
@@ -423,19 +425,20 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	}
 	filter, scope := filterOf(r), scopeOf(r)
 	_, role := h.roleOf(r)
-	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, searchQueryOf(r))
+	h.Hub.SetView(r.URL.Query().Get("clientID"), filter, scope, searchQueryOf(r), searchModeOf(r))
 	todos, err := h.listVisible(r.Context(), owner, role, filter, scope)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: fragment list failed",
 			fmt.Errorf("filter %s scope %s: %w", filter, scope, err), "error listing todos")
 		return
 	}
-	todos, err = h.narrowBySearch(r.Context(), owner, searchQueryOf(r), todos)
+	todos, err = h.narrowBySearch(r.Context(), owner, searchQueryOf(r), searchModeOf(r), todos)
 	if err != nil {
 		h.fail(r.Context(), w, "todo: fragment search failed", err, "error listing todos")
 		return
 	}
 	signals := h.displaySignals(r, todos, filter, scope)
+	signals.SearchMode = h.activeSearchMode(searchModeOf(r))
 	var buf bytes.Buffer
 	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {
 		h.fail(r.Context(), w, "todo: fragment render failed", err, "error rendering list")
