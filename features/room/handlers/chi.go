@@ -1,32 +1,38 @@
 // SCOPE:feature — HTTP room slice (GoAkt presence demo)
 //
-// Same routes, wire and page as the framework handlers: index/roster
-// pages and JSON, heartbeat/acquire/release/leave/crash mutations. State
-// lives in GoAkt grains (never a database); members act as their login
-// email. The roster stays pull-based JSON — no SSE transport to port.
+// Index/roster pages and JSON, heartbeat/acquire/release/leave/crash
+// mutations, plus the /room/stream SSE feed. State lives in GoAkt grains
+// (never a database); members act as their login email. The roster is
+// PUSHED: every mutation re-reads the grain and fans the whole snapshot out
+// to the room's tabs (see stream.go), and the clicker gets the same state
+// back as a Datastar card patch. /room/roster stays as the JSON handshake
+// and for non-browser clients; nothing polls it on a timer.
 package handlers
 
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/go-chi/chi/v5"
+	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo/config"
 	roomcomponents "github.com/calionauta/gogogo/features/room/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/observability"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // roomSystem is the grain surface this slice needs. *goakt.Host satisfies
 // it in production; tests substitute a fake. One method per user intent.
 type roomSystem interface {
 	Roster(ctx context.Context, id string) (appgoakt.Roster, error)
-	Acquire(ctx context.Context, id, name string) (appgoakt.AcquireResult, error)
 	Tell(ctx context.Context, id string, msg any) error
 }
 
@@ -38,27 +44,46 @@ const mutateTimeout = 5 * time.Second
 // restarts inside it, so a transient stall must not surface to the user.
 const rosterReadBudget = 5 * time.Second
 
+// rejoinRetryDelay spaces the crash-rejoin retries. Matches rosterRetryDelay:
+// the supervised restart is measured in tens of milliseconds, and the budget
+// (not the attempt count) is the real bound.
+const rejoinRetryDelay = 50 * time.Millisecond
+
 // rosterRetryDelay spaces the retries. Short on purpose: the read is a
 // pure question, so retrying it is free and the budget (not the attempt
 // count) is the real bound.
 const rosterRetryDelay = 50 * time.Millisecond
 
-// Handler serves the room demo on chi. State lives in grains, never here.
+// Handler serves the room demo on chi. Roster state lives in grains, never
+// here; the ONE thing this handler remembers is who is watching, because a
+// crashed grain restarts EMPTY and presence is the connection — see
+// rejoinWatchers.
 type Handler struct {
 	cfg   *config.Config
 	auth  *auth.Auth
 	rooms roomSystem
+	hub   *queue.SSEHub
 	// readBudget bounds readRoster's retries (overridable in tests).
 	readBudget time.Duration
+	// watchers maps a room to its live streams (clientID -> member email).
+	// The hub cannot supply this: room streams deliberately register with no
+	// userID (BroadcastToAllUsers would otherwise feed todo record envelopes
+	// into a Datastar connection), so the name is kept where it is known.
+	mu       sync.Mutex
+	watchers map[string]map[string]string
 }
 
 // NewHandler builds the chi room handler. Nil deps panic: wire errors
 // surface at boot, not per request.
-func NewHandler(cfg *config.Config, a *auth.Auth, rooms roomSystem) *Handler {
-	if cfg == nil || a == nil || rooms == nil {
+func NewHandler(cfg *config.Config, a *auth.Auth, rooms roomSystem, hub *queue.SSEHub) *Handler {
+	if cfg == nil || a == nil || rooms == nil || hub == nil {
 		panic("room chi: NewHandler with nil dependency")
 	}
-	return &Handler{cfg: cfg, auth: a, rooms: rooms, readBudget: rosterReadBudget}
+	return &Handler{
+		cfg: cfg, auth: a, rooms: rooms, hub: hub,
+		readBudget: rosterReadBudget,
+		watchers:   make(map[string]map[string]string),
+	}
 }
 
 // readRoster reads the roster, tolerating a transient grain stall (the
@@ -92,6 +117,7 @@ func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/room", h.handleIndex)
 	r.Get("/room/roster", h.handleRoster)
+	r.Get("/room/stream", h.handleStream)
 	r.Post("/room/heartbeat", h.handleHeartbeat)
 	r.Post("/room/acquire", h.handleAcquire)
 	r.Post("/room/release", h.handleRelease)
@@ -160,7 +186,7 @@ func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
 	if _, _, ok := h.owner(w, r); !ok {
 		return
 	}
-	id := roomID(r)
+	id := appgoakt.SanitizeRoomID(roomID(r))
 	roster, err := h.readRoster(r.Context(), id)
 	if err != nil {
 		h.unavailable(r.Context(), w, id, "roster", err)
@@ -169,44 +195,164 @@ func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, roster)
 }
 
-// mutate applies a fire-and-forget grain message for the member, then
-// answers with the fresh roster (one round trip per click).
-func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name string) any) {
+// mutate applies a grain message for the member, pushes the resulting
+// roster to every watching tab, and answers the CLICKER with the patched
+// card (Datastar) — one round trip per click, and the clicker and its peers
+// converge on one state. The push covers the peers; the patch covers the
+// originator, which BroadcastToDoc does not echo back to itself.
+func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name, clientID string) any) {
 	name, _, ok := h.owner(w, r)
 	if !ok {
 		return
 	}
-	id := roomID(r)
+	id := appgoakt.SanitizeRoomID(roomID(r))
+	clientID := r.URL.Query().Get("clientID")
 	ctx, cancel := context.WithTimeout(r.Context(), mutateTimeout)
 	defer cancel()
-	if err := h.rooms.Tell(ctx, id, msg(name)); err != nil {
+	if err := h.rooms.Tell(ctx, id, msg(name, clientID)); err != nil {
 		h.unavailable(r.Context(), w, id, "tell", err)
 		return
 	}
-	roster, err := h.readRoster(ctx, id)
+	// The clicker is excluded from the broadcast: it gets the same roster in
+	// the response below, rendered WITH its identity. A broadcast carries no
+	// identity, so without the exclusion the clicker would briefly render its
+	// own row without "(you)" before the personal patch corrected it.
+	roster, err := h.pushRosterExcept(ctx, id, clientID)
 	if err != nil {
 		h.unavailable(r.Context(), w, id, "read-after-tell", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, roster)
+	h.answerRoster(w, r, id, roster, name)
 }
 
+// answerRoster replies with the card patch (Datastar) when the caller is a
+// Datastar action, and with plain JSON otherwise. The JSON branch is what
+// the contract tests and any non-Datastar client (curl, the crash smoke)
+// read, so one endpoint serves both without negotiating.
+func (h *Handler) answerRoster(
+	w http.ResponseWriter, r *http.Request, id string, roster appgoakt.Roster, email string,
+) {
+	if r.Header.Get("Datastar-Request") != "true" {
+		writeJSON(w, http.StatusOK, roster)
+		return
+	}
+	// ONE payload builder for the clicker and the broadcast (sendRosterPatch),
+	// so "what I see after my click" and "what peers see" cannot diverge.
+	sse := sdk.NewSSE(w, r)
+	if err := sendRosterPatch(r.Context(), sse, id, roster, email); err != nil {
+		obsArgs := append(observability.WithComponent("room", "feature"), "room", id, "error", err)
+		observability.Warn(r.Context(), "room: answer patch failed", obsArgs...)
+	}
+}
+
+// The heartbeat is kept as a route because clients that predate the stream
+// still send it, and because a name-only touch is how the synthetic
+// per-name presence entry (see goakt.presenceKey) stays alive. The stream
+// does not use it: a live connection IS the liveness signal.
 func (h *Handler) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(name string) any { return appgoakt.RoomHeartbeat{Name: name} })
+	h.mutate(w, r, func(name, clientID string) any {
+		return appgoakt.RoomHeartbeat{Name: name, ClientID: clientID}
+	})
 }
 
 func (h *Handler) handleAcquire(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(name string) any { return appgoakt.RoomAcquire{Name: name} })
+	h.mutate(w, r, func(name, clientID string) any {
+		return appgoakt.RoomAcquire{Name: name, ClientID: clientID}
+	})
 }
 
 func (h *Handler) handleRelease(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(name string) any { return appgoakt.RoomRelease{Name: name} })
+	h.mutate(w, r, func(name, _ string) any { return appgoakt.RoomRelease{Name: name} })
 }
 
 func (h *Handler) handleLeave(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(name string) any { return appgoakt.RoomLeave{Name: name} })
+	h.mutate(w, r, func(name, clientID string) any {
+		return appgoakt.RoomLeave{Name: name, ClientID: clientID}
+	})
 }
 
 func (h *Handler) handleCrash(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(_ string) any { return appgoakt.RoomCrash{} })
+	name, _, ok := h.owner(w, r)
+	if !ok {
+		return
+	}
+	id := appgoakt.SanitizeRoomID(roomID(r))
+	ctx, cancel := context.WithTimeout(r.Context(), mutateTimeout)
+	defer cancel()
+	if err := h.rooms.Tell(ctx, id, appgoakt.RoomCrash{}); err != nil {
+		h.unavailable(r.Context(), w, id, "crash", err)
+		return
+	}
+	// The grain restarts EMPTY by design, and presence is the connection:
+	// without re-announcing, every tab would disappear from the roster until
+	// it reconnected (the demo exists to watch it rebuild). The connections
+	// are still there — tell the fresh grain about them, then push.
+	if err := h.rejoinWatchers(ctx, id); err != nil {
+		h.unavailable(r.Context(), w, id, "crash-rejoin", err)
+		return
+	}
+	roster, err := h.pushRoster(ctx, id)
+	if err != nil {
+		h.unavailable(r.Context(), w, id, "crash-rebuild", err)
+		return
+	}
+	h.answerRoster(w, r, id, roster, name)
+}
+
+// rejoinWatchers replays every live stream's join into a restarted grain.
+//
+// The crash tell returns when the actor PROCESSED the message, not when its
+// supervisor finished restarting it: GoAkt answers "actor is not alive" for
+// that window. Under `-race` the window is wide enough to lose the race, so
+// the rejoin retries within the caller's budget until the fresh actor accepts
+// the joins. Re-telling is safe: presence is idempotent per clientID, and a
+// tab that opened in the meantime simply joins twice.
+func (h *Handler) rejoinWatchers(ctx context.Context, id string) error {
+	watchers := h.watchersOf(id)
+	return retry.Do(
+		func() error {
+			for clientID, email := range watchers {
+				if err := h.rooms.Tell(ctx, id, appgoakt.RoomJoin{Name: email, ClientID: clientID}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		retry.Attempts(100),
+		retry.Delay(rejoinRetryDelay),
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+	)
+}
+
+// addWatcher records one live stream. Called after the grain join, so the
+// map never names a tab the grain refused.
+func (h *Handler) addWatcher(id, clientID, email string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.watchers[id] == nil {
+		h.watchers[id] = make(map[string]string)
+	}
+	h.watchers[id][clientID] = email
+}
+
+// dropWatcher forgets one stream (its last one — the reconnect guard makes
+// sure a superseded handler cannot drop its replacement).
+func (h *Handler) dropWatcher(id, clientID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.watchers[id], clientID)
+	if len(h.watchers[id]) == 0 {
+		delete(h.watchers, id)
+	}
+}
+
+// watchersOf snapshots the room's live streams, so a crash never holds the
+// handler lock while talking to the grain.
+func (h *Handler) watchersOf(id string) map[string]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := make(map[string]string, len(h.watchers[id]))
+	maps.Copy(out, h.watchers[id])
+	return out
 }

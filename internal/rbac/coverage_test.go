@@ -36,8 +36,7 @@ var publicRoutes = map[string]bool{
 	"/api/auth/signout":           true,
 	"/api/auth/magic":             true,
 	"/api/auth/magic/request":     true,
-	"/api/session":                true,
-	"/api/stream/status":          true,
+	"/api/session/stream":         true,
 }
 
 // TestRBACCoverageMatchesRoutes is the coverage lint that replaced the
@@ -49,10 +48,10 @@ var publicRoutes = map[string]bool{
 // this package free of feature dependencies, so the check works in any
 // trimmed tree (internal/installer drops whole features, and an import would
 // drag a missing package into the trimmed build) and never needs a manifest
-// line. The older coverage test enumerated paths BY HAND, which is why
-// /api/stream/status could ship with no policy row at all.
+// line. The older coverage test enumerated paths BY HAND, which is how a
+// realtime probe once shipped with no policy row at all.
 //
-// Red-proof: delete the `p, user, /api/stream/status, GET` row from
+// Red-proof: delete the `p, user, /api/session/stream, GET` row from
 // policy.csv and this test names the route.
 func TestRBACCoverageMatchesRoutes(t *testing.T) {
 	e, err := NewEnforcer()
@@ -87,10 +86,9 @@ func TestRBACCoverageMatchesRoutes(t *testing.T) {
 			}
 			// The strict half: a non-admin-only route must allow `user` ON ITS
 			// OWN. Testing user||admin lets `p, admin, /*, .*` mask a missing
-			// user row — which is exactly how /api/stream/status shipped
-			// broken: admin reached it, so nothing looked wrong, while every
-			// signed-in non-admin got a 403 on the probe sse-open.js polls
-			// (making it report a healthy stream as dead and rethrow).
+			// user row — which is how a realtime probe once shipped broken:
+			// admin reached it, so nothing looked wrong, while every
+			// signed-in non-admin got a 403 on it.
 			if !allowUser {
 				t.Errorf("%s %s: no `user` policy row reaches this route "+
 					"(admin's /* masks it, which is not a decision for users). "+
@@ -225,8 +223,7 @@ func registeredRoutes(t *testing.T) []routeEntry {
 
 // coreMountRE matches the literal paths the core mux registers directly:
 //
-//	mux.Handle("/api/session", a.SessionProbeHandler())
-//	mux.HandleFunc("/api/stream/status", StreamStatusHandler(hub))
+//	mux.Handle("/api/session/stream", a.SessionStreamHandler())
 //	mux.HandleFunc("/sw.js", ...)
 var coreMountRE = regexp.MustCompile(`mux\.(?:Handle|HandleFunc)\(["\x60](/[^"\x60]*)["\x60]`)
 

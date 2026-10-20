@@ -3,11 +3,27 @@
 // templ: version: v0.3.1070
 // SCOPE:plugin - Session-expiry banner. ONE component for every authenticated
 
-// page: the notes/whiteboard SSE streams drive it live (collab.SessionEvent),
+// page. The state arrives on whichever stream the page already has:
 
-// while pages without a raw stream (todo, room, config) let the shared
+//   - notes/whiteboard send collab.SessionEvent frames;
 
-// /static/session.js probe /api/session. Pass authed=true when the page
+//   - todo/room/chat/genui carry a `sessionAuthed` signal on their feature
+
+//     stream, revalidated on its heartbeat (the banner's data-effect maps it
+
+//     into GogogoSession.set);
+
+//   - a page with NO feature stream opens /api/session/stream through the
+
+//     shared /static/session.js (one visible tab per browser; the others hear
+
+//     it over a BroadcastChannel).
+
+// One long-lived connection per page: the dedicated stream exists only where
+
+// there is nothing else, because browsers cap connections per host and a
+
+// second one starves later navigations. Pass authed=true when the page
 
 // rendered for a signed-in user; a public page passes false and never warns.
 
@@ -51,13 +67,26 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(authed))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 18, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 26, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" role=\"alert\" aria-live=\"polite\"><span>Session expired — <a class=\"link\" href=\"/login\">sign in again</a> to keep your name on edits. Your work stays safe in this tab.</span></div><script defer src=\"/static/session.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-effect=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("typeof $sessionAuthed === 'boolean' && window.GogogoSession && window.GogogoSession.set($sessionAuthed)")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 27, Col: 121}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" role=\"alert\" aria-live=\"polite\"><span>Session expired — <a class=\"link\" href=\"/login\">sign in again</a> to keep your name on edits. Your work stays safe in this tab.</span></div><script defer src=\"/static/session.js\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

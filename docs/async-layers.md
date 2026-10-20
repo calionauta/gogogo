@@ -144,14 +144,32 @@ Broadcast converges data; it never elects an owner. When two browsers grab
 the same presenter lock, a KV put races and pub/sub duplicates — the grain
 serializes: one room, one mailbox, exactly one winner, by construction.
 
-A grain (`internal/goakt/`) holds a heartbeat roster plus the lock,
+A grain (`internal/goakt/`) holds a connection-scoped roster plus the lock,
 supervised with a restart budget and passivated when idle. Roster state is
-soft (rebuilt from heartbeats, never persisted — see the durability table
+soft (rebuilt from connections, never persisted — see the durability table
 below). The `/room/` demo exercises the whole loop including a crash hook;
 copy the grain pattern for per-entity features. Roster reads over HTTP are
 retried within a bounded budget, so the supervised-restart window answers a
 moment later instead of with a 502; the grain error is logged, never
-returned in the response body. Standalone only: no
+returned in the response body.
+
+Presence is the **SSE connection**, not a timer: the stream joins on
+connect, leaves on disconnect, and the grain refcounts per-tab client IDs,
+so two tabs of one person are one member and closing one does not evict
+them. Every mutation re-reads the grain and pushes the whole snapshot to
+the room's tabs (a dropped frame is healed by the next), and a tab joining
+gets a snapshot immediately — nothing polls. The page keeps its stream while
+hidden (`openWhenHidden`), because a dropped connection IS a departure; and a
+crash restart replays the live clientIDs into the fresh grain, so "watch the
+roster rebuild" rebuilds from connections instead of from timers. `POST /room/heartbeat` still
+exists for non-browser clients and folds one synthetic connection per name.
+
+Two properties the demo pins because both were wrong: the roster is
+**sorted by name** (ranging a Go map randomized the order between pushes,
+so the list flickered), and re-acquiring a lock you already hold
+**succeeds** (a holder told "no" sees a dead button). Leave drops the
+connection and, when it was the last one, the member and any lock they
+held — and it sticks, because no timer re-adds them. Standalone only: no
 placement, no cluster — cross-process entities are out of scope.
 
 ## The opt-out rules
@@ -172,7 +190,7 @@ Every store below is crash-recoverable by design (SQLite WAL replay,
 JetStream recovery, goqite), so backup means files, not coordination.
 The invariant to protect: **no truth lives in two places** — snapshots
 derive one way (Loro → Turso), outboxes drain one way, grain rosters
-rebuild from heartbeats.
+rebuild from connections.
 
 | Store | Retention | Backup |
 |---|---|---|
@@ -183,7 +201,7 @@ rebuild from heartbeats.
 | `room-presence` KV (roster) | latest revision per member + 24h TTL (crashed members expire) | same as above |
 | DagNats streams/KV (upstream) | engine-owned; 10 GiB store cap + 30d DLQ | same as above |
 | Browser outbox (IndexedDB) | device-local, drains on reconnect | not backed up (client state) |
-| Grain roster (GoAkt) | in-memory soft state, heartbeat-rebuilt | not backed up (rebuilt, by design) |
+| Grain roster (GoAkt) | in-memory soft state, connection-rebuilt | not backed up (rebuilt, by design) |
 
 Restore drill (monthly, cheap): `./scripts/restore.sh --dry-run <backup>`
 — an untested backup is a rumor. Full procedure lives in

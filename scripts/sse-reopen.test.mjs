@@ -39,11 +39,6 @@ async function signupCookie(email) {
   return line.split(";")[0].slice("gogogo_auth=".length);
 }
 
-async function streamStatus(clientID) {
-  const res = await fetch(`${BASE}/api/stream/status?clientID=${encodeURIComponent(clientID)}`);
-  if (!res.ok) throw new Error(`status endpoint: ${res.status}`);
-  return (await res.json()).open === true;
-}
 
 try {
   if (!providedBin) {
@@ -98,11 +93,25 @@ try {
     await context.close();
   }
 
-  // Case 2 — control: normal load registers the stream promptly.
+  // Case 2 — control: normal load registers the stream promptly, and the
+  // session banner costs the BROWSER one connection, not one per tab.
+  //
+  // WHY THIS EXISTS: a per-tab session EventSource halved the HTTP/1.1
+  // budget (6 per host). Three tabs x (feature stream + session stream)
+  // filled it and the next POST never left the browser — every request
+  // hung, not just the new stream. Web Locks elects one visible tab to
+  // hold the session stream; the others hear it over a BroadcastChannel.
   {
     const context = await browser.newContext();
     const token = await signupCookie(`sse-probe-${Date.now()}-b@local.dev`);
     await context.addCookies([{ name: "gogogo_auth", value: token, url: BASE + "/" }]);
+    let sessionStreams = 0;
+    let sessionProbes = 0;
+    context.on("request", (req) => {
+      const u = req.url();
+      if (u.includes("/api/session/stream")) sessionStreams++;
+      else if (u.includes("/api/session")) sessionProbes++;
+    });
     const page = await context.newPage();
     await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
     try {
@@ -111,6 +120,26 @@ try {
       throw new Error("stream never registered on a normal load");
     }
     console.log("  ✓ normal load registers the stream (verified open)");
+
+    const extra = [];
+    for (let i = 0; i < 2; i++) {
+      const p = await context.newPage();
+      await p.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+      extra.push(p);
+    }
+    await extra[1].evaluate(
+      () => Promise.race([
+        fetch("/health").then((r) => r.status),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("request queued")), 4000)),
+      ]),
+    );
+    if (sessionStreams > 2) {
+      throw new Error(`3 tabs opened ${sessionStreams} session streams (want one, pooled per browser)`);
+    }
+    if (sessionProbes > 0) {
+      throw new Error(`session banner still probes /api/session (${sessionProbes} requests)`);
+    }
+    console.log(`  ✓ one session stream for 3 tabs (${sessionStreams} request(s)), no poll, requests still flow`);
     await context.close();
   }
 

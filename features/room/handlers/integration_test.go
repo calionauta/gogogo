@@ -25,6 +25,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 const (
@@ -65,7 +66,7 @@ func TestReadRosterRetriesTransientFailure(t *testing.T) {
 		failTimes: 1,
 		roster:    appgoakt.Roster{Presenter: "ana@example.com"},
 	}
-	h := NewHandler(config.Load(), testAuth(t), rooms)
+	h := NewHandler(config.Load(), testAuth(t), rooms, queue.NewSSEHub())
 	h.readBudget = 5 * time.Second
 
 	got, err := h.readRoster(context.Background(), "lobby")
@@ -86,7 +87,7 @@ func TestReadRosterRetriesTransientFailure(t *testing.T) {
 // hang the request.
 func TestReadRosterFailsBoundedOnPermanentError(t *testing.T) {
 	rooms := &countingRooms{failTimes: 1 << 30}
-	h := NewHandler(config.Load(), testAuth(t), rooms)
+	h := NewHandler(config.Load(), testAuth(t), rooms, queue.NewSSEHub())
 	h.readBudget = 200 * time.Millisecond
 
 	start := time.Now()
@@ -127,6 +128,15 @@ func testAuth(t *testing.T) *auth.Auth {
 // — the same composition bootRoomActor wires in production.
 func roomHostFixture(t *testing.T) (http.Handler, func(string) *http.Cookie) {
 	t.Helper()
+	mux, signup, _ := roomHostFixtureHub(t)
+	return mux, signup
+}
+
+// roomHostFixtureHub is roomHostFixture plus the SSE hub, for tests that
+// must observe stream registration (a teardown timing question cannot be
+// answered from the client side alone).
+func roomHostFixtureHub(t *testing.T) (http.Handler, func(string) *http.Cookie, *queue.SSEHub) {
+	t.Helper()
 	sqlDB, err := db.OpenAt(t.TempDir() + "/room-host.db")
 	if err != nil {
 		t.Fatalf("db open: %v", err)
@@ -152,10 +162,11 @@ func roomHostFixture(t *testing.T) (http.Handler, func(string) *http.Cookie) {
 		_ = host.Stop(stopCtx)
 	})
 
+	hub := queue.NewSSEHub()
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
-	mux.Handle("/", NewHandler(config.Load(), a, host).Routes())
-	return mux, func(email string) *http.Cookie { return roomSignup(t, mux, email) }
+	mux.Handle("/", NewHandler(config.Load(), a, host, hub).Routes())
+	return mux, func(email string) *http.Cookie { return roomSignup(t, mux, email) }, hub
 }
 
 // roomDo drives one request through the mux with a session cookie.

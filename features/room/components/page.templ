@@ -1,4 +1,18 @@
-// SCOPE:feature — Room demo page (GoAkt grains).
+// SCOPE:feature — Room demo page (GoAkt grains), live over SSE.
+//
+// The page renders the roster ONCE server-side and then never polls: the
+// stream pushes whole snapshots, and the card is a Datastar region that
+// morphs from them. Three things deliberately do NOT exist here any more,
+// each of which was a defect:
+//
+//   - no 3s roster poll (the roster arrives when it changes, not on a timer);
+//   - no 5s app heartbeat (a live SSE connection IS the liveness signal —
+//     the transport's keepalive makes Go notice a dead socket);
+//   - no `left` flag to stop the heartbeat after Leave (with no timer there
+//     is nothing to stop, so "Leave" cannot resurrect its user).
+//
+// Presence is per CONNECTION, so two tabs of one person are one roster entry
+// and closing one keeps them listed (goakt.Room refcounts clientIDs).
 //
 // REMOVE by deleting features/room/ + the /room roots in buildChiMux
 // (internal/server/chi.go) + the navbar links in features/authviews/navbar.templ
@@ -9,6 +23,8 @@
 package components
 
 import (
+	"encoding/json"
+	"net/url"
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/authviews"
@@ -16,11 +32,49 @@ import (
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 )
 
-// Page renders the room demo: roster, exactly-one presenter lock, and
-// the crash hook. Initial state is server-rendered; the adjacent script
-// polls JSON (heartbeat every 5s, roster every 3s) and re-renders the
-// roster block from the response — whole-snapshot polling, no event
-// log, matching the grain's pull-friendly Roster response.
+// RoomLockSignals seeds the lock-derived UI.
+//
+// INVARIANT: "am I the holder?" is DERIVED (`$roomMe !== '' && $roomMe ===
+// $roomHolder`), never shipped. Two consequences the code must respect:
+//
+//  1. $roomMe is written ONCE, in the page's own data-signals, and no push
+//     ever mentions it. A broadcast has one body for all recipients, so any
+//     per-viewer value in it is wrong for everyone but its author — shipping
+//     roomMine=false hid the holder's own Release button until a reload.
+//  2. Signals are therefore only ever sent with the url as the MERGE key:
+//     pushing a signals frame that omits roomMe is harmless (Datastar
+//     merges), but rendering the card with `data-signals` re-seeds the
+//     element and DROPPED roomMe on every peer patch — the room then
+//     silently lost "you" and every lock button with it. So the card's
+//     own data-signals is the only place identity is written.
+func RoomLockSignals(roster appgoakt.Roster, email string) map[string]string {
+	if email == "" {
+		return map[string]string{"roomHolder": roster.Presenter}
+	}
+	return map[string]string{"roomHolder": roster.Presenter, "roomMe": email}
+}
+
+// RoomLockSignalsJSON is the same map as the JSON text a `data-signals`
+// attribute needs.
+//
+// WHY TWO FORMS. The templ attribute takes JSON TEXT; the SSE patch takes a
+// VALUE. Passing the text to MarshalAndPatchSignals serializes it a second
+// time, so the wire carried a quoted STRING ("{\"roomHolder\":...}") instead
+// of an object, and Datastar's merge of a string is a no-op — the roster
+// updated while $roomHolder never moved, which is why the lock buttons froze
+// on every peer patch. Keep the map as the single source and marshal at the
+// edge that actually needs text.
+func RoomLockSignalsJSON(roster appgoakt.Roster, email string) string {
+	b, err := json.Marshal(RoomLockSignals(roster, email))
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+// Page renders the room demo: roster, exactly-one presenter lock, and the
+// crash hook. Initial state is server-rendered for a first paint with no
+// stream round trip; RoomCard (same markup) is what the stream morphs.
 templ Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
@@ -37,6 +91,7 @@ templ Page(email string, userRole string, roomID string, roster appgoakt.Roster,
 		<body>
 			@authviews.Navbar(email, userRole, "room", buildLabel, buildCommit)
 			@components.SessionBanner(email != "")
+			@roomSignals(roster, email)
 			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>
 				<h1 class="text-2xl font-bold">Room: { roomID }</h1>
 				<p class="opacity-70">
@@ -47,73 +102,117 @@ templ Page(email string, userRole string, roomID string, roster appgoakt.Roster,
 				@components.TechStack([]components.TechItem{
 				{Name: "GoAkt grains", Note: "presenter-lock actor"},
 				{Name: "supervision", Note: "crashed grains restart"},
-				{Name: "JSON polling", Note: "clients poll the lock state"},
+				{Name: "SSE push", Note: "roster arrives on change"},
 				})
-				<div class="card bg-base-200 shadow mt-4">
-					<div class="card-body">
-						<h2 class="card-title">
-							Presenter: <span id="room-presenter">
-								if roster.Presenter == "" {
-									(none)
-								} else {
-									{ roster.Presenter }
-								}
-							</span>
-						</h2>
-						<p class="text-sm opacity-70">Room generation <span id="room-generation">{ strconv.Itoa(roster.Generation) }</span> (bumps on every restart)</p>
-						<ul id="room-roster" class="menu">
-							for _, m := range roster.Members {
-								<li>{ m.Name }</li>
-							}
-						</ul>
-						<div class="card-actions justify-end">
-							<button id="room-acquire" class="btn btn-primary" type="button">Take presenter</button>
-							<button id="room-release" class="btn" type="button">Release</button>
-							<button id="room-leave" class="btn" type="button">Leave</button>
-							<button id="room-crash" class="btn btn-error" type="button">Crash room</button>
-						</div>
-					</div>
-				</div>
+				@RoomCard(roomID, roster, email)
 			</main>
-			<script>
-				// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): this page
-				// uses vanilla fetch + innerHTML roster + heartbeat/refresh
-				// intervals. Converting means signals + @post morphs +
-				// data-on-interval with interaction coverage: a feature
-				// project, not a line edit. Pinned by the guard so it
-				// cannot grow.
-				// Adjacent polling loop (not SSE): heartbeat keeps this
-				// member alive, roster refresh re-renders from snapshots.
-				// Templ does not interpolate expressions inside <script>
-				// (script bodies render verbatim), so the room id travels
-				// as a data attribute on <main>, read back here.
-				(function () {
-					var room = document.querySelector("main[data-room]").getAttribute("data-room");
-					function post(path) {
-						return fetch(path + "?room=" + encodeURIComponent(room), {method: "POST"});
-					}
-					function render(roster) {
-						var names = "";
-						(roster.members || []).forEach(function (m) { names += "<li>" + m.name + "</li>"; });
-						document.getElementById("room-roster").innerHTML = names;
-						document.getElementById("room-presenter").textContent = roster.presenter || "(none)";
-						document.getElementById("room-generation").textContent = roster.generation;
-					}
-					function refresh() {
-						fetch("/room/roster?room=" + encodeURIComponent(room))
-							.then(function (r) { return r.json(); })
-							.then(render);
-					}
-					document.getElementById("room-acquire").addEventListener("click", function () { post("/room/acquire").then(refresh); });
-					document.getElementById("room-release").addEventListener("click", function () { post("/room/release").then(refresh); });
-					document.getElementById("room-leave").addEventListener("click", function () { post("/room/leave").then(refresh); });
-					document.getElementById("room-crash").addEventListener("click", function () { post("/room/crash").then(refresh); });
-					setInterval(function () { post("/room/heartbeat"); }, 5000);
-					setInterval(refresh, 3000);
-					post("/room/heartbeat");
-				})();
-			</script>
+			@components.StreamOpener("room-sse-opener", "/room/stream?room="+url.QueryEscape(roomID), true)
 		</body>
 	</html>
 }
 
+// roomSignals seeds the two lock signals on a SIBLING of the patched region.
+//
+// Placement is the whole point. It cannot live on <main> or on the patched
+// region: Datastar v1 re-seeds `data-signals` only from elements it actually
+// processes — an attribute on the PARENT of a morphed subtree is not
+// re-applied, and an attribute on a node inside the payload is re-rendered
+// with whatever the broadcast saw (which cannot know who is reading). Either
+// way $roomMe silently vanished after the first peer patch, and with it
+// "am I the holder?".
+//
+// A hidden, never-patched sibling is processed once, keeps $roomMe for the
+// tab's lifetime, and is fed only $roomHolder by pushes.
+templ roomSignals(roster appgoakt.Roster, email string) {
+	<div id="room-signals" class="hidden" aria-hidden="true" data-signals={ RoomLockSignalsJSON(roster, email) }></div>
+}
+
+
+
+
+// RoomCard is the single roster region: rendered server-side on first paint
+// AND re-rendered by the stream handler, from the same data. One component
+// means the stream can never drift from the page (the poll era had two
+// renderers: Templ here and an innerHTML string in the script).
+//
+// The buttons read the signals, never the render: a peer taking the lock
+// changes $roomHolder/$roomMine, and Datastar re-evaluates every expression
+// on the element without a patch. That is why the whole lock affordance is
+// declarative — no script decides which button is visible.
+templ RoomCard(roomID string, roster appgoakt.Roster, email string) {
+	<div id="room-card" class="card bg-base-200 shadow mt-4">
+		<div class="card-body">
+			@RoomCardContent(roomID, roster, email)
+		</div>
+	</div>
+}
+
+// RoomCardContent is the PATCH REGION. It is a dedicated element inside the
+// card so the stream patches the roster content alone, not the card shell:
+// Datastar morphs the region, and the id-matched buttons inside it survive
+// the morph with their data-show effects still bound. The page and the
+// stream render through this same component, so pushed markup cannot drift
+// from the server-rendered first paint.
+templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
+	<div id="room-card-content">
+		<h2 class="card-title">
+			Presenter: <span id="room-presenter">
+				if roster.Presenter == "" {
+					(none)
+				} else {
+					{ roster.Presenter }
+				}
+			</span>
+		</h2>
+		<p class="text-sm opacity-70">Room generation <span id="room-generation">{ strconv.Itoa(roster.Generation) }</span> (bumps on every restart)</p>
+		<ul id="room-roster" class="menu">
+			if len(roster.Members) == 0 {
+				<li class="opacity-60">Nobody in this room yet.</li>
+			}
+			for _, m := range roster.Members {
+				if m.Name == email {
+					<li class="font-semibold" title="you">{ m.Name } (you)</li>
+				} else {
+					<li>{ m.Name }</li>
+				}
+			}
+		</ul>
+		<p id="room-hint" class="text-sm opacity-70" data-text="$roomHolder === '' ? 'Nobody holds the presenter lock — anyone here can take it.' : ($roomMe !== '' && $roomMe === $roomHolder ? 'You hold the presenter lock.' : 'The lock is held by ' + $roomHolder + '; only they can release it.')">
+			if roster.Presenter == "" {
+				Nobody holds the presenter lock — anyone here can take it.
+			} else if roster.Presenter == email {
+				You hold the presenter lock.
+			} else {
+				The lock is held by { roster.Presenter }; only they can release it.
+			}
+		</p>
+		<div class="card-actions justify-end">
+			<button
+				id="room-acquire"
+				class="btn btn-primary"
+				type="button"
+				data-show="$roomHolder === ''"
+				data-on:click={ "@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
+			>Take presenter</button>
+			<button
+				id="room-release"
+				class="btn"
+				type="button"
+				data-show="$roomMe !== '' && $roomMe === $roomHolder"
+				data-on:click={ "@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
+			>Release</button>
+			<button
+				id="room-leave"
+				class="btn"
+				type="button"
+				data-on:click={ "@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
+			>Leave</button>
+			<button
+				id="room-crash"
+				class="btn btn-error"
+				type="button"
+				data-on:click={ "@post('/room/crash?room=" + url.QueryEscape(roomID) + "')" }
+			>Crash room</button>
+		</div>
+	</div>
+}

@@ -1,0 +1,97 @@
+// SCOPE:plugin — shared Datastar SSE opener (hidden @get + client bootstrap)
+package components
+
+import "strings"
+
+// querySep returns the separator to append a query parameter to streamURL.
+// Stream URLs may already carry one (e.g. the basecoat skin's ?skin=...),
+// and a second "?" would make the clientID part of the previous value.
+func querySep(streamURL string) string {
+	if strings.Contains(streamURL, "?") {
+		return "&"
+	}
+	return "?"
+}
+
+// streamOpts is the Datastar backend-action option object every opener
+// passes. retry:'always' is the native reconnect (#1073, shipped in
+// v1.0.0-RC.7): a clean server close (deploy) retries with backoff, with
+// the retry count reset on every 200, so a restarted server is picked up
+// instead of leaving a silently dead stream. openWhenHidden is opt-in
+// because a hidden tab normally drops its connection to save resources —
+// the room keeps it, since its presence IS the connection.
+func streamOpts(openWhenHidden bool) string {
+	if openWhenHidden {
+		return "{ retry: 'always', openWhenHidden: true }"
+	}
+	return "{ retry: 'always' }"
+}
+
+// StreamOpener is the ONE SSE opener every Datastar page renders (todo and
+// its skins, chat, genui, room). It was copied per feature until the copies
+// drifted: a skin kept calling a removed helper, and an option that does
+// not exist ({permanent}) survived in three of them.
+//
+// It renders a hidden button whose data-on:click runs the stream's @get
+// (Datastar v1 never fires data-on:load on a div/body, so a load attribute
+// silently opens nothing) plus the bootstrap that clicks it once Datastar
+// has bound the action. The click is verified by sse-open.js through the
+// stream's own ack frame — not by a status poll.
+//
+// buttonID must be unique on the page; sse-open.js addresses the opener by
+// id for verification and forced refresh.
+// streamURL is the SSE endpoint; a query string is allowed.
+// openWhenHidden keeps the connection alive in a background tab (room
+// presence); leave it false elsewhere so hidden tabs cost no connection.
+templ StreamOpener(buttonID, streamURL string, openWhenHidden bool) {
+	<button
+		id={ buttonID }
+		data-stream-opener="1"
+		class="hidden"
+		aria-hidden="true"
+		data-on:click={ "@get('" + streamURL + querySep(streamURL) + "clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', " + streamOpts(openWhenHidden) + ")" }
+		data-on:datastar-ready__document={ "window.__gogogoOpenVerified && window.__gogogoOpenVerified('" + buttonID + "')" }
+		data-on:online__window={ "window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
+		data-on:resume__document={ "window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
+		data-on:pageshow__window={ "(evt.persisted || performance.now() > 1000) && window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
+	></button>
+	<script defer type="module" src="/static/sse-open.js"></script>
+	<script type="module">
+		// Hidden-@get-button bootstrap (Datastar v1 never fires data-on:load
+		// on a div/body). The opener is found by attribute, so this script
+		// needs no id interpolation; the stable per-tab clientID rides
+		// sessionStorage so a reload reuses its registration instead of
+		// leaking a new one. The 300ms fallback covers an already-fired
+		// datastar-ready, and the bound makes a missing helper loud.
+		(function () {
+			var opener = document.querySelector('[data-stream-opener]');
+			if (!opener) {
+				throw new Error('sse: page rendered no [data-stream-opener] button');
+			}
+			try {
+				var id = sessionStorage.getItem('gogogo_client_id');
+				if (!id) {
+					id = 'tab-' + Math.random().toString(36).slice(2, 10);
+					sessionStorage.setItem('gogogo_client_id', id);
+				}
+				window.__gogogoClientID = id;
+			} catch (e) {
+				window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
+			}
+			function openSSE() {
+				if (typeof window.__gogogoOpenVerified === 'function') {
+					window.__gogogoOpenVerified(opener.id);
+					return;
+				}
+				openSSE.misses = (openSSE.misses || 0) + 1;
+				if (openSSE.misses > 40) {
+					throw new Error('sse: helper sse-open.js never loaded');
+				}
+				setTimeout(openSSE, 300);
+			}
+			// The declarative data-on:datastar-ready click above is the real
+			// open; this fallback covers an already-fired ready.
+			setTimeout(openSSE, 300);
+		})();
+	</script>
+}

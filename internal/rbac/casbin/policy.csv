@@ -50,12 +50,11 @@ p, anonymous, /health, GET
 # subject — a tab polls it before, during and after sign-in, and a 403
 # makes sse-open.js treat a healthy stream as dead and rethrow loudly.
 # RBAC_ENABLED=true without this row breaks every realtime surface.
-p, anonymous, /api/stream/status, GET
 p, anonymous, /login, (GET|POST)
 p, anonymous, /logout, (GET|POST)
 p, anonymous, /, GET
 p, anonymous, /api/auth/*, .*
-p, anonymous, /api/session, GET
+p, anonymous, /api/session/stream, GET
 p, user, /todo, .*
 p, user, /todo/*, .*
 p, user, /api/todos, .*
@@ -91,11 +90,10 @@ p, user, /api/ai/*, .*
 p, user, /api/byok/*, .*
 p, user, /api/onboarding, .*
 p, user, /api/onboarding/*, .*
-p, user, /api/session, GET
+p, user, /api/session/stream, GET
 p, user, /static/*, (GET|HEAD)
 p, user, /sw.js, GET
 p, user, /health, GET
-p, user, /api/stream/status, GET
 p, user, /, GET
 p, user, /api/auth/*, .*
 p, viewer, /todo, .*
@@ -115,11 +113,10 @@ p, viewer, /api/whiteboards/fragment, .*
 p, viewer, /notes, .*
 p, viewer, /notes/*, .*
 p, viewer, /api/notes/*, .*
-p, viewer, /api/session, GET
+p, viewer, /api/session/stream, GET
 p, viewer, /static/*, (GET|HEAD)
 p, viewer, /sw.js, GET
 p, viewer, /health, GET
-p, viewer, /api/stream/status, GET
 p, viewer, /, GET
 p, viewer, /api/auth/*, .*
 p, admin, /config, .*

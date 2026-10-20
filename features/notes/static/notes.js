@@ -103,12 +103,30 @@
   document.addEventListener("selectionchange", function () { maybeCaret(); });
 
   // Heartbeat re-announce (OT-demo lesson): an idle peer's dot must not
-  // age out while they're still here — force a resend every 5s when the
-  // page is visible, even unfocused (readers count as present; only the
-  // position goes stale, and the tooltip line stays truthful).
+  // age out while they're still here — force a resend every 5s while the
+  // page is visible.
+  //
+  // "Present" and "here is my caret" are TWO different claims, and this
+  // heartbeat may make only the first. It used to force the dot too, reading
+  // ta.selectionStart unconditionally — but a tab that never touched the
+  // textarea owns no caret, only the one the browser parks at the END of the
+  // value it last adopted from the other editor. So every 5s of the other
+  // user's typing republished that idle tab as a cursor gliding along the end
+  // of the text (the reported "demo2's cursor keeps moving inside my demo1 box
+  // while I type"). heartbeatCaret resends only a caret this tab placed
+  // itself; a tab that never typed sends none, which is the truth.
   setInterval(function () {
-    if (!document.hidden) { caretSent = -1; maybeCaret(true); }
+    if (!document.hidden) heartbeatCaret();
   }, 5000);
+  // pagehide is the honest leave signal: an EventSource reconnect survives a
+  // reload, so the tab's dot must be dropped here instead of waiting out the
+  // 8s expiry in every other browser.
+  window.addEventListener("pagehide", function () {
+    fetch("/api/notes/" + encodeURIComponent(DOC) + "/leave?clientID=" + encodeURIComponent(CID), {
+      method: "POST",
+      keepalive: true,
+    }).catch(function () { /* ephemeral */ });
+  });
 
   // Remote carets ("who is where"): peers report {line, pos}; each browser
   // maps the offset to ITS OWN pixels via mirror-div (computed font metrics
@@ -149,6 +167,12 @@
   function shiftPeerOffsets(ops) {
     if (!carets.size) return;
     carets.forEach(function (c) {
+      // A caret that arrived WITH its sender's own text (op-attached) is
+      // already expressed in our coordinates: the batch that moved it is
+      // ours, and the peer's snapshot includes it. Shifting those again
+      // dragged their dot along with every keystroke I typed — the other
+      // half of the reported "their cursor slides while I type".
+      if (c.own) return;
       let pos = c.pos;
       let text = typeof c.text === "string" ? c.text : null;
       for (const op of ops) {
@@ -170,6 +194,11 @@
     });
   }
   let caretSent = -1;
+  // lastOwnCaret is the last position THIS tab reported as its own (set on
+  // a focused report, cleared the moment the textarea loses focus). The
+  // heartbeat resends it so the dot does not expire while the user reads;
+  // it can never invent one.
+  let lastOwnCaret = null;
   // Shared leading + trailing throttle (/static/throttle.js): a throttled
   // caret report is delayed, never dropped. Fallback calls through
   // directly if the shared file failed to load (offline first paint).
@@ -184,20 +213,37 @@
       body: JSON.stringify({ line: line, pos: pos }),
     }).catch(function () { /* ephemeral */ });
   }, 200);
-  function maybeCaret(force) {
+  function maybeCaret() {
     // While our own ops are unconfirmed the batch already carries the
     // exact caret, so a standalone report (anchored to the stale
     // serverText) must not overwrite it. Selectionchange fires on every
     // keystroke too, which is why the guard lives here and not just at
     // the input handler.
-    if (!force && (outbox.length || flushing)) return;
-    const pos = force ? (ta.selectionStart || 0) : (document.activeElement !== ta ? -1 : (ta.selectionStart || 0));
-    if (pos < 0) return;
-    // Forced (heartbeat) resends even unmoved: expiry is time-based, so
-    // only a fresh report proves presence. Normal path skips duplicates.
-    if (!force && pos === caretSent) return;
+    if (outbox.length || flushing) return;
+    // Only a FOCUSED textarea reports where its user is. Unfocused, the
+    // selection is not the user's: the browser leaves it at the end of
+    // whatever value was last assigned to it. Reading it anyway (which the
+    // old forced heartbeat path did) published an idle tab's borrowed
+    // selection as a live caret.
+    if (document.activeElement !== ta) {
+      lastOwnCaret = null;
+      return;
+    }
+    const pos = ta.selectionStart || 0;
+    if (pos === caretSent) return; // unchanged since the last report
     caretSent = pos;
+    lastOwnCaret = { pos: pos, text: ta.value };
     reportCaretWire(pos, ta.value.slice(0, pos).split("\n").length);
+  }
+  // heartbeatCaret resends the last OWN caret, so a focused-but-idle
+  // reader's dot stays alive without inventing a position. No-op for a tab
+  // that has never placed one.
+  function heartbeatCaret() {
+    if (outbox.length || flushing) return;
+    if (document.activeElement !== ta || !lastOwnCaret) return;
+    caretSent = lastOwnCaret.pos;
+    reportCaretWire(lastOwnCaret.pos,
+      lastOwnCaret.text.slice(0, lastOwnCaret.pos).split("\n").length);
   }
   function peerColor(user) {
     let h = 0;
@@ -260,13 +306,15 @@
   // and the last honest position is kept. This is what stops the "dot flashes
   // on the wrong line during the other user's typing delay" — text that
   // reaches us a frame before its caret snapshot is never used as a basis.
-  function setCaret(id, label, line, pos, text) {
+  // own marks a report that arrived WITH the sender's text (op-attached):
+  // its offset is already in our coordinates and must not be shifted again.
+  function setCaret(id, label, line, pos, text, own) {
     if (typeof text === "string" && impliedLine(pos, text) !== line) {
       const prev = carets.get(id);
       if (prev) prev.seen = Date.now();
       return;
     }
-    carets.set(id, { label: label, line: line, pos: pos, text: text, seen: Date.now() });
+    carets.set(id, { label: label, line: line, pos: pos, text: text, seen: Date.now(), own: !!own });
   }
   function renderCarets() {
     const layer = document.getElementById("caret-layer");
@@ -568,9 +616,10 @@
       if (sender !== CID) {
         adoptRemote(m.text, m.rev);
         // Atomic caret: rendered from the same event as the text it
-        // belongs to — dot and letters can never disagree.
+        // belongs to — dot and letters can never disagree. own=true: this
+        // offset is expressed in the text that just merged into ours.
         if (m.caret && typeof m.caret.line === "number" && typeof m.caret.pos === "number") {
-          setCaret(sender, peerLabel(m), Math.max(1, Math.round(m.caret.line)), Math.max(0, Math.round(m.caret.pos)), m.text);
+          setCaret(sender, peerLabel(m), Math.max(1, Math.round(m.caret.line)), Math.max(0, Math.round(m.caret.pos)), m.text, true);
           renderCarets();
         }
       }
@@ -612,7 +661,9 @@
         // reporter's view minus any op still in flight, which is the closest
         // honest basis and far better than our possibly-diverged ta.value.
         // setCaret discards it when that basis cannot justify the line.
-        setCaret(id, peerLabel(m), Math.max(1, Math.round(m.x)), Math.max(0, Math.round(m.y)), serverText);
+        // own=false: this offset is anchored to the reporter's text, so it
+        // must be shifted through our unconfirmed ops.
+        setCaret(id, peerLabel(m), Math.max(1, Math.round(m.x)), Math.max(0, Math.round(m.y)), serverText, false);
         renderCarets();
       } else if (m.type === "leave") {
         carets.delete(id);

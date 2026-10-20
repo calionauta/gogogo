@@ -26,7 +26,7 @@ layered async topology see [Seven async layers](async-layers.md).
 | **Real-time** | [NATS JetStream](https://nats.io) | Multi-user realtime, cross-instance broadcast |
 | **Offline sync** | Service Worker + NATS Leaf Node + idempotency key | The page keeps working offline: mutations queue in the browser and replay on reconnect, deduped by an idempotency key the database backs with a unique index (`OFFLINE_SYNC_ENABLED=false` turns it off) |
 | **Collaboration (CRDT)** | [loro-go](https://github.com/aholstenson/loro-go) | Conflict-free merging of whiteboard/notes state; converges offline edits with no last-write-wins data loss |
-| **Room ownership** | [GoAkt](https://github.com/Tochemey/goakt) | One addressable owner per room: heartbeat roster plus exactly-one presenter lock, supervised |
+| **Room ownership** | [GoAkt](https://github.com/Tochemey/goakt) | One addressable owner per room: connection-scoped roster pushed over SSE plus exactly-one presenter lock, supervised |
 | **Hand-drawn canvas** | [Rough.js](https://roughjs.com) (embedded) | Minimalist sketchy whiteboard rendering, embedded in the binary so it is removed with the whiteboard feature |
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |

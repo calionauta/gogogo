@@ -90,12 +90,12 @@ Snapshot of Oct 2026 — the live list with opt-outs is
 - **NATS JetStream** — broadcast across instances behind a load balancer.
 - **GoAI (+ optional ai-credits)** — LLM calls on any provider; optional credits ledger and BYOK billing.
 - **Service Worker + NATS Leaf Node** — offline-first sync; queued edits replay without duplicating.
-- **GoAkt grains** — one addressable owner per room: heartbeat roster plus exactly-one presenter lock, supervised.
+- **GoAkt grains** — one addressable owner per room: connection-scoped roster plus exactly-one presenter lock, supervised.
 - **Wails v3 + gogpu/ui** — desktop shells over the same backend.
 - **DaisyUI v5 + Basecoat** — two UI skins compiled into one binary, switchable at runtime.
 - **Todo app (SSE Hub record-sync)** — the reference app: full CRUD with live updates (private + shared todos). Copy the pattern, then delete it.
 - **Whiteboard (Loro CRDT + Rough.js)** — conflict-free collaboration with offline merge.
-- **Room presence demo (GoAkt)** — heartbeat roster plus presenter lock, to copy for per-entity features.
+- **Room presence demo (GoAkt)** — connection-scoped roster pushed over SSE plus presenter lock, to copy for per-entity features.
 
 ## Collaboration: still early, moving fast
 

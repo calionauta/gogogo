@@ -101,8 +101,8 @@ var advisePresets = []advisePreset{
 		Idea:  "read-only env and data views behind auth",
 		Match: []string{"admin", "config", "inspect", "dashboard", "observab"},
 		Keep:  []string{unitConfigView},
-		Note: "Surfaces: /config (auth-gated env view), /api/session " +
-			"(session probe for the shared banner), /dagnats/ (workflow console).",
+		Note: "Surfaces: /config (auth-gated env view), /api/session/stream " +
+			"(session banner stream), /dagnats/ (workflow console).",
 	},
 	{
 		Name: "marketing-site",

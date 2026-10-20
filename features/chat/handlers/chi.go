@@ -215,10 +215,17 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	ch := make(chan []byte, config.DefaultClientQueueSize)
 	h.hub.Register(clientID, "", ch)
 	defer h.hub.UnregisterIfCurrent(clientID, ch)
+	if err := dshelpers.AckStreamOpened(sse, clientID); err != nil {
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: stream ack failed", obsArgs...)
+		return
+	}
 
+	authed := h.session(r) != nil
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalChatThinking: false,
 		"clientID":         clientID,
+		"sessionAuthed":    authed,
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: stream handshake failed", obsArgs...)
@@ -239,6 +246,13 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
+			// The session state rides this stream: the page does not open
+			// the dedicated session stream (one long-lived connection per
+			// page), so expiry is noticed here.
+			if now := h.session(r) != nil; now != authed {
+				authed = now
+				_ = dshelpers.MergeSignals(sse, map[string]bool{"sessionAuthed": authed})
+			}
 		case msg := <-ch:
 			//nolint:contextcheck // dispatch ends in datastar-go sinks, which
 			// take no context; disconnects surface as write errors.

@@ -60,7 +60,7 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(offlineSync)
 		</head>
-		<body>
+		<body data-stream-page="1">
 			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			<main class="container mx-auto p-4" data-signals={ boardSignals }>
@@ -196,7 +196,7 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 			@sounds.SoundAssets()
 			<script src="/static/wb/rough.min.js"></script>
 		</head>
-		<body>
+		<body data-stream-page="1">
 			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
 			@components.OfflineBanner(offlineSync)
 			@components.SessionBanner(email != "")

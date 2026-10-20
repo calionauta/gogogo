@@ -2,112 +2,13 @@ package components
 
 import ic "github.com/calionauta/gogogo/internal/components"
 
-// RealtimeStream opens the persistent Server-Sent Events stream that keeps
-// every connected browser in sync. It is rendered ONCE, from Layout, so the
-// realtime wiring lives in exactly one place and cannot drift per-page.
-//
-// WHY THE HIDDEN-BUTTON + SCRIPT PATTERN (not data-on:load):
-// Datastar v1 does not fire data-on:load / data-on:init on <div> or <body>,
-// so a card using `data-on:load={ "@get('/api/todos/stream') }` silently
-// never opened the stream — broadcasts were registered on the server but no
-// browser ever received them, and the connected-clients count stayed wrong.
-// The fix is a hidden button whose data-on:click is a real @get (Datastar
-// keeps that open as a persistent SSE), clicked by this script once Datastar
-// signals readiness. Centralising it here means a single regression test can
-// assert the opener + script are present on every page.
-//
-// CLIENT ID (the realtime identity):
-// Each browser TAB gets a stable clientID, persisted in sessionStorage so a
-// reload keeps the same id (and thus keeps its SSE registration instead of
-// leaking a new one). The SSE stream is opened WITH that clientID, and every
-// todo mutation POSTs the SAME clientID. The server uses it for
-// BroadcastExcept, so the originator is excluded from the re-render while
-// EVERY OTHER tab (focused or backgrounded) receives the broadcast. Without
-// the shared id, mutations can't be excluded from the originator and other
-// tabs silently miss updates.
-//
-// VISIBILITY-RESILIENT RECONNECT:
-// Browsers throttle/pause EventSource when a tab is backgrounded, so a
-// backgrounded tab can miss SSE frames. The data-on:visibilitychange
-// attribute on the opener re-clicks when the tab becomes visible again
-// (Datastar dedupes duplicate permanent streams, and the server's replay
-// buffer replays events the tab missed while hidden). This makes realtime
-// work regardless of which tab/window currently has focus — the user never
-// has to be looking at the tab to receive updates.
-//
-// streamURL is the SSE endpoint to open (e.g. "/api/todos/stream"). Other
-// features pass their own endpoint; the mechanism is identical.
-//
-// REOPEN ON VISIBILITY/OFFLINE (Datastar attributes, not vanilla listeners):
-// Browsers throttle/pause EventSource on backgrounded tabs and kill network
-// connections when offline, so a tab can miss frames or go deaf. The two
-// data-on attributes below re-click the opener on window `online` and on
-// document `visibilitychange` (guarded to visible-only); the click re-runs
-// the permanent @get and Datastar re-establishes the stream. The script
-// holds only the pure open/reopen functions — Datastar owns the
-// subscriptions, mirroring DocVersionWatcher below.
-templ RealtimeStream(streamURL string) {
-	<button
-		id="sse-opener"
-		class="hidden"
-		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
-		data-on:datastar-ready__document="window.__gogogoOpenVerified && window.__gogogoOpenVerified('sse-opener')"
-		data-on:online__window="window.__gogogoSSEReopen()"
-		data-on:visibilitychange__document="if(!document.hidden){window.__gogogoSSEReopen()}"
-		aria-hidden="true"
-	></button>
-	<script defer type="module" src="/static/sse-open.js"></script>
-	<script type="module">
-		// The opener itself is declarative (data-on:datastar-ready on the
-		// button above — verified by probe to fire post-bind); this script
-		// holds only what has no Datastar primitive: per-tab clientID setup
-		// and the 300ms fallback for an already-fired ready (verified open,
-		// so an early click can no longer poison anything).
-		// The click itself is verified (__gogogoOpenVerified in the shared
-		// helper above re-clicks until the hub reports this tab registered):
-		// clicking before Datastar binds data-on:click is a silent no-op
-		// that used to poison dataset.opened and leave the stream dead.
-		// Upstream watch: starfederation/datastar#1203 (no native stream
-		// restart primitive; recheck before building more here).
-		// Stable per-tab client id. Persisted in sessionStorage so a reload
-		// reuses the same id (no leaked SSE registration on the server) and
-		// every mutation POSTs the matching id for BroadcastExcept.
-		(function () {
-			try {
-				var id = sessionStorage.getItem('gogogo_client_id');
-				if (!id) {
-					id = 'tab-' + Math.random().toString(36).slice(2, 10);
-					sessionStorage.setItem('gogogo_client_id', id);
-				}
-				window.__gogogoClientID = id;
-			} catch (e) {
-				window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
-			}
-
-			function openSSE() {
-				if (typeof window.__gogogoOpenVerified === 'function') {
-					window.__gogogoOpenVerified('sse-opener');
-					return;
-				}
-				// Helper script still in flight (slow network): retry
-				// bounded, then loud — an opener that can never verify must
-				// fail visibly, matching the helper's own contract.
-				openSSE.misses = (openSSE.misses || 0) + 1;
-				if (openSSE.misses > 40) {
-					throw new Error('sse: helper sse-open.js never loaded');
-				}
-				setTimeout(openSSE, 300);
-			}
-			// The open itself is declarative (data-on:datastar-ready on
-			// the button, which fires post-bind); this fallback covers an
-			// already-fired ready only.
-			setTimeout(openSSE, 300);
-		})();
-	</script>
-}
+// The persistent todo SSE stream is opened by the shared
+// components.StreamOpener (internal/components/stream_opener.templ), mounted
+// ONCE from Layout: hidden @get button + clientID bootstrap + verified open.
+// One opener for every feature and skin, so the wiring cannot drift per page.
 
 // RealtimeRecords composes the todo page's two refetch paths. Record
-// changes arrive live over the feature SSE stream (RealtimeStream, mounted
+// changes arrive live over the feature SSE stream (components.StreamOpener, mounted
 // by the layout): the hub fans out a record event per mutation and the
 // stream re-lists scoped — per-user by construction, so there is no
 // cross-user broadcast leak. This component adds the manual path both

@@ -40,6 +40,12 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	ch := make(chan []byte, config.DefaultClientQueueSize)
 	h.Hub.Register(clientID, ownerStr, ch)
 	defer h.Hub.UnregisterIfCurrent(clientID, ch)
+	// First frame: the open acknowledgement sse-open.js waits for. Sent
+	// after registration so "ack received" also means "the hub has me".
+	if err := dshelpers.AckStreamOpened(sse, clientID); err != nil {
+		h.fail(r.Context(), w, "todo: stream ack failed", err, "error opening stream")
+		return
+	}
 
 	// The handshake re-lists the tab's OWN slice, not a blanket all/all.
 	//
@@ -73,6 +79,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		UserID:           owner,
 		LLMEnabled:       h.LLM != nil && h.LLM.Configured(),
 		SimulatedLLM:     h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
+		SessionAuthed:    hasOwner,
 	}); err != nil {
 		h.fail(r.Context(), w, "todo: stream handshake failed", err, "error opening stream")
 		return
@@ -94,6 +101,10 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
+			// The session state rides this stream too: the page does not
+			// open the dedicated session stream (one long-lived connection
+			// per page), so expiry is noticed here.
+			hasOwner = h.revalidateSession(r, sse, hasOwner)
 		case payload := <-ch:
 			if err := h.dispatchEnvelope(r.Context(), sse, owner, clientID, hasOwner, payload); err != nil {
 				obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
@@ -101,6 +112,19 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// revalidateSession re-checks the request's cookie and patches the banner
+// signal when the state changed. Split from the loop for the complexity gate;
+// it runs on the heartbeat, never on a timer of its own.
+func (h *Handler) revalidateSession(r *http.Request, sse *sdk.ServerSentEventGenerator, authed bool) bool {
+	_, err := h.Auth.Session(r)
+	if (err == nil) == authed {
+		return authed
+	}
+	authed = err == nil
+	_ = dshelpers.MergeSignals(sse, map[string]bool{"sessionAuthed": authed})
+	return authed
 }
 
 // applyRecordEvent re-lists scoped on a decoded record event so each stream

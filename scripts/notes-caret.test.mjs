@@ -356,6 +356,112 @@ async function main() {
     else bad(`dots do not track their tabs' lines: ${JSON.stringify(sameUserDots)}`);
   }
 
+  // ---------------------------------------------------------------------------
+  // THE IDLE-TAB BUG: a tab that never touched the textarea must never
+  // publish a caret.
+  //
+  // WHY THIS EXISTS: the 5s heartbeat forced a caret report and read
+  // ta.selectionStart unconditionally. An unfocused textarea's selection is
+  // not the user's — the browser leaves it at the END of whatever value was
+  // last assigned, and this client reassigns ta.value on every peer op. So
+  // every heartbeat during the other user's typing republished the idle tab
+  // at the current end of the text, and the peer watched that dot glide
+  // along while they typed: the reported "demo2's cursor keeps moving inside
+  // my demo1 box".
+  //
+  // RED-PROOFED against the old heartbeat (`caretSent = -1; maybeCaret(true)`
+  // with the forced selectionStart read): B posts caret frames here and its
+  // dot appears on A.
+  // ---------------------------------------------------------------------------
+  const doc3 = "notes-idle-tab-" + process.pid;
+  const A3 = await ctxA.newPage(); // types
+  const B3 = await ctxB.newPage(); // opens the note and NEVER clicks
+  A3.on("pageerror", (e) => pageErrors.push("A3: " + String(e)));
+  B3.on("pageerror", (e) => pageErrors.push("B3: " + String(e)));
+
+  // Count B3's caret POSTs (it should make none: it never placed a caret)
+  // and record every dot A3 renders for B3.
+  const idleCarets = [];
+  B3.on("request", (req) => {
+    if (req.url().includes("/caret")) idleCarets.push(req.postData() || "");
+  });
+  await gotoNote(A3, `${BASE}/notes/${doc3}`);
+  await gotoNote(B3, `${BASE}/notes/${doc3}`);
+  await installCaretProbe(A3);
+
+  await A3.locator("#note-text").click();
+  // Type across >2 heartbeat windows (5s each) so the old code would have
+  // forced at least two idle-tab reports.
+  await typeText(A3, "typing a long enough line to cross heartbeats", 120);
+  // Let one more heartbeat fire after the last keystroke. KEPT: time is
+  // the mechanism here — the bug fired ON the 5s heartbeat tick, so the
+  // absence check has to span one full interval with the tab idle. There is
+  // no observable state to poll: the assertion is that NOTHING arrives.
+  await sleep(6000); // KEPT: absence check across a heartbeat interval
+
+  if (idleCarets.length === 0) {
+    ok("an idle tab publishes no caret at all");
+  } else {
+    bad(`idle tab posted ${idleCarets.length} caret frame(s): ${JSON.stringify(idleCarets.slice(0, 3))}`);
+  }
+  // And nothing should be painted for it either (it never reported).
+  const idleDots = await A3.evaluate(() => [...document.querySelectorAll("#caret-layer > span")]
+    .filter((d) => d.style.width === "3px").map((d) => d.title));
+  // A3's own caret is never rendered locally, so ANY dot means a peer
+  // published one. The only peer is the idle tab.
+  if (idleDots.length === 0) {
+    ok("no peer dot is painted on the typist for an idle tab");
+  } else {
+    bad(`an idle tab still painted a dot on the typist: ${JSON.stringify(idleDots)}`);
+  }
+
+  // A focused reader's dot must still survive (presence is not lost along
+  // with the borrowed-selection bug): B3 focuses and puts the caret on line
+  // 1, then idles past a heartbeat.
+  await B3.locator("#note-text").click();
+  await B3.evaluate(() => {
+    const ta = document.getElementById("note-text");
+    ta.setSelectionRange(5, 5);
+  });
+  // selectionchange fires from setSelectionRange; give the throttle a beat.
+  await sleep(400);
+  try {
+    await A3.waitForFunction(
+      () => [...document.querySelectorAll("#caret-layer > span")]
+        .filter((d) => d.style.width === "3px").length >= 1,
+      null,
+      { timeout: 12000 },
+    );
+    ok("a focused reader's caret still reaches the typist");
+  } catch {
+    bad("a focused reader's caret never reached the typist (presence lost)");
+  }
+
+  // ---------------------------------------------------------------------------
+  // pagehide announces the leave: a closed tab must not leave a ghost dot
+  // waiting out the 8s TTL, and the EventSource race must not swallow it.
+  // ---------------------------------------------------------------------------
+  const dotsBefore = await A3.evaluate(() => [...document.querySelectorAll("#caret-layer > span")]
+    .filter((d) => d.style.width === "3px").length);
+  if (dotsBefore < 1) {
+    bad("no dot to retire before closing the reader tab (cannot test the leave)");
+  } else {
+    const gone = await B3.close({ runBeforeUnload: true }).then(() => true).catch(() => false);
+    try {
+      await A3.waitForFunction(
+        () => [...document.querySelectorAll("#caret-layer > span")]
+          .filter((d) => d.style.width === "3px").length === 0,
+        null,
+        { timeout: 3000 },
+      );
+      ok("closing a tab retires its dot well inside the 8s TTL");
+    } catch {
+      const left = await A3.evaluate(() => [...document.querySelectorAll("#caret-layer > span")]
+        .filter((d) => d.style.width === "3px").map((d) => d.title));
+      bad(`the closed tab's dot lingered past 3s (pagehide leave not delivered): ${JSON.stringify(left)} (close ok: ${gone})`);
+    }
+  }
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

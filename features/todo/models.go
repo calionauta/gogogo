@@ -58,6 +58,13 @@ type Signals struct {
 	SearchQuery   string `json:"-"`
 	SearchEnabled bool   `json:"searchEnabled"`
 
+	// SessionAuthed is the live session state for the shared banner. The
+	// todo page carries it on its OWN stream (the page must not open a second
+	// long-lived connection; browsers cap connections per host), and the
+	// stream revalidates it on its heartbeat, so an expired cookie surfaces
+	// without a poll.
+	SessionAuthed bool `json:"sessionAuthed"`
+
 	// SearchMode is the ACTIVE layer (substring/fuzzy/bm25) and SearchModes
 	// the wired ones, in presentation order, for the selector.
 	//

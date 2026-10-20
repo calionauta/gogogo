@@ -88,56 +88,11 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 				@GenuiResult(nil, "", false)
 			</main>
 			@components.ToastContainer()
-			@StreamOpener("/api/genui/stream")
+			@components.StreamOpener("genui-stream-opener", "/api/genui/stream", false)
 		</body>
 	</html>
 }
 
-// StreamOpener holds the result SSE stream open for this tab. Same
-// hidden-@get-button mechanism as the todo RealtimeStream (Datastar v1
-// never fires data-on:load on body), scoped to this feature so todo can
-// be trimmed without taking the Ask page down with it.
-templ StreamOpener(streamURL string) {
-	<button
-		id="genui-stream-opener"
-		class="hidden"
-		data-on:click={ "@get('" + streamURL + "?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
-		data-on:datastar-ready__document="window.__gogogoOpenVerified && window.__gogogoOpenVerified('genui-stream-opener')"
-		aria-hidden="true"
-	></button>
-	<script defer type="module" src="/static/sse-open.js"></script>
-	<script type="module">
-		// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven
-		// bootstrap as the todo RealtimeStream — Datastar v1 never fires
-		// data-on:load on body, so the datastar-ready click + timeout
-		// fallback below is the only opener that works.
-		(function () {
-			try {
-				var id = sessionStorage.getItem('gogogo_client_id');
-				if (!id) {
-					id = 'tab-' + Math.random().toString(36).slice(2, 10);
-					sessionStorage.setItem('gogogo_client_id', id);
-				}
-				window.__gogogoClientID = id;
-			} catch (e) {
-				window.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);
-			}
-			function openSSE() {
-				if (typeof window.__gogogoOpenVerified === 'function') {
-					window.__gogogoOpenVerified('genui-stream-opener');
-					return;
-				}
-				openSSE.misses = (openSSE.misses || 0) + 1;
-				if (openSSE.misses > 40) {
-					throw new Error('sse: helper sse-open.js never loaded');
-				}
-				setTimeout(openSSE, 300);
-			}
-			// Declarative open above; fallback covers already-fired ready.
-			setTimeout(openSSE, 300);
-		})();
-	</script>
-}
 
 // GenuiResult renders the model answer region in its three states:
 // empty (guidance, never blank space), error (message + recovery,

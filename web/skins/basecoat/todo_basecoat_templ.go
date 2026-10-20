@@ -119,7 +119,7 @@ func TodoPage(title string, signals todo.Signals, userEmail string, userRole str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = sseOpener().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.StreamOpener("sse-opener", "/api/todos/stream?skin=basecoat", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1573,7 +1573,7 @@ func deleteConfirmModal() templ.Component {
 	})
 }
 
-func sseOpener() templ.Component {
+func realtimeResync() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1592,48 +1592,6 @@ func sseOpener() templ.Component {
 		templ_7745c5c3_Var67 := templ.GetChildren(ctx)
 		if templ_7745c5c3_Var67 == nil {
 			templ_7745c5c3_Var67 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<button id=\"sse-opener\" class=\"hidden\" data-on:click=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var68 string
-		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=basecoat', { permanent: true })")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/basecoat/todo_basecoat.templ`, Line: 668, Col: 147}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\" data-on:datastar-ready__document=\"window.__gogogoOpenVerified && window.__gogogoOpenVerified('sse-opener')\" data-on:visibilitychange__document=\"if(!document.hidden){window.__gogogoSSEReopen()}\" aria-hidden=\"true\"></button><script defer type=\"module\" src=\"/static/sse-open.js\"></script><script type=\"module\">\n\t\t// TRUE VANILLA EXCEPTION (see TestNoNewVanillaJS): same proven\n\t\t// bootstrap as the daisyui RealtimeStream — the opener must fire\n\t\t// on datastar-ready (plus a timeout fallback), not blindly at\n\t\t// module eval. The click itself is verified (__gogogoOpenVerified\n\t\t// re-clicks until the hub reports this tab registered).\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogoClientID');\n\t\t\t\tif (!id) { id = 'tab-' + Math.random().toString(36).slice(2, 10); sessionStorage.setItem('gogogoClientID', id); }\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\t\t\tfunction openSSE() {\n\t\t\t\tif (typeof window.__gogogoOpenVerified === 'function') {\n\t\t\t\t\twindow.__gogogoOpenVerified('sse-opener');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\topenSSE.misses = (openSSE.misses || 0) + 1;\n\t\t\t\tif (openSSE.misses > 40) {\n\t\t\t\t\tthrow new Error('sse: helper sse-open.js never loaded');\n\t\t\t\t}\n\t\t\t\tsetTimeout(openSSE, 300);\n\t\t\t}\n\t\t\t// Declarative open above; fallback covers already-fired ready.\n\t\t\tsetTimeout(openSSE, 300);\n\t\t})();\n\t</script>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func realtimeResync() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var69 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var69 == nil {
-			templ_7745c5c3_Var69 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = components.ListResync("todo-realtime-resync", "'/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&mode=' + encodeURIComponent(searchModeValue()) + '&skin=basecoat&clientID=' + encodeURIComponent($clientID || '')").Render(ctx, templ_7745c5c3_Buffer)

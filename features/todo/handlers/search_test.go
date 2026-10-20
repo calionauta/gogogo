@@ -442,30 +442,39 @@ func TestStreamHandshakePreservesSearchAndSlice(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
+	// The first frame is the open ack (streamOpen); read until the handshake
+	// signals land, or the absence assertions below would pass on the ack.
 	buf := make([]byte, 8192)
-	readCh := make(chan int, 1)
-	go func() {
-		n, _ := resp.Body.Read(buf)
-		readCh <- n
-	}()
-	var body string
-	select {
-	case n := <-readCh:
-		body = string(buf[:n])
-	case <-time.After(4 * time.Second):
-		t.Fatal("stream handshake timed out")
+	readDeadline := time.After(4 * time.Second)
+	var body strings.Builder
+	for !strings.Contains(body.String(), "itemCount") {
+		readCh := make(chan int, 1)
+		go func() {
+			n, _ := resp.Body.Read(buf)
+			readCh <- n
+		}()
+		select {
+		case n := <-readCh:
+			body.Write(buf[:n])
+			if n == 0 {
+				t.Fatalf("stream closed before the handshake (body: %q)", body.String())
+			}
+		case <-readDeadline:
+			t.Fatalf("stream handshake timed out (body: %q)", body.String())
+		}
 	}
+	handshake := body.String()
 	// The handshake must NOT write $searchQuery. It is bound two-way to the
 	// search box, so it is client-owned: the stored view lags what the user
 	// typed by the debounce window, and merging that stale value back resets
 	// the box — the debounced @get then fires with q empty and lists
 	// everything. The field is `json:"-"`, so a handshake that leaves it alone
 	// carries no key for it; this asserts the handshake leaves it alone.
-	if contains(body, `"searchQuery"`) {
+	if contains(handshake, `"searchQuery"`) {
 		t.Errorf("stream handshake wrote the client-owned searchQuery signal "+
-			"(a reconnect would clobber the search box):\n%s", body)
+			"(a reconnect would clobber the search box):\n%s", handshake)
 	}
-	if contains(body, "unrelated chore") {
+	if contains(handshake, "unrelated chore") {
 		t.Error("stream handshake listed outside the tab's search slice: " +
 			"a reconnect would re-render a non-matching row")
 	}

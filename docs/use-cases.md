@@ -85,14 +85,14 @@ on failure — DagNats retries and replays, it does not compensate
 
 ### `goakt` — entity actors with supervision (plugin, offered)
 
-What: one addressable grain per room (heartbeat roster plus an
+What: one addressable grain per room (connection-scoped roster plus an
 exactly-one presenter lock), supervised with restart budget, idle
 passivation. Standalone: no network, no discovery, no cluster.
 Runtime off: `GOAKT_ENABLED=false`.
 
 - Presenter/turn arbitration exactly one can win (KV stores and
   pub/sub cannot arbitrate — concurrent acquirers race there).
-- Per-entity timers and heartbeat-driven membership that rebuilds
+- Per-entity timers and connection-driven membership that rebuilds
   after a restart (soft state, never persisted).
 - Supervised workers that must come back after a panic, with a
   retry budget instead of unbounded restarts.
@@ -252,7 +252,9 @@ supervision). Pro: exactly-one presenter survives crashes by design.
 Con: an actor runtime to learn and boot for what starts as a counter.
 
 - Seeing supervised restart recovery live; the pattern to copy for
-  per-entity features.
+  per-entity features. The page renders only the actions the lock allows
+  (Take while it is free, Release for the holder) and Leave drops the
+  connection, so leaving actually sticks.
 
 Not for: production rooms (no persistence, single process) — copy
 the grain pattern into your own feature instead.

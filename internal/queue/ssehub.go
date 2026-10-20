@@ -176,16 +176,24 @@ func (h *SSEHub) Unregister(clientID string) {
 //
 // UnregisterIfCurrent checks that h.clients[clientID] == ch before
 // removing, so step 4 becomes a no-op and ch_new continues to work.
-func (h *SSEHub) UnregisterIfCurrent(clientID string, ch chan []byte) {
+//
+// It returns whether THIS channel was still the registered one. Callers
+// whose disconnect is also a domain event (room presence: leave the grain)
+// must gate on that answer, because the same race applies to the event —
+// the old handler would otherwise announce a departure for a tab that
+// reconnected a moment ago.
+func (h *SSEHub) UnregisterIfCurrent(clientID string, ch chan []byte) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.clients[clientID] == ch {
-		delete(h.clients, clientID)
-		delete(h.buffer, clientID)
-		delete(h.userOf, clientID)
-		delete(h.docOf, clientID)
-		delete(h.viewOf, clientID)
+	if h.clients[clientID] != ch {
+		return false
 	}
+	delete(h.clients, clientID)
+	delete(h.buffer, clientID)
+	delete(h.userOf, clientID)
+	delete(h.docOf, clientID)
+	delete(h.viewOf, clientID)
+	return true
 }
 
 // Send pushes data to a specific client. Non-blocking: if the
@@ -323,8 +331,13 @@ func (h *SSEHub) ServeStream(
 		h.SetDoc(clientID, streamTag)
 	}
 	defer func() {
-		h.UnregisterIfCurrent(clientID, ch)
-		if onDisconnect != nil {
+		// onDisconnect is a DOMAIN event for notes/whiteboard (peerLeave), so
+		// it rides the same authority as registration: if a newer connection
+		// already replaced this one (EventSource reconnects on the same
+		// clientID), this handler must not announce a departure for a tab
+		// that is demonstrably still connected. UnregisterIfCurrent is the
+		// authoritative "was I still the current channel?".
+		if h.UnregisterIfCurrent(clientID, ch) && onDisconnect != nil {
 			onDisconnect()
 		}
 	}()

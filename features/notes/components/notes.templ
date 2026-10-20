@@ -43,7 +43,7 @@ templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel str
 			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
-		<body>
+		<body data-stream-page="1">
 			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit)
 			<main class="p-4 max-w-2xl mx-auto" data-signals={ notesSignals }>
 				<div class="flex items-center justify-between mb-4">
@@ -171,7 +171,7 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 			<script defer src="/static/throttle.js"></script>
 			<script defer src="/static/notes/notes.js"></script>
 		</head>
-		<body>
+		<body data-stream-page="1">
 			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit)
 			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ meta.DocID } data-rev={ strconv.FormatUint(rev, 10) }>
 				<h1 class="sr-only">Shared note</h1>

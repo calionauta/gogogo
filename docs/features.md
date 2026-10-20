@@ -20,9 +20,9 @@ being one.
 | **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | `CREDITS_ENABLED=false` | Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
 | **Search (one seam, three layers)** | Own layers — no external engine | `trim search` | One `Searcher` seam, three layers **selectable at runtime** from the search box (`Match`: exact / typo-tolerant / relevance) with `SEARCH_MODE` choosing the default a tab starts on: `substring` (default; SQL `LIKE` over the rows, no index, no extra write), `fuzzy` (in-memory tiers, typo tolerant: 1.00 verbatim → 0.95 all-tokens → 0.90 prefix → 0.80 one-edit → 0.75 subsequence), and `bm25` (an inverted index in the same DB, scored in Go: a rare term outranks a common one and a short doc outranks a long one repeating the term; always available, and a boot-time heal re-indexes rows that predate the index so enabling it never answers "no results" for data you can see). Search only ever NARROWS the caller's visible set — a hit whose row is not visible is dropped, never resurrected. In `bm25` the postings ride the row's own transaction, so no row exists without its index entry. No external engine because this driver ships no FTS5 (verified across tursogo v0.8.2/v0.8.3/v0.9.0-pre.1) and a second index store would put a row's truth in two places |
 | **Collaborative whiteboard** | Loro CRDT + Rough.js + NATS | `trim whiteboard` (bundle with notes + collab transport), or `COLLAB_SNAPSHOTS=memory` for snapshot-free local mode | Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-first outbox replay, Turso-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL). Boards are **shared**: the index lists every board with its author, every signed-in user opens and draws on any of them, and deleting is author-or-admin (`canDeleteDoc`) |
-| **Shared notes** | Loro Text (server-owned) + SSE Hub | `trim whiteboard` (bundle with whiteboard + collab transport) | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged), live index via the Hub record event + `ListResync` (no stream on the index page), snapshots in the `notes` table. Notes are **shared**: the index lists every note with its author, every signed-in user edits any of them, and deleting is author-or-admin (`canDeleteDoc`), which drops the metadata row and the snapshot together |
+| **Shared notes** | Loro Text (server-owned) + SSE Hub | `trim whiteboard` (bundle with whiteboard + collab transport) | Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged; only a FOCUSED textarea ever reports a caret — an idle tab that adopted a peer's text owns no position to announce, and the 5s heartbeat resends the last own caret instead of reading a borrowed selection; a closed tab announces `/leave` from `pagehide` instead of waiting out the 8s expiry), live index via the Hub record event + `ListResync` (no stream on the index page), snapshots in the `notes` table. Notes are **shared**: the index lists every note with its author, every signed-in user edits any of them, and deleting is author-or-admin (`canDeleteDoc`), which drops the metadata row and the snapshot together |
 | **Durable workflows** | DagNats over JetStream | `DAGNATS_ENABLED=false` | JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`) |
-| **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: heartbeat roster + exactly-one presenter lock, supervised with restart budget. Demo at `/room/` with a crash hook |
+| **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` | One grain per room: connection-scoped roster (SSE join/leave, refcounted per tab) + exactly-one presenter lock, supervised with restart budget. The roster is pushed on every change and name-ordered (a map range shuffled it between pushes), the tab keeps its stream while hidden (`openWhenHidden`, or a tab switch would read as leaving), a crash restart replays the live connections into the fresh grain, re-acquiring your own lock succeeds, and the page renders only the actions the lock actually allows — Take while it is free, Release for the holder. Demo at `/room/` with a crash hook |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` | JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB |
 | **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` | NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync |
 | **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI | `UI_SKIN` | DaisyUI (default) or BasecoatUI (shadcn-style OKLCH tokens). Switch via env var or `?skin=`. See [UI skins](ui-skins.md) |
@@ -165,14 +165,19 @@ landing) — a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.
 
-Session visibility is shared the same way: the notes and whiteboard streams
-open with a `collab.SessionEvent` frame, and pages without a raw stream
-(todo, room) poll `/api/session`, so every tab raises the same
-`components.SessionBanner` the moment a cookie expires — peer names never
-silently degrade to client hashes with nothing on screen explaining why, and
-the banner never auto-redirects (unsent work would be stranded). It is
-opt-in per page via the render-time `authed` flag, so a public page never
-nags about a session it never had.
+Session visibility uses the stream a page ALREADY has: notes/whiteboard send
+a `collab.SessionEvent` frame, and todo/room/chat/genui carry a
+`sessionAuthed` signal on their feature stream (revalidated on its heartbeat).
+Only a page with no feature stream opens `/api/session/stream` (one visible tab
+per browser via Web Locks, BroadcastChannel for the others). One long-lived
+connection per page is the rule: browsers cap connections per host, and a
+second stream per page has been measured to starve a later same-tab
+navigation (the session stream opening on top of a feature stream made the
+smoke's seventh page hang on `load`). No tab schedules a request, so every tab
+raises the same `components.SessionBanner` the moment a cookie expires. The
+banner never auto-redirects (unsent work would be stranded). It is opt-in per
+page via the render-time `authed` flag, so a public page never nags about a
+session it never had.
 
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"

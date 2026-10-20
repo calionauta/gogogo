@@ -26,26 +26,6 @@ func (a *Auth) Handler() http.Handler {
 	return mux
 }
 
-// SessionProbeHandler serves the shared session banner's poll as a
-// standalone handler: buildChiMux mounts it at the top-level /api/session
-// path (NOT under /api/auth/ — the auth sub-mux would prefix it into
-// /api/auth/api/session, a silent 404 the literal-scanning route gate
-// cannot see).
-func (a *Auth) SessionProbeHandler() http.Handler {
-	return http.HandlerFunc(a.handleSessionProbe)
-}
-
-// handleSessionProbe answers {"authed": bool} for the current request.
-// A missing, unknown or expired cookie reports false (the banner shows
-// "session expired"); it never 401s — the probe is a poll, not a gate.
-func (a *Auth) handleSessionProbe(w http.ResponseWriter, r *http.Request) {
-	authed := false
-	if _, err := a.Session(r); err == nil {
-		authed = true
-	}
-	writeJSON(w, map[string]bool{"authed": authed})
-}
-
 // jsonStatusKey is the envelope key for trivial {"status":"ok"} bodies.
 const jsonStatusKey = "status"
 

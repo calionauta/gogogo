@@ -294,7 +294,7 @@ func TestBuildChiMux(t *testing.T) {
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
 		noteshandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister, docs, cfg),
-		roomhandlers.NewHandler(cfg, a, fakeRooms{}),
+		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
 		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),

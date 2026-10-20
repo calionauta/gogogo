@@ -126,9 +126,9 @@ tests confirm it.
 **Why the coverage test is strict.** It asserts the policy allows
 `user` **on its own** for every non-admin-only route, never
 `user || admin`. The weaker form hides the exact bug that shipped once:
-`/api/stream/status` had no `user` row, admin reached it through `/*`,
-nothing looked wrong — and every signed-in non-admin got a 403 on the
-probe `sse-open.js` polls, which made it report a healthy stream as dead
+a realtime probe route had no `user` row, admin reached it through `/*`,
+nothing looked wrong — and every signed-in non-admin got a 403 on a probe
+the stream opener polled, which made it report a healthy stream as dead
 and rethrow. A public route still needs its `user` row for the same
 reason (a session must not rank *below* anonymous).
 
@@ -180,9 +180,6 @@ a 403, never to an unauthorized write. Never gate a mutation on
   a dot, and `*` still spans `/` — the two halves of the safe matcher.
 - **Object validation** (`TestRBACPolicyObjectsCarryNoMetacharacters`):
   the shipped policy is clean and a planted regex object is refused.
-- **Realtime probe** (`TestRBACStreamStatusStaysReachable`): every subject
-  reaches `/api/stream/status`, because `sse-open.js` treats a 403 as a
-  dead stream and rethrows.
 - **Coverage from the source** (`TestRBACCoverageMatchesRoutes`,
   `TestRBACPublicRoutesArePublic` in this package): scans every
   `r.Get/Post/...` in `features/*/handlers/chi.go` plus the core mounts in
@@ -190,7 +187,7 @@ a 403, never to an unauthorized write. Never gate a mutation on
   Reading source instead of importing handlers keeps this package free of
   feature dependencies, so the check survives any trimmed tree (the
   installer drops whole features) with no manifest line. This replaced the
-  hand-written path list that let `/api/stream/status` ship unguarded.
+  hand-written path list that let a realtime probe ship unguarded.
 - **Anonymous access** (`TestNotesRejectsAnonymousAccess`,
   `TestWhiteboardRejectsAnonymousAccess` + their signed-in counterparts):
   read/write/presence without a session is 401 and persists nothing.

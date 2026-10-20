@@ -81,7 +81,7 @@ type ChiStack struct {
 // lives outside a function carrying the boot ctx (that is what the
 // contextcheck rule wants, and it keeps the hook's lifetime independent).
 func bootRoomActor(
-	ctx context.Context, cfg *config.Config, a *auth.Auth,
+	ctx context.Context, cfg *config.Config, a *auth.Auth, hub *queue.SSEHub,
 ) (*roomhandlers.Handler, *appgoakt.Host) {
 	if !cfg.GoAkt.Enabled {
 		return nil, nil
@@ -92,7 +92,7 @@ func bootRoomActor(
 		return nil, nil
 	}
 	appgoakt.SetDefault(host)
-	return roomhandlers.NewHandler(cfg, a, host), host
+	return roomhandlers.NewHandler(cfg, a, host, hub), host
 }
 
 // stopRoomActor is the shutdown hook for the GoAkt host. Its timeout
@@ -217,7 +217,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	onboardingH, onbShutdown := bootOnboarding(cfg, a, todoH, hub)
 	shutdown = append(shutdown, onbShutdown...)
 
-	roomH, roomHost := bootRoomActor(bootCtx, cfg, a)
+	roomH, roomHost := bootRoomActor(bootCtx, cfg, a, hub)
 	if roomHost != nil {
 		shutdown = append(shutdown, func() { stopRoomActor(roomHost) })
 	}
@@ -261,12 +261,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
-	// Stream liveness for verified SSE open (see StreamStatusHandler):
-	// mounted here, not in buildChiMux, because only BootChi holds the
-	// shared hub and the mount-after-composition rule keeps feature lines
-	// droppable. Public like /health; longest match wins over the landing
-	// catch-all regardless of registration order.
-	mux.HandleFunc("/api/stream/status", StreamStatusHandler(hub))
 	// Console rides the same mount-after-composition rule: the engine
 	// listener is loopback-only, so browsers reach it only through here.
 	mountConsoleProxy(mux, a, cfg)
@@ -402,9 +396,10 @@ func buildChiMux(
 	// the landing root is the catch-all.
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
-	// Session probe at the top level (see SessionProbeHandler: inside the
-	// auth sub-mux this would prefix into /api/auth/api/session).
-	mux.Handle("/api/session", a.SessionProbeHandler())
+	// Session stream at the top level (inside the auth sub-mux this would
+	// prefix into /api/auth/api/session/stream). The banner holds it open
+	// and only hears about CHANGES — see SessionStreamHandler.
+	mux.Handle("/api/session/stream", a.SessionStreamHandler())
 	mux.Handle("/api/todos", todoH.Routes())
 	mux.Handle("/api/todos/", todoH.Routes())
 	mux.Handle("/todo", todoH.Routes())
