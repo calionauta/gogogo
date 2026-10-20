@@ -38,7 +38,10 @@ func TestStartNATS_SingleNATSWithDagNats(t *testing.T) {
 	// RetryOnFailedConnect (15s) — it blocks until DagNats' NATS on
 	// :4222 is reachable. No HTTP /ready poll needed (mirrors
 	// internal/nats.TestConnectExisting_SingleNATS).
-	js := startNATS(cfg)
+	nc, js := startNATS(cfg)
+	if nc == nil {
+		t.Fatal("startNATS returned no connection — the ephemeral bridge would stay in-process")
+	}
 	if js == nil {
 		t.Fatal("startNATS returned nil JetStream — broadcaster would fall back to in-memory (single-NATS broken)")
 	}

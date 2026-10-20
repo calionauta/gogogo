@@ -70,6 +70,10 @@ type SSEHub struct {
 	// maxBuffer is the per-client replay buffer ring length.
 	maxBuffer int
 
+	// ephemeral bridges Send/Broadcast across instances when NATS is wired
+	// (see ssehub_ephemeral.go). Nil = in-process only.
+	ephemeral *ephemeralBridge
+
 	// onDrop is invoked once per dropped event (slow client or
 	// failed delivery). Defaults to a slog.Warn; tests can inject a
 	// counter to assert drop behaviour.
@@ -205,6 +209,15 @@ func (h *SSEHub) UnregisterIfCurrent(clientID string, ch chan []byte) bool {
 // workers — they shouldn't block the entire worker pool on a
 // slow client. SendBlocking is the explicit "wait" path.
 func (h *SSEHub) Send(clientID string, data []byte) {
+	if h.publishEphemeral(clientID, data) {
+		return
+	}
+	h.sendLocal(clientID, data)
+}
+
+// sendLocal is the pre-bridge delivery path: the client's channel, or the
+// replay buffer when it is not registered on THIS instance.
+func (h *SSEHub) sendLocal(clientID string, data []byte) {
 	h.mu.RLock()
 	ch, registered := h.clients[clientID]
 	h.mu.RUnlock()
@@ -284,6 +297,14 @@ func (h *SSEHub) BroadcastExcept(data []byte, excludeClientID string) {
 // (logged). Producers never block. Disconnected clients are not
 // re-broadcast into (re-register to receive new events).
 func (h *SSEHub) Broadcast(data []byte) {
+	if h.publishEphemeral("", data) {
+		return
+	}
+	h.broadcastLocal(data)
+}
+
+// broadcastLocal is the pre-bridge fan-out to every tab on THIS instance.
+func (h *SSEHub) broadcastLocal(data []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	// Debug, not Info: Broadcast runs on every fan-out (hot path), so an Info

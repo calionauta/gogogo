@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	natsio "github.com/nats-io/nats.go"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/nats"
 )
@@ -18,18 +20,21 @@ import (
 // when DAGNATS_ENABLED=false). In that case we connect to the
 // existing server instead of starting a second one — one NATS, two
 // consumers (DagNats workflows + the realtime broadcaster).
-func startNATS(cfg *config.Config) nats.JetStreamLike {
+// startNATS returns the connection and the JetStream handle: the connection
+// bridges ephemeral hub signals across instances, the handle carries the CRUD
+// wire. Both nil when NATS is off or failed to start.
+func startNATS(cfg *config.Config) (*natsio.Conn, nats.JetStreamLike) {
 	if !cfg.NATS.Enabled {
-		return nil
+		return nil, nil
 	}
 	if cfg.DagNats.Enabled {
 		addr := fmt.Sprintf("127.0.0.1:%d", cfg.DagNats.NATSPort)
 		h, err := nats.ConnectExisting(addr)
 		if err != nil {
 			slog.Warn("NATS connect to DagNats-owned server failed, falling back to in-memory broadcaster", "error", err)
-			return nil
+			return nil, nil
 		}
-		return h.JS
+		return h.Conn, h.JS
 	}
 	h, err := nats.StartEmbedded(cfg.NATS.StoreDir)
 	if err != nil {
@@ -38,7 +43,7 @@ func startNATS(cfg *config.Config) nats.JetStreamLike {
 		// in-memory broadcaster so realtime still works within the
 		// instance.
 		slog.Warn("NATS startup failed, falling back to in-memory broadcaster", "error", err)
-		return nil
+		return nil, nil
 	}
-	return h.JS
+	return h.Conn, h.JS
 }

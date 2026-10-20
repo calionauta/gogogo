@@ -127,9 +127,12 @@ func run() error {
 	startGoAkt(context.Background(), cfg)
 	defer shutdownGoAkt()
 
-	js := startNATS(cfg)
+	nc, js := startNATS(cfg)
 
 	stack.AttachJetStream(lifecycleCtx, js)
+	if aerr := stack.AttachEphemeral(nc); aerr != nil {
+		slog.Warn("web: ephemeral bridge not attached", "error", aerr)
+	}
 
 	// ChiAddr, when set, overrides Host:Port (same override cmd/desktop
 	// uses for its webview proxy target). Empty keeps the default, so a

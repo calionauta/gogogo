@@ -17,6 +17,10 @@ package queue
 func (h *SSEHub) Close() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.ephemeral != nil {
+		_ = h.ephemeral.sub.Unsubscribe()
+		h.ephemeral = nil
+	}
 	clear(h.clients)
 	clear(h.buffer)
 	clear(h.userOf)
