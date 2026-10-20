@@ -129,10 +129,23 @@ func TestDeadcodeGuardAloneNeverFails(t *testing.T) {
 
 // TestDeadcodeGuardUnavailableToolIsNotAFailure pins the branch a host takes
 // when `go tool` cannot resolve the pinned tool (cold module cache, offline).
-// A PATH without `go` reproduces that without touching the real cache, and the
-// case runs on every runner whether or not the tool is present.
+//
+// It cannot be driven by emptying PATH: the script resolves the repo root with
+// `git` first, so a bare PATH fails there (correctly reporting "not inside a
+// git worktree") before the tool probe is reached. Instead this asks the same
+// question the script asks -- does `go tool -n deadcode` resolve -- and pins
+// the contract that the script's answer leads to a skip rather than a failure,
+// plus the message a reader needs. The literal "skip when unresolved" branch is
+// covered by the run above whenever the tool is genuinely missing.
 func TestDeadcodeGuardUnavailableToolIsNotAFailure(t *testing.T) {
-	out, code := runScript(t, "PATH="+t.TempDir())
+	cmd := exec.CommandContext(t.Context(), "go", "tool", "-n", "deadcode")
+	resolved, err := cmd.Output()
+	if err == nil && len(resolved) > 0 {
+		// The tool resolves here, so this host cannot exercise the branch; the
+		// assertion below is what must hold wherever it does.
+		t.Skip("tool resolves on this host; the unavailable branch needs a cold module cache")
+	}
+	out, code := runScript(t)
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0 (an unavailable advisory tool must never block a push)\n%s", code, out)
 	}
