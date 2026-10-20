@@ -286,7 +286,7 @@ refresh-stelow:
 	@scripts/refresh-stelow.sh $(ARGS)
 
 deadcode:
-	@which deadcode >/dev/null 2>&1 && PKGS=$$(bash scripts/web-packages.sh) && deadcode -test $$PKGS || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"
+	@PKGS=$$(bash scripts/web-packages.sh) && go tool deadcode -test $$PKGS
 
 # check is the single quality gate. Run it after EVERY significant edit,
 # not just before commit. It formats, lints .templ, vets, lints, sizes,

@@ -23,8 +23,27 @@
 # worse than not running it.
 set -uo pipefail
 
-if ! which deadcode >/dev/null 2>&1; then
-    echo "⚡ deadcode not installed (go install golang.org/x/tools/cmd/deadcode@latest) — skipping"
+# The scan patterns are module-relative, so resolve the repo root first: the
+# hook runs from the worktree root, but a bare `bash bin/check-deadcode.sh`
+# from bin/ (or a test harness) must behave identically. Same approach as
+# scripts/lint-safe.sh.
+cd "$(git rev-parse --show-toplevel)" || {
+    echo "  ⚠️  not inside a git worktree — deadcode scan skipped"
+    exit 0
+}
+
+# The tool is pinned by the `tool` directive in go.mod and run through
+# `go tool`, so the scan can never disagree with the toolchain about which
+# module version it is type-checking. That mismatch is what used to surface as
+# "dead code found" — type-check errors printed under findings. With the pin,
+# the toolchain-mismatch branch below should be unreachable; it stays as a
+# guard for an exotic host (GOTOOLCHAIN switched mid-run, corrupt cache).
+# `go tool -n <name>` prints the resolved binary path. It exits 0 even for an
+# unknown tool (the message goes to stderr), so the probe is "did it print a
+# path", not the exit code.
+if [ -z "$(go tool -n deadcode 2>/dev/null)" ]; then
+    echo "⚡ deadcode unavailable (not resolvable via 'go tool') — skipping"
+    echo "   Pinned by the tool directive in go.mod; run \`go mod download\`."
     exit 0
 fi
 
@@ -34,7 +53,7 @@ out_file=$(mktemp)
 err_file=$(mktemp)
 trap 'rm -f "$out_file" "$err_file"' EXIT
 
-deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
+go tool deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
     >"$out_file" 2>"$err_file"
 status=$?
 
@@ -53,7 +72,7 @@ if [ "$toolchain_mismatch" -eq 1 ]; then
     echo "  ⚠️  deadcode could NOT run — the installed binary is older than the Go toolchain."
     echo "     This is a tool mismatch, NOT a dead-code finding."
     printf '%s\n' "$err_text" | head -3 | sed 's/^/       /'
-    echo "     Fix: go install golang.org/x/tools/cmd/deadcode@latest"
+    echo "     The tool is pinned in go.mod; fix with \`go mod download\`."
     exit 0
 fi
 
