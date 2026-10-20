@@ -198,6 +198,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/todos/{id}/delete", h.handleDelete)
 	r.Get("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	r.Get("/api/todos/stream", h.handleStream)
+	r.Get("/api/todos/events", h.handleEvents)
 	r.Post("/api/todos/suggest", h.handleSuggest)
 	r.Post("/api/todos/suggest-simulated", h.handleSuggestSimulated)
 	r.Post("/api/todos/retry-demo", h.handleRetryDemo)

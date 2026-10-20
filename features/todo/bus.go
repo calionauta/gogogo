@@ -19,15 +19,16 @@ type Bus struct {
 	local Sink
 	wire  Sink
 	// origin tags published events with this process's identity.
-	origin string
-	subs   []func(Event)
+	origin  string
+	nextSub int
+	subs    map[int]func(Event)
 }
 
 // NewBus builds the bus around the local (hub) sink. origin comes from
 // internal/instance; an empty one leaves events untagged, which readers treat
 // as remote (never drop).
 func NewBus(local Sink, origin string) *Bus {
-	return &Bus{local: local, origin: origin}
+	return &Bus{local: local, origin: origin, subs: map[int]func(Event){}}
 }
 
 // SetWire attaches the cross-instance sink (nil detaches it). Safe to call
@@ -38,16 +39,31 @@ func (b *Bus) SetWire(w Sink) {
 	b.mu.Unlock()
 }
 
-// Subscribe registers an in-process listener (a native frontend, a test).
-// Listeners are called synchronously on the publishing goroutine and must
-// not block: a slow subscriber would stall the mutation's fan-out.
-func (b *Bus) Subscribe(fn func(Event)) {
+// Subscribe registers an in-process listener (a native frontend, an HTTP
+// event stream, a test) and returns its cancel function. Listeners are called
+// synchronously on the publishing goroutine and must NOT block: a slow
+// subscriber would stall the mutation's fan-out (an HTTP stream therefore
+// hands off to a buffered channel and drops on overflow).
+//
+// Cancelling is mandatory for request-scoped subscribers, or every closed
+// client would leave a function behind for the process's lifetime.
+func (b *Bus) Subscribe(fn func(Event)) (cancel func()) {
 	if fn == nil {
-		return
+		return func() {}
 	}
 	b.mu.Lock()
-	b.subs = append(b.subs, fn)
+	id := b.nextSub
+	b.nextSub++
+	b.subs[id] = fn
 	b.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			b.mu.Lock()
+			delete(b.subs, id)
+			b.mu.Unlock()
+		})
+	}
 }
 
 // Publish fans one event out to every adapter and subscriber.
@@ -70,7 +86,10 @@ func (b *Bus) PublishLocal(ctx context.Context, ev Event) {
 	}
 	b.mu.RLock()
 	local := b.local
-	subs := append([]func(Event){}, b.subs...)
+	subs := make([]func(Event), 0, len(b.subs))
+	for _, fn := range b.subs {
+		subs = append(subs, fn)
+	}
 	b.mu.RUnlock()
 	if local != nil {
 		local.Publish(ctx, ev)

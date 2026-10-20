@@ -55,10 +55,55 @@ type windowState struct {
 	items []todo.Todo
 	draft string
 	err   string
+
+	// sessionCh wakes the event watcher when the session appears or ends, so
+	// it reconnects immediately instead of polling the state.
+	sessionCh chan struct{}
+	// eventsCancel stops the current event stream (set by the watcher,
+	// invoked by signOut).
+	eventsCancel func()
 }
 
 func newState(st guiStore, a *auth.Auth) *windowState {
-	return &windowState{st: st, a: a, items: []todo.Todo{}}
+	return &windowState{
+		st: st, a: a, items: []todo.Todo{},
+		sessionCh: make(chan struct{}, 1),
+	}
+}
+
+// signalSession wakes the event watcher without blocking (one pending wake is
+// enough: it re-reads the state on wake).
+func (s *windowState) signalSession() {
+	select {
+	case s.sessionCh <- struct{}{}:
+	default:
+	}
+}
+
+// sessionToken reports whether a session is active and its token, for the
+// event stream's cookie.
+func (s *windowState) sessionToken() (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.token, s.signedIn
+}
+
+// setEventsCancel stores the current stream's cancel (nil when idle).
+func (s *windowState) setEventsCancel(fn func()) {
+	s.mu.Lock()
+	s.eventsCancel = fn
+	s.mu.Unlock()
+}
+
+// cancelEvents stops the active stream, if any. Safe to call repeatedly.
+func (s *windowState) cancelEvents() {
+	s.mu.Lock()
+	fn := s.eventsCancel
+	s.eventsCancel = nil
+	s.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 // windowSnapshot is a consistent, lock-free copy of everything a frame
@@ -119,6 +164,7 @@ func (s *windowState) adoptSession(token, ownerID string) {
 	s.signedIn = true
 	s.password = ""
 	s.mu.Unlock()
+	s.signalSession()
 	s.refresh()
 }
 
@@ -160,20 +206,19 @@ func (s *windowState) signIn() {
 	}
 	s.mu.Lock()
 	s.authErr = ""
-	s.token = token
-	s.ownerID = sess.User.ID
-	s.signedIn = true
-	s.password = "" // never keep a password sitting in window state
 	s.mu.Unlock()
-	s.refresh()
+	// One adoption path: it sets the session fields, clears the password,
+	// wakes the event watcher and refreshes the list.
+	s.adoptSession(token, sess.User.ID)
 }
 
 // refresh reloads the list from the store after every mutation, so the
 // view never holds a locally-patched copy that could drift from the
 // database. Safe to call from any goroutine: pure data, no widgets.
-// This is also the poll path — another frontend's writes become visible
-// here on the next tick (read-your-own + read-others within one poll
-// interval; there is no push channel in the native window).
+// This is also the fallback poll path: with a server reachable, the JSON
+// event stream triggers the same refresh immediately; standalone (or with the
+// server down) the tick keeps another frontend's writes visible within one
+// interval.
 func (s *windowState) refresh() {
 	s.mu.Lock()
 	ownerID := s.ownerID
@@ -281,9 +326,17 @@ func (s *windowState) remove(id string) {
 
 func (s *windowState) signOut() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	fn := s.eventsCancel
+	s.eventsCancel = nil
 	s.signedIn = false
 	s.ownerID = ""
 	s.token = ""
 	s.items = []todo.Todo{}
+	s.mu.Unlock()
+	// Stop the stream after unlocking (it wakes on a session signal below),
+	// so a sign-out cannot leave a live feed for a session that ended.
+	if fn != nil {
+		fn()
+	}
+	s.signalSession()
 }

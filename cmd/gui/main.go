@@ -66,11 +66,10 @@ import (
 	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
-// pollInterval is the realtime-read tick: how often the window
-// re-reads the collection. No push channel exists in the native window, so this
-// is what makes another frontend's writes visible here. 2s is the
-// KISS point — fast enough to feel live, slow enough that a local
-// SQLite re-list never shows up in profiles.
+// pollInterval is the fallback realtime tick: how often the window re-reads
+// the collection when no event stream is connected (standalone, or the server
+// is down). With the server running, eventsPath pushes a frame per mutation
+// and this tick is just the safety net for its own writes and missed frames.
 const pollInterval = 2 * time.Second
 
 // Window chrome for the native window.
@@ -177,6 +176,17 @@ func run() error {
 	done := make(chan struct{})
 	defer close(done)
 	go startPollLoop(st, tokPath, deps.refreshUI, pollInterval, done)
+
+	// Live reads when a server is reachable: the JSON event stream wakes the
+	// window on every mutation, while the poll above stays as the local /
+	// standalone fallback. Writes stay on the local store (this window owns
+	// its database), so its own change is already visible on the next tick.
+	watchCtx, watchCancel := context.WithCancel(context.Background())
+	defer watchCancel()
+	go startEventWatcher(watchCtx, st, eventBaseURL(cfg), func() {
+		st.refresh()
+		deps.refreshUI()
+	})
 
 	if err := desktop.Run(gogpuApp, uiApp); err != nil {
 		return fmt.Errorf("desktop run: %w", err)
