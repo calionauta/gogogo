@@ -15,6 +15,18 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.51.2 (2026-10-20)
+
+## What's Changed
+* fix: the AI surfaces answered badly — real data, live modes, visible results by @calionauta in https://github.com/calionauta/gogogo/pull/175
+* chore(tools): pin deadcode in go.mod instead of installing @latest by @calionauta in https://github.com/calionauta/gogogo/pull/179
+* fix(hooks): size the deadcode pre-push scan to the host instead of the clock by @calionauta in https://github.com/calionauta/gogogo/pull/177
+* chore(deps): bump dagnats to v0.0.30 and remove the trigger-bootstrap workaround by @calionauta in https://github.com/calionauta/gogogo/pull/180
+* fix(rbac): share notes/boards across signed-in users, and close the four authorization defects that exposed by @calionauta in https://github.com/calionauta/gogogo/pull/178
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.51.1...v0.51.2
+
 ## 0.51.1 (2026-10-18)
 
 ## What's Changed
