@@ -116,12 +116,6 @@ var dagNatsTrimUnit = []trimUnit{
 					"// compiled; when DAGNATS_ENABLED=false it no-ops.",
 				},
 			},
-			{
-				startMarker:       "// WORKAROUND (upstream DagNats v0.0.24 bug)",
-				endIsClosingBrace: true,
-				endBrace:          "\t}",
-				addBefore:         "\t// The process is the server now (there is no framework run loop",
-			},
 		},
 		goModDrops: []string{"github.com/danmestas/dagnats"},
 	},

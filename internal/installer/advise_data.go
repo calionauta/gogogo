@@ -58,8 +58,8 @@ var advisePresets = []advisePreset{
 			unitDagnats, "steps", "orchestrat",
 		},
 		Keep: []string{unitDagnats},
-		Note: "Console at /dagnats/. Onboarding demo is the reference; " +
-			"delete the demo trigger, keep the engine.",
+		Note: "Console at /dagnats/. The onboarding demo is the reference " +
+			"workflow; keep the engine, replace the demo with your own.",
 	},
 	{
 		Name: "offline-first",

@@ -64,7 +64,6 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 - [local-ci](docs/local-ci.md) — the five-tier feedback loop and make signoff.
 - [code-quality](docs/code-quality.md) — the 33 linters, how to scope them, the Datastar-specific rules, and the `ruleguard` rules that encode project footguns as CI failures.
 - [troubleshooting](docs/troubleshooting.md) — symptoms and where they actually come from.
-- [dagnats-bootstrap-workaround](docs/dagnats-bootstrap-workaround.md) — the upstream DagNats bug behind the trigger console, and the removable seed that works around it.
 
 Plus [ARCHITECTURE.md](ARCHITECTURE.md) — the canonical annotated dependency
 graph, and [AGENTS.md](AGENTS.md) — the working rules for human and AI agents

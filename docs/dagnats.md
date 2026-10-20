@@ -1,6 +1,6 @@
 # DagNats durable workflows
 
-Pinned: DagNats v0.0.24 (go.mod). Bump procedure: `bin/check-dagnats-pin.sh`
+Pinned: DagNats v0.0.30 (go.mod). Bump procedure: `bin/check-dagnats-pin.sh`
 fails when these drift — then diff upstream `CHANGELOG.md` between the two
 tags, update the capability table below, and move the pin in the same commit.
 
@@ -14,7 +14,7 @@ await-first-todo (signal) → 3× create-todo → finalize.
 Remove via the `SCOPE` header in `internal/dagnats/dagnats.go` (package +
 `cmd/web/dagnats.go` + wiring calls).
 
-## Capability table (DagNats v0.0.24)
+## Capability table (DagNats v0.0.30)
 
 Verified against the pinned module, not marketing prose. "Bounded
 dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
@@ -30,6 +30,8 @@ dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
 | Agent-spawned runs | bounded `ControlPlane` capability + audit KV | ADR-021 (accepted, Phase A shipped) |
 | Human/event gates | approval steps, `waitforevent` with match/dotpaths, `WaitForSignal` resume | `approval.go`, `waitforevent.go`; onboarding step 2 |
 | Subworkflows | child runs from KV defs | `dag/subworkflow.go` |
+| Multi-node cluster + leases | replicated JetStream, route/leaf config, `api.leases.*` request/reply, leader-routed loads | `server/config.go`, `internal/lease/`, `dagnatstest/cluster_test.go` |
+| Observability | OpenTelemetry traces/metrics/logs, OTLP export | `internal/observe/`, `server/config.go` (`OTLPEndpoint`) |
 | No free-form expressions | comparisons + dotpaths only; no CEL/eval | closed `validOps` set in `dag/condition.go` |
 | No unbounded loops | every loop surface has a static ceiling | `checkLoopBounds`, planner bounds |
 
@@ -39,8 +41,6 @@ dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
   it); per-step `metadata` IS (restored v0.0.22). Data rides the
   input/output chain instead — see `ExampleTodoTexts` in
   `internal/dagnats/workflow.go`.
-- The console cannot create the first trigger on an empty bucket —
-  `internal/dagnats/trigger_bootstrap.go` seeds a DISABLED def.
 - `QueueSnapshotInterval` must be non-zero (upstream panics) — defaulted
   in `NewServer`.
 
