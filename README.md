@@ -217,12 +217,13 @@ the same code path with the same receipts and proof):
 - Installer CLI — `go run ./cmd/gogogo advise --need "..."` for opinions
   (reads nothing, changes nothing), `--preset minimal|no-ai|no-collab` or
   `--plugins/--features` keep lists + `--dry-run` to preview,
-  `gogogo add <unit>` to reverse a trim. Full reference:
+  `gogogo add <unit>` to reverse a trim, `gogogo new feature <name>` to
+  scaffold one feature with wiring + gates + proof. Full reference:
   [cmd/gogogo/README.md](cmd/gogogo/README.md).
 - MCP server — `cmd/gogogo-mcp` (separate module, stdio):
   `advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`
-  (requires `confirm:true`), `check_tree`, `add_unit`. Tool table in
-  [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md).
+  (requires `confirm:true`), `check_tree`, `add_unit`, `new_feature`.
+  Tool table in [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md).
 
 ## Try it live
 

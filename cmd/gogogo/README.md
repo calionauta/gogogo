@@ -32,6 +32,24 @@ go run ./cmd/gogogo --name my-app --owner myorg \
    by execing `make dev` in the new checkout (humans only; never returns,
    so agents must not use it).
 
+## Scaffolding one feature inside a project
+
+```bash
+# Preview (writes a plan only):
+go run ./cmd/gogogo new feature reports --dir ./my-app --dry-run --format json
+
+# Apply: handler + page, chi wiring, capability unit, RBAC rows, then proof.
+go run ./cmd/gogogo new feature reports --dir ./my-app --yes
+```
+
+`new` only edits scaffolded checkouts (`go.mod` + `internal/server/chi.go` +
+the registry + the policy file). It refuses before writing when an anchor
+moved, when the name collides with a capability or a reserved route, or when
+`features/<name>` already exists. The proof runs `gofmt`, `templ generate`,
+the generated-docs regen, `check-scope`, `check-flatdeps` and
+`go build ./cmd/web`; a failing step exits 2 and leaves the tree for you to
+inspect. The generated unit's card appears in `docs/unit-contracts.md`.
+
 ## CLI contract (humans + agents)
 
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:

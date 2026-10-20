@@ -100,6 +100,15 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAddUnit) },
 	},
 	{
+		"new_feature",
+		"Scaffold one new feature inside a gogogo checkout: handler + page, " +
+			"composition-root wiring, capability unit, RBAC rows, then templ generate, " +
+			"generated docs, check-scope, check-flatdeps and a build proof. Requires " +
+			"confirm:true (or dryRun:true to preview). Needs `dir` (a scaffolded " +
+			"checkout) and `name` (kebab-case, unused).",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleNewFeature) },
+	},
+	{
 		"advise_stack",
 		"Opinions, not changes: which units to keep for a use-case " +
 			"and how each switches off. Empty need returns the full map; " +
@@ -152,6 +161,14 @@ type addArgs struct {
 	Dir     string `json:"dir,omitempty" jsonschema:"target project checkout (required)"`
 	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true (preview with dry-run first)"`
+	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
+}
+
+type newFeatureArgs struct {
+	Name    string `json:"name,omitempty" jsonschema:"feature id, kebab-case, e.g. reports (required)"`
+	Dir     string `json:"dir,omitempty" jsonschema:"target checkout (required)"`
+	Format  string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+	Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true (preview with dryRun first)"`
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
 }
 
@@ -256,6 +273,30 @@ func handleAddUnit(
 		format = defaultFormat
 	}
 	cli := []string{"add", args.Unit, "--from", args.From, "--dir", args.Dir, "--format", format, "--no-tui"}
+	if args.DryRun {
+		cli = append(cli, "--dry-run")
+	} else {
+		if !args.Confirm {
+			return nil, nil, fmt.Errorf("refusing without confirm:true (or dryRun:true to preview)")
+		}
+		cli = append(cli, "--yes")
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleNewFeature(
+	ctx context.Context, _ *mcp.CallToolRequest, args newFeatureArgs,
+) (*mcp.CallToolResult, any, error) {
+	if args.Name == "" || args.Dir == "" {
+		return nil, nil, fmt.Errorf("name and dir are both required")
+	}
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"new", "feature", args.Name, "--dir", args.Dir, "--format", format}
 	if args.DryRun {
 		cli = append(cli, "--dry-run")
 	} else {

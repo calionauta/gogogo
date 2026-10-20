@@ -80,7 +80,7 @@ will be asked for one or closed. This keeps the queue reviewable.
    20-line fix. Small PRs get reviewed; large ones wait.
 3. **Follow the repo's working rules** ([AGENTS.md](AGENTS.md) is normative for
    agents; the same rules apply to you):
-   - `// SCOPE:layer=…,removal=…` on every new non-test, non-generated `.go`
+   - `// SCOPE:<core|plugin|feature>` on every new non-test, non-generated `.go`
      file under `internal/`/`features/` (`make check-scope` enforces it).
    - `make templ && make css` after `.templ` edits; never hand-edit generated
      `_templ.go` (`make check-generated`).

@@ -61,6 +61,7 @@ JSON-config clients take the Claude Code block verbatim.
 | `trim_apply` | Yes (`confirm:true`) | Rename + trim + tidy + build proof |
 | `check_tree` | No | Marker drift verdict per unit |
 | `add_unit` | Yes (`confirm:true`) | Restore a unit (`dryRun:true` previews) |
+| `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
 
 Read-only tools need nothing else. Mutating tools fail closed without
 `confirm:true` — preview with `trim_plan` (or `dryRun:true`) first, then
@@ -77,7 +78,7 @@ label:
 
 | `scope` | When | What the rest of the document contains |
 |---|---|---|
-| `template` | a gogogo-shaped need — or anything the vocabulary does not match (full map shown instead of a guess; scaffold first-run withheld when nothing matched) | the 24 capabilities + keep/drop presets — act on these |
+| `template` | a gogogo-shaped need — or anything the vocabulary does not match (full map shown instead of a guess; scaffold first-run withheld when nothing matched) | the full capabilities table + keep/drop presets — act on these |
 | `exception-to-go` | the need names **Zig** | the exception-to-go gate + skill pointer; **nothing installs** under the exception |
 | `go-standards` | a need that forbids dependencies ("stdlib only", "no deps") | the Go-standards pointer only; the capability table is **absent**, not empty |
 

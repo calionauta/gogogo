@@ -41,7 +41,7 @@ persistence — one knob would conflate both. Pick by traffic type:
 | Ephemeral signals (toasts, progress, presence) | SSE Hub (Datastar SSE) | always on | in-process only; no cross-instance without JetStream | `BroadcastExcept` excludes the originator |
 | Cross-instance broadcast + CRUD proxy | NATS JetStream | on | `NATS_ENABLED=false` → in-memory hub; whiteboard/notes ops go SSE-only single-instance | `realtimeLabel()` surfaces the active transport in the UI |
 | Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | workers no-op when NATS is down | snapshots persist to Turso tables |
-| AI streams (tokens, run framing) | SSE Hub + AG-UI envelope | on with llm | unset `GOAI_API_KEY` hides the UI; envelope in `internal/genui/` | byte-compatible with AG-UI clients, no new transport |
+| AI streams (tokens, run framing) | SSE Hub + AG-UI envelope | on with llm | unset `GOAI_API_KEY` hides the UI; envelope in `features/genui/` | byte-compatible with AG-UI clients, no new transport |
 | Stale-tab detection | `X-Gogogo-Build` on `/health` | on | none; inert in dev (`dev/` tag never changes) | single-binary deploys only (see troubleshooting) |
 
 The same matrix is queryable at runtime: `advise --need "broadcast transport"` (preset `realtime-transport`).

@@ -242,6 +242,17 @@ check-flatdeps:
 	@go run ./cmd/check-flatdeps
 	@echo "✅ flat-stack dependencies within bounds"
 
+.PHONY: check-docs
+
+# check-docs proves prose does not drift from source: no hand-written counts
+# (the generated docs/unit-contracts.md is the one place counts live), every
+# concrete repo path exists, every `gogogo <sub>` is a real subcommand, and
+# every docs/*.md is published by the site MANIFEST. Same implementation the
+# pre-commit docs-claims job and CI run.
+check-docs:
+	@echo "→ check-docs (prose claims: counts, paths, commands, MANIFEST)..."
+	@go run ./cmd/check-docs
+
 # check-secrets-env proves secret env plumbing stays on the rails without
 # booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
 # (*_KEY, *_TOKEN, *_SECRET, *_PASSWORD, …) may only run in owner files
@@ -345,7 +356,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-docs check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -373,7 +384,7 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-docs check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
@@ -515,6 +526,7 @@ help:
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
+	@echo "  check-docs     Prose claims (no hand-written counts, live paths, real subcommands, docs in the MANIFEST)"
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"

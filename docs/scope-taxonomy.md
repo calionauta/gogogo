@@ -14,9 +14,25 @@ The annotation carries a single axis — the removal class — with three values
 
 | Class | Meaning | You would… |
 |------------|---------|-----------|
-| `core` 🔴 | Binary does not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
+| `core` 🔴 | The web binary **or its gates** do not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
 | `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
 | `feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
+
+Three clarifications the table alone does not carry:
+
+- **Core includes gate support.** `internal/hostgate` never links into the web
+  binary, but every heavy suite and `ci-local` depends on it, so deleting it
+  breaks the gates that ship the binary. That is the "or its gates" clause.
+- **Plugin does not promise a one-line delete.** `internal/nats`, `internal/llm`
+  and `internal/collab` are named in signatures, so removing one is a manual
+  refactor that touches its consumers; the class answers *what disappears*, not
+  *how mechanical the trim is*. `SCOPE`-core units are the ones where removal
+  is not coherent at all.
+- **The servant wins ties.** A unit that both powers other surfaces and ships a
+  page is a plugin when the capability is the servant and the page is its demo.
+  `features/genui` is the precedent: the Ask AI/Chat pages disappear with it,
+  but the unit exists to render answers for chat, todo panels and review, so it
+  is classified plugin (and bundled with `features/chat` for trimming).
 
 ## The annotation form
 
@@ -27,10 +43,19 @@ their removal class in a leading doc comment:
 // SCOPE:<core|plugin|feature> — <short description>
 ```
 
-The class is one value: `core` = binary won't compile or won't boot; `plugin` =
-binary works but loses a capability; `feature` = pure demo. The **directory is
+The class is one value: `core` = the binary or its shipped gates won't compile
+or boot; `plugin` = binary works but loses a capability; `feature` = pure demo. The **directory is
 the layer** — `internal/` is infrastructure, `features/` is product — so there
 is no separate `layer` axis to keep in sync (a two-axis `layer=…,removal=…` form was considered and rejected for exactly that reason).
+
+**`internal/` is Go's import boundary, not a removal class.** It keeps a package
+out of the public API; it says nothing about whether the app survives without
+it. Roughly half the packages under `internal/` are plugins — `nats`, `dagnats`,
+`goakt`, `collab`, `search`, `llm`, `datastar`, `components` — each removable
+with the capability it serves (and each `SCOPE` line says so). The other half is
+core because core wiring names it: `auth`, `db`, `dbschema`, `queue` (the SSE
+Hub), `natswire`, `rbac`, `server`, `secrets`, `observability`. Read the
+annotation, never the directory.
 
 **Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in
 `internal/` and `features/` and asserts the canonical SCOPE line is present in
@@ -77,8 +102,8 @@ rename fails CI instead of shipping quietly.
 
 The flat stack composes every capability in two places, both inside
 `internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux`
-mounts its routes. The installer (`gogogo trim <unit>`) automates the
-common ones; when doing it by hand:
+mounts its routes. The installer (`gogogo` keep lists / presets, plus `gogogo add <unit>` to
+restore one) automates the common ones; when doing it by hand:
 
 1. Delete the package directory (e.g. `features/todo/`).
 2. Delete dependent packages listed in the `Depends on:` comment.
@@ -114,7 +139,7 @@ its top-level unit too).
 | `internal/db/` | 🔴 CORE | Never — Turso connection open (tursogo); importing it links the driver |
 | `internal/dbschema/` | 🔴 CORE | Never — driver-free migrations + IDs/timestamps; shared with zero-CGO targets |
 | `internal/secrets/` | 🔴 CORE | Never — age loader |
-| `internal/queue/` | 🔴 CORE | Never — goqite + SSE Hub + workers + retry |
+| `internal/queue/` | 🔴 CORE | Never — SSE Hub (every streaming handler names `*queue.SSEHub`) + goqite jobs + workers + retry |
 | `internal/server/` | 🔴 CORE | Never — flat stack composition (BootChi + buildChiMux) |
 | `internal/auth/` | 🔴 CORE | Never — argon2id + sessions (owned auth) |
 | `internal/rbac/` | 🔴 CORE | Never — Casbin enforcer wired into the whole mux (`RBAC_ENABLED` decides whether it enforces) |
@@ -122,7 +147,7 @@ its top-level unit too).
 | `internal/demo/` | 🔴 CORE | Never — the fresh-clone way in (one idempotent seed) |
 | `internal/observability/` | 🔴 CORE | Never — slog + tracing |
 | `internal/hostgate/` | 🔴 CORE | Never — test-capacity gate (tune with `HOSTGATE_*`) |
-| `features/app/` | 🔴 CORE | Never — AppContext, handed to every handler |
+| `features/app/` | 🟡 PLUGIN | Delete it to drop `cmd/gui`'s dependency bundle; `cmd/web` never links it (handlers take their deps directly) |
 | `features/authviews/` | 🔴 CORE | Holds the shared navbar/theme every page renders; the login page itself is manual removal |
 | `web/resources/` | 🔴 CORE | Never — embedded static assets |
 | `internal/datastar/` | 🟡 PLUGIN | Swap for another implementation, or delete + the wiring call in every page (manual) |

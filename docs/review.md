@@ -102,7 +102,7 @@ is noise with confidence attached.
 
 ## Removal
 
-`gogogo trim review` (dropped by the `minimal` and `no-ai` presets), or
+the `review` installer unit (dropped by the `minimal` and `no-ai` presets), or
 by hand: delete `features/review/` + the `bootReview` helper, `reviewH`
 lines and `/review` mounts in `internal/server/chi.go` (+ the
 `newReviewHandlerForTest` fixture in its test) + `go mod tidy`.

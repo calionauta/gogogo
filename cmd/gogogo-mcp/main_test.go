@@ -237,3 +237,77 @@ func TestMcpReadmeListsTools(t *testing.T) {
 		}
 	}
 }
+
+// writeNewFeatureFixture builds the smallest checkout `new` accepts: the two
+// anchors it edits, an empty registry, and a policy file. Dry-run never
+// builds, so the fixture needs no compilable packages.
+func writeNewFeatureFixture(t *testing.T, dir string) {
+	t.Helper()
+	files := map[string]string{
+		"go.mod": "module example.com/demo\n\ngo 1.27\n",
+		"internal/server/chi.go": `package server
+
+import (
+	confighandlers "example.com/demo/features/config/handlers"
+)
+
+func boot() {
+	mux := buildChiMux()
+	mux.HandleFunc("/api/stream/status", StreamStatusHandler(hub))
+	_ = mux
+	_ = confighandlers.NewHandler
+}
+
+func buildChiMux() *int { return new(int) }
+`,
+		"internal/capabilities/registry.go": "package capabilities\n\nvar All = []Capability{\n}\n",
+		"internal/rbac/casbin/policy.csv":   "p, admin, /*, .*\n",
+	}
+	for rel, body := range files {
+		full := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// TestNewFeatureDryRunPlansScaffold proves the tool reaches the same engine as
+// the CLI: a dry run returns the plan and touches nothing.
+func TestNewFeatureDryRunPlansScaffold(t *testing.T) {
+	dir := t.TempDir()
+	writeNewFeatureFixture(t, dir)
+	res, _, err := handleNewFeature(context.Background(), nil,
+		newFeatureArgs{Name: "reports", Dir: dir, DryRun: true, Format: "json"})
+	if err != nil {
+		t.Fatalf("handleNewFeature: %v", err)
+	}
+	var plan map[string]any
+	if err := json.Unmarshal([]byte(toolText(t, res)), &plan); err != nil {
+		t.Fatalf("dry-run is not one JSON document: %v", err)
+	}
+	for _, key := range []string{"creates", "edits", "proof", "next"} {
+		if _, ok := plan[key]; !ok {
+			t.Errorf("plan missing %q: %v", key, plan)
+		}
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "features", "reports")); !os.IsNotExist(statErr) {
+		t.Error("dry run wrote files — it must change nothing")
+	}
+}
+
+// TestNewFeatureRequiresConfirm keeps the destructive-tool contract: no
+// confirm and no dryRun is a refusal, not a scaffold.
+func TestNewFeatureRequiresConfirm(t *testing.T) {
+	_, _, err := handleNewFeature(context.Background(), nil,
+		newFeatureArgs{Name: "reports", Dir: "/tmp"})
+	if err == nil || !strings.Contains(err.Error(), "confirm:true") {
+		t.Errorf("expected confirm:true refusal, got %v", err)
+	}
+	_, _, err = handleNewFeature(context.Background(), nil, newFeatureArgs{Name: "reports", Confirm: true})
+	if err == nil || !strings.Contains(err.Error(), "required") {
+		t.Errorf("expected required-fields error, got %v", err)
+	}
+}

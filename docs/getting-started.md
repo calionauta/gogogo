@@ -140,6 +140,16 @@ verifies the markers first. `add` refuses anything that is not a
 scaffolded checkout (`internal/server/chi.go` + `go.mod` must exist) — it
 restores known markers, it does not merge foreign code.
 
+**A feature that does not exist yet.** `new` scaffolds one from the todo
+skeleton: handler + page, composition-root wiring, capability unit, RBAC rows,
+then templ generate, generated docs, `check-scope`, `check-flatdeps` and a
+build proof. It works on trimmed trees too (the anchors it edits are core):
+
+```bash
+go run ./cmd/gogogo new feature reports --dir ./my-app --dry-run
+go run ./cmd/gogogo new feature reports --dir ./my-app --yes
+```
+
 **Foreign Go codebase (not scaffolded).** There is no auto-adoption:
 the installer cannot know your router, module layout, or auth, so it
 will not guess. Do instead:

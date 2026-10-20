@@ -105,6 +105,8 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 	switch args[0] {
 	case "add":
 		return true, runAdd(ctx, args[1:], stdin, stdout)
+	case "new":
+		return true, runNew(ctx, args[1:], stdin, stdout)
 	case "advise":
 		return true, runAdvise(args[1:], stdout)
 	}
@@ -352,8 +354,9 @@ func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) e
 		return &ExitError{code: 2, msg: fmt.Sprintf(
 			"go mod tidy failed (%v):\n%s", err, tailLines(string(out), proofTidyTailLines))}
 	}
-	// Regenerate the route inventory so the tree is green immediately.
-	fmt.Fprintln(stdout, "gogogo: prove: api-routes inventory …")
+	// Regenerate the generated docs (route inventory + unit contract cards)
+	// so the tree is green immediately.
+	fmt.Fprintln(stdout, "gogogo: prove: generated docs …")
 	// Warn-only here (failure is a stale doc, not a broken tree); the gate
 	// below treats the same error as fatal.
 	_ = proveAPIRoutesDoc(ctx, dir, stdout)
@@ -380,17 +383,19 @@ func runIn(ctx context.Context, dir, name string, args ...string) ([]byte, error
 	return cmd.CombinedOutput()
 }
 
-// proveAPIRoutesDoc regenerates the route inventory in the target tree.
+// proveAPIRoutesDoc regenerates the generated docs in the target tree: the
+// route inventory and the unit contract cards. Both are pinned by tests, so a
+// trim that deletes a unit without regenerating them leaves CI red.
 // It returns the regen error (callers decide warn-only vs fatal) after
 // printing the WARN with the manual regen command, so no failure mode is
 // silent. Shared with the preset composition gate, which proves it on
 // copies.
 func proveAPIRoutesDoc(ctx context.Context, dir string, stdout io.Writer) error {
 	if out, err := runIn(ctx, dir, "go", "test", "./internal/capabilities/",
-		"-run", "TestApiRoutesDocFresh", "-update", "-count=1"); err != nil {
+		"-run", "Test(ApiRoutes|CapabilityContracts)DocFresh", "-update", "-count=1"); err != nil {
 		fmt.Fprintf(stdout,
-			"gogogo: WARN: api-routes regen failed (%v) — run "+
-				"`go test ./internal/capabilities/ -run TestApiRoutesDocFresh -update` manually:\n%s\n",
+			"gogogo: WARN: generated docs regen failed (%v) — run "+
+				"`go test ./internal/capabilities/ -run 'Test(ApiRoutes|CapabilityContracts)DocFresh' -update` manually:\n%s\n",
 			err, tailLines(string(out), proofTidyTailLines))
 		return err
 	}
@@ -424,75 +429,4 @@ func Units() []UnitView {
 		out = append(out, UnitView{ID: u.id, Kind: string(m.kind), Summary: summary})
 	}
 	return out
-}
-
-func PrintUsage(w io.Writer, fs *flag.FlagSet) {
-	fmt.Fprintln(w, `gogogo `+Version+` — scaffold a project from gogogo.
-
-  Interactive (humans: 4 questions, then a plan to confirm):
-
-    go run github.com/calionauta/gogogo/cmd/gogogo@latest --run
-
-  Interactive without takeover (prints cd <dir> && make dev at the end):
-
-    go run github.com/calionauta/gogogo/cmd/gogogo@latest
-
-  Scripted (agents: always pin --yes; preview with --dry-run first):
-
-    go run ./cmd/gogogo --name my-app --owner myorg \
-      --plugins dagnats,whiteboard --features landing,config-view \
-      --no-tui --dry-run --format json --dir ./my-app
-    go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
-
-  Drift gate (maintainers/CI): verify every marker against a pristine
-  checkout without changing anything:
-
-    go run ./cmd/gogogo --check --dir ./my-app
-
-  Add a unit to an existing scaffolded checkout (deps cascade automatically):
-
-    go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
-
-  Opinions, not changes (for LLMs deciding what to use — reads nothing, changes nothing):
-
-    go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
-
-  Strategy: empty --need returns the full map (presets + every
-  capability); a need that matches nothing prints the preset names to
-  retry with — or decide straight from the capabilities table.
-
-  What it does, in order:
-    1. shows the trim plan with every consequence (never silent),
-    2. clones the template into --dir when it is missing (with consent),
-    3. deletes skipped plugins/features with their wiring calls,
-    4. renames the module path + every reference (rename-project.py rules),
-    5. writes AGENTS.md with the upstream-first rule,
-    6. proves it: templ generate (when .templ edited) + go mod tidy +
-       go build ./cmd/web, then prints the exact next commands
-       (cd <dir> && make dev — a child process cannot cd its parent).
-       With --run it skips the printing and becomes dev itself: execs
-       make dev in the new checkout (humans only; agents must not).
-
-  Units (id, kind). Kind follows the servant principle, not the directory:
-  a plugin serves other capabilities (sounds, skins, credits serve pages);
-  a feature is a terminal user surface (todo, whiteboard, landing, config).
-  --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here
-  todo (reference implementation), auth (middleware is core), queue (core),
-  nats (runtime: NATS_ENABLED=false), llm (runtime: unset GOAI_API_KEY),
-  offline-sync (runtime: OFFLINE_SYNC_ENABLED=false).`)
-	fmt.Fprintln(w, "\n  Trim units:")
-	for _, u := range Units() {
-		fmt.Fprintf(w, "    %-12s %-7s %s\n", u.ID, u.Kind, u.Summary)
-	}
-	fmt.Fprintln(w, `
-  Flags:`)
-	fs.SetOutput(w)
-	fs.PrintDefaults()
-	fmt.Fprintln(w, `
-  Agent contract: --format json emits stable field names.
-  --dry-run prints the plan; apply prints one envelope
-  {plan, receipt{units[{id, dirsRemoved, filesRemoved,
-  stripsApplied, stripsMissed}]}, buildOk, buildError,
-  next{dir, dev, app, todo, login, admin, workflows}}.
-  Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed.`)
 }
