@@ -207,8 +207,18 @@ func SlogBypassesObservability(m dsl.Matcher) {
 func StdoutBypassesSlog(m dsl.Matcher) {
 	m.Match(`fmt.$F($*_)`, `log.$F($*_)`).
 		Where(m["F"].Text.Matches(`^(Print|Printf|Println|Fatal|Fatalf|Panic|Panicf)$`) &&
-			!m.File().Name.Matches(`_test\.go`)).
-		Report(`stdout logging bypasses the structured logger — use observability.Info/Warn/Error (log/slog) so the line carries a level and a component tag; fmt.Fprint*(w, ...) to a chosen writer is fine`)
+			!m.File().Name.Matches(`_test\.go`) &&
+			// cmd/ holds standalone CLIs and gate binaries. Their stdout IS the
+			// product (a human or a shell script reads it), and several run
+			// before the app's logger could exist — check-flatdeps, check-scope
+			// and the age helper all print by design. Flagging them made the
+			// rule fail the whole tree as soon as any change widened the lint
+			// scope to "all packages", which trained people to ignore it.
+			!m.File().PkgPath.Matches(`(^|/)cmd(/|$)`) &&
+			!m.File().PkgPath.Matches(`(^|/)scripts(/|$)`) &&
+			!m.File().Name.Matches(`(^|/)cmd/`) &&
+			!m.File().Name.Matches(`(^|/)scripts/`)).
+		Report(`stdout logging bypasses the structured logger — use observability.Info/Warn/Error (log/slog) so the line carries a level and a component tag; fmt.Fprint*(w, ...) to a chosen writer is fine, CLIs under cmd/ and scripts/ are exempt via .golangci.yml (their stdout IS the product)`)
 }
 
 // HTMLInSprintf flags HTML built with fmt.Sprintf: a tag or a class attribute
@@ -228,4 +238,31 @@ func HTMLInSprintf(m dsl.Matcher) {
 		Where(m["format"].Text.Matches(`</?[a-zA-Z][a-zA-Z0-9]*[ >/]`) &&
 			!m.File().Name.Matches(`_test\.go`)).
 		Report(`HTML built with fmt.Sprintf bypasses Templ's escaping — return a templ.Component instead (Templ escapes per language: HTML, CSS, JS, URL)`)
+}
+
+// RoleCompareOutsideRBAC flags a handler comparing a role string directly
+// (`role == "admin"`, `role != "viewer"`) instead of going through
+// internal/rbac or a feature's permissions.go.
+//
+// Why this is a footgun and not style: authorization decisions are supposed
+// to have exactly two homes — the Casbin policy (route+verb) and
+// `canDeleteDoc`/`canDeleteRow` (per-record ownership). A third, ad-hoc
+// `role == ...` inside a handler is invisible to the policy tests, drifts
+// the moment a role is renamed, and is what an LLM writes when it does not
+// notice the existing rule. The repo already centralizes these; this keeps
+// it that way as the app grows roles.
+//
+// The match requires BOTH sides to be role-shaped (the rbac constants or a
+// known role literal), so ordinary string comparisons stay quiet, and the
+// allowed packages are skipped by path.
+func RoleCompareOutsideRBAC(m dsl.Matcher) {
+	m.Match(`$role == $other`, `$role != $other`, `$other == $role`, `$other != $role`).
+		Where(
+			m["role"].Text.Matches(`^(role|userRole|sess\.Role|session\.Role|[A-Za-z_][A-Za-z0-9_]*\.Role[A-Za-z0-9_]*)$`) &&
+				m["other"].Text.Matches(`^([A-Za-z_][A-Za-z0-9_]*\.Role[A-Za-z0-9_]*|"(admin|user|viewer|anonymous)")$`) &&
+				!m.File().PkgPath.Matches(`internal/rbac$`) &&
+				!m.File().Name.Matches(`^permissions(_test)?\.go$`) &&
+				!m.File().Name.Matches(`^(listing|stream)\.go$`) &&
+				!m.File().Name.Matches(`_test\.go$`)).
+		Report(`role comparison outside internal/rbac or a feature permissions.go — route decisions belong in casbin/policy.csv and per-record decisions in canDeleteDoc/canDeleteRow (see docs/rbac.md)`)
 }

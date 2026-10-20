@@ -8,6 +8,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,6 +40,9 @@ func TestNotesOpAfterEvictKeepsText(t *testing.T) {
 	mem := collab.NewMemoryPersister()
 	docs := collab.NewDocStore()
 	h := NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), mem, docs, config.Load())
+	// Transport fixture: synthetic id ("note-evict") on purpose, so the
+	// registry check is opted out here explicitly (see permissions.go).
+	h.registry = func(context.Context, string) bool { return true }
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
 	mux.Handle("/", h.Routes())

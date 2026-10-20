@@ -230,6 +230,12 @@ stroke round-trips; no live draft while offline.
 
 - Brainstorm boards, seating charts, any shared drawing surface.
 
+Sharing: the index lists every board with its author, any signed-in user
+opens and draws on any of them, and deleting is author-or-admin
+(`canDeleteDoc`, per-board) — delete drops the metadata row and the
+snapshot together. Editing open + deleting narrow is the demo: demo2
+(viewer) draws on demo1's board and cannot delete it; demo1 (admin) can.
+
 Not for: owner arbitration (no presenter lock); canvas and notes share
 `collab` today.
 
@@ -268,6 +274,10 @@ line/offset carets (no selection highlights).
 
 - Meeting notes, shared scratchpads, any plain-text surface where
   concurrent typing must never lose characters.
+
+Sharing: same rule as the whiteboard — the index lists every note with
+its author, anyone signed in edits any note, and only the author (or an
+admin) deletes one.
 
 Not for: rich text (no marks); offline-first editing
 (ops need the server — a dropped connection holds text in the tab only).

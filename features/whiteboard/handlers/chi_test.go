@@ -1,7 +1,7 @@
 // SCOPE:feature — HTTP whiteboard contract tests (red-proof).
 //
 // Real Turso file, real auth, real Loro DocStore, driven over HTTP.
-// Contracts: paths, statuses, redirects, owner isolation, snapshot
+// Contracts: paths, statuses, redirects, shared listing, snapshot
 // round-trip through the persister, conflict + presence shapes.
 package handlers
 
@@ -117,14 +117,20 @@ func TestHandlersWhiteboardCreateAndList(t *testing.T) {
 		t.Fatal("fragment missing the new board")
 	}
 
-	// Owner isolation: another user sees an empty list.
+	// The list is SHARED: another login sees the board and its author. This
+	// used to assert the opposite (owner-scoped lists), which is the
+	// behaviour the collab demo replaced — a second browser must find the
+	// doc without a copied URL.
 	other := wbSignup(t, mux, "other@example.com")
 	otherFrag := httptest.NewRecorder()
 	otherReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/whiteboards/fragment", nil)
 	otherReq.AddCookie(other)
 	mux.ServeHTTP(otherFrag, otherReq)
-	if strings.Contains(otherFrag.Body.String(), docID) {
-		t.Fatal("other user's fragment leaks the board")
+	if !strings.Contains(otherFrag.Body.String(), docID) {
+		t.Fatal("shared index must list another user's board")
+	}
+	if !strings.Contains(otherFrag.Body.String(), "by wb@example.com") {
+		t.Fatal("shared index must name the board's author")
 	}
 }
 

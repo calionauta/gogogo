@@ -2,10 +2,11 @@
 //
 // Same routes, wire and components as the framework handlers: index/new/
 // note pages, per-doc stream, op batches with optimistic-concurrency
-// revisions, typing/caret presence, list fragment. Note metadata lives in
-// Turso (owner-scoped); Loro docs converge in the shared DocStore with
-// snapshots in doc_snapshots. Cross-instance NATS sync stays off (nil
-// connection, same as SSE-only mode) — the hub carries live peers.
+// revisions, typing/caret presence, list fragment, delete. Note metadata
+// lives in Turso and LISTS SHARED (every signed-in user sees every note,
+// author named); Loro docs converge in the shared DocStore with snapshots
+// in doc_snapshots. Cross-instance NATS sync stays off (nil connection,
+// same as SSE-only mode) — the hub carries live peers.
 package handlers
 
 import (
@@ -29,9 +30,6 @@ import (
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
-// listLimit caps the notes list, matching the page size elsewhere.
-const listLimit = 50
-
 // maxBodyBytes caps op/presence POST bodies (1 MiB). Batches and cursors
 // are bytes, never megabytes; without a cap a huge body is a memory sink.
 const maxBodyBytes = 1 << 20
@@ -48,6 +46,12 @@ type Handler struct {
 
 	peerNamesMu sync.Mutex
 	peerNames   map[string]string
+
+	// registry answers "does this doc id have a metadata row?". Nil means
+	// the production rule (the notes table). Only a transport fixture sets
+	// it, so the write contract stays on for every real request — see
+	// permissions.go.
+	registry docRegistry
 
 	// revs is the per-doc batch counter backing optimistic concurrency.
 	// Memory-only on purpose: after a restart every client mismatches
@@ -87,6 +91,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Get("/notes", h.handleIndex)
 	r.Get("/notes/new", h.handleNew)
 	r.Get("/notes/{docID}", h.handleNote)
+	r.Post("/api/notes/{docID}/delete", h.handleDelete)
 	r.Get("/api/notes/{docID}/stream", h.handleStream)
 	r.Post("/api/notes/{docID}/op", h.handleOp)
 	r.Post("/api/notes/{docID}/typing", h.handleTyping)
@@ -126,34 +131,40 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := sess.User.Email
-	ids, err := h.listNoteIDs(r.Context(), sess.User.ID)
+	notes, err := h.listNotes(r.Context(), sess.User.ID, sess.Role)
 	if err != nil {
 		// Not an empty list: a failed query would render as "no notes yet",
 		// which is indistinguishable from the truth and leaves the operator
 		// with nothing to go on.
-		obsArgs := append(observability.WithComponent("notes", "feature"), "owner", sess.User.ID, "error", err)
-		observability.Error(r.Context(), "notes: list ids failed", obsArgs...)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "user", sess.User.ID, "error", err)
+		observability.Error(r.Context(), "notes: list notes failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing notes")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = notescomponents.NotesIndex(email, sess.Role, ids, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = notescomponents.NotesIndex(email, sess.Role, notes, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
-// listNoteIDs returns the owner's note ids, newest first. Owner-scoped:
-// an empty owner lists nothing.
-func (h *Handler) listNoteIDs(ctx context.Context, owner string) ([]string, error) {
-	rows, err := h.q.ListNotesByOwner(ctx, owner)
+// listNotes returns every shared note, newest first, stamped with the
+// author and the caller's delete right. The listing is NOT owner-scoped
+// any more: the index is shared by design, and seeing a note you cannot
+// delete is the point of the demo (edit yes, delete no).
+func (h *Handler) listNotes(ctx context.Context, requester, role string) ([]notescomponents.NoteMeta, error) {
+	rows, err := h.q.ListNotes(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]string, 0, len(rows))
+	notes := make([]notescomponents.NoteMeta, 0, len(rows))
 	for _, row := range rows {
-		ids = append(ids, row.DocID)
+		notes = append(notes, notescomponents.NoteMeta{
+			DocID:     row.DocID,
+			Author:    row.OwnerEmail,
+			IsMine:    requester != "" && row.Owner == requester,
+			CanDelete: canDeleteDoc(role, requester, row.Owner),
+		})
 	}
-	_ = listLimit
-	return ids, nil
+	return notes, nil
 }
 
 func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
@@ -162,18 +173,18 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	ids, err := h.listNoteIDs(r.Context(), sess.User.ID)
+	notes, err := h.listNotes(r.Context(), sess.User.ID, sess.Role)
 	if err != nil {
 		// Same contract as the index handler: an empty fragment is a lie the
 		// user cannot detect and the operator cannot diagnose.
-		obsArgs := append(observability.WithComponent("notes", "feature"), "owner", sess.User.ID, "error", err)
-		observability.Error(r.Context(), "notes: list fragment ids failed", obsArgs...)
+		obsArgs := append(observability.WithComponent("notes", "feature"), "user", sess.User.ID, "error", err)
+		observability.Error(r.Context(), "notes: list fragment failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing notes")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = notescomponents.NotesListFragment(ids).Render(r.Context(), w)
+	_ = notescomponents.NotesListFragment(notes).Render(r.Context(), w)
 }
 
 func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
@@ -204,6 +215,14 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "missing doc id")
 		return
 	}
+	// Opening a doc id nobody created yet REGISTERS it to this visitor (they
+	// become the author). That is the app's own bootstrap: a shared link, or
+	// two tabs on a fresh id. The write paths then require the row to exist,
+	// so an unregistered id can never take a write (see claimDoc).
+	if !h.claimDoc(r.Context(), docID, sess.User.ID) {
+		writeText(w, http.StatusInternalServerError, "open note")
+		return
+	}
 	if snap, ok := h.persister.LoadSnapshot(docID); ok {
 		d := h.docs.GetOrCreate(docID)
 		if err := d.ApplyUpdate(snap); err != nil {
@@ -215,14 +234,99 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 	h.revsMu.Lock()
 	rev := h.revs[docID]
 	h.revsMu.Unlock()
+	meta := h.docMeta(r.Context(), docID, sess.User.ID)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = notescomponents.NotesPage(sess.User.Email, sess.Role, docID, text, rev,
+	_ = notescomponents.NotesPage(sess.User.Email, sess.Role, meta, text, rev,
 		h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+}
+
+// docMeta assembles the row the page and the index both render: the doc id
+// plus who started it and whether the caller may delete it.
+//
+// A doc with no metadata row (a hand-typed id, or a row deleted while its
+// URL was open) renders as authorless and undeletable: the page still
+// works, it just cannot claim an author or a right it does not have.
+func (h *Handler) docMeta(ctx context.Context, docID, requester string) notescomponents.NoteMeta {
+	meta := notescomponents.NoteMeta{DocID: docID}
+	row, err := h.q.GetNoteMeta(ctx, docID)
+	if err != nil {
+		return meta
+	}
+	meta.Author = row.OwnerEmail
+	meta.IsMine = requester != "" && row.Owner == requester
+	return meta
+}
+
+// handleDelete removes a note the requester authored (or administers):
+// metadata row first, then the resolved snapshot and the cached doc, so a
+// half-failure leaves a doc that is listable and still openable rather
+// than one that rehydrates after its index row is gone.
+//
+// The response is the re-rendered list fragment (Datastar outer patch on
+// #notes-list), so the deleting tab and its peers converge on the same
+// list without a reload; peers holding the doc open keep their own copy
+// until they reload, which is the honest state of a deleted note.
+func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	docID := chi.URLParam(r, "docID")
+	if docID == "" {
+		writeText(w, http.StatusBadRequest, "missing doc id")
+		return
+	}
+	meta, err := h.q.GetNoteMeta(r.Context(), docID)
+	if err != nil {
+		writeText(w, http.StatusNotFound, "note not found")
+		return
+	}
+	if !canDeleteDoc(sess.Role, sess.User.ID, meta.Owner) {
+		writeText(w, http.StatusForbidden, "only the author or an admin can delete this note")
+		return
+	}
+	if derr := h.q.DeleteNote(r.Context(), docID); derr != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", derr)
+		observability.Error(r.Context(), "notes: delete note failed", obsArgs...)
+		writeText(w, http.StatusInternalServerError, "delete failed")
+		return
+	}
+	if ferr := h.docs.Forget(docID); ferr != nil {
+		// The row is gone, so the note is deleted as far as every list and
+		// reader is concerned; a leftover snapshot is garbage, not a visible
+		// bug. Log it loudly rather than failing a delete that did happen.
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", ferr)
+		observability.Warn(r.Context(), "notes: forget doc snapshot failed", obsArgs...)
+	}
+	h.revsMu.Lock()
+	delete(h.revs, docID)
+	h.revsMu.Unlock()
+	notes, lerr := h.listNotes(r.Context(), sess.User.ID, sess.Role)
+	if lerr != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"), "doc", docID, "error", lerr)
+		observability.Error(r.Context(), "notes: list after delete failed", obsArgs...)
+		writeText(w, http.StatusInternalServerError, "error listing notes")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("datastar-selector", "#notes-list")
+	w.Header().Set("datastar-mode", "outer")
+	w.WriteHeader(http.StatusOK)
+	_ = notescomponents.NotesListFragment(notes).Render(r.Context(), w)
 }
 
 func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
+	if sess == nil {
+		// A stream is a READ of the doc body: every signed-in user may read
+		// every shared note, but an anonymous tab must not. The browser's
+		// EventSource cannot sign in, so 401 makes it stop reconnecting
+		// (the page itself already redirects to /login).
+		writeText(w, http.StatusUnauthorized, "sign in to read")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	clientID := r.URL.Query().Get("clientID")
 	if clientID == "" {
@@ -269,9 +373,26 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleOp(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
+	if sess == nil {
+		// Writes are never anonymous. The op path is gated by the RBAC
+		// middleware too, but RBAC is opt-in (RBAC_ENABLED defaults to
+		// false), so the handler must not depend on it: without this a
+		// cookie-less client wrote text into any doc id it could guess and
+		// persisted a snapshot for it. 401 (not 403) is what the shared
+		// session banner keys on to say "sign in again".
+		writeText(w, http.StatusUnauthorized, "sign in to edit")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	if docID == "" {
 		writeText(w, http.StatusBadRequest, "missing doc id")
+		return
+	}
+	if !h.registeredDoc(r.Context(), docID) {
+		// The doc must exist in the index before its body can change. Without
+		// this a session that invents an id wrote a snapshot no list ever
+		// showed (an orphan, resurrectable by guessing the id again).
+		writeText(w, http.StatusNotFound, "note not found")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))

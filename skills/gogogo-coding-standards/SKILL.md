@@ -38,7 +38,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | A `.templ` file, Datastar, SSE fragments | **Datastar (.templ)** + `references/datastar.md` |
 | Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
-| Proposing Zig (the native exception) | **Exception-to-go gate** + `references/exception-to-go.md` |
+| Proposing Zig (the native exception), or a NATIVE DESKTOP UI | **Exception-to-go gate** + `references/exception-to-go.md` (a native UI means `nanoui`) |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
 | stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
 
@@ -253,6 +253,7 @@ Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md`
 - Bans: "Zig is faster", manual memory, low-level, speculation, preference, avoiding a Go dep.
 - When vendoring: exactly 1 pinned skill matching the toolchain (`zig-0.16` or `0.17`), never floating latest.
 - **API truth is ZLS, never a skill.** No Zig-team skill exists; `zigcc/skills` is a community project. Confirm signatures with ZLS or the local std sources (`zig env`) before writing a call.
+- **A native UI written in Zig is [`justrach/nanoui`](https://github.com/justrach/nanoui)** — name it instead of re-deriving the choice. Native UI on the GPU (Metal, macOS) or the CPU rasterizer (Linux/Windows), optional system-webview pages with a generated typed TS client, headless `ui.Tester`. ~0.7 MB/app, zero deps, MIT. It is a SEPARATE binary (peer of `cmd/desktop` on Wails), never a Zig kernel behind a C ABI in `cmd/web`, and it does not waive the Go-baseline-or-profile rule. Pre-1.0: pin a release tag. Details: `references/exception-to-go.md` ("If the answer IS a UI").
 
 ## Enforcement (authoritative)
 
@@ -432,6 +433,7 @@ warnings print and exit 0.
 - "Write landing-page copy" (content, not Go)
 - "Design the pricing page CSS" (skin concern, see `docs/ui-skins.md`)
 - "Create a Zig kernel because it might be faster" (speculation — gate refuses without profile)
+- "Add Zig to cmd/web so it draws the UI" (wrong direction — a native UI is a separate nanoui binary, see the gate)
 - "Bump the marketing site Tailwind" (`site/` has its own stylesheet)
 
 ## References

@@ -9,6 +9,15 @@ import (
 	"context"
 )
 
+const deleteSnapshot = `-- name: DeleteSnapshot :exec
+DELETE FROM doc_snapshots WHERE doc_id = ?
+`
+
+func (q *Queries) DeleteSnapshot(ctx context.Context, docID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSnapshot, docID)
+	return err
+}
+
 const getSnapshot = `-- name: GetSnapshot :one
 SELECT doc_id, snapshot, updated FROM doc_snapshots WHERE doc_id = ?
 `

@@ -35,6 +35,52 @@ dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
 | No free-form expressions | comparisons + dotpaths only; no CEL/eval | closed `validOps` set in `dag/condition.go` |
 | No unbounded loops | every loop surface has a static ceiling | `checkLoopBounds`, planner bounds |
 
+## Behavior changes between the template's old pin and v0.0.30
+
+Verified against the module's `CHANGELOG.md`, not prose. Each one changes
+engine behavior under an UNCHANGED workflow def, which is why it is written
+down here rather than left to the reader of the release notes:
+
+- **`OutputSchema` is now enforced (0.0.30).** When a run completes, each
+  terminal step's output is validated against it; a mismatch fails the run
+  with the violation as the failing step's error plus a `workflow.failed`
+  event, and an unparseable schema is rejected at register time. A def that
+  carried an aspirational schema and produced loose output used to pass; it
+  now fails. Defs without a schema behave as before.
+- **A step is no longer stranded when the engine dies mid-dispatch
+  (0.0.30).** The dispatch save marks the step as not-yet-sent and a second
+  save clears it once the publish lands, so a redelivered event (or the
+  reconciler's pass) sends every step still marked. Cost: one extra snapshot
+  write per dispatch.
+- **Cron `backfill: true` now replays (0.0.28).** A missed fire replays once
+  per matching minute since the last run, oldest first, capped at 100 per
+  trigger. It used to be stored and ignored, so a restarted engine silently
+  skipped the window.
+- **Subject-trigger `debounce` now takes effect (0.0.28).** A burst inside
+  `period` starts ONE run with the last payload; `timeout` caps how long a
+  window extends. It used to be validated and ignored, so every message
+  started a run — a def relying on that accidental behavior now sees fewer,
+  later runs.
+- **`SetupAll` provisions `triggers`, `trigger_state`, `signals`,
+  `checkpoints`, `concurrency_runs` (0.0.28)** and `dagnats-engine` /
+  `dagnats-api` create them too, instead of depending on `dagnats serve`
+  having run first.
+- **KV buckets created outside `SetupAll` are no longer single-replica in a
+  cluster (0.0.28)**, and provisioning never LOWERS an existing stream's or
+  bucket's replica count (0.0.29) — a lower factor keeps the existing count
+  and logs a warning; reduce replicas with the `nats` CLI if you mean it.
+- **Replica factor comes from the cluster, not a guess (0.0.29).**
+  `dagnats-engine` and `dagnats-api` read
+  `DAGNATS_NATS_JETSTREAM_REPLICAS` like `dagnats serve` and derive it from
+  the cluster when unset; a booting cluster that refuses three replicas
+  fails startup naming that variable instead of silently falling back to one.
+- **A run whose pinned def was deleted can be cancelled (0.0.29).** It used
+  to fail with "pinned to workflow def version ... which no longer exists",
+  go to the dead-letter stream and stay `running`; it is now cancelled like
+  any other, releasing its tasks, waiters, locks and child runs.
+- **Malformed defs fail validation instead of panicking** at run start, and
+  an incomplete `cancel_on` entry is rejected upfront (0.0.28).
+
 ## Gotchas learned here (not upstream)
 
 - Per-step `config` is NOT delivered to workers (engine dispatch omits

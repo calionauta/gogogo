@@ -23,6 +23,30 @@ There is no Zig code and no Zig toolchain in this repo today. That is the succes
 - **Lifetime/leak gate (run, don't eyeball).** `alloc` immediately paired with `defer`/`errdefer free`, same allocator frees, no global allocator. Tests use `std.testing.allocator` or `DebugAllocator` asserting `deinit() == .ok`, plus error paths forced and a ~10k-call loop test. Paste `zig build test` (safety on) + `go test -race -count=1` green; `.leak` rejects the kernel.
 - Debug story: symbols across the boundary + Go-vs-Zig bisection documented in the package.
 
+## If the answer IS a UI: nanoui
+
+A native desktop UI written in Zig means
+[`justrach/nanoui`](https://github.com/justrach/nanoui) — desktop apps in
+Zig, native UI on the GPU (Metal on macOS) or the CPU rasterizer on
+Linux/Windows, plus an optional system-webview page with a generated typed
+TS client. Immediate-mode views, flexbox, glyph-atlas text, virtualized
+list, Liquid Glass, headless `ui.Tester`. ~0.7 MB per app, zero deps, MIT.
+
+Read that as a **separate binary**, not as permission to put Zig inside the
+Go product:
+
+| This is | This is NOT |
+|---|---|
+| A new `cmd/<shell>`-style target (peer of `cmd/desktop` on Wails) | A Zig kernel behind a C ABI in `cmd/web` |
+| A UI choice for a native shell | A reason to skip the Go baseline bench + profile |
+| Verified by `zig build run-gallery` / `zig build test` on a clone | Assumed from the README |
+
+Boundaries: web (Templ + Datastar) stays the first product surface; a native
+shell needs a concrete requirement. macOS has the most complete native path
+(Metal + CoreText; webview pages are macOS-only so far) — verify your target.
+Pre-1.0: pin a release tag (the way `WAILS_VERSION` pins `wails/v3`). See
+`docs/exception-to-go.md` ("If the answer IS a UI").
+
 ## Local-docs-first (when Zig exists)
 
 `zig env` for `.lib_dir`/`.std_dir`/`.version` — never hardcode paths. Check `<lib_dir>/../doc/langref.html` + `.std_dir` sources + `zig std` server before web search.

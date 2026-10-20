@@ -27,8 +27,14 @@ func TestNotesStreamSendsSessionEvent(t *testing.T) {
 	})
 }
 
-// TestNotesOpReportsAuthed pins both branches: authed ops report true,
-// anonymous ops still apply (warn-only) but report false.
+// TestNotesOpReportsAuthed pins the write contract: an authed op reports
+// authed=true, and an ANONYMOUS write is refused with 401 instead of
+// being applied. It used to be "warn-only" — the cookie-less client wrote
+// text into the doc and persisted a snapshot for it, which is a write by
+// an unauthenticated stranger, not a degraded UX. RBAC does not cover this
+// (RBAC_ENABLED is opt-in and defaults to false), so the handler owns it.
+// Red-proof: drop the session gate from handleOp and the 401 assertion
+// goes red while the text lands in the doc.
 func TestNotesOpReportsAuthed(t *testing.T) {
 	server, _, cookie := notesPortFixture(t)
 	client := notesAuthedClient(t, server, cookie)
@@ -40,15 +46,12 @@ func TestNotesOpReportsAuthed(t *testing.T) {
 	}
 
 	anon := &http.Client{}
-	code, anonOut, err := postOpRaw(anon, server, docID, "anonX", `{"base":1,"ops":[{"t":"ins","i":2,"s":"!"}]}`)
+	code, _, err := postOpRaw(anon, server, docID, "anonX", `{"base":1,"ops":[{"t":"ins","i":2,"s":"!"}]}`)
 	if err != nil {
 		t.Fatalf("anon op transport: %v", err)
 	}
-	if code != http.StatusOK {
-		t.Fatalf("anon op status = %d (warn-only must stay open)", code)
-	}
-	if authed, _ := anonOut["authed"].(bool); authed {
-		t.Fatal("anon op reports authed = true")
+	if code != http.StatusUnauthorized {
+		t.Fatalf("anon op status = %d, want 401 (anonymous writes are refused)", code)
 	}
 }
 
@@ -346,8 +349,11 @@ func TestNotesSameUserTwoTabsKeepDistinctCarets(t *testing.T) {
 }
 
 // TestNotesPresenceFallsBackToClientID pins the display-name contract's
-// other branch: without auth there is no email, so events carry the raw
-// clientID instead of an empty user.
+// other branch AND the presence auth rule: an anonymous caller is refused
+// (401) instead of painting a raw id on live peers. The fallback branch
+// itself lives in collab.DisplayName (empty email -> raw client id) and is
+// pinned by internal/collab's own tests; a session always carries an
+// email, so the handler cannot reach it any more.
 func TestNotesPresenceFallsBackToClientID(t *testing.T) {
 	server, _, cookie := notesPortFixture(t)
 	client := notesAuthedClient(t, server, cookie)
@@ -357,11 +363,13 @@ func TestNotesPresenceFallsBackToClientID(t *testing.T) {
 	settleStream(t, logB, "cliB")
 	defer closeB()
 
+	// The fallback name is only reachable by a SESSION whose user carries no
+	// email-equivalent — an anonymous caller is refused outright (401), so
+	// the raw-clientID branch must be driven by a signed-in tab that
+	// deliberately sends no display name.
 	anon := &http.Client{}
-	if code := postPresence(t, anon, server, docID, "anonX", "typing", `{"typing":true}`); code != http.StatusOK {
-		t.Fatalf("anon typing status = %d", code)
+	code := postPresence(t, anon, server, docID, "anonX", "typing", `{"typing":true}`)
+	if code != http.StatusUnauthorized {
+		t.Fatalf("anon typing status = %d, want 401 (presence is signed-in only)", code)
 	}
-	waitNoteEvent(t, logB, func(msg map[string]any) bool {
-		return msg["type"] == "typing" && msg["user"] == "anonX"
-	})
 }

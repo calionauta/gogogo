@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v3"
 
 	"github.com/calionauta/gogogo/internal/auth"
 )

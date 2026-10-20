@@ -103,6 +103,13 @@ func (h *Handler) relay(from, docID string, msg collab.PresenceMsg) error {
 
 func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
+	if sess == nil {
+		// Presence is ephemeral but it names who is in a doc and lets a
+		// stranger paint cursors on a live board. Signed-in only, same as
+		// the op path.
+		writeText(w, http.StatusUnauthorized, "sign in to share presence")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	if docID == "" {
 		writeText(w, http.StatusBadRequest, "missing doc id")
@@ -139,6 +146,13 @@ func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
+	if sess == nil {
+		// Presence is ephemeral but it names who is in a doc and lets a
+		// stranger paint cursors on a live board. Signed-in only, same as
+		// the op path.
+		writeText(w, http.StatusUnauthorized, "sign in to share presence")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	if docID == "" {
 		writeText(w, http.StatusBadRequest, "missing doc id")

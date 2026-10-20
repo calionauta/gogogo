@@ -47,22 +47,33 @@ the same tree).
 
 ## RBAC demo (viewer role)
 
-The Casbin demo needs no new page — it reuses Todo with a second role.
-`/config` shows your role and the enforcement posture (pass-through vs
-enforced) for whoever looks; the viewer contract below is what the
-enforcement proves:
+The Casbin demo needs no new page — it reuses the surfaces with two roles,
+and **the demo pair is already seeded with them**: `demo1` boots as
+`admin`, `demo2` as `viewer` (`internal/demo`, rewritten every boot). You
+do not need a third account or `VIEWER_EMAILS` to see enforcement.
 
-1. Sign up a third account (leave `demo1`/`demo2` full users — their job
-   is contention testing, which needs full CRUD).
-2. Set `RBAC_ENABLED=true` and `VIEWER_EMAILS=<that-address>`, reboot.
-3. Log in as the viewer: trash buttons render disabled with the reason,
-   clicking one raises the denial message, AI Suggest hides, and forced
-   deletes answer 403. Create and toggle keep working.
+`/config` shows your role and the posture (pass-through vs enforced);
+`RBAC_ENABLED` defaults to **false**, so enforcement only appears once it
+is set. Under enforcement the two roles show the contract:
 
-Viewers are todo-scoped by design (other features 403 by omission, not
-by listing). Promotion is existing-rows-only and never provisions;
-an address in both email lists ends `admin`. RBAC stays RBAC — there
-is no ABAC surface until a consumer needs attribute policies.
+| | demo1 (admin) | demo2 (viewer) |
+|---|---|---|
+| Todos | everything | read, create, toggle, delete-own |
+| Notes / whiteboards | open, **edit any**, delete any | open, **edit any**, delete **own only** |
+| AI Suggest, `/config`, `/console` | yes | 403 |
+
+The middle row is why the collab demo exists: sharing means *editing* is
+open to every login (that is what proves live collaboration from two
+browsers), while *deleting is the row's author or an admin*. A viewer is
+refused a foreign delete with 403 and keeps the edit right. That rule is
+`canDeleteDoc` in each feature's handler, not in this policy — the policy
+grants the verb class, the handler decides the row.
+
+Outside those three surfaces a viewer is denied by omission, not by
+listing: the todo surface and shared docs are enumerated in
+`casbin/policy.csv`, everything else 403s. Promotion via
+`ADMIN_EMAILS`/`VIEWER_EMAILS` is existing-rows-only and never
+provisions; an address in both lists ends `admin`.
 
 ## Try it live
 

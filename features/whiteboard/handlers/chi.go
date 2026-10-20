@@ -49,6 +49,11 @@ type Handler struct {
 	cfg    *config.Config
 	worker *collab.WebSyncWorker
 	peers  *collab.PeerSet
+
+	// registry answers "does this doc id have a metadata row?". Nil means
+	// the production rule (the boards table). Only a transport fixture sets
+	// it — see permissions.go.
+	registry docRegistry
 }
 
 // NewHandler builds the chi whiteboard handler. docs is the shared DocStore
@@ -78,6 +83,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Get("/api/whiteboard/{docID}/stream", h.handleStream)
 	r.Post("/api/whiteboard/{docID}/update", h.handleUpdate)
 	r.Post("/api/whiteboard/{docID}/presence", h.handlePresence)
+	r.Post("/api/whiteboard/{docID}/delete", h.handleDelete)
 	r.Get("/api/whiteboard/{docID}/snapshot", h.handleSnapshot)
 	return r
 }
@@ -107,18 +113,34 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// listBoards returns the owner's boards, newest first. Owner-scoped by
-// design: an empty owner lists nothing (never every tenant's boards).
-func (h *Handler) listBoards(ctx context.Context, owner string) ([]components.BoardMeta, error) {
-	rows, err := h.q.ListBoardsByOwner(ctx, owner)
+// listBoards returns every shared board, newest first, stamped with the
+// author and the caller's delete right. The listing is NOT owner-scoped
+// any more: the index is shared by design, and seeing a board you cannot
+// delete is the point of the demo (edit yes, delete no).
+func (h *Handler) listBoards(ctx context.Context, requester, role string) ([]components.BoardMeta, error) {
+	rows, err := h.q.ListBoards(ctx)
 	if err != nil {
 		return nil, err
 	}
 	boards := make([]components.BoardMeta, 0, len(rows))
 	for _, row := range rows {
-		boards = append(boards, components.BoardMeta{DocID: row.DocID, DocVer: int(row.Version)})
+		boards = append(boards, boardMeta(row, requester, role))
 	}
 	return boards, nil
+}
+
+// boardMeta stamps one list row: the identity fields the page renders plus
+// the delete right the caller has (single home: canDeleteDoc). Both the
+// index and the fragment go through it, so a row can never be listed with
+// a right the other path would not grant.
+func boardMeta(row dbgen.ListBoardsRow, requester, role string) components.BoardMeta {
+	return components.BoardMeta{
+		DocID:     row.DocID,
+		DocVer:    int(row.Version),
+		Author:    row.OwnerEmail,
+		IsMine:    requester != "" && row.Owner == requester,
+		CanDelete: canDeleteDoc(role, requester, row.Owner),
+	}
 }
 
 func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -127,11 +149,11 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	boards, err := h.listBoards(r.Context(), sess.User.ID)
+	boards, err := h.listBoards(r.Context(), sess.User.ID, sess.Role)
 	if err != nil {
 		// Not an empty list: a failed query would render as "no boards",
 		// indistinguishable from the truth and invisible to the operator.
-		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "owner", sess.User.ID, "error", err)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "user", sess.User.ID, "error", err)
 		observability.Error(r.Context(), "whiteboard: list boards failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing boards")
 		return
@@ -165,11 +187,11 @@ func (h *Handler) handleListFragment(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	boards, err := h.listBoards(r.Context(), sess.User.ID)
+	boards, err := h.listBoards(r.Context(), sess.User.ID, sess.Role)
 	if err != nil {
 		// Same contract as the index handler: an empty fragment is a lie the
 		// user cannot detect and the operator cannot diagnose.
-		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "owner", sess.User.ID, "error", err)
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "user", sess.User.ID, "error", err)
 		observability.Error(r.Context(), "whiteboard: list fragment failed", obsArgs...)
 		writeText(w, http.StatusInternalServerError, "error listing boards")
 		return
@@ -192,17 +214,106 @@ func (h *Handler) handleBoard(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "missing doc id")
 		return
 	}
+	// Opening a board id nobody created yet REGISTERS it to this visitor (they
+	// become the author): a shared link, a fresh id, both tabs. The write path
+	// then requires the row, so an unregistered id cannot take a write.
+	if !h.claimDoc(r.Context(), docID, sess.User.ID) {
+		writeText(w, http.StatusInternalServerError, "open board")
+		return
+	}
 	if snap, ok := h.worker.LoadSnapshot(docID); ok {
 		slog.Info("whiteboard: rehydrated doc", "doc", docID, "bytes", len(snap))
 	}
+	meta := h.docMeta(r.Context(), docID, sess.User.ID)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.Board(sess.User.Email, sess.Role, docID,
+	_ = components.Board(sess.User.Email, sess.Role, meta,
 		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled).Render(r.Context(), w)
+}
+
+// docMeta assembles the row the page and the index both render: the doc id
+// plus who started it and whether the caller may delete it.
+//
+// A board with no metadata row (a hand-typed id, or a row deleted while its
+// URL was open) renders as authorless and undeletable: the page still
+// works, it just cannot claim an author or a right it does not have.
+func (h *Handler) docMeta(ctx context.Context, docID, requester string) components.BoardMeta {
+	meta := components.BoardMeta{DocID: docID}
+	row, err := h.q.GetBoardMeta(ctx, docID)
+	if err != nil {
+		return meta
+	}
+	meta.Author = row.OwnerEmail
+	meta.IsMine = requester != "" && row.Owner == requester
+	return meta
+}
+
+// handleDelete removes a board the requester authored (or administers):
+// metadata row first, then the resolved snapshot and the cached doc, so a
+// half-failure leaves a board that is listable and still openable rather
+// than one that rehydrates after its index row is gone.
+//
+// The response is the re-rendered list fragment (Datastar outer patch on
+// #whiteboard-list), so the deleting tab and its peers converge on the
+// same list without a reload; peers still holding the board open keep
+// their own copy until they reload, which is the honest state of a
+// deleted board.
+func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	docID := chi.URLParam(r, "docID")
+	if docID == "" {
+		writeText(w, http.StatusBadRequest, "missing doc id")
+		return
+	}
+	meta, err := h.q.GetBoardMeta(r.Context(), docID)
+	if err != nil {
+		writeText(w, http.StatusNotFound, "board not found")
+		return
+	}
+	if !canDeleteDoc(sess.Role, sess.User.ID, meta.Owner) {
+		writeText(w, http.StatusForbidden, "only the author or an admin can delete this board")
+		return
+	}
+	if derr := h.q.DeleteBoard(r.Context(), docID); derr != nil {
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", derr)
+		observability.Error(r.Context(), "whiteboard: delete board failed", obsArgs...)
+		writeText(w, http.StatusInternalServerError, "delete failed")
+		return
+	}
+	if ferr := h.worker.Forget(docID); ferr != nil {
+		// The row is gone, so the board is deleted as far as every list and
+		// reader is concerned; a leftover snapshot is garbage, not a visible
+		// bug. Log it loudly rather than failing a delete that did happen.
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", ferr)
+		observability.Warn(r.Context(), "whiteboard: forget doc snapshot failed", obsArgs...)
+	}
+	boards, lerr := h.listBoards(r.Context(), sess.User.ID, sess.Role)
+	if lerr != nil {
+		obsArgs := append(observability.WithComponent("whiteboard", "feature"), "doc", docID, "error", lerr)
+		observability.Error(r.Context(), "whiteboard: list after delete failed", obsArgs...)
+		writeText(w, http.StatusInternalServerError, "error listing boards")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("datastar-selector", "#whiteboard-list")
+	w.Header().Set("datastar-mode", "outer")
+	w.WriteHeader(http.StatusOK)
+	_ = components.WhiteboardListFragment(boards).Render(r.Context(), w)
 }
 
 func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
+	if sess == nil {
+		// The stream carries the board body (shapes + peers). Shared means
+		// every signed-in user reads it, never an anonymous tab; 401 stops
+		// EventSource from reconnecting in a loop.
+		writeText(w, http.StatusUnauthorized, "sign in to read")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	clientID := r.URL.Query().Get("clientID")
 	if clientID == "" {
@@ -255,9 +366,23 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request) {
+	if h.session(r) == nil {
+		// Writes are never anonymous. RBAC gates this path too, but it is
+		// opt-in (RBAC_ENABLED defaults to false), so the handler must hold
+		// on its own: without this a cookie-less client drew into any board
+		// id it could guess. 401 is what the shared session banner reads.
+		writeText(w, http.StatusUnauthorized, "sign in to draw")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	if docID == "" {
 		writeText(w, http.StatusBadRequest, "missing doc id")
+		return
+	}
+	if !h.registeredDoc(r.Context(), docID) {
+		// The board must exist in the index before its body changes; without
+		// this an invented id persisted shapes no list ever showed.
+		writeText(w, http.StatusNotFound, "board not found")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
@@ -298,6 +423,10 @@ func (h *Handler) handleUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handlePresence(w http.ResponseWriter, r *http.Request) {
+	if h.session(r) == nil {
+		writeText(w, http.StatusUnauthorized, "sign in to share presence")
+		return
+	}
 	sess := h.session(r)
 	docID := chi.URLParam(r, "docID")
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
@@ -336,6 +465,12 @@ func (h *Handler) handlePresence(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleSnapshot(w http.ResponseWriter, r *http.Request) {
+	if h.session(r) == nil {
+		// The snapshot IS the board body. Shared means every signed-in user
+		// reads it, never that an anonymous client does.
+		writeText(w, http.StatusUnauthorized, "sign in to read")
+		return
+	}
 	docID := chi.URLParam(r, "docID")
 	writeJSON(w, http.StatusOK, h.worker.Shapes(docID))
 }

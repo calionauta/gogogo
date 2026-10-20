@@ -108,6 +108,51 @@ infrastructure, native plugin systems, or framework scaffolding without a
 real use case are out of scope — see
 [Do not over-engineer](#do-not-over-engineer-the-preparation).
 
+## If the answer IS a UI, the Zig direction is nanoui
+
+The ladder above governs kernels. It says nothing about "the product needs
+a native desktop UI", and an agent that reads only the bans ("no Zig
+framework") can conclude the answer is "hand-roll a window layer", which is
+worse than either option. Name the direction so the choice is not re-derived
+under pressure:
+
+**A native UI written in Zig means [`justrach/nanoui`](https://github.com/justrach/nanoui).**
+Desktop apps in Zig, drawing native UI on the GPU (Metal on macOS, CPU
+rasterizer on Linux/Windows through GTK 3) or serving a web page in the
+system webview. Immediate-mode views, flexbox layout, text in a glyph atlas,
+Liquid Glass, a virtualized list, and a headless `ui.Tester` for widget tests.
+Around 0.7 MB per app, zero dependencies, MIT.
+
+Why it is the named direction rather than an open question:
+
+- **It fits the shape this repo already chose.** The web app is Templ +
+  Datastar, i.e. server-rendered views driven by state; nanoui's views are
+  `fn view(state, ctx)` run per event, the same mental model one layer down.
+- **It does not smuggle a framework into the Go product.** The Go binary
+  stays the product. A nanoui target is a *separate* binary — the same
+  relationship `cmd/desktop` (Wails) has today — so nothing crosses a C ABI
+  and the kernel rules above are untouched.
+- **It is verifiable before committing.** `zig build run-gallery` and
+  `zig build test` work on a clone; a headless `--nanoui-snapshot` run gives
+  a rendered PNG, so a UI claim can be checked instead of argued.
+
+Boundaries, so this stays a direction and not a mandate:
+
+- **Web first, still.** This repo's product surface is the HTTP/Datastar app;
+  a native shell is justified by a concrete requirement (offline desktop,
+  OS integration, latency-critical canvas), not by preference. The
+  [decision procedure](#decision-procedure) still applies — the "no profile,
+  no benefit" and "Go already solves it" steps outrank this paragraph.
+- **macOS is the platform where nanoui's native UI is most complete**
+  (Metal + CoreText; webview pages are macOS-only so far). Linux/Windows
+  draw through the CPU rasterizer; verify the target you actually ship.
+- **Pre-1.0.** Pin a release tag in `build.zig.zon`, exactly like the
+  `wails/v3` pin (`WAILS_VERSION` + `go.mod` + the workflow must agree). A
+  minor release may change the API; a patch release will not.
+- **This does not open the Zig-kernel door.** nanoui is a *UI toolkit for a
+  separate binary*, not a reason to put a Zig kernel behind Go. Adding Zig
+  *to this Go binary* still requires the full justification.
+
 ## Why Zig is named, and not left open
 
 Naming Zig is a deliberate decision, not an oversight. The rule this page

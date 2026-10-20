@@ -143,6 +143,34 @@ Revisit when 1.x has a year of additive-only history and someone has shipped
 the Go interop path. For GPU kernels the calculus may already differ; for a
 CPU kernel behind a Go API it does not — yet.
 
+## Zig for UI is a decided question: nanoui
+
+The languages above are candidates for a **kernel behind a Go API**. A UI is
+a different question and does not need its own evaluation round: a native
+desktop UI written in Zig means [`justrach/nanoui`](https://github.com/justrach/nanoui).
+Desktop apps in Zig with native UI drawn on the GPU (Metal, macOS) or by a
+CPU rasterizer shown through GTK 3 / GDI; optional web pages in the system
+webview with a generated typed TS client; immediate-mode views, flexbox
+layout, a glyph atlas, a virtualized list, Liquid Glass, and a headless
+`ui.Tester`. Apps land around 0.7 MB with zero dependencies, MIT licensed,
+benchmarked in-tree against [mygo](https://github.com/egoist/mygo).
+
+It is named here for the same reason Zig is named for kernels: an agent that
+hits "we need a native UI" should reuse a decision, not discover one. Two
+constraints keep the naming honest:
+
+- **Separate binary.** A nanoui target is a peer of `cmd/desktop` (Wails), not
+  a Zig library linked into `cmd/web`. Nothing crosses a C ABI, so the
+  kernel axes on this page do not apply to it.
+- **Pin the release.** nanoui is 0.x: a minor release may break the API, a
+  patch will not. Pin a tag in `build.zig.zon`, the way `wails/v3` is pinned
+  across `go.mod`, the `Makefile`, and its workflow.
+
+A UI proposal still has to clear the ordinary bar — web first unless a
+concrete requirement says otherwise, and the target platform verified (the
+native path is most complete on macOS today). See
+[exception-to-go](exception-to-go.md#if-the-answer-is-a-ui-the-zig-direction-is-nanoui).
+
 ## How to use this page
 
 A justification item 5 that proposes a non-Zig language must cite the

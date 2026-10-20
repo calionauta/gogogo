@@ -1,7 +1,7 @@
 // SCOPE:feature — HTTP notes contract tests (red-proof).
 //
 // Real Turso file, real auth, real Loro DocStore, driven over HTTP.
-// Contracts: paths, statuses, redirects, owner isolation, op apply with
+// Contracts: paths, statuses, redirects, shared listing, op apply with
 // revision tracking, stale-base 409, typing/caret relay validation.
 package handlers
 
@@ -132,14 +132,20 @@ func TestHandlersNotesCreateOpAndRev(t *testing.T) {
 		t.Fatalf("stale op status = %d, want 409", staleRec.Code)
 	}
 
-	// Owner isolation on the list.
+	// The list is SHARED: another login sees the note and its author. This
+	// used to assert the opposite (owner-scoped lists), which is the
+	// behaviour the collab demo replaced — a second browser must find the
+	// doc without a copied URL.
 	other := notesSignup(t, mux, "other@example.com")
 	otherFrag := httptest.NewRecorder()
 	otherReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/notes/fragment", nil)
 	otherReq.AddCookie(other)
 	mux.ServeHTTP(otherFrag, otherReq)
-	if strings.Contains(otherFrag.Body.String(), docID) {
-		t.Fatal("other user's fragment leaks the note")
+	if !strings.Contains(otherFrag.Body.String(), docID) {
+		t.Fatal("shared index must list another user's note")
+	}
+	if !strings.Contains(otherFrag.Body.String(), "by notes@example.com") {
+		t.Fatal("shared index must name the note's author")
 	}
 }
 

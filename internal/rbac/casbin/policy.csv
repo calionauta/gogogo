@@ -17,8 +17,25 @@
 # VIEWER_EMAILS) is the RBAC demo: read + create + toggle on todos, plus
 # delete-own (a viewer restriction applies to shared rows, never to your
 # own private todos — ownership is enforced per-record in the handler).
+#
+# Collaborative docs are the second viewer surface, and the one that shows
+# the split plainly: notes and whiteboards are SHARED, so a viewer opens
+# and EDITS any of them (that is what makes the demo prove collab from two
+# browsers), while deleting is author-or-admin only — row ownership lives
+# in each feature's handler (canDeleteDoc), never in this policy.
+#
+# Those viewer rows are wildcards, and that is deliberate rather than
+# sloppy: a shared doc means the doc id is unknowable in advance, so
+# enumeration is impossible. The blast radius is held by the MIDDLEWARE,
+# not by the pattern: Casbin's keyMatch2 lets `*` cross `/`, so
+# /api/notes/* already covers the one destructive verb on that subtree
+# (/api/notes/{docID}/delete) and every verb added beside it. Prose in a
+# pattern cannot make a new verb a 403 — canDeleteDoc on the row is the
+# guard, and it is per-doc, not per-pattern. Widening these to a NEW
+# subtree is what must stay deliberate (the shape test's allowlist).
+#
 # Nothing else destructive, nothing paid. Unlisted paths deny it like any
-# non-admin — the viewer sees only the todo surface by design.
+# non-admin.
 p, admin, /*, .*
 # This is a STARTING POINT: tune it for your app before enabling RBAC in
 # production (RBAC_ENABLED=true). The admin-only surface is /config (env
@@ -26,6 +43,14 @@ p, admin, /*, .*
 p, anonymous, /static/*, (GET|HEAD)
 p, anonymous, /sw.js, GET
 p, anonymous, /health, GET
+# The SSE open-verification probe (web/resources/static/sse-open.js).
+# Public on purpose and by contract: it answers one boolean for an opaque
+# per-tab id and leaks nothing without one (see
+# internal/server/stream_status.go). It must stay reachable for EVERY
+# subject — a tab polls it before, during and after sign-in, and a 403
+# makes sse-open.js treat a healthy stream as dead and rethrow loudly.
+# RBAC_ENABLED=true without this row breaks every realtime surface.
+p, anonymous, /api/stream/status, GET
 p, anonymous, /login, (GET|POST)
 p, anonymous, /logout, (GET|POST)
 p, anonymous, /, GET
@@ -41,7 +66,7 @@ p, user, /whiteboard, .*
 p, user, /whiteboard/*, .*
 p, user, /api/whiteboard, .*
 p, user, /api/whiteboard/*, .*
-p, user, /api/whiteboards/*, .*
+p, user, /api/whiteboards/fragment, .*
 p, user, /notes, .*
 p, user, /notes/*, .*
 p, user, /api/notes, .*
@@ -70,6 +95,7 @@ p, user, /api/session, GET
 p, user, /static/*, (GET|HEAD)
 p, user, /sw.js, GET
 p, user, /health, GET
+p, user, /api/stream/status, GET
 p, user, /, GET
 p, user, /api/auth/*, .*
 p, viewer, /todo, .*
@@ -82,10 +108,18 @@ p, viewer, /api/todos/stream, .*
 p, viewer, /api/todos/*/toggle, .*
 p, viewer, /api/todos/*/delete, POST
 p, viewer, /api/todos/*/confirm-delete, GET
+p, viewer, /whiteboard, .*
+p, viewer, /whiteboard/*, .*
+p, viewer, /api/whiteboard/*, .*
+p, viewer, /api/whiteboards/fragment, .*
+p, viewer, /notes, .*
+p, viewer, /notes/*, .*
+p, viewer, /api/notes/*, .*
 p, viewer, /api/session, GET
 p, viewer, /static/*, (GET|HEAD)
 p, viewer, /sw.js, GET
 p, viewer, /health, GET
+p, viewer, /api/stream/status, GET
 p, viewer, /, GET
 p, viewer, /api/auth/*, .*
 p, admin, /config, .*

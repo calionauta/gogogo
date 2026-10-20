@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/casbin/casbin/v2"
-	"github.com/casbin/casbin/v2/model"
-	"github.com/casbin/casbin/v2/persist"
+	"github.com/casbin/casbin/v3"
+	"github.com/casbin/casbin/v3/model"
+	"github.com/casbin/casbin/v3/persist"
 )
 
 //go:embed casbin/model.conf
@@ -67,6 +67,9 @@ func loadEmbeddedPolicy(m model.Model) error {
 // The dynamic matcher functions (pathMatch, attrOK) are registered here,
 // so every enforcer enforces the same model.
 func NewEnforcer() (*casbin.Enforcer, error) {
+	if err := ValidatePolicyObjects(policyCSV); err != nil {
+		return nil, err
+	}
 	m, err := newModel()
 	if err != nil {
 		return nil, err
@@ -80,12 +83,31 @@ func NewEnforcer() (*casbin.Enforcer, error) {
 // NewEnforcerWithAdapter builds the enforcer from a persist.Adapter — the
 // DB-backed policy source (internal/rbac/adapter.go). Same model, same
 // dynamic functions; only the rule source differs.
+//
+// The DB is an editable privilege surface, so the loaded rules go through
+// the same object validation the embedded policy does: a row written by
+// hand (or by a stale migration) must not load a pattern nobody meant.
 func NewEnforcerWithAdapter(ad persist.Adapter) (*casbin.Enforcer, error) {
 	m, err := newModel()
 	if err != nil {
 		return nil, err
 	}
-	return finishEnforcer(m, ad)
+	e, err := finishEnforcer(m, ad)
+	if err != nil {
+		return nil, err
+	}
+	rules, err := e.GetPolicy()
+	if err != nil {
+		return nil, fmt.Errorf("rbac: read loaded policy: %w", err)
+	}
+	var sb strings.Builder
+	for _, r := range rules {
+		sb.WriteString("p, " + strings.Join(r, ", ") + "\n")
+	}
+	if err := ValidatePolicyObjects(sb.String()); err != nil {
+		return nil, fmt.Errorf("rbac: db policy: %w", err)
+	}
+	return e, nil
 }
 
 // finishEnforcer builds the enforcer (optionally with an adapter that
