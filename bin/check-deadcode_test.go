@@ -20,16 +20,15 @@ import (
 // environment, so no host measurement is involved and the assertions are
 // about behaviour, not about this machine.
 
-// requireDeadcode skips when the tool is absent. The guard tests exist to pin
-// the CAPACITY decision, and the script short-circuits on a missing binary
-// before that decision — so without this skip every case fails on a runner
-// that has no deadcode installed (which is exactly what CI did first).
-// The skip is honest, not a dodge: pre-push never runs the scan without the
-// binary either, and the "no deadcode" message is asserted below.
+// requireDeadcode skips when the tool cannot be resolved. It is pinned by the
+// tool directive in go.mod, so `go tool -n deadcode` succeeds on any checkout
+// that has run `go mod download` — including CI. The skip stays for a cold or
+// offline module cache, where the capacity gate is genuinely unreachable.
 func requireDeadcode(t *testing.T) {
 	t.Helper()
-	if _, err := exec.LookPath("deadcode"); err != nil {
-		t.Skip("deadcode not installed; the capacity gate is unreachable without it")
+	cmd := exec.CommandContext(t.Context(), "go", "tool", "-n", "deadcode")
+	if out, err := cmd.Output(); err != nil || len(out) == 0 {
+		t.Skip("deadcode not resolvable via 'go tool'; run go mod download")
 	}
 }
 
@@ -128,18 +127,16 @@ func TestDeadcodeGuardAloneNeverFails(t *testing.T) {
 	}
 }
 
-// TestDeadcodeGuardMissingBinaryIsNotAFailure pins the branch CI actually
-// takes. It runs with PATH stripped of the tool, so it holds on every runner
-// (including the ones that skip the capacity tests above) and fails if the
-// script ever turns "not installed" into a red push.
-func TestDeadcodeGuardMissingBinaryIsNotAFailure(t *testing.T) {
-	// DEADCODE_BIN pins the binary, so the branch is drivable whether or not
-	// this machine has the tool: a path that cannot be executed.
-	out, code := runScript(t, "DEADCODE_BIN="+filepath.Join(t.TempDir(), "no-such-deadcode"))
+// TestDeadcodeGuardUnavailableToolIsNotAFailure pins the branch a host takes
+// when `go tool` cannot resolve the pinned tool (cold module cache, offline).
+// A PATH without `go` reproduces that without touching the real cache, and the
+// case runs on every runner whether or not the tool is present.
+func TestDeadcodeGuardUnavailableToolIsNotAFailure(t *testing.T) {
+	out, code := runScript(t, "PATH="+t.TempDir())
 	if code != 0 {
-		t.Fatalf("exit = %d, want 0 (a missing advisory tool must never block a push)\n%s", code, out)
+		t.Fatalf("exit = %d, want 0 (an unavailable advisory tool must never block a push)\n%s", code, out)
 	}
 	if !strings.Contains(out, "skipping") {
-		t.Errorf("expected a skip message naming the missing tool, got:\n%s", out)
+		t.Errorf("expected a skip message, got:\n%s", out)
 	}
 }
