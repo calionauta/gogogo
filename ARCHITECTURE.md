@@ -162,6 +162,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
 - **NATS JetStream** (Plugin 🟡): cross-instance event bus. Used by:
   - Whiteboard sync — shapes published directly via `WebSyncWorker.nc.Publish()` to subject `app.sync.<docID>` (bypasses SSE Hub entirely)
   - DagNats — workflow engine uses JetStream for durable state
+  - Ephemeral hub signals — `SSEHub.AttachEphemeral` bridges `Send`/`Broadcast` (chat/genui answers, progress, toasts) on `app.ephemeral` (core NATS, best-effort); record and doc fan-out stay on their own wires
   - Desktop Leaf Node — optional edge sync
   - Todos — one fact published through `features/todo/bus.go`: the SSE hub locally and the APP_CRUD stream for other instances (one durable per instance, origin-tagged so an instance ignores its own echo).
 - **DagNats** (Plugin 🟡): durable multi-step workflows as declarative JSON. Uses NATS JetStream for state.

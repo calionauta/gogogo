@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	natsio "github.com/nats-io/nats.go"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/calionauta/gogogo/config"
@@ -66,7 +67,11 @@ func main() {
 	// (Leaf Node or standalone); nil falls back to in-process SSE.
 	// StartChi returns a nil stop with a nil error only when ChiAddr is
 	// empty, which cannot happen here.
-	stopChi, err := server.StartChi(cfg, js)
+	var nc *natsio.Conn
+	if nat != nil {
+		nc = nat.Conn
+	}
+	stopChi, err := server.StartChi(cfg, nc, js)
 	if err != nil {
 		slog.Error("boot failed", "error", err)
 		os.Exit(1)

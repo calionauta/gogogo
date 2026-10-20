@@ -16,7 +16,8 @@ goqite       → background jobs + SSE Hub delivery (always on)
 dagnats      → durable multi-step workflows as JSON (opt-out: DAGNATS_ENABLED=false)
 Loro CRDT    → collaborative docs with offline merges (remove internal/collab/)
 SSE record   → record-change push, visibility-scoped (always on)
-SSE ephemeral→ UI signals via Datastar protocol (always on, part of queue)
+SSE ephemeral→ UI signals via Datastar protocol (always on; core-NATS bridge
+               for cross-instance when enabled)
 JetStream    → multi-instance broadcast + cross-instance state (opt-out: NATS_ENABLED=false)
 GoAkt grains → one addressable owner per room: roster, locks, supervision (opt-out: GOAKT_ENABLED=false)
 ```
@@ -38,7 +39,7 @@ persistence — one knob would conflate both. Pick by traffic type:
 | Traffic | Mechanism | Default | Switch / fallback | Notes |
 |---|---|---|---|---|
 | Record mutations (CRUD) | SSE Hub record event + fragment re-fetch | always on | none (Hub-native; scoping comes from the owner + visibility columns) | the todo list resyncs its fragment on it; the notes/whiteboard INDEXES have no stream and refetch on load + tab visibility (`ListResync`), so a doc created in another tab appears when that tab is focused again (their per-doc streams carry the text/shapes themselves) |
-| Ephemeral signals (toasts, progress, presence) | SSE Hub (Datastar SSE) | always on | in-process only; no cross-instance without JetStream | `BroadcastExcept` excludes the originator |
+| Ephemeral signals (chat/genui answers, toasts, workflow progress) | SSE Hub (Datastar SSE) + core-NATS bridge | always on; bridge on with NATS | NATS off → in-process only; a failed publish falls back to local delivery | only `Send`/`Broadcast` ride `app.ephemeral`; record and doc fan-out keep their own wires so nothing is delivered twice. Best-effort (core NATS, no replay) |
 | Cross-instance broadcast + CRUD proxy | NATS JetStream | on | `NATS_ENABLED=false` → in-memory hub; whiteboard/notes ops go SSE-only single-instance | `realtimeLabel()` surfaces the active transport in the UI |
 | Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | workers no-op when NATS is down | snapshots persist to Turso tables |
 | AI streams (tokens, run framing) | SSE Hub + AG-UI envelope | on with llm | unset `GOAI_API_KEY` hides the UI; envelope in `features/genui/` | byte-compatible with AG-UI clients, no new transport |
@@ -107,6 +108,16 @@ When JetStream is enabled (default: on):
   fact out to the hub, the wire, and any in-process subscriber (a native
   window). Handlers call it once; no mutation can reach one transport and
   miss the other.
+- The **ephemeral bridge** (`internal/queue/ssehub_ephemeral.go`) carries the
+  hub's `Send`/`Broadcast` signals — a chat answer produced on one instance
+  but consumed on another, onboarding progress, suggest/retry toasts — over
+  core NATS on `app.ephemeral`. Producers publish once; every instance,
+  including the publisher's, delivers through its local hub (one path, so no
+  origin tag is needed). It is deliberately limited to those two methods:
+  record events and doc updates already have wires of their own. A publish
+  failure falls back to local delivery so this instance's tabs never lose a
+  signal; core NATS is best-effort, so a down instance can miss one (the same
+  trade-off as any ephemeral channel).
 
 The stream is safe to enable on a single instance — it simply carries no
 cross-instance traffic.
@@ -206,6 +217,7 @@ rebuild from connections.
 | `data/app.db` (Turso app truth) | relational, kept | `scripts/backup.sh` (`.backup` + integrity check) |
 | `data/queue.db` (jobs) | jobs until acked + retried | same script, same check |
 | APP_CRUD stream (transport buffer) | 7d + 512MB cap (the database is the truth; replaying older would resurrect applied mutations) | same as above |
+| `app.ephemeral` (core NATS, not JetStream) | none — best-effort, losable by design | not backed up |
 | DagNats streams/KV (upstream) | engine-owned; 10 GiB store cap + 30d DLQ | same as above |
 | Browser outbox (IndexedDB) | device-local, drains on reconnect | not backed up (client state) |
 | Grain roster (GoAkt) | in-memory soft state, connection-rebuilt | not backed up (rebuilt, by design) |

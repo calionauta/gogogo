@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"time"
 
+	natsio "github.com/nats-io/nats.go"
+
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
@@ -302,6 +304,14 @@ func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
 	startCrudConsumer(ctx, js, s.appName, s.TodoHandler)
 }
 
+// AttachEphemeral bridges the hub's ephemeral signals (chat/genui answers,
+// onboarding progress, suggest/retry toasts) across instances over core NATS.
+// Nil (NATS off) leaves the hub in-process; record and collab fan-out keep
+// their own wires. Call once, after Boot.
+func (s *ChiStack) AttachEphemeral(nc *natsio.Conn) error {
+	return s.hub.AttachEphemeral(nc)
+}
+
 // Serve binds addr and serves the stack; the returned func stops it
 // (consumer cancelled, HTTP drained, shutdown hooks, DB closed). The
 // listener binds synchronously so a taken port fails at the call site.
@@ -322,7 +332,7 @@ func (s *ChiStack) Serve(addr string) (func(), error) {
 // nil error means "seam disabled" (no ChiAddr), so a stock env never
 // changes behaviour. cmd/web uses Boot/Attach/Serve directly: its
 // DagNats engine owns the NATS and must boot first.
-func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error) {
+func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop func(), err error) {
 	if cfg.ChiAddr == "" {
 		return nil, nil
 	}
@@ -331,6 +341,9 @@ func StartChi(cfg *config.Config, js nats.JetStreamLike) (stop func(), err error
 		return nil, err
 	}
 	stack.AttachJetStream(context.Background(), js)
+	if aerr := stack.AttachEphemeral(nc); aerr != nil {
+		slog.Warn("server: ephemeral bridge not attached", "error", aerr)
+	}
 	return stack.Serve(cfg.ChiAddr)
 }
 

@@ -37,7 +37,7 @@ import (
 func TestStartChiDisabled(t *testing.T) {
 	cfg := config.Load()
 	cfg.ChiAddr = ""
-	stop, err := StartChi(cfg, nil)
+	stop, err := StartChi(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("disabled StartChi err = %v, want nil", err)
 	}
@@ -55,7 +55,7 @@ func TestStartChiBoot(t *testing.T) {
 	cfg.Dev = true
 	cfg.Turso.DBPath = t.TempDir() + "/boot.db"
 
-	stop, err := StartChi(cfg, nil)
+	stop, err := StartChi(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("StartChi err = %v", err)
 	}
