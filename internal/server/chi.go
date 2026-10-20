@@ -305,7 +305,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 // StartChi passes Background) — the stack holds no context of its own.
 func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
 	s.TodoHandler.SetPublisher(natswire.NewCrudPublisher(js, instance.ID()))
-	startCrudConsumer(ctx, js, s.appName, s.TodoHandler, s.hub)
+	startCrudConsumer(ctx, js, s.appName, s.TodoHandler)
 }
 
 // Serve binds addr and serves the stack; the returned func stops it

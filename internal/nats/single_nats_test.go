@@ -8,10 +8,10 @@ import (
 )
 
 // TestConnectExisting_SingleNATS proves the single-NATS convention: when
-// DagNats owns an embedded NATS, the realtime broadcaster connects to that
-// existing server (via ConnectExisting) instead of starting a second one. A
-// published update must round-trip through the shared JetStream, confirming
-// the broadcaster and DagNats share one NATS.
+// DagNats owns an embedded NATS, the app connects to that existing server
+// (via ConnectExisting) instead of starting a second one. A published update
+// must round-trip through the shared JetStream, confirming both share one
+// NATS.
 //
 // Ports are EPHEMERAL (HTTP `:0`, NATS `-1`): a fixed HTTP port here used to
 // collide with the same 18099 in features/todo/handlers under `-p N`, which is
@@ -40,9 +40,9 @@ func TestConnectExisting_SingleNATS(t *testing.T) {
 	}
 	JS := h.JS
 
-	// The broadcaster's stream setup must succeed on the shared JetStream
-	// (no "no responders" — the engine's JetStream is the same instance).
-	const stream = "TODOS_SINGLE_NATS_TEST"
+	// The app's stream setup must succeed on the shared JetStream (no "no
+	// responders" — the engine's JetStream is the same instance).
+	const stream = "SHARED_NATS_TEST"
 	if streamErr := EnsureStream(stream, []string{"todo.single.>"}); streamErr != nil {
 		t.Fatalf("EnsureStream on shared NATS failed: %v", streamErr)
 	}
@@ -53,8 +53,8 @@ func TestConnectExisting_SingleNATS(t *testing.T) {
 	}
 	defer func() { _ = sub.Unsubscribe() }()
 
-	// Publish directly on the stream's subject (same path the real
-	// JetStreamBroadcaster uses: JS.Publish("todo.<id>", data)).
+	// Publish directly on the stream's subject (the same JS.Publish path the
+	// real publishers use).
 	if _, pubErr := JS.Publish("todo.single.update", []byte("hello-from-shared-nats")); pubErr != nil {
 		t.Fatalf("publish: %v", pubErr)
 	}

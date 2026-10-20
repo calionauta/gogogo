@@ -191,11 +191,11 @@ func bootReview(
 // one the HTTP path uses or the two write paths diverge.
 func startCrudConsumer(
 	ctx context.Context, js nats.JetStreamLike, appName string,
-	todoH *todohandlers.Handler, hub *queue.SSEHub,
+	todoH *todohandlers.Handler,
 ) {
 	go func() {
 		if cerr := todohandlers.RunCrudConsumer(
-			ctx, js, appName, instance.ID(), todoH.Q, todoH.Index, todoH.DB, hub,
+			ctx, js, appName, instance.ID(), todoH.Q, todoH.Index, todoH.DB, todoH.Bus(),
 		); cerr != nil {
 			slog.Error("server: chi crud consumer stopped", "error", cerr)
 		}

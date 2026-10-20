@@ -18,6 +18,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
+	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -79,7 +80,7 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 	ctx, cancel := context.WithCancel(context.Background())
 	tb.Cleanup(cancel)
 	go func() {
-		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", "local", q, nil, nil, hub)
+		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", "local", q, nil, nil, todo.NewBus(hubSink{hub: hub}, "local"))
 	}()
 	return &bridgeFixture{tb: tb, q: q, hub: hub, pub: pub, owner: owner, js: h.JS}
 }
@@ -284,7 +285,9 @@ func newLoopInstanceB(t *testing.T, js natsio.JetStreamContext, userID string) (
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() {
-		_ = RunCrudConsumer(ctx, js, "looptest", "loop-b", dbgen.New(sqlB), nil, nil, queue.NewSSEHub())
+		hub := queue.NewSSEHub()
+		_ = RunCrudConsumer(ctx, js, "looptest", "loop-b", dbgen.New(sqlB), nil, nil,
+			todo.NewBus(hubSink{hub: hub}, "loop-b"))
 	}()
 	time.Sleep(300 * time.Millisecond) // let the consumer subscribe.
 	return sqlB, dbgen.New(sqlB)
@@ -355,7 +358,7 @@ func TestHandlersBridgeTwoInstancesConverge(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
 		go func() {
-			_ = RunCrudConsumer(ctx, h.JS, "multitest", name, dbgen.New(sqlDB), nil, nil, hub)
+			_ = RunCrudConsumer(ctx, h.JS, "multitest", name, dbgen.New(sqlDB), nil, nil, todo.NewBus(hubSink{hub: hub}, name))
 		}()
 		return dbgen.New(sqlDB), hub
 	}

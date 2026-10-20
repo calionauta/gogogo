@@ -29,7 +29,7 @@ teaches is visible here first — copy this shape when you add your own feature.
   jobs (`internal/queue`), and `features/todo`'s own tests use a
   `todo_created` job to exercise the worker → SSE path. **Todo CRUD itself does
   not enqueue**: `handleCreate` re-renders synchronously (`emitToast(sse,
-  "Added", "success")`), because the broadcaster already pushes record changes
+  "Added", "success")`), because the event bus already pushes the record change
   to other clients and a queue hop would only add latency to a fast local
   mutation.
 - Retries with exponential backoff and jitter (`internal/queue/retry.go`,

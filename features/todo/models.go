@@ -195,9 +195,8 @@ type Signals struct {
 	ReviewEnabled bool `json:"reviewEnabled"`
 
 	// RealtimeKind describes the active broadcast transport so the
-	// diagnostics panel can label it accurately: "JetStream" when the
-	// NATS is enabled and a JetStream context is wired, else "in-memory".
-	// The default build uses the InMemoryBroadcaster.
+	// diagnostics panel can label it accurately: "JetStream" when NATS is
+	// enabled and a JetStream context is wired, else the in-process hub.
 	RealtimeKind string `json:"realtimeKind"`
 
 	// StoreLabel describes the active data layer (e.g.

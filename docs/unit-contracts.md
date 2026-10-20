@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 35 — 11 core · 16 plugin · 8 feature
+- **Units:** 36 — 12 core · 16 plugin · 8 feature
 - **Offered to the installer:** 12
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -66,6 +66,14 @@ host-capacity gate for heavy Go tests (skip on saturated boxes)
 - **Owned:** `internal/hostgate`
 - **Trim:** manual (no installer unit)
 - **Note:** Core test support: heavy suites (trim-build repo copies + forked vets) skip with reason off-CI when the box is constrained, instead of wedging a shared host. CI never skips. Customize thresholds via HOSTGATE_* env, never remove.
+
+## `instance` — core
+
+stable instance identity for cross-instance durables and event origins
+
+- **Owned:** `internal/instance`
+- **Trim:** manual (no installer unit)
+- **Note:** Core: the CRUD consumer's durable and every published event carry it (APP_INSTANCE_ID, else the hostname).
 
 ## `observability` — core
 
