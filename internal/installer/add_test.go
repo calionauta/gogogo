@@ -170,15 +170,15 @@ func TestAddUnknownUnitFailsFast(t *testing.T) {
 }
 
 func TestAddDagnatsRestoresBootOrder(t *testing.T) {
-	// Order is load-bearing: engine boot before startNATS, trigger
-	// bootstrap after it (it needs the connected NATS). The add must
+	// Order is load-bearing: the engine must boot before startNATS, which
+	// then connects to the NATS instance the engine started. The add must
 	// reproduce source order, not anchor order.
 	//
 	// The fixture mirrors cmd/web/main.go's REAL anchors
-	// (mainCallsAnchor="defer stopLifecycle()", the trigger-bootstrap
-	// addBefore, the shutdown comment) instead of invented markers, so a
-	// rename in the real file fails here rather than silently breaking
-	// `add` — which is exactly what the previous fixture masked.
+	// (mainCallsAnchor="defer stopLifecycle()", the shutdown comment)
+	// instead of invented markers, so a rename in the real file fails
+	// here rather than silently breaking `add` — which is exactly what
+	// the previous fixture masked.
 	from := t.TempDir()
 	proj := t.TempDir()
 	src := "\tdefer stopLifecycle()\n" +
@@ -187,11 +187,6 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
 		"\tjs := startNATS(cfg)\n" +
-		"\n" +
-		"\t// WORKAROUND (upstream DagNats v0.0.24 bug)\n" +
-		"\tif cfg.DagNats.Enabled {\n" +
-		"\t\tensureTriggerBootstrap()\n" +
-		"\t}\n" +
 		"\n" +
 		"\t// The process is the server now (there is no framework run loop\n"
 	writeFile(t, filepath.Join(from, "cmd", "web", "main.go"), src)
@@ -219,14 +214,13 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	text := string(out)
 	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)")
 	nats := strings.Index(text, "js := startNATS(cfg)")
-	strap := strings.Index(text, "ensureTriggerBootstrap()")
 	server := strings.Index(text, "// The process is the server now")
-	if boot == -1 || nats == -1 || strap == -1 || server == -1 {
+	if boot == -1 || nats == -1 || server == -1 {
 		t.Fatalf("re-insertion incomplete:\n%s", text)
 	}
-	ordered := boot < nats && nats < strap && strap < server
+	ordered := boot < nats && nats < server
 	if !ordered {
-		t.Errorf("boot order violated (want boot < nats < bootstrap < server):\n%s", text)
+		t.Errorf("boot order violated (want boot < nats < server):\n%s", text)
 	}
 }
 

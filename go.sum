@@ -85,8 +85,8 @@ github.com/coreos/go-systemd/v22 v22.7.0 h1:LAEzFkke61DFROc7zNLX/WA2i5J8gYqe0rSj
 github.com/coreos/go-systemd/v22 v22.7.0/go.mod h1:xNUYtjHu2EDXbsxz1i41wouACIwT7Ybq9o0BQhMwD0w=
 github.com/cpuguy83/dockercfg v0.3.2 h1:DlJTyZGBDlXqUZ2Dk2Q3xHs/FtnooJJVaad2S9GKorA=
 github.com/cpuguy83/dockercfg v0.3.2/go.mod h1:sugsbF4//dDlL/i+S+rtpIWp+5h0BHJHfjj5/jFyUJc=
-github.com/danmestas/dagnats v0.0.28 h1:aRVlOWWd4ZHJTrM/yoCJS/pBWVVI/ZxEzRRG50bhoy4=
-github.com/danmestas/dagnats v0.0.28/go.mod h1:3ULPHYaefF1scFLIKLjGPDUpkA4rn+uXSgN3KXHfkk8=
+github.com/danmestas/dagnats v0.0.30 h1:T8RlWv4uzRKGPW7H1g8ndUr1MeuX0ZMu2Fxm+gjcmG4=
+github.com/danmestas/dagnats v0.0.30/go.mod h1:3ULPHYaefF1scFLIKLjGPDUpkA4rn+uXSgN3KXHfkk8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=

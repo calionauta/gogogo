@@ -12,11 +12,20 @@ import (
 )
 
 // startTestServer boots a real DagNats server in-process on an ephemeral
-// NATS port and the given HTTP addr, registers the onboarding workflow,
-// and returns a ready Client. It is the same wiring cmd/web uses, so the
-// test exercises the real integration contract (REST register + run +
-// signal), not a mock.
+// NATS port and HTTP addr, registers the onboarding workflow, and returns
+// a ready Client. It is the same wiring cmd/web uses, so the test
+// exercises the real integration contract (REST register + run + signal),
+// not a mock.
 func startTestServer(t *testing.T, dataDir string) *Client {
+	t.Helper()
+	client, _ := startTestServerWithAddr(t, dataDir)
+	return client
+}
+
+// startTestServerWithAddr is startTestServer plus the bound HTTP address,
+// for tests that drive the engine's own surfaces (the console) rather than
+// the Client API.
+func startTestServerWithAddr(t *testing.T, dataDir string) (*Client, string) {
 	t.Helper()
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		t.Fatalf("mkdir data dir: %v", err)
@@ -66,12 +75,12 @@ func startTestServer(t *testing.T, dataDir string) *Client {
 	// the engine boots slower, so allow up to ~20s.
 	for range 80 {
 		if err := client.RegisterWorkflow(context.Background(), []byte(OnboardingWorkflowJSON)); err == nil {
-			return client
+			return client, httpAddr
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
 	t.Fatalf("test server: failed to register onboarding workflow on %s", httpAddr)
-	return nil
+	return nil, ""
 }
 
 // waitForAddr blocks until the engine reports the address it bound.

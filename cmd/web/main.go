@@ -142,19 +142,6 @@ func run() error {
 	defer stop()
 	slog.Info("listening", "addr", addr)
 
-	// WORKAROUND (upstream DagNats v0.0.24 bug): the trigger console cannot
-	// create the FIRST trigger because listing an empty bucket returns
-	// ErrNoKeysFound, which it reports as a 500 before writing anything.
-	// Seeding one disabled placeholder makes the bucket non-empty, so the
-	// console works. Runs after startNATS because that is what connects to
-	// the engine's NATS. Never fatal: a failure here means the trigger UI
-	// stays broken, not that the app is unusable. Set
-	// DAGNATS_TRIGGER_BOOTSTRAP=false to skip, and see
-	// docs/dagnats-bootstrap-workaround.md for removal steps.
-	if cfg.DagNats.Enabled && cfg.DagNats.TriggerBootstrap {
-		ensureTriggerBootstrap()
-	}
-
 	// The process is the server now (there is no framework run loop
 	// underneath): block on signals so the deferred cleanups above —
 	// stop() draining HTTP, engine stops, lifecycle cancel — run in

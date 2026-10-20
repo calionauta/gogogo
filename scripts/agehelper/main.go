@@ -87,7 +87,7 @@ func keygen(path string) {
 	if err := os.WriteFile(path, []byte(body), modeSecret); err != nil {
 		fail("write key file: " + err.Error())
 	}
-	fmt.Printf("Public key: %s\n", id.Recipient())
+	fmt.Fprintf(os.Stdout, "Public key: %s\n", id.Recipient())
 }
 
 func encrypt(recipient, in, out string) {
