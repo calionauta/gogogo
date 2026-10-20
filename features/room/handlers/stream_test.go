@@ -275,6 +275,7 @@ func TestRoomStreamLeavePushesToPeers(t *testing.T) {
 	waitRoster(t, eventsA, func(e rosterEvent) bool { return e.has(roomEmailA) }, "A joined")
 
 	_, closeB := openRoomStream(t, server, cookieB, "sse-leave", "cliB")
+	defer closeB()
 	waitRoster(t, eventsA, func(e rosterEvent) bool {
 		return e.has(roomEmailA) && e.has(roomEmailB)
 	}, "A to see B join")
@@ -313,7 +314,18 @@ func TestRoomStreamSecondTabKeepsMember(t *testing.T) {
 	waitRoster(t, eventsA, func(e rosterEvent) bool { return e.has(roomEmailA) }, "A joined")
 
 	_, closeB1 := openRoomStream(t, server, cookieB, "sse-tabs", "cliB1")
-	_, closeB2 := openRoomStream(t, server, cookieB, "sse-tabs", "cliB2")
+	defer closeB1()
+	eventsB2, closeB2 := openRoomStream(t, server, cookieB, "sse-tabs", "cliB2")
+	// Both closes are deferred: a failure before the explicit closeB2 below
+	// must not leave a live stream behind, or httptest.Server.Close waits for
+	// its handler until the test binary's timeout (lived: a 9-minute hang).
+	defer closeB2()
+	// BARRIER: B2's own personal card is written AFTER the grain processed
+	// its join, so waiting for A's shared roster is not enough — B1 could
+	// close while B2's join is still in the mailbox and the grain would see
+	// only B1 (evicting B, then re-adding on B2's late join). Wait for B2 to
+	// see itself; only then is the refcount guaranteed to be two.
+	waitRoster(t, eventsB2, func(e rosterEvent) bool { return e.has(roomEmailB) }, "B2 joined the grain")
 	waitRoster(t, eventsA, func(e rosterEvent) bool {
 		return e.has(roomEmailA) && e.has(roomEmailB)
 	}, "B to join from two tabs")
