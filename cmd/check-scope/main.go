@@ -57,7 +57,7 @@ func main() {
 	}
 
 	if len(offenders) == 0 {
-		fmt.Println("✅ SCOPE annotations present in internal/ + features/")
+		fmt.Fprintln(os.Stdout, "✅ SCOPE annotations present in internal/ + features/")
 		return
 	}
 	report(offenders)

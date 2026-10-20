@@ -81,11 +81,11 @@ func main() {
 	problems = append(problems, checkRegistry(root, skills)...)
 
 	if len(problems) == 0 {
-		fmt.Printf("✅ SKILL.md frontmatter valid + registered (%d file(s))\n", len(skills))
+		fmt.Fprintf(os.Stdout, "✅ SKILL.md frontmatter valid + registered (%d file(s))\n", len(skills))
 		return
 	}
 	for _, p := range problems {
-		fmt.Printf("❌ %s\n   %s\n", p.path, p.msg)
+		fmt.Fprintf(os.Stdout, "❌ %s\n   %s\n", p.path, p.msg)
 	}
 	os.Exit(2)
 }
