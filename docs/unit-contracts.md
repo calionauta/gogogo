@@ -197,7 +197,7 @@ generative UI: LLM answers render as Templ directives over the SSE hub
 entity actors (GoAkt rooms: roster + presenter lock)
 
 - **Owned:** `internal/goakt`, `features/room`, `cmd/web/goakt.go`, `cmd/web/goakt_test.go`
-- **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/leave`, `/room/release`, `/room/roster`
+- **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
 - **Runtime off:** `GOAKT_ENABLED=false`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Note:** Deletion removes the engine + room demo. The navbar Room link is stripped automatically; main.go boot lines go with the unit's mainStrips.
@@ -298,7 +298,7 @@ public marketing page on GET /
 shared plain-text notes (server-owned Loro Text + SSE)
 
 - **Owned:** `features/notes`
-- **Routes:** `/api/notes/fragment`, `/api/notes/{docID}/caret`, `/api/notes/{docID}/delete`, `/api/notes/{docID}/op`, `/api/notes/{docID}/stream`, `/api/notes/{docID}/typing`, `/notes`, `/notes/new`, `/notes/{docID}`
+- **Routes:** `/api/notes/fragment`, `/api/notes/{docID}/caret`, `/api/notes/{docID}/delete`, `/api/notes/{docID}/leave`, `/api/notes/{docID}/op`, `/api/notes/{docID}/stream`, `/api/notes/{docID}/typing`, `/notes`, `/notes/new`, `/notes/{docID}`
 - **Store calls:** `dbgen.DeleteNote`, `dbgen.GetNoteMeta`, `dbgen.ListNotes`, `dbgen.UpsertNote`
 - **Depends on:** collab, sounds
 - **Trim:** manual (no installer unit)
@@ -321,7 +321,7 @@ review loop demo (writer → critic → classifier judge, streamed verdict)
 room presence demo (one grain per room, crash hook included)
 
 - **Owned:** `features/room`
-- **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/leave`, `/room/release`, `/room/roster`
+- **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Warning:** The navbar Room link is stripped automatically.
 

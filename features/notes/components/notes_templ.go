@@ -75,7 +75,7 @@ func NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body data-stream-page=\"1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -447,7 +447,7 @@ func NotesPage(email string, userRole string, meta NoteMeta, text string, rev ui
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<script defer src=\"/static/throttle.js\"></script><script defer src=\"/static/notes/notes.js\"></script></head><body>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<script defer src=\"/static/throttle.js\"></script><script defer src=\"/static/notes/notes.js\"></script></head><body data-stream-page=\"1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

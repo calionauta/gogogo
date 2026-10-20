@@ -165,19 +165,19 @@ landing) — a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.
 
-Session visibility is shared the same way: the notes and whiteboard streams
-open with a `collab.SessionEvent` frame, and one VISIBLE tab of the browser
-holds `/api/session/stream` open (Web Locks elects it, BroadcastChannel fans
-the answer out; going hidden hands the lock on, so a frozen background tab
-never stalls the answer), which sends the same frame when the cookie expires — no tab
-schedules a request, so every tab raises the same
-`components.SessionBanner` the moment a cookie expires and peer names never
-silently degrade to client hashes with nothing on screen explaining why. One
-stream per browser, not per tab: an SSE stream holds its HTTP/1.1 connection
-for the tab's life, and a second one per tab has been measured to starve the
-six-connection-per-host budget at three tabs. The banner never auto-redirects
-(unsent work would be stranded). It is opt-in per page via the render-time
-`authed` flag, so a public page never nags about a session it never had.
+Session visibility uses the stream a page ALREADY has: notes/whiteboard send
+a `collab.SessionEvent` frame, and todo/room/chat/genui carry a
+`sessionAuthed` signal on their feature stream (revalidated on its heartbeat).
+Only a page with no feature stream opens `/api/session/stream` (one visible tab
+per browser via Web Locks, BroadcastChannel for the others). One long-lived
+connection per page is the rule: browsers cap connections per host, and a
+second stream per page has been measured to starve a later same-tab
+navigation (the session stream opening on top of a feature stream made the
+smoke's seventh page hang on `load`). No tab schedules a request, so every tab
+raises the same `components.SessionBanner` the moment a cookie expires. The
+banner never auto-redirects (unsent work would be stranded). It is opt-in per
+page via the render-time `authed` flag, so a public page never nags about a
+session it never had.
 
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"

@@ -214,9 +214,11 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		h.leaveRoom(email, id, clientID)
 	}()
 
-	// First frame: the open acknowledgement sse-open.js waits for. After
-	// registration, so "ack received" also means "the hub has me".
-	if err := dshelpers.AckStreamOpened(patchWriter(w), clientID); err != nil {
+	// Open frames: the ack sse-open.js waits for (after registration, so
+	// "ack received" also means "the hub has me"), then the session state —
+	// this page does not open the dedicated session stream.
+	authed := true
+	if err := h.sendOpenFrames(w, clientID, authed); err != nil {
 		return
 	}
 	flusher.Flush()
@@ -255,6 +257,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
+			authed = h.revalidateSession(w, flusher, r, authed)
 		case payload := <-ch:
 			if _, err := w.Write(payload); err != nil {
 				return
@@ -262,6 +265,30 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// sendOpenFrames writes the stream's two handshake frames.
+func (h *Handler) sendOpenFrames(w io.Writer, clientID string, authed bool) error {
+	if err := dshelpers.AckStreamOpened(patchWriter(w), clientID); err != nil {
+		return err
+	}
+	return dshelpers.MergeSignals(patchWriter(w), map[string]bool{"sessionAuthed": authed})
+}
+
+// revalidateSession re-checks the request's cookie on the heartbeat and
+// patches the banner signal on change (flushing the raw writer). Split from
+// the loop for the complexity gate.
+func (h *Handler) revalidateSession(w http.ResponseWriter, f http.Flusher, r *http.Request, authed bool) bool {
+	_, err := h.auth.Session(r)
+	if (err == nil) == authed {
+		return authed
+	}
+	authed = err == nil
+	if werr := dshelpers.MergeSignals(patchWriter(w), map[string]bool{"sessionAuthed": authed}); werr != nil {
+		return authed
+	}
+	f.Flush()
+	return authed
 }
 
 // leaveRoom drops one connection and re-pushes. The grain decides whether

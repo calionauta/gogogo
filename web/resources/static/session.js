@@ -56,6 +56,15 @@
     try { bus.postMessage({ type: "session", authed: authed }); } catch (_) {}
   }
 
+  // ownStream: this page has no feature stream, so the session banner needs
+  // its own connection. Pages that already hold one (the Datastar openers and
+  // the raw-EventSource doc pages) must NOT add a second long-lived
+  // connection: browsers cap connections per host, and the extra one starves
+  // a later same-tab navigation (measured: the smoke's seventh page stalled
+  // for its full timeout). Those pages carry the session state on their own
+  // stream; `data-stream-page` marks the raw-EventSource pages.
+  var ownStream = !document.querySelector("[data-stream-opener], [data-stream-page]");
+
   // stream is the leader tab's EventSource (nil while none is open).
   var stream = null;
   var leader = false;
@@ -110,7 +119,7 @@
   // acquireLeader takes (or waits for) the right to hold the stream. Only a
   // VISIBLE tab asks, so a background tab can never own the socket.
   function acquireLeader() {
-    if (document.hidden) return;
+    if (!ownStream || document.hidden) return;
     if (leader) {
       openStream();
       return;
@@ -183,8 +192,20 @@
     // stream; going hidden releases it (so a frozen background tab never
     // stalls the answer) and coming back re-acquires it, which is also the
     // moment a stream closed by expiry or a deploy gets a fresh cookie.
-    acquireLeader();
+    //
+    // Open it AFTER the page's own load, never during it. An SSE stream holds
+    // an HTTP/1.1 connection and the browser caps connections per host
+    // (6 in Chromium); opening it while the page is still fetching its
+    // subresources starves the load event. Measured: the smoke's seventh
+    // navigation (/review) stalled for its full 20s timeout with the stream
+    // open, and loaded in ~100ms without it. Nothing can expire mid-load, so
+    // deferring costs nothing.
     buildCheck();
+    if (document.readyState === "complete") {
+      acquireLeader();
+    } else {
+      window.addEventListener("load", acquireLeader, { once: true });
+    }
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) {
         releaseLeader();
@@ -194,5 +215,15 @@
       buildCheck();
     });
     window.addEventListener("online", acquireLeader);
+    // pagehide is the reliable document-teardown signal (visibilitychange is
+    // not fired for every same-tab navigation, and a page entering the
+    // back/forward cache keeps its JS alive). Without closing here the
+    // EventSource leaks one held HTTP/1.1 connection per visited page: measured
+    // 1→2→2→3→3→4 across seven navigations in one tab, and the seventh page
+    // (/review) then starved its own load. A bfcache restore re-acquires.
+    window.addEventListener("pagehide", releaseLeader);
+    window.addEventListener("pageshow", function (e) {
+      if (e.persisted && !document.hidden) acquireLeader();
+    });
   }
 })();

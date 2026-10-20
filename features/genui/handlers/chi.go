@@ -159,9 +159,11 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authed := h.session(r) != nil
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalGenuiPending: false,
 		"clientID":         clientID,
+		"sessionAuthed":    authed,
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("genui", "feature"), "error", err)
 		observability.Error(r.Context(), "genui: stream handshake failed", obsArgs...)
@@ -182,6 +184,13 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
+			// The session state rides this stream: the page does not open
+			// the dedicated session stream (one long-lived connection per
+			// page), so expiry is noticed here.
+			if now := h.session(r) != nil; now != authed {
+				authed = now
+				_ = dshelpers.MergeSignals(sse, map[string]bool{"sessionAuthed": authed})
+			}
 		case msg := <-ch:
 			//nolint:contextcheck // dispatch ends in datastar-go sinks, which
 			// take no context; disconnects surface as write errors.
