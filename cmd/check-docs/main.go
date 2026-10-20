@@ -70,6 +70,20 @@ var pathSegmentRE = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 // repo actually tracks (a hypothetical app.min.css.map is not a claim).
 var fileSegmentRE = regexp.MustCompile(`^[A-Za-z0-9_-]+\.(go|md|sh|sql|templ|js|css|json|ya?ml|toml)$`)
 
+// generatedPath reports paths that exist only after a build (site output is
+// gitignored), so a clean checkout does not have them and docs may still
+// name them.
+func generatedPath(path string) bool {
+	if path == "site/docs" || strings.HasPrefix(path, "site/docs/") {
+		return true
+	}
+	switch path {
+	case "site/llms.txt", "site/llms-full.txt", "site/sitemap.xml":
+		return true
+	}
+	return false
+}
+
 // exampleSegments mark illustrative paths (`internal/foo/`) that need not exist.
 var exampleSegments = map[string]bool{
 	"foo": true, "bar": true, "baz": true, "x": true, "y": true,
@@ -229,7 +243,7 @@ func deadPath(root, token string, trimmed map[string]bool) string {
 			return ""
 		}
 	}
-	if trimmedPath(trimmed, path) {
+	if trimmedPath(trimmed, path) || generatedPath(path) {
 		return ""
 	}
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {

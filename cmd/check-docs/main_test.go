@@ -60,6 +60,9 @@ func TestDeadPath(t *testing.T) {
 		{"web/resources/static/app.min.css.map", ""},
 		{"internal/foo/", ""},
 		{"features/<name>", ""},
+		{"site/docs/", ""},
+		{"site/docs/architecture/", ""},
+		{"site/llms.txt", ""},
 		{"net/http", ""},
 	} {
 		if got := deadPath(root, tc.token, nil); got != tc.want {
