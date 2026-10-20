@@ -77,3 +77,23 @@ func TestBusWireCanBeDetached(t *testing.T) {
 		t.Fatalf("local=%d wire=%d, want 1/0", local.count(), wire.count())
 	}
 }
+
+// TestBusSubscribeCancelStopsDelivery pins the request-scoped subscriber
+// contract: a closed HTTP event stream must leave nothing behind. Without the
+// cancel deleting the entry, every closed stream would keep receiving events
+// for the process's lifetime (and write to a channel nobody reads).
+//
+// RED-PROOFED: make the returned cancel a no-op and the second publish is
+// delivered.
+func TestBusSubscribeCancelStopsDelivery(t *testing.T) {
+	bus := NewBus(&recordSink{}, "inst-a")
+	var seen int
+	cancel := bus.Subscribe(func(Event) { seen++ })
+	bus.Publish(context.Background(), Event{Kind: Created, ID: "t1"})
+	cancel()
+	cancel() // idempotent
+	bus.Publish(context.Background(), Event{Kind: Created, ID: "t2"})
+	if seen != 1 {
+		t.Fatalf("subscriber saw %d events after cancel, want 1", seen)
+	}
+}

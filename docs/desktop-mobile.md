@@ -167,11 +167,14 @@ archives next to the CLI (`gogogo-gui`, all six OS×arch, installed by
 
 **Realtime:** unlike `cmd/desktop` (which serves the real web UI in a webview,
 so it already uses SSE end to end), `cmd/gui` renders natively and has no HTTP
-tier — its cross-frontend visibility is the 2s local poll, and SQLite has no
-cross-process change feed. A future embedded GUI should subscribe to the todo
-event bus in-process (`features/todo/bus.go`, `Bus.Subscribe`) when it hosts
-the stack, or consume the JSON event stream if it becomes a remote client; it
-must not parse Datastar DOM patches.
+tier of its own. When a server is reachable it holds `GET /api/todos/events`
+open — JSON record frames from the same event bus, scoped to the session — and
+re-lists on each frame; the 2s local poll stays as the standalone fallback
+(no server, or the stream is down, with exponential backoff up to 30s). It
+must not parse Datastar DOM patches. Its own writes still go straight to the
+shared store, so they are locally visible on the next refresh but are not
+published to the web tabs; an embedded GUI (`Bus.Subscribe`) or thin-client
+writes are the follow-ups.
 
 **Rules for `cmd/gui`:** the UI tree is only touched on the UI thread
 (`uiMu` serializes `SetRoot`); background poll produces data under `stateMu`

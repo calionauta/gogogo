@@ -80,6 +80,8 @@ stelow.json
 # Pre-built binaries (belong in releases, not in the repo)
 gogogo-desktop
 gogogo-gui
+# `go build ./cmd/gui/` (no -o) writes this at the repo root.
+/gui
 # A bare `go build ./cmd/<x>/` drops a binary named after the package at the
 # repo root. `go run` (what the Makefile targets use) never does.
 /check-skill-frontmatter
