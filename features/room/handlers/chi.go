@@ -44,6 +44,11 @@ const mutateTimeout = 5 * time.Second
 // restarts inside it, so a transient stall must not surface to the user.
 const rosterReadBudget = 5 * time.Second
 
+// rejoinRetryDelay spaces the crash-rejoin retries. Matches rosterRetryDelay:
+// the supervised restart is measured in tens of milliseconds, and the budget
+// (not the attempt count) is the real bound.
+const rejoinRetryDelay = 50 * time.Millisecond
+
 // rosterRetryDelay spaces the retries. Short on purpose: the read is a
 // pure question, so retrying it is free and the budget (not the attempt
 // count) is the real bound.
@@ -295,16 +300,29 @@ func (h *Handler) handleCrash(w http.ResponseWriter, r *http.Request) {
 }
 
 // rejoinWatchers replays every live stream's join into a restarted grain.
-// It runs after the crash tell, so the restarted actor is the one that
-// receives these messages; a tab that opened in the meantime simply joins
-// twice (presence is idempotent per clientID).
+//
+// The crash tell returns when the actor PROCESSED the message, not when its
+// supervisor finished restarting it: GoAkt answers "actor is not alive" for
+// that window. Under `-race` the window is wide enough to lose the race, so
+// the rejoin retries within the caller's budget until the fresh actor accepts
+// the joins. Re-telling is safe: presence is idempotent per clientID, and a
+// tab that opened in the meantime simply joins twice.
 func (h *Handler) rejoinWatchers(ctx context.Context, id string) error {
-	for clientID, email := range h.watchersOf(id) {
-		if err := h.rooms.Tell(ctx, id, appgoakt.RoomJoin{Name: email, ClientID: clientID}); err != nil {
-			return err
-		}
-	}
-	return nil
+	watchers := h.watchersOf(id)
+	return retry.Do(
+		func() error {
+			for clientID, email := range watchers {
+				if err := h.rooms.Tell(ctx, id, appgoakt.RoomJoin{Name: email, ClientID: clientID}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		retry.Attempts(100),
+		retry.Delay(rejoinRetryDelay),
+		retry.Context(ctx),
+		retry.LastErrorOnly(true),
+	)
 }
 
 // addWatcher records one live stream. Called after the grain join, so the
