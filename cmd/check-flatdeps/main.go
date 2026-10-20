@@ -67,7 +67,7 @@ func run() error {
 	if err := checkSQLOpenOwners(); err != nil {
 		return err
 	}
-	fmt.Println("check-flatdeps: flat stack is framework-free")
+	fmt.Fprintln(os.Stdout, "check-flatdeps: flat stack is framework-free")
 	return nil
 }
 

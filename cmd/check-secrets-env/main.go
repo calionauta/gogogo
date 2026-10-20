@@ -91,7 +91,7 @@ func run() error {
 		return fmt.Errorf("secret env read outside owner files (%d):\n  %s\n%s",
 			len(offenders), strings.Join(offenders, "\n  "), ownerHint)
 	}
-	fmt.Println("check-secrets-env: secret env stays on the rails")
+	fmt.Fprintln(os.Stdout, "check-secrets-env: secret env stays on the rails")
 	return nil
 }
 
