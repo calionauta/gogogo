@@ -43,11 +43,18 @@ cd "$(git rev-parse --show-toplevel)" || {
     exit 0
 }
 
-# DEADCODE_BIN lets a caller pin the binary (and lets the contract test drive
-# the "missing tool" branch without touching PATH).
-deadcode_bin=${DEADCODE_BIN:-$(command -v deadcode || true)}
-if [ -z "$deadcode_bin" ] || [ ! -x "$deadcode_bin" ]; then
-    echo "⚡ deadcode not installed (go install golang.org/x/tools/cmd/deadcode@latest) — skipping"
+# The tool is pinned by the `tool` directive in go.mod and run through
+# `go tool`, so the scan can never disagree with the toolchain about which
+# module version it is type-checking. That mismatch is what used to surface as
+# "dead code found" — type-check errors printed under findings. With the pin,
+# the toolchain-mismatch branch below should be unreachable; it stays as a
+# guard for an exotic host (GOTOOLCHAIN switched mid-run, corrupt cache).
+# `go tool -n <name>` prints the resolved binary path. It exits 0 even for an
+# unknown tool (the message goes to stderr), so the probe is "did it print a
+# path", not the exit code.
+if [ -z "$(go tool -n deadcode 2>/dev/null)" ]; then
+    echo "⚡ deadcode unavailable (not resolvable via 'go tool') — skipping"
+    echo "   Pinned by the tool directive in go.mod; run \`go mod download\`."
     exit 0
 fi
 
@@ -107,7 +114,7 @@ prefix=()
 command -v nice >/dev/null 2>&1 && prefix+=(nice -n 15)
 command -v ionice >/dev/null 2>&1 && prefix+=(ionice -c2 -n7)
 
-"${prefix[@]}" "$deadcode_bin" -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
+"${prefix[@]}" go tool deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... \
     >"$out_file" 2>"$err_file"
 status=$?
 
@@ -127,7 +134,7 @@ if [ "$toolchain_mismatch" -eq 1 ]; then
     echo "     or the scan was OOM-killed (GOMEMLIMIT was ${GOMEMLIMIT})."
     echo "     This is a tool/host limit, NOT a dead-code finding."
     printf '%s\n' "$err_text" | head -3 | sed 's/^/       /'
-    echo "     Fix: go install golang.org/x/tools/cmd/deadcode@latest"
+    echo "     The tool is pinned in go.mod; fix with \`go mod download\`."
     exit 0
 fi
 

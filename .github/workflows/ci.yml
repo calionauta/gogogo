@@ -197,9 +197,12 @@ jobs:
         # Matches bin/check-deadcode.sh: advisory only, scoped to the
         # packages that are meant to be wired-up, so intentionally-unused
         # library APIs (internal/llm, internal/datastar) stay off the radar.
+        # `go tool` runs the version pinned by the tool directive in go.mod,
+        # so the scan can never disagree with the toolchain about the module
+        # the way `go install @latest` did (that mismatch reported type-check
+        # errors as dead code).
         run: |
-          go install golang.org/x/tools/cmd/deadcode@latest
-          $(go env GOPATH)/bin/deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
+          go tool deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Set up Node (CSS build)
         uses: actions/setup-node@v4
         with:
