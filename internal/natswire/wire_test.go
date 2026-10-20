@@ -21,3 +21,20 @@ func TestNilPublisherIsNoOp(_ *testing.T) {
 	p.Close()                                          // idempotent, must not panic
 	p.Close()
 }
+
+// TestCrudInstanceDurable pins the per-instance convention: two instances of
+// one app never share a durable (the second subscription is otherwise
+// rejected by the server and that instance silently stops converging).
+func TestCrudInstanceDurable(t *testing.T) {
+	a := CrudInstanceDurable("myapp", "prod-eu-1")
+	b := CrudInstanceDurable("myapp", "prod-eu-2")
+	if a == b {
+		t.Fatalf("same durable for two instances: %q", a)
+	}
+	if a != "myapp-crud-prod-eu-1" {
+		t.Fatalf("durable = %q, want myapp-crud-prod-eu-1", a)
+	}
+	if got := CrudInstanceDurable("myapp", ""); got != "myapp-crud-local" {
+		t.Fatalf("empty instance durable = %q, want myapp-crud-local", got)
+	}
+}

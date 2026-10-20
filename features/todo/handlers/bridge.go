@@ -2,8 +2,8 @@
 //
 // RunCrudConsumer subscribes to the app.crud.todo.> subjects, applies each
 // operation to Turso, and fans the record event out to local chi streams.
-// Its durable is per app + "chi", independent from the server stack's
-// cursor over the same wire.
+// Its durable is per app AND per instance: two instances of the same app
+// need independent cursors, or only the instance that binds first converges.
 //
 // Identity boundary: payload UserIDs are strings resolved against app
 // users; anything else is skipped with a warning — faking a mapping would
@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	natsio "github.com/nats-io/nats.go"
 
@@ -31,8 +32,13 @@ import (
 // RunCrudConsumer subscribes and blocks until ctx is cancelled. Nil js
 // (NATS disabled) is a no-op returning nil — the chi stack then converges
 // in-process through the Hub only.
+//
+// instanceID names the durable: one consumer PER INSTANCE, so every
+// instance applies every remote op to its own database. A durable shared
+// by two instances is rejected by the server ("consumer is already bound")
+// and the losing instance silently stops converging.
 func RunCrudConsumer(
-	ctx context.Context, js natsio.JetStreamContext, appName string,
+	ctx context.Context, js natsio.JetStreamContext, appName, instanceID string,
 	q *dbgen.Queries, ix SearchIndexer, db *sql.DB, hub *queue.SSEHub,
 ) error {
 	if js == nil {
@@ -48,9 +54,22 @@ func RunCrudConsumer(
 		if p.UserID == "" {
 			return
 		}
+		// Our own publication: the local DB already has the row and the
+		// handler already fanned out to local streams. Applying it again is
+		// idempotent, but broadcasting would deliver a SECOND record event
+		// to every local tab (measured as a double re-list per mutation).
+		// Empty Origin is a pre-field publisher: treat as remote.
+		if p.Origin != "" && p.Origin == instanceID {
+			_ = msg.Ack()
+			return
+		}
 		applyCrudOp(ctx, q, ix, db, hub, p)
 		_ = msg.Ack()
-	}, natsio.Durable(natswire.CrudDurable(appName)+"-chi"), natsio.ManualAck())
+	}, natsio.Durable(natswire.CrudInstanceDurable(appName, instanceID)),
+		natsio.ManualAck(),
+		// A rolled-out instance never comes back under the same name; the
+		// inactive durable would otherwise linger forever.
+		natsio.InactiveThreshold(time.Hour))
 	if err != nil {
 		return err
 	}

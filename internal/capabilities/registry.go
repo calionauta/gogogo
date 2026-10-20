@@ -77,6 +77,14 @@ var All = []Capability{
 			"and the native window both call it; Signup is idempotent.",
 	},
 	{
+		ID:      "instance",
+		Kind:    KindCore,
+		Summary: "stable instance identity for cross-instance durables and event origins",
+		Dirs:    []string{"internal/instance"},
+		Note: "Core: the CRUD consumer's durable and every published event carry " +
+			"it (APP_INSTANCE_ID, else the hostname).",
+	},
+	{
 		ID:      "auth",
 		Kind:    KindCore,
 		Summary: "cookie sessions + middleware (flat auth + shared login UI)",

@@ -93,9 +93,16 @@ The rule of thumb: **commit on release, relay while moving.**
 When JetStream is enabled (default: on):
 
 - The **NATS APP_CRUD stream** converges record operations across server
-  instances. `CrudPublisher` publishes each mutation; `CrudConsumer` on the
-  receiving instance writes to its local Turso database, which then broadcasts
-  via the Hub record event to its local clients.
+  instances. `CrudPublisher` publishes each mutation tagged with the
+  publisher's **instance identity** (`APP_INSTANCE_ID`, else the hostname);
+  `CrudConsumer` runs **one durable per instance** (`<app>-crud-<instance>`,
+  inactive for an hour after a rollout) so every instance applies every
+  remote op to its own Turso database and broadcasts it once to its local
+  clients. The publishing instance skips its own event — the local write and
+  fan-out already happened — which is what keeps a mutation from producing
+  two record events. A durable shared by two instances would be rejected by
+  the server ("consumer is already bound"), and the losing instance would
+  stop converging silently.
 - The **NATS TODOS stream** carries ephemeral signals across instances and
   re-emits them through the local SSE Hub.
 

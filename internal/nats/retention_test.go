@@ -55,7 +55,7 @@ func TestCrudStreamIsBounded(t *testing.T) {
 	if js == nil {
 		t.Fatal("JetStream not available after StartEmbedded")
 	}
-	if natswire.NewCrudPublisher(js) == nil {
+	if natswire.NewCrudPublisher(js, "test") == nil {
 		t.Fatal("publisher is nil with JetStream up")
 	}
 	streamLimits(t, js, "APP_CRUD", 7*24*time.Hour, 512<<20)

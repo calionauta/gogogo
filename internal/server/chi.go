@@ -43,6 +43,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -165,6 +166,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi db migrate: %w", merr)
 	}
+	// Cross-instance identity: names the CRUD durable and tags every
+	// published event so an instance ignores its own echo. Derived (hostname)
+	// unless APP_INSTANCE_ID pins it.
+	slog.Info("server: instance identity", "id", instance.ID())
 
 	a, aerr := auth.New(dbgen.New(sqlDB), !cfg.Dev)
 	if aerr != nil {
@@ -299,7 +304,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 // ctx is the caller's lifetime signal (cmd/web passes its lifecycleCtx;
 // StartChi passes Background) — the stack holds no context of its own.
 func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
-	s.TodoHandler.SetPublisher(natswire.NewCrudPublisher(js))
+	s.TodoHandler.SetPublisher(natswire.NewCrudPublisher(js, instance.ID()))
 	startCrudConsumer(ctx, js, s.appName, s.TodoHandler, s.hub)
 }
 

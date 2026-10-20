@@ -34,6 +34,7 @@ type bridgeFixture struct {
 	q     *dbgen.Queries
 	hub   *queue.SSEHub
 	pub   *natswire.CrudPublisher
+	js    natsio.JetStreamContext
 }
 
 func newBridgeFixture(tb testing.TB) *bridgeFixture {
@@ -68,16 +69,19 @@ func newBridgeFixture(tb testing.TB) *bridgeFixture {
 	// Publisher first: AddStream creates APP_CRUD, which the consumer's
 	// Subscribe requires. Reversing this races "no stream matches subject"
 	// and leaves a dead consumer (proven red by TestHandlersBridge*).
-	pub := natswire.NewCrudPublisher(h.JS)
+	// The fixture publishes as a REMOTE instance ("remote-1") while the
+	// consumer runs as "local": the whole point of these tests is the
+	// receiving side of the bridge.
+	pub := natswire.NewCrudPublisher(h.JS, "remote-1")
 	if pub == nil {
 		tb.Fatal("crud publisher is nil (stream not created)")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	tb.Cleanup(cancel)
 	go func() {
-		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", q, nil, nil, hub)
+		_ = RunCrudConsumer(ctx, h.JS, "bridgetest", "local", q, nil, nil, hub)
 	}()
-	return &bridgeFixture{tb: tb, q: q, hub: hub, pub: pub, owner: owner}
+	return &bridgeFixture{tb: tb, q: q, hub: hub, pub: pub, owner: owner, js: h.JS}
 }
 
 // waitRow polls Turso until the todo exists or the deadline hits.
@@ -228,7 +232,7 @@ func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
 		t.Fatalf("auth A: %v", aerr)
 	}
 	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub(), "daisyui")
-	handlerA.SetPublisher(natswire.NewCrudPublisher(h.JS))
+	handlerA.SetPublisher(natswire.NewCrudPublisher(h.JS, "remote-1"))
 	muxA := http.NewServeMux()
 	muxA.Handle("/api/auth/", authA.Handler())
 	muxA.Handle("/api/todos", handlerA.Routes())
@@ -280,8 +284,119 @@ func newLoopInstanceB(t *testing.T, js natsio.JetStreamContext, userID string) (
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() {
-		_ = RunCrudConsumer(ctx, js, "looptest", dbgen.New(sqlB), nil, nil, queue.NewSSEHub())
+		_ = RunCrudConsumer(ctx, js, "looptest", "loop-b", dbgen.New(sqlB), nil, nil, queue.NewSSEHub())
 	}()
 	time.Sleep(300 * time.Millisecond) // let the consumer subscribe.
 	return sqlB, dbgen.New(sqlB)
+}
+
+// TestHandlersBridgeSkipsOwnOrigin pins the anti-duplication rule: the
+// instance that published an op already wrote the row and fanned out, so its
+// own consumer must not apply or broadcast it again. Before the origin tag,
+// every local mutation produced TWO record events (direct hub + own echo).
+func TestHandlersBridgeSkipsOwnOrigin(t *testing.T) {
+	f := newBridgeFixture(t)
+	ctx := context.Background()
+
+	streamCh := make(chan []byte, 8)
+	f.hub.Register("bridge-self-client", f.owner, streamCh)
+	defer f.hub.Unregister("bridge-self-client")
+
+	// Same origin as the consumer: must be ignored.
+	own := natswire.NewCrudPublisher(f.js, "local")
+	own.Publish(natswire.CrudOpCreate, f.owner, &natswire.CrudOpData{ID: "bridge-self-1", Title: "echo"})
+	time.Sleep(500 * time.Millisecond)
+	if _, err := f.q.GetTodo(ctx, dbgen.GetTodoParams{ID: "bridge-self-1", Owner: f.owner}); err == nil {
+		t.Fatal("own-origin op was applied; the local DB already had it")
+	}
+	select {
+	case payload := <-streamCh:
+		t.Fatalf("own-origin op was broadcast again: %s", payload)
+	default:
+	}
+}
+
+// TestHandlersBridgeTwoInstancesConverge pins the multi-instance fix: each
+// instance owns a durable, so BOTH receive a remote op; the origin instance
+// ignores its own event and the remote one applies + fans out exactly once.
+//
+// RED-PROOFED: with the old shared durable the second consumer is rejected
+// ("consumer is already bound") and never applies; with no origin tag the
+// origin instance applies its own event and double-broadcasts.
+func TestHandlersBridgeTwoInstancesConverge(t *testing.T) {
+	h, err := nats.StartEmbedded(t.TempDir() + "/nats")
+	if err != nil {
+		t.Fatalf("embedded nats: %v", err)
+	}
+	t.Cleanup(h.Close)
+	pub := natswire.NewCrudPublisher(h.JS, "inst-a")
+	if pub == nil {
+		t.Fatal("crud publisher is nil (stream not created)")
+	}
+
+	owner := dbschema.NewID()
+	now := dbschema.Now()
+	instance := func(name string) (*dbgen.Queries, *queue.SSEHub) {
+		sqlDB, oerr := db.OpenAt(t.TempDir() + "/" + name + ".db")
+		if oerr != nil {
+			t.Fatalf("db open %s: %v", name, oerr)
+		}
+		t.Cleanup(func() { sqlDB.Close() })
+		if merr := dbschema.Migrate(sqlDB); merr != nil {
+			t.Fatalf("db migrate %s: %v", name, merr)
+		}
+		if _, xerr := sqlDB.ExecContext(context.Background(),
+			`INSERT INTO users (id, email, password_hash, name, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
+			owner, name+"@example.com", "hash", name, now, now,
+		); xerr != nil {
+			t.Fatalf("%s owner: %v", name, xerr)
+		}
+		hub := queue.NewSSEHub()
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		go func() {
+			_ = RunCrudConsumer(ctx, h.JS, "multitest", name, dbgen.New(sqlDB), nil, nil, hub)
+		}()
+		return dbgen.New(sqlDB), hub
+	}
+	qA, hubA := instance("inst-a")
+	qB, hubB := instance("inst-b")
+	time.Sleep(400 * time.Millisecond) // let both consumers bind (separate durables)
+
+	chA := make(chan []byte, 8)
+	chB := make(chan []byte, 8)
+	hubA.Register("a-client", owner, chA)
+	hubB.Register("b-client", owner, chB)
+
+	pub.Publish(natswire.CrudOpCreate, owner, &natswire.CrudOpData{ID: "multi-1", Title: "from a"})
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, err := qB.GetTodo(context.Background(), dbgen.GetTodoParams{ID: "multi-1", Owner: owner}); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("instance B never applied the remote op (durable collision or dead consumer)")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	// A must NOT have applied its own op.
+	time.Sleep(300 * time.Millisecond)
+	if _, err := qA.GetTodo(context.Background(), dbgen.GetTodoParams{ID: "multi-1", Owner: owner}); err == nil {
+		t.Fatal("origin instance applied its own op (origin tag ignored)")
+	}
+	select {
+	case payload := <-chB:
+		var evt recordEvent
+		if err := json.Unmarshal(payload, &evt); err != nil || evt.Event != "created" {
+			t.Fatalf("B hub payload = %s", payload)
+		}
+	default:
+		t.Fatal("instance B did not fan out the applied op")
+	}
+	select {
+	case payload := <-chA:
+		t.Fatalf("origin instance broadcast its own op: %s", payload)
+	case <-time.After(200 * time.Millisecond):
+	}
 }
