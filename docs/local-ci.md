@@ -299,7 +299,7 @@ by hand, so when a step is added to one, add it to the other:
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | golangci-lint (33 linters) | ✓ | ✓ |
 | govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
-| deadcode (advisory, version-pinned) | ✅ pre-push hook | ✓ |
+| deadcode (advisory, host-gated + version-pinned) | ✅ pre-push hook | ✓ |
 | `go test -race` (parallel, all pkgs) | ✓ | ✓ |
 | build + **binary** boot smoke | ✓ | ✓ |
 | browser smoke (Playwright) | ✓ | ✓ |
@@ -409,6 +409,7 @@ no-op when lefthook is not installed).
 |------|------|------|
 | `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) · stelow-drift (advisory) · govulncheck/ci-deps (glob-scoped) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
+| `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
 External tools are **version-pinned in `go.mod`** (the `tool` directive, already
 used for `templ`) and run through `go tool`, never `go install @latest`. That is
@@ -416,7 +417,19 @@ what keeps a scan from disagreeing with the toolchain about which module
 version it is type-checking — the mismatch that made `deadcode` report
 type-check errors as "dead code found". Add another tool the same way:
 `go get -tool <pkg>@<version>`, then call it as `go tool <name>`.
-| `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
+
+The `deadcode` job is ADVISORY and **host-gated**: it compiles every package
+(measured 30s wall / 175% CPU / **3.28 GB peak RSS** — more than a full-repo
+lint), so on a box without that headroom it prints `SKIPPED` with the failed
+dimension and lets the push through. `DEADCODE_FORCE=1` overrides, and
+`DEADCODE_MIN_RAM_MB` / `DEADCODE_MAX_LOAD_PER_CORE` move the floors. Same
+evidence-over-labels contract as `scripts/lint-safe.sh` and
+`scripts/check-host-capacity.sh`, and for the same reason: committing 3.3 GB
+on a shared host makes the scan swap, and before this gate existed a real
+push sat in that hook for 23 minutes at load 18 on 4 cores. The contract is
+pinned by `bin/check-deadcode_test.go` (skip verdicts, named dimension,
+override discoverability, and the invariant that the hook never fails a
+push).
 
 > If the pre-commit hook reports every job green but still exits non-zero, read
 > the **middle** of the output, not the summary — the jobs run in parallel and
