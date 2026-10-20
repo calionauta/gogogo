@@ -33,6 +33,11 @@ being one.
 
 ## Adding a new feature
 
+0. Scaffold it: `go run ./cmd/gogogo new feature <name>` writes the handler +
+   page, wires `BootChi`/`buildChiMux`, registers the capability unit, adds the
+   RBAC rows, regenerates the docs and proves the build. Read the unit's card in
+   [Unit contracts](unit-contracts.md) first — it lists the routes and generated
+   queries the unit already owns.
 1. Create `features/<name>/` with its HTTP handlers + Templ components.
 2. Wire it in `internal/server/chi.go` — build the handler in `BootChi`,
    mount the routes in `buildChiMux`.
@@ -40,6 +45,11 @@ being one.
    **Datastar** for the reactive frontend.
 4. Add a `SCOPE:` annotation — `make check-scope` enforces it.
 5. Add a `Routes()` method on your handler and mount it in `buildChiMux`.
+
+A feature never imports another feature. Three shared UI leaves are the only
+exception (`features/authviews`, `features/sounds`, `features/genui/components`);
+`cmd/check-flatdeps` fails the gate on anything else, so a trim never breaks a
+neighbour.
 
 The [Todo feature](todo-example.md) is the full reference implementation.
 

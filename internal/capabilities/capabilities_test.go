@@ -421,3 +421,31 @@ func TestRegistryCoversDagnatsImports(t *testing.T) {
 			pkgDir, strings.Join(offenders, "\n  "))
 	}
 }
+
+// TestNonCoreUnitsExplainTheirRemoval is the "no silent capability" rule: a
+// unit that is not core must say what disappears with it — either it is an
+// installer unit (the trim proof speaks for it) or it carries the reason/
+// note the reader needs. The scaffolded feature ships that reason, so a
+// generated unit cannot land without a removal story.
+func TestNonCoreUnitsExplainTheirRemoval(t *testing.T) {
+	for _, c := range All {
+		if c.Kind == KindCore {
+			continue
+		}
+		if c.Offered || c.Reason != "" || c.Note != "" {
+			continue
+		}
+		t.Errorf("capability %q (%s) explains neither how it is removed nor what is lost", c.ID, c.Kind)
+	}
+}
+
+// TestCoreUnitsAreNeverOffered is the other half: core means "customize,
+// never remove", so offering it to the installer would contradict the class
+// (and let a scaffold delete its own auth or database).
+func TestCoreUnitsAreNeverOffered(t *testing.T) {
+	for _, c := range All {
+		if c.Kind == KindCore && c.Offered {
+			t.Errorf("core capability %q is offered for trimming — core means never remove", c.ID)
+		}
+	}
+}

@@ -124,7 +124,7 @@ func TestRBACDBPolicySource(t *testing.T) {
 
 	// Runtime edit: a new rule in the table takes effect on the next build.
 	if ierr := q.InsertCasbinRule(context.Background(), dbgen.InsertCasbinRuleParams{
-		Ptype: "p", V0: RoleUser, V1: "/reports", V2: "GET",
+		Ptype: "p", V0: RoleUser, V1: "/db-only-route", V2: "GET",
 	}); ierr != nil {
 		t.Fatalf("insert rule: %v", ierr)
 	}
@@ -132,10 +132,10 @@ func TestRBACDBPolicySource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
-	if ok, eerr := EnforceWith(rebuilt, RoleUser, "/reports", "GET"); eerr != nil || !ok {
-		t.Errorf("runtime row must grant /reports GET to user: ok=%v err=%v", ok, eerr)
+	if ok, eerr := EnforceWith(rebuilt, RoleUser, "/db-only-route", "GET"); eerr != nil || !ok {
+		t.Errorf("runtime row must grant /db-only-route GET to user: ok=%v err=%v", ok, eerr)
 	}
-	if base, _ := EnforceWith(embedded, RoleUser, "/reports", "GET"); base {
-		t.Error("premise broken: the embedded policy already allowed /reports")
+	if base, _ := EnforceWith(embedded, RoleUser, "/db-only-route", "GET"); base {
+		t.Error("premise broken: the embedded policy already allowed /db-only-route")
 	}
 }

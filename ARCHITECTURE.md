@@ -44,9 +44,9 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH` mounted at `/todo` + `/api/todos` in `buildChiMux` | Delete package + remove block |
 | **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `wbH` mounted at `/whiteboard` + `/api/whiteboard/` in `buildChiMux` (one argument per line, so a trim drops exactly its lines) | Delete both dirs + remove call |
 | **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ navbar link, seed, capability entry) |
-| **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟢 FEATURE | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call |
+| **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟡 PLUGIN (bundle) | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call (the registry's `dagnats` unit owns both) |
 | **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `roomH` mounted at `/room` in `buildChiMux` (nil-able; no-op when `GOAKT_ENABLED=false`) | Delete both dirs + remove call |
-| **Ask + chat demos** | `features/genui/` + `features/chat/` | 🟡 PLUGIN (bundle) | `genuiH`/`chatH` mounted at `/genui` + `/api/genui/` and `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | `gogogo trim genui` (or delete both dirs + remove calls + navbar Ask AI link + mux-table elements + `genui_stubs_test.go`) |
+| **Ask + chat demos** | `features/genui/` + `features/chat/` | 🟡 PLUGIN (bundle) | `genuiH`/`chatH` mounted at `/genui` + `/api/genui/` and `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | the `genui` installer unit (dropped by the `minimal`/`no-ai` presets) — or delete both dirs + remove calls + navbar Ask AI link + mux-table elements + `genui_stubs_test.go`) |
 | **Persistence (single store)** | `internal/db/` (migrations + sqlc queries) | 🔴 CORE | `db.Open(cfg)` in `BootChi` | Core data layer; customize, never remove |
 
 > **⚠️ Auth is a mixed package.** The **login UI** (login page, navbar) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.
@@ -213,12 +213,30 @@ main.go
 
 ## Adding a new feature
 
-1. Create `features/<name>/` with your HTTP handlers + Templ components.
-2. Add a `Routes()` method on your handler and mount its subtree in `buildChiMux`.
-3. Add a "Remove by" comment.
-4. Add a row to the Features table above.
+0. Scaffold it — never copy a slice by hand:
+   `go run ./cmd/gogogo new feature <name>`. It writes `features/<name>/handlers/chi.go`
+   + `components/page.templ`, wires `BootChi`, registers the capability unit, adds
+   the RBAC rows, regenerates the generated docs, and proves the build
+   (`templ` → docs → `check-scope` → `check-flatdeps` → `go build ./cmd/web`).
+   Read the unit's card in [`docs/unit-contracts.md`](docs/unit-contracts.md) first:
+   it lists the routes and generated queries the unit already owns.
+1. Grow the slice in `features/<name>/handlers/` + `components/` (Templ), calling
+   `dbgen.*` directly and streaming through the SSE Hub.
+2. A feature never imports another feature's domain: only `features/authviews`,
+   `features/sounds` and `features/genui/components` are shared leaves — the rest
+   fails `cmd/check-flatdeps` (so a trim never breaks a neighbour).
+3. Add a `// SCOPE:<core|plugin|feature>` line to every new `.go` file and a unit
+   in `internal/capabilities/registry.go` — `make check-scope` and
+   `TestRegistryCoversPackages` enforce both.
+4. Add the RBAC row for each route in `internal/rbac/casbin/policy.csv`; the
+   coverage lint walks the real handlers and fails a route with no `user` row.
+5. Add a row to the Features table above and, if the unit is offered to the
+   installer, a trim unit with its strips.
 
-New infra should go in `internal/<name>/`. Same pattern: create the package, wire it in `main.go` or `chi.go`, add a "Swap / Remove by" comment.
+New infra goes in `internal/<name>/`. Same pattern: create the package, wire it
+in `main.go` or `chi.go`, add the `SCOPE` line + registry unit, and state in the
+unit whether it is core, plugin, or feature — `internal/` alone does not answer
+that (about half of it is plugin).
 
 ---
 
@@ -230,7 +248,8 @@ cmd/gui/main.go            Native window (gogpu/ui over the same Turso/sqlc stor
 config/config.go           Env-based config (incl. UI_SKIN, BUILD_LABEL/COMMIT)
 internal/db/               Turso open + migrate + sqlc queries
 features/                  Demo features (🟢 FEATURE, except auth middleware 🔴)
-  auth/                      Login/logout/cookie (UI 🟢, middleware 🔴)
+  authviews/                 Login page + navbar/theme (UI 🟢; middleware lives in internal/auth 🔴)
+  app/                       AppContext bundle for cmd/gui only (🟡 PLUGIN — cmd/web never links it)
   landing/                   Public marketing hero on GET / (🟢 FEATURE)
   config/                    Auth-gated read-only /config view (🟢 FEATURE, with masked secrets)
   todo/                      Todo MVC (the reference implementation)

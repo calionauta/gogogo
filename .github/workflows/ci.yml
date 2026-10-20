@@ -128,6 +128,12 @@ jobs:
         # flatdeps-lint job: no banned framework in the closure, no
         # cross-feature domain imports, sql.Open only in owner packages.
         run: go run ./cmd/check-flatdeps
+      - name: Check-docs (prose claims)
+        # Same gate as `make check-docs` and the pre-commit docs-claims job:
+        # no hand-written capability/slice/unit counts, every concrete repo
+        # path alive, every `gogogo <sub>` real, every docs page in the
+        # site MANIFEST.
+        run: go run ./cmd/check-docs
       - name: Check-secrets-env (secret env sites)
         # Same gate as `make check-secrets-env` and the pre-commit
         # secrets-env job: secret-shaped env reads only in owner files

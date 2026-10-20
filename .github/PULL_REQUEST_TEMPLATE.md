@@ -20,7 +20,7 @@ Closes #NNN (maintainer nod received: yes / no)
 ## Checklist
 
 - [ ] One concern per PR, no drive-by refactors or unrelated files
-- [ ] `// SCOPE:layer=…,removal=…` on new non-test, non-generated `.go` files (`make check-scope`)
+- [ ] `// SCOPE:<core|plugin|feature>` on new non-test, non-generated `.go` files (`make check-scope`)
 - [ ] `make templ && make css` after `.templ` edits; no hand-edited `_templ.go`
 - [ ] No real LLM in tests; ephemeral ports (`127.0.0.1:0`, NATS `-1`); `GOGOGO_NO_BROWSER=1` where applicable
 - [ ] No new dependency or native code without prior discussion

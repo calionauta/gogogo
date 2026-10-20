@@ -33,6 +33,7 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `trim_apply` | trim_plan params + `confirm: true` | Rename + trim + tidy + build proof. Refuses without `confirm:true` |
 | `check_tree` | `dir` | `CHECK-OK`/`CHECK-FAIL` drift verdict, changes nothing |
 | `add_unit` | `unit`, `from`, `dir`, `confirm`, `dryRun?` | Dependency closure + copy + rewire + proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |
+| `new_feature` | `name`, `dir`, `confirm`, `dryRun?` | Scaffold one feature inside a checkout: handler + page + wiring + capability unit + RBAC rows, then gates + build proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |
 
 Formats default to `json` on this transport (humans get text on the CLI).
 Mutating tools return the same envelopes the CLI prints, including

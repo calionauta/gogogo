@@ -111,7 +111,7 @@ tests confirm it.
    surface (read/create/toggle class, plus delete-own — never shared
    deletes, never paid).
 4. If the route must stay **admin-only**, add its pattern to
-   `adminOnlyRoutes` in `internal/server/rbac_coverage_test.go`. That map
+   `adminOnlyRoutes` in `internal/rbac/coverage_test.go`. That map
    is the single place the decision is written down; without it the
    coverage test demands a `user` row.
 5. If the route is **public**, add it to `publicRoutes` in the same file

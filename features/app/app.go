@@ -1,4 +1,4 @@
-// SCOPE:core — AppContext (cross-cutting deps bundle)
+// SCOPE:plugin — AppContext (dependency bundle for cmd/gui)
 // Package app provides the cross-cutting "application core" pattern
 // for projects built on top of gogogo. In a real project
 // cloned from this template, this is where you'd put:

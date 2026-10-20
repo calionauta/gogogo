@@ -292,6 +292,7 @@ by hand, so when a step is added to one, add it to the other:
 | CSS bundle matches sources | ✓ `css-check` (both skins) | ✓ (after `npm ci`) |
 | SCOPE annotations | ✓ | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
+| Prose claims (no hand-written counts, live paths, real subcommands, docs in the MANIFEST) | ✓ `check-docs` | ✓ |
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
 | SKILL.md frontmatter | ✓ | ✓ |
 | install.sh bootstrap contract | ✓ | ✓ |
@@ -407,7 +408,7 @@ no-op when lefthook is not installed).
 
 | Hook | Jobs | When |
 |------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) · stelow-drift (advisory) · govulncheck/ci-deps (glob-scoped) | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · docs-claims · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) · stelow-drift (advisory) · govulncheck/ci-deps (glob-scoped) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
 
 The `deadcode` job is ADVISORY and **host-gated**: it compiles every package

@@ -40,7 +40,7 @@ internal/
   demo/                           Fresh-install demo account seed
   server/                         Flat-stack composition (BootChi + buildChiMux)
 features/
-  app/                            AppContext (cross-cutting deps bundle)
+  app/                            AppContext bundle (consumed by cmd/gui only)
   authviews/                      Login/navbar/theme components
   landing/                        Public marketing hero on GET /
   config/                         Auth-gated read-only /config view

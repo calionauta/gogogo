@@ -39,6 +39,7 @@ Activate when: editing any `.go` file, spawning a goroutine, creating a channel,
 | Genui/chat answers, the component catalog, prompts, repair/fallback | `references/genui.md` |
 | Lint failing, adding a rule, CI red | **Enforcement** |
 | Proposing Zig (the native exception), or a NATIVE DESKTOP UI | **Exception-to-go gate** + `references/exception-to-go.md` (a native UI means `nanoui`) |
+| Adding a feature or a `.go` file | **Where new code goes** + [`docs/unit-contracts.md`](../../docs/unit-contracts.md) (`gogogo new feature <name>`) |
 | Choosing which units fit a use-case | [docs/use-cases.md](../../docs/use-cases.md) + `advise` |
 | stdlib-only task (no template deps) | **Toolchain / stdlib-only** (below) |
 
@@ -71,7 +72,7 @@ under **Core Go Rules**. Everything below is the delta this project adds on top.
 1. Errors are values: handle at call site, wrap with `%w`. See `errorlint`, `nilerr` in `.golangci.yml`.
 2. Interfaces at consumer, 1–3 methods. Prefer `io.Reader`/`io.Writer` over custom.
 3. `ctx context.Context` first param on I/O/cancellable paths. Never store in struct (`containedctx`, `contextcheck`, `noctx` enforce).
-4. `log/slog` only. No `fmt.Print*`, no bare `log.Printf`. In HTTP slices (`features/*/chi`, non-test), `slog.Error/Warn` is banned — use `internal/observability` with the request ctx (`ruleguard` enforces; helpers take ctx as a param for this reason).
+4. `log/slog` only. No `fmt.Print*`, no bare `log.Printf`. In HTTP slices (`features/*/handlers`, non-test), `slog.Error/Warn` is banned — use `internal/observability` with the request ctx (`ruleguard` enforces; helpers take ctx as a param for this reason).
 5. DI via constructors. No `init()` deps, no package-level service vars. No goroutines in `init()` — expose `Start`/`Stop`.
    - **A service handle is the case this rule is really about.** `internal/nats` had three exported globals (`NS`, `NC`, `JS`): two concurrent starts wrote the same variables (a real data race) and any `Stop()` cleared state another caller was still using — which is also why its tests could not run in parallel. Return a handle (`*Handle, error`) with a `Close()` that frees only what it owns; keep at most ONE accessor behind a `sync.RWMutex` for call sites that genuinely cannot thread the value. Pattern: `references/go-testing.md`.
 6. Naming: short receivers (`s`, `h`), acronyms `userID`/`httpClient`, no stutter, document exports.
@@ -175,19 +176,27 @@ Full rules: `references/datastar.md`.
   convention and reads wrong in a Go repo; renaming it to `assets/css/`
   touches `Makefile`, `package.json`, `docs/` and the CI workflow, so it
   waits for a session that is not editing those files.
-- **New feature code goes in `features/<feature>/chi/`.** That package is the
-  live surface: chi routes, owned auth, `dbgen` queries called directly, the
-  same Templ components, the same SSE wire. The entry file is `chi.go` in
-  all nine slices (todo, chat, genui, credits, whiteboard, notes, room,
-  landing, config). Split a slice into more files by concern
-  (`mutations.go`, `stream.go`, `worker.go`) once `chi.go` passes ~200 lines,
-  the way `features/todo/handlers/` already is.
-- **Never make a chi slice import another feature's chi package for shared
-  code.** Shared wire or UI goes in a framework-free package both import
-  (`features/todo/components`, `internal/dagnats`) or is copied chi-locally
-  — the step vocabulary duplicated between `features/onboarding` and
-  `features/todo/handlers` is that trade, made deliberately so trimming one
-  cannot break the other.
+- **Scaffold a feature instead of copying one by hand.** `go run ./cmd/gogogo
+  new feature <name>` writes `features/<name>/handlers/chi.go` + `components/
+  page.templ`, wires the composition root, registers the capability unit, adds
+  the RBAC rows, regenerates the docs and proves the build. Read the unit's
+  card in [`docs/unit-contracts.md`](../../docs/unit-contracts.md) first: it
+  lists the routes and generated queries the unit already owns.
+- **New feature code goes in `features/<feature>/handlers/`.** That package is
+  the live surface: chi routes, owned auth, `dbgen` queries called directly, the
+  same Templ components, the same SSE wire. The entry file is `chi.go` in every
+  slice (todo, chat, genui, credits, whiteboard, notes, room, review, landing,
+  config). Split a slice into more files by concern (`mutations.go`,
+  `stream.go`, `worker.go`) once `chi.go` passes ~200 lines, the way
+  `features/todo/handlers/` already is.
+- **Never make a feature import another feature's domain for shared code.**
+  `cmd/check-flatdeps` allows exactly three shared UI leaves —
+  `features/authviews`, `features/sounds`, `features/genui/components` — and
+  fails the gate on anything else (so a trim never breaks a neighbour).
+  Shared *wire* code goes in a framework-free `internal/` package, or is copied
+  feature-locally: the step vocabulary duplicated between
+  `features/onboarding` and `features/todo/handlers` is that trade, made
+  deliberately.
 - **`internal/` packages are closed by the gate too.** `cmd/check-flatdeps`
   lists the flat-stack packages that must stay framework-free; adding one
   means adding it to that list, which is the review moment the guarantee

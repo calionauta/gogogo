@@ -19,9 +19,13 @@ var All = []Capability{
 	{
 		ID:      "queue",
 		Kind:    KindCore,
-		Summary: "goqite background jobs + SSE Hub + workers + retry",
+		Summary: "SSE Hub (realtime fan-out) + goqite jobs + workers + retry",
 		Dirs:    []string{"internal/queue"},
-		Note:    "Core: every async path flows through it. Customize, never remove.",
+		Note: "Core, and the Hub is the load-bearing half: every streaming " +
+			"handler (todo, genui, chat, notes, whiteboard, review, room) " +
+			"names *queue.SSEHub in its constructor, so no trimmed tree " +
+			"compiles without it — even with NATS off. The job queue shares " +
+			"the package because workers stream through the same hub.",
 	},
 	{
 		ID:      "secrets",
@@ -56,10 +60,13 @@ var All = []Capability{
 	},
 	{
 		ID:      "app",
-		Kind:    KindCore,
-		Summary: "AppContext (cross-cutting deps bundle)",
+		Kind:    KindPlugin,
+		Summary: "AppContext (dependency bundle for the native window)",
 		Dirs:    []string{"features/app"},
-		Note:    "Core: handlers receive it, never remove.",
+		Note: "Plugin, not core: cmd/web never links it — handlers take " +
+			"their deps directly, so only cmd/gui (the gogpu/ui proof) reads " +
+			"Context. Deleting the package drops that second frontend, never " +
+			"the web app.",
 	},
 	{
 		ID:      "demo-seed",
@@ -304,7 +311,11 @@ var All = []Capability{
 		Kind:       KindPlugin,
 		Summary:    "hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)",
 		RuntimeOff: "OFFLINE_SYNC_ENABLED=false",
-		Reason:     "Spans a config struct field, sw.js, and templ registration; deletion is manual.",
+		// The unit used to own no path at all, which made its removal story
+		// unverifiable: sw.js IS the implementation (the banner + templ
+		// registration live in internal/components, owned by that unit).
+		Files:  []string{"web/resources/static/sw.js"},
+		Reason: "Spans a config struct field, sw.js, and templ registration; deletion is manual.",
 	},
 	{
 		ID:      "todo",

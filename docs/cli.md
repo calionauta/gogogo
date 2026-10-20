@@ -17,6 +17,7 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 | `gogogo --dry-run --format json` | No | The trim plan as one JSON document |
 | `gogogo --yes` | Yes | Scaffold: clone when missing, trim, rename, prove the build |
 | `gogogo add <unit> --from <pristine> --dir <proj>` | Yes (`--yes`) | Bring a trimmed unit back (`--dry-run` previews) |
+| `gogogo new feature <name> --dir <proj>` | Yes (`--yes`) | Scaffold one feature: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate + generated docs + check-scope + flatdeps + build (`--dry-run` previews) |
 | `gogogo --check --dir <proj>` | No | Marker drift verdict per unit |
 | `gogogo --run` | Takes the terminal | After a successful proof, `make dev` replaces this process (Ctrl-C stops dev; humans only) |
 | `gogogo --version` | No | Prints the release tag (or `dev`) |
@@ -28,12 +29,14 @@ with the same flags (always tracks the latest commit; releases pin a version).
 
 - `--no-tui --yes --format json`: the scripted shape. `--dry-run` prints
   the plan and stops; apply prints one envelope
-  (`plan, receipt, buildOk, buildError, next`).
+  (`plan, receipt, buildOk, buildError, next`). `new` follows the same rule:
+  dry-run prints the plan, apply prints one envelope
+  (`name, dir, created, edits, buildOk, buildError, next`).
 - Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed.
 - Never `--run` without a terminal: it never returns.
-- `add`/`trim` only touch scaffolded checkouts (`internal/server/chi.go` +
-  `go.mod` must exist) — foreign Go codebases get guidance (`advise`),
-  not merging.
+- `add`/`new`/`trim` only touch scaffolded checkouts (`internal/server/chi.go`
+  + `go.mod` must exist) — foreign Go codebases get guidance (`advise`),
+  not merging. `new` also refuses before writing when a wiring anchor moved.
 - Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
   (Go rules; `advise` output cites it).
 - `advise` answers in ONE of three scopes, chosen from `--need` alone
