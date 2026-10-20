@@ -88,18 +88,27 @@ The rule of thumb: **commit on release, relay while moving.**
 > changed, the Hub record event already delivers it, and the visibility-scoped
 > re-list makes the delivery correctly scoped for free.
 
-## Cross-instance sync adds two more paths
+## Cross-instance sync adds one more path
 
 When JetStream is enabled (default: on):
 
 - The **NATS APP_CRUD stream** converges record operations across server
-  instances. `CrudPublisher` publishes each mutation; `CrudConsumer` on the
-  receiving instance writes to its local Turso database, which then broadcasts
-  via the Hub record event to its local clients.
-- The **NATS TODOS stream** carries ephemeral signals across instances and
-  re-emits them through the local SSE Hub.
+  instances. `CrudPublisher` publishes each mutation tagged with the
+  publisher's **instance identity** (`APP_INSTANCE_ID`, else the hostname);
+  `CrudConsumer` runs **one durable per instance** (`<app>-crud-<instance>`,
+  inactive for an hour after a rollout) so every instance applies every
+  remote op to its own Turso database and broadcasts it once to its local
+  clients. The publishing instance skips its own event — the local write and
+  fan-out already happened — which is what keeps a mutation from producing
+  two record events. A durable shared by two instances would be rejected by
+  the server ("consumer is already bound"), and the losing instance would
+  stop converging silently.
+- Inside the feature, **one publish point** (`features/todo/bus.go`) fans the
+  fact out to the hub, the wire, and any in-process subscriber (a native
+  window). Handlers call it once; no mutation can reach one transport and
+  miss the other.
 
-Both are safe to enable on a single instance — the streams simply carry no
+The stream is safe to enable on a single instance — it simply carries no
 cross-instance traffic.
 
 ## Offline sync uses yet another path
@@ -196,9 +205,7 @@ rebuild from connections.
 |---|---|---|
 | `data/app.db` (Turso app truth) | relational, kept | `scripts/backup.sh` (`.backup` + integrity check) |
 | `data/queue.db` (jobs) | jobs until acked + retried | same script, same check |
-| TODOS stream (live fan-out) | 24h + 256MB cap (consumers are live-only; catch-up is fragment re-fetch) | `nats account backup` when reachable (ephemeral by design — losable) |
 | APP_CRUD stream (transport buffer) | 7d + 512MB cap (the database is the truth; replaying older would resurrect applied mutations) | same as above |
-| `room-presence` KV (roster) | latest revision per member + 24h TTL (crashed members expire) | same as above |
 | DagNats streams/KV (upstream) | engine-owned; 10 GiB store cap + 30d DLQ | same as above |
 | Browser outbox (IndexedDB) | device-local, drains on reconnect | not backed up (client state) |
 | Grain roster (GoAkt) | in-memory soft state, connection-rebuilt | not backed up (rebuilt, by design) |

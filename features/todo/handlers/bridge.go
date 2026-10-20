@@ -2,8 +2,8 @@
 //
 // RunCrudConsumer subscribes to the app.crud.todo.> subjects, applies each
 // operation to Turso, and fans the record event out to local chi streams.
-// Its durable is per app + "chi", independent from the server stack's
-// cursor over the same wire.
+// Its durable is per app AND per instance: two instances of the same app
+// need independent cursors, or only the instance that binds first converges.
 //
 // Identity boundary: payload UserIDs are strings resolved against app
 // users; anything else is skipped with a warning — faking a mapping would
@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	natsio "github.com/nats-io/nats.go"
 
@@ -25,15 +26,19 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/observability"
-	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // RunCrudConsumer subscribes and blocks until ctx is cancelled. Nil js
 // (NATS disabled) is a no-op returning nil — the chi stack then converges
 // in-process through the Hub only.
+//
+// instanceID names the durable: one consumer PER INSTANCE, so every
+// instance applies every remote op to its own database. A durable shared
+// by two instances is rejected by the server ("consumer is already bound")
+// and the losing instance silently stops converging.
 func RunCrudConsumer(
-	ctx context.Context, js natsio.JetStreamContext, appName string,
-	q *dbgen.Queries, ix SearchIndexer, db *sql.DB, hub *queue.SSEHub,
+	ctx context.Context, js natsio.JetStreamContext, appName, instanceID string,
+	q *dbgen.Queries, ix SearchIndexer, db *sql.DB, bus *todo.Bus,
 ) error {
 	if js == nil {
 		return nil
@@ -48,9 +53,22 @@ func RunCrudConsumer(
 		if p.UserID == "" {
 			return
 		}
-		applyCrudOp(ctx, q, ix, db, hub, p)
+		// Our own publication: the local DB already has the row and the
+		// handler already fanned out to local streams. Applying it again is
+		// idempotent, but broadcasting would deliver a SECOND record event
+		// to every local tab (measured as a double re-list per mutation).
+		// Empty Origin is a pre-field publisher: treat as remote.
+		if p.Origin != "" && p.Origin == instanceID {
+			_ = msg.Ack()
+			return
+		}
+		applyCrudOp(ctx, q, ix, db, bus, p)
 		_ = msg.Ack()
-	}, natsio.Durable(natswire.CrudDurable(appName)+"-chi"), natsio.ManualAck())
+	}, natsio.Durable(natswire.CrudInstanceDurable(appName, instanceID)),
+		natsio.ManualAck(),
+		// A rolled-out instance never comes back under the same name; the
+		// inactive durable would otherwise linger forever.
+		natsio.InactiveThreshold(time.Hour))
 	if err != nil {
 		return err
 	}
@@ -65,7 +83,7 @@ func RunCrudConsumer(
 // visible — the origin instance already authorized the act.
 func applyCrudOp(
 	ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
-	hub *queue.SSEHub, p natswire.CrudPayload,
+	bus *todo.Bus, p natswire.CrudPayload,
 ) {
 	owner, err := tenantOf(ctx, q, p.UserID)
 	if err != nil {
@@ -107,19 +125,11 @@ func applyCrudOp(
 		observability.Warn(ctx, "chi crudconsumer: apply failed", obsArgs...)
 		return
 	}
-	payload, merr := json.Marshal(evt)
-	if merr != nil {
-		obsArgs := append(observability.WithComponent("todo", "feature"), "error", merr)
-		observability.Error(ctx, "chi crudconsumer: marshal fan-out", obsArgs...)
-		return
-	}
-	// Shared rows refresh every login's streams (each re-lists its own
-	// visible set); private rows reach only the owner's tabs.
-	if shared {
-		hub.BroadcastToAllUsers(payload, "")
-		return
-	}
-	hub.BroadcastToUser(payload, p.UserID, "")
+	// LOCAL fan-out only: the event arrived from another instance, so
+	// re-publishing it on the wire would echo it back to every instance.
+	// The bus scopes the hub delivery (shared -> every login, private ->
+	// the owner) and notifies in-process subscribers.
+	bus.PublishLocal(ctx, eventFromRecord(evt, owner, shared))
 }
 
 // tenantOf resolves a wire user id to a real app identity. Unknown ids
@@ -166,7 +176,7 @@ func applyCreate(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sq
 	}); err != nil {
 		return recordEvent{}, false, fmt.Errorf("create apply %s: %w", id, err)
 	}
-	return recordEvent{Event: "created", ID: id, Title: data.Title}, visibility == todo.VisibilityPublic, nil
+	return recordEvent{Event: recordCreated, ID: id, Title: data.Title}, visibility == todo.VisibilityPublic, nil
 }
 
 func applyToggle(ctx context.Context, q *dbgen.Queries, owner string,
@@ -192,7 +202,8 @@ func applyToggle(ctx context.Context, q *dbgen.Queries, owner string,
 	}); err != nil {
 		return recordEvent{}, false, fmt.Errorf("toggle apply %s: %w", data.ID, err)
 	}
-	return recordEvent{Event: "toggled", ID: data.ID, Done: data.Completed}, row.Visibility == todo.VisibilityPublic, nil
+	return recordEvent{Event: recordToggled, ID: data.ID, Done: data.Completed},
+		row.Visibility == todo.VisibilityPublic, nil
 }
 
 func applyDelete(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB, owner string,
@@ -213,7 +224,7 @@ func applyDelete(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sq
 	if err := deleteTodoIndexed(ctx, q, ix, db, owner, data.ID); err != nil {
 		return recordEvent{}, false, fmt.Errorf("delete apply %s: %w", data.ID, err)
 	}
-	return recordEvent{Event: "deleted", ID: data.ID}, row.Visibility == todo.VisibilityPublic, nil
+	return recordEvent{Event: recordDeleted, ID: data.ID}, row.Visibility == todo.VisibilityPublic, nil
 }
 
 func applyClearCompleted(ctx context.Context, q *dbgen.Queries, ix SearchIndexer, db *sql.DB,
@@ -222,7 +233,7 @@ func applyClearCompleted(ctx context.Context, q *dbgen.Queries, ix SearchIndexer
 	if _, err := clearCompletedIndexed(ctx, q, ix, db, owner); err != nil {
 		return recordEvent{}, fmt.Errorf("clear apply: %w", err)
 	}
-	return recordEvent{Event: "cleared"}, nil
+	return recordEvent{Event: recordCleared}, nil
 }
 
 // errSkip marks "nothing to do" separately from failure: callers stay quiet

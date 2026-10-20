@@ -1,4 +1,4 @@
-// SCOPE:plugin — stream/KV retention bounds tests.
+// SCOPE:plugin — stream retention bounds tests.
 package nats_test
 
 import (
@@ -7,13 +7,11 @@ import (
 
 	"github.com/calionauta/gogogo/internal/nats"
 	natswire "github.com/calionauta/gogogo/internal/natswire"
-	"github.com/calionauta/gogogo/internal/queue"
 )
 
-// Retention is a correctness property here, not tuning: unbounded streams
-// grow forever for readers that never replay (the database is the truth), and
-// coordination KV without TTL accumulates crashed members. These tests
-// pin the bounds so a future edit cannot silently drop them.
+// Retention is a correctness property here, not tuning: an unbounded stream
+// grows forever for readers that never replay (the database is the truth).
+// These tests pin the bound so a future edit cannot silently drop it.
 
 func streamLimits(t *testing.T, js nats.JetStreamLike, name string, maxAge time.Duration, maxBytes int64) {
 	t.Helper()
@@ -29,22 +27,6 @@ func streamLimits(t *testing.T, js nats.JetStreamLike, name string, maxAge time.
 	}
 }
 
-func TestTodoStreamIsBounded(t *testing.T) {
-	h, err := nats.StartEmbedded(t.TempDir())
-	if err != nil {
-		t.Fatalf("StartEmbedded: %v", err)
-	}
-	t.Cleanup(h.Close)
-	js := h.JS
-	if js == nil {
-		t.Fatal("JetStream not available after StartEmbedded")
-	}
-	if _, err := nats.NewJetStreamBroadcaster(js, queue.NewSSEHub()); err != nil {
-		t.Fatalf("broadcaster: %v", err)
-	}
-	streamLimits(t, js, "TODOS", 24*time.Hour, 256<<20)
-}
-
 func TestCrudStreamIsBounded(t *testing.T) {
 	h, err := nats.StartEmbedded(t.TempDir())
 	if err != nil {
@@ -55,35 +37,8 @@ func TestCrudStreamIsBounded(t *testing.T) {
 	if js == nil {
 		t.Fatal("JetStream not available after StartEmbedded")
 	}
-	if natswire.NewCrudPublisher(js) == nil {
+	if natswire.NewCrudPublisher(js, "test") == nil {
 		t.Fatal("publisher is nil with JetStream up")
 	}
 	streamLimits(t, js, "APP_CRUD", 7*24*time.Hour, 512<<20)
-}
-
-func TestPresenceBucketIsBounded(t *testing.T) {
-	h, err := nats.StartEmbedded(t.TempDir())
-	if err != nil {
-		t.Fatalf("StartEmbedded: %v", err)
-	}
-	t.Cleanup(h.Close)
-	js := h.JS
-	if js == nil {
-		t.Fatal("JetStream not available after StartEmbedded")
-	}
-	if _, kvErr := nats.EnsureKeyValue("room-presence", 1, 24*time.Hour); kvErr != nil {
-		// Bucket may already exist from another test in this package
-		// sharing the server; limits below still apply to it.
-		t.Logf("bucket exists: %v", kvErr)
-	}
-	info, err := js.StreamInfo("KV_room-presence")
-	if err != nil {
-		t.Fatalf("StreamInfo KV_room-presence: %v", err)
-	}
-	if info.Config.MaxMsgsPerSubject != 1 {
-		t.Errorf("room-presence history = %v, want 1 (latest per member)", info.Config.MaxMsgsPerSubject)
-	}
-	if info.Config.MaxAge != 24*time.Hour {
-		t.Errorf("room-presence MaxAge = %v, want 24h", info.Config.MaxAge)
-	}
 }

@@ -16,7 +16,6 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
-	"github.com/calionauta/gogogo/internal/natswire"
 )
 
 // createVisibility reads the create form's Shared checkbox: checked posts
@@ -122,9 +121,9 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	// The previous stack fanned out at the record-write layer, independent
 	// of the HTTP response; this stack fans out here, so it must not sit
 	// behind the early return.
-	h.publishSync(r, owner, visibility == todo.VisibilityPublic,
-		recordEvent{Event: "created", ID: createdID, Title: title},
-		natswire.CrudOpCreate, &natswire.CrudOpData{ID: createdID, Title: title, Visibility: visibility})
+	h.publish(r.Context(), r, todo.Event{
+		Kind: todo.Created, ID: createdID, Title: title, Owner: owner, Visibility: visibility,
+	})
 
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
@@ -275,9 +274,13 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	// Fan-out before the replay short-circuit (see handleCreate): the
 	// "replayed" acknowledgment carries no patch, so the broadcast is the
 	// only path live tabs learn of the toggle through.
-	h.publishSync(r, owner, current.IsShared(),
-		recordEvent{Event: "toggled", ID: id, Done: !current.Completed},
-		natswire.CrudOpToggle, &natswire.CrudOpData{ID: id, Completed: !current.Completed})
+	visibility := todo.VisibilityPrivate
+	if current.IsShared() {
+		visibility = todo.VisibilityPublic
+	}
+	h.publish(r.Context(), r, todo.Event{
+		Kind: todo.Updated, ID: id, Done: !current.Completed, Owner: owner, Visibility: visibility,
+	})
 
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
@@ -374,9 +377,13 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	// Fan-out before the replay short-circuit (see handleCreate): the
 	// "replayed" acknowledgment carries no patch, so the broadcast is the
 	// only path live tabs learn of the delete through.
-	h.publishSync(r, owner, item.IsShared(),
-		recordEvent{Event: "deleted", ID: item.ID},
-		natswire.CrudOpDelete, &natswire.CrudOpData{ID: item.ID})
+	visibility := todo.VisibilityPrivate
+	if item.IsShared() {
+		visibility = todo.VisibilityPublic
+	}
+	h.publish(r.Context(), r, todo.Event{
+		Kind: todo.Deleted, ID: item.ID, Owner: owner, Visibility: visibility,
+	})
 
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")
@@ -426,9 +433,9 @@ func (h *Handler) handleClearCompleted(w http.ResponseWriter, r *http.Request) {
 	// only path live tabs learn of the clear through. Clearing deletes only
 	// the requester's own completed rows, so the audience stays owner-scoped
 	// even when shared rows exist.
-	h.publishSync(r, owner, false,
-		recordEvent{Event: "cleared"},
-		natswire.CrudOpClearCompleted, nil)
+	h.publish(r.Context(), r, todo.Event{
+		Kind: todo.Cleared, Owner: owner, Visibility: todo.VisibilityPrivate,
+	})
 
 	if r.Header.Get("X-Offline-Replay") == "1" {
 		writeText(w, http.StatusOK, "replayed")

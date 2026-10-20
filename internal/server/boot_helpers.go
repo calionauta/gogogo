@@ -21,6 +21,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/demo"
+	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -190,10 +191,12 @@ func bootReview(
 // one the HTTP path uses or the two write paths diverge.
 func startCrudConsumer(
 	ctx context.Context, js nats.JetStreamLike, appName string,
-	todoH *todohandlers.Handler, hub *queue.SSEHub,
+	todoH *todohandlers.Handler,
 ) {
 	go func() {
-		if cerr := todohandlers.RunCrudConsumer(ctx, js, appName, todoH.Q, todoH.Index, todoH.DB, hub); cerr != nil {
+		if cerr := todohandlers.RunCrudConsumer(
+			ctx, js, appName, instance.ID(), todoH.Q, todoH.Index, todoH.DB, todoH.Bus(),
+		); cerr != nil {
 			slog.Error("server: chi crud consumer stopped", "error", cerr)
 		}
 	}()

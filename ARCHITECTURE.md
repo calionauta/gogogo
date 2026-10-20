@@ -163,7 +163,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
   - Whiteboard sync — shapes published directly via `WebSyncWorker.nc.Publish()` to subject `app.sync.<docID>` (bypasses SSE Hub entirely)
   - DagNats — workflow engine uses JetStream for durable state
   - Desktop Leaf Node — optional edge sync
-  - *(Todos currently use the in-memory SSE Hub path, not the JetStream TODOS stream — the `JetStreamBroadcaster` exists in `internal/nats` but nothing wires it; cross-instance record convergence runs through the APP_CRUD stream + `AttachJetStream` instead.)*
+  - Todos — one fact published through `features/todo/bus.go`: the SSE hub locally and the APP_CRUD stream for other instances (one durable per instance, origin-tagged so an instance ignores its own echo).
 - **DagNats** (Plugin 🟡): durable multi-step workflows as declarative JSON. Uses NATS JetStream for state.
 - **GoAkt** (Plugin 🟡): entity actors (one grain per room: roster + presenter lock, supervised). Standalone, no network.
 
@@ -258,7 +258,7 @@ features/                  Demo features (🟢 FEATURE, except auth middleware �
   whiteboard/                Collaborative canvas
 internal/                  Infrastructure
   queue/                     goqite + SSE Hub + workers + retry + handler registry
-  nats/                      Embedded NATS + JetStream broadcaster + CRUD proxy
+  nats/                      Embedded NATS + JetStream handle + CRUD wire
   dagnats/                   DagNats client + workflow definitions
   collab/                    Loro CRDT + DocStore + sync workers + presence
   llm/                       GoAI LLM client + simulated client (SSE-streaming suggest)

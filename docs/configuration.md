@@ -20,6 +20,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `HOST` | `0.0.0.0` | HTTP bind address |
 | `ENVIRONMENT` | `development` | Anything other than `production` selects dev mode |
 | `APP_NAME` | binary name | Project name (secrets scope); never empty |
+| `APP_INSTANCE_ID` | hostname | Stable per-instance identity for cross-instance fan-out: names the JetStream CRUD durable and tags published events so an instance ignores its own echo. Set it when the hostname changes across restarts (StatefulSet, recreated containers) and you want the durable cursor to survive |
 | `LOG_LEVEL` | `INFO` | slog level |
 | `DATA_DIR` | `data` | Root for runtime data |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |

@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -32,6 +31,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/observability"
@@ -59,11 +59,10 @@ type Handler struct {
 	// Queue carries suggest/retry jobs. Nil is valid until wired:
 	// enqueue fails closed with 500 naming the missing wiring.
 	Queue *queue.Queue
-	// Pub publishes mutations to JetStream for cross-instance convergence.
-	// Nil (NATS disabled) is a valid zero value: Publish is nil-safe, so
-	// the stack converges in-process through the Hub only. Set via
-	// SetPublisher so tests can run hub-only without a NATS server.
-	Pub *natswire.CrudPublisher
+	// bus is the ONE publish point for todo facts: the hub sink always, the
+	// NATS wire when AttachJetStream wires it. Constructed with the handler,
+	// so handlers cannot fan out through a private path.
+	bus *todo.Bus
 	// BuildLabel/BuildCommit stamp the navbar version badge (from -ldflags
 	// in production builds, "dev"/"unknown" otherwise).
 	BuildLabel  string
@@ -132,8 +131,16 @@ func (h *Handler) SetSearch(layers SearchLayers, ix SearchIndexer, db *sql.DB) {
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.
 func (h *Handler) SetPublisher(p *natswire.CrudPublisher) {
-	h.Pub = p
+	if p == nil {
+		h.bus.SetWire(nil)
+		return
+	}
+	h.bus.SetWire(wireSink{pub: p})
 }
+
+// Bus exposes the event bus so the cross-instance consumer and embedded
+// frontends can publish locally / subscribe in-process.
+func (h *Handler) Bus() *todo.Bus { return h.bus }
 
 // SetLLMClient wires the real suggest client. Nil disables AI features.
 func (h *Handler) SetLLMClient(c *llm.Client) { h.LLM = c }
@@ -150,7 +157,10 @@ func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub, defaultSkin s
 	if q == nil || a == nil || hub == nil {
 		panic("todo: NewHandler with nil dependency")
 	}
-	return &Handler{Q: q, Auth: a, Hub: hub, DefaultSkin: defaultSkin}
+	return &Handler{
+		Q: q, Auth: a, Hub: hub, DefaultSkin: defaultSkin,
+		bus: todo.NewBus(hubSink{hub: hub}, instance.ID()),
+	}
 }
 
 // CreateTodoForOnboarding programmatically creates a todo for the DagNats
@@ -323,6 +333,16 @@ func patchSSE(sse *sdk.ServerSentEventGenerator, comp templ.Component, opts ...s
 	return dshelpers.RenderAndPatch(sse, comp, opts...)
 }
 
+// Record-event names: the browser contract carried on the hub. Kept as
+// constants because the mapping exists in both directions (publish and
+// consume) and a typo would silently stop a re-list.
+const (
+	recordCreated = "created"
+	recordToggled = "toggled"
+	recordDeleted = "deleted"
+	recordCleared = "cleared"
+)
+
 // recordEvent is the hub payload for todo mutations: what changed
 // (created/toggled/deleted/cleared) plus the item data. Each stream
 // re-lists scoped on receipt; the payload itself only names the change.
@@ -333,48 +353,30 @@ type recordEvent struct {
 	Done  bool   `json:"done"`
 }
 
-// publishSync fans a mutation out twice: Hub for this instance's streams,
-// JetStream for other instances. Both are best-effort after the Turso write
-// (the source of truth); either may lag without affecting correctness.
-// isPublic selects the Hub audience: a shared row refreshes every login's
-// streams (each re-lists its own visible set); a private row reaches only
-// the owner's tabs, as before.
-func (h *Handler) publishSync(
-	r *http.Request, owner string, isPublic bool, evt recordEvent, op natswire.CrudOpType, data *natswire.CrudOpData,
-) {
-	h.broadcastRecord(r, owner, isPublic, evt)
-	h.Pub.Publish(op, owner, data)
+// publish fans one domain fact out to every adapter: the local hub, the
+// in-process subscribers, and (when wired) the cross-instance wire. One call
+// site per mutation, so the transports cannot drift apart again.
+func (h *Handler) publish(ctx context.Context, r *http.Request, ev todo.Event) {
+	ev.OriginClient = originClient(r)
+	h.bus.Publish(ctx, ev)
 }
 
-// broadcastRecord publishes a mutation to the streams that may display it,
-// excluding the originating client when known (it already got the
-// synchronous patch below).
+// originClient is the tab that triggered the mutation, excluded from the
+// hub fan-out (it already got the synchronous patch).
 //
 // Offline replays are the exception: a replayed request runs in the
-// background, long after the originating interaction, and its response
-// is a bare "replayed" acknowledgment — no synchronous patch. Excluding
-// the queued clientID would leave the tab that queued the mutation with
-// only its optimistic row forever. So replays fan out to every stream,
-// originator included.
-func (h *Handler) broadcastRecord(r *http.Request, owner string, isPublic bool, evt recordEvent) {
-	payload, err := json.Marshal(evt)
-	if err != nil {
-		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
-		observability.Error(r.Context(), "todo: marshal record event", obsArgs...)
-		return
-	}
-	exclude := r.URL.Query().Get("clientID")
-	if exclude == "" {
-		exclude = r.Header.Get("X-Client-ID")
-	}
+// background, long after the originating interaction, and its response is a
+// bare "replayed" acknowledgment — no synchronous patch. Excluding the
+// queued clientID would leave the queuing tab with only its optimistic row
+// forever, so a replay fans out to every stream, originator included.
+func originClient(r *http.Request) string {
 	if r.Header.Get("X-Offline-Replay") == "1" {
-		exclude = ""
+		return ""
 	}
-	if isPublic {
-		h.Hub.BroadcastToAllUsers(payload, exclude)
-		return
+	if id := r.URL.Query().Get("clientID"); id != "" {
+		return id
 	}
-	h.Hub.BroadcastToUser(payload, owner, exclude)
+	return r.Header.Get("X-Client-ID")
 }
 
 // take no context; disconnects surface as write errors, checked per call.

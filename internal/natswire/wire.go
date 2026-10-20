@@ -31,12 +31,24 @@ const (
 // one wire serves all stacks.
 const CrudSubjectAll = crudSubjectPrefix + ">"
 
-// CrudDurable returns the durable consumer name for an app: the exact
-// historical "<app>-crud" name, so existing consumers keep their cursors
-// across this refactor. Chi uses CrudDurable(app)+"-chi" for its independent
-// cursor over the same subjects.
+// CrudDurable returns the durable PREFIX for an app (the historical
+// "<app>-crud" name). Consumers append their own cursor suffix, because two
+// consumers on the same durable would be rejected by the server and only one
+// would converge; see CrudInstanceDurable.
 func CrudDurable(appName string) string {
 	return fmt.Sprintf(crudDurableFmt, appName)
+}
+
+// CrudInstanceDurable is the per-instance consumer name: one durable per
+// instance, so every instance applies every op to its own database. A
+// durable shared by two instances is rejected by the server ("consumer is
+// already bound") and the losing instance stops converging silently.
+// Empty instanceID (tests, ad-hoc tools) folds to "local".
+func CrudInstanceDurable(appName, instanceID string) string {
+	if instanceID == "" {
+		instanceID = "local"
+	}
+	return CrudDurable(appName) + "-" + instanceID
 }
 
 // CrudOpType is the kind of CRUD operation published to NATS.
@@ -54,6 +66,13 @@ type CrudPayload struct {
 	Op     CrudOpType  `json:"op"`
 	UserID string      `json:"userId"`
 	Data   *CrudOpData `json:"data,omitempty"`
+	// Origin is the publishing instance's identity (internal/instance).
+	// The instance that receives its OWN event skips it: it already wrote
+	// the row and fanned out to its local clients, so applying and
+	// broadcasting again would double every record event. Empty means a
+	// publisher predating the field — treat it as remote (never drop an
+	// event), which also makes mixed-version rollouts safe.
+	Origin string `json:"origin,omitempty"`
 }
 
 // CrudOpData carries the per-operation data. ID is REQUIRED for
@@ -77,15 +96,16 @@ type CrudOpData struct {
 //
 // Safe to call with a nil receiver (NATS unavailable) — it's a no-op.
 type CrudPublisher struct {
-	js   natsio.JetStreamContext
-	mu   sync.Mutex
-	done bool
+	js     natsio.JetStreamContext
+	origin string
+	mu     sync.Mutex
+	done   bool
 }
 
 // NewCrudPublisher ensures the APP_CRUD stream exists and returns a
 // publisher. Returns nil when js is nil (NATS disabled), so callers
 // can call Publish on nil safely (no-op).
-func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
+func NewCrudPublisher(js natsio.JetStreamContext, origin string) *CrudPublisher {
 	if js == nil {
 		return nil
 	}
@@ -104,7 +124,7 @@ func NewCrudPublisher(js natsio.JetStreamContext) *CrudPublisher {
 		slog.Warn("crudproxy: add stream failed", "error", err)
 		return nil
 	}
-	return &CrudPublisher{js: js}
+	return &CrudPublisher{js: js, origin: origin}
 }
 
 // Publish sends a CRUD operation to JetStream. Non-blocking from the
@@ -114,7 +134,7 @@ func (p *CrudPublisher) Publish(op CrudOpType, userID string, data *CrudOpData) 
 	if p == nil {
 		return
 	}
-	payload, err := json.Marshal(CrudPayload{Op: op, UserID: userID, Data: data})
+	payload, err := json.Marshal(CrudPayload{Op: op, UserID: userID, Data: data, Origin: p.origin})
 	if err != nil {
 		slog.Warn("crudproxy: marshal payload", "op", op, "error", err)
 		return
