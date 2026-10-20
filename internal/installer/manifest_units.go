@@ -269,7 +269,7 @@ var baseTrimUnits = []trimUnit{
 			{
 				path: chiGoFile,
 				substrs: []string{
-					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a)",
+					"roomH, roomHost := bootRoomActor(bootCtx, cfg, a, hub)",
 					// One argument per line: each drop removes exactly its
 					// feature's line, and add restores them.
 					"roomH *roomhandlers.Handler,",
@@ -290,7 +290,7 @@ var baseTrimUnits = []trimUnit{
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
 					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 					"nil, // roomHandler: engine disabled",
-					"roomhandlers.NewHandler(cfg, a, fakeRooms{}),",
+					"roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),",
 					"\t\t\"/room\",",
 				},
 			},

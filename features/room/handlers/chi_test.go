@@ -16,6 +16,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/internal/queue"
 )
 
 // fakeRooms is the deterministic grain stand-in: scripted roster,
@@ -31,10 +32,6 @@ func (f *fakeRooms) Roster(context.Context, string) (appgoakt.Roster, error) {
 		return appgoakt.Roster{}, f.err
 	}
 	return f.roster, nil
-}
-
-func (f *fakeRooms) Acquire(context.Context, string, string) (appgoakt.AcquireResult, error) {
-	return appgoakt.AcquireResult{}, f.err
 }
 
 func (f *fakeRooms) Tell(_ context.Context, _ string, msg any) error {
@@ -59,7 +56,7 @@ func roomFixture(t *testing.T, rooms roomSystem) http.Handler {
 	if err != nil {
 		t.Fatalf("auth new: %v", err)
 	}
-	h := NewHandler(config.Load(), a, rooms)
+	h := NewHandler(config.Load(), a, rooms, queue.NewSSEHub())
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Handler())
 	mux.Handle("/", h.Routes())

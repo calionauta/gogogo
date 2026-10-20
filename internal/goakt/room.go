@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -55,17 +56,27 @@ type AcquireResult struct {
 
 // Room messages. Plain structs: local delivery passes them by reference,
 // and Ask replies come back through ctx.Response.
+//
+// ClientID is the per-tab connection id (the SSE stream's clientID).
+// Presence is tracked per CONNECTION, not per name: one person with two
+// tabs is two connections, and closing one must not evict them from the
+// roster. Name is the display identity (the login email) the roster shows
+// and the presenter lock is keyed by.
 type RoomJoin struct {
-	Name string
+	Name     string
+	ClientID string
 }
 type RoomHeartbeat struct {
-	Name string
+	Name     string
+	ClientID string
 }
 type RoomLeave struct {
-	Name string
+	Name     string
+	ClientID string
 }
 type RoomAcquire struct {
-	Name string
+	Name     string
+	ClientID string
 }
 type RoomRelease struct {
 	Name string
@@ -78,11 +89,26 @@ type RoomCrash struct{}
 
 // Room is one chat-room grain: roster plus exactly-one presenter lock.
 // All fields are touched only inside Receive (turn-based), so no mutex.
+//
+// Presence is connection-scoped: conns maps clientID -> {name, lastSeen},
+// and the roster derives one Member per NAME. Two tabs of one person are
+// two conns and one member; the member (and any lock they hold) survives
+// until their LAST connection goes. Without this, an SSE stream (whose
+// disconnect is the leave signal) evicted a user the moment they closed
+// one of their tabs — the failure mode a heartbeat cannot have, because a
+// heartbeat is idempotent per name.
 type Room struct {
-	members    map[string]time.Time
+	conns      map[string]connInfo
 	presenter  string
 	generation int
 	expiry     time.Duration
+}
+
+// connInfo is one live connection: the display identity it belongs to and
+// when it was last confirmed alive.
+type connInfo struct {
+	name string
+	seen time.Time
 }
 
 // NewRoom builds a room grain with the production expiry.
@@ -99,7 +125,7 @@ func newRoomWithExpiry(d time.Duration) *Room {
 // it must be safe to run more than once: fresh roster, bumped generation.
 // Generation is how the demo page shows a restart happened.
 func (r *Room) PreStart(_ *goakt.Context) error {
-	r.members = make(map[string]time.Time)
+	r.conns = make(map[string]connInfo)
 	r.presenter = ""
 	r.generation++
 	return nil
@@ -109,23 +135,30 @@ func (r *Room) PreStart(_ *goakt.Context) error {
 func (r *Room) Receive(ctx *goakt.ReceiveContext) {
 	switch msg := ctx.Message().(type) {
 	case RoomJoin:
-		r.touch(msg.Name)
+		r.touch(msg.Name, msg.ClientID)
 	case RoomHeartbeat:
-		r.touch(msg.Name)
+		r.touch(msg.Name, msg.ClientID)
 	case RoomLeave:
-		delete(r.members, msg.Name)
-		if r.presenter == msg.Name {
-			r.presenter = ""
-		}
+		r.leave(msg.Name, msg.ClientID)
 	case RoomAcquire:
 		r.prune()
-		if r.presenter == "" {
+		// Acquiring SUCCEEDS when the lock is free OR when you already hold it:
+		// re-acquiring your own lock is a no-op, and telling the holder "no"
+		// made the button lie (200 with no change and no explanation).
+		result := AcquireResult{OK: false, Holder: r.presenter}
+		switch r.presenter {
+		case "", msg.Name:
 			r.presenter = msg.Name
-			r.touch(msg.Name)
-			ctx.Response(AcquireResult{OK: true, Holder: msg.Name})
-		} else {
-			ctx.Response(AcquireResult{OK: false, Holder: r.presenter})
+			result = AcquireResult{OK: true, Holder: msg.Name}
 		}
+		if result.OK {
+			// Taking the lock is also proof of presence: refresh the
+			// acquiring tab's OWN connection, never a synthetic per-name
+			// entry (that one would outlive every real tab and keep a
+			// departed member on the roster).
+			r.touch(msg.Name, msg.ClientID)
+		}
+		ctx.Response(result)
 	case RoomRelease:
 		if r.presenter == msg.Name {
 			r.presenter = ""
@@ -137,35 +170,89 @@ func (r *Room) Receive(ctx *goakt.ReceiveContext) {
 	}
 }
 
-// PostStop needs no cleanup: roster is soft state, rebuilt by heartbeats.
+// PostStop needs no cleanup: roster is soft state, rebuilt by connections.
 func (r *Room) PostStop(_ *goakt.Context) error { return nil }
 
-func (r *Room) touch(name string) {
+// presenceKey is the connection a touch/heartbeat belongs to. A message
+// that carries no ClientID (the pre-SSE heartbeat path, still served by
+// POST /room/heartbeat) is folded into ONE synthetic connection per name,
+// so it behaves exactly as the old per-name map did — idempotent, and
+// unable to represent "two tabs of one person".
+func presenceKey(name, clientID string) string {
+	if clientID != "" {
+		return clientID
+	}
+	return "name:" + name
+}
+
+// touch marks one connection alive. One person with two tabs is two
+// entries; the roster folds them into one member (see roster).
+func (r *Room) touch(name, clientID string) {
 	if name == "" {
 		return
 	}
-	r.members[name] = time.Now()
+	key := presenceKey(name, clientID)
+	r.conns[key] = connInfo{name: name, seen: time.Now()}
 }
 
-// prune drops members (and a presenter claim) idle past the expiry.
+// leave drops ONE connection. The member stays while any other connection
+// of theirs is alive, and the presenter lock is only surrendered when the
+// holder has no connections left — closing one of two tabs must not evict
+// the person or drop their lock.
+func (r *Room) leave(name, clientID string) {
+	delete(r.conns, presenceKey(name, clientID))
+	if name != "" && r.hasConns(name) {
+		return
+	}
+	if r.presenter == name {
+		r.presenter = ""
+	}
+}
+
+// hasConns reports whether any live connection belongs to name.
+func (r *Room) hasConns(name string) bool {
+	for _, c := range r.conns {
+		if c.name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// prune drops connections (and a presenter claim with no connection left)
+// idle past the expiry. Lazy on read: no timers, no scheduler.
 func (r *Room) prune() {
 	now := time.Now()
-	for name, seen := range r.members {
-		if now.Sub(seen) > r.expiry {
-			delete(r.members, name)
-			if r.presenter == name {
-				r.presenter = ""
-			}
+	for key, c := range r.conns {
+		if now.Sub(c.seen) > r.expiry {
+			delete(r.conns, key)
 		}
+	}
+	if r.presenter != "" && !r.hasConns(r.presenter) {
+		r.presenter = ""
 	}
 }
 
 func (r *Room) roster() Roster {
 	r.prune()
 	out := Roster{Generation: r.generation, Presenter: r.presenter}
-	for name, seen := range r.members {
+	// One Member per NAME: fold every connection of a person into the
+	// freshest sighting of them.
+	seenByName := make(map[string]time.Time, len(r.conns))
+	for _, c := range r.conns {
+		if prev, ok := seenByName[c.name]; !ok || c.seen.After(prev) {
+			seenByName[c.name] = c.seen
+		}
+	}
+	out.Members = make([]Member, 0, len(seenByName))
+	for name, seen := range seenByName {
 		out.Members = append(out.Members, Member{Name: name, LastSeen: seen})
 	}
+	// Go map iteration is randomized per range, so an unsorted roster
+	// reshuffled on every read (and every list flickered between two
+	// orders). Order by name: stable across reads and instances, and
+	// independent of join order, which is what a roster should look like.
+	sort.Slice(out.Members, func(i, j int) bool { return out.Members[i].Name < out.Members[j].Name })
 	return out
 }
 
@@ -322,6 +409,13 @@ func (h *Host) Tell(ctx context.Context, id string, msg any) error {
 	}
 	return goakt.Tell(ctx, pid, msg)
 }
+
+// SanitizeRoomID keeps actor names to stable path segments. Exported
+// because the SSE fan-out tag must equal the actor name: the grain
+// sanitizes internally, so a handler pushing to the RAW room id would
+// broadcast on a tag no stream ever registered — every event landing
+// nowhere while looking healthy.
+func SanitizeRoomID(id string) string { return sanitizeRoomID(id) }
 
 // sanitizeRoomID keeps actor names to stable path segments.
 func sanitizeRoomID(id string) string {

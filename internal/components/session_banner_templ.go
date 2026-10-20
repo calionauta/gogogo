@@ -5,11 +5,15 @@
 
 // page: the notes/whiteboard SSE streams drive it live (collab.SessionEvent),
 
-// while pages without a raw stream (todo, room, config) let the shared
+// and one VISIBLE tab per browser holds /api/session/stream open through the
 
-// /static/session.js probe /api/session. Pass authed=true when the page
+// shared /static/session.js (same frame shape; the other tabs hear it over a
 
-// rendered for a signed-in user; a public page passes false and never warns.
+// BroadcastChannel, and a hidden leader hands the lock on). Pass authed=true
+
+// when the page rendered for a signed-in user; a public page passes false and
+
+// never warns.
 
 package components
 
@@ -51,7 +55,7 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(authed))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 18, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 20, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {

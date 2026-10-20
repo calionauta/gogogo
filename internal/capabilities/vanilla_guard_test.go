@@ -42,18 +42,6 @@ var vanillaAllow = map[string][]vanillaAllowed{
 	"internal/components/offline_banner.templ": {
 		{`navigator.serviceWorker.addEventListener("message", function (e) {`, "SW postMessage has no Datastar primitive"},
 	},
-	// Room page uses vanilla fetch + innerHTML roster + heartbeat
-	// intervals. Converting it is a feature project, not a line edit.
-	// Pinned so it cannot grow.
-	"features/room/components/page.templ": {
-		{`document.getElementById("room-roster").innerHTML = names;`, "vanilla page; conversion is a project"},
-		{`document.getElementById("room-acquire").addEventListener("click"`, "same vanilla page"},
-		{`document.getElementById("room-release").addEventListener("click"`, "same vanilla page"},
-		{`document.getElementById("room-leave").addEventListener("click"`, "same vanilla page"},
-		{`document.getElementById("room-crash").addEventListener("click"`, "same vanilla page"},
-		{`setInterval(function () { post("/room/heartbeat"); }, 5000);`, "same vanilla page"},
-		{`setInterval(refresh, 3000);`, "same vanilla page"},
-	},
 }
 
 func TestNoNewVanillaJS(t *testing.T) {

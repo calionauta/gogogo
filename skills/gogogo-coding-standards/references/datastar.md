@@ -182,7 +182,7 @@ Tailwind input scans only `features/`, `web/`, `internal/` (`source(none)` + exp
 
 ## Realtime patterns (don't invent transports)
 
-`docs/realtime-recipe.md` is the recipe: hidden-`@get` permanent streams,
+`docs/realtime-recipe.md` is the recipe: hidden-`@get` streams (`retry: 'always'`, see below),
 `ListResync` for record lists, fragment morphs with selector
 headers, `data-effect` for signal reactions (never polling), `fail()` on
 500s, `ic.AutoScroll()` as the last child of an append-only feed (it
@@ -190,3 +190,44 @@ rides the patch that carries the new item, so no listener is needed), and
 the conformance test that pins every `/api/*` URL to a Go route.
 MCP/CLI surfaces the same knowledge via `advise` (presets
 `realtime-transport`, `ai-features`); the skill is the execution half.
+## Upstream watch (before and after a bundle bump)
+
+Pinned browser core: the banner in `web/resources/static/datastar.js` (**v1.0.4**).
+The Go SDK (`datastar-go`) versions independently. Unknown option keys are
+silently ignored, so grep the bundle before trusting a documented attribute
+or option.
+
+**Shipped / closed**
+
+- **#1073 — `retry: 'auto' | 'error' | 'always' | 'never'`** (released in
+  v1.0.0-RC.7). `always` reconnects after a CLEAN server close too, with
+  backoff (1s→30s, `retryMaxCount` resets on every 200); a `204` stops it.
+  The proposed `permanent` option never shipped, and `Last-Event-ID` IS
+  resent on reconnect.
+- **#1068 — server-closed streams**: under the default `auto`, a graceful
+  close is terminal. That is why every opener passes `retry: 'always'`.
+
+**Open**
+
+- **#1203 — native restart handle for silent socket death** (mobile deep
+  sleep; fetch never rejects). Open, no milestone, no assignee. The
+  maintainer's workaround is re-issuing the action from `resume` /
+  `pageshow`; `__gogogoSSERefresh` does exactly that today.
+- **No issue tracks a native open-ack.** The maintainer points to
+  `datastar-fetch` events; the ack signal (`AckStreamOpened`) is this
+  repo's proof of delivery, not a placeholder for an upstream feature.
+
+**Re-check on every bump** (each is load-bearing here):
+
+1. `retry` semantics, backoff and the 204 stop (`retry: 'always'` on every opener).
+2. `openWhenHidden` default for GET (the room depends on opting in).
+3. `datastar-fetch` event `type` values and the `datastar-signal-patch`
+   `detail` shape (sse-open.js matches `detail.streamOpen`).
+4. `requestCancellation` by method+URL (the forced refresh depends on it).
+5. Markov/morph behavior for `mode: outer` (the room patches `#room-card-content`).
+6. Attribute existence in the bundle (the docs can be ahead of the pin).
+
+When #1203 ships a restart primitive, delete the re-click half of
+`__gogogoSSERefresh` and call the primitive; if an open-ack ever ships,
+delete the ack loop in `sse-open.js` (nothing tracks one yet).
+

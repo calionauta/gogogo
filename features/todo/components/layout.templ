@@ -128,7 +128,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 			@components.SessionBanner(userEmail != "")
 			@TodoList(signals)
 			<div id="toast-container"></div>
-			@RealtimeStream("/api/todos/stream")
+			@components.StreamOpener("sse-opener", "/api/todos/stream", false)
 		@RealtimeRecords()
 	</body>
 	</html>

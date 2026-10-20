@@ -126,7 +126,7 @@ func TestRBACPolicyBaseline(t *testing.T) {
 		{"anonymous", "/", "GET", true},
 		{"anonymous", "/login", "POST", true},
 		{"anonymous", "/api/auth/signup/credential", "POST", true},
-		{"anonymous", "/api/session", "GET", true},
+		{"anonymous", "/api/session/stream", "GET", true},
 		{"anonymous", "/api/todos", "GET", false}, // app data requires a session
 		{"anonymous", "/todo", "GET", false},
 		{"anonymous", "/config", "GET", false},
@@ -454,33 +454,5 @@ func TestRBACPolicyObjectsCarryNoMetacharacters(t *testing.T) {
 		if err := ValidatePolicyObjects(row); err != nil {
 			t.Errorf("ValidatePolicyObjects rejected a legal path %q: %v", row, err)
 		}
-	}
-}
-
-// TestRBACStreamStatusStaysReachable pins the realtime invariant that a
-// 403 broke: web/resources/static/sse-open.js polls
-// /api/stream/status to decide whether a stream opened, and treats any
-// non-2xx as "not registered" — then rethrows. With RBAC_ENABLED=true and
-// no row for this path, every realtime surface (todo, chat, genui) failed
-// loudly for a signed-in user. The probe is public by contract (one
-// boolean for an opaque per-tab id), so EVERY subject must reach it.
-// Red-proof: drop the three /api/stream/status rows and this goes red.
-func TestRBACStreamStatusStaysReachable(t *testing.T) {
-	e, err := NewEnforcer()
-	if err != nil {
-		t.Fatalf("NewEnforcer: %v", err)
-	}
-	for _, sub := range []string{RoleAnonymous, RoleViewer, RoleUser, RoleAdmin} {
-		ok, eerr := e.Enforce(sub, "/api/stream/status", "GET")
-		if eerr != nil {
-			t.Fatalf("enforce %s: %v", sub, eerr)
-		}
-		if !ok {
-			t.Errorf("subject %q cannot reach /api/stream/status: sse-open.js would report every healthy stream as dead", sub)
-		}
-	}
-	// Method hygiene: the probe is a GET-only read.
-	if ok, _ := e.Enforce(RoleUser, "/api/stream/status", "POST"); ok {
-		t.Error("POST /api/stream/status allowed for user, want GET only")
 	}
 }

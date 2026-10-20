@@ -41,6 +41,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/notes/fragment`
 - `/api/notes/{docID}/caret`
 - `/api/notes/{docID}/delete`
+- `/api/notes/{docID}/leave`
 - `/api/notes/{docID}/op`
 - `/api/notes/{docID}/stream`
 - `/api/notes/{docID}/typing`
@@ -49,8 +50,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/onboarding/start`
 - `/api/review/`
 - `/api/review/run`
-- `/api/session`
-- `/api/stream/status`
+- `/api/session/stream`
 - `/api/todos`
 - `/api/todos/`
 - `/api/todos/completed/delete`
@@ -73,7 +73,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboards/`
 - `/api/whiteboards/fragment`
 
-## Template and script refs (22)
+## Template and script refs (21)
 
 Every `/api/*` URL fired from `.templ` and `.js` sources.
 
@@ -86,8 +86,7 @@ Every `/api/*` URL fired from `.templ` and `.js` sources.
 - `/api/notes/fragment`
 - `/api/onboarding/start`
 - `/api/review/run`
-- `/api/session`
-- `/api/stream/status`
+- `/api/session/stream`
 - `/api/todos`
 - `/api/todos/`
 - `/api/todos/completed/delete`

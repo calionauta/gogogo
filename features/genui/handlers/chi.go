@@ -153,6 +153,11 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	ch := make(chan []byte, config.DefaultClientQueueSize)
 	h.hub.Register(clientID, "", ch)
 	defer h.hub.UnregisterIfCurrent(clientID, ch)
+	if err := dshelpers.AckStreamOpened(sse, clientID); err != nil {
+		obsArgs := append(observability.WithComponent("genui", "feature"), "error", err)
+		observability.Error(r.Context(), "genui: stream ack failed", obsArgs...)
+		return
+	}
 
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalGenuiPending: false,

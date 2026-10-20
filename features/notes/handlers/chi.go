@@ -96,6 +96,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/notes/{docID}/op", h.handleOp)
 	r.Post("/api/notes/{docID}/typing", h.handleTyping)
 	r.Post("/api/notes/{docID}/caret", h.handleCaret)
+	r.Post("/api/notes/{docID}/leave", h.handleLeavePresence)
 	r.Get("/api/notes/fragment", h.handleFragment)
 	return r
 }

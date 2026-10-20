@@ -224,13 +224,16 @@ slowest job to every production deploy for an escape the PR flow already
 covers); coverage floors (gameable — the bar is behavioral: race, browser
 and red-proofed regression tests).
 
-Stream liveness is owned the same way: the SSE opener verifies registration
-against `/api/stream/status` and fails loudly past its bound instead of dying
-silent (a pre-binding fallback click poisoned the opener on slow clients —
-proven by aborting the Datastar bundle and watching no stream ever open).
+Stream liveness is owned the same way: the SSE opener verifies the open from
+the stream's own first frame (an ack signal, `internal/datastar.AckStreamOpened`)
+and fails loudly past its bound instead of dying silent (a pre-binding
+fallback click poisoned the opener on slow clients — proven by aborting the
+Datastar bundle and watching no stream ever open). The ack proves delivery,
+which the retired HTTP status probe could not, and costs no extra request.
 Upstream watch: starfederation/datastar#1203 tracks silent SSE death with no
 native restart primitive — recheck it before building more machinery here; a
-native open-ack or restart handle replaces the status poll.
+native open-ack or restart handle replaces the ack loop and the
+finished-event reopen.
 
 ## Current state and remaining work
 

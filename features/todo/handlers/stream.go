@@ -40,6 +40,12 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	ch := make(chan []byte, config.DefaultClientQueueSize)
 	h.Hub.Register(clientID, ownerStr, ch)
 	defer h.Hub.UnregisterIfCurrent(clientID, ch)
+	// First frame: the open acknowledgement sse-open.js waits for. Sent
+	// after registration so "ack received" also means "the hub has me".
+	if err := dshelpers.AckStreamOpened(sse, clientID); err != nil {
+		h.fail(r.Context(), w, "todo: stream ack failed", err, "error opening stream")
+		return
+	}
 
 	// The handshake re-lists the tab's OWN slice, not a blanket all/all.
 	//

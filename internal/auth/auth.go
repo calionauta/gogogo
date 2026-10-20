@@ -134,6 +134,10 @@ type Auth struct {
 	// TOTP enrollment and verification; set it via SetTOTPEncKey (BootChi
 	// wires AUTH_ENC_KEY or the auto-created key file).
 	totpKey *[32]byte
+	// sessionRecheck overrides how often an open session stream re-validates
+	// the cookie (see session_stream.go). Zero uses defaultSessionRecheck;
+	// tests set it directly to exercise expiry without waiting a minute.
+	sessionRecheck time.Duration
 }
 
 // New builds the auth stack on migrated queries. secureCookies is false in

@@ -271,25 +271,30 @@ func TestHandlersTodoStreamOpens(t *testing.T) {
 	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
 		t.Fatalf("stream content-type = %q, want text/event-stream", ct)
 	}
+	// The first frame is the open ack (streamOpen); the handshake signals
+	// follow, so read until they land instead of assuming one read.
 	buf := make([]byte, 4096)
 	type readResult struct {
 		n   int
 		err error
 	}
-	readCh := make(chan readResult, 1)
-	go func() {
-		n, err := resp.Body.Read(buf)
-		readCh <- readResult{n: n, err: err}
-	}()
-	var body string
-	select {
-	case res := <-readCh:
-		body = string(buf[:res.n])
-	case <-time.After(4 * time.Second):
-		t.Fatal("stream handshake timed out")
-	}
-	if !strings.Contains(body, "itemCount") {
-		t.Fatalf("stream handshake missing itemCount (body: %q)", body)
+	readDeadline := time.After(4 * time.Second)
+	var body strings.Builder
+	for !strings.Contains(body.String(), "itemCount") {
+		readCh := make(chan readResult, 1)
+		go func() {
+			n, err := resp.Body.Read(buf)
+			readCh <- readResult{n: n, err: err}
+		}()
+		select {
+		case res := <-readCh:
+			body.Write(buf[:res.n])
+			if res.err != nil && !strings.Contains(body.String(), "itemCount") {
+				t.Fatalf("stream closed before the handshake (body: %q)", body.String())
+			}
+		case <-readDeadline:
+			t.Fatalf("stream handshake timed out (body: %q)", body.String())
+		}
 	}
 }
 

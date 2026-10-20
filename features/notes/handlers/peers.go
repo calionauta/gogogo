@@ -144,6 +144,51 @@ func (h *Handler) handleTyping(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleLeavePresence is the browser's honest goodbye. The SSE teardown
+// already runs peerLeave, but an EventSource reconnect (a reload, a wake
+// from sleep, a proxy blip) makes the old connection's teardown race the
+// new registration: hub.IsRegistered then reports the client as still
+// present and the leave is skipped, so peers keep the departed tab's dot
+// until the 8s TTL. pagehide fires while the tab is genuinely going away,
+// so this path announces the departure immediately and idempotently —
+// peerLeave itself is safe to run twice (the peer set is a set, and the
+// second broadcast is just a recount).
+func (h *Handler) handleLeavePresence(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		writeText(w, http.StatusUnauthorized, "sign in to share presence")
+		return
+	}
+	docID := chi.URLParam(r, "docID")
+	from := r.URL.Query().Get("clientID")
+	if docID == "" || from == "" {
+		writeText(w, http.StatusBadRequest, "missing doc id or client id")
+		return
+	}
+	// Announce now and drop the peer set entry directly: the stream's own
+	// teardown may still be in flight, so it cannot be relied on to do this.
+	h.leaveNow(r.Context(), docID, from)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// leaveNow is peerLeave without the "did it reconnect?" guard: the caller
+// already knows the tab is going away.
+func (h *Handler) leaveNow(ctx context.Context, docID, clientID string) {
+	h.peers.Leave(docID, clientID)
+	name := h.peerNameOf(clientID)
+	h.peerNamesMu.Lock()
+	delete(h.peerNames, clientID)
+	h.peerNamesMu.Unlock()
+	leaveMsg, err := json.Marshal(collab.PresenceMsg{Doc: docID, User: name, From: clientID, Type: "leave"})
+	if err != nil {
+		obsArgs := append(observability.WithComponent("notes", "feature"), "error", err)
+		observability.Warn(ctx, "notes: marshal leave", obsArgs...)
+		return
+	}
+	h.hub.BroadcastExceptToDoc(leaveMsg, docID, clientID)
+	h.broadcastPeerCount(ctx, docID)
+}
+
 func (h *Handler) handleCaret(w http.ResponseWriter, r *http.Request) {
 	sess := h.session(r)
 	if sess == nil {

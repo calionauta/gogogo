@@ -1,8 +1,10 @@
 // SCOPE:plugin - Session-expiry banner. ONE component for every authenticated
 // page: the notes/whiteboard SSE streams drive it live (collab.SessionEvent),
-// while pages without a raw stream (todo, room, config) let the shared
-// /static/session.js probe /api/session. Pass authed=true when the page
-// rendered for a signed-in user; a public page passes false and never warns.
+// and one VISIBLE tab per browser holds /api/session/stream open through the
+// shared /static/session.js (same frame shape; the other tabs hear it over a
+// BroadcastChannel, and a hidden leader hands the lock on). Pass authed=true
+// when the page rendered for a signed-in user; a public page passes false and
+// never warns.
 package components
 
 import "strconv"

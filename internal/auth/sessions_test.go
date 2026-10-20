@@ -10,9 +10,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/calionauta/gogogo/internal/db"
@@ -76,61 +73,5 @@ func TestSessionByTokenRejectsRevokedSession(t *testing.T) {
 	a.Logout(ctx, token)
 	if _, err := a.SessionByToken(ctx, token); err == nil {
 		t.Fatal("SessionByToken resolved a logged-out session (revocation not honored)")
-	}
-}
-
-// TestSessionProbeEndpoint pins the /api/session contract the shared
-// banner polls: anonymous requests report authed=false (200, not 401 — a
-// probe is a poll, not a gate), a live session reports true, and a
-// logged-out session reports false again. Its client is static/session.js;
-// the endpoint is mounted at the top level in buildChiMux, outside the
-// /api/auth/ sub-mux (see SessionProbeHandler).
-func TestSessionProbeEndpoint(t *testing.T) {
-	a := newSessionAuth(t)
-	ctx := context.Background()
-	_, token, err := a.Signup(ctx, "probe@example.com", "Correct-horse-99!", "Probe")
-	if err != nil {
-		t.Fatalf("signup: %v", err)
-	}
-	mux := http.NewServeMux()
-	mux.Handle("/api/session", a.SessionProbeHandler())
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-
-	probe := func(token string) bool {
-		t.Helper()
-		req, rErr := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/session", nil)
-		if rErr != nil {
-			t.Fatalf("probe req: %v", rErr)
-		}
-		if token != "" {
-			req.AddCookie(a.SetSessionCookie(token))
-		}
-		resp, dErr := http.DefaultClient.Do(req)
-		if dErr != nil {
-			t.Fatalf("probe: %v", dErr)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("probe status = %d, want 200 (never 401)", resp.StatusCode)
-		}
-		var out struct {
-			Authed bool `json:"authed"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-			t.Fatalf("decode probe: %v", err)
-		}
-		return out.Authed
-	}
-
-	if probe("") {
-		t.Error("anonymous probe reports authed=true")
-	}
-	if !probe(token) {
-		t.Error("live session probe reports authed=false")
-	}
-	a.Logout(ctx, token)
-	if probe(token) {
-		t.Error("revoked session still probes authed=true")
 	}
 }

@@ -75,10 +75,13 @@ A filter/scope tab click carries **no** `q` of its own, so its URL must append
 search", and omitting it drops the active search while the box still shows the
 text.
 
-1. **Permanent stream** (ephemeral signals): hidden `@get(url, {permanent:
-   true})` button opened by `data-on:datastar-ready__document` (+300ms
-   verified fallback for an already-fired ready). Reference: `RealtimeStream`
-   in `features/todo/components/realtime.templ`.
+1. **Stream open** (ephemeral signals): the ONE shared opener,
+   `components.StreamOpener(buttonID, streamURL, openWhenHidden)` in
+   `internal/components/stream_opener.templ` — hidden `@get(url, {retry:
+   'always'})` button opened by `data-on:datastar-ready__document` (+300ms
+   verified fallback for an already-fired ready), plus the per-tab clientID
+   bootstrap. Every feature and skin calls it; do not copy it (copies drifted
+   into a removed helper and a nonexistent `{permanent}` option).
    Never `data-on:load` on div/body (v1 never fires it — silent no-op).
    Never a blind click: every open resolves through `__gogogoOpenVerified`
    (see "Verified open" below).
@@ -117,26 +120,42 @@ text.
 ## Verified open (streams must prove they opened)
 
 The opener clicks a Datastar `@get` it cannot observe — clicking before
-`data-on:click` binds is a silent no-op that also poisoned `dataset.opened`,
-leaving streams dead on slow clients (proven by aborting the Datastar bundle
-and watching no stream ever start; the originating tab gets no live broadcast
-by design, so a dead stream has no second chance). Every Datastar opener
-(todo, basecoat, genui, chat) therefore resolves through
-`window.__gogogoOpenVerified(buttonId)` (`web/resources/static/sse-open.js`):
-re-click until `GET /api/stream/status?clientID=` reports the tab registered
-in the shared hub, resolve on open, throw loudly past ~10s. A dead stream is
-fixed or loud, never silent. The `data-on:datastar-ready__document` opener
-itself was proven by probe to fire post-bind (a vanilla listener is not
-needed for it — the allowlist shrank accordingly).
+`data-on:click` binds is a silent no-op, leaving streams dead on slow
+clients (proven by aborting the Datastar bundle and watching no stream ever
+start; the originating tab gets no live broadcast by design, so a dead
+stream has no second chance). Every Datastar page renders the ONE shared opener
+(`internal/components/stream_opener.templ`: hidden button + clientID
+bootstrap) and resolves through `window.__gogogoOpenVerified(buttonId)`
+(`web/resources/static/sse-open.js`): click, then wait for the stream's
+OWN first frame — the `streamOpen` ack signal every stream sends
+(`internal/datastar.AckStreamOpened`) — and re-click while it is missing,
+throwing loudly past ~10s. The ack proves the click bound, the handler ran,
+and the browser APPLIED the response; an HTTP status probe proved only that
+the hub held a registration, cost a second request per open, and said
+nothing about delivery.
+
+Datastar owns the rest of the lifecycle (v1.0.4): a `@get` stream closes
+when the tab is hidden and reopens when it is visible (`openWhenHidden`
+defaults to false for GET), requests cancel by method+URL, and network
+errors retry with backoff. What it does NOT retry is a graceful server close,
+so every opener passes `retry: 'always'` (#1073, shipped in v1.0.0-RC.7):
+Datastar itself retries a clean close with backoff, resets the count on each
+200, and sends `Last-Event-ID`. The room opts into
+`openWhenHidden: true` because presence is the CONNECTION — a hidden tab
+that drops its stream would look like a departure.
+`sse-open.js` keeps two jobs Datastar cannot do: the ack loop for the initial
+bind race, and `__gogogoSSERefresh` on `online` / mobile `resume` / bfcache
+`pageshow`, where a deep-slept socket can hang without an error (#1203).
+
 Raw-`EventSource` pages stay on native patterns instead: whiteboard replays
 through `onopen` flush + browser auto-reconnect; notes relies on
 auto-reconnect with only an error indicator (no flush hook — residual
 candidate, not covered here).
-Upstream watch: starfederation/datastar#1203 (silent SSE death, no native
-restart primitive as of the pinned JS core, v1.0.4 — the "v1.2.2" in
-AGENTS.md is the Go SDK, not the bundle) — recheck periodically before
-building more machinery here; a native open-ack or restart handle replaces
-the status poll.
+Upstream watch: #1073 shipped (`retry: auto|error|always`; `permanent` never
+existed); #1203 is OPEN with no milestone (restart handle for silent socket
+death — maintainer's advice is `resume`/`pageshow`, which we implement). No
+issue tracks a native open-ack; the full re-check list on a bundle bump lives
+in `skills/gogogo-coding-standards/references/datastar.md`.
 
 ## Server patterns
 
