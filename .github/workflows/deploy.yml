@@ -10,23 +10,36 @@
 # here explicitly. Docs, site/ and *.md are therefore excluded by construction.
 #
 # What the workflow does when it does run:
-#   1. Builds CSS + cross-compiles the prod binary (no lint/tests here —
+#   0. Reconciles first: compares the live `X-Gogogo-Build` header against
+#      master HEAD (and the badge label against the latest tag) and skips the
+#      deploy when production already runs the code. No lint/tests here —
 #      ci.yml runs those in a separate workflow, in parallel, as validator
 #      rather than gate: a master push ships without waiting for CI, so the
-#      pre-merge PR check is the gate that actually runs before code lands)
-#   2. Builds the production Docker image (linux/amd64 scratch)
-#   3. Brings up Tailscale in the GH runner (OAuth, scoped to this run)
-#   4. SCPs the binary + compose file to the server (via Tailscale)
-#   5. SSHes in and runs scripts/deploy-prod.sh which:
-#        - atomically swaps the binary
-#        - writes the secrets file (mode 600) from GH Secrets
-#        - restarts the container
-#        - waits for /health
+#      pre-merge PR check is the gate that actually runs before code lands.
+#   1. Builds the production image ONCE and pushes it to the registry: a
+#      human-readable tag plus a digest. The digest is the artifact's identity.
+#   2. Brings up Tailscale in the GH runner (OIDC, scoped to this run)
+#   3. Logs the server into the registry for that one pull, SCPs the compose
+#      file, and renders the secrets file (mode 600) from GH Secrets, which
+#      stay the single source of truth
+#   4. SSHes in, moves the source clone to master, and runs
+#      scripts/deploy-prod.sh, which PULLS the digest and restarts the
+#      container — nothing is compiled on the server
+#   5. Asserts that /health's X-Gogogo-Build names the commit that was built
+#
+# ONE artifact, named by digest: the bytes this pipeline built are the bytes
+# production runs, and a rollback is "pull the previous digest" instead of
+# "rebuild an older commit" (docs/deploy.md#rollback). Nothing is compiled in
+# the runner and nothing is compiled on the server. An earlier revision
+# cross-compiled a static binary in the runner and scp'd it to <APP_DIR>/bin,
+# where nothing ever executed it — and nothing could have: the DB driver
+# dlopens a musl library at first open, so a static binary panics with
+# "Dynamic loading not supported" (the 0.44.0 production incident). Do not
+# reintroduce a host-side binary: the container is the deployable, and
+# scripts/smoke-prod-image.sh is what proves it boots.
 #
 # Secrets are NEVER stored long-term on the server: every deploy
-# re-renders the secrets file from GitHub Actions secrets, which
-# are the single source of truth. The previous binary is kept as
-# `<APP_NAME>.previous` so an operator can roll back instantly.
+# re-renders the secrets file from GitHub Actions secrets.
 #
 # Required GitHub Actions secrets (Settings > Secrets > Actions):
 #   Tailscale (OIDC workload identity federation — no static secret):
@@ -116,8 +129,8 @@ on:
 env:
   APP_NAME: ${{ github.event.repository.name }}
 
-# Never run two deploys in parallel: the binary swap + container
-# restart is racy. The cancel-in-progress=false keeps the first
+# Never run two deploys in parallel: pulling + restarting the container is
+# racy, and two runs could otherwise interleave their digest's containers. The cancel-in-progress=false keeps the first
 # deploy running until completion.
 concurrency:
   group: prod-deploy
@@ -192,93 +205,106 @@ jobs:
           echo "behind=true" >> "$GITHUB_OUTPUT"
           echo "production runs ${BADGE:-unknown}, validated master is $HEAD_SHA; deploying"
   # ─────────────────────────────────────────────
-  # 1. Build for linux/amd64 (compile only — ci.yml tests in parallel)
+  # 1. Build the artifact once (the image)
   # ─────────────────────────────────────────────
-  build:
+  # Build once, promote by digest. The deploy names the digest it verified, so
+  # the bytes CI built are the bytes production runs; a rebuild on the server
+  # would be a second, unverified article.
+  image:
     needs: reconcile
     if: needs.reconcile.outputs.behind == 'true'
-    runs-on: ubuntu-latest
-    env:
-      GOTOOLCHAIN: local
+    # Native arm64: the image is built inside alpine, so the C toolchain and
+    # the embedded musl platform library match the runtime, at native speed.
+    # Public repos get this runner for free; a fork without arm runners can
+    # switch to `ubuntu-latest` — the same build then runs through QEMU
+    # (several times slower, same result).
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_ref: ${{ steps.pin.outputs.image_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Install Go 1.27.3 manually
-        # actions/setup-go extracts the toolchain via tar and has been
-        # intermittently corrupting it on this runner image. Install the
-        # official stable tarball from go.dev into /usr/local/go instead.
+
+      - name: Resolve image name and build stamp
+        id: meta
+        # The commit is shortened here, not by the Dockerfile, because the
+        # build stamp is what /health reports and what the deploy asserts on.
         run: |
-          bash bin/install-go-toolchain.sh
-      - name: Set up Node
-        uses: actions/setup-node@v4
+          repo="$(printf '%s' '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          version="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
+          echo "image_repo=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
+          echo "version=${version:-dev}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$(printf '%s' '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
         with:
-          node-version: "20"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install JS deps
-        run: npm install --no-audit --no-fund
-
-      - name: Generate CSS
-        run: npm run build
-
-      - name: Install C toolchain (CGO for loro-go + cross-compile)
-        # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        # Every build/test compiles collab, so a C compiler must be present.
-        # We also need gcc-aarch64-linux-gnu for the production cross-build
-        # (linux/arm64). Both are installed once to avoid redundant apt runs.
-        # apt-get update exits 100 when a third-party source in the runner
-        # image is broken (403 or unsigned), even though the Ubuntu indexes
-        # updated. The install and the compiler probe below are the gate.
-        run: |
-          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y gcc gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-          aarch64-linux-gnu-gcc --version | head -1
-
-      - name: Build prod binary
-        run: |
-          mkdir -p bin
-          # Inject build metadata (Version/CommitHash/BuildTime) so
-          # the navbar version badge reflects exactly what was
-          # deployed and the binary’s $Version variable can be
-          # checked at runtime via /api or a future /api/version.
-          # VERSION/COMMIT match what Makefile uses for `make build`.
-          # Without these, Version defaults to "dev" and the deployed
-          # binary always shows "dev" in the navbar regardless of the
-          # tag.
-          VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
-          VERSION="${VERSION:-dev}"
-          COMMIT="${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
-          BUILDTIME="${BUILDTIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
-          echo "→ Building $GITHUB_REPOSITORY v${VERSION} (commit ${COMMIT})"
-          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
-            CC=aarch64-linux-gnu-gcc \
-            go build \
-            -trimpath -ldflags="-s -w -extldflags=-static -X main.Version=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildTime=${BUILDTIME}" \
-            -o bin/${{ env.APP_NAME }}.new ./cmd/web/
-
-      - name: Stash binary
-        uses: actions/upload-artifact@v4
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
         with:
-          name: ${{ env.APP_NAME }}-linux-amd64
-          path: bin/${{ env.APP_NAME }}.new
+          context: .
+          file: deploy/Dockerfile.prod
+          platforms: linux/arm64
+          push: true
+          # Tags are labels for humans. Nothing deploys by tag.
+          tags: |
+            ${{ steps.meta.outputs.image_repo }}:sha-${{ steps.meta.outputs.short_sha }}
+            ${{ steps.meta.outputs.image_repo }}:${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'master' }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.short_sha }}
+            BUILDTIME=${{ steps.meta.outputs.build_time }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Pin the digest
+        id: pin
+        # The digest, not the tag, is what the server pulls: a tag can move, a
+        # digest cannot. This is also the rollback handle.
+        run: |
+          echo "image_ref=${{ steps.meta.outputs.image_repo }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────
-  # 2. Deploy via Tailscale SSH
+  # 2. Deploy the pinned digest via Tailscale SSH
   # ─────────────────────────────────────────────
   deploy:
-    needs: build
+    needs: [reconcile, image]
+    env:
+      # The artifact for this run: registry path + the digest CI just pushed.
+      APP_IMAGE: ${{ needs.image.outputs.image_ref }}
+      # The commit the artifact was built from. deploy-prod.sh refuses to
+      # report success unless /health agrees, so a pull that silently did not
+      # take effect fails the deploy instead of leaving the old container up.
+      EXPECTED_COMMIT: ${{ github.sha }}
     runs-on: ubuntu-latest
     # Only on master push, a v* tag push, or manual dispatch (not on PRs).
     # The tag arm is required, not cosmetic: a tag push sets github.ref to
     # refs/tags/vX.Y.Z, so without it the job would be skipped and the deploy
     # triggered by the tag would build nothing.
-    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    # Required for the Tailscale OIDC federated identity — the
-    # runner needs to mint a JWT for the Tailscale IdP to verify.
+    # behind-gate: this used to ride on the `build` job (a skipped dependency
+    # skips the dependent job). With the build job gone the condition has to be
+    # explicit, or every 30-minute schedule run would redeploy whether or not
+    # production is already current.
+    if: needs.reconcile.outputs.behind == 'true' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    # id-token: the Tailscale OIDC federated identity — the runner mints a JWT
+    # for the Tailscale IdP to verify. packages: read lets the server's one-time
+    # registry login resolve the digest.
     permissions:
       id-token: write
       contents: read
+      packages: read
 
     steps:
       - uses: actions/checkout@v4
@@ -309,21 +335,13 @@ jobs:
           tags: tag:continuous-integration
           args: --ssh
 
-
-      - name: Download built binary
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.APP_NAME }}-linux-amd64
-          path: dist/
-
-  # Write the secrets file with mode 600 BEFORE any container
-      # could read it. The secrets are sourced from GitHub Secrets;
-      # the file is regenerated on every deploy and is never
-      # committed to the repo.
+      # Render the secrets file (mode 600) BEFORE any container could read it.
+      # The secrets come from GitHub Secrets, the single source of truth; the
+      # file is regenerated on every deploy and never committed.
       #
-      # GOAI_BASE_URL / GOAI_MODEL are GitHub Variables (not secrets —
-      # the URL/model are not sensitive) so the demo can target Groq
-      # (or any OpenAI-compatible provider) without editing code.
+      # GOAI_BASE_URL / GOAI_MODEL are GitHub Variables (not secrets — the
+      # URL/model are not sensitive) so the demo can target Groq (or any
+      # OpenAI-compatible provider) without editing code.
       - name: Write secrets file (mode 600)
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -370,8 +388,8 @@ jobs:
             # Free disk space before writing anything
             docker system prune -af --filter 'until=24h' 2>/dev/null || true
             docker builder prune -af 2>/dev/null || true
-            # Application layout (SCP destinations must exist first)
-            for d in bin compose env scripts; do
+            # Application layout
+            for d in compose env scripts; do
               mkdir -p \"${APP_DIR}/\${d}\"
             done
             # Convention rule 4: secrets live in ~/.secrets/, 0700, read by the
@@ -390,15 +408,6 @@ jobs:
             echo '✓ secrets file written (mode 600)'
           "
 
-      # SCP the new binary to /home/deploy/services/<APP_NAME>/bin/ as .new so
-      # the on-server script can atomically swap it.
-      - name: Copy binary to server
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-        run: |
-          set -euo pipefail
-          scp -P 2222 dist/${{ env.APP_NAME }}.new $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/bin/${{ env.APP_NAME }}.new
-
       # SCP the compose file (overwriting the previous one).
       - name: Copy compose file
         env:
@@ -407,10 +416,24 @@ jobs:
           set -euo pipefail
           scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
 
-      # Ensure the directory layout exists, pull the latest source so
-      # the on-server script and the scripts dir are current, then run
-      # the deploy. The on-server script does the atomic binary swap
-      # + container restart + health-check wait.
+      - name: Registry login for the pull (private packages only)
+        # A public package needs no credential at all, which is the default: an
+        # image of a public repo leaks nothing, and a credential that never
+        # exists cannot leak. Set the repository variable GHCR_PRIVATE=true if
+        # the package must stay private. Either way the token is a run-scoped
+        # GITHUB_TOKEN that travels on ssh stdin (never on a command line,
+        # never in a file) and deploy-prod.sh logs out on exit.
+        if: vars.GHCR_PRIVATE == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          printf '%s' '${{ secrets.GITHUB_TOKEN }}' |
+            ssh "$DEPLOY_HOST" "docker login ${APP_IMAGE%%/*} -u '${{ github.actor }}' --password-stdin"
+
+      # Ensure the directory layout exists, update the source clone (needed for
+      # the deploy script and the app's .env), then run the deploy script
+      # (digest pull + container restart + health wait + build assertion).
       - name: Ensure layout + run deploy
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -419,7 +442,7 @@ jobs:
           ssh $DEPLOY_HOST "set -euo pipefail
             APP_NAME=\"${{ env.APP_NAME }}\"
             APP_DIR=\"/home/deploy/services/\${APP_NAME}\"
-            for d in bin compose env scripts secrets; do
+            for d in compose env scripts; do
              mkdir -p \"\${APP_DIR}/\${d}\"
            done
 
@@ -434,5 +457,5 @@ jobs:
             cp \"/home/deploy/services/\${APP_NAME}/repo/scripts/deploy-prod.sh\" \"\${APP_DIR}/scripts/deploy-prod.sh\"
             chmod 0700 \"\${APP_DIR}/scripts/deploy-prod.sh\"
 
-            bash \"\${APP_DIR}/scripts/deploy-prod.sh\"
+            APP_IMAGE='${APP_IMAGE}' EXPECTED_COMMIT='${EXPECTED_COMMIT}' bash \"\${APP_DIR}/scripts/deploy-prod.sh\"
           "

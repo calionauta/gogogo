@@ -1,34 +1,48 @@
 #!/usr/bin/env bash
-# deploy-prod.sh — runs ON the server, after the GitHub Action has
-# scp'd the new binary + compose file into place. Idempotent: it can
-# run any number of times and converges to the deployed state.
+# deploy-prod.sh — runs ON the server, after the GitHub Action has scp'd the
+# compose file into place. Idempotent: it converges to the deployed state no
+# matter how many times it runs.
 #
 # Layout (managed by the deploy workflow):
 #   /home/deploy/services/gogogo/
-#     bin/gogogo        (chmod 755, replaced on every deploy)
 #     compose/docker-compose.prod.yml   (replaced on every deploy)
 #     env/.env                  (committed to repo, no secrets)
-#     data/                   (gitignored, persistent volume: app.db,
-#                              queue.db, nats/, dagnats/)
+#     repo/                     (clone at master — the image build context)
+#     data/                     (persistent volume: app.db, queue.db,
+#                                nats/, dagnats/; gitignored)
 #   /home/deploy/.secrets/gogogo.env  (mode 600, rendered every deploy from
 #                                   GH Secrets; the compose env_file points
 #                                   here. Never committed.)
 #
-# We use the services/ dir under the home (not /opt/) because the deploy user does not
-# have passwordless sudo; /opt is root-owned. services/ in the home is writable
-# by the deploy user and Docker still reads the compose file + binds
+# We use the services/ dir under the home (not /opt/) because the deploy user
+# does not have passwordless sudo; /opt is root-owned. services/ in the home is
+# writable by the deploy user and Docker still reads the compose file and binds
 # the volume from there.
 #
-# This script is the second half of the deploy: the GH Action does
-# the build + scp; this script restarts the container. We split it
-# so the operator can also run it manually (e.g. for fast rollback
-# to the previous binary which is kept as `gogogo.previous`).
+# This script is the second half of the deploy: the GH Action brings the source
+# clone to master and renders the secrets file; this script builds the image
+# from that clone, restarts the container, and verifies what landed. There is
+# no host-side binary — the container is the artifact, and a static binary
+# could not run here anyway (the DB driver dlopens a musl library at first open).
+#
+# Inputs (all optional; the deploy workflow sets the first two):
+#   APP_IMAGE         digest-pinned image to pull, e.g.
+#                     <registry>/<owner>/<repo>@sha256:<digest>. WITHOUT a
+#                     @sha256: digest the script builds the image locally from
+#                     the clone instead (the offline/fallback path).
+#   EXPECTED_COMMIT   commit the artifact was built from; the script refuses to
+#                     report success unless /health's X-Gogogo-Build says so.
+#   DEPLOY_PROD_DRY_RUN=1  print the plan (mode + commands) and exit without
+#                     touching Docker. Used by the script's own test.
+#
+# Rollback: redeploy an earlier digest (docs/deploy.md#rollback).
 
 set -euo pipefail
 
-PROJECT="gogogo"
-APP_DIR="/home/deploy/services/${PROJECT}"
-BIN_DIR="${APP_DIR}/bin"
+# PROJECT/APP_DIR are overridable so a renamed scaffold (and the script's own
+# dry-run test) can point at a scratch tree; the deploy sets neither.
+PROJECT="${PROJECT:-gogogo}"
+APP_DIR="${APP_DIR:-/home/deploy/services/${PROJECT}}"
 COMPOSE_DIR="${APP_DIR}/compose"
 # Secrets: rendered by the deploy workflow at ~/.secrets/<app>.env, which is
 # where deploy/docker-compose.prod.yml points its env_file. This used to be
@@ -46,29 +60,44 @@ SECRETS_FILE="${SECRETS_DIR}/${PROJECT}.env"
 # crashed with sqlite3: permission denied. Keeping the data dir inside
 # the home lets the deploy user create it and grant the container
 # (uid 65532) write access without root.
-DATA_DIR="/home/deploy/services/${PROJECT}/data"
+DATA_DIR="${DATA_DIR:-${APP_DIR}/data}"
 COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.prod.yml"
 
 cd "${APP_DIR}"
 
+# ── 0. Which artifact? ──
+# One rule: the deploy names the artifact it verified. A digest is immutable; a
+# tag is not, so a tag is refused instead of silently pulled — that is the
+# difference between "promoted what CI built" and "pulled whatever moved".
+IMAGE_REF="${APP_IMAGE:-}"
+DEPLOY_MODE="build"
+case "${IMAGE_REF}" in
+    "") : ;;
+    *"@sha256:"*) DEPLOY_MODE="pull" ;;
+    *)
+        echo "✗ APP_IMAGE=${IMAGE_REF} is not digest-pinned (no @sha256:)" >&2
+        echo "  pass <registry>/<owner>/<repo>@sha256:<digest>, or leave APP_IMAGE" >&2
+        echo "  empty to build the image from the clone instead." >&2
+        exit 1
+        ;;
+esac
+export APP_IMAGE="${IMAGE_REF}"
+REGISTRY="${IMAGE_REF%%/*}"
 
-# ── 1. Atomic binary swap ──
-# We keep the previous binary as `gogogo.previous` so an
-# operator can roll back with one `ln -sf` if the new binary
-# crashes on startup.
-if [ -f "${BIN_DIR}/${PROJECT}" ] && [ -f "${BIN_DIR}/${PROJECT}.new" ]; then
-    mv "${BIN_DIR}/${PROJECT}" "${BIN_DIR}/${PROJECT}.previous"
-    mv "${BIN_DIR}/${PROJECT}.new" "${BIN_DIR}/${PROJECT}"
-    chmod 0755 "${BIN_DIR}/${PROJECT}"
-    echo "→ Binary swapped (previous kept as ${PROJECT}.previous)"
-elif [ -f "${BIN_DIR}/${PROJECT}.new" ]; then
-    # First deploy — no previous to preserve.
-    mv "${BIN_DIR}/${PROJECT}.new" "${BIN_DIR}/${PROJECT}"
-    chmod 0755 "${BIN_DIR}/${PROJECT}"
-    echo "→ Binary installed (first deploy)"
+# The workflow logs in before pulling, which writes a credential into
+# ~/.docker/config.json. Clear it on the way out, success or failure: the
+# server must not keep a registry credential between deploys.
+trap 'docker logout "${REGISTRY}" >/dev/null 2>&1 || true' EXIT
+
+if [ "${DEPLOY_PROD_DRY_RUN:-0}" = "1" ]; then
+    echo "dry-run: mode=${DEPLOY_MODE}"
+    echo "dry-run: image=${IMAGE_REF:-<built from clone>}"
+    echo "dry-run: expected-commit=${EXPECTED_COMMIT:-<derived from clone>}"
+    echo "dry-run: would run: docker compose pull|build + up -d --wait + assert"
+    exit 0
 fi
 
-# ── 2. Compose file in place ──
+# ── 1. Compose file in place ──
 # The GH Action scp'd docker-compose.prod.yml directly into COMPOSE_DIR.
 # Sanity-check it.
 if [ ! -f "${COMPOSE_FILE}" ]; then
@@ -76,7 +105,7 @@ if [ ! -f "${COMPOSE_FILE}" ]; then
     exit 1
 fi
 
-# ── 3. Secrets file mode + ownership ──
+# ── 2. Secrets file mode + ownership ──
 # GH Action wrote a .env file with real secrets (GOAI_API_KEY etc).
 # Lock it down to 600, owned by deploy user, before any container
 # can read it.
@@ -85,7 +114,7 @@ if [ -f "${SECRETS_FILE}" ]; then
     echo "→ Secrets file mode set to 0600"
 fi
 
-# ── 4. Data dir ownership (the app writes here) ──
+# ── 3. Data dir ownership (the app writes here) ──
 # The compose file bind-mounts ${DATA_DIR} (host) onto
 # /var/lib/${PROJECT}/data (container). The deploy user is non-root
 # and CANNOT chown to an arbitrary UID (65532). We therefore grant the
@@ -115,39 +144,51 @@ else
 fi
 echo "→ Data dir ready: ${DATA_DIR} (container uid 65532 gets rwx via ACL or 0777)"
 
-# ── 5. Free disk space before building ──
-# The server accumulates old Docker images, build cache, and dangling
-# layers. Prune aggressively before the build so we don't hit ENOSPC.
-echo "→ Pruning Docker system before build..."
-docker system prune -af --filter "until=24h" 2>/dev/null || true
+# ── 4. Free disk space ──
+# The server accumulates old Docker images, build cache, and dangling layers.
+# In build mode, prune aggressively (the clone can rebuild anything). In pull
+# mode the previous images ARE the rollback path, so keep a week of them and
+# drop only the build cache, which a pulling host never uses.
+if [ "${DEPLOY_MODE}" = "pull" ]; then
+    echo "→ Pruning build cache + images older than 7d (rollback keeps images)"
+    docker image prune -af --filter "until=168h" 2>/dev/null || true
+else
+    echo "→ Pruning Docker system before build..."
+    docker system prune -af --filter "until=24h" 2>/dev/null || true
+fi
 docker builder prune -af 2>/dev/null || true
 echo "→ Disk after prune: $(df -h / | awk 'NR==2{print $4}') free"
 
-# ── 6. Roll the container ──
+# ── 5. Get the artifact ──
 # Build context is the repo checkout (cloned/updated by the GH
 # Action into ${APP_DIR}/repo). The compose file lives at
 # deploy/docker-compose.prod.yml relative to the repo root.
 REPO_DIR="${APP_DIR}/repo"
 cd "${REPO_DIR}"
-echo "→ docker compose build + up -d (context: ${REPO_DIR})"
-# Read the build metadata locally so the Dockerfile.prod ARG defaults
-# are overridden with the real values, not "dev"/"unknown"/"" (the
-# CI-built binary at bin/gogogo is the artifact
-# that gets the canonical stamp; this is the fallback path if the
-# CI-built binary is missing).
-BUILD_VERSION="$(cd "${REPO_DIR}" && git describe --tags --abbrev=0 2>/dev/null | sed "s/^v//" || echo dev)"
-BUILD_COMMIT="$(cd "${REPO_DIR}" && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+# Read the build metadata locally so the Dockerfile.prod ARG defaults are
+# overridden with the real values, not "dev"/"unknown"/"". The same values are
+# stamped into the binary, so /health's X-Gogogo-Build header names exactly
+# which commit is serving.
+BUILD_VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed "s/^v//" || echo dev)"
+BUILD_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-docker compose -f deploy/docker-compose.prod.yml build "${PROJECT}" \
-    --build-arg "VERSION=${BUILD_VERSION}" \
-    --build-arg "COMMIT=${BUILD_COMMIT}" \
-    --build-arg "BUILDTIME=${BUILD_TIME}"
 
-# Captured before the roll so step 8 can tell whether the container was
-# recreated by THIS run or is a survivor from an earlier one.
+if [ "${DEPLOY_MODE}" = "pull" ]; then
+    echo "→ pulling ${IMAGE_REF} (digest pinned; nothing is compiled here)"
+    docker compose -f deploy/docker-compose.prod.yml pull --quiet "${PROJECT}"
+else
+    echo "→ building the image from ${REPO_DIR} (no digest supplied)"
+    docker compose -f deploy/docker-compose.prod.yml build "${PROJECT}" \
+        --build-arg "VERSION=${BUILD_VERSION}" \
+        --build-arg "COMMIT=${BUILD_COMMIT}" \
+        --build-arg "BUILDTIME=${BUILD_TIME}"
+fi
+
+# Captured before the roll so the verification step can tell whether the
+# container was recreated by THIS run or is a survivor from an earlier one.
 ROLL_START_EPOCH="$(date -u +%s)"
 
-# ── 7. Roll the container ──
+# ── 6. Roll the container ──
 # Without blue-green infra, the brief (2-5s) gap between stopping the
 # old container and the new one responding makes the tunnel return a
 # Bad Gateway. `--wait` blocks until the compose healthcheck passes,
@@ -180,8 +221,8 @@ if ! docker compose -f deploy/docker-compose.prod.yml up -d --wait "${PROJECT}" 
     exit 1
 fi
 
-# ── 8. Verify it landed ──
-# Step 7 already fails the run when compose fails. This is the second
+# ── 7. Verify it landed ──
+# Step 6 already fails the run when compose fails. This is the second
 # net: a container that exists and is healthy is not the same as a deploy
 # that applied, because the old container can still be the one serving.
 #
@@ -189,7 +230,7 @@ fi
 # warning, not a failure: `docker compose up -d` legitimately does nothing
 # when the service is already up to date, and failing there would make the
 # check cry wolf on a no-op deploy. It is reported loudly because it means
-# the binary swap in step 1 did not reach a new container.
+# the deploy did not reach a new container.
 echo "→ Verifying the running container..."
 ACTUAL_HEALTH="$(docker inspect "${PROJECT}" --format '{{.State.Health.Status}}' 2>/dev/null || echo unknown)"
 ACTUAL_STARTED="$(docker inspect "${PROJECT}" --format '{{.State.StartedAt}}' 2>/dev/null || echo unknown)"
@@ -208,7 +249,17 @@ else
     echo "✓ ${PROJECT} healthy, recreated by this run (started ${ACTUAL_STARTED})"
 fi
 
-# ── 9. Report status ──
+# ── 7b. Prove the ARTIFACT, not just the container ──
+# Healthy + recreated does not prove WHICH build is serving: a failed pull
+# leaves the previous container healthy and the deploy looking green. The build
+# stamp is the only observable that separates the two, so this is a hard
+# requirement. EXPECTED_COMMIT comes from the deploy workflow (the commit the
+# image was built from); a manual run falls back to the clone's HEAD.
+echo "→ Asserting the serving build..."
+"${REPO_DIR}/scripts/assert-deploy-build.sh" \
+    "${EXPECTED_COMMIT:-${BUILD_COMMIT}}" "http://127.0.0.1:8080/health"
+
+# ── 8. Report status ──
 
 echo "→ Service status:"
 docker compose -f "${COMPOSE_FILE}" ps "${PROJECT}" || true

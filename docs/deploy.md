@@ -58,21 +58,21 @@ shares the same shape — siblings differ only by name:
 ```
 /home/deploy/services/
 └── gogogo/                ← this project
-    ├── bin/
-    │   ├── gogogo          ← current binary (chmod 755)
-    │   └── gogogo.previous ← prior binary, kept for fast rollback
     ├── compose/
     │   └── docker-compose.prod.yml
     ├── env/
     │   └── .env                     ← non-secret env (DATABASE_URL, APP_URL, ...)
-    ├── secrets/
-    │   └── gogogo.env   ← mode 600, regenerated every deploy from GH Secrets
+    ├── repo/                        ← git clone at master: the image build context,
+    │                                   and the source of deploy-prod.sh + the
+    │                                   assertion script the deploy runs
+    ├── scripts/
+    │   └── deploy-prod.sh           ← mode 700, copied from repo/scripts on each deploy
     ├── data/                        ← persistent volume, survives restarts
     │   (bind-mounted into the container at /var/lib/<app>/data —
     │   app.db, queue.db, nats/, dagnats/; see deploy/docker-compose.prod.yml)
-    ├── repo/                        ← git clone of this repo (source for env/.env + deploy-prod.sh)
-    └── scripts/
-        └── deploy-prod.sh           ← the on-server deploy runner (mode 700)
+
+/home/deploy/.secrets/gogogo.env       ← mode 600, dir 700, rendered every deploy
+                                         from GH Secrets; outside the services tree
 
 /home/deploy/services/<other-project>/   ← siblings follow the same shape
 ```
@@ -125,46 +125,72 @@ shares the same shape — siblings differ only by name:
 
 ## After setup, every push to `master` deploys
 
-`.github/workflows/deploy.yml` runs on every push to `master` and:
+`.github/workflows/deploy.yml` runs when something the app is **built from**
+lands on `master` (the path allow-list lives in the workflow, so docs and
+`site/` are excluded by construction) and on `v*` tags. A `reconcile` job runs
+first and skips the deploy when production already reports this `master` HEAD:
+it reads `X-Gogogo-Build` from `/health` and compares the trailing short SHA.
 
-1. Builds the project (Go install, npm deps, CSS, then the binary).
-2. **Cross-compiles the production binary in the runner** — no Docker image is
-   built there. The step is
-   `CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc go build
-   -trimpath -ldflags="-s -w -extldflags=-static -X main.Version=…"`,
-   producing `bin/<app>.new` for the target architecture (arm64 for the
-   reference box; adjust `GOARCH`/`CC` for your host).
-3. Uploads that binary as an artifact, then brings up Tailscale in the runner
-   (OIDC workload identity, scoped to the run).
-4. SCPs the binary to the server as `gogogo.new`, plus the
-   compose file to `compose/docker-compose.prod.yml`.
-5. Writes the secrets file
-   (`/home/deploy/services/gogogo/secrets/gogogo.env`)
-   with mode 600, rendered from GitHub Actions secrets.
-6. SSHes in, ensures the directory tree exists, and runs
-   `scripts/deploy-prod.sh`, which:
-   - atomically renames `gogogo.new` →
-     `gogogo` and keeps the old binary as `.previous`,
-   - restarts the container with
-     `docker compose -f deploy/docker-compose.prod.yml up -d --wait` — `--wait`
-     blocks until the compose healthcheck passes, rather than polling a fixed
-     number of seconds,
-   - the healthcheck itself is `CMD ["/app","health"]` (interval 30s, timeout
-     5s, retries 3, start_period 10s): the binary's own `health` subcommand
-     does an internal GET to `/health` and exits 0 on 200.
-7. Prints the new container status and the last log lines for confirmation.
+1. **Builds the image once** (`image` job) on a native arm64 runner, from
+   `deploy/Dockerfile.prod` — the same file `scripts/smoke-prod-image.sh` boots
+   in CI. It pushes two tags and reports the **digest**; the digest is the
+   artifact's identity, the tags are labels for humans.
+2. Brings up Tailscale in the runner (OIDC workload identity, scoped to the run).
+3. Logs the server into the registry for the single pull (token over ssh stdin,
+   never on a command line or in a file), SCPs
+   `deploy/docker-compose.prod.yml` to `compose/docker-compose.prod.yml`, and
+   renders the secrets file to `/home/deploy/.secrets/<app>.env` (dir 700, file
+   600) from GitHub Actions secrets.
+4. SSHes in, moves the source clone at `/home/deploy/services/<app>/repo` to
+   `master`, copies `scripts/deploy-prod.sh` out of that clone, and runs it.
+5. The script **pulls the digest** (nothing is compiled on the server), runs
+   `docker compose up -d --wait` so the healthcheck gates the restart, checks
+   the container is `healthy` **and** was recreated by this run, and then
+   **asserts that `/health`'s `X-Gogogo-Build` names the commit that was
+   built**. A failed pull leaves the previous container healthy and the deploy
+   looking green; that assertion is the only thing that tells the two apart, so
+   it is a hard failure, not a warning.
 
-The Docker image is built **on the server** from the `build:` stanza in
-`deploy/docker-compose.prod.yml` — the runner only ships a static binary.
+The healthcheck is `CMD ["/app","health"]` (interval 30s, timeout 5s, retries 3,
+start_period 10s): the binary's own `health` subcommand does an internal GET to
+`/health` and exits 0 on 200.
 
-> Restarting a stack requires `cd <project-dir> && docker compose up -d`, never
-> a blanket `docker restart <container>` — compose recreates networks, volume
-> mounts, and dependencies in order.
+**One artifact, named by digest.** The bytes CI built are the bytes production
+runs, which is also what makes rollback cheap (below). Without an `APP_IMAGE`
+digest the script builds the image locally from the clone instead — that is the
+offline path and the path a first-time setup uses before CI has ever pushed.
 
-**Secrets are never stored long-term on the server.** Every deploy re-renders
-the secrets file from GitHub Actions secrets. The file is `chmod 600`, owned by
- the `deploy` user, and overwritten on every run — there is no history of
-secrets on disk.
+**Registry access.** The image is pushed to `ghcr.io/<owner>/<repo>`. GHCR
+packages are **private by default even for a public repo**, and that default is
+what you want to change once, by hand: Package settings → Change visibility →
+Public. A public package means the deploy holds no registry credential at all.
+
+Keeping it private also works: set the repository variable `GHCR_PRIVATE=true`
+and the deploy logs in with the run's `GITHUB_TOKEN` (`packages: read`), then
+logs out on exit — no registry credential survives the deploy. Switching
+visibility has no API a `GITHUB_TOKEN` can call, so it is a one-click manual
+step either way.
+
+## Rollback
+
+Rollback is "run the previous digest", not "rebuild an older commit". The
+digest of every deploy is printed by the `image` job (`Pin the digest` step) and
+by the deploy log's `pulling <ref>` line.
+
+1. Find an earlier digest: `docker image ls --digests` on the server (pull-mode
+   pruning keeps a week of images), or the previous run's `image` job log.
+2. Deploy it by hand, from the stable compose path:
+   ```bash
+   cd /home/deploy/services/<app>/compose
+   APP_IMAGE=<registry>/<owner>/<repo>@sha256:<digest> \
+     docker compose -f docker-compose.prod.yml up -d --wait
+   ```
+3. Prove what landed:
+   ```bash
+   bash /home/deploy/services/<app>/repo/scripts/assert-deploy-build.sh <that-commit>
+   ```
+4. The next push to `master` (or a `workflow_dispatch` run) moves production
+   forward again — the reconcile job sees the badge is behind and deploys.
 
 ## Build pipeline and version badge metadata
 
@@ -193,8 +219,9 @@ make build
 # LDFLAGS = -ldflags="-w -X main.Version=$VERSION -X main.CommitHash=$COMMIT -X main.BuildTime=$BUILDTIME"
 ```
 
-The CI deploy cross-compiles with the same ldflags (`deploy.yml`, "Build prod
-binary"), so the badge on the running box matches the tag that produced it.
+The CI image build passes the same three values as build args (`deploy.yml`,
+the `image` job's `build-args`), so the badge on the running box matches the tag
+that produced it — and the deploy refuses to finish unless it does.
 
 > **Why the tag push is supposed to deploy again (but doesn't).** The release flow is push → CI green → tag,
 > so the deploy triggered by the *push* runs before the tag exists and
@@ -242,15 +269,15 @@ For the badge, compare the navbar's rendered `BuildLabel`/`BuildCommit` against
 make docker-image   # Build and push the multi-arch image to ghcr.io (LOCAL target)
 ```
 
-This is an **optional, local** convenience for publishing an image. The deploy
-workflow does not use it: the runner cross-compiles a static binary and the
-image is built on the server from `deploy/docker-compose.prod.yml`. Run
-`make docker-image` only if you want a registry-hosted image (e.g. to run the
-same build on another host).
+This is an **optional, local** convenience for publishing a multi-arch image
+(e.g. to run the same build on another host). The deploy path does not use it:
+the `image` job builds `linux/arm64` from `deploy/Dockerfile.prod` on a native
+arm64 runner and the server pulls that image **by digest**.
 
-The scratch image has no shell, so its healthcheck is
-`CMD ["/app","health"]` — never `wget`/`curl`/`CMD-SHELL`, none of which exist
-in a scratch base.
+The runtime image is alpine, not scratch: the Turso driver dlopens its Rust
+library, which needs the musl loader and `libgcc_s`. Its healthcheck is
+`CMD ["/app","health"]` — an in-binary subcommand, so it never depends on
+`wget`/`curl`/`CMD-SHELL` existing in the base image.
 
 ## Related
 

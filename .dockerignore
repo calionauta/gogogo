@@ -23,12 +23,12 @@ Thumbs.db
 *~
 
 # ── Node (Tailwind + DaisyUI build deps) ──
-# node_modules is populated by `npm install` inside the builder.
-# Sending the host's node_modules to Docker would 1) waste build
-# context time and 2) potentially leak host-specific binaries.
+# node_modules is populated inside the builder from the committed lockfile
+# (`npm ci`), so the host's node_modules must never travel: it wastes build
+# context and can leak host-specific binaries. The lockfile MUST travel — it is
+# what makes the build reproducible, and `npm ci` refuses to run without it.
 node_modules
 npm-debug.log
-package-lock.json
 
 # ── Go (test/binary data, build cache) ──
 # The builder re-downloads modules into a BuildKit cache; no

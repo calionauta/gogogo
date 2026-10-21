@@ -11,10 +11,14 @@ name: gogogo
 
 services:
   gogogo:
+    # The artifact. CI builds this image and the deploy passes its digest
+    # (APP_IMAGE=<registry>/<owner>/<repo>@sha256:…), so production runs exactly
+    # the bytes the pipeline built and verified. `build:` stays as the offline
+    # fallback: with APP_IMAGE empty the deploy script builds here instead.
+    image: ${APP_IMAGE:-gogogo:prod}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.prod
-    image: gogogo:prod
     container_name: gogogo
     restart: unless-stopped
     user: "65532:65532"
@@ -49,13 +53,13 @@ services:
       # providers — exactly the outage above. To change provider/model,
       # set the GH vars GOAI_BASE_URL / GOAI_MODEL (workflow fallbacks are
       # OpenRouter + a live :free model) and re-deploy.
-      # Realtime — binary built with -tags jetstream.
+      # Realtime — always compiled (unified build: no build tags).
       NATS_ENABLED: "true"
       NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo}/data/nats
-      # Durable workflow — build with -tags dagnats. DagNats boots its
-      # own embedded NATS and its HTTP API/console on DAGNATS_HTTP_ADDR
-      # (default 127.0.0.1:8090). Under -tags "jetstream dagnats" it owns
-      # the same NATS the realtime broadcaster uses (single-NATS).
+      # Durable workflow — always compiled (unified build: no build tags).
+      # DagNats boots its own embedded NATS and its HTTP API/console on
+      # DAGNATS_HTTP_ADDR (default 127.0.0.1:8090). It owns the same NATS the
+      # realtime broadcaster uses (single-NATS).
       DAGNATS_ENABLED: "true"
       DAGNATS_HTTP_ADDR: "127.0.0.1:8090"
       DAGNATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo}/data/dagnats
