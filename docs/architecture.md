@@ -144,6 +144,38 @@ compression middleware: both buffer or cut a response that never ends.
   covered or red on the first commit — including `internal/auth`, which the
   scanner used to miss entirely.
 
+### Scaling the route table
+
+One line per capability does not get worse with size: boot walks the routers
+once and registers one trie, and adding a feature adds one line. A team can add
+routes inside its own feature without touching the root.
+
+If a subset ever needs its own middleware (rate limiting under `/api`, say),
+add it where it is scoped: a mount helper that takes a middleware chain, or a
+`Group` on `Router` that keeps the same route table. Neither exists yet; both
+are additive and leave the features' absolute paths untouched, so the decision
+can wait for the second caller. That is the YAGNI rule the rest of the stack
+follows.
+
+### Security boundary
+
+chi is a router, not a security layer. Its middleware package has no auth, CSRF
+or security headers; `RealIP` trusts a client-controlled header, and `Throttle`
+is per-process. The security properties here are owned:
+
+- argon2id passwords, opaque sessions, a `SameSite=Lax` + `HttpOnly` cookie
+  that is `Secure` in production (`internal/auth`).
+- Casbin policy at the edge of the router plus per-handler session checks,
+  because `RBAC_ENABLED` defaults to false (`docs/rbac.md`).
+- templ escaping and sqlc parameters on the data paths.
+- the three edge headers above and a body cap on the auth surface.
+
+Deployment owns the rest: HSTS and TLS at the tunnel, a WAF or rate limit in
+front, and a CSP that can only arrive with nonce plumbing for the inline
+scripts. The sign-in throttle keys on the TCP peer on purpose; behind a single
+proxy that collapses to one key, so throttle at the edge. These are documented
+gaps, not silent assumptions.
+
 ## SCOPE annotations
 
 Every non-test, non-generated `.go` file under `internal/` and `features/`
