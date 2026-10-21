@@ -50,9 +50,13 @@ jobs:
         run: |
           bash bin/install-go-toolchain.sh
       - name: Install Wails Linux build dependencies
+        # apt-get update exits 100 when a third-party source in the runner
+        # image is broken (403 or unsigned), even though the Ubuntu indexes
+        # updated. The install is the gate.
         run: |
-          sudo apt-get update -qq
+          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          pkg-config --modversion gtk4
       - name: Verify Wails environment
         # Kept as an environment sanity check (GTK4/WebKitGTK headers present).
         # The build step itself no longer needs the CLI — desktop-build.sh
@@ -84,9 +88,13 @@ jobs:
         run: |
           bash bin/install-go-toolchain.sh
       - name: Install Wails Linux build dependencies
+        # apt-get update exits 100 when a third-party source in the runner
+        # image is broken (403 or unsigned), even though the Ubuntu indexes
+        # updated. The install is the gate.
         run: |
-          sudo apt-get update -qq
+          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          pkg-config --modversion gtk4
       - name: Setup wails-cross image (one-time, cached)
         # Built from the wails source checkout — `wails3 task setup:docker`
         # cannot be used here because it requires a Taskfile.yml at the repo

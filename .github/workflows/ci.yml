@@ -183,7 +183,15 @@ jobs:
           args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc
+        # The runner image carries third-party APT sources (packages.microsoft.com)
+        # that can return 403 or lose their signature. apt-get update then exits
+        # 100 even though the Ubuntu indexes updated, and this job failed on a
+        # mirror it never asked for. Tolerate that exit code, then let the
+        # install and the compiler check be the gate.
+        run: |
+          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
+          sudo apt-get install -y gcc
+          gcc --version | head -1
       - name: Gitleaks (no secrets in git history)
         # Pinned like datastar-lint: new detectors must not fail old trees.
         # Scans all commits (catches what a bypassed pre-commit hook let in).
@@ -266,7 +274,15 @@ jobs:
         run: go tool templ generate
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc
+        # The runner image carries third-party APT sources (packages.microsoft.com)
+        # that can return 403 or lose their signature. apt-get update then exits
+        # 100 even though the Ubuntu indexes updated, and this job failed on a
+        # mirror it never asked for. Tolerate that exit code, then let the
+        # install and the compiler check be the gate.
+        run: |
+          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
+          sudo apt-get install -y gcc
+          gcc --version | head -1
       - name: Test
         # Plain parallel run: the DagNats tests used to bind fixed ports, and
         # two packages grabbed the same one, which forced `-p 1`. They now bind
@@ -301,7 +317,15 @@ jobs:
         run: bash bin/go-mod-download.sh
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc
+        # The runner image carries third-party APT sources (packages.microsoft.com)
+        # that can return 403 or lose their signature. apt-get update then exits
+        # 100 even though the Ubuntu indexes updated, and this job failed on a
+        # mirror it never asked for. Tolerate that exit code, then let the
+        # install and the compiler check be the gate.
+        run: |
+          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
+          sudo apt-get install -y gcc
+          gcc --version | head -1
       - name: Set up Node (Playwright)
         uses: actions/setup-node@v4
         with:

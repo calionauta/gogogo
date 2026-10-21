@@ -227,9 +227,13 @@ jobs:
         # Every build/test compiles collab, so a C compiler must be present.
         # We also need gcc-aarch64-linux-gnu for the production cross-build
         # (linux/arm64). Both are installed once to avoid redundant apt runs.
+        # apt-get update exits 100 when a third-party source in the runner
+        # image is broken (403 or unsigned), even though the Ubuntu indexes
+        # updated. The install and the compiler probe below are the gate.
         run: |
-          sudo apt-get update -qq
+          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo apt-get install -y gcc gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+          aarch64-linux-gnu-gcc --version | head -1
 
       - name: Build prod binary
         run: |
