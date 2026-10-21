@@ -15,6 +15,32 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.54.0 (2026-10-21)
+
+## What's Changed
+* feat(site): add docs search via the docsite bump by @calionauta in https://github.com/calionauta/gogogo/pull/206
+* fix(site): keep docs search assets under the Pages prefix by @calionauta in https://github.com/calionauta/gogogo/pull/210
+* fix(installer): skip symlinks when renaming, so a fresh clone scaffolds by @calionauta in https://github.com/calionauta/gogogo/pull/214
+* docs(search): give the search plugin a page of its own by @calionauta in https://github.com/calionauta/gogogo/pull/211
+* fix(installer): scaffold on a fresh clone — relative --dir, loud trim failures, toolchain gate by @calionauta in https://github.com/calionauta/gogogo/pull/209
+* feat(installer): record the template base and make version checks project-aware by @calionauta in https://github.com/calionauta/gogogo/pull/212
+* fix(ui): room Leave state, session banner, notes caret and tablet navbar by @calionauta in https://github.com/calionauta/gogogo/pull/215
+* docs(overview): stop claiming there is nothing to upgrade by @calionauta in https://github.com/calionauta/gogogo/pull/216
+* feat(installer): point migrate at curated notes for structural releases by @calionauta in https://github.com/calionauta/gogogo/pull/218
+* docs: state the copy-vs-module tradeoff and record the PocketBase rejection by @calionauta in https://github.com/calionauta/gogogo/pull/217
+* docs(deps): add the dependency doctrine, generate the README index, gate the trade-off line by @calionauta in https://github.com/calionauta/gogogo/pull/220
+* ci(deploy): promote the image by digest and drop the unused host binary by @calionauta in https://github.com/calionauta/gogogo/pull/219
+* docs: put the PocketBase comparison where comparisons live by @calionauta in https://github.com/calionauta/gogogo/pull/224
+* docs(research): move the limen evaluation out of the decision record by @calionauta in https://github.com/calionauta/gogogo/pull/223
+* ci: exercise the upgrade loop end to end, weekly by @calionauta in https://github.com/calionauta/gogogo/pull/221
+* ci(deploy): log in to the registry by default, so a fresh clone's first deploy works by @calionauta in https://github.com/calionauta/gogogo/pull/222
+* test(installer): compare the changelog's top release to the manifest, not a literal by @calionauta in https://github.com/calionauta/gogogo/pull/225
+* docs(tradeoffs): recount the scaffold weight after the tree grew by @calionauta in https://github.com/calionauta/gogogo/pull/227
+* fix(deploy): strip whitespace from the ssh host and make the registry login best-effort by @calionauta in https://github.com/calionauta/gogogo/pull/226
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.53.0...v0.54.0
+
 ## 0.53.0 (2026-10-21)
 
 ## What's Changed
