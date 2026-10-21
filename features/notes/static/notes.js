@@ -91,6 +91,9 @@
     // report from this handler is anchored to the stale serverText while
     // our own keystroke is still unconfirmed, so it overwrote the exact
     // dot with an approximate one — the per-letter line jump peers saw.
+    // Selectionchange kept doing exactly that a beat later, outside this
+    // handler, so maybeCaret itself now refuses to report while
+    // `ta.value !== serverText` — that guard is the real one.
     // Pure cursor moves still report via selectionchange, heartbeats via
     // the 5s interval (both guarded while ops are unconfirmed).
     // Deliberately vanilla (not data-on:input__debounce): the timer,
@@ -230,9 +233,19 @@
       return;
     }
     const pos = ta.selectionStart || 0;
+    // A standalone report travels WITHOUT its text, so the peer anchors it
+    // to the last text it confirmed — while a keystroke is still pending (the
+    // 100ms debounce, or a batch in flight) our value is AHEAD of that base,
+    // and the same offset lands somewhere else in the peer's copy. The batch
+    // carries the exact caret with its text instead, so stay quiet here and
+    // let flush() report the final position once the base catches up.
+    if (ta.value !== serverText) return;
+    // Even when there is nothing to send, this IS where we are in the text
+    // the server knows: the 5s heartbeat resends it, so it must not go stale
+    // (a stale resend is the same wrong-place dot by another route).
+    lastOwnCaret = { pos: pos, text: ta.value };
     if (pos === caretSent) return; // unchanged since the last report
     caretSent = pos;
-    lastOwnCaret = { pos: pos, text: ta.value };
     reportCaretWire(pos, ta.value.slice(0, pos).split("\n").length);
   }
   // heartbeatCaret resends the last OWN caret, so a focused-but-idle
@@ -241,6 +254,7 @@
   function heartbeatCaret() {
     if (outbox.length || flushing) return;
     if (document.activeElement !== ta || !lastOwnCaret) return;
+    if (ta.value !== serverText) return; // pending keystroke: the batch owns it
     caretSent = lastOwnCaret.pos;
     reportCaretWire(lastOwnCaret.pos,
       lastOwnCaret.text.slice(0, lastOwnCaret.pos).split("\n").length);
@@ -253,43 +267,73 @@
   // caretXY maps an offset to pixels. `text` is the snapshot `offset` was
   // measured against (the reporting peer's document); it defaults to our
   // own textarea when a report carries no snapshot (the standalone
-  // selectionchange/heartbeat path). Both the prefix and the trailing
-  // remainder are sliced from that SAME text, so the marker's line box is
-  // derived from the reporter's text, not ours.
+  // selectionchange/heartbeat path). The mirror is the reporter's text in
+  // OUR font metrics and OUR width, so the dot's line and column are the
+  // ones this editor would give that offset.
+  //
+  // Two things the mirror must not do, both of which moved the dot:
+  //
+  //  1. It must not add a character. The caret used to be measured with a
+  //     zero-width-space marker, and "zero width" is not "no character": a
+  //     ZWSP is a break opportunity, so at a soft wrap the marker stayed on
+  //     the PREVIOUS line (measured: mirror marker top=10px while the range
+  //     at the same offset is at 32px, one line down). Every time the caret
+  //     landed exactly on a wrap boundary — once per typed line — the peer's
+  //     dot jumped up a row and came back on the next keystroke. A Range at
+  //     the offset needs no insertion at all, so the mirror's wrapping is
+  //     byte-identical to what the reporter's text would render.
+  //  2. It must not change the text column's width. Border widths were copied
+  //     from the textarea along with box-sizing:border-box, which made the
+  //     mirror's content box two pixels narrower than the textarea's — a
+  //     wrap divergence waiting for a line whose break lands in those pixels.
+  //     The mirror is borderless and `width` is the textarea's clientWidth
+  //     (content + padding, no border), so both text columns are the same.
   function caretXY(offset, text) {
     const src = typeof text === "string" ? text : ta.value;
     const at = Math.max(0, Math.min(offset, src.length));
     const cs = getComputedStyle(ta);
+    const lineH = parseFloat(cs.lineHeight) || 20;
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const padLeft = parseFloat(cs.paddingLeft) || 0;
     const mirror = document.createElement("div");
     const props = ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "wordBreak", "tabSize"];
     for (const p of props) { try { mirror.style[p] = cs[p]; } catch (err) {} }
     if (ta.wrap === "off") mirror.style.whiteSpace = "pre";
     else { mirror.style.whiteSpace = "pre-wrap"; mirror.style.wordWrap = "break-word"; }
+    mirror.style.boxSizing = "border-box";
+    mirror.style.borderTopWidth = "0";
+    mirror.style.borderRightWidth = "0";
+    mirror.style.borderBottomWidth = "0";
+    mirror.style.borderLeftWidth = "0";
     mirror.style.position = "absolute";
     mirror.style.visibility = "hidden";
     mirror.style.top = ta.offsetTop + "px";
     mirror.style.left = ta.offsetLeft + "px";
     mirror.style.width = ta.clientWidth + "px";
     const wrap = document.getElementById("note-wrap") || document.body;
-    mirror.textContent = src.substring(0, at);
-    const marker = document.createElement("span");
-    marker.textContent = "​";
-    mirror.appendChild(marker);
-    // Trailing remainder (when any): without it, an offset exactly at a
-    // "\n" (caret at a line start) collapses — a newline ending the mirror
-    // creates no line box, so the marker lands at the end of the PREVIOUS
-    // line and the dot drops one line down until more typing moves it
-    // mid-line (the reported bug). The remainder forces every line box to
-    // exist, so line-start carets measure on their own line.
-    mirror.appendChild(document.createTextNode(src.substring(at)));
+    // The WHOLE document, not just the prefix: a mirror holding less text
+    // would wrap at places the reporter's never does.
+    mirror.textContent = src;
     wrap.appendChild(mirror);
-    // Marker is a zero-size inline at the caret: its offset box top is the
-    // line top, its height the line height — a text caret, not a dot.
-    const x = ta.offsetLeft + marker.offsetLeft;
-    const y = ta.offsetTop + marker.offsetTop;
-    const h = marker.offsetHeight || parseInt(getComputedStyle(ta).lineHeight, 10) || 20;
+    const origin = mirror.getBoundingClientRect();
+    let relX = padLeft;
+    let relY = padTop;
+    let h = lineH;
+    const node = mirror.firstChild;
+    if (node) {
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.collapse(true);
+      const rects = range.getClientRects();
+      const rect = rects.length ? rects[rects.length - 1] : range.getBoundingClientRect();
+      if (rect && (rect.width || rect.height)) {
+        relX = rect.left - origin.left;
+        relY = rect.top - origin.top;
+        h = rect.height || lineH;
+      }
+    }
     mirror.remove();
-    return { x: x, y: y, h: h };
+    return { x: ta.offsetLeft + relX, y: ta.offsetTop + relY, h: h };
   }
   // impliedLine counts the line an offset falls on in `text`, by the SAME
   // rule the reporter used (slice then split on "\n"). When it disagrees
@@ -487,6 +531,13 @@
     const atSend = ta.selectionStart || 0;
     const sendBody = { base: head.base, ops: head.ops,
       caret: { line: ta.value.slice(0, atSend).split("\n").length, pos: atSend } };
+    // Remember the position that just went out WITH its text. Every keystroke
+    // also fires selectionchange, and without this the same offset was
+    // reported a second time as a standalone caret (no text) right after the
+    // batch drained — two channels for one caret, the exact one and an
+    // approximate one, alternating on the peer's screen. This makes that
+    // duplicate a no-op ("unchanged since the last report").
+    caretSent = atSend;
     fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -550,6 +601,10 @@
         if (t0 && rtt) { lastRTT = "· " + Math.round(performance.now() - t0) + "ms"; rtt.textContent = lastRTT; }
         adoptRemote(d.text, d.rev);
         net.classList.add("hidden");
+        // The base caught up with our text: a caret that moved while the
+        // batch was in flight (arrow keys, a click) could not be reported
+        // above, so report it now instead of waiting for the 5s heartbeat.
+        maybeCaret();
         if (outbox.length) flush();
       }
     }).catch(function () {
