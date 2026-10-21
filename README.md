@@ -31,7 +31,7 @@ The manual lives on the site, not in this file:
 **[calionauta.github.io/gogogo/docs/](https://calionauta.github.io/gogogo/docs/)**
 
 <details>
-<summary>Page index (20 pages)</summary>
+<summary>Page index</summary>
 
 One-liners mirror the docs site manifest (`site/build.mjs`).
 
@@ -45,6 +45,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 - [stack-layers](docs/stack-layers.md) — every dependency and why it is in the box.
 - [async-layers](docs/async-layers.md) — the seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync.
 - [features](docs/features.md) — every capability and its runtime opt-out.
+- [search](docs/search.md) — the search plugin: one seam, three layers (substring, fuzzy, BM25), the runtime picker, and the degrade path when trimmed.
 - [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
 - [configuration](docs/configuration.md) — every environment variable and runtime constant.
 - [exception-to-go](docs/exception-to-go.md) — Go-first policy: why Zig is an exceptional native boundary, plus the agent decision procedure.

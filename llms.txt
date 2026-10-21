@@ -13,6 +13,7 @@
 ## By task
 
 - New feature or product plan: docs/overview.md, docs/features.md
+- Search layers (substring / fuzzy / BM25), the runtime picker, the trim story: docs/search.md
 - What a unit owns (routes, generated queries, trim story): docs/unit-contracts.md
   (generated; scaffold with `gogogo new feature <name>`)
 - Architecture details: docs/architecture.md, docs/architecture-decision.md
