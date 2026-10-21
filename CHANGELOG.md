@@ -15,6 +15,20 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.53.0 (2026-10-21)
+
+## What's Changed
+* feat(ui): shadcn skin, app-wide skin resolution and behaviour gaps by @calionauta in https://github.com/calionauta/gogogo/pull/199
+* feat(server): wrap the edges and route auth on chi by @calionauta in https://github.com/calionauta/gogogo/pull/198
+* fix(site): stack tables into labelled cards on phones by @calionauta in https://github.com/calionauta/gogogo/pull/197
+* fix(site): keep navigation reachable on a phone by @calionauta in https://github.com/calionauta/gogogo/pull/202
+* build(site): vendor the shared docs engine by @calionauta in https://github.com/calionauta/gogogo/pull/204
+* fix(server): close the origin-guard edge cases by @calionauta in https://github.com/calionauta/gogogo/pull/203
+* fix(ui): check all skins and sync the three-skin docs by @calionauta in https://github.com/calionauta/gogogo/pull/205
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.52.0...v0.53.0
+
 ## 0.52.0 (2026-10-21)
 
 ## What's Changed
