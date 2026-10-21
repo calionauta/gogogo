@@ -22,6 +22,22 @@ both halves: `CLIENT_BOUND_SIGNAL_NO_OMITEMPTY` is an **error** (the tag
 survives a reader fixing the obvious merge line), `CLIENT_BOUND_SIGNAL_WRITTEN`
 an **error** too (a write is the bug, whichever door it came through).
 
+**It is not only bound signals.** The lint knows the signals an input binds
+(`data-bind`); it cannot see the ones the *browser* owns without an input —
+identity, presence and per-tab flow state. Those are the same bug with a
+longer fuse, and they were found the hard way: one whole-struct merge from a
+filter click wrote `sessionAuthed:false` (the session banner rose on a
+perfectly signed-in page), `clientID:""` (every later mutation went out with
+no client id, so echo suppression and worker feedback lost their target),
+`connectedClients:0` (the presence pill read "0 online"), `sidebarTab:""`
+(no pane matched, the sidebar went blank) and reset the date filter plus every
+demo stepper. The rule for a signals struct is therefore: **a field the
+response cannot compute carries `json:"-"`**, and the two writers that DO know
+it send it by name — the page seed (`components.marshalSignals`) and the stream
+handshake (`handlers.mergeHandshake`). `todo.Signals` documents the invariant
+at the struct, and `TestPageLevelResponsesNeverPatchConnectionSignals` holds
+the line.
+
 Live example: `newTitle` and `searchQuery` are both bound. The search box lost
 its text mid-typing because six call sites wrote `searchQuery` (the stream
 handshake, both list endpoints, the mutation re-list, and the `/search`

@@ -40,12 +40,29 @@ const (
 	VisibilityPublic  = "public"
 )
 
+// Signals is the todo page's signal set. ONE struct serves three writers:
+// the page render (data-signals seed), the stream handshake, and the
+// list/search/fragment responses that merge it into a live tab.
+//
+// THE INVARIANT THAT BIT US TWICE: `json:"-"` marks a field the browser owns.
+// A page-level response merges the WHOLE struct, so any field a handler cannot
+// know is written at its zero value — and zero is never distinguishable from
+// "really false": `sessionAuthed:false` raised the session banner on a
+// signed-in page, `clientID:""` sent every later mutation with no client id
+// (echo suppression and worker feedback lost their target), `connectedClients:0`
+// dropped the presence pill, `sidebarTab:""` blanked the right sidebar, and the
+// demo steppers plus the date filter reset on every filter click. Those fields
+// carry `json:"-"` and are seeded by the page (components.marshalSignals) and
+// by the stream handshake (handlers.mergeHandshake), which are the two places
+// that actually know them. A NEW per-tab field belongs here with `json:"-"`,
+// not with a tag — the handlers that drive it through MergeSignals maps still
+// write it on the wire (encoded/decoded by name, not by this struct).
 type Signals struct {
 	Todos     []Todo `json:"todos"`
 	NewTitle  string `json:"newTitle,omitempty"`
 	Filter    string `json:"filter"` // "all", "active", "completed"
-	EditingID string `json:"editingId"`
-	EditTitle string `json:"editTitle"`
+	EditingID string `json:"-"`
+	EditTitle string `json:"-"`
 	Loading   bool   `json:"loading"`
 	ItemCount int    `json:"itemCount"`
 
@@ -61,15 +78,19 @@ type Signals struct {
 	// CreatedAfter is a client-owned date filter (YYYY-MM-DD). Empty means no
 	// filter. Every rendered row carries data-created, so filtering is a
 	// display decision and never needs a server round trip.
-	CreatedAfter string `json:"createdAfter"`
+	CreatedAfter string `json:"-"`
 	NoMatches    bool   `json:"noMatches"`
 
-	// SessionAuthed is the live session state for the shared banner. The
-	// todo page carries it on its OWN stream (the page must not open a second
-	// long-lived connection; browsers cap connections per host), and the
-	// stream revalidates it on its heartbeat, so an expired cookie surfaces
-	// without a poll.
-	SessionAuthed bool `json:"sessionAuthed"`
+	// SessionAuthed is NOT a field here, and that is deliberate. The todo page
+	// carries the banner state on its OWN stream (no second long-lived
+	// connection; browsers cap connections per host) and revalidates it on the
+	// stream heartbeat. It cannot ride Signals: every list/search/fragment
+	// response merges the whole struct, so a zero-valued bool serialized as
+	// `sessionAuthed:false` into every one of them — picking a different Match
+	// mode, or clicking a filter tab, told the shared banner the session had
+	// expired and it stayed up until a reload. Only the stream handshake and
+	// its heartbeat know the answer, so only they write the signal
+	// (features/todo/handlers/stream.go).
 
 	// SearchMode is the ACTIVE layer (substring/fuzzy/bm25) and SearchModes
 	// the wired ones, in presentation order, for the selector.
@@ -87,23 +108,23 @@ type Signals struct {
 	// currently open. Empty string means no modal is shown. The title
 	// is mirrored into ConfirmDeleteTitle so the modal body can name the
 	// row without re-fetching it.
-	ConfirmDelete      string `json:"confirmingDeleteId"`
-	ConfirmDeleteTitle string `json:"confirmingDeleteTitle"`
-	Deleting           bool   `json:"deleting"`
+	ConfirmDelete      string `json:"-"`
+	ConfirmDeleteTitle string `json:"-"`
+	Deleting           bool   `json:"-"`
 
 	// TechStep + TechDone + TechPhase drive the techstack diagnostics
 	// <ul class="steps"> component. TechStep is the slug of the most
 	// recent action ("suggest", "retry-demo", "workflow"); TechDone
 	// flips true once success arrives; TechPhase surfaces "error".
-	TechStep  string `json:"techStep"`
-	TechDone  bool   `json:"techDone"`
-	TechPhase string `json:"techPhase"`
+	TechStep  string `json:"-"`
+	TechDone  bool   `json:"-"`
+	TechPhase string `json:"-"`
 	// DemoStep drives the progressive lighting of the Queue + Retry demo
 	// steps (1 = enqueued, 2 = running/retrying, 3 = completed). It is
 	// advanced by the per-attempt SSE "retry" feedback so the steps
 	// light one-by-one with a visible gap between attempts instead of
 	// all flipping at once when the job finishes.
-	DemoStep int `json:"demoStep"`
+	DemoStep int `json:"-"`
 
 	// AIStep, AIPending, AIPhase drive the *AI Suggest* stepper, kept
 	// deliberately separate from the Queue + Retry demo stepper
@@ -111,9 +132,9 @@ type Signals struct {
 	// which made running the Queue + Retry demo light up the AI Suggest
 	// tab's "Suggestions ready" status erroneously. Seeded so the
 	// stepper is inert on first paint.
-	AIStep    int    `json:"aiStep"`
-	AIPending bool   `json:"aiPending"`
-	AIPhase   string `json:"aiPhase"`
+	AIStep    int    `json:"-"`
+	AIPending bool   `json:"-"`
+	AIPhase   string `json:"-"`
 	// ClientID is the SSE client id assigned when the stream opens. The
 	// UI uses it to route queued-job results and retry feedback back to
 	// the correct browser tab, so a Suggest triggered here lands here
@@ -122,7 +143,15 @@ type Signals struct {
 	// NOTE: the JSON key is intentionally "clientID" (not the
 	// tagliatelle-preferred "clientId") — it is a public Datastar signal
 	// name bound by the frontend, so renaming would break the wire contract.
-	ClientID string `json:"clientID"` //nolint:tagliatelle // public Datastar signal name, do not rename
+	//
+	// `json:"-"` IS THE POINT: a list/search/mutation response merges this
+	// whole struct into the tab's signals, and a handler serving a filter
+	// click cannot know the tab's identity — marshalling it there wrote
+	// `clientID:""` and every later mutation went out with an empty id (echo
+	// suppression and worker feedback both address a client that no longer
+	// exists). Connection-owned signals are seeded by the page render
+	// (marshalSignals) and written afterwards only by the stream handshake.
+	ClientID string `json:"-"`
 	// LLMEnabled reflects whether the server was started with a
 	// non-empty GOAI_API_KEY. When true, the UI renders the "Suggest"
 	// button. When false, the entire AI pathway is hidden.
@@ -141,10 +170,10 @@ type Signals struct {
 	// Suggestions is the latest AI-suggested completions, populated
 	// by POST /api/todos/suggest. Empty when no suggestions or
 	// LLMEnabled is false.
-	Suggestions []string `json:"suggestions"`
+	Suggestions []string `json:"-"`
 	// SuggestErr surfaces a human-readable error from the LLM
 	// provider (without leaking internals). Empty on success.
-	SuggestErr string `json:"suggestErr"`
+	SuggestErr string `json:"-"`
 
 	// SuggestPending is true while a suggest job (simulated or real)
 	// is in flight. Drives the button spinner + disabled state so the
@@ -152,12 +181,17 @@ type Signals struct {
 	// on first paint (Datastar's data-attr:disabled treats an
 	// undefined signal as falsy, but seeding it explicitly avoids a
 	// one-frame flash of the disabled state).
-	SuggestPending bool `json:"suggestPending"`
+	SuggestPending bool `json:"-"`
 
 	// ConnectedClients is the number of browser tabs/clients currently
 	// connected to the SSE stream. Streamed on connect and on every
 	// connect/disconnect so the UI can show realtime presence.
-	ConnectedClients int `json:"connectedClients"`
+	//
+	// `json:"-"` for the same reason as ClientID: it is the HUB's count, not
+	// a property of a list response, so marshalling the struct from a filter
+	// click wrote `connectedClients:0` and the online pill dropped to
+	// "0 online" on a page with a live stream.
+	ConnectedClients int `json:"-"`
 
 	// LastItemSource tags the most recent todo mutation as either
 	// "self" (the user who triggered the HTTP request) or "remote"
@@ -166,7 +200,7 @@ type Signals struct {
 	// pulse for remote) and a highlight tint, so the user can tell at
 	// a glance which todos came from them vs. from others. Empty before
 	// the first mutation.
-	LastItemSource string `json:"lastItemSource"`
+	LastItemSource string `json:"-"`
 
 	// DagNatsEnabled reflects whether the durable-workflow UI should
 	// render: the engine is enabled AND the onboarding routes were
@@ -198,7 +232,7 @@ type Signals struct {
 	// PermDenied drives the "your role cannot do that" toast: set when a
 	// viewer reaches for a gated affordance. Seeded false; cleared by
 	// its close button (same lifecycle as the other ephemeral signals).
-	PermDenied bool `json:"permDenied"`
+	PermDenied bool `json:"-"`
 
 	// ReviewEnabled reflects whether the review-loop UI should render:
 	// the review routes are wired AND a real LLM is configured
@@ -210,24 +244,28 @@ type Signals struct {
 	// RealtimeKind describes the active broadcast transport so the
 	// diagnostics panel can label it accurately: "JetStream" when NATS is
 	// enabled and a JetStream context is wired, else the in-process hub.
-	RealtimeKind string `json:"realtimeKind"`
+	RealtimeKind string `json:"-"`
 
 	// StoreLabel describes the active data layer (e.g.
 	// "Turso records"). Surfaced in the page sub-header so a
 	// tester can verify which persistence mode is running without
 	// grep-ing logs.
-	StoreLabel string `json:"storeLabel"`
+	StoreLabel string `json:"-"`
 
 	// OfflineLabel describes the offline-sync behavior of the active
 	// strategy (e.g. whether SW queues mutations, whether cross-
 	// instance sync is on). Surfaced in the page sub-header.
-	OfflineLabel string `json:"offlineLabel"`
+	OfflineLabel string `json:"-"`
 
 	// SidebarTab selects the active async-demo tab in the right sidebar:
 	// "queue" (Queue + Retry) or "workflow" (Durable Workflow). Seeded
 	// "queue" so the first tab is active on paint; the Durable Workflow
 	// tab is only shown when DagNatsEnabled is true.
-	SidebarTab string `json:"sidebarTab"`
+	//
+	// `json:"-"`: the tab choice belongs to the browser. A page-level merge
+	// wrote `sidebarTab:""`, which matches no pane — the whole right sidebar
+	// went blank after a filter click.
+	SidebarTab string `json:"-"`
 
 	// Onboarding progress (DagNats durable workflow). Streamed as the
 	// workflow advances so the UI can render a live stepper. Each event
@@ -236,14 +274,14 @@ type Signals struct {
 	// stays true so the stepper remains visible until the next run resets
 	// it — this is what makes the durable, restart-tolerant nature of the
 	// workflow observable in the UI.
-	OnboardingActive bool   `json:"onboardingActive"`
-	OnboardingStep   int    `json:"onboardingStep"`
-	OnboardingTotal  int    `json:"onboardingTotal"`
-	OnboardingPhase  string `json:"onboardingPhase"`
-	OnboardingDetail string `json:"onboardingDetail"`
+	OnboardingActive bool   `json:"-"`
+	OnboardingStep   int    `json:"-"`
+	OnboardingTotal  int    `json:"-"`
+	OnboardingPhase  string `json:"-"`
+	OnboardingDetail string `json:"-"`
 	// WorkflowCompleted is set true when the durable onboarding
 	// workflow finishes all five steps. The UI renders a final alert
 	// so the user gets an explicit completion signal (not just the
 	// stepper reaching 5/5).
-	WorkflowCompleted bool `json:"workflowCompleted"`
+	WorkflowCompleted bool `json:"-"`
 }

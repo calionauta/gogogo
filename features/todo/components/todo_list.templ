@@ -8,11 +8,41 @@ import (
 	ic "github.com/calionauta/gogogo/internal/components"
 )
 
+// pageSignals is the page seed: the page-level signal struct plus the
+// browser-owned values (`json:"-"` on todo.Signals) that a page render is the
+// one writer of. Kept as a wrapper so the tags on todo.Signals can stay
+// omitting them without losing the initial seed.
+//
+// Only the values the FIRST PAINT reads are listed: identity and presence (the
+// online pill and $clientID in every mutation URL), the sidebar tab whose
+// data-class matches "queue", the realtime-kind label (`data-text`) and the
+// date filter. The demo/onboarding steppers are left undefined on purpose —
+// they are falsy until their handler writes them, exactly as before.
+type pageSignals struct {
+	todo.Signals
+	ClientID         string `json:"clientID"` //nolint:tagliatelle // public Datastar signal name, do not rename
+	ConnectedClients int    `json:"connectedClients"`
+	SidebarTab       string `json:"sidebarTab"`
+	RealtimeKind     string `json:"realtimeKind"`
+	StoreLabel       string `json:"storeLabel"`
+	OfflineLabel     string `json:"offlineLabel"`
+	CreatedAfter     string `json:"createdAfter"`
+}
+
 // marshalSignals serializes the initial signal set as a JSON string for
 // `data-signals`. JSON marshalling is used because Templ's own string
 // interpolation would not handle nested arrays / correct quoting.
 func marshalSignals(s todo.Signals) string {
-	b, _ := json.Marshal(s)
+	b, _ := json.Marshal(pageSignals{
+		Signals:          s,
+		ClientID:         s.ClientID,
+		ConnectedClients: s.ConnectedClients,
+		SidebarTab:       s.SidebarTab,
+		RealtimeKind:     s.RealtimeKind,
+		StoreLabel:       s.StoreLabel,
+		OfflineLabel:     s.OfflineLabel,
+		CreatedAfter:     s.CreatedAfter,
+	})
 	return string(b)
 }
 

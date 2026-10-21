@@ -194,6 +194,11 @@ service-worker cleanup.
 Session visibility uses the stream a page ALREADY has: notes/whiteboard send
 a `collab.SessionEvent` frame, and todo/room/chat/genui carry a
 `sessionAuthed` signal on their feature stream (revalidated on its heartbeat).
+Only the stream may write it: a page-level response cannot know the session,
+so a zero-valued field on a shared signals struct serializes as
+`sessionAuthed:false` and raises the banner on a perfectly signed-in tab (todo
+did exactly that on every list/search response, which is why `todo.Signals`
+has no such field and the stream merges the signal itself).
 Only a page with no feature stream opens `/api/session/stream` (one visible tab
 per browser via Web Locks, BroadcastChannel for the others). One long-lived
 connection per page is the rule: browsers cap connections per host, and a

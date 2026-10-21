@@ -64,7 +64,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: list on stream open failed", err, "error listing todos")
 		return
 	}
-	if err := dshelpers.MergeSignals(sse, todo.Signals{
+	if err := mergeHandshake(sse, todo.Signals{
 		Todos:            todos,
 		Filter:           view.Filter,
 		Scope:            view.Scope,
@@ -79,8 +79,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		UserID:           owner,
 		LLMEnabled:       h.LLM != nil && h.LLM.Configured(),
 		SimulatedLLM:     h.SimulatedLLM != nil && h.SimulatedLLM.Configured(),
-		SessionAuthed:    hasOwner,
-	}); err != nil {
+	}, hasOwner); err != nil {
 		h.fail(r.Context(), w, "todo: stream handshake failed", err, "error opening stream")
 		return
 	}
@@ -117,6 +116,30 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 // revalidateSession re-checks the request's cookie and patches the banner
 // signal when the state changed. Split from the loop for the complexity gate;
 // it runs on the heartbeat, never on a timer of its own.
+// mergeHandshake sends the open frame's signals: the page state, the three
+// connection-owned values todo.Signals omits from JSON, and the session flag.
+//
+// The session flag belongs HERE and on the heartbeat, never on a page-level
+// response — a handler serving a filter or a search marshals the whole struct
+// and a bool it leaves at its zero value cannot be told apart from "this tab
+// really is signed out", so `sessionAuthed:false` rode every one of those and
+// raised the banner on a signed-in page (docs/features.md). The same argument
+// is why clientID/connectedClients/sidebarTab carry `json:"-"` and are merged
+// here instead: the page seed and this handshake are their only writers.
+func mergeHandshake(sse *sdk.ServerSentEventGenerator, signals todo.Signals, authed bool) error {
+	if err := dshelpers.MergeSignals(sse, signals); err != nil {
+		return err
+	}
+	if err := dshelpers.MergeSignals(sse, map[string]any{
+		"clientID":         signals.ClientID,
+		"connectedClients": signals.ConnectedClients,
+		"sidebarTab":       signals.SidebarTab,
+	}); err != nil {
+		return err
+	}
+	return dshelpers.MergeSignals(sse, map[string]bool{"sessionAuthed": authed})
+}
+
 func (h *Handler) revalidateSession(r *http.Request, sse *sdk.ServerSentEventGenerator, authed bool) bool {
 	_, err := h.Auth.Session(r)
 	if (err == nil) == authed {
