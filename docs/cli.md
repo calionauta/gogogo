@@ -37,6 +37,11 @@ with the same flags (always tracks the latest commit; releases pin a version).
 - `add`/`new`/`trim` only touch scaffolded checkouts (`internal/server/chi.go`
   + `go.mod` must exist) — foreign Go codebases get guidance (`advise`),
   not merging. `new` also refuses before writing when a wiring anchor moved.
+- Every mutating command refuses a toolchain that cannot build the tree.
+  `go.mod`'s `go` directive is enforced at patch level, so a pinned
+  `GOTOOLCHAIN` (`local` or `goX.Y.Z`) older than it fails fast — before the
+  clone is trimmed or a feature is written. `GOTOOLCHAIN=auto` fetches the
+  version the tree asks for instead, and the run says so.
 - Generated code follows [`skills/gogogo-coding-standards`](https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards)
   (Go rules; `advise` output cites it).
 - `advise` answers in ONE of three scopes, chosen from `--need` alone

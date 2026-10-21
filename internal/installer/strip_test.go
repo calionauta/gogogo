@@ -356,3 +356,30 @@ func TestStripWhiteboardRemovesWiringAndDesktopPhaseC(t *testing.T) {
 		t.Errorf("desktop lost code after the strip:\n%s", dout)
 	}
 }
+
+// TestTrimFailsLoudOnGoModReadError closes the silent-no-op class: a read
+// error that is not "file absent" (here go.mod is a DIRECTORY, so ReadFile
+// fails with EISDIR) must fail the trim. Swallowing it left the tree
+// half-trimmed with a receipt claiming the unit was handled.
+//
+// Red-proof: restore `_ = dropGoModRequire(...)` in applyExtraFiles and this
+// test fails — applyTrim returns nil.
+func TestTrimFailsLoudOnGoModReadError(t *testing.T) {
+	var u trimUnit
+	for _, cand := range manifestUnits {
+		if len(cand.goModDrops) > 0 {
+			u = cand
+			break
+		}
+	}
+	if u.id == "" {
+		t.Skip("no unit drops go.mod requires any more — nothing to guard")
+	}
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "go.mod"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyTrim(root, []trimUnit{u}, nil); err == nil {
+		t.Fatalf("applyTrim swallowed an unreadable go.mod for unit %s", u.id)
+	}
+}

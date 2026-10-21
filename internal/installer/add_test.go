@@ -296,3 +296,35 @@ func TestImportRestorationFollowsUsage(t *testing.T) {
 		t.Errorf("blank import must always be restored")
 	}
 }
+
+// TestAddRefusesToolchainMismatch pins the gate `add` shares with the trim
+// path: the tree asks for a go version GOTOOLCHAIN pins away, so the rewire
+// would run and `go mod tidy` would fail afterwards. Refuse first, change
+// nothing.
+//
+// Red-proof: drop the checkToolchainForTree call from executeAdd and the add
+// proceeds (chi.go rewritten) — this test then fails on the refusal assertion.
+func TestAddRefusesToolchainMismatch(t *testing.T) {
+	from, proj := fixtureAddTrees(t)
+	writeGoMod(t, proj, "1.27.3")
+	chiPath := filepath.Join(proj, "internal", "server", "chi.go")
+	before, err := os.ReadFile(chiPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stubToolchain(t, "go1.27.2", "go1.27.2")
+
+	runErr := Run(context.Background(), []string{
+		"add", unitLanding, "--from", from, "--dir", proj, "--yes",
+	}, devNull(t), devNull(t))
+	if runErr == nil || !strings.Contains(runErr.Error(), "needs go1.27.3") {
+		t.Fatalf("add must refuse a tree this toolchain cannot build, got %v", runErr)
+	}
+	after, readErr := os.ReadFile(chiPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(after) != string(before) {
+		t.Error("the refused add rewired chi.go anyway")
+	}
+}

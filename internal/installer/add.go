@@ -39,9 +39,8 @@ const (
 	// re-inserted above the last onboarding step item, which stays in the tree.
 	todoListTempl = "features/todo/components/todo_list.templ"
 	// todoEntryButtonAnchor survives the trim: the strip removes the button and
-	// its own trim marker, so the anchor must be a line OUTSIDE that span (the
-	// end of the stepper list). A marker inside the span is deleted with it and
-	// leaves `add` nowhere to insert.
+	// its own marker, so the anchor must sit OUTSIDE that span (end of the
+	// stepper list); a marker inside it is deleted and leaves `add` nowhere.
 	todoEntryButtonAnchor = "\t\t\t\t\t\t\t\t\t\t>6. Finalize</li>"
 	// todoBasecoatTempl carries the same strip on the Basecoat skin, with its
 	// own layout and indent, so it gets its own anchor constant.
@@ -355,6 +354,9 @@ func executeAdd(ctx context.Context, opt addOptions, stdin io.Reader, stdout io.
 		return err
 	}
 	if err := requireScaffold(opt.dir); err != nil {
+		return err
+	}
+	if err := checkToolchainForTree(ctx, opt.dir, stdout, opt.format == planFormatJSON); err != nil {
 		return err
 	}
 	if err := refuseIrreversible(stdout, opt); err != nil {
