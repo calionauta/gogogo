@@ -9,6 +9,13 @@ name: PR body
 # Bodies without any template marker (bot PRs like release-please, fully
 # custom bodies) pass vacuously: the check catches an untouched template,
 # it cannot force thought.
+#
+# The second check is the mechanical half of the dependency doctrine
+# (docs/dependency-doctrine.md): a PR that adds a NEW direct module must carry
+# the trade-off line, which starts with `Deps:`. It compares go.mod's direct
+# requires against the PR's base commit, so bumping a module that was already
+# there needs no ceremony, and bot accounts are exempt. Presence is objective;
+# whether the trade-off is sound stays review judgment.
 on:
   pull_request:
     types: [opened, edited, synchronize]
@@ -21,6 +28,11 @@ jobs:
   template:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          # The dependency check reads go.mod at the PR's base commit.
+          fetch-depth: 0
+
       - name: Check the PR template was completed
         env:
           BODY: ${{ github.event.pull_request.body }}
@@ -39,3 +51,42 @@ jobs:
             exit 1
           fi
           echo "✓ PR body has no template leftovers"
+
+      - name: Require a trade-off record for a new direct dependency
+        # The record is the one line from docs/dependency-doctrine.md:
+        # chosen / rejected / cost / revisit-if, starting with `Deps:`.
+        if: github.actor != 'dependabot[bot]' && github.actor != 'release-please[bot]'
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Direct requires only: the `// indirect` block is the module graph's
+          # business, not the author's.
+          direct() {
+            git show "$1:go.mod" 2>/dev/null |
+              awk '/^require \(/,/^\)/' | grep -v '// indirect' |
+              awk 'NF == 2 { print $1 }' | sort
+          }
+          if ! git cat-file -e "${BASE}:go.mod" 2>/dev/null; then
+            echo "⚠️  cannot read go.mod at base ${BASE}; skipping the dependency check"
+            exit 0
+          fi
+          direct "$BASE" > /tmp/base.txt
+          direct HEAD > /tmp/head.txt
+          added=$(comm -13 /tmp/base.txt /tmp/head.txt)
+          if [ -z "$added" ]; then
+            echo "✓ no new direct module in this PR"
+            exit 0
+          fi
+          echo "new direct module(s):"
+          printf '  %s\n' $added
+          if printf '%s' "$BODY" | grep -qE '(^|[^[:alnum:]_])Deps:'; then
+            echo "✓ trade-off record present"
+            exit 0
+          fi
+          echo ""
+          echo "❌ This PR adds a direct dependency with no trade-off record."
+          echo ""
+          echo "Add one line to the PR body — docs/dependency-doctrine.md:"
+          echo "  Deps: <lib>@<version> — rejected <own code|alternative>; cost <transitive, churn, translation layer>; revisit if <trigger>."
+          exit 1

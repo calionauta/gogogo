@@ -14,16 +14,23 @@
 //  2. Every concrete repo path in backticks must exist (a moved package
 //     otherwise keeps being recommended for months).
 //  3. Every `gogogo <subcommand>` in backticks must be a real subcommand.
-//  4. Every docs/*.md must be published by the site MANIFEST (or it silently
-//     never reaches the docs site).
+//  4. Every docs/*.md must be published by the site MANIFEST — or listed in
+//     unpublishedDirs as deliberately repo-facing — because a page that is
+//     neither reaches no reader.
+//  5. The README page index is generated from that MANIFEST, never hand-kept:
+//     `-write` regenerates it, and any other edit to the block fails here.
 //
 // Decision records (docs/architecture-decision.md) are exempt from rule 2:
 // they exist to record what was removed, so naming dead paths is their job.
+// Migration notes (docs/migrations/) are exempt for the same reason and are
+// repository-facing by design: they describe trees that no longer exist.
 package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -43,12 +50,32 @@ var generatedDocs = []string{"docs/api-routes.md", "docs/unit-contracts.md"}
 // historyDocs may name removed paths and commands on purpose.
 var historyDocs = []string{"docs/architecture-decision.md"}
 
+// unpublishedDirs hold pages that are deliberately repo-facing: migration notes
+// describe trees that no longer exist, so they name dead paths and are linked
+// from upgrading/cli rather than published on the docs site. The list is closed
+// on purpose — a new directory is either published or declared here with its
+// reason, never silently absent from both.
+var unpublishedDirs = []string{"docs/migrations/"}
+
+// unpublishedDir reports a page that is exempt from the publication rule.
+func unpublishedDir(rel string) bool {
+	for _, dir := range unpublishedDirs {
+		if strings.HasPrefix(rel, dir) {
+			return true
+		}
+	}
+	return false
+}
+
 // externalDocs describe another project's tree (DagNats internals), so their
 // `internal/...` paths are not claims about this repo.
 var externalDocs = []string{"docs/dagnats.md"}
 
-// skipPathFiles exempts decision records from the existence rule.
-func skipPathFiles(rel string) bool { return slices.Contains(historyDocs, rel) }
+// skipPathFiles exempts decision records and migration notes from the existence
+// rule: naming removed paths is exactly their job.
+func skipPathFiles(rel string) bool {
+	return slices.Contains(historyDocs, rel) || unpublishedDir(rel)
+}
 
 // countRE matches a number immediately followed by a PLURAL drifting noun.
 // Singular phrases ("restores one unit") are ordinary English; the drift that
@@ -100,16 +127,27 @@ var commandRE = regexp.MustCompile(`(?:^|[\s/])gogogo\s+([a-z][a-z-]*)`)
 var subcommandRE = regexp.MustCompile(`case "([a-z][a-z-]*)":`)
 
 func main() {
+	flag.Parse()
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "check-docs:", err)
 		os.Exit(1)
 	}
 }
 
+// writeIndex regenerates the README page index instead of checking it.
+var writeIndex = flag.Bool("write", false,
+	"regenerate the README page index from the site manifest")
+
 func run() error {
 	root, err := moduleRoot()
 	if err != nil {
 		return err
+	}
+	if *writeIndex {
+		if werr := writeReadmeIndex(root); werr != nil {
+			return werr
+		}
+		fmt.Fprintln(os.Stdout, "check-docs: README page index regenerated from "+siteConfig)
 	}
 	files, err := docFiles(root)
 	if err != nil {
@@ -124,6 +162,7 @@ func run() error {
 	problems = append(problems, checkCommands(root, files, subs)...)
 	problems = append(problems, checkStaleScopeDialect(root, files)...)
 	problems = append(problems, checkManifest(root)...)
+	problems = append(problems, checkReadmeIndex(root)...)
 	if len(problems) > 0 {
 		return fmt.Errorf("docs claims drifted (%d):\n  %s", len(problems), strings.Join(problems, "\n  "))
 	}
@@ -139,7 +178,16 @@ func docFiles(root string) ([]string, error) {
 			out = append(out, rel)
 		}
 	}
-	patterns := []string{"docs/*.md", "cmd/*/README.md", "skills/*/SKILL.md"}
+	// docs/ is walked rather than globbed: filepath.Glob has no `**`, so a
+	// nested page (docs/migrations/v0.44.0.md) escaped every prose rule while it
+	// looked covered.
+	docs, err := walkMarkdown(root, "docs")
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, docs...)
+
+	patterns := []string{"cmd/*/README.md", "skills/*/SKILL.md"}
 	for _, pattern := range patterns {
 		matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(pattern)))
 		if err != nil {
@@ -160,6 +208,27 @@ func docFiles(root string) ([]string, error) {
 	}
 	slices.Sort(out)
 	return out, nil
+}
+
+// walkMarkdown lists every *.md under dir, repo-relative, at any depth.
+func walkMarkdown(root, dir string) ([]string, error) {
+	var out []string
+	err := filepath.WalkDir(filepath.Join(root, filepath.FromSlash(dir)),
+		func(path string, d fs.DirEntry, werr error) error {
+			if werr != nil {
+				return werr
+			}
+			if d.IsDir() || !strings.HasSuffix(path, ".md") {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			out = append(out, filepath.ToSlash(rel))
+			return nil
+		})
+	return out, err
 }
 
 // fileLines reads rel under root and returns its lines.
@@ -369,8 +438,9 @@ func checkStaleScopeDialect(root string, files []string) []string {
 	return out
 }
 
-// checkManifest proves every docs/*.md is published by the site build: an
-// orphan page exists in git and nowhere a reader can reach it.
+// checkManifest proves every page under docs/ is either published by the site
+// build or declared repo-facing: an orphan page exists in git and nowhere a
+// reader can reach it.
 //
 // The manifest moved to site/docsite.config.mjs when the site engine became a
 // vendored package (calionauta/docsite); site/build.mjs is the engine and no
@@ -392,15 +462,22 @@ func checkManifest(root string) []string {
 		FindAllStringSubmatch(string(raw), -1) {
 		published[m[1]] = true
 	}
-	matches, err := filepath.Glob(filepath.Join(root, "docs", "*.md"))
+	files, err := walkMarkdown(root, "docs")
 	if err != nil {
 		return []string{"docs: " + err.Error()}
 	}
 	var out []string
-	for _, m := range matches {
-		base := filepath.Base(m)
-		if !published[base] {
-			out = append(out, "site/docsite.config.mjs: docs/"+base+" is not in the MANIFEST (never published)")
+	for _, rel := range files {
+		if unpublishedDir(rel) {
+			continue
+		}
+		// Compare the path under docs/, not the bare filename: a nested page is
+		// named `research/index.md` in the manifest, and matching on "index.md"
+		// would let any second index.md pass as published.
+		key := strings.TrimPrefix(rel, "docs/")
+		if !published[key] {
+			out = append(out, "site/docsite.config.mjs: docs/"+key+
+				" is neither in the MANIFEST (never published) nor in unpublishedDirs (repo-facing by design)")
 		}
 	}
 	return out

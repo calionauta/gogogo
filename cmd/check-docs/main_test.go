@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -156,6 +157,127 @@ func TestCommandMatches(t *testing.T) {
 		if !slices.Contains(subs, want) {
 			t.Errorf("subcommand %q missing from the dispatch parser: %v", want, subs)
 		}
+	}
+}
+
+// TestReadmeIndexRoundTrip pins the generated-index rule: a hand-kept block is
+// reported as drift, `-write` is the only repair, and a missing marker pair is
+// an error rather than a silent skip (a silently skipped block is how the
+// index drifted from 43 pages to 23).
+func TestReadmeIndexRoundTrip(t *testing.T) {
+	root := t.TempDir()
+	mkdir := func(rel, body string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mkdir(siteConfig, `export default {
+  releases: [
+  { file: "CHANGELOG.md" },
+],
+  manifest: [
+  { group: "Get started", slug: "overview", file: "overview.md",
+    desc: "What it is." },
+  { group: "Core", slug: "dagnats",
+    file: "dagnats.md",
+    desc: "Async." },
+],
+};
+`)
+	stale := "intro\n\n" + indexBegin + "\n**Wrong**\n- [gone](docs/gone.md) — nope\n" +
+		indexEnd + "\n\ntail\n"
+	mkdir("README.md", stale)
+
+	problems := checkReadmeIndex(root)
+	if len(problems) != 1 {
+		t.Fatalf("checkReadmeIndex(stale) = %v, want 1 problem", problems)
+	}
+
+	if err := writeReadmeIndex(root); err != nil {
+		t.Fatalf("writeReadmeIndex: %v", err)
+	}
+	if problems := checkReadmeIndex(root); len(problems) != 0 {
+		t.Fatalf("after -write, checkReadmeIndex = %v, want none", problems)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	for _, want := range []string{
+		"**Get started**",
+		"- [overview](docs/overview.md) — What it is.",
+		"**Core**",
+		"- [dagnats](docs/dagnats.md) — Async.",
+		"\ntail\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("README after -write missing %q", want)
+		}
+	}
+	if strings.Contains(got, "docs/gone.md") {
+		t.Error("stale bullet survived -write")
+	}
+
+	// A missing marker pair must fail loudly: this is the shape that let the
+	// index rot without any gate noticing.
+	mkdir("README.md", "no markers here\n")
+	if problems := checkReadmeIndex(root); len(problems) == 0 {
+		t.Fatal("missing markers reported no problem")
+	}
+}
+
+// TestDocsCoverage pins the coverage rule that a nested page escaped: every
+// *.md under docs/ is checked (the walk, not a `docs/*.md` glob), and a page is
+// either published by the MANIFEST or declared repo-facing in unpublishedDirs.
+// Neither branch may be silent — that silence is how docs/migrations/ shipped
+// unlisted while looking covered.
+func TestDocsCoverage(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("site/docsite.config.mjs", "manifest: [\n  { file: \"overview.md\" },\n];\n")
+	write("docs/overview.md", "# Overview\n")
+	write("docs/orphan.md", "# Orphan\n")
+	write("docs/migrations/v9.md", "# Note\n\n- `features/gone` — removed\n")
+
+	files, err := walkMarkdown(root, "docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(files, "docs/migrations/v9.md") {
+		t.Fatalf("walkMarkdown missed the nested page: %v", files)
+	}
+
+	problems := checkManifest(root)
+	if len(problems) != 1 || !strings.Contains(problems[0], "orphan.md") {
+		t.Fatalf("checkManifest = %v, want exactly the orphan page", problems)
+	}
+
+	// The same page outside the declared directory must be reported, and the
+	// declared one must be exempt from the existence rule too (it names a path
+	// that no longer exists).
+	if !unpublishedDir("docs/migrations/v9.md") {
+		t.Error("docs/migrations/ is not declared repo-facing")
+	}
+	if unpublishedDir("docs/orphan.md") {
+		t.Error("docs/orphan.md must not be exempt")
+	}
+	if !skipPathFiles("docs/migrations/v9.md") {
+		t.Error("migration notes must be exempt from the dead-path rule")
 	}
 }
 

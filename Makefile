@@ -251,16 +251,25 @@ check-flatdeps:
 	@go run ./cmd/check-flatdeps
 	@echo "✅ flat-stack dependencies within bounds"
 
-.PHONY: check-docs
+.PHONY: check-docs docs-index
 
 # check-docs proves prose does not drift from source: no hand-written counts
 # (the generated docs/unit-contracts.md is the one place counts live), every
-# concrete repo path exists, every `gogogo <sub>` is a real subcommand, and
-# every docs/*.md is published by the site MANIFEST. Same implementation the
-# pre-commit docs-claims job and CI run.
+# concrete repo path exists, every `gogogo <sub>` is a real subcommand,
+# every page under docs/ is published by the site MANIFEST (or declared
+# repo-facing in cmd/check-docs, e.g. docs/migrations/), and the README page
+# index matches that MANIFEST. Same implementation the pre-commit docs-claims job and
+# CI run.
 check-docs:
-	@echo "→ check-docs (prose claims: counts, paths, commands, MANIFEST)..."
+	@echo "→ check-docs (prose claims: counts, paths, commands, MANIFEST, README index)..."
 	@go run ./cmd/check-docs
+
+# docs-index is the only writer of the README page index: the block between the
+# docs-index markers is generated from the site MANIFEST, so adding a page means
+# editing the MANIFEST and running this, never hand-editing the README list.
+docs-index:
+	@echo "→ docs-index (regenerating the README page index from the MANIFEST)..."
+	@go run ./cmd/check-docs -write
 
 # check-secrets-env proves secret env plumbing stays on the rails without
 # booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
@@ -536,6 +545,7 @@ help:
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
 	@echo "  check-docs     Prose claims (no hand-written counts, live paths, real subcommands, docs in the MANIFEST)"
+	@echo "  docs-index     Regenerate the README page index from the site MANIFEST"
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"

@@ -91,6 +91,9 @@ will be asked for one or closed. This keeps the queue reviewable.
      binary (built from scratch, not appended to `os.Environ()`).
    - Go-first: no new native/Zig code without a benchmarked case
      ([exception-to-go](docs/exception-to-go.md)).
+   - Adding a dependency: run [dependency-doctrine](docs/dependency-doctrine.md)
+     and record the one-line trade-off in your PR body. Four cases need a
+     maintainer sign-off; everything else you decide.
    - Project footguns live in `rules/rules.go` (ruleguard) — if your change
      trips one, fix the code, not the rule.
 4. **Verify before asking for review.** Run `make signoff` (full local gate =
@@ -108,6 +111,8 @@ will be asked for one or closed. This keeps the queue reviewable.
 - One-line busywork PRs (single typo, isolated style tweak) — bundle them or
   leave them; reviewer time is the bottleneck.
 - Feature PRs with no linked prior discussion.
+- Dependency or core-substitution PRs with no trade-off record
+  ([dependency-doctrine](docs/dependency-doctrine.md)).
 - Anything adding AI trailers to commits or release notes (see above).
 
 ## Golden rule

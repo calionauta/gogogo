@@ -33,39 +33,71 @@ The manual lives on the site, not in this file:
 <details>
 <summary>Page index</summary>
 
-One-liners mirror the docs site manifest (`site/build.mjs`).
+Generated from the docs site manifest (`site/docsite.config.mjs`) — edit the
+manifest, then `make docs-index`; `make check-docs` fails when this block drifts.
 
+<!-- docs-index:begin -->
 **Get started**
-- [overview](docs/overview.md) — what gogogo is, who it is for, and the seven async layers it ships.
-- [motivation](docs/motivation.md) — the thesis: Go for almost everything, Zig as the named exception.
-- [getting-started](docs/getting-started.md) — clone, run, first five minutes, and the commands you need.
+- [overview](docs/overview.md) — What gogogo is, who it is for, and the seven async layers it ships.
+- [motivation](docs/motivation.md) — The thesis behind the stack: Go for almost everything, Zig as the named exception, and how to choose without hype.
+- [architecture-decision](docs/architecture-decision.md) — The flat-stack decision record: what it serves, what it replaced, and the migration it completed.
+- [inspirations](docs/inspirations.md) — What gogogo learned from other projects, credited rather than vendored.
+- [getting-started](docs/getting-started.md) — Clone, run, first five minutes, and the commands you need.
+
+**Agents**
+- [cli](docs/cli.md) — The installer as scriptable commands: advise, preview, apply, add, check.
+- [mcp](docs/mcp.md) — Install the MCP server, wire it into your client, and the tools it serves: opinions, trim, drift, migration.
 
 **Core**
-- [architecture](docs/architecture.md) — directory layout, dependency direction, entry points, and route wiring gotchas.
-- [stack-layers](docs/stack-layers.md) — every dependency and why it is in the box.
-- [async-layers](docs/async-layers.md) — the seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync.
-- [features](docs/features.md) — every capability and its runtime opt-out.
-- [search](docs/search.md) — the search plugin: one seam, three layers (substring, fuzzy, BM25), the runtime picker, and the degrade path when trimmed.
+- [architecture](docs/architecture.md) — Directory layout, dependency direction, entry points, and route wiring gotchas.
+- [stack-layers](docs/stack-layers.md) — Every dependency and what it buys, layer by layer.
+- [stack-tradeoffs](docs/stack-tradeoffs.md) — What each choice rejected, what it costs to keep, and when to revisit: Turso vs SQLite vs Postgres, Datastar vs React, and the rest.
+- [features](docs/features.md) — Every capability and its runtime opt-out.
+- [search](docs/search.md) — The search plugin: one seam, three layers (substring, fuzzy, BM25), the runtime picker, and what trimming it leaves behind.
+- [api-routes](docs/api-routes.md) — Generated inventory of every API route, pinned by tests — the trim and hook gate that proves no route is lost.
+- [unit-contracts](docs/unit-contracts.md) — Generated card per capability: routes it registers, generated queries it calls, runtime switch, and what removing it takes.
+- [no-auth-no-db-recipe](docs/no-auth-no-db-recipe.md) — Recipe for stripping auth and the database out of a clone that needs neither.
+- [use-cases](docs/use-cases.md) — What each core, plugin, and feature is for, in business language.
 - [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
-- [configuration](docs/configuration.md) — every environment variable and runtime constant.
-- [exception-to-go](docs/exception-to-go.md) — Go-first policy: why Zig is an exceptional native boundary, plus the agent decision procedure.
+- [db-concurrency](docs/db-concurrency.md) — Turso single-writer stance, the probed MVCC path, and revisit triggers.
+- [configuration](docs/configuration.md) — Every environment variable and runtime constant.
+- [rbac](docs/rbac.md) — Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex).
+- [dependency-doctrine](docs/dependency-doctrine.md) — Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads.
+- [exception-to-go](docs/exception-to-go.md) — Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules.
+- [native-language-tradeoffs](docs/native-language-tradeoffs.md) — Evidence-backed tradeoffs of Zig, Rust, Nim, Odin, and Mojo as native exception languages, and what a non-Zig proposal must rebut.
+
+**Async**
+- [async-layers](docs/async-layers.md) — The seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync.
+- [realtime-recipe](docs/realtime-recipe.md) — How to add live UI: client/server patterns, checklist, no invented transports.
+- [dagnats](docs/dagnats.md) — DagNats capability table, version bounds, learned gotchas, and the add-a-workflow path for LLM agents.
+
+**AI**
+- [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
+- [review](docs/review.md) — The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge.
 
 **Frontend**
-- [todo-example](docs/todo-example.md) — the Todo reference implementation and the contract to imitate.
-- [ui-skins](docs/ui-skins.md) — pluggable DaisyUI / Basecoat / shadcn skins and the plugin contract.
-- [ui-sounds](docs/ui-sounds.md) — vendored cuelume sound feedback and its accessibility contract.
+- [todo-example](docs/todo-example.md) — The Todo reference implementation and the contract to imitate.
+- [ui-skins](docs/ui-skins.md) — Pluggable DaisyUI / Basecoat / shadcn skins and the plugin contract.
+- [ui-sounds](docs/ui-sounds.md) — Vendored cuelume sound feedback and its accessibility contract.
+
+**Research**
+- [research](docs/research/index.md) — One place for every research note, comparison and tradeoff decision in this repo: what was evaluated, when, and what was chosen.
+- [ui-engine-research](docs/research/ui-engine-research.md) — The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment.
+- [ui-components](docs/research/ui-components-2026-10-21.md) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability.
 
 **Ship**
-- [deploy](docs/deploy.md) — server layout, first-time setup, deploy workflow, build pipeline and version badge.
+- [deploy](docs/deploy.md) — Server layout, first-time setup, deploy workflow, build pipeline and version badge.
 - [desktop-mobile](docs/desktop-mobile.md) — Wails v3 desktop/mobile, edge sync, and the native window.
-- [admin-dashboard](docs/admin-dashboard.md) — admin surfaces, the single-cookie session, and the DagNats console.
-- [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
+- [admin-dashboard](docs/admin-dashboard.md) — Admin surfaces, the single-cookie session, and the DagNats console.
 
 **Operate**
-- [upgrading](docs/upgrading.md) — keeping a scaffolded project current: the recorded base revision, `--check-update`'s two halves, and `migrate` as a list plus gates, never a merge.
-- [local-ci](docs/local-ci.md) — the five-tier feedback loop and make signoff.
-- [code-quality](docs/code-quality.md) — the 33 linters, how to scope them, the Datastar-specific rules, and the `ruleguard` rules that encode project footguns as CI failures.
-- [troubleshooting](docs/troubleshooting.md) — symptoms and where they actually come from.
+- [upgrading](docs/upgrading.md) — Keeping a scaffolded project current: the recorded base revision, --check-update's two halves, and migrate as a list plus gates — never a merge.
+- [local-ci](docs/local-ci.md) — The five-tier feedback loop and make signoff.
+- [ci-triage](docs/ci-triage.md) — When CI fails on something variable: the 60-second triage, flake diagnosis, quarantine with an expiry, and why 100% is not the target.
+- [code-quality](docs/code-quality.md) — The 33 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures.
+- [troubleshooting](docs/troubleshooting.md) — Symptoms and where they actually come from.
+- [duckdb](docs/duckdb.md) — Query JSONL logs and the Turso file with DuckDB: local operator recipe.
+<!-- docs-index:end -->
 
 Plus [ARCHITECTURE.md](ARCHITECTURE.md) — the canonical annotated dependency
 graph, and [AGENTS.md](AGENTS.md) — the working rules for human and AI agents
