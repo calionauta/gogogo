@@ -158,3 +158,13 @@ func TestHandlersRoomFlow(t *testing.T) {
 		t.Fatalf("roster on grain failure status = %d, want 502", rec.Code)
 	}
 }
+
+// TestNilHandlerRoutesIsNil pins the disabled-engine contract: BootChi calls
+// Routes() on the nil handler it gets when GoAkt is off, and MountFeature must
+// mount nothing (the route then answers 404, never a panic).
+func TestNilHandlerRoutesIsNil(t *testing.T) {
+	var h *Handler
+	if r := h.Routes(); r != nil {
+		t.Fatalf("nil Handler Routes() = %v, want nil", r)
+	}
+}

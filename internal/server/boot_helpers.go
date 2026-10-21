@@ -45,7 +45,7 @@ func seedDemoAccounts(a *auth.Auth, q *dbgen.Queries) {
 // promote first so an address in both lists ends admin, never viewer.
 // ctx is the boot context: promotion stops if the boot is cancelled.
 func applyRBAC(
-	ctx context.Context, a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux *http.ServeMux,
+	ctx context.Context, a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux http.Handler,
 ) (http.Handler, error) {
 	enforcer, err := rbac.NewEnforcer()
 	if err != nil {

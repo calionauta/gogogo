@@ -12,7 +12,7 @@ layered async topology see [Seven async layers](async-layers.md).
 | **Database** | Turso Database (SQLite-compatible, sqlc) | Zero-config Turso, owned queries, file-local storage — no separate service. See [Turso vs SQLite vs the server databases](stack-tradeoffs.md#database-turso-and-the-server-databases-it-replaces). |
 | **Auth** | owned argon2id sessions (`gogogo_auth`) | Cookie sessions in your database; no auth service, no framework surface. |
 | **Authz / RBAC** | [Casbin](https://casbin.org) | Roles and policy in one model, enforced on routes and UI (`admin` / `user`), embedded policy by default and DB-backed when evolving — see [RBAC](rbac.md). |
-| **Routing** | stdlib `net/http.ServeMux` | One handler per capability, one subtree per capability; no router dependency, no framework surface ([why](stack-tradeoffs.md#routers-the-stdlib-and-that-ends-the-debate)). |
+| **Routing** | [chi](https://go-chi.io) v5 | Zero deps, stdlib-shaped middleware chains, URL params and router-level 405s — chosen for ergonomics, not speed ([why](stack-tradeoffs.md#routers-chi-for-ergonomics-not-speed)). |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via the Tailwind v4 CLI; no JS framework build step. |
 | **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable: [BasecoatUI](https://basecoatui.com) | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens. See [UI skins](ui-skins.md). |

@@ -68,12 +68,8 @@ var genuiTrimUnits = []trimUnit{
 					// feature's line, and add restores them.
 					"chatH,",
 					"genuiH,",
-					`mux.Handle("/chat", chatH.Routes())`,
-					`mux.Handle("/chat/", chatH.Routes())`,
-					`mux.Handle("/api/chat/", chatH.Routes())`,
-					`mux.Handle("/genui", genuiH.Routes())`,
-					`mux.Handle("/genui/", genuiH.Routes())`,
-					`mux.Handle("/api/genui/", genuiH.Routes())`,
+					`r.MountFeature("chat", chatH.Routes())`,
+					`r.MountFeature("genui", genuiH.Routes())`,
 					chathandlersImport,
 					genuihandlersImport,
 					// chatstore and comp are NOT listed for chi.go: BootChi never

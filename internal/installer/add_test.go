@@ -62,15 +62,15 @@ func fixtureAddTrees(t *testing.T) (from, proj string) {
 		"\t\"github.com/calionauta/gogogo/features/config\"\n" +
 		"\tlandinghandlers \"github.com/calionauta/gogogo/features/landing/handlers\"\n" +
 		")\n" +
-		"\tmux.Handle(\"/config\", configH.Routes())\n" +
-		"\tmux.Handle(\"/\", landingH.Routes())\n" +
-		"\treturn mux\n"
+		"\tr.MountFeature(\"config\", configH.Routes())\n" +
+		"\tr.NotFound(landingH.Routes().ServeHTTP)\n" +
+		"\treturn r\n"
 	writeFile(t, filepath.Join(from, "internal", "server", "chi.go"), chiFull)
 	chiTrimmed := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/config\"\n" +
 		")\n" +
-		"\tmux.Handle(\"/config\", configH.Routes())\n" +
-		"\treturn mux\n"
+		"\tr.MountFeature(\"config\", configH.Routes())\n" +
+		"\treturn r\n"
 	writeFile(t, filepath.Join(proj, "internal", "server", "chi.go"), chiTrimmed)
 	writeFile(t, filepath.Join(from, "go.mod"), "module example.com/tpl\n\ngo 1.27\n")
 	return from, proj
@@ -130,7 +130,7 @@ func TestAddUnitRestoresLanding(t *testing.T) {
 	}
 	raw, _ := os.ReadFile(filepath.Join(proj, "internal", "server", "chi.go"))
 	out := string(raw)
-	if !strings.Contains(out, `mux.Handle("/", landingH.Routes())`) {
+	if !strings.Contains(out, `r.NotFound(landingH.Routes().ServeHTTP)`) {
 		t.Errorf("route line not restored:\n%s", out)
 	}
 	if !strings.Contains(out, `landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`) {

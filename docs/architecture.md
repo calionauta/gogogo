@@ -15,7 +15,8 @@ kept current with the code.
 - **Features in `features/`, infrastructure in `internal/`.** Features depend
   on infra, never the reverse.
 - **Wiring in `internal/server/chi.go`.** `BootChi` builds one handler per
-  capability; `buildChiMux` mounts one route subtree per capability.
+  capability; `buildChiMux` flattens each capability's own router onto one
+  chi router.
 - **Startup order in `cmd/web/main.go`.**
 
 ## Directory layout
@@ -60,7 +61,7 @@ The annotated version of this tree, with SCOPE markers on every entry, is in
 ## Dependency direction
 
 ```
-cmd/web  ──▶  internal/server  ──▶  features/*/chi  ──▶  internal/*  ──▶  (stdlib, deps)
+cmd/web  ──▶  internal/server  ──▶  features/*/chi  ──▶  internal/*  ──▶  (chi, stdlib, deps)
                        │                    │
                        └────────────────────┘
          features depend on internal, never the reverse
@@ -83,17 +84,21 @@ One backend, three frontends:
 `cmd/desktop` and `cmd/gui` are separate build targets excluded from the web
 CI. See [Desktop & Mobile](desktop-mobile.md).
 
-## Route wiring gotcha
+## Route wiring
 
-The flat stack composes one stdlib `http.ServeMux` (`buildChiMux` in
-`internal/server/chi.go`; Go 1.22+ subtree matching — `GET /` swallows
-unregistered subpaths). Therefore:
+The flat stack composes one `chi.Router` (`buildChiMux` in
+`internal/server/chi.go`). Each capability exposes `Routes() chi.Router` with
+absolute patterns, and `MountFeature` flattens that table onto the root
+(`internal/server/route.go`). Therefore:
 
-- Mount one subtree per capability; longest match wins, the landing `/`
-  is the catch-all.
+- One `MountFeature` call per capability. A route added to a feature is
+  reachable without an edit at the root, and a duplicate method+pattern is a
+  boot panic that names both owners.
+- The auth API and the static/asset handlers mount through `MountSubtree`,
+  which leaves the request path unrewritten because those handlers trim their
+  own prefix. The landing router is the not-found handler.
 - Serve static assets through `web/resources.AssetHandler` (`/static/` plus
-  root `/sw.js` with `Service-Worker-Allowed: /`); mount both before the
-  landing catch-all so the subtrees win.
+  root `/sw.js` with `Service-Worker-Allowed: /`).
 - The app cookie is `gogogo_auth` — the only cookie — see
   [Admin & Dashboard](admin-dashboard.md#app-session-cookie-why-one).
 

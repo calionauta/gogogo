@@ -64,12 +64,13 @@ being one.
    [Unit contracts](unit-contracts.md) first — it lists the routes and generated
    queries the unit already owns.
 1. Create `features/<name>/` with its HTTP handlers + Templ components.
-2. Wire it in `internal/server/chi.go` — build the handler in `BootChi`,
-   mount the routes in `buildChiMux`.
+2. Wire it in `internal/server/chi.go` — build the handler in `BootChi` and
+   add one `MountFeature` line in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback, and
    **Datastar** for the reactive frontend.
 4. Add a `SCOPE:` annotation — `make check-scope` enforces it.
-5. Add a `Routes()` method on your handler and mount it in `buildChiMux`.
+5. Add a `Routes()` method on your handler (absolute `chi` patterns) and pass it
+   to that `MountFeature` call — never re-declare the URLs at the root.
 
 A feature never imports another feature. Three shared UI leaves are the only
 exception (`features/authviews`, `features/sounds`, `features/genui/components`);

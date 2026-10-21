@@ -101,13 +101,13 @@ rename fails CI instead of shipping quietly.
 ## Removing a component
 
 The flat stack composes every capability in two places, both inside
-`internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux`
-mounts its routes. The installer (`gogogo` keep lists / presets, plus `gogogo add <unit>` to
+`internal/server/chi.go`: `BootChi` builds each handler, `buildChiMux` flattens
+its routes onto the root with one `MountFeature` call. The installer (`gogogo` keep lists / presets, plus `gogogo add <unit>` to
 restore one) automates the common ones; when doing it by hand:
 
 1. Delete the package directory (e.g. `features/todo/`).
 2. Delete dependent packages listed in the `Depends on:` comment.
-3. Drop the handler construction + `mux.Handle(...)` lines from
+3. Drop the handler construction and `r.MountFeature(...)` line from
    `internal/server/chi.go` (and its test fixtures).
 4. If it was a plugin, also remove the `start*` call in `cmd/web/main.go`.
 5. Run `make check-scope && go build ./cmd/web` to catch anything left behind.

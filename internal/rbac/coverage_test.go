@@ -5,6 +5,7 @@ package rbac
 import (
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -102,6 +103,24 @@ func TestRBACCoverageMatchesRoutes(t *testing.T) {
 	}
 }
 
+// TestCoreRoutesAreScanned pins the core half of the scanner: these paths
+// live outside a feature router, so a shape change in chi.go must fail here
+// instead of silently dropping them from coverage.
+func TestCoreRoutesAreScanned(t *testing.T) {
+	want := map[string]bool{
+		"/health":             true,
+		"/sw.js":              true,
+		"/api/session/stream": true,
+	}
+	routes := registeredRoutes(t)
+	for _, rt := range routes {
+		delete(want, rt.pattern)
+	}
+	if len(want) > 0 {
+		t.Errorf("core routes missing from the RBAC inventory (scanner drifted?): %v", want)
+	}
+}
+
 // TestRBACPublicRoutesArePublic is the other direction: every declared-public
 // route must really be reachable without a session.
 func TestRBACPublicRoutesArePublic(t *testing.T) {
@@ -188,24 +207,37 @@ func registeredRoutes(t *testing.T) []routeEntry {
 		t.Fatalf("walk feature routers: %v", err)
 	}
 
-	// Core mounts: routes the server serves outside a feature router. Read
+	// Core routes: the ones the server serves outside a feature router. Read
 	// from chi.go/static.go so a rename shows up here instead of rotting.
 	for _, rel := range []string{"internal/server/chi.go", "internal/server/static.go"} {
 		raw, rerr := os.ReadFile(filepath.Join(root, rel))
 		if rerr != nil {
 			continue // a trimmed tree may drop one of them
 		}
-		for _, m := range coreMountRE.FindAllStringSubmatch(string(raw), -1) {
-			path := m[1]
-			if strings.HasSuffix(path, "/") && path != "/" {
-				// A PREFIX mount ("/api/whiteboards/"): the subtree's real
-				// routes come from the feature router scan above (every chi
-				// router registers absolute paths). Synthesising a sample
-				// here would invent a route nothing serves.
-				continue
+		src := string(raw)
+		// Method-specific root routes (r.Get("/health", ...)).
+		for _, m := range coreRouteRE.FindAllStringSubmatch(src, -1) {
+			if method := strings.ToUpper(m[1]); method != http.MethodHead {
+				// HEAD answers through the same handler; the policy matrix is
+				// written per GET path, so scanning HEAD would demand duplicate
+				// rows for an edge method.
+				add(m[2], method)
 			}
-			add(path, "GET")
 		}
+		// Leaf mounts answer every method (MountPath wraps r.Handle); the
+		// policy rows for them are GET, the method clients use.
+		for _, m := range coreMountPathRE.FindAllStringSubmatch(src, -1) {
+			add(m[1], "GET")
+		}
+		for _, m := range coreClaimRE.FindAllStringSubmatch(src, -1) {
+			if m[1] != http.MethodHead {
+				add(m[2], m[1])
+			}
+		}
+		// A PREFIX mount (MountSubtree) has no route of its own: its real
+		// routes come from the feature router scan above, or from a leaf
+		// handler that owns its whole URL space (auth). Synthesising a
+		// sample here would invent a route nothing serves.
 	}
 
 	out := make([]routeEntry, 0, len(byPath))
@@ -221,11 +253,17 @@ func registeredRoutes(t *testing.T) []routeEntry {
 	return out
 }
 
-// coreMountRE matches the literal paths the core mux registers directly:
+// The three shapes the composition root uses for routes outside a feature
+// router:
 //
-//	mux.Handle("/api/session/stream", a.SessionStreamHandler())
-//	mux.HandleFunc("/sw.js", ...)
-var coreMountRE = regexp.MustCompile(`mux\.(?:Handle|HandleFunc)\(["\x60](/[^"\x60]*)["\x60]`)
+//	r.Get("/sw.js", serviceWorkerHandler().ServeHTTP)
+//	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
+//	r.Claim("core", "GET", "/health")
+var (
+	coreRouteRE     = regexp.MustCompile(`r\.(Get|Post|Put|Patch|Delete|Head)\(["\x60](/[^"\x60]*)["\x60]`)
+	coreMountPathRE = regexp.MustCompile(`MountPath\(r, ["\x60](/[^"\x60]*)["\x60]`)
+	coreClaimRE     = regexp.MustCompile(`\.Claim\("[^"]*", "([A-Z]+)", ["\x60](/[^"\x60]*)["\x60]`)
+)
 
 // samplePath turns a chi pattern into a concrete request path: `{x}` and `*`
 // both become a literal segment, which is what a real request carries.

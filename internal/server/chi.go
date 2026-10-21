@@ -10,6 +10,11 @@
 // StartChi keeps the single-call shape for frontends whose boot order
 // allows it (cmd/desktop). ChiAddr empty disables the serve path, so a
 // stock env never changes behaviour.
+//
+// Routing is chi end to end: the root is a chi.Router, each capability's own
+// router is flattened onto it (see internal/server/route.go), and a method
+// the route tree does not know answers 405 instead of a hand-rolled check
+// inside the handler.
 package server
 
 import (
@@ -49,7 +54,6 @@ import (
 	"github.com/calionauta/gogogo/internal/nats"
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/queue"
-	"github.com/calionauta/gogogo/web/resources"
 )
 
 // shutdownTimeout bounds chi-stack shutdown: in-flight SSE streams get a
@@ -383,10 +387,9 @@ func serveChiOnListener(ln net.Listener, srv *http.Server, stack *ChiStack) func
 // every extra parameter is a line every trim must edit. The optional mount
 // keeps the signature stable while the engine is present or not. Nil is a
 // no-op, so a stock boot never registers the route.
-func mountOnboarding(mux *http.ServeMux, onboardingH *onboarding.Handler) {
+func mountOnboarding(r *Router, onboardingH *onboarding.Handler) {
 	if onboardingH != nil {
-		mux.Handle("/api/onboarding", onboardingH.Routes())
-		mux.Handle("/api/onboarding/", onboardingH.Routes())
+		r.MountFeature("onboarding", onboardingH.Routes())
 	}
 }
 
@@ -395,6 +398,12 @@ func mountOnboarding(mux *http.ServeMux, onboardingH *onboarding.Handler) {
 // serves. The onboarding routes are NOT parameters here: they mount after
 // the composition in BootChi, so adding or removing an optional surface
 // never changes this signature (see the mount block there).
+//
+// Convention: a feature router declares its own absolute paths, and
+// MountFeature flattens that table onto the root (internal/server/route.go) —
+// one call per capability, no route list at the root to drift out of sync.
+// The landing router is also the not-found handler, so an unknown path lands
+// on the same page every unmatched URL already has.
 func buildChiMux(
 	a *auth.Auth, todoH *todohandlers.Handler,
 	landingH *landinghandlers.Handler,
@@ -406,78 +415,55 @@ func buildChiMux(
 	genuiH *genuihandlers.Handler,
 	reviewH *reviewhandlers.Handler,
 	creditsH *creditshandlers.Handler,
-) *http.ServeMux {
-	// Every sub-router serves absolute paths (the auth handler carries
-	// its /api/auth base path; chi routers match full paths too), and
-	// the std mux never strips prefixes — so each subtree pattern routes
-	// to the handler owning those absolute routes. Longest match wins;
-	// the landing root is the catch-all.
-	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
-	// Session stream at the top level (inside the auth sub-mux this would
-	// prefix into /api/auth/api/session/stream). The banner holds it open
-	// and only hears about CHANGES — see SessionStreamHandler.
-	mux.Handle("/api/session/stream", a.SessionStreamHandler())
-	mux.Handle("/api/todos", todoH.Routes())
-	mux.Handle("/api/todos/", todoH.Routes())
-	mux.Handle("/todo", todoH.Routes())
-	mux.Handle("/todo/", todoH.Routes())
-	mux.Handle("/login", todoH.Routes())
-	mux.Handle("/logout", todoH.Routes())
-	mux.Handle("/config", configH.Routes())
-	mux.Handle("/config/", configH.Routes())
-	mux.Handle("/whiteboard", wbH.Routes())
-	mux.Handle("/whiteboard/", wbH.Routes())
-	mux.Handle("/api/whiteboard", wbH.Routes())
-	mux.Handle("/api/whiteboard/", wbH.Routes())
-	mux.Handle("/api/whiteboards/", wbH.Routes())
-	mux.Handle("/notes", notesH.Routes())
-	mux.Handle("/notes/", notesH.Routes())
-	mux.Handle("/api/notes", notesH.Routes())
-	mux.Handle("/api/notes/", notesH.Routes())
-	if roomH != nil {
-		mux.Handle("/room", roomH.Routes())
-		mux.Handle("/room/", roomH.Routes())
-	}
-	mux.Handle("/chat", chatH.Routes())
-	mux.Handle("/chat/", chatH.Routes())
-	mux.Handle("/api/chat/", chatH.Routes())
-	mux.Handle("/genui", genuiH.Routes())
-	mux.Handle("/genui/", genuiH.Routes())
-	mux.Handle("/api/genui/", genuiH.Routes())
-	mux.Handle("/review", reviewH.Routes())
-	mux.Handle("/review/", reviewH.Routes())
-	mux.Handle("/api/review/", reviewH.Routes())
-	mux.Handle("/api/credits", creditsH.Routes())
-	mux.Handle("/api/credits/", creditsH.Routes())
-	mux.Handle("/api/ai/", creditsH.Routes())
-	mux.Handle("/api/byok/", creditsH.Routes())
-	// Healthcheck: the scratch image runs `app health`, which GETs this
-	// path on 127.0.0.1:PORT. Register before the landing catch-all so
-	// the exact path wins.
-	// Core bundle + Service Worker (see static.go).
-	mountStatic(mux)
+) *Router {
+	r := NewRouter()
+	// A panic in a handler answers 500 instead of dropping the connection and
+	// taking an SSE stream down with it.
+	r.Use(recoveryMiddleware)
+	// The landing page is also the not-found surface: an unknown path is a
+	// route the tree does not have, and the landing page is what a browser
+	// (and its smoke tests) expect there.
+	r.NotFound(landingH.Routes().ServeHTTP)
 
-	// Feature packages embed their OWN assets (whiteboard.js + rough.min.js,
-	// notes.js) — not in the core bundle, so each mounts its own subtree and
-	// the longest match wins. These lines stay here on purpose: a feature
-	// trim drops exactly its line, and the add path restores it from the
-	// same list.
-	mux.Handle("/static/wb/", resources.AssetHandler(whiteboard.StaticFS(), "/static/wb"))
-	mux.Handle("/static/notes/", resources.AssetHandler(notes.StaticFS(), "/static/notes"))
+	// The auth API is one subtree, registered as a leaf: its handler parses
+	// its own paths (and the /api/auth/oauth/{provider} shape), so it receives
+	// the request unrewritten.
+	MountSubtree(r, "/api/auth", a.Handler())
+	// The session stream is its own path, not a child of /api/auth: it is a
+	// long-lived SSE the banner holds open and it only hears about changes.
+	MountPath(r, "/api/session/stream", a.SessionStreamHandler())
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		// The build tag is what a tab open across a deploy compares
-		// against (stale-tab reload). The body stays "ok" — the scratch image's
-		// healthcheck and the Playwright smoke both match on it.
-		// no-store: an intermediary caching this response would serve a
-		// stale tag and fake a mismatch the other way (see session.js
-		// buildCheck and the smoke assertion below).
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Gogogo-Build", todoH.BuildLabel+"-"+todoH.BuildCommit)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
-	mux.Handle("/", landingH.Routes())
-	return mux
+	r.MountFeature("todo", todoH.Routes())
+	r.MountFeature("config", configH.Routes())
+	r.MountFeature("whiteboard", wbH.Routes())
+	r.MountFeature("notes", notesH.Routes())
+	// roomH is nil when the engine is disabled or failed to start; the
+	// handler answers nil from Routes() then, and MountFeature mounts nothing.
+	r.MountFeature("room", roomH.Routes())
+	r.MountFeature("chat", chatH.Routes())
+	r.MountFeature("genui", genuiH.Routes())
+	r.MountFeature("review", reviewH.Routes())
+	r.MountFeature("credits", creditsH.Routes())
+
+	// Static: the core bundle, then the Service Worker at the ROOT URL so its
+	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.
+	MountSubtree(r, "/static", staticHandler())
+	r.Claim("core", "GET", "/sw.js")
+	r.Claim("core", "HEAD", "/sw.js")
+	r.Get("/sw.js", serviceWorkerHandler().ServeHTTP)
+	r.Head("/sw.js", serviceWorkerHandler().ServeHTTP)
+	// Features that embed their OWN assets (whiteboard.js + rough.min.js,
+	// notes.js) register their subtree here; the core /static/ mount never
+	// serves them. A feature trim drops its line and its import.
+	MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())
+	MountSubtree(r, notes.AssetPath, notes.StaticHandler())
+
+	// Healthcheck: the scratch image runs `app health`, which GETs this path
+	// on 127.0.0.1:PORT. HEAD rides GET per HTTP semantics; any other method
+	// is a 405 from the tree.
+	r.Claim("core", "GET", "/health")
+	r.Claim("core", "HEAD", "/health")
+	r.Get("/health", healthHandler(todoH))
+	r.Head("/health", healthHandler(todoH))
+	return r
 }

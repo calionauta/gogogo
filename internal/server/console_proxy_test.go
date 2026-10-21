@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
@@ -45,7 +47,7 @@ func TestConsoleProxyForwardsPinsPath(t *testing.T) {
 	}))
 	t.Cleanup(backend.Close)
 
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
@@ -91,7 +93,7 @@ func TestConsoleProxyRequiresSession(t *testing.T) {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
@@ -123,7 +125,7 @@ func TestConsoleProxyDisabledPinsAbsence(t *testing.T) {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = false
 	mountConsoleProxy(mux, a, cfg)
@@ -151,7 +153,7 @@ func TestConsoleBareRedirect(t *testing.T) {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = "127.0.0.1:1"
@@ -202,7 +204,7 @@ func TestConsoleAliasRerootsPinsBrand(t *testing.T) {
 	}))
 	t.Cleanup(backend.Close)
 
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()

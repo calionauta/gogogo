@@ -15,8 +15,17 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
+)
+
+// consoleMount and dagnatsMount are the two prefixes the engine console
+// answers: the engine's own name and the branded alias.
+const (
+	consoleMount = "/console"
+	dagnatsMount = "/dagnats"
 )
 
 // mountConsoleProxy exposes the engine console at /console/ when the
@@ -26,7 +35,7 @@ import (
 // AuthLoopback mode passes loopback clients); the X-Forwarded stamp
 // below only takes effect on non-loopback deploys with forwarded-auth
 // enabled upstream.
-func mountConsoleProxy(mux *http.ServeMux, a *auth.Auth, cfg *config.Config) {
+func mountConsoleProxy(r chi.Router, a *auth.Auth, cfg *config.Config) {
 	if !cfg.DagNats.Enabled {
 		return
 	}
@@ -39,11 +48,13 @@ func mountConsoleProxy(mux *http.ServeMux, a *auth.Auth, cfg *config.Config) {
 			http.Error(w, "workflow engine unavailable", http.StatusBadGateway)
 		},
 	}
+	// Mount covers the bare path and the whole subtree; the GET on the bare
+	// path only redirects browsers to the trailing slash.
 	gated := a.RequireSession(forwardConsoleUser(proxy))
-	mux.Handle("/console/", gated)
-	mux.Handle("/console", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/console/", http.StatusMovedPermanently)
-	}))
+	r.Mount(consoleMount, gated)
+	r.Get(consoleMount, func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, consoleMount+"/", http.StatusMovedPermanently)
+	})
 	// /dagnats/ is the branded alias: same console, DagNats name in the
 	// address bar. Upstream owns the /console/ paths (absolute assets,
 	// actions and API calls), so the alias strips its prefix and
@@ -61,10 +72,10 @@ func mountConsoleProxy(mux *http.ServeMux, a *auth.Auth, cfg *config.Config) {
 		},
 	}
 	aliasGated := a.RequireSession(forwardConsoleUser(alias))
-	mux.Handle("/dagnats/", aliasGated)
-	mux.Handle("/dagnats", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/dagnats/", http.StatusMovedPermanently)
-	}))
+	r.Mount(dagnatsMount, aliasGated)
+	r.Get(dagnatsMount, func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, dagnatsMount+"/", http.StatusMovedPermanently)
+	})
 }
 
 // forwardConsoleUser stamps the validated session email for the

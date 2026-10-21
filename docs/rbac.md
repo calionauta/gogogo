@@ -102,10 +102,11 @@ route that only *admin* reaches because `p, admin, /*, .*` masked the
 missing row. Both are caught mechanically, so follow the list and let the
 tests confirm it.
 
-1. Mount routes in `internal/server/chi.go` — add the handler to
-   `featureMounts` (one line) and, if the feature needs its own handler
-   parameter, to `buildChiMux`. Every feature router is a `chi.Router`,
-   which is what lets the coverage test walk it.
+1. Mount routes in `internal/server/chi.go` — one
+   `r.MountFeature("<name>", <name>H.Routes())` line, and register every path
+   inside the feature's `Routes() chi.Router`. The coverage test reads the
+   `r.Get/Post/...` lines from the feature routers, so a route added there is
+   covered without a second list.
 2. Add `p, user, /prefix, .*` + `p, user, /prefix/*, .*` in the user block.
 3. Add enumerated viewer rows only if the feature has a viewer-safe
    surface (read/create/toggle class, plus delete-own — never shared

@@ -4,6 +4,8 @@ package installer
 import (
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -24,8 +26,8 @@ func TestValidateNewName(t *testing.T) {
 }
 
 // chiFixture mirrors the two anchors the scaffold edits: the config import
-// and the stream-status mount after buildChiMux. Neither belongs to a
-// trim unit, which is what makes the scaffold work on trimmed trees.
+// and the console mount line in BootChi. Neither belongs to a trim unit, which
+// is what makes the scaffold work on trimmed trees.
 const chiFixture = `package server
 
 import (
@@ -36,15 +38,15 @@ import (
 
 func boot() {
 	mux := buildChiMux(a, todoH)
-	mux.HandleFunc("/api/stream/status", StreamStatusHandler(hub))
+	mountConsoleProxy(mux, a, cfg)
 	_ = mux
 }
 
-func buildChiMux(a string, todoH string) *http.ServeMux {
-	mux := http.NewServeMux()
+func buildChiMux(a string, todoH string) *Router {
+	r := NewRouter()
 	_ = confighandlers.NewHandler
 	_ = todoH
-	return mux
+	return r
 }
 `
 
@@ -57,9 +59,7 @@ func TestEditChiGoAddsWiring(t *testing.T) {
 	for _, want := range []string{
 		`reportshandlers "github.com/acme/app/features/reports/handlers"`,
 		"reportsH := reportshandlers.NewHandler(a)",
-		`mux.Handle("/reports", reportsH.Routes())`,
-		`mux.Handle("/reports/", reportsH.Routes())`,
-		`mux.Handle("/api/reports/", reportsH.Routes())`,
+		`mux.MountFeature("reports", reportsH.Routes())`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("wiring missing %q:\n%s", want, out)
@@ -67,6 +67,30 @@ func TestEditChiGoAddsWiring(t *testing.T) {
 	}
 	if _, perr := parser.ParseFile(token.NewFileSet(), "chi.go", out, parser.AllErrors); perr != nil {
 		t.Fatalf("edited chi.go does not parse: %v\n%s", perr, out)
+	}
+}
+
+// TestNewScaffoldAnchorsPresentInTemplate is the drift gate behind the
+// fixture above: the anchors `gogogo new feature` edits must exist in the
+// template's REAL composition root. Moving a mount line without updating the
+// scaffold turns the command into a refusal for every user, and a fixture
+// cannot notice.
+func TestNewScaffoldAnchorsPresentInTemplate(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), "internal", "server", "chi.go"))
+	if err != nil {
+		t.Fatalf("read chi.go: %v", err)
+	}
+	out, err := editChiGo(string(raw), "reports", "github.com/calionauta/gogogo")
+	if err != nil {
+		t.Fatalf("editChiGo against the template: %v", err)
+	}
+	for _, want := range []string{
+		`reportshandlers "github.com/calionauta/gogogo/features/reports/handlers"`,
+		`mux.MountFeature("reports", reportsH.Routes())`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("scaffolded chi.go missing %q", want)
+		}
 	}
 }
 

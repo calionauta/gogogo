@@ -113,7 +113,13 @@ func (h *Handler) readRoster(ctx context.Context, id string) (appgoakt.Roster, e
 }
 
 // Routes returns the chi router with the room pages and API.
+// Routes returns the room router. A nil Handler (engine disabled or failed to
+// start) returns nil: BootChi calls this unconditionally and MountFeature
+// treats nil as "nothing to mount", so /room stays a 404 instead of panicking.
 func (h *Handler) Routes() chi.Router {
+	if h == nil {
+		return nil
+	}
 	r := chi.NewRouter()
 	r.Get("/room", h.handleIndex)
 	r.Get("/room/roster", h.handleRoster)
