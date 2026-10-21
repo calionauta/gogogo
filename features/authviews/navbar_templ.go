@@ -77,7 +77,7 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span> <details class=\"app-nav-links\" open><summary class=\"app-nav-menu-btn\" aria-label=\"Open navigation\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M3 5h14v2H3V5zm0 4h14v2H3V9zm0 4h14v2H3v-2z\"></path></svg> <span>Menu</span></summary><div class=\"app-nav-links-inner\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span> <details class=\"app-nav-links\"><summary class=\"app-nav-menu-btn\" aria-label=\"Open navigation\"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M3 5h14v2H3V5zm0 4h14v2H3V9zm0 4h14v2H3v-2z\"></path></svg> <span>Menu</span></summary><div class=\"app-nav-links-inner\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -275,7 +275,7 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></details></div></details></div><div class=\"app-nav-end\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></details></div></details><script>\n\t\t\t\t// ONE <details> for both layouts: inline link row on a wide bar, native\n\t\t\t\t// dropdown once the stylesheet collapses it (<=1099px). A closed\n\t\t\t\t// <details> hides its content, and the inline row must be visible — but\n\t\t\t\t// shipping it `open` left the DROPDOWN open on load wherever the\n\t\t\t\t// stylesheet collapses it, covering the page until the first tap. So the\n\t\t\t\t// open state follows the same breakpoint the stylesheet uses, applied\n\t\t\t\t// here (synchronously, before paint, and before any viewport listener\n\t\t\t\t// could matter) and re-applied when the viewport crosses it. A tap on\n\t\t\t\t// the summary is untouched: only a breakpoint change resets the state.\n\t\t\t\t(function () {\n\t\t\t\t\tvar box = document.querySelector('.app-nav-links');\n\t\t\t\t\tif (!box) return;\n\t\t\t\t\tvar wide = window.matchMedia('(min-width: 1100px)');\n\t\t\t\t\tfunction sync() { box.open = wide.matches; }\n\t\t\t\t\tsync();\n\t\t\t\t\tif (wide.addEventListener) wide.addEventListener('change', sync);\n\t\t\t\t\telse if (wide.addListener) wide.addListener(sync);\n\t\t\t\t})();\n\t\t\t</script></div><div class=\"app-nav-end\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -308,7 +308,7 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/navbar.templ`, Line: 106, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/navbar.templ`, Line: 126, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -321,7 +321,7 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/navbar.templ`, Line: 113, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/navbar.templ`, Line: 133, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -339,7 +339,7 @@ func Navbar(userEmail string, userRole string, active string, buildLabel string,
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(userRole)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/navbar.templ`, Line: 117, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/navbar.templ`, Line: 137, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {

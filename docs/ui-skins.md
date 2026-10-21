@@ -124,6 +124,17 @@ second design system:
   native `<dialog>` opened by Ctrl/Cmd+K or the navbar button. The input owns a
   filter signal, the options are real links, and ArrowUp/ArrowDown move focus
   through the visible commands. No framework runtime.
+
+  The option list carries `w-full` on purpose: DaisyUI's `.menu` is
+  `width: fit-content`, so without it the rows hug their text in a narrow
+  column inside a wide `modal-box` instead of spanning the dialog.
+
+  The bar itself collapses into the Menu button below 1100px
+  (`web/resources/static/chrome.css`), the width where the link row plus the
+  command-palette button, skin picker, theme/sound toggles and user menu stop
+  fitting. The same breakpoint lives in the navbar's inline script, which owns
+  the row's `open` state — a closed `<details>` hides the inline row, and a
+  tablet must not start with the dropdown covering the page.
 - **Combobox pattern.** The palette's input + listbox + keyboard handling is the
   reusable combobox pattern. A form combobox that needs server search can reuse
   it with a `@get` endpoint, the same way the Todo search box does.
