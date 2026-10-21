@@ -613,7 +613,7 @@ Vague instructions like "use Zig when appropriate" are banned. Follow the
 
 ## Related
 
-- [Dependency doctrine](dependency-doctrine.md) — the general write-it-or-rent-it procedure; the native ban there is gate item 1.
+- [Dependency principles](dependency-principles.md) — the general write-it-or-rent-it procedure; the native ban there is gate item 1.
 - [Motivation](motivation.md) — the thesis behind Go-first: cheap failure, readable code, named exception.
 - [Native language tradeoffs](native-language-tradeoffs.md) — evidence-backed comparison of Zig, Rust, Nim, Odin, and Mojo as exception languages.
 - [Architecture](architecture.md) — unified build, directory layout, wiring.

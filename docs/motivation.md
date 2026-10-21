@@ -105,9 +105,18 @@ on it, tell me what broke. An issue with a reproduction is worth more than a
 PR. The rules are in
 [CONTRIBUTING](https://github.com/calionauta/gogogo/blob/master/CONTRIBUTING.md).
 
+## Where the principles live
+
+This page argues the thesis. The parts that are enforceable are written as
+procedure, and each one names what it decides:
+
+- [Dependency principles](dependency-principles.md) — whether a missing piece is ours to write or a library to adopt, with the ordered procedure, the closed list a human approves, and the one-line trade-off record a reviewer reads.
+- [Native boundary](exception-to-go.md) — when native code is allowed at all, and the benchmark bar it has to clear first.
+- [Scope taxonomy](scope-taxonomy.md) — what may be deleted without asking, which is the rule behind "features you remove instead of negotiate".
+- [Architecture decision](architecture-decision.md) — what the stack is, what it replaced, and why a copy you own beats a module you import.
+
 ## Related
 
 - [Overview](overview.md) — what gogogo is and who it is for.
 - [Stack in layers](stack-layers.md) — every dependency and why it is in the box.
-- [Native boundary](exception-to-go.md) — the enforceable Go-first policy behind this thesis.
 - [Features](features.md) — every capability and its runtime opt-out.

@@ -54,7 +54,7 @@ export default {
     desc: "Every environment variable and runtime constant." },
   { group: "Core", slug: "rbac", file: "rbac.md",
     desc: "Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex)." },
-  { group: "Core", slug: "dependency-doctrine", file: "dependency-doctrine.md",
+  { group: "Core", slug: "dependency-principles", file: "dependency-principles.md",
     desc: "Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads." },
   { group: "Core", slug: "exception-to-go", file: "exception-to-go.md",
     desc: "Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules." },

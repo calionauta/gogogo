@@ -62,7 +62,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [db-concurrency](docs/db-concurrency.md) — Turso single-writer stance, the probed MVCC path, and revisit triggers.
 - [configuration](docs/configuration.md) — Every environment variable and runtime constant.
 - [rbac](docs/rbac.md) — Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex).
-- [dependency-doctrine](docs/dependency-doctrine.md) — Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads.
+- [dependency-principles](docs/dependency-principles.md) — Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads.
 - [exception-to-go](docs/exception-to-go.md) — Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules.
 - [native-language-tradeoffs](docs/native-language-tradeoffs.md) — Evidence-backed tradeoffs of Zig, Rust, Nim, Odin, and Mojo as native exception languages, and what a non-Zig proposal must rebut.
 
