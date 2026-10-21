@@ -167,7 +167,9 @@ is per-process. The security properties here are owned:
   that is `Secure` in production (`internal/auth`).
 - CSRF in two layers: the cookie's `SameSite=Lax` keeps it off cross-site
   POSTs, and `sameOriginGuard` refuses an unsafe method when a browser
-  `Origin` is present and does not match the request host. CLI clients,
+  `Origin` is present and does not match the request host. A reverse proxy
+  in front must preserve the `Host` header (cloudflared and Caddy do); a
+  proxy that rewrites it makes every browser write a 403. CLI clients,
   webhooks and the desktop webview send no `Origin` (or a custom scheme) and
   pass; two loopback origins share the dev trust boundary.
 - Casbin policy at the edge of the router plus per-handler session checks,
@@ -175,7 +177,7 @@ is per-process. The security properties here are owned:
 - templ escaping and sqlc parameters on the data paths.
 - four edge headers (`X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options`, `Permissions-Policy`) and `Cache-Control: no-store` on
-  every `/api/auth/*` response, plus a body cap on the auth surface.
+  every auth handler response, plus a body cap on the auth surface.
 
 Deployment owns the rest: HSTS and TLS at the tunnel, a WAF or rate limit in
 front, and a CSP that can only arrive with nonce plumbing for the inline

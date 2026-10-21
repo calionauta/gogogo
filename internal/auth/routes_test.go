@@ -45,13 +45,14 @@ func TestRoutesAreNoStore(t *testing.T) {
 		method string
 		path   string
 	}{
-		{http.MethodGet, "/api/auth/magic"},
-		{http.MethodPost, "/api/auth/signin/credential"},
-		{http.MethodGet, "/api/auth/nope"},
+		{http.MethodPut, "/api/auth/signin/credential"},  // 405 before any handler
+		{http.MethodPost, "/api/auth/signin/credential"}, // 400 on the empty body
+		{http.MethodGet, "/api/auth/nope"},               // 404
 	} {
 		rec := httptest.NewRecorder()
-		// The handlers here need a database; the method gate and the 404
-		// answer before that, which is enough to observe the header.
+		// The handlers here need a database; the method gate, the body
+		// decode and the 404 answer before that, which is enough to observe
+		// the header without a live store.
 		r.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), tc.method, tc.path, nil))
 		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 			t.Errorf("%s %s Cache-Control = %q, want no-store", tc.method, tc.path, got)

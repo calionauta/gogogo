@@ -375,6 +375,18 @@ func assertMuxTail(t *testing.T, mux *Router) {
 	if owner := mux.routes.owner[key]; owner != "auth" {
 		t.Errorf("POST /api/auth/signin/credential owner = %q, want auth", owner)
 	}
+	// MountFeature keeps the feature's own middleware: auth's no-store must
+	// survive the flatten on a handler response. An empty body answers 400
+	// before the store, which is enough to observe the header.
+	authRec := httptest.NewRecorder()
+	authReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/signin/credential", nil)
+	mux.ServeHTTP(authRec, authReq)
+	if authRec.Code != http.StatusBadRequest {
+		t.Errorf("POST /api/auth/signin/credential empty body = %d, want 400", authRec.Code)
+	}
+	if got := authRec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("auth handler Cache-Control = %q, want no-store", got)
+	}
 	// HEAD rides GET on the two routes a probe or cache may HEAD.
 	for _, target := range []string{"/health", "/sw.js"} {
 		headRec := httptest.NewRecorder()
