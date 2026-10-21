@@ -117,12 +117,21 @@ function measurePage(page) {
       // the card has values and no labels.
       unlabelledCells: [...t.querySelectorAll("td")].filter((td) => !td.hasAttribute("data-label")).length,
     }));
+    const visible = (el) => !!el && el.offsetParent !== null;
     const p = document.querySelector("main p");
     return {
       pageOver: de.scrollWidth - de.clientWidth,
       wraps,
       tables,
       proseWidth: p ? Math.round(p.getBoundingClientRect().width) : 0,
+      // Navigation must exist on every viewport: the desktop sidebar, or the
+      // mobile topbar menu when the sidebar is hidden.
+      topbar: visible(document.querySelector(".topbar")),
+      topbarMenu: !!document.querySelector(".topbar details summary"),
+      sidebar: visible(document.querySelector("nav.side")),
+      landingMenu: visible(document.querySelector(".mobile-menu")),
+      // A command block that scrolls on a phone is a clipped command.
+      preOver: Math.max(0, ...[...document.querySelectorAll("pre")].map((n) => n.scrollWidth - n.clientWidth - 1)),
     };
   });
 }
@@ -158,6 +167,19 @@ try {
         if (w.over > 0 && w.fadeRight !== "0.28") {
           fail(`${where}: table "${w.label}" scrolls but shows no right-edge fade`);
         }
+      }
+      // Navigation: the sidebar above the mobile breakpoint, the topbar menu
+      // below it. Never neither, which is what the reporter saw on a phone.
+      if (path.startsWith("/docs/")) {
+        if (vw <= 900 && !(r.topbar && r.topbarMenu)) fail(`${where}: no mobile docs menu (topbar=${r.topbar}, summary=${r.topbarMenu})`);
+        if (vw <= 900 && r.sidebar) fail(`${where}: desktop sidebar still visible below 900px`);
+        if (vw === 1440 && r.topbar) fail(`${where}: mobile topbar visible at 1440px`);
+        if (vw === 1440 && !r.sidebar) fail(`${where}: desktop sidebar missing at 1440px`);
+      }
+      if (path === "/") {
+        if (vw <= 620 && !r.landingMenu) fail(`${where}: no landing menu on a phone`);
+        if (vw > 620 && r.landingMenu) fail(`${where}: landing menu still shown at ${vw}px`);
+        if (vw <= 900 && r.preOver > 0) fail(`${where}: a command block scrolls ${r.preOver}px instead of wrapping`);
       }
       // Structure once per page is enough; the attributes come from the builder.
       if (vw === 1440) {

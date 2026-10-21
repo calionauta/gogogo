@@ -16,6 +16,17 @@
 <header class="nav">
   <a class="brand" href="#top" aria-label="GoGoGo home">GoGoGo</a>
   <nav class="links" aria-label="Primary">
+    <details class="mobile-menu">
+      <summary aria-label="Open section menu">Menu</summary>
+      <div class="mobile-menu-body">
+        <a href="#stack">Stack</a>
+        <a href="#layers">Layers</a>
+        <a href="./docs/motivation/">Why Go</a>
+        <a href="#ai-ready">AI-ready</a>
+        <a href="./docs/">Docs</a>
+        <a href="./releases/">Releases</a>
+      </div>
+    </details>
     <a href="#stack">Stack</a>
     <a href="#layers">Layers</a>
     <a href="./docs/motivation/">Why Go</a>
@@ -476,6 +487,25 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       });
     });
     pre.appendChild(btn);
+  });
+
+  // <details> opens natively; close it when a link is chosen, when the tap
+  // lands outside, or on Escape, so the panel never covers the section it
+  // opened from. Escape returns focus to the summary, where the user left it.
+  document.querySelectorAll(".mobile-menu").forEach(function (d) {
+    var summary = d.querySelector("summary");
+    d.addEventListener("click", function (e) {
+      if (e.target.closest("a")) d.open = false;
+    });
+    document.addEventListener("click", function (e) {
+      if (d.open && !d.contains(e.target)) d.open = false;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && d.open) {
+        d.open = false;
+        if (summary) summary.focus();
+      }
+    });
   });
 })();
 </script>
