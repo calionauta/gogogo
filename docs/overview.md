@@ -22,13 +22,14 @@ documents how to change or remove each piece.
 
 Frameworks call your code and keep you on their release train. This template
 does the opposite: it answers the stack decisions once, ships them wired and
-documented, and gets out of the way — you rename it, you own every line,
-there is nothing to upgrade. It does ship frameworks inside (DagNats,
-GoAkt, Wails), and each of them is removable per the [scope
-taxonomy](scope-taxonomy.md): nothing you keep is load-bearing by accident.
-For an LLM agent this means zero new DSL to learn — plain Go, stable
-third-party surfaces, and the skill files, instead of a moving proprietary
-framework.
+documented, and gets out of the way — you rename it, you own every line, and
+nothing upgrades underneath you. Upstream movement arrives as a list you read
+and apply, never as a release to keep up with: [Upgrading](upgrading.md). It
+does ship frameworks inside (DagNats, GoAkt, Wails), and each of them is
+removable per the [scope taxonomy](scope-taxonomy.md): nothing you keep is
+load-bearing by accident. For an LLM agent this means zero new DSL to learn —
+plain Go, stable third-party surfaces, and the skill files, instead of a moving
+proprietary framework.
 
 ## Who it is for
 
