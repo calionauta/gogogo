@@ -198,7 +198,7 @@ func testRouter(t *testing.T) http.Handler {
 	a := testAuth(t, testDB(t))
 
 	r := http.NewServeMux()
-	r.Handle("/api/auth/", a.Handler())
+	r.Handle("/api/auth/", a.Routes())
 	r.Handle("GET /me", a.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		sess, err := SessionFrom(req.Context())
 		if err != nil {

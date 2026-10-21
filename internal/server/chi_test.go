@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
@@ -355,10 +356,24 @@ func TestBuildChiMux(t *testing.T) {
 			t.Fatalf("mux anon %s status = %d, want 303", target, rec.Code)
 		}
 	}
+	assertMuxTail(t, mux)
+}
+
+// assertMuxTail pins the responses that do not depend on the feature wiring
+// above: the credits gate, the auth route claim and HEAD parity.
+func assertMuxTail(t *testing.T, mux *Router) {
+	t.Helper()
 	creditsRec := httptest.NewRecorder()
 	mux.ServeHTTP(creditsRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/credits", nil))
 	if creditsRec.Code != http.StatusUnauthorized {
 		t.Fatalf("mux anon /api/credits status = %d, want 401 JSON", creditsRec.Code)
+	}
+	// Auth is flattened like every feature, so the route table claims it:
+	// a second capability claiming /api/auth/... is a boot panic, not a
+	// silently overwritten handler.
+	key := routeKey{method: http.MethodPost, pattern: "/api/auth/signin/credential"}
+	if owner := mux.routes.owner[key]; owner != "auth" {
+		t.Errorf("POST /api/auth/signin/credential owner = %q, want auth", owner)
 	}
 	// HEAD rides GET on the two routes a probe or cache may HEAD.
 	for _, target := range []string{"/health", "/sw.js"} {
@@ -367,5 +382,30 @@ func TestBuildChiMux(t *testing.T) {
 		if headRec.Code != http.StatusOK {
 			t.Errorf("mux HEAD %s status = %d, want 200", target, headRec.Code)
 		}
+	}
+}
+
+// TestServerTimeouts pins the HTTP transport guards. A zero ReadTimeout is
+// the slow-body hole; a zero IdleTimeout keeps abandoned keep-alives forever.
+// WriteTimeout stays 0 on purpose: a finite value cuts every SSE stream at
+// that deadline (the streams are long-lived by design).
+func TestServerTimeouts(t *testing.T) {
+	srv := srvHandler(http.NotFoundHandler())
+	for _, tc := range []struct {
+		name string
+		got  time.Duration
+		want time.Duration
+	}{
+		{"ReadHeaderTimeout", srv.ReadHeaderTimeout, 10 * time.Second},
+		{"ReadTimeout", srv.ReadTimeout, 60 * time.Second},
+		{"IdleTimeout", srv.IdleTimeout, 120 * time.Second},
+		{"WriteTimeout", srv.WriteTimeout, 0},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %v, want %v", tc.name, tc.got, tc.want)
+		}
+	}
+	if srv.MaxHeaderBytes != 64<<10 {
+		t.Errorf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, 64<<10)
 	}
 }

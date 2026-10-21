@@ -206,10 +206,15 @@ a 403, never to an unauthorized write. Never gate a mutation on
   `TestMutatingRouteScanIsNotVacuous`, `TestAnonymousPolicyIsMinimal`):
   scans every mutating route in the source and fails if the policy lets
   `anonymous` reach one, unless the path is on the documented
-  `publicWrites` list (signup/signin/signout/login/logout — all
-  signed-out by definition). The vacuity test stops a broken scanner from
-  reading as a pass, and the minimality test caps the anonymous block so a
-  wildcard cannot be widened quietly.
+  `publicWrites` list (signup, signin, signout, magic request, TOTP login,
+  login, logout — all signed-out by definition). TOTP enrollment, verify and
+  recovery need a session and are deliberately absent from the anonymous
+  block. The vacuity test stops a broken scanner from reading as a pass, and
+  the minimality test caps the anonymous block so a wildcard cannot be
+  widened quietly.
+- **The scan includes `internal/auth`**: auth registers its own absolute
+  patterns and the root flattens them like a feature, so the coverage test
+  sees every auth endpoint and a new one needs its row on the first commit.
 
 ## Adapting this guard for your product
 

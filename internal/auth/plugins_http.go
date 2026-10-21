@@ -4,6 +4,8 @@ package auth
 import (
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // SetMagicSender installs the magic-link delivery callback (email sender).
@@ -43,10 +45,6 @@ func baseURL(r *http.Request) string {
 }
 
 func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	var body struct {
 		Email string `json:"email"`
 	}
@@ -63,10 +61,6 @@ func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleMagicVerify(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	token, err := a.VerifyMagicLink(r.Context(), r.URL.Query().Get("token"))
 	if err != nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -77,10 +71,6 @@ func (a *Auth) handleMagicVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleTOTPBegin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	user, err := a.authedUser(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -95,10 +85,6 @@ func (a *Auth) handleTOTPBegin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleTOTPVerify(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	user, err := a.authedUser(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -119,10 +105,6 @@ func (a *Auth) handleTOTPVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleTOTPLogin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	var body struct {
 		UserID string `json:"userId"`
 		Code   string `json:"code"`
@@ -141,10 +123,6 @@ func (a *Auth) handleTOTPLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	user, err := a.authedUser(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -179,10 +157,6 @@ func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 // plaintext batch is returned exactly once — the caller displays it and
 // the server never stores it.
 func (a *Auth) handleTOTPRecovery(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	user, err := a.authedUser(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -196,25 +170,13 @@ func (a *Auth) handleTOTPRecovery(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"codes": codes})
 }
 
-// handleOAuth dispatches /api/auth/oauth/{provider} (start) and
-// /api/auth/oauth/{provider}/callback (finish) by path shape.
-func (a *Auth) handleOAuth(w http.ResponseWriter, r *http.Request) {
-	rest, ok := strings.CutPrefix(r.URL.Path, "/api/auth/oauth/")
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	if provider, found := strings.CutSuffix(rest, "/callback"); found {
-		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		a.OAuthCallback(w, r, provider)
-		return
-	}
-	if r.Method != http.MethodGet || strings.Contains(rest, "/") {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	a.OAuthStart(w, r, rest)
+// handleOAuthStart begins /api/auth/oauth/{provider}. The provider comes from
+// the router parameter, so an unknown shape never reaches the handler.
+func (a *Auth) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
+	a.OAuthStart(w, r, chi.URLParam(r, "provider"))
+}
+
+// handleOAuthCallback finishes /api/auth/oauth/{provider}/callback.
+func (a *Auth) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	a.OAuthCallback(w, r, chi.URLParam(r, "provider"))
 }

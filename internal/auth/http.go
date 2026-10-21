@@ -5,25 +5,41 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
-// Handler serves the auth API under /api/auth (mount at /): signup,
-// signin and signout with the same paths and JSON shapes as before, plus
-// magic-link, TOTP second factor and OAuth entry points.
-func (a *Auth) Handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/auth/signup/credential", a.handleSignup)
-	mux.HandleFunc("/api/auth/signin/credential", a.handleSignin)
-	mux.HandleFunc("/api/auth/signout", a.handleSignout)
-	mux.HandleFunc("/api/auth/magic/request", a.handleMagicRequest)
-	mux.HandleFunc("/api/auth/magic", a.handleMagicVerify)
-	mux.HandleFunc("/api/auth/totp/begin", a.handleTOTPBegin)
-	mux.HandleFunc("/api/auth/totp/verify", a.handleTOTPVerify)
-	mux.HandleFunc("/api/auth/totp/login", a.handleTOTPLogin)
-	mux.HandleFunc("/api/auth/totp/disable", a.handleTOTPDisable)
-	mux.HandleFunc("/api/auth/totp/recovery", a.handleTOTPRecovery)
-	mux.HandleFunc("/api/auth/oauth/", a.handleOAuth)
-	return mux
+// noStore keeps auth bodies out of every cache: they carry session cookies
+// and one-time codes. It lives on the auth router so the policy travels with
+// the surface instead of a path prefix in the edge.
+func noStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Routes returns the auth API router: signup, signin and signout, plus the
+// magic-link, TOTP second-factor and OAuth entry points. Every pattern is
+// absolute, so the composition root flattens it with MountFeature like any
+// feature — the router owns the method decision (405) and the provider
+// parameter, and the route table sees each endpoint.
+func (a *Auth) Routes() chi.Router {
+	r := chi.NewRouter()
+	r.Use(noStore)
+	r.Post("/api/auth/signup/credential", a.handleSignup)
+	r.Post("/api/auth/signin/credential", a.handleSignin)
+	r.Post("/api/auth/signout", a.handleSignout)
+	r.Post("/api/auth/magic/request", a.handleMagicRequest)
+	r.Get("/api/auth/magic", a.handleMagicVerify)
+	r.Post("/api/auth/totp/begin", a.handleTOTPBegin)
+	r.Post("/api/auth/totp/verify", a.handleTOTPVerify)
+	r.Post("/api/auth/totp/login", a.handleTOTPLogin)
+	r.Post("/api/auth/totp/disable", a.handleTOTPDisable)
+	r.Post("/api/auth/totp/recovery", a.handleTOTPRecovery)
+	r.Get("/api/auth/oauth/{provider}", a.handleOAuthStart)
+	r.Get("/api/auth/oauth/{provider}/callback", a.handleOAuthCallback)
+	return r
 }
 
 // jsonStatusKey is the envelope key for trivial {"status":"ok"} bodies.
@@ -50,10 +66,6 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -77,10 +89,6 @@ func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	var body struct {
 		Credential string `json:"credential"`
 		Password   string `json:"password"`
@@ -136,10 +144,6 @@ func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleSignout(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	if cookie, err := r.Cookie(CookieName); err == nil {
 		a.Logout(r.Context(), cookie.Value)
 	}

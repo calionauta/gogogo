@@ -44,7 +44,7 @@ func TestNotesOpAfterEvictKeepsText(t *testing.T) {
 	// registry check is opted out here explicitly (see permissions.go).
 	h.registry = func(context.Context, string) bool { return true }
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

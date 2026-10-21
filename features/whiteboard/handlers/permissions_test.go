@@ -88,7 +88,7 @@ func wbSharedFixtureWithStore(t *testing.T, wantStore bool) (
 	_ = wantStore
 	h := NewHandler(q, a, queue.NewSSEHub(), mem, collab.NewDocStore(), config.Load())
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	server = httptest.NewServer(mux)
 	t.Cleanup(server.Close)

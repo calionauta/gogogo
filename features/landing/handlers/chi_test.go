@@ -31,7 +31,7 @@ func handlersStack(t *testing.T) (http.Handler, *auth.Auth) {
 	}
 	cfg := config.Load()
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", NewHandler(cfg, a).Routes())
 	return mux, a
 }

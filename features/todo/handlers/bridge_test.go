@@ -235,7 +235,7 @@ func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
 	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub(), "daisyui")
 	handlerA.SetPublisher(natswire.NewCrudPublisher(h.JS, "remote-1"))
 	muxA := http.NewServeMux()
-	muxA.Handle("/api/auth/", authA.Handler())
+	muxA.Handle("/api/auth/", authA.Routes())
 	muxA.Handle("/api/todos", handlerA.Routes())
 	muxA.Handle("/api/todos/", handlerA.Routes())
 	return muxA, sqlA

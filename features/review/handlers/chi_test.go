@@ -111,7 +111,7 @@ func reviewFixtureWithMaker(t *testing.T, makerReply, critique string, judge *st
 	// definition within one process (each fixture owns its instance).
 	h.RegisterFlows()
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	return mux
 }
@@ -268,7 +268,7 @@ func TestReviewRunWithoutLLMKeyFailsClosed(t *testing.T) {
 		Judge: &stubJudge{}, Threshold: 0.7,
 	}, llm.New(""))
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	cookie := reviewSignup(t, mux, "nokey@example.com")
 	rec := httptest.NewRecorder()

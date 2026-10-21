@@ -21,7 +21,7 @@ func TestSigninThrottlePerIP(t *testing.T) {
 	if _, _, err := a.Signup(ctx, "throttle@example.com", "Correct-horse-99!", ""); err != nil {
 		t.Fatalf("signup: %v", err)
 	}
-	mux := a.Handler()
+	mux := a.Routes()
 	post := func(ip, password string) int {
 		body := `{"credential":"throttle@example.com","password":"` + password + `"}`
 		req := httptest.NewRequestWithContext(ctx, http.MethodPost,

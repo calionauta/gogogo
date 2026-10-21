@@ -283,6 +283,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if rerr != nil {
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
+	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
+	// carry the same headers, and the access log sees both.
+	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,
 		mux:            handler,
@@ -353,10 +356,22 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
 // listener stays the caller's: tests bind :0 and read the port back).
+//
+// Timeouts: ReadHeaderTimeout bounds slow headers, ReadTimeout bounds a slow
+// body (JSON/Loro payloads are small; 60s is generous for an edge link), and
+// IdleTimeout releases abandoned keep-alives. WriteTimeout stays 0 on
+// purpose: a finite value is a transport deadline, and every SSE route here
+// is a response that never ends — the first write after the deadline would
+// cut the stream. MaxHeaderBytes halves the 1 MiB default; cookies and
+// forwarding headers are the only large ones.
 func srvHandler(mux http.Handler) *http.Server {
 	return &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		WriteTimeout:      0,
+		MaxHeaderBytes:    64 << 10,
 	}
 }
 
@@ -425,10 +440,10 @@ func buildChiMux(
 	// (and its smoke tests) expect there.
 	r.NotFound(landingH.Routes().ServeHTTP)
 
-	// The auth API is one subtree, registered as a leaf: its handler parses
-	// its own paths (and the /api/auth/oauth/{provider} shape), so it receives
-	// the request unrewritten.
-	MountSubtree(r, "/api/auth", a.Handler())
+	// Auth is a flat feature like every other surface: its router owns the
+	// absolute paths, the methods (405 at the router) and the OAuth provider
+	// parameter, so the route table claims each endpoint.
+	r.MountFeature("auth", a.Routes())
 	// The session stream is its own path, not a child of /api/auth: it is a
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())

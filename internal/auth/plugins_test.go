@@ -243,7 +243,7 @@ func TestOAuthFlow(t *testing.T) {
 		},
 	})
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 
 	// Unknown provider 404s.
 	rec404 := httptest.NewRecorder()
@@ -471,7 +471,7 @@ func TestOAuthPKCEChallenge(t *testing.T) {
 		},
 	})
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(),
