@@ -399,12 +399,15 @@ it:
   the RBAC coverage scan enumerate real units, so fewer units means less surface
   under a gate — which is how a route ships unguarded.
 
-Cost: scaffold weight and trim burden, and the burden is real while the weight
-stays unmeasured. Each demo is a unit the installer offers to strip
-(`whiteboard`, `goakt`, `landing`, `config-view`, `credits`, `sounds`, `skins`,
-`review`, `genui`, `dagnats`) or a documented manual removal (`todo`, `notes`),
-and every demo rots if its pattern drifts from the core. Revisit per demo:
-anything nobody copies in real scaffolds is a deletion candidate, not heritage.
+Cost: scaffold weight and trim burden, and the weight is measurable. Trimming the
+four demo features and their wiring removes 81 of the 726 code and docs files,
+about 15,000 lines. Trimming every unit the installer offers removes 218 of them,
+about 39,500 lines, near a third of the tree. Each demo is a unit the installer
+offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`, `credits`,
+`sounds`, `skins`, `review`, `genui`, `dagnats`) or a documented manual removal
+(`todo`, `notes`), and every demo rots if its pattern drifts from the core.
+Revisit per demo: anything nobody copies in real scaffolds is a deletion
+candidate, not heritage.
 
 ## The flat stack — the cost
 
