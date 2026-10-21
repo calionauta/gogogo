@@ -197,3 +197,26 @@ func TestPlanTrimDropsSkipped(t *testing.T) {
 		t.Errorf("expected dagnats/whiteboard/credits in drop set, got %v", dropIDs(drop))
 	}
 }
+
+// TestPlanKeepListsStayKindPure pins issue #207's second defect: answering
+// "keep all plugins" + "no features" seeded BOTH dimensions from every
+// manifest unit, so the plan printed feature ids under "keep plugins" while
+// the trim right below it deleted those same features.
+func TestPlanKeepListsStayKindPure(t *testing.T) {
+	p := buildPlan("gggtest", "nickchomey", "gggtest", parseKeep("", "none"), nil, true)
+	if len(p.KeepFeatures) != 0 {
+		t.Errorf("keepFeatures = %v, want empty (the answer was none)", p.KeepFeatures)
+	}
+	if len(p.KeepPlugins) == 0 {
+		t.Fatal("keepPlugins is empty, want every plugin")
+	}
+	kindOf := make(map[string]capabilities.Kind, len(manifestUnits))
+	for _, u := range manifestUnits {
+		kindOf[u.id] = u.meta().kind
+	}
+	for _, id := range p.KeepPlugins {
+		if kindOf[id] != capabilities.KindPlugin {
+			t.Errorf("keepPlugins lists %q, which is a %s", id, kindOf[id])
+		}
+	}
+}

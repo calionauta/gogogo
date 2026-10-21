@@ -115,3 +115,41 @@ func TestTreeFS_RefusesOutsideAbsolutePath(t *testing.T) {
 		t.Fatal("WriteFile accepted an absolute path outside the root")
 	}
 }
+
+// TestTreeFS_RelativeRoot proves the CLI default works: `--dir` defaults to
+// ./<name>, a RELATIVE path, so every path the trim/rename build from it is
+// CWD-relative while the treeFS root is absolute. filepath.Rel then refuses
+// ("can't make X relative to Y") and every confined write fails, which is
+// how `gogogo run` died on a fresh clone.
+func TestTreeFS_RelativeRoot(t *testing.T) {
+	base := t.TempDir()
+	t.Chdir(base)
+	root := "gggtest"
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rel := filepath.Join(root, "cmd", "web", "main.go")
+	if err := os.WriteFile(rel, []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	r, openErr := openTree(root)
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	defer r.Close()
+
+	if _, err := r.Lstat(rel); err != nil {
+		t.Fatalf("Lstat through a relative root: %v", err)
+	}
+	if err := r.WriteFile(rel, []byte("package main // renamed\n"), scaffoldFileMode); err != nil {
+		t.Fatalf("WriteFile through a relative root: %v", err)
+	}
+	got, err := os.ReadFile(rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "package main // renamed\n" {
+		t.Fatalf("content = %q", got)
+	}
+}

@@ -98,3 +98,40 @@ func TestPreflightRealTools(t *testing.T) {
 		t.Errorf("pass should narrate the toolchain, got %q", out.String())
 	}
 }
+
+// TestScaffoldRelativeDir is the CLI shape a human actually runs: `gogogo run`
+// defaults --dir to ./<name>, a RELATIVE path, so the whole apply builds
+// CWD-relative paths. Issue #207: a fresh clone then died with
+// "Rel: can't make gggtest/cmd/desktop/main.go relative to <abs>" and the
+// trim's removals silently missed (treeFS refused every path).
+func TestScaffoldRelativeDir(t *testing.T) {
+	base := t.TempDir()
+	t.Chdir(base)
+	dir := "gggtest"
+	writeScaffoldFixture(t, dir, fixtureMainOK)
+	writeFile(t, filepath.Join(dir, "features", "landing", "components", "index.templ"),
+		"package components\n")
+
+	out := captureStdout(t, func(w *os.File) {
+		err := Run(context.Background(), []string{
+			"--name", "gggtest", "--owner", "nickchomey",
+			"--no-tui", "--yes", "--features", "none",
+		}, devNull(t), w)
+		if err != nil {
+			t.Fatalf("apply with the default relative --dir: %v", err)
+		}
+	})
+	if !strings.Contains(out, "build OK") {
+		t.Errorf("proof did not report build OK:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "features", "landing")); !os.IsNotExist(err) {
+		t.Error("the trim missed features/landing: a relative root skipped every removal")
+	}
+	gomod, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		t.Fatalf("go.mod missing: %v", err)
+	}
+	if !strings.Contains(string(gomod), "module github.com/nickchomey/gggtest") {
+		t.Errorf("go.mod was not renamed:\n%s", gomod)
+	}
+}
