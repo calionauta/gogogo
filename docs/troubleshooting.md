@@ -24,7 +24,6 @@ to a temp dir in the test (see `cmd/web/smoke_test.go`).
 Keep `GOGOGO_NO_BROWSER=1` set explicitly in the child env anyway (built
 from scratch, not `append(os.Environ(), …)` — an inherited `=0` would win):
 cheap insurance if a launcher ever returns.
-```
 
 ## Tests fail with "failed to register onboarding workflow"
 
