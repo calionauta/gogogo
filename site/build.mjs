@@ -189,9 +189,25 @@ main pre code{background:none;padding:0;color:inherit;overflow-wrap:normal}
 .table-wrap:focus-visible{outline:2px solid #0b5fff;outline-offset:2px;border-radius:4px}
 main table{border-collapse:collapse;width:100%;min-width:0;margin:0;font-size:14px}
 main th,main td{border:1px solid #ddd;padding:8px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
-@media(min-width:761px){
+@media(min-width:821px){
 main td:last-child{overflow-wrap:anywhere}
 main td:last-child code{overflow-wrap:anywhere}
+}
+@media(max-width:820px){
+/* A phone has no room for a 3+ column data table. Horizontal scroll inside the
+   table was reported as unpleasant, and it hides the last column behind a
+   gesture, so below this width each row becomes a labelled card: the header row
+   is visually hidden but stays in the DOM for screen readers, and every cell
+   prints its column name from data-label. */
+main table{display:block}
+main thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+main tbody,main tr,main td{display:block}
+main tr{border:1px solid #ddd;border-radius:8px;margin:0 0 14px;padding:2px 0}
+main td{border:0;border-bottom:1px solid #f0f0f0;padding:7px 12px}
+main tr td:last-child{border-bottom:0}
+main td::before{content:attr(data-label);display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:3px}
+main td[data-label=""]::before{display:none}
+main td code{overflow-wrap:anywhere}
 }
 main th{background:#f7f7f8}
 main blockquote{border-left:3px solid #0b5fff;margin:16px 0;padding:4px 16px;background:#f5f8ff}
@@ -224,6 +240,17 @@ function esc(s) {
 // the attribute one word in and produce broken markup.
 function escAttr(s) {
   return esc(s).replace(/"/g, "&quot;");
+}
+
+// plainText strips the inline markdown a table header can carry, for the
+// stacked layout's data-label attribute: a phone shows the column name above
+// each cell, and `Variable` should read as Variable there, not as a backtick.
+function plainText(s) {
+  return s
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`*]/g, "")
+    .trim();
 }
 
 function inline(s, pageDir) {
@@ -353,8 +380,12 @@ function renderBody(md, pageDir) {
       // existed for keyboard users but was unusable by them. tabindex on the
       // wrapper (not the table) keeps the table's own semantics intact.
       const label = lastHeading ? `${lastHeading} table` : "Table";
+      // data-label is what the stacked layout prints above each cell on a
+      // phone: the header row is hidden there, so the cell has to name its own
+      // column or the card is a list of values with no meaning.
+      const heads = head.map((c) => plainText(c));
       out.push(`<div class="table-wrap" role="region" tabindex="0" aria-label="${escAttr(label)}"><table><thead><tr>${head.map((c) => `<th scope="col">${inline(c, pageDir)}</th>`).join("")}</tr></thead><tbody>${
-        body.map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c, pageDir)}</td>`).join("")}</tr>`).join("")
+        body.map((r) => `<tr>${cells(r).map((c, ci) => `<td data-label="${escAttr(heads[ci] || "")}">${inline(c, pageDir)}</td>`).join("")}</tr>`).join("")
       }</tbody></table></div>`);
       continue;
     }
@@ -483,6 +514,11 @@ ${body}
   // layout: the gradients paint in the wrapper's own background at its edges.
   function paint(el) {
     var over = el.scrollWidth - el.clientWidth - 1;
+    // Only a scrollable region needs a tab stop. A table that fits is a plain
+    // labelled region, and leaving tabindex on it puts a dead stop in the tab
+    // order on every docs page that has a table.
+    if (over > 0) el.setAttribute("tabindex", "0");
+    else el.removeAttribute("tabindex");
     if (over <= 0) {
       el.style.removeProperty("--fade-l");
       el.style.removeProperty("--fade-r");
