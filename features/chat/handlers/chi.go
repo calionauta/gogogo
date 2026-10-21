@@ -28,6 +28,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Signal names for the Ask panel (one spelling per signal, so painters
@@ -121,7 +122,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-		messageViews(r.Context(), msgs)).Render(r.Context(), w)
+		messageViews(r.Context(), msgs), skins.Resolve(r, h.cfg.Skin)).Render(r.Context(), w)
 }
 
 // messageViews maps stored records to render views, re-validating the

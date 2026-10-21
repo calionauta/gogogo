@@ -60,6 +60,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // RoomLockSignals seeds the lock-derived UI.
@@ -105,7 +106,7 @@ func RoomLockSignalsJSON(roster appgoakt.Roster, email string) string {
 // Page renders the room demo: roster, exactly-one presenter lock, and the
 // crash hook. Initial state is server-rendered for a first paint with no
 // stream round trip; RoomCard (same markup) is what the stream morphs.
-func Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) templ.Component {
+func Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string, skinName string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -134,7 +135,11 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Room — gogogo</title><link rel=\"stylesheet\" href=\"/static/app.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Room — gogogo</title>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = skins.ActiveAssets(skinName).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -142,11 +147,11 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.Navbar(email, userRole, "room", buildLabel, buildCommit).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.Navbar(email, userRole, "room", buildLabel, buildCommit, skinName).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -165,7 +170,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(roomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 95, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 93, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -178,7 +183,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(roomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 96, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 94, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -256,7 +261,7 @@ func roomSignals(roster appgoakt.Roster, email string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoomLockSignalsJSON(roster, email))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 127, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 125, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -356,7 +361,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(roster.Presenter)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 163, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 161, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -370,7 +375,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(roster.Generation))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 167, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 165, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -395,7 +400,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 174, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 172, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -413,7 +418,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 176, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 174, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -447,7 +452,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(roster.Presenter)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 186, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 184, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -465,7 +470,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 195, Col: 143}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 193, Col: 143}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -478,7 +483,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 202, Col: 143}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 200, Col: 143}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -491,7 +496,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 208, Col: 141}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 206, Col: 141}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -504,7 +509,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/crash?room=" + url.QueryEscape(roomID) + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 214, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 212, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {

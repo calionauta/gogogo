@@ -15,6 +15,7 @@ import (
 	"github.com/calionauta/gogogo/features/config/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Handler serves the config view on chi.
@@ -64,5 +65,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.Page(data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = components.Page(
+		data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin),
+	).Render(r.Context(), w)
 }

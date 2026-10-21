@@ -13,10 +13,13 @@ package skins
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
 
 	"github.com/a-h/templ"
 )
+
+const defaultName = "daisyui"
 
 // Skin defines one pluggable UI skin.
 type Skin struct {
@@ -56,17 +59,37 @@ func Active(name string) Skin {
 	}
 	mu.RUnlock()
 
-	// Fallback to default
+	// Fallback to default. Registration happens in the app wiring, which is
+	// not present when a single component package is rendered in a test or a
+	// trimmed build; DefaultAssets keeps that path rendering instead of
+	// panicking and hides no production misconfiguration (the warning below
+	// still fires for an unknown name).
 	mu.RLock()
-	s, ok := skins["daisyui"]
+	s, ok := skins[defaultName]
 	mu.RUnlock()
 	if !ok {
-		panic("skins: default skin 'daisyui' not registered")
+		if name != "" && name != defaultName {
+			slog.Warn("skins: unknown skin, falling back to 'daisyui'", "name", name)
+		}
+		return Skin{Name: defaultName, Assets: DefaultAssets}
 	}
-	if name != "" && name != "daisyui" {
+	if name != "" && name != defaultName {
 		slog.Warn("skins: unknown skin, falling back to 'daisyui'", "name", name)
 	}
 	return s
+}
+
+// DefaultAssets is the DaisyUI asset block. It lives here (not only in the
+// daisyui package) so Active can render a sane default when no skin has been
+// registered, which is the normal state in a single-package component test.
+func DefaultAssets() templ.Component {
+	return templ.Raw(`
+<link rel="stylesheet" href="/static/app.min.css"/>
+<link rel="stylesheet" href="/static/app.css"/>
+<script src="/static/iconify-icon.min.js"></script>
+<script defer type="module" src="/static/theme.js"></script>
+<script defer type="module" src="/static/datastar.js"></script>
+	`)
 }
 
 // ActiveAssets is a convenience wrapper for use inside Templ templates:
@@ -75,6 +98,30 @@ func Active(name string) Skin {
 //	@skins.ActiveAssets(skinName)
 func ActiveAssets(name string) templ.Component {
 	return Active(name).Assets()
+}
+
+// Resolve returns the skin a request should render with: the ?skin= query
+// wins when it names a registered skin, then the configured default, then
+// daisyui. Every page renders its assets through this, so a skin selected in
+// the navbar applies to the whole app, not just the reference feature.
+func Resolve(r *http.Request, fallback string) string {
+	if q := r.URL.Query().Get("skin"); q != "" {
+		if registered(q) {
+			return q
+		}
+		return "daisyui"
+	}
+	if registered(fallback) {
+		return fallback
+	}
+	return "daisyui"
+}
+
+func registered(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	_, ok := skins[name]
+	return ok
 }
 
 // List returns the names of all registered skins.

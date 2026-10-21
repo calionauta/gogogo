@@ -356,6 +356,9 @@
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
   }
+  .ml-auto {
+    margin-left: auto;
+  }
   .spinner {
     display: inline-block;
     width: 1rem;
@@ -412,6 +415,9 @@
   }
   .h-full {
     height: 100%;
+  }
+  .max-h-96 {
+    max-height: calc(var(--spacing) * 96);
   }
   .min-h-24 {
     min-height: calc(var(--spacing) * 24);
@@ -599,6 +605,9 @@
   .overflow-x-auto {
     overflow-x: auto;
   }
+  .overflow-y-auto {
+    overflow-y: auto;
+  }
   .rounded {
     border-radius: 0.25rem;
   }
@@ -704,6 +713,9 @@
   }
   .py-8 {
     padding-block: calc(var(--spacing) * 8);
+  }
+  .py-12 {
+    padding-block: calc(var(--spacing) * 12);
   }
   .pt-2 {
     padding-top: calc(var(--spacing) * 2);
@@ -1004,6 +1016,9 @@
     }
   }
   @media (width >= 48rem) {
+    .md\:inline {
+      display: inline;
+    }
     .md\:table-cell {
       display: table-cell;
     }
@@ -1014,6 +1029,9 @@
     }
     .lg\:col-span-3 {
       grid-column: span 3 / span 3;
+    }
+    .lg\:inline {
+      display: inline;
     }
     .lg\:grid-cols-5 {
       grid-template-columns: repeat(5, minmax(0, 1fr));

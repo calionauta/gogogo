@@ -2,6 +2,7 @@ package authviews
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Navbar is the top bar rendered on every authenticated page.
@@ -21,7 +22,7 @@ import (
 // demo1 (admin) from demo2 (viewer) and read the permission the page is
 // exercising. The gate is a UI affordance; /config stays enforced by the
 // RBAC policy when RBAC_ENABLED=true.
-templ Navbar(userEmail string, userRole string, active string, buildLabel string, buildCommit string) {
+templ Navbar(userEmail string, userRole string, active string, buildLabel string, buildCommit string, skinName string) {
 	<nav class="app-nav">
 		<div class="app-nav-start">
 			<a href="/" class="app-nav-brand">
@@ -32,7 +33,14 @@ templ Navbar(userEmail string, userRole string, active string, buildLabel string
 			// storage or grep-ing CDN. "dev" for `go run`. The label has a
 			// title= that exposes commit + build time on hover.
 			<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
-			<div class="app-nav-links">
+			<details class="app-nav-links" open>
+				<summary class="app-nav-menu-btn" aria-label="Open navigation">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path d="M3 5h14v2H3V5zm0 4h14v2H3V9zm0 4h14v2H3v-2z"/>
+					</svg>
+					<span>Menu</span>
+				</summary>
+				<div class="app-nav-links-inner">
 				<a href="/todo" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "todo",
 				}) }>Collab Todo</a>
@@ -48,20 +56,28 @@ templ Navbar(userEmail string, userRole string, active string, buildLabel string
 				<a href="/chat" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "chat",
 				}) }>Chat</a>
-				<a href="/review" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
-					"is-active": active == "review",
-				}) }>Review</a>
-				<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
-					"is-active": active == "room",
-				}) }>Room</a>
-				if userRole == "admin" {
-					<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
-						"is-active": active == "config",
-					}) }>Config</a>
-				}
-			</div>
+				<details class="app-nav-more">
+				<summary class="app-nav-link" aria-label="More destinations">More</summary>
+				<div class="app-nav-more-menu">
+					<a href="/review" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+						"is-active": active == "review",
+					}) }>Review</a>
+					<a href="/room" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+						"is-active": active == "room",
+					}) }>Room</a>
+					if userRole == "admin" {
+						<a href="/config" data-cuelume-hover="tick" data-cuelume-press="toggle" class={ templ.Classes("app-nav-link", map[string]bool{
+							"is-active": active == "config",
+						}) }>Config</a>
+					}
+				</div>
+				</details>
+				</div>
+			</details>
 		</div>
 		<div class="app-nav-end">
+			@CommandPalette(userRole)
+			@skins.SkinSelector(skinName)
 			<button
 				type="button"
 				class="app-theme-toggle theme-toggle"

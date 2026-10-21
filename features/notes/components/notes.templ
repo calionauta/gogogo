@@ -5,6 +5,7 @@ import "strconv"
 import "github.com/calionauta/gogogo/features/authviews"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
+import "github.com/calionauta/gogogo/web/skins"
 
 // NoteMeta is one row of the shared notes index, and the identity the note
 // page renders.
@@ -30,21 +31,18 @@ const (
 )
 
 // NotesIndex lists every shared note with a button to start a new one.
-templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string) {
+templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Collab notes — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit, skinName)
 			<main class="p-4 max-w-2xl mx-auto" data-signals={ notesSignals }>
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Shared notes</h1>
@@ -73,7 +71,11 @@ templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel str
 templ NotesListFragment(notes []NoteMeta) {
 	<div id="notes-list">
 		if len(notes) == 0 {
-			<p class="text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
+			<div class="card">
+				<div class="card-body items-center py-12 text-center">
+					<p class="text-sm text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
+				</div>
+			</div>
 		} else {
 			<ul class="menu bg-base-200 rounded-box w-full">
 				for _, n := range notes {
@@ -155,24 +157,21 @@ templ deleteNoteModal() {
 // peers' resolved text unless the textarea is focused (no caret stealing).
 // meta carries the doc id plus who started it, so the page and the index
 // read the same row instead of threading three loose strings.
-templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev uint64, buildLabel string, buildCommit string) {
+templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev uint64, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Collab note — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
 			<script defer src="/static/throttle.js"></script>
 			<script defer src="/static/notes/notes.js"></script>
 		</head>
 		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit, skinName)
 			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ meta.DocID } data-rev={ strconv.FormatUint(rev, 10) }>
 				<h1 class="sr-only">Shared note</h1>
 				<div class="flex items-center justify-between mb-2">

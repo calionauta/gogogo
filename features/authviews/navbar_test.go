@@ -21,7 +21,7 @@ import (
 // consume the 303 usefully).
 func TestNavbarLogoutActuallyPosts(t *testing.T) {
 	var buf bytes.Buffer
-	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee")
+	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee", "daisyui")
 	if err := nb.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render navbar: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestNavbarGatesOperatorSurfacesToAdmin(t *testing.T) {
 	t.Parallel()
 	render := func(role string) string {
 		var buf bytes.Buffer
-		nb := authviews.Navbar("demo1@demo.app", role, "todo", "dev", "c0ffee")
+		nb := authviews.Navbar("demo1@demo.app", role, "todo", "dev", "c0ffee", "daisyui")
 		if err := nb.Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render navbar(%q): %v", role, err)
 		}

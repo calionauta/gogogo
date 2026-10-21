@@ -122,7 +122,7 @@ dependencies and are left alone.
 | **Zero-config database and auth** | Turso Database (SQLite-compatible, sqlc) + owned argon2id sessions | Zero-config Turso, cookie sessions, file-local storage — no separate service |
 | **Access control without a service** | [Casbin](https://casbin.org) + `users.role` | Roles on the user row, policy in one model, enforced before the handler; embedded policy by default, DB-backed when evolving ([rbac](docs/rbac.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
-| **Two UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) | Both compiled into one binary, switchable at runtime |
+| **Three UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) + shadcn | All compiled into one binary, switchable per process or per request |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
 | **Room ownership without races** | [GoAkt](https://github.com/Tochemey/goakt) | One grain per room: heartbeat roster plus exactly-one presenter lock, supervised |

@@ -6,6 +6,7 @@ import (
 	"github.com/calionauta/gogogo/features/chat/store"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // ChatIndex renders the conversation page: composer form, live message
@@ -13,23 +14,20 @@ import (
 // the store (msgs), so a reload shows the same conversation the live
 // patches built. Sounds ride the shared assets (global press cue + toast
 // observer) — zero custom sound JS by design.
-templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView) {
+templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}))... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Chat — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(true)
 		</head>
 		<body>
-			@authviews.Navbar(email, userRole, "chat", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "chat", buildLabel, buildCommit, skinName)
 			@components.OfflineBanner(true)
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">

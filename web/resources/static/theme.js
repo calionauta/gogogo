@@ -75,6 +75,24 @@
   }
 })();
 
+// Mobile navigation: the link row is one <details> so the same links serve
+// desktop (open row) and mobile (collapsed menu). Markup ships `open` so a
+// no-JS desktop still shows the row; this keeps it closed on narrow screens
+// and re-opens it when the viewport grows. No Datastar state involved, so a
+// morph cannot fight it.
+(function () {
+  var nav = document.querySelector('.app-nav-links');
+  if (!nav || !window.matchMedia) return;
+  var mq = window.matchMedia('(max-width: 760px)');
+  function sync() {
+    if (mq.matches) nav.removeAttribute('open');
+    else nav.setAttribute('open', '');
+  }
+  sync();
+  if (mq.addEventListener) mq.addEventListener('change', sync);
+  else if (mq.addListener) mq.addListener(sync);
+})();
+
 // Reinitialize Basecoat components after Datastar DOM morphs (debounced)
 (function() {
   var _bcTimer = null;

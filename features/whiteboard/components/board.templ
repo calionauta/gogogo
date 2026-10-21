@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // BoardMeta is a list-row summary of a saved whiteboard.
@@ -45,25 +46,22 @@ const (
 // live-update wiring so the list updates when another user creates a new
 // board. Follows the same pattern as the todo feature's RealtimeRecords:
 // a hidden @get button the stream and the visibility refetch click.
-templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
+templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Collab whiteboards — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-				<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(offlineSync)
 		</head>
 		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit, skinName)
 			@components.OfflineBanner(offlineSync)
-			<main class="container mx-auto p-4" data-signals={ boardSignals }>
+			<main class="mx-auto max-w-4xl p-4" data-signals={ boardSignals }>
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Collab whiteboards</h1>
 					<a class="btn btn-primary" data-variant="primary" href="/whiteboard/new">New whiteboard</a>
@@ -94,7 +92,11 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 templ WhiteboardListFragment(boards []BoardMeta) {
 	<div id="whiteboard-list" class="grid gap-2">
 		if len(boards) == 0 {
-			<p class="text-base-content/60">No whiteboards yet. Create one to start drawing together.</p>
+			<div class="card">
+				<div class="card-body items-center py-12 text-center">
+					<p class="text-sm text-base-content/60">No whiteboards yet. Create one to start drawing together.</p>
+				</div>
+			</div>
 		}
 		for _, b := range boards {
 			<div class="card card-bordered bg-base-200 p-4 flex flex-row items-center gap-2 hover:bg-base-300">
@@ -181,23 +183,20 @@ templ deleteBoardModal() {
 // Board renders the interactive canvas for one whiteboard doc. The
 // client connects to the SSE stream and listens for shape + presence
 // events; drawing POSTs Loro updates back to the server.
-templ Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
+templ Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Collab whiteboard { meta.DocID } — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-				<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
 			<script src="/static/wb/rough.min.js"></script>
 		</head>
 		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit, skinName)
 			@components.OfflineBanner(offlineSync)
 			@components.SessionBanner(email != "")
 			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ meta.DocID }>
