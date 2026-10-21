@@ -23,3 +23,13 @@ func TestErrorTextPrefixOnce(t *testing.T) {
 		t.Error("prefix doubled")
 	}
 }
+
+// TestErrorTextEmptyIsSilent covers the interaction between the prefix rule and
+// a verdict-only exit. --check-update's code 3 prints its answer on stdout and
+// carries no message, so the entrypoint must print nothing at all: a bare
+// "gogogo: " reads like a second failure the command never reported.
+func TestErrorTextEmptyIsSilent(t *testing.T) {
+	if got := ErrorText(&ExitError{code: 3}); got != "" {
+		t.Errorf("a verdict-only exit must produce no stderr line, got %q", got)
+	}
+}

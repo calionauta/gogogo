@@ -19,6 +19,7 @@
 - Architecture details: docs/architecture.md, docs/architecture-decision.md
 - Config and env vars: docs/configuration.md
 - Local CI and gates: docs/local-ci.md
+- Keeping a scaffolded project current (base marker, --check-update, migrate): docs/upgrading.md
 - Realtime, queue, offline: docs/async-layers.md
 - Auth and sessions: internal/auth/ (owned argon2id sessions), features/authviews/ (login UI)
 - AI credits and billing: docs/llm-and-credits.md, features/credits/

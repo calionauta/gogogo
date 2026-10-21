@@ -44,6 +44,17 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
 
+  Is this current? Two read-only checks — the tool, and the project:
+
+    go run ./cmd/gogogo --check-update --dir ./my-app
+    go run ./cmd/gogogo migrate --dir ./my-app
+
+  --check-update compares the binary AND the revision your AGENTS.md records
+  (scaffolded-from:) against the latest release; exit 3 means an update
+  exists. migrate lists every release between that base and latest, and the
+  gates that prove a migrated tree conforms. Neither one changes anything and
+  neither runs on its own: no background check, no nag.
+
   Strategy: empty --need returns the full map (presets + every
   capability); a need that matches nothing prints the preset names to
   retry with — or decide straight from the capabilities table.
@@ -81,5 +92,6 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   {plan, receipt{units[{id, dirsRemoved, filesRemoved,
   stripsApplied, stripsMissed}]}, buildOk, buildError,
   next{dir, dev, app, todo, login, admin, workflows}}.
-  Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed.`)
+  Exit codes: 0 ok/plan-only, 1 usage or apply error, 2 proof build failed,
+  3 an update exists (--check-update only).`)
 }

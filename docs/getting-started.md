@@ -160,6 +160,20 @@ will not guess. Do instead:
 3. Copy the capability's dirs (the registry lists owned paths per
    capability) and wire the handler in `BootChi` + the routes in `buildChiMux`.
 
+## 0d. Keeping it current
+
+The scaffolded `AGENTS.md` records the template revision the project came from,
+which is what makes "am I behind?" answerable later:
+
+```bash
+gogogo --check-update --dir ./my-app   # tool + project vs the latest release
+gogogo migrate --dir ./my-app          # what changed since that base
+```
+
+Both are read-only, opt-in, and never run on their own. `migrate` prints a list
+to apply deliberately plus the gates that prove the result — the template never
+merges into your tree. Details: [Upgrading](upgrading.md).
+
 ## 1. Manual fallback: create your repository
 
 ```bash
@@ -379,4 +393,5 @@ Full env-var reference in [Configuration](configuration.md).
 
 - [Features](features.md) — what you get out of the box, and how to remove it.
 - [Scope taxonomy](scope-taxonomy.md) — the rule for deciding what is safe to delete.
+- [Upgrading](upgrading.md) — when upstream moves and you want the diff, not a merge.
 - [Deploy to your own box](deploy.md) — when you're ready to ship.
