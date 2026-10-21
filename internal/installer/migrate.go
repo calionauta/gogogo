@@ -22,6 +22,7 @@ package installer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -58,6 +59,22 @@ type migrationRelease struct {
 	Entries []string `json:"entries"`
 }
 
+// migrationNotesIndex is the curated index of release notes for migrations that
+// change structure rather than add a feature. Read at the tag being migrated to.
+const migrationNotesIndex = "docs/migrations/index.md"
+
+// errRawNotFound marks a raw fetch that answered 404, which for an optional
+// file is an answer rather than a failure.
+var errRawNotFound = errors.New("not found")
+
+// migrationNote points a migrating project at the curated note for a release
+// whose changes a changelog bullet cannot carry.
+type migrationNote struct {
+	Version string `json:"version"`
+	Path    string `json:"path"`
+	Summary string `json:"summary,omitempty"`
+}
+
 // migrationReport is the whole answer, in the shape an agent can act on.
 type migrationReport struct {
 	From     string             `json:"from"`
@@ -65,6 +82,7 @@ type migrationReport struct {
 	Repo     string             `json:"repo"`
 	Source   string             `json:"source"`
 	Releases []migrationRelease `json:"releases"`
+	Notes    []migrationNote    `json:"notes,omitempty"`
 	Gates    []string           `json:"gates"`
 	Note     string             `json:"note,omitempty"`
 }
@@ -111,6 +129,69 @@ func parseChangelog(text string) []migrationRelease {
 	return out
 }
 
+// notesIndexRE reads one line of the curated index: "- v0.44.0 — summary". The
+// version may carry a v, the separator is optional, and everything after it is
+// the summary a human wrote.
+var notesIndexRE = regexp.MustCompile(`^[-*][ \t]+v?(\d+\.\d+\.\d+)[ \t]*[-—–:]?[ \t]*(.*)$`)
+
+// parseNotesIndex builds version -> note from the index. An index that lists
+// nothing yields an empty map, which is the normal state: only releases that
+// change structure get a note.
+func parseNotesIndex(text string) map[string]migrationNote {
+	out := make(map[string]migrationNote)
+	for line := range strings.SplitSeq(text, "\n") {
+		m := notesIndexRE.FindStringSubmatch(strings.TrimRight(line, "\r"))
+		if m == nil {
+			continue
+		}
+		out[m[1]] = migrationNote{
+			Version: m[1],
+			Path:    "docs/migrations/v" + m[1] + ".md",
+			Summary: strings.TrimSpace(m[2]),
+		}
+	}
+	return out
+}
+
+// notesInRange attaches the curated notes that fall inside the range. The index
+// is optional, so a 404 is silence and an unreadable index becomes a sentence in
+// the report instead of a failure: the release list is still a true answer.
+func notesInRange(
+	ctx context.Context, repo, tag, localPath string, releases []migrationRelease,
+) ([]migrationNote, string) {
+	if len(releases) == 0 {
+		return nil, ""
+	}
+	text, err := readNotesIndex(ctx, repo, tag, localPath)
+	if err != nil {
+		if errors.Is(err, errRawNotFound) {
+			return nil, ""
+		}
+		return nil, "migration notes could not be read (" + err.Error() + ")"
+	}
+	index := parseNotesIndex(text)
+	notes := make([]migrationNote, 0, len(releases))
+	for _, r := range releases {
+		if n, ok := index[r.Version]; ok {
+			notes = append(notes, n)
+		}
+	}
+	return notes, ""
+}
+
+// readNotesIndex reads the index from --notes when given, else from the pinned
+// tag, so an offline migration can carry its own copy.
+func readNotesIndex(ctx context.Context, repo, tag, path string) (string, error) {
+	if path != "" {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		return string(raw), nil
+	}
+	return fetchRaw(ctx, repo, tag, migrationNotesIndex)
+}
+
 // migrationRange keeps the releases strictly newer than from and no newer
 // than to, newest first. An incomparable bound (a branch name, "dev") filters
 // nothing rather than silently dropping everything.
@@ -153,7 +234,14 @@ func tagRef(v string) string {
 
 // fetchChangelog reads the changelog at a pinned tag.
 func fetchChangelog(ctx context.Context, repo, tag string) (string, error) {
-	url := strings.TrimSuffix(rawBase, "/") + "/" + repo + "/" + tag + "/CHANGELOG.md"
+	return fetchRaw(ctx, repo, tag, "CHANGELOG.md")
+}
+
+// fetchRaw reads one file from the repo at a pinned tag. A 404 comes back
+// wrapped in errRawNotFound so callers can tell "this file does not exist" from
+// "the network or the ref is unusable".
+func fetchRaw(ctx context.Context, repo, tag, path string) (string, error) {
+	url := strings.TrimSuffix(rawBase, "/") + "/" + repo + "/" + tag + "/" + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
@@ -165,6 +253,9 @@ func fetchChangelog(ctx context.Context, repo, tag string) (string, error) {
 		return "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotFound {
+		return "", fmt.Errorf("%s: %w", url, errRawNotFound)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("%s: %s", url, resp.Status)
 	}
@@ -209,6 +300,7 @@ func runMigrate(ctx context.Context, args []string, stdout io.Writer) error {
 	dir := fs.String("dir", ".", "project checkout to read the base marker from")
 	format := fs.String("format", planFormatText, "output format: text|json")
 	changelogPath := fs.String("changelog", "", "read the changelog from this file instead of the network (offline)")
+	notesPath := fs.String("notes", "", "read the migration-notes index from this file instead of the network (offline)")
 	fs.SetOutput(stdout)
 	fs.Usage = func() {
 		fmt.Fprintln(stdout, `gogogo migrate — what changed between your project's base and latest.
@@ -218,7 +310,8 @@ There is no --apply; the template never merges into your tree.
 
   gogogo migrate --dir .
   gogogo migrate --from v0.50.0 --to v0.53.0 --format json
-  gogogo migrate --dir . --changelog ./CHANGELOG.md`)
+  gogogo migrate --dir . --changelog ./CHANGELOG.md
+  gogogo migrate --dir . --notes ./docs/migrations/index.md`)
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -253,6 +346,11 @@ There is no --apply; the template never merges into your tree.
 		Source:   source,
 		Releases: migrationRange(parseChangelog(text), base, target),
 		Gates:    migrationGates,
+	}
+	var notesDiag string
+	rep.Notes, notesDiag = notesInRange(ctx, repo, tagRef(target), *notesPath, rep.Releases)
+	if notesDiag != "" {
+		rep.Note = strings.TrimSpace(rep.Note + " " + notesDiag)
 	}
 	if len(rep.Releases) == 0 {
 		// Name the source: with --changelog pointing at a stale file, "you are
@@ -314,6 +412,19 @@ func printMigrationText(w io.Writer, rep migrationReport) {
 		for _, e := range r.Entries {
 			fmt.Fprintf(w, "  * %s\n", e)
 		}
+	}
+	if len(rep.Notes) > 0 {
+		fmt.Fprintln(w, "\nstructural notes in this range:")
+		for _, n := range rep.Notes {
+			line := "  " + tagRef(n.Version) + "  " + n.Path
+			if n.Summary != "" {
+				line += " — " + n.Summary
+			}
+			fmt.Fprintln(w, line)
+		}
+	}
+	if rep.Note != "" {
+		fmt.Fprintf(w, "\ngogogo: %s\n", rep.Note)
 	}
 	fmt.Fprintln(w, "\nprove the result with:")
 	for _, g := range rep.Gates {

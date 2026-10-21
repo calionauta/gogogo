@@ -80,6 +80,13 @@ The list comes from `CHANGELOG.md` at the **pinned tag**, which release-please
 already generates. A curated migration guide would be a second document to
 maintain and the first one to rot; the changelog is correct by construction.
 
+When the range contains a release that changed structure rather than adding a
+feature, the report names the curated note for it. `migrate` reads
+`docs/migrations/index.md` at the tag being migrated to and prints the notes that
+fall inside the range, which is the difference between a bullet that says a layer
+was replaced and the mapping that says what replaced it. `--notes PATH` reads the
+index from your own copy when you are offline.
+
 Flags: `--from TAG` overrides the recorded base, `--to TAG` the latest release,
 `--changelog PATH` a local file instead of the network (offline, or a clone you
 already have), `--format json` for the machine shape. Pass `--to` as well when
