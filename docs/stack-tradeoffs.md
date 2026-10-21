@@ -380,15 +380,34 @@ collaborative text. The AI demos follow the same rule: Ask AI proves constrained
 generation, chat proves persisted history, review proves a typed multi-role loop
 with a classifier judge.
 
-Rejected: a minimal core with nothing to copy (every scaffold would re-derive the
-same wiring, badly).
+Rejected: a minimal core with nothing to copy. "Patterns teach better than prose"
+is a claim about taste until it is tied to the machinery, and three specifics tie
+it:
 
-Cost: scaffold weight and trim burden — each demo is a unit the installer offers
-to strip (`whiteboard`, `goakt`, `landing`, `config-view`, `credits`, `sounds`,
-`skins`, `review`, `genui`, `dagnats`) or a documented manual removal (`todo`,
-`notes`), and every demo rots if its pattern drifts from the core. Revisit per
-demo: anything nobody copies in real scaffolds is a deletion candidate, not
-heritage.
+- **The demos are the conformance suite of the core seams.** When the framework
+  layer left, every contract its tests pinned was re-pinned on the slice that
+  replaced it — roughly twenty of them for `notes` alone. A bare core has no
+  contract to re-pin, so a change to a seam breaks wiring silently instead of
+  failing a named test.
+- **The installer works on wiring that only exists in the demos.** `trim`, `add`
+  and `new` edit markers in real files — the call lines in `cmd/web/main.go`, the
+  route lines in `internal/server/chi.go`, the navbar links, the `// SCOPE:`
+  annotations. With no demo in the tree, `--features none` has nothing to strip
+  and `gogogo add` has nothing to restore, so "ship everything, delete what you
+  do not want" loses its input.
+- **The gates walk units that exist.** `registry-conformance`, `check-scope` and
+  the RBAC coverage scan enumerate real units, so fewer units means less surface
+  under a gate — which is how a route ships unguarded.
+
+Cost: scaffold weight and trim burden, and the weight is measurable. Trimming the
+four demo features and their wiring removes 81 of the 726 code and docs files,
+about 15,000 lines. Trimming every unit the installer offers removes 218 of them,
+about 39,500 lines, near a third of the tree. Each demo is a unit the installer
+offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`, `credits`,
+`sounds`, `skins`, `review`, `genui`, `dagnats`) or a documented manual removal
+(`todo`, `notes`), and every demo rots if its pattern drifts from the core.
+Revisit per demo: anything nobody copies in real scaffolds is a deletion
+candidate, not heritage.
 
 ## The flat stack — the cost
 
