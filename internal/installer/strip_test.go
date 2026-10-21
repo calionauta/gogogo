@@ -23,9 +23,9 @@ func TestStripLandingBlock(t *testing.T) {
 	give := "import (\n" +
 		"\tlandinghandlers \"github.com/calionauta/gogogo/features/landing/handlers\"\n" +
 		")\n" +
-		"\tmux.Handle(\"/\", landingH.Routes())\n" +
+		"\tr.NotFound(landingH.Routes().ServeHTTP)\n" +
 		"\n" +
-		"\tmux.Handle(\"/config\", configH.Routes())\n"
+		"\tr.MountFeature(\"config\", configH.Routes())\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -38,13 +38,13 @@ func TestStripLandingBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _ := os.ReadFile(filepath.Join(routerDir, "chi.go"))
-	if strings.Contains(string(out), `mux.Handle("/", landingH.Routes())`) {
+	if strings.Contains(string(out), `r.NotFound(landingH.Routes().ServeHTTP)`) {
 		t.Errorf("landing route survived trim:\n%s", out)
 	}
 	if strings.Contains(string(out), `features/landing"`) {
 		t.Errorf("landing import survived trim:\n%s", out)
 	}
-	if !strings.Contains(string(out), `mux.Handle("/config", configH.Routes())`) {
+	if !strings.Contains(string(out), `r.MountFeature("config", configH.Routes())`) {
 		t.Errorf("config wiring was wrongly removed:\n%s", out)
 	}
 }

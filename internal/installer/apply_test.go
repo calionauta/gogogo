@@ -371,7 +371,7 @@ func TestCheckTreeReportsMissingMarker(t *testing.T) {
 	give := "import (\n" +
 		"\t\"github.com/calionauta/gogogo/features/landing\"\n" +
 		")\n" +
-		"\treturn mux\n"
+		"\treturn r\n"
 	if err := os.WriteFile(filepath.Join(routerDir, "chi.go"), []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +390,7 @@ func TestCheckTreeReportsMissingMarker(t *testing.T) {
 	}
 	found := false
 	for _, p := range landing.Problems {
-		if strings.Contains(p, `mux.Handle("/", landingH.Routes())`) {
+		if strings.Contains(p, `r.NotFound(landingH.Routes().ServeHTTP)`) {
 			found = true
 		}
 	}

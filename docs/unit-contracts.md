@@ -113,6 +113,7 @@ age-decrypted env loader
 flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
+- **Routes:** `/health`, `/sw.js`
 - **Store calls:** `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.

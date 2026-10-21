@@ -122,7 +122,9 @@ func TestRBACPolicyBaseline(t *testing.T) {
 	}{
 		{"anonymous", "/static/app.min.css", "GET", true},
 		{"anonymous", "/sw.js", "GET", true},
+		{"anonymous", "/sw.js", "HEAD", true},
 		{"anonymous", "/health", "GET", true},
+		{"anonymous", "/health", "HEAD", true},
 		{"anonymous", "/", "GET", true},
 		{"anonymous", "/login", "POST", true},
 		{"anonymous", "/api/auth/signup/credential", "POST", true},

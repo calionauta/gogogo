@@ -1,16 +1,18 @@
 # Architecture decision: flat stack over framework + abstraction
 
-Status: accepted (2026-10-11)
+Status: accepted (2026-10-11), routing revised 2026-10-21
 
 ## Decision
 
 gogogo targets an explicit, flat stack — one card per choice, details in
 the sections below:
 
-- 🧭 **Routing: standard-library mux.** `net/http`, one subtree per
-  capability (`internal/server/chi.go`). The `chi` names are historical —
-  feature sub-routers still use `go-chi/chi` for URL params, a leaf
-  dependency, not a framework.
+- 🧭 **Routing: chi, composed flat.** One `chi.Router` in
+  `internal/server/chi.go`; each capability's own router is flattened onto it
+  by `MountFeature` (`internal/server/route.go`). chi's zero-dependency,
+  stdlib-shaped API buys middleware chains, URL params and router-level 405s
+  without a framework — and the choice is ergonomic, not a performance claim
+  (see `stack-tradeoffs.md#routers-chi-for-ergonomics-not-speed`).
 - 🗄️ **Data: sqlc functions called directly.** Handlers call `dbgen.*`
   — no repository layer, no strategy switch — over Turso Database
   (SQLite-compatible, embedded).
@@ -74,7 +76,7 @@ pre-1.0 engine, and the PocketBase rejection are stated plainly in
 
 | Concern | Location |
 |---|---|
-| HTTP handlers (std mux composition, chi sub-routers) | `features/<name>/handlers/*.go` |
+| HTTP handlers (chi composition, per-feature routers) | `features/<name>/handlers/*.go` |
 | DB connection, pragmas, boot | `internal/db/db.go` |
 | Schema (the migrations ARE the schema) | `internal/dbschema/migrations/*.sql` |
 | sqlc query sources | `internal/db/queries/<domain>.sql` |

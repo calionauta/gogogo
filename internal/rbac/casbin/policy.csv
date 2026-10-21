@@ -41,8 +41,8 @@ p, admin, /*, .*
 # production (RBAC_ENABLED=true). The admin-only surface is /config (env
 # secrets view); everything else a login can reach, a user can reach.
 p, anonymous, /static/*, (GET|HEAD)
-p, anonymous, /sw.js, GET
-p, anonymous, /health, GET
+p, anonymous, /sw.js, (GET|HEAD)
+p, anonymous, /health, (GET|HEAD)
 # The SSE open-verification probe (web/resources/static/sse-open.js).
 # Public on purpose and by contract: it answers one boolean for an opaque
 # per-tab id and leaks nothing without one (see
@@ -92,8 +92,8 @@ p, user, /api/onboarding, .*
 p, user, /api/onboarding/*, .*
 p, user, /api/session/stream, GET
 p, user, /static/*, (GET|HEAD)
-p, user, /sw.js, GET
-p, user, /health, GET
+p, user, /sw.js, (GET|HEAD)
+p, user, /health, (GET|HEAD)
 p, user, /, GET
 p, user, /api/auth/*, .*
 p, viewer, /todo, .*
@@ -115,8 +115,8 @@ p, viewer, /notes/*, .*
 p, viewer, /api/notes/*, .*
 p, viewer, /api/session/stream, GET
 p, viewer, /static/*, (GET|HEAD)
-p, viewer, /sw.js, GET
-p, viewer, /health, GET
+p, viewer, /sw.js, (GET|HEAD)
+p, viewer, /health, (GET|HEAD)
 p, viewer, /, GET
 p, viewer, /api/auth/*, .*
 p, admin, /config, .*

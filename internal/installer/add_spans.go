@@ -69,10 +69,11 @@ func unitPathsPresent(root string, u trimUnit) bool {
 }
 
 // addManualWiring lists the trim edits `add` cannot reverse mechanically,
-// one repo-relative path + dropped line each. Restorable today: mux.Handle
-// call lines in chi.go (reinserted at the mux anchor), import lines
-// anywhere (merged into import blocks only when used), strips on anchored
-// paths, main/desktop strips, and go.mod drops (tidy re-adds). Everything
+// one repo-relative path + dropped line each. Restorable today: route call
+// lines in chi.go (MountFeature / MountSubtree / MountPath / NotFound,
+// reinserted above the router return), import lines anywhere (merged into
+// import blocks only when used), strips on anchored paths, main/desktop
+// strips, and go.mod drops (tidy re-adds). Everything
 // else — constructions, call args, signature params, test bodies, one-way
 // replaces, strips on unanchored paths — needs a human (or an LLM with the
 // exact lines below, which is why they are printed, not summarized).
@@ -90,7 +91,7 @@ func addManualWiring(u trimUnit) []string {
 	var out []string
 	for _, ed := range u.extraDrops {
 		for _, sub := range ed.substrs {
-			if ed.path == chiGoFile && strings.HasPrefix(strings.TrimSpace(sub), "mux.Handle") {
+			if ed.path == chiGoFile && isRestorableRouteCall(strings.TrimSpace(sub)) {
 				continue
 			}
 			if strings.HasSuffix(sub, `"`) {

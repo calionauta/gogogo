@@ -280,7 +280,8 @@ Every feature follows the same pattern — use the Todo feature as the reference
 implementation.
 
 1. Create `features/<name>/` with its HTTP handlers + Templ components.
-2. Wire it in `internal/server/chi.go` → `Init()` with a single function call.
+2. Wire it in `internal/server/chi.go` — build the handler in `BootChi` and
+   pass its router to one `MountFeature` call in `buildChiMux`.
 3. Use **goqite** for async work, the **SSE Hub** for user-facing feedback
    (toasts, progress), and **Datastar** for the reactive frontend.
 4. Add a `SCOPE:` annotation so agents know what they can remove —

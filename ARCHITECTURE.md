@@ -9,7 +9,7 @@
 
 - **Unified build.** One `go build ./cmd/web` compiles everything — no build tags. The database drivers (Turso `turso`, ncruces `sqlite3`) are always compiled in, so nothing is gated behind a tag. Opt out at runtime with env vars (`NATS_ENABLED=false`, `DAGNATS_ENABLED=false`).
 - **Features in `features/`**, infrastructure in `internal/`. Features depend on infra, never the reverse.
-- **Wiring in `internal/server/chi.go` → `BootChi` + `buildChiMux`**. Every feature is mounted by one composition function.
+- **Wiring in `internal/server/chi.go` → `BootChi` + `buildChiMux`**. Every feature exposes `Routes()`; `buildChiMux` flattens each capability's router onto one chi router with a single `MountFeature` call.
 - **Startup order in `cmd/web/main.go`** (see diagram below).
 
 ---
@@ -193,7 +193,7 @@ The same UI is rendered through one of three pluggable skins, compiled into the 
 main.go
   ├─ config.Load()              ← 🔴 Core: reads env vars + age secrets
   ├─ server composition (BootChi) ← 🔴 Core: Turso + queue + mux
-  │   └─ buildChiMux(...)         # one subtree per capability; landing `/` is the catch-all
+  │   └─ buildChiMux(...)         # flattens one router per capability; landing answers not-found
   │       ├─ static files         🔴 Core
   │       ├─ auth routes          🟢 FEATURE UI + 🔴 CORE middleware
   │       ├─ todo routes          🟢 FEATURE
@@ -274,6 +274,7 @@ web/
 
 ### Routing notes
 
-- **`GET /api` and `GET /api/` are served in both forms** (registered with and without the trailing slash on the stdlib mux). A trailing slash would otherwise 404 against an exact subtree pattern; serving both keeps every client working.
-- **Static assets mount per-subtree** (`/static/`, `/static/wb/`, `/static/notes/` — no wildcards). Longest match wins, so keep feature assets on their own subtree; using exact routes prevents the next maintainer's pattern from accidentally serving `web/resources/static/app.min.css.map` from the wrong origin.
-- **Page-style handlers mount their subtree in `buildChiMux`** (todo, whiteboard, landing, config, SkinSelector); the landing `/` is the catch-all. Register at the composition site — there is no nested-hook mechanism, so a route registered anywhere else never fires.
+- **One router, flattened feature tables.** Each capability exposes `Routes() chi.Router` with absolute patterns; `MountFeature` (`internal/server/route.go`) flattens it onto the root. A duplicate method+pattern panics at boot naming both owners, and a known path with an unknown method answers 405.
+- **`MountSubtree` keeps the full request path** (`/api/auth`, `/static`, `/static/wb`, `/static/notes`): those handlers trim their own prefix, so chi must not rewrite it.
+- **Feature assets stay on their own subtree** (`/static/wb/`, `/static/notes/`): each feature embeds and serves its own bundle, and the core `/static` mount never carries it.
+- **The landing router is the not-found handler.** Register a page route inside its feature's `Routes()`, never at the composition site — a route mounted anywhere else is invisible to the duplicate guard and the route inventory.

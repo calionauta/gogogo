@@ -360,4 +360,12 @@ func TestBuildChiMux(t *testing.T) {
 	if creditsRec.Code != http.StatusUnauthorized {
 		t.Fatalf("mux anon /api/credits status = %d, want 401 JSON", creditsRec.Code)
 	}
+	// HEAD rides GET on the two routes a probe or cache may HEAD.
+	for _, target := range []string{"/health", "/sw.js"} {
+		headRec := httptest.NewRecorder()
+		mux.ServeHTTP(headRec, httptest.NewRequestWithContext(context.Background(), http.MethodHead, target, nil))
+		if headRec.Code != http.StatusOK {
+			t.Errorf("mux HEAD %s status = %d, want 200", target, headRec.Code)
+		}
+	}
 }

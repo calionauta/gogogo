@@ -49,6 +49,20 @@ func addRouterCalls(t *treeFS, root string, u trimUnit, rc *AddReceipt) error {
 	return t.WriteFile(p, []byte(strings.Join(lines, "\n")), scaffoldFileMode)
 }
 
+// isRestorableRouteCall reports whether a chi.go drop line is re-created by
+// addRouterCalls (a route registration at the composition root), so the add
+// path does not also report it as manual wiring. Both shapes count: the
+// current MountFeature/MountSubtree calls, and the mux.Handle lines a tree
+// scaffolded before the chi root still carries.
+func isRestorableRouteCall(sub string) bool {
+	return strings.HasPrefix(sub, "mux.Handle") ||
+		strings.Contains(sub, ".MountFeature(") ||
+		strings.Contains(sub, ".MountSubtree(") ||
+		strings.Contains(sub, ".MountPath(") ||
+		strings.HasPrefix(sub, "r.NotFound(") ||
+		strings.HasPrefix(sub, "r.Get(")
+}
+
 // routerCallLines are the exact Init call lines a unit owns: explicit
 // routerCalls plus router.go line-drops that are calls, not imports.
 // Import-lookalikes (ending in a quote) are restored by addImports instead.

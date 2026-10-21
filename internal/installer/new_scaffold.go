@@ -55,7 +55,7 @@ func editChiGo(src, name, module string) (string, error) {
 		"\t"+alias+" \""+module+"/features/"+name+"/handlers\"\n"); err != nil {
 		return "", err
 	}
-	if src, err = insertBefore(src, chiBootAnchor, newMountBlock(name)); err != nil {
+	if src, err = insertAfter(src, chiBootAnchor, "\n"+newMountBlock(name)); err != nil {
 		return "", err
 	}
 	if perr := validateGo("internal/server/chi.go", src); perr != nil {
@@ -64,20 +64,21 @@ func editChiGo(src, name, module string) (string, error) {
 	return src, nil
 }
 
-// chiBootAnchor is the one fixed anchor `gogogo new` relies on: it is core in
-// every trimmed tree (the SSE Hub), and it sits after buildChiMux, where BootChi
-// still holds the mux and the auth handle. The import anchor is derived from
-// the target module path instead (see editChiGo).
-const chiBootAnchor = "\tmux.HandleFunc(\"/api/stream/status\", StreamStatusHandler(hub))"
+// chiBootAnchor is the one fixed anchor `gogogo new` relies on. It is the
+// console mount line, which is core in every trimmed tree and sits inside
+// BootChi, where the composition router and the auth handle are in scope. The
+// import anchor is derived from the target module path instead (see
+// editChiGo).
+const chiBootAnchor = "\tmountConsoleProxy(mux, a, cfg)"
 
-// newMountBlock is the construction plus the three mounts a scaffolded
-// feature needs: the page, its subtree, and the JSON API prefix.
+// newMountBlock is the construction plus the one mount a scaffolded feature
+// needs: MountFeature flattens the feature's own router (page, subtree and
+// JSON API all declare their absolute paths there), so the root never
+// re-states a URL.
 func newMountBlock(name string) string {
 	return "\t// " + name + ": scaffolded by `gogogo new`; delete these lines to unmount.\n" +
 		"\t" + name + "H := " + name + "handlers.NewHandler(a)\n" +
-		"\tmux.Handle(\"/" + name + "\", " + name + "H.Routes())\n" +
-		"\tmux.Handle(\"/" + name + "/\", " + name + "H.Routes())\n" +
-		"\tmux.Handle(\"/api/" + name + "/\", " + name + "H.Routes())\n"
+		"\tmux.MountFeature(\"" + name + "\", " + name + "H.Routes())\n"
 }
 
 // editRegistry appends one feature unit to capabilities.All. The entry is
@@ -133,15 +134,6 @@ func insertAfter(src, anchor, add string) (string, error) {
 	return src[:at] + add + src[at:], nil
 }
 
-// insertBefore inserts add before the first occurrence of anchor.
-func insertBefore(src, anchor, add string) (string, error) {
-	idx := strings.Index(src, anchor)
-	if idx < 0 {
-		return "", anchorError(anchor)
-	}
-	return src[:idx] + add + src[idx:], nil
-}
-
 // anchorError names the missing anchor instead of leaving a bare "not found".
 func anchorError(anchor string) error {
 	first, _, _ := strings.Cut(strings.TrimSpace(anchor), "\n")
@@ -164,9 +156,9 @@ func validateGo(rel, src string) error {
 const newHandlerTemplate = `// SCOPE:feature — {{name}} feature (scaffolded by ` + "`gogogo new`" + `)
 //
 // Two routes: an auth-gated page and a JSON probe. Wiring lives in
-// internal/server/chi.go (import, parameter, mount) and the RBAC rows in
-// internal/rbac/casbin/policy.csv. Grow the feature by adding methods to
-// Routes and a ` + "`p, user, <path>, .*`" + ` row for each new path.
+// internal/server/chi.go (import, construction, one MountFeature call) and the
+// RBAC rows in internal/rbac/casbin/policy.csv. Grow the feature by adding
+// methods to Routes and a ` + "`p, user, <path>, .*`" + ` row for each new path.
 package handlers
 
 import (

@@ -206,7 +206,7 @@ const (
 )
 
 // chiMuxAnchor ends buildChiMux; capability route lines land above it.
-const chiMuxAnchor = "\treturn mux"
+const chiMuxAnchor = "\treturn r"
 
 // Skin import suffixes dropped from handler dispatch + blank imports when
 // skins-extra is trimmed.
@@ -274,8 +274,7 @@ var baseTrimUnits = []trimUnit{
 					// feature's line, and add restores them.
 					"roomH *roomhandlers.Handler,",
 					"roomH,",
-					`mux.Handle("/room", roomH.Routes())`,
-					`mux.Handle("/room/", roomH.Routes())`,
+					`r.MountFeature("room", roomH.Routes())`,
 					`appgoakt "github.com/calionauta/gogogo/internal/goakt"`,
 					`roomhandlers "github.com/calionauta/gogogo/features/room/handlers"`,
 				},
@@ -323,12 +322,10 @@ var baseTrimUnits = []trimUnit{
 				},
 			},
 			{
-				// The shutdown hook block: dropping its `if` line alone
-				// would leave the closing brace behind and break parsing,
-				// so it goes as a block. Same for the two helpers, which
-				// name deleted types in their signatures — dead code that
-				// does not compile still breaks the build. And the mux
-				// mount block, for the same brace reason.
+				// The shutdown hook block and the two actor helpers:
+				// dropping an `if` line alone would leave the closing brace
+				// behind, so each goes as a block. The feature mount itself
+				// is a single line in extraDrops.
 				path: chiGoFile,
 				rules: []stripRule{
 					{
@@ -345,11 +342,6 @@ var baseTrimUnits = []trimUnit{
 						startMarker:       "// stopRoomActor is the shutdown hook",
 						endIsClosingBrace: true,
 						endBrace:          "}",
-					},
-					{
-						startMarker:       "\tif roomH != nil {",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
 					},
 				},
 			},

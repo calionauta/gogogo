@@ -315,21 +315,25 @@ ceiling, Workers-only), Supabase Postgres (the graduation destination, now with
 Turso inside it). None of them change the default: the app runs whole on one box
 with zero cloud dependencies until the ladder above says otherwise.
 
-## Routers: the stdlib, and that ends the debate
+## Routers: chi for ergonomics, not speed
 
-The stack routes on a thin composition over Go's `net/http.ServeMux`. The famous
-alternatives beat it on microbenchmarks:
+The stack composes one `chi.Router` and flattens each capability's own router
+onto it (`MountFeature` in `internal/server/route.go`). chi is the choice for
+its ergonomics — a stdlib-shaped API with a middleware chain, URL params and a
+router-level 405 — and for its zero-dependency footprint.
+
+The famous alternatives beat it on microbenchmarks:
 
 - **Gin** (89k stars) — zero-alloc radix, custom context, 12 deps.
 - **Echo** (33k stars) — JSON/p99 balance, 8 deps.
 - **Chi** (22k stars) — zero deps, stdlib-pure; the one Supabase's own auth
   service uses.
 
-None of it matters here: routing is microseconds against milliseconds of SQLite,
-and the SQLite wisdom holds exactly — ignore artificial benchmarks, apps
-bottleneck on DB operations. There is no router upgrade that moves our numbers;
-the day routing shows up in a profile, the database has already been the problem
-for months.
+None of that is why chi is here. Routing is microseconds against milliseconds
+of SQLite, and the SQLite wisdom holds exactly — ignore artificial benchmarks,
+apps bottleneck on DB operations. A router choice is an ergonomics decision;
+there is no router upgrade that moves our numbers. The day routing shows up in
+a profile, the database has already been the problem for months.
 
 ## Datastar (and not htmx, and not a JS framework)
 

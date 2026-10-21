@@ -30,25 +30,21 @@ var featureTrimUnits = []trimUnit{
 					// replaces below, so both sides agree.
 					"wbhandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
 					"noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),",
-					`mux.Handle("/whiteboard", wbH.Routes())`,
-					`mux.Handle("/whiteboard/", wbH.Routes())`,
-					`mux.Handle("/api/whiteboard", wbH.Routes())`,
-					`mux.Handle("/api/whiteboard/", wbH.Routes())`,
-					`mux.Handle("/api/whiteboards/", wbH.Routes())`,
-					`mux.Handle("/notes", notesH.Routes())`,
-					`mux.Handle("/notes/", notesH.Routes())`,
-					`mux.Handle("/api/notes", notesH.Routes())`,
-					`mux.Handle("/api/notes/", notesH.Routes())`,
-					// The feature's own static subtree (whiteboard.js, notes.js):
-					// the core /static/ mount never served them, so each feature
-					// owns its mount line and its import below.
-					`mux.Handle("/static/wb/", resources.AssetHandler(whiteboard.StaticFS(), "/static/wb"))`,
-					`mux.Handle("/static/notes/", resources.AssetHandler(notes.StaticFS(), "/static/notes"))`,
+					// One mount line for the feature's own router (see
+					// MountFeature), plus the feature's own static subtree: the
+					// core /static/ mount never serves whiteboard.js or notes.js,
+					// so each feature owns its line and its import. The comment
+					// above the two asset mounts goes with them, or the trim
+					// leaves prose about absent code.
+					`r.MountFeature("whiteboard", wbH.Routes())`,
+					`r.MountFeature("notes", notesH.Routes())`,
+					`MountSubtree(r, whiteboard.AssetPath, whiteboard.StaticHandler())`,
+					`MountSubtree(r, notes.AssetPath, notes.StaticHandler())`,
+					"// Features that embed their OWN assets (whiteboard.js + rough.min.js,",
+					"// notes.js) register their subtree here; the core /static/ mount never",
+					"// serves them. A feature trim drops its line and its import.",
 					`	"github.com/calionauta/gogogo/features/whiteboard"`,
 					`	"github.com/calionauta/gogogo/features/notes"`,
-					// The feature mounts above are the only use of the core
-					// resources package in chi.go; without them the import goes.
-					`	"github.com/calionauta/gogogo/web/resources"`,
 					`	wbhandlers "github.com/calionauta/gogogo/features/whiteboard/handlers"`,
 					`	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"`,
 					`	"github.com/calionauta/gogogo/internal/collab"`,
@@ -165,7 +161,7 @@ var featureTrimUnits = []trimUnit{
 					"landinghandlers.NewHandler(cfg, a),",
 					"landingH *landinghandlers.Handler,",
 					`landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"`,
-					`mux.Handle("/", landingH.Routes())`,
+					`r.NotFound(landingH.Routes().ServeHTTP)`,
 				},
 			},
 			{
@@ -212,8 +208,7 @@ var featureTrimUnits = []trimUnit{
 					"confighandlers.NewHandler(cfg, a, queries),",
 					"configH *confighandlers.Handler,",
 					`confighandlers "github.com/calionauta/gogogo/features/config/handlers"`,
-					`mux.Handle("/config", configH.Routes())`,
-					`mux.Handle("/config/", configH.Routes())`,
+					`r.MountFeature("config", configH.Routes())`,
 				},
 			},
 			{
@@ -261,10 +256,7 @@ var featureTrimUnits = []trimUnit{
 			{
 				path: chiGoFile,
 				substrs: []string{
-					`mux.Handle("/api/credits", creditsH.Routes())`,
-					`mux.Handle("/api/credits/", creditsH.Routes())`,
-					`mux.Handle("/api/ai/", creditsH.Routes())`,
-					`mux.Handle("/api/byok/", creditsH.Routes())`,
+					`r.MountFeature("credits", creditsH.Routes())`,
 					`"github.com/calionauta/gogogo/features/credits"`,
 					`creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"`,
 					"creditsH *creditshandlers.Handler,",
@@ -367,9 +359,7 @@ var featureTrimUnits = []trimUnit{
 					// One argument per line: each drop removes exactly
 					// its feature's line, and add restores them.
 					"reviewH,",
-					`mux.Handle("/review", reviewH.Routes())`,
-					`mux.Handle("/review/", reviewH.Routes())`,
-					`mux.Handle("/api/review/", reviewH.Routes())`,
+					`r.MountFeature("review", reviewH.Routes())`,
 					reviewImportSuffix,
 					"reviewH *reviewhandlers.Handler,",
 				},
