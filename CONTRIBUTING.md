@@ -96,6 +96,10 @@ will be asked for one or closed. This keeps the queue reviewable.
      maintainer sign-off; everything else you decide.
    - Project footguns live in `rules/rules.go` (ruleguard) — if your change
      trips one, fix the code, not the rule.
+   - Docs placement has one rule: an evaluation, comparison or tradeoff goes to
+     [docs/research/](docs/research/index.md) (add the page to that hub and to
+     the site MANIFEST, then `make docs-index`); the current design and what it
+     replaced stay in the page that documents it.
 4. **Verify before asking for review.** Run `make signoff` (full local gate =
    CI: templ, datastar-lint, css-check, scope, lint, race tests, build, smoke).
    For small changes during iteration, `make ci-local-fast` scopes lint + tests

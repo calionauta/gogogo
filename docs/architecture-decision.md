@@ -1,6 +1,7 @@
 # Architecture decision: flat stack over framework + abstraction
 
-Status: accepted (2026-10-11), routing revised 2026-10-21
+Status: accepted (2026-10-11), routing revised 2026-10-21. How this record is
+written and stamped: [research hub](research/index.md#decision-records-and-status).
 
 ## Decision
 
@@ -134,18 +135,10 @@ browser sessions and the SSE/realtime auth path are unchanged. No secrets, no
 config structs, no auth dependencies — sessions are random tokens, so there is
 nothing to rotate.
 
-**The path not taken: limen** (`github.com/thecodearcher/limen`). Evaluated
-honestly in 2026-10: a composable auth library (sessions, cookies, CSRF, rate
-limiting, plus magic-link/OAuth/2FA plugins) that fits Turso via its
-database/sql adapter. Rejected for template core because it is pre-1.0 across
-three version-skewed modules, owns a second schema (five tables with its own
-columns and INTEGER ids, against the template's TEXT convention), and its
-breadth (magic link, OTP, social) needs external infrastructure anyway — an
-email sender, TOTP enrollment, OAuth client IDs — that no library eliminates.
-Owning the commodity part (password + session + cookie) costs less long-term
-than tracking a young library's surface across every generated project. If an
-app outgrows password auth, limen remains the documented upgrade plugin for
-exactly that moment.
+**The path not taken: limen** (`github.com/thecodearcher/limen`), a composable
+pre-1.0 auth library, rejected on schema ownership and version skew. The
+evaluation, the three costs and the trigger that flips the decision live in
+[Auth libraries](research/auth-libraries-2026-10.md).
 
 ## Auth plugins (owned): magic link, TOTP, OAuth
 
