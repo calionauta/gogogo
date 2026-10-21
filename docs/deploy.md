@@ -176,6 +176,7 @@ no JS runtime, and no CDN.
 ```
 src/css/input.css          →  tailwindcss v4 CLI  →  web/resources/static/app.min.css        (DaisyUI)
 src/css/basecoat-input.css →  tailwindcss v4 CLI  →  web/resources/static/basecoat.min.css  (Basecoat)
+src/css/shadcn-input.css   →  tailwindcss v4 CLI  →  web/resources/static/shadcn.min.css    (shadcn)
                                                               │
                                                         //go:embed in the Go binary
 ```

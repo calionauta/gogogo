@@ -784,15 +784,16 @@ try {
   }
   } // hasFeature("room")
 
-  // CAL-34: sweep every UI skin through the offline-queue contract.
-  // Each skin has its own `.templ`, and a typo in the offline-reset
-  // listener (data-on:gogogo:queued__window vs. gogogo__queued) used
-  // to slip through because the harness only covered daisyui.
-  // Basecoat is auto-detected, not assumed: with skins-extra trimmed the
-  // server falls back to DaisyUI with a warning log, so a blind second
-  // pass would run DaisyUI twice labeled "basecoat" (silent coverage
-  // loss). A genuinely identical render can only mean the fallback —
-  // the two skins share no markup.
+  // CAL-34: sweep the markup-carrying skin variants through the
+  // offline-queue contract. Basecoat has its own `.templ`; shadcn reuses the
+  // shared markup and only swaps CSS tokens, so the DaisyUI pass covers it.
+  // A typo in the offline-reset listener (data-on:gogogo:queued__window vs.
+  // gogogo__queued) used to slip through because the harness only covered
+  // daisyui. Basecoat is auto-detected, not assumed: with skins-extra trimmed
+  // the server falls back to DaisyUI with a warning log, so a blind second
+  // pass would run DaisyUI twice labeled "basecoat" (silent coverage loss).
+  // A genuinely identical render can only mean the fallback — DaisyUI and
+  // Basecoat share no markup.
   const offlineSkins = ["daisyui"];
   {
     // Authenticated compare (page carries the session cookies): the login

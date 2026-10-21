@@ -51,7 +51,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 
 **Frontend**
 - [todo-example](docs/todo-example.md) — the Todo reference implementation and the contract to imitate.
-- [ui-skins](docs/ui-skins.md) — pluggable DaisyUI / Basecoat skins and the plugin contract.
+- [ui-skins](docs/ui-skins.md) — pluggable DaisyUI / Basecoat / shadcn skins and the plugin contract.
 - [ui-sounds](docs/ui-sounds.md) — vendored cuelume sound feedback and its accessibility contract.
 
 **Ship**
