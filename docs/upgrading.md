@@ -116,10 +116,12 @@ the gates, not an upstream copy.
 
 ## There is no `migrate --apply`, on purpose
 
-Overwriting generated files clobbers your work. Merging them needs a common
-ancestor that a renamed, trimmed copy does not have — which is why
-[cruft](https://cruft.github.io/cruft/) users report abandoning updates, and
-why copier has to exclude deleted paths by hand.
+Overwriting generated files clobbers your work, and a three-way merge needs two
+things a renamed copy does not keep: paths that still line up, and a base that
+still applies. The scaffold rewrites the module path across the tree and renames
+every file that carries the project name, so a merge against upstream conflicts
+from the first hunk. A `--depth 1` clone also starts one commit deep, so there is
+no shared base until you unshallow it.
 
 What works instead is the shape this repo already has: **a list to apply
 deliberately, plus gates that prove the result.** The tree's own `make` targets

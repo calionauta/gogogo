@@ -4,13 +4,12 @@
 // records and the latest release?", and nothing else. It never edits the tree.
 //
 // WHY DATA AND NOT A MERGE. A scaffolded project is a copy: it renames the
-// module, trims units, and edits freely. Every file-merge design for that
-// shape ends the same way — copier's maintainers exclude deleted paths by
-// hand, cruft's users discover there is no common ancestor to merge against
-// and abandon the update, and Rails' per-file overwrite prompt tracks nothing
-// at all. The mechanism that survives arbitrary user edits is a transform the
-// user (or an agent) applies deliberately, with the repo's own gates proving
-// the result. So this command produces the LIST, and `--check` / the make
+// module, trims units, and edits freely. A three-way merge needs paths that
+// still line up and a base that still applies, and the rename removes both, so
+// every file-merge design for that shape ends in conflicts nobody resolves.
+// The mechanism that survives arbitrary user edits is a transform the user (or
+// an agent) applies deliberately, with the repo's own gates proving the
+// result. So this command produces the LIST, and `--check` / the make
 // gates produce the PROOF; there is no `migrate --apply`, on purpose.
 //
 // WHERE THE LIST COMES FROM. CHANGELOG.md, which release-please already
