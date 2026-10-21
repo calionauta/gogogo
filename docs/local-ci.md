@@ -326,7 +326,7 @@ uses `node`/`go` without installing them first).
 race+browser fan-out (`scripts/ci-fanout.sh`).
 
 The docs site is not part of `ci-local`. `pages.yml` runs `site-check`, builds
-`site/` (including the MiniSearch index at `site/search/index.json`) and runs
+`site/` (including the generated search index under `site/search/`) and runs
 `scripts/site-layout.test.mjs` before publishing. `docsite-drift.yml` checks the
 vendored engine against `site/UPSTREAM_SHA` on PRs that touch it and weekly;
 `docsite-bump.yml` opens the bump PR.
