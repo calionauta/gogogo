@@ -423,14 +423,23 @@ Revisit if owning the commodity parts costs more than the opinions they replaced
 the day the team wants a database GUI, a generic REST surface, or file uploads
 without writing them.
 
-An embedded-framework option (an all-in-one router + auth + admin UI in one
-import) is rejected on a different axis: `cmd/check-flatdeps` bans it by module
-prefix because it is a framework SURFACE, not a database choice — it would
-replace the owned seams (chi composition, argon2id sessions, age secrets) instead
-of the data layer. Swapping the store keeps every seam; adopting the framework
-deletes them. That is why the ban is mechanical (import path) rather than
-advisory, and why the banned prefixes live in the guard rather than in this
-prose: a name in a doc is advice, a name in an import check is a gate.
+**Rejected: PocketBase** (`github.com/pocketbase/pocketbase`), the embedded
+all-in-one this template ran before 0.44.0. It gives a lot at once — an admin UI,
+auth, file storage, generic REST, realtime subscriptions — and it is rejected on
+a different axis: it is a framework SURFACE, not a database choice. Those
+surfaces are the seams this template owns (chi composition, argon2id sessions,
+data access, fan-out), so adopting it puts the app inside its lifecycle and its
+hooks, leaves no unit to trim and no line you own. Swapping the store keeps every
+seam; adopting the framework deletes them.
+
+What refusing it costs is the list above: no admin UI, no generic REST, no file
+storage, with data read by any SQLite client against the file and the schema held
+in SQL migrations ([Admin & Dashboard](admin-dashboard.md) is the operator view
+that does ship). What the refusal bought is measurable: the binary went from 141M
+to 110M, and the app handle, the seeds, the idempotency hook, the middleware and
+the `ENTITY_STORE` switch left with it. The ban is mechanical rather than
+advisory, `cmd/check-flatdeps` refuses `github.com/pocketbase/` by module prefix,
+so it survives an edit to this page.
 
 ## Related
 
