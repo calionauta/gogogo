@@ -171,6 +171,7 @@ const CSS = `
 *{box-sizing:border-box}
 body{margin:0;font:16px/1.65 system-ui,-apple-system,sans-serif;color:#1a1a1a;background:#fff}
 .wrap{display:flex;max-width:1200px;margin:0 auto}
+.topbar{display:none}
 nav.side{width:250px;flex-shrink:0;padding:32px 24px;border-right:1px solid #e5e5e5;position:sticky;top:0;align-self:flex-start;max-height:100vh;overflow:auto}
 nav.side .home{display:block;font-weight:700;margin-bottom:16px;color:#1a1a1a;text-decoration:none}
 nav.side h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:16px 0 4px}
@@ -229,6 +230,21 @@ nav.side{display:none}
 main{padding:24px 20px}
 main pre{font-size:12.5px}
 .cards{grid-template-columns:1fr}
+/* Without this the sidebar simply vanished on a phone and the docs had no
+   navigation at all: no header, no menu, only the prev/next pair at the
+   bottom of a page. A <details> disclosure needs no JS to open. */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;border-bottom:1px solid #e5e5e5;background:#fff;position:sticky;top:0;z-index:30}
+.topbar .home{font-weight:700;color:#1a1a1a;text-decoration:none;font-size:15px}
+.topbar details{position:relative}
+.topbar summary{cursor:pointer;list-style:none;border:1px solid #ddd;border-radius:8px;padding:6px 10px;font-size:14px;color:#333}
+.topbar summary::-webkit-details-marker{display:none}
+.topbar summary::after{content:" ▾"}
+.topbar details[open] summary::after{content:" ▴"}
+.topbar .menu-body{position:absolute;right:0;top:calc(100% + 8px);min-width:250px;max-height:70vh;overflow:auto;background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,.14);z-index:40}
+.topbar .menu-body h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#666;margin:10px 0 4px}
+.topbar .menu-body h4:first-child{margin-top:0}
+.topbar .menu-body a{display:block;padding:4px 0;color:#333;text-decoration:none;font-size:14px}
+.topbar .menu-body a.cur{font-weight:700}
 }
 `;
 
@@ -423,8 +439,8 @@ function slugify(s) {
     .replace(/-+/g, "-");
 }
 
-function sidebar(cur) {
-  let html = `<a class="home" href="${up(cur)}">← ${NAME}</a>`;
+function sidebar(cur, withHome = true) {
+  let html = withHome ? `<a class="home" href="${up(cur)}">← ${NAME}</a>` : "";
   let group = "";
   for (const p of MANIFEST) {
     if (p.group !== group) { group = p.group; html += `<h4>${esc(group)}</h4>`; }
@@ -454,6 +470,9 @@ function up(slug) {
 
 function pageShell(title, cur, body, prevNext, navOverride) {
   const nav = navOverride !== undefined ? navOverride : sidebar(cur);
+  // The same links in the phone menu, minus the leading home anchor (the
+  // topbar already shows it).
+  const menu = nav.replace(/^\s*<a class="home"[^>]*>[\s\S]*?<\/a>/, "");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -463,6 +482,10 @@ function pageShell(title, cur, body, prevNext, navOverride) {
 <style>${CSS}</style>
 </head>
 <body>
+<header class="topbar">
+<a class="home" href="${up(cur)}">← ${NAME}</a>
+<details class="menu"><summary>docs menu</summary><div class="menu-body">${menu}</div></details>
+</header>
 <div class="wrap">
 <nav class="side">${nav}</nav>
 <main>
@@ -546,6 +569,26 @@ ${body}
       raf = requestAnimationFrame(function () { wraps.forEach(paint); });
     }, { passive: true });
   }
+
+  // ---- mobile docs menu ----------------------------------------------------
+  // <details> opens natively; close it when a link is chosen, when the tap
+  // lands outside, or on Escape, so the panel never covers the page it opened
+  // from. Escape returns focus to the summary, where the user left it.
+  document.querySelectorAll(".topbar details").forEach(function (d) {
+    var summary = d.querySelector("summary");
+    d.addEventListener("click", function (e) {
+      if (e.target.closest("a")) d.open = false;
+    });
+    document.addEventListener("click", function (e) {
+      if (d.open && !d.contains(e.target)) d.open = false;
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && d.open) {
+        d.open = false;
+        if (summary) summary.focus();
+      }
+    });
+  });
 })();
 </script>
 </body>
