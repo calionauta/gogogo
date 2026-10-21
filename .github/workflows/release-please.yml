@@ -10,6 +10,20 @@ name: release-please
 # the version section; nothing reads [Unreleased]. See AGENTS.md, "Releases".
 #
 # Agents must NEVER open a release PR or tag manually.
+#
+# Workflow runs on the release PR's branch sit in `action_required` until a
+# maintainer approves them: the branch is pushed by a token, so GitHub holds the
+# runs it triggers. That is not a nuisance to click past — it is how a test that
+# could never pass stayed merged for months. `TestParseChangelogReadsTheRealFile`
+# read the live CHANGELOG and hardcoded the version that happened to be newest,
+# so the first release PR whose CI actually ran came back red on a job nobody had
+# ever seen execute. Approve the runs, then read them.
+#
+# If you would rather they ran unattended, the fix is a PAT or GitHub App token
+# for the action — but that also makes the tag push trigger release.yml directly
+# (anti-recursion suppression is exactly what GITHUB_TOKEN provides), so the
+# explicit dispatch step below must be removed in the same change or every
+# release builds its binaries twice.
 on:
   push:
     branches:
