@@ -9,6 +9,16 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// noStore keeps auth bodies out of every cache: they carry session cookies
+// and one-time codes. It lives on the auth router so the policy travels with
+// the surface instead of a path prefix in the edge.
+func noStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Routes returns the auth API router: signup, signin and signout, plus the
 // magic-link, TOTP second-factor and OAuth entry points. Every pattern is
 // absolute, so the composition root flattens it with MountFeature like any
@@ -16,6 +26,7 @@ import (
 // parameter, and the route table sees each endpoint.
 func (a *Auth) Routes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(noStore)
 	r.Post("/api/auth/signup/credential", a.handleSignup)
 	r.Post("/api/auth/signin/credential", a.handleSignin)
 	r.Post("/api/auth/signout", a.handleSignout)

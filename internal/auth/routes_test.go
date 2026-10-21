@@ -35,3 +35,26 @@ func TestRoutesAnswer405AtTheRouter(t *testing.T) {
 		}
 	}
 }
+
+// TestRoutesAreNoStore pins the cache policy on the auth surface: these
+// bodies carry session cookies and one-time codes. A 404 still passes through
+// the router middleware, so the path does not leak a cacheable error either.
+func TestRoutesAreNoStore(t *testing.T) {
+	r := (&Auth{}).Routes()
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/auth/magic"},
+		{http.MethodPost, "/api/auth/signin/credential"},
+		{http.MethodGet, "/api/auth/nope"},
+	} {
+		rec := httptest.NewRecorder()
+		// The handlers here need a database; the method gate and the 404
+		// answer before that, which is enough to observe the header.
+		r.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), tc.method, tc.path, nil))
+		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("%s %s Cache-Control = %q, want no-store", tc.method, tc.path, got)
+		}
+	}
+}

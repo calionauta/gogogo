@@ -6,7 +6,9 @@ package server
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -24,8 +26,68 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// sameOriginGuard is the CSRF fence for unsafe methods. SameSite=Lax on the
+// session cookie already keeps it off cross-site POSTs; this refuses the
+// request before it reaches a handler even if a browser or a future cookie
+// change weakens that.
+//
+// Only requests that carry an Origin are checked: CLI clients, webhooks and
+// the desktop webview send none, and a custom scheme (wails://) cannot be
+// forged by a web page. Two loopback origins are treated as the same trust
+// boundary so a local dev front-end and the desktop proxy keep working.
+func sameOriginGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		u, err := url.Parse(origin)
+		if err != nil || u.Host == "" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if u.Scheme != "http" && u.Scheme != "https" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if strings.EqualFold(u.Host, r.Host) ||
+			(isLocalHost(u.Hostname()) && isLocalHost(hostnameOf(r.Host))) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "forbidden", http.StatusForbidden)
+	})
+}
+
+// isLocalHost reports whether host is loopback or a localhost name. Both
+// sides of a loopback pair share the same trust boundary: a local dev page
+// talking to a local server is not the cross-site case this guard exists for.
+func isLocalHost(host string) bool {
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// hostnameOf strips an optional port from a Host header value.
+func hostnameOf(hostport string) string {
+	host, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport
+	}
+	return host
 }
 
 // statusWriter is gone on purpose: a plain struct that embeds
@@ -62,5 +124,6 @@ func edgeHandler(cfg *config.Config, log *slog.Logger, next http.Handler) http.H
 	if cfg.HTTPAccessLog {
 		next = accessLog(log, next)
 	}
+	next = sameOriginGuard(next)
 	return securityHeaders(next)
 }

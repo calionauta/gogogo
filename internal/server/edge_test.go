@@ -36,6 +36,7 @@ func TestSecurityHeadersOnEveryResponse(t *testing.T) {
 		"X-Content-Type-Options": "nosniff",
 		"Referrer-Policy":        "strict-origin-when-cross-origin",
 		"X-Frame-Options":        "SAMEORIGIN",
+		"Permissions-Policy":     "camera=(), microphone=(), geolocation=()",
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -158,5 +159,51 @@ func TestEdgeHandlerAccessLogOptIn(t *testing.T) {
 		context.Background(), http.MethodGet, "/quiet", nil))
 	if !strings.Contains(buf.String(), "status=204") {
 		t.Errorf("access log did not record the request: %s", buf.String())
+	}
+}
+
+// TestSameOriginGuard pins the CSRF fence: an unsafe cross-origin browser
+// request is refused only when it carries an Origin, because CLI clients,
+// webhooks and the desktop webview send none (or a custom scheme).
+func TestSameOriginGuard(t *testing.T) {
+	reached := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	cases := []struct {
+		name    string
+		method  string
+		host    string
+		origin  string
+		want    int
+		reached bool
+	}{
+		{"same origin", http.MethodPost, "app.example.com", "https://app.example.com", http.StatusNoContent, true},
+		{"cross origin", http.MethodPost, "app.example.com", "https://evil.example", http.StatusForbidden, false},
+		{"no origin", http.MethodPost, "app.example.com", "", http.StatusNoContent, true},
+		{"opaque origin", http.MethodPost, "app.example.com", "null", http.StatusForbidden, false},
+		{"custom scheme", http.MethodPost, "localhost:34115", "wails://wails", http.StatusNoContent, true},
+		{"local to local", http.MethodPost, "127.0.0.1:8080", "http://localhost:3001", http.StatusNoContent, true},
+		{"read is not checked", http.MethodGet, "app.example.com", "https://evil.example", http.StatusNoContent, true},
+		{"unparsable origin", http.MethodPost, "app.example.com", "://bad", http.StatusForbidden, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reached = false
+			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/api/todos", nil)
+			req.Host = tc.host
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			rec := httptest.NewRecorder()
+			sameOriginGuard(next).ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.want)
+			}
+			if reached != tc.reached {
+				t.Errorf("handler reached = %v, want %v", reached, tc.reached)
+			}
+		})
 	}
 }

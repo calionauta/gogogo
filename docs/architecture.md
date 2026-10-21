@@ -165,10 +165,17 @@ is per-process. The security properties here are owned:
 
 - argon2id passwords, opaque sessions, a `SameSite=Lax` + `HttpOnly` cookie
   that is `Secure` in production (`internal/auth`).
+- CSRF in two layers: the cookie's `SameSite=Lax` keeps it off cross-site
+  POSTs, and `sameOriginGuard` refuses an unsafe method when a browser
+  `Origin` is present and does not match the request host. CLI clients,
+  webhooks and the desktop webview send no `Origin` (or a custom scheme) and
+  pass; two loopback origins share the dev trust boundary.
 - Casbin policy at the edge of the router plus per-handler session checks,
   because `RBAC_ENABLED` defaults to false (`docs/rbac.md`).
 - templ escaping and sqlc parameters on the data paths.
-- the three edge headers above and a body cap on the auth surface.
+- four edge headers (`X-Content-Type-Options`, `Referrer-Policy`,
+  `X-Frame-Options`, `Permissions-Policy`) and `Cache-Control: no-store` on
+  every `/api/auth/*` response, plus a body cap on the auth surface.
 
 Deployment owns the rest: HSTS and TLS at the tunnel, a WAF or rate limit in
 front, and a CSP that can only arrive with nonce plumbing for the inline
