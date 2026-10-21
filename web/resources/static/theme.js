@@ -75,23 +75,12 @@
   }
 })();
 
-// Mobile navigation: the link row is one <details> so the same links serve
-// desktop (open row) and mobile (collapsed menu). Markup ships `open` so a
-// no-JS desktop still shows the row; this keeps it closed on narrow screens
-// and re-opens it when the viewport grows. No Datastar state involved, so a
-// morph cannot fight it.
-(function () {
-  var nav = document.querySelector('.app-nav-links');
-  if (!nav || !window.matchMedia) return;
-  var mq = window.matchMedia('(max-width: 760px)');
-  function sync() {
-    if (mq.matches) nav.removeAttribute('open');
-    else nav.setAttribute('open', '');
-  }
-  sync();
-  if (mq.addEventListener) mq.addEventListener('change', sync);
-  else if (mq.addListener) mq.addListener(sync);
-})();
+// Mobile/tablet navigation: the link row is one <details> so the same links
+// serve a wide bar (inline row) and a narrow one (collapsed menu). Its open
+// state lives in the navbar markup, not here: the markup runs the sync
+// synchronously before paint, so a tablet never flashes an open dropdown over
+// the page, and there is exactly ONE owner of the attribute (this file used to
+// own it too, with a 760px breakpoint that no longer matched the stylesheet).
 
 // Reinitialize Basecoat components after Datastar DOM morphs (debounced)
 (function() {

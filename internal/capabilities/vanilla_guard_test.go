@@ -42,6 +42,23 @@ var vanillaAllow = map[string][]vanillaAllowed{
 	"internal/components/offline_banner.templ": {
 		{`navigator.serviceWorker.addEventListener("message", function (e) {`, "SW postMessage has no Datastar primitive"},
 	},
+	// Nav link row: ONE <details> serves the inline row and the collapsed
+	// menu, so its `open` state must follow the stylesheet's breakpoint.
+	// Ruled out: data-attr:open driven by a $navOpen signal — the breakpoint
+	// is a media query, which no signal can express at init, and a native
+	// summary click already toggles the attribute, so the signal would have
+	// to fight it (data-on:click__prevent then reimplementing keyboard and
+	// no-JS behavior). Ruled out moving it back to theme.js: that runs deferred,
+	// so a tablet paints the open dropdown over the page first (this script
+	// runs at parse time, before paint). Never morphed: the navbar sits
+	// outside every patched region.
+	"features/authviews/navbar.templ": {
+		{
+			needle: `if (wide.addEventListener) wide.addEventListener('change', sync);`,
+			reason: "media-query breakpoint cannot be a Datastar signal; " +
+				"driving data-attr:open would also fight the native <details> toggle",
+		},
+	},
 }
 
 func TestNoNewVanillaJS(t *testing.T) {

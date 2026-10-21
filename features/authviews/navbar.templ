@@ -33,7 +33,7 @@ templ Navbar(userEmail string, userRole string, active string, buildLabel string
 			// storage or grep-ing CDN. "dev" for `go run`. The label has a
 			// title= that exposes commit + build time on hover.
 			<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
-			<details class="app-nav-links" open>
+			<details class="app-nav-links">
 				<summary class="app-nav-menu-btn" aria-label="Open navigation">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 						<path d="M3 5h14v2H3V5zm0 4h14v2H3V9zm0 4h14v2H3v-2z"/>
@@ -74,6 +74,26 @@ templ Navbar(userEmail string, userRole string, active string, buildLabel string
 				</details>
 				</div>
 			</details>
+			<script>
+				// ONE <details> for both layouts: inline link row on a wide bar, native
+				// dropdown once the stylesheet collapses it (<=1099px). A closed
+				// <details> hides its content, and the inline row must be visible — but
+				// shipping it `open` left the DROPDOWN open on load wherever the
+				// stylesheet collapses it, covering the page until the first tap. So the
+				// open state follows the same breakpoint the stylesheet uses, applied
+				// here (synchronously, before paint, and before any viewport listener
+				// could matter) and re-applied when the viewport crosses it. A tap on
+				// the summary is untouched: only a breakpoint change resets the state.
+				(function () {
+					var box = document.querySelector('.app-nav-links');
+					if (!box) return;
+					var wide = window.matchMedia('(min-width: 1100px)');
+					function sync() { box.open = wide.matches; }
+					sync();
+					if (wide.addEventListener) wide.addEventListener('change', sync);
+					else if (wide.addListener) wide.addListener(sync);
+				})();
+			</script>
 		</div>
 		<div class="app-nav-end">
 			@CommandPalette(userRole)

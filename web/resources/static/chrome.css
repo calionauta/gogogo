@@ -74,11 +74,14 @@
 }
 
 /* The link row is the only horizontally scrollable part on narrow screens:
-   no duplicated markup, no hamburger to keep in sync. */
+   no duplicated markup, no hamburger to keep in sync. It has to be able to
+   SHRINK for that to be true — min-width:0 on the row and its parent is what
+   lets the box track the space left over instead of pushing the bar wider. */
 .app-nav-links {
   display: flex;
   align-items: center;
   min-width: 0;
+  flex: 0 1 auto;
 }
 .app-nav-links > summary { display: none; list-style: none; }
 .app-nav-links > summary::-webkit-details-marker { display: none; }
@@ -87,6 +90,7 @@
   align-items: center;
   gap: 0.15rem;
   min-width: 0;
+  flex: 0 1 auto;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -294,6 +298,11 @@
 
 .app-user-icon { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; opacity: 0.75; }
 .app-menu-icon { width: 1rem; height: 1rem; flex: 0 0 auto; opacity: 0.7; }
+/* The end bar never shrinks: the email, the toggles and the user menu are
+   fixed-size controls, and letting them squeeze is how the email ran off the
+   right edge of a tablet viewport. The link row above absorbs the slack. */
+.app-nav-end { flex: 0 0 auto; }
+
 .app-user-email {
   display: none;
   max-width: 10rem;
@@ -301,7 +310,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-@media (min-width: 640px) { .app-user-email { display: inline; } }
+/* From xl only. Between 640 and 1279 the bar has the nav links (or the Menu
+   button) plus the command palette, skin, theme, sound and user controls to
+   fit, and the email was the 160px that pushed the user menu off-screen
+   entirely — the reported "encavalado com os menus da navbar" on tablets.
+   The address is still readable in the dropdown itself. */
+@media (min-width: 1280px) { .app-user-email { display: inline; } }
 
 /* theme + sound toggles */
 .app-theme-toggle,
@@ -405,9 +419,15 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: var(--warning-foreground, var(--color-warning-content, #111827));
 }
 
-@media (max-width: 760px) {
+/* Tablet and small-laptop range. The full link row needs about 1100px once
+   the command palette, skin, theme, sound and user controls are on the bar,
+   so below that the links collapse into the Menu button — the same dropdown
+   the phones get, one breakpoint earlier. Before this the row stayed inline
+   from 761px up, could not shrink, and spilled over the command-palette
+   button and the user menu (measured: the row's right edge 718px inside a
+   768px viewport, with the user email at 897px). */
+@media (max-width: 1099px) {
   .app-nav { gap: 0.4rem; padding: 0 0.65rem; }
-  .skin-selector, .app-sound-toggle { display: none; }
   .app-nav-links > summary { display: inline-flex; }
   .app-nav-links-inner {
     display: none;
@@ -446,6 +466,12 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
     min-width: 0;
   }
   .app-nav-more-menu a { min-height: 2.1rem; }
+}
+
+/* Phones: the skin picker and the sound toggle are the first things to go,
+   since the Menu button already covers navigation. */
+@media (max-width: 760px) {
+  .skin-selector, .app-sound-toggle { display: none; }
 }
 
 /* Command palette: the keyboard cursor lives on the input's
