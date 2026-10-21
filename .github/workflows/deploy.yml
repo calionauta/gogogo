@@ -417,23 +417,33 @@ jobs:
           scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
 
       - name: Registry login for the pull
-        # Login by default, because a GHCR package starts out private even when
-        # the repository is public: without a credential the server's pull is a
-        # 403 and the first deploy fails for a reason nothing in the diff
-        # explains. A login that turns out to be unnecessary costs one ssh call;
-        # a login that is missing costs a failed deploy, so the default is the
-        # one that always works and `GHCR_PUBLIC=true` is the opt-out.
+        # A package created by a private repository is private and the server's
+        # pull needs a credential; a package whose repository is public is
+        # pullable anonymously (verified on this one: an anonymous pull of a
+        # non-existent tag answers "manifest unknown", not "unauthorized"). So
+        # the login runs unless GHCR_PUBLIC=true — and it is BEST-EFFORT, because
+        # the contract is the pull plus the build assertion further down, which
+        # still fails the deploy loudly when a credential was needed and missing.
+        # Fatal-only added a way for a needless step to stop a deploy, which is
+        # exactly what happened when this secret's trailing whitespace reached
+        # ssh through a quoted variable.
         #
-        # The token is the run's GITHUB_TOKEN (`packages: read`); it travels on
-        # ssh stdin (never on a command line, never in a file) and
+        # The token is the run's repository token (`packages: read`); it travels
+        # on ssh stdin (never on a command line, never in a file) and
         # deploy-prod.sh logs out on exit, so nothing survives the deploy.
         if: vars.GHCR_PUBLIC != 'true'
+        continue-on-error: true
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
+          # This secret carries trailing whitespace. Unquoted use elsewhere in
+          # the workflow word-splits it away by accident; quoting it does not,
+          # and ssh then reports "hostname contains invalid characters". Strip it
+          # here instead of depending on that accident.
+          host="$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')"
           printf '%s' '${{ secrets.GITHUB_TOKEN }}' |
-            ssh "$DEPLOY_HOST" "docker login ${APP_IMAGE%%/*} -u '${{ github.actor }}' --password-stdin"
+            ssh "$host" "docker login ${APP_IMAGE%%/*} -u '${{ github.actor }}' --password-stdin"
 
       # Ensure the directory layout exists, update the source clone (needed for
       # the deploy script and the app's .env), then run the deploy script

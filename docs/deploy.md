@@ -167,11 +167,13 @@ repository is public**, so the deploy logs in by default with the run's
 on exit — no registry credential survives the deploy.
 
 That default needs no setup and works for a private repository and a public one
-alike. If you publish the package on purpose (Package settings → Change
-visibility → Public) and would rather hold no credential at all during the
-deploy, set the repository variable `GHCR_PUBLIC=true` and the login step is
-skipped. Visibility itself has no API a `GITHUB_TOKEN` can call, so publishing
-is a one-click manual step.
+alike. The login is best-effort on purpose: it is an enabler, not the contract —
+if a credential was needed and missing, the pull fails loudly right after, and
+the build assertion still refuses to report success. If you publish the package
+on purpose (Package settings → Change visibility → Public) and would rather hold
+no credential at all during the deploy, set the repository variable
+`GHCR_PUBLIC=true` and the login step is skipped. Visibility itself has no API a
+workflow token can call, so publishing is a one-click manual step.
 
 ## Rollback
 
