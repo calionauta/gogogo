@@ -180,11 +180,28 @@ func TestSameOriginGuard(t *testing.T) {
 		reached bool
 	}{
 		{"same origin", http.MethodPost, "app.example.com", "https://app.example.com", http.StatusNoContent, true},
+		{
+			name: "same origin default port", method: http.MethodPost,
+			host: "app.example.com:443", origin: "https://app.example.com",
+			want: http.StatusNoContent, reached: true,
+		},
+		{
+			name: "same origin http default port", method: http.MethodPost,
+			host: "app.example.com:80", origin: "http://app.example.com",
+			want: http.StatusNoContent, reached: true,
+		},
+		{
+			name: "same origin other port kept", method: http.MethodPost,
+			host: "app.example.com:8443", origin: "https://app.example.com:8443",
+			want: http.StatusNoContent, reached: true,
+		},
+		{"port mismatch", http.MethodPost, "app.example.com:8443", "https://app.example.com", http.StatusForbidden, false},
 		{"cross origin", http.MethodPost, "app.example.com", "https://evil.example", http.StatusForbidden, false},
 		{"no origin", http.MethodPost, "app.example.com", "", http.StatusNoContent, true},
 		{"opaque origin", http.MethodPost, "app.example.com", "null", http.StatusForbidden, false},
 		{"custom scheme", http.MethodPost, "localhost:34115", "wails://wails", http.StatusNoContent, true},
 		{"local to local", http.MethodPost, "127.0.0.1:8080", "http://localhost:3001", http.StatusNoContent, true},
+		{"desktop webview", http.MethodPost, "127.0.0.1:34115", "http://wails.localhost", http.StatusNoContent, true},
 		{"read is not checked", http.MethodGet, "app.example.com", "https://evil.example", http.StatusNoContent, true},
 		{"unparsable origin", http.MethodPost, "app.example.com", "://bad", http.StatusForbidden, false},
 	}
@@ -205,5 +222,28 @@ func TestSameOriginGuard(t *testing.T) {
 				t.Errorf("handler reached = %v, want %v", reached, tc.reached)
 			}
 		})
+	}
+}
+
+// TestEdgeHandlerLogsOriginRejection pins the wrapper order: the access log
+// sits outside the guard, so a refused cross-origin write still leaves a line
+// with the 403 an operator is looking for.
+func TestEdgeHandlerLogsOriginRejection(t *testing.T) {
+	var buf bytes.Buffer
+	cfg := &config.Config{HTTPAccessLog: true}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/todos", nil)
+	req.Host = "app.example.com"
+	req.Header.Set("Origin", "https://evil.example")
+	edgeHandler(cfg, newTestLogger(&buf), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+	for _, want := range []string{"path=/api/todos", "status=403"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("log line missing %q: %s", want, buf.String())
+		}
 	}
 }

@@ -17,7 +17,12 @@ import (
 	"github.com/calionauta/gogogo/config"
 )
 
-// securityHeaders sets the three headers a browser honours without needing a
+const (
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+)
+
+// securityHeaders sets the headers a browser honours without needing a
 // nonce. No CSP: the templates keep inline JS next to their markup, so a
 // policy would need nonce plumbing before it can be correct.
 func securityHeaders(next http.Handler) http.Handler {
@@ -57,17 +62,43 @@ func sameOriginGuard(next http.Handler) http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		if u.Scheme != "http" && u.Scheme != "https" {
+		if u.Scheme != schemeHTTP && u.Scheme != schemeHTTPS {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if strings.EqualFold(u.Host, r.Host) ||
+		if sameOriginHost(u, r.Host) ||
 			(isLocalHost(u.Hostname()) && isLocalHost(hostnameOf(r.Host))) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		http.Error(w, "forbidden", http.StatusForbidden)
 	})
+}
+
+// sameOriginHost compares an Origin with the request Host, treating the
+// scheme's default port as present/absent on either side. A proxy that keeps
+// ":443" in Host is still the same origin as a browser's "https://host".
+func sameOriginHost(origin *url.URL, reqHost string) bool {
+	if strings.EqualFold(origin.Host, reqHost) {
+		return true
+	}
+	return strings.EqualFold(
+		stripDefaultPort(origin.Host, origin.Scheme),
+		stripDefaultPort(reqHost, origin.Scheme),
+	)
+}
+
+// stripDefaultPort drops :443 for https and :80 for http; any other port is
+// preserved. An unparsable value is compared as-is.
+func stripDefaultPort(hostport, scheme string) string {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport
+	}
+	if (scheme == schemeHTTPS && port == "443") || (scheme == schemeHTTP && port == "80") {
+		return host
+	}
+	return net.JoinHostPort(host, port)
 }
 
 // isLocalHost reports whether host is loopback or a localhost name. Both
@@ -121,9 +152,11 @@ func accessLog(log *slog.Logger, next http.Handler) http.Handler {
 // cover every response (including the log's own), the access log covers RBAC
 // and the router's 404, and nothing here buffers a response.
 func edgeHandler(cfg *config.Config, log *slog.Logger, next http.Handler) http.Handler {
+	next = sameOriginGuard(next)
 	if cfg.HTTPAccessLog {
+		// Outside the guard on purpose: a rejected cross-origin write is
+		// exactly the request an operator wants to see in the log.
 		next = accessLog(log, next)
 	}
-	next = sameOriginGuard(next)
 	return securityHeaders(next)
 }
