@@ -82,6 +82,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 
 **Research**
 - [research](docs/research/index.md) — One place for every research note, comparison and tradeoff decision in this repo: what was evaluated, when, and what was chosen.
+- [auth-libraries](docs/research/auth-libraries-2026-10.md) — The 2026-10-21 evaluation of limen against owning argon2id and sessions: schema ownership, version skew, and what flips the decision.
 - [ui-engine-research](docs/research/ui-engine-research.md) — The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment.
 - [ui-components](docs/research/ui-components-2026-10-21.md) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability.
 

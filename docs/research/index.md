@@ -24,6 +24,7 @@ individual notes.
 | [Native language tradeoffs](../native-language-tradeoffs.md) | living | when a native kernel is worth it, and how to decide without preference |
 | [Exception to Go](../exception-to-go.md) | living | the Go-first rule, the Zig exception, and the benchmark bar |
 | [DB concurrency](../db-concurrency.md) | living | Turso single-writer stance, the probed MVCC path, and revisit triggers |
+| [Auth libraries](auth-libraries-2026-10.md) | 2026-10-21 | limen against owning argon2id and sessions: schema ownership, version skew, and the trigger that flips the choice |
 
 ## Decisions and rationale
 
@@ -32,6 +33,21 @@ individual notes.
 | [Architecture decision](../architecture-decision.md) | living | the flat-stack decision record: what it serves, what it replaced, and the migration it completed |
 | [Inspirations](../inspirations.md) | living | what this project learned from other projects, credited rather than vendored |
 | [Motivation](../motivation.md) | living | the thesis behind the stack and how to choose without hype |
+
+## Decision records and status
+
+[Architecture decision](../architecture-decision.md) is the record of what the
+stack is, why, and what it replaced. Two rules keep it readable years later.
+
+- **Status line first.** `Status: accepted (YYYY-MM-DD)`, then `revised
+  (YYYY-MM-DD)` when a decided area changes again. A decision a later change
+  reverses is marked `superseded by <link> (YYYY-MM-DD)` rather than rewritten,
+  so the reversal stays visible instead of disappearing into the current text.
+- **Alternatives are argued here, not there.** The record states the choice, the
+  evidence and what it replaced, and links to this hub for the comparison. An
+  evaluation of something that never shipped is a research page; a comparison of
+  what does ship belongs in [stack tradeoffs](../stack-tradeoffs.md). That split
+  is what keeps the record short and the reasoning findable.
 
 ## How to add a research page
 
