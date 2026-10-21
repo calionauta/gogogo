@@ -77,7 +77,11 @@ try {
     const token = await signupCookie(`sse-probe-${Date.now()}-a@local.dev`);
     await context.addCookies([{ name: "gogogo_auth", value: token, url: BASE + "/" }]);
     const page = await context.newPage();
-    await page.route("**/static/datastar.js", (route) => route.abort());
+    // Query-tolerant: asset URLs are fingerprinted (`?v=<hash>`, see
+    // resources.StaticURL), so an exact-path glob silently stops matching and
+    // the "Datastar unloadable" case loads Datastar instead — the failure reads
+    // as "opener stayed silent", which is the opposite of the truth.
+    await page.route("**/static/datastar.js*", (route) => route.abort());
     let streamSeen = false;
     page.on("request", (req) => {
       if (req.url().includes("/api/todos/stream")) streamSeen = true;
@@ -153,7 +157,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (err) => errors.push(String(err && err.message || err)));
-    await page.route("**/static/sse-open.js", (route) => route.abort());
+    await page.route("**/static/sse-open.js*", (route) => route.abort());
     await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
     try {
       await page.waitForFunction(

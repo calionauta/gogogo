@@ -236,12 +236,17 @@ or the CDN), never a stale asset: changed bytes are a different URL. A bare
 `/static/...` URL still revalidates against its content-hash ETag — that path
 exists for old bookmarks, and a 304 from it proves the origin is current.
 
-Known gap: the theme/app bundles and the shared scripts are versioned because
-they go through `resources.StaticURL`, but a feature that embeds its own
-scripts (`features/notes/static`, `features/whiteboard/static`) still emits
-bare `/static/notes/...` paths and revalidates them per navigation.
-`AssetHandler` already honours `?v=<fingerprint>` for every prefix, so closing
-it is a per-feature `StaticURL`-equivalent call, not a new mechanism.
+Known gap: the theme/app bundles and the scripts emitted by the skin asset
+blocks are versioned because they go through `resources.StaticURL`, but a
+feature that embeds its own scripts (`features/notes/static`,
+`features/whiteboard/static`) and the two helpers baked into their templates
+(`/static/sse-open.js`, `/static/session.js`) still emit bare paths and
+revalidate per navigation. `AssetHandler` already honours
+`?v=<fingerprint>` for every prefix, so closing it is one `StaticURL` call per
+asset, not a new mechanism. When an asset URL gains a fingerprint, any test
+that intercepts it by exact path must go query-tolerant
+(`**/static/datastar.js*`) — an exact glob turns a "blocked script" case into
+"script loaded" and the failure message says the opposite of what happened.
 
 ## The deploy workflow fails on the server
 
