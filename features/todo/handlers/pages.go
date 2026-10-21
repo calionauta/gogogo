@@ -32,21 +32,21 @@ func loginNext(r *http.Request) string {
 func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = authviews.LoginPage(loginNext(r), "").Render(r.Context(), w)
+	_ = authviews.LoginPage(loginNext(r), "", h.resolveSkin(r)).Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Invalid form submission").Render(r.Context(), w)
+		_ = authviews.LoginPage(loginNext(r), "Invalid form submission", h.resolveSkin(r)).Render(r.Context(), w)
 		return
 	}
 	token, totpRequired, err := h.authLogin(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Wrong email or password").Render(r.Context(), w)
+		_ = authviews.LoginPage(loginNext(r), "Wrong email or password", h.resolveSkin(r)).Render(r.Context(), w)
 		return
 	}
 	if totpRequired {
@@ -55,7 +55,9 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 		// instead of failing opaquely.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Two-factor required — finish login via an API client").Render(r.Context(), w)
+		_ = authviews.LoginPage(
+			loginNext(r), "Two-factor required — finish login via an API client", h.resolveSkin(r),
+		).Render(r.Context(), w)
 		return
 	}
 	http.SetCookie(w, h.Auth.SetSessionCookie(token))

@@ -252,14 +252,14 @@ search layers (substring, fuzzy, BM25) behind one seam
 
 ## `skins` — plugin
 
-pluggable UI skins (DaisyUI + Basecoat)
+pluggable UI skins (DaisyUI + Basecoat + shadcn)
 
-- **Owned:** `web/skins/basecoat`
+- **Owned:** `web/skins/basecoat`, `web/skins/shadcn`
 - **Runtime off:** `UI_SKIN=daisyui (runtime selection IS the off switch)`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Note:** DaisyUI stays registered so the dispatcher fallback never fires.
-- **Warning:** ?skin=basecoat will fall back to DaisyUI with a warning log.
-- **Warning:** Static bundles stay embedded but unreferenced (web/resources/static/basecoat.min.*): delete them with the `css-basecoat` Makefile target when css-check is green without them.
+- **Warning:** ?skin=basecoat or ?skin=shadcn will fall back to DaisyUI with a warning log.
+- **Warning:** Static bundles stay embedded but unreferenced (web/resources/static/basecoat.min.*, shadcn.min.css): delete them with the `css-basecoat` / `css-shadcn` Makefile targets when css-check is green without them.
 
 ## `sounds` — plugin
 

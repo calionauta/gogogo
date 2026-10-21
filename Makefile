@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-basecoat css-shadcn css-all css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -138,16 +138,25 @@ css-basecoat: css-install
 	@npx tailwindcss -i ./src/css/basecoat-input.css -o ./web/resources/static/basecoat.min.css --silent
 	@echo "  ✓ built web/resources/static/basecoat.min.css"
 
-# css-all builds both CSS skins at once. Called by CI and Docker build.
-css-all: css css-basecoat
+# css-shadcn builds the shadcn skin: tokens + a compatibility layer over the
+# shared semantic classes. Produces web/resources/static/shadcn.min.css.
+css-shadcn: css-install
+	@echo "→ Building shadcn skin CSS..."
+	@npx tailwindcss -i ./src/css/shadcn-input.css -o ./web/resources/static/shadcn.min.css --silent
+	@echo "  ✓ built web/resources/static/shadcn.min.css"
+
+# css-all builds every CSS skin at once. Called by CI and Docker build.
+css-all: css css-basecoat css-shadcn
 
 # css-check fails if the generated CSS is out-of-date. Used by the
 # pre-commit hook and CI to catch forgotten rebuilds.
 css-check: css-all
 	@git diff --quiet --exit-code web/resources/static/app.min.css || (echo "  ❌ app.min.css out of date. Run \`make css\` and re-commit."; exit 1)
 	@git diff --quiet --exit-code web/resources/static/basecoat.min.css || (echo "  ❌ basecoat.min.css out of date. Run \`make css-basecoat\` and re-commit."; exit 1)
+	@git diff --quiet --exit-code web/resources/static/shadcn.min.css || (echo "  ❌ shadcn.min.css out of date. Run \`make css-shadcn\` and re-commit."; exit 1)
 	@echo "  ✓ CSS is up to date"
 	@echo "  ✓ basecoat CSS is up to date"
+	@echo "  ✓ shadcn CSS is up to date"
 
 # fmt checks formatting with gofumpt + goimports (no --fast shortcuts).
 fmt:

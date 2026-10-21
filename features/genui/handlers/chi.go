@@ -23,6 +23,7 @@ import (
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Signal names for the Ask panel (one spelling per signal, so painters
@@ -95,7 +96,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // generated templ internals take no context beyond
 	// the Render call itself, which already receives r.Context().
-	_ = comp.GenuiIndex(userEmail, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = comp.GenuiIndex(
+		userEmail, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin),
+	).Render(r.Context(), w)
 }
 
 // handleAsk validates and enqueues an Ask job, acking with a spinner

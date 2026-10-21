@@ -212,6 +212,7 @@ const chiMuxAnchor = "\treturn r"
 // skins-extra is trimmed.
 const (
 	skinBasecoatImport = `web/skins/basecoat"`
+	skinShadcnImport   = `web/skins/shadcn"`
 	soundsImportSuffix = `features/sounds"`
 	// reviewImportSuffix is the review feature import dropped from every
 	// composition file wiring the handler (route root, boot helper,
@@ -378,7 +379,7 @@ var baseTrimUnits = []trimUnit{
 		extraDrops: []fileDrop{
 			{
 				path:    "features/todo/components/skin_imports.go",
-				substrs: []string{skinBasecoatImport},
+				substrs: []string{skinBasecoatImport, skinShadcnImport},
 			},
 			{
 				path:    todoGoFile,

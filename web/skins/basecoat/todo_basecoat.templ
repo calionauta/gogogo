@@ -22,8 +22,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, userRole st
 			@components.OfflineSyncScript(offlineSync)
 		</head>
 		<body class="surface text-base-content min-h-screen">
-			@authviews.Navbar(userEmail, userRole, "todo", buildLabel, buildCommit)
-			@skins.SkinSelector(skinName)
+			@authviews.Navbar(userEmail, userRole, "todo", buildLabel, buildCommit, skinName)
 			@components.OfflineBanner(offlineSync)
 			<main class="max-w-5xl mx-auto mt-8 px-4">
 				@TodoList(signals)

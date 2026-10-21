@@ -30,6 +30,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // RoomLockSignals seeds the lock-derived UI.
@@ -75,21 +76,18 @@ func RoomLockSignalsJSON(roster appgoakt.Roster, email string) string {
 // Page renders the room demo: roster, exactly-one presenter lock, and the
 // crash hook. Initial state is server-rendered for a first paint with no
 // stream round trip; RoomCard (same markup) is what the stream morphs.
-templ Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string) {
+templ Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Room — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body>
-			@authviews.Navbar(email, userRole, "room", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "room", buildLabel, buildCommit, skinName)
 			@components.SessionBanner(email != "")
 			@roomSignals(roster, email)
 			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>

@@ -8,29 +8,27 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // GenuiIndex renders the Ask demo page: one question form, one live
 // result region fed by the model through the catalog. Work pattern is
 // Decide (focused hero: ask → shaped answer), so the composition is a
 // single column: form first, result below — no dashboard density.
-templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit string) {
+templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs(`{"theme":"light","genui_pending":false,"genui_error":""}`)... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Ask AI — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(true)
 		</head>
 		<body>
-			@authviews.Navbar(email, userRole, "genui", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "genui", buildLabel, buildCommit, skinName)
 			@components.OfflineBanner(true)
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">

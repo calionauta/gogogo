@@ -15,24 +15,22 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Index renders the landing page. userEmail is empty for guests
 // (Sign in CTA shows) and the authed email for signed-in users.
 // buildLabel/buildCommit are surfaced on the version badge so the
 // landing page matches the navbar's build feedback.
-templ Index(userEmail string, userRole string, buildLabel string, buildCommit string) {
+templ Index(userEmail string, userRole string, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
 			<style>
 				/* Hero layout: narrow column on desktop, full width on
@@ -66,7 +64,7 @@ templ Index(userEmail string, userRole string, buildLabel string, buildCommit st
 			</style>
 		</head>
 		<body class="bg-base-100 min-h-screen">
-			@authviews.Navbar(userEmail, userRole, "", buildLabel, buildCommit)
+			@authviews.Navbar(userEmail, userRole, "", buildLabel, buildCommit, skinName)
 			<main class="landing-hero">
 				<div class="landing-card">
 					<header class="text-center mb-6">

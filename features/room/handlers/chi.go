@@ -27,6 +27,7 @@ import (
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // roomSystem is the grain surface this slice needs. *goakt.Host satisfies
@@ -185,7 +186,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = roomcomponents.Page(email, role, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
+	_ = roomcomponents.Page(
+		email, role, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin),
+	).Render(r.Context(), w)
 }
 
 func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {

@@ -58,6 +58,12 @@ type Signals struct {
 	SearchQuery   string `json:"-"`
 	SearchEnabled bool   `json:"searchEnabled"`
 
+	// CreatedAfter is a client-owned date filter (YYYY-MM-DD). Empty means no
+	// filter. Every rendered row carries data-created, so filtering is a
+	// display decision and never needs a server round trip.
+	CreatedAfter string `json:"createdAfter"`
+	NoMatches    bool   `json:"noMatches"`
+
 	// SessionAuthed is the live session state for the shared banner. The
 	// todo page carries it on its OWN stream (the page must not open a second
 	// long-lived connection; browsers cap connections per host), and the

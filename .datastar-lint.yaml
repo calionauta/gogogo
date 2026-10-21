@@ -40,6 +40,8 @@ attributes:
     # Verified not a typo of any Datastar attribute (edit distance > 2).
     - data-size
     - data-variant
+    - data-created        # todo creation date for the client-side date filter
+    - data-command        # command-palette option marker
 
 # Rules that are always a bug in this project: a `// datastar-lint:ignore` for
 # one is REJECTED (SUPPRESS_BLOCKED) even with a reason.

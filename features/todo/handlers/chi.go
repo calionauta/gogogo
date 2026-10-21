@@ -39,9 +39,12 @@ import (
 	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
-// SkinBasecoat is duplicated (not imported) from the framework handler
-// package so this package stays framework-free.
-const SkinBasecoat = "basecoat"
+// SkinBasecoat and SkinShadcn are duplicated (not imported) from the
+// framework handler package so this package stays framework-free.
+const (
+	SkinBasecoat = "basecoat"
+	SkinShadcn   = "shadcn"
+)
 
 // Handler serves the todo data endpoints on chi. Q is the concrete
 // sqlc queries (never an interface — a wrong call is a compile error);
@@ -290,13 +293,15 @@ func (h *Handler) fail(ctx context.Context, w http.ResponseWriter, logMsg string
 // which a normalise-then-special-case shape would.
 func (h *Handler) resolveSkin(r *http.Request) string {
 	if q := r.URL.Query().Get("skin"); q != "" {
-		if q == SkinBasecoat {
+		switch q {
+		case SkinBasecoat, SkinShadcn:
 			return q
 		}
 		return "daisyui"
 	}
-	if h.DefaultSkin == SkinBasecoat {
-		return SkinBasecoat
+	switch h.DefaultSkin {
+	case SkinBasecoat, SkinShadcn:
+		return h.DefaultSkin
 	}
 	return "daisyui"
 }

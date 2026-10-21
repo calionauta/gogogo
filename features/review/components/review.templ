@@ -7,29 +7,27 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 // ReviewIndex renders the review page: tab picker (text/code), content
 // form, live phased progress, verdict fragment. The run button gates on
 // signals.ReviewEnabled — without a configured LLM the page shows the
 // setup hint instead of a dead button.
-templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals) {
+templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(signals))... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Review — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
 			@sounds.SoundAssets()
-			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(true)
 		</head>
 		<body>
-			@authviews.Navbar(email, userRole, "review", buildLabel, buildCommit)
+			@authviews.Navbar(email, userRole, "review", buildLabel, buildCommit, skinName)
 			@components.OfflineBanner(true)
 			@components.SessionBanner(email != "")
 			<main class="container mx-auto p-4 max-w-2xl">

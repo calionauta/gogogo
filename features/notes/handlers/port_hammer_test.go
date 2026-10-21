@@ -146,7 +146,7 @@ func TestNotesIndexLoadsDatastarRuntime(t *testing.T) {
 	var buf bytes.Buffer
 	err := notescomponents.NotesIndex(notesEmail, "user",
 		[]notescomponents.NoteMeta{{DocID: "abc", Author: notesEmail, IsMine: true, CanDelete: true}},
-		"dev", "c0ffee").Render(context.Background(), &buf)
+		"dev", "c0ffee", "daisyui").Render(context.Background(), &buf)
 	if err != nil {
 		t.Fatalf("render index: %v", err)
 	}

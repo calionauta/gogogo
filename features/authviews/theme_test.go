@@ -85,7 +85,7 @@ func walkTemplSources(t *testing.T, root string, fn func(rel, text string) error
 // TestThemeToggleSingleOwner pins the shared theme-toggle contract.
 func TestThemeToggleSingleOwner(t *testing.T) {
 	var buf bytes.Buffer
-	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee")
+	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee", "daisyui")
 	if err := nb.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render navbar: %v", err)
 	}

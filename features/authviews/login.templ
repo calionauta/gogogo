@@ -2,6 +2,7 @@ package authviews
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/web/skins"
 )
 
 
@@ -14,17 +15,15 @@ import (
 // exercise. Agents adapting gogogo into their own product must delete
 // every element carrying a data-demo attribute — see
 // docs/scope-taxonomy.md#demo-only-markup.
-templ LoginPage(next string, errMsg string) {
+templ LoginPage(next string, errMsg string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { ThemeRootAttrs("")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Sign in — gogogo</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			@skins.ActiveAssets(skinName)
 			@ThemeHead()
-			<script defer type="module" src="/static/datastar.js"></script>
 			@sounds.SoundAssets()
 		</head>
 		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">

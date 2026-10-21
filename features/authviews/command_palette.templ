@@ -1,0 +1,85 @@
+package authviews
+
+
+// CommandPalette is the keyboard-first jump menu (Ctrl/Cmd+K). It is a
+// Datastar-native combobox/listbox: the input owns the filter signal, every
+// command is a real link, and ArrowUp/ArrowDown move focus through the
+// visible options. No framework runtime and no client state outside the
+// dialog.
+//
+// The dialog is a native <dialog>, so Escape, focus trapping and the backdrop
+// come from the browser. Links close it on click; a reopen starts with a
+// clean query.
+templ CommandPalette(userRole string) {
+	<div
+		data-signals={ `{"cmdQuery":""}` }
+		data-on:keydown__window="(evt.metaKey || evt.ctrlKey) && evt.key.toLowerCase() === 'k' ? (evt.preventDefault(), document.getElementById('command-palette').showModal()) : null"
+	>
+		<button
+			type="button"
+			class="app-nav-btn"
+			title="Jump to a page (Ctrl/Cmd+K)"
+			aria-label="Open command palette"
+			data-on:click="document.getElementById('command-palette').showModal()"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+			</svg>
+			<span class="hidden md:inline">Jump to</span>
+			<kbd class="kbd kbd-xs hidden lg:inline">⌘K</kbd>
+		</button>
+
+		<dialog
+			id="command-palette"
+			class="modal"
+			data-on:close="$cmdQuery = ''"
+		>
+			<div class="modal-box overflow-hidden p-0" style="max-width: 36rem">
+				<div class="flex items-center gap-2 border-b border-base-300 px-4 py-3">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+					</svg>
+					<input
+						id="command-palette-input"
+						name="q"
+						class="input input-ghost w-full"
+						type="text"
+						placeholder="Jump to a page…"
+						aria-label="Search commands"
+						role="combobox"
+						aria-controls="command-palette-list"
+						aria-expanded="true"
+						aria-autocomplete="list"
+						data-bind="cmdQuery"
+						autofocus
+					/>
+					<kbd class="kbd kbd-sm">esc</kbd>
+				</div>
+				<ul id="command-palette-list" role="listbox" class="menu max-h-96 overflow-y-auto p-2">
+					@commandLink("Collab Todo", "/todo", "Tasks")
+					@commandLink("Collab whiteboard", "/whiteboard", "Canvas")
+					@commandLink("Collab notes", "/notes", "Docs")
+					@commandLink("Ask AI", "/genui", "AI")
+					@commandLink("Chat", "/chat", "AI")
+					@commandLink("Review", "/review", "AI")
+					@commandLink("Room", "/room", "Realtime")
+					if userRole == "admin" {
+						@commandLink("Config", "/config", "Operator")
+					}
+				</ul>
+			</div>
+			<form method="dialog" class="modal-backdrop">
+				<button>close</button>
+			</form>
+		</dialog>
+	</div>
+}
+
+templ commandLink(label string, href string, hint string) {
+	<li data-show={ "$cmdQuery === '' || el.textContent.toLowerCase().includes($cmdQuery.trim().toLowerCase())" }>
+		<a href={ templ.URL(href) } role="option" tabindex="-1" data-command data-on:click="document.getElementById('command-palette').close()">
+			<span>{ label }</span>
+			<span class="ml-auto text-xs opacity-50">{ hint }</span>
+		</a>
+	</li>
+}

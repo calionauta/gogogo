@@ -20,7 +20,7 @@ import (
 func TestLoginPageExplainsDemoRoles(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := authviews.LoginPage("/", "").Render(context.Background(), &buf); err != nil {
+	if err := authviews.LoginPage("/", "", "daisyui").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("LoginPage: %v", err)
 	}
 	html := buf.String()

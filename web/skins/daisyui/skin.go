@@ -26,11 +26,5 @@ func init() {
 // The main CSS (app.min.css) is the Tailwind v4 + DaisyUI v5 build output.
 // The baseline app.css provides project-specific overrides.
 func assets() templ.Component {
-	return templ.Raw(`
-<link rel="stylesheet" href="/static/app.min.css"/>
-<link rel="stylesheet" href="/static/app.css"/>
-<script src="/static/iconify-icon.min.js"></script>
-<script defer type="module" src="/static/theme.js"></script>
-<script defer type="module" src="/static/datastar.js"></script>
-	`)
+	return skins.DefaultAssets()
 }
