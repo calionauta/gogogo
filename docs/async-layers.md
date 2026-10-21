@@ -189,8 +189,18 @@ Two properties the demo pins because both were wrong: the roster is
 so the list flickered), and re-acquiring a lock you already hold
 **succeeds** (a holder told "no" sees a dead button). Leave drops the
 connection and, when it was the last one, the member and any lock they
-held — and it sticks, because no timer re-adds them. Standalone only: no
-placement, no cluster — cross-process entities are out of scope.
+held — and it sticks, because no timer re-adds them. Leaving is a state the
+tab writes, not just a silent roster edit: the leave answer flips a
+per-viewer `$roomLeft` signal, so the leaver's own card says so, hides the
+roster actions and offers **Rejoin** (`POST /room/join`). That flag rides no
+broadcast — a shared push cannot know who is reading, and one that shipped
+`roomLeft:false` would hand the buttons back to the tab that just left. Two
+paths clear it, both because presence IS the connection: a rejoin, and the
+tab's own stream reconnecting (`online`/`pageshow` re-open it and the server
+sees a new connection). A crash rebuild does the same for every live stream,
+which is why Crash is hidden while left.
+Standalone only: no placement, no cluster — cross-process entities are out of
+scope.
 
 ## The opt-out rules
 

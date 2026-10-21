@@ -126,6 +126,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Get("/room/roster", h.handleRoster)
 	r.Get("/room/stream", h.handleStream)
 	r.Post("/room/heartbeat", h.handleHeartbeat)
+	r.Post("/room/join", h.handleJoin)
 	r.Post("/room/acquire", h.handleAcquire)
 	r.Post("/room/release", h.handleRelease)
 	r.Post("/room/leave", h.handleLeave)
@@ -209,7 +210,14 @@ func (h *Handler) handleRoster(w http.ResponseWriter, r *http.Request) {
 // card (Datastar) — one round trip per click, and the clicker and its peers
 // converge on one state. The push covers the peers; the patch covers the
 // originator, which BroadcastToDoc does not echo back to itself.
-func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name, clientID string) any) {
+//
+// extra carries signals that belong to the CLICKER alone (the per-viewer
+// "you left" flag). It rides only the answer: a broadcast has one body for
+// every tab, so a per-viewer value in it would be wrong for all but one.
+func (h *Handler) mutate(
+	w http.ResponseWriter, r *http.Request,
+	msg func(name, clientID string) any, extra map[string]any,
+) {
 	name, _, ok := h.owner(w, r)
 	if !ok {
 		return
@@ -231,7 +239,7 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name, 
 		h.unavailable(r.Context(), w, id, "read-after-tell", err)
 		return
 	}
-	h.answerRoster(w, r, id, roster, name)
+	h.answerRoster(w, r, id, roster, name, extra)
 }
 
 // answerRoster replies with the card patch (Datastar) when the caller is a
@@ -240,6 +248,7 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request, msg func(name, 
 // read, so one endpoint serves both without negotiating.
 func (h *Handler) answerRoster(
 	w http.ResponseWriter, r *http.Request, id string, roster appgoakt.Roster, email string,
+	extra map[string]any,
 ) {
 	if r.Header.Get("Datastar-Request") != "true" {
 		writeJSON(w, http.StatusOK, roster)
@@ -248,7 +257,7 @@ func (h *Handler) answerRoster(
 	// ONE payload builder for the clicker and the broadcast (sendRosterPatch),
 	// so "what I see after my click" and "what peers see" cannot diverge.
 	sse := sdk.NewSSE(w, r)
-	if err := sendRosterPatch(r.Context(), sse, id, roster, email); err != nil {
+	if err := sendRosterPatch(r.Context(), sse, id, roster, email, extra); err != nil {
 		obsArgs := append(observability.WithComponent("room", "feature"), "room", id, "error", err)
 		observability.Warn(r.Context(), "room: answer patch failed", obsArgs...)
 	}
@@ -261,23 +270,37 @@ func (h *Handler) answerRoster(
 func (h *Handler) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	h.mutate(w, r, func(name, clientID string) any {
 		return appgoakt.RoomHeartbeat{Name: name, ClientID: clientID}
-	})
+	}, nil)
+}
+
+// handleJoin puts THIS tab back in the roster after a Leave. Presence is the
+// connection, so the stream never left — the grain just stopped counting it;
+// a join is what resumes it, and the answer clears $roomLeft on the card.
+func (h *Handler) handleJoin(w http.ResponseWriter, r *http.Request) {
+	h.mutate(w, r, func(name, clientID string) any {
+		return appgoakt.RoomJoin{Name: name, ClientID: clientID}
+	}, nil)
 }
 
 func (h *Handler) handleAcquire(w http.ResponseWriter, r *http.Request) {
 	h.mutate(w, r, func(name, clientID string) any {
 		return appgoakt.RoomAcquire{Name: name, ClientID: clientID}
-	})
+	}, nil)
 }
 
 func (h *Handler) handleRelease(w http.ResponseWriter, r *http.Request) {
-	h.mutate(w, r, func(name, _ string) any { return appgoakt.RoomRelease{Name: name} })
+	h.mutate(w, r, func(name, _ string) any { return appgoakt.RoomRelease{Name: name} }, nil)
 }
 
+// handleLeave is the one mutation whose answer carries per-viewer state: this
+// tab asked to be out of the room, and a roster it no longer appears in is not
+// feedback on its own screen. $roomLeft hides the roster actions and offers
+// Rejoin; the flag lives in the tab's signals, so no later broadcast (which
+// cannot know who is reading) can bring the buttons back.
 func (h *Handler) handleLeave(w http.ResponseWriter, r *http.Request) {
 	h.mutate(w, r, func(name, clientID string) any {
 		return appgoakt.RoomLeave{Name: name, ClientID: clientID}
-	})
+	}, roomcomponents.RoomLeftSignal())
 }
 
 func (h *Handler) handleCrash(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +328,7 @@ func (h *Handler) handleCrash(w http.ResponseWriter, r *http.Request) {
 		h.unavailable(r.Context(), w, id, "crash-rebuild", err)
 		return
 	}
-	h.answerRoster(w, r, id, roster, name)
+	h.answerRoster(w, r, id, roster, name, nil)
 }
 
 // rejoinWatchers replays every live stream's join into a restarted grain.
