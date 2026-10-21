@@ -15,6 +15,21 @@
 #
 # Requires go, git, curl, jq, and the network. It clones a tag and builds it, so
 # it does not belong in ci.yml.
+#
+# Two properties that are easy to break while editing this file:
+#
+#   * The CLONE IS THE TEMPLATE. The installer transforms a tree in place
+#     (requireScaffold demands go.mod and internal/server/chi.go), so the tree
+#     checked out at $base is what gets scaffolded; the ldflags contribute only
+#     the `scaffolded-from:` marker. Swapping the clone for a fixture would leave
+#     the marker asserted against nothing.
+#   * Every API call here is ANONYMOUS, on purpose. The installer caches its
+#     lookup for a day and this script runs weekly, so the volume is a handful of
+#     requests — nowhere near the 60/hour an unauthenticated caller gets. A token
+#     would have to reach the installer through config (check-secrets-env forbids
+#     ad-hoc secret env reads in Go, and it was right to flag this one), which is
+#     not worth it at this volume. If a weekly run ever goes red on a rate limit,
+#     that config change is the fix — not an env read bolted on here.
 set -euo pipefail
 
 repo="${REPO:-calionauta/gogogo}"

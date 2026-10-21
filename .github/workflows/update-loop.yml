@@ -15,6 +15,11 @@ name: update-loop
 # given push caused, and the script clones and builds a release, so it is too
 # slow and too network-dependent for every PR. Like stelow-drift, it does not
 # gate CI: it fails loudly on its own run, where a maintainer reads it.
+#
+# Its API calls are anonymous on purpose; the script's header carries the
+# arithmetic (the installer caches its lookup for a day, this runs weekly). No
+# token is needed at that volume, and the token path would have to go through
+# config rather than an env read.
 
 on:
   schedule:
