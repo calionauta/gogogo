@@ -54,11 +54,11 @@ go mod tidy && git add go.mod go.sum && git commit
 
 ## CSS looks stale / a style change did nothing
 
-Editing a `.templ` without regenerating leaves `web/resources/static/app.min.css`
-out of date.
+Editing a `.templ` without regenerating leaves the committed CSS bundles out of
+date.
 
 ```bash
-make templ && make css
+make templ && make css-all
 ```
 
 The pre-commit hook does this for you, but `css-check` can pass by inertia when
@@ -69,18 +69,18 @@ nobody rebuilt — so if you bypassed the hooks, rebuild explicitly.
 > `@import "tailwindcss" source(...)` directive — a `class="…p-1…"` accidentally
 > emitted as a utility creates spurious CSS and fails `css-check`.
 
-### `css-check` fails with NO source change (and `make css` will not fix it)
+### `css-check` fails with NO source change (and `make css-all` will not fix it)
 
-You edited nothing, `git status` is clean apart from
-`web/resources/static/app.min.css`, and rebuilding to an identical-looking
-bundle does not clear it. Cause: **a stale `node_modules`.**
+You edited nothing, `git status` is clean apart from a file under
+`web/resources/static/`, and rebuilding to an identical-looking bundle does not
+clear it. Cause: **a stale `node_modules`.**
 
 `package-lock.json` pins the exact Tailwind and DaisyUI versions, so the
 committed bundle is reproducible only against those versions. An older
 `node_modules` (left by a previous session, or restored from a backup) builds a
 bundle that differs in whitespace, ordering and component CSS — `git diff` looks
-like the whole file changed, and re-running `make css` cannot fix it because the
-version is wrong, not the content.
+like the whole file changed, and re-running `make css-all` cannot fix it because
+the version is wrong, not the content.
 
 ```bash
 node -e 'console.log(require("node_modules/tailwindcss/package.json").version)'
@@ -90,8 +90,8 @@ make css-check     # goes green
 ```
 
 `make css-install` detects this itself (it compares the installed versions
-against the lockfile) and `bin/check-css.sh` builds through `make css`, so in
-practice this is self-healing. The reason to know it is that the FIRST symptom
+against the lockfile) and `bin/check-css.sh` builds through `make css-all`, so
+in practice this is self-healing. The reason to know it is that the FIRST symptom
 looks like a broken repo rather than a stale dependency, which is how a real
 tailwindcss 4.3.2-vs-4.3.3 mismatch got misread as "the committed CSS is
 stale".
@@ -126,7 +126,7 @@ Most likely one of:
 1. **Stale binary.** `pkill -x web` and `make dev` again.
 2. **Stale templ.** `make templ` — editing a `.templ` does nothing until the
    `_templ.go` is regenerated.
-3. **Stale CSS.** `make css`.
+3. **Stale CSS.** `make css-all`.
 4. **Datastar patch with no target.** A `PatchElements` whose top-level element
    lacks an `id`, or has no `WithSelector`, throws
    `PatchElementsNoTargetsFound` in the browser console. Pair
@@ -149,6 +149,14 @@ and left a run stuck forever; make sure you are on a current version (see
 
 If you are on a current version and it still sticks, inspect the run at the
 console — see [Admin & Dashboard](admin-dashboard.md#dagnats-console).
+
+## Browser writes return 403 but curl works
+
+`sameOriginGuard` compares the browser's `Origin` header with `r.Host` for
+unsafe methods. A reverse proxy that rewrites `Host` makes every browser
+POST/PUT/PATCH/DELETE a 403, while curl and webhooks pass because they send no
+`Origin`. Keep the original `Host` at the proxy; cloudflared and Caddy do. See
+[Architecture](architecture.md#security-boundary).
 
 ## The deploy says green but the live app is old
 

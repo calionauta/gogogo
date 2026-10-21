@@ -7,7 +7,7 @@ teaches is visible here first — copy this shape when you add your own feature.
 
 - Full CRUD via Turso/SQLite (sqlc queries in `internal/db`).
 - Reactive frontend with Datastar + the active skin (DaisyUI by default;
-  BasecoatUI switchable — see [UI skins](ui-skins.md)).
+  BasecoatUI and shadcn switchable — see [UI skins](ui-skins.md)).
 - **Database actions stream through the SSE Hub record event.** Todo
   `create`/`toggle`/`delete` fan out a record event; each subscribed
   client re-fetches the fragment and morphs `#todo-list`. Delivery follows

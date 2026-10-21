@@ -289,7 +289,7 @@ by hand, so when a step is added to one, add it to the other:
 |---|---|---|
 | templ generate | ✓ | ✓ |
 | generated `_templ.go` matches sources | ✓ `check-generated` | ✓ (also pre-commit, `**/*.templ`) |
-| CSS bundle matches sources | ✓ `css-check` (both skins) | ✓ (after `npm ci`) |
+| CSS bundle matches sources | ✓ `css-check` (all skins) | ✓ (after `npm ci`) |
 | SCOPE annotations | ✓ | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
 | Prose claims (no hand-written counts, live paths, real subcommands, docs in the MANIFEST) | ✓ `check-docs` | ✓ |
@@ -318,14 +318,22 @@ path is `docs/`, `site/`, `*.md`, `LICENSE`, `.stelow/` or `.gitignore`; an
 unreadable diff (force-push, shallow history, dispatch) fails **open** to a full
 run. A trigger-level `paths-ignore` would be cheaper but skips the workflow
 entirely, leaving the required `ci` status pending forever on a docs PR — the
-classifier always runs, so `ci` always reports. Each job provisions its own toolchain and deps (`bin/check-ci-deps.sh`, pre-commit +
-CI, fails a job that uses `node`/`go` without installing them first).
+classifier always runs, so `ci` always reports. Each job provisions its own
+toolchain and deps (`bin/check-ci-deps.sh`, pre-commit + CI, fails a job that
+uses `node`/`go` without installing them first).
+
 `make ci-local` runs the same set locally, cheap steps first, then the
 race+browser fan-out (`scripts/ci-fanout.sh`).
 
-**The generated-artifact checks are the ones that regressed.** `_templ.go`
-(71 files) and the two committed CSS bundles (`app.min.css`, `basecoat.min.css`)
-are *committed and embedded in the binary*. Both CIs used to only **generate**
+The docs site is not part of `ci-local`. `pages.yml` runs `site-check`, builds
+`site/` and runs `scripts/site-layout.test.mjs` before publishing.
+`docsite-drift.yml` checks the vendored engine against `site/UPSTREAM_SHA` on
+PRs that touch it and weekly; `docsite-bump.yml` opens the bump PR.
+
+**The generated-artifact checks are the ones that regressed.** The generated
+`_templ.go` files and the three committed CSS bundles (`app.min.css`,
+`basecoat.min.css`, `shadcn.min.css`) are *committed and embedded in the
+binary*. Both CIs used to only **generate**
 them and then run every subsequent step against the freshly generated output —
 so a `.templ` (or `input.css`) edit whose regeneration was never committed
 passed lint, passed tests, passed both smoke tests, and shipped a binary
@@ -337,8 +345,8 @@ rendering stale markup. Both now regenerate and **diff**, which is exactly what
 so `basecoat.min.css` was compared against itself — the diff was empty by
 construction and could never fail, however stale the committed bundle was (it
 was, by 7 lines, until v0.51.0). `make css-check` builds `css-all` and did
-catch it, which is why CI and the hook disagreed. All three now build
-`css-all`: one command, no drift.
+catch it, which is why CI and the hook disagreed. CI, the hook and
+`make css-check` now all run `css-all`: one command, no drift.
 
 This is deterministic, and that matters: the reason `actions/cache` is disabled
 in this repo (`skip-cache: true`, `cache: false`) is a *real, documented*

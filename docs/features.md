@@ -25,7 +25,7 @@ being one.
 | **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` |
 | **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` |
-| **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI | `UI_SKIN` |
+| **UI skins (pluggable)** | DaisyUI v5 + BasecoatUI + shadcn | `UI_SKIN` |
 | **Persistence** | Turso (sqlc) | — |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset |
 | **Landing page** | Templ | — |
@@ -49,7 +49,7 @@ being one.
 - **Room presence (entity actors)** — One grain per room: connection-scoped roster (SSE join/leave, refcounted per tab) + exactly-one presenter lock, supervised with restart budget. The roster is pushed on every change and name-ordered (a map range shuffled it between pushes), the tab keeps its stream while hidden (`openWhenHidden`, or a tab switch would read as leaving), a crash restart replays the live connections into the fresh grain, re-acquiring your own lock succeeds, and the page renders only the actions the lock actually allows — Take while it is free, Release for the holder. Demo at `/room/` with a crash hook.
 - **Multi-instance realtime** — JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB.
 - **Hybrid offline sync** — NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync.
-- **UI skins (pluggable)** — DaisyUI (default) or BasecoatUI (shadcn-style OKLCH tokens). Switch via env var or `?skin=`. See [UI skins](ui-skins.md).
+- **UI skins (pluggable)** — DaisyUI (default), BasecoatUI (shadcn-style OKLCH tokens) or the token-driven shadcn skin. Switch via env var or `?skin=`. See [UI skins](ui-skins.md).
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
 - **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.

@@ -1,8 +1,8 @@
 # UI skins
 
-Every page ships with a runtime-switchable UI skin. Two skins are compiled into
-the same binary; the active one is chosen per process via env, per request via
-query string, or interactively via the `SkinSelector` widget in the navbar.
+Every page ships with a runtime-switchable UI skin. Three skins are compiled
+into the same binary; the active one is chosen per process via env, per request
+via query string, or interactively via the `SkinSelector` widget in the navbar.
 
 | Skin | What it is | CSS / JS |
 |------|-----------|----------|
@@ -67,8 +67,8 @@ DaisyUI when the env value is unknown, logging a warning.
 
 **Adding a skin:** create `web/skins/<name>/`, register it from the
 import file, add a `make css-<name>` target. See
-`web/skins/daisyui/skin.go` for the minimal reference implementation — assets
-only, no Templ templates (those stay in the feature).
+`web/skins/daisyui/skin.go` for the minimal assets-only reference. A skin that
+needs its own markup can keep a templ page beside it; Basecoat does.
 
 ## Building the CSS bundles
 
@@ -107,10 +107,6 @@ Delete `web/skins/`, drop the blank imports in
 from the navbar. The handler's lazy fallback returns DaisyUI assets when no
 skin is registered.
 
-## Related
-
-- [UI sounds](ui-sounds.md)
-- [Removing skins](scope-taxonomy.md#what-ships-as-what)
 ## Behaviour gaps: date picker and command palette
 
 DaisyUI is CSS-only, so the three behaviour gaps are filled without importing a
@@ -132,5 +128,10 @@ second design system:
   reusable combobox pattern. A form combobox that needs server search can reuse
   it with a `@get` endpoint, the same way the Todo search box does.
 
-Cally is the only new client asset. Basecoat's JS, Starbase and dsx were not
-added; the skin contract and the CSS-only shell stay intact.
+Cally is the only new client asset for these gaps. No Basecoat JS, Starbase or
+dsx runtime was added; the skin contract and the CSS-only shell stay intact.
+
+## Related
+
+- [UI sounds](ui-sounds.md)
+- [Removing skins](scope-taxonomy.md#what-ships-as-what)
