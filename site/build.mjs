@@ -1,17 +1,15 @@
-// gogogo docs site builder — zero dependencies (node stdlib only).
+// docsite — a zero-dependency docs site builder (node stdlib only).
 //
-// Inputs:  docs/**/*.md listed in the MANIFEST below (explicit list = stable slugs),
-//          plus CHANGELOG.md sections (see RELEASE_SOURCES).
+// This file is vendored, not forked. Project-specific values live in
+// site/docsite.config.mjs; keep that file as the only place a project diverges.
+// Upstream: https://github.com/calionauta/docsite (see README for the pin,
+// drift check and bump procedure).
+//
+// Inputs:  docs/**/*.md listed in config.manifest (explicit list = stable
+//          slugs), plus CHANGELOG.md sections (config.releases).
 // Outputs: site/docs/<slug>/index.html, site/docs/index.html,
 //          site/releases/index.html + site/releases/<version>.html,
 //          site/llms.txt, site/llms-full.txt, site/sitemap.xml.
-//
-// Releases pattern: skill cali-ops-changelog-site (agent-sync-public);
-// site/releases.mjs is a byte-identical vendored copy of its script.
-//
-// Refresh procedure: to add a page, append one MANIFEST row with a one-line
-// description, then run `node site/build.mjs`. Slugs are stable URLs — never
-// rename one without a redirect note.
 //
 // Usage: node site/build.mjs [--check]
 //   --check verifies every manifest file exists and every internal .md link
@@ -22,105 +20,21 @@ import { join, dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkReleases, buildReleases } from "./releases.mjs";
 
+// Project configuration lives next to this file. Everything project-specific
+// (name, base URL, the manifest, release sources) is there; this file is the
+// engine and should stay byte-identical to the upstream copy.
+import config from "./docsite.config.mjs";
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DOCS = join(ROOT, "docs");
-const OUT = join(ROOT, "site");
-const NAME = "gogogo";
-const BASE = `https://calionauta.github.io/${NAME}`;
+const DOCS = join(ROOT, config.docsDir || "docs");
+const OUT = join(ROOT, config.outDir || "site");
+const NAME = config.name;
+const BASE = config.base;
+const MANIFEST = config.manifest;
+const RELEASE_SOURCES = config.releases || [];
 
 // emitting page context for link rewriting (set per page in build())
 let CUR_SLUG = "";
-
-// CHANGELOG.md sections → /releases/ article pages (pattern: skill
-// cali-ops-changelog-site). Single source; versions share one slug namespace.
-const RELEASE_SOURCES = [
-  { file: "CHANGELOG.md", origin: "", repo: "calionauta/gogogo", tagPrefix: "v" },
-];
-
-// slug, source file (under docs/), one-line description (also feeds llms.txt)
-const MANIFEST = [
-  { group: "Get started", slug: "overview", file: "overview.md",
-    desc: "What gogogo is, who it is for, and the seven async layers it ships." },
-  { group: "Get started", slug: "motivation", file: "motivation.md",
-    desc: "The thesis behind the stack: Go for almost everything, Zig as the named exception, and how to choose without hype." },
-  { group: "Get started", slug: "architecture-decision", file: "architecture-decision.md",
-    desc: "The flat-stack decision record: what it serves, what it replaced, and the migration it completed." },
-  { group: "Get started", slug: "inspirations", file: "inspirations.md",
-    desc: "What gogogo learned from other projects, credited rather than vendored." },
-  { group: "Get started", slug: "getting-started", file: "getting-started.md",
-    desc: "Clone, run, first five minutes, and the commands you need." },
-  { group: "Agents", slug: "cli", file: "cli.md",
-    desc: "The installer as scriptable commands: advise, preview, apply, add, check." },
-  { group: "Agents", slug: "mcp", file: "mcp.md",
-    desc: "Install the MCP server, wire it into your client, and the six tools." },
-  { group: "Core", slug: "architecture", file: "architecture.md",
-    desc: "Directory layout, dependency direction, entry points, and route wiring gotchas." },
-  { group: "Core", slug: "stack-layers", file: "stack-layers.md",
-    desc: "Every dependency and what it buys, layer by layer." },
-  { group: "Core", slug: "stack-tradeoffs", file: "stack-tradeoffs.md",
-    desc: "What each choice rejected, what it costs to keep, and when to revisit: Turso vs SQLite vs Postgres, Datastar vs React, and the rest." },
-  { group: "Core", slug: "features", file: "features.md",
-    desc: "Every capability and its runtime opt-out." },
-  { group: "Core", slug: "api-routes", file: "api-routes.md",
-    desc: "Generated inventory of every API route, pinned by tests — the trim and hook gate that proves no route is lost." },
-  { group: "Core", slug: "unit-contracts", file: "unit-contracts.md",
-    desc: "Generated card per capability: routes it registers, generated queries it calls, runtime switch, and what removing it takes." },
-  { group: "Core", slug: "no-auth-no-db-recipe", file: "no-auth-no-db-recipe.md",
-    desc: "Recipe for stripping auth and the database out of a clone that needs neither." },
-  { group: "Core", slug: "use-cases", file: "use-cases.md",
-    desc: "What each core, plugin, and feature is for, in business language." },
-  { group: "Core", slug: "scope-taxonomy", file: "scope-taxonomy.md",
-    desc: "Core / Plugin / Feature: the rule for deciding what is safe to delete." },
-  { group: "Core", slug: "db-concurrency", file: "db-concurrency.md",
-    desc: "Turso single-writer stance, the probed MVCC path, and revisit triggers." },
-  { group: "Core", slug: "configuration", file: "configuration.md",
-    desc: "Every environment variable and runtime constant." },
-  { group: "Core", slug: "rbac", file: "rbac.md",
-    desc: "Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex)." },
-  { group: "Core", slug: "exception-to-go", file: "exception-to-go.md",
-    desc: "Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules." },
-  { group: "Core", slug: "native-language-tradeoffs", file: "native-language-tradeoffs.md",
-    desc: "Evidence-backed tradeoffs of Zig, Rust, Nim, Odin, and Mojo as native exception languages, and what a non-Zig proposal must rebut." },
-  { group: "Async", slug: "async-layers", file: "async-layers.md",
-    desc: "The seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync." },
-  { group: "Async", slug: "realtime-recipe", file: "realtime-recipe.md",
-    desc: "How to add live UI: client/server patterns, checklist, no invented transports." },
-  { group: "Async", slug: "dagnats",
-    file: "dagnats.md",
-    desc: "DagNats capability table, version bounds, learned gotchas, and the add-a-workflow path for LLM agents." },
-  { group: "AI", slug: "llm-and-credits", file: "llm-and-credits.md",
-    desc: "GoAI configuration and the optional ai-credits / BYOK plugin." },
-  { group: "AI", slug: "review", file: "review.md",
-    desc: "The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge." },
-  { group: "Frontend", slug: "todo-example", file: "todo-example.md",
-    desc: "The Todo reference implementation and the contract to imitate." },
-  { group: "Frontend", slug: "ui-skins", file: "ui-skins.md",
-    desc: "Pluggable DaisyUI / Basecoat / shadcn skins and the plugin contract." },
-  { group: "Frontend", slug: "ui-sounds", file: "ui-sounds.md",
-    desc: "Vendored cuelume sound feedback and its accessibility contract." },
-  { group: "Research", slug: "research", file: "research/index.md",
-    desc: "One place for every research note, comparison and tradeoff decision in this repo: what was evaluated, when, and what was chosen." },
-  { group: "Research", slug: "ui-engine-research", file: "research/ui-engine-research.md",
-    desc: "The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment." },
-  { group: "Research", slug: "ui-components", file: "research/ui-components-2026-10-21.md",
-    desc: "The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability." },
-  { group: "Ship", slug: "deploy", file: "deploy.md",
-    desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
-  { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",
-    desc: "Wails v3 desktop/mobile, edge sync, and the native window." },
-  { group: "Ship", slug: "admin-dashboard", file: "admin-dashboard.md",
-    desc: "Admin surfaces, the single-cookie session, and the DagNats console." },
-  { group: "Operate", slug: "local-ci", file: "local-ci.md",
-    desc: "The five-tier feedback loop and make signoff." },
-  { group: "Operate", slug: "ci-triage", file: "ci-triage.md",
-    desc: "When CI fails on something variable: the 60-second triage, flake diagnosis, quarantine with an expiry, and why 100% is not the target." },
-  { group: "Operate", slug: "code-quality", file: "code-quality.md",
-    desc: "The 33 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
-  { group: "Operate", slug: "troubleshooting", file: "troubleshooting.md",
-    desc: "Symptoms and where they actually come from." },
-  { group: "Operate", slug: "duckdb", file: "duckdb.md",
-    desc: "Query JSONL logs and the Turso file with DuckDB: local operator recipe." },
-];
 
 // Page CSS, inlined into every generated page (there is no stylesheet request
 // and no CSS build step for the docs site). Written one rule per line because a
@@ -307,7 +221,7 @@ function rewrite(href, pageDir) {
   // return 200, which is exactly why the mistake survives unnoticed: the link
   // works by accident and reads as broken to anyone inspecting the markup.
   const relToRoot = relative(ROOT, abs).split(sep).join("/");
-  const blob = `https://github.com/calionauta/${NAME}/blob/master/${relToRoot}`;
+  const blob = `https://github.com/${config.repo}/blob/${config.branch || "master"}/${relToRoot}`;
   return blob + hash;
 }
 
@@ -618,7 +532,9 @@ function check() {
   // manifest does not own — an unmanifested .md INSIDE docs/ silently
   // renders as a raw blob URL. Files OUTSIDE docs/ (repo root, e.g.
   // ../ARCHITECTURE.md) are legitimately blob links; only flag docs-internal.
-  for (const p of MANIFEST) {
+  // A project that deliberately keeps RFCs/notes in docs/ but out of the site
+  // sets strictManifestLinks: false in its config.
+  if (config.strictManifestLinks !== false) for (const p of MANIFEST) {
     const md = readFileSync(join(DOCS, p.file), "utf8");
     const pageDir = dirname(p.file) === "." ? "" : dirname(p.file);
     for (const m of md.matchAll(/\]\(([^)#]+\.md)(#[^)]*)?\)/g)) {

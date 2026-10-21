@@ -371,10 +371,21 @@ func checkStaleScopeDialect(root string, files []string) []string {
 
 // checkManifest proves every docs/*.md is published by the site build: an
 // orphan page exists in git and nowhere a reader can reach it.
+//
+// The manifest moved to site/docsite.config.mjs when the site engine became a
+// vendored package (calionauta/docsite); site/build.mjs is the engine and no
+// longer names pages. Both are read so a half-migrated tree still gets checked.
 func checkManifest(root string) []string {
-	raw, err := os.ReadFile(filepath.Join(root, "site", "build.mjs"))
-	if err != nil {
-		return []string{"site/build.mjs: " + err.Error()}
+	var raw []byte
+	for _, name := range []string{"site/docsite.config.mjs", "site/build.mjs"} {
+		b, err := os.ReadFile(filepath.Join(root, name))
+		if err == nil {
+			raw = append(raw, b...)
+			raw = append(raw, '\n')
+		}
+	}
+	if len(raw) == 0 {
+		return []string{"site/docsite.config.mjs: manifest not found"}
 	}
 	published := map[string]bool{}
 	for _, m := range regexp.MustCompile(`file:\s*"([^"]+)"`).
@@ -389,7 +400,7 @@ func checkManifest(root string) []string {
 	for _, m := range matches {
 		base := filepath.Base(m)
 		if !published[base] {
-			out = append(out, "site/build.mjs: docs/"+base+" is not in the MANIFEST (never published)")
+			out = append(out, "site/docsite.config.mjs: docs/"+base+" is not in the MANIFEST (never published)")
 		}
 	}
 	return out

@@ -19,13 +19,17 @@
 // Needs: npm ci (playwright) + npx playwright install chromium.
 import { chromium } from "playwright";
 import { spawnSync } from "node:child_process";
-import { createReadStream, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(fileURLToPath(import.meta.url), "../..");
-const SITE = join(ROOT, "site");
+// Project config is the only project-specific input: name, base URL, and the
+// output directory. Everything else is measured from the built pages.
+const CONFIG = (await import(pathToFileURL(join(ROOT, "site/docsite.config.mjs")).href)).default;
+const SITE = join(ROOT, CONFIG.outDir || "site");
+const PREFIX = new URL(CONFIG.base).pathname.replace(/\/$/, ""); // "" for a root site
 
 // Widths a reader actually uses: the reporter's 380-400px phone band, a wider
 // phone, a portrait tablet (nav collapses at 900), the reported 1103x850
@@ -39,6 +43,9 @@ const STACK_BELOW = 820;
 const FIT_VIEWPORT = 1440;
 const MAX_SCROLL_RATIO = 0.25;
 const MEASURE = { min: 560, max: 700 }; // prose line box, px (see --measure)
+// The landing menu appears when the primary links are hidden; that breakpoint
+// is a project choice (620 for a compact header, 900 when links vanish early).
+const LANDING_MENU_BELOW = CONFIG.landingMenuBelow ?? 620;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -92,10 +99,17 @@ function serve() {
 function pages() {
   const sitemap = readFileSync(join(SITE, "sitemap.xml"), "utf8");
   const docs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
-    .map((m) => m[1].replace(/^https?:\/\/[^/]+\/gogogo/, ""))
-    .filter((u) => /^\/docs\/[^/]+\/$/.test(u))
+    .map((m) => new URL(m[1]).pathname.replace(PREFIX, ""))
+    .filter((u) => /^\/docs\/.+\/$/.test(u))
     .sort();
-  return [{ path: "/", prose: false }, { path: "/docs/", prose: false }, ...docs.map((p) => ({ path: p, prose: true }))];
+  // A landing page is project-specific and optional; when it exists, its
+  // navigation and command blocks are measured too.
+  const hasLanding = existsSync(join(SITE, "index.html"));
+  return [
+    ...(hasLanding ? [{ path: "/", prose: false }] : []),
+    { path: "/docs/", prose: false },
+    ...docs.map((p) => ({ path: p, prose: true })),
+  ];
 }
 
 // measurePage() runs in the page: returns whatever the assertions need in one trip.
@@ -177,8 +191,8 @@ try {
         if (vw === 1440 && !r.sidebar) fail(`${where}: desktop sidebar missing at 1440px`);
       }
       if (path === "/") {
-        if (vw <= 620 && !r.landingMenu) fail(`${where}: no landing menu on a phone`);
-        if (vw > 620 && r.landingMenu) fail(`${where}: landing menu still shown at ${vw}px`);
+        if (vw <= LANDING_MENU_BELOW && !r.landingMenu) fail(`${where}: no landing menu at ${vw}px`);
+        if (vw > LANDING_MENU_BELOW && r.landingMenu) fail(`${where}: landing menu still shown at ${vw}px`);
         if (vw <= 900 && r.preOver > 0) fail(`${where}: a command block scrolls ${r.preOver}px instead of wrapping`);
       }
       // Structure once per page is enough; the attributes come from the builder.
@@ -194,7 +208,7 @@ try {
           if (t.firstCellScope !== "col") fail(`${where}: a table header has no scope="col"`);
           if (t.unlabelledCells > 0) fail(`${where}: ${t.unlabelledCells} table cell(s) have no data-label for the stacked layout`);
         }
-        if (prose) {
+        if (prose && r.proseWidth > 0) {
           if (r.proseWidth < MEASURE.min || r.proseWidth > MEASURE.max) {
             fail(`${where}: prose line box is ${r.proseWidth}px, outside ${MEASURE.min}-${MEASURE.max}px (widening the column to fit tables costs every page's readability)`);
           }
