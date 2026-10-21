@@ -9,6 +9,9 @@ win *for a single-binary, owned-code template*.
 > Rule of the template: a choice earns its place by what it buys, not by what
 > it beats. Read the benefits first, then this.
 
+The procedure that produced these choices — and the one to apply to a new one —
+is [Dependency doctrine](dependency-doctrine.md).
+
 ## Language: Go (and not TypeScript / Python)
 
 LLMs reach for TypeScript and Python by familiarity, not fitness — the same
@@ -16,9 +19,9 @@ flywheel as React: TS grows on React/Next's back, Python on AI's (+7% in 2025).
 Both are defensible defaults elsewhere; here they lose on three structural
 points.
 
-- **One artifact.** A static binary (~30 MB on `scratch`) against a runtime plus
-  `node_modules` plus a build step (Node), or an interpreter plus venv plus a
-  packaging matrix (Python).
+- **One artifact.** A single ~30 MB binary in a minimal alpine image, against
+  a runtime plus `node_modules` plus a build step (Node), or an interpreter plus
+  venv plus a packaging matrix (Python).
 - **Concurrency by default.** Goroutines against a single-threaded event loop
   (Node), or a GIL that in 2026 means running a second interpreter (3.14t,
   opt-in) whose lock silently re-enables on any unmarked C extension — with no

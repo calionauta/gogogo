@@ -12,7 +12,7 @@ pure-Go fallback shipping from day one. Each language is judged on the same
 five axes:
 
 - **FFI friction** — what crosses the boundary, and what breaks there
-- **build cost** — unified build, cross-compile, CI time, `scratch`-static
+- **build cost** — unified build, cross-compile, CI time, the musl/dlopen image
 - **stability** — does code written today compile in six months
 - **ecosystem** — can an agent and a new hire work with it next quarter
 - **hidden runtime** — anything the Go side cannot see or control

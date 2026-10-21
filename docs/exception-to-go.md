@@ -18,9 +18,11 @@ and none should be added without a concrete use case that passes the
 - **Single binary, minimal ops.** One `go build ./cmd/web` compiles
   everything — no build tags, runtime opt-outs via env vars. See
   [Architecture](architecture.md).
-- **Predictable builds and deploys.** The `Dockerfile` ships a static binary
-  on `scratch` (~30 MB). Anything requiring a C toolchain or a second
-  compiler complicates cross-compilation, reproducibility, and distribution.
+- **Predictable builds and deploys.** One `go build` produces the binary, in a
+  minimal alpine image whose native floor is already paid (CGO for `loro-go`, a
+  dlopen'd platform library for Turso). Anything requiring a *new* C toolchain,
+  a second compiler, or a new runtime library complicates cross-compilation,
+  reproducibility, and distribution.
 - **LLM-friendly code.** Go's minimal syntax, `gofumpt` uniformity, static
   typing, and goroutine/channel concurrency are equally readable by humans
   and agents. Every new language doubles the cognitive surface.
@@ -298,7 +300,7 @@ rejected:
 6. **boundary design** — the C-ABI function set, data layout, who
    allocates/frees (see below)
 7. **portability** —Tiered targets (`GOOS`/`GOARCH`), cross-compile story,
-   `scratch`-static story
+   the musl/`-tags musl` story
 8. **build/CI implications** — effect on `make dev`, `make build`,
    `make ci-local`, CI duration, developer setup (see below)
 9. **maintenance cost** — who owns the Zig, toolchain pin, upgrade burden
@@ -494,9 +496,11 @@ this cleanly," stay in Go. Concretely, evaluate the impact on `make dev`,
   (fallback vs build error).
 - **Reproducibility.** Pinned toolchain, locked inputs, same bytes from the
   same source. No "install latest Zig" steps.
-- **Static/`scratch` distribution.** The runtime image is `scratch` with a
-  static binary. A kernel needing dynamic libraries, shell-outs, or OS
-  services absent from `scratch` needs a distribution story, not a hope.
+- **Distribution into the musl image.** The runtime image is alpine with a
+  dynamically linked binary — the Turso library is dlopen'd at first use, so a
+  static or `scratch` base cannot work. A kernel needing dynamic libraries,
+  shell-outs, or OS services absent from that image needs a distribution story,
+  not a hope.
 - **CI complexity.** Today CI installs Go + `gcc` (for `loro-go`) and runs
   one gate (`make ci-local`). A Zig step must be scoped (only when native
   sources change), cached, and pinned — or it taxes every push for a
@@ -519,7 +523,7 @@ this cleanly," stay in Go. Concretely, evaluate the impact on `make dev`,
 | Build reproducibility | Pinned toolchain + locked inputs? | Stay in Go if "latest" is the pin |
 | CI complexity | Scoped, cached, pinned step? | Stay in Go if every push pays |
 | Developer setup | Still Go-only for most contributors? | Stay in Go if onboarding needs Zig |
-| Binary distribution | Static/`scratch`-safe? | Stay in Go if dynamic linking leaks in |
+| Binary distribution | Fits the alpine/musl image (dlopen-capable)? | Stay in Go if a new runtime library leaks in |
 | Platform support | All deploy targets covered? | Stay in Go if a tier-1 target drops |
 | Debugging | Symbols + bisection story? | Stay in Go if failures become opaque |
 | Testing | Baseline + kernel + red-proof? | Stay in Go if only vibes exist |
@@ -609,6 +613,7 @@ Vague instructions like "use Zig when appropriate" are banned. Follow the
 
 ## Related
 
+- [Dependency doctrine](dependency-doctrine.md) — the general write-it-or-rent-it procedure; the native ban there is gate item 1.
 - [Motivation](motivation.md) — the thesis behind Go-first: cheap failure, readable code, named exception.
 - [Native language tradeoffs](native-language-tradeoffs.md) — evidence-backed comparison of Zig, Rust, Nim, Odin, and Mojo as exception languages.
 - [Architecture](architecture.md) — unified build, directory layout, wiring.

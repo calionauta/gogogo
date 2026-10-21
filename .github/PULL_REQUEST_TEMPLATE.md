@@ -23,6 +23,7 @@ Closes #NNN (maintainer nod received: yes / no)
 - [ ] `// SCOPE:<core|plugin|feature>` on new non-test, non-generated `.go` files (`make check-scope`)
 - [ ] `make templ && make css` after `.templ` edits; no hand-edited `_templ.go`
 - [ ] No real LLM in tests; ephemeral ports (`127.0.0.1:0`, NATS `-1`); `GOGOGO_NO_BROWSER=1` where applicable
-- [ ] No new dependency or native code without prior discussion
+- [ ] New dependency or native code: passed `docs/dependency-doctrine.md`, and the one-line trade-off record (chosen / rejected / cost / revisit-if) is in this body
+- [ ] No dependency raised the native floor (same C compiler, same musl image, same cross-compile, no new runtime library); any human-gate item got an explicit sign-off
 - [ ] I understand every line and own its licensing; I can defend it in review
 - [ ] CI green (PRs with red CI are not reviewed until green)

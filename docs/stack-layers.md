@@ -98,7 +98,7 @@ works:
    there is no pure-Go CRDT of its quality, so the repo pays for gcc in
    CI (`ci.yml`) and documents it. A new CGO dependency must say who
    installs the compiler (CI, every dev machine, cross-compile), whether
-   the link is static, and what happens to the `scratch` image.
+   the link is static, and what the alpine runtime has to provide.
 
 This is a ladder, not a ban: rung 3 exists because rung 2 cannot cover
 everything (inline C, unstable ABIs, libraries with no dlopen story).
