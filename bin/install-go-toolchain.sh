@@ -9,10 +9,10 @@
 # directive in go.mod (bumped for GO-2026 stdlib CVEs).
 #
 # Usage (CI): bash bin/install-go-toolchain.sh   # needs sudo for /usr/local
-#   GO_VERSION=1.27.2 is the default; GITHUB_PATH is appended when present.
+#   GO_VERSION=1.27.3 is the default; GITHUB_PATH is appended when present.
 set -uo pipefail
 
-VERSION="${GO_VERSION:-1.27.2}"
+VERSION="${GO_VERSION:-1.27.3}"
 URL="https://go.dev/dl/go${VERSION}.linux-amd64.tar.gz"
 
 for i in 1 2 3; do
