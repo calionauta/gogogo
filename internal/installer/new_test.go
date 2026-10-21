@@ -2,6 +2,7 @@
 package installer
 
 import (
+	"context"
 	"go/parser"
 	"go/token"
 	"os"
@@ -165,5 +166,27 @@ func TestNewSourcesParseAndDropSounds(t *testing.T) {
 	}
 	if !strings.Contains(without, `"github.com/acme/app/features/authviews"`) {
 		t.Errorf("page lost the authviews import (the shared navbar):\n%s", without)
+	}
+}
+
+// TestNewRefusesToolchainMismatch pins the gate on the `new feature` path:
+// a toolchain the tree cannot use is refused BEFORE the generated files land,
+// so a failed scaffold never leaves a half-written feature behind.
+//
+// Red-proof: drop the checkToolchainForTree call from applyNew and this test
+// fails — the handler file is written and the run returns nil.
+func TestNewRefusesToolchainMismatch(t *testing.T) {
+	proj := t.TempDir()
+	writeGoMod(t, proj, "1.27.3")
+	stubToolchain(t, "go1.27.2", "go1.27.2")
+
+	opt := newOptions{name: "reports", dir: proj}
+	plan := newPlan{paths: newProjectPaths(opt.name), module: "example.com/proj"}
+	err := applyNew(context.Background(), opt, plan, devNull(t))
+	if err == nil || !strings.Contains(err.Error(), "needs go1.27.3") {
+		t.Fatalf("new feature must refuse this toolchain, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(proj, "features", "reports")); statErr == nil {
+		t.Error("the refused scaffold wrote the feature anyway")
 	}
 }

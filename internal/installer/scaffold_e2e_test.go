@@ -127,11 +127,56 @@ func TestScaffoldRelativeDir(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "features", "landing")); !os.IsNotExist(err) {
 		t.Error("the trim missed features/landing: a relative root skipped every removal")
 	}
+	// writeAgents goes through the same confined treeFS, so a relative root
+	// that only half-works would leave this file missing.
+	if _, err := os.Stat(filepath.Join(dir, "AGENTS.md")); err != nil {
+		t.Errorf("AGENTS.md missing: %v", err)
+	}
 	gomod, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	if err != nil {
 		t.Fatalf("go.mod missing: %v", err)
 	}
 	if !strings.Contains(string(gomod), "module github.com/nickchomey/gggtest") {
 		t.Errorf("go.mod was not renamed:\n%s", gomod)
+	}
+}
+
+// TestScaffoldRefusesToolchainMismatch is the #207 follow-up gate: the go.mod
+// `go` directive is enforced at PATCH level, so a local go1.27.2 cannot build
+// a tree that asks for 1.27.3. With GOTOOLCHAIN pinned there is no
+// self-upgrade, and the old code discovered the mismatch only at `go mod
+// tidy` — after the trim had already deleted the wiring.
+//
+// Red-proof: remove the checkToolchainForTree call from runApply and this test
+// fails with "the apply must refuse", because the real (self-upgrading)
+// toolchain then proves the tree happily.
+func TestScaffoldRefusesToolchainMismatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module github.com/calionauta/gogogo\n\ngo 1.27.3\n")
+	writeFile(t, filepath.Join(dir, "cmd", "web", "main.go"), fixtureMainOK)
+	writeFile(t, filepath.Join(dir, "features", "landing", "components", "index.templ"),
+		"package components\n")
+	stubToolchain(t, "go1.27.2", "go1.27.2")
+
+	err := Run(context.Background(), []string{
+		"--name", "toolchain-gap", "--owner", "e2eorg",
+		"--no-tui", "--yes", "--features", "none", "--dir", dir,
+	}, devNull(t), devNull(t))
+	if err == nil {
+		t.Fatal("the apply must refuse a tree this toolchain cannot build")
+	}
+	if !strings.Contains(err.Error(), "needs go1.27.3") {
+		t.Errorf("refusal does not name the requirement:\n%v", err)
+	}
+	// The decisive assertion: the refusal came BEFORE the destructive half.
+	if _, statErr := os.Stat(filepath.Join(dir, "features", "landing")); statErr != nil {
+		t.Error("the trim ran anyway: a refused apply must leave the tree untouched")
+	}
+	gomod, readErr := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if !strings.Contains(string(gomod), "module github.com/calionauta/gogogo") {
+		t.Error("the tree was renamed anyway: a refused apply must leave the tree untouched")
 	}
 }

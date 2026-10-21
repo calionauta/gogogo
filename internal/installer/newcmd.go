@@ -341,6 +341,11 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 	if err := guardMutable(root); err != nil {
 		return err
 	}
+	// Refuse a toolchain that cannot build the tree BEFORE the files land, or
+	// the proof fails on a half-written feature.
+	if err := checkToolchainForTree(ctx, root, stdout, opt.format == planFormatJSON); err != nil {
+		return err
+	}
 	files := map[string]string{
 		plan.paths.handler: newHandlerSource(opt.name, plan.module),
 		plan.paths.page:    newPageSource(opt.name, plan.module, plan.sounds),

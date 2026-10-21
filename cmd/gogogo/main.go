@@ -19,7 +19,7 @@ func main() {
 		if errors.Is(err, flag.ErrHelp) {
 			os.Exit(0)
 		}
-		fmt.Fprintln(os.Stderr, "gogogo:", err)
+		fmt.Fprintln(os.Stderr, installer.ErrorText(err))
 		os.Exit(installer.ExitCode(err))
 	}
 }

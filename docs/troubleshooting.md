@@ -139,6 +139,23 @@ build tags any more. If you are passing `-tags jetstream dagnats`, you are
 building a stale configuration that no longer reflects what ships. `make build`
 is just `go build ./cmd/web` and includes everything.
 
+## Scaffolding refuses: "this tree needs go X, but GOTOOLCHAIN pins go Y"
+
+The `go` directive in `go.mod` is enforced at **patch** level: a go1.27.2
+toolchain will not build a tree that declares `go 1.27.3`. The Go default
+(`GOTOOLCHAIN=auto`) downloads whatever the tree asks for, so this only bites
+when the setting is pinned:
+
+```bash
+go env GOTOOLCHAIN           # go1.27.2 or local => no self-upgrade
+go env -w GOTOOLCHAIN=auto   # the fix
+```
+
+The installer checks this before it mutates anything
+(`checkToolchainForTree` in `internal/installer/requirements.go`), so a
+refused run leaves the checkout untouched: no trimmed wiring, no renamed
+module, no half-written feature.
+
 ## The DagNats workflow is stuck in `running`
 
 Kill the server mid-run and restart — the engine resumes at the last incomplete

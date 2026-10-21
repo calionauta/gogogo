@@ -132,7 +132,9 @@ func applyWiringStrips(t *treeFS, root string, u trimUnit, rc *UnitReceipt) erro
 			return err
 		}
 		for _, sub := range u.desktopDropLines {
-			_ = dropLineContaining(t, dp, sub)
+			if err := dropLineContaining(t, dp, sub); err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 	}
 	return nil
@@ -163,7 +165,9 @@ func applyExtraFiles(t *treeFS, root string, u trimUnit, rc *UnitReceipt) error 
 		}
 	}
 	for _, mod := range u.goModDrops {
-		_ = dropGoModRequire(t, filepath.Join(root, "go.mod"), mod)
+		if err := dropGoModRequire(t, filepath.Join(root, "go.mod"), mod); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 	}
 	return nil
 }

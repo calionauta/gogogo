@@ -46,6 +46,18 @@ func ExitCode(err error) int {
 	return 1
 }
 
+// ErrorText renders an installer error as the CLI's one-line stderr message
+// with the program prefix applied exactly once. Many ExitError literals are
+// written for humans to read verbatim and already start with "gogogo:", so the
+// entrypoint must not add a second one.
+func ErrorText(err error) string {
+	msg := err.Error()
+	if strings.HasPrefix(msg, "gogogo:") {
+		return msg
+	}
+	return "gogogo: " + msg
+}
+
 // Version is the release tag (v-prefixed). Set via -ldflags:
 // -X github.com/calionauta/gogogo/internal/installer.Version=...
 // Plain `go build` leaves the dev default.

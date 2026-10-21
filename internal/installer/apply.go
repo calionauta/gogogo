@@ -51,6 +51,11 @@ func runApply(ctx context.Context, opt options, drop []trimUnit,
 	if err := ensureCheckoutDir(ctx, opt, stdin, stdout); err != nil {
 		return err
 	}
+	// The checkout exists now, so its go.mod decides which toolchain can prove
+	// it: refuse BEFORE the trim destroys wiring a build would need.
+	if err := checkToolchainForTree(ctx, opt.dir, stdout, opt.format == planFormatJSON); err != nil {
+		return err
+	}
 	if !opt.yes && !confirm(stdout, stdin, len(drop)) {
 		fmt.Fprintln(stdout, "gogogo: aborted — nothing changed (re-run with --yes to skip this prompt)")
 		return nil
