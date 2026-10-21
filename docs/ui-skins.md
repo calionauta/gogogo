@@ -70,6 +70,29 @@ import file, add a `make css-<name>` target. See
 `web/skins/daisyui/skin.go` for the minimal assets-only reference. A skin that
 needs its own markup can keep a templ page beside it; Basecoat does.
 
+### An assets-only skin owes the shared markup a class for every name it uses
+
+A skin that reuses the shared templates (shadcn) does not inherit DaisyUI's
+component CSS — it inherits the *class names*. Every class the markup spells has
+to resolve in that bundle, or the control falls back to unstyled markup while
+the page still renders "fine" in HTML. That is how `?skin=shadcn` shipped
+visibly broken: `.join` sizing crushed the Add button, and `.toast`, `.kbd`,
+`loading-spinner`, the checkbox colour variants and the `animate-in` /
+`slide-in-from-*` entrance utilities had no definition at all. `make css-check`
+proves a bundle is *current*, never that it is *complete*, so the gap is found
+by loading the page.
+
+Practical rules:
+
+- **Grep the markup, not the vocabulary.** `grep -o 'class="[^"]*"'` over the
+  templates the skin renders, then check each name against the bundle.
+- **Copy DaisyUI's semantics, restate them in the skin's tokens.** A missing
+  utility is not a style preference — `join` is a geometry contract.
+- **The browser smoke sweeps every detected skin** (`daisyui`, and
+auto-detected `basecoat`/`shadcn`) through the same offline-queue contract, so a
+  CSS-only skin is now exercised instead of assumed to be covered by the
+  DaisyUI pass.
+
 ## Building the CSS bundles
 
 ```

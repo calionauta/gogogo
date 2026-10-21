@@ -12,6 +12,7 @@ import (
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -36,15 +37,25 @@ func (h *Handler) handleRetryDemo(w http.ResponseWriter, r *http.Request) {
 		h.fail(r.Context(), w, "todo: retry-demo marshal failed", err, "enqueue failed")
 		return
 	}
-	if err := h.Queue.Enqueue(r.Context(), body); err != nil {
-		h.fail(r.Context(), w, "todo: retry-demo enqueue failed", err, "enqueue failed")
-		return
-	}
+	// Same ownership rule as the suggest ack (see enqueueSuggest): a response
+	// cannot order itself against the worker's SSE patch, so the ack is written
+	// before the job can produce one and must not write a signal the worker
+	// owns. `lastRetry` is written by every retry feedback frame, so an ack
+	// carrying it could overwrite the last attempt's text with "queued".
 	sse := sdk.NewSSE(w, r)
-	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"lastRetry": "queued retry-demo job",
-	}); err != nil {
-		h.fail(r.Context(), w, "todo: retry-demo ack failed", err, "enqueue failed")
+	if err := h.Queue.Enqueue(r.Context(), body); err != nil {
+		// Headers are out, so the failure rides the open stream as a terminal
+		// patch — a 500 here leaves the optimistic stepper running with nothing
+		// to clear it.
+		if merr := dshelpers.MergeSignals(sse, map[string]any{
+			"lastRetry":       "enqueue failed",
+			"lastRetryStatus": aiPhaseError,
+		}); merr != nil {
+			obsArgs := append(observability.WithComponent("todo", "feature"), "error", merr)
+			observability.Error(r.Context(), "todo: retry-demo enqueue failure not delivered", obsArgs)
+		}
+		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
+		observability.Error(r.Context(), "todo: retry-demo enqueue failed", obsArgs...)
 	}
 }
 

@@ -167,7 +167,7 @@ templ deleteBoardModal() {
 				<button
 					type="button"
 					class="btn btn-error btn-sm"
-					data-attr:disabled="$deletingBoard"
+					data-attr:disabled="!!$deletingBoard"
 					data-on:click={ "$deletingBoard = true; document.getElementById('" + boardDialogID + "').close(); @post('/api/whiteboard/' + encodeURIComponent($confirmBoardId) + '/delete')" }
 				 data-variant="destructive">
 					Delete

@@ -139,7 +139,7 @@ templ deleteNoteModal() {
 				<button
 					type="button"
 					class="btn btn-error btn-sm"
-					data-attr:disabled="$deletingNote"
+					data-attr:disabled="!!$deletingNote"
 					data-on:click={ "$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')" }
 				 data-variant="destructive">
 					Delete

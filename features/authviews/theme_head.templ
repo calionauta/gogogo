@@ -1,5 +1,7 @@
 package authviews
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // ThemeHead renders the no-flash theme bootstrap. Place it as the FIRST
 // child of every page <head>: it reads the persisted theme from
 // localStorage (falling back to the OS preference, then "light") and sets
@@ -20,7 +22,7 @@ package authviews
 // existing instances, but a plain tag starts the fetch earlier than the module
 // scripts, and the component tolerates being defined after the element exists.
 templ ThemeHead() {
-	<link rel="stylesheet" href="/static/chrome.css"/>
+	<link rel="stylesheet" href={ resources.StaticURL("chrome.css") }/>
 	<script>
 		(function() {
 			try {
@@ -53,6 +55,6 @@ templ ThemeHead() {
 			}
 		})();
 	</script>
-	<script src="/static/iconify-icon.min.js"></script>
-	<script defer src="/static/command-palette.js"></script>
+	<script src={ resources.StaticURL("iconify-icon.min.js") }></script>
+	<script defer src={ resources.StaticURL("command-palette.js") }></script>
 }

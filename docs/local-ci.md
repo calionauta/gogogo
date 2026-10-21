@@ -209,6 +209,34 @@ The cost is not the problem anyway: 8.9s is ~10% of `ci-local` next to
 worth running for a number nobody is waiting on. Re-evaluate only if the smoke
 test grows past ~30s, or if a candidate ships offline emulation.
 
+**Measured 2026-10: 30.7s, and the engine verdict stands.** The growth is not
+Playwright overhead — it is deliberate waiting plus a third skin:
+
+- `?skin=shadcn` is now swept like the others (search + offline queue). It used
+to be skipped on the theory that "shadcn reuses the markup, the DaisyUI pass
+covers it", which is exactly how a CSS-only skin shipped visibly broken: the
+markup was identical and the stylesheet was not. A skin counts as present only
+when its response diverges from the DaisyUI render AND links its own bundle.
+- `verifySuggestSurvivesSlowAck` holds the POST response for 2s while the
+worker's SSE result lands first — the ordering that produced the stuck
+"Asking AI..." spinner — then settles 500ms to let the late patch apply. That
+~2.5s is the point of the test.
+
+So the ~30s threshold is met by *coverage*, not by engine cost: the waits would
+be identical under any driver. Re-evaluate the engine only for capability.
+
+### What the smoke test asserts at the browser level
+
+Things no Go test can see, because the render is correct and only the browser's
+evaluation is wrong:
+
+| Assertion | Regression it pins |
+|---|---|
+| every detected skin is swept (search + offline queue + delete replay) | a skin that styles nothing (shadcn's missing classes) |
+| `/todo`: only the create submit is born disabled | `data-attr:disabled` setting the attribute for `""`/undefined — the dead "Run durable workflow" and "Delete" buttons |
+| Suggest under a 2s-delayed ack: no spinner, suggestions still on screen, ack body carries no `datastar-patch-signals` | the ack landing after the worker's terminal patch (stuck "Asking AI...", results erased) |
+| server-seeded signals survive the theme bootstrap | the bootstrap replacing `data-signals` (a wiped seed is a dead control) |
+
 ### Two test-harness footguns that masqueraded as slowness
 
 Both were found while investigating why `features/todo` took 148s. Neither was

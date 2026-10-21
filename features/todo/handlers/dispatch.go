@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	sdk "github.com/starfederation/datastar-go/datastar"
 
@@ -41,6 +40,9 @@ const (
 	signalAiStep      = "aiStep"
 	signalAiPending   = "aiPending"
 	signalAiPhase     = "aiPhase"
+	// aiPhaseError is the value the steps read as "this run failed"; it is a
+	// signal VALUE, not an error string.
+	aiPhaseError = "error"
 
 	signalJobSuggest          = "suggest"
 	signalJobSuggestSimulated = "suggest_simulated"
@@ -260,7 +262,6 @@ func (h *Handler) applyTechStep(sse *sdk.ServerSentEventGenerator, step string, 
 }
 
 func (h *Handler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, payload []byte) error {
-	slog.Info("todo: streamSuggestResult called", "payload", string(payload))
 	var p struct {
 		Suggestions    []string `json:"suggestions"`
 		SuggestErr     string   `json:"suggestErr"`
@@ -271,7 +272,7 @@ func (h *Handler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, payload
 	}
 	phase := ""
 	if p.SuggestErr != "" {
-		phase = "error"
+		phase = aiPhaseError
 	}
 	merge := map[string]any{
 		signalSuggestions: p.Suggestions,

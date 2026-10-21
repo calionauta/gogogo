@@ -177,10 +177,24 @@ live in `.templ` markup rather than Go:
   three had forgotten it — the same "every page must remember" shape that let
   the theme bindings drift.
 - A signal that never reached the store is read as `""`, and Datastar's
-  `data-attr:disabled` sets the attribute for `""` — so a wiped seed is a
-  control born disabled. Only its own submit handler clears it, so the page
-  cannot recover. A stream handshake that re-seeds the signal (Ask and Chat
-  merge `pending: false` on connect) can hide the loss; don't rely on it.
+  `data-attr:disabled` sets the attribute for everything that is not `false` or
+  `null` — `""` AND `undefined` included — so a wiped seed is a control born
+  disabled. Only its own submit handler clears it, so the page cannot recover. A
+  stream handshake that re-seeds the signal (Ask and Chat merge `pending: false`
+  on connect) can hide the loss; don't rely on it.
+
+  The same trap fires WITHOUT anyone wiping a seed, which is why every
+  `data-attr:*` expression is written `!!(...)`. An unset signal reads `""`, and
+  `"" && !x` returns `""` — not `false` — so the natural conjunction disables its
+  control on first paint. `Run durable workflow` and the delete-confirm `Delete`
+  on `/todo` were both permanently disabled in the DaisyUI and Basecoat skins
+  (`$onboardingActive && !$workflowCompleted` and `$deleting`, both steppers the
+  page deliberately leaves unset). A Go test cannot see this: the render is
+  correct and only the browser's evaluation is wrong.
+  `features/todo/components/disabled_attrs_test.go` renders both skins and fails
+  on any `data-attr:disabled` value that is not `!!`-prefixed — keep the rule
+  uniform (`!!($a || $b.trim())`, not bare comparisons) so the check needs no JS
+  parser.
 - **A `data-bind` signal is client-owned: never write it from a server merge.**
   The bound element is the source of truth while the user types, and the
   server's copy always lags (a value only arrives after a debounced

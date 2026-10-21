@@ -73,7 +73,7 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 						<button
 							type="submit"
 						 class="btn btn-primary"
-							data-attr:disabled="$genui_pending"
+							data-attr:disabled="!!$genui_pending"
 						>
 							<span data-show="!$genui_pending">Ask</span>
 							<span data-show="$genui_pending" class="loading loading-spinner loading-sm" aria-hidden="true"></span>

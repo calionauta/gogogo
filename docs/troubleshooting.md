@@ -229,9 +229,19 @@ curl -s https://<host>/ | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1
 ```
 
 A mismatch with `started` unchanged means the container is stale. Static assets
-are served with `Cache-Control: public, max-age=0, must-revalidate` and a
-content-hash ETag, so a stale CSS in the browser means a stale deploy, not a
-cache.
+are referenced with a content-hash query (`/static/app.min.css?v=<hash>`) and
+served `Cache-Control: public, max-age=31536000, immutable`, so a stale CSS in
+the browser means a stale **page** (an HTML response held by the service worker
+or the CDN), never a stale asset: changed bytes are a different URL. A bare
+`/static/...` URL still revalidates against its content-hash ETag — that path
+exists for old bookmarks, and a 304 from it proves the origin is current.
+
+Known gap: the theme/app bundles and the shared scripts are versioned because
+they go through `resources.StaticURL`, but a feature that embeds its own
+scripts (`features/notes/static`, `features/whiteboard/static`) still emits
+bare `/static/notes/...` paths and revalidates them per navigation.
+`AssetHandler` already honours `?v=<fingerprint>` for every prefix, so closing
+it is a per-feature `StaticURL`-equivalent call, not a new mechanism.
 
 ## The deploy workflow fails on the server
 

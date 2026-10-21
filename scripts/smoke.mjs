@@ -74,6 +74,10 @@ const runtimeEnv = {
   NATS_ENABLED: "false",
   DAGNATS_ENABLED: "false",
   OFFLINE_SYNC_ENABLED: "true",
+  // Deterministic LLM for the suggest flow (the async-demo panel only renders
+  // when an LLM is configured, simulated or real). Explicit here so the sweep
+  // never depends on a dev default and never reaches a network provider.
+  SIMULATE_LLM: "true",
   // Belt-and-suspenders: router.Init already suppresses the first-run
   // installer for a non-TTY process, but an explicit flag means a future
   // change to that heuristic cannot start popping browser tabs again.
@@ -480,6 +484,148 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   }
 }
 
+// verifySuggestSurvivesSlowAck reproduces the production ordering that left the
+// AI Suggest button saying "Asking AI..." forever with all three steps lit.
+//
+// The response of POST /api/todos/suggest and the worker's result travel on
+// DIFFERENT connections: the result rides the tab's already-open SSE stream,
+// the ack rides the POST response. Nothing orders them, and behind a tunnel (or
+// when Datastar retries the POST) the ack arrives LAST. It used to merge
+// `aiPending: true` and `suggestions: []`, so it landed after the terminal
+// patch and re-stuck the spinner while erasing the suggestions -- the exact
+// state observed in production: aiStep=3, aiPending=true, suggestions=[].
+//
+// route.fetch() processes the request and waits for the server's response, so
+// the ack can be held in flight while the SSE result is delivered: the slow
+// response IS the reproduction. An ack-after-enqueue that writes signals makes
+// the button stay on "Asking AI..." until the 25s deadline.
+//
+// Runs in its OWN context with service workers BLOCKED: Playwright cannot
+// intercept requests a service worker makes, so in the main context (already
+// SW-controlled by the offline sweeps above) the POST would slip past the route
+// handler and the reproduction would silently not run.
+async function verifySuggestSurvivesSlowAck(browser, token) {
+  console.log("-> Exercising AI Suggest under a slow ack (result beats the response)");
+  const ctx = await browser.newContext({ serviceWorkers: "block" });
+  await ctx.addCookies([{ name: "gogogo_auth", value: token, url: BASE + "/" }]);
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(String(e)));
+  let heldAck = false;
+  let ackDelivered = false;
+  try {
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    // The TAB (class `tab`) carries the same label as the panel's action button
+    // (class `btn`); select the tab explicitly so the click cannot land on the
+    // button of a hidden panel.
+    await page
+      .locator('.tab[data-on\\:click*="sidebarTab"]')
+      .filter({ hasText: "AI Suggest" })
+      .first()
+      .click();
+
+    // Address the panel button by its own handler, never by text: the tab's
+    // label is identical, and a text finder resolves to the tab, whose label
+    // never changes (that produced a false "never became pending").
+    const button = page.locator('[data-on\\:click*="/api/todos/suggest"]');
+    await button.waitFor({ state: "visible", timeout: 20000 });
+    const label = () =>
+      button.evaluate((el) => (el.textContent || "").replace(/\s+/g, " ").trim());
+
+    let ackBody = "";
+    await page.route("**/api/todos/suggest**", async (route) => {
+      const response = await route.fetch();
+      heldAck = true;
+      ackBody = await response.text();
+      await new Promise((r) => setTimeout(r, 2000)); // the slow leg
+      // Re-send explicitly: the body was consumed above, so fulfil from the
+      // buffered copy instead of from `response`.
+      await route.fulfill({
+        status: response.status(),
+        headers: response.headers(),
+        body: ackBody,
+      });
+      ackDelivered = true;
+    });
+
+    await button.click();
+    // Visibility, not textContent: the button holds BOTH labels in separate
+    // spans (`AI Suggest` / `Asking AI...`) toggled by data-show, so
+    // textContent always contains "AI Suggest" and a text-based wait passes
+    // while the spinner is still up. The pending span having zero client rects
+    // is what "not asking" actually looks like.
+    const spinnerShown = () =>
+      page.evaluate(() => {
+        const el = document.querySelector('[data-show="$aiPending"]');
+        return !!el && el.getClientRects().length > 0;
+      });
+    // 1) The run must be observably IN FLIGHT first, otherwise the next wait
+    //    can pass on the pre-click DOM.
+    let sawPending = false;
+    for (let i = 0; i < 60 && !sawPending; i++) {
+      sawPending = await spinnerShown();
+      if (!sawPending) await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!sawPending) fail("suggest: optimistic \"Asking AI\" spinner never appeared");
+
+    // 2) The result must arrive (the run finishes on the SSE stream, not on the
+    //    POST response).
+    const region = page.locator("#suggestions-region");
+    let resultShown = false;
+    for (let i = 0; i < 250 && !resultShown; i++) {
+      resultShown = await region.isVisible().catch(() => false);
+      if (!resultShown) await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!resultShown) fail("suggest: the worker's suggestions never reached the page");
+
+    // 3) Wait for the ACK to land before judging the final state: the whole
+    //    point is that it arrives AFTER the result. `ackDelivered` flips once
+    //    route.fulfill hands the (delayed) response to the page.
+    for (let i = 0; i < 60 && !ackDelivered; i++) await new Promise((r) => setTimeout(r, 100));
+    if (!ackDelivered) fail("suggest: the delayed ack was never delivered (reproduction did not complete)");
+    await new Promise((r) => setTimeout(r, 500)); // let Datastar apply the late patch
+
+    // 4) FINAL STATE, which is the state the user was stuck in. Judged on what
+    //    the DOM shows, not on signals that cannot be read from outside: the
+    //    region is gated on `$suggestions.length > 0` (a late ack writing
+    //    `suggestions: []` hides it) and the spinner span on `$aiPending` (a
+    //    late ack writing `aiPending: true` raises it again).
+    const spinnerUp = await spinnerShown();
+    const visible = await region.isVisible().catch(() => false);
+    const n = await region.locator("button").count().catch(() => 0); // one chip per suggestion
+
+    const problems = [];
+    // Deterministic half: the ack must be a bare "accepted" stream. A signal
+    // patch in it is a write that can land after the terminal patch, and no
+    // amount of UI polling makes that safe. This is the assertion that cannot
+    // race the network ordering.
+    if (/datastar-patch-signals/.test(ackBody)) {
+      problems.push(
+        `suggest: the ack carries a signal patch (${ackBody.replace(/\s+/g, " ").slice(0, 160)}) - it can land after the result and undo it`,
+      );
+    }
+    if (spinnerUp) {
+      problems.push(
+        `suggest: spinner still up after the run finished (label=${await label()}) - a late ack re-set aiPending`,
+      );
+    }
+    if (!visible || n === 0) {
+      problems.push(
+        `suggest: no suggestions on screen after the run (visible=${visible}, items=${n}) - the late ack erased the result`,
+      );
+    }
+    if (problems.length > 0) {
+      for (const p of problems) fail(p);
+    } else {
+      console.log(`  ok suggest survived a slow ack (${n} suggestions still rendered after the ack landed)`);
+    }
+    if (!heldAck) fail("suggest: the slow-ack interception never saw the request (reproduction did not run)");
+    if (errs.length > 0) fail(`suggest: uncaught JS error: ${errs.join(" | ")}`);
+  } finally {
+    await ctx.close();
+  }
+}
+
 async function verifyOfflineUx(page, context) {
   // Bundles the CAL-9 offline-UX contract under one harness run:
   //   1. the header presence pill (.online-pill) greys out (is-offline) when the
@@ -737,6 +883,39 @@ try {
         fail(`${route}: ${state.text || control} is disabled on load with no run in flight — a dead control`);
       }
     }
+    if (route === "/todo") {
+      // BORN-DISABLED SWEEP. Datastar's attr plugin SETS `disabled` for every
+      // value that is not `false`/`null` — including the `""` it substitutes
+      // for a signal that was never seeded — so `data-attr:disabled="$a && !$b"`
+      // on an unset stepper renders a dead control (`&&` returns its left
+      // operand, `""`, which is truthy to the attribute logic). Two shipped
+      // dead that way: "Run durable workflow" and the delete-confirm "Delete"
+      // (which made deleting a todo impossible from the UI).
+      //
+      // Exactly ONE control is legitimately disabled at load: the create-form
+      // submit, because its own title is empty (its expression reads
+      // `$newTitle`). Anything else is an unset signal, not a precondition.
+      const born = await page.evaluate(() => {
+        const out = [];
+        for (const el of document.querySelectorAll("[data-attr\\:disabled]")) {
+          if (!el.disabled) continue;
+          out.push({
+            text: (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40),
+            expr: el.getAttribute("data-attr:disabled") || "",
+          });
+        }
+        return out;
+      });
+      const unexpected = born.filter((b) => !b.expr.includes("newTitle"));
+      if (unexpected.length > 0) {
+        fail(`/todo: ${unexpected.length} control(s) born disabled by an unset signal: ${JSON.stringify(unexpected)}`);
+      }
+      if (born.length === 0) {
+        fail(
+          "/todo: no control is disabled at load — the create submit is expected to be (empty title), so this sweep would be vacuous",
+        );
+      }
+    }
   }
 
   pageErrors.length = 0;
@@ -785,26 +964,38 @@ try {
   } // hasFeature("room")
 
   // CAL-34: sweep the markup-carrying skin variants through the
-  // offline-queue contract. Basecoat has its own `.templ`; shadcn reuses the
-  // shared markup and only swaps CSS tokens, so the DaisyUI pass covers it.
-  // A typo in the offline-reset listener (data-on:gogogo:queued__window vs.
-  // gogogo__queued) used to slip through because the harness only covered
-  // daisyui. Basecoat is auto-detected, not assumed: with skins-extra trimmed
-  // the server falls back to DaisyUI with a warning log, so a blind second
-  // pass would run DaisyUI twice labeled "basecoat" (silent coverage loss).
-  // A genuinely identical render can only mean the fallback — DaisyUI and
-  // Basecoat share no markup.
+  // offline-queue contract. A typo in the offline-reset listener
+  // (data-on:gogogo:queued__window vs. gogogo__queued) used to slip through
+  // because the harness only covered daisyui.
   const offlineSkins = ["daisyui"];
   {
-    // Authenticated compare (page carries the session cookies): the login
-    // redirect would render identically for both and fake a fallback.
-    const distinct = await page.evaluate(async (base) => {
-      const a = await (await fetch(base + "/todo")).text();
-      const b = await (await fetch(base + "/todo?skin=basecoat")).text();
-      return a !== b;
+    // Authenticated probe (the login redirect renders identically for every
+    // skin and would fake a fallback). AUTO-DETECTED, never assumed: a trimmed
+    // checkout drops a skin and the server falls back to DaisyUI with a
+    // warning log, so a blind second pass would run DaisyUI twice, labelled
+    // with the missing skin's name (silent coverage loss).
+    //
+    // BOTH carriers are swept. Basecoat renders its own .templ; shadcn reuses
+    // the shared markup and only swaps CSS — which is precisely why the old
+    // "the DaisyUI pass covers shadcn" shortcut was wrong. `?skin=shadcn`
+    // served shared markup against a compatibility layer that was missing
+    // classes the markup uses (join sizing, toasts, kbd, animate utilities),
+    // and no run had ever loaded the page, so nothing failed. A skin counts as
+    // present when its response diverges from the DaisyUI render AND links its
+    // own stylesheet (the `?v=` fingerprint is why this is a prefix match).
+    const present = await page.evaluate(async (base) => {
+      const plain = await (await fetch(base + "/todo")).text();
+      const out = {};
+      for (const skin of ["basecoat", "shadcn"]) {
+        const html = await (await fetch(base + "/todo?skin=" + skin)).text();
+        out[skin] = html !== plain && html.includes("/static/" + skin + ".min.css");
+      }
+      return out;
     }, BASE);
-    if (distinct) offlineSkins.push("basecoat");
-    else console.log("  → basecoat skin absent (fallback to DaisyUI), single pass");
+    for (const [skin, ok] of Object.entries(present)) {
+      if (ok) offlineSkins.push(skin);
+      else console.log(`  → ${skin} skin absent (fallback to DaisyUI), not swept`);
+    }
   }
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
@@ -815,6 +1006,7 @@ try {
       fail(`uncaught JS error during offline queue test (skin=${skin}): ${pageErrors.map((e) => e.msg).join(" | ")}`);
     }
   }
+  await verifySuggestSurvivesSlowAck(browser, userToken);
   await verifyOfflineUx(page, context);
   if (pageErrors.length > 0) {
     fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);

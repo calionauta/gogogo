@@ -89,6 +89,17 @@ The rule of thumb: **commit on release, relay while moving.**
 > changed, the Hub record event already delivers it, and the visibility-scoped
 > re-list makes the delivery correctly scoped for free.
 
+> **An ack must never write a signal the worker's terminal patch owns.** A POST
+> that enqueues a job answers on its own response, while the result arrives on
+> the tab's SSE stream — two connections, no ordering guarantee between them, and
+> the response is the slower one whenever the caller is behind a tunnel or
+> Datastar retries it. The suggest ack merged `aiPending: true` and
+> `suggestions: []`, so it could land *after* the result: all three steps lit,
+> the button stuck on "Asking AI…", the suggestions erased. The ack now merges
+> nothing — the click owns the optimistic state, the worker owns the terminal
+> state — and the enqueue failure path patches that terminal state onto the
+> already-open stream, because a 500 has nothing left to clear the spinner with.
+
 ## Cross-instance sync adds one more path
 
 When JetStream is enabled (default: on):

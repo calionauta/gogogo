@@ -283,7 +283,7 @@ templ aiSuggestPanel(signals todo.Signals) {
 	</ul>
 
 	<button type="button" class="btn w-full" data-variant="primary"
-		data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle) + '&skin=basecoat')"
+		data-on:click="$aiStep = 1; $aiPending = true; $aiPhase = ''; $suggestions = []; $suggestErr = ''; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle) + '&skin=basecoat')"
 		title="Ask the configured LLM for 3 todo suggestions via goqite + retry-go">
 		<span class="inline-flex items-center gap-2">
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -360,7 +360,7 @@ templ durableWorkflowPanel(signals todo.Signals) {
 
 	<!-- trim:dagnats removes this entry button (the sole /api/onboarding ref in this skin; the gated panel around it stays, mirroring runtime-disabled) -->
 	<button type="button" class="btn w-full" data-variant="secondary"
-		data-attr:disabled="$onboardingActive && !$workflowCompleted"
+		data-attr:disabled="!!($onboardingActive && !$workflowCompleted)"
 		data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat')">
 		<span class="inline-flex items-center gap-2">
 			<span data-show="!$onboardingActive || $workflowCompleted">
@@ -396,7 +396,7 @@ templ createForm(signals todo.Signals) {
 			<input type="text" name="title" class="input w-full" placeholder="Add a new todo..." data-bind="newTitle"/>
 		</div>
 		<button type="submit" class="btn" data-variant="primary"
-			data-attr:disabled="$loading || !$newTitle.trim()">
+			data-attr:disabled="!!($loading || !$newTitle.trim())">
 			<span data-show="!$loading">Add</span>
 			<span data-show="$loading" class="flex items-center gap-1">
 				<span class="spinner"></span>
@@ -645,7 +645,7 @@ templ deleteConfirmModal() {
 					Cancel
 				</button>
 				<button type="button" class="btn" data-size="sm" data-variant="destructive"
-					data-attr:disabled="$deleting"
+					data-attr:disabled="!!$deleting"
 					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&skin=basecoat')">
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>

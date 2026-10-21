@@ -11,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 //go:embed static/*
@@ -27,11 +28,58 @@ func StaticFS() fs.FS {
 	return sub
 }
 
+// assetFingerprintLen is how many hex characters of the content hash go into
+// ?v=. 16 (64 bits) is far past collision risk for a build artifact set this
+// size and keeps the query string short.
+const assetFingerprintLen = 16
+
+var (
+	staticURLOnce sync.Once
+	staticURLs    map[string]string
+)
+
+// StaticURL returns the cache-busting URL for one embedded asset:
+// "/static/app.min.css?v=<content hash>".
+//
+// Templates emit assets through this instead of hardcoding the path, because
+// the URL is what lets the browser and any CDN in front of the app cache the
+// file immutably: the query names the bytes, so a deploy that changes the file
+// produces a different URL and staleness is impossible (see AssetHandler).
+//
+// An unknown name returns the plain path. That still serves, it just falls
+// back to per-navigation revalidation — a missing entry is a cheap mistake,
+// never a broken page.
+func StaticURL(name string) string {
+	staticURLOnce.Do(func() {
+		staticURLs = map[string]string{}
+		fsys := StaticFS()
+		if err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			data, rerr := fs.ReadFile(fsys, p)
+			if rerr != nil {
+				return rerr
+			}
+			sum := sha256.Sum256(data)
+			staticURLs[p] = "/static/" + p + "?v=" + hex.EncodeToString(sum[:])[:assetFingerprintLen]
+			return nil
+		}); err != nil {
+			panic("resources: build static URL table: " + err.Error())
+		}
+	})
+	if u, ok := staticURLs[strings.TrimPrefix(name, "/")]; ok {
+		return u
+	}
+	return "/static/" + strings.TrimPrefix(name, "/")
+}
+
 // asset is one embedded file, pre-read at startup together with its
 // content hash and MIME type.
 type asset struct {
 	data  []byte
 	etag  string // quoted sha256 hex, a strong validator for revalidation
+	fp    string // bare sha256 prefix, the ?v= value that fingerprints the URL
 	ctype string
 }
 
@@ -43,13 +91,23 @@ type asset struct {
 //	Cache-Control: public, max-age=0, must-revalidate
 //	ETag: <sha256 of content>
 //
-// Assets are NOT fingerprinted (the URLs are fixed), so the correct best
-// practice is to never let a stale copy be served: clients and CDNs may
-// cache, but MUST revalidate with the ETag before reuse (cheap 304 when
-// unchanged). Because embed.FS carries no mtime, Go's http.FileServer ETag
-// would be size-only and collide when a file's bytes change without its
-// size changing — this handler hashes the content instead, so a changed
-// asset always yields a different ETag and a stale 304 is impossible.
+// Because embed.FS carries no mtime, Go's http.FileServer ETag would be
+// size-only and collide when a file's bytes change without its size changing
+// — this handler hashes the content instead, so a changed asset always yields
+// a different ETag and a stale 304 is impossible.
+//
+// A request that carries the asset's own fingerprint (`?v=<fp>`, see
+// StaticURL) is answered with the long-lived, immutable policy instead. That
+// is safe by construction rather than by trust: the URL names the bytes, so a
+// changed asset is a DIFFERENT URL and can never be served from a stale cache.
+// Revalidation is the fallback for unversioned URLs (old bookmarks, the
+// service-worker precache list), not the default.
+//
+// The distinction is not cosmetic. `must-revalidate` forces every navigation
+// to spend a round trip per asset, and a CDN in front of the app then serves
+// REVALIDATED instead of HIT — with the origin reachable only over a tunnel,
+// that is the difference between an edge hit and crossing the tunnel for a
+// 348 KB stylesheet.
 func AssetHandler(fsys fs.FS, urlPrefix string) http.Handler {
 	assets := map[string]asset{}
 	if err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
@@ -64,9 +122,11 @@ func AssetHandler(fsys fs.FS, urlPrefix string) http.Handler {
 			return err
 		}
 		sum := sha256.Sum256(data)
+		hexSum := hex.EncodeToString(sum[:])
 		assets[p] = asset{
 			data:  data,
-			etag:  `"` + hex.EncodeToString(sum[:]) + `"`,
+			etag:  `"` + hexSum + `"`,
+			fp:    hexSum[:assetFingerprintLen],
 			ctype: mime.TypeByExtension(strings.ToLower(path.Ext(p))),
 		}
 		return nil
@@ -82,7 +142,11 @@ func AssetHandler(fsys fs.FS, urlPrefix string) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Cache-Control", "public, max-age=0, must-revalidate")
+		if r.URL.Query().Get("v") == a.fp {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=0, must-revalidate")
+		}
 		w.Header().Set("ETag", a.etag)
 		// Strong revalidation: a matching If-None-Match means the cached
 		// copy is still the current content — answer 304 with no body.

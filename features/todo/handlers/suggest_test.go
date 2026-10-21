@@ -110,6 +110,35 @@ func TestHandlersRetryDemoRequiresQueue(t *testing.T) {
 	}
 }
 
+// TestHandlersRetryDemoAckOwnsNoSignals is the same ownership contract as the
+// suggest ack, on the other endpoint that enqueues a job and then streams its
+// result: /api/todos/retry-demo answers on the POST response while the retry
+// worker pushes per-attempt frames on the tab's SSE stream. Writing
+// `lastRetry` from the response let a slow ack overwrite the last attempt's
+// text ("queued retry-demo job" landing after "attempt 3"). The response now
+// means only "accepted".
+func TestHandlersRetryDemoAckOwnsNoSignals(t *testing.T) {
+	f := newSuggestFixture(t, true, false)
+	cookie := f.signup("retry-ack@example.com")
+	req := httptest.NewRequestWithContext(context.Background(),
+		http.MethodPost, "/api/todos/retry-demo?clientID=tab-ack", nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	f.r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("retry-demo: status = %d (body: %s)", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("retry-demo: content-type = %q, want SSE", ct)
+	}
+	for _, forbidden := range []string{"lastRetry", "demoStep", "lastRetryStatus"} {
+		if strings.Contains(rec.Body.String(), forbidden) {
+			t.Fatalf("retry-demo ack carries %q, which can clobber a worker frame (body: %s)",
+				forbidden, rec.Body.String())
+		}
+	}
+}
+
 func TestHandlersSuggestSimulatedEnqueues(t *testing.T) {
 	f := newSuggestFixture(t, true, true)
 	cookie := f.signup("suggest-ok@example.com")
@@ -125,8 +154,18 @@ func TestHandlersSuggestSimulatedEnqueues(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("suggest-simulated: content-type = %q, want SSE", ct)
 	}
-	if !strings.Contains(rec.Body.String(), "aiPending") {
-		t.Fatalf("suggest-simulated ack missing aiPending (body: %s)", rec.Body.String())
+	// The ack must NOT touch the signals the worker's terminal patch owns.
+	// The worker can stream its result before this ack reaches the browser
+	// (the POST response travels back over the same slow link the stream
+	// already occupies), so an ack that re-asserted aiPending=true re-stuck
+	// the spinner on a completed run — aiStep=3, suggestions erased — and the
+	// button said "Asking AI…" forever. Ordering is handled in the handler;
+	// this pins the payload so a future ack cannot regress the terminal state.
+	for _, forbidden := range []string{"aiPending", "aiStep", "suggestions", "suggestErr"} {
+		if strings.Contains(rec.Body.String(), forbidden) {
+			t.Fatalf("suggest ack carries %q, which can clobber a terminal patch (body: %s)",
+				forbidden, rec.Body.String())
+		}
 	}
 }
 
