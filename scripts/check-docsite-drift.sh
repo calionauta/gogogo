@@ -43,6 +43,7 @@ check src/releases.mjs "$root/site/releases.mjs"
 check src/search.mjs "$root/site/search.mjs"
 check src/search.js "$root/site/search/search.js"
 check src/vendor/minisearch.js "$root/site/search/minisearch.js"
+check src/vendor/package.json "$root/site/search/package.json"
 check src/vendor/MINISEARCH-LICENSE.txt "$root/site/search/MINISEARCH-LICENSE.txt"
 check src/site-layout.test.mjs "$root/scripts/site-layout.test.mjs"
 # The checker is vendored too: an edited checker could hide every other drift.
