@@ -85,6 +85,28 @@ Flags: `--from TAG` overrides the recorded base, `--to TAG` the latest release,
 already have), `--format json` for the machine shape. Pass `--to` as well when
 you are offline: the default target is resolved from the releases API.
 
+## When a release changes structure
+
+A changelog bullet is enough for a rename or a new flag. It is not enough when a
+release replaces a layer, because the bullet names the outcome while the work is
+the mapping. The release that removed the framework layer is the example: one
+line in `CHANGELOG.md`, a rewritten data layer in practice.
+
+Nothing here merges that for you, but the diff is the source of truth and you
+already have access to it:
+
+```bash
+git clone https://github.com/calionauta/gogogo /tmp/upstream   # or reuse a clone
+git -C /tmp/upstream log --oneline v0.43.0..v0.44.0            # the commits, oldest first
+git -C /tmp/upstream diff v0.43.0..v0.44.0 -- internal/ features/ cmd/
+```
+
+Apply in commit order rather than as one patch, since a layer swap usually moves a
+file before changing it, and run the gates after each step. Then bump
+`scaffolded-from:` to the tag you landed on. Where the diff and your tree
+disagree about a file you edited, your tree wins: the goal is a tree that passes
+the gates, not an upstream copy.
+
 ## There is no `migrate --apply`, on purpose
 
 Overwriting generated files clobbers your work. Merging them needs a common
@@ -110,6 +132,15 @@ down, and a command that edits provenance on request would let a project claim a
 base it never ran. The failure is cheap and self-reporting — `--check-update`
 keeps saying `behind` until you bump the line, and `--check` prints the base it
 read on every run.
+
+## The installer is the one framework-shaped piece, and only at build time
+
+`trim`, `add` and `new` act on markers in the tree — the call lines in
+`cmd/web/main.go`, the route lines in `internal/server/chi.go`, the navbar links,
+the `// SCOPE:` annotations. A release that moves wiring is therefore a
+compatibility event for your installer even when the running app is untouched,
+and the failure is mechanical rather than silent: a strip whose marker is gone
+records a miss in the receipt instead of corrupting the file.
 
 ## What upstream will never do
 

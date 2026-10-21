@@ -67,10 +67,44 @@ not code. The rule is
 not "no interfaces"; it is "no interfaces with one implementation and no
 behavior."
 
-**The cost is real, and it lives elsewhere.** Owning the commodity parts, a
-pre-1.0 engine, and the PocketBase rejection are stated plainly in
+**The cost is real, and it lives elsewhere.** Owning the commodity parts and a
+pre-1.0 engine are stated plainly in
 [The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost) and
 [Turso Database: the cost, stated plainly](stack-tradeoffs.md#turso-database-the-cost-stated-plainly).
+The rejection of PocketBase is recorded below, because it is a decision and a
+decision record that hides the option it refused is not a record. The tradeoff
+page states the principle without naming the framework, and says why the name
+lives in the import gate rather than in prose.
+
+## Why PocketBase was dropped
+
+The first stack ran the app on PocketBase, and it gave a lot at once — an admin
+UI, auth, file storage, generic REST, realtime subscriptions — with a repository
+layer above it in case a second store ever showed up.
+
+It went because it is a framework surface rather than a data layer. Keeping it
+put routes, auth and data inside its lifecycle and its hooks, so there was no
+unit to trim and nothing you own line by line, and the layer above it carried no
+behavior of its own: three tiny interfaces with two one-line adapters each. What
+it cost in the end is measurable — removing it took the binary from 141M to 110M
+and deleted the app handle, the seeds, the idempotency hook, the middleware and
+the `ENTITY_STORE` switch.
+
+What replaced it is one layer per concern. `internal/db` is Turso with migrations
+and sqlc, called as `dbgen.*` from handlers. `internal/auth` is argon2id
+passwords and opaque sessions on one cookie. `internal/server/chi.go` composes
+routes. Realtime became owned too: an SSE hub streams record events and ephemeral
+signals to connected clients, JetStream carries the same operations across
+instances, and the offline replay sits on that hub.
+
+What that gave up is on the other side of the ledger, and
+[The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost) counts it
+— no admin UI, no generic REST, no file storage. The `/config` page renders the
+running configuration read-only, which is a settings view, not an admin panel.
+
+The name still appears in the tree, because the rule is enforced mechanically
+rather than by prose: `cmd/check-flatdeps` refuses `github.com/pocketbase/` by
+module prefix. A paragraph can be ignored, an import check cannot.
 
 ## Target directory structure
 
@@ -178,6 +212,37 @@ data-specific checks, to defeat IDOR/BOLA). **RBAC is not authentication.**
 `RBAC_ENABLED` defaults to false, so every handler that touches user data
 checks the session itself; a policy row is never the only guard. Full guide:
 [RBAC](rbac.md).
+
+## Why a copy you own (and not a module you import)
+
+The alternative deserves stating, because it is the first question a reader from
+a framework background asks: publish the core as a Go module, depend on it, and
+take upstream fixes with a version bump instead of a port.
+
+It is rejected on the cost of the contract, not on taste. An imported core has to
+expose a stable public API for every seam a project actually touches — route
+composition, sessions, RBAC decisions, database access, realtime fan-out — or it
+hides those seams behind registration and autodiscovery. Either way the core
+starts calling your code, and every internal change becomes a major version for
+consumers who cannot edit it. That is the definition this repo designs against.
+
+| | copied (today) | imported module |
+|---|---|---|
+| upstream change | a list you read and apply (`gogogo migrate`), plus the gates that prove it | a version bump, taken or skipped |
+| what you may change | any line, auth and sessions included | only what the module exposes |
+| removing a unit | `trim` deletes paths and wiring; `go mod tidy` drops the dependency | the module's own opt-outs, if it has them |
+| framework risk at runtime | none — `internal/capabilities` is imported by the installer and never by `cmd/web` | unavoidable, the contract is the framework |
+| who pays | the adopter, once per upgrade, deliberately | upstream and every consumer, continuously |
+
+Two consequences, stated so neither side looks free. The copy model's cost lands
+on the person upgrading, and it was invisible until the tree recorded its base
+([Upgrading](upgrading.md)). The module model's cost lands on everyone at once,
+and it turns "the template answers the decisions once" into "the template owns
+the decisions".
+
+What is left to improve is not the shape but the notes: a release that changes
+structure needs its mapping written down, which is documentation work, not a
+reason to grow a framework.
 
 ## Why plugins live in-repo (not in plugin repos)
 
