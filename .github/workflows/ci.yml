@@ -384,6 +384,33 @@ jobs:
         # mechanism proven here covers the arm64 server build too.
         run: bash scripts/smoke-prod-image.sh gogogo:prod-smoke-ci
 
+  site:
+    # Docs-site layout, in a real browser. docs/*.md is rendered by
+    # site/build.mjs into the pages GitHub Pages publishes, and a markdown
+    # table whose cells hold real paragraphs used to take its intrinsic width
+    # — 15.5x the content column on docs/features.md — so the last column was
+    # never on screen (issue #189). CSS-only checks cannot see that: the bug
+    # is a measurement. It runs on EVERY changeset, including docs-only ones,
+    # because those skip every other job by design and they are exactly the
+    # changes that can break the site.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node (Playwright)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install JS deps
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Docs site layout
+        # Builds the same site pages.yml publishes, then loads every page at
+        # 7 widths. Fails on page-level scroll, a table that cannot fit at
+        # desktop widths, a prose line box pushed out of its reading measure,
+        # or a table scroll box with no label / keyboard access / edge fade.
+        run: node scripts/site-layout.test.mjs
+
   ci:
     # Aggregator for branch protection: master requires a single `ci`
     # status context, and parallel jobs cannot provide a stable name —
@@ -392,7 +419,7 @@ jobs:
     # Skipped gates (docs-only changesets) are green by construction:
     # only `failure` fails this job, so the required status always
     # reports even when the heavy jobs never ran.
-    needs: [changes, checks, race, browser, prod-image]
+    needs: [changes, checks, race, browser, prod-image, site]
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -28,7 +28,7 @@ this repo's build never does.
 | Test quality | `thelper`, `testifylint`, `sloglint`, `containedctx` | Missing `t.Helper()`, `assert` vs `require` misuse, context embedded in structs |
 | Complexity | `gocyclo`, `gocognit`, `funlen` | Functions too long or too nested to hold in working memory |
 | YAGNI | `unparam` | A parameter that is constant (or a result that is unused) at every call site: a constant wearing a parameter’s clothes, or a return nobody reads. Removing it is the fix — a placeholder `_` return is not. |
-| Style | `revive`, `gocritic`, `tagliatelle`, `goconst`, `dupl`, `lll`, `modernize`, `perfsprint`, `usestdlibvars` | Non-idiomatic patterns, magic numbers, duplicated code, long lines, slow `fmt.Sprintf`, literal `"200"`/`"GET"` instead of `http.StatusOK`/`http.MethodGet` |
+| Style | `revive`, `gocritic`, `tagliatelle`, `goconst`, `mnd`, `dupl`, `lll`, `modernize`, `perfsprint`, `usestdlibvars`, `nolintlint` | Non-idiomatic patterns, magic numbers, duplicated code, long lines, slow `fmt.Sprintf`, literal `"200"`/`"GET"` instead of `http.StatusOK`/`http.MethodGet`, and ill-formed or unexplained `//nolint` directives |
 | Formatting | `gofumpt` + `goimports` (formatters, not linters) | Compulsory consistent layout and import ordering |
 
 The configuration lives in `.golangci.yml` at the project root — read it if you
