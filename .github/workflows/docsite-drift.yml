@@ -12,6 +12,11 @@ on:
     paths:
       - "site/build.mjs"
       - "site/releases.mjs"
+      - "site/search.mjs"
+      - "site/search/search.js"
+      - "site/search/minisearch.js"
+      - "site/search/package.json"
+      - "site/search/MINISEARCH-LICENSE.txt"
       - "scripts/site-layout.test.mjs"
       - "scripts/check-docsite-drift.sh"
       - "scripts/bump-docsite.sh"

@@ -123,6 +123,7 @@ __pycache__/
 # diverge from the markdown and get published.
 site/docs/
 site/releases/
+site/search/index.json
 site/llms.txt
 site/llms-full.txt
 site/sitemap.xml
