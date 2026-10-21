@@ -74,9 +74,9 @@ pre-1.0 engine are stated plainly in
 [The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost) and
 [Turso Database: the cost, stated plainly](stack-tradeoffs.md#turso-database-the-cost-stated-plainly).
 The rejection of PocketBase is recorded below, because it is a decision and a
-decision record that hides the option it refused is not a record. The tradeoff
-page states the principle without naming the framework, and says why the name
-lives in the import gate rather than in prose.
+decision record that hides the option it refused is not a record. The argument,
+and what refusing it costs, is in the same tradeoff page, under the framework it
+names.
 
 ## Target directory structure
 
