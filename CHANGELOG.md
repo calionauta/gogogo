@@ -15,6 +15,24 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.52.0 (2026-10-21)
+
+## What's Changed
+* feat(agents): unit contracts, feature scaffold, and a docs claim gate by @calionauta in https://github.com/calionauta/gogogo/pull/186
+* fix(realtime): correct collaborative presence and remove polling by @calionauta in https://github.com/calionauta/gogogo/pull/182
+* refactor(todo): per-instance fan-out and one event bus by @calionauta in https://github.com/calionauta/gogogo/pull/183
+* feat(realtime): bridge ephemeral hub signals across instances by @calionauta in https://github.com/calionauta/gogogo/pull/184
+* chore(skills): bump vendored stelow coding standards to cc6b9e096566 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/181
+* feat(todo): JSON event stream and live native reads by @calionauta in https://github.com/calionauta/gogogo/pull/185
+* chore(go): bump the toolchain to 1.27.3 by @calionauta in https://github.com/calionauta/gogogo/pull/191
+* fix(site): stop docs tables from clipping the last column by @calionauta in https://github.com/calionauta/gogogo/pull/192
+* fix(whiteboard): read the roster frame that matched, not the last one by @calionauta in https://github.com/calionauta/gogogo/pull/195
+* fix(ci): survive a broken third-party apt source in the runner image by @calionauta in https://github.com/calionauta/gogogo/pull/196
+* feat(server): route on chi end to end by @calionauta in https://github.com/calionauta/gogogo/pull/194
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.51.2...v0.52.0
+
 ## 0.51.2 (2026-10-20)
 
 ## What's Changed
