@@ -243,19 +243,55 @@ func (s *wbStream) settleJoin() {
 	s.waitForEvent(`"type":"count"`)
 }
 
-func countPeersFromEvents(events []string) []string {
-	var latest []string
+// peersOf returns the roster carried by ONE count frame, or nil for any other
+// frame. Parsing a single event keeps the caller honest about which frame it
+// read: a helper that takes a whole drained batch and keeps the last count
+// silently returns older state when two rosters land in the same 5ms window,
+// which is how TestWhiteboard_PeerCountAuthoritative failed in CI (A saw
+// [wbB], the frame before its own join had been applied).
+func peersOf(ev string) []string {
+	raw := strings.TrimPrefix(strings.TrimSpace(ev), "data: ")
+	var msg collab.PresenceMsg
+	if err := json.Unmarshal([]byte(raw), &msg); err != nil || msg.Type != "count" {
+		return nil
+	}
+	return msg.Peers
+}
+
+// firstPeersWith returns the roster of the FIRST count frame in events that
+// carries every wanted client id. Pure on purpose: the selection rule is what
+// broke, so it is testable without a live stream.
+func firstPeersWith(events []string, want ...string) []string {
 	for _, ev := range events {
-		raw := strings.TrimPrefix(strings.TrimSpace(ev), "data: ")
-		var msg collab.PresenceMsg
-		if err := json.Unmarshal([]byte(raw), &msg); err != nil {
+		peers := peersOf(ev)
+		if peers == nil {
 			continue
 		}
-		if msg.Type == "count" {
-			latest = msg.Peers
+		matched := true
+		for _, w := range want {
+			if !slices.Contains(peers, w) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return peers
 		}
 	}
-	return latest
+	return nil
+}
+
+// waitForPeers waits until a roster frame contains every wanted client id and
+// returns THAT frame's peers. It never returns "the last count seen so far":
+// the frame that proved the roster is the answer, not whatever arrived after it.
+func (s *wbStream) waitForPeers(want ...string) []string {
+	deadline := time.Now().Add(wbWaitBudget)
+	for time.Now().Before(deadline) {
+		if peers := firstPeersWith(s.drain(5*time.Millisecond), want...); peers != nil {
+			return peers
+		}
+	}
+	return nil
 }
 
 func cursorFromEvents(events []string) (collab.PresenceMsg, bool) {

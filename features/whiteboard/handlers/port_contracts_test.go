@@ -253,17 +253,36 @@ func TestWhiteboard_PeerCountAuthoritative(t *testing.T) {
 	streamB := openWBStream(t, clientB, server, docID, "wbB")
 	defer streamA.close()
 	defer streamB.close()
-	peersA := countPeersFromEvents(streamA.waitFor(func(ev string) bool {
-		return len(countPeersFromEvents([]string{ev})) == 2
-	}))
-	peersB := countPeersFromEvents(streamB.waitFor(func(ev string) bool {
-		return len(countPeersFromEvents([]string{ev})) == 2
-	}))
+	peersA := streamA.waitForPeers("wbA", "wbB")
+	peersB := streamB.waitForPeers("wbA", "wbB")
 	if len(peersA) != 2 || len(peersB) != 2 {
 		t.Fatalf("authoritative count of 2 peers expected, got A=%v B=%v", peersA, peersB)
 	}
 	if !slices.Contains(peersA, "wbB") || !slices.Contains(peersB, "wbA") {
 		t.Fatalf("peer sets disagree: A=%v B=%v", peersA, peersB)
+	}
+}
+
+// TestFirstPeersWithKeepsTheMatchingFrame pins the selection rule behind the
+// CI flake. A drain window can hold the two-peer roster followed by a stale
+// one-peer roster; the frame that MATCHED is the answer. The shape this
+// replaces parsed the whole batch and kept the last count, which returned
+// [wbB] in that window and failed the authoritative-count test.
+func TestFirstPeersWithKeepsTheMatchingFrame(t *testing.T) {
+	batch := []string{
+		`data: {"type":"count","doc":"d","peers":["wbA","wbB"]}`,
+		`data: {"type":"count","doc":"d","peers":["wbB"]}`,
+		`data: {"type":"cursor","doc":"d","from":"wbB","x":0.5,"y":0.5}`,
+	}
+	if got := firstPeersWith(batch, "wbA", "wbB"); !slices.Equal(got, []string{"wbA", "wbB"}) {
+		t.Fatalf("want the matching roster [wbA wbB], got %v", got)
+	}
+	if got := firstPeersWith(batch, "wbZ"); got != nil {
+		t.Fatalf("want nil when no frame carries the wanted client id, got %v", got)
+	}
+	// A cursor frame is not a roster: it must not satisfy the wait.
+	if got := firstPeersWith(batch[2:], "wbB"); got != nil {
+		t.Fatalf("cursor frame must not count as a roster, got %v", got)
 	}
 }
 
