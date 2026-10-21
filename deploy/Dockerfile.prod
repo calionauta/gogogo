@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1.7
 #
-# deploy/Dockerfile.prod — production image, built on the server
-# (scripts/deploy-prod.sh runs `docker compose build` there; the GH
-# Actions deploy workflow SSHes in and invokes it). Runtime contract:
+# deploy/Dockerfile.prod — production image.
+#
+# Built ONCE in CI and promoted by digest: .github/workflows/deploy.yml builds
+# it, pushes to the registry, and the deploy pulls
+# <registry>/<owner>/<repo>@sha256:… so production runs the bytes the pipeline
+# proved. scripts/deploy-prod.sh still builds this file on the server when no
+# digest is supplied (offline/fallback path). Runtime contract:
 # alpine + ca-certificates + libgcc + /tmp + USER 65532.
 #
 # Why alpine and not scratch: the flat stack's database driver
@@ -51,16 +55,18 @@ RUN for i in 1 2 3; do \
       sleep 15; \
     done
 
-# Install CSS build deps (Tailwind v4 CLI + DaisyUI v5).
-COPY package.json package-lock.json* ./
-RUN npm install --no-audit --no-fund
+# Install CSS build deps (Tailwind v4 CLI + DaisyUI v5). `npm ci` and not
+# `npm install`: this image is promoted by digest, so the dependency tree must
+# come from the committed lockfile byte for byte, and a missing/out-of-sync
+# lockfile has to fail the build instead of being silently regenerated.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
-# Build for the deployment target's native architecture. The image is
-# always built on the server (see scripts/deploy-prod.sh, which runs
-# `docker compose build` there), and the production server is arm64,
-# so a native arm64 binary runs without QEMU/binfmt. Forcing a
-# different GOARCH here produces an exec-format-error binary on the
-# server. (GOOS=linux is still set; the builder's native GOARCH is used.)
+# Build for the deployment target's native architecture: CI builds this
+# image on a native arm64 runner, and the production server is arm64, so the
+# binary runs without QEMU/binfmt. Forcing a different GOARCH here produces an
+# exec-format-error binary on the server. (GOOS=linux is still set; the
+# builder's native GOARCH is used.)
 COPY . .
 RUN go tool templ generate && \
     npm run build --silent && \
