@@ -60,7 +60,7 @@ func notesPortFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersister, 
 	// must clear this field.
 	h.registry = func(context.Context, string) bool { return true }
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

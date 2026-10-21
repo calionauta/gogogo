@@ -53,7 +53,18 @@ p, anonymous, /health, (GET|HEAD)
 p, anonymous, /login, (GET|POST)
 p, anonymous, /logout, (GET|POST)
 p, anonymous, /, GET
-p, anonymous, /api/auth/*, .*
+# Signed-out auth surface: only the endpoints a visitor without a session
+# must reach. The session-required TOTP enrollment endpoints are deliberately
+# NOT here: the old wildcard let anonymous callers reach handlers that then
+# answered 401, one guard too dependent on the handler (RBAC_ENABLED defaults
+# to false).
+p, anonymous, /api/auth/signup/credential, POST
+p, anonymous, /api/auth/signin/credential, POST
+p, anonymous, /api/auth/signout, POST
+p, anonymous, /api/auth/magic/request, POST
+p, anonymous, /api/auth/magic, GET
+p, anonymous, /api/auth/totp/login, POST
+p, anonymous, /api/auth/oauth/*, GET
 p, anonymous, /api/session/stream, GET
 p, user, /todo, .*
 p, user, /todo/*, .*

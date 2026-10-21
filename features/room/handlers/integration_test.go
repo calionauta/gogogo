@@ -164,7 +164,7 @@ func roomHostFixtureHub(t *testing.T) (http.Handler, func(string) *http.Cookie, 
 
 	hub := queue.NewSSEHub()
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", NewHandler(config.Load(), a, host, hub).Routes())
 	return mux, func(email string) *http.Cookie { return roomSignup(t, mux, email) }, hub
 }

@@ -61,7 +61,7 @@ func newHandlersFixture(tb testing.TB) *handlersFixture {
 	// The auth handler already carries its /api/auth base path and the chi
 	// router serves absolute paths, so both mount without prefix games;
 	// the more specific /api/auth/ wins over the HTTP root mount.
-	r.Handle("/api/auth/", a.Handler())
+	r.Handle("/api/auth/", a.Routes())
 	r.Handle("/", h.Routes())
 	return &handlersFixture{
 		t: tb, r: r, h: h, q: dbgen.New(sqlDB), sqlDB: sqlDB,

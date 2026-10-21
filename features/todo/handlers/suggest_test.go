@@ -58,7 +58,7 @@ func newSuggestFixture(tb testing.TB, withQueue, withLLM bool) *suggestFixture {
 		h.SetSimulatedLLMClient(sim)
 	}
 	r := http.NewServeMux()
-	r.Handle("/api/auth/", a.Handler())
+	r.Handle("/api/auth/", a.Routes())
 	r.Handle("/", h.Routes())
 	return &suggestFixture{t: tb, r: r, h: h}
 }

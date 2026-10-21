@@ -7,6 +7,8 @@
 //	ENVIRONMENT         (default: "development") — set to "production" for prod mode
 //	APP_NAME            (default: binary name)   — project name (secrets scope)
 //	LOG_LEVEL           (default: "INFO")
+//	HTTP_ACCESS_LOG     (default: false) — one structured line per request
+//	                     (opt-in; a stream logs when it closes)
 //	DATA_DIR            (default: "data")
 //	ADMIN_UNLOCK_TOKEN  (default: "") — master password for admin endpoints
 //	GOAI_API_KEY        (default: "") — LLM provider API key
@@ -94,6 +96,11 @@ type Config struct {
 	Port     int
 	LogLevel string
 	Dev      bool
+
+	// HTTPAccessLog emits one structured line per request at the edge.
+	// Opt-in: a busy SSE page logs a line per stream close, which is
+	// signal in production and noise while developing.
+	HTTPAccessLog bool
 
 	DataDir string
 
@@ -323,15 +330,16 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		AppName:     appName,
-		BuildLabel:  getEnv("BUILD_LABEL", "dev"),
-		BuildCommit: getEnv("BUILD_COMMIT", ""),
-		Host:        getEnv("HOST", "0.0.0.0"),
-		Port:        port,
-		LogLevel:    getEnv("LOG_LEVEL", "INFO"),
-		Dev:         dev,
-		DataDir:     getEnv("DATA_DIR", "data"),
-		AdminToken:  os.Getenv("ADMIN_UNLOCK_TOKEN"),
+		AppName:       appName,
+		BuildLabel:    getEnv("BUILD_LABEL", "dev"),
+		BuildCommit:   getEnv("BUILD_COMMIT", ""),
+		Host:          getEnv("HOST", "0.0.0.0"),
+		Port:          port,
+		LogLevel:      getEnv("LOG_LEVEL", "INFO"),
+		HTTPAccessLog: envBool("HTTP_ACCESS_LOG", false),
+		Dev:           dev,
+		DataDir:       getEnv("DATA_DIR", "data"),
+		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{
 			APIKey: os.Getenv("GOAI_API_KEY"),
 		},

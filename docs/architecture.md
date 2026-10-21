@@ -94,13 +94,55 @@ absolute patterns, and `MountFeature` flattens that table onto the root
 - One `MountFeature` call per capability. A route added to a feature is
   reachable without an edit at the root, and a duplicate method+pattern is a
   boot panic that names both owners.
-- The auth API and the static/asset handlers mount through `MountSubtree`,
-  which leaves the request path unrewritten because those handlers trim their
-  own prefix. The landing router is the not-found handler.
+- The auth API is a feature like any other: `internal/auth` exports
+  `Routes() chi.Router` with absolute patterns and the router decides the
+  method. Static/asset handlers mount through `MountSubtree`, which leaves
+  the request path unrewritten because those handlers trim their own prefix.
+  The landing router is the not-found handler.
 - Serve static assets through `web/resources.AssetHandler` (`/static/` plus
   root `/sw.js` with `Service-Worker-Allowed: /`).
 - The app cookie is `gogogo_auth` — the only cookie — see
   [Admin & Dashboard](admin-dashboard.md#app-session-cookie-why-one).
+
+### Why not chi's Route/Group
+
+`Route` is prefix-scoped. Six of the eleven feature packages own more than one
+top-level prefix: `todo` answers `/todo`, `/api/todos`, `/login` and `/logout`;
+`whiteboard` answers `/whiteboard` and `/api/whiteboard`. With `Route`, each
+feature would need two to four mount calls plus a split `Routes()` API, and the
+root would own the prefix while the feature owned the suffix. The current
+shape keeps one fact in one place: the feature owns the whole path, and the
+root only decides that it is mounted.
+
+`Group` and `With` scope middleware without a prefix. The cross-cutting layers
+here are applied above the router on purpose: RBAC must deny before route
+resolution (a 403 for an unknown path, not a 404 that answers "does this route
+exist?"), and the security headers and the access log must cover the RBAC 403
+and the router 404 alike. Recovery is the one middleware inside the tree,
+because it must sit next to the handler it protects.
+
+### Middleware and SSE
+
+A wrapper that hides `http.Flusher` turns every SSE handler into a 500. The
+opt-in access log uses chi's `middleware.NewWrapResponseWriter`, which forwards
+`Flusher`, `Hijacker` and `Pusher`; `TestAccessLogPreservesFlusher` fails if
+that stops being true. The same reason rules out a global timeout or
+compression middleware: both buffer or cut a response that never ends.
+`http.Server.WriteTimeout` stays 0 for the same reason.
+
+### Why this is easy for an agent to hold
+
+- Every path is written once, as an absolute literal in the feature that owns
+  it. `grep 'r.Get("/api/notes'` finds the route and nothing has to be
+  resolved against a prefix table.
+- `docs/api-routes.md` and `docs/unit-contracts.md` are generated from the
+  same source, so the inventory cannot drift from the router.
+- A duplicate claim names both owners at boot; a missing method answers 405 at
+  the router; an unknown path is the landing router's 404. There is no
+  hand-rolled `if r.Method !=` left in the auth surface.
+- The RBAC scan reads the same `r.Get/Post` lines, so a new endpoint is either
+  covered or red on the first commit — including `internal/auth`, which the
+  scanner used to miss entirely.
 
 ## SCOPE annotations
 

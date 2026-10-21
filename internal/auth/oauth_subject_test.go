@@ -55,7 +55,7 @@ func TestOAuthSubjectSurvivesEmailChange(t *testing.T) {
 	idp := stubIDP(t, "first@example.com", true)
 	a.SetOAuthProviders(map[string]OAuthProvider{"stub": subProvider(idp.URL)})
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 
 	if code := oauthCallback(t, mux); code != http.StatusSeeOther {
 		t.Fatalf("first callback status = %d", code)
@@ -90,7 +90,7 @@ func TestOAuthUnverifiedEmailRejected(t *testing.T) {
 	idp := stubIDP(t, "unverified@example.com", false)
 	a.SetOAuthProviders(map[string]OAuthProvider{"stub": subProvider(idp.URL)})
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	if code := oauthCallback(t, mux); code != http.StatusBadGateway {
 		t.Fatalf("unverified callback status = %d, want 502", code)
 	}

@@ -356,10 +356,24 @@ func TestBuildChiMux(t *testing.T) {
 			t.Fatalf("mux anon %s status = %d, want 303", target, rec.Code)
 		}
 	}
+	assertMuxTail(t, mux)
+}
+
+// assertMuxTail pins the responses that do not depend on the feature wiring
+// above: the credits gate, the auth route claim and HEAD parity.
+func assertMuxTail(t *testing.T, mux *Router) {
+	t.Helper()
 	creditsRec := httptest.NewRecorder()
 	mux.ServeHTTP(creditsRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/credits", nil))
 	if creditsRec.Code != http.StatusUnauthorized {
 		t.Fatalf("mux anon /api/credits status = %d, want 401 JSON", creditsRec.Code)
+	}
+	// Auth is flattened like every feature, so the route table claims it:
+	// a second capability claiming /api/auth/... is a boot panic, not a
+	// silently overwritten handler.
+	key := routeKey{method: http.MethodPost, pattern: "/api/auth/signin/credential"}
+	if owner := mux.routes.owner[key]; owner != "auth" {
+		t.Errorf("POST /api/auth/signin/credential owner = %q, want auth", owner)
 	}
 	// HEAD rides GET on the two routes a probe or cache may HEAD.
 	for _, target := range []string{"/health", "/sw.js"} {

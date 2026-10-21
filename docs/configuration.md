@@ -22,6 +22,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `APP_NAME` | binary name | Project name (secrets scope); never empty |
 | `APP_INSTANCE_ID` | hostname | Stable per-instance identity for cross-instance fan-out: names the JetStream CRUD durable and tags published events so an instance ignores its own echo. Set it when the hostname changes across restarts (StatefulSet, recreated containers) and you want the durable cursor to survive |
 | `LOG_LEVEL` | `INFO` | slog level |
+| `HTTP_ACCESS_LOG` | `false` | Emit one structured `http: request` line per request (method, path, status, bytes, duration, stream). A stream is logged when it closes, with its real duration. Off by default: a busy SSE page logs a line per stream. The write is flusher-preserving, so enabling it never breaks an SSE handler. |
 | `DATA_DIR` | `data` | Root for runtime data |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
 | `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |

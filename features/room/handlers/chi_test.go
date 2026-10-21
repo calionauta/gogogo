@@ -58,7 +58,7 @@ func roomFixture(t *testing.T, rooms roomSystem) http.Handler {
 	}
 	h := NewHandler(config.Load(), a, rooms, queue.NewSSEHub())
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	return mux
 }

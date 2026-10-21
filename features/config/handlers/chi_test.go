@@ -30,7 +30,7 @@ func TestHandlersConfigGate(t *testing.T) {
 	}
 	cfg := config.Load()
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", NewHandler(cfg, a, dbgen.New(sqlDB)).Routes())
 
 	anon := httptest.NewRecorder()
@@ -80,7 +80,7 @@ func TestChiConfigRoleBanner(t *testing.T) {
 	}
 	cfg := config.Load()
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", NewHandler(cfg, a, dbgen.New(sqlDB)).Routes())
 
 	ctx := context.Background()

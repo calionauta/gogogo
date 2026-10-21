@@ -102,7 +102,7 @@ func wbProductionFixture(t *testing.T) (*httptest.Server, *collab.MemoryPersiste
 		collab.NewDocStore(), config.Load())
 	// NOTE: h.registry intentionally left nil — production behaviour.
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

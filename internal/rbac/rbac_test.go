@@ -128,6 +128,8 @@ func TestRBACPolicyBaseline(t *testing.T) {
 		{"anonymous", "/", "GET", true},
 		{"anonymous", "/login", "POST", true},
 		{"anonymous", "/api/auth/signup/credential", "POST", true},
+		{"anonymous", "/api/auth/totp/login", "POST", true},
+		{"anonymous", "/api/auth/totp/begin", "POST", false}, // session required
 		{"anonymous", "/api/session/stream", "GET", true},
 		{"anonymous", "/api/todos", "GET", false}, // app data requires a session
 		{"anonymous", "/todo", "GET", false},

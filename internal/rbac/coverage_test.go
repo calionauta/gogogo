@@ -108,9 +108,11 @@ func TestRBACCoverageMatchesRoutes(t *testing.T) {
 // instead of silently dropping them from coverage.
 func TestCoreRoutesAreScanned(t *testing.T) {
 	want := map[string]bool{
-		"/health":             true,
-		"/sw.js":              true,
-		"/api/session/stream": true,
+		"/health":                     true,
+		"/sw.js":                      true,
+		"/api/session/stream":         true,
+		"/api/auth/signin/credential": true,
+		"/api/auth/oauth/{provider}":  true,
 	}
 	routes := registeredRoutes(t)
 	for _, rt := range routes {
@@ -133,13 +135,30 @@ func TestRBACPublicRoutesArePublic(t *testing.T) {
 		declared = append(declared, p)
 	}
 	slices.Sort(declared)
+	// A public endpoint is public for the method(s) it registers, not for a
+	// mythical GET: the auth sign-in routes answer POST and 405 a GET.
+	methods := map[string][]string{}
+	for _, rt := range registeredRoutes(t) {
+		methods[rt.pattern] = rt.methods
+	}
 	for _, path := range declared {
-		ok, eerr := e.Enforce(RoleAnonymous, path, "GET")
-		if eerr != nil {
-			t.Fatalf("enforce anonymous %s: %v", path, eerr)
+		ms := methods[path]
+		if len(ms) == 0 {
+			ms = []string{http.MethodGet}
 		}
-		if !ok {
-			t.Errorf("%q is declared public but is not reachable anonymously", path)
+		allowed := false
+		for _, method := range ms {
+			ok, eerr := e.Enforce(RoleAnonymous, path, method)
+			if eerr != nil {
+				t.Fatalf("enforce anonymous %s %s: %v", path, method, eerr)
+			}
+			if ok {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			t.Errorf("%q is declared public but none of its methods %v is reachable anonymously", path, ms)
 		}
 	}
 }
@@ -208,8 +227,14 @@ func registeredRoutes(t *testing.T) []routeEntry {
 	}
 
 	// Core routes: the ones the server serves outside a feature router. Read
-	// from chi.go/static.go so a rename shows up here instead of rotting.
-	for _, rel := range []string{"internal/server/chi.go", "internal/server/static.go"} {
+	// from chi.go/static.go so a rename shows up here instead of rotting, and
+	// from internal/auth because that package registers its own absolute
+	// patterns (the root flattens them like any feature).
+	for _, rel := range []string{
+		"internal/server/chi.go",
+		"internal/server/static.go",
+		"internal/auth/http.go",
+	} {
 		raw, rerr := os.ReadFile(filepath.Join(root, rel))
 		if rerr != nil {
 			continue // a trimmed tree may drop one of them

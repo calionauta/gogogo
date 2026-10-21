@@ -47,7 +47,7 @@ func creditsStack(t *testing.T, enabled bool) http.Handler {
 	}
 	h := NewHandler(a, svc)
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	return mux
 }

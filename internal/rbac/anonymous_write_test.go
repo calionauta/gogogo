@@ -31,9 +31,14 @@ func TestNoMutatingRouteIsAnonymous(t *testing.T) {
 	// the session probe is a read-shaped POST-less GET, and the Stripe
 	// webhook authenticates by signature rather than by session.
 	publicWrites := map[string]bool{
-		"/api/auth/*": true, // signup/signin/signout/magic: the point is signed-out
-		"/login":      true, // the credential form itself
-		"/logout":     true, // logging out must work with an expired session
+		// Signed-out by design: each of these must work before a session exists.
+		"/api/auth/signup/credential": true,
+		"/api/auth/signin/credential": true,
+		"/api/auth/magic/request":     true,
+		"/api/auth/totp/login":        true,
+		"/api/auth/signout":           true, // logging out must work with an expired session
+		"/login":                      true, // the credential form itself
+		"/logout":                     true,
 	}
 
 	var findings []string

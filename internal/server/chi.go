@@ -283,6 +283,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	if rerr != nil {
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
+	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
+	// carry the same headers, and the access log sees both.
+	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,
 		mux:            handler,
@@ -437,10 +440,10 @@ func buildChiMux(
 	// (and its smoke tests) expect there.
 	r.NotFound(landingH.Routes().ServeHTTP)
 
-	// The auth API is one subtree, registered as a leaf: its handler parses
-	// its own paths (and the /api/auth/oauth/{provider} shape), so it receives
-	// the request unrewritten.
-	MountSubtree(r, "/api/auth", a.Handler())
+	// Auth is a flat feature like every other surface: its router owns the
+	// absolute paths, the methods (405 at the router) and the OAuth provider
+	// parameter, so the route table claims each endpoint.
+	r.MountFeature("auth", a.Routes())
 	// The session stream is its own path, not a child of /api/auth: it is a
 	// long-lived SSE the banner holds open and it only hears about changes.
 	MountPath(r, "/api/session/stream", a.SessionStreamHandler())

@@ -10,11 +10,11 @@
 Every `/api/*` literal in non-test, non-generated Go sources.
 
 - `/api/ai/request`
-- `/api/auth`
 - `/api/auth/magic`
 - `/api/auth/magic/request`
 - `/api/auth/magic?token=`
-- `/api/auth/oauth/`
+- `/api/auth/oauth/{provider}`
+- `/api/auth/oauth/{provider}/callback`
 - `/api/auth/signin/credential`
 - `/api/auth/signout`
 - `/api/auth/signup/credential`

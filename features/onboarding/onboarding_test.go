@@ -49,7 +49,7 @@ func newFixture(tb testing.TB) *fixture {
 	onb := NewHandler(a, "http://127.0.0.1:1", hub)
 
 	r := http.NewServeMux()
-	r.Handle("/api/auth/", a.Handler())
+	r.Handle("/api/auth/", a.Routes())
 	r.Handle("/api/onboarding", onb.Routes())
 	r.Handle("/api/onboarding/", onb.Routes())
 	return &fixture{t: tb, r: r, hub: hub}

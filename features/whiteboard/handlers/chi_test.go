@@ -43,7 +43,7 @@ func wbFixture(t *testing.T) http.Handler {
 	h := NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), persister,
 		collab.NewDocStore(), config.Load())
 	mux := http.NewServeMux()
-	mux.Handle("/api/auth/", a.Handler())
+	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", h.Routes())
 	return mux
 }
