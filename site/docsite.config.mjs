@@ -36,6 +36,8 @@ export default {
     desc: "What each choice rejected, what it costs to keep, and when to revisit: Turso vs SQLite vs Postgres, Datastar vs React, and the rest." },
   { group: "Core", slug: "features", file: "features.md",
     desc: "Every capability and its runtime opt-out." },
+  { group: "Core", slug: "search", file: "search.md",
+    desc: "The search plugin: one seam, three layers (substring, fuzzy, BM25), the runtime picker, and what trimming it leaves behind." },
   { group: "Core", slug: "api-routes", file: "api-routes.md",
     desc: "Generated inventory of every API route, pinned by tests — the trim and hook gate that proves no route is lost." },
   { group: "Core", slug: "unit-contracts", file: "unit-contracts.md",
