@@ -29,7 +29,9 @@ does ship frameworks inside (DagNats, GoAkt, Wails), and each of them is
 removable per the [scope taxonomy](scope-taxonomy.md): nothing you keep is
 load-bearing by accident. For an LLM agent this means zero new DSL to learn —
 plain Go, stable third-party surfaces, and the skill files, instead of a moving
-proprietary framework.
+proprietary framework. The claim is about your code, not about the dependency
+graph: nothing sits between you and the handlers, and what ships alongside is
+listed as removable units rather than hidden behind an API.
 
 ## Who it is for
 
