@@ -59,7 +59,9 @@ JSON-config clients take the Claude Code block verbatim.
 | `capabilities_list` | No | Full capability registry JSON |
 | `trim_plan` | No | Preview a scaffold/trim (validates ids, shows consequences) |
 | `trim_apply` | Yes (`confirm:true`) | Rename + trim + tidy + build proof |
-| `check_tree` | No | Marker drift verdict per unit |
+| `check_tree` | No | Marker drift verdict per unit, plus the base revision the tree records |
+| `version_status` | No | Is this tool — and this project's recorded base — behind the latest release? Pass `dir` for the project half. "An update exists" is a verdict, not an error |
+| `migrate_plan` | No | Releases between the project's recorded base and the latest, plus the gates that prove a migrated tree |
 | `add_unit` | Yes (`confirm:true`) | Restore a unit (`dryRun:true` previews) |
 | `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
 
@@ -93,6 +95,18 @@ read the referenced skill; do not try to install template units.
 unrelated project and it now returns a single `CHECK-FAIL (tree) not a gogogo
 checkout` line rather than one failure per missing marker, so a wrong-repo call
 is distinguishable from a real drift problem.
+
+### `version_status` is not a nag
+
+Nothing here phones home unless the agent calls this tool: there is no startup
+check and no timer, because a stdio server that blocks on the network at boot
+turns slow DNS into a broken session. Pass `dir` — without it only the tool's
+own release is compared, which reports a months-old tree as current.
+
+The answer is JSON (`installed`, `latest`, `tree`, `treeStatus`, `source`) and an
+existing update comes back as a normal result, never as a tool error. To turn
+the verdict into work, use the CLI's `gogogo migrate` — see
+[Upgrading](upgrading.md).
 
 ## Pattern
 

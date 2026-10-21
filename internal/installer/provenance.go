@@ -147,3 +147,76 @@ func removedIDs(drop []trimUnit) []string {
 	sort.Strings(ids)
 	return ids
 }
+
+// --- template identity (the BASE marker) ---
+//
+// WHY THIS EXISTS. Everything the installer can say about "is this project
+// current?" needs one datum it did not record: WHICH template revision the
+// tree came from. Without it, a copied project can only be compared by
+// eyeballing files, and `gogogo --check-update` could only ever compare the
+// BINARY against the latest release — which reports a three-month-old tree as
+// current the moment you update the binary.
+//
+// This is the same datum every scaffolder that supports updates records:
+// copier's .copier-answers.yml ref, cruft's .cruft.json commit, agent-native's
+// refs/agent-native/template-baseline. It lives in AGENTS.md because that file
+// is already the machine-read provenance record this package parses (`removed:`,
+// `removed-paths:`), and because a project that deletes its AGENTS.md has
+// opted out of agent-assistance anyway.
+
+// templateMarker is the recorded base: which repo and revision this tree was
+// scaffolded from. Found is false for a tree that predates the marker, which
+// callers must treat as unknown — never as "up to date".
+type templateMarker struct {
+	Ref    string // "owner/repo@tag", or "owner/repo@dev" for a build without a tag
+	Commit string // short commit at scaffold time, "unknown" when it was not a git checkout
+	Found  bool
+}
+
+// markerUnknown is what the installer writes when it cannot resolve a
+// revision (a tree that is not a git checkout). A value, not a missing line:
+// the marker stays parseable and says exactly what it knows.
+const markerUnknown = "unknown"
+
+// shortCommitLen is the git short-SHA length everyone recognizes.
+const shortCommitLen = 7
+
+var (
+	// scaffoldedFromRE matches the ref line. Narrow on purpose, like
+	// provenanceIDsRE: a prose change must not become a verdict.
+	scaffoldedFromRE = regexp.MustCompile(`(?m)^scaffolded-from:[ \t]*(\S+)[ \t]*$`)
+	// templateCommitRE matches a short or full hex SHA, or the literal
+	// "unknown" the installer writes for a non-git checkout.
+	templateCommitRE = regexp.MustCompile(`(?m)^template-commit:[ \t]*([0-9a-fA-F]{7,40}|unknown)[ \t]*$`)
+)
+
+// readTemplateMarker reads the recorded base from a scaffolded checkout.
+//
+// A missing marker is not an error: trees scaffolded before this existed are
+// normal, and guessing "probably latest" for them would turn the one honest
+// answer ("I cannot tell") into a wrong one.
+func readTemplateMarker(root string) templateMarker {
+	raw, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		return templateMarker{}
+	}
+	text := string(raw)
+	ref := scaffoldedFromRE.FindStringSubmatch(text)
+	if ref == nil {
+		return templateMarker{}
+	}
+	m := templateMarker{Ref: ref[1], Commit: markerUnknown, Found: true}
+	if commit := templateCommitRE.FindStringSubmatch(text); commit != nil {
+		m.Commit = commit[1]
+	}
+	return m
+}
+
+// shortCommit is the 7-character form for display; anything shorter or the
+// literal "unknown" passes through.
+func shortCommit(commit string) string {
+	if len(commit) > shortCommitLen {
+		return commit[:shortCommitLen]
+	}
+	return commit
+}

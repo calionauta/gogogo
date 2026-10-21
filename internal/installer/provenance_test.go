@@ -2,6 +2,7 @@
 package installer
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -29,7 +30,7 @@ func TestCheckAcceptsDeliberatelyTrimmedTree(t *testing.T) {
 	dir := t.TempDir()
 	scaffoldMinimalTree(t, dir)
 	// The tree records that whiteboard was removed on purpose.
-	if err := writeAgents(dir, "my-app", []trimUnit{findUnit(t, "whiteboard")}); err != nil {
+	if err := writeAgents(context.Background(), dir, "my-app", []trimUnit{findUnit(t, "whiteboard")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -144,7 +145,8 @@ func scaffoldMinimalTree(t *testing.T, dir string) {
 func TestWriteAgentsPointsUpstream(t *testing.T) {
 	dir := t.TempDir()
 	// Sorted, as removedIDs produces it in the real apply path.
-	if err := writeAgents(dir, "my-app", []trimUnit{findUnit(t, "sounds"), findUnit(t, "whiteboard")}); err != nil {
+	drop := []trimUnit{findUnit(t, "sounds"), findUnit(t, "whiteboard")}
+	if err := writeAgents(context.Background(), dir, "my-app", drop); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -166,7 +168,7 @@ func TestWriteAgentsPointsUpstream(t *testing.T) {
 // provenance" and silently drops the tree back to strict checking.
 func TestWriteAgentsRecordsEmptyTrim(t *testing.T) {
 	dir := t.TempDir()
-	if err := writeAgents(dir, "my-app", nil); err != nil {
+	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -177,5 +179,117 @@ func TestWriteAgentsRecordsEmptyTrim(t *testing.T) {
 	// trust it rather than falling back to strict.
 	if tp := readTrimProvenance(dir); !tp.found {
 		t.Error("readTrimProvenance found no provenance for a full-template AGENTS.md")
+	}
+}
+
+// --- the base marker: what makes "is this project current?" answerable ---
+
+// TestWriteAgentsRecordsTemplateBase pins both machine-read lines. Losing them
+// silently would quietly restore the old behaviour, where --check-update could
+// only compare the binary and reported a stale tree as current.
+func TestWriteAgentsRecordsTemplateBase(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeAgents(context.Background(), dir, "my-app", nil); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	text := string(raw)
+	if !strings.Contains(text, "scaffolded-from: calionauta/gogogo@") {
+		t.Errorf("AGENTS.md must record the template base:\n%s", text)
+	}
+	if !strings.Contains(text, "template-commit: ") {
+		t.Errorf("AGENTS.md must record a commit line (unknown is a value):\n%s", text)
+	}
+	// The section that turns the marker into an action a downstream agent can
+	// take. Losing it silently leaves the marker describing a command nobody
+	// knows about.
+	for _, want := range []string{"## Keeping this project current", "gogogo migrate --dir ."} {
+		if !strings.Contains(text, want) {
+			t.Errorf("AGENTS.md must point at the upgrade commands (%q missing):\n%s", want, text)
+		}
+	}
+}
+
+// TestReadTemplateMarkerRoundTrip: what the installer writes is what the
+// comparison and migrate commands read back.
+func TestReadTemplateMarkerRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	writeMarkerFixture(t, dir, "calionauta/gogogo@v0.50.0")
+	m := readTemplateMarker(dir)
+	if !m.Found {
+		t.Fatal("marker not found")
+	}
+	if m.Ref != "calionauta/gogogo@v0.50.0" {
+		t.Errorf("ref = %q", m.Ref)
+	}
+	// A non-git tree records "unknown", which must survive the read.
+	if m.Commit != "unknown" {
+		t.Errorf("commit = %q, want unknown", m.Commit)
+	}
+}
+
+// TestReadTemplateMarkerAbsentIsNotLatest: the failure mode this guards against
+// is a missing marker being read as "current", which would silence the check
+// exactly where it matters (trees scaffolded before the marker existed).
+func TestReadTemplateMarkerAbsentIsNotLatest(t *testing.T) {
+	dir := t.TempDir()
+	markerless := []byte("# AGENTS\n\nno marker here\n")
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), markerless, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if m := readTemplateMarker(dir); m.Found {
+		t.Errorf("a markerless AGENTS.md must not report Found: %+v", m)
+	}
+	// And a truncated/garbage commit must not poison the ref.
+	writeMarkerFixture(t, dir, "calionauta/gogogo@v0.50.0")
+	garbage := []byte("scaffolded-from: calionauta/gogogo@v0.50.0\ntemplate-commit: not-a-sha\n")
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), garbage, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := readTemplateMarker(dir)
+	if !m.Found || m.Commit != "unknown" {
+		t.Errorf("garbage commit should degrade to unknown, got %+v", m)
+	}
+}
+
+// TestGitHeadReadsARealRepository proves the commit is recorded as a real
+// revision, not a placeholder, when the tree IS a checkout (the normal clone
+// path: `git clone --depth 1` keeps .git).
+func TestGitHeadReadsARealRepository(t *testing.T) {
+	if err := lookGit(); err != nil {
+		t.Skip("git not installed")
+	}
+	dir := t.TempDir()
+	ctx := context.Background()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{
+			"-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q",
+			"--allow-empty", "-m", "scaffold",
+		},
+	} {
+		if out, err := runIn(ctx, dir, "git", args...); err != nil {
+			t.Skipf("git unavailable here (%v: %s)", err, out)
+		}
+	}
+	head := gitHead(ctx, dir)
+	if len(head) != 40 {
+		t.Errorf("gitHead = %q, want a full 40-char SHA", head)
+	}
+	if head == "unknown" {
+		t.Error("gitHead reported unknown inside a real repository")
+	}
+}
+
+// TestCheckPrintsTheRecordedBase: the drift report must state the revision it
+// is relative to, or a reader assumes the tree came from the reviewed one.
+func TestCheckPrintsTheRecordedBase(t *testing.T) {
+	dir := t.TempDir()
+	scaffoldMinimalTree(t, dir)
+	writeMarkerFixture(t, dir, "calionauta/gogogo@v0.50.0")
+	var buf strings.Builder
+	printCheck(&buf, checkTree(dir), dir)
+	if !strings.Contains(buf.String(), "CHECK-TREE scaffolded from calionauta/gogogo@v0.50.0") {
+		t.Errorf("check output must name the base:\n%s", buf.String())
 	}
 }

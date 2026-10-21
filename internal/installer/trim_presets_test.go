@@ -95,7 +95,7 @@ func TestRemovedPathsListsOwnedPaths(t *testing.T) {
 		t.Errorf("removedPaths(nil) = %q, want none", got)
 	}
 	dir := t.TempDir()
-	if err := writeAgents(dir, "my-app", []trimUnit{findUnit(t, "genui")}); err != nil {
+	if err := writeAgents(context.Background(), dir, "my-app", []trimUnit{findUnit(t, "genui")}); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
@@ -133,7 +133,7 @@ func TestTrimPresetCompositionsBuild(t *testing.T) {
 			// in AGENTS.md; the registry conformance tests below read it
 			// to tell deliberate removals from drift. The gate reproduces
 			// that step so the suites run under scaffold conditions.
-			if err := writeAgents(dir, name+"-gate", drop); err != nil {
+			if err := writeAgents(context.Background(), dir, name+"-gate", drop); err != nil {
 				t.Fatalf("provenance: %v", err)
 			}
 			for _, unit := range rc.Units {

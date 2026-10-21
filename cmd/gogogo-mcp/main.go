@@ -25,9 +25,10 @@ import (
 	"github.com/calionauta/gogogo/internal/installer"
 )
 
-// version is the release tag. Set via -ldflags -X main.version=...;
-// plain `go build` leaves the dev default.
-var version = "dev"
+// The server reports installer.Version, never a variable of its own: the
+// engine and the server are the same build, and two version numbers in one
+// binary is how a check starts comparing the wrong one (the release build
+// stamped main.version here and left installer.Version at "dev").
 
 // defaultFormat is the tool transport default: machines get JSON,
 // humans get text on the CLI.
@@ -67,6 +68,17 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCapabilitiesList) },
 	},
 	{
+		"version_status",
+		"Read-only version check: compares this tool AND the project's recorded " +
+			"template revision (the scaffolded-from: line in its AGENTS.md) against " +
+			"the latest release. Pass `dir` to get the project half — without it, only " +
+			"the tool is compared, which reports a months-old tree as current. An " +
+			"update existing is a VERDICT, not a failure. Never runs on its own: nothing " +
+			"here phones home unless you call it. To see what actually changed, use " +
+			"CLI `gogogo migrate`.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleVersionStatus) },
+	},
+	{
 		"trim_plan",
 		"Preview scaffolding/trimming a checkout (validates ids, shows consequences). " +
 			"Changes nothing. Requires a gogogo checkout at `dir` unless it does not " +
@@ -91,6 +103,15 @@ var toolCatalog = []toolDef{
 			"'not a gogogo checkout' failure rather than a marker inventory — do not " +
 			"read that as the project being broken.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleCheckTree) },
+	},
+	{
+		"migrate_plan",
+		"Read-only migration list: every release between the project's recorded " +
+			"base revision (the scaffolded-from: line in its AGENTS.md) and the latest, " +
+			"plus the gates that prove a migrated tree conforms. This is the AI-readable " +
+			"diff between 'the template you copied' and 'the template now' — apply it " +
+			"deliberately; nothing here edits the tree. CLI equivalent: `gogogo migrate`.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleMigratePlan) },
 	},
 	{
 		"add_unit",
@@ -131,7 +152,7 @@ var toolCatalog = []toolDef{
 // buildServer registers every tool. Shared by main and tests so the
 // served surface is exactly the tested surface.
 func buildServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "gogogo", Version: version}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "gogogo", Version: installer.Version}, nil)
 	for _, d := range toolCatalog {
 		d.add(server, &mcp.Tool{Name: d.name, Description: d.desc})
 	}
@@ -144,6 +165,11 @@ type dirArgs struct {
 	Dir string `json:"dir,omitempty" jsonschema:"absolute path of the target checkout (required)"`
 }
 
+type versionArgs struct {
+	Dir    string `json:"dir,omitempty" jsonschema:"optional: a scaffolded project checkout, so the answer also compares its recorded template revision"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+}
+
 type trimArgs struct {
 	Name     string `json:"name,omitempty" jsonschema:"new project name, e.g. my-app (required)"`
 	Owner    string `json:"owner,omitempty" jsonschema:"GitHub owner for the module path (default calionauta)"`
@@ -153,6 +179,14 @@ type trimArgs struct {
 	Preset   string `json:"preset,omitempty" jsonschema:"named drop set instead of keep lists: minimal|no-ai|no-collab (conflicts with plugins/features)"`
 	Format   string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Confirm  bool   `json:"confirm,omitempty" jsonschema:"trim_apply only: must be true (preview with trim_plan first)"`
+}
+
+type migrateArgs struct {
+	From      string `json:"from,omitempty" jsonschema:"base revision to start after (default: the project's recorded scaffolded-from tag)"`
+	To        string `json:"to,omitempty" jsonschema:"newest revision to include (default: the latest release)"`
+	Dir       string `json:"dir,omitempty" jsonschema:"project checkout to read the base marker from (default: current directory)"`
+	Changelog string `json:"changelog,omitempty" jsonschema:"read the changelog from this file instead of the network (offline)"`
+	Format    string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 }
 
 type addArgs struct {
@@ -192,7 +226,7 @@ Claude Code / Cursor / BB client config:
   {"mcpServers": {"gogogo": {"command": "/path/to/gogogo-mcp"}}}
 
 Same engine as cmd/gogogo (internal/installer): identical validation,
-receipts, and tidy+build proof. Version `+version+`.`)
+receipts, and tidy+build proof. Version `+installer.Version+`.`)
 }
 
 // --- handlers (pure enough to unit-test: args in, text/JSON out) ---
@@ -259,6 +293,51 @@ func handleCheckTree(
 	}
 	var buf bytes.Buffer
 	err := installer.Run(ctx, []string{"--check", "--dir", args.Dir}, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
+}
+
+func handleVersionStatus(
+	ctx context.Context, _ *mcp.CallToolRequest, args versionArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"--check-update", "--format", format}
+	if args.Dir != "" {
+		cli = append(cli, "--dir", args.Dir)
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	// Exit 3 means "an update exists" — a verdict the caller asked for, not a
+	// failed call. Wrapping it as an error would teach the agent to stop reading
+	// the one answer it wanted.
+	if err != nil && installer.ExitCode(err) != 3 {
+		return runResult(buf.String(), err)
+	}
+	return textResult(buf.String()), nil, nil
+}
+
+func handleMigratePlan(
+	ctx context.Context, _ *mcp.CallToolRequest, args migrateArgs,
+) (*mcp.CallToolResult, any, error) {
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"migrate", "--format", format}
+	for _, kv := range [][2]string{
+		{"--from", args.From},
+		{"--to", args.To},
+		{"--dir", args.Dir},
+		{"--changelog", args.Changelog},
+	} {
+		if kv[1] != "" {
+			cli = append(cli, kv[0], kv[1])
+		}
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
 	return runResult(buf.String(), err)
 }
 

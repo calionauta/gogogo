@@ -47,7 +47,10 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
+      # installer.Version, not a main.version of its own: the MCP binary embeds
+      # the same engine, and one build must not report two release tags (the
+      # server's serverInfo and `--check-update` read the same variable).
+      - -X github.com/calionauta/gogogo/internal/installer.Version={{.Version}}
 
   - id: gui
     # Native window (gogpu, pure Go, CGO_ENABLED=0): cross-compiles from one

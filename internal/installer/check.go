@@ -215,6 +215,13 @@ func printCheck(w io.Writer, results []unitCheck, root string) int {
 			"project scaffolded from one.\n", root)
 		return 1
 	}
+	// State the recorded base first: it is the one fact every other line is
+	// relative to, and a drift report that hides which revision the tree came
+	// from invites the reader to assume it came from this one. Silent when
+	// there is no marker (the pristine template, and trees that predate it).
+	if m := readTemplateMarker(root); m.Found {
+		fmt.Fprintf(w, "CHECK-TREE scaffolded from %s (commit %s)\n", m.Ref, shortCommit(m.Commit))
+	}
 	// A recorded trim reclassifies the units it removed; a negative return
 	// means there is no usable provenance, so fall through to strict below.
 	if tp := readTrimProvenance(root); tp.found {

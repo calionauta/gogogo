@@ -28,6 +28,9 @@ type options struct {
 	check    bool
 	run      bool
 	updateCh bool
+	// dirGiven distinguishes "--dir was passed" from the project-name default,
+	// which read-only paths (--check-update) must not mistake for a target.
+	dirGiven bool
 	format   string
 }
 
@@ -50,17 +53,28 @@ func ExitCode(err error) int {
 // with the program prefix applied exactly once. Many ExitError literals are
 // written for humans to read verbatim and already start with "gogogo:", so the
 // entrypoint must not add a second one.
+//
+// An empty message returns empty, not "gogogo: ". A verdict-only exit
+// (--check-update's code 3) prints its answer on stdout and needs no stderr
+// line at all, and a bare prefix there reads as a second failure.
 func ErrorText(err error) string {
 	msg := err.Error()
+	if msg == "" {
+		return ""
+	}
 	if strings.HasPrefix(msg, "gogogo:") {
 		return msg
 	}
 	return "gogogo: " + msg
 }
 
-// Version is the release tag (v-prefixed). Set via -ldflags:
+// Version is the release version, without a leading "v": goreleaser's
+// {{.Version}} template strips the tag prefix, so a v-prefixed release becomes
+// "0.53.0". Set via -ldflags:
 // -X github.com/calionauta/gogogo/internal/installer.Version=...
-// Plain `go build` leaves the dev default.
+// Plain `go build` leaves the dev default. Comparison strips a "v" anyway, so
+// either spelling orders correctly; this comment exists so nobody writes code
+// that assumes the prefix.
 var Version = "dev"
 
 func unitOneLiner(u trimUnit) string {
@@ -84,7 +98,13 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		return err
 	}
 	if opt.updateCh {
-		return printUpdateCheck(ctx, stdout)
+		// A dir the caller did not name must not be invented: loadOptions
+		// defaults --dir to the project name, which is meaningless here.
+		dir := ""
+		if opt.dirGiven {
+			dir = opt.dir
+		}
+		return printUpdateCheck(ctx, stdout, opt.format, dir)
 	}
 	keep := parseKeep(opt.plugins, opt.features)
 	drop := planTrim(keep)
@@ -121,6 +141,8 @@ func runSubcommand(ctx context.Context, args []string, stdin io.Reader, stdout i
 		return true, runNew(ctx, args[1:], stdin, stdout)
 	case "advise":
 		return true, runAdvise(args[1:], stdout)
+	case "migrate":
+		return true, runMigrate(ctx, args[1:], stdout)
 	}
 	return false, nil
 }
@@ -150,6 +172,7 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	if err := fs.Parse(args); err != nil {
 		return opt, err
 	}
+	opt.dirGiven = flagGiven(fs, "dir")
 	if opt.format != planFormatText && opt.format != planFormatJSON {
 		return opt, fmt.Errorf("unknown --format %q (want text|json)", opt.format)
 	}
@@ -193,9 +216,16 @@ func loadOptions(args []string, stdin io.Reader, stdout io.Writer) (options, err
 	return opt, nil
 }
 
-// templateCloneURL is the only network source the installer pulls: a
-// public template checkout to scaffold from when --dir is missing.
-const templateCloneURL = "https://github.com/calionauta/gogogo"
+// The template's identity, in one place: the clone URL scaffolding pulls from
+// when --dir is missing, and the "owner/repo" written into every scaffolded
+// AGENTS.md as its base marker. Derived from the same pair so a fork that
+// changes one cannot leave the other pointing at upstream.
+const (
+	templateOwner = "calionauta"
+	templateRepo  = "gogogo"
+)
+
+const templateCloneURL = "https://github.com/" + templateOwner + "/" + templateRepo
 
 // requireCheckoutDir is the strict gate for read-only paths (--check):
 // nothing is created, so a missing directory is a plain error.
@@ -259,7 +289,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name, drop); err != nil {
+	if err := writeAgents(ctx, opt.dir, opt.name, drop); err != nil {
 		return err
 	}
 	printReceiptText(stdout, rc)
@@ -298,7 +328,7 @@ func applyAndProveJSON(ctx context.Context, opt options, drop []trimUnit, stdout
 	if err := renameTree(opt.dir, opt.name, opt.owner); err != nil {
 		return err
 	}
-	if err := writeAgents(opt.dir, opt.name, drop); err != nil {
+	if err := writeAgents(ctx, opt.dir, opt.name, drop); err != nil {
 		return err
 	}
 	// Silence prove chatter in JSON mode: discard its progress lines,
@@ -441,4 +471,18 @@ func Units() []UnitView {
 		out = append(out, UnitView{ID: u.id, Kind: string(m.kind), Summary: summary})
 	}
 	return out
+}
+
+// flagGiven reports whether a flag was passed explicitly. Split out of
+// loadOptions because the closure pushed that function over the gocyclo gate,
+// and the distinction ("--dir was named" vs "the default") is what keeps
+// --check-update from inventing a target directory.
+func flagGiven(fs *flag.FlagSet, name string) bool {
+	given := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			given = true
+		}
+	})
+	return given
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -253,6 +254,7 @@ import (
 
 func boot() {
 	mux := buildChiMux()
+	mountConsoleProxy(mux, a, cfg)
 	mux.HandleFunc("/api/stream/status", StreamStatusHandler(hub))
 	_ = mux
 	_ = confighandlers.NewHandler
@@ -309,5 +311,90 @@ func TestNewFeatureRequiresConfirm(t *testing.T) {
 	_, _, err = handleNewFeature(context.Background(), nil, newFeatureArgs{Name: "reports", Confirm: true})
 	if err == nil || !strings.Contains(err.Error(), "required") {
 		t.Errorf("expected required-fields error, got %v", err)
+	}
+}
+
+// TestMigratePlanDeliversTheList is the transport half of `gogogo migrate`:
+// same engine, so the tool only has to pass the arguments through. Uses a local
+// changelog so the test never depends on the network.
+func TestMigratePlanDeliversTheList(t *testing.T) {
+	dir := t.TempDir()
+	entries := "## 0.53.0 (2026-10-21)\n\n* feat(ui): shadcn skin by @a in https://example/199\n" +
+		"\n## 0.52.0 (2026-10-20)\n\n* fix(server): origin guard by @a in https://example/203\n"
+	changelog := filepath.Join(dir, "CHANGELOG.md")
+	if err := os.WriteFile(changelog, []byte(entries), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res, _, err := handleMigratePlan(context.Background(), nil, migrateArgs{
+		Dir: dir, From: "v0.51.0", To: "v0.53.0", Changelog: changelog,
+	})
+	if err != nil {
+		t.Fatalf("handleMigratePlan: %v", err)
+	}
+	var rep struct {
+		From     string `json:"from"`
+		To       string `json:"to"`
+		Releases []struct {
+			Version string   `json:"version"`
+			Entries []string `json:"entries"`
+		} `json:"releases"`
+		Gates []string `json:"gates"`
+	}
+	if jerr := json.Unmarshal([]byte(toolText(t, res)), &rep); jerr != nil {
+		t.Fatalf("migrate_plan must answer JSON: %v", jerr)
+	}
+	if len(rep.Releases) != 2 || rep.Releases[0].Version != "0.53.0" {
+		t.Errorf("releases = %+v", rep.Releases)
+	}
+	if len(rep.Gates) == 0 {
+		t.Error("the plan must carry the proof gates")
+	}
+}
+
+// TestVersionStatusIsAVerdictNotAnError pins the one behavior that differs from
+// every other tool: "an update exists" arrives as exit 3, and the call must
+// still deliver its JSON instead of turning into a tool error. An agent that
+// gets an error stops reading the answer it asked for.
+func TestVersionStatusIsAVerdictNotAnError(t *testing.T) {
+	dir := t.TempDir()
+	body := "# AGENTS\n\n## Trim provenance\n\nscaffolded-from: calionauta/gogogo@v0.1.0\n" +
+		"template-commit: unknown\nremoved: none\nremoved-paths: none\n"
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Keep the check offline and deterministic: a stale cache entry is a
+	// verdict we can predict without the network.
+	cacheRoot := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheRoot)
+	if err := os.MkdirAll(filepath.Join(cacheRoot, "gogogo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The cache entry is keyed by repo: a template entry must never answer a
+	// fork's lookup, so writing one without the repo field is a miss.
+	entry := `{"repo":"calionauta/gogogo","tag":"v999.0.0","checkedAt":"` +
+		time.Now().UTC().Format(time.RFC3339) + `"}`
+	if err := os.WriteFile(filepath.Join(cacheRoot, "gogogo", "update-check.json"),
+		[]byte(entry), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	res, _, err := handleVersionStatus(context.Background(), nil, versionArgs{Dir: dir})
+	if err != nil {
+		t.Fatalf("a verdict must not surface as a tool error: %v", err)
+	}
+	text := toolText(t, res)
+	var rep struct {
+		Installed  string `json:"installed"`
+		Latest     string `json:"latest"`
+		TreeStatus string `json:"treeStatus"`
+	}
+	if jerr := json.Unmarshal([]byte(text), &rep); jerr != nil {
+		t.Fatalf("version_status must answer JSON: %v\n%s", jerr, text)
+	}
+	if rep.TreeStatus != "behind" {
+		t.Errorf("treeStatus = %q, want behind (base v0.1.0, latest v999.0.0)", rep.TreeStatus)
+	}
+	if rep.Latest != "v999.0.0" {
+		t.Errorf("latest = %q, want the cached tag", rep.Latest)
 	}
 }

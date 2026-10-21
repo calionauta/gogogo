@@ -62,6 +62,7 @@ One-liners mirror the docs site manifest (`site/build.mjs`).
 - [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
 
 **Operate**
+- [upgrading](docs/upgrading.md) — keeping a scaffolded project current: the recorded base revision, `--check-update`'s two halves, and `migrate` as a list plus gates, never a merge.
 - [local-ci](docs/local-ci.md) — the five-tier feedback loop and make signoff.
 - [code-quality](docs/code-quality.md) — the 33 linters, how to scope them, the Datastar-specific rules, and the `ruleguard` rules that encode project footguns as CI failures.
 - [troubleshooting](docs/troubleshooting.md) — symptoms and where they actually come from.
