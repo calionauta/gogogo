@@ -462,6 +462,115 @@ async function main() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // THE SOFT-WRAP BOUNDARY: a caret that sits exactly where a line wraps
+  // must paint on the line the writer's caret is on (the next one).
+  //
+  // WHY THIS EXISTS: caretXY used to measure the caret with a zero-width-space
+  // marker inside the mirror. "Zero width" is not "no character" — a ZWSP is a
+  // break opportunity, so at a wrap boundary the marker stayed on the PREVIOUS
+  // line (measured: marker top = 10px, range at the same offset = 32px). Every
+  // time the writer's caret landed exactly on a boundary — once per typed line —
+  // the peer's dot blinked up a row and came back on the next keystroke, which
+  // is the reported "depois de um tempo escrevendo, o cursor pisca em outro
+  // lugar". The fix measures with a Range, which inserts nothing.
+  //
+  // The expectation below is computed independently, in the observing tab, with
+  // a Range over a mirror that holds the SAME text: the row of an offset is the
+  // browser's own wrap of that text.
+  //
+  // RED-PROOFED: with the marker measurement this fails at every boundary
+  // offset (the dot paints one line up); with the Range it passes.
+  // ---------------------------------------------------------------------------
+  const doc4 = "notes-wrap-boundary-" + process.pid;
+  const A4 = await ctxA.newPage();
+  const B4 = await ctxB.newPage();
+  A4.on("pageerror", (e) => pageErrors.push("A4: " + String(e)));
+  B4.on("pageerror", (e) => pageErrors.push("B4: " + String(e)));
+  await gotoNote(A4, `${BASE}/notes/${doc4}`);
+  await gotoNote(B4, `${BASE}/notes/${doc4}`);
+  await A4.locator("#note-text").click();
+  const wrapText = ("the quick brown fox jumps over the lazy dog and keeps running through the field ".repeat(3)).trim();
+  await typeText(A4, wrapText, 8);
+  await B4.waitForFunction(
+    (t) => document.getElementById("note-text").value === t,
+    wrapText,
+    { timeout: 15000 },
+  );
+  const wrapped = await B4.evaluate((text) => {
+    const ta = document.getElementById("note-text");
+    const cs = getComputedStyle(ta);
+    const mirror = document.createElement("div");
+    for (const p of ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "textTransform", "textIndent", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "boxSizing", "whiteSpace", "wordWrap", "overflowWrap", "wordBreak", "tabSize"]) {
+      try { mirror.style[p] = cs[p]; } catch (e) { /* unsupported prop */ }
+    }
+    mirror.style.whiteSpace = "pre-wrap";
+    mirror.style.wordWrap = "break-word";
+    mirror.style.boxSizing = "border-box";
+    mirror.style.border = "0";
+    mirror.style.position = "absolute";
+    mirror.style.visibility = "hidden";
+    mirror.style.top = "0";
+    mirror.style.left = "0";
+    mirror.style.width = ta.clientWidth + "px";
+    mirror.textContent = text;
+    document.getElementById("note-wrap").appendChild(mirror);
+    const origin = mirror.getBoundingClientRect();
+    const lineH = parseFloat(cs.lineHeight);
+    const node = mirror.firstChild;
+    const rows = [];
+    for (let at = 0; at <= text.length; at++) {
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.collapse(true);
+      const rects = range.getClientRects();
+      const rect = rects.length ? rects[rects.length - 1] : range.getBoundingClientRect();
+      rows.push(Math.round((rect.top - origin.top) / lineH));
+    }
+    mirror.remove();
+    const boundaries = [];
+    for (let i = 1; i < rows.length; i++) if (rows[i] !== rows[i - 1]) boundaries.push(i);
+    return { rows, lineH, boundaries };
+  }, wrapText);
+  if (wrapped.boundaries.length === 0) {
+    bad("the wrap-boundary case never wrapped (text too short for this viewport)");
+  } else {
+    // Every boundary offset plus its two neighbours: the exact landing spot and
+    // the keystrokes immediately around it.
+    let worst = 0;
+    for (const at of wrapped.boundaries.slice(0, 4)) {
+      for (const off of [at - 1, at, at + 1]) {
+        await A4.evaluate((o) => {
+          const ta = document.getElementById("note-text");
+          ta.focus();
+          ta.setSelectionRange(o, o);
+        }, off);
+        const want = Math.round(wrapped.rows[off] * wrapped.lineH);
+        let got = null;
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+          got = await B4.evaluate(() => {
+            const ta = document.getElementById("note-text");
+            const padTop = parseFloat(getComputedStyle(ta).paddingTop) || 0;
+            const dots = [...document.querySelectorAll("#caret-layer > span")]
+              .filter((d) => d.style.width === "3px");
+            if (!dots.length) return null;
+            const r = dots[dots.length - 1].getBoundingClientRect();
+            const tr = ta.getBoundingClientRect();
+            return Math.round(r.top - tr.top - padTop + ta.scrollTop);
+          });
+          if (got !== null && Math.abs(got - want) <= 4) break;
+          await sleep(120);
+        }
+        if (got === null || Math.abs(got - want) > 4) {
+          worst = worst || (got === null ? 999 : Math.abs(got - want));
+          bad(`caret at offset ${off} (wrapped row ${wrapped.rows[off]}) painted at y=${got}, want y≈${want}`);
+        }
+      }
+    }
+    if (!worst) ok("wrapped carets paint on the line the writer's caret is on");
+  }
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {
