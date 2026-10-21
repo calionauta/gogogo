@@ -14,7 +14,7 @@
 
 - New feature or product plan: docs/overview.md, docs/features.md
 - Adding a dependency, or writing something a library could do (write-vs-rent,
-  the ordered procedure, the four human-gated cases): docs/dependency-doctrine.md
+  the ordered procedure, the four human-gated cases): docs/dependency-principles.md
 - Search layers (substring / fuzzy / BM25), the runtime picker, the trim story: docs/search.md
 - What a unit owns (routes, generated queries, trim story): docs/unit-contracts.md
   (generated; scaffold with `gogogo new feature <name>`)
@@ -36,7 +36,7 @@
 ## Invariants (do not relearn these)
 
 - Flat stack only: chi handlers + dbgen queries, no framework.
-- A new direct dependency needs a pass through docs/dependency-doctrine.md and
+- A new direct dependency needs a pass through docs/dependency-principles.md and
   a one-line trade-off record in the PR body; raising the native floor (a new
   CGO/native library, build tool, or runtime library) is a human gate.
 - `go run ./cmd/check-flatdeps` proves it — run before committing.

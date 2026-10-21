@@ -10,7 +10,7 @@ win *for a single-binary, owned-code template*.
 > it beats. Read the benefits first, then this.
 
 The procedure that produced these choices — and the one to apply to a new one —
-is [Dependency doctrine](dependency-doctrine.md).
+is [Dependency principles](dependency-principles.md).
 
 ## Language: Go (and not TypeScript / Python)
 

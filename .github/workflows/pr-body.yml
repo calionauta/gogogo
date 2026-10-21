@@ -10,8 +10,8 @@ name: PR body
 # custom bodies) pass vacuously: the check catches an untouched template,
 # it cannot force thought.
 #
-# The second check is the mechanical half of the dependency doctrine
-# (docs/dependency-doctrine.md): a PR that adds a NEW direct module must carry
+# The second check is the mechanical half of the dependency principles
+# (docs/dependency-principles.md): a PR that adds a NEW direct module must carry
 # the trade-off line, which starts with `Deps:`. It compares go.mod's direct
 # requires against the PR's base commit, so bumping a module that was already
 # there needs no ceremony, and bot accounts are exempt. Presence is objective;
@@ -53,7 +53,7 @@ jobs:
           echo "✓ PR body has no template leftovers"
 
       - name: Require a trade-off record for a new direct dependency
-        # The record is the one line from docs/dependency-doctrine.md:
+        # The record is the one line from docs/dependency-principles.md:
         # chosen / rejected / cost / revisit-if, starting with `Deps:`.
         if: github.actor != 'dependabot[bot]' && github.actor != 'release-please[bot]'
         env:
@@ -87,6 +87,6 @@ jobs:
           echo ""
           echo "❌ This PR adds a direct dependency with no trade-off record."
           echo ""
-          echo "Add one line to the PR body — docs/dependency-doctrine.md:"
+          echo "Add one line to the PR body — docs/dependency-principles.md:"
           echo "  Deps: <lib>@<version> — rejected <own code|alternative>; cost <transitive, churn, translation layer>; revisit if <trigger>."
           exit 1

@@ -1,11 +1,11 @@
-# Dependency doctrine: write it or take the library
+# Dependency principles: write it or take the library
 
 > Six principles, one procedure, one closed approval gate. This page decides
 > whether a missing piece is ours to write or someone else's to maintain.
 
 Every change answers one question before it writes code: **is this ours?** The
 answer is not "it depends" — it is a short ordered check, and this page is that
-check. [Exception to Go](exception-to-go.md) is the same doctrine applied to
+check. [Exception to Go](exception-to-go.md) is the same rule applied to
 native code; [Costs, tradeoffs](stack-tradeoffs.md) records the choices already
 made and why.
 
@@ -39,7 +39,7 @@ agent re-litigates it.
 
 ## Three formats, three different jobs
 
-Using the wrong format is how doctrine rots. An "avoid X unless justified" rule
+Using the wrong format is how principles rot. An "avoid X unless justified" rule
 is an even-over statement wearing a ban's clothes: the agent writes the
 justification and proceeds, every time.
 
@@ -275,7 +275,7 @@ five separate opinions — one decision usually turns on two of them.
 | **Exit cost** | Time-to-remove × blast radius (principle 4). |
 | **Dependency delta** | Transitive count, licence, CGO, release cadence, bus factor. |
 
-**After the fact** (these measure the doctrine over time, not one decision):
+**After the fact** (these measure the principles over time, not one decision):
 
 | Criterion | How it is measured |
 |---|---|
