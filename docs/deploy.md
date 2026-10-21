@@ -160,16 +160,18 @@ runs, which is also what makes rollback cheap (below). Without an `APP_IMAGE`
 digest the script builds the image locally from the clone instead — that is the
 offline path and the path a first-time setup uses before CI has ever pushed.
 
-**Registry access.** The image is pushed to `ghcr.io/<owner>/<repo>`. GHCR
-packages are **private by default even for a public repo**, and that default is
-what you want to change once, by hand: Package settings → Change visibility →
-Public. A public package means the deploy holds no registry credential at all.
+**Registry access.** The image is pushed to `ghcr.io/<owner>/<repo>`, and the
+server pulls that digest. GHCR creates the package **private even when the
+repository is public**, so the deploy logs in by default with the run's
+`GITHUB_TOKEN` (`packages: read`) over ssh stdin, and `deploy-prod.sh` logs out
+on exit — no registry credential survives the deploy.
 
-Keeping it private also works: set the repository variable `GHCR_PRIVATE=true`
-and the deploy logs in with the run's `GITHUB_TOKEN` (`packages: read`), then
-logs out on exit — no registry credential survives the deploy. Switching
-visibility has no API a `GITHUB_TOKEN` can call, so it is a one-click manual
-step either way.
+That default needs no setup and works for a private repository and a public one
+alike. If you publish the package on purpose (Package settings → Change
+visibility → Public) and would rather hold no credential at all during the
+deploy, set the repository variable `GHCR_PUBLIC=true` and the login step is
+skipped. Visibility itself has no API a `GITHUB_TOKEN` can call, so publishing
+is a one-click manual step.
 
 ## Rollback
 

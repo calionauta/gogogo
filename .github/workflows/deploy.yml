@@ -416,14 +416,18 @@ jobs:
           set -euo pipefail
           scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
 
-      - name: Registry login for the pull (private packages only)
-        # A public package needs no credential at all, which is the default: an
-        # image of a public repo leaks nothing, and a credential that never
-        # exists cannot leak. Set the repository variable GHCR_PRIVATE=true if
-        # the package must stay private. Either way the token is a run-scoped
-        # GITHUB_TOKEN that travels on ssh stdin (never on a command line,
-        # never in a file) and deploy-prod.sh logs out on exit.
-        if: vars.GHCR_PRIVATE == 'true'
+      - name: Registry login for the pull
+        # Login by default, because a GHCR package starts out private even when
+        # the repository is public: without a credential the server's pull is a
+        # 403 and the first deploy fails for a reason nothing in the diff
+        # explains. A login that turns out to be unnecessary costs one ssh call;
+        # a login that is missing costs a failed deploy, so the default is the
+        # one that always works and `GHCR_PUBLIC=true` is the opt-out.
+        #
+        # The token is the run's GITHUB_TOKEN (`packages: read`); it travels on
+        # ssh stdin (never on a command line, never in a file) and
+        # deploy-prod.sh logs out on exit, so nothing survives the deploy.
+        if: vars.GHCR_PUBLIC != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
