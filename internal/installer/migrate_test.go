@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -300,4 +302,133 @@ func versions(rs []migrationRelease) []string {
 		out = append(out, r.Version)
 	}
 	return out
+}
+
+// notesIndexFixture mirrors docs/migrations/index.md, including the two shapes a
+// hand-written index takes: a v prefix and a bare version, an em dash and a
+// hyphen. A parser that knows only one of them silently drops half the notes.
+const notesIndexFixture = `# Migration notes
+
+Prose before the first entry, which is not a note.
+
+- v0.51.0 — the search plugin became one seam with three layers
+- 0.53.0 - a bare version outside the range, hyphen separator
+`
+
+func TestParseNotesIndexReadsBothShapes(t *testing.T) {
+	idx := parseNotesIndex(notesIndexFixture)
+	if len(idx) != 2 {
+		t.Fatalf("index = %d entries, want 2: %+v", len(idx), idx)
+	}
+	got, ok := idx["0.51.0"]
+	if !ok {
+		t.Fatalf("v-prefixed entry missing: %+v", idx)
+	}
+	if got.Path != "docs/migrations/v0.51.0.md" {
+		t.Errorf("path = %q", got.Path)
+	}
+	if !strings.Contains(got.Summary, "three layers") {
+		t.Errorf("summary = %q", got.Summary)
+	}
+	if _, ok := idx["0.53.0"]; !ok {
+		t.Errorf("bare-version entry missing: %+v", idx)
+	}
+}
+
+// TestRunMigratePrintsStructuralNotes is the payoff of the curated index: a
+// release whose changes a bullet cannot carry gets a pointer next to the list,
+// so the mapping is one file away instead of a diff hunt.
+func TestRunMigratePrintsStructuralNotes(t *testing.T) {
+	changelogPath := filepath.Join(t.TempDir(), "CHANGELOG.md")
+	if err := os.WriteFile(changelogPath, []byte(changelogFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	notesPath := filepath.Join(t.TempDir(), "index.md")
+	if err := os.WriteFile(notesPath, []byte(notesIndexFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	if err := runMigrate(context.Background(), []string{
+		"--from", "v0.50.0", "--to", "v0.52.0",
+		"--changelog", changelogPath, "--notes", notesPath,
+	}, &buf); err != nil {
+		t.Fatalf("runMigrate: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "structural notes in this range:") {
+		t.Fatalf("no notes block:\n%s", out)
+	}
+	if !strings.Contains(out, "docs/migrations/v0.51.0.md") {
+		t.Errorf("the note inside the range must be named:\n%s", out)
+	}
+	if strings.Contains(out, "v0.53.0  docs/migrations") {
+		t.Errorf("a note outside the range leaked into the report:\n%s", out)
+	}
+	if !strings.Contains(out, "one seam with three layers") {
+		t.Errorf("the note summary must reach the reader:\n%s", out)
+	}
+
+	buf.Reset()
+	if err := runMigrate(context.Background(), []string{
+		"--from", "v0.50.0", "--to", "v0.52.0", "--format", "json",
+		"--changelog", changelogPath, "--notes", notesPath,
+	}, &buf); err != nil {
+		t.Fatalf("runMigrate json: %v", err)
+	}
+	var rep migrationReport
+	if err := json.Unmarshal(buf.Bytes(), &rep); err != nil {
+		t.Fatalf("json does not parse: %v\n%s", err, buf.String())
+	}
+	if len(rep.Notes) != 1 || rep.Notes[0].Version != "0.51.0" {
+		t.Errorf("json notes = %+v", rep.Notes)
+	}
+}
+
+// TestRunMigrateWithoutANotesIndexIsSilent: most releases have no structural
+// note, and an index that does not exist yet is not an error.
+func TestRunMigrateWithoutANotesIndexIsSilent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.NotFound(w, nil)
+	}))
+	defer srv.Close()
+	oldBase := rawBase
+	rawBase = srv.URL
+	t.Cleanup(func() { rawBase = oldBase })
+
+	changelogPath := filepath.Join(t.TempDir(), "CHANGELOG.md")
+	if err := os.WriteFile(changelogPath, []byte(changelogFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := runMigrate(context.Background(), []string{
+		"--from", "v0.50.0", "--to", "v0.52.0", "--changelog", changelogPath,
+	}, &buf); err != nil {
+		t.Fatalf("a missing index must not fail the range: %v", err)
+	}
+	if strings.Contains(buf.String(), "structural notes") {
+		t.Errorf("no index means no notes block:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "could not be read") {
+		t.Errorf("404 is an answer, not a diagnostic:\n%s", buf.String())
+	}
+}
+
+// TestRunMigrateUnreadableNotesIsReported: a --notes path the user typed wrong is
+// a real miss, so the report says so instead of pretending there are no notes.
+func TestRunMigrateUnreadableNotesIsReported(t *testing.T) {
+	changelogPath := filepath.Join(t.TempDir(), "CHANGELOG.md")
+	if err := os.WriteFile(changelogPath, []byte(changelogFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := runMigrate(context.Background(), []string{
+		"--from", "v0.50.0", "--to", "v0.52.0", "--changelog", changelogPath,
+		"--notes", filepath.Join(t.TempDir(), "nope.md"),
+	}, &buf); err != nil {
+		t.Fatalf("runMigrate: %v", err)
+	}
+	if !strings.Contains(buf.String(), "migration notes could not be read") {
+		t.Errorf("an unreadable notes path must be reported:\n%s", buf.String())
+	}
 }

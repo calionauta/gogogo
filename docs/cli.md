@@ -20,7 +20,7 @@ curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh
 | `gogogo new feature <name> --dir <proj>` | Yes (`--yes`) | Scaffold one feature: handler + page, composition-root wiring, capability unit, RBAC rows, then templ generate + generated docs + check-scope + flatdeps + build (`--dry-run` previews) |
 | `gogogo --check --dir <proj>` | No | Marker drift verdict per unit, plus the base revision the tree records |
 | `gogogo --check-update --dir <proj>` | No | Compares the **binary** and the project's recorded base against the latest release. Exit `3` means an update exists; exit `0` covers "nothing to do" and "could not check" |
-| `gogogo migrate --dir <proj>` | No | Every release between the recorded base and the latest, plus the gates that prove a migrated tree. Flags: `--from`, `--to`, `--changelog`, `--format` |
+| `gogogo migrate --dir <proj>` | No | Every release between the recorded base and the latest, plus the gates that prove a migrated tree. Flags: `--from`, `--to`, `--changelog`, `--notes`, `--format` |
 | `gogogo --run` | Takes the terminal | After a successful proof, `make dev` replaces this process (Ctrl-C stops dev; humans only) |
 | `gogogo --version` | No | Prints the release version (or `dev`) |
 
