@@ -170,21 +170,19 @@ type keepSet struct {
 
 func parseKeep(plugins, features string) keepSet {
 	k := keepSet{plugins: map[string]bool{}, features: map[string]bool{}}
-	all := make([]string, 0, len(manifestUnits))
-	for _, u := range manifestUnits {
-		all = append(all, u.id)
-	}
 	// Empty means keep-all in that dimension (the prompt asks plugins
 	// and features as separate questions). Never mirror one dimension
 	// into the other: an empty features answer keeps every feature.
 	// The literal "none" keeps nothing (drop everything in scope).
+	// Each dimension fills from its OWN kind; seeding both from every
+	// manifest unit would print features under "keep plugins".
 	if strings.TrimSpace(plugins) == "" {
-		plugins = strings.Join(all, ",")
+		plugins = strings.Join(unitIDsOfKind(capabilities.KindPlugin), ",")
 	} else if strings.TrimSpace(plugins) == keepNone {
 		plugins = ""
 	}
 	if strings.TrimSpace(features) == "" {
-		features = strings.Join(all, ",")
+		features = strings.Join(unitIDsOfKind(capabilities.KindFeature), ",")
 	} else if strings.TrimSpace(features) == keepNone {
 		features = ""
 	}

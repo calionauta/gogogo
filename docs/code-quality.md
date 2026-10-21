@@ -332,6 +332,12 @@ tree passes it and the write escapes. Use `os.Root` (Go 1.24+):
 Every operation is resolved against the directory handle and a symlink that
 would leave the root is refused. See `internal/installer/tree.go`.
 
+**Resolve the caller's path before deriving the root-relative name.** A
+relative `--dir` (the installer's default is `./<name>`) makes every path the
+caller builds CWD-relative, and `filepath.Rel` refuses to mix those with the
+root's absolute path: each confined operation then fails with
+`can't make X relative to Y` while the swallowed-error sites do nothing.
+
 ## File size limits
 
 The pre-commit hook runs a `file-sizes` check. Large files are a smell in this

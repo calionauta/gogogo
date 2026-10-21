@@ -2,6 +2,7 @@
 package installer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +86,9 @@ func applyTrim(root string, drop []trimUnit, rc *Receipt) error {
 	return nil
 }
 
+// applyUnit deletes one unit's paths and strips its wiring. A removal failure
+// is an error, never a shrug: swallowing it turns the trim into a silent
+// no-op whose cause (an unresolvable path) surfaces far away and later.
 func applyUnit(t *treeFS, root string, u trimUnit, rc *UnitReceipt) error {
 	m := u.meta()
 	for _, d := range m.dirs {
@@ -92,14 +96,18 @@ func applyUnit(t *treeFS, root string, u trimUnit, rc *UnitReceipt) error {
 		if _, err := t.Lstat(p); err == nil {
 			rc.DirsRemoved++
 		}
-		_ = t.RemoveAll(p)
+		if err := t.RemoveAll(p); err != nil {
+			return fmt.Errorf("remove %s: %w", d, err)
+		}
 	}
 	for _, f := range m.files {
 		p := filepath.Join(root, filepath.FromSlash(f))
 		if _, err := t.Lstat(p); err == nil {
 			rc.FilesRemoved++
 		}
-		_ = t.Remove(p)
+		if err := t.Remove(p); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove %s: %w", f, err)
+		}
 	}
 	if err := applyWiringStrips(t, root, u, rc); err != nil {
 		return err
