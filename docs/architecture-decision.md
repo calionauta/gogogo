@@ -23,9 +23,10 @@ the sections below:
 - 🖥️ **UI: Datastar + Templ.** Hypermedia over SSE, no client
   framework, no build step for app JS.
 
-Removed: PocketBase, the limen auth library, and the repo-interface
-abstraction layer (`internal/ports`, `internal/repos`,
-`internal/backend`).
+Removed: PocketBase and the repo-interface abstraction layer
+(`internal/ports`, `internal/repos`, `internal/backend`). Evaluated and never
+adopted: the limen auth library, which stays the documented upgrade path for apps
+that outgrow password auth.
 
 ## Why (evidence)
 
@@ -76,36 +77,6 @@ decision record that hides the option it refused is not a record. The tradeoff
 page states the principle without naming the framework, and says why the name
 lives in the import gate rather than in prose.
 
-## Why PocketBase was dropped
-
-The first stack ran the app on PocketBase, and it gave a lot at once — an admin
-UI, auth, file storage, generic REST, realtime subscriptions — with a repository
-layer above it in case a second store ever showed up.
-
-It went because it is a framework surface rather than a data layer. Keeping it
-put routes, auth and data inside its lifecycle and its hooks, so there was no
-unit to trim and nothing you own line by line, and the layer above it carried no
-behavior of its own: three tiny interfaces with two one-line adapters each. What
-it cost in the end is measurable — removing it took the binary from 141M to 110M
-and deleted the app handle, the seeds, the idempotency hook, the middleware and
-the `ENTITY_STORE` switch.
-
-What replaced it is one layer per concern. `internal/db` is Turso with migrations
-and sqlc, called as `dbgen.*` from handlers. `internal/auth` is argon2id
-passwords and opaque sessions on one cookie. `internal/server/chi.go` composes
-routes. Realtime became owned too: an SSE hub streams record events and ephemeral
-signals to connected clients, JetStream carries the same operations across
-instances, and the offline replay sits on that hub.
-
-What that gave up is on the other side of the ledger, and
-[The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost) counts it
-— no admin UI, no generic REST, no file storage. The `/config` page renders the
-running configuration read-only, which is a settings view, not an admin panel.
-
-The name still appears in the tree, because the rule is enforced mechanically
-rather than by prose: `cmd/check-flatdeps` refuses `github.com/pocketbase/` by
-module prefix. A paragraph can be ignored, an import check cannot.
-
 ## Target directory structure
 
 | Concern | Location |
@@ -128,6 +99,18 @@ PocketBase's old `internal/db/` package is deleted with it, which frees the top-
 import rewrite, deliberately deferred so no import path changes twice.
 
 ## Data layer rules
+
+The data layer is `internal/db` over Turso: the schema is the migrations, the
+queries are sqlc-generated, and handlers call `dbgen.*` with no repository layer
+between them and no strategy switch behind them.
+
+It replaced an embedded all-in-one backend (PocketBase), removed in 0.44.0.
+Removing it took the binary from 141M to 110M and deleted the app handle, the
+seeds, the idempotency hook, the middleware and the `ENTITY_STORE` switch. What
+refusing it costs, and why that trade was worth it, is argued in
+[The flat stack — the cost](stack-tradeoffs.md#the-flat-stack-the-cost); the ban
+is mechanical, `cmd/check-flatdeps` refuses `github.com/pocketbase/` by module
+prefix.
 
 - **Handlers take `*dbgen.Queries`** (the concrete struct from `sqlcgen`), never
   an interface. `emit_interface: false` in `sqlc.yaml` keeps a wrong call a
