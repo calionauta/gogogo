@@ -272,9 +272,40 @@ func TestParseChangelogReadsTheRealFile(t *testing.T) {
 	if !sawOldest {
 		t.Error("the 0.1.0 section is missing — the oldest heading shape is being dropped")
 	}
-	if releases[0].Version != "0.53.0" {
-		t.Errorf("newest release = %q, want 0.53.0 at the top", releases[0].Version)
+	// Compare against the version release-please declares, never a literal: this
+	// test reads the REAL changelog, and release-please rewrites CHANGELOG.md and
+	// .github/.release-please-manifest.json together in the release PR, so a
+	// hardcoded version fails EVERY release — the 0.54.0 PR came back red for
+	// exactly that (a run that had been waiting for approval, so nobody had seen
+	// it). What is worth pinning is that the two release-please outputs agree and
+	// that the parser still recognises the newest heading shape: a dropped shape
+	// leaves a stale section at the top.
+	want := releasePleaseVersion(t)
+	if releases[0].Version != want {
+		t.Errorf("newest release = %q, but the release-please manifest says %q "+
+			"(the parser lost the newest heading shape, or the two files disagree)",
+			releases[0].Version, want)
 	}
+}
+
+// releasePleaseVersion is the version release-please will tag next. The manifest
+// is bumped in the same commit as the changelog, so this comparison holds on
+// master and inside the release PR alike.
+func releasePleaseVersion(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), ".github", ".release-please-manifest.json"))
+	if err != nil {
+		t.Skipf("no release-please manifest beside the package (%v)", err)
+	}
+	var manifest map[string]string
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("release-please manifest: %v", err)
+	}
+	version := manifest["."]
+	if version == "" {
+		t.Fatalf("release-please manifest has no \".\" entry: %v", manifest)
+	}
+	return version
 }
 
 // TestMigrationRangeSortsByVersion pins the sort directly. The fixture is
