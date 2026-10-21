@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calionauta/gogogo/config"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
@@ -367,5 +368,30 @@ func TestBuildChiMux(t *testing.T) {
 		if headRec.Code != http.StatusOK {
 			t.Errorf("mux HEAD %s status = %d, want 200", target, headRec.Code)
 		}
+	}
+}
+
+// TestServerTimeouts pins the HTTP transport guards. A zero ReadTimeout is
+// the slow-body hole; a zero IdleTimeout keeps abandoned keep-alives forever.
+// WriteTimeout stays 0 on purpose: a finite value cuts every SSE stream at
+// that deadline (the streams are long-lived by design).
+func TestServerTimeouts(t *testing.T) {
+	srv := srvHandler(http.NotFoundHandler())
+	for _, tc := range []struct {
+		name string
+		got  time.Duration
+		want time.Duration
+	}{
+		{"ReadHeaderTimeout", srv.ReadHeaderTimeout, 10 * time.Second},
+		{"ReadTimeout", srv.ReadTimeout, 60 * time.Second},
+		{"IdleTimeout", srv.IdleTimeout, 120 * time.Second},
+		{"WriteTimeout", srv.WriteTimeout, 0},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %v, want %v", tc.name, tc.got, tc.want)
+		}
+	}
+	if srv.MaxHeaderBytes != 64<<10 {
+		t.Errorf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, 64<<10)
 	}
 }

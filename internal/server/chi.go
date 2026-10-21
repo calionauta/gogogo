@@ -353,10 +353,22 @@ func StartChi(cfg *config.Config, nc *natsio.Conn, js nats.JetStreamLike) (stop 
 
 // srvHandler wraps the mux for serveChiOnListener (kept separate so the
 // listener stays the caller's: tests bind :0 and read the port back).
+//
+// Timeouts: ReadHeaderTimeout bounds slow headers, ReadTimeout bounds a slow
+// body (JSON/Loro payloads are small; 60s is generous for an edge link), and
+// IdleTimeout releases abandoned keep-alives. WriteTimeout stays 0 on
+// purpose: a finite value is a transport deadline, and every SSE route here
+// is a response that never ends — the first write after the deadline would
+// cut the stream. MaxHeaderBytes halves the 1 MiB default; cookies and
+// forwarding headers are the only large ones.
 func srvHandler(mux http.Handler) *http.Server {
 	return &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		WriteTimeout:      0,
+		MaxHeaderBytes:    64 << 10,
 	}
 }
 
