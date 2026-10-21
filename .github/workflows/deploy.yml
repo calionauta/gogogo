@@ -215,10 +215,12 @@ jobs:
     if: needs.reconcile.outputs.behind == 'true'
     # Native arm64: the image is built inside alpine, so the C toolchain and
     # the embedded musl platform library match the runtime, at native speed.
-    # Public repos get this runner for free; a fork without arm runners can
-    # switch to `ubuntu-latest` — the same build then runs through QEMU
-    # (several times slower, same result).
-    runs-on: ubuntu-24.04-arm
+    # Public repos get this runner for free. A repository without arm runners
+    # sets the variable BUILD_RUNNER=ubuntu-latest and the same build runs
+    # through QEMU — several times slower, same result — without editing this
+    # file, which matters because the scaffold is meant to be deployed from a
+    # fresh clone by someone who has never read the workflow.
+    runs-on: ${{ vars.BUILD_RUNNER || 'ubuntu-24.04-arm' }}
     permissions:
       contents: read
       packages: write
@@ -241,6 +243,13 @@ jobs:
           echo "version=${version:-dev}" >> "$GITHUB_OUTPUT"
           echo "short_sha=$(printf '%s' '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        # Required only when BUILD_RUNNER points at an amd64 runner (see runs-on):
+        # buildx cannot produce a linux/arm64 image on amd64 without binfmt
+        # registered, and it fails with "exec format error" rather than something
+        # that names the cause. Harmless on a native arm64 runner.
+        uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
 
@@ -365,9 +374,17 @@ jobs:
           # echo appends a newline; OpenSSH keys end with one anyway.
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 0600 ~/.ssh/deploy_key
-          ssh-keyscan -t ed25519 -p 2222 $DEPLOY_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          # DEPLOY_HOST comes from a secret with trailing whitespace. Unquoted
+          # use splits it away by accident, which is why the steps below used to
+          # work; a quoted use hands ssh "host<space>" and it answers "hostname
+          # contains invalid characters" (that broke a deploy on master). So it
+          # is sanitized once, here, and every later step reads the clean value
+          # from GITHUB_ENV instead of depending on an accident of quoting.
+          host="$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')"
+          echo "DEPLOY_SSH_HOST=$host" >> "$GITHUB_ENV"
+          ssh-keyscan -t ed25519 -p 2222 $host >> ~/.ssh/known_hosts 2>/dev/null || true
           cat > ~/.ssh/config <<EOF
-          Host $DEPLOY_HOST
+          Host $host
             Port 2222
             StrictHostKeyChecking yes
             UserKnownHostsFile ~/.ssh/known_hosts
@@ -384,7 +401,7 @@ jobs:
           # failed with "env file /home/deploy/.secrets/<app>.env not found" —
           # which the deploy script reported only as a healthcheck timeout.
           SECRETS_DIR="/home/deploy/.secrets"
-          ssh $DEPLOY_HOST "set -euo pipefail
+          ssh $host "set -euo pipefail
             # Free disk space before writing anything
             docker system prune -af --filter 'until=24h' 2>/dev/null || true
             docker builder prune -af 2>/dev/null || true
@@ -410,11 +427,9 @@ jobs:
 
       # SCP the compose file (overwriting the previous one).
       - name: Copy compose file
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
+          scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_SSH_HOST:/home/deploy/services/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
 
       - name: Registry login for the pull
         # A package created by a private repository is private and the server's
@@ -433,27 +448,20 @@ jobs:
         # deploy-prod.sh logs out on exit, so nothing survives the deploy.
         if: vars.GHCR_PUBLIC != 'true'
         continue-on-error: true
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          # This secret carries trailing whitespace. Unquoted use elsewhere in
-          # the workflow word-splits it away by accident; quoting it does not,
-          # and ssh then reports "hostname contains invalid characters". Strip it
-          # here instead of depending on that accident.
-          host="$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')"
+          # DEPLOY_SSH_HOST is the whitespace-stripped host from the first step
+          # that touches ssh; see the note there.
           printf '%s' '${{ secrets.GITHUB_TOKEN }}' |
-            ssh "$host" "docker login ${APP_IMAGE%%/*} -u '${{ github.actor }}' --password-stdin"
+            ssh "$DEPLOY_SSH_HOST" "docker login ${APP_IMAGE%%/*} -u '${{ github.actor }}' --password-stdin"
 
       # Ensure the directory layout exists, update the source clone (needed for
       # the deploy script and the app's .env), then run the deploy script
       # (digest pull + container restart + health wait + build assertion).
       - name: Ensure layout + run deploy
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          ssh $DEPLOY_HOST "set -euo pipefail
+          ssh $DEPLOY_SSH_HOST "set -euo pipefail
             APP_NAME=\"${{ env.APP_NAME }}\"
             APP_DIR=\"/home/deploy/services/\${APP_NAME}\"
             for d in compose env scripts; do

@@ -134,7 +134,9 @@ it reads `X-Gogogo-Build` from `/health` and compares the trailing short SHA.
 1. **Builds the image once** (`image` job) on a native arm64 runner, from
    `deploy/Dockerfile.prod` — the same file `scripts/smoke-prod-image.sh` boots
    in CI. It pushes two tags and reports the **digest**; the digest is the
-   artifact's identity, the tags are labels for humans.
+   artifact's identity, the tags are labels for humans. A repository without arm
+   runners sets the variable `BUILD_RUNNER=ubuntu-latest` and the same build runs
+   through QEMU instead — slower, same result, no file edit.
 2. Brings up Tailscale in the runner (OIDC workload identity, scoped to the run).
 3. Logs the server into the registry for the single pull (token over ssh stdin,
    never on a command line or in a file), SCPs
