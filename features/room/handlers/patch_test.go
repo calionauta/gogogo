@@ -15,10 +15,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
 
+	roomcomponents "github.com/calionauta/gogogo/features/room/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 )
 
@@ -109,6 +111,54 @@ func signalsLine(frame string) string {
 		}
 	}
 	return ""
+}
+
+// TestRoomLeaveAnswerCarriesTheLeftFlag pins the ONE per-viewer value a leave
+// answer ships. Leaving used to be invisible on the leaver's own screen (the
+// roster row disappears, which reads as "nothing happened") while the card kept
+// offering Take/Leave for a room the tab was no longer in. The flag is a
+// BOOLEAN in the signals frame — a quoted "true" would merge as a truthy
+// string and `$roomLeft === true` would never match — and it must never ride a
+// broadcast, which cannot know who is reading.
+//
+// RED-PROOFED: drop the extra argument from handleLeave and the frame assertion
+// fails; move the flag into RoomLockSignals and the broadcast assertion fails.
+func TestRoomLeaveAnswerCarriesTheLeftFlag(t *testing.T) {
+	var out bytes.Buffer
+	if err := sendRosterPatch(context.Background(), patchWriter(&out), "lobby",
+		appgoakt.Roster{}, "bea@example.com", roomcomponents.RoomLeftSignal(),
+	); err != nil {
+		t.Fatalf("leave answer: %v", err)
+	}
+	sigs := signalsLine(out.String())
+	if !strings.Contains(sigs, `"roomLeft":true`) {
+		t.Fatalf("leave answer does not set $roomLeft:\n%s", sigs)
+	}
+	if strings.Contains(sigs, `"roomLeft":"`) {
+		t.Fatalf("$roomLeft is a string; `$roomLeft === true` would never match:\n%s", sigs)
+	}
+
+	broadcast, err := rosterPatch(context.Background(), "lobby", appgoakt.Roster{})
+	if err != nil {
+		t.Fatalf("broadcast patch: %v", err)
+	}
+	if b := signalsLine(string(broadcast)); strings.Contains(b, "roomLeft") {
+		t.Fatalf("a broadcast writes $roomLeft; it would resurrect the buttons on whoever just left:\n%s", b)
+	}
+}
+
+// TestRoomPageSeedsTheLeftFlag pins the other writer: the page's hidden signals
+// sibling seeds $roomLeft=false, so a fresh (or reloaded) tab starts in the room
+// with the roster actions bound. The flag has exactly two writers — this seed
+// and the leave answer — and a shared/broadcast signal set carries neither.
+func TestRoomPageSeedsTheLeftFlag(t *testing.T) {
+	seed := roomcomponents.RoomLockSignalsJSON(appgoakt.Roster{}, "bea@example.com")
+	if !strings.Contains(seed, `"roomLeft":false`) {
+		t.Fatalf("page seed does not carry roomLeft=false: %s", seed)
+	}
+	if shared := roomcomponents.RoomLockSignalsJSON(appgoakt.Roster{}, ""); strings.Contains(shared, "roomLeft") {
+		t.Fatalf("the shared/broadcast signal set carries roomLeft: %s", shared)
+	}
 }
 
 // TestRoomRosterPatchTargetsTheContentRegion pins the patch selector: the

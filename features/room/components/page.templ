@@ -8,8 +8,10 @@
 //   - no 3s roster poll (the roster arrives when it changes, not on a timer);
 //   - no 5s app heartbeat (a live SSE connection IS the liveness signal —
 //     the transport's keepalive makes Go notice a dead socket);
-//   - no `left` flag to stop the heartbeat after Leave (with no timer there
-//     is nothing to stop, so "Leave" cannot resurrect its user).
+//   - no heartbeat flag to stop after Leave (with no timer there is nothing
+//     to stop). Leave is instead an EXPLICIT state this tab writes: the grain
+//     drops the connection and the card says so, because "the roster no longer
+//     lists me" is not visible feedback on your own screen.
 //
 // Presence is per CONNECTION, so two tabs of one person are one roster entry
 // and closing one keeps them listed (goakt.Room refcounts clientIDs).
@@ -48,11 +50,31 @@ import (
 //     element and DROPPED roomMe on every peer patch — the room then
 //     silently lost "you" and every lock button with it. So the card's
 //     own data-signals is the only place identity is written.
-func RoomLockSignals(roster appgoakt.Roster, email string) map[string]string {
+//
+// $roomLeft follows the same rule, with one difference: it is ALSO per-viewer
+// ("did THIS tab leave?"), so a broadcast must not carry it either. It is
+// seeded false here and flipped only by the tab's own leave answer
+// (RoomLeftSignal) — a shared push that shipped roomLeft:false would resurrect
+// the buttons on the page of whoever had just left.
+func RoomLockSignals(roster appgoakt.Roster, email string) map[string]any {
 	if email == "" {
-		return map[string]string{"roomHolder": roster.Presenter}
+		return map[string]any{"roomHolder": roster.Presenter}
 	}
-	return map[string]string{"roomHolder": roster.Presenter, "roomMe": email}
+	return map[string]any{
+		"roomHolder": roster.Presenter,
+		"roomMe":     email,
+		"roomLeft":   false,
+	}
+}
+
+// RoomLeftSignal is the ONE addition a leave answer makes to its own tab's
+// signals: the tab asked to be out of the room, so its card must say so and
+// stop offering the roster actions. Kept separate from RoomLockSignals so the
+// per-viewer state has exactly two writers — the page seed (and a rejoin, which
+// ships roomLeft:false through RoomLockSignals) and this — and a broadcast can
+// never carry it.
+func RoomLeftSignal() map[string]any {
+	return map[string]any{"roomLeft": true}
 }
 
 // RoomLockSignalsJSON is the same map as the JSON text a `data-signals`
@@ -175,7 +197,7 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				}
 			}
 		</ul>
-		<p id="room-hint" class="text-sm opacity-70" data-text="$roomHolder === '' ? 'Nobody holds the presenter lock — anyone here can take it.' : ($roomMe !== '' && $roomMe === $roomHolder ? 'You hold the presenter lock.' : 'The lock is held by ' + $roomHolder + '; only they can release it.')">
+		<p id="room-hint" class="text-sm opacity-70" data-text="$roomLeft ? 'You left this room.' : ($roomHolder === '' ? 'Nobody holds the presenter lock — anyone here can take it.' : ($roomMe !== '' && $roomMe === $roomHolder ? 'You hold the presenter lock.' : 'The lock is held by ' + $roomHolder + '; only they can release it.'))">
 			if roster.Presenter == "" {
 				Nobody holds the presenter lock — anyone here can take it.
 			} else if roster.Presenter == email {
@@ -184,31 +206,45 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 				The lock is held by { roster.Presenter }; only they can release it.
 			}
 		</p>
+		<p id="room-left" class="alert alert-info text-sm" role="status" data-show="$roomLeft">
+			You left this room: peers no longer list you and the roster actions are
+			hidden. Rejoin puts you back — and so does this tab reconnecting, because
+			presence IS the connection.
+		</p>
 		<div class="card-actions justify-end">
 			<button
 				id="room-acquire"
 				class="btn btn-primary"
 				type="button"
-				data-show="$roomHolder === ''"
+				data-show="$roomLeft !== true && $roomHolder === ''"
 				data-on:click={ "@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Take presenter</button>
 			<button
 				id="room-release"
 				class="btn"
 				type="button"
-				data-show="$roomMe !== '' && $roomMe === $roomHolder"
+				data-show="$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder"
 				data-on:click={ "@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Release</button>
 			<button
 				id="room-leave"
 				class="btn"
 				type="button"
+				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Leave</button>
+			<button
+				id="room-rejoin"
+				class="btn btn-primary"
+				type="button"
+				data-show="$roomLeft === true"
+				data-on:click={ "@post('/room/join?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
+			>Rejoin</button>
 			<button
 				id="room-crash"
 				class="btn btn-error"
 				type="button"
+				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/crash?room=" + url.QueryEscape(roomID) + "')" }
 			>Crash room</button>
 		</div>

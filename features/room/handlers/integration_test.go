@@ -14,6 +14,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -303,5 +304,59 @@ func TestRoomTwoSessionsOnePresenter(t *testing.T) {
 	}
 	if answers[0] != roomEmailA && answers[0] != roomEmailB {
 		t.Fatalf("presenter %q is neither member", answers[0])
+	}
+}
+
+// roomMemberNames reads the roster the JSON endpoint answers, which is the
+// state every peer's pushed card is rendered from.
+func roomMemberNames(t *testing.T, mux http.Handler, cookie *http.Cookie) []string {
+	t.Helper()
+	rec := roomDo(t, mux, cookie, http.MethodGet, "/room/roster")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /room/roster = %d", rec.Code)
+	}
+	var out struct {
+		Members []struct {
+			Name string `json:"name"`
+		} `json:"members"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode roster: %v", err)
+	}
+	names := make([]string, 0, len(out.Members))
+	for _, m := range out.Members {
+		names = append(names, m.Name)
+	}
+	return names
+}
+
+// TestRoomLeaveThenJoinOverHTTP: Leave must take the tab out of the roster for
+// everyone (peers AND the leaver), and Join must be the one way back.
+//
+// WHY IT MATTERS: presence is the connection, so "leave" cannot mean "close
+// the socket" from a page that keeps it open — it is a state the grain applies
+// to one clientID. A leaver who stays listed is the reported "cliquei em Leave
+// e a pessoa continua na sala"; a leaver who cannot come back is the opposite
+// defect, and this pins both ends.
+func TestRoomLeaveThenJoinOverHTTP(t *testing.T) {
+	mux, signup := roomHostFixture(t)
+	cookie := signup(roomEmailA)
+
+	roomDo(t, mux, cookie, http.MethodPost, "/room/heartbeat?clientID=tab-a")
+	if names := roomMemberNames(t, mux, cookie); !slices.Contains(names, roomEmailA) {
+		t.Fatalf("roster after heartbeat = %v, want the member", names)
+	}
+
+	roomDo(t, mux, cookie, http.MethodPost, "/room/leave?clientID=tab-a")
+	if names := roomMemberNames(t, mux, cookie); slices.Contains(names, roomEmailA) {
+		t.Fatalf("roster after leave = %v; the member is still listed", names)
+	}
+
+	rec := roomDo(t, mux, cookie, http.MethodPost, "/room/join?clientID=tab-a")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /room/join = %d (body: %s)", rec.Code, rec.Body.String())
+	}
+	if names := roomMemberNames(t, mux, cookie); !slices.Contains(names, roomEmailA) {
+		t.Fatalf("roster after rejoin = %v, want the member back", names)
 	}
 }

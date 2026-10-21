@@ -253,8 +253,9 @@ Con: an actor runtime to learn and boot for what starts as a counter.
 
 - Seeing supervised restart recovery live; the pattern to copy for
   per-entity features. The page renders only the actions the lock allows
-  (Take while it is free, Release for the holder) and Leave drops the
-  connection, so leaving actually sticks.
+  (Take while it is free, Release for the holder), Leave drops the
+  connection — and the tab's card then says "you left" and offers Rejoin,
+  so leaving is both visible and reversible.
 
 Not for: production rooms (no persistence, single process) — copy
 the grain pattern into your own feature instead.

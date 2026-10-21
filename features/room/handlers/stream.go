@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ func rosterPatchFor(ctx context.Context, id string, roster appgoakt.Roster, emai
 // nothing" even though the markup updated.
 func rosterPatchBuffer(ctx context.Context, id string, roster appgoakt.Roster, email string) ([]byte, error) {
 	var out bytes.Buffer
-	if err := sendRosterPatch(ctx, patchWriter(&out), id, roster, email); err != nil {
+	if err := sendRosterPatch(ctx, patchWriter(&out), id, roster, email, nil); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -114,9 +115,14 @@ func rosterPatchBuffer(ctx context.Context, id string, roster appgoakt.Roster, e
 // click looks like it did nothing.
 func sendRosterPatch(
 	ctx context.Context, gen *datastarsdk.ServerSentEventGenerator,
-	id string, roster appgoakt.Roster, email string,
+	id string, roster appgoakt.Roster, email string, extra map[string]any,
 ) error {
-	if err := gen.MarshalAndPatchSignals(roomcomponents.RoomLockSignals(roster, email)); err != nil {
+	signals := roomcomponents.RoomLockSignals(roster, email)
+	// extra is the per-viewer addition a CLICKER's answer may carry (the
+	// "you left" flag). Broadcasts pass nil: one body for every tab cannot
+	// hold a value that is only true for one of them.
+	maps.Copy(signals, extra)
+	if err := gen.MarshalAndPatchSignals(signals); err != nil {
 		return err
 	}
 	card, err := renderCardContent(ctx, id, roster, email)

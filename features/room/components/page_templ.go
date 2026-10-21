@@ -21,9 +21,13 @@
 
 //     the transport's keepalive makes Go notice a dead socket);
 
-//   - no `left` flag to stop the heartbeat after Leave (with no timer there
+//   - no heartbeat flag to stop after Leave (with no timer there is nothing
 
-//     is nothing to stop, so "Leave" cannot resurrect its user).
+//     to stop). Leave is instead an EXPLICIT state this tab writes: the grain
+
+//     drops the connection and the card says so, because "the roster no longer
+
+//     lists me" is not visible feedback on your own screen.
 
 //
 
@@ -78,11 +82,31 @@ import (
 //     element and DROPPED roomMe on every peer patch — the room then
 //     silently lost "you" and every lock button with it. So the card's
 //     own data-signals is the only place identity is written.
-func RoomLockSignals(roster appgoakt.Roster, email string) map[string]string {
+//
+// $roomLeft follows the same rule, with one difference: it is ALSO per-viewer
+// ("did THIS tab leave?"), so a broadcast must not carry it either. It is
+// seeded false here and flipped only by the tab's own leave answer
+// (RoomLeftSignal) — a shared push that shipped roomLeft:false would resurrect
+// the buttons on the page of whoever had just left.
+func RoomLockSignals(roster appgoakt.Roster, email string) map[string]any {
 	if email == "" {
-		return map[string]string{"roomHolder": roster.Presenter}
+		return map[string]any{"roomHolder": roster.Presenter}
 	}
-	return map[string]string{"roomHolder": roster.Presenter, "roomMe": email}
+	return map[string]any{
+		"roomHolder": roster.Presenter,
+		"roomMe":     email,
+		"roomLeft":   false,
+	}
+}
+
+// RoomLeftSignal is the ONE addition a leave answer makes to its own tab's
+// signals: the tab asked to be out of the room, so its card must say so and
+// stop offering the roster actions. Kept separate from RoomLockSignals so the
+// per-viewer state has exactly two writers — the page seed (and a rejoin, which
+// ships roomLeft:false through RoomLockSignals) and this — and a broadcast can
+// never carry it.
+func RoomLeftSignal() map[string]any {
+	return map[string]any{"roomLeft": true}
 }
 
 // RoomLockSignalsJSON is the same map as the JSON text a `data-signals`
@@ -170,7 +194,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(roomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 93, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 115, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -183,7 +207,7 @@ func Page(email string, userRole string, roomID string, roster appgoakt.Roster, 
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(roomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 94, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 116, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -261,7 +285,7 @@ func roomSignals(roster appgoakt.Roster, email string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoomLockSignalsJSON(roster, email))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 125, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 147, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -361,7 +385,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(roster.Presenter)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 161, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 183, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -375,7 +399,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(roster.Generation))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 165, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 187, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -400,7 +424,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 172, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 194, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -418,7 +442,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 174, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 196, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -430,7 +454,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</ul><p id=\"room-hint\" class=\"text-sm opacity-70\" data-text=\"$roomHolder === '' ? 'Nobody holds the presenter lock — anyone here can take it.' : ($roomMe !== '' && $roomMe === $roomHolder ? 'You hold the presenter lock.' : 'The lock is held by ' + $roomHolder + '; only they can release it.')\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</ul><p id=\"room-hint\" class=\"text-sm opacity-70\" data-text=\"$roomLeft ? 'You left this room.' : ($roomHolder === '' ? 'Nobody holds the presenter lock — anyone here can take it.' : ($roomMe !== '' && $roomMe === $roomHolder ? 'You hold the presenter lock.' : 'The lock is held by ' + $roomHolder + '; only they can release it.'))\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -452,7 +476,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(roster.Presenter)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 184, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 206, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -463,59 +487,72 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p><div class=\"card-actions justify-end\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\" data-show=\"$roomHolder === ''\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p><p id=\"room-left\" class=\"alert alert-info text-sm\" role=\"status\" data-show=\"$roomLeft\">You left this room: peers no longer list you and the roster actions are hidden. Rejoin puts you back — and so does this tab reconnecting, because presence IS the connection.</p><div class=\"card-actions justify-end\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\" data-show=\"$roomLeft !== true && $roomHolder === ''\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 193, Col: 143}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 220, Col: 143}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\">Take presenter</button> <button id=\"room-release\" class=\"btn\" type=\"button\" data-show=\"$roomMe !== '' && $roomMe === $roomHolder\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\">Take presenter</button> <button id=\"room-release\" class=\"btn\" type=\"button\" data-show=\"$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 200, Col: 143}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 227, Col: 143}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\">Release</button> <button id=\"room-leave\" class=\"btn\" type=\"button\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\">Release</button> <button id=\"room-leave\" class=\"btn\" type=\"button\" data-show=\"$roomLeft !== true\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 206, Col: 141}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 234, Col: 141}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">Leave</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">Leave</button> <button id=\"room-rejoin\" class=\"btn btn-primary\" type=\"button\" data-show=\"$roomLeft === true\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
-		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/crash?room=" + url.QueryEscape(roomID) + "')")
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/join?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 212, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 241, Col: 140}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\">Crash room</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\">Rejoin</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\" data-show=\"$roomLeft !== true\" data-on:click=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/room/crash?room=" + url.QueryEscape(roomID) + "')")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/room/components/page.templ`, Line: 248, Col: 79}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\">Crash room</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
