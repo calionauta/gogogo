@@ -1,0 +1,71 @@
+name: update-loop
+
+# Keeps the upgrade loop working for people who already scaffolded.
+#
+# Every command in the loop is unit-tested against stubs: --check-update's two
+# halves, migrate's range parser and its curated notes, the scaffold itself. The
+# composition is what no stub sees — a clone at a released tag, a marker written
+# by that release's binary, the real releases API, the real raw-file URLs. When
+# any of those drift (tag naming, a moved changelog path, a marker format that
+# stops round-tripping), the loop breaks for everyone on the previous release
+# while the suite stays green. Issue #213 is the documentation side of that; this
+# is the mechanical side.
+#
+# Why scheduled rather than per-push: the finding is "reality moved", which no
+# given push caused, and the script clones and builds a release, so it is too
+# slow and too network-dependent for every PR. Like stelow-drift, it does not
+# gate CI: it fails loudly on its own run, where a maintainer reads it.
+
+on:
+  schedule:
+    # Mondays at 04:47 UTC — off the hour so it does not pile onto the
+    # midnight-UTC cron stampede, and before the weekly release PR review.
+    - cron: "47 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-loop
+  cancel-in-progress: true
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Go 1.27.3 manually
+        # Same path web CI takes: actions/setup-go extracts its toolchain via tar
+        # and has been intermittently corrupting it on this runner image.
+        run: bash bin/install-go-toolchain.sh
+
+      - name: Scaffold from the previous release, then check it and migrate it
+        # The scenario #213 asked about: a tree scaffolded by the release before
+        # this one must report itself behind and be handed the range that fixes
+        # it. The script builds today's binary but stamps it with the older tag,
+        # so the tree's marker is real rather than a fixture.
+        run: bash scripts/e2e-update-loop.sh
+
+      - name: Explain the failure in the run summary
+        if: failure()
+        run: |
+          {
+            echo "## The upgrade loop is broken for the previous release"
+            echo
+            echo "A tree scaffolded from the second-newest release did not report"
+            echo "itself behind, or \`migrate\` did not return the range to the newest."
+            echo
+            echo "Check, in this order:"
+            echo
+            echo '1. `scaffolded-from:` still gets written into the generated AGENTS.md.'
+            echo '2. The releases API still answers `tag_name` for `api.github.com/repos/calionauta/gogogo/releases`.'
+            echo '3. `CHANGELOG.md` is still served at `raw.githubusercontent.com/<repo>/<tag>/CHANGELOG.md`.'
+            echo '4. `--check-update` still exits 3 for "an update exists" and reports `treeStatus: behind`.'
+            echo
+            echo "Reproduce locally with \`bash scripts/e2e-update-loop.sh\` (add \`KEEP=1\` to keep the checkout)."
+          } >> "$GITHUB_STEP_SUMMARY"

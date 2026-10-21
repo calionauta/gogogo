@@ -298,6 +298,7 @@ by hand, so when a step is added to one, add it to the other:
 | install.sh bootstrap contract | ✓ | ✓ |
 | datastar-lint | ✓ | ✓ |
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
+| the upgrade loop works against real releases | — | ✅ `update-loop.yml` (weekly: scaffold the previous tag, expect "behind" and the range) |
 | golangci-lint (33 linters) | ✓ | ✓ |
 | govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
 | deadcode (advisory, host-gated + version-pinned) | ✅ pre-push hook | ✓ |
