@@ -19,7 +19,7 @@
 | T2 — cgroup | ✅ provado | 900 MB em teto de 700 M → exit 137, host vivo |
 | Disco | ✅ | `go clean -cache` + Playwright antigo + `apt-get clean` |
 | `golangci-lint` | ✅ | **2.14.0** em `/usr/local/bin` (PATH) **e** `~/go/bin` — antes: 2.12.2 quebrado |
-| Go | ✅ | **1.27.1** em `/usr/local/go` (+ `/etc/profile.d/go.sh`) |
+| Go | ✅ | bootstrap **1.27.1** em `/usr/local/go` (+ `/etc/profile.d/go.sh`); o repo declara `go 1.27.3`, então `GOTOOLCHAIN=auto` sobe para a toolchain 1.27.3 do modcache. `go version` mostra 1.27.3; `GOTOOLCHAIN=local go version` mostra o bootstrap |
 | Swap | ✅ | `/swapfile2` **+4 GB** (total 6 GB; `/swapfile` de 2 GB mantido) |
 | Journal | ✅ | vacuum rodou (0 B a liberar; já estava enxuto) |
 | `bb.db` VACUUM | ✅ **desnecessário** | `freelist_count = 0`, `auto_vacuum = incremental` → o 1,2 GB é dado vivo (ver §4) |
