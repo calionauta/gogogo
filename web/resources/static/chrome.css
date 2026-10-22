@@ -754,3 +754,8 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .app-theme-item:hover { background: color-mix(in oklab, var(--color-base-content) 8%, transparent); }
 .app-theme-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .app-theme-item.is-active { font-weight: 600; color: var(--color-primary); }
+
+/* Full-bleed work area: a page that owns the whole rectangle (the board canvas)
+   opts out of the shell's padding, and its inner flex column inherits the
+   height the shell gives it. */
+.app-body-flush { padding: 0; display: flex; flex-direction: column; min-height: 0; }

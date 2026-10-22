@@ -13,12 +13,11 @@ package components
 import (
 	"strconv"
 
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/web/resources"
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
 // BoardMeta is a list-row summary of a saved whiteboard.
@@ -48,22 +47,51 @@ const (
 // live-update wiring so the list updates when another user creates a new
 // board. Follows the same pattern as the todo feature's RealtimeRecords:
 // a hidden @get button the stream and the visibility refetch click.
+// BoardListWithRealtime renders the board list with its live regions. The
+// document, assets, sidebar, header and toasts belong to internal/ui.Shell;
+// this file is the page.
 templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Collab whiteboards — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-			@sounds.SoundAssets()
-			@components.OfflineSyncScript(offlineSync)
-		</head>
-		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit, skinName)
-			@components.OfflineBanner(offlineSync)
-			<main class="mx-auto max-w-4xl p-4" data-signals={ boardSignals }>
+	@ui.Shell(ui.Data{
+		Title:       "Collab whiteboard — gogogo",
+		Module:      "whiteboard",
+		Context:     boardsContext(boards),
+		Email:       email,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		OfflineSync: offlineSync,
+		Stack:       boardsStack(),
+		StreamPage:  true,
+	}, nil, nil, boardsActions(), boardsBody(boards))
+}
+
+// boardsActions is the header's right-aligned action.
+templ boardsActions() {
+	<a class="app-nav-btn is-primary" href="/whiteboard/new">New board</a>
+}
+
+// boardsContext is the header's context slot.
+func boardsContext(boards []BoardMeta) string {
+	if len(boards) == 0 {
+		return "no boards yet · live list · SSE"
+	}
+	return strconv.Itoa(len(boards)) + " boards · live list · SSE"
+}
+
+// boardsStack is what this page demonstrates, in the sidebar's stack key.
+func boardsStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "SSEHub", Note: "record changes re-list every open tab"},
+		{Name: "NATS", Note: "cross-instance fan-out"},
+		{Name: "Casbin RBAC", Note: "author-or-admin deletes"},
+	}
+}
+
+// boardsBody is the work area: the list and the two live regions.
+templ boardsBody(boards []BoardMeta) {
+	<div class="mx-auto max-w-2xl">
+
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Collab whiteboards</h1>
 					<a class="btn btn-primary" href="/whiteboard/new">New whiteboard</a>
@@ -80,11 +108,7 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 				{Name: "offline outbox", Note: "edits queue offline, then sync"},
 				})
 				@WhiteboardListFragment(boards)
-			</main>
-			@deleteBoardModal()
-			@components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'")
-		</body>
-	</html>
+	</div>
 }
 
 // WhiteboardListFragment renders just the whiteboard list grid. It is the
@@ -182,23 +206,52 @@ templ deleteBoardModal() {
 // Board renders the interactive canvas for one whiteboard doc. The
 // client connects to the SSE stream and listens for shape + presence
 // events; drawing POSTs Loro updates back to the server.
+// Board renders one board. It is the only page that opts into a full-bleed
+// work area: the canvas owns the rectangle, so the shell drops its padding and
+// gives the column the height. data-doc-id rides the wrapper (whiteboard.js
+// reads it back as window.WB_DOC_ID) because the shell owns <main>.
 templ Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Collab whiteboard { meta.DocID } — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-			@sounds.SoundAssets()
-			<script src={ whiteboard.URL("rough.min.js") }></script>
-		</head>
-		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit, skinName)
-			@components.OfflineBanner(offlineSync)
-			@components.SessionBanner(email != "")
-			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ meta.DocID }>
+	@ui.Shell(ui.Data{
+		Title:       "Collab whiteboard " + meta.DocID + " — gogogo",
+		Module:      "whiteboard",
+		Heading:     "Board " + meta.DocID,
+		Context:     "canvas · shapes sync over SSE · CRDT-free whole-snapshot ops",
+		Email:       email,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		OfflineSync: offlineSync,
+		Stack: []components.TechItem{
+			{Name: "SSEHub", Note: "shape ops fan out to every tab"},
+			{Name: "NATS", Note: "cross-instance sync"},
+			{Name: "rough.js", Note: "hand-drawn rendering, no server work"},
+			{Name: "offline outbox", Note: "ops queue and replay"},
+		},
+		StreamPage: true,
+		FullBleed:  true,
+	}, boardHead(), boardSound(), nil, boardBody(meta))
+}
+
+// boardHead carries the page's own <head>: the sound assets and the three
+// scripts the canvas needs, in load order.
+templ boardHead() {
+	@sounds.SoundAssets()
+	<script src={ whiteboard.URL("rough.min.js") }></script>
+	<script defer src={ resources.StaticURL("throttle.js") }></script>
+	<script defer src={ whiteboard.URL("whiteboard.js") }></script>
+}
+
+// boardSound is the shell's mute control; the trim drops the call inside it.
+templ boardSound() {
+	@sounds.SoundToggle()
+}
+
+// boardBody is the work area: the toolbar, the canvas and the doc id the
+// scripts read.
+templ boardBody(meta BoardMeta) {
+	<div class="flex flex-1 flex-col min-h-0" data-doc-id={ meta.DocID }>
+
 				<div class="toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto">
 					<button class="btn btn-sm" data-tool="rect">Rectangle</button>
 					<button class="btn btn-sm" data-tool="ellipse">Ellipse</button>
@@ -224,17 +277,13 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 					<canvas id="wb-canvas" class="absolute inset-0 w-full h-full block cursor-crosshair" style="background-color:#ffffff;"></canvas>
 					<div id="cursors" class="absolute inset-0 pointer-events-none"></div>
 				</div>
-			</main>
-			<script defer src={ resources.StaticURL("throttle.js") }></script>
-			<script defer src={ whiteboard.URL("whiteboard.js") }></script>
-			<script>
-				// The doc id is carried on <main data-doc-id> (templ escapes
-				// attribute values safely). Reading it from the DOM avoids the
-				// earlier JS-string-escaping pitfalls (templ.URL() emitted a full
-				// URL and templ.JSEscape() produced unquoted output — both threw
-				// "WB_DOC_ID missing" / "Unexpected token '.'").
-				window.WB_DOC_ID = document.querySelector("main")?.dataset.docId || "";
-			</script>
-		</body>
-	</html>
+	</div>
+	<script>
+		// The doc id is carried on the wrapper's data-doc-id (templ escapes
+		// attribute values safely). Reading it from the DOM avoids the earlier
+		// JS-string-escaping pitfalls (templ.URL() emitted a full URL and
+		// templ.JSEscape() produced unquoted output). The selector is the
+		// attribute, not <main>: internal/ui.Shell owns the main element.
+		window.WB_DOC_ID = document.querySelector("[data-doc-id]")?.dataset.docId || "";
+	</script>
 }
