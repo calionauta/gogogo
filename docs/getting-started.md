@@ -98,12 +98,22 @@ go run github.com/calionauta/gogogo/cmd/gogogo@latest advise --need "realtime wh
 What each core/plugin/feature is *for*, in business language, lives in
 [use-cases](use-cases.md) — read it before deciding what to keep.
 
-No `--dir`, no `--yes`, no filesystem touched: it reads the capability
+No `--yes`, nothing written: it reads the capability
 registry and prints use-case presets (keep/drop per preset), every
 capability with its trim flag or runtime off-switch, and the three global
 rules (Go-first with the profiled-kernel Zig exception, runtime switches
-before trim, upstream-first). The MCP server exposes the same document as
-`advise_stack` — agents deciding what to use start there, not at `trim_plan`.
+before trim, upstream-first).
+
+Two optional flags turn the opinion into a route. `--intent
+update|port|add-unit|new-feature|scaffold` prints the ordered commands for that
+goal (omitted, it is inferred from `--need` and the answer says which it used).
+`--dir <path>` adds one stat, and the answer follows the tree: a path that is
+not a gogogo checkout gets its own scope — the owned paths worth copying plus
+the [`export`](porting-into-an-existing-app.md) route — instead of a table you
+cannot install.
+
+The MCP server exposes the same document as `advise_stack` — agents deciding
+what to use start there, not at `trim_plan`.
 
 Strategy for LLMs: empty `--need` returns the full map (cheapest correct
 first call — the document is small). A filtered call that matches nothing

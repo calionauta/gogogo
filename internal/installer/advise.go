@@ -167,12 +167,12 @@ func buildAdvise(need string) adviseDoc {
 
 // buildAdviseIn resolves the registry into guidance, filtering presets by
 // need (empty need returns every preset, most useful first is meaningless
-// without a query — manifest order wins). There is deliberately NO foreign
-// detector: this tool only knows the template plus its Zig exception, so a
-// need that matches nothing gets the full map (same as empty) instead of a
-// guessed stack label. Generic English words ("fast", "path", "native")
-// can never route outside Go scopes — there is no branch left that names
-// another ecosystem.
+// without a query — manifest order wins). There is deliberately no stack
+// detector: the only path probe is a stat for the template's own files
+// (looksLikeTemplate), so a need that matches nothing gets the full map
+// (same as empty) instead of a guessed stack label. Generic English words
+// ("fast", "path", "native") can never route outside Go scopes — there is
+// no branch left that names another ecosystem.
 //
 // dir is optional and opt-in. Empty keeps the answer a pure function of need
 // — the tool still reads nothing unless asked. When dir IS given, the probe is
