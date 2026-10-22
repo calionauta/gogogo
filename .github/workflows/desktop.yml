@@ -43,7 +43,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
         # Keep the installation path aligned with web CI. setup-go has
         # intermittently produced a corrupted toolchain on GitHub runners.
@@ -83,7 +83,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
         run: |
           bash bin/install-go-toolchain.sh
@@ -111,7 +111,7 @@ jobs:
           ./scripts/desktop-build.sh cross-darwin
           ./scripts/desktop-build.sh cross-linux
       - name: Upload cross previews (UNSIGNED)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: desktop-cross-preview
           path: build/cross/
@@ -128,7 +128,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
         run: |
           bash bin/install-go-toolchain.sh

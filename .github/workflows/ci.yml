@@ -49,7 +49,7 @@ jobs:
     outputs:
       docs_only: ${{ steps.filter.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: filter
@@ -83,7 +83,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
@@ -182,7 +182,7 @@ jobs:
           export PATH="$HOME/go/bin:$PATH"
           make datastar-lint
       - name: Lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
           skip-cache: true
@@ -234,7 +234,7 @@ jobs:
         run: |
           go tool deadcode -test ./cmd/web/... ./features/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Set up Node (CSS build)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: CSS build
@@ -266,7 +266,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
@@ -314,7 +314,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
@@ -339,7 +339,7 @@ jobs:
           sudo apt-get install -y gcc
           gcc --version | head -1
       - name: Set up Node (Playwright)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Install JS deps
@@ -414,7 +414,7 @@ jobs:
     # fails fast in parallel instead of after the whole suite.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Production image boot smoke test
         # Builds deploy/Dockerfile.prod, boots the FINAL image (uid 65532,
         # data volume, TURSO_GO_CACHE_DIR) and asserts /health → 200. This
@@ -437,9 +437,9 @@ jobs:
     # changes that can break the site.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Node (Playwright)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Install JS deps
