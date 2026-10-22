@@ -11,8 +11,10 @@ import templruntime "github.com/a-h/templ/runtime"
 import "strconv"
 
 import "github.com/calionauta/gogogo/features/authviews"
+import "github.com/calionauta/gogogo/features/notes"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
+import "github.com/calionauta/gogogo/web/resources"
 import "github.com/calionauta/gogogo/web/skins"
 
 // NoteMeta is one row of the shared notes index, and the identity the note
@@ -95,7 +97,7 @@ func NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel stri
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(notesSignals)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 46, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 48, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -183,7 +185,7 @@ func NotesListFragment(notes []NoteMeta) templ.Component {
 				var templ_7745c5c3_Var4 templ.SafeURL
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/notes/" + n.DocID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 84, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 86, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -196,7 +198,7 @@ func NotesListFragment(notes []NoteMeta) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(n.DocID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 85, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 87, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -222,7 +224,7 @@ func NotesListFragment(notes []NoteMeta) templ.Component {
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 93, Col: 199}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 95, Col: 199}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 					if templ_7745c5c3_Err != nil {
@@ -283,7 +285,7 @@ func authorBadge(author string, isMine bool) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue("Author: " + author)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 111, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 113, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -301,7 +303,7 @@ func authorBadge(author string, isMine bool) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(author)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 113, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 115, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -349,7 +351,7 @@ func deleteNoteModal() templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(notesDialogID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 123, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 125, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -362,7 +364,7 @@ func deleteNoteModal() templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById('" + notesDialogID + "').close()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 135, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 137, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -375,7 +377,7 @@ func deleteNoteModal() templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 143, Col: 172}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 145, Col: 172}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -388,7 +390,7 @@ func deleteNoteModal() templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById('" + notesDialogID + "').close()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 150, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 152, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -452,7 +454,33 @@ func NotesPage(email string, userRole string, meta NoteMeta, text string, rev ui
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<script defer src=\"/static/throttle.js\"></script><script defer src=\"/static/notes/notes.js\"></script></head><body data-stream-page=\"1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<script defer src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("throttle.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 172, Col: 57}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"></script><script defer src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 string
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(notes.URL("notes.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 173, Col: 44}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"></script></head><body data-stream-page=\"1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -460,33 +488,33 @@ func NotesPage(email string, userRole string, meta NoteMeta, text string, rev ui
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<main class=\"p-4 max-w-2xl mx-auto\" data-doc-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<main class=\"p-4 max-w-2xl mx-auto\" data-doc-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var16 string
-		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.DocID)
+		var templ_7745c5c3_Var18 string
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.DocID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 175, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 177, Col: 63}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\" data-rev=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatUint(rev, 10))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 175, Col: 104}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" data-rev=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\"><h1 class=\"sr-only\">Shared note</h1><div class=\"flex items-center justify-between mb-2\"><a class=\"btn btn-sm btn-ghost\" href=\"/notes\">Back</a> <span class=\"flex items-center gap-2\">")
+		var templ_7745c5c3_Var19 string
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatUint(rev, 10))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 177, Col: 104}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"><h1 class=\"sr-only\">Shared note</h1><div class=\"flex items-center justify-between mb-2\"><a class=\"btn btn-sm btn-ghost\" href=\"/notes\">Back</a> <span class=\"flex items-center gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -494,7 +522,7 @@ func NotesPage(email string, userRole string, meta NoteMeta, text string, rev ui
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span id=\"peer-pill\" class=\"text-xs text-base-content/60\" title=\"Tabs on this note\" aria-live=\"polite\">1 online</span> <span id=\"typing-pill\" class=\"text-xs text-base-content/60 italic\" title=\"Who is typing\" aria-live=\"polite\"></span> <span id=\"rtt-pill\" class=\"text-xs text-base-content/40\" title=\"Last save round-trip\"></span> <span id=\"net-status\" class=\"text-xs text-warning hidden\" aria-live=\"polite\">reconnecting…</span></span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<span id=\"peer-pill\" class=\"text-xs text-base-content/60\" title=\"Tabs on this note\" aria-live=\"polite\">1 online</span> <span id=\"typing-pill\" class=\"text-xs text-base-content/60 italic\" title=\"Who is typing\" aria-live=\"polite\"></span> <span id=\"rtt-pill\" class=\"text-xs text-base-content/40\" title=\"Last save round-trip\"></span> <span id=\"net-status\" class=\"text-xs text-warning hidden\" aria-live=\"polite\">reconnecting…</span></span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -502,20 +530,20 @@ func NotesPage(email string, userRole string, meta NoteMeta, text string, rev ui
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<label class=\"sr-only\" for=\"note-text\">Note text</label><div id=\"note-wrap\" class=\"relative\"><textarea id=\"note-text\" class=\"textarea textarea-bordered w-full font-mono\" rows=\"20\" placeholder=\"Type — every tab merges.\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<label class=\"sr-only\" for=\"note-text\">Note text</label><div id=\"note-wrap\" class=\"relative\"><textarea id=\"note-text\" class=\"textarea textarea-bordered w-full font-mono\" rows=\"20\" placeholder=\"Type — every tab merges.\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var18 string
-		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+		var templ_7745c5c3_Var20 string
+		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 190, Col: 139}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/notes/components/notes.templ`, Line: 192, Col: 139}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</textarea><div id=\"caret-layer\" aria-hidden=\"true\"></div></div><p class=\"text-xs text-base-content/60 mt-2\">Plain text, CRDT-merged on the server. Concurrent typing never loses characters; rich text does not exist here yet.</p></main></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</textarea><div id=\"caret-layer\" aria-hidden=\"true\"></div></div><p class=\"text-xs text-base-content/60 mt-2\">Plain text, CRDT-merged on the server. Concurrent typing never loses characters; rich text does not exist here yet.</p></main></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

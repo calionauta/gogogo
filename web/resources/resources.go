@@ -74,6 +74,37 @@ func StaticURL(name string) string {
 	return "/static/" + strings.TrimPrefix(name, "/")
 }
 
+// URLFor returns the cache-busting URL for an asset that lives in a feature's
+// OWN embedded bundle, served under a different URL prefix
+// (features/notes serves at /static/notes, features/whiteboard at /static/wb).
+//
+// The core bundle and the feature bundles are the same problem: the URL must
+// name the bytes for the browser and any CDN to hold the file immutably. The
+// feature owns both the file and the path it answers on (its trim takes the
+// mount with it), so the feature owns the fingerprint too — it hashes its own
+// embedded file.
+//
+// An unknown name returns the plain path, exactly like StaticURL: a missing
+// entry degrades to revalidation, it never breaks the page.
+func URLFor(fsys fs.FS, prefix, name string) string {
+	sum, err := hashAsset(fsys, name)
+	if err != nil {
+		return prefix + "/" + strings.TrimPrefix(name, "/")
+	}
+	return prefix + "/" + strings.TrimPrefix(name, "/") + "?v=" + sum
+}
+
+// hashAsset returns the fingerprint of one file in fsys: the first
+// assetFingerprintLen hex characters of its SHA-256.
+func hashAsset(fsys fs.FS, name string) (string, error) {
+	data, err := fs.ReadFile(fsys, strings.TrimPrefix(name, "/"))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])[:assetFingerprintLen], nil
+}
+
 // asset is one embedded file, pre-read at startup together with its
 // content hash and MIME type.
 type asset struct {

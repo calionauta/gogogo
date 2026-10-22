@@ -28,7 +28,7 @@ func TestSessionBannerCarriesAuthedAndScript(t *testing.T) {
 	for _, want := range []string{
 		`id="session-banner"`,
 		`data-authed="true"`,
-		"/static/session.js",
+		"/static/session.js?v=",
 		`class="hidden`,
 		"sign in again",
 	} {

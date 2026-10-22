@@ -152,6 +152,18 @@ it reads `X-Gogogo-Build` from `/health` and compares the trailing short SHA.
    built**. A failed pull leaves the previous container healthy and the deploy
    looking green; that assertion is the only thing that tells the two apart, so
    it is a hard failure, not a warning.
+6. The workflow then asserts the **public** path: `scripts/assert-public-ready.sh`
+   polls `https://<public host>/health` until it answers with the expected
+   build. The origin and the public path are different claims — a container can
+   be healthy on `127.0.0.1` while the tunnel, the vhost, or a container that
+   has not finished binding its port still fails the user. The 502s seen during
+   a deploy came from exactly that window (the gateway logged "connection reset
+   by peer" while the app itself was healthy, and the image was created five
+   seconds before the app bound its port). A deploy that only proves the origin
+   can report green while the site is down, so it checks the path users walk.
+   The gate has its own contract test (`scripts/assert-public-ready.test.sh`,
+   wired into CI): it must pass on the right build, fail on a different one,
+   and fail without hanging on a broken path.
 
 The healthcheck is `CMD ["/app","health"]` (interval 30s, timeout 5s, retries 3,
 start_period 10s): the binary's own `health` subcommand does an internal GET to

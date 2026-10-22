@@ -1,6 +1,7 @@
 package components
 
 import (
+	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/todo"
@@ -29,7 +30,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 			<title>{ title }</title>
 			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
-			<script type="module" src="/static/cally.js"></script>
+			<script type="module" src={ resources.StaticURL("cally.js") }></script>
 			@sounds.SoundAssets()
 			@components.OfflineSyncScript(offlineSync)
 			<style>

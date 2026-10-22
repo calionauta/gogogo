@@ -38,7 +38,7 @@ func TestChatPageWiring(t *testing.T) {
 		`id="chat-messages"`,
 		`aria-live="polite"`,
 		`id="chat-stream-opener"`,
-		`/static/cuelume.js`,
+		"/static/cuelume.js?v=",
 		`data-cuelume`,
 		`data-show="$chat_empty"`,
 		`Ask anything — answers stream below`,

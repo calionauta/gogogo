@@ -29,6 +29,10 @@
 @source "../../internal/**/*.go";
 @source "../../internal/**/*.templ";
 @source not "../../internal/installer/**";
+/* Test files render nothing -- see the note in input.css. */
+@source not "../../internal/**/*_test.go";
+@source not "../../features/**/*_test.go";
+@source not "../../web/**/*_test.go";
 
 /* Runtime model markup: the same advertised vocabulary the DaisyUI bundle
    safelists (features/genui/components/htmlclasses.go). Kept in step by

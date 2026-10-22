@@ -174,16 +174,25 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
-	// The ack raises the double-submit guard but does NOT touch the composer:
+	// The ack owns NO thinking-state signal.
+	//
 	// $chatPrompt is bound two-way to the input, so the box owns it, and a
 	// response that cleared it wiped text typed after submit (reproduced in
 	// the browser). The client clears it on success; asserting its absence is
 	// what keeps the bug from coming back.
+	//
+	// $chat_thinking is the composer-owned optimistic state (`true` on submit,
+	// `false` on fetch error) and the worker-owned terminal state (`false` with
+	// the answer). An ack that re-asserted `chat_thinking: true` could land
+	// AFTER the worker's terminal patch — the POST response and the SSE
+	// stream are different connections with no ordering between them, and
+	// behind a tunnel the response is slower — and re-disable the Send button
+	// for good (`data-attr:disabled="!!$chat_thinking"` on a signal that is
+	// never cleared again is a dead control).
 	ack := askRec.Body.String()
-	for _, want := range []string{`"chat_thinking":true`} {
-		if !strings.Contains(ack, want) {
-			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
-		}
+	if strings.Contains(ack, "chat_thinking") {
+		t.Errorf("ask ack writes the composer-owned chat_thinking signal; a response "+
+			"landing after the worker's terminal patch re-disables Send forever (got %.300q…)", ack)
 	}
 	if strings.Contains(ack, `"chatPrompt"`) {
 		t.Errorf("ask ack wrote the client-owned chatPrompt signal; a response "+

@@ -3,6 +3,8 @@ package components
 
 import "strings"
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // querySep returns the separator to append a query parameter to streamURL.
 // Stream URLs may already carry one (e.g. the basecoat skin's ?skin=...),
 // and a second "?" would make the clientID part of the previous value.
@@ -55,7 +57,7 @@ templ StreamOpener(buttonID, streamURL string, openWhenHidden bool) {
 		data-on:resume__document={ "window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
 		data-on:pageshow__window={ "(evt.persisted || performance.now() > 1000) && window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
 	></button>
-	<script defer type="module" src="/static/sse-open.js"></script>
+	<script defer type="module" src={ resources.StaticURL("sse-open.js") }></script>
 	<script type="module">
 		// Hidden-@get-button bootstrap (Datastar v1 never fires data-on:load
 		// on a div/body). The opener is found by attribute, so this script

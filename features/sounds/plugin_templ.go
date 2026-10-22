@@ -8,6 +8,8 @@ package sounds
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
 // <script src="/static/cuelume.js"> with @sounds.SoundAssets() so the
@@ -33,7 +35,20 @@ func SoundAssets() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script defer type=\"module\" src=\"/static/cuelume.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script defer type=\"module\" src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("cuelume.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 10, Col: 68}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -75,12 +90,12 @@ func SoundToggle() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var2 == nil {
-			templ_7745c5c3_Var2 = templ.NopComponent
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<button type=\"button\" class=\"app-sound-toggle\" data-sound-toggle aria-label=\"Toggle sound\" aria-pressed=\"true\" title=\"Mute sounds\"><iconify-icon icon=\"material-symbols:volume-up\" class=\"text-lg sound-toggle-icon icon-sound-on\"></iconify-icon> <iconify-icon icon=\"material-symbols:volume-off\" class=\"text-lg sound-toggle-icon icon-sound-off\"></iconify-icon></button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button type=\"button\" class=\"app-sound-toggle\" data-sound-toggle aria-label=\"Toggle sound\" aria-pressed=\"true\" title=\"Mute sounds\"><iconify-icon icon=\"material-symbols:volume-up\" class=\"text-lg sound-toggle-icon icon-sound-on\"></iconify-icon> <iconify-icon icon=\"material-symbols:volume-off\" class=\"text-lg sound-toggle-icon icon-sound-off\"></iconify-icon></button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -34,6 +34,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/web/skins"
 )
 
@@ -94,17 +95,30 @@ func Index(userEmail string, userRole string, buildLabel string, buildCommit str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"/static/logo.png\" alt=\"gogogo\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"/todo\" class=\"btn btn-primary btn-lg\" data-variant=\"primary\">Access demo site</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("logo.png"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/landing/components/index.templ`, Line: 72, Col: 69}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" alt=\"gogogo\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"/todo\" class=\"btn btn-primary btn-lg\" data-variant=\"primary\">Access demo site</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if userEmail == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"text-sm text-base-content/60 mt-3\">You'll be asked to sign in with the demo credentials.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"text-sm text-base-content/60 mt-3\">You'll be asked to sign in with the demo credentials.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div></main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div></main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -112,7 +126,7 @@ func Index(userEmail string, userRole string, buildLabel string, buildCommit str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
