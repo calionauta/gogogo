@@ -4,7 +4,7 @@
     ".": {
       "release-type": "go",
       "changelog-type": "github",
-      "bump-minor-pre-major": false,
+      "bump-minor-pre-major": true,
       "include-v-in-tag": true
     }
   }
