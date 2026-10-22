@@ -34,7 +34,7 @@ func TestToolsListCapabilities(t *testing.T) {
 			t.Errorf("capability missing kind: %v", c)
 		}
 	}
-	for _, want := range []string{"dagnats", "whiteboard", "nats", "todo", "skins"} {
+	for _, want := range []string{"dagnats", "whiteboard", "nats", "todo", "shell"} {
 		if !found[want] {
 			t.Errorf("capability %q missing from list", want)
 		}
