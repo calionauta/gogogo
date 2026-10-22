@@ -147,9 +147,9 @@ jobs:
         # Reachability check for the new FFI tree (goffi/wgpu/naga):
         # web CI's govulncheck sees these modules as unreachable, so
         # only this step tells whether gui actually calls a vuln symbol.
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          $(go env GOPATH)/bin/govulncheck ./cmd/gui/
+        # `go tool`, not `go install ...@latest`: the scanner is pinned by
+        # the `tool` directive in go.mod (same reason as the web CI step).
+        run: go tool govulncheck ./cmd/gui/
       - name: Test gui backend wiring (headless, no window/GPU)
         run: go test -race -count=1 ./cmd/gui/
       - name: Build gui binary (headless check, no window opened)

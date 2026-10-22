@@ -1,0 +1,262 @@
+name: go-auto-bump
+
+# Opens (or updates) a reviewed PR when a newer PATCH release of the Go minor
+# line the tree is pinned to ships.
+#
+# The gap this closes, in one paragraph: nothing in the repo noticed that Go
+# 1.27.3 existed until a developer pushed and the pre-push `govulncheck` failed
+# on GO-2026-6809. `govulncheck` is a strong detector of "the pinned toolchain
+# has a KNOWN stdlib vuln", but it is blind to the window between a release and
+# its entry in the vuln DB — and it takes the stdlib version from the toolchain
+# that analyzes, so it can never disagree with the pin. "Nobody noticed" is a
+# scheduling problem, and this is the scheduler: the repo notices, opens a PR,
+# a human merges it.
+#
+# Policy, and the reasons:
+#
+#   - PATCH only (1.27.3 → 1.27.4), within the current minor line. A minor
+#     bump (1.27 → 1.28) changes language semantics and every doc claim that
+#     speaks at minor granularity, so it is a human decision. `cmd/bump-go-toolchain`
+#     refuses it, not this workflow.
+#   - A PR, never a commit. The toolchain is the floor CI installs, the tag
+#     both Dockerfiles build FROM, and the version the pin test asserts in
+#     every file that names it. The diff is short but it decides what bytes
+#     ship, so a human reads it first — the same reasoning behind
+#     stelow-auto-bump.yml and "human must approve all AGENTS.md changes".
+#   - No CHANGELOG.md edit: release-please owns the changelog and generates it
+#     from conventional commits. `chore(go):` is the type this lands under.
+#
+# Not the mechanism Dependabot uses, and it cannot be: dependabot-core#9057
+# ("gomod does not update the go version that is defined in go.mod") is still
+# open, and Renovate documents the same default. .github/dependabot.yml covers
+# the `uses:` pins for that reason, and this workflow covers the toolchain.
+#
+# One GitHub caveat, worked around instead of documented and forgotten: a PR
+# opened with the workflow's own GITHUB_TOKEN does not trigger `push`/
+# `pull_request` workflow runs, so the PR would show no checks at all — and
+# `ci` is the one required status on master. The last step DISPATCHES ci.yml on
+# the bump branch, which produces the same `ci` check suite on the same head
+# commit the PR points at. Workflows that only run on `pull_request` events
+# (pr-body.yml) still do not fire; push an empty commit if you want those too.
+on:
+  schedule:
+    # Wednesdays 09:17 UTC — after the two stelow jobs (Tue 09:0x / 09:23), so
+    # the three scheduled PRs of a week arrive one at a time.
+    - cron: "17 9 * * 3"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Full X.Y.Z to bump to (empty: newest patch of the tree's line)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Needed to dispatch ci.yml on the bump branch (see the last step).
+  actions: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Needed so the branch can be pushed back.
+          persist-credentials: true
+
+      - name: Install the pinned Go toolchain
+        # Same installer every other workflow uses: setup-go has intermittently
+        # produced a corrupted toolchain on this runner image.
+        run: bash bin/install-go-toolchain.sh
+
+      - name: Warm the module cache
+        run: bash bin/go-mod-download.sh
+
+      - name: Detect the target patch
+        id: detect
+        env:
+          REQUESTED: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          CURRENT=$(awk '/^go /{print $2; exit}' go.mod)
+          TARGET="$REQUESTED"
+          if [ -z "$TARGET" ]; then
+            # The tool reads go.dev/dl (no token, no API budget) and picks the
+            # newest patch of CURRENT's minor line only.
+            TARGET=$(go run ./cmd/bump-go-toolchain -detect)
+          fi
+          echo "current=$CURRENT target=${TARGET:-none}"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ -z "$TARGET" ] || [ "$TARGET" = "$CURRENT" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already at the newest patch of the ${CURRENT%.*} line — nothing to do."
+            exit 0
+          fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Bump every file that names the toolchain
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          # Through env, never inline `${{ }}` in a run block: a dispatch input
+          # is user text, and interpolation would make it script.
+          TARGET: ${{ steps.detect.outputs.target }}
+        run: |
+          set -euo pipefail
+          # --to is explicit here so the version that was DETECTED is the
+          # version written; a second feed read could land on a different one.
+          go run ./cmd/bump-go-toolchain --to "$TARGET"
+
+      - name: Install the bumped toolchain
+        if: steps.detect.outputs.changed == 'true'
+        # Proves the tarball for the new patch actually exists and downloads
+        # (a version in the feed with no linux-amd64 tarball would otherwise
+        # be discovered by the PR's CI, on every downstream build at once).
+        # It also lets the proof below run on the toolchain the PR ships.
+        env:
+          GO_VERSION: ${{ steps.detect.outputs.target }}
+        run: bash bin/install-go-toolchain.sh
+
+      - name: Prove the bump is complete
+        if: steps.detect.outputs.changed == 'true'
+        # The pin test IS the completeness proof: it asserts the same surface
+        # from its own list, so a file the tool forgot fails here rather than
+        # in review. check-docs then proves the doc claims the bump touched
+        # still point at things that exist.
+        run: |
+          set -euo pipefail
+          go test -count=1 ./internal/ -run 'TestGoToolchainPin'
+          go run ./cmd/check-docs
+
+      - name: Open or update the bump PR
+        id: pr
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ steps.detect.outputs.target }}
+          CURRENT: ${{ steps.detect.outputs.current }}
+        run: |
+          set -euo pipefail
+          BRANCH="chore/go-${TARGET}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          # -u: the bump only edits files already in the tree. Staging the
+          # whole worktree would also pick up whatever a future step leaves
+          # behind, which is how a binary or a temp file reaches a PR.
+          git add -u
+          if git diff --cached --quiet; then
+            echo "Nothing staged — the tree already carried ${TARGET}. Skipping the PR."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -F - <<EOF
+          chore(go): bump the pinned toolchain to ${TARGET}
+
+          Moves every file that names the toolchain — go.mod, cmd/gogogo-mcp/go.mod,
+          bin/install-go-toolchain.sh, both Dockerfiles, the coding-standards skill,
+          docs/troubleshooting.md and the pin test's own table — from ${CURRENT} to
+          ${TARGET}, a patch release of the same minor line.
+
+          Produced by cmd/bump-go-toolchain; internal/toolchain_pin_test.go proves no
+          file was left behind. A minor bump changes language semantics and stays a
+          human decision, so the tool and this workflow both refuse one.
+
+          Opened by .github/workflows/go-auto-bump.yml.
+          EOF
+
+          # A rerun of the same version (manual dispatch after a failure, an
+          # edited workflow) meets its own branch. Fetch it first, so the lease
+          # has something to compare against instead of failing as stale info.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$BRANCH"
+            git push --force-with-lease origin "$BRANCH"
+          else
+            git push origin "$BRANCH"
+          fi
+
+          BODY=$(cat <<EOF
+          Automated bump of the **pinned Go toolchain**: \`${CURRENT}\` → \`${TARGET}\`.
+
+          Go patch releases carry stdlib security fixes, and the pin is not decoration:
+          it is the toolchain every CI job installs, the tag both Dockerfiles build
+          FROM, and the version the crash reports quote. A stale pin is a silent gap.
+
+          **What moved** — every file that names the version, in one commit:
+
+          - \`go.mod\` and \`cmd/gogogo-mcp/go.mod\` (the \`go\` directive)
+          - \`bin/install-go-toolchain.sh\` (the CI installer default)
+          - \`Dockerfile\` and \`deploy/Dockerfile.prod\` (the image builders)
+          - \`skills/gogogo-coding-standards/SKILL.md\` (what agents are told)
+          - \`docs/troubleshooting.md\` and \`internal/toolchain_pin_test.go\`
+
+          **How it was verified** — the tool refuses to skip a file and refuses a
+          partial rewrite; \`internal/toolchain_pin_test.go\` then asserted the whole
+          surface at the new version from its own, independent list, and
+          \`cmd/check-docs\` checked the doc claims this commit touched.
+
+          **Why a PR instead of an auto-commit** — this decides what bytes ship. Read
+          the diff (it is version strings only), check the [release notes](https://go.dev/doc/devel/release),
+          merge.
+
+          Patch-only by design: a minor bump changes language semantics and the doc
+          claims that speak at minor granularity, so it stays a human decision.
+
+          > Note: a PR opened with the workflow's own \`GITHUB_TOKEN\` does not trigger
+          > CI on its branch. Push an empty commit (or close/reopen) if you want the
+          > full suite to run before merging.
+
+          Opened by \`.github/workflows/go-auto-bump.yml\` running \`cmd/bump-go-toolchain\`.
+          EOF
+          )
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" --body "$BODY"
+            echo "Updated existing PR for $BRANCH."
+          else
+            gh pr create \
+              --title "chore(go): bump the pinned toolchain to ${TARGET}" \
+              --body "$BODY" \
+              --head "$BRANCH" \
+              --base "${{ github.event.repository.default_branch }}"
+          fi
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Start CI on the bump branch
+        if: steps.pr.outputs.committed == 'true'
+        # A PR opened with GITHUB_TOKEN gets no `pull_request` run (GitHub
+        # suppresses workflow-triggering events from that token), and `ci` is
+        # the required status on master — so without this the PR sits with no
+        # checks. A dispatch on the branch produces the same check suite on the
+        # same head commit, which is what the PR shows and what protection
+        # reads. The dispatched run sees no PR base, so CI's docs-only
+        # classifier fails OPEN to the full suite: exactly what a toolchain
+        # bump needs.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ steps.detect.outputs.target }}
+        run: gh workflow run ci.yml --ref "chore/go-${TARGET}"
+
+      - name: Summarise
+        if: steps.pr.outputs.committed == 'true'
+        env:
+          TARGET: ${{ steps.detect.outputs.target }}
+          CURRENT: ${{ steps.detect.outputs.current }}
+        run: |
+          {
+            echo "## Go toolchain bump"
+            echo
+            echo "\`$CURRENT\` → \`$TARGET\`"
+            echo
+            echo '```diff'
+            git --no-pager show --stat --oneline --format= HEAD
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
