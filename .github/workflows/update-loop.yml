@@ -42,7 +42,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install the pinned Go toolchain manually
         # Same path web CI takes: actions/setup-go extracts its toolchain via tar

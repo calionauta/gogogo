@@ -30,9 +30,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
@@ -49,7 +49,7 @@ jobs:
       # that clips its tables (or widens prose past a readable measure) must
       # fail HERE, not in a reader's report. Same script CI runs on every PR.
       - name: Set up Node (Playwright)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Install JS deps
@@ -59,8 +59,8 @@ jobs:
       - name: Docs site layout
         run: node scripts/site-layout.test.mjs
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
   deploy:
@@ -71,4 +71,4 @@ jobs:
     needs: build
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
