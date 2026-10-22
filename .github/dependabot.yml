@@ -1,0 +1,39 @@
+# Dependabot — action pins only.
+#
+# What is NOT here, and why, so nobody "fixes" it later:
+#
+#   - ecosystem "gomod": Dependabot cannot move the `go` directive in go.mod.
+#     dependabot-core#9057 ("gomod does not update the go version that is
+#     defined in go.mod") is still an open feature request, and Renovate's docs
+#     say the same in reverse ("not to propose upgrades to it"). So the one
+#     thing this repo actually needs from the Go ecosystem — a new PATCH of the
+#     toolchain the tree is pinned to — is the one thing Dependabot cannot
+#     deliver. .github/workflows/go-auto-bump.yml does it instead, by reading
+#     go.dev/dl and opening a reviewed PR that moves all five pins at once.
+#
+#   - ecosystem "gomod" for ordinary dependency bumps: every new direct module
+#     owes a trade-off record (docs/dependency-principles.md) and a green
+#     `ci`, which is review judgment, not a bot's. A weekly bot PR that cannot
+#     satisfy the gate trains people to merge red.
+#
+# What IS here is the part the bot is good at: `uses:` pins are mutable major
+# tags (actions/checkout@v4 floats within v4), so a compromised or rewritten
+# tag silently changes what runs in CI. Dependabot opens one grouped PR when a
+# pin moves, and the diff is a version bump a human can read in one screen.
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "chore(ci)"
+    # One PR for all action bumps: they are independent of the code, they land
+    # or fail together, and a weekly single PR is reviewable in a way that six
+    # separate ones are not.
+    groups:
+      actions:
+        patterns:
+          - "*"

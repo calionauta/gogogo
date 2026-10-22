@@ -25,7 +25,9 @@ pre-commit:
 
     # Dependency CVEs fail the push (pre-push) and CI today; a go.mod/go.sum
     # change surfaces them at commit time instead. Same script the pre-push
-    # hook and CI run (first run installs the tool, warm runs take seconds).
+    # hook and CI run. The scanner is pinned in go.mod's `tool` directive and
+    # run as `go tool govulncheck`, so the gate downloads no binary at run
+    # time (internal/gate_tools_test.go enforces that).
     - name: govulncheck
       run: bin/check-govulncheck.sh
       glob: "{go.mod,go.sum}"

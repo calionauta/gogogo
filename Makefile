@@ -298,6 +298,21 @@ check-dagnats-pin:
 	@bash bin/check-dagnats-pin.sh
 	@echo "✅ DagNats doc matches go.mod pin"
 
+# go-bump moves the pinned Go toolchain to a newer PATCH release of the current
+# minor line — in every file that names it — and then proves none was skipped.
+# The same command .github/workflows/go-auto-bump.yml runs on a schedule; this
+# target is for when the human is already in the loop. The network calls are
+# go.dev/dl only (the release feed, then a HEAD on the target's tarball so an
+# unpublished version cannot be pinned). A MINOR bump is refused on purpose (language
+# semantics and the minor-granularity doc claims): that stays a human decision.
+#
+#   make go-bump              # newest patch of the tree's line
+#   make go-bump DRY=1        # report what would move, write nothing
+#   make go-bump TO=1.27.4    # name the target explicitly
+.PHONY: go-bump
+go-bump:
+	@go run ./cmd/bump-go-toolchain $(if $(TO),--to $(TO)) $(if $(DRY),--dry-run)
+
 # check-skill-frontmatter validates every SKILL.md frontmatter with a real
 # YAML parser. The repo's build never reads that YAML — the skill *host* does —
 # so an unquoted ": " in a description ships silently and only shows up as
@@ -495,11 +510,12 @@ check-agent-tools:
 	@bash bin/check-agent-tools.sh
 
 # Rename the project identity (module path, binary, container, titles, deploy
-# paths). This repo is a GitHub template, so a fresh copy still says
-# gogogo everywhere — ~360 occurrences across ~130 files.
-# Doing that by hand invites a half-renamed tree that compiles but deploys to
-# the wrong directory, so the script does the whole pass and then builds to
-# prove it. See scripts/rename-project.py for exactly what is and is not touched.
+# paths). This repo is a GitHub template, so a fresh copy still says gogogo
+# everywhere — the script prints the current count, never trust a number
+# written here. Doing that by hand invites a half-renamed tree that compiles but
+# deploys to the wrong directory, so the script does the whole pass and then
+# builds to prove it. See scripts/rename-project.py for exactly what is and is
+# not touched.
 rename:
 	@test -n "$(NAME)" || { echo "usage: make rename NAME=my-app [OWNER=myorg] [DRY=1]"; exit 1; }
 	@python3 scripts/rename-project.py $(NAME) \
@@ -557,6 +573,7 @@ help:
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"
+	@echo "  go-bump        Move the pinned Go toolchain (patch only; DRY=1 / TO=x.y.z)"
 
 	@echo "  css            Build app.min.css from src/css/input.css (Tailwind v4 + DaisyUI v5)"
 	@echo "  ci-local       Full pre-push gate (= CI): lint, race tests, build, browser smoke"

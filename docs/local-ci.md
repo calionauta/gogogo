@@ -344,8 +344,10 @@ by hand, so when a step is added to one, add it to the other:
 | datastar-lint | ✓ | ✓ |
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | the upgrade loop works against real releases | — | ✅ `update-loop.yml` (weekly: scaffold the previous tag, expect "behind" and the range) |
+| a newer Go **patch** is published | — | ✅ `go-auto-bump.yml` (weekly: opens a reviewed PR moving every pin; patch only — `make go-bump` by hand) |
+| `uses:` action pins move | — | ✅ Dependabot (weekly, one grouped PR; the Go pin is not its business, see below) |
 | golangci-lint (33 linters) | ✓ | ✓ |
-| govulncheck (dependency CVEs) | ✅ pre-push hook | ✓ |
+| govulncheck (dependency CVEs; the scanner itself is pinned in `go.mod`) | ✅ pre-push hook | ✓ |
 | deadcode (advisory, host-gated + version-pinned) | ✅ pre-push hook | ✓ |
 | `go test -race` (parallel, all pkgs) | ✓ | ✓ |
 | build + **binary** boot smoke | ✓ | ✓ |
@@ -465,28 +467,8 @@ no-op when lefthook is not installed).
 |------|------|------|
 | `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · flatdeps-lint · docs-claims · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) · stelow-drift (advisory) · govulncheck/ci-deps (glob-scoped) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
-
-The `deadcode` job is ADVISORY and **host-gated**: it compiles every package
-(measured 30s wall / 175% CPU / **3.28 GB peak RSS** — more than a full-repo
-lint), so on a box without that headroom it prints `SKIPPED` with the failed
-dimension and lets the push through. `DEADCODE_FORCE=1` overrides, and
-`DEADCODE_MIN_RAM_MB` / `DEADCODE_MAX_LOAD_PER_CORE` move the floors. Same
-evidence-over-labels contract as `scripts/lint-safe.sh` and
-`scripts/check-host-capacity.sh`, and for the same reason: committing 3.3 GB
-on a shared host makes the scan swap, and before this gate existed a real
-push sat in that hook for 23 minutes at load 18 on 4 cores. The contract is
-pinned by `bin/check-deadcode_test.go` (skip verdicts, named dimension,
-override discoverability, and the invariant that the hook never fails a
-push).
 | `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
 
-External tools are **version-pinned in `go.mod`** (the `tool` directive, already
-used for `templ`) and run through `go tool`, never `go install @latest`. That is
-what keeps a scan from disagreeing with the toolchain about which module
-version it is type-checking — the mismatch that made `deadcode` report
-type-check errors as "dead code found". Add another tool the same way:
-`go get -tool <pkg>@<version>`, then call it as `go tool <name>`.
-
 The `deadcode` job is ADVISORY and **host-gated**: it compiles every package
 (measured 30s wall / 175% CPU / **3.28 GB peak RSS** — more than a full-repo
 lint), so on a box without that headroom it prints `SKIPPED` with the failed
@@ -499,6 +481,57 @@ push sat in that hook for 23 minutes at load 18 on 4 cores. The contract is
 pinned by `bin/check-deadcode_test.go` (skip verdicts, named dimension,
 override discoverability, and the invariant that the hook never fails a
 push).
+
+External tools are **version-pinned in `go.mod`** (the `tool` directive, used
+by `templ`, `deadcode` and `govulncheck`) and run through `go tool`, never
+`go install @latest`. That keeps a scan from disagreeing with the toolchain
+about which module version it is type-checking — the mismatch that made
+`deadcode` report type-check errors as "dead code found" — and it keeps the
+binary a security gate runs from being decided by whoever published last. A
+`govulncheck` fetched with `@latest` was the one gate that broke that rule;
+`internal/gate_tools_test.go` now enforces both halves (an install with a
+floating ref, and a bare `govulncheck` resolved from `PATH`). Add another tool
+the same way: `go get -tool <pkg>@<version>`, then call it as `go tool <name>`.
+
+### Raising the Go toolchain pin
+
+The pin is not one version string: `go.mod`, `cmd/gogogo-mcp/go.mod`,
+`bin/install-go-toolchain.sh`, both Dockerfiles, the coding-standards skill,
+`docs/troubleshooting.md` and the pin test's own table all name it, and
+`internal/toolchain_pin_test.go` fails when one of them lags. So the bump is
+one command, never a hand edit:
+
+```bash
+make go-bump            # newest patch of the tree's current minor line
+make go-bump DRY=1      # report the files that would move, write nothing
+make go-bump TO=1.27.4  # an explicit target
+```
+
+`cmd/bump-go-toolchain` reads `go.dev/dl` (no token, no API budget), rewrites
+every occurrence as a WHOLE version token (so `go1.27.2` in an example and
+`1.27.30` in a neighbour survive), and stops when a file of the surface is
+missing, no longer carries the version, or moved fewer occurrences than it
+had — a partial rewrite is exactly what the pin test cannot see.
+
+Two safety properties, both about not leaving a half-bumped tree behind: the
+whole surface is validated **before the first byte is written** (so "it failed"
+means "nothing changed"), and an explicit `TO=` is confirmed against
+`go.dev/dl` with a HEAD on that release's source tarball, so a typo cannot pin
+the tree to a version nobody published.
+
+Two rules, both deliberate: **patch only** (a minor bump changes language
+semantics and the doc claims that speak at minor granularity — a human
+decision), and **a PR, not a commit** (the toolchain decides what bytes ship).
+`.github/workflows/go-auto-bump.yml` runs the same command weekly and opens
+that PR — then dispatches `ci.yml` on the branch itself, because a PR opened
+with the workflow's own `GITHUB_TOKEN` triggers no `pull_request` run and `ci`
+is the required status on `master`. `make go-bump` is the human-in-the-loop
+version.
+
+Dependabot cannot do this: its `gomod` ecosystem does not update the `go`
+directive (dependabot-core#9057, still open; Renovate documents the same
+default). `.github/dependabot.yml` therefore covers only the `uses:` action
+pins.
 
 > If the pre-commit hook reports every job green but still exits non-zero, read
 > the **middle** of the output, not the summary — the jobs run in parallel and

@@ -50,7 +50,8 @@ This skill requires **Go 1.27.3 or newer**. `go.mod` declares the minimum
 update — and the version tags below (`wg.Go` 1.25, `B.Loop` 1.26, `new(expr)`
 1.26) are minimums too, valid on every newer toolchain. Everything below
 assumes at least 1.27.3. Do not write fallback code for older toolchains; if
-a task pins an older `go`, bump the pin instead of downgrading the code.
+a task pins an older `go`, bump the pin instead of downgrading the code
+(`make go-bump` moves the whole pin surface in one command, patch only).
 
 If the task forbids dependencies (or the tree is not a gogogo checkout):
 only **Core Go Rules**, the **Testing** table-driven + `-race` parts, the

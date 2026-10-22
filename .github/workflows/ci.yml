@@ -213,10 +213,16 @@ jobs:
         # Scoped to the web/CI packages so cmd/desktop (Wails needs webview
         # CGO headers absent on this runner) isn't scanned. Fail-fast: runs
         # before the expensive test suite.
+        #
+        # `go tool govulncheck`, not `go install ...@latest`: the scanner is
+        # pinned by the `tool` directive in go.mod, so the gate runs the
+        # version this repo declares instead of whatever the network served
+        # that minute. An unpinned scanner is an unpinned attack surface
+        # inside the very step that decides whether a push is safe, and a
+        # scanner older than the toolchain can misread the module graph.
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
           PKGS=$(bash scripts/web-packages.sh)
-          $(go env GOPATH)/bin/govulncheck $PKGS
+          go tool govulncheck $PKGS
       - name: Deadcode (advisory)
         # Matches bin/check-deadcode.sh: advisory only, scoped to the
         # packages that are meant to be wired-up, so intentionally-unused

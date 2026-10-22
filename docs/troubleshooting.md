@@ -156,6 +156,10 @@ The installer checks this before it mutates anything
 refused run leaves the checkout untouched: no trimmed wiring, no renamed
 module, no half-written feature.
 
+Raising the pin instead is one command: `make go-bump` moves every file that
+names the toolchain and refuses to skip one
+([details](local-ci.md#raising-the-go-toolchain-pin)).
+
 ## The DagNats workflow is stuck in `running`
 
 Kill the server mid-run and restart — the engine resumes at the last incomplete
