@@ -3,8 +3,10 @@ package components
 import "strconv"
 
 import "github.com/calionauta/gogogo/features/authviews"
+import "github.com/calionauta/gogogo/features/notes"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
+import "github.com/calionauta/gogogo/web/resources"
 import "github.com/calionauta/gogogo/web/skins"
 
 // NoteMeta is one row of the shared notes index, and the identity the note
@@ -167,8 +169,8 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
 			@sounds.SoundAssets()
-			<script defer src="/static/throttle.js"></script>
-			<script defer src="/static/notes/notes.js"></script>
+			<script defer src={ resources.StaticURL("throttle.js") }></script>
+			<script defer src={ notes.URL("notes.js") }></script>
 		</head>
 		<body data-stream-page="1">
 			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit, skinName)

@@ -36,6 +36,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "strconv"
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // SessionBanner renders the hidden banner plus its controller script. The
 // banner starts hidden and is revealed by session.js only when a session
 // that was present disappears — see web/resources/static/session.js.
@@ -67,7 +69,7 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(authed))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 26, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 28, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -80,13 +82,26 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("typeof $sessionAuthed === 'boolean' && window.GogogoSession && window.GogogoSession.set($sessionAuthed)")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 27, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 29, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" role=\"alert\" aria-live=\"polite\"><span>Session expired — <a class=\"link\" href=\"/login\">sign in again</a> to keep your name on edits. Your work stays safe in this tab.</span></div><script defer src=\"/static/session.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" role=\"alert\" aria-live=\"polite\"><span>Session expired — <a class=\"link\" href=\"/login\">sign in again</a> to keep your name on edits. Your work stays safe in this tab.</span></div><script defer src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("session.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 39, Col: 54}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

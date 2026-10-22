@@ -15,6 +15,8 @@ package components
 
 import "strconv"
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // SessionBanner renders the hidden banner plus its controller script. The
 // banner starts hidden and is revealed by session.js only when a session
 // that was present disappears — see web/resources/static/session.js.
@@ -34,5 +36,5 @@ templ SessionBanner(authed bool) {
 			to keep your name on edits. Your work stays safe in this tab.
 		</span>
 	</div>
-	<script defer src="/static/session.js"></script>
+	<script defer src={ resources.StaticURL("session.js") }></script>
 }

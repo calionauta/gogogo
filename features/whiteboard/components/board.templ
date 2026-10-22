@@ -15,7 +15,9 @@ import (
 
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/web/skins"
 )
 
@@ -193,7 +195,7 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 			@skins.ActiveAssets(skinName)
 			@authviews.ThemeHead()
 			@sounds.SoundAssets()
-			<script src="/static/wb/rough.min.js"></script>
+			<script src={ whiteboard.URL("rough.min.js") }></script>
 		</head>
 		<body data-stream-page="1">
 			@authviews.Navbar(email, userRole, "whiteboard", buildLabel, buildCommit, skinName)
@@ -226,8 +228,8 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 					<div id="cursors" class="absolute inset-0 pointer-events-none"></div>
 				</div>
 			</main>
-			<script defer src="/static/throttle.js"></script>
-			<script defer src="/static/wb/whiteboard.js"></script>
+			<script defer src={ resources.StaticURL("throttle.js") }></script>
+			<script defer src={ whiteboard.URL("whiteboard.js") }></script>
 			<script>
 				// The doc id is carried on <main data-doc-id> (templ escapes
 				// attribute values safely). Reading it from the DOM avoids the

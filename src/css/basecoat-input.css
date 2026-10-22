@@ -22,8 +22,12 @@
 @source "../../internal/**/*.go";
 @source "../../internal/**/*.templ";
 /* internal/installer is the CLI and renders no HTML -- see the long note in
-   input.css; the same reasoning applies here. */
+   input.css; the same reasoning applies here (and to test files, whose prose
+   otherwise ships as CSS). */
 @source not "../../internal/installer/**";
+@source not "../../internal/**/*_test.go";
+@source not "../../features/**/*_test.go";
+@source not "../../web/**/*_test.go";
 
 /* Model-authored html_block markup exists only at RUNTIME, so the classes the
    prompt advertises are safelisted here too -- but only the skin-agnostic

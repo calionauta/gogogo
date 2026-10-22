@@ -14,6 +14,7 @@ package components
 import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/web/skins"
 )
@@ -68,7 +69,7 @@ templ Index(userEmail string, userRole string, buildLabel string, buildCommit st
 			<main class="landing-hero">
 				<div class="landing-card">
 					<header class="text-center mb-6">
-						<img class="landing-logo" src="/static/logo.png" alt="gogogo"/>
+						<img class="landing-logo" src={ resources.StaticURL("logo.png") } alt="gogogo"/>
 					</header>
 
 					<section class="landing-about mb-8">

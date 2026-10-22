@@ -13,6 +13,7 @@ import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/web/skins"
 )
 
@@ -64,7 +65,7 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 29, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 30, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -82,7 +83,20 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<script type=\"module\" src=\"/static/cally.js\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<script type=\"module\" src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("cally.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 33, Col: 62}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +108,7 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<style>\n\t\t\t\t/* Stacking container: fixed bottom-right, toasts stack upward. */\n\t\t\t\t#toast-container {\n\t\t\t\t\tz-index: 100;\n\t\t\t\t\tposition: fixed;\n\t\t\t\t\tright: 1rem;\n\t\t\t\t\tbottom: 1rem;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column-reverse;\n\t\t\t\t\tgap: 0.5rem;\n\t\t\t\t\tmax-width: 24rem;\n\t\t\t\t}\n\n\t\t\t\t/* Toast entrance: hidden + scaled-down, then the .open class\n\t\t\t\t   transitions it in. Driven by data-class on the toast root. */\n\t\t\t\t.toast-msg {\n\t\t\t\t\topacity: 0;\n\t\t\t\t\ttransform: scale(0.9) translateY(50px);\n\t\t\t\t\ttransition: transform 0.5s, opacity 0.5s;\n\t\t\t\t}\n\t\t\t\t.toast-msg.open {\n\t\t\t\t\ttransform: scale(1) translateY(0);\n\t\t\t\t\topacity: 1;\n\t\t\t\t}\n\n\t\t\t\t/* Progress bar: shrinks from 100% to 0% over the toast lifetime.\n\t\t\t\t   Matches the toast-remove delay (3s for success/info, 8s for\n\t\t\t\t   error) — the CSS animation here fires immediately on mount\n\t\t\t\t   because the bar is rendered together with the toast root. */\n\t\t\t\t.toast-timer-bar {\n\t\t\t\t\theight: 3px;\n\t\t\t\t\tborder-radius: 999px;\n\t\t\t\t\tbackground: oklch(0.872 0.01 258.338 / 0.3);\n\t\t\t\t\tanimation: toast-shrink 3s linear forwards;\n\t\t\t\t}\n\t\t\t\t.toast-msg:has(.alert-error) .toast-timer-bar {\n\t\t\t\t\tanimation-duration: 8s;\n\t\t\t\t}\n\t\t\t\t@keyframes toast-shrink {\n\t\t\t\t\tfrom { width: 100%; }\n\t\t\t\t\tto { width: 0%; }\n\t\t\t\t}\n\n\t\t\t\t/* ---------- Todo item animations (self vs remote) ---------- */\n\n\t\t\t\t/* Default entry for the initial server-rendered list:\n\t\t\t\t   soft fade + tiny zoom. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tanimation: todo-enter-initial 300ms ease-out both;\n\t\t\t\t}\n\t\t\t\t@keyframes todo-enter-initial {\n\t\t\t\t\tfrom { opacity: 0; transform: scale(0.96); }\n\t\t\t\t\tto   { opacity: 1; transform: scale(1); }\n\t\t\t\t}\n\n\t\t\t\t/* Soft entry for every todo row (self or remote): fade + slight\n\t\t\t\t   zoom. The previous design tagged each row with a global\n\t\t\t\t   $lastItemSource signal, which — because the whole list is\n\t\t\t\t   re-rendered on every broadcast — stamped EVERY row as\n\t\t\t\t   \"remote\" and sprayed a floating \"↳ from elsewhere\" badge\n\t\t\t\t   above all tasks (the reported blank/cut-off tooltip bug).\n\t\t\t\t   A bulk re-render cannot scope an origin to a single new\n\t\t\t\t   row, so we dropped per-row source tagging and keep one\n\t\t\t\t   clean entry animation for all arrivals. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tposition: relative;\n\t\t\t\t\tanimation: todo-enter-initial 280ms ease-out both;\n\t\t\t\t}\n\n\t\t\t\t/* View Transitions: cross-fade when Datastar morphs the\n\t\t\t\t   list. Earlier we put `view-transition-name: todo-item`\n\t\t\t\t   on every .todo-item, which produced 'Unexpected\n\t\t\t\t   duplicate view-transition-name' + 'InvalidStateError'\n\t\t\t\t   in the console because multiple items in the same\n\t\t\t\t   patch share the same name. The View Transitions API\n\t\t\t\t   expects per-element unique names — which we can't\n\t\t\t\t   hand out cheaply from a static CSS rule. So we skip\n\t\t\t\t   the explicit `view-transition-name` and rely on the\n\t\t\t\t   entry keyframes below (self/remote slide+fade) to\n\t\t\t\t   animate new arrivals; Datastar still calls\n\t\t\t\t   `document.startViewTransition()` around the morph,\n\t\t\t\t   so deleted/reordered items get a smooth blend from\n\t\t\t\t   the default browser cross-fade. */\n\t\t\t\t::view-transition-old(todo-item),\n\t\t\t\t::view-transition-new(todo-item) {\n\t\t\t\t\tanimation-duration: 320ms;\n\t\t\t\t\tanimation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-200 min-h-screen\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<style>\n\t\t\t\t/* Stacking container: fixed bottom-right, toasts stack upward. */\n\t\t\t\t#toast-container {\n\t\t\t\t\tz-index: 100;\n\t\t\t\t\tposition: fixed;\n\t\t\t\t\tright: 1rem;\n\t\t\t\t\tbottom: 1rem;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column-reverse;\n\t\t\t\t\tgap: 0.5rem;\n\t\t\t\t\tmax-width: 24rem;\n\t\t\t\t}\n\n\t\t\t\t/* Toast entrance: hidden + scaled-down, then the .open class\n\t\t\t\t   transitions it in. Driven by data-class on the toast root. */\n\t\t\t\t.toast-msg {\n\t\t\t\t\topacity: 0;\n\t\t\t\t\ttransform: scale(0.9) translateY(50px);\n\t\t\t\t\ttransition: transform 0.5s, opacity 0.5s;\n\t\t\t\t}\n\t\t\t\t.toast-msg.open {\n\t\t\t\t\ttransform: scale(1) translateY(0);\n\t\t\t\t\topacity: 1;\n\t\t\t\t}\n\n\t\t\t\t/* Progress bar: shrinks from 100% to 0% over the toast lifetime.\n\t\t\t\t   Matches the toast-remove delay (3s for success/info, 8s for\n\t\t\t\t   error) — the CSS animation here fires immediately on mount\n\t\t\t\t   because the bar is rendered together with the toast root. */\n\t\t\t\t.toast-timer-bar {\n\t\t\t\t\theight: 3px;\n\t\t\t\t\tborder-radius: 999px;\n\t\t\t\t\tbackground: oklch(0.872 0.01 258.338 / 0.3);\n\t\t\t\t\tanimation: toast-shrink 3s linear forwards;\n\t\t\t\t}\n\t\t\t\t.toast-msg:has(.alert-error) .toast-timer-bar {\n\t\t\t\t\tanimation-duration: 8s;\n\t\t\t\t}\n\t\t\t\t@keyframes toast-shrink {\n\t\t\t\t\tfrom { width: 100%; }\n\t\t\t\t\tto { width: 0%; }\n\t\t\t\t}\n\n\t\t\t\t/* ---------- Todo item animations (self vs remote) ---------- */\n\n\t\t\t\t/* Default entry for the initial server-rendered list:\n\t\t\t\t   soft fade + tiny zoom. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tanimation: todo-enter-initial 300ms ease-out both;\n\t\t\t\t}\n\t\t\t\t@keyframes todo-enter-initial {\n\t\t\t\t\tfrom { opacity: 0; transform: scale(0.96); }\n\t\t\t\t\tto   { opacity: 1; transform: scale(1); }\n\t\t\t\t}\n\n\t\t\t\t/* Soft entry for every todo row (self or remote): fade + slight\n\t\t\t\t   zoom. The previous design tagged each row with a global\n\t\t\t\t   $lastItemSource signal, which — because the whole list is\n\t\t\t\t   re-rendered on every broadcast — stamped EVERY row as\n\t\t\t\t   \"remote\" and sprayed a floating \"↳ from elsewhere\" badge\n\t\t\t\t   above all tasks (the reported blank/cut-off tooltip bug).\n\t\t\t\t   A bulk re-render cannot scope an origin to a single new\n\t\t\t\t   row, so we dropped per-row source tagging and keep one\n\t\t\t\t   clean entry animation for all arrivals. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tposition: relative;\n\t\t\t\t\tanimation: todo-enter-initial 280ms ease-out both;\n\t\t\t\t}\n\n\t\t\t\t/* View Transitions: cross-fade when Datastar morphs the\n\t\t\t\t   list. Earlier we put `view-transition-name: todo-item`\n\t\t\t\t   on every .todo-item, which produced 'Unexpected\n\t\t\t\t   duplicate view-transition-name' + 'InvalidStateError'\n\t\t\t\t   in the console because multiple items in the same\n\t\t\t\t   patch share the same name. The View Transitions API\n\t\t\t\t   expects per-element unique names — which we can't\n\t\t\t\t   hand out cheaply from a static CSS rule. So we skip\n\t\t\t\t   the explicit `view-transition-name` and rely on the\n\t\t\t\t   entry keyframes below (self/remote slide+fade) to\n\t\t\t\t   animate new arrivals; Datastar still calls\n\t\t\t\t   `document.startViewTransition()` around the morph,\n\t\t\t\t   so deleted/reordered items get a smooth blend from\n\t\t\t\t   the default browser cross-fade. */\n\t\t\t\t::view-transition-old(todo-item),\n\t\t\t\t::view-transition-new(todo-item) {\n\t\t\t\t\tanimation-duration: 320ms;\n\t\t\t\t\tanimation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-200 min-h-screen\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -114,7 +128,7 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"toast-container\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div id=\"toast-container\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -126,7 +140,7 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

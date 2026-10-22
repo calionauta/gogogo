@@ -6976,49 +6976,6 @@
       min-width: var(--size);
     }
   }
-  @layer daisyui.l1.l2.l3 {
-    .stat {
-      display: inline-grid;
-      width: 100%;
-      column-gap: calc(0.25rem * 4);
-      padding-inline: calc(0.25rem * 6);
-      padding-block: calc(0.25rem * 4);
-      grid-template-columns: repeat(1, 1fr);
-    }
-    .stat:not(:last-child) {
-      border-inline-end: var(--border) dashed currentColor;
-    }
-    @supports (color: color-mix(in lab, red, red)) {
-      .stat:not(:last-child) {
-        border-inline-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
-      }
-    }
-    .stat:not(:last-child) {
-      border-block-end: none;
-    }
-  }
-  @layer daisyui.l1.l2 {
-    .stats-horizontal .stat:not(:last-child) {
-      border-inline-end: var(--border) dashed currentColor;
-    }
-    @supports (color: color-mix(in lab, red, red)) {
-      .stats-horizontal .stat:not(:last-child) {
-        border-inline-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
-      }
-    }
-    .stats-horizontal .stat:not(:last-child) {
-      border-block-end: none;
-    }
-    .stats-vertical .stat:not(:last-child) {
-      border-inline-end: none;
-      border-block-end: var(--border) dashed currentColor;
-    }
-    @supports (color: color-mix(in lab, red, red)) {
-      .stats-vertical .stat:not(:last-child) {
-        border-block-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
-      }
-    }
-  }
   .alert {
     border-width: var(--border);
     border-color: var(--alert-border-color, var(--color-base-200));
@@ -7904,9 +7861,6 @@
   .whitespace-pre-wrap {
     white-space: pre-wrap;
   }
-  .tab-1 {
-    tab-size: 1;
-  }
   @layer daisyui.l1.l2 {
     .alert-error {
       color: var(--color-error-content);
@@ -8077,10 +8031,6 @@
   .outline {
     outline-style: var(--tw-outline-style);
     outline-width: 1px;
-  }
-  .invert {
-    --tw-invert: invert(100%);
-    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);

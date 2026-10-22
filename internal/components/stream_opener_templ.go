@@ -12,6 +12,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "strings"
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // querySep returns the separator to append a query parameter to streamURL.
 // Stream URLs may already carry one (e.g. the basecoat skin's ?skin=...),
 // and a second "?" would make the clientID part of the previous value.
@@ -80,7 +82,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buttonID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 48, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 50, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +95,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('" + streamURL + querySep(streamURL) + "clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', " + streamOpts(openWhenHidden) + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 52, Col: 169}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 54, Col: 169}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -106,7 +108,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("window.__gogogoOpenVerified && window.__gogogoOpenVerified('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 53, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 55, Col: 117}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -119,7 +121,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 54, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 56, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -132,7 +134,7 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 55, Col: 105}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 57, Col: 105}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -145,13 +147,26 @@ func StreamOpener(buttonID, streamURL string, openWhenHidden bool) templ.Compone
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("(evt.persisted || performance.now() > 1000) && window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 56, Col: 152}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 58, Col: 152}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"></button><script defer type=\"module\" src=\"/static/sse-open.js\"></script><script type=\"module\">\n\t\t// Hidden-@get-button bootstrap (Datastar v1 never fires data-on:load\n\t\t// on a div/body). The opener is found by attribute, so this script\n\t\t// needs no id interpolation; the stable per-tab clientID rides\n\t\t// sessionStorage so a reload reuses its registration instead of\n\t\t// leaking a new one. The 300ms fallback covers an already-fired\n\t\t// datastar-ready, and the bound makes a missing helper loud.\n\t\t(function () {\n\t\t\tvar opener = document.querySelector('[data-stream-opener]');\n\t\t\tif (!opener) {\n\t\t\t\tthrow new Error('sse: page rendered no [data-stream-opener] button');\n\t\t\t}\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\tif (!id) {\n\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t}\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\t\t\tfunction openSSE() {\n\t\t\t\tif (typeof window.__gogogoOpenVerified === 'function') {\n\t\t\t\t\twindow.__gogogoOpenVerified(opener.id);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\topenSSE.misses = (openSSE.misses || 0) + 1;\n\t\t\t\tif (openSSE.misses > 40) {\n\t\t\t\t\tthrow new Error('sse: helper sse-open.js never loaded');\n\t\t\t\t}\n\t\t\t\tsetTimeout(openSSE, 300);\n\t\t\t}\n\t\t\t// The declarative data-on:datastar-ready click above is the real\n\t\t\t// open; this fallback covers an already-fired ready.\n\t\t\tsetTimeout(openSSE, 300);\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"></button><script defer type=\"module\" src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("sse-open.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/stream_opener.templ`, Line: 60, Col: 69}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"></script><script type=\"module\">\n\t\t// Hidden-@get-button bootstrap (Datastar v1 never fires data-on:load\n\t\t// on a div/body). The opener is found by attribute, so this script\n\t\t// needs no id interpolation; the stable per-tab clientID rides\n\t\t// sessionStorage so a reload reuses its registration instead of\n\t\t// leaking a new one. The 300ms fallback covers an already-fired\n\t\t// datastar-ready, and the bound makes a missing helper loud.\n\t\t(function () {\n\t\t\tvar opener = document.querySelector('[data-stream-opener]');\n\t\t\tif (!opener) {\n\t\t\t\tthrow new Error('sse: page rendered no [data-stream-opener] button');\n\t\t\t}\n\t\t\ttry {\n\t\t\t\tvar id = sessionStorage.getItem('gogogo_client_id');\n\t\t\t\tif (!id) {\n\t\t\t\t\tid = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t\t\tsessionStorage.setItem('gogogo_client_id', id);\n\t\t\t\t}\n\t\t\t\twindow.__gogogoClientID = id;\n\t\t\t} catch (e) {\n\t\t\t\twindow.__gogogoClientID = 'tab-' + Math.random().toString(36).slice(2, 10);\n\t\t\t}\n\t\t\tfunction openSSE() {\n\t\t\t\tif (typeof window.__gogogoOpenVerified === 'function') {\n\t\t\t\t\twindow.__gogogoOpenVerified(opener.id);\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\topenSSE.misses = (openSSE.misses || 0) + 1;\n\t\t\t\tif (openSSE.misses > 40) {\n\t\t\t\t\tthrow new Error('sse: helper sse-open.js never loaded');\n\t\t\t\t}\n\t\t\t\tsetTimeout(openSSE, 300);\n\t\t\t}\n\t\t\t// The declarative data-on:datastar-ready click above is the real\n\t\t\t// open; this fallback covers an already-fired ready.\n\t\t\tsetTimeout(openSSE, 300);\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

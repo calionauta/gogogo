@@ -17,6 +17,14 @@ import (
 // the files and the path they answer on.
 const AssetPath = "/static/notes"
 
+// URL returns the cache-busting URL for one of the feature's own assets
+// ("/static/notes/notes.js?v=<hash>"). The URL names the bytes, so the browser
+// and any CDN in front of the app hold it immutably instead of revalidating
+// it on every navigation (see resources.AssetHandler).
+func URL(name string) string {
+	return resources.URLFor(StaticFS(), AssetPath, name)
+}
+
 // StaticHandler serves the embedded assets under AssetPath. The core bundle
 // never carries them, and the feature's own trim drops the mount line, so the
 // handler travels with the feature instead of sitting in the composition root.

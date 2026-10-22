@@ -236,17 +236,23 @@ or the CDN), never a stale asset: changed bytes are a different URL. A bare
 `/static/...` URL still revalidates against its content-hash ETag — that path
 exists for old bookmarks, and a 304 from it proves the origin is current.
 
-Known gap: the theme/app bundles and the scripts emitted by the skin asset
-blocks are versioned because they go through `resources.StaticURL`, but a
-feature that embeds its own scripts (`features/notes/static`,
-`features/whiteboard/static`) and the two helpers baked into their templates
-(`/static/sse-open.js`, `/static/session.js`) still emit bare paths and
-revalidate per navigation. `AssetHandler` already honours
-`?v=<fingerprint>` for every prefix, so closing it is one `StaticURL` call per
-asset, not a new mechanism. When an asset URL gains a fingerprint, any test
-that intercepts it by exact path must go query-tolerant
-(`**/static/datastar.js*`) — an exact glob turns a "blocked script" case into
-"script loaded" and the failure message says the opposite of what happened.
+Everything is versioned: the theme/app bundles and the scripts emitted by the
+skin asset blocks go through `resources.StaticURL`, the feature bundles through
+their own `URL()` helper (`features/notes`, `features/whiteboard`), the two
+helpers baked into shared templates (`/static/sse-open.js`,
+`/static/session.js`) through `StaticURL`, and the scaffolded page
+(`internal/installer/new_scaffold.go`) follows the same rule.
+
+Two guards keep it that way, because every gap so far lived where no test
+rendered: `TestRenderedAssetsAreFingerprinted` sweeps the RENDERED HTML of the
+page shells, and `TestNoSourceHardcodesABareStaticURL` sweeps the TEMPLATE
+SOURCES (plus the installer's page string), so a hardcoded path is caught where
+it is written rather than only where a test happens to render it.
+
+When an asset URL gains a fingerprint, any test that intercepts it by exact
+path must go query-tolerant (`**/static/datastar.js*`) — an exact glob turns a
+"blocked script" case into "script loaded" and the failure message says the
+opposite of what happened.
 
 ## The deploy workflow fails on the server
 

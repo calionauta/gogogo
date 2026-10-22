@@ -230,12 +230,19 @@ func (h *Handler) handlePing(w http.ResponseWriter, r *http.Request) {
 // newPageTemplate is the page skeleton. It loads the same core scripts the
 // landing page does and reuses Tailwind classes already present in the
 // bundle, so `make css-check` stays green without a rebuild.
+//
+// The asset URLs are fingerprinted (resources.StaticURL) like every other
+// page in this repo: the query names the bytes, so the browser and any CDN
+// in front of the app cache them immutably instead of revalidating on every
+// navigation. A scaffolded page must not be the only one that pays the
+// round trip.
 const newPageTemplate = `// SCOPE:feature — {{name}} page (scaffolded by ` + "`gogogo new`" + `)
 package components
 
 import (
 	"{{module}}/features/authviews"
 	"{{module}}/features/sounds"
+	"{{module}}/web/resources"
 )
 
 // Page renders the {{name}} page. The handler redirects guests before
@@ -248,12 +255,12 @@ templ Page(userEmail string, userRole string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{{name}}</title>
-			<link rel="stylesheet" href="/static/app.min.css"/>
-			<link rel="stylesheet" href="/static/app.css"/>
+			<link rel="stylesheet" href={ resources.StaticURL("app.min.css") }/>
+			<link rel="stylesheet" href={ resources.StaticURL("app.css") }/>
 			@authviews.ThemeHead()
 			// Theme + Datastar are the two core scripts every page loads.
-			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/datastar.js"></script>
+			<script defer type="module" src={ resources.StaticURL("theme.js") }></script>
+			<script defer type="module" src={ resources.StaticURL("datastar.js") }></script>
 			@sounds.SoundAssets()
 		</head>
 		<body class="min-h-screen bg-base-100">
