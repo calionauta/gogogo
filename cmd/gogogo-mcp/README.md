@@ -33,7 +33,7 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | `trim_apply` | trim_plan params + `confirm: true` | Rename + trim + tidy + build proof. Refuses without `confirm:true` |
 | `check_tree` | `dir` | `CHECK-OK`/`CHECK-FAIL` drift verdict, changes nothing |
 | `version_status` | `dir?`, `format?` | Is the tool — and the project's recorded base — behind the latest release? Read-only, opt-in, never on startup. "Update exists" is a verdict, not an error |
-| `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `format?` | Releases between the recorded base and the latest, plus the gates that prove a migrated tree. Read-only; nothing is applied |
+| `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `files?`, `format?` | Releases between the recorded base and the latest, plus the gates that prove a migrated tree. `files:true` adds the per-file impact (capability + kept/removed). Read-only; nothing is applied |
 | `add_unit` | `unit`, `from`, `dir`, `confirm`, `dryRun?` | Dependency closure + copy + rewire + proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |
 | `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout: copies the unit's files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). Changes nothing in `dir` |
 | `new_feature` | `name`, `dir`, `confirm`, `dryRun?` | Scaffold one feature inside a checkout: handler + page + wiring + capability unit + RBAC rows, then gates + build proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |

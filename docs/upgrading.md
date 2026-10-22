@@ -13,6 +13,7 @@ neither runs on its own: there is no background check, no nag, no telemetry.
 |---|---|---|
 | Is the tool — or this tree — behind? | `gogogo --check-update --dir .` | No. **Exit 3 means "yes"**: a verdict, not a failure |
 | What changed since my base? | `gogogo migrate --dir .` | No |
+| Which files does it touch, and do they apply to me? | `gogogo migrate --dir . --files` | No — read-only report, needs the compare API |
 | Does the tree still match the unit manifest? | `gogogo --check --dir .` | No |
 | Which command, for my goal? | `gogogo advise --intent update\|add-unit\|new-feature --dir .` | No — it prints the ordered route for this tree |
 | Restore a unit I trimmed | `gogogo add <unit> --from <template> --dir .` | Yes, with `--yes` |
@@ -112,6 +113,43 @@ Flags: `--from TAG` overrides the recorded base, `--to TAG` the latest release,
 `--changelog PATH` a local file instead of the network (offline, or a clone you
 already have), `--format json` for the machine shape. Pass `--to` as well when
 you are offline: the default target is resolved from the releases API.
+
+## Which files does it touch?
+
+`migrate` answers *what changed*. `--files` answers *where* — and, the part
+that matters once you have removed units, *whether it is yours to do anything
+about*. One compare call (base tag → target tag), then every file is labelled
+against **your** manifest:
+
+| Label | Meaning |
+|---|---|
+| `core <capability>` | no unit owns that capability (`server`, `auth`): it ships in every tree, so the change applies |
+| `kept <capability>` | a capability of a unit you kept: apply it |
+| `removed <unit>` | a capability of a unit you trimmed: nothing here to change |
+
+```
+gogogo migrate --dir . --files
+
+files upstream touched (116):
+  core server        modified  internal/server/chi.go            (+8 -0)
+  kept notes         modified  features/notes/static/notes.js    (+76 -21)
+  removed dagnats    deleted   internal/dagnats/boot.go          (+0 -420)
+summary: 109 core, 7 in units you kept, 0 in units you removed (skippable)
+```
+
+The capability name is the label, not the unit, because that is what the file
+*is*: `notes.js` reads `kept notes`, even though the unit that owns it is
+`whiteboard` (which trims notes with it). The verdict still uses the unit,
+because that is what your `removed:` line recorded.
+
+Two honest limits, both reported rather than hidden:
+
+- **GitHub caps the compare at 300 files.** Reaching the cap prints a note and
+  says the list is incomplete, instead of showing a third of the range as if it
+  were all of it.
+- **It needs the compare API.** Offline, compare in a template clone:
+  `git -C <clone> diff --name-only v0.53.0..v0.54.0`, then read the same labels
+  off `docs/unit-contracts.md` (which capability owns which path).
 
 ## When a release changes structure
 

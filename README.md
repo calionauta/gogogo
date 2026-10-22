@@ -308,6 +308,30 @@ Destructive paths refuse without explicit confirmation (`--yes` /
 `confirm:true`). Strategy and the foreign-codebase boundary:
 [getting-started §0b–0c](docs/getting-started.md#0b-opinions-before-changes-advise).
 
+### Lifecycle: create → evolve → update → customize
+
+The same questions come back after the scaffold, and each one has a command.
+The read-only ones are marked; the rest mutate exactly the tree you point them
+at.
+
+| Goal | Command | Changes anything? |
+|---|---|---|
+| Create | `gogogo --dry-run` then `--yes` (interactive, or `--preset`/`--plugins`/`--features`) | Yes — the new directory |
+| Evolve: your own slice | `gogogo new feature <name> --dir .` | Yes — inside your tree |
+| Evolve: restore a trimmed unit | `gogogo add <unit> --from <pristine> --dir .` | Yes — inside your tree |
+| Update: is there anything? | `gogogo --check-update --dir .` | No. **Exit 3 means yes** |
+| Update: what changed? | `gogogo migrate --dir .` | No — a list you apply |
+| Update: which files apply to me? | `gogogo migrate --dir . --files` | No — labels each upstream file with its capability and whether you kept its unit |
+| Customize | edit freely, then `gogogo --check --dir .` | No — reports whether a marker moved; your edits win |
+| Take a unit into a non-gogogo app | `gogogo export <unit> --to <scratch>` + [porting checklist](docs/porting-into-an-existing-app.md) | Only the scratch directory |
+
+Agents get the same answers as an ordered route: `advise --intent
+update|port|add-unit|new-feature|scaffold` prints the exact commands for this
+tree (and refuses to name a command the tree would reject). Details:
+[upgrading](docs/upgrading.md),
+[porting](docs/porting-into-an-existing-app.md),
+[scope taxonomy](docs/scope-taxonomy.md).
+
 No Go on this machine? Tagged releases ship static binaries (`gogogo` +
 `gogogo-mcp`, checksummed) — and `install.sh` bootstraps a user-space Go
 toolchain when none is found (`~/.local/go`, no sudo, existing installs

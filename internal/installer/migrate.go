@@ -76,14 +76,16 @@ type migrationNote struct {
 
 // migrationReport is the whole answer, in the shape an agent can act on.
 type migrationReport struct {
-	From     string             `json:"from"`
-	To       string             `json:"to"`
-	Repo     string             `json:"repo"`
-	Source   string             `json:"source"`
-	Releases []migrationRelease `json:"releases"`
-	Notes    []migrationNote    `json:"notes,omitempty"`
-	Gates    []string           `json:"gates"`
-	Note     string             `json:"note,omitempty"`
+	From      string             `json:"from"`
+	To        string             `json:"to"`
+	Repo      string             `json:"repo"`
+	Source    string             `json:"source"`
+	Releases  []migrationRelease `json:"releases"`
+	Notes     []migrationNote    `json:"notes,omitempty"`
+	Files     []impactFile       `json:"files,omitempty"`
+	FilesNote string             `json:"filesNote,omitempty"`
+	Gates     []string           `json:"gates"`
+	Note      string             `json:"note,omitempty"`
 }
 
 // releaseHeadingRE matches a version section header, anchored to the version
@@ -300,6 +302,9 @@ func runMigrate(ctx context.Context, args []string, stdout io.Writer) error {
 	format := fs.String("format", planFormatText, "output format: text|json")
 	changelogPath := fs.String("changelog", "", "read the changelog from this file instead of the network (offline)")
 	notesPath := fs.String("notes", "", "read the migration-notes index from this file instead of the network (offline)")
+	withFiles := fs.Bool("files", false,
+		"also list the files upstream changed between the two tags, each labelled with the "+
+			"capability it serves and whether this tree kept that unit (needs the compare API)")
 	fs.SetOutput(stdout)
 	fs.Usage = func() {
 		fmt.Fprintln(stdout, `gogogo migrate — what changed between your project's base and latest.
@@ -309,6 +314,7 @@ There is no --apply; the template never merges into your tree.
 
   gogogo migrate --dir .
   gogogo migrate --from v0.50.0 --to v0.53.0 --format json
+  gogogo migrate --dir . --files
   gogogo migrate --dir . --changelog ./CHANGELOG.md
   gogogo migrate --dir . --notes ./docs/migrations/index.md`)
 		fs.PrintDefaults()
@@ -356,6 +362,23 @@ There is no --apply; the template never merges into your tree.
 		// current" would be a claim about the file, not about upstream.
 		rep.Note = "no newer releases between " + rep.From + " and " + target +
 			" in " + source
+	}
+	if *withFiles {
+		impact, truncated, ferr := fetchCompare(ctx, githubAPI, repo, tagRef(base), tagRef(target))
+		if ferr != nil {
+			// --files was asked for explicitly, so a silent empty list would be
+			// a lie. Name the reason and the offline alternative.
+			return &ExitError{code: 1, msg: fmt.Sprintf(
+				"gogogo: migrate --files: could not compare %s...%s (%v) — this report needs the "+
+					"GitHub compare API. Offline, compare in a template clone instead: "+
+					"git -C your-template-clone diff --name-only %s..%s",
+				tagRef(base), tagRef(target), ferr, tagRef(base), tagRef(target))}
+		}
+		rep.Files = classifyImpact(impact, readTrimProvenance(*dir).removed)
+		if truncated {
+			rep.FilesNote = fmt.Sprintf("GitHub caps the compare at %d files and this range is "+
+				"larger — the list below is incomplete; use a clone for all of it", compareFileLimit)
+		}
 	}
 	if *format == planFormatJSON {
 		raw, merr := json.MarshalIndent(rep, "", "  ")
@@ -421,6 +444,21 @@ func printMigrationText(w io.Writer, rep migrationReport) {
 			}
 			fmt.Fprintln(w, line)
 		}
+	}
+	if len(rep.Files) > 0 {
+		fmt.Fprintf(w, "\nfiles upstream touched (%d):\n", len(rep.Files))
+		for _, f := range rep.Files {
+			label := f.UnitState
+			if f.Capability != "" {
+				label += " " + f.Capability
+			}
+			fmt.Fprintf(w, "  %-18s %-9s %s (+%d -%d)\n",
+				label, f.Status, f.Path, f.Additions, f.Deletions)
+		}
+		fmt.Fprintln(w, impactLine(rep.Files))
+	}
+	if rep.FilesNote != "" {
+		fmt.Fprintf(w, "gogogo: %s\n", rep.FilesNote)
 	}
 	if rep.Note != "" {
 		fmt.Fprintf(w, "\ngogogo: %s\n", rep.Note)
