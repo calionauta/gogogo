@@ -7,6 +7,27 @@ tells you when upstream moved on.
 Two read-only commands close that gap. Neither one changes anything, and
 neither runs on its own: there is no background check, no nag, no telemetry.
 
+## Which command when
+
+| The question | Command | Changes anything? |
+|---|---|---|
+| Is the tool — or this tree — behind? | `gogogo --check-update --dir .` | No. **Exit 3 means "yes"**: a verdict, not a failure |
+| What changed since my base? | `gogogo migrate --dir .` | No |
+| Does the tree still match the unit manifest? | `gogogo --check --dir .` | No |
+| Which command, for my goal? | `gogogo advise --intent update\|add-unit\|new-feature --dir .` | No — it prints the ordered route for this tree |
+| Restore a unit I trimmed | `gogogo add <unit> --from <template> --dir .` | Yes, with `--yes` |
+| My app already exists; I want one piece | `gogogo export <unit> --dir <template> --to <scratch>` | Only the scratch directory |
+
+The last row is the case this page does not cover, because it is not an
+upgrade: a tree that was never scaffolded has no `scaffolded-from:` marker, so
+there is no base to be behind. See
+[Porting into an existing app](porting-into-an-existing-app.md).
+
+Exit codes are part of the contract: `--check-update` returns **3** when an
+update exists and **0** for everything else, including "could not check" (a
+read-only advisory must not fail a pipeline when the network is down). An agent
+driving a shell must read the verdict, not the status.
+
 ## What is recorded
 
 Every scaffolded `AGENTS.md` carries the base revision:
