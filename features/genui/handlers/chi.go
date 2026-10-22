@@ -126,25 +126,49 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusInternalServerError, "enqueue failed")
 		return
 	}
+	// ACK BEFORE THE JOB, and the ack owns NO pending-state signal.
+	//
+	// Same ownership rule as the todo suggest ack (see enqueueSuggest): the
+	// worker's result travels on the tab's already-open SSE stream while this
+	// response travels back on the POST connection — nothing orders them, and
+	// behind a tunnel the response is the slower one. An ack that re-asserted
+	// `genui_pending: true` could therefore land AFTER the worker's terminal
+	// patch (`genui_pending: false`) and re-disable the Ask button for good:
+	// `data-attr:disabled="!!$genui_pending"` on a signal that is never cleared
+	// again is a dead control.
+	//
+	// The composer owns the optimistic state (`$genui_pending = true` on
+	// submit, `false` on fetch error), and the worker owns the terminal state.
+	sse := sdk.NewSSE(w, r)
 	if err := h.q.Enqueue(r.Context(), mustJSON(r.Context(), queue.Job{
 		Type: "genui_ask", ClientID: r.URL.Query().Get("clientID"), Payload: payload,
 	})); err != nil {
 		obsArgs := append(observability.WithComponent("genui", "feature"), "error", err)
 		observability.Error(r.Context(), "genui: enqueue failed", obsArgs...)
-		writeText(w, http.StatusInternalServerError, "enqueue failed")
+		// Headers are out, so the failure rides the open stream as a terminal
+		// patch — a 500 here would leave the composer disabled with nothing
+		// to clear it.
+		if merr := dshelpers.MergeSignals(sse, map[string]any{
+			signalGenuiPending: false,
+			signalGenuiError:   "enqueue failed",
+		}); merr != nil {
+			obsArgs := append(observability.WithComponent("genui", "feature"), "error", merr)
+			observability.Error(r.Context(), "genui: enqueue failure not delivered", obsArgs)
+		}
 		return
 	}
-	sse := sdk.NewSSE(w, r)
-	if err := dshelpers.MergeSignals(sse, map[string]any{
-		signalGenuiPending: true,
-		signalGenuiError:   "",
-		// $genuiPrompt is NOT written here: it is bound two-way to the composer,
-		// so the box owns it and a response that clears it can wipe text typed
-		// after submit. The client clears it on success.
-	}); err != nil {
-		obsArgs := append(observability.WithComponent("genui", "feature"), "error", err)
-		observability.Error(r.Context(), "genui: ask ack failed", obsArgs...)
-	}
+	// The SUCCESS ack writes NO signal at all — the same empty ack shape as
+	// enqueueSuggest. An empty signal merge would still be a frame the client
+	// has to parse and apply; "accepted" needs no frame.
+	//
+	// The composer owns every piece of state here: `$genui_pending = true` and
+	// `$genui_error = ''` on submit, `$genui_pending = false` on a fetch error.
+	// The worker owns the terminal state. An ack that wrote any of them could
+	// land AFTER the worker's terminal patch — the POST response and the SSE
+	// stream are different connections with no ordering between them, and
+	// behind a tunnel the response is slower — and re-disable the Ask button
+	// for good (`data-attr:disabled="!!$genui_pending"` on a signal that is
+	// never cleared again is a dead control).
 }
 
 func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {

@@ -107,15 +107,22 @@ func TestHandlersGenuiAskAndAnswer(t *testing.T) {
 	if ct := askRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("ask content-type = %q, want SSE ack", ct)
 	}
-	// Same composer contract as chat: the ack raises the pending guard but
-	// does NOT touch the composer. $genuiPrompt is bound two-way to the input,
-	// so the box owns it; a response that cleared it wiped text typed after
-	// submit. The client clears it on success.
+	// Same composer contract as chat: the ack owns NO pending-state signal.
+	//
+	// $genuiPrompt is bound two-way to the input, so the box owns it; a
+	// response that cleared it wiped text typed after submit. The client clears
+	// it on success.
+	//
+	// $genui_pending is the composer-owned optimistic state and the
+	// worker-owned terminal state. An ack that re-asserted `genui_pending: true`
+	// could land AFTER the worker's terminal patch (the POST response and the
+	// SSE stream are different connections with no ordering between them) and
+	// re-disable the Ask button for good — `data-attr:disabled="!!$genui_pending"`
+	// on a signal that is never cleared again is a dead control.
 	ack := askRec.Body.String()
-	for _, want := range []string{`"genui_pending":true`} {
-		if !strings.Contains(ack, want) {
-			t.Errorf("ask ack missing %s (got %.300q…)", want, ack)
-		}
+	if strings.Contains(ack, "genui_pending") {
+		t.Errorf("ask ack writes the composer-owned genui_pending signal; a response "+
+			"landing after the worker's terminal patch re-disables Ask forever (got %.300q…)", ack)
 	}
 	if strings.Contains(ack, `"genuiPrompt"`) {
 		t.Errorf("ask ack wrote the client-owned genuiPrompt signal; a response "+

@@ -171,26 +171,51 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusInternalServerError, "enqueue failed")
 		return
 	}
+	// ACK BEFORE THE JOB, and the ack owns NO thinking-state signal.
+	//
+	// Same ownership rule as the todo suggest ack (see enqueueSuggest): the
+	// worker's result travels on the tab's already-open SSE stream while this
+	// response travels back on the POST connection — nothing orders them, and
+	// behind a tunnel the response is the slower one. An ack that re-asserted
+	// `chat_thinking: true` could therefore land AFTER the worker's terminal
+	// patch (`chat_thinking: false`) and re-disable the Send button for good:
+	// `data-attr:disabled="!!$chat_thinking"` on a signal that is never cleared
+	// again is a dead control, not a stuck spinner.
+	//
+	// The composer owns the optimistic state (`$chat_thinking = true` on
+	// submit, `false` on fetch error), and the worker owns the terminal state.
+	sse := sdk.NewSSE(w, r)
 	if err := h.q.Enqueue(r.Context(), mustJSON(r.Context(), queue.Job{
 		Type: "chat_ask", ClientID: r.URL.Query().Get("clientID"), Payload: payload,
 	})); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: enqueue failed", obsArgs...)
-		writeText(w, http.StatusInternalServerError, "enqueue failed")
+		// Headers are out, so the failure rides the open stream as a terminal
+		// patch — a 500 here would leave the composer disabled with nothing
+		// to clear it.
+		if merr := dshelpers.MergeSignals(sse, map[string]any{
+			signalChatThinking: false,
+			signalChatError:    "enqueue failed",
+		}); merr != nil {
+			obsArgs := append(observability.WithComponent("chat", "feature"), "error", merr)
+			observability.Error(r.Context(), "chat: enqueue failure not delivered", obsArgs)
+		}
 		return
 	}
-	sse := sdk.NewSSE(w, r)
-	if err := dshelpers.MergeSignals(sse, map[string]any{
-		signalChatThinking: true,
-		signalChatError:    "",
-		// $chatPrompt is NOT written here: it is bound two-way to the composer,
-		// so the box owns it and a response that clears it can wipe text typed
-		// after submit. The client clears it on success.
-	}); err != nil {
-		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
-		observability.Error(r.Context(), "chat: ask ack failed", obsArgs...)
-		return
-	}
+	// The SUCCESS ack writes NO signal at all — it carries the prompt echo and
+	// nothing else, the same shape as enqueueSuggest.
+	//
+	// The composer owns every piece of state here: `$chat_thinking = true` and
+	// `$chat_error = ''` on submit, `$chat_thinking = false` on a fetch error.
+	// The worker owns the terminal state. An ack that wrote any of them could
+	// land AFTER the worker's terminal patch — the POST response and the SSE
+	// stream are different connections with no ordering between them, and
+	// behind a tunnel the response is slower — and re-disable the Send button
+	// for good (`data-attr:disabled="!!$chat_thinking"` on a signal that is
+	// never cleared again is a dead control, not a stuck spinner).
+	//
+	// The echo below is a PATCH, not a signal write, and it appends to
+	// #chat-messages — it carries no state signal.
 	// Echo the prompt as the user's own bubble now, on the ack: the answer
 	// arrives later from the worker, so without this the composer clears
 	// and the question is only in the store until a reload. The patch

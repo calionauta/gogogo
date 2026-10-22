@@ -99,6 +99,24 @@ The rule of thumb: **commit on release, relay while moving.**
 > nothing — the click owns the optimistic state, the worker owns the terminal
 > state — and the enqueue failure path patches that terminal state onto the
 > already-open stream, because a 500 has nothing left to clear the spinner with.
+>
+> **This is a rule for EVERY enqueueing endpoint, not a per-endpoint fix.** The
+> same shape was found in four places, and the difference is only how bad the
+> late ack is:
+>
+> | Endpoint | Signal the ack used to own | Symptom of a late ack |
+> |---|---|---|
+> | `POST /api/todos/suggest` | `aiPending`, `suggestions` | spinner stuck on "Asking AI…", results erased |
+> | `POST /api/todos/retry-demo` | `lastRetry` | the last attempt's text overwritten by "queued" |
+> | `POST /api/chat/ask` | `chat_thinking` | **the Send button stays disabled forever** |
+> | `POST /api/genui/ask` | `genui_pending` | **the Ask button stays disabled forever** |
+>
+> The last two are worse than a stuck spinner: their button is
+> `data-attr:disabled="!!$chat_thinking"`, so a re-asserted `true` is a DEAD
+> control — the composer can never be used again without a reload. The rule
+> generalises: an ack that enqueues a job writes no state signal at all; the
+> client owns the optimistic state, the worker owns the terminal state, and the
+> failure path patches the terminal state onto the open stream.
 
 ## Cross-instance sync adds one more path
 
