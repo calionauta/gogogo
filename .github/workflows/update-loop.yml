@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         # Same path web CI takes: actions/setup-go extracts its toolchain via tar
         # and has been intermittently corrupting it on this runner image.
         run: bash bin/install-go-toolchain.sh

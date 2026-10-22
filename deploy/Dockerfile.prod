@@ -28,7 +28,13 @@
 # ────────────────────────────
 # Stage 1: builder
 # ────────────────────────────
-FROM golang:1.27-alpine AS builder
+# Pinned to the patch, matching the `go` directive in go.mod. A minor-only tag
+# floats, so the production image could be built by a toolchain older than the
+# tree requires: Go then either refuses outright or downloads the pinned
+# toolchain mid-build, which makes the artifact depend on the network and on
+# Docker Hub's tag drift. The dev Dockerfile is pinned too;
+# TestGoToolchainPinIsConsistent keeps every pin in step.
+FROM golang:1.27.3-alpine AS builder
 RUN apk add --no-cache git ca-certificates nodejs npm gcc musl-dev
 # ARGs for build-time metadata injection. Defaults match local
 # builds; the docker-image Makefile target passes real values via

@@ -44,7 +44,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         # Keep the installation path aligned with web CI. setup-go has
         # intermittently produced a corrupted toolchain on GitHub runners.
         run: |
@@ -84,7 +84,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         run: |
           bash bin/install-go-toolchain.sh
       - name: Install Wails Linux build dependencies
@@ -129,7 +129,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         run: |
           bash bin/install-go-toolchain.sh
       - name: Check formatting (gofumpt + goimports)

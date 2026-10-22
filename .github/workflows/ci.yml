@@ -84,7 +84,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
@@ -251,7 +251,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
@@ -299,7 +299,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.27.3 manually
+      - name: Install the pinned Go toolchain manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
