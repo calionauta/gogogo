@@ -253,6 +253,29 @@ check-dagnats-pin:
 	@bash bin/check-dagnats-pin.sh
 	@echo "✅ DagNats doc matches go.mod pin"
 
+# check-test-value is the executable half of "does the test pin the
+# behavior": every Test must be able to fail (vacuous = exit 1), and an
+# err-only Test (pins plumbing, not behavior) prints as a warning unless
+# -fail-err-only. AST-only, stdlib-only, ~1s for the whole tree — no
+# coverage run, no race detector. Same implementation the pre-commit
+# test-value job and CI run. Loud locally (warnings visible); the hook and
+# CI pass -quiet so only vacuous fails there — the warning list is the
+# review aid in `make cover-diff`, not a gate.
+check-test-value:
+	@echo "→ check-test-value (every Test pins behavior beyond err==nil)..."
+	@go run ./cmd/check-test-value -quiet
+	@echo "✅ no vacuous tests"
+
+# cover-diff is the review aid for "is the test new work": of the lines THIS
+# change adds, how many does no test execute (production lines via a
+# coverage profile) and can every changed Test fail (test lines via
+# check-test-value). Advisory by design (always exits 0): the race suite in
+# ci-local is the gate, this is what the reviewer reads. Not in any hook or
+# CI — a coverage run per commit would tax the shared box for a signal only
+# a human review consumes.
+cover-diff:
+	@bash bin/check-diff-cover.sh
+
 # go-bump moves the pinned Go toolchain to a newer PATCH release of the current
 # minor line — in every file that names it — and then proves none was skipped.
 # The same command .github/workflows/go-auto-bump.yml runs on a schedule; this
@@ -524,6 +547,8 @@ help:
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
+	@echo "  check-test-value   Every Test pins behavior beyond err==nil (AST, blocking on vacuous)"
+	@echo "  cover-diff         Advisory: uncovered added lines + test-value on the changed packages"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"
 	@echo "  go-bump        Move the pinned Go toolchain (patch only; DRY=1 / TO=x.y.z)"

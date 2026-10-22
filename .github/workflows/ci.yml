@@ -149,6 +149,11 @@ jobs:
         # secrets-env job: secret-shaped env reads only in owner files
         # (config loader, secrets loader, narrow allowlist).
         run: go run ./cmd/check-secrets-env
+      - name: Check-test-value (tests pin behavior)
+        # Same gate as `make check-test-value` and the pre-commit test-value
+        # job: no vacuous Test (fails only on panic). -quiet here: err-only
+        # warnings are the review aid in `make cover-diff`, not CI signal.
+        run: go run ./cmd/check-test-value -quiet
       - name: Check-dagnats-pin (doc pin vs go.mod)
         # Local-only check (grep, no network): the capability table in
         # docs/dagnats.md is verified against the go.mod pin.

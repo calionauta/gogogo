@@ -54,6 +54,17 @@ pre-commit:
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"
 
+    # Every Test must pin behavior, not just plumbing: vacuous tests (no
+    # failure call at all — fail only on panic) block the commit; err-only
+    # tests (assert err==nil and nothing else) are warnings for review, kept
+    # quiet here so the hook fails only on the blocking half. AST-only,
+    # stdlib-only (~1s whole tree). Same implementation as `make
+    # check-test-value` and CI. The tool's own change re-runs it via the
+    # second glob — a gate that cannot judge itself fails open.
+    - name: test-value
+      run: go run ./cmd/check-test-value -quiet
+      glob: "{**/*_test.go,cmd/check-test-value/**}"
+
     # Prose drifts silently: a capability count written by hand, a moved
     # package path, an invented subcommand, or a docs page missing from the
     # site MANIFEST. Same implementation as `make check-docs` and CI.

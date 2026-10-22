@@ -73,6 +73,40 @@ assertion: **inject the thing the test forbids, and confirm it fails.** If you
 cannot make it fail, it is not a test. Note this cuts the other way too — a
 shortened window will be blamed first when the real defect is the predicate.
 
+### Assert the wire symptom, not just `err == nil`
+
+`if err != nil { t.Fatal(err) }` alone pins plumbing: the call succeeded, not
+what it did. The pin is the observable effect — status code, body, patch,
+file on disk, stream config after re-add:
+
+```go
+info, ierr := h.JS.StreamInfo("IDEMPOTENT")
+if ierr != nil {
+    t.Fatalf("stream vanished after idempotent re-adds: %v", ierr)
+}
+if info.Config.MaxAge != time.Hour {
+    t.Errorf("MaxAge = %v after 3 identical adds, want the original 1h", info.Config.MaxAge)
+}
+```
+
+Two distinctions the gate enforces (`go run ./cmd/check-test-value`,
+blocking on the first, warning on the second):
+
+- **Vacuous** — no failure call at all (`t.Error/Fatal`, `assert/require`,
+  an asserting helper, `goleak`). Fails only on panic. Fix by adding the
+  wire-symptom assert, not by asserting more plumbing.
+- **Err-only** — every failure call guards `err != nil`. Add what the success
+  was supposed to produce. A negative contract (`if err == nil` →
+  `t.Fatal`, "want error") is specific, not err-only: it pins the failure mode.
+
+Helpers that take `t` and fail inside count as pins (resolved by what they do,
+not their names); a helper that only sets up fixtures is the documented hole —
+setup-only tests are obvious in review, wrong predicates are not. Tests whose
+param is `_ *testing.T` are exempt on purpose: the assertion lives outside the
+body (`-race`, a leak checker). And the other half of the question — "is the
+new work executed at all" — is `make cover-diff`: uncovered added production
+lines plus `check-test-value` on the changed packages, advisory by design.
+
 ### Production pacing that tests sleep through
 
 The largest cost in this suite was not a harness bug at all — it was
