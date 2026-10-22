@@ -108,6 +108,14 @@ pre-commit:
       run: bin/check-api-routes.sh
       glob: "*.{templ,js,go}"
 
+    # cmd/gogogo-mcp is a SEPARATE module, so the root `go test ./...` never
+    # sees it — which is how its two mutating tools shipped passing a flag the
+    # subcommands do not define (every call failed at parse) while every local
+    # gate stayed green. ~1s incremental, so it stays in the blocking path.
+    - name: mcp-tests
+      run: cd cmd/gogogo-mcp && go test -count=1 ./...
+      glob: "cmd/gogogo-mcp/**"
+
     # Every package under internal/ + features/ must be owned by a
     # capability (new package without registry metadata = red CI, as the
     # unregistered internal/hostgate proved). Same-implementation-as-CI

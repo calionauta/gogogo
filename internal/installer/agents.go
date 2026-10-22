@@ -70,9 +70,18 @@ commands compare it, and neither changes anything:
     gogogo --check-update --dir .   # tool and project vs the latest release
     gogogo migrate --dir .          # what changed between here and latest
 
+--check-update exits 3 when an update exists. That is a VERDICT, not a failure:
+do not treat its non-zero status as an error, and do not wrap it in set -e
+without handling 3. Then apply what migrate printed, run the gates it names,
+and bump scaffolded-from: to the revision you actually landed on.
+
 Updating stays a human decision: re-run install.sh for the tool, and treat
 migrate output as a list to apply deliberately. The template never merges into
 this tree — you own every line of it.
+
+When the request is "keep this current", "add unit X" or "add a feature",
+gogogo advise --intent update|add-unit|new-feature --dir . prints the exact
+command sequence for this tree, instead of you reconstructing it from the docs.
 `
 
 // writeAgents writes the generated AGENTS.md, including the machine-read

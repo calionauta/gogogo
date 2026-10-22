@@ -330,3 +330,30 @@ func TestCacheEntryIsPerRepo(t *testing.T) {
 		t.Error("the template's own entry must still be fresh")
 	}
 }
+
+// TestUpdateTextNamesTheExitCode pins the sentence that keeps a shell-driving
+// agent from reading "an update exists" as a failure. The CLI exits 3 here, and
+// nothing in a program's status code can say "this is good news" — the output
+// has to.
+func TestUpdateTextNamesTheExitCode(t *testing.T) {
+	rep := updateReport{
+		Installed: "v0.53.0", Latest: "v0.54.0", Status: statusBehind,
+		Tree: "calionauta/gogogo@v0.53.0", TreeStatus: statusBehind,
+	}
+	var b strings.Builder
+	printUpdateText(&b, rep)
+	out := b.String()
+	if !strings.Contains(out, "exit 3 = an update exists (a verdict, not an error)") {
+		t.Errorf("text output must name exit 3:\n%s", out)
+	}
+	// The line is conditional: on a current tree the exit code is 0, and
+	// printing "exit 3" there would be a lie an agent acts on.
+	var quiet strings.Builder
+	printUpdateText(&quiet, updateReport{
+		Installed: "v0.54.0", Latest: "v0.54.0", Status: statusCurrent,
+		Tree: "calionauta/gogogo@v0.54.0", TreeStatus: statusCurrent,
+	})
+	if strings.Contains(quiet.String(), "exit 3") {
+		t.Errorf("a current tree must not mention exit 3:\n%s", quiet.String())
+	}
+}

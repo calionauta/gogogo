@@ -51,11 +51,27 @@ type adviseDoc struct {
 	// have to infer it from the rules. Two conditions share the go-standards
 	// scope (the need forbids dependencies; the path is not a checkout) and
 	// they call for different next steps.
-	Reason       string         `json:"reason,omitempty"`
+	Reason string `json:"reason,omitempty"`
+	// Intent is the route this answer carries (update, port, add-unit,
+	// new-feature, scaffold) and IntentSource says where it came from: "given"
+	// when the caller named it, "detected" when the wording implied it,
+	// "default" when a non-checkout path left porting as the only step that
+	// can work. Empty intent means no route — never a guess.
+	Intent       string         `json:"intent,omitempty"`
+	IntentSource string         `json:"intentSource,omitempty"`
+	Next         []adviseStep   `json:"next,omitempty"`
 	Rules        []string       `json:"rules"`
 	Presets      []advisePreset `json:"presets,omitempty"`
 	Capabilities []adviseCap    `json:"capabilities,omitempty"`
 	FirstRun     *nextSteps     `json:"firstRun,omitempty"`
+}
+
+// adviseStep is one line of the route: what to run, and why. Run is empty for
+// advice that has no command (a foreign tree has no base to compare, say) —
+// the sentence then IS the step.
+type adviseStep struct {
+	Run string `json:"run,omitempty"`
+	Why string `json:"why"`
 }
 
 // needWords tokenizes a need the same way preset matching does.
@@ -142,28 +158,34 @@ func presetCopyDirs(p advisePreset) []string {
 	return out
 }
 
-// buildAdvise is buildAdviseIn with no path: the pure, need-only answer.
-// Kept as the entry point every existing caller and test uses, so the
-// default output is unchanged byte-for-byte by the --dir feature.
+// buildAdvise is buildAdviseIn with no path and no route: the pure, need-only
+// answer. Kept as the entry point every existing caller and test uses, so the
+// default output is unchanged byte-for-byte by the --dir/--intent features.
 func buildAdvise(need string) adviseDoc {
-	return buildAdviseIn(need, "")
+	return buildAdviseIn(need, "", "")
 }
 
 // buildAdviseIn resolves the registry into guidance, filtering presets by
 // need (empty need returns every preset, most useful first is meaningless
-// without a query — manifest order wins). There is deliberately NO foreign
-// detector: this tool only knows the template plus its Zig exception, so a
-// need that matches nothing gets the full map (same as empty) instead of a
-// guessed stack label. Generic English words ("fast", "path", "native")
-// can never route outside Go scopes — there is no branch left that names
-// another ecosystem.
+// without a query — manifest order wins). There is deliberately no stack
+// detector: the only path probe is a stat for the template's own files
+// (looksLikeTemplate), so a need that matches nothing gets the full map
+// (same as empty) instead of a guessed stack label. Generic English words
+// ("fast", "path", "native") can never route outside Go scopes — there is
+// no branch left that names another ecosystem.
 //
 // dir is optional and opt-in. Empty keeps the answer a pure function of need
 // — the tool still reads nothing unless asked. When dir IS given, the probe is
 // one stat call: the capability table is only meaningful inside a gogogo
-// checkout, so outside one the answer says so instead of listing 24 units the
-// reader cannot use.
-func buildAdviseIn(need, dir string) adviseDoc {
+// checkout, and a tree that is NOT one gets a scope of its own — with the copy
+// surface it can use (dirs/files), because `add` refuses there and copying is
+// the only path forward.
+//
+// intent is the caller's route (--intent / the MCP arg). Empty means "say
+// nothing": detection from the need is the fallback, and IntentSource records
+// which of the two produced the route, so a stated intent is distinguishable
+// from an inferred one.
+func buildAdviseIn(need, dir, intent string) adviseDoc {
 	owners := capUnit()
 	unitKind := map[string]capabilities.Kind{}
 	for _, u := range manifestUnits {
@@ -178,36 +200,44 @@ func buildAdviseIn(need, dir string) adviseDoc {
 		annotated[i].Copy = presetCopyDirs(matched[i])
 	}
 	matched = annotated
+	// One probe, reused by every branch (and by the route, which must not name
+	// a command this tree would refuse).
+	tree := probeTree(dir)
+	route, source := resolveIntent(need, intent, tree)
 	// The one documented exception first: a Zig kernel gets the gate even
 	// when the need also carries a dependency constraint ("Zig, zero deps"
 	// is about the kernel, and the gate is the opinion that applies).
 	if wantsZig(need) {
 		return adviseDoc{
-			Scope: scopeExceptionToGo, Tree: probeTree(dir),
-			Rules: exceptionToGoRules,
+			Scope: scopeExceptionToGo, Tree: tree, Rules: exceptionToGoRules,
+			Intent: route, IntentSource: source, Next: routeFor(route, tree, dir),
 		}
 	}
-	// The path outranks the need's wording: if the caller points at a tree
-	// that is not a gogogo checkout, the capability table is inapplicable
-	// whatever the need says.
-	if dir != "" && !looksLikeTemplate(dir) {
+	// The path outranks the need's wording: a tree that is not a gogogo
+	// checkout cannot install a unit, but it CAN take one — so the answer is
+	// the copy surface plus the route, never the trim mechanics.
+	if tree == treeNotCheckout {
 		return adviseDoc{
-			Scope: scopeGoStdlib, Reason: reasonNotCheckout,
-			Tree: treeNotCheckout, Presets: matched, Rules: notCheckoutRules,
+			Scope: scopeForeignTree, Reason: reasonNotCheckout,
+			Tree: tree, Presets: matched, Rules: notCheckoutRules,
+			Intent: route, IntentSource: source, Next: routeFor(route, tree, dir),
+			Capabilities: buildCaps(owners, unitKind),
 		}
 	}
 	// A need that constrains itself to the standard library cannot use
 	// any capability (each one is or pulls a dependency), so answering with
-	// the 24-entry table buries the useful part. Answer with the Go
+	// a 36-entry table buries the useful part. Answer with the Go
 	// standards pointer instead.
 	if wantsStdlibOnly(need) {
 		return adviseDoc{
 			Scope: scopeGoStdlib, Reason: reasonStdlibOnly,
-			Tree: probeTree(dir), Rules: stdlibRules,
+			Tree: tree, Rules: stdlibRules,
+			Intent: route, IntentSource: source, Next: routeFor(route, tree, dir),
 		}
 	}
 	doc := adviseDoc{
-		Scope: scopeTemplate, Tree: probeTree(dir), Rules: adviseRules,
+		Scope: scopeTemplate, Tree: tree, Rules: adviseRules,
+		Intent: route, IntentSource: source, Next: routeFor(route, tree, dir),
 		FirstRun: func() *nextSteps { n := buildNextSteps("<dir>", nil); return &n }(),
 	}
 	// A need that matches nothing is out of the tool's vocabulary (a foreign
@@ -218,17 +248,26 @@ func buildAdviseIn(need, dir string) adviseDoc {
 	if strings.TrimSpace(need) != "" && len(matched) == 0 {
 		doc.FirstRun = nil
 	}
+	doc.Capabilities = buildCaps(owners, unitKind)
+	doc.Presets = matched
+	return doc
+}
+
+// buildCaps renders the capability registry as the advise table: one row per
+// capability, with the installer switch and (the part that matters on a
+// foreign tree) the owned paths — `Dirs`/`Files` are literally what to copy
+// when `add` refuses.
+func buildCaps(owners map[string]string, unitKind map[string]capabilities.Kind) []adviseCap {
+	out := make([]adviseCap, 0, len(capabilities.All))
 	for _, c := range capabilities.All {
-		ac := adviseCap{
+		out = append(out, adviseCap{
 			ID: c.ID, Kind: string(c.Kind), Summary: c.Summary,
 			RuntimeOff: c.RuntimeOff, Note: c.Note,
 			Dirs: c.Dirs, Files: c.Files,
-		}
-		ac.Trim = adviseTrim(c, owners, unitKind)
-		doc.Capabilities = append(doc.Capabilities, ac)
+			Trim: adviseTrim(c, owners, unitKind),
+		})
 	}
-	doc.Presets = matched
-	return doc
+	return out
 }
 
 // adviseTrim names the installer switch that removes a capability, so a
@@ -284,101 +323,6 @@ func matchPresets(need string) []advisePreset {
 	return presets
 }
 
-// renderExceptionToGo is the exception-to-go-scope text: the gate, the skill
-// pointer, the normative doc. No trim mechanics, no capability table, no
-// presets — a kernel need matches template vocabulary only by accident, and
-// printing it would invite installing web units into a codec.
-// Split out so Advise stays under the gocyclo gate.
-func renderExceptionToGo(doc adviseDoc) string {
-	var b strings.Builder
-	b.WriteString("exception to Go (Zig) — the gogogo template does not install here.\n" +
-		"Zig is this repo's one documented native exception, so the opinion " +
-		"below is the gate, not a foreign-stack disclaimer.\n\n")
-	b.WriteString("rules:\n")
-	for _, r := range doc.Rules {
-		fmt.Fprintf(&b, "  - %s\n", r)
-	}
-	return b.String()
-}
-
-// renderStdlib is the go-standards-scope text: no capability table, no trim
-// mechanics, no presets — just the rules that survive without the template.
-//
-// It renders doc.Rules rather than a fixed list, because two different
-// conditions reach this scope (the need forbids dependencies, or --dir is not a
-// checkpoint) and each ships its own rule set. Printing the header from
-// doc.Reason keeps the explanation matched to the cause.
-// Split out so Advise stays under the gocyclo gate, like renderExceptionToGo.
-func renderStdlib(doc adviseDoc) string {
-	var b strings.Builder
-	switch doc.Reason {
-	case reasonNotCheckout:
-		b.WriteString("the path is not a gogogo checkout — the template does not apply here.\n" +
-			"No capability is installable into it: this tool trims and extends its own scaffold,\n" +
-			"not an arbitrary project.\n\n")
-	default:
-		b.WriteString("dependency-constrained need — the gogogo template does not apply here.\n" +
-			"No capability is installable: each one adds or belongs to a dependency\n" +
-			"this need forbids, so the registry is omitted rather than shown empty.\n\n")
-	}
-	b.WriteString("rules:\n")
-	for _, r := range doc.Rules {
-		fmt.Fprintf(&b, "  - %s\n", r)
-	}
-	return b.String()
-}
-
-// renderTemplate is the template-scope text: rules, keep/drop presets with
-// the no-match recovery hint, the full capability table, and the scaffold
-// first-run (withheld when a non-empty need matched nothing — a miss must
-// not invite scaffolding the wrong thing).
-// Split out so Advise stays under the gocyclo gate, like the other renders.
-func renderTemplate(doc adviseDoc, need string) string {
-	var b strings.Builder
-	b.WriteString("gogogo advise — opinions, not changes (nothing was installed):\n\n")
-	b.WriteString("rules:\n")
-	for _, r := range doc.Rules {
-		fmt.Fprintf(&b, "  - %s\n", r)
-	}
-	b.WriteString("\npresets (use-case → keep/drop):\n")
-	if len(doc.Presets) == 0 {
-		names := make([]string, 0, len(advisePresets))
-		for _, p := range advisePresets {
-			names = append(names, p.Name)
-		}
-		fmt.Fprintf(&b, "  no preset matched %q — available: %s\n", need, strings.Join(names, ", "))
-		fmt.Fprintf(&b, "  %s\n", notApplicableHint)
-	}
-	for _, p := range doc.Presets {
-		fmt.Fprintf(&b, "  %s: keep [%s]", p.Name, strings.Join(p.Keep, ", "))
-		if len(p.Drop) > 0 {
-			fmt.Fprintf(&b, " drop [%s]", strings.Join(p.Drop, ", "))
-		}
-		fmt.Fprintf(&b, "\n    %s\n", p.Note)
-	}
-	b.WriteString("\ncapabilities (id, kind, how to switch each off):\n")
-	for _, c := range doc.Capabilities {
-		fmt.Fprintf(&b, "  %-14s %-7s %s\n", c.ID, c.Kind, c.Summary)
-		fmt.Fprintf(&b, "  %-14s         trim: %s", "", c.Trim)
-		if c.RuntimeOff != "" {
-			fmt.Fprintf(&b, " | off: %s", c.RuntimeOff)
-		}
-		b.WriteString("\n")
-		if len(c.Dirs)+len(c.Files) > 0 {
-			fmt.Fprintf(&b, "  %-14s         copy: %s\n", "",
-				strings.Join(append(c.Dirs, c.Files...), ", "))
-		}
-	}
-	if n := doc.FirstRun; n != nil {
-		b.WriteString("\nfirst run (defaults; PORT overrides the port):\n")
-		fmt.Fprintf(&b, "  %s\n", strings.Replace(n.Dev, "<dir>", "my-app", 1))
-		fmt.Fprintf(&b, "  app %s · login %s\n", n.App, n.Login)
-		fmt.Fprintf(&b, "  admin %s\n", n.Admin)
-		fmt.Fprintf(&b, "  workflows %s\n", n.Flows)
-	}
-	return b.String()
-}
-
 // probeTree reports what the optional --dir check found, or "" when no path
 // was given. It is the ONLY thing in this file that touches the filesystem,
 // and only when the caller opts in with a path — so `advise --need X` remains
@@ -394,14 +338,22 @@ func probeTree(dir string) string {
 }
 
 // Advise renders guidance for need in text|json. With dir empty it reads the
-// registry and touches nothing else, exactly as before; dir is an opt-in probe
-// that lets the answer say "this path is not a gogogo checkout" instead of
-// listing capabilities the caller cannot use there.
-func Advise(need, format, dir string) (string, error) {
+// registry and touches nothing else; dir is an opt-in probe that lets the
+// answer say "this path is not a gogogo checkout" instead of listing
+// capabilities the caller cannot install there — and, in that case, hand over
+// the copy surface plus the porting route.
+//
+// intent is the caller's route. Empty asks the answer to infer it from the
+// need (and says so); naming it overrides the guess.
+func Advise(need, format, dir, intent string) (string, error) {
 	if format != planFormatText && format != planFormatJSON {
 		return "", fmt.Errorf("unknown --format %q (want text|json)", format)
 	}
-	doc := buildAdviseIn(need, dir)
+	if !validIntent(intent) {
+		return "", fmt.Errorf("unknown --intent %q (want none|%s)",
+			intent, strings.Join(intentNames, "|"))
+	}
+	doc := buildAdviseIn(need, dir, intent)
 	if format == planFormatJSON {
 		raw, err := json.MarshalIndent(doc, "", "  ")
 		if err != nil {
@@ -415,6 +367,9 @@ func Advise(need, format, dir string) (string, error) {
 	if doc.Scope == scopeGoStdlib {
 		return renderStdlib(doc), nil
 	}
+	if doc.Scope == scopeForeignTree {
+		return renderForeignTree(doc, need), nil
+	}
 	return renderTemplate(doc, need), nil
 }
 
@@ -426,11 +381,14 @@ func runAdvise(args []string, stdout io.Writer) error {
 	dir := fs.String("dir", "",
 		"optional: check this path too, so the answer can say it is not a "+
 			"gogogo checkout (omitted = the answer depends on --need alone)")
+	intent := fs.String("intent", "",
+		"optional route to answer for: "+strings.Join(intentNames, "|")+
+			" (omitted = infer from --need, and say so)")
 	fs.SetOutput(stdout)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	out, err := Advise(*need, *format, *dir)
+	out, err := Advise(*need, *format, *dir, *intent)
 	if err != nil {
 		return err
 	}

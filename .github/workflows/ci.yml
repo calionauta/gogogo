@@ -113,6 +113,16 @@ jobs:
             exit 1
           fi
           echo "✓ generated templ files match their sources"
+      - name: MCP module tests
+        # cmd/gogogo-mcp is its own module, so the root `go test ./...` and the
+        # race suite never see it. Nothing ran this module's tests, which is how
+        # add_unit/new_feature shipped passing a flag their subcommands never
+        # defined: every MCP call to them failed at flag parse and no gate
+        # noticed. Same script as the local hook (make check-mcp).
+        run: |
+          cd cmd/gogogo-mcp
+          bash ../../bin/go-mod-download.sh
+          go test -count=1 ./...
       - name: Check install.sh bootstrap contract
         # install.sh is the first thing a new user runs and manipulates PATH.
         # Guards that it never plants a `go` entry in $BIN_DIR (which would

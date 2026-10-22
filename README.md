@@ -59,6 +59,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [no-auth-no-db-recipe](docs/no-auth-no-db-recipe.md) — Recipe for stripping auth and the database out of a clone that needs neither.
 - [use-cases](docs/use-cases.md) — What each core, plugin, and feature is for, in business language.
 - [scope-taxonomy](docs/scope-taxonomy.md) — Core / Plugin / Feature: the rule for deciding what is safe to delete.
+- [porting-into-an-existing-app](docs/porting-into-an-existing-app.md) — Taking one unit into an app that already exists: export, copy, rewire, prove — and the four things no recipe can know.
 - [db-concurrency](docs/db-concurrency.md) — Turso single-writer stance, the probed MVCC path, and revisit triggers.
 - [configuration](docs/configuration.md) — Every environment variable and runtime constant.
 - [rbac](docs/rbac.md) — Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex).

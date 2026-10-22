@@ -35,6 +35,12 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
     go run ./cmd/gogogo add whiteboard --from ~/gogogo --dir ./my-app --yes
 
+  Take a unit INTO an app that is not gogogo — read-only: writes a scratch
+  bundle plus PORTING.md, and never touches the target tree:
+
+    go run ./cmd/gogogo export whiteboard --dir ~/gogogo \
+      --to /tmp/port-whiteboard --module example.com/my-app
+
   Scaffold one new feature inside a checkout (handler + page + wiring +
   capability unit + RBAC rows, then proof: templ, docs, gates, build):
 
@@ -43,6 +49,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
   Opinions, not changes (for LLMs deciding what to use — reads nothing, changes nothing):
 
     go run ./cmd/gogogo advise --need "offline-first todo with AI" --format json
+    go run ./cmd/gogogo advise --intent update --dir ./my-app
 
   Is this current? Two read-only checks — the tool, and the project:
 
@@ -57,7 +64,11 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
 
   Strategy: empty --need returns the full map (presets + every
   capability); a need that matches nothing prints the preset names to
-  retry with — or decide straight from the capabilities table.
+  retry with — or decide straight from the capabilities table. --intent
+  (update|port|add-unit|new-feature|scaffold) prints the ordered commands
+  for that goal; omitted, it is inferred from --need and the answer says
+  which. A --dir that is not a gogogo checkout answers with the copy
+  surface and the export route instead of "cannot".
 
   What it does, in order:
     1. shows the trim plan with every consequence (never silent),

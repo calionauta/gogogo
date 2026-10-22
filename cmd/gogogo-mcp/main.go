@@ -121,6 +121,16 @@ var toolCatalog = []toolDef{
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAddUnit) },
 	},
 	{
+		"export_unit",
+		"Read-only PORT BUNDLE for a tree that is not a gogogo checkout (where " +
+			"add_unit refuses): copies the unit's owned files into the scratch `to` " +
+			"directory and writes PORTING.md with the measured wiring — routes it " +
+			"registers, imports to rewrite, what YOU must write by hand — plus the " +
+			"proof commands. Changes nothing in `dir` and nothing outside `to`; " +
+			"apply it deliberately, it is a copy and not an installer.",
+		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleExportUnit) },
+	},
+	{
 		"new_feature",
 		"Scaffold one new feature inside a gogogo checkout: handler + page, " +
 			"composition-root wiring, capability unit, RBAC rows, then templ generate, " +
@@ -131,18 +141,22 @@ var toolCatalog = []toolDef{
 	},
 	{
 		"advise_stack",
-		"Opinions, not changes: which units to keep for a use-case " +
-			"and how each switches off. Empty need returns the full map; " +
-			"no preset matched means decide from the capabilities table " +
-			"or retry with broader terms. Business-language fit per unit: " +
-			"https://calionauta.github.io/gogogo/docs/use-cases/. " +
-			"Start here when deciding. " +
-			"Answers in one of three scopes: `template` (a gogogo-shaped need, " +
-			"or anything unmatched — the full map instead of a guess), " +
-			"`exception-to-go` (a Zig need — the gate to Go-first exceptions, nothing installs " +
-			"under it), or `go-standards` (a need that forbids dependencies, e.g. " +
-			"stdlib-only: the template cannot apply). The Go coding standards " +
-			"it enforces are the gogogo-coding-standards skill — " +
+		"Opinions, not changes: which units to keep for a use-case, how each " +
+			"switches off, and the exact command ROUTE for the goal. " +
+			"Empty need returns the full map; no preset matched means decide from the " +
+			"capabilities table or retry with broader terms. Business-language fit per " +
+			"unit: https://calionauta.github.io/gogogo/docs/use-cases/. Start here when " +
+			"deciding. Pass `intent` (update|port|add-unit|new-feature|scaffold) to get " +
+			"the ordered commands for that goal; omitted = inferred from `need`, and the " +
+			"answer says which it used. Pass `dir` so the answer can say whether that " +
+			"path is a gogogo checkout: a tree that is NOT one gets its own scope with " +
+			"the copy surface (owned paths) and the export route, instead of 'cannot'. " +
+			"Answers in one of four scopes: `template` (a gogogo-shaped need, or " +
+			"anything unmatched — the full map instead of a guess), " +
+			"`exception-to-go` (a Zig need — the gate, nothing installs under it), " +
+			"`go-standards` (a need that forbids dependencies), " +
+			"`foreign-tree` (dir is not a gogogo checkout — port, do not install). " +
+			"The Go coding standards it enforces are the gogogo-coding-standards skill — " +
 			"https://github.com/calionauta/gogogo (install: " +
 			"npx skills add calionauta/gogogo); it is not shipped in this binary.",
 		func(s *mcp.Server, t *mcp.Tool) { mcp.AddTool(s, t, handleAdvise) },
@@ -206,8 +220,20 @@ type newFeatureArgs struct {
 	DryRun  bool   `json:"dryRun,omitempty" jsonschema:"print the plan and stop when true"`
 }
 
+// exportArgs is the port-bundle tool: it writes ONLY into `to` (a scratch
+// directory) and never touches `dir`, so it needs no confirm gate — the
+// destructive-tool rule protects the tree the caller cares about.
+type exportArgs struct {
+	Unit   string `json:"unit,omitempty" jsonschema:"installer unit id, e.g. whiteboard (required)"`
+	Dir    string `json:"dir,omitempty" jsonschema:"pristine template checkout to copy the unit FROM (required)"`
+	To     string `json:"to,omitempty" jsonschema:"scratch directory to write the bundle INTO; must not exist or be empty (required)"`
+	Module string `json:"module,omitempty" jsonschema:"your project's module path, filled into the import rewrite"`
+	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
+}
+
 type adviseArgs struct {
 	Need   string `json:"need,omitempty" jsonschema:"use-case in your words (empty lists everything)"`
+	Intent string `json:"intent,omitempty" jsonschema:"optional route: update|port|add-unit|new-feature|scaffold (omitted = infer from need, and the answer says so)"`
 	Format string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 	Dir    string `json:"dir,omitempty" jsonschema:"optional: also check this path, so the answer can say it is not a gogogo checkout (omitted = the answer depends on need alone)"`
 }
@@ -262,7 +288,7 @@ func trimCLIArgs(a trimArgs, extra ...string) []string {
 	if format == "" {
 		format = defaultFormat
 	}
-	args = append(args, "--format", format, "--no-tui")
+	args = append(args, "--format", format)
 	return append(args, extra...)
 }
 
@@ -351,7 +377,10 @@ func handleAddUnit(
 	if format == "" {
 		format = defaultFormat
 	}
-	cli := []string{"add", args.Unit, "--from", args.From, "--dir", args.Dir, "--format", format, "--no-tui"}
+	// No --no-tui here: add/new take no TUI flag (it belongs to the root
+	// scaffolder), and passing it made this tool fail at flag parse on every
+	// call. The plumbing test below is what catches the next one (make check-mcp).
+	cli := []string{"add", args.Unit, "--from", args.From, "--dir", args.Dir, "--format", format}
 	if args.DryRun {
 		cli = append(cli, "--dry-run")
 	} else {
@@ -396,11 +425,30 @@ func handleAdvise(
 	if format == "" {
 		format = defaultFormat
 	}
-	out, err := installer.Advise(args.Need, format, args.Dir)
+	out, err := installer.Advise(args.Need, format, args.Dir, args.Intent)
 	if err != nil {
 		return nil, nil, err
 	}
 	return textResult(out), nil, nil
+}
+
+func handleExportUnit(
+	ctx context.Context, _ *mcp.CallToolRequest, args exportArgs,
+) (*mcp.CallToolResult, any, error) {
+	if args.Unit == "" || args.Dir == "" || args.To == "" {
+		return nil, nil, fmt.Errorf("unit, dir and to are all required")
+	}
+	format := args.Format
+	if format == "" {
+		format = defaultFormat
+	}
+	cli := []string{"export", args.Unit, "--dir", args.Dir, "--to", args.To, "--format", format}
+	if args.Module != "" {
+		cli = append(cli, "--module", args.Module)
+	}
+	var buf bytes.Buffer
+	err := installer.Run(ctx, cli, strings.NewReader(""), &buf)
+	return runResult(buf.String(), err)
 }
 
 // runResult maps installer outcomes to tool results: exit-2 proof failures

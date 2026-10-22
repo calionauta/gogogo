@@ -340,6 +340,7 @@ by hand, so when a step is added to one, add it to the other:
 | DagNats doc pin vs go.mod | ✓ `check-dagnats-pin` | ✓ |
 | SKILL.md frontmatter | ✓ | ✓ |
 | install.sh bootstrap contract | ✓ | ✓ |
+| MCP module tests (`cmd/gogogo-mcp` is a separate module: the root `./...` cannot see it) | ✓ `check-mcp` | ✓ (same script; also a pre-commit hook on `cmd/gogogo-mcp/**`) |
 | datastar-lint | ✓ | ✓ |
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | the upgrade loop works against real releases | — | ✅ `update-loop.yml` (weekly: scaffold the previous tag, expect "behind" and the range) |

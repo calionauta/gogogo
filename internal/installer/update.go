@@ -314,4 +314,11 @@ func printUpdateText(w io.Writer, rep updateReport) {
 		fmt.Fprint(w, " (run `gogogo migrate` to see what changed since)")
 	}
 	fmt.Fprintln(w)
+	// The CLI exits 3 when this is true, and a shell-driving agent reads a
+	// non-zero status as failure unless the output says otherwise. The code
+	// stays 3 — 0 has to keep meaning "nothing to do" — so the sentence carries
+	// the meaning the code cannot.
+	if rep.behind() {
+		fmt.Fprintln(w, "gogogo: exit 3 = an update exists (a verdict, not an error)")
+	}
 }
