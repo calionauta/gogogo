@@ -281,6 +281,22 @@ the fix is a helper with the guarantee — `gotoBoard()` / `gotoNote()` navigate
 with `load` and then wait for the canvas / textarea explicitly — not a longer
 timeout.
 
+### A test may not import a trim-managed package from outside it
+
+`trim <unit>` deletes directories, so a test that imports one must live where
+the trim can take it too. `features/todo/components/disabled_attrs_test.go`
+imported `web/skins/basecoat` to assert the same invariant on the Basecoat tree;
+`skins-extra` deletes that package, so `TestTrimmedTreeStillBuilds/skins-extra`
+and the `minimal` preset stopped **compiling**. The assertions now live in each
+tree's own package (`web/skins/basecoat/disabled_attrs_test.go`), and shared
+tests reach a skin through the registry (`skins.Active(name).Name`) and skip with
+a log line when it has been trimmed — a silent skip would be coverage loss
+wearing the same clothes as a pass.
+
+Rule of thumb: a cross-tree test belongs to the tree it asserts, or it goes
+through the registry. Never import `web/skins/{basecoat,shadcn}` (or any other
+optional unit) from a package that survives the trim.
+
 ### Tests run in parallel across packages
 
 The suite used to run as one `-p 1` sweep "for DagNats engine stability". That

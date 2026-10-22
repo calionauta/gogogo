@@ -127,6 +127,14 @@ func TestCSSOnlySkinCoversSharedMarkup(t *testing.T) {
 		readAsset(t, "app.min.css") + readAsset(t, "shadcn.min.css") + readAsset(t, "basecoat.min.css")
 
 	for _, skin := range []string{"shadcn"} {
+		// Trim-aware: `skins-extra` deletes web/skins/shadcn, and the registry
+		// then falls back to DaisyUI (with a warning) instead of failing to
+		// compile. A trimmed build has no CSS-only skin to check, so skip —
+		// but say so, because a silent skip is how a skin loses coverage.
+		if skins.Active(skin).Name != skin {
+			t.Logf("skin %q is trimmed from this build; parity sweep skipped", skin)
+			continue
+		}
 		skinCSS := chrome + app + readAsset(t, skin+".min.css")
 		var gaps, hooks []string
 		for _, class := range renderClasses(t, shared) {
@@ -158,6 +166,9 @@ func TestCSSOnlySkinKeepsItsOwnBundle(t *testing.T) {
 	html := renderOrFail(t, skins.SkinSelector("daisyui"))
 	if !strings.Contains(html, "skin-menu-item") {
 		t.Fatalf("skin selector lost its menu items; parity sweep would be vacuous")
+	}
+	if skins.Active("shadcn").Name != "shadcn" {
+		t.Skip("shadcn skin trimmed from this build (skins-extra)")
 	}
 	// The asset block comes from the registry, so assert on the rendered
 	// component rather than on a file name: a rename that left the skin

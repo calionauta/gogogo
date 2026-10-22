@@ -28,7 +28,6 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/calionauta/gogogo/features/todo"
-	"github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
 var disabledAttrRE = regexp.MustCompile(`data-attr:disabled="([^"]*)"`)
@@ -57,12 +56,14 @@ func TestRenderedDisabledAttrsAreBoolean(t *testing.T) {
 	t.Parallel()
 	signals := todoSignalsForRender()
 
+	// Only trees THIS package owns: the Basecoat tree lives in
+	// web/skins/basecoat and is asserted there, because a trimmed build
+	// (skins-extra) deletes that package and an import of it here would make
+	// the whole package's tests unbuildable (lived: it failed
+	// TestTrimmedTreeStillBuilds/skins-extra and the minimal preset).
 	cases := map[string]func() string{
 		"daisyui": func() string {
 			return renderOrFail(t, TodoList(signals))
-		},
-		"basecoat": func() string {
-			return renderOrFail(t, basecoat.TodoList(signals))
 		},
 	}
 
@@ -90,8 +91,7 @@ func TestRenderedWorkflowButtonStartsEnabled(t *testing.T) {
 	signals := todoSignalsForRender()
 
 	for skin, render := range map[string]func() string{
-		"daisyui":  func() string { return renderOrFail(t, TodoList(signals)) },
-		"basecoat": func() string { return renderOrFail(t, basecoat.TodoList(signals)) },
+		"daisyui": func() string { return renderOrFail(t, TodoList(signals)) },
 	} {
 		html := render()
 		if !strings.Contains(html, "Run durable workflow") {
