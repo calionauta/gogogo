@@ -59,7 +59,7 @@ p.write_text(s.replace('// Module is one destination in the shell.', '// Module 
 prove "dead attribute in markup" "internal/ui/shell.templ" "
 import pathlib
 p = pathlib.Path('internal/ui/shell.templ'); s = p.read_text()
-p.write_text(s.replace('class=\"app-body\"', 'class=\"app-body\" data-variant=\"ghost\"', 1))
+p.write_text(s.replace('<h1>{ d.HeadingText() }</h1>', '<h1 data-variant=\"ghost\">{ d.HeadingText() }</h1>', 1))
 " ./internal/capabilities TestNoDeadMarkupAttributes
 
 # 3b. a removed surface named in an extensionless build file (the first sweep
@@ -105,6 +105,27 @@ import pathlib
 p = pathlib.Path('internal/ui/modules.go'); s = p.read_text()
 p.write_text(s.replace('URL: \"/config\", Admin: true}', 'URL: \"/config\"}'))
 " ./internal/ui TestGroupedHidesAdminModulesFromNonAdmins
+
+# 9. release-please mapping flipped back to major
+prove "release knob maps breaking to major" ".github/release-please-config.json" "
+import json, pathlib
+p = pathlib.Path('.github/release-please-config.json'); d = json.loads(p.read_text())
+d['packages']['.']['bump-minor-pre-major'] = False
+p.write_text(json.dumps(d, indent=2) + chr(10))
+" ./internal TestReleaseConfigKeepsBreakingChangesInsideZeroX
+
+# 10. manifest hand-bumped past 0.x
+prove "manifest bumped to 1.0.0" ".github/.release-please-manifest.json" "
+import json, pathlib
+pathlib.Path('.github/.release-please-manifest.json').write_text(json.dumps({'.': '1.0.0'}, indent=2) + chr(10))
+" ./internal TestReleaseManifestStaysPreOne
+
+# 11. a template that owns <html> forgets the theme wiring
+prove "page owns <html> without ThemeRootAttrs" "features/landing/components/index.templ" "
+import pathlib, re
+p = pathlib.Path('features/landing/components/index.templ'); s = p.read_text()
+p.write_text(s.replace('<html lang=\"en\" { authviews.ThemeRootAttrs(\"\")... }>', '<html lang=\"en\">', 1))
+" ./features/authviews TestThemeTogglePagesWireTheSignal
 
 echo
 echo "red-proof: $pass passed, $fail failed"

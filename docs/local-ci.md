@@ -423,6 +423,44 @@ outage. `vendor/` stays out: hermetic, but the tree, the template clones
 and the scanners all pay for it on every change — re-evaluate only if
 proxy flakes survive the retry.
 
+## Proving a guard can fail (red-proof)
+
+A test that cannot fail reports coverage it does not have. The guards that keep
+the revamp honest — and the UX decisions it made — are each proven by mutation
+before being trusted:
+
+```bash
+bash bin/red-proof-ui.sh      # 12 cases: mutate, require red, restore, require green
+```
+
+Cases: a removed surface named in a doc / in code / in an extensionless build
+file, a dead `data-variant` back on an element, a catalog theme the bundle does
+not compile (and the reverse), a duplicate catalog entry, the `#todo-list` patch
+root renamed, an admin-only module exposed to viewers, the release knob flipped
+back to major, a manifest hand-bumped to `1.0.0`, and a template that owns
+`<html>` without the theme wiring. A `.templ` mutation re-runs
+`go tool templ generate` first — the server renders from the generated
+`*_templ.go`, so without it the mutation is invisible and the guard looks blind.
+That failure mode is real: two cases were no-ops on their first run, and the
+guards were fine.
+
+Two guards **were** blind and got rewritten:
+`TestGroupedHidesAdminModulesFromNonAdmins` checked the same `Admin` flag the
+sidebar filters by (deleting the flag deleted the assertion too — it now asserts
+against an explicit admin-only set, both directions), and the page-contract
+mutation had been hitting a doc comment quoting `#todo-list` instead of the
+element carrying it.
+
+The mobile drawer has the same treatment inside the smoke suite: at 390×844 the
+rail must start off-canvas, open from the module header, and close on Escape.
+Remove `data-class="{'is-open': $railOpen}"` from the shell and `smoke.mjs` goes
+red on that assertion.
+
+Release PRs get it from the workflow itself: the `release-guard` job fails when
+the proposed version leaves 0.x (a `1.0.0` title, or a manifest somebody bumped
+by hand), so the one PR nobody should merge by reflex is red before it is
+mergeable.
+
 ## When CI goes red
 
 1. Read the failing log step (test, lint, css-check, build).

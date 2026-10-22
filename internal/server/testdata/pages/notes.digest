@@ -1,7 +1,7 @@
 route /notes
-ids command-palette command-palette-input command-palette-list confirm-delete-note notes-list notes-realtime-resync offline-banner offline-banner-text session-banner toast-container
+ids app-rail command-palette command-palette-input command-palette-list confirm-delete-note notes-list notes-realtime-resync offline-banner offline-banner-text session-banner toast-container
 data-bind cmdQuery
 data-on data-on:click data-on:close
-signals cmdQuery confirmNoteAuthor confirmNoteId deletingNote loading sessionAuthed theme
+signals cmdQuery confirmNoteAuthor confirmNoteId deletingNote loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live
-tags a=21 aside=1 body=1 button=12 details=2 dialog=2 div=21 form=3 h1=1 h3=1 head=1 header=1 html=2 iconify=10 input=1 kbd=2 li=22 link=3 main=1 meta=2 nav=1 p=7 path=6 script=9 span=33 strong=5 style=2 summary=2 svg=6 title=1 ul=4
+tags a=21 aside=1 body=1 button=13 details=2 dialog=2 div=22 form=3 h1=1 h3=1 head=1 header=1 html=2 iconify=11 input=1 kbd=2 li=22 link=3 main=1 meta=2 nav=1 p=7 path=6 script=9 span=33 strong=5 style=2 summary=2 svg=6 title=1 ul=4

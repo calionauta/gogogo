@@ -456,6 +456,40 @@ jobs:
         # or a table scroll box with no label / keyboard access / edge fade.
         run: node scripts/site-layout.test.mjs
 
+  release-guard:
+    # A release PR is the one PR nobody should merge by reflex: it decides the
+    # version. release-please-config.json's `bump-minor-pre-major` keeps a
+    # breaking change inside 0.MINOR (pinned by internal/release_policy_test.go),
+    # but a title naming a major, or a manifest somebody bumped by hand, would
+    # still open a clean-looking 1.0.0 PR. This gate makes that a red build with
+    # a name instead of a plausible PR with a green tick.
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--branches--')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Proposed version stays inside 0.x
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, re, sys
+
+          title = os.environ["PR_TITLE"]
+          m = re.search(r"release (\d+)\.(\d+)\.(\d+)", title)
+          if not m:
+              print(f"::error::release PR title carries no version: {title!r}")
+              sys.exit(1)
+          major, minor, patch = (int(g) for g in m.groups())
+          manifest = json.load(open(".github/.release-please-manifest.json"))["."]
+          print(f"title proposes {major}.{minor}.{patch}; manifest says {manifest}")
+          if major >= 1:
+              print("::error::pre-1.0 repo: a 1.x release needs an explicit human request (AGENTS.md, Releases)")
+              sys.exit(1)
+          if not manifest.startswith("0."):
+              print(f"::error::manifest is {manifest}: 1.x is a product decision, not a merge")
+              sys.exit(1)
+          EOF
+
   ci:
     # Aggregator for branch protection: master requires a single `ci`
     # status context, and parallel jobs cannot provide a stable name —
@@ -464,7 +498,7 @@ jobs:
     # Skipped gates (docs-only changesets) are green by construction:
     # only `failure` fails this job, so the required status always
     # reports even when the heavy jobs never ran.
-    needs: [changes, checks, race, browser, prod-image, site]
+    needs: [changes, checks, race, browser, prod-image, site, release-guard]
     if: always()
     runs-on: ubuntu-latest
     steps:
