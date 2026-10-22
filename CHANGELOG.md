@@ -15,6 +15,31 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 1.0.0 (2026-10-22)
+
+## What's Changed
+* docs(upgrading): argue the merge refusal from what this repo actually does by @calionauta in https://github.com/calionauta/gogogo/pull/228
+* docs(ci): record the anonymous-API ceiling and the release-PR approval friction by @calionauta in https://github.com/calionauta/gogogo/pull/231
+* fix(deploy): sanitize the ssh host once and make the build runner a variable by @calionauta in https://github.com/calionauta/gogogo/pull/230
+* docs: rename the dependency doctrine to dependency principles by @calionauta in https://github.com/calionauta/gogogo/pull/232
+* docs(adr): drop the sentence the same-day move made false by @calionauta in https://github.com/calionauta/gogogo/pull/233
+* fix(ui): repair the data-attr, suggest-ack, shadcn and asset-cache regressions by @calionauta in https://github.com/calionauta/gogogo/pull/234
+* fix(ui): fingerprint the remaining assets, fix the ask ack, and gate the deploy on the public URL by @calionauta in https://github.com/calionauta/gogogo/pull/235
+* chore(go): pin the toolchain everywhere it is declared by @calionauta in https://github.com/calionauta/gogogo/pull/236
+* feat(cli): route the intent, export a unit into a port bundle, and gate the MCP module by @calionauta in https://github.com/calionauta/gogogo/pull/237
+* docs(readme): name the tools that actually ship by @calionauta in https://github.com/calionauta/gogogo/pull/238
+* feat(cli): report which upstream files a migration touches, and whether they apply by @calionauta in https://github.com/calionauta/gogogo/pull/239
+* fix(installer): refuse to add a unit across template releases by @calionauta in https://github.com/calionauta/gogogo/pull/240
+* feat(ci): pin the vulnerability scanner and open a PR when a Go patch ships by @calionauta in https://github.com/calionauta/gogogo/pull/242
+* fix(installer): move the paths a rename rewrites, not only the text by @calionauta in https://github.com/calionauta/gogogo/pull/244
+* feat(ui)!: one shell, one skin and themes in place of forked pages by @calionauta in https://github.com/calionauta/gogogo/pull/245
+* chore(ci): bump the actions group with 14 updates by @dependabot[bot] in https://github.com/calionauta/gogogo/pull/243
+
+## New Contributors
+* @dependabot[bot] made their first contribution in https://github.com/calionauta/gogogo/pull/243
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.54.0...v1.0.0
+
 ## 0.54.0 (2026-10-21)
 
 ## What's Changed
