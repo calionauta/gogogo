@@ -344,6 +344,12 @@ jobs:
         # a browser renders. Gated behind RUN_SMOKE=1 so `go test ./...` stays
         # port-free for developers.
         run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
+      - name: Public readiness gate contract
+        # The deploy proves the public URL serves the new build, so the gate
+        # itself needs a contract: it must PASS on the right build, FAIL on a
+        # different one, and FAIL (without hanging) on a broken path. A
+        # readiness gate that cannot fail is worse than none.
+        run: bash scripts/assert-public-ready.test.sh
       - name: Browser smoke test
         # Datastar is a global client runtime; exercise the rendered app in
         # Chromium so upgrades cannot pass Go checks while breaking signals.

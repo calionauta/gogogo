@@ -128,6 +128,12 @@ on:
 
 env:
   APP_NAME: ${{ github.event.repository.name }}
+  # The public origin users reach. The deploy proves the ORIGIN serves the new
+  # build (assert-deploy-build.sh, inside the server) AND that the PUBLIC path
+  # serves it too: the origin can be healthy while the tunnel, the vhost, or a
+  # container that has not finished binding still fails the user. That window
+  # is where the 502s came from.
+  PUBLIC_BASE_URL: https://gogogo.calionauta.com
 
 # Never run two deploys in parallel: pulling + restarting the container is
 # racy, and two runs could otherwise interleave their digest's containers. The cancel-in-progress=false keeps the first
@@ -481,3 +487,15 @@ jobs:
 
             APP_IMAGE='${APP_IMAGE}' EXPECTED_COMMIT='${EXPECTED_COMMIT}' bash \"\${APP_DIR}/scripts/deploy-prod.sh\"
           "
+
+      # ── 6. Prove the PUBLIC path, not just the origin ──
+      # The server-side assert proves the artifact took effect on 127.0.0.1.
+      # This one proves the path the user walks: tunnel + vhost + container.
+      # A deploy that only checks the origin can report green while the site
+      # answers 502 (the gateway logged "connection reset by peer" during a
+      # deploy while the app itself was healthy).
+      - name: Assert the public URL serves the new build
+        run: |
+          set -euo pipefail
+          bash scripts/assert-public-ready.sh \
+            "${EXPECTED_COMMIT}" "${{ env.PUBLIC_BASE_URL }}" 30
