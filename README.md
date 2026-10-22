@@ -251,14 +251,19 @@ the same code path with the same receipts and proof):
   invariants to not relearn. Published map of the docs site:
   `site/llms.txt` (index) + `site/llms-full.txt` (complete texts).
 - Installer CLI — `go run ./cmd/gogogo advise --need "..."` for opinions
-  (reads nothing, changes nothing), `--preset minimal|no-ai|no-collab` or
+  (reads nothing, changes nothing; `--intent` turns the opinion into the
+  ordered commands for a goal), `--preset minimal|no-ai|no-collab` or
   `--plugins/--features` keep lists + `--dry-run` to preview,
-  `gogogo add <unit>` to reverse a trim, `gogogo new feature <name>` to
-  scaffold one feature with wiring + gates + proof. Full reference:
-  [cmd/gogogo/README.md](cmd/gogogo/README.md).
-- MCP server — `cmd/gogogo-mcp` (separate module, stdio):
-  `advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`
-  (requires `confirm:true`), `check_tree`, `add_unit`, `new_feature`.
+  `gogogo add <unit>` to reverse a trim, `gogogo export <unit> --to <scratch>`
+  to take one into a tree that is not gogogo (read-only bundle + porting
+  checklist), `gogogo new feature <name>` to scaffold one feature with wiring +
+  gates + proof. Full reference: [cmd/gogogo/README.md](cmd/gogogo/README.md).
+- MCP server — `cmd/gogogo-mcp` (separate module, stdio): the same engine as
+  tools — advice and routes, trim, drift check, version and migration, add,
+  export, new feature. The served surface, with parameters, is the table in
+  [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md); that module's test
+  asserts it against the catalog, which is why this line names no list to
+drift.
   Tool table in [cmd/gogogo-mcp/README.md](cmd/gogogo-mcp/README.md).
 
 ## Try it live
