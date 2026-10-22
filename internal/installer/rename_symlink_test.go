@@ -8,27 +8,30 @@ import (
 	"testing"
 )
 
-// TestRenameTreeSkipsSymlinkedDirectories is the regression guard for the fresh
-// clone path. A real checkout registers the agent-host skills as SYMLINKS to
-// directories (.agents/skills/<name> -> ../../skills/<name>), so a walk that
-// treats every non-directory entry as a readable file hits EISDIR:
+// TestRenameTreeFollowsTheSymlinkedSkillRegistration is the regression guard
+// for the fresh clone path. A real checkout registers the agent-host skills as
+// SYMLINKS to directories (.agents/skills/<name> -> ../../skills/<name>), so a
+// walk that treats every non-directory entry as a readable file hits EISDIR:
 //
 //	gogogo: read .agents/skills/gogogo-coding-standards: is a directory
 //
 // That made the primary scaffold path (`gogogo run` / `--yes` on a clone) fail
 // on every platform, while the suite stayed green because the e2e fixture is
 // synthetic and has no symlinks.
-func TestRenameTreeSkipsSymlinkedDirectories(t *testing.T) {
+//
+// Skipping the link is still right for the CONTENT pass — its target is walked
+// at its own path — but it is not enough for the PATH pass: the registration
+// and the skill directory both carry the project name, both move, and a link's
+// target is a string no content pass can see.
+func TestRenameTreeFollowsTheSymlinkedSkillRegistration(t *testing.T) {
 	root := t.TempDir()
 
-	// The real skill content carries the module path, so skipping the link must
-	// not skip the rewrite: the target is walked at its own path.
 	realSkill := filepath.Join(root, "skills", "gogogo-coding-standards")
 	if err := os.MkdirAll(realSkill, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	skillFile := filepath.Join(realSkill, "SKILL.md")
-	if err := os.WriteFile(skillFile, []byte("module github.com/calionauta/gogogo\n"), 0o600); err != nil {
+	oldSkillFile := filepath.Join(realSkill, "SKILL.md")
+	if err := os.WriteFile(oldSkillFile, []byte("module github.com/calionauta/gogogo\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,8 +40,9 @@ func TestRenameTreeSkipsSymlinkedDirectories(t *testing.T) {
 	if err := os.MkdirAll(linkDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(linkDir, "gogogo-coding-standards")
-	if err := os.Symlink(filepath.Join("..", "..", "skills", "gogogo-coding-standards"), link); err != nil {
+	oldLink := filepath.Join(linkDir, "gogogo-coding-standards")
+	relativeTarget := filepath.Join("..", "..", "skills", "gogogo-coding-standards")
+	if err := os.Symlink(relativeTarget, oldLink); err != nil {
 		t.Skipf("symlinks unavailable here: %v", err)
 	}
 
@@ -46,19 +50,36 @@ func TestRenameTreeSkipsSymlinkedDirectories(t *testing.T) {
 		t.Fatalf("renameTree on a tree with a symlinked directory: %v", err)
 	}
 
-	got, err := os.ReadFile(skillFile)
+	if _, err := os.Stat(oldSkillFile); !os.IsNotExist(err) {
+		t.Errorf("skills/gogogo-coding-standards still exists (err=%v) — the directory has to move", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "skills", "my-app-coding-standards", "SKILL.md"))
 	if err != nil {
-		t.Fatalf("the real skill file must still be readable: %v", err)
+		t.Fatalf("the moved skill file must be readable: %v", err)
 	}
 	if !strings.Contains(string(got), "github.com/me/my-app") {
 		t.Errorf("real file was not rewritten (skipping the link must not skip the target):\n%s", got)
 	}
 
+	link := filepath.Join(linkDir, "my-app-coding-standards")
 	fi, err := os.Lstat(link)
 	if err != nil {
-		t.Fatalf("the registration symlink must be left alone: %v", err)
+		t.Fatalf("the registration was not moved alongside its skill: %v", err)
 	}
 	if fi.Mode()&os.ModeSymlink == 0 {
-		t.Errorf("the symlink was replaced by a %v entry", fi.Mode().Type())
+		t.Errorf("the registration is a %v, not a symlink", fi.Mode().Type())
+	}
+	target, err := os.Readlink(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(target, "gogogo") {
+		t.Errorf("the link target still names the old project: %q", target)
+	}
+	// The whole point of the registration: a host reads the skill THROUGH the
+	// link. A dangling link is invisible, not an error, which is why it has to
+	// be asserted.
+	if _, err := os.ReadFile(filepath.Join(link, "SKILL.md")); err != nil {
+		t.Errorf("the registration dangles after the rename: %v", err)
 	}
 }
