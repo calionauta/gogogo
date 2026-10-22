@@ -20,10 +20,14 @@ go run ./cmd/gogogo --name my-app --owner myorg \
    to proceed unattended).
 3. Deletes skipped plugins/features with their wiring calls.
 4. Renames it (same rules as `scripts/rename-project.py`: module path first,
-   bare name second, Pages host only on `--owner` change; shields `ai-credits`,
-   `datastar-lint`, `pi-leakguard`; skips generated `site/docs/`).
+   bare name second, Pages host only on `--owner` change, then every path
+   whose NAME carries the template name — `cmd/gogogo`, `cmd/gogogo-mcp`,
+   `skills/gogogo-coding-standards` and its `.agents/skills` registration —
+   because the content pass rewrites every reference to those paths; shields
+   `ai-credits`, `datastar-lint`, `pi-leakguard`; skips generated `site/docs/`).
 5. Trims what you skipped (see below), then `go mod tidy`, `make templ`,
-   proof `go build ./cmd/web`.
+   proof `go build ./cmd/web` + the toolchain pin test when the tree carries
+   it (it names files by path, so it is what catches a half-renamed tree).
 6. Writes an `AGENTS.md` in the new repo pointing agents back at the upstream
    template before they add a dependency or a feature.
    Generated code follows `skills/gogogo-coding-standards/SKILL.md`

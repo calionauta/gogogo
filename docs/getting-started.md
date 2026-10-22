@@ -40,9 +40,11 @@ What it asks (4 questions):
 What it does, in order: shows the trim plan with every consequence (never
 silent), and on confirmation clones the template when the directory is
 missing, deletes what you skipped, renames (same rules
-as `scripts/rename-project.py`), writes `AGENTS.md`, then proves it with
-`go tool templ generate` (when `.templ` changed) + `go mod tidy` +
-`go build ./cmd/web`, and prints the exact next commands
+as `scripts/rename-project.py`, which also moves `cmd/gogogo`,
+`cmd/gogogo-mcp` and `skills/gogogo-coding-standards` with the text), writes
+`AGENTS.md`, then proves it with `go tool templ generate` (when `.templ`
+changed) + `go mod tidy` + `go build ./cmd/web` + the toolchain pin test when
+the tree carries it, and prints the exact next commands
 (`cd <name> && make dev` — a child process cannot `cd` its parent, which
 is why every scaffolder from `create-vite` to `create-t3-app` prints the
 `cd` instead of doing it).

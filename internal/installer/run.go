@@ -418,7 +418,7 @@ func prove(ctx context.Context, dir string, drop []trimUnit, stdout io.Writer) e
 			err, tailLines(string(out), proofBuildTailLines))}
 	}
 	fmt.Fprintln(stdout, "gogogo: prove: build OK")
-	return nil
+	return proveToolchainPin(ctx, dir, stdout)
 }
 
 func runIn(ctx context.Context, dir, name string, args ...string) ([]byte, error) {

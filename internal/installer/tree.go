@@ -117,6 +117,48 @@ func (t *treeFS) RemoveAll(abs string) error {
 	return t.r.RemoveAll(rel)
 }
 
+// Rename moves oldAbs to newAbs under the root, creating newAbs's parent
+// directory. Confined the same way as every other operation, so a rename can
+// never walk a subtree out of the checkout.
+func (t *treeFS) Rename(oldAbs, newAbs string) error {
+	oldRel, err := t.rel(oldAbs)
+	if err != nil {
+		return err
+	}
+	newRel, err := t.rel(newAbs)
+	if err != nil {
+		return err
+	}
+	if dir := filepath.Dir(newRel); dir != "." {
+		if err := t.r.MkdirAll(dir, dirMode); err != nil {
+			return err
+		}
+	}
+	return t.r.Rename(oldRel, newRel)
+}
+
+// Readlink returns the target string of the symlink at abs.
+func (t *treeFS) Readlink(abs string) (string, error) {
+	rel, err := t.rel(abs)
+	if err != nil {
+		return "", err
+	}
+	return t.r.Readlink(rel)
+}
+
+// Symlink points abs at target, replacing the existing entry. A target that
+// resolves outside the root is refused by the kernel.
+func (t *treeFS) Symlink(target, abs string) error {
+	rel, err := t.rel(abs)
+	if err != nil {
+		return err
+	}
+	if rmErr := t.r.Remove(rel); rmErr != nil {
+		return rmErr
+	}
+	return t.r.Symlink(target, rel)
+}
+
 // copyInto copies src (a path in the trusted template tree) to abs inside the
 // root, recursively. Writes are confined: a pre-existing symlink in the
 // destination that leaves the root is refused by the kernel.
