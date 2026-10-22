@@ -62,7 +62,7 @@ JSON-config clients take the Claude Code block verbatim.
 | `check_tree` | No | Marker drift verdict per unit, plus the base revision the tree records |
 | `version_status` | No | Is this tool — and this project's recorded base — behind the latest release? Pass `dir` for the project half. "An update exists" is a verdict, not an error |
 | `migrate_plan` | No | Releases between the project's recorded base and the latest, plus the gates that prove a migrated tree. Pass `files:true` to add the per-file impact, labelled by capability and by whether this tree kept the owning unit — the "which of these apply to me" half |
-| `add_unit` | Yes (`confirm:true`) | Restore a unit (`dryRun:true` previews) |
+| `add_unit` | Yes (`confirm:true`) | Restore a unit (`dryRun:true` previews). Refuses when `from` is at a different release than the project's base |
 | `export_unit` | Only writes `to` | Port bundle for a tree that is **not** a gogogo checkout: copies the unit's owned files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). `dir` is never touched |
 | `new_feature` | Yes (`confirm:true`) | Scaffold one feature (handler + page + wiring + unit + RBAC rows) and prove the gates (`dryRun:true` previews) |
 

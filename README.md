@@ -318,12 +318,12 @@ at.
 |---|---|---|
 | Create | `gogogo --dry-run` then `--yes` (interactive, or `--preset`/`--plugins`/`--features`) | Yes — the new directory |
 | Evolve: your own slice | `gogogo new feature <name> --dir .` | Yes — inside your tree |
-| Evolve: restore a trimmed unit | `gogogo add <unit> --from <pristine> --dir .` | Yes — inside your tree |
+| Evolve: restore a trimmed unit | `gogogo add <unit> --from <pristine> --dir .` | Yes — inside your tree. Refuses a checkout from a different release than your base |
 | Update: is there anything? | `gogogo --check-update --dir .` | No. **Exit 3 means yes** |
 | Update: what changed? | `gogogo migrate --dir .` | No — a list you apply |
 | Update: which files apply to me? | `gogogo migrate --dir . --files` | No — labels each upstream file with its capability and whether you kept its unit |
 | Customize | edit freely, then `gogogo --check --dir .` | No — reports whether a marker moved; your edits win |
-| Take a unit into a non-gogogo app | `gogogo export <unit> --to <scratch>` + [porting checklist](docs/porting-into-an-existing-app.md) | Only the scratch directory |
+| Take a unit into a non-gogogo app | `gogogo export <unit> --to <scratch>` + [porting checklist](docs/porting-into-an-existing-app.md) | Only the scratch directory, and the bundle is stamped with the release it came from |
 
 Agents get the same answers as an ordered route: `advise --intent
 update|port|add-unit|new-feature|scaffold` prints the exact commands for this

@@ -324,6 +324,16 @@ func runAdd(ctx context.Context, args []string, stdin io.Reader, stdout io.Write
 	if err != nil {
 		return err
 	}
+	// Refuse a cross-release copy before showing a plan that would mix two
+	// trees. In JSON mode the skip note has nowhere to go (stdout is one
+	// document), so it is dropped — the refusal is an error either way.
+	note := stdout
+	if opt.format == planFormatJSON {
+		note = io.Discard
+	}
+	if mixErr := checkReleaseMix(opt.dir, opt.from, note); mixErr != nil {
+		return mixErr
+	}
 	if opt.format == planFormatJSON {
 		// Single JSON document per invocation: plan on dry-run,
 		// envelope on apply.
@@ -449,39 +459,6 @@ func confirmAdd(stdout io.Writer, stdin io.Reader, unitID string) bool {
 	n, _ := stdin.Read(answer[:])
 	resp := strings.ToLower(strings.TrimSpace(string(answer[:n])))
 	return resp == "y" || resp == "yes"
-}
-
-// printAddPlan previews an add: unit metadata plus what would change.
-func printAddPlan(w io.Writer, format string, u trimUnit, from, dir string) {
-	if format == planFormatJSON {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		manual := addManualWiring(u)
-		if unitPathsPresent(dir, u) {
-			manual = nil
-		}
-		_ = enc.Encode(map[string]any{
-			"unit": u.id, "from": from, "dir": dir,
-			"summary": unitOneLiner(u), "dryRun": true,
-			"manual": manual,
-		})
-		return
-	}
-	m := u.meta()
-	fmt.Fprintf(w, "gogogo: add %s (%s) from %s into %s\n", u.id, m.kind, from, dir)
-	fmt.Fprintf(w, "  copies %d path(s), %d wiring strip(s) to restore\n",
-		len(m.dirs)+len(m.files),
-		len(u.mainStrips)+len(u.desktopStrips)+len(u.extraStrips))
-	// Present units restore nothing (idempotent re-add): listing their
-	// manual lines here would read as work left to do.
-	if !unitPathsPresent(dir, u) {
-		for _, line := range addManualWiring(u) {
-			fmt.Fprintf(w, "  manual: %s\n", line)
-		}
-	}
-	for _, warn := range addFollowUps(u) {
-		fmt.Fprintf(w, "  manual follow-up: %s\n", warn)
-	}
 }
 
 func printAddJSON(w io.Writer, env addEnvelope) error {

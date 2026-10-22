@@ -24,6 +24,14 @@ upgrade: a tree that was never scaffolded has no `scaffolded-from:` marker, so
 there is no base to be behind. See
 [Porting into an existing app](porting-into-an-existing-app.md).
 
+**One release at a time.** `add` copies files *and* restores wiring anchors, so
+it refuses when the `--from` checkout is at a different release than the project's
+recorded base — it names the checkout command instead of grafting next release's
+unit onto this release's composition root. When either side cannot be versioned
+(a checkout with no changelog, a marker that predates the tag) it says the check
+was skipped rather than implying it passed. `export` labels its bundle with the
+release it copied from, so a recipe never floats silently against newer files.
+
 Exit codes are part of the contract: `--check-update` returns **3** when an
 update exists and **0** for everything else, including "could not check" (a
 read-only advisory must not fail a pipeline when the network is down). An agent
