@@ -706,10 +706,42 @@ try {
   // unit tests because the listener is inline markup.
   // One skin ships: the offline-queue contract is swept once, on /todo.
   const offlineSkins = ["daisyui"];
+  // Mobile: the sidebar is a drawer, not a scrolling strip of eight links.
+  // These assertions ARE the UX decision — the rail starts off-canvas, the
+  // module header carries the trigger, Escape closes it, and the page you
+  // navigated to is not covered by it afterwards.
+  {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    const trigger = page.locator(".app-rail-toggle");
+    if (!(await trigger.isVisible())) {
+      fail("mobile: no drawer trigger in the module header");
+    }
+    const before = await page.locator("#app-rail").boundingBox();
+    if (!before || before.x >= 0) {
+      fail(`mobile: the rail is on screen before opening (x=${before && before.x})`);
+    }
+    await trigger.click();
+    await page.waitForFunction(
+      () => document.querySelector("#app-rail").classList.contains("is-open"),
+      null,
+      { timeout: 5000 },
+    );
+    console.log("  ✓ mobile: rail starts off-canvas and opens from the header");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(
+      () => !document.querySelector("#app-rail").classList.contains("is-open"),
+      null,
+      { timeout: 5000 },
+    );
+    console.log("  ✓ mobile: Escape closes the drawer");
+    await page.setViewportSize({ width: 1280, height: 900 });
+  }
+
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
-    await verifyTodoSearch(page, skin);
-    await verifyOfflineTodoQueue(page, context, skin);
+    await verifyTodoSearch(page);
+    await verifyOfflineTodoQueue(page, context);
     if (pageErrors.length > 0) {
       fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
     }

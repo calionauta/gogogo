@@ -73,8 +73,9 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			if d.StreamPage {
 				data-stream-page="1"
 			}>
-			<div class="app-shell">
-				<aside class="app-rail" aria-label="Modules">
+			<div class="app-shell" data-signals='{"railOpen":false}'
+				data-on:keydown__window="if (evt.key === 'Escape') $railOpen = false">
+				<aside id="app-rail" class="app-rail" aria-label="Modules" data-class="{'is-open': $railOpen}">
 					<div class="app-rail-brand">
 						<a href="/">gogogo</a>
 						if d.BuildLabel != "" {
@@ -90,7 +91,8 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									class={ templ.Classes("app-rail-item", map[string]bool{"is-active": m.ID == d.Module}) }
 									aria-current={ activeCurrent(m.ID == d.Module) }
 									data-cuelume-hover="tick"
-									data-cuelume-press="toggle">
+									data-cuelume-press="toggle"
+									data-on:click="$railOpen = false">
 									<iconify-icon icon={ m.Icon } class="app-rail-icon"></iconify-icon>
 									<span class="app-rail-label">{ m.Title }</span>
 									if m.Count > 0 {
@@ -117,8 +119,18 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						@authviews.UserMenu(d.Email, d.Role)
 					</div>
 				</aside>
+				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false"></div>
 				<div class="app-main">
 					<header class="app-module-header">
+						<button
+							type="button"
+							class="app-rail-toggle"
+							aria-label="Open navigation"
+							aria-controls="app-rail"
+							data-attr:aria-expanded={ "$railOpen ? 'true' : 'false'" }
+							data-on:click="$railOpen = true">
+							<iconify-icon icon="material-symbols:menu"></iconify-icon>
+						</button>
 						<div class="app-module-titles">
 							<h1>{ d.HeadingText() }</h1>
 							if d.Context != "" {
