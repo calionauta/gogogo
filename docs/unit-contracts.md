@@ -33,7 +33,7 @@ cookie sessions + middleware (flat auth + shared login UI)
 - **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`
 - **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.LatestMagicTokenForUser`, `dbgen.LinkOAuthAccount`, `dbgen.SetTOTPSecret`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
 - **Trim:** manual (no installer unit)
-- **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login/navbar/theme components. No framework middleware remains; the owned stack is the whole story.
+- **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login page and shell controls. No framework middleware remains; the owned stack is the whole story.
 
 ## `crudwire` — core
 
@@ -207,7 +207,7 @@ generative UI: LLM answers render as Templ directives over the SSE hub
 - **Routes:** `/api/genui/ask`, `/api/genui/stream`, `/genui`
 - **Store calls:** `dbgen.ListTodosByOwner`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** Deletion removes the Ask demo + chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The navbar Ask AI link is stripped automatically.
+- **Note:** Deletion removes the Ask demo + chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Ask AI sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without genui (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
 
 ## `goakt` — plugin
@@ -218,7 +218,7 @@ entity actors (GoAkt rooms: roster + presenter lock)
 - **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/join`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
 - **Runtime off:** `GOAKT_ENABLED=false`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** Deletion removes the engine + room demo. The navbar Room link is stripped automatically; main.go boot lines go with the unit's mainStrips.
+- **Note:** Deletion removes the engine + room demo. The Room sidebar entry is stripped automatically; main.go boot lines go with the unit's mainStrips.
 - **Warning:** Runtime alternative (no deletion): GOAKT_ENABLED=false.
 
 ## `llm` — plugin
@@ -288,7 +288,7 @@ auth-gated read-only /config view
 - **Store calls:** `dbgen.GetUserByEmail`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Warning:** The navbar Config link is stripped automatically.
+- **Warning:** The Config sidebar entry is stripped automatically.
 
 ## `landing` — feature
 
@@ -298,7 +298,7 @@ public marketing page on GET /
 - **Routes:** `/`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Warning:** GET / will 404 (landing owned the only root route); the navbar brand is retargeted to /todo, which is kept.
+- **Warning:** GET / will 404 (landing owned the only root route); the shell brand is retargeted to /todo, which is kept.
 
 ## `notes` — feature
 
@@ -309,7 +309,7 @@ shared plain-text notes (server-owned Loro Text + SSE)
 - **Store calls:** `dbgen.DeleteNote`, `dbgen.GetNoteMeta`, `dbgen.ListNotes`, `dbgen.UpsertNote`
 - **Depends on:** collab, sounds
 - **Trim:** manual (no installer unit)
-- **Note:** Manual removal (or trim the whiteboard unit, which covers whiteboard+collab+notes): delete the dir + the notes roots in buildChiMux (internal/server/chi.go), remove the Notes navbar link in features/authviews/navbar.templ, and remove this entry.
+- **Note:** Manual removal (or trim the whiteboard unit, which covers whiteboard+collab+notes): delete the dir + the notes roots in buildChiMux (internal/server/chi.go), remove the Notes sidebar entry in internal/ui/modules.go, and remove this entry.
 
 ## `review` — feature
 
@@ -319,8 +319,8 @@ review loop demo (writer → critic → classifier judge, streamed verdict)
 - **Routes:** `/api/review/run`, `/review`
 - **Depends on:** genkit
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the trimmed-tree conformance, the same reason SimulatedLLM is unclaimed. Trim removes the navbar link, so no dead UI either way. DependsOn lists genkit only: llm is never trimmed (runtime-off is blessed), so declaring it would break `gogogo add review` (add fails on deps no unit provides) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
-- **Warning:** The navbar Review link is stripped automatically.
+- **Note:** No UISignal claim by design: the run UI gates on the todo.Signals ReviewEnabled field at runtime (keyless hides it), but the only .templ reader ships inside features/review — claiming it would fail the trimmed-tree conformance, the same reason SimulatedLLM is unclaimed. Trim removes the sidebar entry, so no dead UI either way. DependsOn lists genkit only: llm is never trimmed (runtime-off is blessed), so declaring it would break `gogogo add review` (add fails on deps no unit provides) for zero mechanical gain — the LLM requirement rides the Summary and docs instead.
+- **Warning:** The Review sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without review (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
 
 ## `room` — feature
@@ -330,7 +330,7 @@ room presence demo (one grain per room, crash hook included)
 - **Owned:** `features/room`
 - **Routes:** `/room`, `/room/acquire`, `/room/crash`, `/room/heartbeat`, `/room/join`, `/room/leave`, `/room/release`, `/room/roster`, `/room/stream`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Warning:** The navbar Room link is stripped automatically.
+- **Warning:** The Room sidebar entry is stripped automatically.
 
 ## `todo` — feature
 
@@ -351,6 +351,6 @@ collaborative canvas (Loro + Rough.js + presence)
 - **Store calls:** `dbgen.BumpBoardVersion`, `dbgen.DeleteBoard`, `dbgen.GetBoardMeta`, `dbgen.ListBoards`, `dbgen.UpsertBoard`
 - **Depends on:** collab, sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Warning:** The navbar Whiteboard link is stripped automatically.
+- **Warning:** The Whiteboard sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without whiteboard (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
 

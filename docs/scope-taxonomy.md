@@ -148,7 +148,7 @@ its top-level unit too).
 | `internal/observability/` | 🔴 CORE | Never — slog + tracing |
 | `internal/hostgate/` | 🔴 CORE | Never — test-capacity gate (tune with `HOSTGATE_*`) |
 | `features/app/` | 🟡 PLUGIN | Delete it to drop `cmd/gui`'s dependency bundle; `cmd/web` never links it (handlers take their deps directly) |
-| `features/authviews/` | 🔴 CORE | Holds the shared navbar/theme every page renders; the login page itself is manual removal |
+| `features/authviews/` | 🔴 CORE | Holds the shared shell controls (theme, user menu, palette) every page renders; the login page itself is manual removal |
 | `web/resources/` | 🔴 CORE | Never — embedded static assets |
 | `internal/datastar/` | 🟡 PLUGIN | Swap for another implementation, or delete + the wiring call in every page (manual) |
 | `internal/components/` | 🟡 PLUGIN | Shared UI (Toast, SessionBanner, OfflineBanner, RealtimeResync) — 14 importers, so removal is manual |
@@ -158,7 +158,7 @@ its top-level unit too).
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/goakt/` | 🟡 PLUGIN | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
 | `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
-| `web/skins/` | 🟡 PLUGIN | Delete + drop blank imports in `features/todo/components/skin_imports.go` + drop `SkinSelector` from navbar |
+| `web/skins/` | 🟡 PLUGIN | Delete + drop blank imports in `features/todo/components/skin_imports.go` + drop the theme picker from the shell footer |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
 | `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
 | `features/onboarding/` | 🟡 PLUGIN | The workflow engine side of the durable run — goes with `internal/dagnats/` |
@@ -167,7 +167,7 @@ its top-level unit too).
 | `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so the two trim together) |
 | `features/review/` | 🟢 FEATURE | Delete package + `bootReview`/`reviewH` lines + `/review` mounts in `internal/server/chi.go` (+ `newReviewHandlerForTest` in its test) + `go mod tidy` (drops genkit + go-jev) |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
-| `features/notes/` | 🟢 FEATURE | Manual: delete the dir + its roots in `buildChiMux` + the navbar link |
+| `features/notes/` | 🟢 FEATURE | Manual: delete the dir + its roots in `buildChiMux` + the `[]Module` entry in `internal/ui/modules.go` |
 | `features/room/` | 🟢 FEATURE | The room demo page; the engine behind it is the `goakt` plugin (either class is accepted for this dir — both units own it) |
 | `features/landing/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/config/` | 🟢 FEATURE | Delete package + wiring call |
@@ -187,8 +187,7 @@ another package imports the deleted one. Check these when you trim:
 | **LLM** | `internal/llm/` | ⚠️ `features/todo/handlers/suggest_test.go` |
 | **Turso queries** | (only layer) | There is no strategy switch anymore: handlers call `dbgen.*` directly |
 | **Idempotency** | `internal/dbschema/migrations/0001_init.sql` (`todos_idem_key_unique`) + `features/todo/handlers/mutations.go` | Drop the partial unique index and the `GetTodoByIdemKey` dedupe branch, then the `idem_key` query param from `todo_list.templ` |
-| **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` from the navbar |
-| **Skins** | `web/skins/` | Drop blank imports + the `SkinSelector` navbar call |
+| **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` from each page's `*Sound()` wrapper.ActiveAssets` in the shell |
 
 **After any removal, run `make test`** (not a bare `go test ./...` — that
 compiles `cmd/desktop`/`cmd/gui`, which need GTK + WebKit headers; see

@@ -372,7 +372,7 @@ func TestWhiteboard_NewBoardRedirect(t *testing.T) {
 	}
 }
 
-// TestWhiteboard_BoardPageShowsLoggedInNav pins the authed navbar on the
+// TestWhiteboard_BoardPageShowsLoggedInNav pins the authed shell on the
 // board page (the sign-out link only renders for a session).
 func TestWhiteboard_BoardPageShowsLoggedInNav(t *testing.T) {
 	server, _, cookie := wbPortFixture(t)
@@ -385,7 +385,7 @@ func TestWhiteboard_BoardPageShowsLoggedInNav(t *testing.T) {
 	}
 	body := readAll(t, resp)
 	if !strings.Contains(body, "/logout") {
-		t.Fatal("board page missing the /logout link (navbar not logged-in-shaped)")
+		t.Fatal("board page missing the /logout link (shell not logged-in-shaped)")
 	}
 }
 

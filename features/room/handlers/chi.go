@@ -164,7 +164,7 @@ func writeText(w http.ResponseWriter, code int, msg string) {
 
 // owner resolves the member email + role, or redirects guests to
 // sign-in. The role rides along so the page can show it and gate the
-// operator surfaces (navbar); it is a display value, never a gate.
+// operator surfaces (shell); it is a display value, never a gate.
 func (h *Handler) owner(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 	sess, err := h.auth.Session(r)
 	if err != nil || sess.User == nil {

@@ -22,7 +22,7 @@ import (
 // Index renders the landing page. userEmail is empty for guests
 // (Sign in CTA shows) and the authed email for signed-in users.
 // buildLabel/buildCommit are surfaced on the version badge so the
-// landing page matches the navbar's build feedback.
+// landing page matches the shell's build feedback.
 templ Index(userEmail string, userRole string, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs("")... }>
@@ -65,7 +65,21 @@ templ Index(userEmail string, userRole string, buildLabel string, buildCommit st
 			</style>
 		</head>
 		<body class="bg-base-100 min-h-screen">
-			@authviews.Navbar(userEmail, userRole, "", buildLabel, buildCommit, skinName)
+			<!-- The landing is a Decide surface, outside internal/ui.Shell: it
+			     carries a public header (brand, build badge, palette, account)
+			     instead of the module navigation, which belongs to the app. -->
+			<header class="app-nav">
+				<div class="app-nav-start">
+					<a href="/" class="app-nav-brand">gogogo</a>
+					<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
+				</div>
+				<div class="app-nav-end">
+					@authviews.CommandPalette(userRole)
+					@authviews.ThemeToggle()
+					@sounds.SoundToggle()
+					@authviews.UserMenu(userEmail, userRole)
+				</div>
+			</header>
 			<main class="landing-hero">
 				<div class="landing-card">
 					<header class="text-center mb-6">

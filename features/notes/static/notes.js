@@ -20,7 +20,7 @@
 (function () {
   "use strict";
 
-  const main = document.querySelector("main[data-doc-id]");
+  const main = document.querySelector("[data-doc-id]");
   const DOC = main ? main.dataset.docId : "";
   if (!DOC) {
     console.error("notes: missing data-doc-id");

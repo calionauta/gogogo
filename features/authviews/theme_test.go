@@ -1,14 +1,14 @@
 // SCOPE:feature — Theme toggle contract
 //
-// The suite renders the navbar from features/authviews and pins the
+// The suite renders the shell from features/authviews and pins the
 // single-toggle path (signal flip, icon sync, persistence order) plus the
 // shared storage key across ThemeHead, the button expression, and the
 // theme.js module — one owner, one button, one storage key. Rooted where
 // the templates actually live: this package owns theme_head.templ and
-// navbar.templ.
+// shell.templ.
 //
 // It also pins the OTHER half of the contract, which is what a page can get
-// wrong: the toggle is inside Navbar, so every page that renders Navbar must
+// wrong: the toggle is inside Shell, so every page that renders Shell must
 // ALSO wire the `$theme` signal to <html>. Miss the wiring and the button
 // still renders and still runs, but nothing observes the signal — the click
 // hides both icons and the theme never changes (the exact failure the
@@ -85,18 +85,17 @@ func walkTemplSources(t *testing.T, root string, fn func(rel, text string) error
 // TestThemeToggleSingleOwner pins the shared theme-toggle contract.
 func TestThemeToggleSingleOwner(t *testing.T) {
 	var buf bytes.Buffer
-	nb := authviews.Navbar("demo1@demo.app", "admin", "todo", "dev", "c0ffee", "daisyui")
-	if err := nb.Render(context.Background(), &buf); err != nil {
-		t.Fatalf("render navbar: %v", err)
+	if err := authviews.ThemeToggle().Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render theme toggle: %v", err)
 	}
 	html := buf.String()
 	start := strings.Index(html, "app-theme-toggle")
 	if start < 0 {
-		t.Fatal("navbar missing the theme toggle button")
+		t.Fatal("theme toggle button missing")
 	}
 	end := strings.Index(html[start:], "</button>")
 	if end < 0 {
-		t.Fatal("navbar theme button never closes")
+		t.Fatal("theme button never closes")
 	}
 	button := html[start : start+end]
 	if !strings.Contains(button, "theme-toggle") {
@@ -138,14 +137,14 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 }
 
 // TestThemeTogglePagesWireTheSignal is the other half, and the one that
-// actually caught a shipped bug. The toggle lives in Navbar, so rendering
-// Navbar puts a working-looking button on the page. The button flips
+// actually caught a shipped bug. The toggle lives in Shell, so rendering
+// Shell puts a working-looking button on the page. The button flips
 // `$theme` and then calls Theme.syncIcons — but if <html> does not carry the
 // bindings, nothing observes `$theme`: the icon sync hides BOTH icons (the
 // CSS reveals the moon only under `html.dark`) and the theme never changes.
 // The user sees the button vanish.
 //
-// Contract: a page that renders Navbar must either spread the shared
+// Contract: a page that renders Shell must either spread the shared
 // authviews.ThemeRootAttrs helper (the canonical form — see
 // theme_root.go) or carry the three bindings itself:
 //
@@ -162,9 +161,15 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 // in the template's <html> element, and a render-based test would need to
 // drive every page's handler.
 //
-// red: `features/config/components/page.templ`, `features/room/components/page.templ`
-// and `features/landing/components/index.templ` shipped with the Navbar and
-// none of the three bindings.
+// The set of templates that own a `<html>` element is now small on purpose:
+// `internal/ui/shell.templ` (every module page) plus the two Decide surfaces
+// that stay outside the shell (landing, login). Each one must spread the shared
+// helper; the failure message names the file so a new page cannot ship with a
+// toggle that renders and does nothing.
+//
+// red: `features/config/components/page.templ` and
+// `features/room/components/page.templ` once shipped with the toggle wired by
+// hand and one binding missing.
 func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 	const helper = "ThemeRootAttrs("
 
@@ -172,10 +177,12 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 	var bad []string
 
 	walkTemplSources(t, "../..", func(rel, text string) error {
-		// Only pages that actually put the toggle on screen. The Navbar
-		// component itself is skipped: it holds the button but no <html>,
-		// and the assertion below is about the document element.
-		if !strings.Contains(text, "<html") || !strings.Contains(text, "authviews.Navbar(") {
+		// Only templates that own the document element. A component that holds
+		// the button but no <html> is skipped: the assertion is about the
+		// element the bindings have to sit on.
+		// Match the ELEMENT, not the word: this package's own comments and an
+		// inline script mention `<html>` while owning no document.
+		if !strings.Contains(text, "<html lang") {
 			return nil
 		}
 		checked++
@@ -204,10 +211,10 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 	})
 
 	if checked == 0 {
-		t.Fatal("no page renders Navbar with <html> — the scan found nothing to check")
+		t.Fatal("no template owns <html> — the scan found nothing to check")
 	}
 	if len(bad) > 0 {
-		t.Errorf("a page renders the theme toggle but does not wire $theme to "+
+		t.Errorf("<html> owner that does not wire $theme to "+
 			"<html> (use authviews.ThemeRootAttrs, or carry the three bindings), "+
 			"so clicking it hides both icons and changes nothing:\n  %s",
 			strings.Join(bad, "\n  "))
@@ -217,7 +224,7 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 // TestIconifyIsLoadedOnceByTheHead pins the second half of the toggle bug,
 // which was invisible in the markup: <iconify-icon> is a web component, so
 // without /static/iconify-icon.min.js the tag lays out at 0x0 and the icon
-// simply is not there. The navbar's theme and sound toggles are iconify icons,
+// simply is not there. The shell's theme and sound toggles are iconify icons,
 // so a page missing the script shows a button that appears to vanish when the
 // icon swaps — the reported "click it and it disappears".
 //
@@ -228,7 +235,7 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 //     three pages forget it).
 //
 // red: features/room/components/body.templ
-// carried the navbar's iconify icons with no script tag at all, and eight
+// carried the shell's iconify icons with no script tag at all, and eight
 // other pages each carried their own copy.
 func TestIconifyIsLoadedOnceByTheHead(t *testing.T) {
 	const scriptTag = "iconify-icon.min.js"
@@ -251,7 +258,9 @@ func TestIconifyIsLoadedOnceByTheHead(t *testing.T) {
 		// renders inside a page that already carries ThemeHead, so it is
 		// not required to include one — and requiring it would be wrong,
 		// since a component has no <head> to put it in.
-		if !strings.Contains(text, "<html") {
+		// Match the ELEMENT, not the word: this package's own comments and an
+		// inline script mention `<html>` while owning no document.
+		if !strings.Contains(text, "<html lang") {
 			return nil
 		}
 		if strings.Contains(text, "<iconify-icon") && !strings.Contains(text, "ThemeHead(") {

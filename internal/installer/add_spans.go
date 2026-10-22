@@ -132,8 +132,6 @@ func addManualWiring(u trimUnit) []string {
 // strip was correct, only the re-insertion site was missing.
 func templSpanAnchor(path string) (spanAnchor, bool) {
 	switch path {
-	case navbarTempl:
-		return spanAnchor{afterContains: navLinkAnchorSubstr}, true
 	case todoListTempl:
 		return anchorBefore(todoEntryButtonAnchor), true
 	case todoGoFile:

@@ -3,13 +3,13 @@
 // Adds interaction sounds to the app through the vendored cuelume library
 // (web/resources/static/cuelume/, MIT — not a package dependency). This
 // package is the plugin's Go surface: it renders the script loader and the
-// navbar mute toggle. All behavior lives in the self-contained glue module
+// footer mute toggle. All behavior lives in the self-contained glue module
 // web/resources/static/cuelume.js, which ships the best practices out of
 // the box:
 //
 //   - prefers-reduced-motion is respected by default — OS-level reduced
 //     motion auto-mutes and reacts to runtime preference changes.
-//   - Global mute: a persistent toggle in the navbar (stored in
+//   - Global mute: a persistent toggle in the shell footer (stored in
 //     localStorage under "gogogo_sound"), keyboard-accessible via
 //     aria-pressed on the button.
 //   - Subtle default volume (cuelume's mixer runs hot; 0.4 keeps the cues
@@ -26,19 +26,19 @@
 //   - Toast appears → cue by toast type: success → "success",
 //     error → "error", warning → "loading", info → "page"
 //     (MutationObserver on #toast-container).
-//   - Navbar hover → "tick", navbar press → "toggle" (explicit
+//   - Shell hover → "tick", shell press → "toggle" (explicit
 //     data-cuelume-* attrs, the only per-element wiring in the app).
 //   - Destructive press (todo delete) → "droplet" (explicit override).
 //   - Sound re-enabled → "chime" (confirmation the system is live;
 //     muting plays nothing on purpose).
 //
 // A new feature gets full sound behavior by rendering the shared toast
-// container + navbar: no per-feature JS, no per-button attrs, unless it
+// container + shell: no per-feature JS, no per-button attrs, unless it
 // needs an override from the table above.
 //
 // REMOVE (plugin): delete this package, drop @sounds.SoundAssets() from
 // the page layouts (features/todo/components/layout.templ, landing,
 // config, auth LoginPage, whiteboard) and @sounds.SoundToggle() from the
-// navbar (features/authviews/navbar.templ), then delete
+// shell (features/authviews/shell.templ), then delete
 // web/resources/static/cuelume.js + web/resources/static/cuelume/.
 package sounds

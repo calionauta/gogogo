@@ -1,7 +1,7 @@
 // SCOPE:feature — HTTP landing page (public marketing hero)
 //
 // Same path, same component (shared Index), no auth gate: guests and
-// signed-in users see the same hero, with the navbar email filled when a
+// signed-in users see the same hero, with the account email filled when a
 // session exists.
 package handlers
 
@@ -17,7 +17,7 @@ import (
 )
 
 // Handler serves the landing page on chi. Auth is optional: a session
-// only fills the navbar email, never gates.
+// only fills the account email, never gates.
 type Handler struct {
 	cfg  *config.Config
 	auth *auth.Auth

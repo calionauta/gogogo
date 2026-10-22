@@ -42,7 +42,7 @@ internal/
   server/                         Flat-stack composition (BootChi + buildChiMux)
 features/
   app/                            AppContext bundle (consumed by cmd/gui only)
-  authviews/                      Login/navbar/theme components
+  authviews/                      Login page + shell controls (theme, user menu, palette)
   landing/                        Public marketing hero on GET /
   config/                         Auth-gated read-only /config view
   todo/                           Todo MVC example

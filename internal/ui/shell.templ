@@ -30,6 +30,9 @@ type Data struct {
 	BuildLabel  string             // running build, shown in the sidebar footer
 	BuildCommit string             // commit, exposed via title= on the badge
 	Skin        string             // active skin name ("" = default)
+	Signals     string             // the page's own seeded signal JSON ("" = none)
+	StreamPage  bool               // marks a page that opens its own EventSource (session.js)
+	FullBleed   bool               // body without padding, for canvas pages
 	OfflineSync bool               // offline outbox wired
 	Stack       []components.TechItem // layers this page demonstrates (0 = no key)
 }
@@ -53,7 +56,7 @@ func (d Data) HeadingText() string {
 // dependency (its capability unit deliberately carries none).
 templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.Component, body templ.Component) {
 	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
+	<html lang="en" { authviews.ThemeRootAttrs(d.Signals)... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -65,7 +68,11 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			}
 			@components.OfflineSyncScript(d.OfflineSync)
 		</head>
-		<body class="bg-base-200 min-h-screen">
+		<body
+			class="bg-base-200 min-h-screen"
+			if d.StreamPage {
+				data-stream-page="1"
+			}>
 			<div class="app-shell">
 				<aside class="app-rail" aria-label="Modules">
 					<div class="app-rail-brand">
@@ -81,7 +88,9 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								<a
 									href={ templ.SafeURL(m.URL) }
 									class={ templ.Classes("app-rail-item", map[string]bool{"is-active": m.ID == d.Module}) }
-									aria-current={ activeCurrent(m.ID == d.Module) }>
+									aria-current={ activeCurrent(m.ID == d.Module) }
+									data-cuelume-hover="tick"
+									data-cuelume-press="toggle">
 									<iconify-icon icon={ m.Icon } class="app-rail-icon"></iconify-icon>
 									<span class="app-rail-label">{ m.Title }</span>
 									if m.Count > 0 {
@@ -116,15 +125,16 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								<p class="app-module-context">{ d.Context }</p>
 							}
 						</div>
-						if actions != nil {
-							<div class="app-module-actions">
+						<div class="app-module-actions">
+							@authviews.CommandPalette(d.Role)
+							if actions != nil {
 								@actions
-							</div>
-						}
+							}
+						</div>
 					</header>
 					@components.OfflineBanner(d.OfflineSync)
 					@components.SessionBanner(d.Email != "")
-					<main class="app-body">
+					<main class={ templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed}) }>
 						@body
 					</main>
 				</div>

@@ -13,16 +13,22 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
 // ReviewIndex renders the review page: tab picker (text/code), content
 // form, live phased progress, verdict fragment. The run button gates on
 // signals.ReviewEnabled — without a configured LLM the page shows the
 // setup hint instead of a dead button.
+// ReviewIndex renders the writer/critic/judge page. The document, assets,
+// sidebar, header and toast root belong to internal/ui.Shell; this file is the
+// page: its signals, the composer, the streamed result.
+//
+// The title, the one-line demo sentence and the stack pills that used to open
+// the page are gone: the layers live in the sidebar's stack key, and the
+// header carries state ("writer → critic → judge, N rounds") instead of prose.
 func ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, skinName string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -44,100 +50,157 @@ func ReviewIndex(email string, userRole string, buildLabel string, buildCommit s
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"")
+		templ_7745c5c3_Err = ui.Shell(ui.Data{
+			Title:       "Review — gogogo",
+			Module:      "review",
+			Context:     reviewContext(signals),
+			Email:       email,
+			Role:        userRole,
+			BuildLabel:  buildLabel,
+			BuildCommit: buildCommit,
+			Skin:        skinName,
+			OfflineSync: true,
+			Signals:     MarshalSignals(signals),
+			Stack:       reviewStack(),
+		}, reviewHead(), reviewSound(), nil, reviewBody(signals)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, authviews.ThemeRootAttrs(MarshalSignals(signals)))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		return nil
+	})
+}
+
+// reviewHead is this page's own <head> extras, as a one-line wrapper: the
+// installer's sounds trim drops that line by substring (see soundsDropLines).
+func reviewHead() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Review — gogogo</title>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
 		}
-		templ_7745c5c3_Err = skins.ActiveAssets(skinName).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var2 == nil {
+			templ_7745c5c3_Var2 = templ.NopComponent
 		}
-		templ_7745c5c3_Err = authviews.ThemeHead().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
+		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = sounds.SoundAssets().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.OfflineSyncScript(true).Render(ctx, templ_7745c5c3_Buffer)
+		return nil
+	})
+}
+
+// reviewSound is the shell's mute control for this page.
+func reviewSound() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = sounds.SoundToggle().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		return nil
+	})
+}
+
+// reviewContext is the header's context slot: the pipeline, and whether it can
+// run at all in this environment.
+func reviewContext(signals Signals) string {
+	if !signals.ReviewEnabled {
+		return "writer → critic → judge · no provider configured"
+	}
+	return "writer → critic → judge · classifier verdict · SSE"
+}
+
+// reviewStack is what this page demonstrates, in the sidebar's stack key.
+func reviewStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "Genkit flows", Note: "writer/critic/judge loop"},
+		{Name: "GoAI", Note: "provider client for the LLM"},
+		{Name: "SSE stream", Note: "phases stream with heartbeats"},
+		{Name: "Jev judge", Note: "compatible classifier verdict"},
+	}
+}
+
+// reviewBody is the work area: the composer and the result region.
+func reviewBody(signals Signals) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
 		}
-		templ_7745c5c3_Err = authviews.Navbar(email, userRole, "review", buildLabel, buildCommit, skinName).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
 		}
-		templ_7745c5c3_Err = components.OfflineBanner(true).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
-		templ_7745c5c3_Err = components.SessionBanner(email != "").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"container mx-auto p-4 max-w-2xl\"><h1 class=\"text-2xl font-bold\">Review</h1><p class=\"text-sm text-base-content/60 mt-1 mb-1\">Paste text or a diff — a writer and a critic iterate, then a classifier judge delivers the verdict.</p>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = components.TechStack([]components.TechItem{
-			{Name: "Genkit flows", Note: "writer/critic/judge loop"},
-			{Name: "GoAI", Note: "provider client for the LLM"},
-			{Name: "SSE stream", Note: "phases stream with heartbeats"},
-			{Name: "Jev judge", Note: "compatible classifier verdict"},
-		}).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"mb-4\"></div>")
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"mx-auto max-w-2xl\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if signals.ReviewEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<form id=\"review-composer\" data-on:submit__prevent=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<form id=\"review-composer\" data-on:submit__prevent=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("$review_pending = true; $review_error = ''; @post('/api/review/run', {contentType: 'form'})")
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$review_pending = true; $review_error = ''; @post('/api/review/run', {contentType: 'form'})")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 48, Col: 125}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 76, Col: 125}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($review_pending = false, $review_error = 'Request failed — check your connection and try again.') : null\" data-cuelume=\"send\"><div class=\"mb-3\"><label for=\"review-tab\" class=\"label-text mb-1\">What to review</label> <select id=\"review-tab\" name=\"tab\" class=\"select select-bordered w-full max-w-xs\"><option value=\"text\">Text — email, post, announcement</option> <option value=\"code\">Code — diff or snippet</option></select></div><label for=\"review-content\" class=\"form-control w-full\"><span class=\"label-text mb-1\">Content to review</span> <textarea id=\"review-content\" name=\"content\" required minlength=\"1\" maxlength=\"6000\" rows=\"8\" placeholder=\"Paste an email, a post — or a diff\" class=\"textarea textarea-bordered w-full\"></textarea></label><div class=\"mt-3 flex items-center gap-3\"><button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"!!$review_pending\"><span data-show=\"!$review_pending\">Run review</span> <span data-show=\"$review_pending\" class=\"loading loading-spinner loading-sm\" aria-hidden=\"true\"></span> <span data-show=\"$review_pending\">Reviewing…</span></button> <span data-show=\"$review_pending\" class=\"text-sm text-base-content/60\">Phase: <span data-text=\"$review_phase\"></span></span></div></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($review_pending = false, $review_error = 'Request failed — check your connection and try again.') : null\" data-cuelume=\"send\"><div class=\"mb-3\"><label for=\"review-tab\" class=\"label-text mb-1\">What to review</label> <select id=\"review-tab\" name=\"tab\" class=\"select select-bordered w-full max-w-xs\"><option value=\"text\">Text — email, post, announcement</option> <option value=\"code\">Code — diff or snippet</option></select></div><label for=\"review-content\" class=\"form-control w-full\"><span class=\"label-text mb-1\">Content to review</span> <textarea id=\"review-content\" name=\"content\" required minlength=\"1\" maxlength=\"6000\" rows=\"8\" placeholder=\"Paste an email, a post — or a diff\" class=\"textarea textarea-bordered w-full\"></textarea></label><div class=\"mt-3 flex items-center gap-3\"><button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"!!$review_pending\"><span data-show=\"!$review_pending\">Run review</span> <span data-show=\"$review_pending\" class=\"loading loading-spinner loading-sm\" aria-hidden=\"true\"></span> <span data-show=\"$review_pending\">Reviewing…</span></button> <span data-show=\"$review_pending\" class=\"text-sm text-base-content/60\">Phase: <span data-text=\"$review_phase\"></span></span></div></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"alert alert-warning\" role=\"status\"><span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"alert alert-warning\" role=\"status\"><span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"mt-2 text-sm text-error\" data-show=\"$review_error !== ''\" data-text=\"$review_error\" role=\"alert\"></div><div class=\"mt-6\" id=\"review-result\"></div></main>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = components.ToastContainer().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"mt-2 text-sm text-error\" data-show=\"$review_error !== ''\" data-text=\"$review_error\" role=\"alert\"></div><div class=\"mt-6\" id=\"review-result\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -176,112 +239,112 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div id=\"review-result\" class=\"card bg-base-200 shadow\"><div class=\"card-body\"><h2 class=\"card-title\">Verdict: ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(decision)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 113, Col: 23}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <span class=\"badge badge-outline\">confidence ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f", confidence))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 114, Col: 82}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span> <span class=\"badge badge-outline\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d rounds", rounds))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 115, Col: 72}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span></h2><p class=\"text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"review-result\" class=\"card bg-base-200 shadow\"><div class=\"card-body\"><h2 class=\"card-title\">Verdict: ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(rationale)
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(decision)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 117, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 138, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <span class=\"badge badge-outline\">confidence ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f", confidence))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 139, Col: 82}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span> <span class=\"badge badge-outline\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d rounds", rounds))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 140, Col: 72}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></h2><p class=\"text-sm\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(rationale)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 142, Col: 33}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if needsHuman {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"alert alert-info mt-2\" role=\"status\"><span>A human should decide — approve the proposal below or revise and re-run.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"alert alert-info mt-2\" role=\"status\"><span>A human should decide — approve the proposal below or revise and re-run.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if criticVerdict == criticRevised {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<h3 class=\"font-semibold mt-3 mb-1\">Critique</h3><pre class=\"whitespace-pre-wrap text-sm bg-base-100 rounded p-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<h3 class=\"font-semibold mt-3 mb-1\">Critique</h3><pre class=\"whitespace-pre-wrap text-sm bg-base-100 rounded p-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(critique)
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(critique)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 125, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 150, Col: 79}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</pre>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</pre>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if proposal != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<h3 class=\"font-semibold mt-3 mb-1\">Proposal</h3><pre class=\"whitespace-pre-wrap text-sm bg-base-100 rounded p-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<h3 class=\"font-semibold mt-3 mb-1\">Proposal</h3><pre class=\"whitespace-pre-wrap text-sm bg-base-100 rounded p-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(proposal)
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(proposal)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 129, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 154, Col: 79}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</pre>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</pre>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -314,12 +377,12 @@ func ReviewPending() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div id=\"review-result\" class=\"card bg-base-200/40 border border-dashed border-base-300\" aria-busy=\"true\"><div class=\"card-body\"><p class=\"text-sm text-base-content/60\">Reviewing… the verdict replaces this.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"review-result\" class=\"card bg-base-200/40 border border-dashed border-base-300\" aria-busy=\"true\"><div class=\"card-body\"><p class=\"text-sm text-base-content/60\">Reviewing… the verdict replaces this.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -346,25 +409,25 @@ func ReviewError(message string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var11 == nil {
-			templ_7745c5c3_Var11 = templ.NopComponent
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div id=\"review-result\" class=\"card bg-base-200/40 border border-error/40\"><div class=\"card-body\"><div class=\"alert alert-error\" role=\"alert\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div id=\"review-result\" class=\"card bg-base-200/40 border border-error/40\"><div class=\"card-body\"><div class=\"alert alert-error\" role=\"alert\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(message)
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 159, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 184, Col: 19}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span></div><p class=\"text-sm text-base-content/60 mt-2\">Edit the content above and run again.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div><p class=\"text-sm text-base-content/60 mt-2\">Edit the content above and run again.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -156,9 +156,9 @@ is the gate that catches it.
    through it cannot overwrite an existing signal, so the check allows it).
    Full reasoning and the lived bug: `docs/code-quality.md`,
    `docs/realtime-recipe.md`.
-8. **A page that renders the navbar must wire `$theme`, and must render
+8. **A template that owns `<html>` must wire `$theme`, and must render
    `ThemeHead`.** The toggle lives in `Navbar`, so any page including the
-   navbar shows a working-looking button — but `$theme` only acts when `<html>`
+   shell shows a working-looking button — but `$theme` only acts when `<html>`
    carries `data-signals` + `data-attr:data-theme` + `data-class:dark`. Without
    them the click hides BOTH icons (the CSS reveals the moon only under
    `html.dark`) and the theme never changes: the button appears to vanish. Use

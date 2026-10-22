@@ -72,7 +72,7 @@ func TestHandlersLoginLogoutFlow(t *testing.T) {
 	}
 	body := index.Body.String()
 	if !strings.Contains(body, "pages@example.com") {
-		t.Fatal("index missing the navbar user email")
+		t.Fatal("index missing the shell user email")
 	}
 	if !strings.Contains(body, "Page item") {
 		t.Fatal("index missing the created todo")

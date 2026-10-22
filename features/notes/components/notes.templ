@@ -2,12 +2,11 @@ package components
 
 import "strconv"
 
-import "github.com/calionauta/gogogo/features/authviews"
 import "github.com/calionauta/gogogo/features/notes"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
 import "github.com/calionauta/gogogo/web/resources"
-import "github.com/calionauta/gogogo/web/skins"
+import "github.com/calionauta/gogogo/internal/ui"
 
 // NoteMeta is one row of the shared notes index, and the identity the note
 // page renders.
@@ -33,39 +32,63 @@ const (
 )
 
 // NotesIndex lists every shared note with a button to start a new one.
+// NotesIndex renders the shared-notes list. The document, assets, sidebar,
+// header and toasts belong to internal/ui.Shell; this file is the page.
+//
+// The "New note" action moved into the shell header's actions slot, and the
+// stack pills into the sidebar's stack key — the two places every module uses,
+// so this page no longer carries chrome of its own.
 templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Collab notes — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-		</head>
-		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit, skinName)
-			<main class="p-4 max-w-2xl mx-auto" data-signals={ notesSignals }>
-				<div class="flex items-center justify-between mb-4">
-					<h1 class="text-2xl font-bold">Shared notes</h1>
-					<a class="btn btn-sm btn-primary" href="/notes/new">New note</a>
-				</div>
-				<p class="text-xs text-base-content/60 mb-2">
-					Every note is shared: anyone signed in can open and edit it. Only its author
-					(or an admin) can delete it.
-				</p>
-				@components.TechStack([]components.TechItem{
-				{Name: "Loro Text", Note: "CRDT text merge across tabs"},
-				{Name: "SSE Hub", Note: "doc versions stream to tabs"},
-				{Name: "NATS", Note: "cross-instance sync"},
-				{Name: "SSE record sync", Note: "record changes re-list live"},
-				})
-				@NotesListFragment(notes)
-			</main>
-			@deleteNoteModal()
-			@components.ListResync("notes-realtime-resync", "'/api/notes/fragment'")
-		</body>
-	</html>
+	@ui.Shell(ui.Data{
+		Title:       "Collab notes — gogogo",
+		Module:      "notes",
+		Context:     notesContext(notes),
+		Email:       email,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		Signals:     notesSignals,
+		Stack:       notesStack(),
+		StreamPage:  true,
+	}, nil, nil, notesActions(), notesBody(notes))
+}
+
+// notesActions is the header's right-aligned action.
+templ notesActions() {
+	<a class="app-nav-btn is-primary" href="/notes/new">New note</a>
+}
+
+// notesContext is the header's context slot.
+func notesContext(notes []NoteMeta) string {
+	if len(notes) == 0 {
+		return "no notes yet · CRDT text · SSE"
+	}
+	return strconv.Itoa(len(notes)) + " notes · CRDT text · SSE"
+}
+
+// notesStack is what this page demonstrates, in the sidebar's stack key.
+func notesStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "Loro Text", Note: "CRDT text merge across tabs"},
+		{Name: "SSE Hub", Note: "doc versions stream to tabs"},
+		{Name: "NATS", Note: "cross-instance sync"},
+		{Name: "SSE record sync", Note: "record changes re-list live"},
+	}
+}
+
+// notesBody is the work area: the sharing rule, the list, and the two live
+// regions the page patches.
+templ notesBody(notes []NoteMeta) {
+	<div class="mx-auto max-w-2xl">
+		<p class="text-xs text-base-content/60 mb-2">
+			Every note is shared: anyone signed in can open and edit it. Only its author
+			(or an admin) can delete it.
+		</p>
+		@NotesListFragment(notes)
+		@deleteNoteModal()
+		@components.ListResync("notes-realtime-resync", "'/api/notes/fragment'")
+	</div>
 }
 
 // NotesListFragment renders just the notes list. Target of the
@@ -156,22 +179,44 @@ templ deleteNoteModal() {
 // peers' resolved text unless the textarea is focused (no caret stealing).
 // meta carries the doc id plus who started it, so the page and the index
 // read the same row instead of threading three loose strings.
+// NotesPage renders one note: the CRDT textarea, the caret layer and the
+// presence pills. It opts into the raw-EventSource flag (session.js) and asks
+// the shell for a full-width body, because the editor is the page.
 templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev uint64, buildLabel string, buildCommit string, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Collab note — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-			@sounds.SoundAssets()
-			<script defer src={ resources.StaticURL("throttle.js") }></script>
-			<script defer src={ notes.URL("notes.js") }></script>
-		</head>
-		<body data-stream-page="1">
-			@authviews.Navbar(email, userRole, "notes", buildLabel, buildCommit, skinName)
-			<main class="p-4 max-w-2xl mx-auto" data-doc-id={ meta.DocID } data-rev={ strconv.FormatUint(rev, 10) }>
+	@ui.Shell(ui.Data{
+		Title:       "Collab note — gogogo",
+		Module:      "notes",
+		Heading:     "Shared note",
+		Context:     "CRDT-merged · every tab converges · SSE",
+		Email:       email,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		StreamPage:  true,
+	}, notesDocHead(), notesSound(), nil, notesDocBody(meta, text, rev))
+}
+
+// notesDocHead carries the page's own <head>: the sound assets (so the shell's
+// mute control works) and the two scripts the editor needs. The installer's
+// sounds trim drops the @sounds.SoundAssets() line from this file.
+templ notesDocHead() {
+	@sounds.SoundAssets()
+	<script defer src={ resources.StaticURL("throttle.js") }></script>
+	<script defer src={ notes.URL("notes.js") }></script>
+}
+
+// notesSound is the shell's mute control; the trim drops the call inside it.
+templ notesSound() {
+	@sounds.SoundToggle()
+}
+
+// notesDocBody is the editor. data-doc-id / data-rev live on this wrapper
+// (notes.js reads [data-doc-id], not <main>, so the shell can own the main
+// element).
+templ notesDocBody(meta NoteMeta, text string, rev uint64) {
+	<div class="mx-auto max-w-2xl" data-doc-id={ meta.DocID } data-rev={ strconv.FormatUint(rev, 10) }>
+
 				<h1 class="sr-only">Shared note</h1>
 				<div class="flex items-center justify-between mb-2">
 					<a class="btn btn-sm btn-ghost" href="/notes">Back</a>
@@ -183,14 +228,11 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 						<span id="net-status" class="text-xs text-warning hidden" aria-live="polite">reconnecting…</span>
 					</span>
 				</div>
-				@components.SessionBanner(email != "")
 				<label class="sr-only" for="note-text">Note text</label>
 				<div id="note-wrap" class="relative">
 					<textarea id="note-text" class="textarea textarea-bordered w-full font-mono" rows="20" placeholder="Type — every tab merges.">{ text }</textarea>
 					<div id="caret-layer" aria-hidden="true"></div>
 				</div>
 				<p class="text-xs text-base-content/60 mt-2">Plain text, CRDT-merged on the server. Concurrent typing never loses characters; rich text does not exist here yet.</p>
-			</main>
-		</body>
-	</html>
+	</div>
 }

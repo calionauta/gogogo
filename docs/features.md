@@ -185,8 +185,8 @@ whiteboard list, notes index — every one of those pages loads
 `datastar.js`, pinned by test); canvas rendering, textarea math, and
 op batching stay vanilla JS (no declarative equivalent, and the offline
 outbox needs exact control). Shared chrome counts as UI state: the
-navbar logout form carries `data-on` handlers, so every page rendering
-the navbar loads the runtime too (board, notes doc, room, config,
+shell's user menu carries `data-on` handlers, so every shell page loads
+the Datastar runtime too (board, notes doc, room, config, landing, login)
 landing) — a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.

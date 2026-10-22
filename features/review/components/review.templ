@@ -4,44 +4,72 @@ package components
 import (
 	"fmt"
 
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
 // ReviewIndex renders the review page: tab picker (text/code), content
 // form, live phased progress, verdict fragment. The run button gates on
 // signals.ReviewEnabled — without a configured LLM the page shows the
 // setup hint instead of a dead button.
+// ReviewIndex renders the writer/critic/judge page. The document, assets,
+// sidebar, header and toast root belong to internal/ui.Shell; this file is the
+// page: its signals, the composer, the streamed result.
+//
+// The title, the one-line demo sentence and the stack pills that used to open
+// the page are gone: the layers live in the sidebar's stack key, and the
+// header carries state ("writer → critic → judge, N rounds") instead of prose.
 templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs(MarshalSignals(signals))... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Review — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-			@sounds.SoundAssets()
-			@components.OfflineSyncScript(true)
-		</head>
-		<body>
-			@authviews.Navbar(email, userRole, "review", buildLabel, buildCommit, skinName)
-			@components.OfflineBanner(true)
-			@components.SessionBanner(email != "")
-			<main class="container mx-auto p-4 max-w-2xl">
-				<h1 class="text-2xl font-bold">Review</h1>
-				<p class="text-sm text-base-content/60 mt-1 mb-1">
-					Paste text or a diff — a writer and a critic iterate, then a classifier judge delivers the verdict.
-				</p>
-				@components.TechStack([]components.TechItem{
-					{Name: "Genkit flows", Note: "writer/critic/judge loop"},
-					{Name: "GoAI", Note: "provider client for the LLM"},
-					{Name: "SSE stream", Note: "phases stream with heartbeats"},
-					{Name: "Jev judge", Note: "compatible classifier verdict"},
-				})
-				<div class="mb-4"></div>
+	@ui.Shell(ui.Data{
+		Title:       "Review — gogogo",
+		Module:      "review",
+		Context:     reviewContext(signals),
+		Email:       email,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		OfflineSync: true,
+		Signals:     MarshalSignals(signals),
+		Stack:       reviewStack(),
+	}, reviewHead(), reviewSound(), nil, reviewBody(signals))
+}
+
+// reviewHead is this page's own <head> extras, as a one-line wrapper: the
+// installer's sounds trim drops that line by substring (see soundsDropLines).
+templ reviewHead() {
+	@sounds.SoundAssets()
+}
+
+// reviewSound is the shell's mute control for this page.
+templ reviewSound() {
+	@sounds.SoundToggle()
+}
+
+// reviewContext is the header's context slot: the pipeline, and whether it can
+// run at all in this environment.
+func reviewContext(signals Signals) string {
+	if !signals.ReviewEnabled {
+		return "writer → critic → judge · no provider configured"
+	}
+	return "writer → critic → judge · classifier verdict · SSE"
+}
+
+// reviewStack is what this page demonstrates, in the sidebar's stack key.
+func reviewStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "Genkit flows", Note: "writer/critic/judge loop"},
+		{Name: "GoAI", Note: "provider client for the LLM"},
+		{Name: "SSE stream", Note: "phases stream with heartbeats"},
+		{Name: "Jev judge", Note: "compatible classifier verdict"},
+	}
+}
+
+// reviewBody is the work area: the composer and the result region.
+templ reviewBody(signals Signals) {
+	<div class="mx-auto max-w-2xl">
+
 				if signals.ReviewEnabled {
 					<form
 						id="review-composer"
@@ -85,10 +113,7 @@ templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit 
 				}
 				<div class="mt-2 text-sm text-error" data-show="$review_error !== ''" data-text="$review_error" role="alert"></div>
 				<div class="mt-6" id="review-result"></div>
-			</main>
-			@components.ToastContainer()
-		</body>
-	</html>
+	</div>
 }
 
 // ReviewResult renders one verdict: decision badge, rationale, the

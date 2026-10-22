@@ -33,8 +33,6 @@ const (
 	// desktopBlockAnchor opens the Wails boot section; the Phase C demo
 	// block lands above it.
 	desktopBlockAnchor = "\taddr := fmt.Sprintf(\"%s:%d\", cfg.Host, cfg.Port)"
-	// navLinkAnchorSubstr marks the Todo nav link; section links land below.
-	navLinkAnchorSubstr = "}>Collab Todo</a>"
 	// todoListTempl carries the dagnats entry-button strip; the button is
 	// re-inserted above the last onboarding step item, which stays in the tree.
 	todoListTempl = "features/todo/components/todo_list.templ"

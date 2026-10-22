@@ -91,7 +91,7 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   imports + spans at the anchor table, rebases the template module path
   to the target's, then the same tidy+build proof. Imports restore only
   where used (no unused-import breakage). `.templ` call sites and the
-  navbar brand stay manual (warned). Refuses non-scaffolded trees
+  shell brand stay manual (warned). Refuses non-scaffolded trees
   instead of guessing. Fully mechanical only where every wiring edit is
   anchored (`skins-extra` today): anything else refuses BEFORE mutating,
   printing the exact lines to re-add by hand plus the unit's follow-ups
@@ -130,13 +130,13 @@ appear here (`TestReadmeDocumentsUnits`).
 |---|---|---|
 | `dagnats` | `internal/dagnats/`, `features/todo/handlers/onboarding.go` (+ its test), `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go` | Drop the `bootOnboarding` line and the `/api/onboarding` mounts in `internal/server/chi.go`; `startDagNats` / `shutdownDagNats` calls in `cmd/web/main.go`; drop `danmestas/dagnats` from `go.mod`. No dead UI: the workflow tab auto-hides via the `dagnatsUIEnabled` signal |
 | `goakt` | `internal/goakt/`, `features/room/`, `cmd/web/goakt.go` | Drop the `bootRoomActor` line, the `/room` mounts and the room-actor shutdown in `internal/server/chi.go` (+ the `fakeRooms` fixture in its test); `startGoAkt` / `shutdownGoAkt` calls in `cmd/web/main.go`; drop `tochemey/goakt` from `go.mod`. Navbar Room link stripped |
-| `whiteboard` | `features/whiteboard/`, `features/notes/`, `internal/collab/` | Drop the `wbhandlers`/`noteshandlers` handler lines and the `/whiteboard` + `/notes` mounts in `internal/server/chi.go`; Phase C demo block in `cmd/desktop/main.go` (+ `collab`/`context`/`time` imports); navbar Whiteboard + Notes links stripped |
-| `landing` | `features/landing/` | Drop the `landinghandlers.NewHandler` line, its import and the `/` mount in `internal/server/chi.go`; navbar brand retargeted `/` → `/todo`. Warns: plain GET / 404s afterwards |
-| `config-view` | `features/config/` | Drop the `confighandlers.NewHandler` line, its import and the `/config` mounts; navbar Config link stripped |
+| `whiteboard` | `features/whiteboard/`, `features/notes/`, `internal/collab/` | Drop the `wbhandlers`/`noteshandlers` handler lines and the `/whiteboard` + `/notes` mounts in `internal/server/chi.go`; Phase C demo block in `cmd/desktop/main.go` (+ `collab`/`context`/`time` imports); Whiteboard + Notes `[]Module` entries stripped |
+| `landing` | `features/landing/` | Drop the `landinghandlers.NewHandler` line, its import and the `/` mount in `internal/server/chi.go`; shell brand retargeted `/` → `/todo`. Warns: plain GET / 404s afterwards |
+| `config-view` | `features/config/` | Drop the `confighandlers.NewHandler` line, its import and the `/config` mounts; Config `[]Module` entry stripped |
 | `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
-| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; navbar Ask AI link stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
-| `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); navbar Review link stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
+| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; Ask AI `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
+| `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); Review `[]Module` entry stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
 | `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
 
 Deliberately **not** offered: `todo` (reference implementation — remove manually

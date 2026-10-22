@@ -170,14 +170,6 @@ var soundsDropLines = []string{
 	soundsImportSuffix,
 }
 
-// soundsToggleLines extends soundsDropLines for the navbar host, the only
-// layout rendering the mute toggle (SoundAssets rides the page layouts,
-// so the navbar needs just the toggle + the import).
-var soundsToggleLines = []string{
-	`@sounds.SoundToggle()`,
-	soundsImportSuffix,
-}
-
 // soundsPageLines is for layouts that carry BOTH: the assets (in their head
 // templ) and a mute toggle. The toggle sits inside a one-line templ wrapper on
 // purpose — dropping that line leaves an empty wrapper that still satisfies the
@@ -189,8 +181,13 @@ var soundsPageLines = []string{
 	soundsImportSuffix,
 }
 
-// navbarTempl owns the brand + section links retargeted by trim units.
-const navbarTempl = "features/authviews/navbar.templ"
+// modulesFile is the shell's navigation registry: one line per module, which
+// is what trim units drop when they remove a destination. The brand lives in
+// shellTempl, and that is what the landing unit retargets.
+const (
+	modulesFile = "internal/ui/modules.go"
+	shellTempl  = "internal/ui/shell.templ"
+)
 
 // chiGoFile is the shared route-wiring file: BootChi composes one handler per
 // capability and buildChiMux mounts one route subtree per capability,
@@ -321,13 +318,8 @@ var baseTrimUnits = []trimUnit{
 		goModDrops: []string{"github.com/tochemey/goakt/v4"},
 		extraStrips: []fileStrip{
 			{
-				path: navbarTempl,
-				rules: []stripRule{
-					{
-						startMarker: `<a href="/room"`,
-						endMarker:   `}>Room</a>`,
-					},
-				},
+				path:  modulesFile,
+				rules: []stripRule{{startMarker: `{ID: "room"`, endMarker: "},"}},
 			},
 			{
 				// The shutdown hook block and the two actor helpers:
@@ -369,15 +361,14 @@ var baseTrimUnits = []trimUnit{
 	{
 		id: unitSounds,
 		extraDrops: []fileDrop{
-			{path: navbarTempl, substrs: soundsToggleLines},
 			{path: "features/todo/components/layout.templ", substrs: soundsPageLines},
 			{path: "features/config/components/page.templ", substrs: soundsPageLines},
-			{path: "features/landing/components/index.templ", substrs: soundsDropLines},
-			{path: "features/whiteboard/components/board.templ", substrs: soundsDropLines},
-			{path: "features/notes/components/notes.templ", substrs: soundsDropLines},
-			{path: "features/chat/components/chat.templ", substrs: soundsDropLines},
-			{path: "features/genui/components/components.templ", substrs: soundsDropLines},
-			{path: "features/review/components/review.templ", substrs: soundsDropLines},
+			{path: "features/landing/components/index.templ", substrs: soundsPageLines},
+			{path: "features/whiteboard/components/board.templ", substrs: soundsPageLines},
+			{path: "features/notes/components/notes.templ", substrs: soundsPageLines},
+			{path: "features/chat/components/chat.templ", substrs: soundsPageLines},
+			{path: "features/genui/components/components.templ", substrs: soundsPageLines},
+			{path: "features/review/components/review.templ", substrs: soundsPageLines},
 			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},
 	},

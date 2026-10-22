@@ -65,7 +65,8 @@ func renderPortRecipe(b exportBundle) string {
 		sb.WriteString("\n")
 	}
 	sb.WriteString("Then the parts no marker can carry: mount the handler in your router, " +
-		"add the navbar link, and — if the handler reads or writes user data — check the " +
+		"add the sidebar entry (internal/ui/modules.go), and — if the handler reads or " +
+		"writes user data — check the " +
 		"session in the handler itself. In a gogogo tree that policy also lives in " +
 		"`casbin/policy.csv`; your tree has its own answer.\n\n")
 

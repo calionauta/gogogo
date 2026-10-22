@@ -223,7 +223,7 @@ src/css/input.css          →  tailwindcss v4 CLI  →  web/resources/static/ap
                                                         //go:embed in the Go binary
 ```
 
-The navbar version badge shows `BuildLabel` (the git tag) and `BuildCommit` (the
+The sidebar's build badge shows `BuildLabel` (the git tag) and `BuildCommit` (the
 short SHA), both baked in via Go `ldflags`:
 
 ```bash
@@ -276,7 +276,7 @@ diff <(curl -s https://<host>/static/app.min.css) \
 ```
 
 There is no `/api/version` endpoint, so do not use one as a check — it 404s.
-For the badge, compare the navbar's rendered `BuildLabel`/`BuildCommit` against
+For the badge, compare the sidebar's rendered `BuildLabel`/`BuildCommit` against
 `git describe --tags --abbrev=0` and `git rev-parse --short HEAD`.
 
 ## Docker image

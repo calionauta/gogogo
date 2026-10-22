@@ -59,7 +59,7 @@ func TestHandlersLandingPublic(t *testing.T) {
 		t.Fatalf("authed / status = %d", rec.Code)
 	}
 	if !strings.Contains(rec.Body.String(), "hero@example.com") {
-		t.Fatal("authed hero missing the navbar email")
+		t.Fatal("authed hero missing the shell email")
 	}
 }
 
