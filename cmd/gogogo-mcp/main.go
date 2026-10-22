@@ -200,6 +200,7 @@ type migrateArgs struct {
 	To        string `json:"to,omitempty" jsonschema:"newest revision to include (default: the latest release)"`
 	Dir       string `json:"dir,omitempty" jsonschema:"project checkout to read the base marker from (default: current directory)"`
 	Changelog string `json:"changelog,omitempty" jsonschema:"read the changelog from this file instead of the network (offline)"`
+	Files     bool   `json:"files,omitempty" jsonschema:"also list the files upstream changed between the tags, each labelled with the capability it serves and whether this tree kept the unit (needs the compare API; this is the \"which of these apply to me\" half)"`
 	Format    string `json:"format,omitempty" jsonschema:"text or json (default json for tools)"`
 }
 
@@ -352,6 +353,9 @@ func handleMigratePlan(
 		format = defaultFormat
 	}
 	cli := []string{"migrate", "--format", format}
+	if args.Files {
+		cli = append(cli, "--files")
+	}
 	for _, kv := range [][2]string{
 		{"--from", args.From},
 		{"--to", args.To},
