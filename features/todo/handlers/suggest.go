@@ -75,18 +75,35 @@ func (h *Handler) enqueueSuggest(w http.ResponseWriter, r *http.Request, jobType
 		h.fail(r.Context(), w, "todo: suggest queue missing", errNoQueue, "enqueue failed")
 		return
 	}
-	if err := h.Queue.Enqueue(r.Context(), job); err != nil {
-		h.fail(r.Context(), w, "todo: suggest enqueue failed", err, "enqueue failed")
-		return
-	}
+	// ACK FIRST, then enqueue: the worker streams its terminal patch over the
+	// tab's SSE stream the instant the job is accepted.
+	//
+	// The ack deliberately merges NOTHING. Every signal this endpoint could
+	// usefully reset (`suggestions`, `suggestErr`, `aiStep`, `aiPending`) is
+	// owned by the worker's terminal patch, and the POST response can reach the
+	// browser AFTER that patch (it travels back over the same slow link the
+	// stream already holds open — Cloudflare tunnel, or a Datastar retry). An
+	// ack that re-asserted `aiPending: true` and `suggestions: []` produced the
+	// stuck "Asking AI…" spinner on a completed run: aiStep=3 from the result,
+	// aiPending=true from the ack, suggestions erased. Own the optimistic state
+	// in the click handler, own the terminal state in the worker, and let the
+	// ack mean only "accepted".
 	sse := sdk.NewSSE(w, r)
-	if err := dshelpers.MergeSignals(sse, map[string]any{
-		signalSuggestions: []string{},
-		signalSuggestErr:  "",
-		signalAiPending:   true,
-	}); err != nil {
+	if err := h.Queue.Enqueue(r.Context(), job); err != nil {
+		// The SSE headers are out, so the failure rides the open stream as a
+		// terminal patch — a 500 here would leave the optimistic spinner up
+		// with nothing left to clear it.
+		if merr := dshelpers.MergeSignals(sse, map[string]any{
+			signalSuggestErr:  "enqueue failed",
+			signalAiPending:   false,
+			signalAiPhase:     aiPhaseError,
+			signalSuggestions: []string{},
+		}); merr != nil {
+			obsArgs := append(observability.WithComponent("todo", "feature"), "error", merr)
+			observability.Error(r.Context(), "todo: suggest enqueue failure not delivered", obsArgs)
+		}
 		obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
-		observability.Error(r.Context(), "todo: suggest ack failed", obsArgs...)
+		observability.Error(r.Context(), "todo: suggest enqueue failed", obsArgs...)
 	}
 }
 

@@ -446,7 +446,7 @@ func deleteBoardModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" data-variant=\"ghost\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-attr:disabled=\"$deletingBoard\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" data-variant=\"ghost\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-attr:disabled=\"!!$deletingBoard\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

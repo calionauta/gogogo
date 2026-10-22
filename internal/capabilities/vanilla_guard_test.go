@@ -59,6 +59,24 @@ var vanillaAllow = map[string][]vanillaAllowed{
 				"driving data-attr:open would also fight the native <details> toggle",
 		},
 	},
+	// Basecoat runtime bootstrap. The skin ships a third-party component
+	// library whose entry point is `basecoat.initAll()`; it must run once the
+	// DOM exists, after the deferred vendor bundle has defined `basecoat`.
+	// Ruled out data-on:load / data-effect: Datastar owns those, they re-run on
+	// every morphed patch, and `initAll` is an idempotent-once init rather than
+	// a reactive expression — re-running it per patch is exactly the kind of
+	// "works until the list re-renders" bug this guard exists to prevent.
+	// The block moved here from a templ.Raw string in skin.go, which put it
+	// outside this guard's reach; moving it into the .templ tree is what made
+	// it visible, so it is recorded rather than re-hidden.
+	"web/skins/basecoat/assets.templ": {
+		{
+			needle: `document.addEventListener('DOMContentLoaded', function() {`,
+			reason: "vendor runtime needs one initAll() after DOM ready, after the " +
+				"deferred basecoat bundle; Datastar's data-on/data-effect re-run per " +
+				"patch, which double-initialises the vendor components",
+		},
+	},
 }
 
 func TestNoNewVanillaJS(t *testing.T) {

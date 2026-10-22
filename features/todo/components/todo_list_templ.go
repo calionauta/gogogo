@@ -25,7 +25,14 @@ import (
 // online pill and $clientID in every mutation URL), the sidebar tab whose
 // data-class matches "queue", the realtime-kind label (`data-text`) and the
 // date filter. The demo/onboarding steppers are left undefined on purpose —
-// they are falsy until their handler writes them, exactly as before.
+// falsy until their handler writes them, which is what `data-show` and
+// `data-class` want.
+//
+// Undefined is NOT safe for `data-attr:*`. Datastar's attr plugin removes the
+// attribute only for `false`/`null`; a third value (undefined, "", a string)
+// SETS it. So every `data-attr:disabled` expression coerces to a real boolean
+// with `!!(...)` — without it, an unseeded stepper signal rendered the
+// "Run durable workflow" and "Delete" buttons permanently disabled.
 type pageSignals struct {
 	todo.Signals
 	ClientID         string `json:"clientID"` //nolint:tagliatelle // public Datastar signal name, do not rename
@@ -105,7 +112,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(marshalSignals(signals))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 74, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 81, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -118,7 +125,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(signals.StoreLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 87, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 94, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -131,7 +138,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(signals.OfflineLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 89, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 96, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -188,7 +195,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$permDenied = false")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 135, Col: 96}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 142, Col: 96}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -215,7 +222,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'tab-active': $sidebarTab === 'queue'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 181, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 188, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -233,7 +240,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'tab-active': $sidebarTab === 'ai'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 191, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 198, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
@@ -252,7 +259,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'tab-active': $sidebarTab === 'workflow'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 202, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 209, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -270,7 +277,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-success': $demoStep >= 2, 'step-primary text-base-content': $demoStep === 1}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 236, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 243, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -283,7 +290,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-success': $demoStep >= 3, 'step-primary text-base-content': $demoStep === 2}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 240, Col: 106}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 247, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -296,7 +303,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-success': $demoStep >= 3 && $techPhase !== 'error', 'step-primary text-base-content': $demoStep === 3 && $techPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 244, Col: 159}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 251, Col: 159}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -314,7 +321,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 305, Col: 192}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 312, Col: 192}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -327,7 +334,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 309, Col: 191}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 316, Col: 191}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -340,13 +347,13 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $aiStep >= 3 && $aiPending, 'step-success': $aiStep >= 3 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 313, Col: 174}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 320, Col: 174}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Return suggestions</li></ul><button class=\"btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98\" data-on:click=\"$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))\" title=\"Ask the configured LLM for 3 todo suggestions via goqite + retry-go\" data-variant=\"primary\"><span class=\"inline-flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z\" clip-rule=\"evenodd\"></path></svg> <span data-show=\"!$aiPending\">AI Suggest</span> <span data-show=\"$aiPending\" class=\"inline-flex items-center gap-1.5\"><span class=\"loading loading-spinner loading-xs\"></span> <span>Asking AI…</span></span></span></button><div class=\"mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500\" data-show=\"$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'\" data-init__delay.4s=\"$aiStep = 0\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z\" clip-rule=\"evenodd\"></path></svg> <span>Suggestions ready</span></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Return suggestions</li></ul><button class=\"btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98\" data-on:click=\"$aiStep = 1; $aiPending = true; $aiPhase = ''; $suggestions = []; $suggestErr = ''; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))\" title=\"Ask the configured LLM for 3 todo suggestions via goqite + retry-go\" data-variant=\"primary\"><span class=\"inline-flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z\" clip-rule=\"evenodd\"></path></svg> <span data-show=\"!$aiPending\">AI Suggest</span> <span data-show=\"$aiPending\" class=\"inline-flex items-center gap-1.5\"><span class=\"loading loading-spinner loading-xs\"></span> <span>Asking AI…</span></span></span></button><div class=\"mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500\" data-show=\"$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'\" data-init__delay.4s=\"$aiStep = 0\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z\" clip-rule=\"evenodd\"></path></svg> <span>Suggestions ready</span></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -363,7 +370,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 1)}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 366, Col: 242}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 373, Col: 242}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 			if templ_7745c5c3_Err != nil {
@@ -376,7 +383,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 2)}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 369, Col: 242}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 376, Col: 242}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 			if templ_7745c5c3_Err != nil {
@@ -389,7 +396,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 3)}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 372, Col: 242}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 379, Col: 242}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 			if templ_7745c5c3_Err != nil {
@@ -402,7 +409,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 4)}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 375, Col: 242}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 382, Col: 242}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 			if templ_7745c5c3_Err != nil {
@@ -415,7 +422,7 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 5)}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 378, Col: 242}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 385, Col: 242}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
@@ -428,13 +435,13 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 6)}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 381, Col: 242}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 388, Col: 242}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">6. Finalize</li></ul><div class=\"mb-3 p-2 rounded-lg bg-accent/10 text-accent text-xs flex items-center gap-2 transition-all duration-500 animate-in fade-in\" data-show=\"$onboardingActive && !$workflowCompleted && $onboardingStep === 2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-2a1 1 0 00-1-1H9z\" clip-rule=\"evenodd\"></path></svg> <span>Waiting for your next to-do. Add any task above to continue the workflow.</span></div><!-- trim:dagnats removes this entry button (the sole /api/onboarding ref; the gated panel/tab around it stay, mirroring runtime-disabled) --><button class=\"btn btn-accent btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98\" data-attr:disabled=\"$onboardingActive && !$workflowCompleted\" data-on:click=\"$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))\" data-variant=\"accent\"><span class=\"inline-flex items-center gap-2\"><span data-show=\"!$onboardingActive || $workflowCompleted\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0 inline -mt-0.5 mr-1\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l3-2z\" clip-rule=\"evenodd\"></path></svg> Run durable workflow</span> <span data-show=\"$onboardingActive && !$workflowCompleted\" class=\"inline-flex items-center gap-1.5\"><span class=\"loading loading-spinner loading-xs\"></span> <span data-text=\"'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'\"></span></span></span></button> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">6. Finalize</li></ul><div class=\"mb-3 p-2 rounded-lg bg-accent/10 text-accent text-xs flex items-center gap-2 transition-all duration-500 animate-in fade-in\" data-show=\"$onboardingActive && !$workflowCompleted && $onboardingStep === 2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-2a1 1 0 00-1-1H9z\" clip-rule=\"evenodd\"></path></svg> <span>Waiting for your next to-do. Add any task above to continue the workflow.</span></div><!-- trim:dagnats removes this entry button (the sole /api/onboarding ref; the gated panel/tab around it stay, mirroring runtime-disabled) --><button class=\"btn btn-accent btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98\" data-attr:disabled=\"!!($onboardingActive && !$workflowCompleted)\" data-on:click=\"$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))\" data-variant=\"accent\"><span class=\"inline-flex items-center gap-2\"><span data-show=\"!$onboardingActive || $workflowCompleted\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0 inline -mt-0.5 mr-1\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l3-2z\" clip-rule=\"evenodd\"></path></svg> Run durable workflow</span> <span data-show=\"$onboardingActive && !$workflowCompleted\" class=\"inline-flex items-center gap-1.5\"><span class=\"loading loading-spinner loading-xs\"></span> <span data-text=\"'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'\"></span></span></span></button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -491,7 +498,7 @@ func createForm(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var21 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<form class=\"w-full mb-4\" data-on:submit__prevent=\"if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null\"><div class=\"join w-full\"><input type=\"text\" name=\"title\" class=\"input join-item flex-1 input-sm sm:input-md\" placeholder=\"Add a new todo...\" data-bind=\"newTitle\"> <button type=\"submit\" class=\"btn btn-primary join-item btn-sm sm:btn-md\" data-attr:disabled=\"$loading || !$newTitle.trim()\" data-variant=\"primary\"><span class=\"inline-flex items-center gap-2\"><span class=\"hidden sm:inline\">Add</span> <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 sm:hidden\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z\" clip-rule=\"evenodd\"></path></svg> <span class=\"loading loading-spinner loading-xs\" data-show=\"$loading\"></span></span></button></div><label class=\"flex items-center gap-2 mt-2 text-xs text-base-content/60 cursor-pointer\"><input type=\"checkbox\" name=\"visibility\" value=\"public\" class=\"checkbox checkbox-xs checkbox-info\"> <span>Shared — every login sees this todo (private by default)</span></label></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<form class=\"w-full mb-4\" data-on:submit__prevent=\"if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null\"><div class=\"join w-full\"><input type=\"text\" name=\"title\" class=\"input join-item flex-1 input-sm sm:input-md\" placeholder=\"Add a new todo...\" data-bind=\"newTitle\"> <button type=\"submit\" class=\"btn btn-primary join-item btn-sm sm:btn-md\" data-attr:disabled=\"!!($loading || !$newTitle.trim())\" data-variant=\"primary\"><span class=\"inline-flex items-center gap-2\"><span class=\"hidden sm:inline\">Add</span> <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 sm:hidden\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z\" clip-rule=\"evenodd\"></path></svg> <span class=\"loading loading-spinner loading-xs\" data-show=\"$loading\"></span></span></button></div><label class=\"flex items-center gap-2 mt-2 text-xs text-base-content/60 cursor-pointer\"><input type=\"checkbox\" name=\"visibility\" value=\"public\" class=\"checkbox checkbox-xs checkbox-info\"> <span>Shared — every login sees this todo (private by default)</span></label></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -540,7 +547,7 @@ func searchBox(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(signals.SearchQuery)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 500, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 507, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
@@ -604,7 +611,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover(); setTimeout(function () { $noMatches = document.querySelectorAll(".todo-item:not([style*='display: none'])").length === 0 }, 0)`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 558, Col: 267}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 565, Col: 267}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
@@ -669,7 +676,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(m)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 599, Col: 22}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 606, Col: 22}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 				if templ_7745c5c3_Err != nil {
@@ -692,7 +699,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(searchModeLabel(m))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 599, Col: 83}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 606, Col: 83}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -710,7 +717,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(searchModeHint(signals.SearchMode))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 602, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 609, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -833,7 +840,7 @@ func scopeTab(label, value string) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue("{ 'tab-active': ($scope || 'all') === '" + value + "' }")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 657, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 664, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 		if templ_7745c5c3_Err != nil {
@@ -846,7 +853,7 @@ func scopeTab(label, value string) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue("$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 658, Col: 233}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 665, Col: 233}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -859,7 +866,7 @@ func scopeTab(label, value string) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 660, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 667, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -959,7 +966,7 @@ func filterTab(label, value string) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue("{ 'tab-active': ($filter || 'all') === '" + value + "' }")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 692, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 699, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
@@ -972,7 +979,7 @@ func filterTab(label, value string) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue("$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 693, Col: 232}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 700, Col: 232}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -985,7 +992,7 @@ func filterTab(label, value string) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 695, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 702, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -1098,7 +1105,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var42 string
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue("$newTitle = " + safeJSString(s))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 753, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 760, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 			if templ_7745c5c3_Err != nil {
@@ -1111,7 +1118,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 755, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 762, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -1165,7 +1172,7 @@ func deleteConfirmModal() templ.Component {
 			templ_7745c5c3_Var44 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<dialog id=\"confirm-delete-modal\" class=\"modal\" data-on:close=\"$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z\" clip-rule=\"evenodd\"></path></svg> Delete this todo?</h3><p class=\"py-4 text-sm\">This will permanently remove <span class=\"font-semibold\" data-text=\"$confirmingDeleteTitle\"></span>. This can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-delete-modal').close()\" data-variant=\"ghost\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm transition-all\" data-cuelume-press=\"droplet\" data-attr:disabled=\"$deleting\" data-on:click=\"$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))\" data-variant=\"destructive\"><span class=\"inline-flex items-center gap-2\"><span>Delete</span> <span class=\"loading loading-spinner loading-xs\" data-show=\"$deleting\"></span></span></button></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button data-on:click=\"document.getElementById('confirm-delete-modal').close()\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<dialog id=\"confirm-delete-modal\" class=\"modal\" data-on:close=\"$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z\" clip-rule=\"evenodd\"></path></svg> Delete this todo?</h3><p class=\"py-4 text-sm\">This will permanently remove <span class=\"font-semibold\" data-text=\"$confirmingDeleteTitle\"></span>. This can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-delete-modal').close()\" data-variant=\"ghost\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm transition-all\" data-cuelume-press=\"droplet\" data-attr:disabled=\"!!$deleting\" data-on:click=\"$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))\" data-variant=\"destructive\"><span class=\"inline-flex items-center gap-2\"><span>Delete</span> <span class=\"loading loading-spinner loading-xs\" data-show=\"$deleting\"></span></span></button></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button data-on:click=\"document.getElementById('confirm-delete-modal').close()\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

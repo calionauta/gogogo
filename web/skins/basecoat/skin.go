@@ -8,8 +8,6 @@ package basecoat
 import (
 	"log/slog"
 
-	"github.com/a-h/templ"
-
 	"github.com/calionauta/gogogo/web/skins"
 )
 
@@ -19,25 +17,4 @@ func init() {
 		Name:   "basecoat",
 		Assets: assets,
 	})
-}
-
-// assets returns the <link>/<script> templ component for BasecoatUI
-// assets. It loads the basecoat CSS alongside the standard scripts.
-// The basecoat CSS provides shadcn-style design tokens and utilities.
-func assets() templ.Component {
-	return templ.Raw(`
-<link rel="stylesheet" href="/static/basecoat.min.css"/>
-<link rel="stylesheet" href="/static/app.css"/>
-<script defer type="module" src="/static/theme.js"></script>
-<script defer src="/static/basecoat.min.js"></script>
-<script src="/static/iconify-icon.min.js"></script>
-<script defer type="module" src="/static/datastar.js"></script>
-<script>
-	document.addEventListener('DOMContentLoaded', function() {
-		if (typeof basecoat !== 'undefined' && basecoat.initAll) {
-			try { basecoat.initAll(); } catch(e) {}
-		}
-	});
-</script>
-	`)
 }

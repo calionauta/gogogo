@@ -79,18 +79,10 @@ func Active(name string) Skin {
 	return s
 }
 
-// DefaultAssets is the DaisyUI asset block. It lives here (not only in the
-// daisyui package) so Active can render a sane default when no skin has been
-// registered, which is the normal state in a single-package component test.
-func DefaultAssets() templ.Component {
-	return templ.Raw(`
-<link rel="stylesheet" href="/static/app.min.css"/>
-<link rel="stylesheet" href="/static/app.css"/>
-<script src="/static/iconify-icon.min.js"></script>
-<script defer type="module" src="/static/theme.js"></script>
-<script defer type="module" src="/static/datastar.js"></script>
-	`)
-}
+// DefaultAssets is the DaisyUI asset block (see default_assets.templ). It
+// lives in this package, not only in the daisyui package, so Active can render
+// a sane default when no skin has been registered — the normal state in a
+// single-package component test.
 
 // ActiveAssets is a convenience wrapper for use inside Templ templates:
 // it looks up the active skin and returns its Assets component.

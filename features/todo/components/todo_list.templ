@@ -17,7 +17,14 @@ import (
 // online pill and $clientID in every mutation URL), the sidebar tab whose
 // data-class matches "queue", the realtime-kind label (`data-text`) and the
 // date filter. The demo/onboarding steppers are left undefined on purpose —
-// they are falsy until their handler writes them, exactly as before.
+// falsy until their handler writes them, which is what `data-show` and
+// `data-class` want.
+//
+// Undefined is NOT safe for `data-attr:*`. Datastar's attr plugin removes the
+// attribute only for `false`/`null`; a third value (undefined, "", a string)
+// SETS it. So every `data-attr:disabled` expression coerces to a real boolean
+// with `!!(...)` — without it, an unseeded stepper signal rendered the
+// "Run durable workflow" and "Delete" buttons permanently disabled.
 type pageSignals struct {
 	todo.Signals
 	ClientID         string `json:"clientID"` //nolint:tagliatelle // public Datastar signal name, do not rename
@@ -316,7 +323,7 @@ templ TodoList(signals todo.Signals) {
 
 								<button
 									class="btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
-									data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
+									data-on:click="$aiStep = 1; $aiPending = true; $aiPhase = ''; $suggestions = []; $suggestErr = ''; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
 									title="Ask the configured LLM for 3 todo suggestions via goqite + retry-go"
 								 data-variant="primary">
 									<span class="inline-flex items-center gap-2">
@@ -395,7 +402,7 @@ templ TodoList(signals todo.Signals) {
 									<!-- trim:dagnats removes this entry button (the sole /api/onboarding ref; the gated panel/tab around it stay, mirroring runtime-disabled) -->
 									<button
 										class="btn btn-accent btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
-										data-attr:disabled="$onboardingActive && !$workflowCompleted"
+										data-attr:disabled="!!($onboardingActive && !$workflowCompleted)"
 										data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))"
 									 data-variant="accent">
 										<span class="inline-flex items-center gap-2">
@@ -453,7 +460,7 @@ templ createForm(signals todo.Signals) {
 		<button
 			type="submit"
 			class="btn btn-primary join-item btn-sm sm:btn-md"
-			data-attr:disabled="$loading || !$newTitle.trim()"
+			data-attr:disabled="!!($loading || !$newTitle.trim())"
 		 data-variant="primary">
 			<span class="inline-flex items-center gap-2">
 				<span class="hidden sm:inline">Add</span>
@@ -817,7 +824,7 @@ templ deleteConfirmModal() {
 					type="button"
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
-					data-attr:disabled="$deleting"
+					data-attr:disabled="!!$deleting"
 					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))"
 				 data-variant="destructive">
 					<span class="inline-flex items-center gap-2">
