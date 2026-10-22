@@ -129,7 +129,7 @@ server-side and records upstream JSON/SSE token usage with
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `BUILD_LABEL` | `dev` | Git tag baked in via `-ldflags="-X main.Version=..."`; shown on the navbar version badge |
+| `BUILD_LABEL` | `dev` | Git tag baked in via `-ldflags="-X main.Version=..."`; shown on the sidebar build badge |
 | `BUILD_COMMIT` | *(empty)* | Short SHA baked in via `-ldflags="-X main.CommitHash=..."`; shown next to the label |
 
 The Makefile sets these automatically. See
@@ -148,8 +148,8 @@ tuned runtime constants.
 | `DefaultReplayBufferSize` | `config/config.go` | `64` | Per-client SSE replay ring-buffer length |
 | `DefaultClientQueueSize` | `config/config.go` | `64` | Per-client SSE channel buffer |
 | `DefaultSSEHeartbeatInterval` | `config/config.go` | `15s` | SSE heartbeat to detect disconnection |
-| `BuildLabel` | `config/config.go` | `dev` | Git tag on the navbar badge |
-| `BuildCommit` | `config/config.go` | *(empty)* | Short SHA on the navbar badge |
+| `BuildLabel` | `config/config.go` | `dev` | Git tag on the sidebar build badge |
+| `BuildCommit` | `config/config.go` | *(empty)* | Short SHA on the sidebar build badge |
 | `DefaultBaseURL` (GoAI) | `internal/llm/goai.go` | `https://api.openai.com/v1` | OpenAI-compatible base URL |
 | `DefaultModel` (GoAI) | `internal/llm/goai.go` | `gpt-4o-mini` | Default LLM model |
 | `DEFAULT_VOLUME` | `web/resources/static/cuelume.js` | `0.4` | Sound playback volume (cuelume's mixer runs hotter than libraries tuned for 30%) |

@@ -47,7 +47,7 @@ The mirror of [Removing a component](scope-taxonomy.md#removing-a-component):
    `github.com/calionauta/gogogo` must import your module instead — the recipe
    lists them, because it measured them rather than guessing.
 4. Wire it by hand: mount the handler's router where you want it, add the
-   navbar entry, and — if the handler reads or writes user data — check the
+   sidebar entry (`internal/ui/modules.go`), and — if the handler reads or writes user data — check the
    session **in the handler**. That last one is not optional: in gogogo
    `RBAC_ENABLED` defaults to false, so the policy file decides nothing until
    an operator opts in, and the handler's own check is the real gate.

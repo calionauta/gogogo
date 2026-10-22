@@ -88,7 +88,9 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								<a
 									href={ templ.SafeURL(m.URL) }
 									class={ templ.Classes("app-rail-item", map[string]bool{"is-active": m.ID == d.Module}) }
-									aria-current={ activeCurrent(m.ID == d.Module) }>
+									aria-current={ activeCurrent(m.ID == d.Module) }
+									data-cuelume-hover="tick"
+									data-cuelume-press="toggle">
 									<iconify-icon icon={ m.Icon } class="app-rail-icon"></iconify-icon>
 									<span class="app-rail-label">{ m.Title }</span>
 									if m.Count > 0 {
@@ -123,11 +125,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								<p class="app-module-context">{ d.Context }</p>
 							}
 						</div>
-						if actions != nil {
-							<div class="app-module-actions">
+						<div class="app-module-actions">
+							@authviews.CommandPalette(d.Role)
+							if actions != nil {
 								@actions
-							</div>
-						}
+							}
+						</div>
 					</header>
 					@components.OfflineBanner(d.OfflineSync)
 					@components.SessionBanner(d.Email != "")

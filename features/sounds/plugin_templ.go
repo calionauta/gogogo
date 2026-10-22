@@ -56,14 +56,14 @@ func SoundAssets() templ.Component {
 	})
 }
 
-// SoundToggle renders the navbar mute button. Its state (aria-pressed and
+// SoundToggle renders the shell footer's mute button. Its state (aria-pressed and
 // the visible icon) is driven by web/resources/static/cuelume.js, which
 // watches for clicks on [data-sound-toggle] and reflects the effective
 // state (user preference AND OS reduced-motion). Mirrors the theme toggle
-// styling (app-theme-toggle) for a consistent navbar.
+// styling (app-theme-toggle) so it sits with the theme toggle.
 //
 // LOCALITY OF BEHAVIOR (why no data-on:click here): the sound plugin must
-// work on every page that renders the navbar, including the whiteboard
+// work on every page that renders the shell, including the whiteboard
 // board, which deliberately loads NO Datastar (its canvas wiring is plain
 // JS — verified in features/whiteboard/components.templ). Datastar's
 // data-on:* is inert on that page, so a data-on:click binding would

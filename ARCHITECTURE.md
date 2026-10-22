@@ -43,13 +43,13 @@ These are **product-level demos** — what the end user sees. All are Feature la
 | **Read-only config view** | `features/config/` | 🟢 FEATURE | Mounted at `/config` in `buildChiMux` | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go` before render. |
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH` mounted at `/todo` + `/api/todos` in `buildChiMux` | Delete package + remove block |
 | **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `wbH` mounted at `/whiteboard` + `/api/whiteboard/` in `buildChiMux` (one argument per line, so a trim drops exactly its lines) | Delete both dirs + remove call |
-| **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ navbar link, seed, capability entry) |
+| **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ sidebar entry in `internal/ui/modules.go`, seed, capability entry) |
 | **Onboarding** | `features/onboarding/` + `internal/dagnats/` | 🟡 PLUGIN (bundle) | `mountOnboarding` after the composition (no-op when `DAGNATS_ENABLED=false`) | Delete both + remove call (the registry's `dagnats` unit owns both) |
 | **Room demo** | `features/room/` + `internal/goakt/` | 🟢 FEATURE | `roomH` mounted at `/room` in `buildChiMux` (nil-able; no-op when `GOAKT_ENABLED=false`) | Delete both dirs + remove call |
-| **Ask + chat demos** | `features/genui/` + `features/chat/` | 🟡 PLUGIN (bundle) | `genuiH`/`chatH` mounted at `/genui` + `/api/genui/` and `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | the `genui` installer unit (dropped by the `minimal`/`no-ai` presets) — or delete both dirs + remove calls + navbar Ask AI link + mux-table elements + `genui_stubs_test.go`) |
+| **Ask + chat demos** | `features/genui/` + `features/chat/` | 🟡 PLUGIN (bundle) | `genuiH`/`chatH` mounted at `/genui` + `/api/genui/` and `/chat` + `/api/chat/` in `buildChiMux` (one argument per line) | the `genui` installer unit (dropped by the `minimal`/`no-ai` presets) — or delete both dirs + remove calls + the `genui` entry in `internal/ui/modules.go` + mux-table elements + `genui_stubs_test.go`) |
 | **Persistence (single store)** | `internal/db/` (migrations + sqlc queries) | 🔴 CORE | `db.Open(cfg)` in `BootChi` | Core data layer; customize, never remove |
 
-> **⚠️ Auth is a mixed package.** The **login UI** (login page, navbar) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.
+> **⚠️ Auth is a mixed package.** The **login UI** (login page, shell controls) is 🟢 FEATURE — replace with OAuth, SSO, etc. The **auth middleware** (`LoadAuthFromCookie`) is 🔴 CORE — the app's security model depends on it. They live in the same package for cohesion; if you replace the UI, keep the middleware functions.
 
 ---
 
@@ -69,7 +69,7 @@ These are the **plumbing layers**. Each is independently replaceable.
 | **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 PLUGIN | Imported by handlers | Replace with your own SSE rendering |
 | **Secrets** (age) | `internal/secrets/` | 🔴 CORE | `secrets.Load(appName)` in `config.Load()` | Remove call; env vars work without it |
 | **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | Built in `BootChi` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
-| **UI shell + skin** | `internal/ui/` (one shell), `web/skins/` (`daisyui`) | ✅ CORE | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
+| **UI shell + skin** | `internal/ui/` (one shell), `web/skins/` (`daisyui`) | ✅ CORE | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the theme picker from the shell footer. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
 
 > **🔴 CORE** = keep or replace the whole stack.  
 > **🟡 PLUGIN** = you could remove it and still serve pages, but lose cross-instance broadcast, async jobs, etc.  
@@ -172,7 +172,7 @@ The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Backgr
 
 ## UI skins (pluggable)
 
-The same UI is rendered through one of three pluggable skins, compiled into the same binary. The active skin is selected by `cfg.Skin` (env `UI_SKIN`, default `"daisyui"`) or per-request via the `?skin=` query string. The navbar exposes a `SkinSelector` widget that updates the query param and reloads.
+One skin ships (DaisyUI), compiled into the binary; the visual variety is a set of DaisyUI themes. The active skin is selected by `cfg.Skin` (env `UI_SKIN`, default `"daisyui"`) or per-request via `?skin=`. The shell's sidebar carries the theme picker, which sets the `$theme` signal (`docs/ui-skins.md`).
 
 | Skin | Package | What it is | Source CSS |
 |------|---------|-----------|------------|
@@ -186,7 +186,7 @@ assets and class vocabulary only. There is no per-skin page template — that fo
 (707 lines for `/todo`) was deleted, so an SSE patch renders the same components
 whichever skin is active. Themes are palettes over that single markup.
 
-**Removal.** Delete `web/skins/`, drop the blank imports in `features/todo/components/skin_imports.go`, drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered.
+**Removal.** Delete `web/skins/`, drop the blank imports in `features/todo/components/skin_imports.go`, drop `@skins.ActiveAssets` from `internal/ui/shell.templ`. The handler's lazy fallback returns DaisyUI assets when no skin is registered.
 
 ---
 
@@ -252,7 +252,7 @@ cmd/gui/main.go            Native window (gogpu/ui over the same Turso/sqlc stor
 config/config.go           Env-based config (incl. UI_SKIN, BUILD_LABEL/COMMIT)
 internal/db/               Turso open + migrate + sqlc queries
 features/                  Demo features (🟢 FEATURE, except auth middleware 🔴)
-  authviews/                 Login page + navbar/theme (UI 🟢; middleware lives in internal/auth 🔴)
+  authviews/                 Login page + shell controls (theme, user menu, palette; middleware in internal/auth 🔴)
   app/                       AppContext bundle for cmd/gui only (🟡 PLUGIN — cmd/web never links it)
   landing/                   Public marketing hero on GET / (🟢 FEATURE)
   config/                    Auth-gated read-only /config view (🟢 FEATURE, with masked secrets)

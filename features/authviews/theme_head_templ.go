@@ -20,7 +20,7 @@ import "github.com/calionauta/gogogo/web/resources"
 // It also loads the iconify web component, which is what makes <iconify-icon>
 // render at all: the tag is inert without the script, laying out at 0x0, so a
 // page that carries the markup but not the script shows invisible icons. The
-// navbar's theme and sound toggles are iconify icons, so both are affected.
+// shell's theme and sound toggles are iconify icons, so both are affected.
 // Eight pages had copied the tag; three had forgotten it, and the room page's
 // icons silently collapsed. That is the same "each page must remember" shape
 // that let the theme bindings drift, so the script lives here, with the other

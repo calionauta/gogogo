@@ -100,14 +100,9 @@ templ boardsBody(boards []BoardMeta) {
 					Every whiteboard is shared: anyone signed in can open and draw on it. Only its
 					author (or an admin) can delete it.
 				</p>
-				@components.TechStack([]components.TechItem{
-				{Name: "Loro CRDT", Note: "offline-first shape merge"},
-				{Name: "NATS", Note: "cross-instance shape sync"},
-				{Name: "SSE Hub", Note: "live shape + cursor fan-out"},
-				{Name: "presence", Note: "peer count and live cursors"},
-				{Name: "offline outbox", Note: "edits queue offline, then sync"},
-				})
 				@WhiteboardListFragment(boards)
+		@deleteBoardModal()
+		@components.ListResync("wb-realtime-resync", "'/api/whiteboards/fragment'")
 	</div>
 }
 

@@ -220,7 +220,7 @@ func portRoute() []adviseStep {
 				"and proof into a scratch dir; your tree is never touched",
 		},
 		{Why: "then docs/porting-into-an-existing-app.md — the wiring is yours to " +
-			"write (chi mount, session check, navbar, RBAC row)"},
+			"write (chi mount, session check, module entry, RBAC row)"},
 		{
 			Run: "go build ./...",
 			Why: "the proof is YOUR app's build, not the template's",

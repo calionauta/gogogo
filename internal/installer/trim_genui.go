@@ -46,13 +46,8 @@ var genuiTrimUnits = []trimUnit{
 				},
 			},
 			{
-				path: navbarTempl,
-				rules: []stripRule{
-					{
-						startMarker: `<a href="/genui"`,
-						endMarker:   `}>Ask AI</a>`,
-					},
-				},
+				path:  modulesFile,
+				rules: []stripRule{{startMarker: `{ID: "genui"`, endMarker: "},"}},
 			},
 		},
 		extraDrops: []fileDrop{

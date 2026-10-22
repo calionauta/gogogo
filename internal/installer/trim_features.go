@@ -110,16 +110,12 @@ var featureTrimUnits = []trimUnit{
 		// with no benefit).
 		extraStrips: []fileStrip{
 			{
-				path: navbarTempl,
+				// The sidebar renders []Module, so a trimmed destination is one
+				// dropped entry — not a link to patch out of a template.
+				path: modulesFile,
 				rules: []stripRule{
-					{
-						startMarker: `<a href="/whiteboard"`,
-						endMarker:   `}>Collab whiteboard</a>`,
-					},
-					{
-						startMarker: `<a href="/notes"`,
-						endMarker:   `}>Collab notes</a>`,
-					},
+					{startMarker: `{ID: "whiteboard"`, endMarker: "},"},
+					{startMarker: `{ID: "notes"`, endMarker: "},"},
 				},
 			},
 			{
@@ -174,8 +170,11 @@ var featureTrimUnits = []trimUnit{
 		},
 		replaces: []fileReplace{
 			{
-				path:        navbarTempl,
-				matchSubstr: `class="app-nav-brand"`,
+				// Without the landing page GET / is a 404, so the shell's brand
+				// (the only remaining link to "/") has to point at the module
+				// list instead.
+				path:        shellTempl,
+				matchSubstr: `class="app-rail-brand"`,
 				old:         `href="/"`,
 				newStr:      `href="/todo"`,
 			},
@@ -221,13 +220,8 @@ var featureTrimUnits = []trimUnit{
 		},
 		extraStrips: []fileStrip{
 			{
-				path: navbarTempl,
-				rules: []stripRule{
-					{
-						startMarker: `<a href="/config"`,
-						endMarker:   `}>Config</a>`,
-					},
-				},
+				path:  modulesFile,
+				rules: []stripRule{{startMarker: `{ID: "config"`, endMarker: "},"}},
 			},
 		},
 		replaces: []fileReplace{
@@ -379,13 +373,8 @@ var featureTrimUnits = []trimUnit{
 		},
 		extraStrips: []fileStrip{
 			{
-				path: navbarTempl,
-				rules: []stripRule{
-					{
-						startMarker: `<a href="/review"`,
-						endMarker:   `}>Review</a>`,
-					},
-				},
+				path:  modulesFile,
+				rules: []stripRule{{startMarker: `{ID: "review"`, endMarker: "},"}},
 			},
 			{
 				// The whole boot helper (lives in boot_helpers.go for the

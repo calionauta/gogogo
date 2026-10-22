@@ -11,7 +11,8 @@ Sounds are synthesized live with the Web Audio API — there are no audio files.
 The plugin (`features/sounds/`) owns its whole surface:
 
 - the script loader (`@sounds.SoundAssets()` in each page's `<head>`),
-- the navbar mute toggle (`@sounds.SoundToggle()`),
+- the mute toggle in the shell footer (each page passes it as a one-line
+  `*Sound()` wrapper, `@sounds.SoundToggle()`),
 - the client glue (`web/resources/static/cuelume.js`).
 
 The glue ships the sound accessibility contract out of the box.
@@ -21,7 +22,7 @@ The glue ships the sound accessibility contract out of the box.
 1. **`prefers-reduced-motion` respected by default.** OS-level reduced motion
    auto-mutes playback and reacts to runtime preference changes. There is no
    in-app override — it's an accessibility setting, not a preference.
-2. **Global mute with a real control.** The navbar 🔊 button toggles sound
+2. **Global mute with a real control.** The shell footer's 🔊 button toggles sound
    on/off, persists the choice in `localStorage` (key `gogogo_sound`), is
    keyboard-accessible (`aria-pressed` on a real `<button>`), and survives
    Datastar DOM morphs (delegated click, same pattern as `theme.js`). The
@@ -81,7 +82,7 @@ To add a per-element sound, drop a `data-cuelume-*` attribute on the element —
 `web/resources/static/cuelume/` (keep the `LICENSE`).
 
 **Remove:** delete `features/sounds/`, drop `@sounds.SoundAssets()` from the
-page layouts and `@sounds.SoundToggle()` from the navbar, then delete
+page head wrappers and the `*Sound()` wrappers, then delete
 `web/resources/static/cuelume.js` and `web/resources/static/cuelume/`. The full
 checklist lives in the `SCOPE:plugin` doc comment in
 `features/sounds/sounds.go`.

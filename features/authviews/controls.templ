@@ -1,9 +1,9 @@
-// SCOPE:core — shell controls shared by the navbar and the sidebar.
+// SCOPE:core — Shell controls shared by the sidebar and the landing header.
 //
-// These three blocks used to live inline in navbar.templ. The revamp's shell
-// renders them in its own sidebar footer, so they are components now: one
-// implementation, two hosts, and no chance of the two drifting (the logout
-// POST in particular is a pinned contract — see navbar_test.go).
+// These blocks live here, outside internal/ui, because two hosts render them:
+// the shell's sidebar footer and the landing page's public header. One
+// implementation, two hosts, no chance of the two drifting — the logout POST in
+// particular is a pinned contract (controls_test.go).
 package authviews
 
 // ThemeToggle flips $theme and mirrors it to localStorage. The icon pair is

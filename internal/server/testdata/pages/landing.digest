@@ -4,4 +4,4 @@ data-bind cmdQuery
 data-on data-on:click data-on:close
 signals cmdQuery loading theme
 aria aria-autocomplete aria-controls aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=17 body=1 button=4 details=4 dialog=1 div=10 form=1 head=1 header=1 html=2 iconify=4 img=1 input=1 kbd=2 li=7 link=3 main=1 meta=2 nav=1 p=2 path=3 script=9 section=1 span=18 style=2 summary=2 svg=3 title=1 ul=1
+tags a=10 body=1 button=4 dialog=1 div=8 form=1 head=1 header=2 html=2 iconify=4 img=1 input=1 kbd=2 li=7 link=3 main=1 meta=2 p=2 path=2 script=8 section=1 span=17 style=2 svg=2 title=1 ul=1

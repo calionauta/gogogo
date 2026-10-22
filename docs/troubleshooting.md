@@ -216,7 +216,7 @@ diff <(curl -s https://<host>/static/app.min.css) \
      <(git show HEAD:web/resources/static/app.min.css)
 ```
 
-For the version badge, compare what the navbar renders against the tag you
+For the version badge, compare what the sidebar renders against the tag you
 built. Note that the badge alone cannot prove which commit is live: the deploy
 derives `VERSION` from `git describe --tags`, so a commit without a tag reports
 the *previous* tag. Prefer the container's start time.
@@ -227,7 +227,7 @@ use it as a health check:
 ```bash
 # what the repo says the current tag is
 VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
-# what the running box reports: read BuildLabel/BuildCommit off the navbar,
+# what the running box reports: read BuildLabel/BuildCommit off the sidebar,
 # or grep the served HTML
 curl -s https://<host>/ | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1
 ```

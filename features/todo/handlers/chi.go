@@ -58,7 +58,7 @@ type Handler struct {
 	// NATS wire when AttachJetStream wires it. Constructed with the handler,
 	// so handlers cannot fan out through a private path.
 	bus *todo.Bus
-	// BuildLabel/BuildCommit stamp the navbar version badge (from -ldflags
+	// BuildLabel/BuildCommit stamp the shell version badge (from -ldflags
 	// in production builds, "dev"/"unknown" otherwise).
 	BuildLabel  string
 	BuildCommit string
@@ -205,7 +205,7 @@ func (h *Handler) Routes() chi.Router {
 }
 
 // ownerSession resolves both the owner id and the validated session in one
-// call for page handlers, which need the user email for the navbar as well
+// call for page handlers, which need the user email for the shell as well
 // as the owner for scoping.
 func (h *Handler) ownerSession(r *http.Request) (string, *auth.ValidatedSession, error) {
 	sess, err := h.Auth.Session(r)

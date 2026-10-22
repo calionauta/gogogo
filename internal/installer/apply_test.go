@@ -204,15 +204,26 @@ func devNull(t *testing.T) *os.File {
 
 func TestStripSoundsDropsCallSites(t *testing.T) {
 	dir := t.TempDir()
-	authDir := filepath.Join(dir, "features", "authviews")
-	if err := os.MkdirAll(authDir, 0o755); err != nil {
+	chatDir := filepath.Join(dir, "features", "chat", "components")
+	if err := os.MkdirAll(chatDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "import \"github.com/calionauta/gogogo/features/sounds\"\n" +
+	give := "import (\n" +
+		"\t\"github.com/calionauta/gogogo/features/sounds\"\n" +
+		")\n" +
 		"\n" +
-		"\t\t\t@sounds.SoundToggle()\n" +
-		"\t\t\t<a href=\"/todo\">Todo</a>\n"
-	p := filepath.Join(authDir, "navbar.templ")
+		"templ chatHead() {\n" +
+		"\t@sounds.SoundAssets()\n" +
+		"}\n" +
+		"\n" +
+		"templ chatSound() {\n" +
+		"\t@sounds.SoundToggle()\n" +
+		"}\n" +
+		"\n" +
+		"templ keep() {\n" +
+		"\t<a href=\"/todo\">Todo</a>\n" +
+		"}\n"
+	p := filepath.Join(chatDir, "chat.templ")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -224,23 +235,33 @@ func TestStripSoundsDropsCallSites(t *testing.T) {
 	if strings.Contains(string(out), "@sounds.") || strings.Contains(string(out), "features/sounds") {
 		t.Errorf("sounds call sites survived trim:\n%s", out)
 	}
+	// The wrappers stay (empty), because the shell's slots take a component.
+	if !strings.Contains(string(out), "templ chatHead()") || !strings.Contains(string(out), "templ chatSound()") {
+		t.Errorf("the one-line wrappers must survive as empty components:\n%s", out)
+	}
 	if !strings.Contains(string(out), `href="/todo"`) {
-		t.Errorf("unrelated navbar link was damaged:\n%s", out)
+		t.Errorf("unrelated markup was damaged:\n%s", out)
 	}
 }
 
-func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
+// TestStripModuleEntriesForDroppedFeatures pins the sidebar as the navigation
+// source: trimming a feature drops its []Module entry, and the pages that stay
+// keep theirs. It used to strip <a> blocks out of the navbar template; the
+// navbar is gone and the registry is one line per module.
+func TestStripModuleEntriesForDroppedFeatures(t *testing.T) {
 	dir := t.TempDir()
-	authDir := filepath.Join(dir, "features", "authviews")
-	if err := os.MkdirAll(authDir, 0o755); err != nil {
+	uiDir := filepath.Join(dir, "internal", "ui")
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\t\t\t\t<a href=\"/todo\">Todo</a>\n" +
-		"\t\t\t\t<a href=\"/whiteboard\" class={ x }>\n" +
-		"\t\t\t\t}) }>Collab whiteboard</a>\n" +
-		"\t\t\t\t<a href=\"/config\" class={ y }>\n" +
-		"\t\t\t\t}) }>Config</a>\n"
-	p := filepath.Join(authDir, "navbar.templ")
+	give := "var Modules = []Module{\n" +
+		"\t{ID: \"todo\", URL: \"/todo\"},\n" +
+		"\t{ID: \"whiteboard\", URL: \"/whiteboard\"},\n" +
+		"\t{ID: \"notes\", URL: \"/notes\"},\n" +
+		"\t{ID: \"review\", URL: \"/review\"},\n" +
+		"\t{ID: \"config\", URL: \"/config\", Admin: true},\n" +
+		"}\n"
+	p := filepath.Join(uiDir, "modules.go")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -249,24 +270,26 @@ func TestStripNavbarLinksForDroppedFeatures(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _ := os.ReadFile(p)
-	for _, dead := range []string{"/whiteboard", "/config", "Collab whiteboard</a>", "Config</a>"} {
+	for _, dead := range []string{"whiteboard", "/notes", `{ID: "config"`} {
 		if strings.Contains(string(out), dead) {
-			t.Errorf("dead navbar reference %q survived trim:\n%s", dead, out)
+			t.Errorf("trimmed module %q survived in the registry:\n%s", dead, out)
 		}
 	}
-	if !strings.Contains(string(out), `href="/todo"`) {
-		t.Errorf("todo navbar link was wrongly removed:\n%s", out)
+	for _, live := range []string{`{ID: "todo"`, `{ID: "review"`} {
+		if !strings.Contains(string(out), live) {
+			t.Errorf("module %q was wrongly removed:\n%s", live, out)
+		}
 	}
 }
 
 func TestLandingRetargetsBrand(t *testing.T) {
 	dir := t.TempDir()
-	authDir := filepath.Join(dir, "features", "authviews")
-	if err := os.MkdirAll(authDir, 0o755); err != nil {
+	uiDir := filepath.Join(dir, "internal", "ui")
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	give := "\t\t\t<a href=\"/\" class=\"app-nav-brand\">\n\t\t\t\tgogogo\n\t\t\t</a>\n"
-	p := filepath.Join(authDir, "navbar.templ")
+	give := "\t\t\t\t\t\t<a href=\"/\" class=\"app-rail-brand\">\n\t\t\t\t\t\t\tgogogo\n\t\t\t\t\t\t</a>\n"
+	p := filepath.Join(uiDir, "shell.templ")
 	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
 		t.Fatal(err)
 	}

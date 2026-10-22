@@ -101,7 +101,7 @@ var All = []Capability{
 		Dirs:    []string{"internal/auth", "features/authviews"},
 		Note: "Core middleware; the login page is a removable UI (manual). " +
 			"internal/auth is the owned argon2id stack (gogogo_auth cookie); " +
-			"features/authviews holds the login/navbar/theme components. " +
+			"features/authviews holds the login page and shell controls. " +
 			"No framework middleware remains; the owned stack is the whole story.",
 	},
 	{
@@ -239,7 +239,7 @@ var All = []Capability{
 		Note: "Deletion removes the Ask demo + chat demo (one bundle: chat " +
 			"imports genui components, so chat without genui does not " +
 			"compile — same honest shape as whiteboard+collab+notes). " +
-			"The navbar Ask AI link is stripped automatically.",
+			"The Ask AI sidebar entry is stripped automatically.",
 	},
 	{
 		ID:      "components",
@@ -344,7 +344,7 @@ var All = []Capability{
 		DependsOn: []string{"genkit"},
 		Dirs:      []string{"features/review"},
 		Warns: []string{
-			"The navbar Review link is stripped automatically.",
+			"The Review sidebar entry is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without review " +
 				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
 		},
@@ -353,7 +353,7 @@ var All = []Capability{
 			"it), but the only .templ reader ships inside features/review " +
 			"— claiming it would fail the trimmed-tree conformance, the " +
 			"same reason SimulatedLLM is unclaimed. Trim removes the " +
-			"navbar link, so no dead UI either way. " +
+			"sidebar entry, so no dead UI either way. " +
 			"DependsOn lists genkit only: llm is never trimmed " +
 			"(runtime-off is blessed), so declaring it would break " +
 			"`gogogo add review` (add fails on deps no unit provides) " +
@@ -376,8 +376,8 @@ var All = []Capability{
 		Warns: []string{
 			"Runtime alternative (no deletion): GOAKT_ENABLED=false.",
 		},
-		Note: "Deletion removes the engine + room demo. The navbar Room " +
-			"link is stripped automatically; main.go boot lines go with " +
+		Note: "Deletion removes the engine + room demo. The Room sidebar " +
+			"entry is stripped automatically; main.go boot lines go with " +
 			"the unit's mainStrips.",
 	},
 	{
@@ -387,7 +387,7 @@ var All = []Capability{
 		Offered: true,
 		Dirs:    []string{"features/room"},
 		Warns: []string{
-			"The navbar Room link is stripped automatically.",
+			"The Room sidebar entry is stripped automatically.",
 		},
 	},
 	{
@@ -401,7 +401,7 @@ var All = []Capability{
 		},
 		Dirs: []string{"features/whiteboard"},
 		Warns: []string{
-			"The navbar Whiteboard link is stripped automatically.",
+			"The Whiteboard sidebar entry is stripped automatically.",
 			"ci-local smoke: export SMOKE_FEATURES without whiteboard " +
 				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
 		},
@@ -418,7 +418,7 @@ var All = []Capability{
 		Note: "Manual removal (or trim the whiteboard unit, which covers " +
 			"whiteboard+collab+notes): delete the dir + the notes roots in " +
 			"buildChiMux (internal/server/chi.go), remove the Notes " +
-			"navbar link in features/authviews/navbar.templ, and remove " +
+			"sidebar entry in internal/ui/modules.go, and remove " +
 			"this entry.",
 	},
 	{
@@ -432,7 +432,7 @@ var All = []Capability{
 		Dirs: []string{"features/landing"},
 		Warns: []string{
 			"GET / will 404 (landing owned the only root route); " +
-				"the navbar brand is retargeted to /todo, which is kept.",
+				"the shell brand is retargeted to /todo, which is kept.",
 		},
 	},
 	{
@@ -445,7 +445,7 @@ var All = []Capability{
 		},
 		Dirs: []string{"features/config"},
 		Warns: []string{
-			"The navbar Config link is stripped automatically.",
+			"The Config sidebar entry is stripped automatically.",
 		},
 	},
 	{
