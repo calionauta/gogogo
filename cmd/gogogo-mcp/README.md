@@ -28,13 +28,14 @@ Claude Code (`~/.claude.json`) / Cursor (`~/.cursor/mcp.json`) / BB:
 | Tool | Params | Effect |
 |---|---|---|
 | `capabilities_list` | — | Full registry JSON (start here) |
-| `advise_stack` | `need?`, `format?` | Opinions, not changes: use-case → keep/drop + off switches + Go/Zig rule |
+| `advise_stack` | `need?`, `intent?`, `dir?`, `format?` | Opinions + the command ROUTE: use-case → keep/drop, off switches, and the ordered commands for `intent` (update/port/add-unit/new-feature/scaffold). A `dir` that is not a gogogo checkout gets the copy surface + the export route |
 | `trim_plan` | `name`, `owner?`, `dir?`, `plugins?`, `features?`, `format?` | Validates ids, shows consequences. Changes nothing |
 | `trim_apply` | trim_plan params + `confirm: true` | Rename + trim + tidy + build proof. Refuses without `confirm:true` |
 | `check_tree` | `dir` | `CHECK-OK`/`CHECK-FAIL` drift verdict, changes nothing |
 | `version_status` | `dir?`, `format?` | Is the tool — and the project's recorded base — behind the latest release? Read-only, opt-in, never on startup. "Update exists" is a verdict, not an error |
 | `migrate_plan` | `from?`, `to?`, `dir?`, `changelog?`, `format?` | Releases between the recorded base and the latest, plus the gates that prove a migrated tree. Read-only; nothing is applied |
 | `add_unit` | `unit`, `from`, `dir`, `confirm`, `dryRun?` | Dependency closure + copy + rewire + proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |
+| `export_unit` | `unit`, `dir`, `to`, `module?`, `format?` | Read-only PORT BUNDLE for a tree that is not a gogogo checkout: copies the unit's files into `to` + writes `PORTING.md` (routes, imports to rewrite, what to write by hand, proof). Changes nothing in `dir` |
 | `new_feature` | `name`, `dir`, `confirm`, `dryRun?` | Scaffold one feature inside a checkout: handler + page + wiring + capability unit + RBAC rows, then gates + build proof. Refuses without `confirm:true` (or preview with `dryRun:true`) |
 
 Formats default to `json` on this transport (humans get text on the CLI).

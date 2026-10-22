@@ -117,6 +117,22 @@ var advisePresets = []advisePreset{
 		Note: "Public GET / with no auth. Brand lives here; /todo is the app behind it.",
 	},
 	{
+		Name: "content-model",
+		Idea: "a CMS-shaped area (articles, pages, editorial) with no CMS dependency",
+		Match: []string{
+			"cms", "content", "article", "editorial", "publish", "draft",
+			// "blog" already routes marketing-site; here it means posts with a
+			// model behind them, which is the CMS-shaped reading of the same word.
+			"blog", "post", "posts",
+		},
+		Keep: []string{"(core: auth, queue, router)", unitLanding},
+		Drop: []string{unitWhiteboard, unitGoAkt, unitSounds, unitSkinsExtra, unitGenUI},
+		Note: "No CMS unit, on purpose: a content model is a vertical slice you own, " +
+			"not a dependency to install. `gogogo new feature articles` scaffolds " +
+			"handler + page + wiring + RBAC rows + proof; features/todo is the " +
+			"pattern to copy (DB, SSE stream, optimistic UI).",
+	},
+	{
 		Name:  "quiet-api",
 		Idea:  "delete the demo surfaces; keep auth, queue, router",
 		Match: []string{"api", "headless", "backend", presetMinimal, "embed", "library"},
@@ -244,6 +260,8 @@ var notCheckoutRules = []string{
 // is no ecosystem detector to label anything with. A need that matches
 // nothing gets the full map instead of a guessed stack (see buildAdviseIn).
 const (
+	// scopeTemplate is the answer shape for a need evaluated against the
+	// template: presets, rules, the capability table, and a first run.
 	scopeTemplate = "template"
 	// scopeExceptionToGo is the second answer shape: the need names Zig, the
 	// repo's one documented exception to the Go rule (docs/exception-to-go.md).
@@ -251,13 +269,19 @@ const (
 	// Exception-to-go gate plus the skill pointer — never trim mechanics, never a
 	// foreign label.
 	scopeExceptionToGo = "exception-to-go"
-	// scopeGoStdlib is the third answer shape: the template does not apply.
-	// Two conditions produce it, distinguished by `reason`:
-	//   reasonStdlibOnly  — a need whose own constraint forbids dependencies
-	//   reasonNotCheckout — --dir points at something that is not a gogogo tree
-	// Both mean "the capability table is useless here", but they call for
-	// different next steps, so they share the scope and split on Reason.
+	// scopeGoStdlib is the third answer shape: a need whose own constraint
+	// forbids dependencies (reasonStdlibOnly). The template cannot apply, and
+	// the answer is the Go standards pointer instead of a capability table full
+	// of dependencies the need already ruled out.
 	scopeGoStdlib = "go-standards"
+	// scopeForeignTree is the fourth answer shape: --dir points at a tree that
+	// is NOT a gogogo checkout. It used to share scopeGoStdlib under
+	// reasonNotCheckout, which was wrong in the one way that matters to a
+	// caller: the Go-standards answer says "the template does not apply, here
+	// are the rules", while this one has a PATH FORWARD — the capability table
+	// with the owned paths to copy, and the route to export + the porting doc.
+	// Two different next steps belong in two different scopes.
+	scopeForeignTree = "foreign-tree"
 
 	reasonStdlibOnly  = "stdlib-only"
 	reasonNotCheckout = "not-a-gogogo-checkout"

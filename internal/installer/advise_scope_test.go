@@ -203,7 +203,7 @@ func TestAdviseUnmatchedNeedGetsFullMapWithoutScaffold(t *testing.T) {
 			t.Errorf("%q must omit scaffold first-run", need)
 		}
 	}
-	out, err := Advise("quantum toaster firmware", planFormatText, "")
+	out, err := Advise("quantum toaster firmware", planFormatText, "", "")
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestAdviseUnmatchedNeedGetsFullMapWithoutScaffold(t *testing.T) {
 
 // TestAdviseExceptionToGoText asserts the rendered gate says the gate.
 func TestAdviseExceptionToGoText(t *testing.T) {
-	out, err := Advise("Zig kernel", planFormatText, "")
+	out, err := Advise("Zig kernel", planFormatText, "", "")
 	if err != nil {
 		t.Fatalf("Advise: %v", err)
 	}

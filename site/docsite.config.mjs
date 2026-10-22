@@ -48,6 +48,8 @@ export default {
     desc: "What each core, plugin, and feature is for, in business language." },
   { group: "Core", slug: "scope-taxonomy", file: "scope-taxonomy.md",
     desc: "Core / Plugin / Feature: the rule for deciding what is safe to delete." },
+  { group: "Core", slug: "porting-into-an-existing-app", file: "porting-into-an-existing-app.md",
+    desc: "Taking one unit into an app that already exists: export, copy, rewire, prove — and the four things no recipe can know." },
   { group: "Core", slug: "db-concurrency", file: "db-concurrency.md",
     desc: "Turso single-writer stance, the probed MVCC path, and revisit triggers." },
   { group: "Core", slug: "configuration", file: "configuration.md",

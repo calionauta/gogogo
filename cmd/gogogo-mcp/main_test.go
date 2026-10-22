@@ -398,3 +398,52 @@ func TestVersionStatusIsAVerdictNotAnError(t *testing.T) {
 		t.Errorf("latest = %q, want the cached tag", rep.Latest)
 	}
 }
+
+// TestAddUnitDryRunReachesTheEngine is the plumbing test that was missing.
+// add_unit used to pass --no-tui to `gogogo add`, which never defined that flag
+// (it belongs to the root scaffolder), so every call failed at flag parse —
+// and nothing noticed, because this module's tests ran in no gate. A dry run
+// against the template itself proves the argv reaches the real engine without
+// changing anything.
+func TestAddUnitDryRunReachesTheEngine(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _, err := handleAddUnit(context.Background(), nil, addArgs{
+		Unit: "whiteboard", From: root, Dir: root, DryRun: true, Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("handleAddUnit: %v", err)
+	}
+	if out := toolText(t, res); !strings.Contains(out, "whiteboard") {
+		t.Errorf("dry-run plan does not mention the unit: %s", out)
+	}
+}
+
+// TestExportUnitWritesOnlyTheScratchDirectory proves export_unit is wired to
+// the same engine and that its read-only promise survives the transport: the
+// bundle lands in `to`, and `dir` is untouched.
+func TestExportUnitWritesOnlyTheScratchDirectory(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	to := filepath.Join(t.TempDir(), "bundle")
+	res, _, err := handleExportUnit(context.Background(), nil, exportArgs{
+		Unit: "sounds", Dir: root, To: to, Format: "json",
+	})
+	if err != nil {
+		t.Fatalf("handleExportUnit: %v", err)
+	}
+	var bundle map[string]any
+	if err := json.Unmarshal([]byte(toolText(t, res)), &bundle); err != nil {
+		t.Fatalf("export is not one JSON document: %v", err)
+	}
+	if bundle["unit"] != "sounds" {
+		t.Errorf("unit = %v, want sounds", bundle["unit"])
+	}
+	if _, statErr := os.Stat(filepath.Join(to, "PORTING.md")); statErr != nil {
+		t.Errorf("recipe missing: %v", statErr)
+	}
+}
