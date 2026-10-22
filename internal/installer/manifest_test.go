@@ -81,7 +81,7 @@ func TestParseKeepDimensionsIndependent(t *testing.T) {
 	if ids["whiteboard"] || ids["landing"] || ids["config-view"] {
 		t.Errorf("empty features answer dropped features: %v", dropIDs(drop))
 	}
-	if !ids["credits"] || !ids["sounds"] || !ids["skins-extra"] {
+	if !ids["credits"] || !ids["sounds"] {
 		t.Errorf("unlisted plugins must drop: %v", dropIDs(drop))
 	}
 }
@@ -128,7 +128,7 @@ func TestUnitMenusFollowRegistryKinds(t *testing.T) {
 	// Menu numbers are positional: pin the order so humans learn stable
 	// numbers and prompt options never drift from registry kinds.
 	plugins := unitIDsOfKind(capabilities.KindPlugin)
-	wantPlugins := []string{"dagnats", "goakt", "credits", "sounds", "skins-extra", "genui", "search"}
+	wantPlugins := []string{"dagnats", "goakt", "credits", "sounds", "genui", "search"}
 	if fmt.Sprint(plugins) != fmt.Sprint(wantPlugins) {
 		t.Errorf("plugin menu = %v, want %v", plugins, wantPlugins)
 	}

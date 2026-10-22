@@ -92,8 +92,7 @@ templ NotesListFragment(notes []NoteMeta) {
 									type="button"
 									class="btn btn-ghost btn-xs text-error"
 									title="Delete this note"
-									data-on:click__prevent={ "$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()" }
-								 data-variant="ghost">
+									data-on:click__prevent={ "$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()" }>
 									<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
 								</button>
 							}
@@ -134,16 +133,14 @@ templ deleteNoteModal() {
 				<button
 					type="button"
 					class="btn btn-ghost btn-sm"
-					data-on:click={ "document.getElementById('" + notesDialogID + "').close()" }
-				 data-variant="ghost">
+					data-on:click={ "document.getElementById('" + notesDialogID + "').close()" }>
 					Cancel
 				</button>
 				<button
 					type="button"
 					class="btn btn-error btn-sm"
 					data-attr:disabled="!!$deletingNote"
-					data-on:click={ "$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')" }
-				 data-variant="destructive">
+					data-on:click={ "$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')" }>
 					Delete
 				</button>
 			</div>

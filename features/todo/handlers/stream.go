@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/calionauta/gogogo/features/todo/components"
+
 	"github.com/google/uuid"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
@@ -214,7 +216,7 @@ func (h *Handler) applyRecordEvent(
 	}
 	//nolint:contextcheck // SSE-sink boundary: patchSSE ends in datastar-go
 	// sinks, which take no context; disconnects surface as write errors.
-	return patchSSE(sse, h.renderListRegion(signals, "daisyui"),
+	return patchSSE(sse, components.TodoListRegion(signals),
 		sdk.WithSelector("#todo-list"),
 	)
 }
@@ -244,13 +246,13 @@ func (h *Handler) applyWorkflowCompleted(
 	}
 	//nolint:contextcheck // datastar-go's sink takes no context (a
 	// third-party boundary); see patchSSE.
-	return renderWorkflowDone(sse, h.renderListRegion(todo.Signals{
+	return renderWorkflowDone(sse, components.TodoListRegion(todo.Signals{
 		Todos: todos, Filter: view.Filter, Scope: view.Scope, ItemCount: len(todos),
 		SearchEnabled: h.searchEnabled(),
 		IsViewer:      rbac.IsViewer(role),
 		IsAdmin:       role == rbac.RoleAdmin,
 		UserID:        owner,
-	}, "daisyui"))
+	}))
 }
 
 // renderWorkflowDone patches the re-listed region and narrates completion.

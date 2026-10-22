@@ -15,9 +15,8 @@ import templruntime "github.com/a-h/templ/runtime"
 // whose server code patches #toast-container (emitToast and friends)
 // must render this — without it every toast errors with
 // PatchElementsNoTargetsFound and vanishes silently (lived bug on the
-// Ask page, latent on the basecoat skin). One definition, not one copy
-// per layout: the todo Layout keeps its own identical block for now
-// (byte-stability on the most-tested page; consolidate on next touch).
+// Ask page). One definition, not one copy per layout: internal/ui.Shell
+// renders this component, so every shell page gets toasts from one place.
 func ToastContainer() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

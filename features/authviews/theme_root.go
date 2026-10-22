@@ -13,7 +13,11 @@
 // The signals attribute here is what it reads and merges into.
 package authviews
 
-import "github.com/a-h/templ"
+import (
+	"github.com/a-h/templ"
+
+	"github.com/calionauta/gogogo/internal/themes"
+)
 
 // themeSignalSeed is the JSON the document element is seeded with. It carries
 // `theme` because the signal must exist before Datastar reads the attribute,
@@ -45,8 +49,11 @@ func ThemeRootAttrs(signals string) templ.Attributes {
 		signals = themeSignalSeed
 	}
 	return templ.Attributes{
-		"data-signals":         signals,
+		"data-signals": signals,
+		// data-theme-dark carries the dark palettes from internal/themes so the
+		// pre-paint bootstrap and theme.js never keep a second copy.
+		"data-theme-dark":      themes.DarkNames(),
 		"data-attr:data-theme": `$theme`,
-		"data-class:dark":      `$theme === 'dark'`,
+		"data-class:dark":      `(window.Theme && Theme.isDark) ? Theme.isDark($theme) : $theme === 'dark'`,
 	}
 }

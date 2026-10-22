@@ -42,8 +42,7 @@ var trimPresets = map[string]trimPreset{
 			"pages with sessions, queue and router.",
 		Drop: []string{
 			unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
-			unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
-			unitGenUI, unitReview, unitSearch,
+			unitConfigView, unitCredits, unitSounds, unitGenUI, unitReview, unitSearch,
 		},
 		Note: "GET / 404s (landing owned the only root route); the navbar " +
 			"brand retargets to /todo. Todo stays as the reference " +

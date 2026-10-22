@@ -1,171 +1,104 @@
-# UI skins
+# UI skins and themes
 
-Every page ships with a runtime-switchable UI skin. Three skins are compiled
-into the same binary; the active one is chosen per process via env, per request
-via query string, or interactively via the `SkinSelector` widget in the navbar.
+Every page renders inside one shell (`internal/ui`), and the shell is dressed by
+**one skin** plus a **theme** chosen at runtime.
 
-| Skin | What it is | CSS / JS |
-|------|-----------|----------|
-| **DaisyUI** (default) | The reference UI. Server-rendered DaisyUI v5 components over TailwindCSS, morph-friendly with Datastar | `app.min.css` |
-| **Basecoat** | [BasecoatUI](https://basecoatui.com) (a shadcn-style component lib) with shadcn-inspired OKLCH `@theme inline` color tokens, native Basecoat JS runtime (`basecoat.initAll`) debounced via `requestAnimationFrame` for Datastar DOM morphing | `basecoat.min.css` + `basecoat.min.js` |
-| **shadcn** | shadcn's visual language expressed as tokens plus a compatibility layer over the shared semantic classes (`btn`, `card`, `badge`, `input`, `tabs`, `table`, `modal`, `steps`, …). No vendored component source, no client framework | `shadcn.min.css` |
+| Layer | What it is | Where |
+|-------|-----------|-------|
+| **Skin** | The component class vocabulary and its asset bundle | `web/skins/<name>/` (assets only, no page templates) |
+| **Theme** | A DaisyUI palette: colours, radius, shadows | `src/css/input.css` (`@plugin "daisyui"`), catalogued in `internal/themes` |
 
-Every page renders the active skin through `skins.ActiveAssets`, and
-`skins.Resolve` applies the `?skin=` override to every route, not only the Todo
-reference feature. The navbar selector and the `?skin=` query therefore change
-the whole app.
+One skin ships: **DaisyUI** (`app.min.css`). The palettes are `light`
+(default), `dark`, `lofi` ("Calmo") and `dim` ("Zinc"), picked from the **Tema**
+disclosure in the sidebar footer.
 
-> **⚠️ Basecoat is community-supported.** DaisyUI (the default) is the polished,
-> battle-tested skin that gets the most development attention. Basecoat
-> integrates correctly but is the secondary skin: it is developed against a
-> third-party component library, so its class vocabulary is mapped onto the
-> shared templates rather than being the origin of them.
->
-> **Contributions are welcome.** Every skin is a self-contained directory under
-> `web/skins/<name>/` — changes are scoped and safe.
->
-> All bundles are built from the same scan roots (`features/`, `web/`,
-> `internal/`), so a utility class that resolves under one skin resolves under
-> the others. The per-skin work is confined to class *vocabulary*: Basecoat has
-> no `.steps`, no `data-variant="accent"`, and no DaisyUI semantic colours, so
-> the skins differ in markup where the component model differs.
->
-> An earlier skin (Morpheus, a web-components kit) shipped from v0.24.0 and was
-> removed: its upstream was a two-month-old alpha and its layout classes
-> (`cal14-grid`, `neo-tab-active`) had no CSS anywhere, so it rendered broken
-> rather than merely differently. The changelog entry records the full list of
-> what was deleted.
+> **Why one skin.** A second component library is not a second palette: its
+> component model differs by *markup* (different tab, step and colour
+> vocabulary), so every page either forks or degrades. Compiling one in cost a
+> second CSS bundle in every binary, a second CSS build on every commit, and a
+> forked `/todo`. Themes buy the palette/radius/typography variety for a few KB
+> of CSS and zero forked markup; a second vocabulary is a docs page plus a
+> `web/skins/<name>/` directory, added only when a real consumer needs it.
 
-## Why shadcn is a skin, not vendored shadcn-templ
-
-[shadcn-templ](https://shadcn-templ.com) is a copy-in **component library**: using
-it means vendoring its templ source and its behaviour shims. A skin is an asset
-bundle selected at runtime. The shadcn skin keeps the first meaning and takes
-the second shape: it maps the semantic class vocabulary the shared templates
-already use onto shadcn tokens and recipes. One template tree keeps rendering
-under all three skins, and a feature added once is styled everywhere.
-
-If a future component genuinely needs shadcn-templ's source (a combobox with
-its own state machine, for example), vendor that one component beside the
-feature and keep the skin for the shell.
-
-## Three ways to switch
-
-1. **Env var (process-wide).** `UI_SKIN=basecoat ./gogogo`
-   switches the active skin for the lifetime of the binary.
-2. **Query string (per request).** Append `?skin=basecoat` to any route; the
-   skin dispatcher reads it and renders that skin's assets without restart.
-3. **Interactive selector.** The navbar exposes a `SkinSelector` that updates a
-   query param and reloads.
-
-## The plugin contract
-
-`web/skins/skin.go` defines every skin as a `Skin{Name, Assets}` value,
-registered at init time via blank imports in
-`features/todo/components/skin_imports.go`. The dispatcher falls back to
-DaisyUI when the env value is unknown, logging a warning.
-
-**Adding a skin:** create `web/skins/<name>/`, register it from the
-import file, add a `make css-<name>` target. See
-`web/skins/daisyui/skin.go` for the minimal assets-only reference. A skin that
-needs its own markup can keep a templ page beside it; Basecoat does.
-
-### An assets-only skin owes the shared markup a class for every name it uses
-
-A skin that reuses the shared templates (shadcn) does not inherit DaisyUI's
-component CSS — it inherits the *class names*. Every class the markup spells has
-to resolve in that bundle, or the control falls back to unstyled markup while
-the page still renders "fine" in HTML. That is how `?skin=shadcn` shipped
-visibly broken: `.join` sizing crushed the Add button, and `.toast`, `.kbd`,
-`loading-spinner`, the checkbox colour variants and the `animate-in` /
-`slide-in-from-*` entrance utilities had no definition at all. `make css-check`
-proves a bundle is *current*, never that it is *complete*, so the gap is found
-by loading the page.
-
-Practical rules:
-
-- **Grep the markup, not the vocabulary.** `grep -o 'class="[^"]*"'` over the
-  templates the skin renders, then check each name against the bundle.
-- **Copy DaisyUI's semantics, restate them in the skin's tokens.** A missing
-  utility is not a style preference — `join` is a geometry contract.
-- **The browser smoke sweeps every detected skin** (`daisyui`, and
-auto-detected `basecoat`/`shadcn`) through the same offline-queue contract, so a
-  CSS-only skin is now exercised instead of assumed to be covered by the
-  DaisyUI pass.
-
-## Building the CSS bundles
+## Themes
 
 ```
-src/css/input.css          →  tailwindcss v4 CLI  →  web/resources/static/app.min.css        (DaisyUI bundle)
-src/css/basecoat-input.css →  tailwindcss v4 CLI  →  web/resources/static/basecoat.min.css  (Basecoat bundle)
-src/css/shadcn-input.css   →  tailwindcss v4 CLI  →  web/resources/static/shadcn.min.css    (shadcn bundle)
-                                                              │
-                                                        //go:embed in the Go binary
+src/css/input.css  →  tailwindcss v4 CLI  →  web/resources/static/app.min.css
 ```
 
 ```bash
-make css         # DaisyUI (default)
-make css-basecoat # Basecoat
-make css-shadcn  # shadcn
-make css-all     # every skin
+make css         # build the bundle
+make css-check   # fail if the committed bundle is stale (pre-commit + CI)
+make css-all     # alias for css (kept for callers that still use the name)
 ```
 
-> Editing a `.templ` without `make templ && make css-all` leaves a bundle
-> stale — `app.min.css`, `basecoat.min.css` and `shadcn.min.css` are committed
-> and embedded. The pre-commit hook rebuilds all of them whenever `.templ`,
-> `.go` or `.css` files change, and CI diffs them after `make css-all`, so a
-> stale skin fails the gate instead of shipping. `make css` alone is the
-> DaisyUI bundle only: it is never sufficient to commit.
+Adding a theme is one edit plus one list:
 
-## Basecoat runtime gotcha
+1. Add the name to `@plugin "daisyui" { themes: light --default, dark, lofi, dim, <name>; }`
+   in `src/css/input.css` and rebuild the bundle.
+2. Add it to `internal/themes` with its label and whether it is dark.
 
-Do **not** call `basecoat.initAll` from inline page scripts. Datastar re-morphs
-the DOM and loses JS-attached event handlers. The template debounces
-`basecoat.initAll` via `requestAnimationFrame` instead.
+`themes_test.go` fails if the catalog and the compiled list disagree in either
+direction: a catalog entry the bundle does not compile renders as the default
+palette (a picker option that changes nothing), and a compiled theme missing
+from the catalog is unreachable from the UI.
+
+The picker (`internal/ui/theme_selector.templ`) is markup only: it sets the
+`$theme` signal, and Datastar owns `data-theme` and the `dark` class through the
+bindings in `authviews.ThemeRootAttrs`. Nothing writes those attributes
+imperatively — Datastar reverts external writes to a bound attribute. The same
+helper emits `data-theme-dark`, the one list the pre-paint bootstrap
+(`theme_head.templ`) and `web/resources/static/theme.js` read, so neither keeps a
+second copy of "which palettes are dark".
+
+## Two ways to switch
+
+1. **Env var (process-wide).** `UI_SKIN=daisyui ./gogogo` sets the default skin
+   for the lifetime of the binary.
+2. **Query string (per request).** `?skin=daisyui` on any route. Unknown values
+   fall back to DaisyUI with a warning log, so an old link never 404s the page.
+
+The theme is not a parameter: it lives in the `$theme` signal, persisted to
+`localStorage` under `themeMode` and applied before first paint.
+
+## The plugin contract
+
+`web/skins/skin.go` defines a skin as `Skin{Name, Assets}`, registered at init
+time by a blank import in `features/todo/components/skin_imports.go`. The
+registry is what makes "add a skin" a docs page instead of a refactor: create
+`web/skins/<name>/skin.go`, register it from that import file, add a CSS input
+and a `make css-<name>` target. `skins.DefaultAssets` is the DaisyUI block used
+when no skin is registered (the normal state in a single-package component
+test).
+
+**A skin may not fork a page.** It supplies assets, and at most class vocabulary
+consumed through component props. That rule is what the deleted second skin
+broke, and why it cost 700+ lines of duplicated markup.
+
+### An assets-only skin owes the shared markup a class for every name it uses
+
+If a skin reuses the shared templates and swaps only the stylesheet, DaisyUI's
+component classes are the only thing styling the page — but the skin's bundle is
+built from its own input file and inherits none of them. A missing definition is
+silent: the markup renders, no console error fires, no Go test fails, and the
+control simply collapses.
+
+`make css-check` cannot catch it (it proves the committed bundle matches its
+source, not that the source covers the markup), so a skin that follows this shape
+needs a class-parity sweep: render the shared templates, collect every class, and
+fail on the ones the skin's bundle does not define. The second skin this repo
+shipped carried exactly that test, which is how its missing `.steps` and `.toast`
+definitions were found.
 
 ## Removal
 
 Delete `web/skins/`, drop the blank imports in
-`features/todo/components/skin_imports.go`, and drop the `SkinSelector` call
-from the navbar. The handler's lazy fallback returns DaisyUI assets when no
-skin is registered.
-
-## Behaviour gaps: date picker and command palette
-
-DaisyUI is CSS-only, so the three behaviour gaps are filled without importing a
-second design system:
-
-- **Date picker.** Cally v0.9.2 (MIT, one small self-contained module) is
-  vendored at `/static/cally.js` and loaded only by the Todo layout, which is
-  the only page that uses it. The
-  Todo page wraps `<calendar-date class="cally">` in `createdFilter`; each row
-  carries `data-created` and a `data-show` comparison, so the filter is a
-  client-side display decision with no request. DaisyUI styles the web
-  component; `app.css` supplies a compact part-based fallback for the other
-  skins.
-- **Command palette.** `features/authviews/command_palette.templ` renders a
-  native `<dialog>` opened by Ctrl/Cmd+K or the navbar button. The input owns a
-  filter signal, the options are real links, and ArrowUp/ArrowDown move focus
-  through the visible commands. No framework runtime.
-
-  The option list carries `w-full` on purpose: DaisyUI's `.menu` is
-  `width: fit-content`, so without it the rows hug their text in a narrow
-  column inside a wide `modal-box` instead of spanning the dialog.
-
-  The bar itself collapses into the Menu button below 1100px
-  (`web/resources/static/chrome.css`), the width where the link row plus the
-  command-palette button, skin picker, theme/sound toggles and user menu stop
-  fitting. The same breakpoint lives in the navbar's inline script, which owns
-  the row's `open` state — a closed `<details>` hides the inline row, and a
-  tablet must not start with the dropdown covering the page.
-- **Combobox pattern.** The palette's input + listbox + keyboard handling is the
-  reusable combobox pattern. A form combobox that needs server search can reuse
-  it with a `@get` endpoint, the same way the Todo search box does.
-
-Cally is the only new client asset for these gaps. No Basecoat JS, Starbase or
-dsx runtime was added; the skin contract and the CSS-only shell stay intact.
+`features/todo/components/skin_imports.go`, and drop the `@skins.*` calls from
+`internal/ui/shell.templ`. `internal/ui` is the only consumer, so the seam is one
+import away from gone.
 
 ## Related
 
 - [UI sounds](ui-sounds.md)
-- [Removing skins](scope-taxonomy.md#what-ships-as-what)
+- [Local CI](local-ci.md) — `bin/red-proof-ui.sh` proves the guards that keep a
+  removed surface out.

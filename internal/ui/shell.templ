@@ -1,0 +1,135 @@
+// SCOPE:core — The shell every module renders inside.
+//
+// One sidebar, one module header, one work area, one toast root. Before this
+// file each page template owned its own <head>, navbar, banner stack and
+// re-declared the same assets — eleven copies, with the skin even forking a
+// whole alternate page template for /todo. Pages now render a body; the shell
+// owns everything around it.
+//
+// Slots, not imports: `head` carries page-specific <head> extras (the sound
+// assets, for the modules that opt in), `sound` the sidebar's sound toggle, and
+// `actions` the header's right-aligned controls. Keeping them as components
+// means internal/ui imports no feature package, so trimming a feature still
+// trims cleanly (capability registry rule).
+package ui
+
+import (
+	"github.com/calionauta/gogogo/features/authviews"
+	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/web/skins"
+)
+
+// Data is what the shell needs to render around a page body.
+type Data struct {
+	Title       string             // document title
+	Module      string             // active module id, e.g. "todo"
+	Heading     string             // header title override (default: module title)
+	Context     string             // header context slot: liveness, store, transport
+	Email       string             // session email ("" for guests)
+	Role        string             // session role ("admin" | "user" | "viewer" | "")
+	BuildLabel  string             // running build, shown in the sidebar footer
+	BuildCommit string             // commit, exposed via title= on the badge
+	Skin        string             // active skin name ("" = default)
+	OfflineSync bool               // offline outbox wired
+	Stack       []components.TechItem // layers this page demonstrates (0 = no key)
+}
+
+// HeadingText resolves the module header title: the explicit override wins,
+// otherwise the registry's title, otherwise the document title.
+func (d Data) HeadingText() string {
+	if d.Heading != "" {
+		return d.Heading
+	}
+	if m, ok := ByID(d.Module); ok {
+		return m.Title
+	}
+	return d.Title
+}
+
+// Shell renders one module page: head, sidebar, header, body.
+//
+// head/sound/actions may be nil — templ skips a nil component, which is how a
+// module without sounds (room) renders the same shell without the sounds
+// dependency (its capability unit deliberately carries none).
+templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.Component, body templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en" { authviews.ThemeRootAttrs("")... }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ d.Title }</title>
+			@skins.ActiveAssets(d.Skin)
+			@authviews.ThemeHead()
+			if head != nil {
+				@head
+			}
+			@components.OfflineSyncScript(d.OfflineSync)
+		</head>
+		<body class="bg-base-200 min-h-screen">
+			<div class="app-shell">
+				<aside class="app-rail" aria-label="Modules">
+					<div class="app-rail-brand">
+						<a href="/">gogogo</a>
+						if d.BuildLabel != "" {
+							<span class="app-nav-badge" title={ d.BuildCommit + " · built " + d.BuildLabel }>{ d.BuildLabel }</span>
+						}
+					</div>
+					<nav class="app-rail-nav">
+						for _, group := range Grouped(d.Role) {
+							<p class="app-rail-group">{ group.Label }</p>
+							for _, m := range group.Modules {
+								<a
+									href={ templ.SafeURL(m.URL) }
+									class={ templ.Classes("app-rail-item", map[string]bool{"is-active": m.ID == d.Module}) }
+									aria-current={ activeCurrent(m.ID == d.Module) }>
+									<iconify-icon icon={ m.Icon } class="app-rail-icon"></iconify-icon>
+									<span class="app-rail-label">{ m.Title }</span>
+									if m.Count > 0 {
+										<span class="app-rail-count">{ formatCount(m.Count) }</span>
+									}
+								</a>
+							}
+						}
+					</nav>
+					<div class="app-rail-foot">
+						@ThemeSelector()
+						<div class="app-rail-controls">
+							@authviews.ThemeToggle()
+							if sound != nil {
+								@sound
+							}
+						</div>
+						if len(d.Stack) > 0 {
+							<details class="app-rail-stack">
+								<summary>{ stackSummary(len(d.Stack)) }</summary>
+								@components.TechStackRows(d.Stack)
+							</details>
+						}
+						@authviews.UserMenu(d.Email, d.Role)
+					</div>
+				</aside>
+				<div class="app-main">
+					<header class="app-module-header">
+						<div class="app-module-titles">
+							<h1>{ d.HeadingText() }</h1>
+							if d.Context != "" {
+								<p class="app-module-context">{ d.Context }</p>
+							}
+						</div>
+						if actions != nil {
+							<div class="app-module-actions">
+								@actions
+							</div>
+						}
+					</header>
+					@components.OfflineBanner(d.OfflineSync)
+					@components.SessionBanner(d.Email != "")
+					<main class="app-body">
+						@body
+					</main>
+				</div>
+			</div>
+			@components.ToastContainer()
+		</body>
+	</html>
+}

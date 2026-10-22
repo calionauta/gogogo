@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/calionauta/gogogo/features/todo/components"
+
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo/features/todo"
@@ -130,7 +132,7 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := patchSSE(
-		sse, h.renderListRegion(signals, h.resolveSkin(r)),
+		sse, components.TodoListRegion(signals),
 		sdk.WithSelector("#todo-list"),
 	); err != nil {
 		h.fail(r.Context(), w, "todo: search patch failed", err, "error searching todos")

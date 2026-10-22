@@ -15,7 +15,7 @@ import "strings"
 import "github.com/calionauta/gogogo/web/resources"
 
 // querySep returns the separator to append a query parameter to streamURL.
-// Stream URLs may already carry one (e.g. the basecoat skin's ?skin=...),
+// Stream URLs may already carry one (e.g. a ?skin=... selection),
 // and a second "?" would make the clientID part of the previous value.
 func querySep(streamURL string) string {
 	if strings.Contains(streamURL, "?") {

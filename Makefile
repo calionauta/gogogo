@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-basecoat css-shadcn css-all css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
 
 all: build
 
@@ -84,14 +84,6 @@ clean:
 	@rm -f $(APP_NAME)
 	@find . -name '*.log' -delete
 
-check-mcp:
-	# cmd/gogogo-mcp has its own go.mod, so the root `go test ./...` and the
-	# race suite cannot see it. Nothing ran it, which is how add_unit and
-	# new_feature shipped passing --no-tui to subcommands that never defined
-	# that flag: every MCP call to them failed at flag parse. ~1s incremental.
-	@echo "→ MCP module tests (separate module: root ./... cannot see it)"
-	@cd cmd/gogogo-mcp && go test -count=1 ./...
-
 test:
 	# Plain parallel run across packages (scripts/test-web.sh). It used to be
 	# `-p 1` because the DagNats tests bound FIXED ports and two packages
@@ -121,7 +113,7 @@ test-fast:
 # without this, correctness of the whole CSS gate depends on a one-time
 # manual `npm ci` nobody remembers to run.
 css-install:
-	@if ! node -e 'const fs=require("fs");const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));const want=n=>lock.packages["node_modules/"+n]?.version;let bad=[];for(const n of ["tailwindcss","@tailwindcss/cli","daisyui","basecoat-css"]){const w=want(n);let g;try{g=JSON.parse(fs.readFileSync("node_modules/"+n+"/package.json","utf8")).version}catch{}if(w&&g!==w)bad.push(n+" "+(g||"absent")+" -> "+w)}process.exit(bad.length?1:0)' 2>/dev/null; then \
+	@if ! node -e 'const fs=require("fs");const lock=JSON.parse(fs.readFileSync("package-lock.json","utf8"));const want=n=>lock.packages["node_modules/"+n]?.version;let bad=[];for(const n of ["tailwindcss","@tailwindcss/cli","daisyui"]){const w=want(n);let g;try{g=JSON.parse(fs.readFileSync("node_modules/"+n+"/package.json","utf8")).version}catch{}if(w&&g!==w)bad.push(n+" "+(g||"absent")+" -> "+w)}process.exit(bad.length?1:0)' 2>/dev/null; then \
 		echo "→ CSS deps missing or stale vs package-lock.json — installing (npm ci)..."; \
 		npm ci --silent; \
 		echo "  ✓ installed"; \
@@ -138,33 +130,16 @@ css: css-install
 	@npm run build --silent
 	@echo "  ✓ built web/resources/static/app.min.css"
 
-# css-basecoat builds the companion BasecoatUI (shadcn) stylesheet from
-# src/css/basecoat-input.css. Produces web/resources/static/basecoat.min.css
-# which is loaded at runtime when UI_SKIN=basecoat.
-css-basecoat: css-install
-	@echo "→ Building BasecoatUI CSS (shadcn-inspired)..."
-	@npx tailwindcss -i ./src/css/basecoat-input.css -o ./web/resources/static/basecoat.min.css --silent
-	@echo "  ✓ built web/resources/static/basecoat.min.css"
-
-# css-shadcn builds the shadcn skin: tokens + a compatibility layer over the
-# shared semantic classes. Produces web/resources/static/shadcn.min.css.
-css-shadcn: css-install
-	@echo "→ Building shadcn skin CSS..."
-	@npx tailwindcss -i ./src/css/shadcn-input.css -o ./web/resources/static/shadcn.min.css --silent
-	@echo "  ✓ built web/resources/static/shadcn.min.css"
-
-# css-all builds every CSS skin at once. Called by CI and Docker build.
-css-all: css css-basecoat css-shadcn
+# css-all is kept as an alias for css: one skin ships, but CI, the Docker build
+# and the pre-commit hook still call css-all, and a rename would have to touch
+# all three. (Visual variants are DaisyUI themes, not bundles — docs/ui-skins.md.)
+css-all: css
 
 # css-check fails if the generated CSS is out-of-date. Used by the
 # pre-commit hook and CI to catch forgotten rebuilds.
 css-check: css-all
 	@git diff --quiet --exit-code web/resources/static/app.min.css || (echo "  ❌ app.min.css out of date. Run \`make css\` and re-commit."; exit 1)
-	@git diff --quiet --exit-code web/resources/static/basecoat.min.css || (echo "  ❌ basecoat.min.css out of date. Run \`make css-basecoat\` and re-commit."; exit 1)
-	@git diff --quiet --exit-code web/resources/static/shadcn.min.css || (echo "  ❌ shadcn.min.css out of date. Run \`make css-shadcn\` and re-commit."; exit 1)
 	@echo "  ✓ CSS is up to date"
-	@echo "  ✓ basecoat CSS is up to date"
-	@echo "  ✓ shadcn CSS is up to date"
 
 # fmt checks formatting with gofumpt + goimports (no --fast shortcuts).
 fmt:
@@ -258,26 +233,6 @@ check-flatdeps:
 	@echo "→ check-flatdeps (flat-stack dependency guard)..."
 	@go run ./cmd/check-flatdeps
 	@echo "✅ flat-stack dependencies within bounds"
-
-.PHONY: check-docs docs-index
-
-# check-docs proves prose does not drift from source: no hand-written counts
-# (the generated docs/unit-contracts.md is the one place counts live), every
-# concrete repo path exists, every `gogogo <sub>` is a real subcommand,
-# every page under docs/ is published by the site MANIFEST (or declared
-# repo-facing in cmd/check-docs, e.g. docs/migrations/), and the README page
-# index matches that MANIFEST. Same implementation the pre-commit docs-claims job and
-# CI run.
-check-docs:
-	@echo "→ check-docs (prose claims: counts, paths, commands, MANIFEST, README index)..."
-	@go run ./cmd/check-docs
-
-# docs-index is the only writer of the README page index: the block between the
-# docs-index markers is generated from the site MANIFEST, so adding a page means
-# editing the MANIFEST and running this, never hand-editing the README list.
-docs-index:
-	@echo "→ docs-index (regenerating the README page index from the MANIFEST)..."
-	@go run ./cmd/check-docs -write
 
 # check-secrets-env proves secret env plumbing stays on the rails without
 # booting anything: os.Getenv/LookupEnv/Setenv with secret-shaped names
@@ -397,7 +352,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-docs check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-mcp
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -425,7 +380,7 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-docs check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
@@ -568,8 +523,6 @@ help:
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  check-flatdeps Enforce flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open)"
-	@echo "  check-docs     Prose claims (no hand-written counts, live paths, real subcommands, docs in the MANIFEST)"
-	@echo "  docs-index     Regenerate the README page index from the site MANIFEST"
 	@echo "  check-dagnats-pin  Keep docs/dagnats.md pin in sync with go.mod"
 	@echo "  check-skill-frontmatter  Validate SKILL.md YAML frontmatter (host-parsed, build-invisible)"
 	@echo "  deadcode       Scan for dead code"

@@ -10,7 +10,7 @@ import (
 // html_block markup: plain Tailwind layout, spacing, type and surface
 // utilities. Every entry must exist under BOTH skins, so it is
 // safelisted in src/css/input.css (DaisyUI) and
-// src/css/basecoat-input.css (Basecoat) alike.
+// src/css/input.css (the one bundle).
 //
 // Why a closed list at all: Tailwind emits only the classes it finds
 // while scanning the tree, and model markup exists at RUNTIME — nothing
@@ -43,9 +43,9 @@ var ModelHTMLClasses = []string{
 }
 
 // ModelHTMLComponents is the themed half: the DaisyUI components and
-// semantic colours the default skin provides. Basecoat deliberately has
-// no DaisyUI semantic colours (docs/ui-skins.md), so this half is
-// safelisted in the DaisyUI bundle only — which is exactly why the
+// semantic colours the shipped skin provides. Themes change those tokens
+// per palette (docs/ui-skins.md), so this half is safelisted in the
+// bundle — which is exactly why the
 // prompt asks the model to reach for a component here rather than
 // invent a themed surface, and why the assistant bubble keeps its shape
 // when the skin is switched.

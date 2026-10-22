@@ -76,7 +76,7 @@ export default {
   { group: "Frontend", slug: "todo-example", file: "todo-example.md",
     desc: "The Todo reference implementation and the contract to imitate." },
   { group: "Frontend", slug: "ui-skins", file: "ui-skins.md",
-    desc: "Pluggable DaisyUI / Basecoat / shadcn skins and the plugin contract." },
+    desc: "The one shell, the skin seam, and the DaisyUI themes." },
   { group: "Frontend", slug: "ui-sounds", file: "ui-sounds.md",
     desc: "Vendored cuelume sound feedback and its accessibility contract." },
   { group: "Research", slug: "research", file: "research/index.md",

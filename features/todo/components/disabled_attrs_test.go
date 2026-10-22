@@ -56,11 +56,11 @@ func TestRenderedDisabledAttrsAreBoolean(t *testing.T) {
 	t.Parallel()
 	signals := todoSignalsForRender()
 
-	// Only trees THIS package owns: the Basecoat tree lives in
-	// web/skins/basecoat and is asserted there, because a trimmed build
-	// (skins-extra) deletes that package and an import of it here would make
-	// the whole package's tests unbuildable (lived: it failed
-	// TestTrimmedTreeStillBuilds/skins-extra and the minimal preset).
+	// Only trees THIS package owns: another skin's tree would live in
+	// another skin's tree, if one ever ships again: a trimmed build deletes
+	// optional skin packages, and importing one from here would make the whole
+	// package's tests unbuildable (lived: TestTrimmedTreeStillBuilds failed for
+	// exactly that shape).
 	cases := map[string]func() string{
 		"daisyui": func() string {
 			return renderOrFail(t, TodoList(signals))
