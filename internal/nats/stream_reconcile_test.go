@@ -69,6 +69,15 @@ func TestEnsureStreamOnIsIdempotent(t *testing.T) {
 			t.Fatalf("create %d: %v", i+1, err)
 		}
 	}
+	// No-op means the stream still carries the original bound: a silent
+	// reset or a duplicate would surface here, not in the error above.
+	info, ierr := h.JS.StreamInfo("IDEMPOTENT")
+	if ierr != nil {
+		t.Fatalf("stream vanished after idempotent re-adds: %v", ierr)
+	}
+	if info.Config.MaxAge != time.Hour {
+		t.Errorf("MaxAge = %v after 3 identical adds, want the original 1h — the re-add was not a no-op", info.Config.MaxAge)
+	}
 }
 
 // TestEnsureStreamOnPassesRealErrorsThrough pins the other half: only the

@@ -54,6 +54,20 @@ push/merge, or (b) the change touches an area the next tier checks.
 | **T4** full local gate | `make ci-local` (refuses first via `check-host-capacity` when the box cannot carry it) | ~6min | Full pre-push check (= CI) |
 | **T5** signoff local | `make signoff` (= T4 + `gh signoff -f`) | ~6min | Same as T4, plus it commits the verification to git |
 
+### Do the new tests pin anything (test-value + diff-cover)
+
+The race suite proves the tests pass; two review aids prove they pin:
+
+- `make check-test-value` — AST-only (~1s, no coverage run): fails on a
+  **vacuous** Test (no failure call — green unless it panics) and warns on an
+  **err-only** Test (asserts `err == nil` and nothing else). Same binary runs
+  in pre-commit (`-quiet`, blocking on vacuous only) and CI. Normative text:
+  `skills/gogogo-coding-standards/references/go-testing.md`.
+- `make cover-diff` — **advisory, on-demand**: added production lines no test
+  executes, plus test-value on the changed packages. Not in any hook or CI —
+  a coverage run per commit would tax the shared box for a signal only a
+  human review consumes.
+
 ### Why the full gate is slow, and the fast sibling
 
 The full run is dominated by `go test -race`. Measured `ci-local`:

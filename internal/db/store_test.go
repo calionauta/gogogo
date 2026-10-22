@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -237,6 +238,11 @@ func TestOpenCreatesParentDir(t *testing.T) {
 		t.Fatalf("OpenAt: %v", err)
 	}
 	defer func() { _ = sqlDB.Close() }()
+	// The contract is on the filesystem, not just the handle: the nested
+	// dirs and the file must exist before Migrate touches them.
+	if st, serr := os.Stat(path); serr != nil || st.IsDir() {
+		t.Fatalf("OpenAt left no db file at %s: %v", path, serr)
+	}
 	if err := dbschema.Migrate(sqlDB); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
