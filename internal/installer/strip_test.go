@@ -126,7 +126,7 @@ func TestDagnatsUnitCoversCoupledTests(t *testing.T) {
 
 func TestManifestUnitsMatchRegistry(t *testing.T) { // Single source of truth, enforced: every installer unit maps to
 	// registry capabilities, and every offered capability is reachable
-	// from exactly one unit (skins-extra reaches skins).
+	// from exactly one unit.
 	byID := capabilities.ByID()
 	covered := map[string]bool{}
 	for _, u := range manifestUnits {

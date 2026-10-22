@@ -255,13 +255,13 @@ func TestCapabilityUISignalsWired(t *testing.T) {
 
 func TestKindsFollowServantPrinciple(t *testing.T) {
 	// Pins the taxonomy against casual relabeling: plugins serve other
-	// capabilities (dagnats→onboarding, credits→metering, sounds/skins→
+	// capabilities (dagnats→onboarding, credits→metering, sounds→
 	// pages, nats/llm/collab→their consumers); features are terminal
 	// user surfaces (pages/journeys). Directories do not decide:
 	// features/credits is a plugin, features/todo is a feature.
 	pluginIDs := []string{
 		"nats", "dagnats", "goakt", "llm", "genkit", "collab", "datastar", "components",
-		"credits", "sounds", "skins", "offline-sync",
+		"credits", "sounds", "offline-sync",
 		"capabilities", "genui",
 	}
 	featureIDs := []string{"todo", "whiteboard", "landing", "config-view", "room", "review"}
@@ -289,10 +289,10 @@ func TestKindsFollowServantPrinciple(t *testing.T) {
 }
 
 func TestOfferedSetMatchesInstaller(t *testing.T) { // The installer offers exactly these units; the registry is the
-	// source of truth both sides check. skins-extra maps to skins.
+	// source of truth both sides check.
 	want := []string{
 		"dagnats", "goakt", "whiteboard", "landing", "config-view",
-		"credits", "sounds", "skins", "room", "genui", "review", "search",
+		"credits", "sounds", "room", "genui", "review", "search",
 	}
 	byID := ByID()
 	got := slices.Clone(OfferedIDs())

@@ -35,6 +35,15 @@ func IsViewer(role string) bool {
 	return role == RoleViewer
 }
 
+// IsAdmin reports whether a session role is the admin role. A display hint, like
+// IsViewer: the shell uses it to hide the admin-only module from the sidebar, and
+// the route stays policy-enforced. A wrong answer costs a 403 on click, never an
+// unauthorized write — and the comparison lives here because a role comparison
+// anywhere else is a routing decision wearing a boolean.
+func IsAdmin(role string) bool {
+	return role == RoleAdmin
+}
+
 // subjectOf resolves the decision subject: the session's role, "user"
 // for anything unrecognized, "anonymous" without a session. Unknown
 // values must not lock users out over a typo in the column — and must

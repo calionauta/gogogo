@@ -187,7 +187,7 @@ live in `.templ` markup rather than Go:
   `data-attr:*` expression is written `!!(...)`. An unset signal reads `""`, and
   `"" && !x` returns `""` — not `false` — so the natural conjunction disables its
   control on first paint. `Run durable workflow` and the delete-confirm `Delete`
-  on `/todo` were both permanently disabled in the DaisyUI and Basecoat skins
+  on `/todo` were both permanently disabled in every skin we shipped
   (`$onboardingActive && !$workflowCompleted` and `$deleting`, both steppers the
   page deliberately leaves unset). A Go test cannot see this: the render is
   correct and only the browser's evaluation is wrong.
@@ -245,11 +245,11 @@ live in `.templ` markup rather than Go:
 The lint runs with `-only-errors` in CI, which means only ERROR-severity
 findings ever gate. That is why the bound-signal write is ERROR: as a warning it
 was invisible to both gates, and the bug it describes shipped with the rule
-already in the tree. Custom attributes (the cuelume `data-cuelume-*` set,
-Basecoat's `data-size`/`data-variant`) are noise at that severity, so they live
-in `.datastar-lint.yaml` under `attributes.allowed` — each verified to have a
+already in the tree. Custom attributes (the cuelume `data-cuelume-*` set and the
+project's own markers) are noise at that severity, so they live in
+`.datastar-lint.yaml` under `attributes.allowed` — each verified to have a
 consumer before listing, since an entry also hides a misspelling of a real
-attribute.
+attribute (`data-variant` was listed long after nothing read it).
 
 ## Concurrency and resources
 

@@ -48,7 +48,6 @@ func cssSelector(class string) string {
 func TestModelHTMLClassVocabulary(t *testing.T) {
 	t.Parallel()
 	daisyUI := append(append([]string{}, ModelHTMLClasses...), ModelHTMLComponents...)
-	basecoat := ModelHTMLClasses
 	cases := []struct {
 		name   string
 		input  string
@@ -56,7 +55,6 @@ func TestModelHTMLClassVocabulary(t *testing.T) {
 		want   []string
 	}{
 		{"daisyui", "../../../src/css/input.css", "../../../web/resources/static/app.min.css", daisyUI},
-		{"basecoat", "../../../src/css/basecoat-input.css", "../../../web/resources/static/basecoat.min.css", basecoat},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

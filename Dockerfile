@@ -56,7 +56,6 @@ RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.npm,sharing=locked \
     go tool templ generate && \
     npm run build --silent && \
-    npx tailwindcss -i ./src/css/basecoat-input.css -o ./web/resources/static/basecoat.min.css --silent && \
     npx tailwindcss -i ./src/css/shadcn-input.css -o ./web/resources/static/shadcn.min.css --silent && \
     # Inject build metadata (Version/CommitHash/BuildTime) so the
     # navbar version badge reflects exactly what was built. ARG

@@ -1,78 +1,63 @@
+// SCOPE:core — The /todo page body inside the shared shell.
+//
+// Everything around the page moved to internal/ui.Shell: document, assets,
+// sidebar, module header, banners, toast root. What is left here is the page's
+// own head extras (sound assets + the todo item animations) and its body.
+//
+// The 7 stack layers this module demonstrates (C1) travel as data into the
+// shell's stack key, so they render in the sidebar footer instead of competing
+// with the composer (that competition was defect 4 of the revamp brief).
 package components
 
 import (
-	"github.com/calionauta/gogogo/web/resources"
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
-// Layout wraps the todo app in a full HTML document with:
-//   - Skin-dispatched CSS/JS assets (DaisyUI by default, overridable
-//     via UI_SKIN env var)
-//   - Datastar JS loaded from the embedded copy under /static/datastar.js
-//   - Sticky navbar with user menu (skipped on /login, which is standalone)
-//   - #toast-container for stacked toasts (bottom-right, column-reverse)
-//   - <style> block for the toast animations + progress bar
-//
-// Pages call Layout(title, signals, userEmail, skinName) and embed their
-// content as children. skinName selects the active skin for asset loading;
-// pass "" to default to "daisyui". userEmail is the empty string for
-// guests; the navbar shows a "Sign in" CTA instead.
+// Layout renders /todo inside the shell. The signature is the handlers'
+// contract (title, signals, session, build, offline, skin) and is unchanged.
 templ Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title }</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-			<script type="module" src={ resources.StaticURL("cally.js") }></script>
-			@sounds.SoundAssets()
-			@components.OfflineSyncScript(offlineSync)
-			<style>
-				/* Stacking container: fixed bottom-right, toasts stack upward. */
-				#toast-container {
-					z-index: 100;
-					position: fixed;
-					right: 1rem;
-					bottom: 1rem;
-					display: flex;
-					flex-direction: column-reverse;
-					gap: 0.5rem;
-					max-width: 24rem;
-				}
+	@ui.Shell(ui.Data{
+		Title:       title,
+		Module:      "todo",
+		Context:     todoContext(signals),
+		Email:       userEmail,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		OfflineSync: offlineSync,
+		Stack:       todoStack(),
+	}, todoHead(), todoSound(), TodoPresence(signals), todoBody(signals))
+}
 
-				/* Toast entrance: hidden + scaled-down, then the .open class
-				   transitions it in. Driven by data-class on the toast root. */
-				.toast-msg {
-					opacity: 0;
-					transform: scale(0.9) translateY(50px);
-					transition: transform 0.5s, opacity 0.5s;
-				}
-				.toast-msg.open {
-					transform: scale(1) translateY(0);
-					opacity: 1;
-				}
+// todoContext is the header's context slot: the two storage facts the demo
+// reports on every module (which store, and whether the outbox is live).
+func todoContext(signals todo.Signals) string {
+	return signals.StoreLabel + " · " + signals.OfflineLabel
+}
 
-				/* Progress bar: shrinks from 100% to 0% over the toast lifetime.
-				   Matches the toast-remove delay (3s for success/info, 8s for
-				   error) — the CSS animation here fires immediately on mount
-				   because the bar is rendered together with the toast root. */
-				.toast-timer-bar {
-					height: 3px;
-					border-radius: 999px;
-					background: oklch(0.872 0.01 258.338 / 0.3);
-					animation: toast-shrink 3s linear forwards;
-				}
-				.toast-msg:has(.alert-error) .toast-timer-bar {
-					animation-duration: 8s;
-				}
-				@keyframes toast-shrink {
-					from { width: 100%; }
+// todoStack is the stack this page demonstrates, in disclosure order. The
+// notes say what the layer does *here*, not what it is in the abstract.
+func todoStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "JetStream realtime", Note: "CRUD ops stream across instances"},
+		{Name: "SSE Hub", Note: "every open tab re-lists live"},
+		{Name: "goqite queue", Note: "AI + demo jobs run in background"},
+		{Name: "retry-go", Note: "transient failures retry with backoff"},
+		{Name: "DagNats workflows", Note: "durable onboarding pipeline"},
+		{Name: "offline outbox", Note: "offline mutations queue, then sync"},
+		{Name: "Casbin RBAC", Note: "per-request role permissions"},
+	}
+}
+
+// todoHead carries the page's own <head> extras. The toast styles moved to the
+// shell; what stays is the sound assets and the list's motion rules.
+templ todoHead() {
+	@sounds.SoundAssets()
+	<style>
 					to { width: 0%; }
 				}
 
@@ -121,16 +106,22 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 					animation-duration: 320ms;
 					animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 				}
-			</style>
-		</head>
-		<body class="bg-base-200 min-h-screen">
-			@authviews.Navbar(userEmail, userRole, "todo", buildLabel, buildCommit, skinName)
-			@components.OfflineBanner(offlineSync)
-			@components.SessionBanner(userEmail != "")
-			@TodoList(signals)
-			<div id="toast-container"></div>
-			@components.StreamOpener("sse-opener", "/api/todos/stream", false)
-		@RealtimeRecords()
-	</body>
-	</html>
+	</style>
+}
+
+// soundToggle is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundToggle() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it). Passing the call directly
+// would put it on the same line as the Shell invocation, and dropping that
+// line would break the call.
+templ todoSound() {
+	@sounds.SoundToggle()
+}
+
+// todoBody is the page itself plus the two stream scripts the list listens on.
+templ todoBody(signals todo.Signals) {
+	@TodoList(signals)
+	@components.StreamOpener("sse-opener", "/api/todos/stream", false)
+	@RealtimeRecords()
 }

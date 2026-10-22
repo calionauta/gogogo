@@ -1,38 +1,27 @@
 // SCOPE:feature — Room demo page (GoAkt grains), live over SSE.
 //
-// The page renders the roster ONCE server-side and then never polls: the
-// stream pushes whole snapshots, and the card is a Datastar region that
-// morphs from them. Three things deliberately do NOT exist here any more,
-// each of which was a defect:
+// The page renders the roster ONCE server-side and then never polls: the stream
+// pushes whole snapshots, and the card is a Datastar region that morphs from
+// them. Three things deliberately do NOT exist here any more, each of which was
+// a defect:
 //
 //   - no 3s roster poll (the roster arrives when it changes, not on a timer);
-//   - no 5s app heartbeat (a live SSE connection IS the liveness signal —
-//     the transport's keepalive makes Go notice a dead socket);
-//   - no heartbeat flag to stop after Leave (with no timer there is nothing
-//     to stop). Leave is instead an EXPLICIT state this tab writes: the grain
-//     drops the connection and the card says so, because "the roster no longer
-//     lists me" is not visible feedback on your own screen.
+//   - no 5s app heartbeat (a live SSE connection IS the liveness signal);
+//   - no heartbeat flag to stop after Leave. Leave is an EXPLICIT state this tab
+//     writes, so a crashed tab does not leave a ghost in the roster.
 //
-// Presence is per CONNECTION, so two tabs of one person are one roster entry
-// and closing one keeps them listed (goakt.Room refcounts clientIDs).
-//
-// REMOVE by deleting features/room/ + the /room roots in buildChiMux
-// (internal/server/chi.go) + the navbar links in features/authviews/navbar.templ
-// (the unit's extraStrips cover both). No sounds import here on purpose: room views
-// stay dependency-free so the unit carries no DependsOn.
-// Smoke: room has no installer unit, so ci-local still drives /room —
-// export SMOKE_FEATURES without room after manual removal.
+// The document around the body belongs to internal/ui.Shell: the card, signals
+// and stream opener below are the page.
 package components
 
 import (
+	"github.com/calionauta/gogogo/internal/ui"
 	"encoding/json"
 	"net/url"
 	"strconv"
 
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // RoomLockSignals seeds the lock-derived UI.
@@ -99,50 +88,42 @@ func RoomLockSignalsJSON(roster appgoakt.Roster, email string) string {
 // crash hook. Initial state is server-rendered for a first paint with no
 // stream round trip; RoomCard (same markup) is what the stream morphs.
 templ Page(email string, userRole string, roomID string, roster appgoakt.Roster, buildLabel string, buildCommit string, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Room — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-		</head>
-		<body>
-			@authviews.Navbar(email, userRole, "room", buildLabel, buildCommit, skinName)
-			@components.SessionBanner(email != "")
-			@roomSignals(roster, email)
-			<main class="mx-auto max-w-2xl p-4" data-room={ roomID }>
-				<h1 class="text-2xl font-bold">Room: { roomID }</h1>
-				<p class="opacity-70">
-					One grain owns this roster and its presenter lock. Open a
-					second browser and take the lock there — exactly one of
-					you wins. Press crash and watch the roster rebuild.
-				</p>
-				@components.TechStack([]components.TechItem{
-				{Name: "GoAkt grains", Note: "presenter-lock actor"},
-				{Name: "supervision", Note: "crashed grains restart"},
-				{Name: "SSE push", Note: "roster arrives on change"},
-				})
-				@RoomCard(roomID, roster, email)
-			</main>
-			@components.StreamOpener("room-sse-opener", "/room/stream?room="+url.QueryEscape(roomID), true)
-		</body>
-	</html>
+	@ui.Shell(ui.Data{
+		Title:       "Room — gogogo",
+		Module:      "room",
+		Heading:     "Room: " + roomID,
+		Context:     roomContext(roster),
+		Email:       email,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+		Stack: []components.TechItem{
+			{Name: "GoAkt grains", Note: "presenter-lock actor"},
+			{Name: "supervision", Note: "crashed grains restart"},
+			{Name: "SSE push", Note: "roster arrives on change"},
+		},
+	}, nil, nil, nil, roomBody(roomID, roster, email))
 }
 
-// roomSignals seeds the two lock signals on a SIBLING of the patched region.
-//
-// Placement is the whole point. It cannot live on <main> or on the patched
-// region: Datastar v1 re-seeds `data-signals` only from elements it actually
-// processes — an attribute on the PARENT of a morphed subtree is not
-// re-applied, and an attribute on a node inside the payload is re-rendered
-// with whatever the broadcast saw (which cannot know who is reading). Either
-// way $roomMe silently vanished after the first peer patch, and with it
-// "am I the holder?".
-//
-// A hidden, never-patched sibling is processed once, keeps $roomMe for the
-// tab's lifetime, and is fed only $roomHolder by pushes.
+// roomBody is the work area: the seeded lock signals, the card the stream
+// morphs, and the stream opener.
+templ roomBody(roomID string, roster appgoakt.Roster, email string) {
+	@roomSignals(roster, email)
+	@RoomCard(roomID, roster, email)
+	@components.StreamOpener("room-sse-opener", "/room/stream?room="+url.QueryEscape(roomID), true)
+}
+
+// roomContext is the header's context slot: the two facts this demo is about,
+// in the same terse shape every module uses.
+func roomContext(roster appgoakt.Roster) string {
+	members := strconv.Itoa(len(roster.Members))
+	if roster.Presenter == "" {
+		return members + " in the room · no presenter"
+	}
+	return members + " in the room · presenter " + roster.Presenter
+}
+
 templ roomSignals(roster appgoakt.Roster, email string) {
 	<div id="room-signals" class="hidden" aria-hidden="true" data-signals={ RoomLockSignalsJSON(roster, email) }></div>
 }

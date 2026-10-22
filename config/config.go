@@ -28,7 +28,7 @@
 //	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
 //	DAGNATS_STORE_DIR   (default: "data/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
-//	UI_SKIN              (default: "daisyui") — active UI skin: "daisyui", "basecoat", or "shadcn"
+//	UI_SKIN              (default: "daisyui") — active UI skin (one ships; see web/skins/)
 //	                       (see web/skins/)
 //	SEARCH_MODE          (default: "substring") — todo search layer:
 //	                       "substring" | "fuzzy" | "bm25"; unknown values
@@ -231,12 +231,10 @@ type Config struct {
 		DBPath    string // local file used when URL is empty
 	}
 
-	// Skin selects the active UI skin. Default "daisyui" (the template's
-	// core theme). Other options: "basecoat" (shadcn-style, community-
-	// supported) and "shadcn" (token-driven shadcn layer over the shared
-	// classes) — see docs/ui-skins.md. The skin is resolved at runtime by the
-	// skin dispatcher in web/skins/. All skins are compiled into the
-	// binary; there is no build-tag selection.
+	// Skin selects the active UI skin. One ships ("daisyui"), and it is the
+	// template's core theme; the registry in web/skins/ exists so adding another
+	// is a docs page, not a refactor. Visual variants are DaisyUI themes, not
+	// skins (docs/ui-skins.md). Resolved at runtime; no build tag.
 	Skin string
 
 	// ChiAddr overrides the flat-stack listen address (owned auth +

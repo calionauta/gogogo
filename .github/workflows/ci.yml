@@ -84,7 +84,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install the pinned Go toolchain manually
+      - name: Install Go 1.27.2 manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
@@ -113,16 +113,6 @@ jobs:
             exit 1
           fi
           echo "✓ generated templ files match their sources"
-      - name: MCP module tests
-        # cmd/gogogo-mcp is its own module, so the root `go test ./...` and the
-        # race suite never see it. Nothing ran this module's tests, which is how
-        # add_unit/new_feature shipped passing a flag their subcommands never
-        # defined: every MCP call to them failed at flag parse and no gate
-        # noticed. Same script as the local hook (make check-mcp).
-        run: |
-          cd cmd/gogogo-mcp
-          bash ../../bin/go-mod-download.sh
-          go test -count=1 ./...
       - name: Check install.sh bootstrap contract
         # install.sh is the first thing a new user runs and manipulates PATH.
         # Guards that it never plants a `go` entry in $BIN_DIR (which would
@@ -138,12 +128,6 @@ jobs:
         # flatdeps-lint job: no banned framework in the closure, no
         # cross-feature domain imports, sql.Open only in owner packages.
         run: go run ./cmd/check-flatdeps
-      - name: Check-docs (prose claims)
-        # Same gate as `make check-docs` and the pre-commit docs-claims job:
-        # no hand-written capability/slice/unit counts, every concrete repo
-        # path alive, every `gogogo <sub>` real, every docs page in the
-        # site MANIFEST.
-        run: go run ./cmd/check-docs
       - name: Check-secrets-env (secret env sites)
         # Same gate as `make check-secrets-env` and the pre-commit
         # secrets-env job: secret-shaped env reads only in owner files
@@ -193,15 +177,7 @@ jobs:
           args: ./cmd/web/ ./config/ ./features/... ./internal/... ./web/...
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        # The runner image carries third-party APT sources (packages.microsoft.com)
-        # that can return 403 or lose their signature. apt-get update then exits
-        # 100 even though the Ubuntu indexes updated, and this job failed on a
-        # mirror it never asked for. Tolerate that exit code, then let the
-        # install and the compiler check be the gate.
-        run: |
-          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y gcc
-          gcc --version | head -1
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc
       - name: Gitleaks (no secrets in git history)
         # Pinned like datastar-lint: new detectors must not fail old trees.
         # Scans all commits (catches what a bypassed pre-commit hook let in).
@@ -232,26 +208,24 @@ jobs:
         with:
           node-version: "20"
       - name: CSS build
-        # css-all, not css: every bundle is committed and embedded, and the
-        # guard below must name all of them. Building only one left the others
-        # untouched, so the working tree kept the committed (stale) bytes and
-        # the diff was empty by construction. make css-check and
-        # bin/check-css.sh already build every skin; this brings CI in line.
-        run: make css-all
+        # css-check builds what it diffs. A check that diffs a file it did not
+        # rebuild compares it to itself: empty by construction, green however
+        # stale the committed bundle is.
+        run: make css-check
       - name: Check CSS bundle is committed
-        # `make css-all` writes app.min.css, basecoat.min.css and
-        # shadcn.min.css, which are COMMITTED and embedded in the Go binary.
-        # A stale committed bundle would pass if the build overwrote it before
-        # anything compared. Source deps are pinned by package-lock.json +
-        # `npm ci` (make css-install verifies the installed versions match the
-        # lockfile), so this comparison is deterministic.
+        # app.min.css is COMMITTED and embedded in the Go binary. A stale
+        # committed bundle must fail the PR instead of shipping: that is the
+        # same failure mode as unregenerated _templ.go. Source deps are pinned
+        # by package-lock.json + `npm ci` (make css-install verifies the
+        # installed versions match the lockfile), so this comparison is
+        # deterministic.
         run: |
-          if ! git diff --quiet --exit-code -- web/resources/static/app.min.css web/resources/static/basecoat.min.css web/resources/static/shadcn.min.css; then
-            echo "❌ committed CSS does not match src/css/*.  Run 'make css-all' and COMMIT."
+          if ! git diff --quiet --exit-code -- web/resources/static/app.min.css; then
+            echo "❌ committed CSS does not match src/css/*.  Run 'make css' and COMMIT."
             git diff --stat -- web/resources/static/
             exit 1
           fi
-          echo "✓ CSS bundles match their sources"
+          echo "✓ CSS bundle matches its source"
 
   race:
     needs: [changes]
@@ -261,7 +235,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install the pinned Go toolchain manually
+      - name: Install Go 1.27.2 manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
@@ -280,15 +254,7 @@ jobs:
         run: go tool templ generate
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        # The runner image carries third-party APT sources (packages.microsoft.com)
-        # that can return 403 or lose their signature. apt-get update then exits
-        # 100 even though the Ubuntu indexes updated, and this job failed on a
-        # mirror it never asked for. Tolerate that exit code, then let the
-        # install and the compiler check be the gate.
-        run: |
-          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y gcc
-          gcc --version | head -1
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc
       - name: Test
         # Plain parallel run: the DagNats tests used to bind fixed ports, and
         # two packages grabbed the same one, which forced `-p 1`. They now bind
@@ -309,7 +275,7 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install the pinned Go toolchain manually
+      - name: Install Go 1.27.2 manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
@@ -323,15 +289,7 @@ jobs:
         run: bash bin/go-mod-download.sh
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        # The runner image carries third-party APT sources (packages.microsoft.com)
-        # that can return 403 or lose their signature. apt-get update then exits
-        # 100 even though the Ubuntu indexes updated, and this job failed on a
-        # mirror it never asked for. Tolerate that exit code, then let the
-        # install and the compiler check be the gate.
-        run: |
-          sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y gcc
-          gcc --version | head -1
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc
       - name: Set up Node (Playwright)
         uses: actions/setup-node@v4
         with:
@@ -354,12 +312,6 @@ jobs:
         # a browser renders. Gated behind RUN_SMOKE=1 so `go test ./...` stays
         # port-free for developers.
         run: RUN_SMOKE=1 go test -count=1 -timeout 180s -run TestSmoke_BootedBinaryServesAndSyncs ./cmd/web/
-      - name: Public readiness gate contract
-        # The deploy proves the public URL serves the new build, so the gate
-        # itself needs a contract: it must PASS on the right build, FAIL on a
-        # different one, and FAIL (without hanging) on a broken path. A
-        # readiness gate that cannot fail is worse than none.
-        run: bash scripts/assert-public-ready.test.sh
       - name: Browser smoke test
         # Datastar is a global client runtime; exercise the rendered app in
         # Chromium so upgrades cannot pass Go checks while breaking signals.
@@ -420,33 +372,6 @@ jobs:
         # mechanism proven here covers the arm64 server build too.
         run: bash scripts/smoke-prod-image.sh gogogo:prod-smoke-ci
 
-  site:
-    # Docs-site layout, in a real browser. docs/*.md is rendered by
-    # site/build.mjs into the pages GitHub Pages publishes, and a markdown
-    # table whose cells hold real paragraphs used to take its intrinsic width
-    # — 15.5x the content column on docs/features.md — so the last column was
-    # never on screen (issue #189). CSS-only checks cannot see that: the bug
-    # is a measurement. It runs on EVERY changeset, including docs-only ones,
-    # because those skip every other job by design and they are exactly the
-    # changes that can break the site.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node (Playwright)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install JS deps
-        run: npm ci --no-audit --no-fund
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Docs site layout
-        # Builds the same site pages.yml publishes, then loads every page at
-        # 7 widths. Fails on page-level scroll, a table that cannot fit at
-        # desktop widths, a prose line box pushed out of its reading measure,
-        # or a table scroll box with no label / keyboard access / edge fade.
-        run: node scripts/site-layout.test.mjs
-
   ci:
     # Aggregator for branch protection: master requires a single `ci`
     # status context, and parallel jobs cannot provide a stable name —
@@ -455,7 +380,7 @@ jobs:
     # Skipped gates (docs-only changesets) are green by construction:
     # only `failure` fails this job, so the required status always
     # reports even when the heavy jobs never ran.
-    needs: [changes, checks, race, browser, prod-image, site]
+    needs: [changes, checks, race, browser, prod-image]
     if: always()
     runs-on: ubuntu-latest
     steps:

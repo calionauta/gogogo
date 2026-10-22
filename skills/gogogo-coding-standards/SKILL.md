@@ -170,7 +170,7 @@ Full rules: `references/datastar.md`.
 ## Where new code goes (read this before creating a file)
 
 - **`src/css/` is the Tailwind input directory, not Go source.** It holds
-  `input.css` and `basecoat-input.css`, which compile to
+  `input.css`, which compiles to
   `web/resources/static/*.min.css`. The name is a legacy of the CSS
   convention and reads wrong in a Go repo; renaming it to `assets/css/`
   touches `Makefile`, `package.json`, `docs/` and the CI workflow, so it

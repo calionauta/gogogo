@@ -63,14 +63,14 @@ func ThemeHead() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar theme = localStorage.getItem('themeMode');\n\t\t\t\tif (theme !== 'light' && theme !== 'dark') {\n\t\t\t\t\ttheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';\n\t\t\t\t}\n\t\t\t\tvar html = document.documentElement;\n\t\t\t\thtml.dataset.theme = theme;\n\t\t\t\thtml.classList.toggle('dark', theme === 'dark');\n\t\t\t\t// MERGE the theme into the page's seeded signals, never replace\n\t\t\t\t// the object: <html data-signals> also carries the page's own\n\t\t\t\t// state (review_pending, genui_pending, chat_thinking), and this\n\t\t\t\t// script runs before Datastar reads the attribute. Writing a\n\t\t\t\t// fresh object here dropped every seed, which left /review's Run\n\t\t\t\t// button disabled on load with no way to submit — the only\n\t\t\t\t// handler that clears the signal lives on that button's own\n\t\t\t\t// (unsubmittable) form. The attribute is JSON on every page, so\n\t\t\t\t// the merge parses it rather than pattern-matching on source.\n\t\t\t\tvar signals = {};\n\t\t\t\ttry {\n\t\t\t\t\tsignals = JSON.parse(html.dataset.signals || '{}') || {};\n\t\t\t\t} catch (e) {\n\t\t\t\t\tsignals = {};\n\t\t\t\t}\n\t\t\t\tsignals.theme = theme;\n\t\t\t\thtml.dataset.signals = JSON.stringify(signals);\n\t\t\t} catch(e) {\n\t\t\t\tdocument.documentElement.dataset.theme = 'light';\n\t\t\t}\n\t\t})();\n\t</script><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\t// Accept any stored theme name. The catalog (and which of its\n\t\t\t\t// palettes are dark) is not restated here: ThemeRootAttrs emits\n\t\t\t\t// data-theme-dark on the document element from internal/themes,\n\t\t\t\t// so this bootstrap and theme.js read one list.\n\t\t\t\tvar html = document.documentElement;\n\t\t\t\tvar theme = localStorage.getItem('themeMode');\n\t\t\t\tif (!theme) {\n\t\t\t\t\ttheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';\n\t\t\t\t}\n\t\t\t\thtml.dataset.theme = theme;\n\t\t\t\tvar darkNames = (html.dataset.themeDark || '').split(' ');\n\t\t\t\tvar isDark = darkNames.indexOf(theme) >= 0;\n\t\t\t\tif (!isDark && darkNames.indexOf(theme) < 0 && theme !== 'light') {\n\t\t\t\t\tisDark = window.matchMedia('(prefers-color-scheme: dark)').matches;\n\t\t\t\t}\n\t\t\t\thtml.classList.toggle('dark', isDark);\n\t\t\t\t// MERGE the theme into the page's seeded signals, never replace\n\t\t\t\t// the object: <html data-signals> also carries the page's own\n\t\t\t\t// state (review_pending, genui_pending, chat_thinking), and this\n\t\t\t\t// script runs before Datastar reads the attribute. Writing a\n\t\t\t\t// fresh object here dropped every seed, which left /review's Run\n\t\t\t\t// button disabled on load with no way to submit — the only\n\t\t\t\t// handler that clears the signal lives on that button's own\n\t\t\t\t// (unsubmittable) form. The attribute is JSON on every page, so\n\t\t\t\t// the merge parses it rather than pattern-matching on source.\n\t\t\t\tvar signals = {};\n\t\t\t\ttry {\n\t\t\t\t\tsignals = JSON.parse(html.dataset.signals || '{}') || {};\n\t\t\t\t} catch (e) {\n\t\t\t\t\tsignals = {};\n\t\t\t\t}\n\t\t\t\tsignals.theme = theme;\n\t\t\t\thtml.dataset.signals = JSON.stringify(signals);\n\t\t\t} catch(e) {\n\t\t\t\tdocument.documentElement.dataset.theme = 'light';\n\t\t\t}\n\t\t})();\n\t</script><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("iconify-icon.min.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/theme_head.templ`, Line: 58, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/theme_head.templ`, Line: 67, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -83,7 +83,7 @@ func ThemeHead() templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("command-palette.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/theme_head.templ`, Line: 59, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/theme_head.templ`, Line: 68, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {

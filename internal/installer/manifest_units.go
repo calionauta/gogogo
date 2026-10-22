@@ -21,7 +21,6 @@ const (
 	unitConfigView = "config-view"
 	unitCredits    = "credits"
 	unitSounds     = "sounds"
-	unitSkinsExtra = "skins-extra"
 	unitGenUI      = "genui"
 	unitReview     = "review"
 	unitSearch     = "search"
@@ -36,7 +35,6 @@ var unitCaps = map[string][]string{
 	unitConfigView: {"config-view"},
 	unitCredits:    {"credits"},
 	unitSounds:     {"sounds"},
-	unitSkinsExtra: {"skins"},
 	unitGenUI:      {"genui", "chat"},
 	// Bundle rationale mirrors whiteboard+collab: genkit is the review
 	// loop's only consumer, so one unit is the honest shape. genkit owns
@@ -180,6 +178,17 @@ var soundsToggleLines = []string{
 	soundsImportSuffix,
 }
 
+// soundsPageLines is for layouts that carry BOTH: the assets (in their head
+// templ) and a mute toggle. The toggle sits inside a one-line templ wrapper on
+// purpose — dropping that line leaves an empty wrapper that still satisfies the
+// shell's slot, whereas passing the call inline would put it on the same line as
+// the Shell invocation and dropping that line would break the call.
+var soundsPageLines = []string{
+	`sounds.SoundAssets()`,
+	`sounds.SoundToggle()`,
+	soundsImportSuffix,
+}
+
 // navbarTempl owns the brand + section links retargeted by trim units.
 const navbarTempl = "features/authviews/navbar.templ"
 
@@ -211,8 +220,6 @@ const chiMuxAnchor = "\treturn r"
 // Skin import suffixes dropped from handler dispatch + blank imports when
 // skins-extra is trimmed.
 const (
-	skinBasecoatImport = `web/skins/basecoat"`
-	skinShadcnImport   = `web/skins/shadcn"`
 	soundsImportSuffix = `features/sounds"`
 	// reviewImportSuffix is the review feature import dropped from every
 	// composition file wiring the handler (route root, boot helper,
@@ -246,7 +253,7 @@ func buildManifestUnits() []trimUnit {
 	}
 	order := []string{
 		unitDagnats, unitGoAkt, unitWhiteboard, unitLanding,
-		unitConfigView, unitCredits, unitSounds, unitSkinsExtra,
+		unitConfigView, unitCredits, unitSounds,
 		unitGenUI, unitReview, unitSearch,
 	}
 	out := make([]trimUnit, 0, len(order))
@@ -363,8 +370,8 @@ var baseTrimUnits = []trimUnit{
 		id: unitSounds,
 		extraDrops: []fileDrop{
 			{path: navbarTempl, substrs: soundsToggleLines},
-			{path: "features/todo/components/layout.templ", substrs: soundsDropLines},
-			{path: "features/config/components/page.templ", substrs: soundsDropLines},
+			{path: "features/todo/components/layout.templ", substrs: soundsPageLines},
+			{path: "features/config/components/page.templ", substrs: soundsPageLines},
 			{path: "features/landing/components/index.templ", substrs: soundsDropLines},
 			{path: "features/whiteboard/components/board.templ", substrs: soundsDropLines},
 			{path: "features/notes/components/notes.templ", substrs: soundsDropLines},
@@ -372,45 +379,6 @@ var baseTrimUnits = []trimUnit{
 			{path: "features/genui/components/components.templ", substrs: soundsDropLines},
 			{path: "features/review/components/review.templ", substrs: soundsDropLines},
 			{path: "features/authviews/login.templ", substrs: soundsDropLines},
-		},
-	},
-	{
-		id: unitSkinsExtra,
-		extraDrops: []fileDrop{
-			{
-				path:    "features/todo/components/skin_imports.go",
-				substrs: []string{skinBasecoatImport, skinShadcnImport},
-			},
-			{
-				path:    todoGoFile,
-				substrs: []string{skinBasecoatImport},
-			},
-			{
-				path:    todoRepoFile,
-				substrs: []string{skinBasecoatImport},
-			},
-		},
-		extraStrips: []fileStrip{
-			{
-				path: todoGoFile,
-				rules: []stripRule{
-					{
-						startMarker:       "\tif skin == SkinBasecoat {",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
-					},
-				},
-			},
-			{
-				path: todoRepoFile,
-				rules: []stripRule{
-					{
-						startMarker:       "\tif skin == SkinBasecoat {",
-						endIsClosingBrace: true,
-						endBrace:          "\t}",
-					},
-				},
-			},
 		},
 	},
 }

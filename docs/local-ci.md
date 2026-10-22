@@ -209,14 +209,13 @@ The cost is not the problem anyway: 8.9s is ~10% of `ci-local` next to
 worth running for a number nobody is waiting on. Re-evaluate only if the smoke
 test grows past ~30s, or if a candidate ships offline emulation.
 
-**Measured 2026-10: 30.7s, and the engine verdict stands.** The growth is not
-Playwright overhead — it is deliberate waiting plus a third skin:
+**Measured 2026-10: ~30s, and the engine verdict stands.** The cost is not
+Playwright overhead — it is deliberate waiting:
 
-- `?skin=shadcn` is now swept like the others (search + offline queue). It used
-to be skipped on the theory that "shadcn reuses the markup, the DaisyUI pass
-covers it", which is exactly how a CSS-only skin shipped visibly broken: the
-markup was identical and the stylesheet was not. A skin counts as present only
-when its response diverges from the DaisyUI render AND links its own bundle.
+- The offline-queue sweep runs on `/todo` (search + queue + delete replay). It
+used to fan out per skin, which is where "the other pass covers it" was learned
+to be false: identical markup with a missing class renders broken and logs
+nothing. With one skin the sweep is one pass, not three.
 - `verifySuggestSurvivesSlowAck` holds the POST response for 2s while the
 worker's SSE result lands first — the ordering that produced the stuck
 "Asking AI..." spinner — then settles 500ms to let the late patch apply. That
@@ -232,7 +231,7 @@ evaluation is wrong:
 
 | Assertion | Regression it pins |
 |---|---|
-| every detected skin is swept (search + offline queue + delete replay) | a skin that styles nothing (shadcn's missing classes) |
+| the offline-queue sweep covers `/todo` (search + queue + delete replay) | an offline-reset listener typo (`gogogo__queued`) — invisible to unit tests, fatal in the browser |
 | `/todo`: only the create submit is born disabled | `data-attr:disabled` setting the attribute for `""`/undefined — the dead "Run durable workflow" and "Delete" buttons |
 | Suggest under a 2s-delayed ack: no spinner, suggestions still on screen, ack body carries no `datastar-patch-signals` | the ack landing after the worker's terminal patch (stuck "Asking AI...", results erased) |
 | server-seeded signals survive the theme bootstrap | the bootstrap replacing `data-signals` (a wiped seed is a dead control) |
@@ -284,18 +283,14 @@ timeout.
 ### A test may not import a trim-managed package from outside it
 
 `trim <unit>` deletes directories, so a test that imports one must live where
-the trim can take it too. `features/todo/components/disabled_attrs_test.go`
-imported `web/skins/basecoat` to assert the same invariant on the Basecoat tree;
-`skins-extra` deletes that package, so `TestTrimmedTreeStillBuilds/skins-extra`
-and the `minimal` preset stopped **compiling**. The assertions now live in each
-tree's own package (`web/skins/basecoat/disabled_attrs_test.go`), and shared
-tests reach a skin through the registry (`skins.Active(name).Name`) and skip with
-a log line when it has been trimmed — a silent skip would be coverage loss
-wearing the same clothes as a pass.
+the trim can take it too. A shared test that imported an optional skin package
+made `TestTrimmedTreeStillBuilds` and the `minimal` preset stop **compiling**
+once that unit was trimmed.
 
-Rule of thumb: a cross-tree test belongs to the tree it asserts, or it goes
-through the registry. Never import `web/skins/{basecoat,shadcn}` (or any other
-optional unit) from a package that survives the trim.
+Rule of thumb: a cross-tree test belongs to the tree it asserts, or it reaches
+the optional thing through a registry and skips with a log line when it has been
+trimmed — a silent skip is coverage loss wearing the same clothes as a pass.
+Never import an optional unit's package from a package that survives the trim.
 
 ### Tests run in parallel across packages
 
@@ -378,22 +373,19 @@ vendored engine against `site/UPSTREAM_SHA` on PRs that touch it and weekly;
 `docsite-bump.yml` opens the bump PR.
 
 **The generated-artifact checks are the ones that regressed.** The generated
-`_templ.go` files and the three committed CSS bundles (`app.min.css`,
-`basecoat.min.css`, `shadcn.min.css`) are *committed and embedded in the
-binary*. Both CIs used to only **generate**
+`_templ.go` files and the committed CSS bundle (`app.min.css`) are *committed and
+embedded in the binary*. Both CIs used to only **generate**
 them and then run every subsequent step against the freshly generated output —
 so a `.templ` (or `input.css`) edit whose regeneration was never committed
 passed lint, passed tests, passed both smoke tests, and shipped a binary
 rendering stale markup. Both now regenerate and **diff**, which is exactly what
 `css-check` does.
 
-**The Basecoat bundle slipped through that same hole a second time.** CI and
-`bin/check-css.sh` built only `app.min.css` while their diff named both files,
-so `basecoat.min.css` was compared against itself — the diff was empty by
-construction and could never fail, however stale the committed bundle was (it
-was, by 7 lines, until v0.51.0). `make css-check` builds `css-all` and did
-catch it, which is why CI and the hook disagreed. CI, the hook and
-`make css-check` now all run `css-all`: one command, no drift.
+**A second bundle slipped through that same hole once.** CI and
+`bin/check-css.sh` built one artifact while their diff named two, so the second
+was compared against itself — empty by construction, green however stale the
+committed file was. `make css-check` builds what it diffs, and CI and the hook
+call that same target: one command, no drift.
 
 This is deterministic, and that matters: the reason `actions/cache` is disabled
 in this repo (`skip-cache: true`, `cache: false`) is a *real, documented*
@@ -478,7 +470,7 @@ push sat in that hook for 23 minutes at load 18 on 4 cores. The contract is
 pinned by `bin/check-deadcode_test.go` (skip verdicts, named dimension,
 override discoverability, and the invariant that the hook never fails a
 push).
-| `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
+| `post-merge` | regen-assets (templ + css when templ/go/css changed) | after pulls/merges |
 
 External tools are **version-pinned in `go.mod`** (the `tool` directive, already
 used for `templ`) and run through `go tool`, never `go install @latest`. That is

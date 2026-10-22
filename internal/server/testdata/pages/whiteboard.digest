@@ -1,0 +1,7 @@
+route /whiteboard
+ids command-palette command-palette-input command-palette-list confirm-delete-board offline-banner offline-banner-text wb-realtime-resync whiteboard-list
+data-bind cmdQuery
+data-on data-on:click data-on:close
+signals cmdQuery confirmBoardAuthor confirmBoardId deletingBoard loading theme
+aria aria-autocomplete aria-controls aria-expanded aria-hidden aria-label aria-live aria-pressed
+tags a=20 body=1 button=9 details=5 dialog=2 div=18 form=3 h1=1 h3=1 head=1 html=2 iconify=4 input=1 kbd=2 li=19 link=3 main=1 meta=2 nav=1 p=3 path=7 script=11 span=30 strong=6 style=1 summary=3 svg=7 title=1 ul=3

@@ -12,7 +12,6 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/todo/components"
 	"github.com/calionauta/gogogo/internal/auth"
-	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
 )
 
 // loginNext resolves the post-login destination, defaulting to the demo
@@ -32,21 +31,21 @@ func loginNext(r *http.Request) string {
 func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = authviews.LoginPage(loginNext(r), "", h.resolveSkin(r)).Render(r.Context(), w)
+	_ = authviews.LoginPage(loginNext(r), "", h.skinName()).Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Invalid form submission", h.resolveSkin(r)).Render(r.Context(), w)
+		_ = authviews.LoginPage(loginNext(r), "Invalid form submission", h.skinName()).Render(r.Context(), w)
 		return
 	}
 	token, totpRequired, err := h.authLogin(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Wrong email or password", h.resolveSkin(r)).Render(r.Context(), w)
+		_ = authviews.LoginPage(loginNext(r), "Wrong email or password", h.skinName()).Render(r.Context(), w)
 		return
 	}
 	if totpRequired {
@@ -56,7 +55,7 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_ = authviews.LoginPage(
-			loginNext(r), "Two-factor required — finish login via an API client", h.resolveSkin(r),
+			loginNext(r), "Two-factor required — finish login via an API client", h.skinName(),
 		).Render(r.Context(), w)
 		return
 	}
@@ -106,19 +105,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	signals.StoreLabel = "Turso Database"
 	signals.OfflineLabel = h.offlineLabel()
 	signals.SidebarTab = "queue"
-	skin := h.resolveSkin(r)
+	skin := h.skinName()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	if skin == SkinBasecoat {
-		_ = basecoat.TodoPage(
-			"Todos — gogogo",
-			signals, sess.User.Email, sess.Role,
-			h.BuildLabel, h.BuildCommit,
-			h.OfflineSyncEnabled,
-			skin,
-		).Render(r.Context(), w)
-		return
-	}
 	_ = components.Layout(
 		"Todos — gogogo",
 		signals, sess.User.Email, sess.Role,

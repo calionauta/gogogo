@@ -1,0 +1,7 @@
+route /room
+ids offline-banner offline-banner-text room-acquire room-card room-card-content room-crash room-generation room-hint room-leave room-left room-presenter room-rejoin room-release room-roster room-signals room-sse-opener session-banner toast-container
+data-bind 
+data-on data-on:click
+signals loading roomHolder roomLeft roomMe sessionAuthed theme
+aria aria-current aria-hidden aria-label aria-live
+tags a=12 aside=1 body=1 button=12 details=2 div=16 form=1 h1=1 h2=1 head=1 header=1 html=2 iconify=10 li=14 link=3 main=1 meta=2 nav=1 p=7 path=4 script=10 span=17 strong=4 style=2 summary=2 svg=4 title=1 ul=4

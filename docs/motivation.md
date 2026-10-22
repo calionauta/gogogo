@@ -92,7 +92,7 @@ Snapshot of Oct 2026 — the live list with opt-outs is
 - **Service Worker + NATS Leaf Node** — offline-first sync; queued edits replay without duplicating.
 - **GoAkt grains** — one addressable owner per room: connection-scoped roster plus exactly-one presenter lock, supervised.
 - **Wails v3 + gogpu/ui** — desktop shells over the same backend.
-- **DaisyUI v5 + Basecoat + shadcn** — three UI skins compiled into one binary, switchable at runtime.
+- **DaisyUI v5 + four palettes** — one shell and one markup; the theme picker swaps palette and radius, never layout.
 - **Todo app (SSE Hub record-sync)** — the reference app: full CRUD with live updates (private + shared todos). Copy the pattern, then delete it.
 - **Whiteboard (Loro CRDT + Rough.js)** — conflict-free collaboration with offline merge.
 - **Room presence demo (GoAkt)** — connection-scoped roster pushed over SSE plus presenter lock, to copy for per-entity features.

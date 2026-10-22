@@ -230,10 +230,9 @@ Open `http://localhost:8080` for the landing page, then
 
 `make dev` regenerates the Templ components and runs Air for live reload (Air's
 `pre_cmd` also runs `bin/datastar-lint`). It does **not** rebuild CSS — run
-`make css-all` when you change Tailwind classes. All committed bundles
-(`app.min.css`, `basecoat.min.css`, `shadcn.min.css`) are embedded, so `make css`
-alone leaves Basecoat and shadcn stale; the pre-commit hook and CI rebuild and
-diff all of them.
+`make css` when you change Tailwind classes. The committed bundle
+(`app.min.css`) is embedded in the binary, so an un-rebuilt bundle ships stale
+styles; the pre-commit hook and CI rebuild and diff it.
 It is the only command you need on day one.
 
 ## Prerequisites
@@ -279,7 +278,7 @@ make build         # Build binary (unified: everything included)
 make dev           # Live reload with Air (also re-runs templ + vet)
 make templ         # Regenerate .templ Go files after a .templ edit
 make css           # Rebuild app.min.css from src/css/input.css (DaisyUI only)
-make css-all       # Rebuild all committed bundles (DaisyUI + Basecoat + shadcn)
+make css           # Rebuild the committed bundle (DaisyUI + its themes)
 make lint          # go vet + golangci-lint (33 linters), full repo
 make datastar-lint # Datastar attribute / signal anti-patterns in .templ
 make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)

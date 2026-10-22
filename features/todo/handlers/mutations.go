@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/calionauta/gogogo/features/todo/components"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	sdk "github.com/starfederation/datastar-go/datastar"
@@ -232,7 +234,7 @@ func (h *Handler) patchListSelf(
 	// cannot clobber live input. The rows still narrow by the STORED query
 	// above, so the slice stays correct without touching the signal.
 	signals := h.displaySignals(r, todos, filterOf(r), scopeOf(r))
-	return patchSSE(sse, h.renderListRegion(signals, h.resolveSkin(r)),
+	return patchSSE(sse, components.TodoListRegion(signals),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())
 }
