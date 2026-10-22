@@ -84,6 +84,14 @@ clean:
 	@rm -f $(APP_NAME)
 	@find . -name '*.log' -delete
 
+check-mcp:
+	# cmd/gogogo-mcp has its own go.mod, so the root `go test ./...` and the
+	# race suite cannot see it. Nothing ran it, which is how add_unit and
+	# new_feature shipped passing --no-tui to subcommands that never defined
+	# that flag: every MCP call to them failed at flag parse. ~1s incremental.
+	@echo "→ MCP module tests (separate module: root ./... cannot see it)"
+	@cd cmd/gogogo-mcp && go test -count=1 ./...
+
 test:
 	# Plain parallel run across packages (scripts/test-web.sh). It used to be
 	# `-p 1` because the DagNats tests bound FIXED ports and two packages
@@ -374,7 +382,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-docs check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-docs check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard check-mcp
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
