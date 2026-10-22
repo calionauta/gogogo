@@ -1,0 +1,7 @@
+route /notes
+ids command-palette command-palette-input command-palette-list confirm-delete-note notes-list notes-realtime-resync
+data-bind cmdQuery
+data-on data-on:click data-on:close
+signals cmdQuery confirmNoteAuthor confirmNoteId deletingNote loading theme
+aria aria-autocomplete aria-controls aria-expanded aria-hidden aria-label aria-pressed
+tags a=20 body=1 button=9 details=5 dialog=2 div=17 form=3 h1=1 h3=1 head=1 html=2 iconify=4 input=1 kbd=2 li=18 link=3 main=1 meta=2 nav=1 p=3 path=7 script=8 span=28 strong=5 summary=3 svg=7 title=1 ul=3

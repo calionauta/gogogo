@@ -149,9 +149,9 @@
 [data-theme="light"] .icon-dark-mode { display: none; }
 [data-theme="dark"] .icon-light-mode { display: none; }
 
-/* Cally date picker: a compact, token-driven fallback for skins that do not
-   ship DaisyUI's calendar component (Basecoat, shadcn). DaisyUI's own bundle
-   styles the same parts; these rules keep the picker legible everywhere. */
+/* Cally date picker: DaisyUI's bundle does not style the calendar web
+   component's parts, so these token-driven rules keep the picker legible and
+   consistent with the surrounding theme. */
 .cally {
   font-size: 0.875rem;
 }

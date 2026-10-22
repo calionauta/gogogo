@@ -69,7 +69,7 @@ These are the **plumbing layers**. Each is independently replaceable.
 | **SSE helpers** (Datastar) | `internal/datastar/` | 🟡 PLUGIN | Imported by handlers | Replace with your own SSE rendering |
 | **Secrets** (age) | `internal/secrets/` | 🔴 CORE | `secrets.Load(appName)` in `config.Load()` | Remove call; env vars work without it |
 | **LLM client** (GoAI) | `internal/llm/` | 🟡 PLUGIN | Built in `BootChi` | Remove env var; UI auto-hides the Suggest button. *The package stays if you add your own AI feature — only the demo Suggest route is removable.* |
-| **UI skins** (pluggable) | `web/skins/` (`daisyui`, `basecoat`) | 🟡 PLUGIN | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
+| **UI shell + skin** | `internal/ui/` (one shell), `web/skins/` (`daisyui`) | ✅ CORE | Imported at init via `features/todo/components/skin_imports.go` blank imports; active skin read by `config.Skin` and `?skin=` query | Delete `web/skins/` directory + drop the blank imports in `skin_imports.go` + drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered. See [UI skins](#ui-skins). |
 
 > **🔴 CORE** = keep or replace the whole stack.  
 > **🟡 PLUGIN** = you could remove it and still serve pages, but lose cross-instance broadcast, async jobs, etc.  
@@ -177,11 +177,14 @@ The same UI is rendered through one of three pluggable skins, compiled into the 
 | Skin | Package | What it is | Source CSS |
 |------|---------|-----------|------------|
 | **DaisyUI** (default) | `web/skins/daisyui/` | DaisyUI v5 components over TailwindCSS; morph-friendly with Datastar | `src/css/input.css` → `app.min.css` |
-| **Basecoat** | `web/skins/basecoat/` | BasecoatUI (shadcn-style) with shadcn-inspired OKLCH `@theme inline` tokens; native Basecoat JS runtime (`basecoat.initAll`) debounced via `requestAnimationFrame` for Datastar DOM morphing | `src/css/basecoat-input.css` → `basecoat.min.css` + `basecoat.min.js` |
+| **Themes** | `src/css/input.css` | DaisyUI palettes (`light`, `dark`, `lofi`, `dim`), switched from the sidebar's Tema disclosure | part of `app.min.css` |
 
 **Plugin contract** (`web/skins/skin.go`). Every skin is a `Skin{Name, Assets}` value registered at init time via blank imports in `features/todo/components/skin_imports.go`. The dispatcher falls back to DaisyUI when the env value is unknown, logging a warning. Adding a fourth skin is: create `web/skins/<name>/`, register it from the import file, add a `make css-<name>` Makefile target.
 
-**Skin-aware SSE patches.** Some fragments must render with the matching skin's HTML (e.g. Basecoat todo cards). The skin dispatcher threads the active skin name into the SSE patch so `MergeSignals` + `RenderAndPatch` produce skin-correct markup. See `web/skins/basecoat/todo_basecoat.templ`.
+**One markup, one skin.** Pages render inside `internal/ui.Shell`; a skin supplies
+assets and class vocabulary only. There is no per-skin page template — that fork
+(707 lines for `/todo`) was deleted, so an SSE patch renders the same components
+whichever skin is active. Themes are palettes over that single markup.
 
 **Removal.** Delete `web/skins/`, drop the blank imports in `features/todo/components/skin_imports.go`, drop the `SkinSelector` call from the navbar. The handler's lazy fallback returns DaisyUI assets when no skin is registered.
 
@@ -268,8 +271,8 @@ internal/                  Infrastructure
   secrets/                   age-decrypted secrets loader
 internal/server/chi.go       BootChi + buildChiMux (composition root)
 web/
-  resources/static/          Embedded JS/CSS assets (app.min.css, basecoat.min.css, sw.js, theme.js)
-  skins/                     Pluggable UI skin registry (daisyui + basecoat) 🟡 PLUGIN
+  resources/static/          Embedded JS/CSS assets (app.min.css, chrome.css, sw.js, theme.js)
+  skins/                     UI skin registry (daisyui) ✅ CORE
 ```
 
 ### Routing notes

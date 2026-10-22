@@ -42,11 +42,6 @@ const (
 	// its own marker, so the anchor must sit OUTSIDE that span (end of the
 	// stepper list); a marker inside it is deleted and leaves `add` nowhere.
 	todoEntryButtonAnchor = "\t\t\t\t\t\t\t\t\t\t>6. Finalize</li>"
-	// todoBasecoatTempl carries the same strip on the Basecoat skin, with its
-	// own layout and indent, so it gets its own anchor constant.
-	todoBasecoatTempl = "web/skins/basecoat/todo_basecoat.templ"
-	// todoBasecoatButtonAnchor is that skin's last onboarding step item.
-	todoBasecoatButtonAnchor = "\t\t\t6. Finalize"
 	// todoLayoutAnchor is the DaisyUI fallback; skin dispatches land above.
 	todoLayoutAnchor = "\t_ = components.Layout("
 	// todoRegionAnchor is the region fallback; skin cases land above.

@@ -36,14 +36,6 @@ import (
 	"github.com/calionauta/gogogo/internal/natswire"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
-	basecoat "github.com/calionauta/gogogo/web/skins/basecoat"
-)
-
-// SkinBasecoat and SkinShadcn are duplicated (not imported) from the
-// framework handler package so this package stays framework-free.
-const (
-	SkinBasecoat = "basecoat"
-	SkinShadcn   = "shadcn"
 )
 
 // Handler serves the todo data endpoints on chi. Q is the concrete
@@ -286,31 +278,17 @@ func (h *Handler) fail(ctx context.Context, w http.ResponseWriter, logMsg string
 	writeText(w, http.StatusInternalServerError, publicMsg)
 }
 
-// resolveSkin reports the skin to render with. Basecoat is opt-in through
-// the query string and falls back to the configured default; anything else
-// normalises to daisyui. Each basecoat test is its own block on purpose:
-// trimming the extra skin then removes them without leaving an unused local,
-// which a normalise-then-special-case shape would.
-func (h *Handler) resolveSkin(r *http.Request) string {
-	if q := r.URL.Query().Get("skin"); q != "" {
-		switch q {
-		case SkinBasecoat, SkinShadcn:
-			return q
-		}
-		return "daisyui"
-	}
-	switch h.DefaultSkin {
-	case SkinBasecoat, SkinShadcn:
+// skinName reports the skin to render with. One skin ships (DaisyUI); the
+// configured UI_SKIN is honoured when set, and an unknown value falls back
+// inside web/skins.ActiveAssets.
+//
+// This package is framework-free (see cmd/check-flatdeps), so it cannot import
+// web/skins to validate the name: the fallback lives there.
+func (h *Handler) skinName() string {
+	if h.DefaultSkin != "" {
 		return h.DefaultSkin
 	}
 	return "daisyui"
-}
-
-func (h *Handler) renderListRegion(signals todo.Signals, skin string) templ.Component {
-	if skin == SkinBasecoat {
-		return basecoat.TodoListRegion(signals)
-	}
-	return components.TodoListRegion(signals)
 }
 
 // emitToast appends one toast to #toast-container; it self-removes after 3s
@@ -418,7 +396,7 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := patchSSE(
-		sse, h.renderListRegion(signals, h.resolveSkin(r)),
+		sse, components.TodoListRegion(signals),
 		sdk.WithSelector("#todo-list"),
 	); err != nil {
 		h.fail(r.Context(), w, "todo: list patch failed", err, "error listing todos")
@@ -448,7 +426,7 @@ func (h *Handler) handleFragment(w http.ResponseWriter, r *http.Request) {
 	signals := h.displaySignals(r, todos, filter, scope)
 	signals.SearchMode = h.activeSearchMode(searchModeOf(r))
 	var buf bytes.Buffer
-	if err := h.renderListRegion(signals, h.resolveSkin(r)).Render(r.Context(), &buf); err != nil {
+	if err := components.TodoListRegion(signals).Render(r.Context(), &buf); err != nil {
 		h.fail(r.Context(), w, "todo: fragment render failed", err, "error rendering list")
 		return
 	}

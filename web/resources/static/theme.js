@@ -25,6 +25,19 @@
   var DARK = "dark";
   var LIGHT = "light";
 
+  // Which themes are dark comes from the document: authviews.ThemeRootAttrs
+  // emits data-theme-dark from internal/themes, so this module holds no second
+  // copy of the catalog.
+  function darkNames() {
+    return (document.documentElement.getAttribute("data-theme-dark") || "").split(" ");
+  }
+
+  function isDark(theme) {
+    if (darkNames().indexOf(theme) >= 0) return true;
+    if (theme === LIGHT) return false;
+    return prefersDark();
+  }
+
   function current() {
     var t = document.documentElement.getAttribute("data-theme");
     if (t === DARK || t === LIGHT) return t;
@@ -48,10 +61,11 @@
   // NOT data-bound, so nothing reverts them).
   function syncIcons(theme) {
     var icons = document.querySelectorAll(".theme-toggle-icon");
+    var dark = isDark(theme);
     icons.forEach(function (el) {
       var isDarkIcon = el.classList.contains("icon-dark-mode");
       // In light mode show the sun (light icon); in dark mode show the moon.
-      var active = (theme === LIGHT) !== isDarkIcon;
+      var active = !dark !== isDarkIcon;
       el.style.display = active ? "" : "none";
     });
   }
@@ -62,6 +76,7 @@
   window.Theme = {
     get: current,
     current: current,
+    isDark: isDark,
     syncIcons: syncIcons,
   };
 
@@ -72,41 +87,5 @@
     syncIcons(current());
   } catch (e) {
     /* non-fatal: theme still applies; only the icon glyph may flicker */
-  }
-})();
-
-// Mobile/tablet navigation: the link row is one <details> so the same links
-// serve a wide bar (inline row) and a narrow one (collapsed menu). Its open
-// state lives in the navbar markup, not here: the markup runs the sync
-// synchronously before paint, so a tablet never flashes an open dropdown over
-// the page, and there is exactly ONE owner of the attribute (this file used to
-// own it too, with a 760px breakpoint that no longer matched the stylesheet).
-
-// Reinitialize Basecoat components after Datastar DOM morphs (debounced)
-(function() {
-  var _bcTimer = null;
-  var initBasecoat = function() {
-    if (typeof basecoat !== 'undefined' && basecoat.initAll) {
-      try { basecoat.initAll(); } catch(e) { /* silent */ }
-    }
-  };
-  var debouncedInit = function() {
-    if (_bcTimer) cancelAnimationFrame(_bcTimer);
-    _bcTimer = requestAnimationFrame(initBasecoat);
-  };
-  // Initial call after DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initBasecoat);
-  } else {
-    initBasecoat();
-  }
-  // Watch for new elements after Datastar merges HTML (debounced via rAF)
-  var observer = new MutationObserver(debouncedInit);
-  if (document.body) {
-    observer.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      observer.observe(document.body, { childList: true, subtree: true });
-    });
   }
 })();

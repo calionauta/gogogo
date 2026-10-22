@@ -126,7 +126,7 @@ var advisePresets = []advisePreset{
 			"blog", "post", "posts",
 		},
 		Keep: []string{"(core: auth, queue, router)", unitLanding},
-		Drop: []string{unitWhiteboard, unitGoAkt, unitSounds, unitSkinsExtra, unitGenUI},
+		Drop: []string{unitWhiteboard, unitGoAkt, unitSounds, unitGenUI},
 		Note: "No CMS unit, on purpose: a content model is a vertical slice you own, " +
 			"not a dependency to install. `gogogo new feature articles` scaffolds " +
 			"handler + page + wiring + RBAC rows + proof; features/todo is the " +
@@ -137,7 +137,7 @@ var advisePresets = []advisePreset{
 		Idea:  "delete the demo surfaces; keep auth, queue, router",
 		Match: []string{"api", "headless", "backend", presetMinimal, "embed", "library"},
 		Keep:  []string{"(core only — auth middleware, queue, router)"},
-		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitSkinsExtra, unitGenUI},
+		Drop:  []string{unitLanding, unitWhiteboard, unitSounds, unitGenUI},
 		Note:  "Todo stays as the reference implementation — delete features/todo/ manually when done reading it.",
 	},
 	{

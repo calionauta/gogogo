@@ -78,7 +78,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 
 **Frontend**
 - [todo-example](docs/todo-example.md) — The Todo reference implementation and the contract to imitate.
-- [ui-skins](docs/ui-skins.md) — Pluggable DaisyUI / Basecoat / shadcn skins and the plugin contract.
+- [ui-skins](docs/ui-skins.md) — The one shell, the skin seam, and the DaisyUI themes.
 - [ui-sounds](docs/ui-sounds.md) — Vendored cuelume sound feedback and its accessibility contract.
 
 **Research**
@@ -158,7 +158,7 @@ dependencies and are left alone.
 | **Zero-config database and auth** | Turso Database (SQLite-compatible, sqlc) + owned argon2id sessions | Zero-config Turso, cookie sessions, file-local storage — no separate service |
 | **Access control without a service** | [Casbin](https://casbin.org) + `users.role` | Roles on the user row, policy in one model, enforced before the handler; embedded policy by default, DB-backed when evolving ([rbac](docs/rbac.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
-| **Three UI skins in one binary** | [DaisyUI v5](https://daisyui.com) (default) + [Basecoat](https://basecoatui.com) + shadcn | All compiled into one binary, switchable per process or per request |
+| **One shell, switchable themes** | [DaisyUI v5](https://daisyui.com) + four palettes | One markup for every page; the theme picker swaps palette and radius, never layout |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
 | **Room ownership without races** | [GoAkt](https://github.com/Tochemey/goakt) | One grain per room: heartbeat roster plus exactly-one presenter lock, supervised |

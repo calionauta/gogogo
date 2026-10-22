@@ -1,0 +1,68 @@
+// SCOPE:core — The one step list (phase list) component.
+//
+// The queue+retry demo (3 phases), AI suggest (3 phases) and the durable
+// workflow (6 phases) each carried a hand-written `.steps` list with its own
+// state expressions, so the three looked and behaved differently. This is the
+// one phase list: state vocabulary here, visuals in chrome.css.
+//
+// StepList keeps the per-step Datastar expressions (they are the behaviour) and
+// owns the markup and the state vocabulary (done / active / error / pending).
+// The visual states live in chrome.css, so every skin gets the same phase list.
+package ui
+
+import "strings"
+
+// Step is one phase of a machinery sequence.
+//
+// The three expression fields are Datastar boolean expressions evaluated in the
+// browser, exactly as the hand-written markup did — they are passed through
+// verbatim so the wire behaviour cannot drift while the markup is unified.
+// Empty means "never true" and is omitted from the class object.
+type Step struct {
+	Label string
+	// Done marks a completed phase (data-class is-done).
+	Done string
+	// Active marks the phase currently running (data-class is-active).
+	Active string
+	// Error marks a phase that failed (data-class is-error).
+	Error string
+	// Detail is an optional data-text expression rendered as mono meta under
+	// the label (e.g. "Retrying — attempt 2", "running 3/6").
+	Detail string
+	// DetailShow is the boolean expression that reveals Detail.
+	DetailShow string
+}
+
+// StepList renders a phase sequence. `compact` drops the per-step detail line
+// (used where the detail is shown once in the panel header instead).
+templ StepList(steps []Step) {
+	<ol class="app-steps">
+		for _, s := range steps {
+			<li class="app-step" data-class={ stepClasses(s) }>
+				<span class="app-step-label">{ s.Label }</span>
+				if s.Detail != "" {
+					<span class="app-step-detail" data-show={ s.DetailShow } data-text={ s.Detail }></span>
+				}
+			</li>
+		}
+	</ol>
+}
+
+// stepClasses builds the Datastar class object for one phase. Kept in Go so the
+// expressions stay readable and every step list produces the same shape.
+func stepClasses(s Step) string {
+	var parts []string
+	if s.Done != "" {
+		parts = append(parts, "'is-done': ("+s.Done+")")
+	}
+	if s.Active != "" {
+		parts = append(parts, "'is-active': ("+s.Active+")")
+	}
+	if s.Error != "" {
+		parts = append(parts, "'is-error': ("+s.Error+")")
+	}
+	if len(parts) == 0 {
+		return "{}"
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
+}

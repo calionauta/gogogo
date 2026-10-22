@@ -25,6 +25,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/ui"
 	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/web/skins"
 )
@@ -46,7 +47,7 @@ func renderAll(t *testing.T) string {
 		renderOrFail(t, authviews.LoginPage("", "", "daisyui")),
 		renderOrFail(t, authviews.Navbar("u@example.com", "user", "todo", "test", "test0000", "daisyui")),
 		renderOrFail(t, authviews.ThemeHead()),
-		renderOrFail(t, skins.SkinSelector("daisyui")),
+		renderOrFail(t, ui.ThemeSelector()),
 		renderOrFail(t, skins.ActiveAssets("daisyui")),
 		renderOrFail(t, components.SessionBanner(true)),
 		renderOrFail(t, components.StreamOpener("tab-1", "/api/todos/stream", false)),

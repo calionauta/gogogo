@@ -1,0 +1,7 @@
+route /chat
+ids chat-composer chat-empty chat-messages chat-prompt chat-stream-opener command-palette command-palette-input command-palette-list offline-banner offline-banner-text session-banner toast-container
+data-bind chatPrompt cmdQuery
+data-on data-on:click data-on:close
+signals chatPrompt chat_empty chat_error chat_thinking cmdQuery loading sessionAuthed theme
+aria aria-autocomplete aria-controls aria-expanded aria-hidden aria-label aria-live aria-pressed
+tags a=20 body=1 button=7 details=5 dialog=1 div=20 form=3 h1=1 head=1 html=2 iconify=4 input=2 kbd=2 label=1 li=20 link=3 main=1 meta=2 nav=1 p=3 path=7 script=13 span=35 strong=7 style=2 summary=3 svg=7 title=1 ul=3

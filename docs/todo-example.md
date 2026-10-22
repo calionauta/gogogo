@@ -6,8 +6,8 @@ teaches is visible here first — copy this shape when you add your own feature.
 ## What it ships
 
 - Full CRUD via Turso/SQLite (sqlc queries in `internal/db`).
-- Reactive frontend with Datastar + the active skin (DaisyUI by default;
-  BasecoatUI and shadcn switchable — see [UI skins](ui-skins.md)).
+- Reactive frontend with Datastar inside the shared shell (one markup; the
+  sidebar picker swaps palette — see [UI skins](ui-skins.md)).
 - **Database actions stream through the SSE Hub record event.** Todo
   `create`/`toggle`/`delete` fan out a record event; each subscribed
   client re-fetches the fragment and morphs `#todo-list`. Delivery follows

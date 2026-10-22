@@ -4,155 +4,179 @@
 // by BuildPageData: nothing secret-shaped is ever raw; the
 // template just iterates the rows and toggles between Display
 // (pass-through) and the masked label for Sensitive/URL-shaped rows.
+//
+// The page renders a BODY inside internal/ui.Shell: the shell owns the
+// document, the assets, the sidebar and the module header. Config-specific
+// <style> travels through the shell's head slot, so the shell stays free of
+// feature CSS.
 package components
 
 import (
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
-	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
-// Page renders the full document. The shell mirrors the layouts in
-// features/todo and features/whiteboard (head links the same static
-// assets, OfflineSyncScript is conditionally rendered) so the
-// navbar and theming behave identically to the rest of the app.
+// Page renders the /config module inside the shared shell.
 //
-// The `active` value passed to Navbar is "config" — the navbar
-// highlights the Config tab while this page is open. Per the
-// shared convention with todo + whiteboard, that's the route
-// suffix the user is on (no leading slash).
-templ Page(data PageData, userEmail string, userRole string, buildLabel string, buildCommit string, skinName string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Config — gogogo</title>
-			@skins.ActiveAssets(skinName)
-			@authviews.ThemeHead()
-			@sounds.SoundAssets()
-			<style>
-				/* Tighten the table on small screens; the read-only
-				   nature of the page means we don't need a wide edit
-				   surface — operators usually open /config on a laptop. */
-				.config-group {
-					margin-bottom: 1.5rem;
-				}
-				.config-mask {
-					font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-					color: oklch(0.45 0.06 250);
-					background: oklch(0.92 0.02 250 / 0.6);
-					padding: 0.1rem 0.4rem;
-					border-radius: 0.25rem;
-					font-size: 0.85em;
-				}
-				.config-env {
-					font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-					color: var(--color-base-content);
-					font-size: 0.75rem;
-				}
-				.config-not-set {
-					color: var(--color-base-content);
-					font-style: italic;
-				}
-				.config-banner {
-					border-left: 4px solid oklch(0.7 0.18 50);
-					background: oklch(0.96 0.04 80);
-					/* Keep the banner text dark in both themes: the callout keeps
-					   its light background even in dark mode, so a fixed near-black
-					   color guarantees readable contrast instead of inheriting the
-					   light base-content used on dark pages. */
-					color: oklch(0.2 0.02 250);
-					padding: 0.75rem 1rem;
-					border-radius: 0.25rem;
-					margin-bottom: 1.25rem;
-				}
-			</style>
-		</head>
-		<body class="bg-base-200 min-h-screen">
-			@authviews.Navbar(userEmail, userRole, "config", buildLabel, buildCommit, skinName)
-			<main class="container mx-auto p-4 max-w-4xl">
-				<div class="flex items-baseline justify-between mb-4">
-					<h1 class="text-2xl font-bold">Config</h1>
-					if data.BuildLabel != "" {
-						<span class="badge badge-info badge-soft badge-sm font-mono" data-variant="info">{ data.BuildLabel }</span>
-					}
-				</div>
+// The shell's context slot carries the two facts this page is about: the
+// session role and whether RBAC is actually enforcing. Before the shell existed
+// they were the second of four banner paragraphs at the top of a table page.
+templ Page(data PageData, userEmail string, userRole string, buildLabel string, buildCommit string) {
+	@ui.Shell(ui.Data{
+		Title:       "Config — gogogo",
+		Module:      "config",
+		Heading:     "Config",
+		Context:     configContext(data),
+		Email:       userEmail,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		OfflineSync: true,
+	}, configHead(), configSound(), configActions(data), configBody(data))
+}
 
-				<div class="config-banner" role="status">
-					<strong>Read-only.</strong>
-					This page shows what the running binary has loaded from the
-					environment and the encrypted secrets file. Sensitive values
-					are masked; the literal key/token never reaches the browser.
-				</div>
-				<div class="config-banner" role="status">
-					<strong>Access control (Casbin).</strong>
-					if data.Role != "" {
-						<span>Signed in with role <code class="text-sm">{ data.Role }</code>.</span>
-					} else {
-						<span>Role unknown for this session.</span>
-					}
-					if data.RBACEnabled {
-						<span>RBAC enforcement is <strong>on</strong> — this page is admin-only.</span>
-					} else {
-						<span>RBAC enforcement is <strong>off</strong> (pass-through) — set <code class="text-sm">RBAC_ENABLED=true</code> to enforce.</span>
-					}
-				</div>
+// configHead carries the page's own <head> extras: the sound assets (so the
+// sidebar's sound toggle works) and the tight table/mask styling that only
+// this page uses.
+templ configHead() {
+	@sounds.SoundAssets()
+	<style>
+		.config-group {
+			margin-bottom: 1.5rem;
+		}
+		.config-mask {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			color: oklch(0.45 0.06 250);
+			background: oklch(0.92 0.02 250 / 0.6);
+			padding: 0.1rem 0.4rem;
+			border-radius: 0.25rem;
+			font-size: 0.85em;
+		}
+		.config-env {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			color: var(--color-base-content);
+			font-size: 0.75rem;
+		}
+		.config-not-set {
+			color: var(--color-base-content);
+			font-style: italic;
+		}
+		.config-banner {
+			border-left: 4px solid oklch(0.7 0.18 50);
+			background: oklch(0.96 0.04 80);
+			/* Keep the banner text dark in both themes: the callout keeps
+			   its light background even in dark mode, so a fixed near-black
+			   color guarantees readable contrast instead of inheriting the
+			   light base-content used on dark pages. */
+			color: oklch(0.2 0.02 250);
+			padding: 0.75rem 1rem;
+			border-radius: 0.25rem;
+			margin-bottom: 1.25rem;
+		}
+	</style>
+}
 
-				for _, group := range data.Groups {
-					<section class="config-group card bg-base-100 shadow-sm">
-						<div class="card-body p-4">
-							<h2 class="card-title text-lg">{ group.Name }</h2>
-							if group.Note != "" {
-								<p class="text-sm text-base-content/70 mb-2">{ group.Note }</p>
-							}
-							<div class="overflow-x-auto">
-								<table class="table table-sm">
-									<thead>
-										<tr>
-											<th class="w-1/3">Field</th>
-											<th>Env</th>
-											<th>Value</th>
-											<th class="hidden md:table-cell">Description</th>
-										</tr>
-									</thead>
-									<tbody>
-										for _, row := range group.Rows {
-											<tr>
-												<td><code class="text-sm">{ row.Key }</code></td>
-												<td><span class="config-env">{ row.Env }</span></td>
-												<td>
-													if row.BoolOnly {
-														if row.Set {
-															<span class="badge badge-success badge-sm" data-variant="success">set</span>
-														} else {
-															<span class="config-not-set">not set</span>
-														}
-													} else if !row.Set {
-														<span class="config-not-set">not set</span>
-													} else if row.Masked {
-														<span class="config-mask" title="Masked value">{ row.Display }</span>
-													} else {
-														<code class="text-sm">{ row.Display }</code>
-													}
-												</td>
-												<td class="hidden md:table-cell text-sm text-base-content/70">{ row.Description }</td>
-											</tr>
+// soundToggle is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundToggle() line, leaving an empty wrapper that still satisfies
+// the shell's slot (the import goes with it). Passing the call directly
+// would put it on the same line as the Shell invocation, and dropping that
+// line would break the call.
+templ configSound() {
+	@sounds.SoundToggle()
+}
+
+// configActions is the header's right-aligned build badge.
+templ configActions(data PageData) {
+	if data.BuildLabel != "" {
+		<span class="badge badge-info badge-soft badge-sm font-mono">{ data.BuildLabel }</span>
+	}
+}
+
+// configBody is the page's work area: two honesty banners, the grouped field
+// table, and the rotate-a-secret footer.
+templ configBody(data PageData) {
+	<div class="config-banner" role="status">
+		<strong>Read-only.</strong>
+		This page shows what the running binary has loaded from the
+		environment and the encrypted secrets file. Sensitive values
+		are masked; the literal key/token never reaches the browser.
+	</div>
+	<div class="config-banner" role="status">
+		<strong>Access control (Casbin).</strong>
+		if data.Role != "" {
+			<span>Signed in with role <code class="text-sm">{ data.Role }</code>.</span>
+		} else {
+			<span>Role unknown for this session.</span>
+		}
+		if data.RBACEnabled {
+			<span>RBAC enforcement is <strong>on</strong> — this page is admin-only.</span>
+		} else {
+			<span>RBAC enforcement is <strong>off</strong> (pass-through) — set <code class="text-sm">RBAC_ENABLED=true</code> to enforce.</span>
+		}
+	</div>
+
+	for _, group := range data.Groups {
+		<section class="config-group card bg-base-100 shadow-sm">
+			<div class="card-body p-4">
+				<h2 class="card-title text-lg">{ group.Name }</h2>
+				if group.Note != "" {
+					<p class="text-sm text-base-content/70 mb-2">{ group.Note }</p>
+				}
+				<div class="overflow-x-auto">
+					<table class="table table-sm">
+						<thead>
+							<tr>
+								<th class="w-1/3">Field</th>
+								<th>Env</th>
+								<th>Value</th>
+								<th class="hidden md:table-cell">Description</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range group.Rows {
+								<tr>
+									<td><code class="text-sm">{ row.Key }</code></td>
+									<td><span class="config-env">{ row.Env }</span></td>
+									<td>
+										if row.BoolOnly {
+											if row.Set {
+												<span class="badge badge-success badge-sm">set</span>
+											} else {
+												<span class="config-not-set">not set</span>
+											}
+										} else if !row.Set {
+											<span class="config-not-set">not set</span>
+										} else if row.Masked {
+											<span class="config-mask" title="Masked value">{ row.Display }</span>
+										} else {
+											<code class="text-sm">{ row.Display }</code>
 										}
-									</tbody>
-								</table>
-							</div>
-						</div>
-					</section>
-				}
+									</td>
+									<td class="hidden md:table-cell text-sm text-base-content/70">{ row.Description }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</section>
+	}
 
-				<footer class="text-xs text-base-content/60 mt-6">
-					<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
-				</footer>
-			</main>
+	<footer class="text-xs text-base-content/60 mt-6">
+		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
+	</footer>
+}
 
-			@components.OfflineBanner(true)
-		</body>
-	</html>
+// configContext is the header's context slot: the two facts the page exists to
+// make legible, in the same terse shape every module uses for liveness.
+func configContext(data PageData) string {
+	role := data.Role
+	if role == "" {
+		role = "role unknown"
+	}
+	if data.RBACEnabled {
+		return role + " · RBAC enforced"
+	}
+	return role + " · RBAC off"
 }

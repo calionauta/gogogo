@@ -53,7 +53,11 @@
 @source not "../../web/**/*_test.go";
 
 @plugin "daisyui" {
-  themes: light --default, dark;
+  /* Two default modes plus two palettes: the visual variants are themes, not
+     separate CSS bundles (docs/ui-skins.md). Adding a name here means adding
+     its dark/light classification to web/resources/static/theme.js and to the
+     pre-paint bootstrap in features/authviews/theme_head.templ. */
+  themes: light --default, dark, lofi, dim;
 }
 
 /* Model-authored html_block markup exists only at RUNTIME: Tailwind emits

@@ -28,6 +28,16 @@ var All = []Capability{
 			"the package because workers stream through the same hub.",
 	},
 	{
+		ID:   "shell",
+		Kind: KindCore,
+		Summary: "one app shell (sidebar + module header + work area), the theme " +
+			"catalog, and the skin registry that supplies its assets",
+		Dirs: []string{"internal/ui", "internal/themes", "web/skins"},
+		Note: "Core: every module page renders a body inside ui.Shell, and the " +
+			"shell resolves the active skin's assets. One skin ships (DaisyUI); " +
+			"visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.",
+	},
+	{
 		ID:      "secrets",
 		Kind:    KindCore,
 		Summary: "age-decrypted env loader",
@@ -296,23 +306,6 @@ var All = []Capability{
 		Note: "No external engine on purpose: this driver ships no FTS5 and no " +
 			"Turso native FTS (tursogo v0.8.2/v0.8.3/v0.9.0-pre.1), and a " +
 			"second index store would put a row's truth in two places.",
-	},
-	{
-		ID:         "skins",
-		Kind:       KindPlugin,
-		Summary:    "pluggable UI skins (DaisyUI + Basecoat + shadcn)",
-		RuntimeOff: "UI_SKIN=daisyui (runtime selection IS the off switch)",
-		Offered:    true,
-		Dirs:       []string{"web/skins/basecoat", "web/skins/shadcn"},
-		Warns: []string{
-			"?skin=basecoat or ?skin=shadcn will fall back to DaisyUI " +
-				"with a warning log.",
-			"Static bundles stay embedded but unreferenced " +
-				"(web/resources/static/basecoat.min.*, shadcn.min.css): delete " +
-				"them with the `css-basecoat` / `css-shadcn` Makefile targets " +
-				"when css-check is green without them.",
-		},
-		Note: "DaisyUI stays registered so the dispatcher fallback never fires.",
 	},
 	{
 		ID:         "offline-sync",

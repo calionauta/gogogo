@@ -222,15 +222,16 @@ func TestPresetDryRunJSON(t *testing.T) {
 }
 
 // TestAddManualWiringPinsReversibility pins what `add` can and cannot
-// replay: skins-extra is fully mechanical (anchored spans, imports),
-// everything with bare chi.go constructions, test-body edits, one-way
-// replaces or unanchored strips refuses with the exact lines. Add a unit
-// whose wiring is span-anchored and it joins the reversible set here;
-// extend a unit with a bare drop and it must appear in the refuse list.
+// replay: everything with bare chi.go constructions, test-body edits, one-way
+// replaces or unanchored strips refuses with the exact lines. Add a unit whose
+// wiring is span-anchored and it joins the reversible set here; extend a unit
+// with a bare drop and it must appear in the refuse list.
+//
+// The fully-reversible fixture (skins-extra: blank imports + one anchored
+// branch) went away with the second skin, so today every unit refuses. What
+// still proves the mechanical path is apply_test's strip engine tests; what
+// this test guards is that no unit silently claims reversibility.
 func TestAddManualWiringPinsReversibility(t *testing.T) {
-	if got := addManualWiring(findUnit(t, unitSkinsExtra)); len(got) != 0 {
-		t.Errorf("skins-extra manual = %v, want fully reversible", got)
-	}
 	for _, id := range []string{
 		unitLanding, unitConfigView, unitWhiteboard, unitGoAkt,
 		unitCredits, unitGenUI, unitDagnats, unitSounds, unitReview,

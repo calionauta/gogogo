@@ -45,15 +45,6 @@ var dagNatsTrimUnit = []trimUnit{
 				},
 			},
 			{
-				path: "web/skins/basecoat/todo_basecoat.templ",
-				rules: []stripRule{
-					{
-						startMarker: "<!-- trim:dagnats removes this entry button",
-						endMarker:   "</button>",
-					},
-				},
-			},
-			{
 				path: chiGoFile,
 				rules: []stripRule{
 					{

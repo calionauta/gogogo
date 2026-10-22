@@ -238,22 +238,20 @@ jobs:
         with:
           node-version: "20"
       - name: CSS build
-        # css-all, not css: every bundle is committed and embedded, and the
-        # guard below must name all of them. Building only one left the others
-        # untouched, so the working tree kept the committed (stale) bytes and
-        # the diff was empty by construction. make css-check and
-        # bin/check-css.sh already build every skin; this brings CI in line.
-        run: make css-all
+        # css-check builds what it diffs. A check that diffs a file it did
+        # not rebuild compares it to itself: empty by construction, green
+        # however stale the committed bundle is.
+        run: make css-check
       - name: Check CSS bundle is committed
-        # `make css-all` writes app.min.css, basecoat.min.css and
-        # shadcn.min.css, which are COMMITTED and embedded in the Go binary.
+        # `make css` writes app.min.css, which is COMMITTED and embedded in the
+        # Go binary.
         # A stale committed bundle would pass if the build overwrote it before
         # anything compared. Source deps are pinned by package-lock.json +
         # `npm ci` (make css-install verifies the installed versions match the
         # lockfile), so this comparison is deterministic.
         run: |
-          if ! git diff --quiet --exit-code -- web/resources/static/app.min.css web/resources/static/basecoat.min.css web/resources/static/shadcn.min.css; then
-            echo "❌ committed CSS does not match src/css/*.  Run 'make css-all' and COMMIT."
+          if ! git diff --quiet --exit-code -- web/resources/static/app.min.css; then
+            echo "❌ committed CSS does not match src/css/*.  Run 'make css' and COMMIT."
             git diff --stat -- web/resources/static/
             exit 1
           fi

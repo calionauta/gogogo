@@ -26,13 +26,22 @@ templ ThemeHead() {
 	<script>
 		(function() {
 			try {
+				// Accept any stored theme name. The catalog (and which of its
+				// palettes are dark) is not restated here: ThemeRootAttrs emits
+				// data-theme-dark on the document element from internal/themes,
+				// so this bootstrap and theme.js read one list.
+				var html = document.documentElement;
 				var theme = localStorage.getItem('themeMode');
-				if (theme !== 'light' && theme !== 'dark') {
+				if (!theme) {
 					theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 				}
-				var html = document.documentElement;
 				html.dataset.theme = theme;
-				html.classList.toggle('dark', theme === 'dark');
+				var darkNames = (html.dataset.themeDark || '').split(' ');
+				var isDark = darkNames.indexOf(theme) >= 0;
+				if (!isDark && darkNames.indexOf(theme) < 0 && theme !== 'light') {
+					isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				}
+				html.classList.toggle('dark', isDark);
 				// MERGE the theme into the page's seeded signals, never replace
 				// the object: <html data-signals> also carries the page's own
 				// state (review_pending, genui_pending, chat_thinking), and this

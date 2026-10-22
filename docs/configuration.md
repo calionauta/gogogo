@@ -31,7 +31,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `UI_SKIN` | `daisyui` | Active UI skin: `daisyui`, `basecoat`, or `shadcn`. Can also be overridden per request with `?skin=`. Unknown values fall back to DaisyUI with a warning. |
+| `UI_SKIN` | `daisyui` | Active UI skin. One skin ships (`daisyui`); `?skin=` is still accepted and unknown values fall back to DaisyUI with a warning. Visual variants are DaisyUI themes, picked from the sidebar (`$theme`), not more bundles. |
 | `SEARCH_MODE` | `substring` | **Default** todo search layer: `substring`, `fuzzy` or `bm25` (see [Search](search.md)). **All three are always wired** and the search box's `Match` picker switches between them per request, so this value only decides which one a tab starts on. `bm25` therefore always writes an index (one postings row per distinct term per mutation); set `SEARCH_MODE=substring` and leave the picker alone if you want searches that cost no writes. An unknown value logs a warning and falls back to `substring` rather than failing the boot — a typo must never make the server unbootable. On upgrade, a boot-time heal re-indexes rows that predate the index, because postings are a cache of a Go stemming function and SQL cannot rebuild them. |
 
 ### Realtime and workflows

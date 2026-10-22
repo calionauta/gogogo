@@ -133,7 +133,7 @@ func TestRunHelpMentionsContract(t *testing.T) {
 	})
 	for _, want := range []string{
 		"Trim units:", "Agent contract:", "Exit codes:",
-		"--dry-run", "--yes", "dagnats", "skins-extra",
+		"--dry-run", "--yes", "dagnats", "genui",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("--help missing %q", want)
@@ -168,8 +168,8 @@ func TestNeedsTemplGen(t *testing.T) {
 	if !needsTemplGen(gen) {
 		t.Errorf("config-view/sounds drop should require templ regen")
 	}
-	// The dagnats unit strips the workflow entry button from both todo
-	// skins, so it requires regen too — a unit that edits .templ must say
+	// The dagnats unit strips the workflow entry button from the todo
+	// page, so it requires regen too — a unit that edits .templ must say
 	// so, or the prove step skips generation and ships stale _templ.go.
 	if !needsTemplGen([]trimUnit{byID["dagnats"]}) {
 		t.Errorf("dagnats drop should require templ regen (it strips .templ buttons)")
@@ -200,33 +200,6 @@ func devNull(t *testing.T) *os.File {
 	}
 	t.Cleanup(func() { _ = f.Close() })
 	return f
-}
-
-func TestStripSkinsExtraDropsBlankImports(t *testing.T) {
-	dir := t.TempDir()
-	compDir := filepath.Join(dir, "features", "todo", "components")
-	if err := os.MkdirAll(compDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	give := "import (\n" +
-		"\t_ \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
-		"\t_ \"github.com/calionauta/gogogo/web/skins/daisyui\"\n" +
-		")\n"
-	p := filepath.Join(compDir, "skin_imports.go")
-	if err := os.WriteFile(p, []byte(give), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	keep := keepAllBut(unitSkinsExtra)
-	if err := applyTrim(dir, planTrim(keep), nil); err != nil {
-		t.Fatal(err)
-	}
-	out, _ := os.ReadFile(p)
-	if strings.Contains(string(out), "basecoat") {
-		t.Errorf("skin blank imports survived trim:\n%s", out)
-	}
-	if !strings.Contains(string(out), "daisyui") {
-		t.Errorf("daisyui import was wrongly removed:\n%s", out)
-	}
 }
 
 func TestStripSoundsDropsCallSites(t *testing.T) {
@@ -307,56 +280,6 @@ func TestLandingRetargetsBrand(t *testing.T) {
 	}
 	if strings.Contains(string(out), `href="/"`) {
 		t.Errorf("dead root href survived trim:\n%s", out)
-	}
-}
-
-func TestStripSkinsExtraDropsHandlerDispatch(t *testing.T) {
-	dir := t.TempDir()
-	handlersDir := filepath.Join(dir, "features", "todo", "handlers")
-	if err := os.MkdirAll(handlersDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	todoGive := "import (\n" +
-		"\tbasecoat \"github.com/calionauta/gogogo/web/skins/basecoat\"\n" +
-		")\n" +
-		"\tif skin == SkinBasecoat {\n" +
-		"\t\t_ = basecoat.TodoPage(signals).Render(ctx, w)\n" +
-		"\t\treturn\n" +
-		"\t}\n" +
-		"\t_ = components.Layout(signals).Render(ctx, w)\n"
-	repoGive := "\tif skin == SkinBasecoat {\n" +
-		"\t\treturn basecoat.TodoListRegion(signals)\n" +
-		"\t}\n" +
-		"\treturn components.TodoListRegion(signals)\n"
-	todoPath := filepath.Join(handlersDir, "pages.go")
-	repoPath := filepath.Join(handlersDir, "chi.go")
-	if err := os.WriteFile(todoPath, []byte(todoGive), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(repoPath, []byte(repoGive), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	keep := keepAllBut(unitSkinsExtra)
-	if err := applyTrim(dir, planTrim(keep), nil); err != nil {
-		t.Fatal(err)
-	}
-	todoOut, _ := os.ReadFile(todoPath)
-	for _, dead := range []string{"basecoat", "SkinBasecoat"} {
-		if strings.Contains(string(todoOut), dead) {
-			t.Errorf("todo.go still references %q after trim:\n%s", dead, todoOut)
-		}
-	}
-	if !strings.Contains(string(todoOut), "components.Layout") {
-		t.Errorf("daisyui default was wrongly removed:\n%s", todoOut)
-	}
-	repoOut, _ := os.ReadFile(repoPath)
-	for _, dead := range []string{"basecoat"} {
-		if strings.Contains(string(repoOut), dead) {
-			t.Errorf("todo_repo.go still references %q after trim:\n%s", dead, repoOut)
-		}
-	}
-	if !strings.Contains(string(repoOut), "components.TodoListRegion") {
-		t.Errorf("daisyui default was wrongly removed:\n%s", repoOut)
 	}
 }
 

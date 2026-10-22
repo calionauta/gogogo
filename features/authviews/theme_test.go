@@ -227,7 +227,7 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 //   - no page repeats the script itself (that is the duplication that let
 //     three pages forget it).
 //
-// red: features/room/components/page.templ and web/skins/basecoat/todo_basecoat.templ
+// red: features/room/components/body.templ
 // carried the navbar's iconify icons with no script tag at all, and eight
 // other pages each carried their own copy.
 func TestIconifyIsLoadedOnceByTheHead(t *testing.T) {

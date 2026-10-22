@@ -12,8 +12,5 @@
   },
   "scripts": {
     "build": "tailwindcss -i ./src/css/input.css -o ./web/resources/static/app.min.css"
-  },
-  "dependencies": {
-    "basecoat-css": "^1.0.2"
   }
 }

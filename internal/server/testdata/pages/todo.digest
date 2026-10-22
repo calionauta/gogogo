@@ -1,0 +1,7 @@
+route /todo
+ids confirm-delete-modal created-filter-btn created-filter-popover offline-banner offline-banner-text retry-toast session-banner sse-opener suggestions-region toast-container todo-empty-state todo-list todo-realtime-resync
+data-bind newTitle searchQuery
+data-on data-on:change data-on:click data-on:close
+signals aiPending aiPhase aiStep clientID confirmingDeleteId confirmingDeleteTitle connectedClients createdAfter deleting demoStep docVersion filter itemCount lastItemSource lastRetryAttempt lastRetryStatus loading newTitle noMatches permDenied realtimeKind scope searchQuery sessionAuthed sidebarTab suggestPending suggestions techPhase techStep theme
+aria aria-current aria-hidden aria-label aria-live aria-pressed
+tags a=19 aside=1 body=1 button=21 calendar=2 details=2 dialog=1 div=52 form=4 h1=1 h2=1 h3=1 head=1 header=1 html=2 iconify=12 input=3 label=2 li=23 link=3 main=1 meta=2 nav=1 ol=2 option=3 p=6 path=17 script=16 select=1 span=60 strong=8 style=3 summary=2 svg=17 title=1 ul=3

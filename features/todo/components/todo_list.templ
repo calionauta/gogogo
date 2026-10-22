@@ -1,55 +1,18 @@
 package components
 
 import (
+	"github.com/calionauta/gogogo/internal/ui"
 	"encoding/json"
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/todo"
-	ic "github.com/calionauta/gogogo/internal/components"
 )
-
-// pageSignals is the page seed: the page-level signal struct plus the
-// browser-owned values (`json:"-"` on todo.Signals) that a page render is the
-// one writer of. Kept as a wrapper so the tags on todo.Signals can stay
-// omitting them without losing the initial seed.
-//
-// Only the values the FIRST PAINT reads are listed: identity and presence (the
-// online pill and $clientID in every mutation URL), the sidebar tab whose
-// data-class matches "queue", the realtime-kind label (`data-text`) and the
-// date filter. The demo/onboarding steppers are left undefined on purpose —
-// falsy until their handler writes them, which is what `data-show` and
-// `data-class` want.
-//
-// Undefined is NOT safe for `data-attr:*`. Datastar's attr plugin removes the
-// attribute only for `false`/`null`; a third value (undefined, "", a string)
-// SETS it. So every `data-attr:disabled` expression coerces to a real boolean
-// with `!!(...)` — without it, an unseeded stepper signal rendered the
-// "Run durable workflow" and "Delete" buttons permanently disabled.
-type pageSignals struct {
-	todo.Signals
-	ClientID         string `json:"clientID"` //nolint:tagliatelle // public Datastar signal name, do not rename
-	ConnectedClients int    `json:"connectedClients"`
-	SidebarTab       string `json:"sidebarTab"`
-	RealtimeKind     string `json:"realtimeKind"`
-	StoreLabel       string `json:"storeLabel"`
-	OfflineLabel     string `json:"offlineLabel"`
-	CreatedAfter     string `json:"createdAfter"`
-}
 
 // marshalSignals serializes the initial signal set as a JSON string for
 // `data-signals`. JSON marshalling is used because Templ's own string
 // interpolation would not handle nested arrays / correct quoting.
 func marshalSignals(s todo.Signals) string {
-	b, _ := json.Marshal(pageSignals{
-		Signals:          s,
-		ClientID:         s.ClientID,
-		ConnectedClients: s.ConnectedClients,
-		SidebarTab:       s.SidebarTab,
-		RealtimeKind:     s.RealtimeKind,
-		StoreLabel:       s.StoreLabel,
-		OfflineLabel:     s.OfflineLabel,
-		CreatedAfter:     s.CreatedAfter,
-	})
+	b, _ := json.Marshal(s)
 	return string(b)
 }
 
@@ -80,40 +43,6 @@ templ TodoList(signals todo.Signals) {
 	<div class="max-w-5xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
 		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''">
 
-			<!-- ═══════════════ HEADER ═══════════════ -->
-			<div class="flex flex-wrap items-start justify-between gap-3 mb-6">
-				<div class="flex items-center gap-3">
-					<div class="w-9 h-9 shrink-0 rounded-xl bg-primary text-primary-content flex items-center justify-center shadow-sm">
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-							<path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-						</svg>
-					</div>
-					<div class="min-w-0">
-						<h1 class="text-xl font-bold">Todo App</h1>
-						<p class="text-xs text-base-content/50 max-w-sm" data-test="strategy-subheader">
-							<span class="font-medium">{ signals.StoreLabel }</span>
-							<span class="text-base-content/30 mx-1">·</span>
-							<span>{ signals.OfflineLabel }</span>
-						</p>
-						@ic.TechStack([]ic.TechItem{
-						{Name: "JetStream realtime", Note: "CRUD ops stream across instances"},
-						{Name: "SSE Hub", Note: "every open tab re-lists live"},
-						{Name: "goqite queue", Note: "AI + demo jobs run in background"},
-						{Name: "retry-go", Note: "transient failures retry with backoff"},
-						{Name: "DagNats workflows", Note: "durable onboarding pipeline"},
-						{Name: "offline outbox", Note: "offline mutations queue, then sync"},
-						{Name: "Casbin RBAC", Note: "per-request role permissions"},
-					})
-					</div>
-				</div>
-				<span class="online-pill shrink-0" data-show="$connectedClients >= 0" title="Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.">
-					<span class="pulse-dot"></span>
-					<span class="pill-online" data-text="$connectedClients + ' online'"></span>
-					<span class="pill-offline">offline</span>
-					<span class="hidden sm:inline"> · <span class="pill-online" data-text="$realtimeKind"></span></span>
-				</span>
-			</div>
-
 			<!-- ═══════════════ MAIN GRID ═══════════════ -->
 			<div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
@@ -124,19 +53,26 @@ templ TodoList(signals todo.Signals) {
 
 							<h2 class="card-title text-lg mb-1">
 								Tasks
-								<span class="badge badge-ghost badge-sm" data-text="$itemCount + ' items'" data-variant="ghost"></span>
+								<span class="badge badge-ghost badge-sm" data-text="$itemCount + ' items'"></span>
 							</h2>
 
 							@createForm(signals)
 
 							@searchBox(signals)
 
-							@createdFilter()
-
 							@SuggestionsList(signals.Suggestions)
 
-							@scopeTabs(signals)
-							@filterTabs(signals)
+							@ui.Segmented("Listing scope", []ui.Segment{
+								{Label: "All", On: ui.TodoScopeOn("all"), Active: "($scope || 'all') === 'all'"},
+								{Label: "Mine", On: ui.TodoScopeOn("mine"), Active: "($scope || 'all') === 'mine'"},
+								{Label: "Shared", On: ui.TodoScopeOn("shared"), Active: "($scope || 'all') === 'shared'"},
+							})
+							@ui.Segmented("Status filter", []ui.Segment{
+								{Label: "All", On: ui.TodoFilterOn("all"), Active: "($filter || 'all') === 'all'"},
+								{Label: "Active", On: ui.TodoFilterOn("active"), Active: "($filter || 'all') === 'active'"},
+								{Label: "Completed", On: ui.TodoFilterOn("completed"), Active: "($filter || 'all') === 'completed'"},
+							})
+							@createdFilter()
 							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 								<button type="button" class="btn btn-ghost btn-xs" data-on:click={ "$permDenied = false" }>dismiss</button>
@@ -150,8 +86,7 @@ templ TodoList(signals todo.Signals) {
 									class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
 									data-cuelume-press="droplet"
 									title="Delete your own completed todos (shared rows by others stay)"
-									data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')); break; }"
-								 data-variant="ghost">
+									data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')); break; }">
 									Clear my completed
 								</button>
 								</div>
@@ -226,8 +161,8 @@ templ TodoList(signals todo.Signals) {
 									<span class="text-xs font-semibold">Queue + Retry</span>
 								</div>
 								<div class="flex gap-1">
-									<span class="badge badge-xs badge-secondary" data-variant="secondary">goqite</span>
-									<span class="badge badge-xs badge-ghost" data-variant="ghost">retry-go</span>
+									<span class="badge badge-xs badge-secondary">goqite</span>
+									<span class="badge badge-xs badge-ghost">retry-go</span>
 								</div>
 							</div>
 
@@ -237,20 +172,7 @@ templ TodoList(signals todo.Signals) {
 								(no LLM involved).
 							</div>
 
-							<ul class="steps steps-vertical w-full mb-3 text-xs">
-								<li
-									class="step transition-all duration-500"
-									data-class={ "{'step-success': $demoStep >= 2, 'step-primary text-base-content': $demoStep === 1}" }
-								>Enqueue hard-coded job (goqite)</li>
-							<li
-								class="step transition-all duration-500"
-								data-class={ "{'step-success': $demoStep >= 3, 'step-primary text-base-content': $demoStep === 2}" }
-							><span class="flex flex-col">Retry on simulated failure (retry-go)<span class="text-xs text-base-content/60 normal-case" data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></span></li>
-								<li
-									class="step transition-all duration-500"
-									data-class={ "{'step-success': $demoStep >= 3 && $techPhase !== 'error', 'step-primary text-base-content': $demoStep === 3 && $techPhase === 'error'}" }
-								>Job completes</li>
-							</ul>
+@ui.StepList(queueSteps())
 
 															<form
 									data-on:submit__prevent="$techStep = 'retry-demo'; $demoStep = 1; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || ''))"
@@ -259,8 +181,7 @@ templ TodoList(signals todo.Signals) {
 <button
 								class="btn btn-secondary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
 								type="submit"
-								title="Enqueue a hard-coded job (goqite) that runs through retry-go: failure → retry → success"
-							 data-variant="secondary">
+								title="Enqueue a hard-coded job (goqite) that runs through retry-go: failure → retry → success">
 								<span class="inline-flex items-center gap-2">
 									<span data-show="!$suggestPending">Run queue + retry demo</span>
 									<span data-show="$suggestPending" class="inline-flex items-center gap-1.5">
@@ -295,7 +216,7 @@ templ TodoList(signals todo.Signals) {
 										</div>
 										<span class="text-xs font-semibold">AI Suggest</span>
 									</div>
-									<span class="badge badge-xs badge-primary" data-variant="primary">GoAI</span>
+									<span class="badge badge-xs badge-primary">GoAI</span>
 								</div>
 
 								<div class="text-xs text-base-content/60 mb-3">
@@ -306,26 +227,12 @@ templ TodoList(signals todo.Signals) {
 									<a href="/genui" class="link link-primary">Try Ask AI</a>.
 								</div>
 
-								<ul class="steps steps-vertical w-full mb-3 text-xs">
-									<li
-										class="step transition-all duration-500"
-										data-class={ "{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }
-									>Queue suggest job (goqite)</li>
-								<li
-									class="step transition-all duration-500"
-									data-class={ "{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }
-								><span class="flex flex-col">Retry on transient error (retry-go)<span class="text-xs text-base-content/60 normal-case" data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></span></li>
-									<li
-										class="step transition-all duration-500"
-										data-class={ "{'step-primary': $aiStep >= 3 && $aiPending, 'step-success': $aiStep >= 3 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }
-									>Return suggestions</li>
-								</ul>
+@ui.StepList(aiSteps())
 
 								<button
 									class="btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
-									data-on:click="$aiStep = 1; $aiPending = true; $aiPhase = ''; $suggestions = []; $suggestErr = ''; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
-									title="Ask the configured LLM for 3 todo suggestions via goqite + retry-go"
-								 data-variant="primary">
+									data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
+									title="Ask the configured LLM for 3 todo suggestions via goqite + retry-go">
 									<span class="inline-flex items-center gap-2">
 										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 											<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
@@ -365,29 +272,10 @@ templ TodoList(signals todo.Signals) {
 											</div>
 											<span class="text-xs font-semibold">Durable Workflow</span>
 										</div>
-										<span class="badge badge-xs badge-accent" data-variant="accent">DagNats</span>
+										<span class="badge badge-xs badge-accent">DagNats</span>
 									</div>
 
-									<ul class="steps steps-vertical w-full mb-3 text-xs">
-										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 1)}" }
-										>1. Greeting</li>
-										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 2)}" }
-										>2. Waiting for your first to-do</li>
-										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 3)}" }
-										>3. Creating example todo 1/3</li>
-										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 4)}" }
-										>4. Creating example todo 2/3</li>
-										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 5)}" }
-										>5. Creating example todo 3/3</li>
-										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'step-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 6)}" }
-										>6. Finalize</li>
-									</ul>
+@ui.StepList(workflowSteps())
 
 									<div
 										class="mb-3 p-2 rounded-lg bg-accent/10 text-accent text-xs flex items-center gap-2 transition-all duration-500 animate-in fade-in"
@@ -403,8 +291,7 @@ templ TodoList(signals todo.Signals) {
 									<button
 										class="btn btn-accent btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
 										data-attr:disabled="!!($onboardingActive && !$workflowCompleted)"
-										data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))"
-									 data-variant="accent">
+										data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))">
 										<span class="inline-flex items-center gap-2">
 											<span data-show="!$onboardingActive || $workflowCompleted">
 												<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 inline -mt-0.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -460,8 +347,7 @@ templ createForm(signals todo.Signals) {
 		<button
 			type="submit"
 			class="btn btn-primary join-item btn-sm sm:btn-md"
-			data-attr:disabled="!!($loading || !$newTitle.trim())"
-		 data-variant="primary">
+			data-attr:disabled="!!($loading || !$newTitle.trim())">
 			<span class="inline-flex items-center gap-2">
 				<span class="hidden sm:inline">Add</span>
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:hidden" viewBox="0 0 20 20" fill="currentColor">
@@ -513,66 +399,10 @@ templ searchBox(signals todo.Signals) {
 				class="join-item btn btn-ghost btn-sm sm:btn-md"
 				aria-label="Clear search"
 				data-show="$searchQuery"
-				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))"
-			 data-variant="ghost">✕</button>
+				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
 		</div>
 		@searchModeSelect(signals)
 	}
-}
-
-// createdFilter is the date-picker gap filled with Cally (DaisyUI styles the
-// web component). The filter is display-only: each row carries data-created,
-// and data-show compares it with the $createdAfter signal. No request, no
-// server round trip, and the filter survives list patches because the box
-// owns the signal.
-// createdFilter uses the native Popover API (popovertarget + popover) rather
-// than a Datastar signal: nothing reacts to its open state, and the browser
-// supplies light dismiss, Escape and top-layer stacking with no listener or
-// extra state. To react to open/close later, switch to a signal + __outside:
-//
-//   <div data-signals='{"dateOpen":false}' data-on:click__outside="$dateOpen = false">
-//     <button data-on:click="$dateOpen = !$dateOpen">…</button>
-//     <div data-show="$dateOpen">…</div>
-//   </div>
-//
-// A <details> with data-on:click__outside also works; the element is not the
-// issue, and native stays the default while open state has no consumer.
-templ createdFilter() {
-	<div class="flex items-center gap-2 mb-3">
-		<button
-			type="button"
-			id="created-filter-btn"
-			popovertarget="created-filter-popover"
-			class="btn btn-outline btn-sm gap-2"
-			style="anchor-name:--created-filter"
-			aria-label="Filter by creation date"
-		>
-			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-				<path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm10 6H4v7h12V8z" clip-rule="evenodd"/>
-			</svg>
-			<span data-text="$createdAfter === '' ? 'Any date' : 'Since ' + $createdAfter"></span>
-		</button>
-		<button
-			type="button"
-			class="btn btn-ghost btn-xs"
-			data-show="$createdAfter !== ''"
-			data-on:click="$createdAfter = ''; $noMatches = false"
-		>clear</button>
-	</div>
-	<div id="created-filter-popover" popover>
-		<calendar-date
-			class="cally"
-			data-on:change={ `$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover(); setTimeout(function () { $noMatches = document.querySelectorAll(".todo-item:not([style*='display: none'])").length === 0 }, 0)` }
-		>
-			<svg slot="previous" aria-label="Previous month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
-			</svg>
-			<svg slot="next" aria-label="Next month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
-			</svg>
-			<calendar-month></calendar-month>
-		</calendar-date>
-	</div>
 }
 
 // searchModeSelect renders the layer picker (substring / fuzzy / bm25) when the
@@ -645,64 +475,6 @@ func searchModeHint(mode string) string {
 // scopeTabs renders the listing slice (All / Mine / Shared). Like the
 // status tabs, clicks re-fetch with the other dimension preserved, and the
 // active state reads from the `$scope` signal so SSE patches stay in sync.
-templ scopeTabs(signals todo.Signals) {
-	<div class="tabs tabs-box mb-2 w-full" role="tablist" aria-label="Listing scope">
-		@scopeTab("All", "all")
-		@scopeTab("Mine", "mine")
-		@scopeTab("Shared", "shared")
-	</div>
-}
-
-// scopeTab renders one scope tab, preserving the current status filter.
-templ scopeTab(label, value string) {
-	<a
-		href="#"
-		role="tab"
-		class="tab tab-sm sm:tab-md transition-all"
-		data-cuelume-hover="tick"
-		data-cuelume-press="toggle"
-		data-class={ "{ 'tab-active': ($scope || 'all') === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=" + value + "&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))" }
-	>
-		{ label }
-	</a>
-}
-
-// filterTabs renders the DaisyUI tabs (All / Active / Completed). Click
-// fires `@get('/api/todos?filter=...')` which patches BOTH the $filter signal
-// AND the `#todo-list` region, so the active state and the visible rows update
-// in lockstep. The active state reads from the `$filter` signal so remote
-// patches from the broadcaster flip the right tab.
-//
-// The URL carries `q=$searchQuery`: a tab click carries no search of its own,
-// and SetView treats a missing q as "clear the stored search", so omitting it
-// would drop the tab's active search on every tab click (the stored view would
-// say "no search" while the box still showed the text).
-templ filterTabs(signals todo.Signals) {
-	<div class="tabs tabs-box mb-4 w-full" role="tablist" aria-label="Status filter">
-		@filterTab("All", "all")
-		@filterTab("Active", "active")
-		@filterTab("Completed", "completed")
-	</div>
-}
-
-// filterTab renders a single tab. Active state is driven by the
-// `$filter` signal via data-class so the SSR-rendered (current) state
-// matches live updates broadcast over SSE.
-templ filterTab(label, value string) {
-	<a
-		href="#"
-		role="tab"
-		class="tab tab-sm sm:tab-md transition-all"
-		data-cuelume-hover="tick"
-		data-cuelume-press="toggle"
-		data-class={ "{ 'tab-active': ($filter || 'all') === '" + value + "' }" }
-		data-on:click__prevent={ "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))" }
-	>
-		{ label }
-	</a>
-}
-
 // TodoListRegion renders just the list rows + empty state. Patched by
 // every mutation (local and broadcaster) so both the originating tab
 // and remote tabs stay in sync. The `<div id="todo-list">` selector is
@@ -723,12 +495,6 @@ templ TodoListRegion(signals todo.Signals) {
 		for _, item := range signals.Todos {
 			@TodoItem(item)
 		}
-		<div
-			class="py-8 text-center text-sm text-base-content/50"
-			data-show="$createdAfter !== '' && $noMatches"
-		>
-			No todos match this date filter.
-		</div>
 	</div>
 }
 
@@ -757,8 +523,7 @@ templ SuggestionsList(suggestions []string) {
 					type="button"
 					class="btn btn-xs btn-outline btn-secondary transition-all hover:scale-105 active:scale-95 animate-in fade-in slide-in-from-bottom-1"
 					style="animation-delay: 0.05s"
-					data-on:click={ "$newTitle = " + safeJSString(s) }
-				 data-variant="secondary">
+					data-on:click={ "$newTitle = " + safeJSString(s) }>
 					{ s }
 				</button>
 			}
@@ -816,8 +581,7 @@ templ deleteConfirmModal() {
 				<button
 					type="button"
 					class="btn btn-ghost btn-sm"
-					data-on:click="document.getElementById('confirm-delete-modal').close()"
-				 data-variant="ghost">
+					data-on:click="document.getElementById('confirm-delete-modal').close()">
 					Cancel
 				</button>
 				<button
@@ -825,8 +589,7 @@ templ deleteConfirmModal() {
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
 					data-attr:disabled="!!$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))"
-				 data-variant="destructive">
+					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
 						<span class="loading loading-spinner loading-xs" data-show="$deleting"></span>
@@ -840,5 +603,57 @@ templ deleteConfirmModal() {
 	</dialog>
 }
 
-
-
+// createdFilter is the date-picker gap filled with Cally (DaisyUI styles the
+// web component). The filter is display-only: each row carries data-created,
+// and data-show compares it with the $createdAfter signal. No request, no
+// server round trip, and the filter survives list patches because the box
+// owns the signal.
+// createdFilter uses the native Popover API (popovertarget + popover) rather
+// than a Datastar signal: nothing reacts to its open state, and the browser
+// supplies light dismiss, Escape and top-layer stacking with no listener or
+// extra state. To react to open/close later, switch to a signal + __outside:
+//
+//   <div data-signals='{"dateOpen":false}' data-on:click__outside="$dateOpen = false">
+//     <button data-on:click="$dateOpen = !$dateOpen">…</button>
+//     <div data-show="$dateOpen">…</div>
+//   </div>
+//
+// A <details> with data-on:click__outside also works; the element is not the
+// issue, and native stays the default while open state has no consumer.
+templ createdFilter() {
+	<div class="flex items-center gap-2 mb-3">
+		<button
+			type="button"
+			id="created-filter-btn"
+			popovertarget="created-filter-popover"
+			class="btn btn-outline btn-sm gap-2"
+			style="anchor-name:--created-filter"
+			aria-label="Filter by creation date"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+				<path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm10 6H4v7h12V8z" clip-rule="evenodd"/>
+			</svg>
+			<span data-text="$createdAfter === '' ? 'Any date' : 'Since ' + $createdAfter"></span>
+		</button>
+		<button
+			type="button"
+			class="btn btn-ghost btn-xs"
+			data-show="$createdAfter !== ''"
+			data-on:click="$createdAfter = ''; $noMatches = false"
+		>clear</button>
+	</div>
+	<div id="created-filter-popover" popover>
+		<calendar-date
+			class="cally"
+			data-on:change={ `$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover(); setTimeout(function () { $noMatches = document.querySelectorAll(".todo-item:not([style*='display: none'])").length === 0 }, 0)` }
+		>
+			<svg slot="previous" aria-label="Previous month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+				<path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+			</svg>
+			<svg slot="next" aria-label="Next month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+				<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+			</svg>
+			<calendar-month></calendar-month>
+		</calendar-date>
+	</div>
+}

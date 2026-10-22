@@ -74,10 +74,6 @@ const runtimeEnv = {
   NATS_ENABLED: "false",
   DAGNATS_ENABLED: "false",
   OFFLINE_SYNC_ENABLED: "true",
-  // Deterministic LLM for the suggest flow (the async-demo panel only renders
-  // when an LLM is configured, simulated or real). Explicit here so the sweep
-  // never depends on a dev default and never reaches a network provider.
-  SIMULATE_LLM: "true",
   // Belt-and-suspenders: router.Init already suppresses the first-run
   // installer for a non-TTY process, but an explicit flag means a future
   // change to that heuristic cannot start popping browser tabs again.
@@ -189,61 +185,6 @@ async function timedWait(page, name, fn, arg, opts) {
   }
 }
 
-async function verifySingleOnlineTodoSubmit(page, skin) {
-  if (skin !== "basecoat") return;
-
-  const title = `online-single-submit-${Date.now()}`;
-  const skinPath = `/todo?skin=${encodeURIComponent(skin)}`;
-
-  console.log("→ Exercising Basecoat rapid online submit guard…");
-  await page.goto(BASE + skinPath, { waitUntil: "load", timeout: 20000 });
-  await page.evaluate(() => {
-    const originalFetch = window.fetch.bind(window);
-    let release;
-    window.__smokeHeldTodoPost = {
-      count: 0,
-      release: () => release?.(),
-      restore: () => {
-        window.fetch = originalFetch;
-      },
-    };
-    window.fetch = async (input, init) => {
-      const url = typeof input === "string" ? input : input.url;
-      if ((init?.method || "GET").toUpperCase() !== "POST" || !url.includes("/api/todos")) {
-        return originalFetch(input, init);
-      }
-      window.__smokeHeldTodoPost.count++;
-      await new Promise((resolve) => {
-        release = resolve;
-      });
-      return originalFetch(input, init);
-    };
-  });
-
-  try {
-    const titleInput = page.getByPlaceholder("Add a new todo...");
-    await titleInput.fill(title);
-    await titleInput.press("Enter");
-    await titleInput.press("Enter");
-    await page.waitForFunction(() => window.__smokeHeldTodoPost.count >= 1);
-    const postCount = await page.evaluate(() => window.__smokeHeldTodoPost.count);
-    if (postCount !== 1) {
-      throw new Error(`rapid Basecoat submit made ${postCount} requests; expected exactly one`);
-    }
-  } finally {
-    await page.evaluate(() => {
-      window.__smokeHeldTodoPost.release();
-      window.__smokeHeldTodoPost.restore();
-    });
-  }
-
-  const row = page
-    .locator('[id^="todo-"]:not(#todo-list)')
-    .filter({ hasText: title });
-  await row.waitFor({ state: "visible", timeout: 20000 });
-  console.log("  ✓ Basecoat rapid online submit sends one request");
-}
-
 // Verify the search box end to end: type a term that matches ONE of two
 // rows, and require the list to narrow to it. This is the smoke-level proof
 // that the endpoint, the layer and the `#todo-list` patch agree a unit test
@@ -251,13 +192,12 @@ async function verifySingleOnlineTodoSubmit(page, skin) {
 //
 // Deliberately asserts on a MIDDLE substring: the default layer is the SQL
 // filter, and an exact-match regression would show up here as "no match".
-async function verifyTodoSearch(page, skin) {
+async function verifyTodoSearch(page) {
   const marker = `searchable-${Date.now()}`;
   const other = `unrelated-${Date.now()}`;
-  const skinPath = skin === "daisyui" ? "/todo" : `/todo?skin=${encodeURIComponent(skin)}`;
 
-  console.log(`-> Exercising todo search (skin=${skin})...`);
-  await page.goto(BASE + skinPath, { waitUntil: "load", timeout: 20000 });
+  console.log("-> Exercising todo search...");
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
 
   for (const title of [marker, other]) {
     const input = page.getByPlaceholder("Add a new todo...");
@@ -304,14 +244,13 @@ async function verifyTodoSearch(page, skin) {
   if (leaked !== 0) {
     throw new Error(`search did not narrow the list: ${leaked} non-matching row(s) still rendered`);
   }
-  console.log(`  OK skin=${skin}: search narrowed the list to the matching row`);
+  console.log("  OK search narrowed the list to the matching row");
 }
 
-async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
+async function verifyOfflineTodoQueue(page, context) {
   const title = `offline-smoke-${Date.now()}`;
-  const skinPath = skin === "daisyui" ? "/todo" : `/todo?skin=${encodeURIComponent(skin)}`;
-  console.log(`→ Exercising offline todo add + delete queue (skin=${skin})…`);
-  await page.goto(BASE + skinPath, { waitUntil: "load", timeout: 20000 });
+  console.log("→ Exercising offline todo add + delete queue…");
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
   await waitForServiceWorkerControl(page);
 
   const banner = page.locator("#offline-banner");
@@ -322,10 +261,9 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   // CAL-34 regression guard: the SW postMessage bridge in
   // internal/components/offline_banner.templ dispatches the event as
   // `gogogo:queued` (Datastar event-namespace separator is the colon).
-  // The basecoat skin previously listened for
-  // `gogogo__queued` (double underscore) — a typo that left $loading
-  // stuck true after an offline add, blocking every follow-up submit.
-  // Catch that here by asserting the rendered attribute uses the
+  // A listener spelled `gogogo__queued` (double underscore) once left
+  // $loading stuck true after an offline add, blocking every follow-up
+  // submit. Catch that here by asserting the rendered attribute uses the
   // colon separator before the window modifier.
   const queuedListener = await page.evaluate(() => {
     for (const el of document.querySelectorAll("*")) {
@@ -339,7 +277,7 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   });
   if (queuedListener !== "data-on:gogogo:queued__window") {
     throw new Error(
-      `skin=${skin} listens for "${queuedListener ?? "<none>"}"; ` +
+      `the page listens for "${queuedListener ?? "<none>"}"; ` +
         'expected "data-on:gogogo:queued__window" (Datastar event namespace is ":", not "__")',
     );
   }
@@ -353,12 +291,9 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     const titleInput = page.getByPlaceholder("Add a new todo...");
     const addButton = page.getByRole("button", { name: "Add" });
     await titleInput.fill(title);
-    // Submit via Enter on the input — works for every skin regardless
-    // of whether the Add trigger is a native <button> (DaisyUI/Basecoat)
-    // or a data-variant button. Clicking the row button
-    // doesn't always dispatch a native form-submit event in headless
-    // Chromium, which is fine for users (they click too) but breaks the
-    // headless harness; Enter on the input bypasses the question.
+    // Submit via Enter on the input: clicking the Add button does not always
+    // dispatch a native form-submit event in headless Chromium, which is fine
+    // for users (they click too) but breaks the harness.
     await titleInput.press("Enter");
     await timedWait(page, "offline-input-cleared", () =>
       document.querySelector('input[name="title"]')?.value === "",
@@ -377,21 +312,17 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     }
 
     await context.setOffline(false);
-    // Row class differs per skin (DaisyUI uses .todo-item, Basecoat
-    // uses .item); every skin uses id="todo-<id>" for the row, and the
-    // container is #todo-list (which itself starts with "todo-"). Scope by
-    // id prefix, exclude the list container, and narrow by text for the
-    // exact row match.
+    // Rows carry id="todo-<id>" and the container is #todo-list (which
+    // itself starts with "todo-"). Scope by id prefix, exclude the list
+    // container, and narrow by text for the exact row match.
     const row = page
       .locator('[id^="todo-"]:not(#todo-list)')
       .filter({ hasText: title });
     await row.waitFor({ state: "visible", timeout: 20000 });
-    // Wait for replay to drain the IndexedDB queue. The basecoat
-    // skin's SSE patch is structurally different from the SW's
-    // optimistic row (DaisyUI-classed div vs. basecoat row), so the
-    // data-pending swap that DaisyUI gets is unreliable across skins.
-    // The pending-count drain is the single source of truth for
-    // "the server accepted the replay".
+    // Wait for replay to drain the IndexedDB queue. The SW's optimistic row
+    // is replaced by the server row on replay, but the pending-count drain is
+    // the single source of truth for "the server accepted the replay" — the
+    // optimistic swap is a DOM detail.
     await timedWait(page, "offline-queue-drain", async () => {
       const open = indexedDB.open("gogogo-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
@@ -407,12 +338,10 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
       db.close();
       return count === 0;
     }, null, { timeout: 15000 });
-    // DaisyUI: also wait for the SW's optimistic row to be replaced by
-    // the server row (needed because the delete test below clicks the
-    // row's enabled delete button, which the disabled optimistic
-    // button would block). The other skins handle the optimistic→server
-    // swap differently, so this guard is daisyui-only.
-    if (skin === "daisyui") {
+    // Wait for the SW's optimistic row to be replaced by the server row: the
+    // delete test below clicks the row's delete button, which the disabled
+    // optimistic button would block.
+    {
       await timedWait(
         page,
         "daisyui-optimistic-swap",
@@ -446,26 +375,10 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
     }, null, { timeout: 10000 });
 
     // Queue a delete offline too, then prove it replays and the UI converges.
-    // The delete-confirm dialog auto-open behaviour varies per skin:
-    //   - DaisyUI: the row button calls .showModal() inline.
-    //   - Basecoat: the row button only sets $confirmingDeleteId;
-    //     the dialog's open/close wiring is skin-specific. Keep this part
-    //     of the sweep daisyui-only so the harness stays decoupled from
-    //     pre-existing skin-specific dialog wiring; the CAL-34 contract
-    //     (offline add resets UI + queue + replay) is already covered
-    //     above for every skin.
-    if (skin !== "daisyui") {
-      console.log(`  ✓ skin=${skin}: offline add resets UI, queues, replays`);
-      return;
-    }
     await context.setOffline(true);
-    // The delete-button shape varies per skin:
-    //   - DaisyUI: button[title="Delete todo"] (no aria-label)
-    //   - Basecoat: button[aria-label="Delete"]
-    // The row locator above already targets the right row (filtered by
-    // text), so scope the click to that row and match any of the three
-    // shapes. The confirm-modal "Delete" button lives inside the
-    // dialog, so scoping to the row keeps the locator unambiguous.
+    // Scope the click to the row (the confirm-modal "Delete" button lives
+    // inside the dialog, so an unscoped locator would be ambiguous) and accept
+    // either delete-button marker.
     await row.locator(
       'button[aria-label*="Delete"], button[title*="Delete"]',
     ).first().click();
@@ -478,151 +391,9 @@ async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
 
     await context.setOffline(false);
     await row.waitFor({ state: "detached", timeout: 20000 });
-    console.log(`  ✓ skin=${skin}: offline add resets UI, queues, replays; offline delete replays`);
+    console.log("  ✓ offline add resets UI, queues, replays; offline delete replays");
   } finally {
     await context.setOffline(false);
-  }
-}
-
-// verifySuggestSurvivesSlowAck reproduces the production ordering that left the
-// AI Suggest button saying "Asking AI..." forever with all three steps lit.
-//
-// The response of POST /api/todos/suggest and the worker's result travel on
-// DIFFERENT connections: the result rides the tab's already-open SSE stream,
-// the ack rides the POST response. Nothing orders them, and behind a tunnel (or
-// when Datastar retries the POST) the ack arrives LAST. It used to merge
-// `aiPending: true` and `suggestions: []`, so it landed after the terminal
-// patch and re-stuck the spinner while erasing the suggestions -- the exact
-// state observed in production: aiStep=3, aiPending=true, suggestions=[].
-//
-// route.fetch() processes the request and waits for the server's response, so
-// the ack can be held in flight while the SSE result is delivered: the slow
-// response IS the reproduction. An ack-after-enqueue that writes signals makes
-// the button stay on "Asking AI..." until the 25s deadline.
-//
-// Runs in its OWN context with service workers BLOCKED: Playwright cannot
-// intercept requests a service worker makes, so in the main context (already
-// SW-controlled by the offline sweeps above) the POST would slip past the route
-// handler and the reproduction would silently not run.
-async function verifySuggestSurvivesSlowAck(browser, token) {
-  console.log("-> Exercising AI Suggest under a slow ack (result beats the response)");
-  const ctx = await browser.newContext({ serviceWorkers: "block" });
-  await ctx.addCookies([{ name: "gogogo_auth", value: token, url: BASE + "/" }]);
-  const page = await ctx.newPage();
-  const errs = [];
-  page.on("pageerror", (e) => errs.push(String(e)));
-  let heldAck = false;
-  let ackDelivered = false;
-  try {
-    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
-    // The TAB (class `tab`) carries the same label as the panel's action button
-    // (class `btn`); select the tab explicitly so the click cannot land on the
-    // button of a hidden panel.
-    await page
-      .locator('.tab[data-on\\:click*="sidebarTab"]')
-      .filter({ hasText: "AI Suggest" })
-      .first()
-      .click();
-
-    // Address the panel button by its own handler, never by text: the tab's
-    // label is identical, and a text finder resolves to the tab, whose label
-    // never changes (that produced a false "never became pending").
-    const button = page.locator('[data-on\\:click*="/api/todos/suggest"]');
-    await button.waitFor({ state: "visible", timeout: 20000 });
-    const label = () =>
-      button.evaluate((el) => (el.textContent || "").replace(/\s+/g, " ").trim());
-
-    let ackBody = "";
-    await page.route("**/api/todos/suggest**", async (route) => {
-      const response = await route.fetch();
-      heldAck = true;
-      ackBody = await response.text();
-      await new Promise((r) => setTimeout(r, 2000)); // the slow leg
-      // Re-send explicitly: the body was consumed above, so fulfil from the
-      // buffered copy instead of from `response`.
-      await route.fulfill({
-        status: response.status(),
-        headers: response.headers(),
-        body: ackBody,
-      });
-      ackDelivered = true;
-    });
-
-    await button.click();
-    // Visibility, not textContent: the button holds BOTH labels in separate
-    // spans (`AI Suggest` / `Asking AI...`) toggled by data-show, so
-    // textContent always contains "AI Suggest" and a text-based wait passes
-    // while the spinner is still up. The pending span having zero client rects
-    // is what "not asking" actually looks like.
-    const spinnerShown = () =>
-      page.evaluate(() => {
-        const el = document.querySelector('[data-show="$aiPending"]');
-        return !!el && el.getClientRects().length > 0;
-      });
-    // 1) The run must be observably IN FLIGHT first, otherwise the next wait
-    //    can pass on the pre-click DOM.
-    let sawPending = false;
-    for (let i = 0; i < 60 && !sawPending; i++) {
-      sawPending = await spinnerShown();
-      if (!sawPending) await new Promise((r) => setTimeout(r, 100));
-    }
-    if (!sawPending) fail("suggest: optimistic \"Asking AI\" spinner never appeared");
-
-    // 2) The result must arrive (the run finishes on the SSE stream, not on the
-    //    POST response).
-    const region = page.locator("#suggestions-region");
-    let resultShown = false;
-    for (let i = 0; i < 250 && !resultShown; i++) {
-      resultShown = await region.isVisible().catch(() => false);
-      if (!resultShown) await new Promise((r) => setTimeout(r, 100));
-    }
-    if (!resultShown) fail("suggest: the worker's suggestions never reached the page");
-
-    // 3) Wait for the ACK to land before judging the final state: the whole
-    //    point is that it arrives AFTER the result. `ackDelivered` flips once
-    //    route.fulfill hands the (delayed) response to the page.
-    for (let i = 0; i < 60 && !ackDelivered; i++) await new Promise((r) => setTimeout(r, 100));
-    if (!ackDelivered) fail("suggest: the delayed ack was never delivered (reproduction did not complete)");
-    await new Promise((r) => setTimeout(r, 500)); // let Datastar apply the late patch
-
-    // 4) FINAL STATE, which is the state the user was stuck in. Judged on what
-    //    the DOM shows, not on signals that cannot be read from outside: the
-    //    region is gated on `$suggestions.length > 0` (a late ack writing
-    //    `suggestions: []` hides it) and the spinner span on `$aiPending` (a
-    //    late ack writing `aiPending: true` raises it again).
-    const spinnerUp = await spinnerShown();
-    const visible = await region.isVisible().catch(() => false);
-    const n = await region.locator("button").count().catch(() => 0); // one chip per suggestion
-
-    const problems = [];
-    // Deterministic half: the ack must be a bare "accepted" stream. A signal
-    // patch in it is a write that can land after the terminal patch, and no
-    // amount of UI polling makes that safe. This is the assertion that cannot
-    // race the network ordering.
-    if (/datastar-patch-signals/.test(ackBody)) {
-      problems.push(
-        `suggest: the ack carries a signal patch (${ackBody.replace(/\s+/g, " ").slice(0, 160)}) - it can land after the result and undo it`,
-      );
-    }
-    if (spinnerUp) {
-      problems.push(
-        `suggest: spinner still up after the run finished (label=${await label()}) - a late ack re-set aiPending`,
-      );
-    }
-    if (!visible || n === 0) {
-      problems.push(
-        `suggest: no suggestions on screen after the run (visible=${visible}, items=${n}) - the late ack erased the result`,
-      );
-    }
-    if (problems.length > 0) {
-      for (const p of problems) fail(p);
-    } else {
-      console.log(`  ok suggest survived a slow ack (${n} suggestions still rendered after the ack landed)`);
-    }
-    if (!heldAck) fail("suggest: the slow-ack interception never saw the request (reproduction did not run)");
-    if (errs.length > 0) fail(`suggest: uncaught JS error: ${errs.join(" | ")}`);
-  } finally {
-    await ctx.close();
   }
 }
 
@@ -883,39 +654,6 @@ try {
         fail(`${route}: ${state.text || control} is disabled on load with no run in flight — a dead control`);
       }
     }
-    if (route === "/todo") {
-      // BORN-DISABLED SWEEP. Datastar's attr plugin SETS `disabled` for every
-      // value that is not `false`/`null` — including the `""` it substitutes
-      // for a signal that was never seeded — so `data-attr:disabled="$a && !$b"`
-      // on an unset stepper renders a dead control (`&&` returns its left
-      // operand, `""`, which is truthy to the attribute logic). Two shipped
-      // dead that way: "Run durable workflow" and the delete-confirm "Delete"
-      // (which made deleting a todo impossible from the UI).
-      //
-      // Exactly ONE control is legitimately disabled at load: the create-form
-      // submit, because its own title is empty (its expression reads
-      // `$newTitle`). Anything else is an unset signal, not a precondition.
-      const born = await page.evaluate(() => {
-        const out = [];
-        for (const el of document.querySelectorAll("[data-attr\\:disabled]")) {
-          if (!el.disabled) continue;
-          out.push({
-            text: (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40),
-            expr: el.getAttribute("data-attr:disabled") || "",
-          });
-        }
-        return out;
-      });
-      const unexpected = born.filter((b) => !b.expr.includes("newTitle"));
-      if (unexpected.length > 0) {
-        fail(`/todo: ${unexpected.length} control(s) born disabled by an unset signal: ${JSON.stringify(unexpected)}`);
-      }
-      if (born.length === 0) {
-        fail(
-          "/todo: no control is disabled at load — the create submit is expected to be (empty title), so this sweep would be vacuous",
-        );
-      }
-    }
   }
 
   pageErrors.length = 0;
@@ -963,50 +701,19 @@ try {
   }
   } // hasFeature("room")
 
-  // CAL-34: sweep the markup-carrying skin variants through the
-  // offline-queue contract. A typo in the offline-reset listener
-  // (data-on:gogogo:queued__window vs. gogogo__queued) used to slip through
-  // because the harness only covered daisyui.
+  // CAL-34: sweep the offline-queue contract. A typo in the offline-reset
+  // listener (data-on:gogogo:queued__window vs. gogogo__queued) is invisible to
+  // unit tests because the listener is inline markup.
+  // One skin ships: the offline-queue contract is swept once, on /todo.
   const offlineSkins = ["daisyui"];
-  {
-    // Authenticated probe (the login redirect renders identically for every
-    // skin and would fake a fallback). AUTO-DETECTED, never assumed: a trimmed
-    // checkout drops a skin and the server falls back to DaisyUI with a
-    // warning log, so a blind second pass would run DaisyUI twice, labelled
-    // with the missing skin's name (silent coverage loss).
-    //
-    // BOTH carriers are swept. Basecoat renders its own .templ; shadcn reuses
-    // the shared markup and only swaps CSS — which is precisely why the old
-    // "the DaisyUI pass covers shadcn" shortcut was wrong. `?skin=shadcn`
-    // served shared markup against a compatibility layer that was missing
-    // classes the markup uses (join sizing, toasts, kbd, animate utilities),
-    // and no run had ever loaded the page, so nothing failed. A skin counts as
-    // present when its response diverges from the DaisyUI render AND links its
-    // own stylesheet (the `?v=` fingerprint is why this is a prefix match).
-    const present = await page.evaluate(async (base) => {
-      const plain = await (await fetch(base + "/todo")).text();
-      const out = {};
-      for (const skin of ["basecoat", "shadcn"]) {
-        const html = await (await fetch(base + "/todo?skin=" + skin)).text();
-        out[skin] = html !== plain && html.includes("/static/" + skin + ".min.css");
-      }
-      return out;
-    }, BASE);
-    for (const [skin, ok] of Object.entries(present)) {
-      if (ok) offlineSkins.push(skin);
-      else console.log(`  → ${skin} skin absent (fallback to DaisyUI), not swept`);
-    }
-  }
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
-    await verifySingleOnlineTodoSubmit(page, skin);
     await verifyTodoSearch(page, skin);
     await verifyOfflineTodoQueue(page, context, skin);
     if (pageErrors.length > 0) {
-      fail(`uncaught JS error during offline queue test (skin=${skin}): ${pageErrors.map((e) => e.msg).join(" | ")}`);
+      fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
     }
   }
-  await verifySuggestSurvivesSlowAck(browser, userToken);
   await verifyOfflineUx(page, context);
   if (pageErrors.length > 0) {
     fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);

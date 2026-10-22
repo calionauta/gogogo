@@ -36,10 +36,6 @@ attributes:
     - data-cuelume
     - data-cuelume-press
     - data-cuelume-hover
-    # Basecoat's / this repo's size + variant scale (both UI skins use it).
-    # Verified not a typo of any Datastar attribute (edit distance > 2).
-    - data-size
-    - data-variant
     - data-created        # todo creation date for the client-side date filter
     - data-command        # command-palette option marker
 

@@ -136,8 +136,6 @@ func templSpanAnchor(path string) (spanAnchor, bool) {
 		return spanAnchor{afterContains: navLinkAnchorSubstr}, true
 	case todoListTempl:
 		return anchorBefore(todoEntryButtonAnchor), true
-	case todoBasecoatTempl:
-		return anchorBefore(todoBasecoatButtonAnchor), true
 	case todoGoFile:
 		return anchorBefore(todoLayoutAnchor), true
 	case todoRepoFile:

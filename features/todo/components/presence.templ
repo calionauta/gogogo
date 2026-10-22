@@ -1,0 +1,18 @@
+// SCOPE:feature — Live presence pill for the shell header.
+//
+// Moved out of the page header: the pill is the module's liveness report, and
+// the shell's header context slot is the one place every module reports it.
+// Markup and signals are unchanged (connectedClients + realtimeKind), so the
+// live count keeps updating exactly as before.
+package components
+
+import "github.com/calionauta/gogogo/features/todo"
+
+templ TodoPresence(signals todo.Signals) {
+	<span class="online-pill" data-show="$connectedClients >= 0" title="Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.">
+		<span class="pulse-dot"></span>
+		<span class="pill-online" data-text="$connectedClients + ' online'"></span>
+		<span class="pill-offline">offline</span>
+		<span class="hidden sm:inline"> · <span class="pill-online" data-text="$realtimeKind"></span></span>
+	</span>
+}

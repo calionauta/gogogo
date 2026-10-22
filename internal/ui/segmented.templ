@@ -1,0 +1,59 @@
+// SCOPE:core — The one segmented control.
+//
+// The app had four tab strips (scope, status, and two machinery tab rows) with
+// three different markups, so the same control looked different on each. This
+// is the single implementation: one class vocabulary, one active-state rule,
+// one place to change the interaction.
+//
+// Both state owners go through here because both are client-driven:
+//   - the filter rows call @get and the SERVER answers with the patched region
+//     and the resolved state (the URL still carries ?scope/?filter — D9);
+//   - the state panel's tabs assign a signal outright ($sidebarTab).
+// The `On` expression is passed through verbatim: it carries the query-string
+// composition and the patch target, which is wire behaviour, not styling.
+package ui
+
+// Segment is one option in a segmented control.
+type Segment struct {
+	Label  string
+	On     string // data-on:click expression, verbatim
+	Active string // data-class is-active expression
+}
+
+// Segmented renders a labelled row of options.
+templ Segmented(label string, segments []Segment) {
+	<div class="app-seg" role="tablist" aria-label={ label }>
+		for _, s := range segments {
+			<a
+				href="#"
+				role="tab"
+				class="app-seg-item"
+				data-on:click__prevent={ s.On }
+				data-class={ "{'is-active': (" + s.Active + ")}" }>
+				{ s.Label }
+			</a>
+		}
+	</div>
+}
+
+// TodoScopeOn builds the click expression for one todo scope option. Kept here,
+// next to Segmented, so the query-string composition exists once — the old
+// markup repeated it per tab and the copies had already drifted (only some
+// carried `q=`).
+func TodoScopeOn(value string) string {
+	return "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + " +
+		"'&scope=" + value + "&q=' + encodeURIComponent($searchQuery || '') + " +
+		"'&clientID=' + encodeURIComponent($clientID || ''))"
+}
+
+// TodoFilterOn is the status-filter counterpart of TodoScopeOn.
+func TodoFilterOn(value string) string {
+	return "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + " +
+		"'&q=' + encodeURIComponent($searchQuery || '') + " +
+		"'&clientID=' + encodeURIComponent($clientID || ''))"
+}
+
+// SignalOn is the click expression for a segment that just assigns a signal.
+func SignalOn(signal, value string) string {
+	return "$" + signal + " = '" + value + "'"
+}
