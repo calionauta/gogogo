@@ -12,6 +12,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/todo/components"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/demo"
 )
 
 // loginNext resolves the post-login destination, defaulting to the demo
@@ -114,5 +115,6 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		h.BuildLabel, h.BuildCommit,
 		h.OfflineSyncEnabled,
 		skin,
+		demo.On(r),
 	).Render(r.Context(), w)
 }

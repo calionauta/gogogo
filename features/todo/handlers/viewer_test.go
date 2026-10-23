@@ -68,7 +68,7 @@ func TestTodoViewerDeleteAffordanceDisabled(t *testing.T) {
 	if createUser.Code != http.StatusOK {
 		t.Fatalf("user create status = %d", createUser.Code)
 	}
-	userRec := f.do(http.MethodGet, "/todo", "", userCookie)
+	userRec := f.do(http.MethodGet, "/todo", "", userCookie, demoCookie())
 	if userRec.Code != http.StatusOK {
 		t.Fatalf("user /todo status = %d", userRec.Code)
 	}
@@ -90,7 +90,7 @@ func TestTodoSuggestTabVisibility(t *testing.T) {
 	f.h.SetLLMClient(llm.New("test-key"))
 
 	userCookie := f.signup("sugg-user@example.com")
-	userRec := f.do(http.MethodGet, "/todo", "", userCookie)
+	userRec := f.do(http.MethodGet, "/todo", "", userCookie, demoCookie())
 	if userRec.Code != http.StatusOK {
 		t.Fatalf("user /todo status = %d", userRec.Code)
 	}

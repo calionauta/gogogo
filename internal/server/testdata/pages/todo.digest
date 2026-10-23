@@ -2,6 +2,6 @@ route /todo
 ids app-rail command-palette command-palette-input command-palette-list confirm-delete-modal created-filter-btn created-filter-popover offline-banner offline-banner-text retry-toast session-banner sse-opener suggestions-region toast-container todo-empty-state todo-list todo-realtime-resync
 data-bind cmdQuery newTitle searchQuery
 data-on data-on:change data-on:click data-on:close
-signals aiPending aiPhase aiStep clientID cmdQuery confirmingDeleteId confirmingDeleteTitle connectedClients createdAfter deleting demoStep docVersion filter itemCount lastItemSource lastRetryAttempt lastRetryStatus loading newTitle noMatches permDenied railOpen realtimeKind scope searchQuery sessionAuthed sidebarTab suggestPending suggestions techPhase techStep theme
+signals clientID cmdQuery confirmingDeleteId confirmingDeleteTitle connectedClients createdAfter deleting docVersion filter itemCount lastItemSource loading newTitle noMatches permDenied railOpen realtimeKind scope searchQuery sessionAuthed suggestions theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=27 aside=1 body=1 button=24 calendar=2 details=2 dialog=2 div=56 form=5 h1=1 h2=1 h3=1 head=1 header=1 html=2 iconify=13 input=4 kbd=2 label=2 li=31 link=3 main=1 meta=2 nav=1 ol=2 option=3 p=6 path=19 script=16 select=1 span=77 strong=8 style=3 summary=2 svg=19 title=1 ul=4
+tags a=27 aside=1 body=1 button=20 calendar=2 details=2 dialog=2 div=39 form=4 h1=1 h2=1 h3=1 head=1 header=1 html=2 iconify=13 input=4 kbd=2 label=2 li=25 link=3 main=1 meta=2 nav=1 option=3 p=6 path=14 script=16 select=1 span=52 strong=8 style=3 summary=2 svg=14 title=1 ul=4

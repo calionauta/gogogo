@@ -791,3 +791,66 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
    opts out of the shell's padding, and its inner flex column inherits the
    height the shell gives it. */
 .app-body-flush { padding: 0; display: flex; flex-direction: column; min-height: 0; }
+
+/* ---------- Demo mode: the docked state panel ----------
+   The module's machinery (queue, AI suggest, durable workflow) docks here,
+   beside the work area, only when demo mode is on. Product mode has no panel at
+   all, which is the point: evidence about the work is something you ask for,
+   not a column that competes with it. */
+.app-demo-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
+  text-decoration: none;
+}
+.app-demo-toggle:hover {
+  background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  color: var(--color-base-content);
+}
+.app-demo-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.app-demo-toggle.is-on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+.app-state-panel {
+  flex: 0 0 20rem;
+  width: 20rem;
+  overflow-y: auto;
+  max-height: 100vh;
+  position: sticky;
+  top: 0;
+  padding: 0.75rem;
+  background: var(--color-base-100);
+  border-left: 1px solid var(--color-base-300);
+}
+.app-state-panel-head {
+  margin: 0 0 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+.app-state-panel-inner .card { background: var(--color-base-200); border-color: var(--color-base-300); }
+
+@media (max-width: 1024px) {
+  /* On a phone the dock becomes a sheet over the page: a 20rem column beside a
+     390px viewport leaves nothing to work in. */
+  .app-state-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: auto;
+    max-height: 65vh;
+    z-index: 55;
+    border-left: 0;
+    border-top: 1px solid var(--color-base-300);
+    box-shadow: 0 -10px 40px color-mix(in oklab, var(--color-base-content) 25%, transparent);
+  }
+}

@@ -36,7 +36,7 @@ var dagNatsTrimUnit = []trimUnit{
 				// them stay, mirroring runtime-disabled (DAGNATS_ENABLED=false
 				// renders the same pages without the engine) — the trim only
 				// removes what can actually fire.
-				path: "features/todo/components/todo_list.templ",
+				path: "features/todo/components/state_panel.templ",
 				rules: []stripRule{
 					{
 						startMarker: "<!-- trim:dagnats removes this entry button",

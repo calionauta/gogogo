@@ -22,6 +22,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -90,7 +91,13 @@ func (f *handlersFixture) signup(email string) *http.Cookie {
 	return nil
 }
 
-func (f *handlersFixture) do(method, target string, form string, cookie *http.Cookie) *httptest.ResponseRecorder {
+// do drives one request. `extra` carries request-scoped cookies the test needs
+// beyond the session — today only the demo-mode cookie, because the module
+// machinery (workflow tab, AI suggest) renders in the state panel, which the
+// shell docks only in demo mode.
+func (f *handlersFixture) do(
+	method, target, form string, cookie *http.Cookie, extra ...*http.Cookie,
+) *httptest.ResponseRecorder {
 	f.t.Helper()
 	var reader io.Reader
 	if form != "" {
@@ -102,6 +109,9 @@ func (f *handlersFixture) do(method, target string, form string, cookie *http.Co
 	}
 	if cookie != nil {
 		req.AddCookie(cookie)
+	}
+	for _, c := range extra {
+		req.AddCookie(c)
 	}
 	rec := httptest.NewRecorder()
 	f.r.ServeHTTP(rec, req)
@@ -308,4 +318,13 @@ func (f *handlersFixture) ownerOf(t *testing.T, cookie *http.Cookie) string {
 		t.Fatalf("ownerOf: %v", err)
 	}
 	return sess.User.ID
+}
+
+// demoCookie turns demo mode on for one request: that is where the module's
+// machinery renders (the shell docks #state-panel only then).
+func demoCookie() *http.Cookie {
+	return &http.Cookie{
+		Name: demo.Cookie, Value: "1",
+		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
+	}
 }

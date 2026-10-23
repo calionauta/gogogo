@@ -3774,6 +3774,85 @@
     .menu .dropdown-content:before {
       display: none;
     }
+    .dock {
+      position: fixed;
+      right: 0px;
+      bottom: 0px;
+      left: 0px;
+      z-index: 1;
+      display: flex;
+      width: 100%;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-around;
+      background-color: var(--color-base-100);
+      padding: calc(0.25rem * 2);
+      color: currentcolor;
+      border-top: 0.5px solid var(--color-base-content);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .dock {
+        border-top: 0.5px solid color-mix(in oklab, var(--color-base-content) 5%, #0000);
+      }
+    }
+    .dock {
+      height: 4rem;
+      height: calc(4rem + env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .dock > :not(:where(script, style, template)) {
+      position: relative;
+      margin-bottom: calc(0.25rem * 2);
+      display: flex;
+      height: 100%;
+      max-width: calc(0.25rem * 32);
+      flex-shrink: 1;
+      flex-basis: 100%;
+      cursor: pointer;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      border-radius: var(--radius-box);
+      background-color: transparent;
+      transition: opacity 0.2s ease-out;
+    }
+    @media (hover: hover) {
+      .dock > :not(:where(script, style, template)):hover {
+        opacity: 80%;
+      }
+    }
+    :is(.dock > :not(:where(script, style, template))[aria-disabled="true"], .dock > :not(:where(script, style, template))[disabled]), :is(.dock > :not(:where(script, style, template))[aria-disabled="true"], .dock > :not(:where(script, style, template))[disabled]):hover {
+      pointer-events: none;
+      color: var(--color-base-content);
+      @supports (color: color-mix(in lab, red, red)) {
+        color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+      }
+      opacity: 100%;
+    }
+    .dock > :not(:where(script, style, template)) .dock-label {
+      font-size: 0.6875rem;
+    }
+    .dock > :not(:where(script, style, template)):after {
+      content: "";
+      position: absolute;
+      height: 0.25rem;
+      width: calc(0.25rem * 6);
+      border-radius: calc(infinity * 1px);
+      background-color: transparent;
+      bottom: 0.2rem;
+      border-top: 3px solid transparent;
+      transition: background-color 0.1s ease-out, text-color 0.1s ease-out, width 0.1s ease-out;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .dock > [aria-current]:not([aria-current="false"], [aria-current=""]):after {
+      width: calc(0.25rem * 10);
+      background-color: currentcolor;
+      color: currentcolor;
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
     .dropdown {
       position: relative;
       display: inline-block;
@@ -8218,17 +8297,11 @@
     }
   }
   @media (width >= 64rem) {
-    .lg\:col-span-2 {
-      grid-column: span 2 / span 2;
-    }
     .lg\:col-span-3 {
       grid-column: span 3 / span 3;
     }
     .lg\:inline {
       display: inline;
-    }
-    .lg\:grid-cols-5 {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
     }
   }
   .animate-in {

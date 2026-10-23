@@ -63,7 +63,7 @@ func TestRenderedDisabledAttrsAreBoolean(t *testing.T) {
 	// exactly that shape).
 	cases := map[string]func() string{
 		"daisyui": func() string {
-			return renderOrFail(t, TodoList(signals))
+			return renderOrFail(t, TodoStatePanel(signals))
 		},
 	}
 
@@ -91,7 +91,7 @@ func TestRenderedWorkflowButtonStartsEnabled(t *testing.T) {
 	signals := todoSignalsForRender()
 
 	for skin, render := range map[string]func() string{
-		"daisyui": func() string { return renderOrFail(t, TodoList(signals)) },
+		"daisyui": func() string { return renderOrFail(t, TodoStatePanel(signals)) },
 	} {
 		html := render()
 		if !strings.Contains(html, "Run durable workflow") {

@@ -51,7 +51,7 @@ func TestHandlersTodoFragmentCarriesDagNatsFlag(t *testing.T) {
 	// The page builds from handleIndex' signals; the tab lives in the
 	// sidebar component, so the page (not the list fragment) is where
 	// the flag is observable.
-	rec := f.do(http.MethodGet, "/todo", "", cookie)
+	rec := f.do(http.MethodGet, "/todo", "", cookie, demoCookie())
 	if rec.Code != http.StatusOK {
 		t.Fatalf("todo page status = %d", rec.Code)
 	}
@@ -60,7 +60,7 @@ func TestHandlersTodoFragmentCarriesDagNatsFlag(t *testing.T) {
 	}
 
 	f.h.SetOnboarding(stubResumer{})
-	rec = f.do(http.MethodGet, "/todo", "", cookie)
+	rec = f.do(http.MethodGet, "/todo", "", cookie, demoCookie())
 	if rec.Code != http.StatusOK {
 		t.Fatalf("todo page (registered) status = %d", rec.Code)
 	}
