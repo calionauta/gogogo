@@ -116,10 +116,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					<div class="app-rail-foot">
 						@ThemeSelector()
 						if len(d.Stack) > 0 {
-							<div class="app-rail-stack-static">
-								<p class="app-rail-section-label">Stack</p>
-								@components.TechStackRows(d.Stack)
-							</div>
+							<details class="app-rail-stack">
+								<summary title="What this page demonstrates">Stack · { len(d.Stack) }</summary>
+								<div class="app-rail-stack-body">
+									@components.TechStackRows(d.Stack)
+								</div>
+							</details>
 						}
 						@authviews.UserMenu(d.Email, d.Role)
 					</div>

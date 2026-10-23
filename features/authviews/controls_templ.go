@@ -103,7 +103,7 @@ func UserMenu(userEmail string, userRole string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<details class=\"app-dropdown\"><summary class=\"app-dropdown-trigger\" title=\"Account\" aria-haspopup=\"menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-user-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z\" clip-rule=\"evenodd\"></path></svg> <span class=\"app-user-email\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<details class=\"app-dropdown app-dropdown-up\"><summary class=\"app-dropdown-trigger\" title=\"Account\" aria-haspopup=\"menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"app-user-icon\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z\" clip-rule=\"evenodd\"></path></svg> <span class=\"app-user-email\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -72,17 +72,21 @@ func chatStack() []components.TechItem {
 }
 
 // chatBody is the work area: the composer, the thread and the opener.
+//
+// Empty = centered hero (ChatGPT-style: title + composer in the middle),
+// filled = thread on top, composer docked at the footer. One form, two
+// positions: .is-empty comes from $chat_empty (cleared on first submit),
+// so there is no second form id to keep in sync. Filled docks with
+// margin-top:auto + sticky bottom so the composer sits ON the footer edge
+// even with a short thread — sticky alone left it floating above it.
 templ chatBody(msgs []store.MessageView) {
-	<div class="ui-page ui-page-narrow flex min-h-[calc(100vh-9rem)] flex-col gap-4">
-		<!-- The thread takes the room and the composer sits at the bottom, where a
-		     chat's composer is expected. Before this the form rendered first and the
-		     empty state under it, so the page read upside down. -->
+	<div class="ui-page ui-page-narrow chat-layout" data-class="{'is-empty': $chat_empty}">
 		<div class="flex-1">
 			@ChatList(msgs, "")
 		</div>
 		<form
 			id="chat-composer"
-			class="sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-2 border-t border-base-200"
+			class="composer-dock"
 			data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false; })" }
 			data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed \u2014 check your connection and try again.') : null"
 			data-cuelume="send"
@@ -115,10 +119,10 @@ templ chatBody(msgs []store.MessageView) {
 // plus the thread itself. The container owns the `#chat-messages` id and
 // nothing else does — see ChatThread for why that matters.
 templ ChatList(msgs []store.MessageView, errMsg string) {
-	<div id="chat-messages" class="flex flex-col gap-3 pb-28" aria-live="polite">
-		<div id="chat-empty" data-show="$chat_empty" class="rounded-lg border border-dashed border-base-300 p-6 text-center">
-			<p class="font-semibold">Ask anything — answers stream below</p>
-			<p class="text-sm text-base-content/60 mt-1">History persists per account; each answer is markup the model invented for that question.</p>
+	<div id="chat-messages" class="flex flex-col gap-3 pb-6" aria-live="polite">
+		<div id="chat-empty" data-show="$chat_empty" class="chat-hero">
+			<h2>Ask anything — answers stream below</h2>
+			<p>History persists per account; each answer is markup the model invented for that question.</p>
 		</div>
 		@ChatThread(msgs, errMsg)
 	</div>

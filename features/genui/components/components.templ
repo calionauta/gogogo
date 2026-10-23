@@ -32,7 +32,7 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 		BuildCommit: buildCommit,
 		Skin:        skinName,
 		OfflineSync: true,
-		Signals:     `{"theme":"light","genui_pending":false,"genui_error":""}`,
+		Signals:     `{"theme":"light","genui_pending":false,"genui_error":"","genui_empty":true}`,
 		Demo:        demo,
 		Panel:       GenuiStatePanel(),
 		Stack:       genuiStack(),
@@ -62,16 +62,21 @@ func genuiStack() []components.TechItem {
 }
 
 // genuiBody is the work area: the ask form, the answer region, the opener.
+//
+// Same empty/filled contract as Chat: empty = centered hero, filled =
+// answer on top with the composer docked at the footer. One form, two
+// positions via .is-empty from $genui_empty (cleared on first submit).
+// The hero lives inside GenuiResult's empty branch, styled as .chat-hero
+// exactly like Chat's, so both pages share one visual pattern.
 templ genuiBody() {
-	<div class="ui-page ui-page-narrow flex min-h-[calc(100vh-9rem)] flex-col gap-4">
+	<div class="ui-page ui-page-narrow chat-layout" data-class="{'is-empty': $genui_empty}">
 			<div class="flex-1">
-				<h2 class="text-lg font-semibold mb-2">Answer</h2>
 				@GenuiResult(nil, "", false)
 			</div>
 			<form
 					id="genui-ask-form"
-					class="sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-2 border-t border-base-200"
-					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; var sent = $genuiPrompt; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($genuiPrompt === sent) $genuiPrompt = ''; }).catch(() => { $genui_pending = false; })" }
+					class="composer-dock"
+					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; $genui_empty = false; var sent = $genuiPrompt; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($genuiPrompt === sent) $genuiPrompt = ''; }).catch(() => { $genui_pending = false; })" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null"
 				>
 					<label for="genui-prompt" class="sr-only">What should the assistant shape for you?</label>
@@ -113,7 +118,7 @@ templ genuiBody() {
 templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 	<div
 		id="genui-result"
-		class="mt-2 min-h-24 rounded-lg border border-base-300 bg-base-100 p-4"
+		class="mt-2 min-h-24"
 		aria-live="polite"
 	>
 		if isError {
@@ -122,11 +127,13 @@ templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 			</div>
 			<p class="text-sm text-base-content/60 mt-2">Try asking again — the form above kept your question.</p>
 		} else if len(comps) == 0 {
-			<h3 class="font-semibold">Ask anything</h3>
-			<p class="text-sm text-base-content/60 mt-1">
-				For example: “plan my day”, “summarize my week in a table”,
-				“turn my notes into actions”. The answer renders here as cards and tables.
-			</p>
+			<div class="chat-hero" data-show="$genui_empty">
+				<h2>Ask anything</h2>
+				<p>
+					For example: “plan my day”, “summarize my week in a table”,
+					“turn my notes into actions”. The answer renders here as cards and tables.
+				</p>
+			</div>
 		} else {
 			for _, comp := range comps {
 				<div class="mb-4 last:mb-0">
