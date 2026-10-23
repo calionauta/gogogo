@@ -32,15 +32,20 @@ type OwnerContext interface {
 
 // dataContextBlock renders the prompt section describing the viewer's own
 // data. It is prefixed to BOTH legs' prompts when a summarizable panel is
-// installed, and it deliberately reads like data, not instructions: "here are
-// the real rows" is what makes the fabrication rule followable.
+// installed, and it is deliberately CONDITIONAL: an unconditional "here are
+// the real rows, use them" makes the model weave the user's todos into every
+// answer, even a "hi" that has nothing to do with them (live report). The
+// block stays in the prompt -- the anti-fabrication rule needs something true
+// to point at -- but it orders the model to ignore the data unless the request
+// is about the user's own items.
 func dataContextBlock(ctx context.Context, owner string) string {
 	summary, err := DataContext(ctx, owner)
 	if err != nil || strings.TrimSpace(summary) == "" {
 		return ""
 	}
-	return "Current data from this app for the signed-in user (real, use it " +
-		"instead of inventing):\n" + summary
+	return "Reference data for the signed-in user below. Use it ONLY when the " +
+		"request is about the user's own items (their todos, notes, records); " +
+		"otherwise ignore it entirely -- do not mention, summarize, or render it:\n" + summary
 }
 
 // llmResponder asks a real model for catalog directives. The router, when one

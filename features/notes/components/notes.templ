@@ -188,6 +188,8 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 		Title:       "Collab note — gogogo",
 		Module:      "notes",
 		Heading:     "Shared note",
+		CrumbLabel:  "Notes",
+		CrumbURL:    "/notes",
 		Context:     "CRDT-merged · every tab converges · SSE",
 		Email:       email,
 		Role:        userRole,
@@ -195,14 +197,7 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 		BuildCommit: buildCommit,
 		Skin:        skinName,
 		StreamPage:  true,
-	}, notesDocHead(), notesSound(), notesDocActions(), notesDocBody(meta, text, rev))
-}
-
-// notesDocActions is the detail page's way back: the same header slot the
-// index uses for "New note", mirrored as a ghost back link. The header is
-// sticky, so the way out stays visible while editing.
-templ notesDocActions() {
-	<a class="btn btn-ghost btn-sm" href="/notes" title="Back to all notes">‹ Notes</a>
+	}, notesDocHead(), notesSound(), nil, notesDocBody(meta, text, rev))
 }
 
 // notesDocHead carries the page's own <head>: the sound assets (so the shell's
@@ -227,12 +222,7 @@ templ notesDocBody(meta NoteMeta, text string, rev uint64) {
 
 				<h1 class="sr-only">Shared note</h1>
 				<div class="flex items-center justify-between mb-2">
-					<nav class="breadcrumbs text-sm" aria-label="Breadcrumb">
-						<ul>
-							<li><a href="/notes">Notes</a></li>
-							<li><span class="font-mono">{ meta.DocID }</span></li>
-						</ul>
-					</nav>
+					<span class="font-mono text-xs text-base-content/60" title="Note id">{ meta.DocID }</span>
 					<span class="flex items-center gap-2">
 						@authorBadge(meta.Author, meta.IsMine)
 						<span id="peer-pill" class="text-xs text-base-content/60" title="Tabs on this note" aria-live="polite">1 online</span>

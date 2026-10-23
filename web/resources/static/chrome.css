@@ -642,7 +642,8 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: calc(100vh - 9rem);
+  min-height: calc(100vh - 8rem);
+  flex: 1 0 auto;
 }
 .chat-layout.is-empty { justify-content: center; }
 .chat-hero { text-align: center; max-width: 32rem; margin-inline: auto; }
@@ -713,6 +714,14 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   min-width: 0;
   text-align: left;
 }
+/* Detail-page parent link: back navigation reads top-left, above the title
+   it returns to — never buried in the right-aligned actions. */
+.app-crumb { margin: 0 0 0.125rem; font-size: 0.75rem; line-height: 1.2; }
+.app-crumb a {
+  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  text-decoration: none;
+}
+.app-crumb a:hover { color: var(--color-primary); text-decoration: underline; }
 .app-module-titles h1 {
   margin: 0;
   font-size: 1.125rem;
@@ -927,6 +936,18 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
    opts out of the shell's padding, and its inner flex column inherits the
    height the shell gives it. */
 .app-body-flush { padding: 0; display: flex; flex-direction: column; min-height: 0; }
+
+/* Tight bottom for footer-docked composers (chat, ask): the default 4rem
+   body padding plus anything trailing the form reads as the composer
+   floating above the fold. 0.75rem keeps it ON the footer edge.
+   Flex column + a growing .chat-layout below close the second gap: main
+   stretches to fill the viewport (flex:1) while a min-height container does
+   not follow, leaving dead space under the composer on short threads. */
+.app-body-flush-bottom {
+  padding-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ---------- Demo mode: the docked state panel ----------
    The module's machinery (queue, AI suggest, durable workflow) docks here,

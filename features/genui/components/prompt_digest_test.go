@@ -25,7 +25,7 @@ func TestBothLegsComposeRealDataIntoThePrompt(t *testing.T) {
 	const owner = "wiring-owner"
 
 	ask := llmResponder{owner: owner}.composePrompt(ctx, "plan my day")
-	if !strings.Contains(ask, "Current data from this app") {
+	if !strings.Contains(ask, "Reference data for the signed-in user") {
 		t.Errorf("Ask prompt has no data section:\n%s", ask)
 	}
 	if !strings.Contains(ask, summary) {
@@ -33,7 +33,7 @@ func TestBothLegsComposeRealDataIntoThePrompt(t *testing.T) {
 	}
 
 	chat := chatLLMResponder{owner: owner}.composePrompt(ctx, "plan my day")
-	if !strings.Contains(chat, "Current data from this app") {
+	if !strings.Contains(chat, "Reference data for the signed-in user") {
 		t.Errorf("Chat prompt has no data section:\n%s", chat)
 	}
 	if !strings.Contains(chat, summary) {
@@ -46,7 +46,7 @@ func TestBothLegsComposeRealDataIntoThePrompt(t *testing.T) {
 // that would tell the model the user has no data at all.
 func TestComposedPromptWithoutOwnerHasNoDataSection(t *testing.T) {
 	got := llmResponder{}.composePrompt(context.Background(), "hi")
-	if strings.Contains(got, "Current data from this app") {
+	if strings.Contains(got, "Reference data for the signed-in user") {
 		t.Errorf("ownerless prompt carries a data section:\n%s", got)
 	}
 }

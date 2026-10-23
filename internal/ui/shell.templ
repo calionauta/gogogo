@@ -25,6 +25,8 @@ type Data struct {
 	Title       string             // document title
 	Module      string             // active module id, e.g. "todo"
 	Heading     string             // header title override (default: module title)
+	CrumbLabel  string             // detail-page parent label, e.g. "Boards" ("" = no crumb)
+	CrumbURL    string             // detail-page parent target, e.g. "/whiteboard"
 	Context     string             // header context slot: liveness, store, transport
 	Email       string             // session email ("" for guests)
 	Role        string             // session role ("admin" | "user" | "viewer" | "")
@@ -34,6 +36,7 @@ type Data struct {
 	Signals     string             // the page's own seeded signal JSON ("" = none)
 	StreamPage  bool               // marks a page that opens its own EventSource (session.js)
 	FullBleed   bool               // body without padding, for canvas pages
+	FlushBottom bool              // tight bottom padding, for footer-docked composers
 	Demo        bool               // demo mode: dock the state panel
 	// Panel is the module's machinery, shown only in demo mode. A page passes it
 	// only when it has a pipeline that runs beside the page (a queue, a model
@@ -190,6 +193,11 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							@icon.Icon("material-symbols:menu", "")
 						</button>
 						<div class="app-module-titles">
+							if d.CrumbLabel != "" && d.CrumbURL != "" {
+								<nav class="app-crumb" aria-label="Breadcrumb">
+									<a href={ templ.SafeURL(d.CrumbURL) } title={ "Back to " + d.CrumbLabel }>&#8249; { d.CrumbLabel }</a>
+								</nav>
+							}
 							<h1>{ d.HeadingText() }</h1>
 							if d.Context != "" {
 								<p class="app-module-context">{ d.Context }</p>
@@ -217,7 +225,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					</header>
 					@components.OfflineBanner(d.OfflineSync)
 					@components.SessionBanner(d.Email != "")
-					<main class={ templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed}) }>
+					<main class={ templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed, "app-body-flush-bottom": d.FlushBottom}) }>
 						@body
 					</main>
 				</div>

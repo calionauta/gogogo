@@ -32,6 +32,7 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 		BuildCommit: buildCommit,
 		Skin:        skinName,
 		OfflineSync: true,
+		FlushBottom: true,
 		Signals:     `{"theme":"light","genui_pending":false,"genui_error":"","genui_empty":true}`,
 		Demo:        demo,
 		Panel:       GenuiStatePanel(),
@@ -104,9 +105,7 @@ templ genuiBody() {
 					</div>
 					<p class="ui-meta mt-2" data-show="$genui_pending" role="status">Streaming the answer above</p>
 				</form>
-		<div class="mt-6">
-			@components.StreamOpener("genui-stream-opener", "/api/genui/stream", false)
-		</div>
+		@components.StreamOpener("genui-stream-opener", "/api/genui/stream", false)
 	</div>
 }
 
