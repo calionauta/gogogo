@@ -62,7 +62,7 @@ templ TodoList(signals todo.Signals) {
 
 							@SuggestionsList(signals.Suggestions)
 
-							<div class="flex flex-col gap-2 sm:flex-row">
+							<div class="flex flex-row gap-2 min-w-0">
 								<div class="flex-1">
 									@ui.Segmented("Listing scope", []ui.Segment{
 										{Label: "All", On: ui.TodoScopeOn("all"), Active: "($scope || 'all') === 'all'"},
@@ -161,30 +161,31 @@ templ createForm(signals todo.Signals) {
 // without the server ever touching a client-owned signal.
 templ searchBox(signals todo.Signals) {
 	if signals.SearchEnabled {
-		<div class="join w-full mb-3">
-			<span class="join-item btn btn-ghost btn-sm sm:btn-md no-animation pointer-events-none" aria-hidden="true">
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
-					<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-				</svg>
-			</span>
-			<input
-				type="search"
-				name="q"
-				class="input join-item flex-1 input-sm sm:input-md"
-				placeholder="Search todos..."
-				aria-label="Search todos"
-				value={ signals.SearchQuery }
-				data-bind="searchQuery"
-				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
-			/>
-			<button
-				type="button"
-				class="join-item btn btn-ghost btn-sm sm:btn-md"
-				aria-label="Clear search"
-				data-show="$searchQuery"
-				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
+		<!-- One toolbar line: search, how it matches, and the date filter. The old
+		     layout stacked three rows and explained the match mode in prose under a
+		     select labelled "Match". -->
+		<div class="ui-row items-stretch">
+			<div class="ui-field-group flex-1 min-w-0">
+				<input
+					type="search"
+					name="q"
+					class="ui-field"
+					placeholder="Search todos"
+					aria-label="Search todos"
+					value={ signals.SearchQuery }
+					data-bind="searchQuery"
+					data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
+				/>
+				<button
+					type="button"
+					class="ui-btn ui-btn-ghost"
+					aria-label="Clear search"
+					data-show="$searchQuery"
+					data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
+			</div>
+			@searchModeSelect(signals)
+			@createdFilter()
 		</div>
-		@searchModeSelect(signals)
 	}
 }
 
@@ -207,20 +208,17 @@ templ searchBox(signals todo.Signals) {
 // as it did before.
 templ searchModeSelect(signals todo.Signals) {
 	if len(signals.SearchModes) > 1 {
-		<label class="flex items-center gap-2 mb-3 text-xs text-base-content/60">
-			<span>Match</span>
-			<select
-				name="mode"
-				class="select select-xs sm:select-sm"
-				aria-label="Search matching mode"
-				data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
-			>
-				for _, m := range signals.SearchModes {
-					<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(m) }</option>
-				}
-			</select>
-			<span class="opacity-70">{ searchModeHint(signals.SearchMode) }</span>
-		</label>
+		<select
+			name="mode"
+			class="ui-field max-w-[8.5rem]"
+			aria-label="How the search matches"
+			title="How the search matches"
+			data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
+		>
+			for _, m := range signals.SearchModes {
+				<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(m) }</option>
+			}
+		</select>
 	}
 }
 
@@ -409,7 +407,7 @@ templ deleteConfirmModal() {
 // A <details> with data-on:click__outside also works; the element is not the
 // issue, and native stays the default while open state has no consumer.
 templ createdFilter() {
-	<div class="flex items-center gap-2 mb-3">
+	<div class="flex items-center gap-2 shrink-0">
 		<button
 			type="button"
 			id="created-filter-btn"
@@ -430,18 +428,18 @@ templ createdFilter() {
 			data-on:click="$createdAfter = ''; $noMatches = false"
 		>clear</button>
 	</div>
-	<div id="created-filter-popover" popover>
-		<calendar-date
-			class="cally"
-			data-on:change={ `$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover(); setTimeout(function () { $noMatches = document.querySelectorAll(".todo-item:not([style*='display: none'])").length === 0 }, 0)` }
-		>
-			<svg slot="previous" aria-label="Previous month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
-			</svg>
-			<svg slot="next" aria-label="Next month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-				<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
-			</svg>
-			<calendar-month></calendar-month>
-		</calendar-date>
+	<div id="created-filter-popover" popover class="app-date-popover">
+		<p class="ui-meta">Created since</p>
+		<input
+			type="date"
+			class="ui-field mt-1"
+			aria-label="Created since"
+			data-on:change={ `$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }
+		/>
+		<div class="flex flex-wrap gap-1 mt-2">
+			<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ `$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>Today</button>
+			<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>7 days</button>
+			<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>30 days</button>
+		</div>
 	</div>
 }

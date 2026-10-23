@@ -4,4 +4,4 @@ data-bind cmdQuery
 data-on data-on:click data-on:close
 signals cmdQuery loading railOpen review_error sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=21 aside=1 body=1 button=10 details=2 dialog=1 div=20 form=2 h1=1 head=1 header=1 html=2 iconify=13 input=1 kbd=2 li=22 link=3 main=1 meta=2 nav=1 p=4 path=6 script=10 span=33 strong=5 style=2 summary=2 svg=6 title=1 ul=4
+tags a=21 aside=1 body=1 button=10 details=3 dialog=1 div=18 form=2 h1=1 head=1 header=1 html=2 iconify=14 input=1 kbd=2 li=22 link=3 main=1 meta=2 nav=1 p=4 path=6 script=10 span=43 strong=1 style=2 summary=3 svg=6 title=1 ul=4
