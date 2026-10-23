@@ -1,7 +1,7 @@
 route /chat
-ids app-rail chat-composer chat-empty chat-messages chat-prompt chat-stream-opener command-palette command-palette-input command-palette-list offline-banner offline-banner-text session-banner toast-container
+ids app-rail chat-composer chat-empty chat-messages chat-prompt chat-stream-opener command-palette command-palette-input command-palette-list offline-banner offline-banner-text session-banner state-panel toast-container
 data-bind chatPrompt cmdQuery
 data-on data-on:click data-on:close
-signals chatPrompt chat_empty chat_error chat_thinking cmdQuery loading railOpen sessionAuthed theme
-aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=21 aside=1 body=1 button=12 details=3 dialog=1 div=21 form=3 h1=1 head=1 header=1 html=2 input=2 kbd=2 label=1 li=24 link=3 main=1 meta=2 nav=1 p=6 path=20 script=11 span=48 strong=1 style=2 summary=3 svg=20 title=1 ul=4
+signals chatPrompt chat_empty chat_error chat_thinking cmdQuery loading panelVisible railOpen sessionAuthed theme
+aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-live aria-pressed
+tags a=20 aside=2 body=1 button=14 details=1 dialog=1 div=25 form=3 h1=1 head=1 header=1 html=2 input=2 kbd=3 label=1 li=26 link=3 main=1 meta=2 nav=1 ol=1 p=10 path=20 script=11 span=55 strong=1 style=2 summary=1 svg=20 title=1 ul=4
