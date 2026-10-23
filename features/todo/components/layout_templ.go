@@ -27,6 +27,9 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
@@ -59,7 +62,7 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 		templ_7745c5c3_Err = ui.Shell(ui.Data{
 			Title:       title,
 			Module:      "todo",
-			Context:     todoContext(signals),
+			Context:     todoContext(signals, offlineSync),
 			Email:       userEmail,
 			Role:        userRole,
 			BuildLabel:  buildLabel,
@@ -77,10 +80,18 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 	})
 }
 
-// todoContext is the header's context slot: the two storage facts the demo
-// reports on every module (which store, and whether the outbox is live).
-func todoContext(signals todo.Signals) string {
-	return signals.StoreLabel + " · " + signals.OfflineLabel
+// todoContext is the header's context slot: four short facts, one line. It
+// used to concatenate StoreLabel and OfflineLabel, and OfflineLabel is a
+// sentence ("Turso + NATS_ENABLED=true — SW queues browser mutations ..."), so
+// the header rendered a paragraph. The slot is for state, not prose: the same
+// facts in the same shape every module uses.
+func todoContext(signals todo.Signals, offlineSync bool) string {
+	parts := []string{"turso"}
+	if offlineSync {
+		parts = append(parts, "outbox on")
+	}
+	parts = append(parts, strconv.Itoa(signals.ConnectedClients)+" online", "SSE")
+	return strings.Join(parts, " · ")
 }
 
 // todoStack is the stack this page demonstrates, in disclosure order. The
@@ -189,7 +200,15 @@ func todoBody(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"ui-page\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = TodoList(signals).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
