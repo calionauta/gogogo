@@ -259,7 +259,7 @@ func NotesListFragment(notes []NoteMeta) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if n.CanDelete {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm text-error\" title=\"Delete this note\" data-on:click__prevent=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button type=\"button\" class=\"btn btn-ghost btn-sm text-error\" title=\"Delete this note\" data-on:click__prevent=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -399,7 +399,7 @@ func deleteNoteModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"modal\" data-on:close=\"$confirmNoteId = ''; $confirmNoteAuthor = ''; $deletingNote = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error\">Delete this note?</h3><p class=\"py-4 text-sm\">This permanently removes the note and its text <span class=\"text-base-content/60\" data-text=\"$confirmNoteAuthor ? 'started by ' + $confirmNoteAuthor : ''\"></span>. Any other tab still holding it open loses the text on reload.</p><div class=\"modal-action\"><button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"modal\" data-on:close=\"$confirmNoteId = ''; $confirmNoteAuthor = ''; $deletingNote = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error\">Delete this note?</h3><p class=\"py-4 text-sm\">This permanently removes the note and its text <span class=\"text-base-content/60\" data-text=\"$confirmNoteAuthor ? 'started by ' + $confirmNoteAuthor : ''\"></span>. Any other tab still holding it open loses the text on reload.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -412,7 +412,7 @@ func deleteNoteModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Cancel</button> <button type=\"button\" class=\"ui-btn ui-btn-error ui-btn-sm\" data-attr:disabled=\"!!$deletingNote\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-attr:disabled=\"!!$deletingNote\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -99,9 +99,9 @@ templ chatBody(msgs []store.MessageView) {
 					maxlength="2000"
 					autocomplete="off"
 					placeholder="Ask anything"
-					class="ui-field"
+					class="input input-sm"
 				/>
-				<button type="submit" class="ui-btn ui-btn-primary" data-attr:disabled="!!$chat_thinking">
+				<button type="submit" class="btn btn-primary" data-attr:disabled="!!$chat_thinking">
 					<span data-show="!$chat_thinking">Send</span>
 					<span data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 				</button>

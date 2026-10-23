@@ -81,11 +81,11 @@ templ genuiBody() {
 							maxlength="500"
 							autocomplete="off"
 							placeholder="Plan my day from my todos"
-							class="ui-field"
+							class="input input-sm"
 						/>
 						<button
 							type="submit"
-							class="ui-btn ui-btn-primary"
+							class="btn btn-primary"
 							data-attr:disabled="!!$genui_pending"
 						>
 							<span data-show="!$genui_pending">Ask</span>
@@ -114,7 +114,7 @@ templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 		aria-live="polite"
 	>
 		if isError {
-			<div class="ui-callout ui-callout-error" role="alert">
+			<div class="alert alert-error" role="alert">
 				<span>{ errMsg }</span>
 			</div>
 			<p class="text-sm text-base-content/60 mt-2">Try asking again — the form above kept your question.</p>
@@ -201,7 +201,7 @@ templ GenuiActionButtons(id string, actions []Action) {
 				for key, val := range action.Fields {
 					<input type="hidden" name={ key } value={ val }/>
 				}
-				<button type="submit" class="ui-btn ui-btn-primary ui-btn-sm">{ action.Label }</button>
+				<button type="submit" class="btn btn-primary btn-sm">{ action.Label }</button>
 			</form>
 		}
 	</div>
@@ -294,7 +294,7 @@ templ planAction(target string, action Action) {
 		for k, v := range action.Fields {
 			<input type="hidden" name={ k } value={ v }/>
 		}
-		<button type="submit" class="ui-btn ui-btn-primary ui-btn-sm">{ action.Label }</button>
+		<button type="submit" class="btn btn-primary btn-sm">{ action.Label }</button>
 	</form>
 }
 

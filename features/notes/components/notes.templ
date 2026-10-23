@@ -113,7 +113,7 @@ templ NotesListFragment(notes []NoteMeta) {
 							if n.CanDelete {
 								<button
 									type="button"
-									class="ui-btn ui-btn-ghost ui-btn-sm text-error"
+									class="btn btn-ghost btn-sm text-error"
 									title="Delete this note"
 									data-on:click__prevent={ "$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()" }>
 									<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
@@ -155,13 +155,13 @@ templ deleteNoteModal() {
 			<div class="modal-action">
 				<button
 					type="button"
-					class="ui-btn ui-btn-ghost ui-btn-sm"
+					class="btn btn-ghost btn-sm"
 					data-on:click={ "document.getElementById('" + notesDialogID + "').close()" }>
 					Cancel
 				</button>
 				<button
 					type="button"
-					class="ui-btn ui-btn-error ui-btn-sm"
+					class="btn btn-error btn-sm"
 					data-attr:disabled="!!$deletingNote"
 					data-on:click={ "$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')" }>
 					Delete

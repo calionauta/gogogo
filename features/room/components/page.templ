@@ -197,35 +197,35 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 		<div class="ui-row justify-end mt-2 flex-wrap">
 			<button
 				id="room-acquire"
-				class="ui-btn ui-btn-primary"
+				class="btn btn-primary"
 				type="button"
 				data-show="$roomLeft !== true && $roomHolder === ''"
 				data-on:click={ "@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Take presenter</button>
 			<button
 				id="room-release"
-				class="ui-btn ui-btn-ghost"
+				class="btn btn-ghost"
 				type="button"
 				data-show="$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder"
 				data-on:click={ "@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Release</button>
 			<button
 				id="room-leave"
-				class="ui-btn ui-btn-ghost"
+				class="btn btn-ghost"
 				type="button"
 				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Leave</button>
 			<button
 				id="room-rejoin"
-				class="ui-btn ui-btn-primary"
+				class="btn btn-primary"
 				type="button"
 				data-show="$roomLeft === true"
 				data-on:click={ "@post('/room/join?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Rejoin</button>
 			<button
 				id="room-crash"
-				class="ui-btn ui-btn-error"
+				class="btn btn-error"
 				type="button"
 				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/crash?room=" + url.QueryEscape(roomID) + "')" }

@@ -81,7 +81,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:gogogo:queued__window=\"$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''\"><!-- ═══════════════ MAIN GRID ═══════════════ --><div class=\"grid grid-cols-1 gap-5\"><!-- ──────────── LEFT: TODO LIST (3/5) ──────────── --><div class=\"lg:col-span-3 space-y-5\"><div class=\"ui-card\"><div class=\"ui-card-head\"><h2 class=\"ui-title\">Tasks</h2><span class=\"ui-badge\" data-text=\"$itemCount + ' items'\"></span></div><div class=\"ui-card-body ui-stack\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:gogogo:queued__window=\"$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''\"><!-- ═══════════════ MAIN GRID ═══════════════ --><div class=\"grid grid-cols-1 gap-5\"><!-- ──────────── LEFT: TODO LIST (3/5) ──────────── --><div class=\"lg:col-span-3 space-y-5\"><div class=\"ui-card\"><div class=\"ui-card-head\"><h2 class=\"ui-title\">Tasks</h2><span class=\"badge badge-sm\" data-text=\"$itemCount + ' items'\"></span></div><div class=\"ui-card-body ui-stack\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -129,14 +129,14 @@ func TodoList(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"alert alert-warning mt-2\" role=\"alert\" data-show=\"$permDenied\"><span>You cannot delete this todo — its author or an admin can. Keep adding.</span> <button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"alert alert-warning mt-2\" role=\"alert\" data-show=\"$permDenied\"><span>You cannot delete this todo — its author or an admin can. Keep adding.</span> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("$permDenied = false")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 84, Col: 105}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 84, Col: 96}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -202,7 +202,7 @@ func createForm(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<form class=\"w-full mb-4\" data-on:submit__prevent=\"if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null\"><div class=\"ui-field-group\"><input type=\"text\" name=\"title\" class=\"ui-field\" placeholder=\"What needs doing?\" data-bind=\"newTitle\"> <button type=\"submit\" class=\"ui-btn ui-btn-primary\" data-attr:disabled=\"!!($loading || !$newTitle.trim())\"><span class=\"inline-flex items-center gap-2\">Add <span class=\"loading loading-spinner loading-xs\" data-show=\"$loading\"></span></span></button></div><label class=\"ui-meta flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"visibility\" value=\"public\" class=\"checkbox checkbox-xs checkbox-info\"> <span>Shared — every login sees this todo (private by default)</span></label></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<form class=\"w-full mb-4\" data-on:submit__prevent=\"if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null\"><div class=\"ui-field-group\"><input type=\"text\" name=\"title\" class=\"input input-sm\" placeholder=\"What needs doing?\" data-bind=\"newTitle\"> <button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"!!($loading || !$newTitle.trim())\"><span class=\"inline-flex items-center gap-2\">Add <span class=\"loading loading-spinner loading-xs\" data-show=\"$loading\"></span></span></button></div><label class=\"ui-meta flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"visibility\" value=\"public\" class=\"checkbox checkbox-xs checkbox-info\"> <span>Shared — every login sees this todo (private by default)</span></label></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -244,7 +244,7 @@ func searchBox(signals todo.Signals) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if signals.SearchEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<!-- One toolbar line: search, how it matches, and the date filter. The old\n\t\t     layout stacked three rows and explained the match mode in prose under a\n\t\t     select labelled \"Match\". --> <div class=\"ui-row items-stretch\"><div class=\"ui-field-group flex-1 min-w-0\"><input type=\"search\" name=\"q\" class=\"ui-field\" placeholder=\"Search todos\" aria-label=\"Search todos\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<!-- One toolbar line: search, how it matches, and the date filter. The old\n\t\t     layout stacked three rows and explained the match mode in prose under a\n\t\t     select labelled \"Match\". --> <div class=\"ui-row items-stretch\"><div class=\"ui-field-group flex-1 min-w-0\"><input type=\"search\" name=\"q\" class=\"input input-sm\" placeholder=\"Search todos\" aria-label=\"Search todos\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -257,7 +257,7 @@ func searchBox(signals todo.Signals) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" data-bind=\"searchQuery\" data-on:input__debounce.300ms=\"$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))\"> <button type=\"button\" class=\"ui-btn ui-btn-ghost\" aria-label=\"Clear search\" data-show=\"$searchQuery\" data-on:click=\"$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))\">✕</button></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" data-bind=\"searchQuery\" data-on:input__debounce.300ms=\"$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))\"> <button type=\"button\" class=\"btn btn-ghost\" aria-label=\"Clear search\" data-show=\"$searchQuery\" data-on:click=\"$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))\">✕</button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -317,7 +317,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(signals.SearchModes) > 1 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<select name=\"mode\" class=\"ui-field max-w-[8.5rem]\" aria-label=\"How the search matches\" title=\"How the search matches\" data-on:change=\"$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<select name=\"mode\" class=\"select select-sm max-w-[8.5rem]\" aria-label=\"How the search matches\" title=\"How the search matches\" data-on:change=\"$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -580,7 +580,7 @@ func clearCompletedModal() templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<dialog id=\"confirm-clear-completed\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"ui-title text-error\">Clear completed todos?</h3><p class=\"py-4 text-sm\">This permanently removes every completed todo in the current view. It can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close()\">Cancel</button> <button type=\"button\" class=\"ui-btn ui-btn-error ui-btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))\">Clear completed</button></div></div></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<dialog id=\"confirm-clear-completed\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"ui-title text-error\">Clear completed todos?</h3><p class=\"py-4 text-sm\">This permanently removes every completed todo in the current view. It can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close()\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))\">Clear completed</button></div></div></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -655,7 +655,7 @@ func createdFilter() templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"flex items-center gap-2 shrink-0\"><button type=\"button\" id=\"created-filter-btn\" popovertarget=\"created-filter-popover\" class=\"ui-btn ui-btn-ghost ui-btn-sm gap-2\" style=\"anchor-name:--created-filter\" aria-label=\"Filter by creation date\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-70\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm10 6H4v7h12V8z\" clip-rule=\"evenodd\"></path></svg> <span data-text=\"$createdAfter === '' ? 'Any date' : 'Since ' + $createdAfter\"></span></button> <button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-show=\"$createdAfter !== ''\" data-on:click=\"$createdAfter = ''; $noMatches = false\">clear</button></div><div id=\"created-filter-popover\" popover class=\"app-date-popover\"><p class=\"ui-meta\">Created since</p><input type=\"date\" class=\"ui-field mt-1\" aria-label=\"Created since\" data-on:change=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"flex items-center gap-2 shrink-0\"><button type=\"button\" id=\"created-filter-btn\" popovertarget=\"created-filter-popover\" class=\"btn btn-ghost btn-sm gap-2\" style=\"anchor-name:--created-filter\" aria-label=\"Filter by creation date\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-70\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm10 6H4v7h12V8z\" clip-rule=\"evenodd\"></path></svg> <span data-text=\"$createdAfter === '' ? 'Any date' : 'Since ' + $createdAfter\"></span></button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-show=\"$createdAfter !== ''\" data-on:click=\"$createdAfter = ''; $noMatches = false\">clear</button></div><div id=\"created-filter-popover\" popover class=\"app-date-popover\"><p class=\"ui-meta\">Created since</p><input type=\"date\" class=\"input input-sm mt-1\" aria-label=\"Created since\" data-on:change=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -668,40 +668,40 @@ func createdFilter() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"><div class=\"flex flex-wrap gap-1 mt-2\"><button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"><div class=\"flex flex-wrap gap-1 mt-2\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 469, Col: 219}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 469, Col: 210}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\">Today</button> <button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\">Today</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 470, Col: 241}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 470, Col: 232}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\">7 days</button> <button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\">7 days</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 471, Col: 242}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 471, Col: 233}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
