@@ -48,9 +48,6 @@ no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 * refactor(ui): speak DaisyUI, not a parallel kit by @calionauta in https://github.com/calionauta/gogogo/pull/258
 * refactor(ui): inline SVG icons, drop iconify; trap drawer focus by @calionauta in https://github.com/calionauta/gogogo/pull/259
 
-## New Contributors
-* @dependabot[bot] made their first contribution in https://github.com/calionauta/gogogo/pull/243
-
 **Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.54.0...v0.55.0
 
 ## 0.54.0 (2026-10-21)
