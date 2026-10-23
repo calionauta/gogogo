@@ -66,6 +66,7 @@ p, anonymous, /api/auth/magic, GET
 p, anonymous, /api/auth/totp/login, POST
 p, anonymous, /api/auth/oauth/*, GET
 p, anonymous, /api/session/stream, GET
+p, user, /_ui/demo, .*
 p, user, /todo, .*
 p, user, /todo/*, .*
 p, user, /api/todos, .*
@@ -107,6 +108,7 @@ p, user, /sw.js, (GET|HEAD)
 p, user, /health, (GET|HEAD)
 p, user, /, GET
 p, user, /api/auth/*, .*
+p, viewer, /_ui/demo, .*
 p, viewer, /todo, .*
 p, viewer, /todo/*, .*
 p, viewer, /login, (GET|POST)

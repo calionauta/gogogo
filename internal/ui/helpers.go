@@ -33,3 +33,34 @@ func activeCurrent(active bool) string {
 	}
 	return ""
 }
+
+// DemoHref is the toggle's target: the same page, with demo mode flipped. The
+// mode is a session cookie set by /_ui/demo, so this stays a plain link — no
+// script, and the state survives every module until the browser session ends.
+func (d Data) DemoHref() string {
+	next := "/"
+	if m, ok := ByID(d.Module); ok {
+		next = m.URL
+	}
+	on := "1"
+	if d.Demo {
+		on = "0"
+	}
+	return "/_ui/demo?on=" + on + "&next=" + next
+}
+
+// ariaPressed spells the toggle's two states for assistive tech.
+func ariaPressed(on bool) string {
+	if on {
+		return "true"
+	}
+	return "false"
+}
+
+// demoTitle explains what the toggle does, both ways.
+func demoTitle(on bool) string {
+	if on {
+		return "Hide the machinery (product mode)"
+	}
+	return "Show what this page demonstrates (demo mode)"
+}

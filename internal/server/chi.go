@@ -463,6 +463,10 @@ func buildChiMux(
 	// Static: the core bundle, then the Service Worker at the ROOT URL so its
 	// scope is "/" (see static.go). HEAD rides GET per HTTP semantics.
 	MountSubtree(r, "/static", staticHandler())
+	// Demo mode: a session cookie that docks the state panel. Public on purpose —
+	// it sets a display preference, and the landing page has no panel to dock.
+	r.Claim("core", "GET", "/_ui/demo")
+	r.Get("/_ui/demo", demoModeHandler)
 	r.Claim("core", "GET", "/sw.js")
 	r.Claim("core", "HEAD", "/sw.js")
 	r.Get("/sw.js", serviceWorkerHandler().ServeHTTP)

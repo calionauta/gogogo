@@ -114,7 +114,7 @@ age-decrypted env loader
 flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
-- **Routes:** `/health`, `/sw.js`
+- **Routes:** `/_ui/demo`, `/health`, `/sw.js`
 - **Store calls:** `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
@@ -123,7 +123,8 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 one app shell (sidebar + module header + work area), the theme catalog, and the skin registry that supplies its assets
 
-- **Owned:** `internal/ui`, `internal/themes`, `web/skins`
+- **Owned:** `internal/ui`, `internal/themes`, `internal/demo`, `web/skins`
+- **Store calls:** `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: every module page renders a body inside ui.Shell, and the shell resolves the active skin's assets. One skin ships (DaisyUI); visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.
 

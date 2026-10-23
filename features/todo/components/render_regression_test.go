@@ -151,7 +151,7 @@ func TestRender_WorkflowTabFollowsSignal(t *testing.T) {
 	on := base
 	on.DagNatsEnabled = true
 	var bOn bytes.Buffer
-	if err := TodoList(on).Render(context.Background(), &bOn); err != nil {
+	if err := TodoStatePanel(on).Render(context.Background(), &bOn); err != nil {
 		t.Fatalf("render list (enabled): %v", err)
 	}
 	htmlOn := bOn.String()
@@ -164,7 +164,7 @@ func TestRender_WorkflowTabFollowsSignal(t *testing.T) {
 	off := base
 	off.DagNatsEnabled = false
 	var bOff bytes.Buffer
-	if err := TodoList(off).Render(context.Background(), &bOff); err != nil {
+	if err := TodoStatePanel(off).Render(context.Background(), &bOff); err != nil {
 		t.Fatalf("render list (disabled): %v", err)
 	}
 	htmlOff := bOff.String()
@@ -222,7 +222,7 @@ func TestRender_QueueRetryButtonEnabled(t *testing.T) {
 		SidebarTab:       "queue",
 	}
 	var buf bytes.Buffer
-	if err := TodoList(signals).Render(context.Background(), &buf); err != nil {
+	if err := TodoStatePanel(signals).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render list: %v", err)
 	}
 	html := buf.String()

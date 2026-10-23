@@ -738,6 +738,30 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 });
   }
 
+  // Demo mode: the state panel is opt-in and remembered by a session cookie.
+  // The assertions are the UX decision — product mode has no panel at all, the
+  // toggle docks it, and it survives a reload (which is what the cookie buys,
+  // and what a query param would not).
+  {
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    if (await page.locator("#state-panel").count()) {
+      fail("demo mode: the state panel is docked by default (product mode must have none)");
+    }
+    const toggle = page.locator(".app-demo-toggle");
+    if (!(await toggle.isVisible())) fail("demo mode: no [ Demo ] toggle in the module header");
+    await Promise.all([page.waitForLoadState("load"), toggle.click()]);
+    await page.waitForSelector("#state-panel", { state: "visible", timeout: 5000 });
+    console.log("  ✓ demo mode: the toggle docks the state panel");
+    await page.reload({ waitUntil: "load" });
+    if (!(await page.locator("#state-panel").isVisible())) {
+      fail("demo mode: the panel did not survive a reload (the cookie is not being set)");
+    }
+    console.log("  ✓ demo mode: the cookie keeps it docked across a reload");
+    await Promise.all([page.waitForLoadState("load"), page.locator(".app-demo-toggle").click()]);
+    await page.waitForSelector("#state-panel", { state: "detached", timeout: 5000 });
+    console.log("  ✓ demo mode: the toggle undocks it again");
+  }
+
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
     await verifyTodoSearch(page);

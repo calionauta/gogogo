@@ -33,6 +33,8 @@ type Data struct {
 	Signals     string             // the page's own seeded signal JSON ("" = none)
 	StreamPage  bool               // marks a page that opens its own EventSource (session.js)
 	FullBleed   bool               // body without padding, for canvas pages
+	Demo        bool               // demo mode: dock the state panel
+	Panel       templ.Component    // the module's machinery; nil = no toggle
 	OfflineSync bool               // offline outbox wired
 	Stack       []components.TechItem // layers this page demonstrates (0 = no key)
 }
@@ -138,6 +140,15 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							}
 						</div>
 						<div class="app-module-actions">
+							if d.Panel != nil {
+								<a
+									class={ templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo}) }
+									href={ templ.SafeURL(d.DemoHref()) }
+									aria-pressed={ ariaPressed(d.Demo) }
+									title={ demoTitle(d.Demo) }>
+									Demo
+								</a>
+							}
 							@authviews.CommandPalette(d.Role)
 							if actions != nil {
 								@actions
@@ -150,6 +161,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						@body
 					</main>
 				</div>
+				if d.Demo && d.Panel != nil {
+					<aside id="state-panel" class="app-state-panel" aria-label="State">
+						<p class="app-state-panel-head">STATE</p>
+						@d.Panel
+					</aside>
+				}
 			</div>
 			@components.ToastContainer()
 		</body>
