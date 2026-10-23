@@ -177,7 +177,7 @@ One skin ships (DaisyUI), compiled into the binary; the visual variety is a set 
 | Skin | Package | What it is | Source CSS |
 |------|---------|-----------|------------|
 | **DaisyUI** (default) | `web/skins/daisyui/` | DaisyUI v5 components over TailwindCSS; morph-friendly with Datastar | `src/css/input.css` → `app.min.css` |
-| **Themes** | `src/css/input.css` | DaisyUI palettes (`light`, `dark`, `lofi`, `dim`), switched from the sidebar's Tema disclosure | part of `app.min.css` |
+| **Themes** | `src/css/input.css` | DaisyUI palettes (`light`, `dark`, `lofi`, `dim`), switched from the sidebar's Theme section | part of `app.min.css` |
 
 **Plugin contract** (`web/skins/skin.go`). Every skin is a `Skin{Name, Assets}` value registered at init time via blank imports in `features/todo/components/skin_imports.go`. The dispatcher falls back to DaisyUI when the env value is unknown, logging a warning. Adding a fourth skin is: create `web/skins/<name>/`, register it from the import file, add a `make css-<name>` Makefile target.
 

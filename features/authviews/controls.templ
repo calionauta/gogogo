@@ -43,13 +43,13 @@ templ UserMenu(userEmail string, userRole string) {
 		</a>
 	} else {
 		<details class="app-dropdown">
-			<summary class="app-dropdown-trigger" title="Account">
+			<summary class="app-dropdown-trigger" title="Account" aria-haspopup="menu">
 				<svg xmlns="http://www.w3.org/2000/svg" class="app-user-icon" viewBox="0 0 20 20" fill="currentColor">
 					<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
 				</svg>
 				<span class="app-user-email">{ userEmail }</span>
-				if userRole != "" {
-					<span class="badge badge-sm app-user-role">{ userRole }</span>
+				if userRole == "admin" {
+					<span class="badge badge-sm badge-primary">Admin</span>
 				}
 			</summary>
 			<ul class="app-dropdown-menu">

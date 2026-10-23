@@ -9,7 +9,7 @@ Every page renders inside one shell (`internal/ui`), and the shell is dressed by
 | **Theme** | A DaisyUI palette: colours, radius, shadows | `src/css/input.css` (`@plugin "daisyui"`), catalogued in `internal/themes` |
 
 One skin ships: **DaisyUI** (`app.min.css`). The palettes are `light`
-(default), `dark`, `lofi` ("Calmo") and `dim` ("Zinc"), picked from the **Tema**
+(default), `dark`, `lofi` ("Calm") and `dim` ("Zinc"), picked from the **Theme**
 disclosure in the sidebar footer.
 
 > **Why one skin.** A second component library is not a second palette: its

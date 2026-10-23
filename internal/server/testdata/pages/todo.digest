@@ -1,7 +1,7 @@
 route /todo
-ids app-rail command-palette command-palette-input command-palette-list confirm-clear-completed confirm-delete-modal created-filter-btn created-filter-popover offline-banner offline-banner-text retry-toast session-banner sse-opener suggestions-region toast-container todo-empty-state todo-list todo-realtime-resync
+ids app-rail command-palette command-palette-input command-palette-list confirm-clear-completed confirm-delete-modal created-filter-btn created-filter-popover offline-banner offline-banner-text retry-toast session-banner sse-opener state-panel suggestions-region toast-container todo-empty-state todo-list todo-realtime-resync todo-search-input
 data-bind cmdQuery newTitle searchQuery
 data-on data-on:change data-on:click data-on:close
-signals clientID cmdQuery confirmingDeleteId confirmingDeleteTitle connectedClients createdAfter deleting docVersion filter itemCount lastItemSource loading newTitle noMatches permDenied railOpen realtimeKind scope searchQuery sessionAuthed suggestions theme
-aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=27 aside=1 body=1 button=30 details=3 dialog=3 div=50 form=4 h1=1 h2=1 h3=2 head=1 header=1 html=2 input=6 kbd=2 label=1 li=25 link=3 main=1 meta=2 nav=1 option=3 p=10 path=25 script=15 select=1 span=65 strong=1 style=3 summary=3 svg=25 title=1 ul=4
+signals aiPending aiPhase aiStep clientID cmdQuery confirmingDeleteId confirmingDeleteTitle connectedClients createdAfter deleting demoStep docVersion filter itemCount lastItemSource lastRetryAttempt lastRetryStatus loading newTitle noMatches panelVisible permDenied railOpen realtimeKind scope searchQuery sessionAuthed sidebarTab suggestPending suggestions techPhase techStep theme
+aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-live aria-pressed
+tags a=21 aside=2 body=1 button=34 details=1 dialog=3 div=63 form=5 h1=1 h2=1 h3=2 head=1 header=1 html=2 input=5 kbd=3 label=1 li=27 link=3 main=1 meta=2 nav=1 ol=2 option=6 p=12 path=29 script=15 select=2 span=90 strong=1 style=3 summary=1 svg=29 title=1 ul=3

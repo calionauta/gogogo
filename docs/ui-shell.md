@@ -9,12 +9,12 @@ class to use so a new screen looks like the other eight.
 ```
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
-├── <aside id="app-rail">   brand · build badge · []Module groups · footer
-│      footer: theme picker · mute · stack key · account menu
+├── <aside id="app-rail">   brand · build badge · theme/sound (top-right) · []Module groups · footer
+│      footer: Theme section · Stack section · account menu
 ├── <header class="app-module-header">
-│      drawer trigger (≤1024px) · title · context slot · [ Demo ] · ⌘K · actions
+│      drawer trigger (≤1024px) · title · context slot · [ How it works ] · search input · actions
 ├── <main class="app-body">  ← the page
-└── <aside id="state-panel"> ← only in demo mode, only when the page passes one
+└── <aside id="state-panel"> ← when the page passes one; visibility is $panelVisible (signal, no reload)
 ```
 
 `Data` carries: `Title`, `Module` (id used for the active nav item), `Heading`,
@@ -26,7 +26,13 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 pipeline that runs *beside* the page — a queue, a model call, phases. `/config`,
 `/room`, `/notes` and `/whiteboard` do not: their demo **is** the page (a table,
 a lock, a canvas), so hiding it behind a toggle would hide the point. A page with
-no panel gets no `[ Demo ]` button.
+no panel gets no `How it works` button.
+
+**Demo mode never reloads.** The toggle and the panel close button flip the
+`$panelVisible` signal and persist the choice with a background `fetch` to
+`/_ui/demo` (session cookie). The cookie seeds the next server render, so the
+panel survives a reload — but opening or closing it does not navigate, morph,
+or flash.
 
 ## What a page owns
 

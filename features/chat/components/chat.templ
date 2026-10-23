@@ -82,13 +82,13 @@ templ chatBody(msgs []store.MessageView) {
 		</div>
 		<form
 			id="chat-composer"
-			class="sticky bottom-0 pb-2"
+			class="sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-2 border-t border-base-200"
 			data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false; })" }
 			data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed \u2014 check your connection and try again.') : null"
 			data-cuelume="send"
 		>
 			<label for="chat-prompt" class="sr-only">Message</label>
-			<div class="ui-field-group">
+			<div class="join w-full">
 				<input
 					id="chat-prompt"
 					name="prompt"
@@ -99,9 +99,9 @@ templ chatBody(msgs []store.MessageView) {
 					maxlength="2000"
 					autocomplete="off"
 					placeholder="Ask anything"
-					class="input input-sm"
+					class="input input-sm join-item grow"
 				/>
-				<button type="submit" class="btn btn-primary" data-attr:disabled="!!$chat_thinking">
+				<button type="submit" class="btn btn-primary btn-sm join-item" data-attr:disabled="!!$chat_thinking">
 					<span data-show="!$chat_thinking">Send</span>
 					<span data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 				</button>

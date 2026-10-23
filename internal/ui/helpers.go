@@ -1,27 +1,18 @@
 // SCOPE:core — Small render helpers for the shell.
 //
 // Templ cannot branch inside an attribute list or a short expression, so the
-// two values the shell computes rather than embeds live here: the count badge
-// (capped) and the stack key's summary line.
+// values the shell computes rather than embeds live here.
 package ui
 
-import "strconv"
-
-// maxBadgeCount caps a sidebar badge so a long list cannot stretch the rail.
-const maxBadgeCount = 99
-
-// formatCount renders a sidebar badge count, capped so a large list cannot
-// stretch the rail.
-func formatCount(n int) string {
-	if n > maxBadgeCount {
-		return "99+"
+// panelVisibilitySignals seeds the client-side visibility signal for the
+// state panel. The server decides the initial value from the demo cookie;
+// all later flips are signal-only (toggle/close persist via fetch, no
+// navigation, no flash).
+func panelVisibilitySignals(demo bool) string {
+	if demo {
+		return `{"panelVisible":true}`
 	}
-	return strconv.Itoa(n)
-}
-
-// stackSummary is the collapsed stack key's label: "stack 7".
-func stackSummary(n int) string {
-	return "stack " + strconv.Itoa(n)
+	return `{"panelVisible":false}`
 }
 
 // activeCurrent returns aria-current's value for a nav item, or "" when it is

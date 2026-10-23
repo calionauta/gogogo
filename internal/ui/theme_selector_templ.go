@@ -5,15 +5,13 @@
 
 //
 
-// A native <details> instead of a signal-driven menu: the disclosure needs no
+// A static section, not a disclosure: the palette list is short and the
 
-// state, works before any JS runs, and closes on the second click. Selecting a
+// choice stays visible. Selecting a theme goes through the $theme SIGNAL
 
-// theme goes through the $theme SIGNAL (Datastar owns data-theme and the dark
+// (Datastar owns data-theme and the dark class through bindings),
 
-// class through bindings — writing the DOM directly is reverted), exactly like
-
-// the light/dark toggle does.
+// exactly like the header toggle does.
 
 //
 
@@ -52,19 +50,19 @@ func ThemeSelector() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<details class=\"app-theme-picker\"><summary title=\"Visual theme\">Tema</summary><ul class=\"app-theme-list\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"app-theme-section\"><p class=\"app-rail-section-label\">Theme</p><div class=\"app-theme-buttons\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, t := range themes.All {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<li><button type=\"button\" class=\"app-theme-item\" data-class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<button type=\"button\" class=\"btn btn-ghost btn-xs\" data-class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'is-active': $theme === '" + t.Name + "'}")
+			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'btn-active': $theme === '" + t.Name + "'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 25, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 23, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -77,7 +75,7 @@ func ThemeSelector() templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("$theme = '" + t.Name + "'; localStorage.setItem('themeMode', $theme)")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 26, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 24, Col: 91}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -90,18 +88,18 @@ func ThemeSelector() templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(t.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 27, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 25, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</button></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</ul></details>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

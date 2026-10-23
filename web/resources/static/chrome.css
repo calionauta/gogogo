@@ -520,6 +520,12 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: inherit;
   text-decoration: none;
 }
+.app-rail-brand-spacer { flex: 1 1 auto; }
+.app-rail-brand .app-theme-toggle,
+.app-rail-brand .app-sound-toggle {
+  width: 1.75rem;
+  height: 1.75rem;
+}
 .app-rail-nav {
   flex: 1 1 auto;
   display: flex;
@@ -558,12 +564,6 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 }
 .app-rail-icon { font-size: 1.125rem; flex: 0 0 auto; }
 .app-rail-label { flex: 1 1 auto; }
-.app-rail-count {
-  flex: 0 0 auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.6875rem;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
-}
 .app-rail-foot {
   display: flex;
   flex-direction: column;
@@ -576,6 +576,24 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   cursor: pointer;
   font-size: 0.75rem;
   color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+}
+.app-rail-section-label {
+  margin: 0 0 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+.app-theme-section,
+.app-rail-stack-static {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.app-theme-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
 }
 .app-main {
   flex: 1 1 auto;
@@ -595,6 +613,11 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   top: 0;
   z-index: 20;
 }
+.app-module-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
 .app-module-titles h1 {
   margin: 0;
   font-size: 1.125rem;
@@ -602,6 +625,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   line-height: 1.3;
   letter-spacing: -0.01em;
   color: var(--color-base-content);
+  text-align: left;
 }
 .app-module-context {
   margin: 0.125rem 0 0;
@@ -795,6 +819,15 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .app-theme-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .app-theme-item.is-active { font-weight: 600; color: var(--color-primary); }
 
+.app-date-popover {
+  margin: 0;
+  max-width: 16rem;
+  color-scheme: light dark;
+}
+.app-date-popover::backdrop {
+  background: color-mix(in oklab, var(--color-base-content) 25%, transparent);
+}
+
 /* Full-bleed work area: a page that owns the whole rectangle (the board canvas)
    opts out of the shell's padding, and its inner flex column inherits the
    height the shell gives it. */
@@ -839,12 +872,19 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   border-left: 1px solid var(--color-base-300);
 }
 .app-state-panel-head {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+.app-state-panel-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
 }
 .app-state-panel-inner .card { background: var(--color-base-200); border-color: var(--color-base-300); }
 
@@ -915,7 +955,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .app-dropdown[open] .app-dropdown-menu { display: block; }
 .app-dropdown summary { list-style: none; cursor: pointer; }
 .app-dropdown summary::-webkit-details-marker { display: none; }
-.app-user-role { text-transform: uppercase; letter-spacing: 0.04em; }
+.app-user-role { letter-spacing: 0.02em; }
 
 /* The stack key: one row per layer, name and what it does, not a paragraph. */
 .app-stack-list {
