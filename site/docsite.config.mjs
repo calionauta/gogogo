@@ -75,6 +75,8 @@ export default {
     desc: "The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge." },
   { group: "Frontend", slug: "todo-example", file: "todo-example.md",
     desc: "The Todo reference implementation and the contract to imitate." },
+  { group: "Frontend", slug: "ui-shell", file: "ui-shell.md",
+    desc: "The shell anatomy, the page kit, and what a page owns." },
   { group: "Frontend", slug: "ui-skins", file: "ui-skins.md",
     desc: "The one shell, the skin seam, and the DaisyUI themes." },
   { group: "Frontend", slug: "ui-sounds", file: "ui-sounds.md",

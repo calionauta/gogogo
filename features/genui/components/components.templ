@@ -63,14 +63,14 @@ func genuiStack() []components.TechItem {
 
 // genuiBody is the work area: the ask form, the answer region, the opener.
 templ genuiBody() {
-	<div class="mx-auto max-w-2xl">
+	<div class="ui-page ui-page-narrow ui-stack">
 				<form
 					id="genui-ask-form"
 					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; var sent = $genuiPrompt; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($genuiPrompt === sent) $genuiPrompt = ''; }).catch(() => { $genui_pending = false; })" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null"
 				>
-					<label for="genui-prompt" class="form-control w-full">
-						<span class="label-text mb-1">What should the assistant shape for you?</span>
+					<label for="genui-prompt" class="sr-only">What should the assistant shape for you?</label>
+					<div class="ui-field-group">
 						<input
 							id="genui-prompt"
 							name="prompt"
@@ -81,21 +81,18 @@ templ genuiBody() {
 							maxlength="500"
 							autocomplete="off"
 							placeholder="Plan my day from my todos"
-							class="input input-bordered w-full"
+							class="ui-field"
 						/>
-					</label>
-					<div class="mt-3 flex items-center gap-3">
 						<button
 							type="submit"
-						 class="btn btn-primary"
+							class="ui-btn ui-btn-primary"
 							data-attr:disabled="!!$genui_pending"
 						>
 							<span data-show="!$genui_pending">Ask</span>
-							<span data-show="$genui_pending" class="loading loading-spinner loading-sm" aria-hidden="true"></span>
-							<span data-show="$genui_pending">Thinking…</span>
+							<span data-show="$genui_pending" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 						</button>
-						<p class="text-xs text-base-content/50" data-show="$genui_pending" role="status">Streaming the answer below.</p>
 					</div>
+					<p class="ui-meta mt-2" data-show="$genui_pending" role="status">Streaming the answer below</p>
 				</form>
 				<h2 class="text-lg font-semibold mt-8 mb-2">Answer</h2>
 				@GenuiResult(nil, "", false)
@@ -117,7 +114,7 @@ templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
 		aria-live="polite"
 	>
 		if isError {
-			<div class="alert alert-error" role="alert">
+			<div class="ui-callout ui-callout-error" role="alert">
 				<span>{ errMsg }</span>
 			</div>
 			<p class="text-sm text-base-content/60 mt-2">Try asking again — the form above kept your question.</p>
@@ -204,7 +201,7 @@ templ GenuiActionButtons(id string, actions []Action) {
 				for key, val := range action.Fields {
 					<input type="hidden" name={ key } value={ val }/>
 				}
-				<button type="submit" class="btn btn-sm btn-primary">{ action.Label }</button>
+				<button type="submit" class="ui-btn ui-btn-primary ui-btn-sm">{ action.Label }</button>
 			</form>
 		}
 	</div>
@@ -220,8 +217,8 @@ func actionSlotID(instanceID string, index int) string {
 
 // GenuiTextNote renders a single prose card.
 templ GenuiTextNote(id string, text string) {
-	<div id={ id } class="card bg-base-200/40">
-		<div class="card-body p-4">
+	<div id={ id } class="ui-card">
+		<div class="ui-card-body">
 			<h3 class="card-title text-base">Note</h3>
 			<p class="text-sm">{ text }</p>
 		</div>
@@ -246,8 +243,8 @@ templ GenuiPlanCards(id string, plans []Plan) {
 		<h3 class="font-semibold mb-2">Plans</h3>
 		<ul class="flex flex-col gap-2">
 			for i, plan := range plans {
-				<li class="card bg-base-200/40" id={ planCardID(id, i) }>
-					<div class="card-body p-4">
+				<li class="ui-card" id={ planCardID(id, i) }>
+					<div class="ui-card-body">
 						<h3 class="card-title text-base">{ plan.Title }</h3>
 						if plan.Detail != "" {
 							<p class="text-sm text-base-content/70">{ plan.Detail }</p>
@@ -297,7 +294,7 @@ templ planAction(target string, action Action) {
 		for k, v := range action.Fields {
 			<input type="hidden" name={ k } value={ v }/>
 		}
-		<button type="submit" class="btn btn-sm btn-primary">{ action.Label }</button>
+		<button type="submit" class="ui-btn ui-btn-primary ui-btn-sm">{ action.Label }</button>
 	</form>
 }
 

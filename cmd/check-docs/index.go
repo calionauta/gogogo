@@ -110,7 +110,7 @@ func checkReadmeIndex(root string) []string {
 	}
 	if got != renderIndex(pages) {
 		return []string{"README.md: page index does not match " + siteConfig +
-			" — run `make docs-index` (the index is generated, never hand-edited)"}
+			" — run `go run ./cmd/check-docs -write` (the index is generated, never hand-edited)"}
 	}
 	return nil
 }

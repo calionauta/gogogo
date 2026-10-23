@@ -78,6 +78,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 
 **Frontend**
 - [todo-example](docs/todo-example.md) — The Todo reference implementation and the contract to imitate.
+- [ui-shell](docs/ui-shell.md) — The shell anatomy, the page kit, and what a page owns.
 - [ui-skins](docs/ui-skins.md) — The one shell, the skin seam, and the DaisyUI themes.
 - [ui-sounds](docs/ui-sounds.md) — Vendored cuelume sound feedback and its accessibility contract.
 
