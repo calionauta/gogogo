@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/goleak"
-
 	"github.com/calionauta/gogogo/config"
 )
 
@@ -74,22 +72,29 @@ func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
 // TestSSEHub_SynchronousReplay_NoGoroutineLeak asserts the design
 // choice: replay is SYNCHRONOUS at Register() time. After Register
 // returns, no goroutine is alive. This is observable: if Register
-// spawned a goroutine, this test would still pass (it doesn't
-// assert) — but the runtime check below uses runtime.NumGoroutine
-// as a coarse sanity check that the simpler code path doesn't grow
-// goroutines unboundedly.
+// spawned a goroutine, the package-level leak check in leak_test.go
+// (goleak.VerifyTestMain) would fail. A per-test VerifyNone cannot be
+// used here — this test runs t.Parallel and the check is process-global,
+// so goroutines from sibling tests read as leaks.
 func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
 	t.Parallel()
-	// goleak, not runtime.NumGoroutine: the count is process-global and races
-	// other tests' goroutines. This asserts the design invariant directly
-	// replay is synchronous at Register(), so no goroutine outlives the loop.
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	for range 200 {
 		hub := NewSSEHub()
 		ch := make(chan []byte, 10)
 		hub.Send("x", []byte("a"))
 		hub.Register("x", "", ch)
-		drain(ch)
+		// The invariant, asserted as a wire symptom: replay is synchronous,
+		// so the buffered event is already in the channel when Register
+		// returns. A non-blocking receive must succeed — if replay ever
+		// moves to a spawned goroutine, this fails deterministically.
+		select {
+		case got := <-ch:
+			if string(got) != "a" {
+				t.Fatalf("replay delivered %q, want %q", got, "a")
+			}
+		default:
+			t.Fatal("Register returned before the buffered event was delivered — replay is no longer synchronous")
+		}
 		hub.Unregister("x")
 	}
 }
@@ -455,18 +460,6 @@ func TestSSEHub_UnregisterIfCurrent_NormalCleanup(t *testing.T) {
 }
 
 // --- helpers ---
-
-func drain(ch <-chan []byte) [][]byte {
-	var out [][]byte
-	for {
-		select {
-		case m := <-ch:
-			out = append(out, m)
-		default:
-			return out
-		}
-	}
-}
 
 func drainN(ch <-chan []byte, n int, timeout time.Duration) [][]byte {
 	out := make([][]byte, 0, n)

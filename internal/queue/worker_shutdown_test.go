@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/goleak"
-
 	"github.com/calionauta/gogogo/config"
 )
 
@@ -74,14 +72,10 @@ func TestWaitOrStopWaitsWhenRunning(t *testing.T) {
 func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 	t.Parallel()
 
-	// goleak: a worker that survives Stop() is the leak this file exists
-	// to prevent (the old time.Sleep held every worker past shutdown).
-	// IgnoreCurrent covers test-runner goroutines; connectionOpener is the
-	// SQLite driver's own background goroutine, not ours.
-	defer goleak.VerifyNone(t,
-		goleak.IgnoreCurrent(),
-		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
-	)
+	// Leak coverage lives in leak_test.go (package-level VerifyTestMain): a
+	// worker that survives Stop() fails the package. A per-test VerifyNone
+	// cannot be used here — this test runs t.Parallel and the check is
+	// process-global, so sibling tests read as leaks.
 
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})
@@ -124,12 +118,8 @@ func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 func TestQueueCloseStopsWorkers(t *testing.T) {
 	t.Parallel()
 
-	// Same leak assertion as above: Close() must stop the pool it owns,
-	// or workers loop against a dead database forever.
-	defer goleak.VerifyNone(t,
-		goleak.IgnoreCurrent(),
-		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
-	)
+	// Same leak assertion as above, via leak_test.go: Close() must stop the
+	// pool it owns, or workers loop against a dead database forever.
 
 	dir := t.TempDir()
 	q, err := New(&config.Config{DataDir: dir})

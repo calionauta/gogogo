@@ -308,10 +308,26 @@ Use it for timers, tickers, and retry backoffs; use `-race` for data races.
 cleanup, so it is already the right parent for a test goroutine.
 
 **Assert leaks with `goleak`, never `runtime.NumGoroutine()`.** The count is
-process-global and races sibling tests (it can even go *down* mid-test). Use
-`defer goleak.VerifyNone(t, goleak.IgnoreCurrent())`, plus
+process-global and races sibling tests (it can even go *down* mid-test). In a
+package where every test is sequential, `defer goleak.VerifyNone(t,
+goleak.IgnoreCurrent())` is fine, plus
 `goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener")` when the test
-opens a DB. See `features/credits/lifecycle_test.go`.
+opens a DB. But `VerifyNone` is incompatible with `t.Parallel` by construction
+(upstream docs): the check cannot tell a goroutine leaked by this test apart
+from one still running in a sibling, so a slow sibling reads as a leak here.
+A package with parallel tests asserts leaks once, in a `TestMain`, after every
+test has finished — see `internal/queue/leak_test.go`:
+
+```go
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+	)
+}
+```
+
+Per-test `VerifyNone` plus `t.Parallel` in the same package is the flake this
+replaces (the sibling's `waitParallel` goroutines used to fail the check).
 
 **Timeouts must exceed SQLite's `busy_timeout`.** The repo sets
 `busy_timeout(10000)` on the DB DSN, so a writer blocks up to 10s for the lock.
