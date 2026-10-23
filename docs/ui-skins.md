@@ -99,6 +99,9 @@ import away from gone.
 
 ## Related
 
+- Agents: read `skills/gogogo-ui/SKILL.md` (template UI rules over the
+  vendored `skills/daisyui/SKILL.md` vocabulary) before editing markup —
+  the skill points back here as the normative seam.
 - [UI sounds](ui-sounds.md)
 - [Local CI](local-ci.md) — `bin/red-proof-ui.sh` proves the guards that keep a
   removed surface out.

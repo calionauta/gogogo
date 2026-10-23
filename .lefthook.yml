@@ -153,6 +153,15 @@ pre-commit:
       run: bin/check-css.sh
       glob: "*.{templ,go,css}"
 
+    # className compiles clean through templ and renders verbatim (unstyled);
+    # CDN links ship a second bundle css-check cannot see. Both are banned by
+    # skills/gogogo-ui/SKILL.md; this is the deterministic backstop for the
+    # sessions where the skill does not fire. Instant grep, same scan roots
+    # as src/css/input.css.
+    - name: no-jsx
+      run: bash bin/check-no-jsx.sh
+      glob: "*.templ"
+
     # scripts/lint-safe.sh sizes the run to the host's free RAM + cores: full
     # repo only when there is headroom, otherwise changed packages, always
     # memory-capped in a cgroup. Never `cache clean` (that re-type-checks the
@@ -175,6 +184,13 @@ pre-commit:
     - name: stelow-drift
       run: bin/check-stelow-drift.sh
       glob: "{skills/stelow-workflow-coding-standards/**}"
+
+    # Same contract as stelow-drift: advisory (always exits 0) at commit time —
+    # a hook must not block on a network call. The scheduled daisyui-drift
+    # workflow runs the strict form.
+    - name: daisyui-drift
+      run: bin/check-daisyui-drift.sh
+      glob: "{skills/daisyui/**}"
 
     # Non-blocking by design (always exits 0): warns when a behaviour-carrying
     # file changes without a docs/ update. See the script header for why it

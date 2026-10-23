@@ -39,7 +39,12 @@ func docFiles(root string) ([]string, error) {
 			}
 			rel = filepath.ToSlash(rel)
 			// Vendored skills are upstream-owned (never edit them here).
-			if strings.HasPrefix(rel, "skills/stelow-") {
+			// stelow-* is the universal coding standards; daisyui/ is the
+			// component vocabulary served from daisyui.com. Both are pinned
+			// (UPSTREAM_SHA) and refreshed by script, so their prose is never
+			// a claim this repo makes.
+			if strings.HasPrefix(rel, "skills/stelow-") ||
+				strings.HasPrefix(rel, "skills/daisyui/") {
 				continue
 			}
 			out = append(out, rel)

@@ -315,6 +315,19 @@ check-stelow-drift:
 refresh-stelow:
 	@scripts/refresh-stelow.sh $(ARGS)
 
+# check-daisyui-drift verifies the vendored daisyui copy against its pinned
+# sha256 and against https://daisyui.com/SKILL.md. Same contract as
+# check-stelow-drift: advisory by default, strict in the scheduled workflow.
+check-daisyui-drift:
+	@echo "→ check-daisyui-drift (vendored daisyui vs upstream)..."
+	@bin/check-daisyui-drift.sh --strict
+
+# refresh-daisyui updates the vendored daisyui copy to the current upstream
+# file and bumps UPSTREAM_SHA, then re-runs the strict drift check. Review
+# with `git diff` before committing.
+refresh-daisyui:
+	@scripts/refresh-daisyui.sh $(ARGS)
+
 deadcode:
 	@PKGS=$$(bash scripts/web-packages.sh) && go tool deadcode -test $$PKGS
 
@@ -375,7 +388,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"
@@ -393,6 +406,15 @@ ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-li
 install-sh-guard:
 	@bash bin/check-install-sh.sh
 
+# check-no-jsx fails on the JSX idioms templ passes through silently:
+# className in .templ (compiles clean, renders verbatim, unstyled) and CDN
+# links in app markup (a second bundle css-check cannot see). Everything else
+# JSX fails loudly via `templ generate`. Same scan roots as input.css.
+check-no-jsx:
+	@echo "→ check-no-jsx (no JSX idioms in app markup)..."
+	@bash bin/check-no-jsx.sh
+	@echo "✅ no JSX idioms in app markup"
+
 # Fast local gate: the same cheap-but-decisive checks as ci-local (templ,
 # datastar-lint, css-check, check-scope, scoped lint) PLUS race tests for ONLY
 # the packages your change touches. Skips the full test sweep and the browser
@@ -403,7 +425,7 @@ install-sh-guard:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.

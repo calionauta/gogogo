@@ -8,7 +8,8 @@
 
 - AGENTS.md — commands, don'ts, architecture seams (20-30 lines, normative)
 - ARCHITECTURE.md — module layout and seams
-- skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go/.templ)
+- skills/gogogo-coding-standards/SKILL.md — Go + template rules (read when editing .go; on a .templ edit also read the UI skill below for the Datastar/backend gate)
+- skills/gogogo-ui/SKILL.md — template UI rules over the vendored DaisyUI vocabulary (read before any .templ/CSS edit, with docs/ui-skins.md)
 
 ## By task
 
@@ -31,6 +32,7 @@
 - Trim presets (minimal/no-ai/no-collab): internal/installer/trim_presets.go (`--preset`)
 - Going without auth/database (fork recipe): docs/no-auth-no-db-recipe.md
 - HTTP route inventory (generated, do not edit): docs/api-routes.md
+- UI work (MUST read before any .templ/CSS edit): skills/gogogo-ui/SKILL.md — template UI rules (one skin, semantic colors, compiled app.min.css) over the vendored skills/daisyui/SKILL.md vocabulary (byte-identical to https://daisyui.com/SKILL.md); seam in docs/ui-skins.md, theme catalog in internal/themes
 - Deploy: docs/deploy.md
 - Troubleshooting: docs/troubleshooting.md
 
