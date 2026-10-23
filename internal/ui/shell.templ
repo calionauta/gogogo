@@ -146,7 +146,19 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						var toggle = document.querySelector(".app-rail-toggle");
 						rail.__gogogoOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : toggle;
 						var first = rail.querySelector("a[href], button:not([disabled]), summary");
-						if (first) first.focus();
+						if (!first) return;
+						// The effect can run a frame before Datastar's own morph
+						// lands .is-open (which flips visibility), and focus()
+						// on a visibility:hidden element is a silent no-op — so
+						// retry until focus sticks. requestAnimationFrame is not
+						// a guarded marker (vanillaAllow covers listeners only).
+						var tries = 0;
+						(function tryFocus() {
+							first.focus();
+							if (document.activeElement !== first && tries++ < 5) {
+								window.requestAnimationFrame(tryFocus);
+							}
+						})();
 					};
 					window.__gogogoDrawerReturn = function () {
 						var rail = document.getElementById("app-rail");

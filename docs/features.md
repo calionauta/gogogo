@@ -212,9 +212,9 @@ session it never had.
 
 Method: `for f in <files>; do wc -c < $f; gzip -nc $f | wc -c; done`.
 `datastar.js` is 34 KB raw / ~13 KB gzip — that is the "~12 KiB client"
-in the README (wire size). Icons (`iconify`, 24 KB raw) load only on
-pages that use them; sounds (`cuelume.js`, 10 KB) only with the sounds
-plugin.
+in the README (wire size). Icons are inline SVG vendored into the page HTML
+(`internal/icon`, zero separate requests); sounds (`cuelume.js`, 10 KB) only
+with the sounds plugin.
 
 ## Related
 
