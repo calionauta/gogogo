@@ -207,6 +207,8 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 		Title:       "Collab whiteboard " + meta.DocID + " — gogogo",
 		Module:      "whiteboard",
 		Heading:     "Board " + meta.DocID,
+		CrumbLabel:  "Boards",
+		CrumbURL:    "/whiteboard",
 		Context:     "canvas · shapes sync over SSE · CRDT-free whole-snapshot ops",
 		Email:       email,
 		Role:        userRole,
@@ -222,16 +224,7 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 		},
 		StreamPage: true,
 		FullBleed:  true,
-	}, boardHead(), boardSound(), boardDocActions(), boardBody(meta))
-}
-
-// boardDocActions is the detail page's way back: the same header slot the
-// index uses for "New board", mirrored as a ghost back link. The header is
-// sticky, so the way out stays visible while the canvas fills the viewport —
-// which is also why the old trailing "Back" button left the toolbar: one
-// persistent affordance beats one buried at the end of a wrapping row.
-templ boardDocActions() {
-	<a class="btn btn-ghost btn-sm" href="/whiteboard" title="Back to all boards">‹ Boards</a>
+	}, boardHead(), boardSound(), nil, boardBody(meta))
 }
 
 // boardHead carries the page's own <head>: the sound assets and the three

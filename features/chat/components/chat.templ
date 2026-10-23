@@ -30,6 +30,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 		BuildCommit: buildCommit,
 		Skin:        skinName,
 		OfflineSync: true,
+		FlushBottom: true,
 		Signals:     MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}),
 		Demo:        demo,
 		Panel:       ChatStatePanel(len(msgs)),
