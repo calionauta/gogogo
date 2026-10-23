@@ -89,20 +89,21 @@ templ configSound() {
 // configActions is the header's right-aligned build badge.
 templ configActions(data PageData) {
 	if data.BuildLabel != "" {
-		<span class="badge badge-info badge-soft badge-sm font-mono">{ data.BuildLabel }</span>
+		<span class="ui-badge ui-badge-primary ui-meta">{ data.BuildLabel }</span>
 	}
 }
 
 // configBody is the page's work area: two honesty banners, the grouped field
 // table, and the rotate-a-secret footer.
 templ configBody(data PageData) {
-	<div class="config-banner" role="status">
+	<div class="ui-page ui-stack">
+	<div class="ui-callout" role="status">
 		<strong>Read-only.</strong>
 		This page shows what the running binary has loaded from the
 		environment and the encrypted secrets file. Sensitive values
 		are masked; the literal key/token never reaches the browser.
 	</div>
-	<div class="config-banner" role="status">
+	<div class="ui-callout" role="status">
 		<strong>Access control (Casbin).</strong>
 		if data.Role != "" {
 			<span>Signed in with role <code class="text-sm">{ data.Role }</code>.</span>
@@ -117,14 +118,14 @@ templ configBody(data PageData) {
 	</div>
 
 	for _, group := range data.Groups {
-		<section class="config-group card bg-base-100 shadow-sm">
-			<div class="card-body p-4">
-				<h2 class="card-title text-lg">{ group.Name }</h2>
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">{ group.Name }</h2>
 				if group.Note != "" {
 					<p class="text-sm text-base-content/70 mb-2">{ group.Note }</p>
 				}
 				<div class="overflow-x-auto">
-					<table class="table table-sm">
+					<table class="ui-table">
 						<thead>
 							<tr>
 								<th class="w-1/3">Field</th>
@@ -141,7 +142,7 @@ templ configBody(data PageData) {
 									<td>
 										if row.BoolOnly {
 											if row.Set {
-												<span class="badge badge-success badge-sm">set</span>
+												<span class="ui-badge ui-badge-success">set</span>
 											} else {
 												<span class="config-not-set">not set</span>
 											}
@@ -166,6 +167,7 @@ templ configBody(data PageData) {
 	<footer class="text-xs text-base-content/60 mt-6">
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
 	</footer>
+	</div>
 }
 
 // configContext is the header's context slot: the two facts the page exists to

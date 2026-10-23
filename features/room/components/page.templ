@@ -109,9 +109,11 @@ templ Page(email string, userRole string, roomID string, roster appgoakt.Roster,
 // roomBody is the work area: the seeded lock signals, the card the stream
 // morphs, and the stream opener.
 templ roomBody(roomID string, roster appgoakt.Roster, email string) {
+	<div class="ui-page">
 	@roomSignals(roster, email)
 	@RoomCard(roomID, roster, email)
 	@components.StreamOpener("room-sse-opener", "/room/stream?room="+url.QueryEscape(roomID), true)
+	</div>
 }
 
 // roomContext is the header's context slot: the two facts this demo is about,
@@ -141,8 +143,8 @@ templ roomSignals(roster appgoakt.Roster, email string) {
 // on the element without a patch. That is why the whole lock affordance is
 // declarative — no script decides which button is visible.
 templ RoomCard(roomID string, roster appgoakt.Roster, email string) {
-	<div id="room-card" class="card bg-base-200 shadow mt-4">
-		<div class="card-body">
+	<div id="room-card" class="ui-card mt-4">
+		<div class="ui-card-body">
 			@RoomCardContent(roomID, roster, email)
 		</div>
 	</div>
@@ -156,7 +158,7 @@ templ RoomCard(roomID string, roster appgoakt.Roster, email string) {
 // from the server-rendered first paint.
 templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 	<div id="room-card-content">
-		<h2 class="card-title">
+		<h2 class="ui-title">
 			Presenter: <span id="room-presenter">
 				if roster.Presenter == "" {
 					(none)
@@ -166,7 +168,7 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 			</span>
 		</h2>
 		<p class="text-sm opacity-70">Room generation <span id="room-generation">{ strconv.Itoa(roster.Generation) }</span> (bumps on every restart)</p>
-		<ul id="room-roster" class="menu">
+		<ul id="room-roster" class="ui-stack text-sm">
 			if len(roster.Members) == 0 {
 				<li class="opacity-60">Nobody in this room yet.</li>
 			}
@@ -192,38 +194,38 @@ templ RoomCardContent(roomID string, roster appgoakt.Roster, email string) {
 			hidden. Rejoin puts you back — and so does this tab reconnecting, because
 			presence IS the connection.
 		</p>
-		<div class="card-actions justify-end">
+		<div class="ui-row justify-end mt-2 flex-wrap">
 			<button
 				id="room-acquire"
-				class="btn btn-primary"
+				class="ui-btn ui-btn-primary"
 				type="button"
 				data-show="$roomLeft !== true && $roomHolder === ''"
 				data-on:click={ "@post('/room/acquire?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Take presenter</button>
 			<button
 				id="room-release"
-				class="btn"
+				class="ui-btn ui-btn-ghost"
 				type="button"
 				data-show="$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder"
 				data-on:click={ "@post('/room/release?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Release</button>
 			<button
 				id="room-leave"
-				class="btn"
+				class="ui-btn ui-btn-ghost"
 				type="button"
 				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/leave?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Leave</button>
 			<button
 				id="room-rejoin"
-				class="btn btn-primary"
+				class="ui-btn ui-btn-primary"
 				type="button"
 				data-show="$roomLeft === true"
 				data-on:click={ "@post('/room/join?room=" + url.QueryEscape(roomID) + "&clientID=' + encodeURIComponent(window.__gogogoClientID || ''))" }
 			>Rejoin</button>
 			<button
 				id="room-crash"
-				class="btn btn-error"
+				class="ui-btn ui-btn-error"
 				type="button"
 				data-show="$roomLeft !== true"
 				data-on:click={ "@post('/room/crash?room=" + url.QueryEscape(roomID) + "')" }

@@ -178,7 +178,7 @@ func boardsBody(boards []BoardMeta) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"mx-auto max-w-2xl\"><div class=\"flex items-center justify-between mb-4\"><h1 class=\"text-2xl font-bold\">Collab whiteboards</h1><a class=\"btn btn-primary\" href=\"/whiteboard/new\">New whiteboard</a></div><p class=\"text-xs text-base-content/60 mb-2\">Every whiteboard is shared: anyone signed in can open and draw on it. Only its author (or an admin) can delete it.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"ui-page ui-page-narrow ui-stack\"><div class=\"flex items-center justify-between mb-4\"><h1 class=\"text-2xl font-bold\">Collab whiteboards</h1><a class=\"ui-btn ui-btn-primary\" href=\"/whiteboard/new\">New whiteboard</a></div><p class=\"text-xs text-base-content/60 mb-2\">Every whiteboard is shared: anyone signed in can open and draw on it. Only its author (or an admin) can delete it.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -232,13 +232,13 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(boards) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"card\"><div class=\"card-body items-center py-12 text-center\"><p class=\"text-sm text-base-content/60\">No whiteboards yet. Create one to start drawing together.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"ui-card\"><div class=\"ui-empty\"><p class=\"text-sm text-base-content/60\">No whiteboards yet. Create one to start drawing together.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		for _, b := range boards {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"card card-bordered bg-base-200 p-4 flex flex-row items-center gap-2 hover:bg-base-300\"><a class=\"flex-1 min-w-0\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"ui-card ui-card-body flex flex-row items-center gap-2 hover:opacity-90\"><a class=\"flex-1 min-w-0\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -333,7 +333,7 @@ func deleteBoardButton(docID string, author string) templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<button type=\"button\" class=\"btn btn-ghost btn-xs text-error\" title=\"Delete this whiteboard\" data-on:click__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm text-error\" title=\"Delete this whiteboard\" data-on:click__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

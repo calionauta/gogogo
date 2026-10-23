@@ -90,11 +90,11 @@ func boardsStack() []components.TechItem {
 
 // boardsBody is the work area: the list and the two live regions.
 templ boardsBody(boards []BoardMeta) {
-	<div class="mx-auto max-w-2xl">
+	<div class="ui-page ui-page-narrow ui-stack">
 
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Collab whiteboards</h1>
-					<a class="btn btn-primary" href="/whiteboard/new">New whiteboard</a>
+					<a class="ui-btn ui-btn-primary" href="/whiteboard/new">New whiteboard</a>
 				</div>
 				<p class="text-xs text-base-content/60 mb-2">
 					Every whiteboard is shared: anyone signed in can open and draw on it. Only its
@@ -113,14 +113,14 @@ templ boardsBody(boards []BoardMeta) {
 templ WhiteboardListFragment(boards []BoardMeta) {
 	<div id="whiteboard-list" class="grid gap-2">
 		if len(boards) == 0 {
-			<div class="card">
-				<div class="card-body items-center py-12 text-center">
+			<div class="ui-card">
+				<div class="ui-empty">
 					<p class="text-sm text-base-content/60">No whiteboards yet. Create one to start drawing together.</p>
 				</div>
 			</div>
 		}
 		for _, b := range boards {
-			<div class="card card-bordered bg-base-200 p-4 flex flex-row items-center gap-2 hover:bg-base-300">
+			<div class="ui-card ui-card-body flex flex-row items-center gap-2 hover:opacity-90">
 				<a class="flex-1 min-w-0" href={ templ.URL("/whiteboard/" + b.DocID) }>
 					<div class="font-mono text-sm truncate">{ b.DocID }</div>
 					<div class="text-xs text-base-content/60 flex items-center gap-2">
@@ -143,7 +143,7 @@ templ WhiteboardListFragment(boards []BoardMeta) {
 templ deleteBoardButton(docID string, author string) {
 	<button
 		type="button"
-		class="btn btn-ghost btn-xs text-error"
+		class="ui-btn ui-btn-ghost ui-btn-sm text-error"
 		title="Delete this whiteboard"
 		data-on:click__prevent={ "$confirmBoardId = " + strconv.Quote(docID) + "; $confirmBoardAuthor = " + strconv.Quote(author) + "; document.getElementById('" + boardDialogID + "').showModal()" }>
 		<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>

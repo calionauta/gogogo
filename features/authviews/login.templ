@@ -27,15 +27,15 @@ templ LoginPage(next string, errMsg string, skinName string) {
 			@sounds.SoundAssets()
 		</head>
 		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
-			<div class="card w-full max-w-md bg-base-100 shadow-xl">
-				<div class="card-body">
+			<div class="ui-card w-full max-w-md">
+				<div class="ui-card-body">
 					<h1 class="text-2xl font-bold text-center mb-2">gogogo</h1>
 					<p class="text-center text-base-content/60 mb-6">
 						Sign in to manage your todos
 					</p>
 
 					if errMsg != "" {
-						<div role="alert" class="alert alert-error mb-4">
+						<div role="alert" class="ui-callout ui-callout-error mb-4">
 							<span>{ errMsg }</span>
 						</div>
 					}
@@ -50,7 +50,7 @@ templ LoginPage(next string, errMsg string, skinName string) {
 								type="email"
 								name="email"
 								value="demo1@demo.app"
-								class="input w-full"
+								class="ui-field"
 								required
 								autocomplete="email"
 							/>
@@ -64,13 +64,13 @@ templ LoginPage(next string, errMsg string, skinName string) {
 								type="password"
 								name="password"
 								value="demo1234456"
-								class="input w-full"
+								class="ui-field"
 								required
 								autocomplete="current-password"
 							/>
 						</label>
 
-						<button type="submit" class="btn btn-primary w-full">
+						<button type="submit" class="ui-btn ui-btn-primary w-full">
 							Sign in
 						</button>
 

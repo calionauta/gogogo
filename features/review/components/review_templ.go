@@ -174,7 +174,7 @@ func reviewBody(signals Signals) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"mx-auto max-w-2xl\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page ui-page-narrow ui-stack\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -192,12 +192,12 @@ func reviewBody(signals Signals) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($review_pending = false, $review_error = 'Request failed — check your connection and try again.') : null\" data-cuelume=\"send\"><div class=\"mb-3\"><label for=\"review-tab\" class=\"label-text mb-1\">What to review</label> <select id=\"review-tab\" name=\"tab\" class=\"select select-bordered w-full max-w-xs\"><option value=\"text\">Text — email, post, announcement</option> <option value=\"code\">Code — diff or snippet</option></select></div><label for=\"review-content\" class=\"form-control w-full\"><span class=\"label-text mb-1\">Content to review</span> <textarea id=\"review-content\" name=\"content\" required minlength=\"1\" maxlength=\"6000\" rows=\"8\" placeholder=\"Paste an email, a post — or a diff\" class=\"textarea textarea-bordered w-full\"></textarea></label><div class=\"mt-3 flex items-center gap-3\"><button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"!!$review_pending\"><span data-show=\"!$review_pending\">Run review</span> <span data-show=\"$review_pending\" class=\"loading loading-spinner loading-sm\" aria-hidden=\"true\"></span> <span data-show=\"$review_pending\">Reviewing…</span></button> <span data-show=\"$review_pending\" class=\"text-sm text-base-content/60\">Phase: <span data-text=\"$review_phase\"></span></span></div></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($review_pending = false, $review_error = 'Request failed — check your connection and try again.') : null\" data-cuelume=\"send\"><div class=\"mb-3\"><label for=\"review-tab\" class=\"label-text mb-1\">What to review</label> <select id=\"review-tab\" name=\"tab\" class=\"ui-field max-w-xs\"><option value=\"text\">Text — email, post, announcement</option> <option value=\"code\">Code — diff or snippet</option></select></div><label for=\"review-content\" class=\"form-control w-full\"><span class=\"label-text mb-1\">Content to review</span> <textarea id=\"review-content\" name=\"content\" required minlength=\"1\" maxlength=\"6000\" rows=\"8\" placeholder=\"Paste an email, a post — or a diff\" class=\"ui-field h-auto min-h-[7rem] py-2\"></textarea></label><div class=\"mt-3 flex items-center gap-3\"><button type=\"submit\" class=\"ui-btn ui-btn-primary\" data-attr:disabled=\"!!$review_pending\"><span data-show=\"!$review_pending\">Run review</span> <span data-show=\"$review_pending\" class=\"loading loading-spinner loading-sm\" aria-hidden=\"true\"></span> <span data-show=\"$review_pending\">Reviewing…</span></button> <span data-show=\"$review_pending\" class=\"text-sm text-base-content/60\">Phase: <span data-text=\"$review_phase\"></span></span></div></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"alert alert-warning\" role=\"status\"><span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"ui-callout ui-callout-warning\" role=\"status\"><span>Review needs a configured LLM. Set GOAI_API_KEY on the server, then reload.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -246,7 +246,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"review-result\" class=\"card bg-base-200 shadow\"><div class=\"card-body\"><h2 class=\"card-title\">Verdict: ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div id=\"review-result\" class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Verdict: ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -259,27 +259,27 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <span class=\"badge badge-outline\">confidence ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <span class=\"ui-badge\">confidence ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f", confidence))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 141, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 141, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span> <span class=\"badge badge-outline\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span> <span class=\"ui-badge\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d rounds", rounds))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 142, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 142, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -303,7 +303,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 			return templ_7745c5c3_Err
 		}
 		if needsHuman {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"alert alert-info mt-2\" role=\"status\"><span>A human should decide — approve the proposal below or revise and re-run.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"ui-callout mt-2\" role=\"status\"><span>A human should decide — approve the proposal below or revise and re-run.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -384,7 +384,7 @@ func ReviewPending() templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"review-result\" class=\"card bg-base-200/40 border border-dashed border-base-300\" aria-busy=\"true\"><div class=\"card-body\"><p class=\"text-sm text-base-content/60\">Reviewing… the verdict replaces this.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"review-result\" class=\"ui-card\" aria-busy=\"true\"><div class=\"ui-card-body\"><p class=\"text-sm text-base-content/60\">Reviewing… the verdict replaces this.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -416,7 +416,7 @@ func ReviewError(message string) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div id=\"review-result\" class=\"card bg-base-200/40 border border-error/40\"><div class=\"card-body\"><div class=\"alert alert-error\" role=\"alert\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div id=\"review-result\" class=\"ui-card\"><div class=\"ui-card-body\"><div class=\"ui-callout ui-callout-error\" role=\"alert\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

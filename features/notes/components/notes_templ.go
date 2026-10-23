@@ -158,7 +158,7 @@ func notesBody(notes []NoteMeta) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"mx-auto max-w-2xl\"><p class=\"text-xs text-base-content/60 mb-2\">Every note is shared: anyone signed in can open and edit it. Only its author (or an admin) can delete it.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"ui-page ui-page-narrow ui-stack\"><p class=\"text-xs text-base-content/60 mb-2\">Every note is shared: anyone signed in can open and edit it. Only its author (or an admin) can delete it.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -210,7 +210,7 @@ func NotesListFragment(notes []NoteMeta) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(notes) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"card\"><div class=\"card-body items-center py-12 text-center\"><p class=\"text-sm text-base-content/60\">No notes yet. Start one — every keystroke merges across tabs.</p></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"ui-card\"><div class=\"ui-empty\"><p class=\"text-sm text-base-content/60\">No notes yet. Start one — every keystroke merges across tabs.</p></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -259,7 +259,7 @@ func NotesListFragment(notes []NoteMeta) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if n.CanDelete {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button type=\"button\" class=\"btn btn-ghost btn-xs text-error\" title=\"Delete this note\" data-on:click__prevent=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm text-error\" title=\"Delete this note\" data-on:click__prevent=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -399,7 +399,7 @@ func deleteNoteModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"modal\" data-on:close=\"$confirmNoteId = ''; $confirmNoteAuthor = ''; $deletingNote = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error\">Delete this note?</h3><p class=\"py-4 text-sm\">This permanently removes the note and its text <span class=\"text-base-content/60\" data-text=\"$confirmNoteAuthor ? 'started by ' + $confirmNoteAuthor : ''\"></span>. Any other tab still holding it open loses the text on reload.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"modal\" data-on:close=\"$confirmNoteId = ''; $confirmNoteAuthor = ''; $deletingNote = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error\">Delete this note?</h3><p class=\"py-4 text-sm\">This permanently removes the note and its text <span class=\"text-base-content/60\" data-text=\"$confirmNoteAuthor ? 'started by ' + $confirmNoteAuthor : ''\"></span>. Any other tab still holding it open loses the text on reload.</p><div class=\"modal-action\"><button type=\"button\" class=\"ui-btn ui-btn-ghost ui-btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -412,7 +412,7 @@ func deleteNoteModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-attr:disabled=\"!!$deletingNote\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Cancel</button> <button type=\"button\" class=\"ui-btn ui-btn-error ui-btn-sm\" data-attr:disabled=\"!!$deletingNote\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

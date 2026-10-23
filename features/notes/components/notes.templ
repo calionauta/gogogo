@@ -80,7 +80,7 @@ func notesStack() []components.TechItem {
 // notesBody is the work area: the sharing rule, the list, and the two live
 // regions the page patches.
 templ notesBody(notes []NoteMeta) {
-	<div class="mx-auto max-w-2xl">
+	<div class="ui-page ui-page-narrow ui-stack">
 		<p class="text-xs text-base-content/60 mb-2">
 			Every note is shared: anyone signed in can open and edit it. Only its author
 			(or an admin) can delete it.
@@ -96,8 +96,8 @@ templ notesBody(notes []NoteMeta) {
 templ NotesListFragment(notes []NoteMeta) {
 	<div id="notes-list">
 		if len(notes) == 0 {
-			<div class="card">
-				<div class="card-body items-center py-12 text-center">
+			<div class="ui-card">
+				<div class="ui-empty">
 					<p class="text-sm text-base-content/60">No notes yet. Start one — every keystroke merges across tabs.</p>
 				</div>
 			</div>
@@ -113,7 +113,7 @@ templ NotesListFragment(notes []NoteMeta) {
 							if n.CanDelete {
 								<button
 									type="button"
-									class="btn btn-ghost btn-xs text-error"
+									class="ui-btn ui-btn-ghost ui-btn-sm text-error"
 									title="Delete this note"
 									data-on:click__prevent={ "$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()" }>
 									<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
@@ -155,13 +155,13 @@ templ deleteNoteModal() {
 			<div class="modal-action">
 				<button
 					type="button"
-					class="btn btn-ghost btn-sm"
+					class="ui-btn ui-btn-ghost ui-btn-sm"
 					data-on:click={ "document.getElementById('" + notesDialogID + "').close()" }>
 					Cancel
 				</button>
 				<button
 					type="button"
-					class="btn btn-error btn-sm"
+					class="ui-btn ui-btn-error ui-btn-sm"
 					data-attr:disabled="!!$deletingNote"
 					data-on:click={ "$deletingNote = true; document.getElementById('" + notesDialogID + "').close(); @post('/api/notes/' + encodeURIComponent($confirmNoteId) + '/delete')" }>
 					Delete

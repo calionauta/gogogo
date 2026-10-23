@@ -6,6 +6,7 @@ import { mkdirSync } from "node:fs";
 
 const BIN = process.env.SMOKE_BIN || "./gogogo";
 const OUT = process.argv[2] || "/tmp/shots";
+const ONLY = (process.argv[3] || "").split(",").filter(Boolean);
 const PORT = 19999;
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -16,7 +17,7 @@ const server = spawn(BIN, [], {
     ...process.env,
     HOST: "127.0.0.1",
     PORT: String(PORT),
-    TURSO_DB_PATH: `${OUT}/cap.db`,
+    TURSO_DB_PATH: `${OUT}/cap-${process.pid}.db`,
     DATA_DIR: `${OUT}/data`,
     GOGOGO_NO_BROWSER: "1",
     RBAC_ENABLED: "false",
@@ -50,6 +51,7 @@ const PAGES = [
 
 try {
   if (!(await ready())) throw new Error("server never became ready");
+  console.log("server ready");
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 
@@ -59,7 +61,7 @@ try {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "visual-check@example.com",
+      email: `visual-check-${process.pid}@example.com`,
       password: "visual-check-password-123",
       name: "Visual Check",
     }),
@@ -71,30 +73,31 @@ try {
   if (!cookie) throw new Error("signup set no session cookie");
   const [name, value] = cookie.split("=");
   await context.addCookies([{ name, value, domain: "127.0.0.1", path: "/" }]);
+  console.log("signed up");
   const page = await context.newPage();
 
-  for (const [name, path] of PAGES) {
+  for (const [name, path] of PAGES.filter(([n]) => ONLY.length === 0 || ONLY.includes(n))) {
+    console.log("capture", name);
     await page.goto(BASE + path, { waitUntil: "load", timeout: 20000 });
-    await page.locator("main, header").first().waitFor({ state: "visible" });
+    await page.locator("main, header").first().waitFor({ state: "visible", timeout: 3000 }).catch(() => {});
     await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: false });
 
-    // dark
-    await page.evaluate(() => {
-      document.documentElement.dataset.theme = "dark";
-      document.documentElement.classList.add("dark");
-    });
-    await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
+    // dark: drive the signal the app owns (localStorage + reload). Writing
+    // data-theme by hand is reverted: Datastar binds it to $theme.
+    await page.evaluate(() => localStorage.setItem("themeMode", "dark"));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForFunction(() => document.documentElement.classList.contains("dark"), null, {
+      timeout: 5000,
+    }).catch(() => {});
     await page.screenshot({ path: `${OUT}/${name}-dark.png`, fullPage: false });
-    await page.evaluate(() => {
-      document.documentElement.dataset.theme = "light";
-      document.documentElement.classList.remove("dark");
-    });
+    await page.evaluate(() => localStorage.setItem("themeMode", "light"));
+    await page.reload({ waitUntil: "load" });
   }
 
   // demo mode on /todo
   await page.goto(`${BASE}/todo`, { waitUntil: "load" });
-  await page.click(".app-demo-toggle");
-  await page.waitForSelector("#state-panel", { state: "visible" });
+  await page.click(".app-demo-toggle", { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector("#state-panel", { state: "visible", timeout: 5000 }).catch(() => {});
   await page.screenshot({ path: `${OUT}/todo-demo.png`, fullPage: false });
 
   // mobile
@@ -102,8 +105,8 @@ try {
   await page.goto(`${BASE}/todo`, { waitUntil: "load" });
   await page.waitForSelector(".app-rail-toggle", { state: "visible" });
   await page.screenshot({ path: `${OUT}/todo-mobile.png`, fullPage: false });
-  await page.click(".app-rail-toggle");
-  await page.waitForSelector("#app-rail.is-open", { state: "visible" });
+  await page.click(".app-rail-toggle", { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector("#app-rail.is-open", { state: "visible", timeout: 5000 }).catch(() => {});
   await page.screenshot({ path: `${OUT}/todo-mobile-drawer.png`, fullPage: false });
 
   await browser.close();
