@@ -23,7 +23,10 @@ templ Panel(id string, filter string, rows []todo.PanelRows) {
 			<a href="/todo" class="link link-hover text-xs">Open in Todos</a>
 		</div>
 		if len(rows) == 0 {
-			<p class="text-sm opacity-60">Nothing matches this filter.</p>
+			// "Nothing matches this filter" was a lie whenever the viewer simply
+			// has no todos: the panel cannot see the difference, so it says what
+			// is true in both cases and points at the place to fix it.
+			<p class="text-sm opacity-60">No todos to show here. Add one in Todos.</p>
 		} else {
 			<ul class="flex flex-col gap-1">
 				for _, row := range rows {
