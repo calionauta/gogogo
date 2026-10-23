@@ -1,0 +1,34 @@
+// SCOPE:feature — Chat's machinery, shown only in demo mode.
+//
+// The page itself is a thread and a composer. What it demonstrates is the path
+// an answer takes, which is what this panel shows: a queued job, a model call,
+// and a stream back into the thread. The states are driven by the page's own
+// signals ($chat_thinking), so the panel cannot claim a state the page is not in.
+package components
+
+import (
+	"strconv"
+
+	"github.com/calionauta/gogogo/internal/ui"
+)
+
+// ChatStatePanel renders the answer pipeline and the facts behind it.
+templ ChatStatePanel(msgs int) {
+	<div class="app-state-panel-inner space-y-3">
+		<p class="text-xs text-base-content/60">
+			An answer is a job, not a request: the handler enqueues it, a worker calls
+			the model, and the reply streams into the thread over SSE. The thread is
+			store-backed, so a reload shows what the stream built.
+		</p>
+		@ui.StepList([]ui.Step{
+			{Label: "Question accepted", Done: "!$chat_thinking", Active: "$chat_thinking"},
+			{Label: "Model working (queued job)", Active: "$chat_thinking"},
+			{Label: "Streamed into this tab", Done: "!$chat_thinking && !$chat_empty"},
+		})
+		<ul class="text-xs text-base-content/70 space-y-1">
+			<li>Messages: <span class="font-mono">{ strconv.Itoa(msgs) }</span></li>
+			<li>Transport: <span class="font-mono">SSE</span></li>
+			<li>Queue: <span class="font-mono">goqite</span></li>
+		</ul>
+	</div>
+}

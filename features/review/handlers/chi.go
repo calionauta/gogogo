@@ -14,6 +14,7 @@ import (
 	reviewcomponents "github.com/calionauta/gogogo/features/review/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/web/skins"
@@ -102,7 +103,8 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = reviewcomponents.ReviewIndex(sess.User.Email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-		reviewcomponents.Signals{ReviewEnabled: h.reviewEnabled()}, skins.Resolve(r, h.cfg.Skin)).Render(r.Context(), w)
+		reviewcomponents.Signals{ReviewEnabled: h.reviewEnabled()}, skins.Resolve(r, h.cfg.Skin),
+		demo.On(r)).Render(r.Context(), w)
 }
 
 // handleRun executes one review loop synchronously and streams it:

@@ -57,7 +57,8 @@ func TestGenuiResultStates(t *testing.T) {
 func TestGenuiIndexWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := components.GenuiIndex("a@b.c", "user", "dev", "", "daisyui").Render(context.Background(), &buf); err != nil {
+	idx := components.GenuiIndex("a@b.c", "user", "dev", "", "daisyui", false)
+	if err := idx.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("components.GenuiIndex: %v", err)
 	}
 	html := buf.String()

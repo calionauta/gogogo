@@ -21,6 +21,7 @@ import (
 	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/web/skins"
@@ -97,7 +98,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	//nolint:contextcheck // generated templ internals take no context beyond
 	// the Render call itself, which already receives r.Context().
 	_ = comp.GenuiIndex(
-		userEmail, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin),
+		userEmail, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin), demo.On(r),
 	).Render(r.Context(), w)
 }
 

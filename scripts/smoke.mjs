@@ -762,6 +762,17 @@ try {
     console.log("  ✓ demo mode: the toggle undocks it again");
   }
 
+  // Every module page offers the panel: the machinery is a property of the
+  // module, not of /todo. A page that stops passing a Panel loses its toggle
+  // silently otherwise.
+  for (const route of ["/todo", "/chat", "/genui", "/review"]) {
+    await page.goto(BASE + route, { waitUntil: "load", timeout: 20000 });
+    if (!(await page.locator(".app-demo-toggle").isVisible())) {
+      fail(`demo mode: ${route} has no [ Demo ] toggle (did it stop passing a Panel?)`);
+    }
+  }
+  console.log("  ✓ demo mode: every module page offers the panel");
+
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
     await verifyTodoSearch(page);

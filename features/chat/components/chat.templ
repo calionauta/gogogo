@@ -19,7 +19,7 @@ import (
 // stream opener. The demo paragraph and the stack pills that used to sit above
 // the composer are gone from the page — the layers live in the sidebar's stack
 // key, and the header's context slot carries live state instead of prose.
-templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, skinName string) {
+templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, skinName string, demo bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Chat — gogogo",
 		Module:      "chat",
@@ -31,6 +31,8 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 		Skin:        skinName,
 		OfflineSync: true,
 		Signals:     MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}),
+		Demo:        demo,
+		Panel:       ChatStatePanel(len(msgs)),
 		Stack:       chatStack(),
 	}, chatHead(), chatSound(), nil, chatBody(msgs))
 }
