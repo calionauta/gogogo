@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/whiteboard"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/icon"
 	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/internal/ui"
 )
@@ -142,7 +143,7 @@ templ deleteBoardButton(docID string, author string) {
 		class="btn btn-ghost btn-sm text-error"
 		title="Delete this whiteboard"
 		data-on:click__prevent={ "$confirmBoardId = " + strconv.Quote(docID) + "; $confirmBoardAuthor = " + strconv.Quote(author) + "; document.getElementById('" + boardDialogID + "').showModal()" }>
-		<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
+		@icon.Icon("material-symbols:delete-outline", "text-base")
 	</button>
 }
 

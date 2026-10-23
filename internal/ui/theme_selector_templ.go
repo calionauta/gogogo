@@ -75,9 +75,9 @@ func ThemeSelector() templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("$theme = '" + t.Name + "'; localStorage.setItem('themeMode', $theme); Theme.syncIcons($theme)")
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("$theme = '" + t.Name + "'; localStorage.setItem('themeMode', $theme)")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 26, Col: 117}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/theme_selector.templ`, Line: 26, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {

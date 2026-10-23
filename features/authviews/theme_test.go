@@ -101,13 +101,13 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 	if !strings.Contains(button, "theme-toggle") {
 		t.Error("theme button missing the .theme-toggle class")
 	}
-	// The single toggle path: signal flip (Datastar owns data-theme),
-	// icon sync, persistence — in that order so a storage throw in
-	// private mode cannot skip the visible change.
+	// The single toggle path: signal flip (Datastar owns data-theme) then
+	// persistence — in that order so a storage throw in private mode cannot
+	// skip the visible change. The icons are inline SVG whose visibility the
+	// [data-theme] CSS rules own, so no script call belongs here.
 	for _, want := range []string{
 		`data-on:click="`,
 		`$theme = $theme === 'dark' ? 'light' : 'dark'`,
-		`Theme.syncIcons($theme)`,
 		`localStorage.setItem('themeMode', $theme)`,
 	} {
 		if !strings.Contains(button, want) {
@@ -139,10 +139,10 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 // TestThemeTogglePagesWireTheSignal is the other half, and the one that
 // actually caught a shipped bug. The toggle lives in Shell, so rendering
 // Shell puts a working-looking button on the page. The button flips
-// `$theme` and then calls Theme.syncIcons — but if <html> does not carry the
-// bindings, nothing observes `$theme`: the icon sync hides BOTH icons (the
-// CSS reveals the moon only under `html.dark`) and the theme never changes.
-// The user sees the button vanish.
+// `$theme` — but if <html> does not carry the bindings, nothing observes
+// `$theme`: the icon CSS reveals the moon only under `html.dark`, so the
+// click hides BOTH icons and the theme never changes. The user sees the
+// button vanish.
 //
 // Contract: a page that renders Shell must either spread the shared
 // authviews.ThemeRootAttrs helper (the canonical form — see
@@ -221,67 +221,32 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 	}
 }
 
-// TestIconifyIsLoadedOnceByTheHead pins the second half of the toggle bug,
-// which was invisible in the markup: <iconify-icon> is a web component, so
-// without /static/iconify-icon.min.js the tag lays out at 0x0 and the icon
-// simply is not there. The shell's theme and sound toggles are iconify icons,
-// so a page missing the script shows a button that appears to vanish when the
-// icon swaps — the reported "click it and it disappears".
+// TestNoIconifyRemains pins the post-iconify contract: every glyph is inline
+// SVG from internal/icon, so no template may reference the web component or
+// its script, and the asset itself must be gone from web/resources/static.
+// Unlike the old wiring test this scans EVERY .templ — the script's second
+// owner, web/skins/default_assets.templ, owns no <html> and slipped through
+// the old page-only scan, which is how the double-load shipped.
 //
-// The fix moved the tag into ThemeHead, so:
-//   - every PAGE that uses an iconify element must render ThemeHead (which
-//     already was mandatory), and
-//   - no page repeats the script itself (that is the duplication that let
-//     three pages forget it).
-//
-// red: features/room/components/body.templ
-// carried the shell's iconify icons with no script tag at all, and eight
-// other pages each carried their own copy.
-func TestIconifyIsLoadedOnceByTheHead(t *testing.T) {
-	const scriptTag = "iconify-icon.min.js"
-
-	head, err := os.ReadFile("theme_head.templ")
-	if err != nil {
-		t.Fatalf("read theme_head: %v", err)
-	}
-	if !strings.Contains(string(head), scriptTag) {
-		t.Errorf("ThemeHead does not load %s, so every iconify icon on every "+
-			"page collapses to 0x0", scriptTag)
-	}
-
-	var usersWithoutHead, dupeCarriers []string
+// red: re-adding an iconify tag or the script src anywhere in a .templ,
+// or restoring the static asset.
+func TestNoIconifyRemains(t *testing.T) {
+	var bad []string
 	walkTemplSources(t, "../..", func(rel, text string) error {
-		if strings.Contains(rel, "theme_head") {
-			return nil
-		}
-		// Only PAGES own a <head>. A component (like the sound toggle)
-		// renders inside a page that already carries ThemeHead, so it is
-		// not required to include one — and requiring it would be wrong,
-		// since a component has no <head> to put it in.
-		// Match the ELEMENT, not the word: this package's own comments and an
-		// inline script mention `<html>` while owning no document.
-		if !strings.Contains(text, "<html lang") {
-			return nil
-		}
-		if strings.Contains(text, "<iconify-icon") && !strings.Contains(text, "ThemeHead(") {
-			usersWithoutHead = append(usersWithoutHead, rel)
-		}
-		// No page may re-declare the script: one owner, the head.
-		if strings.Contains(text, scriptTag) {
-			dupeCarriers = append(dupeCarriers, rel)
+		for _, needle := range []string{"<iconify-icon", "iconify-icon.min.js"} {
+			if strings.Contains(text, needle) {
+				bad = append(bad, rel+" contains "+needle)
+			}
 		}
 		return nil
 	})
 
-	if len(usersWithoutHead) > 0 {
-		t.Errorf("these pages use <iconify-icon> but do not render ThemeHead, "+
-			"which is what loads the component — without it the icon renders "+
-			"at 0x0 and the toggle looks like it vanishes:\n  %s",
-			strings.Join(usersWithoutHead, "\n  "))
+	if len(bad) > 0 {
+		t.Errorf("iconify is gone (inline SVG in internal/icon) — "+
+			"these templates still reference it:\n  %s",
+			strings.Join(bad, "\n  "))
 	}
-	if len(dupeCarriers) > 0 {
-		t.Errorf("ThemeHead already loads %s; a page that repeats it is the "+
-			"duplication that let others forget it:\n  %s", scriptTag,
-			strings.Join(dupeCarriers, "\n  "))
+	if _, err := os.Stat("../../web/resources/static/iconify-icon.min.js"); !os.IsNotExist(err) {
+		t.Error("web/resources/static/iconify-icon.min.js still exists — delete the asset")
 	}
 }

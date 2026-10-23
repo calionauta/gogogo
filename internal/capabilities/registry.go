@@ -32,7 +32,7 @@ var All = []Capability{
 		Kind: KindCore,
 		Summary: "one app shell (sidebar + module header + work area), the theme " +
 			"catalog, and the skin registry that supplies its assets",
-		Dirs: []string{"internal/ui", "internal/themes", "internal/demo", "web/skins"},
+		Dirs: []string{"internal/ui", "internal/icon", "internal/themes", "internal/demo", "web/skins"},
 		Note: "Core: every module page renders a body inside ui.Shell, and the " +
 			"shell resolves the active skin's assets. One skin ships (DaisyUI); " +
 			"visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.",

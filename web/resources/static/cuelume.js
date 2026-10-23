@@ -126,10 +126,10 @@ function onToggleClick() {
 }
 
 // Resolve a selector along the composed event path. A click/pointer event
-// fired on an icon inside a shadow root (e.g. <iconify-icon>) has a target
-// whose .closest() never crosses the shadow boundary, which would make
-// delegated handlers miss the host button. Walking composedPath() covers
-// the light-DOM ancestor (the button) regardless of where the event landed.
+// fired on an <svg> icon inside the button has a target whose .closest()
+// still resolves, but walking composedPath() covers every nesting (including
+// any shadow root a future icon might render in), so delegated handlers never
+// miss the host button regardless of where the event landed.
 function closestInComposedPath(e, sel) {
   var path = e.composedPath ? e.composedPath() : e.path || [e.target];
   for (var i = 0; i < path.length; i++) {

@@ -648,12 +648,20 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
     width: 17rem;
     height: 100vh;
     transform: translateX(-100%);
-    transition: transform 180ms ease-out;
+    /* Offcanvas links stay in the Tab order under a bare transform, so a
+       keyboard user tabs into an invisible drawer. visibility:hidden removes
+       them from Tab and AT; the delayed flip keeps the rail painted for the
+       whole slide-out, while .is-open below shows it immediately so the
+       focus trap's first-link focus never lands on a hidden element. */
+    visibility: hidden;
+    transition: transform 180ms ease-out, visibility 0s linear 180ms;
     border-right: 1px solid var(--color-base-300);
     box-shadow: none;
   }
   .app-rail.is-open {
     transform: none;
+    visibility: visible;
+    transition: transform 180ms ease-out;
     box-shadow: 0 10px 40px color-mix(in oklab, var(--color-base-content) 25%, transparent);
   }
   .app-rail-backdrop {

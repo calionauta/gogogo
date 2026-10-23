@@ -9,9 +9,12 @@
 //     back to the signal value (a toggle that changes nothing and hides
 //     both icons).
 //   - The navbar button flips the signal with
-//     `data-on:click="$theme = ...; localStorage.setItem('themeMode', $theme);
-//     Theme.syncIcons($theme)"`. This module owns icon sync (the iconify
-//     quirk), the pre-paint bootstrap read, and the OS-preference fallback.
+//     `data-on:click="$theme = ...; localStorage.setItem('themeMode', $theme)"`.
+//     The toggle icons are inline SVG (internal/icon.Icon) whose visibility
+//     the [data-theme] CSS rules in app.css own outright — no script touches
+//     them, so there is no icon state to sync. This module owns the
+//     pre-paint bootstrap read, the OS-preference fallback, and the isDark
+//     helper the data-class:dark binding calls.
 //   - Storage key is "themeMode"; value is "light" | "dark". Falls back to
 //     the OS preference (prefers-color-scheme) when nothing is stored, and
 //     to "light" if even that is unavailable (older browsers/private mode).
@@ -51,41 +54,12 @@
     );
   }
 
-  // Explicitly show only the active theme's icon. In light mode the sun
-  // (icon-light-mode) is shown; in dark mode the moon is shown. The CSS
-  // [data-theme] rules are the primary mechanism, but iconify-icon is a
-  // custom element whose own stylesheet can override the host display;
-  // setting it directly here guarantees exactly one icon is visible
-  // regardless of cascade order. Called on init and from the button's
-  // data-on:click after the signal flips (inline styles on the icons are
-  // NOT data-bound, so nothing reverts them).
-  function syncIcons(theme) {
-    var icons = document.querySelectorAll(".theme-toggle-icon");
-    var dark = isDark(theme);
-    icons.forEach(function (el) {
-      var isDarkIcon = el.classList.contains("icon-dark-mode");
-      // In light mode show the sun (light icon); in dark mode show the moon.
-      var active = !dark !== isDarkIcon;
-      el.style.display = active ? "" : "none";
-    });
-  }
-
-  // Minimal stable API: read the current theme, fix the icons. Writes go
+  // Minimal stable API: read the current theme, test darkness. Writes go
   // through the $theme signal (see the button); nothing here touches
   // data-theme or the dark class.
   window.Theme = {
     get: current,
     current: current,
     isDark: isDark,
-    syncIcons: syncIcons,
   };
-
-  // Initial icon sync: ensure exactly one toggle icon is visible based on
-  // the theme already applied by ThemeHead before paint. Wrapped so a
-  // transient icon error can never break theme state.
-  try {
-    syncIcons(current());
-  } catch (e) {
-    /* non-fatal: theme still applies; only the icon glyph may flicker */
-  }
 })();

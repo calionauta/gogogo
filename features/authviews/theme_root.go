@@ -42,8 +42,7 @@ const themeSignalSeed = `{"theme":"light"}`
 //
 // The third attribute is the one that is easy to think is redundant: the icon
 // CSS reveals the moon only under `html.dark`, so without the class the base
-// rule hides it and the inline `display:""` that syncIcons writes does not win
-// — both icons disappear.
+// rule hides it — both icons disappear and the toggle looks dead.
 func ThemeRootAttrs(signals string) templ.Attributes {
 	if signals == "" {
 		signals = themeSignalSeed

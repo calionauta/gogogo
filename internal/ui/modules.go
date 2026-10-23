@@ -17,7 +17,7 @@ type Module struct {
 	ID    string // route suffix + active marker, e.g. "todo"
 	Title string // sidebar label and module header title
 	Group string // GroupCollab | GroupAI | GroupOperate
-	Icon  string // iconify name (material-symbols)
+	Icon  string // icon catalog key (material-symbols:* in internal/icon)
 	URL   string // link target
 	Admin bool   // only visible to admins; the route stays RBAC-enforced
 	Count int    // optional right-aligned badge (0 renders nothing)

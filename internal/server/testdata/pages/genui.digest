@@ -4,4 +4,4 @@ data-bind cmdQuery genuiPrompt
 data-on data-on:click data-on:close
 signals cmdQuery genuiPrompt genui_error genui_pending loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=21 aside=1 body=1 button=12 details=3 dialog=1 div=18 form=3 h1=1 h2=1 h3=1 head=1 header=1 html=2 iconify=14 input=2 kbd=2 label=1 li=22 link=3 main=1 meta=2 nav=1 p=6 path=6 script=12 span=44 strong=1 style=2 summary=3 svg=6 title=1 ul=4
+tags a=21 aside=1 body=1 button=12 details=3 dialog=1 div=19 form=3 h1=1 h2=1 h3=1 head=1 header=1 html=2 input=2 kbd=2 label=1 li=22 link=3 main=1 meta=2 nav=1 p=6 path=20 script=11 span=44 strong=1 style=2 summary=3 svg=20 title=1 ul=4

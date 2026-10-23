@@ -166,15 +166,11 @@ live in `.templ` markup rather than Go:
   `/config`, `/room` and the landing page once shipped a toggle with none of
   the bindings, and it silently did nothing. `features/authviews/theme_test.go`
   scans every template that owns `<html>` and fails on one that forgets.
-- **`ThemeHead` is also what loads the iconify component.** `<iconify-icon>` is
-  a web component: without `/static/iconify-icon.min.js` the tag lays out at
-  0×0, so every icon — the theme toggle's sun/moon and the sound toggle — is
-  simply not there, and a toggle that swaps its icon looks like it vanishes.
-  The script lives in `ThemeHead` (one owner) rather than in each page; the
-  sidebar and the header use iconify icons, so a template that owns `<html>` and
-  skips `ThemeHead` shows invisible icons. Eight pages had each copied the tag
-  and three had forgotten it — the same "every page must remember" shape that
-  let the theme bindings drift.
+- **Icons are inline SVG (`internal/icon.Icon`), not a web component.** There
+  used to be an `<iconify-icon>` tag that laid out at 0×0 without its script,
+  so every icon was simply missing on a page that forgot it and a swapping
+  toggle looked like it vanished. The glyphs are vendored in
+  `internal/icon/icons.go`; no script, no flash, no per-page obligation.
 - A signal that never reached the store is read as `""`, and Datastar's
   `data-attr:disabled` sets the attribute for everything that is not `false` or
   `null` — `""` AND `undefined` included — so a wiped seed is a control born

@@ -1,6 +1,7 @@
 package sounds
 
 import "github.com/calionauta/gogogo/web/resources"
+import "github.com/calionauta/gogogo/internal/icon"
 
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
@@ -37,7 +38,7 @@ templ SoundToggle() {
 		aria-pressed="true"
 		title="Mute sounds"
 	>
-		<iconify-icon icon="material-symbols:volume-up" class="text-lg sound-toggle-icon icon-sound-on"></iconify-icon>
-		<iconify-icon icon="material-symbols:volume-off" class="text-lg sound-toggle-icon icon-sound-off"></iconify-icon>
+		@icon.Icon("material-symbols:volume-up", "text-lg sound-toggle-icon icon-sound-on")
+		@icon.Icon("material-symbols:volume-off", "text-lg sound-toggle-icon icon-sound-off")
 	</button>
 }
