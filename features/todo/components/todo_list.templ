@@ -16,9 +16,11 @@ func marshalSignals(s todo.Signals) string {
 	return string(b)
 }
 
-// TodoList is the full application card with the create form, AI suggest
-// buttons, filter tabs, todo list, clear-completed footer, and a
-// contextual sidebar with async-layer demo cards.
+// TodoList is the full application card: search, filter tabs, todo list,
+// AI suggest buttons, a bottom-docked create form, and the clear-completed
+// footer. Filter context sits above the list it narrows; capture sits below
+// it, next to the rows it adds to — the same bottom-composer shape Chat and
+// Ask use.
 //
 // Signal flow (all defined via `data-signals` so they live across patches):
 //   - $newTitle: bound to the title input
@@ -41,7 +43,7 @@ func marshalSignals(s todo.Signals) string {
 // other browser tabs share the same view via the broadcaster.
 templ TodoList(signals todo.Signals) {
 	<div class="max-w-5xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
-		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''">
+		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''" data-on:keydown__window="evt.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable ? (evt.preventDefault(), document.getElementById('todo-search-input').focus()) : null">
 
 			<!-- ═══════════════ MAIN GRID ═══════════════ -->
 			<div class="grid grid-cols-1 gap-5">
@@ -56,11 +58,7 @@ templ TodoList(signals todo.Signals) {
 						</div>
 						<div class="ui-card-body ui-stack">
 
-							@createForm(signals)
-
 							@searchBox(signals)
-
-							@SuggestionsList(signals.Suggestions)
 
 							<div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Task filters">
 								<div class="tabs tabs-box tabs-sm" role="tablist" aria-label="Status filter">
@@ -84,6 +82,10 @@ templ TodoList(signals todo.Signals) {
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
 							@TodoListRegion(signals)
+
+							@SuggestionsList(signals.Suggestions)
+
+							@createForm(signals)
 
 							if signals.ItemCount > 0 {
 								<div class="flex justify-end items-center mt-4 pt-3 border-t border-base-200">
@@ -119,7 +121,7 @@ templ TodoList(signals todo.Signals) {
 // the user can't double-fire.
 templ createForm(signals todo.Signals) {
 	<form
-		class="w-full mb-4"
+		class="w-full sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-1 border-t border-base-200"
 		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null"
 	>
 		<div class="join w-full">
@@ -166,10 +168,11 @@ templ searchBox(signals todo.Signals) {
 		     select labelled "Match". -->
 		<div class="join w-full">
 			<input
+					id="todo-search-input"
 				type="search"
-				name="q"
-				class="input input-sm join-item grow"
-				placeholder="Search todos"
+					name="q"
+					class="input input-sm join-item grow"
+					placeholder="Search todos  ( / )"
 				aria-label="Search todos"
 				value={ signals.SearchQuery }
 				data-bind="searchQuery"
@@ -258,7 +261,7 @@ func searchModeHint(mode string) string {
 // and remote tabs stay in sync. The `<div id="todo-list">` selector is
 // the merge target for RenderAndPatch.
 templ TodoListRegion(signals todo.Signals) {
-	<div class="divide-y divide-base-200" id="todo-list">
+	<div class="divide-y divide-base-200 pb-6" id="todo-list">
 		if len(signals.Todos) == 0 {
 			<div class="ui-empty" id="todo-empty-state">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -266,7 +269,7 @@ templ TodoListRegion(signals todo.Signals) {
 				</svg>
 				<p class="ui-empty-title">No todos here yet.</p>
 				<p class="ui-empty-body">
-					Add one above to get started.
+					Add one below to get started.
 					if signals.DagNatsEnabled {
 						Or open Demo mode and use Run durable workflow to create examples.
 					} else {

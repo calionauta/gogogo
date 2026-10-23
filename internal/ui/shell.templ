@@ -109,9 +109,6 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									data-on:click="$railOpen = false">
 									@icon.Icon(m.Icon, "app-rail-icon")
 									<span class="app-rail-label">{ m.Title }</span>
-									if m.Count > 0 {
-										<span class="app-rail-count">{ formatCount(m.Count) }</span>
-									}
 								</a>
 							}
 						}

@@ -20,7 +20,6 @@ type Module struct {
 	Icon  string // icon catalog key (material-symbols:* in internal/icon)
 	URL   string // link target
 	Admin bool   // only visible to admins; the route stays RBAC-enforced
-	Count int    // optional right-aligned badge (0 renders nothing)
 }
 
 // Group labels, in render order.

@@ -1,23 +1,8 @@
 // SCOPE:core — Small render helpers for the shell.
 //
 // Templ cannot branch inside an attribute list or a short expression, so the
-// values the shell computes rather than embeds live here: the count badge
-// (capped), the stack section label, and the panel visibility seed.
+// values the shell computes rather than embeds live here.
 package ui
-
-import "strconv"
-
-// maxBadgeCount caps a sidebar badge so a long list cannot stretch the rail.
-const maxBadgeCount = 99
-
-// formatCount renders a sidebar badge count, capped so a large list cannot
-// stretch the rail.
-func formatCount(n int) string {
-	if n > maxBadgeCount {
-		return "99+"
-	}
-	return strconv.Itoa(n)
-}
 
 // panelVisibilitySignals seeds the client-side visibility signal for the
 // state panel. The server decides the initial value from the demo cookie;

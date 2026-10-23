@@ -564,12 +564,6 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 }
 .app-rail-icon { font-size: 1.125rem; flex: 0 0 auto; }
 .app-rail-label { flex: 1 1 auto; }
-.app-rail-count {
-  flex: 0 0 auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.6875rem;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
-}
 .app-rail-foot {
   display: flex;
   flex-direction: column;
