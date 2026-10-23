@@ -164,12 +164,10 @@ is the gate that catches it.
    `html.dark`) and the theme never changes: the button appears to vanish. Use
    the helper, never a copy: `<html lang="en" { authviews.ThemeRootAttrs("")... }>`
    (or `ThemeRootAttrs(MarshalSignals(signals))` to keep the page's own seeds).
-   `ThemeHead` is also the single owner of `/static/iconify-icon.min.js`: the
-   `<iconify-icon>` tag is a web component that lays out at 0×0 without it, so a
-   page missing the head shows invisible icons (theme + sound toggles). One
-   obligation, one place — three pages shipped the first bug and three the
-   second. Guards: `features/authviews/theme_test.go` (template scan) plus the
-   browser smoke.
+   `ThemeHead` carries no icon script: icons are inline SVG
+   (`internal/icon.Icon`), so there is no web-component tag to forget and no
+   0×0 flash — that whole failure shape is gone. Guards:
+   `features/authviews/theme_test.go` (template scan) plus the browser smoke.
 
 ## Scan roots (why landing edits are safe)
 

@@ -16,6 +16,7 @@ package ui
 import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/icon"
 	"github.com/calionauta/gogogo/web/skins"
 )
 
@@ -81,7 +82,8 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 				data-stream-page="1"
 			}>
 			<div class="app-shell" data-signals='{"railOpen":false}'
-				data-on:keydown__window="if (evt.key === 'Escape') $railOpen = false">
+				data-on:keydown__window="if (evt.key === 'Escape') { $railOpen = false; window.__gogogoDrawerReturn(); }">
+			<div data-effect="window.__gogogoDrawerFocus($railOpen)" hidden aria-hidden="true"></div>
 				<aside id="app-rail" class="app-rail" aria-label="Modules" data-class="{'is-open': $railOpen}">
 					<div class="app-rail-brand">
 						<a href="/">gogogo</a>
@@ -100,7 +102,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									data-cuelume-hover="tick"
 									data-cuelume-press="toggle"
 									data-on:click="$railOpen = false">
-									<iconify-icon icon={ m.Icon } class="app-rail-icon"></iconify-icon>
+									@icon.Icon(m.Icon, "app-rail-icon")
 									<span class="app-rail-label">{ m.Title }</span>
 									if m.Count > 0 {
 										<span class="app-rail-count">{ formatCount(m.Count) }</span>
@@ -126,7 +128,46 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						@authviews.UserMenu(d.Email, d.Role)
 					</div>
 				</aside>
-				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false"></div>
+				<script>
+					// Drawer focus trap: Datastar owns $railOpen and every dismissal
+					// path (Escape, backdrop, destination tap); no Datastar primitive
+					// cycles Tab inside an open drawer or moves focus across the
+					// boundary, so this island owns focus only. Pinned in vanillaAllow
+					// (the keydown listener below). The ≤1024px matchMedia mirrors
+					// the drawer breakpoint in chrome.css — on desktop the rail is a
+					// persistent sidebar and the trap stays out of the way.
+					// Plain script on purpose (see realtime.templ): data-effect
+					// evaluates at Datastar init, after deferred modules load, so the
+					// globals must exist on window before then.
+					window.__gogogoDrawerFocus = function (open) {
+						if (!open) return;
+						var rail = document.getElementById("app-rail");
+						if (!rail || !window.matchMedia("(max-width: 1024px)").matches) return;
+						var toggle = document.querySelector(".app-rail-toggle");
+						rail.__gogogoOpener = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : toggle;
+						var first = rail.querySelector("a[href], button:not([disabled]), summary");
+						if (first) first.focus();
+					};
+					window.__gogogoDrawerReturn = function () {
+						var rail = document.getElementById("app-rail");
+						var opener = rail && rail.__gogogoOpener;
+						if (opener && opener.isConnected) opener.focus();
+						if (rail) rail.__gogogoOpener = null;
+					};
+					var __gogogoRail = document.getElementById("app-rail");
+					if (__gogogoRail) __gogogoRail.addEventListener("keydown", function (e) {
+						if (e.key !== "Tab") return;
+						var rail = e.currentTarget;
+						if (!rail.classList.contains("is-open")) return;
+						if (!window.matchMedia("(max-width: 1024px)").matches) return;
+						var items = Array.prototype.slice.call(rail.querySelectorAll("a[href], button:not([disabled]), summary"));
+						if (!items.length) return;
+						var first = items[0], last = items[items.length - 1];
+						if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+						else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+					});
+				</script>
+				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false; window.__gogogoDrawerReturn()"></div>
 				<div class="app-main">
 					<header class="app-module-header">
 						<button
@@ -136,7 +177,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							aria-controls="app-rail"
 							data-attr:aria-expanded={ "$railOpen ? 'true' : 'false'" }
 							data-on:click="$railOpen = true">
-							<iconify-icon icon="material-symbols:menu"></iconify-icon>
+							@icon.Icon("material-symbols:menu", "")
 						</button>
 						<div class="app-module-titles">
 							<h1>{ d.HeadingText() }</h1>
@@ -151,7 +192,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									href={ templ.SafeURL(d.DemoHref()) }
 									aria-pressed={ ariaPressed(d.Demo) }
 									title={ demoTitle(d.Demo) }>
-									<iconify-icon icon="material-symbols:layers" class="app-demo-icon"></iconify-icon>
+									@icon.Icon("material-symbols:layers", "app-demo-icon")
 									<span class="app-demo-label">How it works</span>
 								</a>
 							}

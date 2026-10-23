@@ -42,6 +42,16 @@ var vanillaAllow = map[string][]vanillaAllowed{
 	"internal/components/offline_banner.templ": {
 		{`navigator.serviceWorker.addEventListener("message", function (e) {`, "SW postMessage has no Datastar primitive"},
 	},
+	// Drawer focus trap (internal/ui/shell.templ): Datastar owns $railOpen
+	// state and every dismissal path (Escape, backdrop, destination tap), but
+	// no Datastar primitive cycles Tab inside an open drawer or moves focus
+	// across its boundary — the keydown listener plus the open/return globals
+	// (called from data-effect / data-on:*) are the island. The ≤1024px
+	// matchMedia mirrors chrome.css: on desktop the rail is a persistent
+	// sidebar and the trap stays out of the way.
+	"internal/ui/shell.templ": {
+		{`__gogogoRail.addEventListener("keydown", function (e) {`, "Tab-focus trap has no Datastar primitive"},
+	},
 	// Nav link row: ONE <details> serves the inline row and the collapsed
 	// menu, so its `open` state must follow the stylesheet's breakpoint.
 	// Ruled out: data-attr:open driven by a $navOpen signal — the breakpoint

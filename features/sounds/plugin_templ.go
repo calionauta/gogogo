@@ -9,6 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/calionauta/gogogo/web/resources"
+import "github.com/calionauta/gogogo/internal/icon"
 
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
@@ -42,7 +43,7 @@ func SoundAssets() templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("cuelume.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 10, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 11, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -95,7 +96,19 @@ func SoundToggle() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button type=\"button\" class=\"app-sound-toggle\" data-sound-toggle aria-label=\"Toggle sound\" aria-pressed=\"true\" title=\"Mute sounds\"><iconify-icon icon=\"material-symbols:volume-up\" class=\"text-lg sound-toggle-icon icon-sound-on\"></iconify-icon> <iconify-icon icon=\"material-symbols:volume-off\" class=\"text-lg sound-toggle-icon icon-sound-off\"></iconify-icon></button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button type=\"button\" class=\"app-sound-toggle\" data-sound-toggle aria-label=\"Toggle sound\" aria-pressed=\"true\" title=\"Mute sounds\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = icon.Icon("material-symbols:volume-up", "text-lg sound-toggle-icon icon-sound-on").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = icon.Icon("material-symbols:volume-off", "text-lg sound-toggle-icon icon-sound-off").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

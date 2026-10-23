@@ -23,7 +23,7 @@ templ ThemeSelector() {
 						type="button"
 						class="app-theme-item"
 						data-class={ "{'is-active': $theme === '" + t.Name + "'}" }
-						data-on:click={ "$theme = '" + t.Name + "'; localStorage.setItem('themeMode', $theme); Theme.syncIcons($theme)" }>
+						data-on:click={ "$theme = '" + t.Name + "'; localStorage.setItem('themeMode', $theme)" }>
 						{ t.Label }
 					</button>
 				</li>

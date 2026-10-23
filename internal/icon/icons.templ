@@ -1,0 +1,18 @@
+// SCOPE:core — The single icon component every page renders.
+//
+// Icon() is why no template may carry an icon web-component tag: the glyphs are
+// vendored SVG in icons.go, so there is no icon script to forget,
+// no 0x0 flash before it loads, and no second copy in the skin assets.
+//
+// Sizing follows the caller's font size (width/height 1em, fill
+// currentColor), which is what the .app-rail-icon / .theme-toggle-icon /
+// .sound-toggle-icon rules and the Tailwind text-* classes already drive.
+// All icons are decorative (every host button carries its own aria-label or
+// title), so the svg is aria-hidden.
+package icon
+
+// Icon renders one vendored glyph. name is a full "material-symbols:..."
+// key from icons.go; cls is passed through to class= verbatim.
+templ Icon(name string, cls string) {
+	<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class={ cls } aria-hidden="true" focusable="false">@templ.Raw(iconPath(name))</svg>
+}

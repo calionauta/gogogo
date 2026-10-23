@@ -5,6 +5,7 @@ import "strconv"
 import "github.com/calionauta/gogogo/features/notes"
 import "github.com/calionauta/gogogo/features/sounds"
 import "github.com/calionauta/gogogo/internal/components"
+import "github.com/calionauta/gogogo/internal/icon"
 import "github.com/calionauta/gogogo/web/resources"
 import "github.com/calionauta/gogogo/internal/ui"
 
@@ -116,7 +117,7 @@ templ NotesListFragment(notes []NoteMeta) {
 									class="btn btn-ghost btn-sm text-error"
 									title="Delete this note"
 									data-on:click__prevent={ "$confirmNoteId = " + strconv.Quote(n.DocID) + "; $confirmNoteAuthor = " + strconv.Quote(n.Author) + "; document.getElementById('" + notesDialogID + "').showModal()" }>
-									<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>
+									@icon.Icon("material-symbols:delete-outline", "text-base")
 								</button>
 							}
 						</div>

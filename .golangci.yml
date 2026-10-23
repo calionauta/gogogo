@@ -208,6 +208,12 @@ linters:
           - gocyclo
           - dupl
           - lll
+      # internal/icon/icons.go is vendored Iconify glyph data: opaque
+      # single-line path bodies a human never edits by hand. Length checks
+      # are noise there; the catalog's shape is guarded by icons_test.go.
+      - path: internal/icon/icons\.go
+        linters:
+          - lll
       # internal/nats/presence.go uses revive's unused-parameter check but
       # revive has a known false positive with string concatenation — roomID
       # IS used in "room."+roomID+".user."+info.ID but revive doesn't track

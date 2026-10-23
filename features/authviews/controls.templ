@@ -6,18 +6,21 @@
 // particular is a pinned contract (controls_test.go).
 package authviews
 
+import "github.com/calionauta/gogogo/internal/icon"
+
 // ThemeToggle flips $theme and mirrors it to localStorage. The icon pair is
 // CSS-switched (icon-dark-mode / icon-light-mode), so the same markup serves
-// both themes — Theme.syncIcons keeps the pair honest on load.
+// both themes; the [data-theme] rules in app.css own the visibility, and no
+// script touches the icons.
 templ ThemeToggle() {
 	<button
 		type="button"
 		class="app-theme-toggle theme-toggle"
 		aria-label="Toggle theme"
 		title="Toggle light/dark theme"
-		data-on:click="$theme = $theme === 'dark' ? 'light' : 'dark'; Theme.syncIcons($theme); localStorage.setItem('themeMode', $theme)">
-		<iconify-icon icon="material-symbols:dark-mode" class="text-lg theme-toggle-icon icon-dark-mode"></iconify-icon>
-		<iconify-icon icon="material-symbols:light-mode" class="text-lg theme-toggle-icon icon-light-mode"></iconify-icon>
+		data-on:click="$theme = $theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('themeMode', $theme)">
+		@icon.Icon("material-symbols:dark-mode", "text-lg theme-toggle-icon icon-dark-mode")
+		@icon.Icon("material-symbols:light-mode", "text-lg theme-toggle-icon icon-light-mode")
 	</button>
 }
 
