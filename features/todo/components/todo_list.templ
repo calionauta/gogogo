@@ -92,7 +92,7 @@ templ TodoList(signals todo.Signals) {
 									class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
 									data-cuelume-press="droplet"
 									title="Delete your own completed todos (shared rows by others stay)"
-									data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')); break; }">
+									data-on:click="document.getElementById('confirm-clear-completed').showModal()">
 									Clear my completed
 								</button>
 								</div>
@@ -106,6 +106,7 @@ templ TodoList(signals todo.Signals) {
 			</div><!-- /grid -->
 
 			@deleteConfirmModal()
+		@clearCompletedModal()
 		</div>
 
 		<div class="toast toast-end" id="retry-toast" data-show="$loading"></div>
@@ -350,6 +351,34 @@ func safeJSString(s string) string {
 // Confirm. Confirm fires `@post('/api/todos/<id>/delete')` and the
 // broadcaster patches every client. Single modal instance handles
 // every row — far simpler than per-row dialogs.
+// clearCompletedModal asks before a bulk delete. "Clear my completed" posted
+// immediately: one click removed every completed todo in the view, with no undo
+// and no confirmation, while a single-row delete already asked.
+templ clearCompletedModal() {
+	<dialog id="confirm-clear-completed" class="modal">
+		<div class="modal-box">
+			<h3 class="ui-title text-error">Clear completed todos?</h3>
+			<p class="py-4 text-sm">
+				This permanently removes every completed todo in the current view. It can't be undone.
+			</p>
+			<div class="modal-action">
+				<button
+					type="button"
+					class="ui-btn ui-btn-ghost ui-btn-sm"
+					data-on:click="document.getElementById('confirm-clear-completed').close()">
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="ui-btn ui-btn-error ui-btn-sm"
+					data-on:click="document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
+					Clear completed
+				</button>
+			</div>
+		</div>
+	</dialog>
+}
+
 templ deleteConfirmModal() {
 	<dialog id="confirm-delete-modal" class="modal" data-on:close="$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false">
 		<div class="modal-box">

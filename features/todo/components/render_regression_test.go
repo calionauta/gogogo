@@ -127,7 +127,9 @@ func TestRender_MutationURLsPreserveSlice(t *testing.T) {
 			if idx < 0 {
 				continue
 			}
-			window := page[idx : idx+320]
+			// Clamp: an endpoint near the end of the page has less than 320
+			// characters left, and a fixed window panicked instead of asserting.
+			window := page[idx:min(idx+320, len(page))]
 			if !strings.Contains(window, "scope=") {
 				t.Errorf("endpoint %q must carry &scope= (got %.120q…)", endpoint, window)
 			}
