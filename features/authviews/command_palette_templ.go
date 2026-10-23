@@ -51,7 +51,7 @@ func CommandPalette(userRole string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:keydown__window=\"(evt.metaKey || evt.ctrlKey) && evt.key.toLowerCase() === 'k' ? (evt.preventDefault(), document.getElementById('command-palette').showModal()) : null\"><button type=\"button\" class=\"input input-sm w-auto sm:w-36 lg:w-56 justify-start gap-2 cursor-pointer\" title=\"Search — jump to a page (Ctrl/Cmd+K)\" aria-label=\"Open command palette\" data-on:click=\"document.getElementById('command-palette').showModal()\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-50\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z\" clip-rule=\"evenodd\"></path></svg> <span class=\"grow text-left opacity-50 hidden sm:inline\">Search</span> <kbd class=\"kbd kbd-xs hidden lg:inline-flex\">⌘</kbd> <kbd class=\"kbd kbd-xs hidden lg:inline-flex\">K</kbd></button> <dialog id=\"command-palette\" class=\"modal\" data-on:close=\"$cmdQuery = ''\"><div class=\"modal-box overflow-hidden p-0\" style=\"max-width: 36rem\"><div class=\"flex items-center gap-2 border-b border-base-300 px-4 py-3\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-60\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z\" clip-rule=\"evenodd\"></path></svg> <input id=\"command-palette-input\" name=\"q\" class=\"input input-ghost w-full\" type=\"text\" placeholder=\"Jump to a page…\" aria-label=\"Search commands\" role=\"combobox\" aria-controls=\"command-palette-list\" aria-expanded=\"true\" aria-autocomplete=\"list\" data-bind=\"cmdQuery\" autofocus> <kbd class=\"kbd kbd-sm\">esc</kbd></div><ul id=\"command-palette-list\" role=\"listbox\" class=\"menu w-full max-h-96 overflow-y-auto p-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:keydown__window=\"(evt.metaKey || evt.ctrlKey) && evt.key.toLowerCase() === 'k' ? (evt.preventDefault(), document.getElementById('command-palette').showModal()) : null\"><button type=\"button\" class=\"input input-sm w-auto sm:w-36 lg:w-56 justify-start gap-2 cursor-pointer\" title=\"Search — jump to a page (Ctrl/Cmd+K)\" aria-label=\"Open command palette\" data-on:click=\"document.getElementById('command-palette').showModal()\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-50\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z\" clip-rule=\"evenodd\"></path></svg> <span class=\"grow text-left opacity-50 hidden sm:inline\">Search</span> <kbd class=\"kbd kbd-xs hidden sm:inline-flex\">⌘</kbd> <kbd class=\"kbd kbd-xs hidden sm:inline-flex\">K</kbd></button> <dialog id=\"command-palette\" class=\"modal\" data-on:close=\"$cmdQuery = ''\"><div class=\"modal-box overflow-hidden p-0\" style=\"max-width: 36rem\"><div class=\"border-b border-base-300 px-4 py-3\"><label class=\"input input-ghost w-full gap-2\" for=\"command-palette-input\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0 opacity-60\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z\" clip-rule=\"evenodd\"></path></svg> <input id=\"command-palette-input\" name=\"q\" class=\"grow\" type=\"text\" placeholder=\"Jump to a page…\" aria-label=\"Search commands\" role=\"combobox\" aria-controls=\"command-palette-list\" aria-expanded=\"true\" aria-autocomplete=\"list\" data-bind=\"cmdQuery\" autofocus> <kbd class=\"kbd kbd-sm shrink-0\">esc</kbd></label></div><ul id=\"command-palette-list\" role=\"listbox\" class=\"menu w-full max-h-96 overflow-y-auto p-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -125,7 +125,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("$cmdQuery === '' || el.textContent.toLowerCase().includes($cmdQuery.trim().toLowerCase())")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 80, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 82, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -138,7 +138,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var5 templ.SafeURL
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 81, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 83, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -151,7 +151,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 82, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 84, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -164,7 +164,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(hint)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 83, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 85, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {

@@ -17,10 +17,11 @@ func marshalSignals(s todo.Signals) string {
 }
 
 // TodoList is the full application card: search, filter tabs, todo list,
-// AI suggest buttons, a bottom-docked create form, and the clear-completed
-// footer. Filter context sits above the list it narrows; capture sits below
-// it, next to the rows it adds to — the same bottom-composer shape Chat and
-// Ask use.
+// capture form, AI suggest buttons, the todo list, and the clear-completed
+// footer. Filter context sits above the list it narrows; capture sits
+// directly above the rows it adds to, right below the filters — not docked
+// to the viewport bottom. Chat and Ask keep the docked bottom composer;
+// capture here is adjacent to its rows instead.
 //
 // Signal flow (all defined via `data-signals` so they live across patches):
 //   - $newTitle: bound to the title input
@@ -81,11 +82,11 @@ templ TodoList(signals todo.Signals) {
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
-							@TodoListRegion(signals)
+							@createForm(signals)
 
 							@SuggestionsList(signals.Suggestions)
 
-							@createForm(signals)
+							@TodoListRegion(signals)
 
 							if signals.ItemCount > 0 {
 								<div class="flex justify-end items-center mt-4 pt-3 border-t border-base-200">
@@ -114,14 +115,14 @@ templ TodoList(signals todo.Signals) {
 	</div>
 }
 
-// createForm owns the title input + Add button. The submit
-// handler uses `data-on:submit__prevent` to stop the browser from also
-// performing a native GET submit (which previously created extra rows
-// for every create). Buttons disable themselves via Datastar signals so
-// the user can't double-fire.
+// createForm owns the title input + Add button. It sits immediately above
+// the list it adds to (filters above, rows below) — never docked to the
+// viewport bottom: a sticky footer composer made capture feel detached
+// from the rows it creates. Buttons disable themselves via Datastar
+// signals so the user can't double-fire.
 templ createForm(signals todo.Signals) {
 	<form
-		class="w-full sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-1 border-t border-base-200"
+		class="w-full mt-3"
 		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null"
 	>
 		<div class="join w-full">
@@ -130,6 +131,7 @@ templ createForm(signals todo.Signals) {
 				name="title"
 				class="input input-sm join-item grow"
 				placeholder="What needs doing?"
+				aria-label="New todo title"
 				data-bind="newTitle"
 			/>
 			<button
@@ -142,7 +144,7 @@ templ createForm(signals todo.Signals) {
 				</span>
 			</button>
 		</div>
-		<label class="ui-meta flex items-center gap-2 cursor-pointer">
+		<label class="ui-meta mt-2 flex items-center gap-2 cursor-pointer">
 			<input type="checkbox" name="visibility" value="public" class="checkbox checkbox-xs checkbox-info"/>
 			<span>Shared — every login sees this todo (private by default)</span>
 		</label>
