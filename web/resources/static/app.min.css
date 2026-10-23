@@ -7195,9 +7195,6 @@
   .h-12 {
     height: calc(var(--spacing) * 12);
   }
-  .h-auto {
-    height: auto;
-  }
   .h-full {
     height: 100%;
   }
@@ -8000,6 +7997,15 @@
       --spin-my: -2;
     }
     .floating-label:has(.input-sm) {
+      --top-mul: 4;
+      --font-size: 0.75rem;
+    }
+    .select-sm {
+      --sl-size-mul: 8;
+      --font-size-min: 0.75rem;
+      --option-px: 2.5;
+    }
+    .floating-label:has(.select-sm) {
       --top-mul: 4;
       --font-size: 0.75rem;
     }

@@ -440,7 +440,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p><p id=\"room-left\" class=\"alert alert-info text-sm\" role=\"status\" data-show=\"$roomLeft\">You left this room: peers no longer list you and the roster actions are hidden. Rejoin puts you back — and so does this tab reconnecting, because presence IS the connection.</p><div class=\"ui-row justify-end mt-2 flex-wrap\"><button id=\"room-acquire\" class=\"ui-btn ui-btn-primary\" type=\"button\" data-show=\"$roomLeft !== true && $roomHolder === ''\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p><p id=\"room-left\" class=\"alert alert-info text-sm\" role=\"status\" data-show=\"$roomLeft\">You left this room: peers no longer list you and the roster actions are hidden. Rejoin puts you back — and so does this tab reconnecting, because presence IS the connection.</p><div class=\"ui-row justify-end mt-2 flex-wrap\"><button id=\"room-acquire\" class=\"btn btn-primary\" type=\"button\" data-show=\"$roomLeft !== true && $roomHolder === ''\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -453,7 +453,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Take presenter</button> <button id=\"room-release\" class=\"ui-btn ui-btn-ghost\" type=\"button\" data-show=\"$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">Take presenter</button> <button id=\"room-release\" class=\"btn btn-ghost\" type=\"button\" data-show=\"$roomLeft !== true && $roomMe !== '' && $roomMe === $roomHolder\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -466,7 +466,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\">Release</button> <button id=\"room-leave\" class=\"ui-btn ui-btn-ghost\" type=\"button\" data-show=\"$roomLeft !== true\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\">Release</button> <button id=\"room-leave\" class=\"btn btn-ghost\" type=\"button\" data-show=\"$roomLeft !== true\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -479,7 +479,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\">Leave</button> <button id=\"room-rejoin\" class=\"ui-btn ui-btn-primary\" type=\"button\" data-show=\"$roomLeft === true\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\">Leave</button> <button id=\"room-rejoin\" class=\"btn btn-primary\" type=\"button\" data-show=\"$roomLeft === true\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -492,7 +492,7 @@ func RoomCardContent(roomID string, roster appgoakt.Roster, email string) templ.
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\">Rejoin</button> <button id=\"room-crash\" class=\"ui-btn ui-btn-error\" type=\"button\" data-show=\"$roomLeft !== true\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\">Rejoin</button> <button id=\"room-crash\" class=\"btn btn-error\" type=\"button\" data-show=\"$roomLeft !== true\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

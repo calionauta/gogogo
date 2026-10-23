@@ -139,7 +139,7 @@ templ WhiteboardListFragment(boards []BoardMeta) {
 templ deleteBoardButton(docID string, author string) {
 	<button
 		type="button"
-		class="ui-btn ui-btn-ghost ui-btn-sm text-error"
+		class="btn btn-ghost btn-sm text-error"
 		title="Delete this whiteboard"
 		data-on:click__prevent={ "$confirmBoardId = " + strconv.Quote(docID) + "; $confirmBoardAuthor = " + strconv.Quote(author) + "; document.getElementById('" + boardDialogID + "').showModal()" }>
 		<iconify-icon icon="material-symbols:delete-outline" class="text-base"></iconify-icon>

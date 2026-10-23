@@ -35,7 +35,7 @@ templ LoginPage(next string, errMsg string, skinName string) {
 					</p>
 
 					if errMsg != "" {
-						<div role="alert" class="ui-callout ui-callout-error mb-4">
+						<div role="alert" class="alert alert-error mb-4">
 							<span>{ errMsg }</span>
 						</div>
 					}
@@ -50,7 +50,7 @@ templ LoginPage(next string, errMsg string, skinName string) {
 								type="email"
 								name="email"
 								value="demo1@demo.app"
-								class="ui-field"
+								class="input input-sm"
 								required
 								autocomplete="email"
 							/>
@@ -64,13 +64,13 @@ templ LoginPage(next string, errMsg string, skinName string) {
 								type="password"
 								name="password"
 								value="demo1234456"
-								class="ui-field"
+								class="input input-sm"
 								required
 								autocomplete="current-password"
 							/>
 						</label>
 
-						<button type="submit" class="ui-btn ui-btn-primary w-full">
+						<button type="submit" class="btn btn-primary w-full">
 							Sign in
 						</button>
 

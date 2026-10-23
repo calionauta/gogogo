@@ -52,7 +52,7 @@ templ TodoList(signals todo.Signals) {
 						<div class="ui-card-head">
 
 							<h2 class="ui-title">Tasks</h2>
-							<span class="ui-badge" data-text="$itemCount + ' items'"></span>
+							<span class="badge badge-sm" data-text="$itemCount + ' items'"></span>
 						</div>
 						<div class="ui-card-body ui-stack">
 
@@ -81,7 +81,7 @@ templ TodoList(signals todo.Signals) {
 							@createdFilter()
 							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
-								<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
+								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
 							@TodoListRegion(signals)
 
@@ -127,13 +127,13 @@ templ createForm(signals todo.Signals) {
 			<input
 				type="text"
 				name="title"
-				class="ui-field"
+				class="input input-sm"
 				placeholder="What needs doing?"
 				data-bind="newTitle"
 			/>
 			<button
 				type="submit"
-				class="ui-btn ui-btn-primary"
+				class="btn btn-primary"
 				data-attr:disabled="!!($loading || !$newTitle.trim())">
 				<span class="inline-flex items-center gap-2">
 					Add
@@ -170,7 +170,7 @@ templ searchBox(signals todo.Signals) {
 				<input
 					type="search"
 					name="q"
-					class="ui-field"
+					class="input input-sm"
 					placeholder="Search todos"
 					aria-label="Search todos"
 					value={ signals.SearchQuery }
@@ -179,7 +179,7 @@ templ searchBox(signals todo.Signals) {
 				/>
 				<button
 					type="button"
-					class="ui-btn ui-btn-ghost"
+					class="btn btn-ghost"
 					aria-label="Clear search"
 					data-show="$searchQuery"
 					data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
@@ -211,7 +211,7 @@ templ searchModeSelect(signals todo.Signals) {
 	if len(signals.SearchModes) > 1 {
 		<select
 			name="mode"
-			class="ui-field max-w-[8.5rem]"
+			class="select select-sm max-w-[8.5rem]"
 			aria-label="How the search matches"
 			title="How the search matches"
 			data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
@@ -364,13 +364,13 @@ templ clearCompletedModal() {
 			<div class="modal-action">
 				<button
 					type="button"
-					class="ui-btn ui-btn-ghost ui-btn-sm"
+					class="btn btn-ghost btn-sm"
 					data-on:click="document.getElementById('confirm-clear-completed').close()">
 					Cancel
 				</button>
 				<button
 					type="button"
-					class="ui-btn ui-btn-error ui-btn-sm"
+					class="btn btn-error btn-sm"
 					data-on:click="document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
 					Clear completed
 				</button>
@@ -441,7 +441,7 @@ templ createdFilter() {
 			type="button"
 			id="created-filter-btn"
 			popovertarget="created-filter-popover"
-			class="ui-btn ui-btn-ghost ui-btn-sm gap-2"
+			class="btn btn-ghost btn-sm gap-2"
 			style="anchor-name:--created-filter"
 			aria-label="Filter by creation date"
 		>
@@ -452,7 +452,7 @@ templ createdFilter() {
 		</button>
 		<button
 			type="button"
-			class="ui-btn ui-btn-ghost ui-btn-sm"
+			class="btn btn-ghost btn-sm"
 			data-show="$createdAfter !== ''"
 			data-on:click="$createdAfter = ''; $noMatches = false"
 		>clear</button>
@@ -461,14 +461,14 @@ templ createdFilter() {
 		<p class="ui-meta">Created since</p>
 		<input
 			type="date"
-			class="ui-field mt-1"
+			class="input input-sm mt-1"
 			aria-label="Created since"
 			data-on:change={ `$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }
 		/>
 		<div class="flex flex-wrap gap-1 mt-2">
-			<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ `$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>Today</button>
-			<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>7 days</button>
-			<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>30 days</button>
+			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>Today</button>
+			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>7 days</button>
+			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>30 days</button>
 		</div>
 	</div>
 }
