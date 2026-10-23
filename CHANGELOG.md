@@ -15,6 +15,15 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.56.0 (2026-10-23)
+
+## What's Changed
+* feat(ui): fixed sidebar footer, centered chat/ask composers, todo capture reorder by @calionauta in https://github.com/calionauta/gogogo/pull/262
+* feat(ui): crumb-above-title back nav, true footer composer, conditional data context by @calionauta in https://github.com/calionauta/gogogo/pull/264
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.55.1...v0.56.0
+
 ## 0.55.1 (2026-10-23)
 
 ## What's Changed
