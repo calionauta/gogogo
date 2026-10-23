@@ -25,9 +25,9 @@ type Theme struct {
 // All is the catalog, in picker order. Keep in step with the `themes:` list in
 // src/css/input.css — themes_test.go enforces it.
 var All = []Theme{
-	{Name: "light", Label: "Claro"},
-	{Name: "dark", Label: "Escuro", Dark: true},
-	{Name: "lofi", Label: "Calmo"},
+	{Name: "light", Label: "Light"},
+	{Name: "dark", Label: "Dark", Dark: true},
+	{Name: "lofi", Label: "Calm"},
 	{Name: "dim", Label: "Zinc", Dark: true},
 }
 

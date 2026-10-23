@@ -90,6 +90,11 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						if d.BuildLabel != "" {
 							<span class="app-nav-badge" title={ d.BuildCommit + " · built " + d.BuildLabel }>{ d.BuildLabel }</span>
 						}
+						<span class="app-rail-brand-spacer"></span>
+						@authviews.ThemeToggle()
+						if sound != nil {
+							@sound
+						}
 					</div>
 					<nav class="app-rail-nav">
 						for _, group := range Grouped(d.Role) {
@@ -112,18 +117,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						}
 					</nav>
 					<div class="app-rail-foot">
-						<div class="app-rail-controls">
-							@authviews.ThemeToggle()
-							if sound != nil {
-								@sound
-							}
-						</div>
 						@ThemeSelector()
 						if len(d.Stack) > 0 {
-							<details class="app-rail-stack">
-								<summary>{ stackSummary(len(d.Stack)) }</summary>
+							<div class="app-rail-stack-static">
+								<p class="app-rail-section-label">Stack</p>
 								@components.TechStackRows(d.Stack)
-							</details>
+							</div>
 						}
 						@authviews.UserMenu(d.Email, d.Role)
 					</div>
@@ -199,14 +198,17 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						</div>
 						<div class="app-module-actions">
 							if d.Panel != nil {
-								<a
+								<button
+									type="button"
 									class={ templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo}) }
-									href={ templ.SafeURL(d.DemoHref()) }
+									data-class="{'is-on': $panelVisible}"
+									data-attr:aria-pressed="$panelVisible ? 'true' : 'false'"
 									aria-pressed={ ariaPressed(d.Demo) }
-									title={ demoTitle(d.Demo) }>
+									title={ demoTitle(d.Demo) }
+									data-on:click="$panelVisible = !$panelVisible; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">
 									@icon.Icon("material-symbols:layers", "app-demo-icon")
 									<span class="app-demo-label">How it works</span>
-								</a>
+								</button>
 							}
 							@authviews.CommandPalette(d.Role)
 							if actions != nil {
@@ -220,9 +222,17 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						@body
 					</main>
 				</div>
-				if d.Demo && d.Panel != nil {
-					<aside id="state-panel" class="app-state-panel" aria-label="State">
-						<p class="app-state-panel-head">STATE</p>
+				if d.Panel != nil {
+					<aside id="state-panel" class="app-state-panel" aria-label="State" data-signals={ panelVisibilitySignals(d.Demo) } data-show="$panelVisible">
+						<div class="app-state-panel-head-row">
+							<p class="app-state-panel-head">STATE</p>
+							<button
+								type="button"
+								class="btn btn-ghost btn-xs"
+								aria-label="Close panel"
+								title="Close panel"
+								data-on:click="$panelVisible = false; fetch('/_ui/demo?on=0&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">✕</button>
+						</div>
 						@d.Panel
 					</aside>
 				}

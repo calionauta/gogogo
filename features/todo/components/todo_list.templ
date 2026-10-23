@@ -62,23 +62,23 @@ templ TodoList(signals todo.Signals) {
 
 							@SuggestionsList(signals.Suggestions)
 
-							<div class="flex flex-row gap-2 min-w-0">
-								<div class="flex-1">
-									@ui.Segmented("Listing scope", []ui.Segment{
-										{Label: "All", On: ui.TodoScopeOn("all"), Active: "($scope || 'all') === 'all'"},
-										{Label: "Mine", On: ui.TodoScopeOn("mine"), Active: "($scope || 'all') === 'mine'"},
-										{Label: "Shared", On: ui.TodoScopeOn("shared"), Active: "($scope || 'all') === 'shared'"},
-									})
+							<div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Task filters">
+								<div class="tabs tabs-box tabs-sm" role="tablist" aria-label="Status filter">
+									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("all") } data-class="{'tab-active': ($filter || 'all') === 'all'}">All</button>
+									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("active") } data-class="{'tab-active': ($filter || 'all') === 'active'}">Active</button>
+									<button type="button" role="tab" class="tab" data-on:click={ ui.TodoFilterOn("completed") } data-class="{'tab-active': ($filter || 'all') === 'completed'}">Completed</button>
 								</div>
-								<div class="flex-1">
-									@ui.Segmented("Status filter", []ui.Segment{
-										{Label: "All", On: ui.TodoFilterOn("all"), Active: "($filter || 'all') === 'all'"},
-										{Label: "Active", On: ui.TodoFilterOn("active"), Active: "($filter || 'all') === 'active'"},
-										{Label: "Completed", On: ui.TodoFilterOn("completed"), Active: "($filter || 'all') === 'completed'"},
-									})
-								</div>
+								<select
+									class="select select-sm w-28"
+									aria-label="Listing scope"
+									title="Which todos to list"
+									data-on:change="$scope = evt.target.value; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope) + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))">
+									<option value="all" selected?={ signals.Scope == "" || signals.Scope == "all" }>All</option>
+									<option value="mine" selected?={ signals.Scope == "mine" }>Mine</option>
+									<option value="shared" selected?={ signals.Scope == "shared" }>Shared</option>
+								</select>
+								@createdFilter()
 							</div>
-							@createdFilter()
 							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
@@ -86,8 +86,7 @@ templ TodoList(signals todo.Signals) {
 							@TodoListRegion(signals)
 
 							if signals.ItemCount > 0 {
-								<div class="flex justify-between items-center mt-4 pt-3 border-t border-base-200">
-									<span class="text-xs text-base-content/50" data-text="$itemCount + ' items'"></span>
+								<div class="flex justify-end items-center mt-4 pt-3 border-t border-base-200">
 								<button
 									class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
 									data-cuelume-press="droplet"
@@ -123,17 +122,17 @@ templ createForm(signals todo.Signals) {
 		class="w-full mb-4"
 		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null"
 	>
-		<div class="ui-field-group">
+		<div class="join w-full">
 			<input
 				type="text"
 				name="title"
-				class="input input-sm"
+				class="input input-sm join-item grow"
 				placeholder="What needs doing?"
 				data-bind="newTitle"
 			/>
 			<button
 				type="submit"
-				class="btn btn-primary"
+				class="btn btn-primary btn-sm join-item"
 				data-attr:disabled="!!($loading || !$newTitle.trim())">
 				<span class="inline-flex items-center gap-2">
 					Add
@@ -165,27 +164,24 @@ templ searchBox(signals todo.Signals) {
 		<!-- One toolbar line: search, how it matches, and the date filter. The old
 		     layout stacked three rows and explained the match mode in prose under a
 		     select labelled "Match". -->
-		<div class="ui-row items-stretch">
-			<div class="ui-field-group flex-1 min-w-0">
-				<input
-					type="search"
-					name="q"
-					class="input input-sm"
-					placeholder="Search todos"
-					aria-label="Search todos"
-					value={ signals.SearchQuery }
-					data-bind="searchQuery"
-					data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
-				/>
-				<button
-					type="button"
-					class="btn btn-ghost"
-					aria-label="Clear search"
-					data-show="$searchQuery"
-					data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
-			</div>
+		<div class="join w-full">
+			<input
+				type="search"
+				name="q"
+				class="input input-sm join-item grow"
+				placeholder="Search todos"
+				aria-label="Search todos"
+				value={ signals.SearchQuery }
+				data-bind="searchQuery"
+				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
+			/>
+			<button
+				type="button"
+				class="btn btn-ghost btn-sm join-item"
+				aria-label="Clear search"
+				data-show="$searchQuery"
+				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
 			@searchModeSelect(signals)
-			@createdFilter()
 		</div>
 	}
 }
@@ -211,7 +207,7 @@ templ searchModeSelect(signals todo.Signals) {
 	if len(signals.SearchModes) > 1 {
 		<select
 			name="mode"
-			class="select select-sm max-w-[8.5rem]"
+			class="select select-sm join-item max-w-[8.5rem]"
 			aria-label="How the search matches"
 			title="How the search matches"
 			data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
@@ -457,7 +453,7 @@ templ createdFilter() {
 			data-on:click="$createdAfter = ''; $noMatches = false"
 		>clear</button>
 	</div>
-	<div id="created-filter-popover" popover class="app-date-popover">
+	<div id="created-filter-popover" popover class="app-date-popover bg-base-100 text-base-content border border-base-300 rounded-box shadow-lg p-3">
 		<p class="ui-meta">Created since</p>
 		<input
 			type="date"

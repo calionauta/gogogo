@@ -739,28 +739,36 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 });
   }
 
-  // Demo mode: the state panel is opt-in and remembered by a session cookie.
-  // The assertions are the UX decision — product mode has no panel at all, the
-  // toggle docks it, and it survives a reload (which is what the cookie buys,
-  // and what a query param would not).
+  // Demo mode: the state panel is signal-driven and never reloads. The panel
+  // HTML ships with the page; $panelVisible controls visibility, and a
+  // background fetch persists the session cookie so it survives a reload.
   {
     await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
-    if (await page.locator("#state-panel").count()) {
-      fail("demo mode: the state panel is docked by default (product mode must have none)");
+    // Fresh session starts hidden: the node exists (no conditional render),
+    // but Datastar hides it via data-show.
+    if (await page.locator("#state-panel").isVisible()) {
+      fail("demo mode: the state panel is visible by default (product mode must start hidden)");
     }
     const toggle = page.locator(".app-demo-toggle");
-    if (!(await toggle.isVisible())) fail("demo mode: no [ Demo ] toggle in the module header");
-    await Promise.all([page.waitForLoadState("load"), toggle.click()]);
+    if (!(await toggle.isVisible())) fail("demo mode: no How it works toggle in the module header");
+    await toggle.click();
     await page.waitForSelector("#state-panel", { state: "visible", timeout: 5000 });
-    console.log("  ✓ demo mode: the toggle docks the state panel");
+    console.log("  ✓ demo mode: the toggle shows the state panel without a reload");
     await page.reload({ waitUntil: "load" });
     if (!(await page.locator("#state-panel").isVisible())) {
       fail("demo mode: the panel did not survive a reload (the cookie is not being set)");
     }
-    console.log("  ✓ demo mode: the cookie keeps it docked across a reload");
-    await Promise.all([page.waitForLoadState("load"), page.locator(".app-demo-toggle").click()]);
-    await page.waitForSelector("#state-panel", { state: "detached", timeout: 5000 });
-    console.log("  ✓ demo mode: the toggle undocks it again");
+    console.log("  ✓ demo mode: the cookie keeps it visible across a reload");
+    const closeBtn = page.locator("#state-panel button[aria-label='Close panel']");
+    if (!(await closeBtn.isVisible())) fail("demo mode: the panel has no close button");
+    await closeBtn.click();
+    await page.waitForSelector("#state-panel", { state: "hidden", timeout: 5000 });
+    console.log("  ✓ demo mode: the close button hides the panel without a reload");
+    await page.locator(".app-demo-toggle").click();
+    await page.waitForSelector("#state-panel", { state: "visible", timeout: 5000 });
+    await page.locator(".app-demo-toggle").click();
+    await page.waitForSelector("#state-panel", { state: "hidden", timeout: 5000 });
+    console.log("  ✓ demo mode: the toggle hides it again");
   }
 
   // Every module page offers the panel: the machinery is a property of the
@@ -769,7 +777,7 @@ try {
   for (const route of ["/todo", "/chat", "/genui", "/review"]) {
     await page.goto(BASE + route, { waitUntil: "load", timeout: 20000 });
     if (!(await page.locator(".app-demo-toggle").isVisible())) {
-      fail(`demo mode: ${route} has no [ Demo ] toggle (did it stop passing a Panel?)`);
+      fail(`demo mode: ${route} has no How it works toggle (did it stop passing a Panel?)`);
     }
   }
   console.log("  ✓ demo mode: every module page offers the panel");

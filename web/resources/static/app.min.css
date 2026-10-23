@@ -6358,6 +6358,29 @@
     .textarea:has( > textarea[disabled]) > textarea[disabled] {
       cursor: not-allowed;
     }
+    .btn-active {
+      --btn-bg: var(--btn-color, var(--color-base-200));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .btn-active {
+        --btn-bg: color-mix(in oklab, var(--btn-color, var(--color-base-200)), #000 5%);
+      }
+    }
+    .btn-active {
+      color: var(--btn-fg, var(--color-base-content));
+      --btn-border: var(--btn-color, var(--color-base-200));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .btn-active {
+        --btn-border: color-mix(in oklab, var(--btn-color, var(--color-base-200)), #000 7%);
+      }
+    }
+    .btn-active {
+      --btn-border-style: solid;
+      --btn-inset: 0 0 0 0 oklch(0% 0 0/0);
+      --btn-shadow: 0 0 0 0 oklch(0% 0 0/0);
+      isolation: isolate;
+    }
   }
   @layer daisyui.l1.l2.l3 {
     .stack {
@@ -6860,6 +6883,33 @@
         border-inline-start: var(--border) solid color-mix(in oklab, currentColor 10%, #0000);
       }
     }
+  }
+  .join-item {
+    @layer daisyui.l1.l2.l3.l4 {
+       > * {
+        --join-ss: initial;
+        --join-se: initial;
+        --join-es: initial;
+        --join-ee: initial;
+      }
+    }
+    border-style: solid;
+    border-width: var(--border, 1px);
+    border-start-start-radius: var(--join-ss);
+    border-start-end-radius: var(--join-se);
+    border-end-start-radius: var(--join-es);
+    border-end-end-radius: var(--join-ee);
+    &:not(:disabled, [disabled], .btn-disabled) {
+      margin-inline-start: var(--join-ml, 0);
+      margin-block-start: var(--join-mt, 0);
+    }
+    &:is(:disabled, [disabled], .btn-disabled) {
+      border-width: var(--border, 1px);
+      border-inline-end-width: calc(var(--border, 1px) * var(--join-v));
+      border-block-end-width: calc(var(--border, 1px) * var(--join-h));
+    }
+  }
+  @layer daisyui.l1.l2.l3 {
     .modal-action {
       margin-top: calc(0.25rem * 6);
       display: flex;
@@ -7248,6 +7298,12 @@
   .w-16 {
     width: calc(var(--spacing) * 16);
   }
+  .w-28 {
+    width: calc(var(--spacing) * 28);
+  }
+  .w-auto {
+    width: auto;
+  }
   .w-full {
     width: 100%;
   }
@@ -7352,9 +7408,6 @@
   .items-start {
     align-items: flex-start;
   }
-  .items-stretch {
-    align-items: stretch;
-  }
   .justify-between {
     justify-content: space-between;
   }
@@ -7363,6 +7416,9 @@
   }
   .justify-end {
     justify-content: flex-end;
+  }
+  .justify-start {
+    justify-content: flex-start;
   }
   .gap-1 {
     gap: var(--spacing);
@@ -7590,6 +7646,12 @@
   .bg-base-100 {
     background-color: var(--color-base-100);
   }
+  .bg-base-100\/95 {
+    background-color: var(--color-base-100);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-base-100) 95%, transparent);
+    }
+  }
   .bg-base-200 {
     background-color: var(--color-base-200);
   }
@@ -7763,6 +7825,14 @@
     line-height: var(--tw-leading, var(--text-xs--line-height));
   }
   @layer daisyui.l1.l2 {
+    .tabs-sm {
+      --tab-height: calc(var(--size-field, 0.25rem) * 8);
+    }
+    .tabs-sm > .tab {
+      font-size: 0.875rem;
+      --tab-p: 0.5rem;
+      --tab-radius-min: calc(0.5rem - var(--border));
+    }
     .badge-sm {
       --size: calc(var(--size-selector, 0.25rem) * 5);
       font-size: 0.75rem;
@@ -7960,6 +8030,11 @@
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
+  .backdrop-blur {
+    --tw-backdrop-blur: blur(8px);
+    -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
+    backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,) var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,) var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,) var(--tw-backdrop-sepia,);
+  }
   .transition {
     transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
@@ -8143,6 +8218,9 @@
     .sm\:inline {
       display: inline;
     }
+    .sm\:w-36 {
+      width: calc(var(--spacing) * 36);
+    }
     .sm\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -8151,9 +8229,6 @@
     }
   }
   @media (width >= 48rem) {
-    .md\:inline {
-      display: inline;
-    }
     .md\:table-cell {
       display: table-cell;
     }
@@ -8162,8 +8237,11 @@
     .lg\:col-span-3 {
       grid-column: span 3 / span 3;
     }
-    .lg\:inline {
-      display: inline;
+    .lg\:inline-flex {
+      display: inline-flex;
+    }
+    .lg\:w-56 {
+      width: calc(var(--spacing) * 56);
     }
   }
   .animate-in {
@@ -8718,6 +8796,42 @@
   syntax: "*";
   inherits: false;
 }
+@property --tw-backdrop-blur {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-brightness {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-contrast {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-grayscale {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-hue-rotate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-invert {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-opacity {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-saturate {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-backdrop-sepia {
+  syntax: "*";
+  inherits: false;
+}
 @property --tw-duration {
   syntax: "*";
   inherits: false;
@@ -8782,6 +8896,15 @@
       --tw-drop-shadow-color: initial;
       --tw-drop-shadow-alpha: 100%;
       --tw-drop-shadow-size: initial;
+      --tw-backdrop-blur: initial;
+      --tw-backdrop-brightness: initial;
+      --tw-backdrop-contrast: initial;
+      --tw-backdrop-grayscale: initial;
+      --tw-backdrop-hue-rotate: initial;
+      --tw-backdrop-invert: initial;
+      --tw-backdrop-opacity: initial;
+      --tw-backdrop-saturate: initial;
+      --tw-backdrop-sepia: initial;
       --tw-duration: initial;
       --tw-ease: initial;
       --tw-scale-x: 1;

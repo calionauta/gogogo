@@ -1,8 +1,8 @@
 // SCOPE:core — Small render helpers for the shell.
 //
 // Templ cannot branch inside an attribute list or a short expression, so the
-// two values the shell computes rather than embeds live here: the count badge
-// (capped) and the stack key's summary line.
+// values the shell computes rather than embeds live here: the count badge
+// (capped), the stack section label, and the panel visibility seed.
 package ui
 
 import "strconv"
@@ -19,9 +19,15 @@ func formatCount(n int) string {
 	return strconv.Itoa(n)
 }
 
-// stackSummary is the collapsed stack key's label: "stack 7".
-func stackSummary(n int) string {
-	return "stack " + strconv.Itoa(n)
+// panelVisibilitySignals seeds the client-side visibility signal for the
+// state panel. The server decides the initial value from the demo cookie;
+// all later flips are signal-only (toggle/close persist via fetch, no
+// navigation, no flash).
+func panelVisibilitySignals(demo bool) string {
+	if demo {
+		return `{"panelVisible":true}`
+	}
+	return `{"panelVisible":false}`
 }
 
 // activeCurrent returns aria-current's value for a nav item, or "" when it is

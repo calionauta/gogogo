@@ -185,7 +185,7 @@ func chatBody(msgs []store.MessageView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><form id=\"chat-composer\" class=\"sticky bottom-0 pb-2\" data-on:submit__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><form id=\"chat-composer\" class=\"sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-2 border-t border-base-200\" data-on:submit__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -198,7 +198,7 @@ func chatBody(msgs []store.MessageView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed \\u2014 check your connection and try again.') : null\" data-cuelume=\"send\"><label for=\"chat-prompt\" class=\"sr-only\">Message</label><div class=\"ui-field-group\"><input id=\"chat-prompt\" name=\"prompt\" data-bind=\"chatPrompt\" type=\"text\" required minlength=\"1\" maxlength=\"2000\" autocomplete=\"off\" placeholder=\"Ask anything\" class=\"input input-sm\"> <button type=\"submit\" class=\"btn btn-primary\" data-attr:disabled=\"!!$chat_thinking\"><span data-show=\"!$chat_thinking\">Send</span> <span data-show=\"$chat_thinking\" class=\"loading loading-spinner loading-xs\" aria-hidden=\"true\"></span></button></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:datastar-fetch=\"evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed \\u2014 check your connection and try again.') : null\" data-cuelume=\"send\"><label for=\"chat-prompt\" class=\"sr-only\">Message</label><div class=\"join w-full\"><input id=\"chat-prompt\" name=\"prompt\" data-bind=\"chatPrompt\" type=\"text\" required minlength=\"1\" maxlength=\"2000\" autocomplete=\"off\" placeholder=\"Ask anything\" class=\"input input-sm join-item grow\"> <button type=\"submit\" class=\"btn btn-primary btn-sm join-item\" data-attr:disabled=\"!!$chat_thinking\"><span data-show=\"!$chat_thinking\">Send</span> <span data-show=\"$chat_thinking\" class=\"loading loading-spinner loading-xs\" aria-hidden=\"true\"></span></button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

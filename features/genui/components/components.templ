@@ -63,14 +63,19 @@ func genuiStack() []components.TechItem {
 
 // genuiBody is the work area: the ask form, the answer region, the opener.
 templ genuiBody() {
-	<div class="ui-page ui-page-narrow ui-stack">
-				<form
+	<div class="ui-page ui-page-narrow flex min-h-[calc(100vh-9rem)] flex-col gap-4">
+			<div class="flex-1">
+				<h2 class="text-lg font-semibold mb-2">Answer</h2>
+				@GenuiResult(nil, "", false)
+			</div>
+			<form
 					id="genui-ask-form"
+					class="sticky bottom-0 bg-base-100/95 backdrop-blur pt-2 pb-2 border-t border-base-200"
 					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; var sent = $genuiPrompt; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($genuiPrompt === sent) $genuiPrompt = ''; }).catch(() => { $genui_pending = false; })" }
 					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null"
 				>
 					<label for="genui-prompt" class="sr-only">What should the assistant shape for you?</label>
-					<div class="ui-field-group">
+					<div class="join w-full">
 						<input
 							id="genui-prompt"
 							name="prompt"
@@ -81,21 +86,19 @@ templ genuiBody() {
 							maxlength="500"
 							autocomplete="off"
 							placeholder="Plan my day from my todos"
-							class="input input-sm"
+							class="input input-sm join-item grow"
 						/>
 						<button
 							type="submit"
-							class="btn btn-primary"
+							class="btn btn-primary btn-sm join-item"
 							data-attr:disabled="!!$genui_pending"
 						>
 							<span data-show="!$genui_pending">Ask</span>
 							<span data-show="$genui_pending" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 						</button>
 					</div>
-					<p class="ui-meta mt-2" data-show="$genui_pending" role="status">Streaming the answer below</p>
+					<p class="ui-meta mt-2" data-show="$genui_pending" role="status">Streaming the answer above</p>
 				</form>
-				<h2 class="text-lg font-semibold mt-8 mb-2">Answer</h2>
-				@GenuiResult(nil, "", false)
 		<div class="mt-6">
 			@components.StreamOpener("genui-stream-opener", "/api/genui/stream", false)
 		</div>
