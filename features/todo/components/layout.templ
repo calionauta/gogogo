@@ -10,6 +10,9 @@
 package components
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
@@ -22,7 +25,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 	@ui.Shell(ui.Data{
 		Title:       title,
 		Module:      "todo",
-		Context:     todoContext(signals),
+		Context:     todoContext(signals, offlineSync),
 		Email:       userEmail,
 		Role:        userRole,
 		BuildLabel:  buildLabel,
@@ -35,10 +38,18 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 	}, todoHead(), todoSound(), TodoPresence(signals), todoBody(signals))
 }
 
-// todoContext is the header's context slot: the two storage facts the demo
-// reports on every module (which store, and whether the outbox is live).
-func todoContext(signals todo.Signals) string {
-	return signals.StoreLabel + " · " + signals.OfflineLabel
+// todoContext is the header's context slot: four short facts, one line. It
+// used to concatenate StoreLabel and OfflineLabel, and OfflineLabel is a
+// sentence ("Turso + NATS_ENABLED=true — SW queues browser mutations ..."), so
+// the header rendered a paragraph. The slot is for state, not prose: the same
+// facts in the same shape every module uses.
+func todoContext(signals todo.Signals, offlineSync bool) string {
+	parts := []string{"turso"}
+	if offlineSync {
+		parts = append(parts, "outbox on")
+	}
+	parts = append(parts, strconv.Itoa(signals.ConnectedClients)+" online", "SSE")
+	return strings.Join(parts, " · ")
 }
 
 // todoStack is the stack this page demonstrates, in disclosure order. The
@@ -123,7 +134,9 @@ templ todoSound() {
 
 // todoBody is the page itself plus the two stream scripts the list listens on.
 templ todoBody(signals todo.Signals) {
-	@TodoList(signals)
+	<div class="ui-page">
+		@TodoList(signals)
+	</div>
 	@components.StreamOpener("sse-opener", "/api/todos/stream", false)
 	@RealtimeRecords()
 }

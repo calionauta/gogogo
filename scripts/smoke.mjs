@@ -200,7 +200,8 @@ async function verifyTodoSearch(page) {
   await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
 
   for (const title of [marker, other]) {
-    const input = page.getByPlaceholder("Add a new todo...");
+    // The composer's copy is UI, not contract: match either wording.
+    const input = page.getByPlaceholder(/what needs doing|add a new todo/i);
     // The previous create's response no longer writes $newTitle (the box owns
     // it and clears itself on success), so two creates no longer race. The
     // clear is still worth doing: it makes each iteration start from a known
@@ -288,7 +289,7 @@ async function verifyOfflineTodoQueue(page, context) {
       document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
     );
 
-    const titleInput = page.getByPlaceholder("Add a new todo...");
+    const titleInput = page.getByPlaceholder(/what needs doing|add a new todo/i);
     const addButton = page.getByRole("button", { name: "Add" });
     await titleInput.fill(title);
     // Submit via Enter on the input: clicking the Add button does not always
@@ -474,7 +475,7 @@ async function verifyOfflineUx(page, context) {
 
     // 3) offline navigation to a visited page is served from the SW cache.
     await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
-    await page.getByPlaceholder("Add a new todo...").waitFor({ state: "visible", timeout: 15000 });
+    await page.getByPlaceholder(/what needs doing|add a new todo/i).waitFor({ state: "visible", timeout: 15000 });
     console.log("  ✓ offline navigation served the cached todo page");
 
     // 4) logout form must wire the clear-pages purge message. The form

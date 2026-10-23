@@ -48,13 +48,13 @@ templ TodoList(signals todo.Signals) {
 
 				<!-- ──────────── LEFT: TODO LIST (3/5) ──────────── -->
 				<div class="lg:col-span-3 space-y-5">
-					<div class="card bg-base-100 shadow-md transition-shadow hover:shadow-lg duration-300">
-						<div class="card-body p-5">
+					<div class="ui-card">
+						<div class="ui-card-head">
 
-							<h2 class="card-title text-lg mb-1">
-								Tasks
-								<span class="badge badge-ghost badge-sm" data-text="$itemCount + ' items'"></span>
-							</h2>
+							<h2 class="ui-title">Tasks</h2>
+							<span class="ui-badge" data-text="$itemCount + ' items'"></span>
+						</div>
+						<div class="ui-card-body ui-stack">
 
 							@createForm(signals)
 
@@ -62,20 +62,26 @@ templ TodoList(signals todo.Signals) {
 
 							@SuggestionsList(signals.Suggestions)
 
-							@ui.Segmented("Listing scope", []ui.Segment{
-								{Label: "All", On: ui.TodoScopeOn("all"), Active: "($scope || 'all') === 'all'"},
-								{Label: "Mine", On: ui.TodoScopeOn("mine"), Active: "($scope || 'all') === 'mine'"},
-								{Label: "Shared", On: ui.TodoScopeOn("shared"), Active: "($scope || 'all') === 'shared'"},
-							})
-							@ui.Segmented("Status filter", []ui.Segment{
-								{Label: "All", On: ui.TodoFilterOn("all"), Active: "($filter || 'all') === 'all'"},
-								{Label: "Active", On: ui.TodoFilterOn("active"), Active: "($filter || 'all') === 'active'"},
-								{Label: "Completed", On: ui.TodoFilterOn("completed"), Active: "($filter || 'all') === 'completed'"},
-							})
+							<div class="flex flex-col gap-2 sm:flex-row">
+								<div class="flex-1">
+									@ui.Segmented("Listing scope", []ui.Segment{
+										{Label: "All", On: ui.TodoScopeOn("all"), Active: "($scope || 'all') === 'all'"},
+										{Label: "Mine", On: ui.TodoScopeOn("mine"), Active: "($scope || 'all') === 'mine'"},
+										{Label: "Shared", On: ui.TodoScopeOn("shared"), Active: "($scope || 'all') === 'shared'"},
+									})
+								</div>
+								<div class="flex-1">
+									@ui.Segmented("Status filter", []ui.Segment{
+										{Label: "All", On: ui.TodoFilterOn("all"), Active: "($filter || 'all') === 'all'"},
+										{Label: "Active", On: ui.TodoFilterOn("active"), Active: "($filter || 'all') === 'active'"},
+										{Label: "Completed", On: ui.TodoFilterOn("completed"), Active: "($filter || 'all') === 'completed'"},
+									})
+								</div>
+							</div>
 							@createdFilter()
 							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
-								<button type="button" class="btn btn-ghost btn-xs" data-on:click={ "$permDenied = false" }>dismiss</button>
+								<button type="button" class="ui-btn ui-btn-ghost ui-btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
 							</div>
 							@TodoListRegion(signals)
 
@@ -116,28 +122,25 @@ templ createForm(signals todo.Signals) {
 		class="w-full mb-4"
 		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null"
 	>
-		<div class="join w-full">
-		<input
-			type="text"
-			name="title"
-			class="input join-item flex-1 input-sm sm:input-md"
-			placeholder="Add a new todo..."
-			data-bind="newTitle"
-		/>
-		<button
-			type="submit"
-			class="btn btn-primary join-item btn-sm sm:btn-md"
-			data-attr:disabled="!!($loading || !$newTitle.trim())">
-			<span class="inline-flex items-center gap-2">
-				<span class="hidden sm:inline">Add</span>
-				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:hidden" viewBox="0 0 20 20" fill="currentColor">
-					<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-				</svg>
-				<span class="loading loading-spinner loading-xs" data-show="$loading"></span>
-			</span>
-		</button>
+		<div class="ui-field-group">
+			<input
+				type="text"
+				name="title"
+				class="ui-field"
+				placeholder="What needs doing?"
+				data-bind="newTitle"
+			/>
+			<button
+				type="submit"
+				class="ui-btn ui-btn-primary"
+				data-attr:disabled="!!($loading || !$newTitle.trim())">
+				<span class="inline-flex items-center gap-2">
+					Add
+					<span class="loading loading-spinner loading-xs" data-show="$loading"></span>
+				</span>
+			</button>
 		</div>
-		<label class="flex items-center gap-2 mt-2 text-xs text-base-content/60 cursor-pointer">
+		<label class="ui-meta flex items-center gap-2 cursor-pointer">
 			<input type="checkbox" name="visibility" value="public" class="checkbox checkbox-xs checkbox-info"/>
 			<span>Shared — every login sees this todo (private by default)</span>
 		</label>
@@ -262,14 +265,19 @@ func searchModeHint(mode string) string {
 templ TodoListRegion(signals todo.Signals) {
 	<div class="divide-y divide-base-200" id="todo-list">
 		if len(signals.Todos) == 0 {
-			<div class="py-8 text-center text-base-content/40" id="todo-empty-state">
+			<div class="ui-empty" id="todo-empty-state">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
 				</svg>
-				<p>No todos here yet.</p>
-				if signals.DagNatsEnabled {
-					<p class="text-xs mt-1">Add one above to get started, or click "Run durable workflow" in the sidebar to auto-create examples.</p>
-				}
+				<p class="ui-empty-title">No todos here yet.</p>
+				<p class="ui-empty-body">
+					Add one above to get started.
+					if signals.DagNatsEnabled {
+						Or open Demo mode and use Run durable workflow to create examples.
+					} else {
+						The queue and AI suggestions live in Demo mode.
+					}
+				</p>
 			</div>
 		}
 		for _, item := range signals.Todos {
@@ -406,7 +414,7 @@ templ createdFilter() {
 			type="button"
 			id="created-filter-btn"
 			popovertarget="created-filter-popover"
-			class="btn btn-outline btn-sm gap-2"
+			class="ui-btn ui-btn-ghost ui-btn-sm gap-2"
 			style="anchor-name:--created-filter"
 			aria-label="Filter by creation date"
 		>
@@ -417,7 +425,7 @@ templ createdFilter() {
 		</button>
 		<button
 			type="button"
-			class="btn btn-ghost btn-xs"
+			class="ui-btn ui-btn-ghost ui-btn-sm"
 			data-show="$createdAfter !== ''"
 			data-on:click="$createdAfter = ''; $noMatches = false"
 		>clear</button>
