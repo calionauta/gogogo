@@ -238,7 +238,7 @@ func ChatList(msgs []store.MessageView, errMsg string) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div id=\"chat-messages\" class=\"flex flex-col gap-3\" aria-live=\"polite\"><div id=\"chat-empty\" data-show=\"$chat_empty\" class=\"rounded-lg border border-dashed border-base-300 p-6 text-center\"><p class=\"font-semibold\">Ask anything — answers stream below</p><p class=\"text-sm text-base-content/60 mt-1\">History persists per account; each answer is markup the model invented for that question.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div id=\"chat-messages\" class=\"flex flex-col gap-3 pb-28\" aria-live=\"polite\"><div id=\"chat-empty\" data-show=\"$chat_empty\" class=\"rounded-lg border border-dashed border-base-300 p-6 text-center\"><p class=\"font-semibold\">Ask anything — answers stream below</p><p class=\"text-sm text-base-content/60 mt-1\">History persists per account; each answer is markup the model invented for that question.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

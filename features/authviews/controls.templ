@@ -39,13 +39,16 @@ templ UserMenu(userEmail string, userRole string) {
 			Sign in
 		</a>
 	} else {
-		<div class="app-dropdown">
-			<div tabindex="0" role="button" class="app-dropdown-trigger">
+		<details class="app-dropdown">
+			<summary class="app-dropdown-trigger" title="Account">
 				<svg xmlns="http://www.w3.org/2000/svg" class="app-user-icon" viewBox="0 0 20 20" fill="currentColor">
 					<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
 				</svg>
 				<span class="app-user-email">{ userEmail }</span>
-			</div>
+				if userRole != "" {
+					<span class="ui-badge app-user-role">{ userRole }</span>
+				}
+			</summary>
 			<ul class="app-dropdown-menu">
 				<li class="app-menu-title">
 					<span>Signed in as</span>
@@ -87,6 +90,6 @@ templ UserMenu(userEmail string, userRole string) {
 					</form>
 				</li>
 			</ul>
-		</div>
+		</details>
 	}
 }

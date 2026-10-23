@@ -110,13 +110,13 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						}
 					</nav>
 					<div class="app-rail-foot">
-						@ThemeSelector()
 						<div class="app-rail-controls">
 							@authviews.ThemeToggle()
 							if sound != nil {
 								@sound
 							}
 						</div>
+						@ThemeSelector()
 						if len(d.Stack) > 0 {
 							<details class="app-rail-stack">
 								<summary>{ stackSummary(len(d.Stack)) }</summary>
@@ -151,7 +151,8 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									href={ templ.SafeURL(d.DemoHref()) }
 									aria-pressed={ ariaPressed(d.Demo) }
 									title={ demoTitle(d.Demo) }>
-									Demo
+									<iconify-icon icon="material-symbols:layers" class="app-demo-icon"></iconify-icon>
+									<span class="app-demo-label">How it works</span>
 								</a>
 							}
 							@authviews.CommandPalette(d.Role)

@@ -13,17 +13,21 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 )
 
-func TestCreatedFilterWiresCallyAndRowDates(t *testing.T) {
+func TestCreatedFilterUsesNativeDateAndRowDates(t *testing.T) {
 	var filter bytes.Buffer
 	if err := createdFilter().Render(context.Background(), &filter); err != nil {
 		t.Fatalf("render filter: %v", err)
 	}
 	got := filter.String()
+	// The popover used to hold a <calendar-date> custom element that nothing
+	// defined, so it opened empty. It is a native date input plus presets now —
+	// the browser's own picker, no script, and it works on every platform.
 	for _, want := range []string{
 		`id="created-filter-btn"`,
 		`popover`,
-		`calendar-date`,
-		`class="cally"`,
+		`type="date"`,
+		`7 days`,
+		`30 days`,
 		`$createdAfter`,
 	} {
 		if !strings.Contains(got, want) {

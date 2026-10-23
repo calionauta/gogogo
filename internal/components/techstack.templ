@@ -44,9 +44,12 @@ templ TechStack(items []TechItem) {
 // there is still exactly one definition of "what each layer does here" (the
 // strings live with the feature, the markup lives here).
 templ TechStackRows(items []TechItem) {
-	<ul style="margin-top:0.25rem;display:grid;gap:0.125rem;">
+	<ul class="app-stack-list">
 		for _, it := range items {
-			<li style="font-size:0.75rem;opacity:0.7;"><strong>{ it.Name }:</strong> { it.Note }</li>
+			<li class="app-stack-row">
+				<span class="app-stack-name">{ it.Name }</span>
+				<span class="app-stack-note">{ it.Note }</span>
+			</li>
 		}
 	</ul>
 }
