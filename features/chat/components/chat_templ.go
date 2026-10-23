@@ -28,7 +28,7 @@ import (
 // stream opener. The demo paragraph and the stack pills that used to sit above
 // the composer are gone from the page — the layers live in the sidebar's stack
 // key, and the header's context slot carries live state instead of prose.
-func ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, skinName string) templ.Component {
+func ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, skinName string, demo bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -60,6 +60,8 @@ func ChatIndex(email string, userRole string, buildLabel string, buildCommit str
 			Skin:        skinName,
 			OfflineSync: true,
 			Signals:     MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}),
+			Demo:        demo,
+			Panel:       ChatStatePanel(len(msgs)),
 			Stack:       chatStack(),
 		}, chatHead(), chatSound(), nil, chatBody(msgs)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
@@ -182,7 +184,7 @@ func chatBody(msgs []store.MessageView) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$chat_thinking = true; $chat_error = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false; })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 77, Col: 327}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 79, Col: 327}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -291,7 +293,7 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 137, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 139, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -311,7 +313,7 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 143, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 145, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -334,7 +336,7 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 149, Col: 33}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 151, Col: 33}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {

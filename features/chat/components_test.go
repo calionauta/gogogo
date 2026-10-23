@@ -24,7 +24,7 @@ func TestChatPageWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	if err := chatcomponents.ChatIndex(
-		"a@b.c", "user", "dev", "", nil, "daisyui",
+		"a@b.c", "user", "dev", "", nil, "daisyui", false,
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}

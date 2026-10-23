@@ -21,7 +21,7 @@ import (
 // The demo paragraph and the stack pills that used to sit above the form are
 // gone from the page: the layers live in the sidebar's stack key, and the
 // header's context slot reports state instead of prose.
-templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit string, skinName string) {
+templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit string, skinName string, demo bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Ask AI — gogogo",
 		Module:      "genui",
@@ -33,6 +33,8 @@ templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit s
 		Skin:        skinName,
 		OfflineSync: true,
 		Signals:     `{"theme":"light","genui_pending":false,"genui_error":""}`,
+		Demo:        demo,
+		Panel:       GenuiStatePanel(),
 		Stack:       genuiStack(),
 	}, genuiHead(), genuiSound(), nil, genuiBody())
 }

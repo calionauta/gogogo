@@ -1,0 +1,53 @@
+// SCOPE:plugin — Review's machinery, shown only in demo mode.
+//
+// This is the one page with real phases, so the panel is the honest place for
+// them: writer → reviewer → judge, driven by $review_phase (the same signal the
+// stream sets), plus the verdict facts. The button stays on the page; the
+// pipeline lives here.
+package components
+
+import (
+	"github.com/calionauta/gogogo/internal/ui"
+)
+
+// ReviewStatePanel renders the three phases and the verdict facts.
+templ ReviewStatePanel(signals Signals) {
+	<div class="app-state-panel-inner space-y-3">
+		<p class="text-xs text-base-content/60">
+			Three passes over one request: a writer drafts, a reviewer critiques, and a
+			judge decides. Each round is a model call, and the phases stream as they
+			happen — the button below the composer only starts it.
+		</p>
+		@ui.StepList([]ui.Step{
+			{
+				Label:  "Writer drafts",
+				Active: "$review_phase === 'writer'",
+				Done:   "$review_phase === 'reviewer' || $review_phase === 'judge' || $review_decision !== ''",
+			},
+			{
+				Label:  "Reviewer critiques",
+				Active: "$review_phase === 'reviewer'",
+				Done:   "$review_phase === 'judge' || $review_decision !== ''",
+			},
+			{
+				Label:  "Judge decides",
+				Active: "$review_phase === 'judge'",
+				Done:   "$review_decision !== ''",
+			},
+		})
+		<ul class="text-xs text-base-content/70 space-y-1">
+			<li>Rounds: <span class="font-mono" data-text="$review_rounds"></span></li>
+			<li>Decision: <span class="font-mono" data-text="$review_decision || '—'"></span></li>
+			<li>Confidence: <span class="font-mono" data-text="$review_confidence || '—'"></span></li>
+			<li>Provider: <span class="font-mono">{ providerLabel(signals) }</span></li>
+		</ul>
+	</div>
+}
+
+// providerLabel says whether this build can run the pipeline at all.
+func providerLabel(signals Signals) string {
+	if signals.ReviewEnabled {
+		return "configured"
+	}
+	return "not configured — the page renders its disabled state"
+}

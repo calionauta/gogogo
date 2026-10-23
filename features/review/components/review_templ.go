@@ -29,7 +29,7 @@ import (
 // The title, the one-line demo sentence and the stack pills that used to open
 // the page are gone: the layers live in the sidebar's stack key, and the
 // header carries state ("writer → critic → judge, N rounds") instead of prose.
-func ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, skinName string) templ.Component {
+func ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, skinName string, demo bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -61,6 +61,8 @@ func ReviewIndex(email string, userRole string, buildLabel string, buildCommit s
 			Skin:        skinName,
 			OfflineSync: true,
 			Signals:     MarshalSignals(signals),
+			Demo:        demo,
+			Panel:       ReviewStatePanel(signals),
 			Stack:       reviewStack(),
 		}, reviewHead(), reviewSound(), nil, reviewBody(signals)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
@@ -184,7 +186,7 @@ func reviewBody(signals Signals) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$review_pending = true; $review_error = ''; @post('/api/review/run', {contentType: 'form'})")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 76, Col: 125}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 78, Col: 125}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -251,7 +253,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(decision)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 138, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 140, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -264,7 +266,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f", confidence))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 139, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 141, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -277,7 +279,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d rounds", rounds))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 140, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 142, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -290,7 +292,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(rationale)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 142, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 144, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -314,7 +316,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(critique)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 150, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 152, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -333,7 +335,7 @@ func ReviewResult(decision string, rationale string, proposal string, critique s
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(proposal)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 154, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 156, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -421,7 +423,7 @@ func ReviewError(message string) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 184, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/review/components/review.templ`, Line: 186, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
