@@ -1,0 +1,61 @@
+name: daisyui-drift
+
+# Keeps the vendored copy of daisyui honest.
+#
+# The DaisyUI component vocabulary this template styles with is NOT written in
+# this repo. It lives upstream at https://daisyui.com/SKILL.md and is vendored
+# into skills/daisyui/ so the UI delegation resolves at all — a skill's
+# references are only reachable as relative paths to a locally installed
+# skill, so a URL-only link could never be read reliably by every host.
+#
+# A vendored copy with no currency check silently becomes a fork: upstream adds
+# components, this repo keeps enforcing the old vocabulary, and the wrapper
+# skill still claims to delegate to "the" library. This workflow is that check.
+#
+# Why scheduled rather than per-push: the finding is "upstream moved", which is
+# not caused by anything in a given push, and the check needs the network. It
+# runs weekly and can be triggered by hand.
+#
+# Note: this workflow does NOT gate CI. A drift finding should not block an
+# unrelated fix. It fails loudly on its own run, which is where a maintainer
+# will see it.
+
+on:
+  schedule:
+    # Thursdays at 09:17 UTC — off the hour so it does not pile onto the
+    # midnight-UTC cron stampede, and off the stelow-drift day (Monday) and
+    # stelow-auto-bump day (Tuesday) so refresh PRs do not collide.
+    - cron: "17 9 * * 4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check vendored daisyui against upstream
+        # --strict: a moved upstream (or a locally edited vendored file) exits
+        # non-zero. The script hashes the vendored bytes against UPSTREAM_SHA
+        # and re-fetches the upstream file to compare.
+        run: bin/check-daisyui-drift.sh --strict
+
+      - name: Summarize the refresh procedure on failure
+        if: failure()
+        run: |
+          {
+            echo "## Vendored daisyui is stale"
+            echo
+            echo "Upstream \`https://daisyui.com/SKILL.md\` has moved past the hash pinned in"
+            echo "\`skills/daisyui/UPSTREAM_SHA\`."
+            echo
+            echo "Refresh it:"
+            echo
+            echo '```bash'
+            echo "scripts/refresh-daisyui.sh"
+            echo "make check-daisyui-drift   # verify"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

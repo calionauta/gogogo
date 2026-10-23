@@ -108,6 +108,16 @@ GENERATED_PREFIXES = (
     "site/sitemap.xml",
 )
 
+# Vendored upstream skills — byte-identical copies pinned by UPSTREAM_SHA and
+# refreshed by script (scripts/refresh-*.sh). Never rewritten or moved here:
+# only skills/gogogo-coding-standards carries the project name and changes
+# with it; skills/daisyui/ and skills/stelow-workflow-coding-standards/ keep
+# their upstream names in every checkout.
+VENDORED_SKILL_PREFIXES = (
+    "skills/daisyui/",
+    "skills/stelow-workflow-coding-standards/",
+)
+
 # Third-party and sibling repos under the same owner that must NEVER be
 # rewritten when --owner changes. `github.com/calionauta/ai-credits` is a real
 # dependency; turning it into `github.com/myorg/ai-credits` breaks the build and
@@ -174,6 +184,8 @@ def path_moves(files: list[str], new_name: str) -> list[tuple[str, str]]:
     prefixes: set[str] = set()
     for rel in files:
         if rel.startswith(GENERATED_PREFIXES):
+            continue
+        if rel.startswith(VENDORED_SKILL_PREFIXES):
             continue
         parts = rel.split("/")
         for i, part in enumerate(parts):
@@ -309,6 +321,9 @@ def main() -> int:
 
     for rel in files:
         if rel == SELF:
+            continue
+        if rel.startswith(VENDORED_SKILL_PREFIXES):
+            skipped_generated += 1
             continue
         if rel.startswith(GENERATED_PREFIXES):
             skipped_generated += 1

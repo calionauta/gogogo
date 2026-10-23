@@ -189,6 +189,14 @@ var adviseRules = []string{
 		"core/plugin/feature to business-language cases, decision pairs " +
 		"(jobs vs workflows, sql rows vs crdt docs), and what has no unit yet " +
 		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
+	"UI work reads the gogogo-ui skill first (skills/gogogo-ui/SKILL.md in " +
+		"the gogogo repo — install: npx skills add calionauta/gogogo): one " +
+		"DaisyUI skin, semantic colors, compiled app.min.css. The component " +
+		"vocabulary is the vendored daisyui skill " +
+		"(skills/daisyui/SKILL.md, byte-identical to " +
+		"https://daisyui.com/SKILL.md and pinned in its UPSTREAM_SHA); the " +
+		"seam is docs/ui-skins.md and the theme catalog is internal/themes. " +
+		"Read both before any .templ/CSS edit.",
 }
 
 // notApplicableHint is the single honest answer for needs nothing in the

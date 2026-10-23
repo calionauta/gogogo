@@ -146,6 +146,17 @@ func repointRenameSymlinks(t *treeFS, root, newName string) error {
 // symlinks - skipping .git. Slash-separated relative paths keep the comparison
 // with the rename rules (written for git) the same on every platform. Walk does
 // not follow symlinks, so a link is reported as a link, never as its target.
+// isVendoredSkill reports whether a slash-separated repo-relative path names
+// a vendored upstream skill (skills/daisyui/, skills/stelow-workflow-
+// coding-standards/). Both are byte-identical pins (UPSTREAM_SHA) refreshed
+// by script: only skills/gogogo-coding-standards carries the project name,
+// so only it moves or rewrites on a rename.
+func isVendoredSkill(rel string) bool {
+	return rel == "skills/daisyui" ||
+		strings.HasPrefix(rel, "skills/daisyui/") ||
+		strings.HasPrefix(rel, "skills/stelow-workflow-coding-standards")
+}
+
 func walkRenameTree(root string, fn func(rel string, info os.FileInfo) error) error {
 	return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -169,6 +180,12 @@ func walkRenameTree(root string, fn func(rel string, info os.FileInfo) error) er
 		// either. Same skip list as the content pass and as
 		// scripts/rename-project.py's GENERATED_PREFIXES, so the two ports stay
 		// interchangeable.
+		if isVendoredSkill(rel) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if rel == "site/docs" || strings.HasPrefix(rel, "site/docs/") {
 			if info.IsDir() {
 				return filepath.SkipDir
@@ -199,6 +216,14 @@ func collectRenameFiles(root string) ([]string, error) {
 			return nil
 		}
 		if rel == "site/llms.txt" || rel == "site/llms-full.txt" || rel == "site/sitemap.xml" {
+			return nil
+		}
+		// Vendored upstream skills are byte-identical pins (UPSTREAM_SHA);
+		// never rewrite them here. Dirs skip the subtree; files skip the write.
+		if isVendoredSkill(filepath.ToSlash(rel)) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if rel == filepath.Join("cmd", "gogogo", "rename.go") {

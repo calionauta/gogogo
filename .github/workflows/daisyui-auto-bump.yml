@@ -1,0 +1,138 @@
+name: daisyui-auto-bump
+
+# Opens (or updates) a PR that refreshes the vendored daisyui copy when
+# upstream has moved.
+#
+# Why a PR and not an auto-commit: the vendored copy is *normative* — the
+# component vocabulary this template styles with lives in it. A silent
+# auto-commit would change the visual language with no human ever reading the
+# diff. A PR keeps the update one click away while making the class change
+# visible, which is the same reasoning behind "human must approve all AGENTS.md
+# changes".
+#
+# This is the third of the three version policies:
+#   1. pin + drift check      — bin/check-daisyui-drift.sh (advisory pre-commit)
+#   2. scheduled detection    — .github/workflows/daisyui-drift.yml (weekly, strict)
+#   3. reviewed auto-bump     — this workflow
+#
+# It is a complement to daisyui-drift.yml, not a replacement: that one FAILS
+# loudly on drift for a maintainer to see, this one PREPARES the fix. Both are
+# off the main CI path, so neither can block an unrelated change.
+
+on:
+  schedule:
+    # Fridays at 09:23 UTC — a day after daisyui-drift.yml, so the drift job has
+    # already reported and this one arrives with the remedy.
+    - cron: "23 9 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Needed so the branch can be pushed back.
+          persist-credentials: true
+
+      - name: Refresh the vendored copy from upstream
+        id: refresh
+        # The script re-fetches https://daisyui.com/SKILL.md with curl — a
+        # single static file, so no clone and no API token are required.
+        run: |
+          set -o pipefail
+          # --dry-run first so a run that changes nothing exits cleanly without
+          # creating a branch. The script exits 0 at the current pin.
+          if scripts/refresh-daisyui.sh --dry-run | grep -q "already current"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already at upstream — nothing to bump."
+            exit 0
+          fi
+          scripts/refresh-daisyui.sh
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "PIN=$(tr -d '[:space:]' < skills/daisyui/UPSTREAM_SHA)" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise the upstream diff
+        if: steps.refresh.outputs.changed == 'true'
+        id: summary
+        run: |
+          {
+            echo "## Refresh vendored daisyui component vocabulary"
+            echo
+            echo "Pinned sha256: \`${{ steps.refresh.outputs.PIN }}\`"
+            echo
+            echo "The component vocabulary in"
+            echo "\`skills/daisyui/\` is **normative** for this"
+            echo "repo — read the diff before merging, since it changes the"
+            echo "classes the template styles with."
+            echo
+            echo '```diff'
+            git --no-pager diff --stat -- skills/daisyui/
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the bump PR
+        if: steps.refresh.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PIN="${{ steps.refresh.outputs.PIN }}"
+          BRANCH="chore/daisyui-bump-${PIN:0:12}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # A fresh branch each time a NEW pin appears, so the PR body always
+          # describes exactly one upstream file. An existing branch for this
+          # pin is reused (the workflow is idempotent across weekly runs).
+          git checkout -B "$BRANCH"
+          git add skills/daisyui
+          if git diff --cached --quiet; then
+            echo "Nothing staged — skipping PR."
+            exit 0
+          fi
+          git commit -F - <<EOF
+          chore(skills): bump vendored daisyui vocabulary to ${PIN:0:12}
+
+          Refreshes skills/daisyui/ from https://daisyui.com/SKILL.md and
+          bumps UPSTREAM_SHA.
+
+          This is the component vocabulary the template styles with, so
+          review the diff rather than merging blind.
+
+          Verified by bin/check-daisyui-drift.sh --strict.
+          EOF
+
+          git push --force-with-lease origin "$BRANCH"
+
+          BODY=$(cat <<EOF
+          Automated refresh of the vendored **daisyui** component vocabulary.
+
+          - **Upstream file:** \`https://daisyui.com/SKILL.md\`
+          - **Files:** \`skills/daisyui/\` (SKILL.md, UPSTREAM_SHA)
+
+          > ⚠️ This copy is **normative**: it is the class vocabulary the
+          > template styles with. Read the diff — it changes the components.
+
+          The refresh ran \`bin/check-daisyui-drift.sh --strict\` and it passed
+          (vendored bytes match the pin; the pin matches upstream).
+
+          Opened by \`.github/workflows/daisyui-auto-bump.yml\`.
+          EOF
+          )
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" --body "$BODY"
+            echo "Updated existing PR for $BRANCH."
+          else
+            gh pr create \
+              --title "chore(skills): bump vendored daisyui vocabulary to ${PIN:0:12}" \
+              --body "$BODY" \
+              --head "$BRANCH" \
+              --base "${GITHUB_REF_NAME}"
+          fi
