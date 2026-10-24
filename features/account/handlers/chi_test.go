@@ -187,7 +187,7 @@ func testTOTP(secret string) string {
 }
 
 func TestAccountRevokeAllRequiresPassword(t *testing.T) {
-	a, _, mux := accountFixture(t)
+	a, q, mux := accountFixture(t)
 	ctx := context.Background()
 	_, first, err := a.Signup(ctx, "sess-proof@example.com", "Correct-horse-99!", "")
 	if err != nil {
@@ -205,8 +205,18 @@ func TestAccountRevokeAllRequiresPassword(t *testing.T) {
 		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 		// #nosec G124 — test-only request cookie.
 		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
-		if _, err := a.Session(req); err != nil {
-			t.Fatalf("%s session revoked without the password: %v", name, err)
+		if _, serr := a.Session(req); serr != nil {
+			t.Fatalf("%s session revoked without the password: %v", name, serr)
 		}
 	}
+	rows, err := q.ListSecurityEvents(ctx, 50)
+	if err != nil {
+		t.Fatalf("events: %v", err)
+	}
+	for _, row := range rows {
+		if row.Event == auth.EventStepUpRejected && row.Reason == "revoke all" {
+			return
+		}
+	}
+	t.Fatalf("failed step-up absent from audit rows: %+v", rows)
 }

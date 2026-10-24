@@ -35,6 +35,8 @@ func (a *Auth) handleRevokeAll(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !a.VerifyUserPassword(r.Context(), user.ID, body.Password) {
+			a.RecordAudit(r.Context(), EventStepUpRejected,
+				"revoke all", user.Email, user.ID, "")
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}

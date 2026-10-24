@@ -217,6 +217,8 @@ func (h *Handler) revokeAll(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.a.HasPassword(r.Context(), sess.User.ID) &&
 		!h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
+		h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
+			"revoke all", sess.User.Email, sess.User.ID, sess.SessionID)
 		h.renderError(w, r, sess, "Password is wrong.")
 		return
 	}

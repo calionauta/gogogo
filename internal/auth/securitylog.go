@@ -63,6 +63,7 @@ const (
 	// filter and the table cannot drift.
 	EventAdminRoleChanged     = "admin role changed"
 	EventAdminSessionsRevoked = "admin sessions revoked"
+	EventStepUpRejected       = "step-up rejected"
 )
 
 // Rejected-attempt reasons. Also stable strings, for the same reason.
