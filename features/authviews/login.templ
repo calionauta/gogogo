@@ -3,21 +3,32 @@ package authviews
 import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/demo"
 )
 
 
 // LoginPage is the standalone /login page (no shell chrome: the user isn't
-// logged in yet). DaisyUI form with the demo credentials prefilled so
-// the user just has to click "Sign in".
+// logged in yet). DaisyUI form; with DEMO_ACCOUNTS_ENABLED the demo pair is
+// prefilled/advertised, otherwise the fields start empty and the demo block
+// is absent.
 //
 // The demo block below (data-demo="demo-accounts") is TEMPLATE DEMO-ONLY:
 // it advertises the seeded demo pair, their roles, and the Casbin
 // exercise. Agents adapting gogogo into their own product must delete
 // every element carrying a data-demo attribute — see
 // docs/scope-taxonomy.md#demo-only-markup.
-templ LoginPage(next string, errMsg string) {
+// demoValue keeps the login form empty when the demo seed is off, so a
+// production deploy never advertises credentials that do not exist.
+func demoValue(on bool, v string) string {
+	if on {
+		return v
+	}
+	return ""
+}
+
+templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string) {
 	<!DOCTYPE html>
-	<html lang="en" { ThemeRootAttrs("")... }>
+	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -39,8 +50,29 @@ templ LoginPage(next string, errMsg string) {
 							<span>{ errMsg }</span>
 						</div>
 					}
+					if notice != "" {
+						<div role="status" class="alert alert-success mb-4">
+							<span>{ notice }</span>
+						</div>
+					}
 
+					if totpUser != "" {
+						<form method="POST" action="/login" class="space-y-4">
+							<input type="hidden" name="intent" value="totp"/>
+							<input type="hidden" name="totp_user" value={ totpUser }/>
+							<input type="hidden" name="next" value={ next }/>
+							<label class="form-control w-full">
+								<div class="label">
+									<span class="label-text">Authenticator code</span>
+								</div>
+								<input type="text" name="totp_code" class="input input-sm" required
+									inputmode="numeric" autocomplete="one-time-code" autofocus/>
+							</label>
+							<button type="submit" class="btn btn-primary w-full">Verify code</button>
+						</form>
+					} else {
 					<form method="POST" action="/login" class="space-y-4">
+						<input type="hidden" name="intent" value="password"/>
 						<input type="hidden" name="next" value={ next }/>
 						<label class="form-control w-full">
 							<div class="label">
@@ -49,7 +81,7 @@ templ LoginPage(next string, errMsg string) {
 							<input
 								type="email"
 								name="email"
-								value="demo1@demo.app"
+								value={ demoValue(demoAccounts, demo.Email) }
 								class="input input-sm"
 								required
 								autocomplete="email"
@@ -63,7 +95,7 @@ templ LoginPage(next string, errMsg string) {
 							<input
 								type="password"
 								name="password"
-								value="demo1234456"
+								value={ demoValue(demoAccounts, demo.Password) }
 								class="input input-sm"
 								required
 								autocomplete="current-password"
@@ -74,10 +106,45 @@ templ LoginPage(next string, errMsg string) {
 							Sign in
 						</button>
 
-						<div class="text-xs text-center text-base-content/40 mt-4">
-							Demo 1 prefilled — click <strong>Sign in</strong> to enter.
-						</div>
+						if demoAccounts {
+							<div class="text-xs text-center text-base-content/40 mt-4">
+								Demo 1 prefilled — click <strong>Sign in</strong> to enter.
+							</div>
+						}
 					</form>
+					}
+					<div class="divider text-xs text-base-content/40">or use email</div>
+					<div class="space-y-2 text-sm">
+						<details>
+							<summary class="cursor-pointer">Email me a sign-in link</summary>
+							<form method="POST" action="/login" class="space-y-2 mt-2">
+								<input type="hidden" name="intent" value="magic"/>
+								<input type="hidden" name="next" value={ next }/>
+								<input type="email" name="email" class="input input-sm w-full" required
+									placeholder="you@example.com" autocomplete="email"/>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">Send link</button>
+							</form>
+						</details>
+						<details>
+							<summary class="cursor-pointer">Forgot password?</summary>
+							<form method="POST" action="/login" class="space-y-2 mt-2">
+								<input type="hidden" name="intent" value="forgot"/>
+								<input type="email" name="email" class="input input-sm w-full" required
+									placeholder="you@example.com" autocomplete="email"/>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">Send reset link</button>
+							</form>
+						</details>
+						<details>
+							<summary class="cursor-pointer">Resend verification email</summary>
+							<form method="POST" action="/login" class="space-y-2 mt-2">
+								<input type="hidden" name="intent" value="verify"/>
+								<input type="email" name="email" class="input input-sm w-full" required
+									placeholder="you@example.com" autocomplete="email"/>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">Send verification</button>
+							</form>
+						</details>
+					</div>
+					if demoAccounts {
 					<div class="divider text-xs text-base-content/40">or be both at once</div>
 					<div data-demo="demo-accounts" class="space-y-3">
 						<div class="grid grid-cols-2 gap-2">
@@ -107,6 +174,7 @@ templ LoginPage(next string, errMsg string) {
 							<p class="mt-1">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p>
 						</details>
 					</div>
+					}
 				</div>
 			</div>
 		</body>

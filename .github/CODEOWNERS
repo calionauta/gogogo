@@ -1,0 +1,5 @@
+# Security-sensitive paths: the owner reviews changes before merge.
+/internal/auth/ @calionauta
+/internal/rbac/ @calionauta
+/features/*/handlers/ @calionauta
+/.github/workflows/ @calionauta

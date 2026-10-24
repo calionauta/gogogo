@@ -22,13 +22,30 @@ services:
     container_name: gogogo
     restart: unless-stopped
     user: "65532:65532"
+    # Defense in depth on top of the non-root user: no capabilities, no
+    # privilege escalation, and a read-only root filesystem. The data volume
+    # and the /tmp tmpfs are the only writable paths the app needs.
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m
     ports:
       - "127.0.0.1:8080:8080"
     environment:
       # Non-secret env (from .env) — defaults baked in but can be overridden
       # in the .env file.
       APP_NAME: ${APP_NAME:-gogogo}
-      APP_URL: ${APP_URL:-https://fullstack.example.com}
+      # Public origin for magic links. Empty = magic links fail closed
+      # rather than trusting the request Host. Set it to the real URL.
+      APP_URL: ${APP_URL:-}
+      # Public demo only: a real deployment leaves both unset (production
+      # defaults are closed). Set SIGNUP_ENABLED=true and
+      # DEMO_ACCOUNTS_ENABLED=true in the service .env to keep the demo pair.
+      # SIGNUP_ENABLED: "true"
+      # DEMO_ACCOUNTS_ENABLED: "true"
       HOST: 0.0.0.0
       PORT: "8080"
       ENVIRONMENT: ${ENVIRONMENT:-production}

@@ -5,6 +5,8 @@ package config
 
 import (
 	"encoding/hex"
+	"log/slog"
+	"net/url"
 	"strings"
 )
 
@@ -51,7 +53,23 @@ func parseProviders(raw string) map[string]string {
 		if !ok || k == "" || v == "" {
 			continue
 		}
+		if !validProviderURL(v) {
+			slog.Warn("config: dropping malformed BYOK provider URL", "provider", k)
+			continue
+		}
 		out[k] = v
 	}
 	return out
+}
+
+// validProviderURL keeps the relay from being configured with a non-HTTP
+// scheme or a URL that cannot be dialed. The value is operator-supplied, so
+// this is a guardrail against typos and file:/unix: shapes, not an SSRF
+// boundary (a localhost provider is a legitimate BYOK choice).
+func validProviderURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil {
+		return false
+	}
+	return u.Scheme == "http" || u.Scheme == "https"
 }

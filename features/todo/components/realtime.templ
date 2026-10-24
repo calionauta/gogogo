@@ -44,7 +44,7 @@ templ RealtimeRecords() {
 // An absent picker (single wired layer, or none) returns "", which the server
 // reads as "use the default".
 templ searchModeScript() {
-	<script>
+	<script nonce={ templ.GetNonce(ctx) }>
 		window.searchModeValue = function () {
 			var sel = document.querySelector('select[name="mode"]');
 			return sel ? sel.value : '';
@@ -63,7 +63,7 @@ templ searchModeScript() {
 // goroutine-equivalent alive in every tab. The script holds only the
 // pure compare-and-click function — Datastar owns the subscription.
 templ DocVersionWatcher() {
-	<script>
+	<script nonce={ templ.GetNonce(ctx) }>
 		// Plain (non-module, non-deferred) script on purpose: data-effect
 		// evaluates at Datastar init, which runs before deferred module
 		// scripts — a module-defined function is not yet defined then and

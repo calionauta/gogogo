@@ -62,7 +62,12 @@ p, anonymous, /api/auth/signup/credential, POST
 p, anonymous, /api/auth/signin/credential, POST
 p, anonymous, /api/auth/signout, POST
 p, anonymous, /api/auth/magic/request, POST
-p, anonymous, /api/auth/magic, GET
+p, anonymous, /api/auth/magic, (GET|POST)
+p, anonymous, /api/auth/verify, GET
+p, anonymous, /api/auth/verify/request, POST
+p, anonymous, /api/auth/password/reset, (GET|POST)
+p, anonymous, /api/auth/password/reset/request, POST
+p, anonymous, /api/security/csp-report, POST
 p, anonymous, /api/auth/totp/login, POST
 p, anonymous, /api/auth/oauth/*, GET
 p, anonymous, /api/session/stream, GET
@@ -71,6 +76,8 @@ p, user, /todo, .*
 p, user, /todo/*, .*
 p, user, /api/todos, .*
 p, user, /api/todos/*, .*
+p, user, /account, .*
+p, user, /account/*, .*
 p, user, /login, (GET|POST)
 p, user, /logout, (GET|POST)
 p, user, /whiteboard, .*
@@ -107,6 +114,8 @@ p, user, /api/auth/*, .*
 p, viewer, /_ui/demo, .*
 p, viewer, /todo, .*
 p, viewer, /todo/*, .*
+p, viewer, /account, .*
+p, viewer, /account/*, .*
 p, viewer, /login, (GET|POST)
 p, viewer, /logout, (GET|POST)
 p, viewer, /api/todos, (GET|POST)
@@ -130,6 +139,7 @@ p, viewer, /, GET
 p, viewer, /api/auth/*, .*
 p, admin, /config, .*
 p, admin, /config/, .*
+p, admin, /config/*, .*
 p, admin, /console, .*
 p, admin, /console/, .*
 p, admin, /console/*, .*

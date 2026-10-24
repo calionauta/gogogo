@@ -28,11 +28,11 @@ being one.
 | **Persistence** | Turso (sqlc) | — |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset |
 | **Landing page** | Templ | — |
-| **Read-only config view** | Templ | — |
+| **Config + admin users** | Templ | — |
 
 ## What each capability does
 
-- **Auth** — Cookie sessions, demo login, per-request user loading.
+- **Auth** — Cookie sessions, demo login, per-request user loading, and the email magic-link / TOTP / password-reset / verification flows on `/login`.
 - **Access control (RBAC)** — Roles on the user row (`admin`, `user`, `viewer`, `anonymous`) with the policy in one Casbin model, enforced before the handler runs. Route+verb in policy; per-record ownership in `canDeleteDoc`/`canDeleteRow`. Embedded policy is the default; `RBAC_POLICY_SOURCE=db` moves it to `casbin_rule`. Coverage is checked by scanning every router, so a new route cannot ship unguarded. Demo accounts ship as admin/viewer. See [RBAC](rbac.md).
 - **Todo app + realtime** — DB actions (create/toggle/delete) stream visibility-scoped via `owner` + `visibility` (private rows to owner tabs, shared rows to every login). Ephemeral signals carry toasts, clients count, AI suggest.
 - **Background jobs + retry** — Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`).
@@ -51,7 +51,7 @@ being one.
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
 - **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
-- **Read-only config view** — Auth-gated `GET /config`: env-decrypted values, masked secrets, runtime constants. Never mutates state.
+- **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, plus user role changes and session revocation.
 
 ## Adding a new feature
 
@@ -83,13 +83,13 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 |---|---|---|
 | Landing page | `/` | Public. Same page for guests and signed-in users |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
+| Account security | `/account` | Auth-gated. Email verification, password change, TOTP enrollment/recovery, session list/revoke |
 | Chat demo | `/chat` | Auth-gated. The one AI demo: conversation + catalog + diagrams + persisted history; keyless demo answers, live model with `GOAI_API_KEY` |
-
 | Review loop | `/review` | Auth-gated. Writer → critic → classifier judge, streamed verdict, discarded. Runs on the `genkit` plugin |
 | Whiteboard | `/whiteboard` | Auth-gated |
 | Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
-| Config view | `/config` | Auth-gated, read-only |
-| DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps |
+| Config view | `/config` | Admin-only runtime view; user role/session actions |
+| DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps; admin + `ADMIN_EMAILS`, closed when the list is empty |
 
 Details in [Admin & Dashboard](admin-dashboard.md).
 

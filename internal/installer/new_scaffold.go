@@ -250,7 +250,7 @@ import (
 // the role for its admin-only links.
 templ Page(userEmail string, userRole string) {
 	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
+	<html lang="en" { authviews.ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

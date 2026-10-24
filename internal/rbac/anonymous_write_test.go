@@ -32,13 +32,18 @@ func TestNoMutatingRouteIsAnonymous(t *testing.T) {
 	// webhook authenticates by signature rather than by session.
 	publicWrites := map[string]bool{
 		// Signed-out by design: each of these must work before a session exists.
-		"/api/auth/signup/credential": true,
-		"/api/auth/signin/credential": true,
-		"/api/auth/magic/request":     true,
-		"/api/auth/totp/login":        true,
-		"/api/auth/signout":           true, // logging out must work with an expired session
-		"/login":                      true, // the credential form itself
-		"/logout":                     true,
+		"/api/auth/signup/credential":      true,
+		"/api/auth/signin/credential":      true,
+		"/api/auth/magic/request":          true,
+		"/api/auth/magic":                  true, // consumes a one-time emailed token
+		"/api/auth/verify/request":         true, // anti-enumeration verification request
+		"/api/auth/password/reset/request": true, // anti-enumeration request
+		"/api/auth/password/reset":         true, // token-authenticated reset
+		"/api/security/csp-report":         true, // browser CSP reports
+		"/api/auth/totp/login":             true,
+		"/api/auth/signout":                true, // logging out must work with an expired session
+		"/login":                           true, // the credential form itself
+		"/logout":                          true,
 	}
 
 	var findings []string
@@ -108,7 +113,7 @@ func TestAnonymousPolicyIsMinimal(t *testing.T) {
 			anon = append(anon, strings.TrimSpace(parts[2]))
 		}
 	}
-	const maxAnonymousObjects = 15
+	const maxAnonymousObjects = 20
 	if len(anon) > maxAnonymousObjects {
 		t.Errorf("the anonymous block has %d objects (max %d): is every one still public by intent?\n%v",
 			len(anon), maxAnonymousObjects, anon)

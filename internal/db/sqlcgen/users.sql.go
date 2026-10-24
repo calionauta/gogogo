@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countAdmins = `-- name: CountAdmins :one
+SELECT count(*) FROM users WHERE role = 'admin'
+`
+
+func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAdmins)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT count(*) FROM users
 `
@@ -23,7 +34,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash, name, created, updated)
 VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, email, password_hash, name, created, updated, totp_secret, totp_verified, role
+RETURNING id, email, password_hash, name, created, updated, totp_secret, totp_verified, role, email_verified_at
 `
 
 type CreateUserParams struct {
@@ -55,13 +66,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.TotpSecret,
 		&i.TotpVerified,
 		&i.Role,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
 
-SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role FROM users WHERE id = ?
+SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role, email_verified_at FROM users WHERE id = ?
 `
 
 // Users: the identity table owned by internal/auth (argon2id hashes).
@@ -78,12 +90,13 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 		&i.TotpSecret,
 		&i.TotpVerified,
 		&i.Role,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role FROM users WHERE email = ?
+SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role, email_verified_at FROM users WHERE email = ?
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -99,8 +112,68 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.TotpSecret,
 		&i.TotpVerified,
 		&i.Role,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, email, role, email_verified_at, totp_verified, created
+FROM users ORDER BY created, id
+`
+
+type ListUsersRow struct {
+	ID              string
+	Email           string
+	Role            string
+	EmailVerifiedAt string
+	TotpVerified    int64
+	Created         string
+}
+
+func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUsersRow{}
+	for rows.Next() {
+		var i ListUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Role,
+			&i.EmailVerifiedAt,
+			&i.TotpVerified,
+			&i.Created,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setEmailVerified = `-- name: SetEmailVerified :exec
+UPDATE users SET email_verified_at = ?, updated = ? WHERE id = ?
+`
+
+type SetEmailVerifiedParams struct {
+	EmailVerifiedAt string
+	Updated         string
+	ID              string
+}
+
+func (q *Queries) SetEmailVerified(ctx context.Context, arg SetEmailVerifiedParams) error {
+	_, err := q.db.ExecContext(ctx, setEmailVerified, arg.EmailVerifiedAt, arg.Updated, arg.ID)
+	return err
 }
 
 const setUserRole = `-- name: SetUserRole :exec

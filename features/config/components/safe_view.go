@@ -59,6 +59,41 @@ type PageData struct {
 	// RBACEnabled mirrors cfg.RBACEnabled: pass-through when false,
 	// enforced denies when true.
 	RBACEnabled bool
+	// Users is the admin-only account table. Empty in BuildPageData; the
+	// handler fills it from the user store.
+	Users       []UserRow
+	Events      []SecurityEventRow
+	EventCounts []SecurityEventCount
+	AuditAlert  string
+	Notice      string
+	Error       string
+}
+
+// UserRow is one row of the admin user table.
+type UserRow struct {
+	ID       string
+	Email    string
+	Role     string
+	Created  string
+	Verified bool
+	TOTP     bool
+}
+
+// SecurityEventRow is one audit row rendered on the admin page.
+type SecurityEventRow struct {
+	Event   string
+	Reason  string
+	Email   string
+	UserID  string
+	ActorID string
+	Created string
+}
+
+// SecurityEventCount is one 24h aggregate.
+type SecurityEventCount struct {
+	Event  string
+	Reason string
+	Count  int64
 }
 
 // Group is a labelled slice of Rows. Order is stable across

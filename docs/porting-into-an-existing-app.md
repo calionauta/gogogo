@@ -48,9 +48,10 @@ The mirror of [Removing a component](scope-taxonomy.md#removing-a-component):
    lists them, because it measured them rather than guessing.
 4. Wire it by hand: mount the handler's router where you want it, add the
    sidebar entry (`internal/ui/modules.go`), and — if the handler reads or writes user data — check the
-   session **in the handler**. That last one is not optional: in gogogo
-   `RBAC_ENABLED` defaults to false, so the policy file decides nothing until
-   an operator opts in, and the handler's own check is the real gate.
+   session **in the handler**. That last one is not optional: gogogo
+   deploys with `RBAC_ENABLED=true` (development starts open), but the policy
+   file only governs routes — the handler's own session/ownership check is the
+   real gate on user data either way.
 5. Prove it with **your** gates: `go build ./...`, then your test suite. The
    template's own tests for the unit assume template fixtures; port the ones
    that assert behaviour you keep, drop the ones that assert the template's

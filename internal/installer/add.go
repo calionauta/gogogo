@@ -222,8 +222,8 @@ func addFollowUps(u trimUnit) []string {
 				"internal/server/chi_test.go now the route is back.")
 	case unitConfigView:
 		out = append(out,
-			"TestBuildChiMux still pins /config as 404: re-assert the 303 "+
-				"auth redirect in internal/server/chi_test.go now the route is back.")
+			"TestBuildChiMux still pins /config as 404: re-assert the 403 "+
+				"admin fence in internal/server/chi_test.go now the route is back.")
 	case unitGoAkt:
 		out = append(out,
 			"TestBuildChiMux pins fewer demo routes: re-add \"/room\" to "+

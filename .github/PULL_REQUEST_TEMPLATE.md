@@ -26,4 +26,6 @@ Closes #NNN (maintainer nod received: yes / no)
 - [ ] New dependency or native code: passed `docs/dependency-principles.md`, and the one-line trade-off record (chosen / rejected / cost / revisit-if) is in this body
 - [ ] No dependency raised the native floor (same C compiler, same musl image, same cross-compile, no new runtime library); any human-gate item got an explicit sign-off
 - [ ] I understand every line and own its licensing; I can defend it in review
+- [ ] Security invariants preserved: session check + RBAC row for every new route; owner-scoped record access; no request-derived URL/command/file path; inline scripts carry the CSP nonce
+- [ ] Negative tests added for new authorization, CSRF, signup/session, or rate-limit behavior
 - [ ] CI green (PRs with red CI are not reviewed until green)

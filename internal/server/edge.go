@@ -5,6 +5,8 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"log/slog"
 	"net"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/calionauta/gogogo/config"
@@ -22,18 +25,63 @@ const (
 	schemeHTTPS = "https"
 )
 
-// securityHeaders sets the headers a browser honours without needing a
-// nonce. No CSP: the templates keep inline JS next to their markup, so a
-// policy would need nonce plumbing before it can be correct.
-func securityHeaders(next http.Handler) http.Handler {
+// securityHeaders sets the browser security headers on every response. The
+// CSP carries a per-request nonce: inline templates (and Datastar's data-*
+// evaluator, which reads data-nonce from <html>) use it instead of
+// 'unsafe-inline' or 'unsafe-eval'. HSTS is production-only; browsers ignore
+// it over plain HTTP, but a dev deploy should not pin localhost.
+func securityHeaders(cfg *config.Config, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce, err := newCSPNonce()
+		if err != nil {
+			// Entropy failure is not a reason to serve a policy that would
+			// block every inline script; fail open on the header, never on
+			// the request.
+			slog.Error("server: csp nonce", "error", err)
+		} else {
+			r = r.WithContext(templ.WithNonce(r.Context(), nonce))
+			w.Header().Set("Content-Security-Policy", cspPolicy(nonce))
+		}
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "SAMEORIGIN")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		if cfg != nil && !cfg.Dev {
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// cspNonceBytes is 128 bits: enough that a nonce cannot be guessed, short
+// enough to keep the header small.
+const cspNonceBytes = 16
+
+// newCSPNonce returns 128 bits of entropy, base64url without padding.
+func newCSPNonce() (string, error) {
+	raw := make([]byte, cspNonceBytes)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+// cspPolicy is deliberately strict on scripts and permissive only where the
+// markup needs it: inline style attributes are used throughout the shell,
+// and the whiteboard stores drawing previews as data:/blob: images.
+func cspPolicy(nonce string) string {
+	return "default-src 'self'; " +
+		"script-src 'self' 'nonce-" + nonce + "'; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data: blob:; " +
+		"font-src 'self'; media-src 'self'; worker-src 'self'; " +
+		"connect-src 'self'; manifest-src 'self'; " +
+		"report-uri " + cspReportPath + "; " +
+		"object-src 'none'; base-uri 'none'; form-action 'self'; " +
+		"frame-ancestors 'self'"
 }
 
 // sameOriginGuard is the CSRF fence for unsafe methods. SameSite=Lax on the
@@ -52,7 +100,25 @@ func sameOriginGuard(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		// A custom scheme (wails://) cannot be forged by a web page, and the
+		// desktop webview may report itself as cross-site relative to the
+		// localhost proxy. Honour that origin before the fetch-metadata
+		// check, or the desktop's writes become 403.
 		origin := r.Header.Get("Origin")
+		if origin != "" {
+			if ou, oerr := url.Parse(origin); oerr == nil && ou.Scheme != "" &&
+				ou.Host != "" && ou.Scheme != schemeHTTP && ou.Scheme != schemeHTTPS {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		// Fetch metadata is sent by every modern browser, including the
+		// rare request that omits Origin. A cross-site unsafe write is never
+		// a legitimate app call, so refuse it before the Origin comparison.
+		if strings.EqualFold(r.Header.Get("Sec-Fetch-Site"), "cross-site") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		if origin == "" {
 			next.ServeHTTP(w, r)
 			return
@@ -60,10 +126,6 @@ func sameOriginGuard(next http.Handler) http.Handler {
 		u, err := url.Parse(origin)
 		if err != nil || u.Host == "" {
 			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
-		if u.Scheme != schemeHTTP && u.Scheme != schemeHTTPS {
-			next.ServeHTTP(w, r)
 			return
 		}
 		if sameOriginHost(u, r.Host) ||
@@ -158,5 +220,5 @@ func edgeHandler(cfg *config.Config, log *slog.Logger, next http.Handler) http.H
 		// exactly the request an operator wants to see in the log.
 		next = accessLog(log, next)
 	}
-	return securityHeaders(next)
+	return securityHeaders(cfg, next)
 }

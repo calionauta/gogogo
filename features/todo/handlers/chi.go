@@ -63,6 +63,9 @@ type Handler struct {
 	BuildCommit string
 	// OfflineSyncEnabled mirrors the config flag into the page signals.
 	OfflineSyncEnabled bool
+	// DemoAccounts lets the login page prefill/advertise the seeded pair.
+	// False on a production deploy that did not opt in.
+	DemoAccounts bool
 	// NATSEnabled switches the realtime label between the in-process hub
 	// and JetStream. Set from config at boot.
 	NATSEnabled bool

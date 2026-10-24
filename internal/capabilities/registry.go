@@ -441,9 +441,17 @@ var All = []Capability{
 		},
 	},
 	{
+		ID:      "account",
+		Kind:    KindFeature,
+		Summary: "authenticated /account security page",
+		Offered: false,
+		Dirs:    []string{"features/account"},
+		Note:    "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
+	},
+	{
 		ID:      "config-view",
 		Kind:    KindFeature,
-		Summary: "auth-gated read-only /config view",
+		Summary: "admin-only /config view + user role/session actions",
 		Offered: true,
 		DependsOn: []string{
 			depSounds,
@@ -469,7 +477,9 @@ var All = []Capability{
 			"enforcer and wraps the whole mux (pass-through when " +
 			"RBAC_ENABLED=false, enforced denies with 403 + warn log when " +
 			"true). Roles come from users.role (migration 0008, ADMIN_EMAILS " +
-			"promotes existing rows at boot). /config is the admin-only " +
-			"surface; the policy test pins every mux route for user-or-admin.",
+			"promotes existing rows at boot). /config is admin-only in the handler " +
+			"too (rbac.RequireAdmin), so RBAC_ENABLED=false does not expose it; " +
+			"the console adds an ADMIN_EMAILS allowlist. The policy test pins " +
+			"every mux route for user-or-admin.",
 	},
 }

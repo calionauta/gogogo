@@ -226,20 +226,20 @@ var featureTrimUnits = []trimUnit{
 		},
 		replaces: []fileReplace{
 			{
-				// The mux contract test pins anon /config as an auth
-				// redirect (303). Without the unit the route must 404
+				// The mux contract test pins anon /config as the
+				// admin fence (403). Without the unit the route must 404
 				// (same rule as credits/landing: absence says "not
 				// here"). One-way (add leaves the 404 pin): re-assert
-				// 303 by hand, see addFollowUps.
+				// 403 by hand, see addFollowUps.
 				path:        chiTestFile,
-				matchSubstr: "configRec.Code != http.StatusSeeOther",
-				old:         "http.StatusSeeOther",
+				matchSubstr: "configRec.Code != http.StatusForbidden",
+				old:         "http.StatusForbidden",
 				newStr:      muxGoneStatus,
 			},
 			{
 				path:        chiTestFile,
-				matchSubstr: "mux anon /config status = %d, want 303",
-				old:         "want 303",
+				matchSubstr: "mux anon /config status = %d, want 403",
+				old:         "want 403",
 				newStr:      muxWant404,
 			},
 		},

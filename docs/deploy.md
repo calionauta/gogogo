@@ -70,6 +70,9 @@ shares the same shape — siblings differ only by name:
     ├── data/                        ← persistent volume, survives restarts
     │   (bind-mounted into the container at /var/lib/<app>/data —
     │   app.db, queue.db, nats/, dagnats/; see deploy/docker-compose.prod.yml)
+    │   The container is non-root (65532), read-only rootfs, all caps
+    │   dropped, no-new-privileges; /tmp is a 64 MB tmpfs and this data
+    │   volume is the only other writable path.
 
 /home/deploy/.secrets/gogogo.env       ← mode 600, dir 700, rendered every deploy
                                          from GH Secrets; outside the services tree
@@ -81,6 +84,70 @@ shares the same shape — siblings differ only by name:
 > create. The workflow creates the tree with `mkdir -p` as `deploy`
 > (`.github/workflows/deploy.yml`, "Ensure layout + run deploy"), and
 > `scripts/deploy-prod.sh` reads `APP_DIR="/home/deploy/services/${PROJECT}"`.
+
+## First production boot (avoid the lockout)
+
+A production environment starts with `RBAC_ENABLED=true`, `SIGNUP_ENABLED=false`
+and `DEMO_ACCOUNTS_ENABLED=false`, and `ADMIN_EMAILS` promotes **existing** rows
+only. A brand-new database therefore has no account and no way in. Bootstrap in
+this order:
+
+1. Set `SIGNUP_ENABLED=true` for the first boot (or `DEMO_ACCOUNTS_ENABLED=true`
+   for a demo), create the owner account, then restart with `SIGNUP_ENABLED=false`.
+2. Put that address in `ADMIN_EMAILS` and restart once more; promotion needs the
+   row to exist.
+3. Keep `ADMIN_EMAILS` set: it is also the `/console/` and `/dagnats/` operator
+   allowlist. `/config` only needs the admin role.
+
+If you really want the open single-tenant posture, set `RBAC_ENABLED=false`
+explicitly; the default is enforcing.
+
+## Email delivery (verification, reset, magic links)
+
+Set `SMTP_ADDR` (587/STARTTLS), `SMTP_FROM`, and the optional
+`SMTP_USERNAME`/`SMTP_PASSWORD` in the age-encrypted secrets file. Set
+`APP_URL` to the public origin; both magic links and verification/reset
+links are built from it. Publish SPF, DKIM and DMARC for the sending domain
+before turning on `SIGNUP_ENABLED` or `REQUIRE_EMAIL_VERIFICATION`; without
+them, mail lands in spam and the account lifecycle looks broken. The
+template uses `net/smtp` STARTTLS (port 587); implicit TLS (465) needs a
+provider that speaks STARTTLS or an HTTP mail API behind the same `Mailer`
+seam.
+
+### Local/demo providers (no real delivery)
+
+| Option | What it is | Free? | Use here |
+|---|---|---|---|
+| **Mailpit** | MIT single-binary SMTP sink + web UI, maintained successor to MailHog | yes, unlimited, self-hosted | `make mailpit`; point `SMTP_ADDR=127.0.0.1:1025`, `SMTP_FROM=dev@example.test`; UI `:8025` |
+| **Ethereal** | disposable SMTP by the Nodemailer maintainer, no signup, preview links | yes, ephemeral | one-off smoke tests; copy host/user/pass from ethereal.email |
+| **Mailtrap Sandbox** | hosted capture, free 50 emails/mo | yes | shared staging capture; never delivers |
+| **Sendtrap / SMTPBox / SendPit** | hosted sandbox free tiers | yes | newer alternatives; verify retention/API before adopting |
+
+Mailpit binds its UI to `127.0.0.1:8025` on purpose. The inbox contains live
+magic-link, verification and reset tokens, so exposing it publicly would hand
+every visitor a way into every pending account. A public demo user can trigger
+a link but cannot read it; the local operator opens the UI through SSH or a
+tailnet tunnel. `make mailpit` is a development/debug aid, not a mail service.
+
+### Real delivery (demo or production)
+
+| Provider | SMTP | Free tier (verify current) |
+|---|---|---|
+| **Resend** | `smtp.resend.com:587`, user `resend`, password = API key | ~3k/month, verified domain |
+| **Brevo** | `smtp-relay.brevo.com:587` | ~300/day |
+| **SendGrid** | `smtp.sendgrid.net:587`, user `apikey` | ~100/day |
+| **Postmark / SES / Mailgun** | provider SMTP | varies; SES is pay-as-you-go |
+
+The app only knows `SMTP_ADDR`/`SMTP_FROM`/`SMTP_USERNAME`/`SMTP_PASSWORD`;
+swapping provider is an env change, no code. The secrets file is scoped by
+`APP_NAME` (`~/.secrets/<APP_NAME>.env.age`): a generated project must be
+renamed before boot, and must never reuse another project's secrets file. Name
+scoping prevents accidental reuse, not a hostile process: anything running as
+the same OS user can read every file in `~/.secrets`. Run an untrusted project
+under its own user or container instead of treating the filename as a sandbox.
+For real delivery publish SPF, DKIM and DMARC first. `hdls.tools` is an MCP agent toolbox with a mailbox
+(create inbox, send/receive, 100 outbound/day); it is **not** an SMTP relay
+and is not wired here.
 
 ## First-time setup on the server
 

@@ -97,11 +97,18 @@ templ configActions(data PageData) {
 // table, and the rotate-a-secret footer.
 templ configBody(data PageData) {
 	<div class="ui-page ui-stack">
+	if data.Notice != "" {
+		<div role="status" class="alert alert-success"><span>{ data.Notice }</span></div>
+	}
+	if data.Error != "" {
+		<div role="alert" class="alert alert-error"><span>{ data.Error }</span></div>
+	}
 	<div class="alert" role="status">
-		<strong>Read-only.</strong>
+		<strong>Runtime view + admin actions.</strong>
 		This page shows what the running binary has loaded from the
 		environment and the encrypted secrets file. Sensitive values
 		are masked; the literal key/token never reaches the browser.
+		The Users section can change roles and revoke sessions.
 	</div>
 	<div class="alert" role="status">
 		<strong>Access control (Casbin).</strong>
@@ -113,7 +120,7 @@ templ configBody(data PageData) {
 		if data.RBACEnabled {
 			<span>RBAC enforcement is <strong>on</strong> — this page is admin-only.</span>
 		} else {
-			<span>RBAC enforcement is <strong>off</strong> (pass-through) — set <code class="text-sm">RBAC_ENABLED=true</code> to enforce.</span>
+			<span>RBAC enforcement is <strong>off</strong> (pass-through) — this page remains admin-only via its handler fence; set <code class="text-sm">RBAC_ENABLED=true</code> to enforce every route.</span>
 		}
 	</div>
 
@@ -163,6 +170,116 @@ templ configBody(data PageData) {
 			</div>
 		</section>
 	}
+
+	<section class="ui-card">
+		<div class="ui-card-body">
+			<h2 class="ui-title">Users</h2>
+			<p class="text-sm text-base-content/70 mb-2">
+				Admin-only. Role changes apply on the next request; revoking sessions signs the user out everywhere.
+			</p>
+			<div class="overflow-x-auto">
+				<table class="table table-sm">
+					<thead>
+						<tr>
+							<th>Email</th>
+							<th>Role</th>
+							<th>Verified</th>
+							<th>2FA</th>
+							<th>Created</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, user := range data.Users {
+							<tr>
+								<td><code class="text-sm">{ user.Email }</code></td>
+								<td>
+									<form method="POST" action="/config/users/role" class="flex items-center gap-1">
+										<input type="hidden" name="email" value={ user.Email }/>
+										<select name="role" class="select select-sm">
+											<option value="user" selected?={ user.Role == "user" }>user</option>
+											<option value="viewer" selected?={ user.Role == "viewer" }>viewer</option>
+											<option value="admin" selected?={ user.Role == "admin" }>admin</option>
+										</select>
+										<button type="submit" class="btn btn-xs">Save</button>
+									</form>
+								</td>
+								<td>
+									if user.Verified {
+										<span class="badge badge-success badge-sm">yes</span>
+									} else {
+										<span class="badge badge-warning badge-sm">no</span>
+									}
+								</td>
+								<td>
+									if user.TOTP {
+										<span class="badge badge-success badge-sm">on</span>
+									} else {
+										<span class="badge badge-ghost badge-sm">off</span>
+									}
+								</td>
+								<td class="text-xs text-base-content/60">{ user.Created }</td>
+								<td>
+									<form method="POST" action="/config/users/revoke">
+										<input type="hidden" name="email" value={ user.Email }/>
+										<button type="submit" class="btn btn-xs btn-error">Revoke sessions</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</section>
+
+	<section class="ui-card">
+		<div class="ui-card-body">
+			<h2 class="ui-title">Security events</h2>
+			if data.AuditAlert != "" {
+				<div role="alert" class="alert alert-warning mb-3"><span>{ data.AuditAlert }</span></div>
+			}
+			<p class="text-sm text-base-content/70 mb-2">Last 24 hours, grouped by outcome.</p>
+			if len(data.EventCounts) == 0 {
+				<p class="text-sm">No security events recorded.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="table table-sm">
+						<thead><tr><th>Event</th><th>Reason</th><th>Count</th></tr></thead>
+						<tbody>
+							for _, count := range data.EventCounts {
+								<tr><td>{ count.Event }</td><td>{ count.Reason }</td><td>{ count.Count }</td></tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			<div class="flex flex-wrap items-center justify-between gap-2 mb-2 mt-4">
+				<p class="text-sm text-base-content/70">Recent events (100).</p>
+				<a href="/config/audit.csv" class="btn btn-xs" download>Download CSV</a>
+			</div>
+			if len(data.Events) == 0 {
+				<p class="text-sm">No recent events.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="table table-sm">
+						<thead><tr><th>When</th><th>Event</th><th>Reason</th><th>Subject</th><th>Actor</th></tr></thead>
+						<tbody>
+							for _, event := range data.Events {
+								<tr>
+									<td class="text-xs text-base-content/60">{ event.Created }</td>
+									<td>{ event.Event }</td>
+									<td>{ event.Reason }</td>
+									<td class="text-xs"><code>{ event.Email }</code> <span class="text-base-content/60">{ event.UserID }</span></td>
+									<td class="text-xs text-base-content/60">{ event.ActorID }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</section>
 
 	<footer class="text-xs text-base-content/60 mt-6">
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>

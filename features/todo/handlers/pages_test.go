@@ -5,9 +5,17 @@
 package handlers
 
 import (
+	"context"
+	"crypto/hmac"
+	"crypto/sha1" //nolint:gosec // RFC 6238 TOTP uses SHA-1; mirror production.
+	"encoding/base32"
+	"encoding/binary"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calionauta/gogogo/internal/auth"
 )
@@ -96,4 +104,99 @@ func TestHandlersLoginLogoutFlow(t *testing.T) {
 	if after.Code != http.StatusSeeOther {
 		t.Fatalf("GET /todo after logout status = %d, want 303", after.Code)
 	}
+}
+
+func TestHandlersLoginMagicAndResetForms(t *testing.T) {
+	f := newHandlersFixture(t)
+	if err := f.auth.SetAppURL("https://app.example"); err != nil {
+		t.Fatalf("app url: %v", err)
+	}
+	magic := 0
+	f.auth.SetMagicSender(func(_, _ string) error { magic++; return nil })
+	mail := 0
+	f.auth.SetMailer(func(_, _, _ string) error { mail++; return nil })
+	f.signup("forms@example.com")
+
+	rec := f.do(http.MethodPost, "/login", "intent=magic&email=forms%40example.com", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "sign-in link is on its way") {
+		t.Fatalf("magic form = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if magic != 1 {
+		t.Fatalf("magic sends = %d, want 1", magic)
+	}
+	rec = f.do(http.MethodPost, "/login", "intent=forgot&email=forms%40example.com", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "reset link is on its way") {
+		t.Fatalf("forgot form = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if mail != 1 {
+		t.Fatalf("mail sends = %d, want 1", mail)
+	}
+	rec = f.do(http.MethodPost, "/login", "intent=verify&email=forms%40example.com", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "verification") {
+		t.Fatalf("verify form = %d (%s)", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlersTOTPLoginForm(t *testing.T) {
+	f := newHandlersFixture(t)
+	if err := f.auth.SetTOTPEncKey(make([]byte, 32)); err != nil {
+		t.Fatalf("totp key: %v", err)
+	}
+	f.signup("totp-form@example.com")
+	ctx := context.Background()
+	user, err := f.q.GetUserByEmail(ctx, "totp-form@example.com")
+	if err != nil {
+		t.Fatalf("user: %v", err)
+	}
+	secret, _, _, err := f.auth.BeginTOTP(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	code := testTOTPCode(t, secret, time.Now())
+	if err := f.auth.VerifyTOTPEnroll(ctx, user.ID, code); err != nil {
+		t.Fatalf("enroll: %v", err)
+	}
+
+	rec := f.do(http.MethodPost, "/login", "email=totp-form%40example.com&password=Correct-horse-99%21", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Authenticator code") {
+		t.Fatalf("totp step = %d (%s)", rec.Code, rec.Body.String())
+	}
+	code = testTOTPCode(t, secret, time.Now())
+	rec = f.do(http.MethodPost, "/login",
+		"intent=totp&totp_user="+user.ID+"&totp_code="+code+"&next=%2Ftodo", nil)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("totp verify = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if c := sessionCookieFrom(rec); c == nil {
+		t.Fatal("totp verify set no session cookie")
+	}
+}
+
+func sessionCookieFrom(rec *httptest.ResponseRecorder) *http.Cookie {
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == auth.CookieName && c.Value != "" {
+			return c
+		}
+	}
+	return nil
+}
+
+// testTOTPCode mirrors internal/auth's RFC 6238 computation (SHA-1, 30s,
+// 6 digits) without exporting the production helper just for a UI test.
+func testTOTPCode(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	raw, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(secret))
+	if err != nil {
+		t.Fatalf("secret: %v", err)
+	}
+	var buf [8]byte
+	//nolint:gosec // TOTP step is non-negative for any post-epoch clock.
+	binary.BigEndian.PutUint64(buf[:], uint64(at.Unix()/30))
+	mac := hmac.New(sha1.New, raw)
+	mac.Write(buf[:])
+	sum := mac.Sum(nil)
+	off := sum[len(sum)-1] & 0x0f
+	code := (uint32(sum[off])&0x7f)<<24 |
+		uint32(sum[off+1])<<16 | uint32(sum[off+2])<<8 | uint32(sum[off+3])
+	return fmt.Sprintf("%06d", code%1000000)
 }

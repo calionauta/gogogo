@@ -66,7 +66,7 @@ func Index(userEmail string, userRole string, buildLabel string, buildCommit str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, authviews.ThemeRootAttrs(""))
+		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, authviews.ThemeRootAttrs(ctx, ""))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

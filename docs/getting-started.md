@@ -83,8 +83,13 @@ gogogo: done — next:
   app:       http://localhost:8080 (PORT overrides)
   login:     demo1@demo.app / demo1234456 (prefilled; demo2 same password — second browser for contention)
   app:       http://localhost:8080/ (the flat stack — sign up on first visit)
-  workflows: http://localhost:8080/dagnats/ (DagNats console)
+  workflows: http://localhost:8080/dagnats/ (DagNats console; requires ADMIN_EMAILS)
 ```
+
+On a host that has a production secrets file (it sets `ENVIRONMENT=production`),
+run the dev loop with `ENVIRONMENT=development DEMO_ACCOUNTS_ENABLED=true
+SIGNUP_ENABLED=true make dev` so the demo pair is seeded and the login form
+advertises it.
 
 ## 0b. Opinions before changes: `advise`
 
@@ -266,7 +271,7 @@ everything — the unified build era means you never pass `-tags`.
 3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
    stream through the SSE hub. (`demo2@demo.app`, same password, keeps
    a separate private list, plus shared todos both logins see live — verify in a second browser.)
-4. Open `/config` — auth-gated read-only view of what the binary decided:
+4. Open `/config` — admin-only read-only view of what the binary decided:
    env-decrypted values, masked secrets, runtime constants.
 5. Open `/whiteboard` — collaborative canvas; open it in a second window to
    see presence cursors and CRDT convergence.

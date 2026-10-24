@@ -222,6 +222,7 @@ func TestRBACPolicyShape(t *testing.T) {
 		// handler enforces per-record ownership (canDeleteRow) - a
 		// viewer reaches these paths but only deletes their own rows.
 		"/api/todos/*/delete": true, "/api/todos/*/confirm-delete": true,
+		"/account/*":    true,
 		"/whiteboard/*": true, "/api/whiteboard/*": true,
 		"/notes/*": true, "/api/notes/*": true,
 	}

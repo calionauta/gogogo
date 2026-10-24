@@ -26,10 +26,23 @@ func oauthCallback(t *testing.T, mux *http.ServeMux) int {
 	if err != nil {
 		t.Fatalf("start location: %v", err)
 	}
+	cbReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/auth/oauth/stub/callback?code=stub-code&state="+loc.Query().Get("state"), nil)
+	if c := bindCookie(start.Result().Cookies(), oauthBindCookie); c != nil {
+		cbReq.AddCookie(c)
+	}
 	cb := httptest.NewRecorder()
-	mux.ServeHTTP(cb, httptest.NewRequestWithContext(context.Background(), http.MethodGet,
-		"/api/auth/oauth/stub/callback?code=stub-code&state="+loc.Query().Get("state"), nil))
+	mux.ServeHTTP(cb, cbReq)
 	return cb.Code
+}
+
+func bindCookie(cookies []*http.Cookie, name string) *http.Cookie {
+	for _, c := range cookies {
+		if c.Name == name && c.Value != "" {
+			return c
+		}
+	}
+	return nil
 }
 
 func subProvider(idpURL string) OAuthProvider {

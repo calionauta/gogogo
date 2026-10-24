@@ -24,6 +24,13 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `LOG_LEVEL` | `INFO` | slog level |
 | `HTTP_ACCESS_LOG` | `false` | Emit one structured `http: request` line per request (method, path, status, bytes, duration, stream). A stream is logged when it closes, with its real duration. Off by default: a busy SSE page logs a line per stream. The write is flusher-preserving, so enabling it never breaks an SSE handler. |
 | `DATA_DIR` | `data` | Root for runtime data |
+| `APP_URL` | unset | Public origin used to build links that leave the process (the magic-link email), e.g. `https://app.example.com`. Required for magic links: without it the endpoint fails closed rather than trusting the request `Host` (which a proxy may rewrite and an attacker may forge). Malformed values fail the boot. Magic, verification and reset links are built from this origin. |
+| `RATE_LIMIT_RPM` | `1200` | Per-session dynamic-request budget per minute. `0` disables the in-process limiter; the edge reverse proxy remains the primary throttle for a fleet. Signed-out requests are not counted (their expensive surfaces have dedicated throttles). |
+| `MAGIC_LINK_BIND_BROWSER` | `false` | Strict mode: a magic link only completes in the browser that requested it (cookie + `bind`). Off by default because email clients open links in another browser/webview; cross-device works either way, and the emailed GET is read-only. |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | Block password login until the address confirms the emailed verification link. OAuth-verified addresses bypass it. |
+| `SESSION_IDLE_TIMEOUT` | `0` | Inactivity window (e.g. `30m`, `12h`). `0` keeps the absolute seven-day session TTL only. |
+| `SMTP_ADDR` / `SMTP_FROM` | unset | SMTP relay and envelope sender for verification/reset mail, e.g. `smtp.example.com:587` / `no-reply@example.com`. Empty leaves those endpoints closed (503). |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | unset | Optional SMTP AUTH credentials; keep them in the age-encrypted secrets file, never in git. |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
 | `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |
 
@@ -37,7 +44,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `NATS_STORE_DIR` | under `DATA_DIR` | JetStream storage directory |
 | `NATS_LEAFNODE_URL` | unset | When set, the desktop boots as a NATS Leaf Node replicating against your central server. Offline edits replay on reconnect. |
 | `DAGNATS_ENABLED` | `true` | Boot the DagNats durable workflow engine |
-| `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console (loopback-only; browsers reach the console through the `/console/` reverse proxy on the app mux) |
+| `DAGNATS_HTTP_ADDR` | `127.0.0.1:8090` | DagNats HTTP API + console (loopback-only; browsers reach the console through the `/console/` reverse proxy on the app mux). The console is operator-only: the session must be `admin` **and** its address must be listed in `ADMIN_EMAILS`. An empty list closes `/console/` and `/dagnats/`. |
 | `DAGNATS_NATS_PORT` | `4222` | Shared embedded JetStream port (DagNats boots it; the whiteboard SyncWorker attaches) |
 | `DAGNATS_STORE_DIR` | under `DATA_DIR` | DagNats store directory |
 | `DAGNATS_GREET_PACING` | `1500ms` | How long the onboarding **greet** step pauses before completing. Exists only so a human watching the stepper can read the "greeting" phase — it is deliberate product latency, so tune it rather than delete it. A non-positive or unparseable value falls back to `1500ms`. Set `0`-ish (e.g. `1ms`) for automated runs. |
@@ -111,12 +118,14 @@ server-side and records upstream JSON/SSE token usage with
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `SIGNUP_ENABLED` | `true` in dev, `false` in production | Public account creation: password signup and first-login OAuth provisioning. Magic links never provision (they only log existing users in). Close it when `ADMIN_EMAILS` is set: promotion is by email, and anyone who claims an unowned admin address first would be promoted on the next boot. |
+| `DEMO_ACCOUNTS_ENABLED` | `true` in dev, `false` in production | Seed `demo1@demo.app` (admin) and `demo2@demo.app` (viewer) with the published password, and prefill/advertise them on `/login`. When off, an existing demo pair is disabled on boot (unusable password, plain `user` role, sessions and magic links revoked), so an upgrade cannot leave the published credentials live. A public production demo must opt in explicitly; a real deployment should leave it off. |
 | `AUTH_ENC_KEY` | auto-created `totp_seal.key` | 64 hex chars (`openssl rand -hex 32`). Seals TOTP secrets at rest (XChaCha20-Poly1305). Unset auto-creates a 0600 key file in the data dir (no operator action; backups must handle it like any secret). Set-but-malformed fails the boot. |
 | `ADMIN_UNLOCK_TOKEN` | unset | Master-password token for the "Clear all" form. When present (in the age-encrypted secrets file), the todo UI shows the form; the handler compares constant-time. |
-| `RBAC_ENABLED` | `false` | Enforce the embedded Casbin policy on every request (deny = 403 + warn log). `false` is pass-through with identical wiring. When on: anonymous reaches only the public surface (landing, login, auth endpoints, static, health); users reach everything except `/config`; admins reach all. |
+| `RBAC_ENABLED` | `true` in production, `false` in development | Enforce the embedded Casbin policy on every request (deny = 403 + warn log). `false` is pass-through with identical wiring; production defaults to enforcing, so a deploy that wants the open single-tenant mode must opt out explicitly. When on: anonymous reaches only the public surface (landing, login, auth endpoints, static, health); users reach everything except the operator surfaces (`/config`, `/console`, `/dagnats`); admins reach all, but the console still needs an `ADMIN_EMAILS` match. |
 | `RBAC_PERMISSIVE` | `false` | Audit-before-enforce rollout: would-be denies are warn-logged (`permissive=1`) and the request proceeds. Set for one deploy after adding a feature's paths, then turn off. Only meaningful with `RBAC_ENABLED=true`. See [RBAC](rbac.md). |
 | `RBAC_POLICY_SOURCE` | `embedded` | Where the Casbin rules come from: `embedded` reads the compiled-in `policy.csv`; `db` loads the `casbin_rule` table (seeded from the embedded policy on first boot, then editable at runtime). Any other value falls back to `embedded`. |
-| `ADMIN_EMAILS` | unset | Comma-separated addresses promoted to `admin` at boot (existing rows only — never provisions; keep public signup closed while set, anyone can claim an unowned address). Required to reach `/config` with `RBAC_ENABLED=true`. |
+| `ADMIN_EMAILS` | unset | Comma-separated addresses promoted to `admin` at boot (existing rows only — never provisions; keep public signup closed while set, anyone can claim an unowned address). Required to reach `/config` with `RBAC_ENABLED=true`, and the **operator allowlist** for `/console/` and `/dagnats/`: those routes stay closed when the list is empty, even if `RBAC_ENABLED=false` and the account is an admin. |
 | `VIEWER_EMAILS` | unset | Comma-separated addresses promoted to the restricted `viewer` role at boot (same existing-rows-only contract). Viewers read, create and toggle todos; deletes and paid actions deny with 403 under enforcement and render disabled with a message. An address in both lists ends `admin`. See the RBAC demo in [Admin & Dashboard](admin-dashboard.md). |
 
 ### Build metadata

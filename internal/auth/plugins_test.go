@@ -151,7 +151,7 @@ func TestMagicLinkFlow(t *testing.T) {
 		return nil
 	})
 
-	if err := a.RequestMagicLink(ctx, "magic@example.com", "http://x.test", a.magicSender()); err != nil {
+	if err := a.RequestMagicLink(ctx, "magic@example.com", "http://x.test", "", a.magicSender()); err != nil {
 		t.Fatalf("request: %v", err)
 	}
 	if sentTo != "magic@example.com" {
@@ -184,7 +184,7 @@ func TestMagicLinkFlow(t *testing.T) {
 
 	// Unknown addresses: silent nil, nothing sent.
 	sentTo = ""
-	if err := a.RequestMagicLink(ctx, "ghost@example.com", "http://x.test", func(to, _ string) error {
+	if err := a.RequestMagicLink(ctx, "ghost@example.com", "http://x.test", "", func(to, _ string) error {
 		sentTo = to
 		return nil
 	}); err != nil {
@@ -196,7 +196,7 @@ func TestMagicLinkFlow(t *testing.T) {
 
 	// No sender configured: fail closed, not silently dropped.
 	a.SetMagicSender(nil)
-	if err := a.RequestMagicLink(ctx, "magic@example.com", "http://x.test", a.magicSender()); err == nil {
+	if err := a.RequestMagicLink(ctx, "magic@example.com", "http://x.test", "", a.magicSender()); err == nil {
 		t.Fatal("senderless request succeeded")
 	}
 }
@@ -270,9 +270,11 @@ func TestOAuthFlow(t *testing.T) {
 	}
 
 	// Callback completes: user provisioned + linked, cookie set.
+	cbReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/auth/oauth/stub/callback?code=stub-code&state="+state, nil)
+	cbReq.AddCookie(bindCookie(startRec.Result().Cookies(), oauthBindCookie))
 	cbRec := httptest.NewRecorder()
-	mux.ServeHTTP(cbRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet,
-		"/api/auth/oauth/stub/callback?code=stub-code&state="+state, nil))
+	mux.ServeHTTP(cbRec, cbReq)
 	if cbRec.Code != http.StatusSeeOther {
 		t.Fatalf("callback status = %d (body: %s)", cbRec.Code, cbRec.Body.String())
 	}
@@ -287,9 +289,11 @@ func TestOAuthFlow(t *testing.T) {
 	}
 
 	// Replaying the consumed state fails.
+	replayReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/auth/oauth/stub/callback?code=stub-code&state="+state, nil)
+	replayReq.AddCookie(bindCookie(startRec.Result().Cookies(), oauthBindCookie))
 	replayRec := httptest.NewRecorder()
-	mux.ServeHTTP(replayRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet,
-		"/api/auth/oauth/stub/callback?code=stub-code&state="+state, nil))
+	mux.ServeHTTP(replayRec, replayReq)
 	if replayRec.Code != http.StatusBadRequest {
 		t.Fatalf("replay status = %d, want 400", replayRec.Code)
 	}
@@ -299,9 +303,11 @@ func TestOAuthFlow(t *testing.T) {
 	mux.ServeHTTP(start2, httptest.NewRequestWithContext(context.Background(),
 		http.MethodGet, "/api/auth/oauth/stub", nil))
 	state2, _ := url.Parse(start2.Header().Get("Location"))
+	cb2Req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/auth/oauth/stub/callback?code=stub-code&state="+state2.Query().Get("state"), nil)
+	cb2Req.AddCookie(bindCookie(start2.Result().Cookies(), oauthBindCookie))
 	cb2 := httptest.NewRecorder()
-	mux.ServeHTTP(cb2, httptest.NewRequestWithContext(context.Background(), http.MethodGet,
-		"/api/auth/oauth/stub/callback?code=stub-code&state="+state2.Query().Get("state"), nil))
+	mux.ServeHTTP(cb2, cb2Req)
 	if cb2.Code != http.StatusSeeOther {
 		t.Fatalf("second callback status = %d", cb2.Code)
 	}
@@ -346,11 +352,11 @@ func TestMagicLinkCooldown(t *testing.T) {
 		sends++
 		return nil
 	}
-	if err := a.RequestMagicLink(ctx, "cool@example.com", "http://x.test", send); err != nil {
+	if err := a.RequestMagicLink(ctx, "cool@example.com", "http://x.test", "", send); err != nil {
 		t.Fatalf("first request: %v", err)
 	}
 	// Immediate second request: silent nil, no second mail (cooldown).
-	if err := a.RequestMagicLink(ctx, "cool@example.com", "http://x.test", send); err != nil {
+	if err := a.RequestMagicLink(ctx, "cool@example.com", "http://x.test", "", send); err != nil {
 		t.Fatalf("cooldown request err = %v, want silent nil", err)
 	}
 	if sends != 1 {
@@ -424,8 +430,8 @@ func TestTOTPThrottle(t *testing.T) {
 		t.Fatalf("begin: %v", err)
 	}
 	code, _ := totpCode(secret, time.Now())
-	if err := a.VerifyTOTPEnroll(ctx, user.ID, code); err != nil {
-		t.Fatalf("enroll: %v", err)
+	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
+		t.Fatalf("enroll: %v", verr)
 	}
 
 	// Mechanism, white-box: 10 failures fit the burst, the 11th does not,

@@ -83,11 +83,12 @@ full dependency picture.
 
 A running deployment of this exact template is live at
 **[gogogo.calionauta.com](https://gogogo.calionauta.com/)** — log in with a
-seeded demo account (`demo1@demo.app` / `demo1234456`; `demo2@demo.app`
-takes the same password — a second browser or incognito window makes you
-both at once). The auth-gated env view is at [`/config`](https://gogogo.calionauta.com/config)
+seeded demo account when the deployment enables the demo seed
+(`DEMO_ACCOUNTS_ENABLED=true`): `demo1@demo.app` / `demo1234456`;
+`demo2@demo.app` takes the same password — a second browser or incognito
+window makes you both at once. The admin-only env view is at [`/config`](https://gogogo.calionauta.com/config)
 (sign in first) and the DagNats workflow console
-at [`/dagnats/`](https://gogogo.calionauta.com/dagnats/). What each surface
+at `/dagnats/` (admin **and** `ADMIN_EMAILS`; closed on the public demo). What each surface
 gives you: [Admin & Dashboard](admin-dashboard.md).
 
 ## Related

@@ -439,6 +439,10 @@ ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datast
 # errors, and exercises offline todo add/delete through IndexedDB + reconnect
 # replay. This catches both script-rendering and offline-queue regressions.
 # Requires `npx playwright install chromium` (run automatically here).
+mailpit:
+	@docker compose -f deploy/docker-compose.mailpit.yml up -d
+	@echo "  Mailpit UI: http://127.0.0.1:8025 (SMTP 127.0.0.1:1025)"
+
 smoke:
 	@echo "→ Browser smoke test (Playwright)…"
 	@npx playwright install chromium

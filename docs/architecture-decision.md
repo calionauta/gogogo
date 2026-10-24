@@ -169,7 +169,8 @@ red-proofed against the real driver — no new auth dependencies:
 
 Permissions are a Casbin model plus a policy file (`internal/rbac/casbin/`),
 enforced by middleware before the handler runs: `admin` reaches the operator
-surfaces, everyone else gets the product. Two roles cover the template; the
+surfaces (the DagNats console additionally requires an `ADMIN_EMAILS` match),
+everyone else gets the product. Two roles cover the template; the
 policy is data, so a generated app re-maps without touching handlers, and
 `RBAC_POLICY_SOURCE=db` swaps the embedded file for the `casbin_rule` table when
 a project needs runtime-editable rules.
@@ -185,9 +186,71 @@ record-level.** Authorization has exactly two homes: `policy.csv` decides
 cannot live in a static policy because the row is not known until the handler
 loads it. That split is what OWASP ASVS 5.0 V8.2 asks for (function-level AND
 data-specific checks, to defeat IDOR/BOLA). **RBAC is not authentication.**
-`RBAC_ENABLED` defaults to false, so every handler that touches user data
-checks the session itself; a policy row is never the only guard. Full guide:
+`RBAC_ENABLED` defaults to true in production (false in development), so every handler that touches user data
+checks the session itself; a policy row is never the only guard. Operator
+surfaces carry an always-on fence (`rbac.RequireAdmin` on `/config`; admin +
+`ADMIN_EMAILS` on `/console`), because turning RBAC off must not hand runtime
+topology or a workflow console to every signed-in account. Full guide:
 [RBAC](rbac.md).
+
+## Security defaults: secure unless a deploy opts out (2026-10-23)
+
+The primitives were already owned (sqlc parameters, Templ escaping, argon2id,
+opaque sessions, SameSite + Origin, per-record ownership). The audit found the
+risk in defaults, not primitives, so the defaults changed:
+
+- **Production closes public account creation and the published demo seed**
+  (`SIGNUP_ENABLED`, `DEMO_ACCOUNTS_ENABLED` default to `dev`). The demo login
+  page hides the pair when the seed is off.
+- **Out-of-band links use `APP_URL`, never the request `Host`**. Magic links
+  are cross-device by default with a read-only GET and a POST confirmation;
+  `MAGIC_LINK_BIND_BROWSER=true` is the strict same-browser mode. The OAuth
+  handshake keeps its browser-binding cookie. Without `APP_URL`, magic links
+  fail closed.
+- **The edge sets a per-request CSP nonce** (`script-src 'self' 'nonce-…'`,
+  `data-nonce` for Datastar), plus HSTS, COOP/CORP and the existing headers.
+  Inline scripts carry the nonce; there is no `unsafe-inline`/`unsafe-eval`
+  for scripts.
+- **Credential changes revoke every session** (`password`, TOTP disable,
+  `sessions/revoke-all`), and **authenticated requests are bounded per
+  session** (`RATE_LIMIT_RPM`), never per client IP behind a tunnel.
+- **The operator console is not an admin-role side effect**: the public demo's
+  `demo1` is an admin, so `/console` and `/dagnats` require an explicit
+  `ADMIN_EMAILS` entry.
+- **The container is non-root, read-only, all caps dropped, no privilege
+  escalation**; the data volume and a 64 MB `/tmp` tmpfs are the writable
+  paths.
+
+## Audit trail and CSP reporting (2026-10-24)
+
+Logging alone was rejected as the audit answer: a `grep` over rolling stdout
+cannot answer "which operator demoted this account last Tuesday", and a
+container restart takes the evidence with it. The choice is a small owned
+table plus one vocabulary:
+
+- **`security_events` is the durable twin of the slog line.** Rows carry the
+  event, an outcome reason, the subject (`email`, `user_id`), the operator
+  (`actor_id`) and a timestamp. Passwords, session tokens, TOTP codes and
+  magic-link tokens are never columns, by construction.
+- **One vocabulary in `internal/auth/securitylog.go`**, called from the auth
+  operations themselves. A handler that logs its own string can drift; the
+  table and the log filter read the same constants.
+- **Retention is 30 days, pruned at boot.** An operator with a SIEM exports
+  through `/config/audit.csv` before the cutoff. The panel shows 24-hour
+  aggregates and the latest 100 rows; the CSV is admin-only and bounded.
+- **CSP reports are logged, not stored.** `report-uri` is the most widely
+  honoured reporting mechanism in 2026; a report is untrusted input, so the
+  sink caps the body at 64 KiB, strips control characters and drops the
+  query/fragment before logging. A reset token that appeared in the address
+  bar must not become a log line.
+- **Step-up for sign-out-everywhere.** The session alone was too weak for a
+  destructive credential action: the page and the JSON API ask for the current
+  password. OAuth-only rows have no password (`!` sentinel), so they are
+  exempt rather than locked out; a failed proof is itself audited.
+
+What this is not: a SIEM, a streaming alerting daemon, or a replacement for
+edge logs. It is the smallest evidence store that survives a restart and is
+readable by the person who has to answer the question.
 
 ## Why a copy you own (and not a module you import)
 

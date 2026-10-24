@@ -1,0 +1,27 @@
+# Local email sandbox: captures every message, never delivers.
+#
+#   make mailpit        # start
+#   open http://127.0.0.1:8025
+#   SMTP_ADDR=127.0.0.1:1025 SMTP_FROM=dev@example.test
+#
+# Mailpit is the maintained successor to MailHog (MIT, single Go binary).
+# It is intentionally separate from the production compose: a real deploy
+# must use its own SMTP relay (Resend, Brevo, SES, Postmark, ...).
+name: gogogo-mailpit
+services:
+  mailpit:
+    image: axllent/mailpit:v1.30.1
+    restart: unless-stopped
+    # Capture only: 500 messages, no outbound delivery, no volume. The caps
+    # keep a runaway mailbox from competing with co-tenant services; measured
+    # idle cost is ~7 MiB RAM and 0% CPU.
+    mem_limit: 96m
+    cpus: 0.50
+    pids_limit: 100
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # web UI
+    environment:
+      MP_MAX_MESSAGES: "500"
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"

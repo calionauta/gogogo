@@ -1,6 +1,6 @@
 # RBAC (Casbin): the complete guide
 
-Role-based access control, opt-in via `RBAC_ENABLED=true`. Casbin
+Role-based access control, enforced by default in production (`RBAC_ENABLED=true`) and opt-out there, open by default in development. Casbin
 decides; `internal/auth` authenticates. If you are an LLM adding a
 feature, read "Adding a feature" and follow it mechanically — the
 tests fail naming the exact gap when you skip a step.
@@ -153,7 +153,7 @@ a 403, never to an unauthorized write. Never gate a mutation on
 
 ## Env reference
 
-- **`RBAC_ENABLED`** (default `false`) — enforce or pass through.
+- **`RBAC_ENABLED`** (default `true` in production, `false` in development) — enforce or pass through.
 - **`RBAC_PERMISSIVE`** (default `false`) — audit-before-enforce;
   would-be denies logged with `permissive=1` and allowed through.
 - **`RBAC_POLICY_SOURCE`** (default `embedded`) — `embedded` reads the
@@ -168,7 +168,11 @@ a 403, never to an unauthorized write. Never gate a mutation on
 - **Flat + dedupe**: no `g` rows, no duplicate lines.
 - **Operator surfaces** (`TestRBACUserCannotReachOperatorSurfaces`):
   `/config`, `/console`, `/dagnats` denied for user on every method, still
-  reachable for admin.
+  reachable for admin. The handlers add an always-on fence too, so the same
+  answers hold with `RBAC_ENABLED=false`:
+  `rbac.RequireAdmin` on `/config`, and admin **plus** an `ADMIN_EMAILS`
+  match on the console (`/console/`, `/dagnats/`). An empty `ADMIN_EMAILS`
+  closes the console even for the seeded demo admin.
 - **Viewer matrix + middleware**: allow/deny decisions plus a real
   viewer through the real middleware (create/toggle/delete-own pass at
   the verb; row ownership denies in the handler).
@@ -274,14 +278,18 @@ stays the default and is still what the shape/coverage tests pin.
 
 ## Authentication is not authorization (read before trusting RBAC)
 
-`RBAC_ENABLED` defaults to **false**, so on a stock deployment the
-middleware decides nothing. That makes the handler the ONLY guard, and a
-policy row is not a substitute for one. Two rules follow:
+`RBAC_ENABLED` defaults to **true in production** (false in development).
+Even when it is off, the handler is the ONLY guard, and a policy row is not
+a substitute for one. Two rules follow:
 
 - **A handler that reads or writes user data checks the session itself.**
   `sess == nil` answers 401, before touching a doc, a row or the body. Do
   not rely on "the policy grants /api/x/* to user" - with RBAC off that
   row is inert.
+- **Operator surfaces are not ordinary routes.** `/config` and the DagNats
+  console carry a handler-level fence (`rbac.RequireAdmin` and the operator
+  allowlist) because turning RBAC off must not hand them to every signed-in
+  account. The policy rows stay as the second layer.
 - **An `anonymous` row is a deliberate publication.** Add one only for a
   surface that is safe with no session at all (the landing page, assets,
   `/health`, the SSE open probe). A wildcard that happens to include a

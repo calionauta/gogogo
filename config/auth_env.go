@@ -17,7 +17,24 @@ import (
 // on todos; no deletes, no paid actions). Both are promotion-only and
 // never provision: unknown addresses are skipped, and an address in
 // both lists ends admin (admin promotion runs last).
+// SMTPConfig is the mail relay for verification/reset messages.
+type SMTPConfig struct {
+	Addr     string
+	From     string
+	Username string
+	Password string
+}
+
 func (cfg *Config) loadAuthEnv() {
+	cfg.Auth.MagicLinkBindBrowser = envBool("MAGIC_LINK_BIND_BROWSER", false)
+	cfg.Auth.RequireEmailVerification = envBool("REQUIRE_EMAIL_VERIFICATION", false)
+	cfg.Auth.SessionIdleTimeout = envDuration("SESSION_IDLE_TIMEOUT", 0)
+	cfg.Auth.SMTP = SMTPConfig{
+		Addr:     getEnv("SMTP_ADDR", ""),
+		From:     getEnv("SMTP_FROM", ""),
+		Username: os.Getenv("SMTP_USERNAME"),
+		Password: os.Getenv("SMTP_PASSWORD"),
+	}
 	if raw := os.Getenv("AUTH_ENC_KEY"); raw != "" {
 		if key, err := hex.DecodeString(strings.TrimSpace(raw)); err == nil && len(key) == 32 {
 			cfg.Auth.TOTPEncKey = key

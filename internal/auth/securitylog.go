@@ -30,18 +30,41 @@ package auth
 import (
 	"context"
 	"log/slog"
+
+	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // Security event names. Stable strings: a log search is a contract with the
 // next operator, not an implementation detail.
 const (
-	evLoginRejected     = "login rejected"
-	evSecondFactorBad   = "second factor rejected"
-	evSecondFactorBlock = "second factor throttled"
-	evMagicRejected     = "magic link rejected"
-	evMagicConsumed     = "magic link consumed"
-	evSessionExpired    = "session expired"
-	evSessionOrphan     = "session owner gone"
+	evLoginRejected       = "login rejected"
+	evSignupRejected      = "signup rejected"
+	evSecondFactorBad     = "second factor rejected"
+	evSecondFactorBlock   = "second factor throttled"
+	evMagicRejected       = "magic link rejected"
+	evMagicConsumed       = "magic link consumed"
+	evSessionExpired      = "session expired"
+	evSessionOrphan       = "session owner gone"
+	evSessionRevoked      = "session revoked"
+	evSessionsRevoked     = "all sessions revoked"
+	evSignupSucceeded     = "signup"
+	evLoginSucceeded      = "login succeeded"
+	evPasswordChanged     = "password changed"
+	evPasswordChangeNo    = "password change rejected"
+	evPasswordReset       = "password reset"
+	evTOTPDisableNo       = "second factor removal rejected"
+	evEmailVerified       = "email verified"
+	evTOTPEnabled         = "second factor enabled"
+	evRecoveryCodesIssued = "recovery codes issued"
+	evTOTPDisabled        = "second factor disabled"
+
+	// Operator actions. Exported because the admin handler is a different
+	// package: the vocabulary still lives here, so the admin UI, the log
+	// filter and the table cannot drift.
+	EventAdminRoleChanged     = "admin role changed"
+	EventAdminSessionsRevoked = "admin sessions revoked"
+	EventStepUpRejected       = "step-up rejected"
 )
 
 // Rejected-attempt reasons. Also stable strings, for the same reason.
@@ -52,7 +75,10 @@ const (
 	reasonExpiredToken    = "expired token"
 	reasonThrottled       = "attempt budget exhausted"
 	reasonSigninThrottled = "signin budget exhausted"
+	reasonSignupThrottled = "signup budget exhausted"
+	reasonEmailUnverified = "email not verified"
 	reasonBadCode         = "wrong code"
+	reasonBrowserMismatch = "browser mismatch"
 )
 
 // secReject logs a rejected authentication attempt. email is the address as
@@ -74,4 +100,45 @@ func secReject(ctx context.Context, event, reason, email, userID string) {
 func secEvent(ctx context.Context, event, userID string) {
 	slog.InfoContext(ctx, "auth: "+event,
 		"event", event, "userID", userID)
+}
+
+// secReject and secEvent (methods) keep the slog line and add the durable
+// audit row. The free functions above remain the logging primitive so the
+// securitylog contract tests stay independent of a database.
+func (a *Auth) secReject(ctx context.Context, event, reason, email, userID string) {
+	secReject(ctx, event, reason, email, userID)
+	a.recordSecurityEvent(ctx, event, reason, email, userID, "")
+}
+
+func (a *Auth) secEvent(ctx context.Context, event, userID string) {
+	secEvent(ctx, event, userID)
+	a.recordSecurityEvent(ctx, event, "", "", userID, "")
+}
+
+// RecordAudit writes one operator-visible event. Admin handlers call it after
+// a successful mutation so the audit panel answers "who changed this role,
+// and when" — a question the slog line alone cannot answer. reason is a short
+// outcome note; email/userID identify the TARGET and actorID the operator.
+func (a *Auth) RecordAudit(ctx context.Context, event, reason, email, userID, actorID string) {
+	slog.InfoContext(ctx, "auth: "+event,
+		"event", event, "reason", reason, "email", email, "userID", userID,
+		"actorID", actorID)
+	a.recordSecurityEvent(ctx, event, reason, email, userID, actorID)
+}
+
+// recordSecurityEvent is best-effort: an audit write must never turn a
+// rejected login into a 500 or block an expired-session cleanup.
+func (a *Auth) recordSecurityEvent(ctx context.Context, event, reason, email, userID, actorID string) {
+	if a.q == nil {
+		return
+	}
+	// A client disconnect cancels the request context, but the audit row is
+	// exactly what must survive a dropped connection.
+	if err := a.q.InsertSecurityEvent(context.WithoutCancel(ctx), dbgen.InsertSecurityEventParams{
+		ID: dbschema.NewID(), Event: event, Reason: reason, Email: email,
+		UserID: userID, ActorID: actorID, Created: dbschema.Now(),
+	}); err != nil {
+		slog.WarnContext(ctx, "auth: security event persist failed",
+			"event", event, "error", err)
+	}
 }

@@ -89,9 +89,15 @@ var pagesUnderTest = []pageUnderTest{
 	// only carries notes-list + the resync affordance.
 	{name: "notes", route: "/notes", must: []string{`id="notes-list"`}},
 	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`}},
+	{name: "account", route: "/account", must: []string{
+		"Sessions",
+		"Two-factor authentication",
+	}},
 	{name: "config", route: "/config", must: []string{
-		"Read-only.",
+		"Runtime view + admin actions.",
 		"Access control (Casbin).",
+		"Users",
+		"Security events",
 		"<th class=\"w-1/3\">Field</th>",
 	}},
 }
@@ -103,6 +109,9 @@ func bootPages(t *testing.T) (base string, cookie *http.Cookie) {
 	t.Helper()
 	cfg := config.Load()
 	cfg.Dev = true
+	cfg.SignupEnabled = true
+	cfg.RBACEnabled = false
+	cfg.DemoAccounts = true
 	tmp := t.TempDir()
 	cfg.Turso.DBPath = filepath.Join(tmp, "pages.db")
 	cfg.DataDir = filepath.Join(tmp, "data")
@@ -355,4 +364,33 @@ func diffLines(want, got string) string {
 		}
 	}
 	return b.String()
+}
+
+// TestPrivatePagesRejectAnonymous pins the handler-level session check that
+// RBAC cannot provide when it is off: every page marked private in the
+// contract table must bounce an anonymous request (303/401/403), never render.
+func TestPrivatePagesRejectAnonymous(t *testing.T) {
+	base, _ := bootPages(t)
+	for _, p := range pagesUnderTest {
+		if p.anon {
+			continue
+		}
+		t.Run(p.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, base+p.route, nil)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			client := &http.Client{CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			}}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("GET %s: %v", p.route, err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				t.Fatalf("anonymous GET %s rendered 200", p.route)
+			}
+		})
+	}
 }

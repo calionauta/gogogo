@@ -229,9 +229,9 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 // scripts the canvas needs, in load order.
 templ boardHead() {
 	@sounds.SoundAssets()
-	<script src={ whiteboard.URL("rough.min.js") }></script>
-	<script defer src={ resources.StaticURL("throttle.js") }></script>
-	<script defer src={ whiteboard.URL("whiteboard.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } src={ whiteboard.URL("rough.min.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("throttle.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ whiteboard.URL("whiteboard.js") }></script>
 }
 
 // boardSound is the shell's mute control; the trim drops the call inside it.
@@ -269,7 +269,7 @@ templ boardBody(meta BoardMeta) {
 					<div id="cursors" class="absolute inset-0 pointer-events-none"></div>
 				</div>
 	</div>
-	<script>
+	<script nonce={ templ.GetNonce(ctx) }>
 		// The doc id is carried on the wrapper's data-doc-id (templ escapes
 		// attribute values safely). Reading it from the DOM avoids the earlier
 		// JS-string-escaping pitfalls (templ.URL() emitted a full URL and

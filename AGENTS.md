@@ -53,7 +53,7 @@ Go 1.27 | Templ v0.3.1020 | Datastar v1.0.4 (JS core, vendored) + datastar-go v1
 - NO HTMX/Alpine (Datastar), NO `fmt.Sprintf` HTML (Templ), NO `log` (`log/slog`).
 - Driver is `turso` (tursogo, registered by `internal/db`) — the only data layer; handlers call `dbgen.*` directly, no strategy switch. NO removing goqite for JetStream; different problems.
 - NO hand-rolled IDs on rows — use `dbschema.NewID()` (UUIDv7 string, matches every owner column).
-- NO authorization by ad-hoc `role == "admin"` in a handler (ruleguard `RoleCompareOutsideRBAC` fails CI) — route decisions go in `casbin/policy.csv`, per-record decisions in `canDeleteDoc`/`canDeleteRow`. NO shared-doc read/write without a session check in the handler: `RBAC_ENABLED` defaults to false, so the policy is inert until an operator opts in (`docs/rbac.md`).
+- NO authorization by ad-hoc `role == "admin"` in a handler (ruleguard `RoleCompareOutsideRBAC` fails CI) — route decisions go in `casbin/policy.csv`, per-record decisions in `canDeleteDoc`/`canDeleteRow`. NO shared-doc read/write without a session check in the handler: `RBAC_ENABLED` defaults to true in production (false in development), and the policy is inert only if an operator opts out explicitly (`docs/rbac.md`).
 - NO `PatchElements` without top-level `id` + `WithSelector` (`PatchElementsNoTargetsFound`). Use `internal/datastar.RenderAndPatch`.
 - NO real LLM in tests — inject a stub (`internal/llm/fakeserver` only inside `internal/llm/`).
 - NO secrets in git, chat-visible commands, or test fixtures — keys live in `~/.secrets/` (600) or age `.env.age` via `bin/init-secrets`; `gitleaks` pre-commit + CI enforce it. Never print secret values (lengths/names only).
@@ -103,7 +103,7 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 ## Gotchas (details in docs)
 
 - **Routing:** compose in `internal/server/chi.go` — `BootChi` builds one handler per capability, `buildChiMux` flattens each capability's own router (auth included) onto the root with one `MountFeature` call (duplicate method+pattern = boot panic naming both owners; unknown method = 405; landing `/` is the not-found handler). Edge wrappers sit ABOVE the router (security headers → opt-in `HTTP_ACCESS_LOG` → same-origin guard → RBAC) so 403/404/405 all carry the same headers and log line; the guard rejects an unsafe cross-origin browser write even before RBAC, and `SameSite=Lax` remains the first CSRF layer; recovery is the only `r.Use`, and NO timeout or compression middleware may wrap SSE (a hidden `http.Flusher` or a write deadline kills the stream). Cookie is `gogogo_auth` (owned argon2id sessions, `internal/auth`); DagNats console on `:8090`. Static via `web/resources.AssetHandler` (`/static/` + root `/sw.js` with `Service-Worker-Allowed: /`).
-- **RBAC (opt-in, `RBAC_ENABLED=false` by default):** policy is route+verb (`internal/rbac/casbin/policy.csv`); per-record ownership is `canDeleteDoc`/`canDeleteRow` in each feature. A handler that reads or writes user data checks the session ITSELF (`sess == nil` → 401) — with RBAC off the policy decides nothing. Adding a route means a `user` row + the `adminOnlyRoutes`/`publicRoutes` allowlist in `internal/rbac/coverage_test.go`; the coverage lint walks the real mux and demands a DIRECT `user` row (admin's `/*` masking a missing row is the bug that shipped). Objects are PATHS: `*` spans `/`, literals are escaped, metacharacters are refused at boot (`docs/rbac.md`).
+- **RBAC (enforced by default in production; development starts open):** policy is route+verb (`internal/rbac/casbin/policy.csv`); per-record ownership is `canDeleteDoc`/`canDeleteRow` in each feature. A handler that reads or writes user data checks the session ITSELF (`sess == nil` → 401) — with RBAC off the policy decides nothing. Operator surfaces do not rely on the flag: `/config` uses `rbac.RequireAdmin`, and `/console`/`/dagnats` require admin **and** an `ADMIN_EMAILS` match (empty list closes the console; the public demo admin is not an operator). Adding a route means a `user` row + the `adminOnlyRoutes`/`publicRoutes` allowlist in `internal/rbac/coverage_test.go`; the coverage lint walks the real mux and demands a DIRECT `user` row (admin's `/*` masking a missing row is the bug that shipped). Objects are PATHS: `*` spans `/`, literals are escaped, metacharacters are refused at boot (`docs/rbac.md`).
 - **Realtime:** mutations fan out twice — Hub record event to the owner's streams (no-echo on `clientID`, except offline replays which reach everyone) + JetStream CRUD op cross-instance — then re-list scoped. SSE hub (`/api/todos/stream`) is record-sync + ephemeral signals. Whiteboard/notes: SSEHub + NATS, Loro offline-first (`docs/async-layers.md`). Offline replay answers `"replayed"` + `X-Offline-Replay: 1`; fan-out runs BEFORE that short-circuit.
 - **Templ/CSS:** `make templ && make css` after `.templ` edits. `site/`+`docs/` are outside the Tailwind scan — landing edits can't stale the bundle (`docs/code-quality.md`).
 - **Docs site engine:** `site/build.mjs`, `site/releases.mjs`, `site/search.mjs`, `site/search/search.js`, `site/search/minisearch.js`, `site/search/package.json`, `scripts/site-layout.test.mjs` and the two docsite scripts are vendored from `calionauta/docsite`, pinned in `site/UPSTREAM_SHA`. Never edit them here: fix upstream, then `scripts/bump-docsite.sh`. Project values (name, base, manifest, releases, search) live in `site/docsite.config.mjs`. The drift workflow fails on a local edit, and the layout test gates the pages publish.
@@ -115,7 +115,36 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 - **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
 - **Deploy:** push-to-`master` ships in parallel with CI (deploy does NOT wait for it — PR CI is the pre-merge gate). CI builds the image once and the server **pulls it by digest** (`APP_IMAGE=…@sha256:…`); never a host-side binary, never a mutable tag. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone. Healthcheck is `CMD ["/app","health"]` (`docs/deploy.md`).
 - **UI and themes:** one component library, DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Visual variants are DaisyUI themes picked from the sidebar; the catalog lives in `internal/themes` and must stay in step with `src/css/input.css` — MUST read `docs/ui-themes.md` (via `skills/gogogo-ui/SKILL.md`) before any `.templ`/CSS edit.
-- **Config:** single source `config/config.go` (`docs/configuration.md`). **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
+- **Config:** single source `config/config.go` (`docs/configuration.md`). Security defaults: `SIGNUP_ENABLED` and `DEMO_ACCOUNTS_ENABLED` are dev-on/production-off, `APP_URL` is required for out-of-band links (the request `Host` is never trusted), `REQUIRE_EMAIL_VERIFICATION`/`SESSION_IDLE_TIMEOUT` default off, and `RATE_LIMIT_RPM` bounds authenticated requests per session. Magic links are cross-device by default with a read-only GET + POST confirmation; `MAGIC_LINK_BIND_BROWSER=true` is strict. CSP/HSTS are app-owned (`internal/server/edge.go`); inline scripts carry the per-request nonce. **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
+
+## Security invariants (agent gate)
+
+These are the invariants a new route, handler or dependency must preserve. They
+are enforced by tests/lints where the tool can see the shape; the rest is the
+review checklist, and no LLM should self-certify it (see the testing rule).
+
+- **Every route**: a session check in the handler (or `RequireSession`), a
+  direct `user` row in `policy.csv`, and a line in `adminOnlyRoutes` or
+  `publicRoutes`. Operator surfaces (`/config`, `/console`, `/dagnats`) keep
+  their always-on fence independent of `RBAC_ENABLED`.
+- **Every record read/write**: scope by the session owner in SQL
+  (`GetXVisible` / `ListXForOwner`), not by a client-supplied ID. Deletes go
+  through `canDeleteDoc`/`canDeleteRow`; a route-level policy is not ownership.
+- **Every sink**: Templ escapes; `templ.Raw` only for a sanitizer-allowlisted
+  fragment or a static map. No `Sprintf` HTML (ruleguard). SQL stays in sqlc
+  with `?` parameters. File paths use `os.Root`, never a lexical prefix.
+- **Every outbound fetch/command**: URLs and command names are operator
+  config, never request input. A user-supplied URL needs a scheme/host
+  allowlist and loopback/link-local denial; a shell is never used.
+- **Every inline script**: `nonce={ templ.GetNonce(ctx) }` and the page carries
+  `data-nonce` (CSP tests fail otherwise). No `unsafe-inline`/`unsafe-eval`
+  for scripts.
+- **Every credential change**: revoke sessions and pending magic links; do not
+  leave a 15-minute login window open.
+- **Every new dependency**: `docs/dependency-principles.md`, pinned version,
+  `govulncheck`; no native-floor change without a human gate.
+- **Every security test**: prove it can fail (RED/GREEN/PROVE); a green test
+  that cannot go red is not a guard.
 
 ## No AI attribution in commits or release notes
 
