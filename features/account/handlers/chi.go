@@ -215,7 +215,12 @@ func (h *Handler) revokeAll(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "Invalid form submission.")
 		return
 	}
-	if h.a.HasPassword(r.Context(), sess.User.ID) &&
+	hasPassword, perr := h.a.HasPassword(r.Context(), sess.User.ID)
+	if perr != nil {
+		h.renderError(w, r, sess, "Could not verify this account. Try again.")
+		return
+	}
+	if hasPassword &&
 		!h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
 		h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
 			"revoke all", sess.User.Email, sess.User.ID, sess.SessionID)
@@ -256,9 +261,13 @@ func (h *Handler) pageData(r *http.Request, sess *auth.ValidatedSession) (compon
 			Current: row.SessionID == sess.SessionID,
 		})
 	}
+	passwordSet, perr := h.a.HasPassword(r.Context(), sess.User.ID)
+	if perr != nil {
+		return components.PageData{}, perr
+	}
 	return components.PageData{
 		Email: email, Role: sess.Role, Verified: verified, TOTP: totp,
-		Sessions: views, PasswordSet: h.a.HasPassword(r.Context(), sess.User.ID),
+		Sessions: views, PasswordSet: passwordSet,
 	}, nil
 }
 

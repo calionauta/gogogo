@@ -26,7 +26,12 @@ func (a *Auth) handleRevokeAll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	if a.HasPassword(r.Context(), user.ID) {
+	hasPassword, herr := a.HasPassword(r.Context(), user.ID)
+	if herr != nil {
+		http.Error(w, "revoke failed", http.StatusInternalServerError)
+		return
+	}
+	if hasPassword {
 		var body struct {
 			Password string `json:"password"`
 		}

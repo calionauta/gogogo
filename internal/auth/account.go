@@ -56,12 +56,12 @@ func (a *Auth) DisableTOTPWithPassword(ctx context.Context, userID, password str
 // HasPassword reports whether the account can prove a password. OAuth-only
 // rows carry the "!" sentinel (see oauth.go): a destructive action that asks
 // for a password must not lock those users out of their own account.
-func (a *Auth) HasPassword(ctx context.Context, userID string) bool {
+func (a *Auth) HasPassword(ctx context.Context, userID string) (bool, error) {
 	row, err := a.q.GetUser(ctx, userID)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("auth: password state: %w", err)
 	}
-	return strings.HasPrefix(row.PasswordHash, "argon2id$v=")
+	return strings.HasPrefix(row.PasswordHash, "argon2id$v="), nil
 }
 
 // VerifyUserPassword is the read-only proof used before destructive account
