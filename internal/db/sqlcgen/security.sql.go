@@ -9,13 +9,24 @@ import (
 	"context"
 )
 
-const deleteSecurityEventsBefore = `-- name: DeleteSecurityEventsBefore :exec
-DELETE FROM security_events WHERE created < ?
+const deleteSecurityEventsBatchBefore = `-- name: DeleteSecurityEventsBatchBefore :execrows
+DELETE FROM security_events WHERE id IN (
+    SELECT id FROM security_events AS old
+    WHERE old.created < ? ORDER BY old.created LIMIT ?
+)
 `
 
-func (q *Queries) DeleteSecurityEventsBefore(ctx context.Context, created string) error {
-	_, err := q.db.ExecContext(ctx, deleteSecurityEventsBefore, created)
-	return err
+type DeleteSecurityEventsBatchBeforeParams struct {
+	Created string
+	Limit   int64
+}
+
+func (q *Queries) DeleteSecurityEventsBatchBefore(ctx context.Context, arg DeleteSecurityEventsBatchBeforeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSecurityEventsBatchBefore, arg.Created, arg.Limit)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const insertSecurityEvent = `-- name: InsertSecurityEvent :exec

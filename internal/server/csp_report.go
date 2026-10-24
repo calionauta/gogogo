@@ -8,9 +8,10 @@ package server
 import (
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 const (
@@ -43,15 +44,17 @@ func cspReportHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &report); err != nil {
 		// Browsers sometimes send a bare array; we do not need its shape to
 		// record that a violation happened.
-		slog.Warn("csp: unparseable report", "bytes", len(body))
+		observability.Warn(r.Context(), "csp: unparseable report",
+			append(observability.WithComponent("csp", "core"), "bytes", len(body))...)
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	slog.Warn("csp: violation",
-		"document", cleanReportURL(report.Report.DocumentURI),
-		"directive", truncateCSP(sanitizeCSP(report.Report.ViolatedDirective)),
-		"blocked", truncateCSP(sanitizeCSP(report.Report.BlockedURI)),
-		"source", cleanReportURL(report.Report.SourceFile))
+	observability.Warn(r.Context(), "csp: violation",
+		append(observability.WithComponent("csp", "core"),
+			"document", cleanReportURL(report.Report.DocumentURI),
+			"directive", truncateCSP(sanitizeCSP(report.Report.ViolatedDirective)),
+			"blocked", truncateCSP(sanitizeCSP(report.Report.BlockedURI)),
+			"source", cleanReportURL(report.Report.SourceFile))...)
 	w.WriteHeader(http.StatusNoContent)
 }
 

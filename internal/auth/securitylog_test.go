@@ -12,6 +12,8 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 // captureSecLogs redirects the default slog logger into a buffer for the
@@ -21,8 +23,8 @@ func captureSecLogs(t *testing.T) *bytes.Buffer {
 	t.Helper()
 	var buf bytes.Buffer
 	prev := slog.Default()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})))
-	t.Cleanup(func() { slog.SetDefault(prev) })
+	observability.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	t.Cleanup(func() { observability.SetDefault(prev) })
 	return &buf
 }
 
@@ -45,6 +47,8 @@ func TestSecRejectLogsEventAndReason(t *testing.T) {
 		`"reason":"bad password"`,
 		`"email":"a@example.com"`,
 		`"userID":"user1"`,
+		`"component":"auth"`,
+		`"layer":"core"`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %s in security log:\n%s", want, out)

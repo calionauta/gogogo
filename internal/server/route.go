@@ -27,10 +27,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"runtime/debug"
+
+	"github.com/calionauta/gogogo/internal/observability"
 
 	"github.com/go-chi/chi/v5"
 
@@ -140,16 +142,18 @@ func healthHandler(todoH *todohandlers.Handler) http.HandlerFunc {
 // the handler.
 func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
+		defer func(ctx context.Context) {
 			if rec := recover(); rec != nil {
 				if rec == http.ErrAbortHandler { //nolint:errorlint // the net/http sentinel is a panic value, compared on purpose
 					panic(rec) // the net/http contract: abort the response silently
 				}
-				slog.Error("server: handler panic", "method", r.Method,
-					"path", r.URL.Path, "panic", rec, "stack", string(debug.Stack()))
+				observability.Error(ctx, "server: handler panic",
+					append(observability.WithComponent("server", "core"),
+						"method", r.Method, "path", r.URL.Path,
+						"panic", rec, "stack", string(debug.Stack()))...)
 				http.Error(w, "internal error", http.StatusInternalServerError)
 			}
-		}()
+		}(r.Context())
 		next.ServeHTTP(w, r)
 	})
 }

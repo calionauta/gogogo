@@ -128,6 +128,10 @@ magic-link, verification and reset tokens, so exposing it publicly would hand
 every visitor a way into every pending account. A public demo user can trigger
 a link but cannot read it; the local operator opens the UI through SSH or a
 tailnet tunnel. `make mailpit` is a development/debug aid, not a mail service.
+The app does not render an inbox and does not write the message body to its
+application log: Mailpit's own UI is where a developer inspects the captured
+message. That is the value — local end-to-end testing without a provider — not
+a visitor-facing inbox.
 
 ### Real delivery (demo or production)
 
