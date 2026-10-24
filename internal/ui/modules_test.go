@@ -55,6 +55,40 @@ func TestAdminFlagMatchesAdminOnlyRoutes(t *testing.T) {
 	}
 }
 
+// TestVisibleViewerSeesCollabOnly pins the viewer affordance: the viewer
+// policy denies the AI + Room + operator paths, so offering them would render
+// destinations that 403 on open. Plain users keep every non-admin module.
+func TestVisibleViewerSeesCollabOnly(t *testing.T) {
+	ids := map[string]bool{}
+	for _, g := range Grouped("viewer") {
+		for _, m := range g.Modules {
+			ids[m.ID] = true
+		}
+	}
+	for _, want := range []string{"todo", "whiteboard", "notes"} {
+		if !ids[want] {
+			t.Errorf("viewer does not see %q (viewer policy allows it)", want)
+		}
+	}
+	for _, banned := range []string{"chat", "review", "room", "config"} {
+		if ids[banned] {
+			t.Errorf("viewer sees %q (viewer policy denies it: click 403s)", banned)
+		}
+	}
+
+	userIDs := map[string]bool{}
+	for _, g := range Grouped("user") {
+		for _, m := range g.Modules {
+			userIDs[m.ID] = true
+		}
+	}
+	for _, want := range []string{"todo", "whiteboard", "notes", "chat", "review", "room"} {
+		if !userIDs[want] {
+			t.Errorf("user does not see %q", want)
+		}
+	}
+}
+
 // TestGroupedKeepsEveryModuleVisibleSomewhere fails when a module is added to
 // the registry without a group the shell renders — the module would exist as a
 // route with no way to reach it (a dropped scope, not a layout choice).

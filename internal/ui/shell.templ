@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/icon"
+	"github.com/calionauta/gogogo/internal/rbac"
 )
 
 // Data is what the shell needs to render around a page body.
@@ -243,7 +244,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 				}
 			</div>
 			@components.ToastContainer()
-			@AppDock(d.Module)
+			@AppDock(d.Module, d.Role)
 		</body>
 	</html>
 }
@@ -254,11 +255,19 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 // the composer owns the thumb zone there, and a fixed bar would cover the
 // docked input. Icons reuse the registry's own names so the dock
 // and the drawer can never disagree about artwork.
-templ AppDock(module string) {
+//
+// Viewers get Notes as the third destination instead of Chat: the viewer
+// policy denies /chat, so offering it would render a destination that 403s
+// on open (same rule as the drawer via Visible, and the palette).
+templ AppDock(module string, role string) {
 	<nav class="app-dock dock" aria-label="Primary">
 		@dockLink(module, "todo", "/todo", "material-symbols:checklist", "Todo")
 		@dockLink(module, "whiteboard", "/whiteboard", "material-symbols:draw", "Board")
-		@dockLink(module, "chat", "/chat", "material-symbols:forum", "Chat")
+		if rbac.IsViewer(role) {
+			@dockLink(module, "notes", "/notes", "material-symbols:description", "Notes")
+		} else {
+			@dockLink(module, "chat", "/chat", "material-symbols:forum", "Chat")
+		}
 		<button
 			type="button"
 			aria-label="Open navigation"

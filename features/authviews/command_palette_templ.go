@@ -8,6 +8,8 @@ package authviews
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/calionauta/gogogo/internal/rbac"
+
 // CommandPalette is the keyboard-first jump menu (Ctrl/Cmd+K). It is a
 // Datastar-native combobox/listbox: the input owns the filter signal, every
 // command is a real link, and ArrowUp/ArrowDown move focus through the
@@ -28,6 +30,16 @@ func appHref(path string, guest bool) string {
 		return "/login?next=" + path
 	}
 	return path
+}
+
+// showRestricted reports whether the role may see the non-collab destinations
+// (AI + Room). Guests always do — their links route through login, and the
+// post-login role decides. Signed-in viewers do not: the viewer policy denies
+// those paths, so offering the link would render a destination that 403s on
+// open. Mirrors ui.Visible (sidebar); visibility_policy_test.go pins the
+// parity from the policy side.
+func showRestricted(userRole string, guest bool) bool {
+	return guest || !rbac.IsViewer(userRole)
 }
 
 func CommandPalette(userRole string, guest bool) templ.Component {
@@ -58,7 +70,7 @@ func CommandPalette(userRole string, guest bool) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{"cmdQuery":""}`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 27, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 39, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -80,17 +92,19 @@ func CommandPalette(userRole string, guest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Chat", appHref("/chat", guest), "AI").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = commandLink("Review", appHref("/review", guest), "AI").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = commandLink("Room", appHref("/room", guest), "Realtime").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		if showRestricted(userRole, guest) {
+			templ_7745c5c3_Err = commandLink("Chat", appHref("/chat", guest), "AI").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = commandLink("Review", appHref("/review", guest), "AI").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = commandLink("Room", appHref("/room", guest), "Realtime").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		if userRole == "admin" {
 			templ_7745c5c3_Err = commandLink("Config", "/config", "Operator").Render(ctx, templ_7745c5c3_Buffer)
@@ -134,7 +148,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("$cmdQuery === '' || el.textContent.toLowerCase().includes($cmdQuery.trim().toLowerCase())")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 92, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 106, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -147,7 +161,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var5 templ.SafeURL
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 93, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 107, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -160,7 +174,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 94, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 108, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -173,7 +187,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(hint)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 95, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 109, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {

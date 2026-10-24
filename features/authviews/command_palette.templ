@@ -1,5 +1,7 @@
 package authviews
 
+import "github.com/calionauta/gogogo/internal/rbac"
+
 // CommandPalette is the keyboard-first jump menu (Ctrl/Cmd+K). It is a
 // Datastar-native combobox/listbox: the input owns the filter signal, every
 // command is a real link, and ArrowUp/ArrowDown move focus through the
@@ -20,6 +22,16 @@ func appHref(path string, guest bool) string {
 		return "/login?next=" + path
 	}
 	return path
+}
+
+// showRestricted reports whether the role may see the non-collab destinations
+// (AI + Room). Guests always do — their links route through login, and the
+// post-login role decides. Signed-in viewers do not: the viewer policy denies
+// those paths, so offering the link would render a destination that 403s on
+// open. Mirrors ui.Visible (sidebar); visibility_policy_test.go pins the
+// parity from the policy side.
+func showRestricted(userRole string, guest bool) bool {
+	return guest || !rbac.IsViewer(userRole)
 }
 
 templ CommandPalette(userRole string, guest bool) {
@@ -73,9 +85,11 @@ templ CommandPalette(userRole string, guest bool) {
 					@commandLink("Collab Todo", appHref("/todo", guest), "Tasks")
 					@commandLink("Collab whiteboard", appHref("/whiteboard", guest), "Canvas")
 					@commandLink("Collab notes", appHref("/notes", guest), "Docs")
-					@commandLink("Chat", appHref("/chat", guest), "AI")
-					@commandLink("Review", appHref("/review", guest), "AI")
-					@commandLink("Room", appHref("/room", guest), "Realtime")
+					if showRestricted(userRole, guest) {
+						@commandLink("Chat", appHref("/chat", guest), "AI")
+						@commandLink("Review", appHref("/review", guest), "AI")
+						@commandLink("Room", appHref("/room", guest), "Realtime")
+					}
 					if userRole == "admin" {
 						@commandLink("Config", "/config", "Operator")
 					}

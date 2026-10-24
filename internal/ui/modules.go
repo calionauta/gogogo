@@ -47,6 +47,17 @@ var Modules = []Module{
 	{ID: "config", Title: "Config", Group: GroupOperate, Icon: "material-symbols:settings", URL: "/config", Admin: true},
 }
 
+// viewerModules are the destinations the viewer role may see (the RBAC demo:
+// collab only — the viewer policy denies AI + Room + operator paths, so
+// offering them would render destinations that 403 on open). Kept as a map,
+// not a Module field, so every entry stays a single `{ID: ...}` line: the
+// installer trims destinations by matching those lines. New modules default
+// to hidden from viewers (fail-closed affordance); visibility_policy_test.go
+// pins nav/policy parity per role, so a policy grant/removal fails naming
+// the pair. A stale entry for a trimmed module is inert (Visible iterates
+// Modules, and `add` restores the same `{ID: ...}` line).
+var viewerModules = map[string]bool{"todo": true, "whiteboard": true, "notes": true}
+
 // Visible returns the modules the given role may see. An empty role (guest)
 // sees the non-admin surfaces, matching the navbar's previous behaviour; the
 // route itself is still enforced by the RBAC policy.
@@ -54,6 +65,9 @@ func Visible(role string) []Module {
 	out := make([]Module, 0, len(Modules))
 	for _, m := range Modules {
 		if m.Admin && !rbac.IsAdmin(role) {
+			continue
+		}
+		if rbac.IsViewer(role) && !viewerModules[m.ID] {
 			continue
 		}
 		out = append(out, m)
