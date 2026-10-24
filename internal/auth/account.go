@@ -109,6 +109,28 @@ func (a *Auth) RotateRecoveryCodesWithCode(ctx context.Context, userID, code str
 	return a.RotateRecoveryCodes(ctx, userID)
 }
 
+// RevokeAllSessionsWithProof is sign-out-everywhere with the strongest proof
+// the account has: the password when one is set, a current authenticator/
+// recovery code when TOTP is enrolled, or the session itself for an OAuth-only
+// row with no factor (the only thing that can prove it).
+func (a *Auth) RevokeAllSessionsWithProof(ctx context.Context, userID, proof string) error {
+	row, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("auth: revoke lookup: %w", err)
+	}
+	switch {
+	case strings.HasPrefix(row.PasswordHash, "argon2id$v="):
+		if ok, _ := verifyPassword(row.PasswordHash, proof); !ok {
+			return ErrBadCredentials
+		}
+	case row.TotpSecret != "" && row.TotpVerified != 0:
+		if !a.verifySecondFactor(ctx, row, proof) {
+			return ErrBadCredentials
+		}
+	}
+	return a.RevokeAllSessions(ctx, userID)
+}
+
 // CanStepUp reports whether the account has a proof that VerifyStepUp can
 // accept: a password or a verified TOTP factor. OAuth-only rows without TOTP
 // cannot perform admin mutations until they enroll a factor or set a password.

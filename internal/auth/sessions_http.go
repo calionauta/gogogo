@@ -26,27 +26,33 @@ func (a *Auth) handleRevokeAll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	hasPassword, herr := a.HasPassword(r.Context(), user.ID)
+	needProof, herr := a.CanStepUp(r.Context(), user.ID)
 	if herr != nil {
 		http.Error(w, "revoke failed", http.StatusInternalServerError)
 		return
 	}
-	if hasPassword {
+	var proof string
+	if needProof {
 		var body struct {
 			Password string `json:"password"`
+			Code     string `json:"code"`
 		}
 		if berr := readJSON(r, &body); berr != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
 		}
-		if !a.VerifyUserPassword(r.Context(), user.ID, body.Password) {
+		proof = body.Password
+		if proof == "" {
+			proof = body.Code
+		}
+	}
+	if rerr := a.RevokeAllSessionsWithProof(r.Context(), user.ID, proof); rerr != nil {
+		if errors.Is(rerr, ErrBadCredentials) {
 			a.RecordAudit(r.Context(), EventStepUpRejected,
 				"revoke all", user.Email, user.ID, "")
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
-	}
-	if rerr := a.RevokeAllSessions(r.Context(), user.ID); rerr != nil {
 		http.Error(w, "revoke failed", http.StatusInternalServerError)
 		return
 	}

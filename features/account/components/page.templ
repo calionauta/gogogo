@@ -237,8 +237,14 @@ templ body(data PageData) {
 							<input type="password" name="password" class="input input-sm" required
 								autocomplete="current-password"/>
 						</label>
+					} else if data.TOTP {
+						<label class="form-control w-full">
+							<div class="label"><span class="label-text">Authenticator or recovery code</span></div>
+							<input type="text" name="code" class="input input-sm" required
+								inputmode="numeric" autocomplete="one-time-code"/>
+						</label>
 					} else {
-						<p class="text-xs text-base-content/60">This account signs in without a password; the session itself authorizes this action.</p>
+						<p class="text-xs text-base-content/60">This account has no password or second factor; the session itself authorizes this action.</p>
 					}
 					<button type="submit" class="btn btn-sm btn-error">Sign out everywhere</button>
 				</form>
