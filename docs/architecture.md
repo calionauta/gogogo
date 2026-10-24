@@ -175,7 +175,8 @@ is per-process. The security properties here are owned:
   webhooks and the desktop webview send no `Origin` (or a custom scheme) and
   pass; two loopback origins share the dev trust boundary.
 - Casbin policy at the edge of the router plus per-handler session checks,
-  because `RBAC_ENABLED` defaults to false (`docs/rbac.md`). Operator surfaces
+  because `RBAC_ENABLED` defaults to true in production (false in development)
+  (`docs/rbac.md`). Operator surfaces
   (`/config`, `/console/`, `/dagnats/`) carry an always-on fence that does not
   depend on the flag: admin role for `/config`, and admin **plus** an
   `ADMIN_EMAILS` match for the console (the public demo's `demo1` is an admin,
@@ -201,6 +202,14 @@ tunnel every request arrives from the same proxy address). The sign-in
 throttle deliberately keys on the TCP peer; behind a single proxy that
 collapses to one key, so throttle login at the edge. These are documented
 boundaries, not silent assumptions.
+
+Mechanical guards behind that boundary: `TestHandlerSurfaceHasNoRawSinks`
+scans every `features/*/handlers` and `internal/server` file for `http.Get`,
+`exec.Command`, raw `os.Open`/`os.WriteFile`, `templ.Raw` and
+`template.HTML`; `TestRBACPrivateRoutesDenyAnonymous` refuses a policy that
+publishes an undeclared route; `TestPrivatePagesRejectAnonymous` proves the
+handler session check with RBAC off; auth/sanitizer fuzz seeds cover the pure
+parsers.
 
 Residual hardening deliberately left out of the audit pass: an idle session
 timeout (the template keeps the absolute seven-day TTL), the `__Host-` cookie

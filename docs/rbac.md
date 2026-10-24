@@ -1,6 +1,6 @@
 # RBAC (Casbin): the complete guide
 
-Role-based access control, opt-in via `RBAC_ENABLED=true`. Casbin
+Role-based access control, enforced by default in production (`RBAC_ENABLED=true`) and opt-out there, open by default in development. Casbin
 decides; `internal/auth` authenticates. If you are an LLM adding a
 feature, read "Adding a feature" and follow it mechanically — the
 tests fail naming the exact gap when you skip a step.
@@ -153,7 +153,7 @@ a 403, never to an unauthorized write. Never gate a mutation on
 
 ## Env reference
 
-- **`RBAC_ENABLED`** (default `false`) — enforce or pass through.
+- **`RBAC_ENABLED`** (default `true` in production, `false` in development) — enforce or pass through.
 - **`RBAC_PERMISSIVE`** (default `false`) — audit-before-enforce;
   would-be denies logged with `permissive=1` and allowed through.
 - **`RBAC_POLICY_SOURCE`** (default `embedded`) — `embedded` reads the
@@ -278,9 +278,9 @@ stays the default and is still what the shape/coverage tests pin.
 
 ## Authentication is not authorization (read before trusting RBAC)
 
-`RBAC_ENABLED` defaults to **false**, so on a stock deployment the
-middleware decides nothing. That makes the handler the ONLY guard, and a
-policy row is not a substitute for one. Two rules follow:
+`RBAC_ENABLED` defaults to **true in production** (false in development).
+Even when it is off, the handler is the ONLY guard, and a policy row is not
+a substitute for one. Two rules follow:
 
 - **A handler that reads or writes user data checks the session itself.**
   `sess == nil` answers 401, before touching a doc, a row or the body. Do

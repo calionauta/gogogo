@@ -186,7 +186,7 @@ record-level.** Authorization has exactly two homes: `policy.csv` decides
 cannot live in a static policy because the row is not known until the handler
 loads it. That split is what OWASP ASVS 5.0 V8.2 asks for (function-level AND
 data-specific checks, to defeat IDOR/BOLA). **RBAC is not authentication.**
-`RBAC_ENABLED` defaults to false, so every handler that touches user data
+`RBAC_ENABLED` defaults to true in production (false in development), so every handler that touches user data
 checks the session itself; a policy row is never the only guard. Operator
 surfaces carry an always-on fence (`rbac.RequireAdmin` on `/config`; admin +
 `ADMIN_EMAILS` on `/console`), because turning RBAC off must not hand runtime

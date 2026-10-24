@@ -85,6 +85,23 @@ shares the same shape — siblings differ only by name:
 > (`.github/workflows/deploy.yml`, "Ensure layout + run deploy"), and
 > `scripts/deploy-prod.sh` reads `APP_DIR="/home/deploy/services/${PROJECT}"`.
 
+## First production boot (avoid the lockout)
+
+A production environment starts with `RBAC_ENABLED=true`, `SIGNUP_ENABLED=false`
+and `DEMO_ACCOUNTS_ENABLED=false`, and `ADMIN_EMAILS` promotes **existing** rows
+only. A brand-new database therefore has no account and no way in. Bootstrap in
+this order:
+
+1. Set `SIGNUP_ENABLED=true` for the first boot (or `DEMO_ACCOUNTS_ENABLED=true`
+   for a demo), create the owner account, then restart with `SIGNUP_ENABLED=false`.
+2. Put that address in `ADMIN_EMAILS` and restart once more; promotion needs the
+   row to exist.
+3. Keep `ADMIN_EMAILS` set: it is also the `/console/` and `/dagnats/` operator
+   allowlist. `/config` only needs the admin role.
+
+If you really want the open single-tenant posture, set `RBAC_ENABLED=false`
+explicitly; the default is enforcing.
+
 ## First-time setup on the server
 
 1. Install Docker and create a `deploy` user with SSH key access.

@@ -113,7 +113,7 @@ templ configBody(data PageData) {
 		if data.RBACEnabled {
 			<span>RBAC enforcement is <strong>on</strong> — this page is admin-only.</span>
 		} else {
-			<span>RBAC enforcement is <strong>off</strong> (pass-through) — set <code class="text-sm">RBAC_ENABLED=true</code> to enforce.</span>
+			<span>RBAC enforcement is <strong>off</strong> (pass-through) — this page remains admin-only via its handler fence; set <code class="text-sm">RBAC_ENABLED=true</code> to enforce every route.</span>
 		}
 	</div>
 

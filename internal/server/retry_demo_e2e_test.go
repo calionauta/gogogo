@@ -27,6 +27,7 @@ func TestRetryDemoReachesStream(t *testing.T) {
 	cfg := config.Load()
 	cfg.Dev = true
 	cfg.SignupEnabled = true
+	cfg.RBACEnabled = false
 	tmp := t.TempDir()
 	cfg.Turso.DBPath = tmp + "/e2e-retry.db"
 	cfg.DataDir = tmp + "/data"

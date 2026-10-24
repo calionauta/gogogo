@@ -379,7 +379,7 @@ func Load() *Config {
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
-	cfg.loadRBACEnv()
+	cfg.loadRBACEnv(dev)
 	cfg.loadAuthEnv()
 	cfg.loadSearchEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")

@@ -252,7 +252,7 @@ func configBody(data PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span>RBAC enforcement is <strong>off</strong> (pass-through) — set <code class=\"text-sm\">RBAC_ENABLED=true</code> to enforce.</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span>RBAC enforcement is <strong>off</strong> (pass-through) — this page remains admin-only via its handler fence; set <code class=\"text-sm\">RBAC_ENABLED=true</code> to enforce every route.</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -27,17 +27,20 @@ var adminOnlyRoutes = map[string]bool{
 // accidentally-public route (reachable through a wildcard nobody meant to
 // widen) fails here instead of shipping.
 var publicRoutes = map[string]bool{
-	"/":                           true,
-	"/login":                      true,
-	"/logout":                     true,
-	"/health":                     true,
-	"/sw.js":                      true,
-	"/api/auth/signup/credential": true,
-	"/api/auth/signin/credential": true,
-	"/api/auth/signout":           true,
-	"/api/auth/magic":             true,
-	"/api/auth/magic/request":     true,
-	"/api/session/stream":         true,
+	"/":                                   true,
+	"/login":                              true,
+	"/logout":                             true,
+	"/health":                             true,
+	"/sw.js":                              true,
+	"/api/auth/signup/credential":         true,
+	"/api/auth/signin/credential":         true,
+	"/api/auth/signout":                   true,
+	"/api/auth/magic":                     true,
+	"/api/auth/magic/request":             true,
+	"/api/auth/oauth/{provider}":          true,
+	"/api/auth/oauth/{provider}/callback": true,
+	"/api/auth/totp/login":                true,
+	"/api/session/stream":                 true,
 }
 
 // TestRBACCoverageMatchesRoutes is the coverage lint that replaced the
@@ -324,5 +327,30 @@ func repoRoot(t *testing.T) string {
 			t.Fatal("go.mod not found above the test directory")
 		}
 		dir = parent
+	}
+}
+
+// TestRBACPrivateRoutesDenyAnonymous is the inverse of the public allowlist:
+// every route not declared public must be denied to anonymous when the policy
+// is enforced. A wildcard that accidentally publishes a route fails here even
+// if its handler also checks the session.
+func TestRBACPrivateRoutesDenyAnonymous(t *testing.T) {
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	for _, rt := range registeredRoutes(t) {
+		if rt.pattern == "" || publicRoutes[rt.pattern] {
+			continue
+		}
+		for _, method := range rt.methods {
+			allow, eerr := e.Enforce(RoleAnonymous, rt.pattern, method)
+			if eerr != nil {
+				t.Fatalf("enforce anonymous %s %s: %v", method, rt.pattern, eerr)
+			}
+			if allow {
+				t.Errorf("%s %s is anonymous-reachable but not in publicRoutes", method, rt.pattern)
+			}
+		}
 	}
 }

@@ -112,7 +112,7 @@ func TestChiConfigRoleBanner(t *testing.T) {
 	if !strings.Contains(body, rbac.RoleAdmin) {
 		t.Fatalf("config view missing the viewer role:\n%s", body)
 	}
-	if !strings.Contains(body, "RBAC_ENABLED=true") {
+	if !strings.Contains(body, "RBAC enforcement is <strong>on</strong>") {
 		t.Fatalf("config view missing the enforcement posture hint")
 	}
 }
