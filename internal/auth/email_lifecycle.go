@@ -115,6 +115,24 @@ func (a *Auth) RequestEmailVerification(ctx context.Context, userID, email, base
 	return mailer(addr, "Verify your email", "Open this link to verify your email:\n\n"+link+"\n")
 }
 
+// RequestEmailVerificationDefault uses the configured APP_URL.
+func (a *Auth) RequestEmailVerificationDefault(ctx context.Context, email string) error {
+	base := a.publicBaseURL()
+	if base == "" {
+		return errors.New("auth: APP_URL not configured")
+	}
+	return a.RequestEmailVerificationByEmail(ctx, email, base)
+}
+
+// RequestPasswordResetDefault uses the configured APP_URL.
+func (a *Auth) RequestPasswordResetDefault(ctx context.Context, email string) error {
+	base := a.publicBaseURL()
+	if base == "" {
+		return errors.New("auth: APP_URL not configured")
+	}
+	return a.RequestPasswordReset(ctx, email, base)
+}
+
 // RequestEmailVerificationByEmail is the public request path: unknown or
 // already-verified addresses are silent, so it cannot enumerate accounts.
 func (a *Auth) RequestEmailVerificationByEmail(ctx context.Context, email, baseURL string) error {

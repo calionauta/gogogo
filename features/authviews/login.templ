@@ -26,7 +26,7 @@ func demoValue(on bool, v string) string {
 	return ""
 }
 
-templ LoginPage(next string, errMsg string, skinName string, demoAccounts bool) {
+templ LoginPage(next string, errMsg string, skinName string, demoAccounts bool, totpUser string, notice string) {
 	<!DOCTYPE html>
 	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
 		<head>
@@ -50,8 +50,29 @@ templ LoginPage(next string, errMsg string, skinName string, demoAccounts bool) 
 							<span>{ errMsg }</span>
 						</div>
 					}
+					if notice != "" {
+						<div role="status" class="alert alert-success mb-4">
+							<span>{ notice }</span>
+						</div>
+					}
 
+					if totpUser != "" {
+						<form method="POST" action="/login" class="space-y-4">
+							<input type="hidden" name="intent" value="totp"/>
+							<input type="hidden" name="totp_user" value={ totpUser }/>
+							<input type="hidden" name="next" value={ next }/>
+							<label class="form-control w-full">
+								<div class="label">
+									<span class="label-text">Authenticator code</span>
+								</div>
+								<input type="text" name="totp_code" class="input input-sm" required
+									inputmode="numeric" autocomplete="one-time-code" autofocus/>
+							</label>
+							<button type="submit" class="btn btn-primary w-full">Verify code</button>
+						</form>
+					} else {
 					<form method="POST" action="/login" class="space-y-4">
+						<input type="hidden" name="intent" value="password"/>
 						<input type="hidden" name="next" value={ next }/>
 						<label class="form-control w-full">
 							<div class="label">
@@ -91,6 +112,38 @@ templ LoginPage(next string, errMsg string, skinName string, demoAccounts bool) 
 							</div>
 						}
 					</form>
+					}
+					<div class="divider text-xs text-base-content/40">or use email</div>
+					<div class="space-y-2 text-sm">
+						<details>
+							<summary class="cursor-pointer">Email me a sign-in link</summary>
+							<form method="POST" action="/login" class="space-y-2 mt-2">
+								<input type="hidden" name="intent" value="magic"/>
+								<input type="hidden" name="next" value={ next }/>
+								<input type="email" name="email" class="input input-sm w-full" required
+									placeholder="you@example.com" autocomplete="email"/>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">Send link</button>
+							</form>
+						</details>
+						<details>
+							<summary class="cursor-pointer">Forgot password?</summary>
+							<form method="POST" action="/login" class="space-y-2 mt-2">
+								<input type="hidden" name="intent" value="forgot"/>
+								<input type="email" name="email" class="input input-sm w-full" required
+									placeholder="you@example.com" autocomplete="email"/>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">Send reset link</button>
+							</form>
+						</details>
+						<details>
+							<summary class="cursor-pointer">Resend verification email</summary>
+							<form method="POST" action="/login" class="space-y-2 mt-2">
+								<input type="hidden" name="intent" value="verify"/>
+								<input type="email" name="email" class="input input-sm w-full" required
+									placeholder="you@example.com" autocomplete="email"/>
+								<button type="submit" class="btn btn-ghost btn-sm w-full">Send verification</button>
+							</form>
+						</details>
+					</div>
 					if demoAccounts {
 					<div class="divider text-xs text-base-content/40">or be both at once</div>
 					<div data-demo="demo-accounts" class="space-y-3">

@@ -107,6 +107,20 @@ func (a *Auth) RequestMagicLink(
 	return send(addr, baseURL+"/api/auth/magic?"+q.Encode())
 }
 
+// RequestMagicLinkDefault is the form-facing wrapper: it uses the configured
+// APP_URL and the installed sender, and fails closed when either is absent.
+func (a *Auth) RequestMagicLinkDefault(ctx context.Context, email string) error {
+	send := a.magicSender()
+	if send == nil {
+		return errors.New("auth: no magic sender configured")
+	}
+	base := a.publicBaseURL()
+	if base == "" {
+		return errors.New("auth: APP_URL not configured")
+	}
+	return a.RequestMagicLink(ctx, email, base, "", send)
+}
+
 // LookupMagicToken resolves the account a login token belongs to without
 // consuming it. The emailed GET uses it to render the confirmation page; it
 // never deletes, so an email scanner prefetch cannot spend the link.

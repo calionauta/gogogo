@@ -33,7 +33,7 @@ being one.
 
 ## What each capability does
 
-- **Auth** — Cookie sessions, demo login, per-request user loading.
+- **Auth** — Cookie sessions, demo login, per-request user loading, and the email magic-link / TOTP / password-reset / verification flows on `/login`.
 - **Access control (RBAC)** — Roles on the user row (`admin`, `user`, `viewer`, `anonymous`) with the policy in one Casbin model, enforced before the handler runs. Route+verb in policy; per-record ownership in `canDeleteDoc`/`canDeleteRow`. Embedded policy is the default; `RBAC_POLICY_SOURCE=db` moves it to `casbin_rule`. Coverage is checked by scanning every router, so a new route cannot ship unguarded. Demo accounts ship as admin/viewer. See [RBAC](rbac.md).
 - **Todo app + realtime** — DB actions (create/toggle/delete) stream visibility-scoped via `owner` + `visibility` (private rows to owner tabs, shared rows to every login). Ephemeral signals carry toasts, clients count, AI suggest.
 - **Background jobs + retry** — Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`).

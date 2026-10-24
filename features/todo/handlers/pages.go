@@ -6,6 +6,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -33,40 +34,110 @@ func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render; the generated boundary is invisible to the lint.
-	_ = authviews.LoginPage(loginNext(r), "", h.skinName(), h.DemoAccounts).Render(r.Context(), w)
+	_ = authviews.LoginPage(loginNext(r), "", h.skinName(), h.DemoAccounts, "", "").Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		//nolint:contextcheck // same templ boundary as the GET handler.
-		_ = authviews.LoginPage(loginNext(r), "Invalid form submission", h.skinName(), h.DemoAccounts).Render(r.Context(), w)
+		h.renderLogin(w, r, "Invalid form submission", "", "")
 		return
 	}
+	switch r.FormValue("intent") {
+	case "totp":
+		h.handleTOTPCode(w, r)
+	case "magic":
+		h.handleMagicLinkForm(w, r)
+	case "forgot":
+		h.handleForgotForm(w, r)
+	case "verify":
+		h.handleVerifyForm(w, r)
+	default:
+		h.handlePasswordLogin(w, r)
+	}
+}
+
+func (h *Handler) renderLogin(w http.ResponseWriter, r *http.Request, errMsg, notice, totpUser string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	//nolint:contextcheck // templ components receive ctx from Render.
+	_ = authviews.LoginPage(loginNext(r), errMsg, h.skinName(), h.DemoAccounts, totpUser, notice).
+		Render(r.Context(), w)
+}
+
+func (h *Handler) handlePasswordLogin(w http.ResponseWriter, r *http.Request) {
 	token, totpRequired, err := h.authLogin(r)
 	if err != nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		//nolint:contextcheck // same templ boundary as the GET handler.
-		_ = authviews.LoginPage(loginNext(r), "Wrong email or password", h.skinName(), h.DemoAccounts).Render(r.Context(), w)
+		if errors.Is(err, auth.ErrEmailUnverified) {
+			h.renderLogin(w, r, "Email not verified — use the resend option below.", "", "")
+			return
+		}
+		h.renderLogin(w, r, "Wrong email or password", "", "")
 		return
 	}
 	if totpRequired {
-		// The shared form has no code field: 2FA accounts complete login
-		// through the JSON API (/api/auth/totp/login). Say so plainly
-		// instead of failing opaquely.
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		//nolint:contextcheck // same templ boundary as the GET handler.
-		_ = authviews.LoginPage(
-			loginNext(r), "Two-factor required — finish login via an API client", h.skinName(), h.DemoAccounts,
-		).Render(r.Context(), w)
+		email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
+		row, qerr := h.Q.GetUserByEmail(r.Context(), email)
+		if qerr != nil {
+			h.renderLogin(w, r, "Two-factor verification failed", "", "")
+			return
+		}
+		h.renderLogin(w, r, "", "Enter the 6-digit code from your authenticator.", row.ID)
 		return
 	}
 	http.SetCookie(w, h.Auth.SetSessionCookie(token))
 	// #nosec G710 — loginNext allows same-origin paths only (/todo fallback).
 	http.Redirect(w, r, loginNext(r), http.StatusSeeOther)
+}
+
+func (h *Handler) handleTOTPCode(w http.ResponseWriter, r *http.Request) {
+	uid := r.FormValue("totp_user")
+	token, err := h.Auth.VerifyTOTPLogin(r.Context(), uid, strings.TrimSpace(r.FormValue("totp_code")))
+	if err != nil {
+		h.renderLogin(w, r, "Wrong or expired code.", "", uid)
+		return
+	}
+	http.SetCookie(w, h.Auth.SetSessionCookie(token))
+	// #nosec G710 — same-origin path validation above.
+	http.Redirect(w, r, loginNext(r), http.StatusSeeOther)
+}
+
+func (h *Handler) handleMagicLinkForm(w http.ResponseWriter, r *http.Request) {
+	email := strings.TrimSpace(r.FormValue("email"))
+	if email == "" {
+		h.renderLogin(w, r, "Enter your email address.", "", "")
+		return
+	}
+	if err := h.Auth.RequestMagicLinkDefault(r.Context(), email); err != nil {
+		h.renderLogin(w, r, "Email sign-in is not configured on this deployment.", "", "")
+		return
+	}
+	h.renderLogin(w, r, "", "If that address has an account, a sign-in link is on its way.", "")
+}
+
+func (h *Handler) handleForgotForm(w http.ResponseWriter, r *http.Request) {
+	email := strings.TrimSpace(r.FormValue("email"))
+	if email == "" {
+		h.renderLogin(w, r, "Enter your email address.", "", "")
+		return
+	}
+	if err := h.Auth.RequestPasswordResetDefault(r.Context(), email); err != nil {
+		h.renderLogin(w, r, "Password reset is not configured on this deployment.", "", "")
+		return
+	}
+	h.renderLogin(w, r, "", "If that address has an account, a reset link is on its way.", "")
+}
+
+func (h *Handler) handleVerifyForm(w http.ResponseWriter, r *http.Request) {
+	email := strings.TrimSpace(r.FormValue("email"))
+	if email == "" {
+		h.renderLogin(w, r, "Enter your email address.", "", "")
+		return
+	}
+	if err := h.Auth.RequestEmailVerificationDefault(r.Context(), email); err != nil {
+		h.renderLogin(w, r, "Email verification is not configured on this deployment.", "", "")
+		return
+	}
+	h.renderLogin(w, r, "", "If that address needs verification, a link is on its way.", "")
 }
 
 // authLogin validates form credentials, keeping the handler body to the
