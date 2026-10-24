@@ -166,7 +166,11 @@ and is not wired here.
    `.github/workflows/deploy.yml` for the full list (SSH host, user, key,
    Tailscale OIDC client id + audience, project name, and the app's own
    secrets). You do **not** create the directory tree by hand; the workflow
-   does it on first deploy.
+   does it on first deploy. The workflow also maps optional repository
+   **variables** into the rendered env file: `APP_URL` (defaults to
+   `PUBLIC_BASE_URL`), `DEMO_ACCOUNTS_ENABLED`, `SIGNUP_ENABLED`,
+   `ADMIN_EMAILS`, `SMTP_ADDR`, `SMTP_FROM`, and the `SMTP_USERNAME` /
+   `SMTP_PASSWORD` secrets. Leave signup/demo unset for a private deploy.
 
 > Secrets stay server-side by design: the workflow renders
 > `~/.secrets/<app>.env` (600) from GitHub Secrets on every deploy and

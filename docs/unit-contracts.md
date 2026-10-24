@@ -295,7 +295,7 @@ admin-only /config view + user role/session actions
 
 - **Owned:** `features/config`
 - **Routes:** `/config`, `/config/audit.csv`, `/config/users/revoke`, `/config/users/role`
-- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEvents`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetUserRole`
+- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEventNames`, `dbgen.ListSecurityEventsByEvent`, `dbgen.ListSecurityEventsPage`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Warning:** The Config sidebar entry is stripped automatically.

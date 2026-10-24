@@ -64,6 +64,11 @@ type PageData struct {
 	Users       []UserRow
 	Events      []SecurityEventRow
 	EventCounts []SecurityEventCount
+	EventNames  []string
+	EventFilter string
+	PrevURL     string
+	NextURL     string
+	CSVURL      string
 	AuditAlert  string
 	Notice      string
 	Error       string

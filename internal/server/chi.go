@@ -198,11 +198,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
-	// Retained (not passed anywhere here): the engine boots below
-	// (DagNats, GoAkt, credits) take bootCtx, and their trims drop those
-	// lines — combined trims would otherwise leave bootCtx unused, which
-	// does not compile. One explicit use keeps every composition green.
-	_ = bootCtx
+	startAuditRetention(bootCtx, queries)
+	// bootCtx now owns the audit-retention ticker and the engines below
+	// (DagNats, GoAkt, credits); cancellation at shutdown stops all of them.
 
 	// Chi-owned queue: feature workers run here so they never compete
 	// with the other stack's workers for the same jobs. Its hub is the

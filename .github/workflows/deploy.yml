@@ -366,6 +366,14 @@ jobs:
           ADMIN_UNLOCK_TOKEN: ${{ secrets.ADMIN_UNLOCK_TOKEN }}
           GOAI_BASE_URL: ${{ vars.GOAI_BASE_URL }}
           GOAI_MODEL: ${{ vars.GOAI_MODEL }}
+          APP_URL: ${{ vars.APP_URL }}
+          DEMO_ACCOUNTS_ENABLED: ${{ vars.DEMO_ACCOUNTS_ENABLED }}
+          SIGNUP_ENABLED: ${{ vars.SIGNUP_ENABLED }}
+          ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          SMTP_ADDR: ${{ vars.SMTP_ADDR }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
           set -euo pipefail
           # Tailscale SSH (port 2222) on this server is in userspace
@@ -425,6 +433,14 @@ jobs:
           GOAI_BASE_URL=${GOAI_BASE_URL:-https://openrouter.ai/api/v1}
           GOAI_MODEL=${GOAI_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}
           ADMIN_UNLOCK_TOKEN=$ADMIN_UNLOCK_TOKEN
+          APP_URL=${APP_URL:-$PUBLIC_BASE_URL}
+          DEMO_ACCOUNTS_ENABLED=${DEMO_ACCOUNTS_ENABLED:-}
+          SIGNUP_ENABLED=${SIGNUP_ENABLED:-}
+          ADMIN_EMAILS=${ADMIN_EMAILS:-}
+          SMTP_ADDR=${SMTP_ADDR:-}
+          SMTP_FROM=${SMTP_FROM:-}
+          SMTP_USERNAME=${SMTP_USERNAME:-}
+          SMTP_PASSWORD=${SMTP_PASSWORD:-}
           EOF2
             mv \"$SECRETS_DIR/${APP_NAME}.env.tmp\" \"$SECRETS_DIR/${APP_NAME}.env\"
             chmod 0600 \"$SECRETS_DIR/${APP_NAME}.env\"

@@ -7,6 +7,20 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 -- name: ListSecurityEvents :many
 SELECT * FROM security_events ORDER BY created DESC, id DESC LIMIT ?;
 
+-- name: ListSecurityEventsPage :many
+SELECT * FROM security_events
+ORDER BY created DESC, id DESC
+LIMIT ? OFFSET ?;
+
+-- name: ListSecurityEventsByEvent :many
+SELECT * FROM security_events
+WHERE event = ?
+ORDER BY created DESC, id DESC
+LIMIT ? OFFSET ?;
+
+-- name: ListSecurityEventNames :many
+SELECT DISTINCT event FROM security_events ORDER BY event;
+
 -- name: SecurityEventCountsSince :many
 SELECT event, reason, count(*) AS count
 FROM security_events

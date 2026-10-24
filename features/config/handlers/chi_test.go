@@ -223,21 +223,7 @@ func TestAdminRoleChangeIsAudited(t *testing.T) {
 		t.Fatalf("role change status = %d, want 303", rec.Code)
 	}
 
-	csvReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config/audit.csv", nil)
-	// #nosec G124 — test-only request cookie.
-	csvReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})
-	csvRec := httptest.NewRecorder()
-	mux.ServeHTTP(csvRec, csvReq)
-	if csvRec.Code != http.StatusOK {
-		t.Fatalf("audit csv status = %d", csvRec.Code)
-	}
-	if ct := csvRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
-		t.Fatalf("audit csv content-type = %q", ct)
-	}
-	if !strings.Contains(csvRec.Body.String(), "admin role changed") ||
-		!strings.Contains(csvRec.Body.String(), "target@example.com") {
-		t.Fatalf("audit csv missing the role change:\n%s", csvRec.Body.String())
-	}
+	assertAuditCSV(t, mux, actor)
 
 	rows, qerr := q.ListSecurityEvents(ctx, 50)
 	if qerr != nil {
@@ -272,6 +258,57 @@ func TestCSVCellEscapesFormula(t *testing.T) {
 	for in, want := range cases {
 		if got := csvCell(in); got != want {
 			t.Fatalf("csvCell(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func assertAuditCSV(t *testing.T, mux *http.ServeMux, actor string) {
+	t.Helper()
+	csvReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config/audit.csv", nil)
+	// #nosec G124 — test-only request cookie.
+	csvReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})
+	csvRec := httptest.NewRecorder()
+	mux.ServeHTTP(csvRec, csvReq)
+	if csvRec.Code != http.StatusOK {
+		t.Fatalf("audit csv status = %d", csvRec.Code)
+	}
+	if ct := csvRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+		t.Fatalf("audit csv content-type = %q", ct)
+	}
+	if !strings.Contains(csvRec.Body.String(), "admin role changed") ||
+		!strings.Contains(csvRec.Body.String(), "target@example.com") {
+		t.Fatalf("audit csv missing the role change:\n%s", csvRec.Body.String())
+	}
+
+	filteredReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/config/audit.csv?event=admin%20role%20changed", nil)
+	// #nosec G124 — test-only request cookie.
+	filteredReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})
+	filteredRec := httptest.NewRecorder()
+	mux.ServeHTTP(filteredRec, filteredReq)
+	if filteredRec.Code != http.StatusOK {
+		t.Fatalf("filtered audit csv status = %d", filteredRec.Code)
+	}
+	if !strings.Contains(filteredRec.Body.String(), "admin role changed") ||
+		strings.Contains(filteredRec.Body.String(), "login succeeded") {
+		t.Fatalf("filtered audit csv leaked another event:\n%s", filteredRec.Body.String())
+	}
+}
+
+func TestAuditURLPreservesFilterAndPage(t *testing.T) {
+	cases := []struct {
+		event string
+		page  int
+		want  string
+	}{
+		{"", 0, "/config#security-events"},
+		{"login rejected", 0, "/config?event=login+rejected#security-events"},
+		{"", 2, "/config?page=2#security-events"},
+		{"login rejected", 2, "/config?event=login+rejected&page=2#security-events"},
+	}
+	for _, tc := range cases {
+		if got := auditURL(tc.event, tc.page); got != tc.want {
+			t.Fatalf("auditURL(%q, %d) = %q, want %q", tc.event, tc.page, got, tc.want)
 		}
 	}
 }

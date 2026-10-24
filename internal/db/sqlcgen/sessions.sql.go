@@ -11,8 +11,8 @@ import (
 
 const createSession = `-- name: CreateSession :exec
 
-INSERT INTO sessions (token_hash, user_id, session_id, last_seen, expires, created)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO sessions (token_hash, user_id, session_id, last_seen, expires, created, user_agent)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateSessionParams struct {
@@ -22,6 +22,7 @@ type CreateSessionParams struct {
 	LastSeen  string
 	Expires   string
 	Created   string
+	UserAgent string
 }
 
 // Sessions: cookie-backed logins. Only the hash of the cookie value is stored.
@@ -33,6 +34,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 		arg.LastSeen,
 		arg.Expires,
 		arg.Created,
+		arg.UserAgent,
 	)
 	return err
 }
@@ -79,7 +81,7 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID string) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT token_hash, user_id, expires, created, last_seen, session_id FROM sessions WHERE token_hash = ?
+SELECT token_hash, user_id, expires, created, last_seen, session_id, user_agent FROM sessions WHERE token_hash = ?
 `
 
 func (q *Queries) GetSession(ctx context.Context, tokenHash string) (Session, error) {
@@ -92,12 +94,13 @@ func (q *Queries) GetSession(ctx context.Context, tokenHash string) (Session, er
 		&i.Created,
 		&i.LastSeen,
 		&i.SessionID,
+		&i.UserAgent,
 	)
 	return i, err
 }
 
 const listSessionsByUser = `-- name: ListSessionsByUser :many
-SELECT session_id, created, expires, last_seen FROM sessions
+SELECT session_id, created, expires, last_seen, user_agent FROM sessions
 WHERE user_id = ? AND session_id <> '' ORDER BY created DESC
 `
 
@@ -106,6 +109,7 @@ type ListSessionsByUserRow struct {
 	Created   string
 	Expires   string
 	LastSeen  string
+	UserAgent string
 }
 
 func (q *Queries) ListSessionsByUser(ctx context.Context, userID string) ([]ListSessionsByUserRow, error) {
@@ -122,6 +126,7 @@ func (q *Queries) ListSessionsByUser(ctx context.Context, userID string) ([]List
 			&i.Created,
 			&i.Expires,
 			&i.LastSeen,
+			&i.UserAgent,
 		); err != nil {
 			return nil, err
 		}

@@ -65,6 +65,7 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
+	ctx := auth.WithUserAgent(r.Context(), r.UserAgent())
 	sess, ok := h.session(w, r)
 	if !ok {
 		return
@@ -77,7 +78,7 @@ func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "New passwords do not match.")
 		return
 	}
-	token, err := h.a.ChangePassword(r.Context(), sess.User.ID,
+	token, err := h.a.ChangePassword(ctx, sess.User.ID,
 		r.PostFormValue("current"), r.PostFormValue("new"))
 	if err != nil {
 		if errors.Is(err, auth.ErrBadCredentials) {
@@ -150,6 +151,7 @@ func (h *Handler) verifyTOTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) disableTOTP(w http.ResponseWriter, r *http.Request) {
+	ctx := auth.WithUserAgent(r.Context(), r.UserAgent())
 	sess, ok := h.session(w, r)
 	if !ok {
 		return
@@ -158,7 +160,7 @@ func (h *Handler) disableTOTP(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "Invalid form submission.")
 		return
 	}
-	hasPassword, perr := h.a.HasPassword(r.Context(), sess.User.ID)
+	hasPassword, perr := h.a.HasPassword(ctx, sess.User.ID)
 	if perr != nil {
 		h.renderError(w, r, sess, "Could not verify this account. Try again.")
 		return
@@ -166,9 +168,9 @@ func (h *Handler) disableTOTP(w http.ResponseWriter, r *http.Request) {
 	var token string
 	var err error
 	if hasPassword {
-		token, err = h.a.DisableTOTPWithPassword(r.Context(), sess.User.ID, r.PostFormValue("password"))
+		token, err = h.a.DisableTOTPWithPassword(ctx, sess.User.ID, r.PostFormValue("password"))
 	} else {
-		token, err = h.a.DisableTOTPWithCode(r.Context(), sess.User.ID, r.PostFormValue("code"))
+		token, err = h.a.DisableTOTPWithCode(ctx, sess.User.ID, r.PostFormValue("code"))
 	}
 	if err != nil {
 		if errors.Is(err, auth.ErrBadCredentials) {
@@ -282,7 +284,8 @@ func (h *Handler) pageData(r *http.Request, sess *auth.ValidatedSession) (compon
 	views := make([]components.SessionView, 0, len(rows))
 	for _, row := range rows {
 		views = append(views, components.SessionView{
-			ID: row.SessionID, Created: formatWhen(row.Created),
+			ID: row.SessionID, ShortID: shortID(row.SessionID),
+			Agent: deviceLabel(row.UserAgent), Created: formatWhen(row.Created),
 			LastSeen: formatWhen(row.LastSeen), Expires: formatWhen(row.Expires),
 			Current: row.SessionID == sess.SessionID,
 		})
@@ -295,6 +298,63 @@ func (h *Handler) pageData(r *http.Request, sess *auth.ValidatedSession) (compon
 		Email: email, Role: sess.Role, Verified: verified, TOTP: totp,
 		Sessions: views, PasswordSet: passwordSet,
 	}, nil
+}
+
+// shortID keeps the row scannable while the full opaque id stays in title.
+const sessionIDPrefixLen = 8
+
+func shortID(id string) string {
+	if len(id) <= sessionIDPrefixLen {
+		return id
+	}
+	return id[:sessionIDPrefixLen] + "…"
+}
+
+// deviceLabel turns the stored user-agent into a short hint. It deliberately
+// stays heuristic and dependency-free: the raw string is evidence, not a
+// security claim, and an unknown client must still render something useful.
+func deviceLabel(ua string) string {
+	if ua == "" {
+		return "Unknown device"
+	}
+	lower := strings.ToLower(ua)
+	browser := browserName(lower)
+	if osName := osLabel(lower); osName != "" {
+		return browser + " on " + osName
+	}
+	return browser
+}
+
+func browserName(lower string) string {
+	switch {
+	case strings.Contains(lower, "edg/"):
+		return "Edge"
+	case strings.Contains(lower, "firefox/"):
+		return "Firefox"
+	case strings.Contains(lower, "chrome/") || strings.Contains(lower, "crios/"):
+		return "Chrome"
+	case strings.Contains(lower, "safari/"):
+		return "Safari"
+	default:
+		return "Browser"
+	}
+}
+
+func osLabel(lower string) string {
+	switch {
+	case strings.Contains(lower, "android"):
+		return "Android"
+	case strings.Contains(lower, "iphone") || strings.Contains(lower, "ipad") || strings.Contains(lower, "ios"):
+		return "iOS"
+	case strings.Contains(lower, "windows"):
+		return "Windows"
+	case strings.Contains(lower, "mac os") || strings.Contains(lower, "macintosh"):
+		return "macOS"
+	case strings.Contains(lower, "linux"):
+		return "Linux"
+	default:
+		return ""
+	}
 }
 
 // formatWhen renders a stored timestamp for a human. The audit table keeps the

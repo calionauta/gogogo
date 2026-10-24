@@ -258,3 +258,31 @@ func TestAccountRecoveryCodesRequirePassword(t *testing.T) {
 		t.Fatalf("correct-password recovery = %d", ok.Code)
 	}
 }
+
+func TestAccountSessionShowsDevice(t *testing.T) {
+	a, _, mux := accountFixture(t)
+	ctx := auth.WithUserAgent(context.Background(),
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36")
+	_, token, err := a.Signup(ctx, "device@example.com", "Correct-horse-99!", "")
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	page := accountDo(mux, http.MethodGet, "/account", "", token)
+	if !strings.Contains(page.Body.String(), "Chrome on Linux") {
+		t.Fatalf("account page does not name the session device:\n%s", page.Body.String())
+	}
+}
+
+func TestDeviceLabel(t *testing.T) {
+	cases := map[string]string{
+		"": "Unknown device",
+		"Mozilla/5.0 (Windows NT 10.0) Gecko/20100101 Firefox/121.0":                   "Firefox on Windows",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Version/17.0 Safari/605.1.15": "Safari on macOS",
+		"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) CriOS/120":             "Chrome on iOS",
+	}
+	for ua, want := range cases {
+		if got := deviceLabel(ua); got != want {
+			t.Fatalf("deviceLabel(%q) = %q, want %q", ua, got, want)
+		}
+	}
+}

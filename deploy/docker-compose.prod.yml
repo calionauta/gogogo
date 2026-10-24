@@ -38,9 +38,10 @@ services:
       # Non-secret env (from .env) — defaults baked in but can be overridden
       # in the .env file.
       APP_NAME: ${APP_NAME:-gogogo}
-      # Public origin for magic links. Empty = magic links fail closed
-      # rather than trusting the request Host. Set it to the real URL.
-      APP_URL: ${APP_URL:-}
+      # APP_URL comes from the secrets env_file (rendered from the deploy
+      # workflow), not from this block: a compose `environment` value always
+      # wins over env_file, and the old empty default silently shadowed the
+      # real origin — magic links failed closed on a correctly configured box.
       # Public demo only: a real deployment leaves both unset (production
       # defaults are closed). Set SIGNUP_ENABLED=true and
       # DEMO_ACCOUNTS_ENABLED=true in the service .env to keep the demo pair.

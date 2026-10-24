@@ -10,6 +10,7 @@ import (
 	"encoding/csv"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -88,10 +89,49 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 			Verified: row.EmailVerifiedAt != "", TOTP: row.TotpVerified != 0,
 		})
 	}
-	events, eerr := h.queries.ListSecurityEvents(r.Context(), 100)
-	if eerr != nil {
+	if aerr := h.loadAudit(r, &data); aerr != nil {
 		http.Error(w, "audit unavailable", http.StatusInternalServerError)
 		return
+	}
+	data.Notice = r.URL.Query().Get("notice")
+	data.Error = r.URL.Query().Get("error")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_ = components.Page(
+		data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit,
+	).Render(r.Context(), w)
+}
+
+// loadAudit fills the panel: 24h aggregates, the filtered page and the
+// pagination/CSV links. Split from handleIndex so the page handler stays under
+// the complexity gate; one place owns the audit query contract.
+func (h *Handler) loadAudit(r *http.Request, data *components.PageData) error {
+	const auditPageSize = 100
+	eventFilter := strings.TrimSpace(r.URL.Query().Get("event"))
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 0 {
+		page = 0
+	}
+	names, nerr := h.queries.ListSecurityEventNames(r.Context())
+	if nerr != nil {
+		return nerr
+	}
+	data.EventNames = names
+	data.EventFilter = eventFilter
+	offset := int64(page * auditPageSize)
+	var events []dbgen.SecurityEvent
+	var eerr error
+	if eventFilter != "" {
+		events, eerr = h.queries.ListSecurityEventsByEvent(r.Context(), dbgen.ListSecurityEventsByEventParams{
+			Event: eventFilter, Limit: auditPageSize, Offset: offset,
+		})
+	} else {
+		events, eerr = h.queries.ListSecurityEventsPage(r.Context(), dbgen.ListSecurityEventsPageParams{
+			Limit: auditPageSize, Offset: offset,
+		})
+	}
+	if eerr != nil {
+		return eerr
 	}
 	data.Events = make([]components.SecurityEventRow, 0, len(events))
 	for _, event := range events {
@@ -100,11 +140,20 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 			UserID: event.UserID, ActorID: event.ActorID, Created: formatWhen(event.Created),
 		})
 	}
+	if page > 0 {
+		data.PrevURL = auditURL(eventFilter, page-1)
+	}
+	if len(events) == auditPageSize {
+		data.NextURL = auditURL(eventFilter, page+1)
+	}
+	data.CSVURL = "/config/audit.csv"
+	if eventFilter != "" {
+		data.CSVURL += "?event=" + url.QueryEscape(eventFilter)
+	}
 	counts, cerr := h.queries.SecurityEventCountsSince(r.Context(),
 		time.Now().UTC().Add(-24*time.Hour).Format(dbschema.TimeFormat))
 	if cerr != nil {
-		http.Error(w, "audit unavailable", http.StatusInternalServerError)
-		return
+		return cerr
 	}
 	var rejected int64
 	data.EventCounts = make([]components.SecurityEventCount, 0, len(counts))
@@ -120,13 +169,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if rejected >= auditRejectAlertThreshold {
 		data.AuditAlert = "High rejected-authentication volume in the last 24h."
 	}
-	data.Notice = r.URL.Query().Get("notice")
-	data.Error = r.URL.Query().Get("error")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_ = components.Page(
-		data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-	).Render(r.Context(), w)
+	return nil
 }
 
 func (h *Handler) handleRole(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +237,18 @@ func (h *Handler) handleRevokeSessions(w http.ResponseWriter, r *http.Request) {
 // by construction. Bounded like the panel (newest 5000).
 func (h *Handler) handleAuditCSV(w http.ResponseWriter, r *http.Request) {
 	const auditExportLimit = 5000
-	rows, err := h.queries.ListSecurityEvents(r.Context(), auditExportLimit)
+	eventFilter := strings.TrimSpace(r.URL.Query().Get("event"))
+	var rows []dbgen.SecurityEvent
+	var err error
+	if eventFilter != "" {
+		rows, err = h.queries.ListSecurityEventsByEvent(r.Context(), dbgen.ListSecurityEventsByEventParams{
+			Event: eventFilter, Limit: auditExportLimit,
+		})
+	} else {
+		rows, err = h.queries.ListSecurityEventsPage(r.Context(), dbgen.ListSecurityEventsPageParams{
+			Limit: auditExportLimit,
+		})
+	}
 	if err != nil {
 		http.Error(w, "audit unavailable", http.StatusInternalServerError)
 		return
@@ -224,6 +278,22 @@ func formatWhen(raw string) string {
 		return raw
 	}
 	return t.UTC().Format("2006-01-02 15:04 UTC")
+}
+
+// auditURL builds a pagination link that preserves the event filter and
+// lands on the panel, not the top of the page.
+func auditURL(event string, page int) string {
+	q := url.Values{}
+	if event != "" {
+		q.Set("event", event)
+	}
+	if page > 0 {
+		q.Set("page", strconv.Itoa(page))
+	}
+	if len(q) == 0 {
+		return "/config#security-events"
+	}
+	return "/config?" + q.Encode() + "#security-events"
 }
 
 // csvCell neutralises spreadsheet formula injection: an email or reason that

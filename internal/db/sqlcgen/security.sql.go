@@ -48,12 +48,125 @@ func (q *Queries) InsertSecurityEvent(ctx context.Context, arg InsertSecurityEve
 	return err
 }
 
+const listSecurityEventNames = `-- name: ListSecurityEventNames :many
+SELECT DISTINCT event FROM security_events ORDER BY event
+`
+
+func (q *Queries) ListSecurityEventNames(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listSecurityEventNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var event string
+		if err := rows.Scan(&event); err != nil {
+			return nil, err
+		}
+		items = append(items, event)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecurityEvents = `-- name: ListSecurityEvents :many
 SELECT id, event, reason, email, user_id, actor_id, created FROM security_events ORDER BY created DESC, id DESC LIMIT ?
 `
 
 func (q *Queries) ListSecurityEvents(ctx context.Context, limit int64) ([]SecurityEvent, error) {
 	rows, err := q.db.QueryContext(ctx, listSecurityEvents, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityEvent{}
+	for rows.Next() {
+		var i SecurityEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.Event,
+			&i.Reason,
+			&i.Email,
+			&i.UserID,
+			&i.ActorID,
+			&i.Created,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSecurityEventsByEvent = `-- name: ListSecurityEventsByEvent :many
+SELECT id, event, reason, email, user_id, actor_id, created FROM security_events
+WHERE event = ?
+ORDER BY created DESC, id DESC
+LIMIT ? OFFSET ?
+`
+
+type ListSecurityEventsByEventParams struct {
+	Event  string
+	Limit  int64
+	Offset int64
+}
+
+func (q *Queries) ListSecurityEventsByEvent(ctx context.Context, arg ListSecurityEventsByEventParams) ([]SecurityEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listSecurityEventsByEvent, arg.Event, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityEvent{}
+	for rows.Next() {
+		var i SecurityEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.Event,
+			&i.Reason,
+			&i.Email,
+			&i.UserID,
+			&i.ActorID,
+			&i.Created,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSecurityEventsPage = `-- name: ListSecurityEventsPage :many
+SELECT id, event, reason, email, user_id, actor_id, created FROM security_events
+ORDER BY created DESC, id DESC
+LIMIT ? OFFSET ?
+`
+
+type ListSecurityEventsPageParams struct {
+	Limit  int64
+	Offset int64
+}
+
+func (q *Queries) ListSecurityEventsPage(ctx context.Context, arg ListSecurityEventsPageParams) ([]SecurityEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listSecurityEventsPage, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

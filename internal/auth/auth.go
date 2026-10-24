@@ -336,9 +336,10 @@ func (a *Auth) openSession(ctx context.Context, userID string) (string, error) {
 	now := time.Now().UTC()
 	if err := a.q.CreateSession(ctx, dbgen.CreateSessionParams{
 		TokenHash: hash, UserID: userID, SessionID: dbschema.NewID(),
-		LastSeen: now.Format(dbschema.TimeFormat),
-		Expires:  now.Add(SessionTTL).Format(dbschema.TimeFormat),
-		Created:  now.Format(dbschema.TimeFormat),
+		LastSeen:  now.Format(dbschema.TimeFormat),
+		Expires:   now.Add(SessionTTL).Format(dbschema.TimeFormat),
+		Created:   now.Format(dbschema.TimeFormat),
+		UserAgent: userAgentFrom(ctx),
 	}); err != nil {
 		return "", fmt.Errorf("auth: open session: %w", err)
 	}

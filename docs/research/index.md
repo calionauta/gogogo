@@ -25,6 +25,7 @@ individual notes.
 | [Exception to Go](../exception-to-go.md) | living | the Go-first rule, the Zig exception, and the benchmark bar |
 | [DB concurrency](../db-concurrency.md) | living | Turso single-writer stance, the probed MVCC path, and revisit triggers |
 | [Auth libraries](auth-libraries-2026-10.md) | 2026-10-21 | limen against owning argon2id and sessions: schema ownership, version skew, and the trigger that flips the choice |
+| [Supply-chain scanning](supply-chain-scanning-2026.md) | 2026-10-24 | Syft+Grype vs Trivy vs Docker Scout vs OSV-Scanner for SBOM and image CVEs; SBOM-first, pinned actions, fixable-high gate |
 
 ## Decisions and rationale
 
