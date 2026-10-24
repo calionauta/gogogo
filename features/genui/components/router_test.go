@@ -81,10 +81,18 @@ func TestConversationPromptRouterFailureFallsBack(t *testing.T) {
 // without the custom surface) and a name outside the registry.
 func TestConversationPromptIgnoresUnusableNames(t *testing.T) {
 	t.Parallel()
-	want := PromptForSurfaces(nil) + "\nUser request: x"
+	catalogOnly := []Surface{SurfaceCatalog, SurfaceNative}
+	want := PromptForSurfaces(catalogOnly) + "\nUser request: x"
 	for _, name := range []string{"html_block", "not_a_component", ""} {
-		if got := ConversationPrompt(context.Background(), stubRouter{name: name}, "x", nil); got != want {
+		if got := ConversationPrompt(context.Background(), stubRouter{name: name}, "x", catalogOnly); got != want {
 			t.Errorf("pick %q changed the prompt: %q, want %q", name, got, want)
+		}
+	}
+	// Unknown names never become a lead, whatever the set.
+	defWant := PromptForSurfaces(nil) + "\nUser request: x"
+	for _, name := range []string{"not_a_component", ""} {
+		if got := ConversationPrompt(context.Background(), stubRouter{name: name}, "x", nil); got != defWant {
+			t.Errorf("pick %q changed the default prompt: %q, want %q", name, got, defWant)
 		}
 	}
 }

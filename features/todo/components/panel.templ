@@ -12,10 +12,13 @@ import "github.com/calionauta/gogogo/features/todo"
 // of feature knowledge (one direction of dependency, enforced by
 // check-flatdeps).
 //
-// The rows are read-only by design. A write here would have to land on the
-// todo feature's own patch target to stay live, and this component does not
-// own one; a button that writes and leaves a stale list on screen reads as
-// broken, so the panel links to /todo instead.
+// The rows are INTERACTIVE, not read-only: the checkbox posts a toggle and
+// the trash posts a delete to this feature's own routes, each carrying the
+// panel instance's id as `_target` plus the panel's filter slice. The routes
+// answer in place (see handlers/panel_action.go) by re-rendering THIS panel,
+// so the acting tab never goes stale. Adding stays on the Todos page (the
+// link above): a create answers with a result card, not a re-rendered list,
+// so a composer here would replace the panel with its own receipt.
 templ Panel(id string, filter string, rows []todo.PanelRows) {
 	<div id={ id } class="rounded-box border border-base-300 p-4">
 		<div class="flex items-baseline justify-between gap-2 mb-2">
@@ -30,14 +33,58 @@ templ Panel(id string, filter string, rows []todo.PanelRows) {
 		} else {
 			<ul class="flex flex-col gap-1">
 				for _, row := range rows {
-					<li class="flex items-start gap-2">
-						<span class={ "mt-0.5 text-xs " + todoRowMarkClass(row.Done) }>{ todoRowMark(row.Done) }</span>
-						<span class={ todoRowTitleClass(row.Done) }>{ row.Title }</span>
+					<li class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							class="checkbox checkbox-primary checkbox-sm"
+							checked?={ row.Done }
+							title={ panelToggleTitle(row) }
+							data-on:click__prevent={ panelToggleExpr(row.ID, id, filter) }
+						/>
+						<span class={ "flex-1 " + todoRowTitleClass(row.Done) }>{ row.Title }</span>
+						<button
+							type="button"
+							class="btn btn-ghost btn-xs text-error"
+							title={ "Delete “" + row.Title + "”" }
+							data-on:click__prevent={ panelDeleteExpr(row.ID, id, filter) }
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+								<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+							</svg>
+						</button>
 					</li>
 				}
 			</ul>
 		}
 	</div>
+}
+
+// panelToggleExpr posts one row's toggle carrying this panel's slot id and
+// slice, so the route answers by re-rendering the panel in place (see
+// handlers/panel_action.go). The todo id, the slot id and the filter are all
+// server-minted (UUIDs, instance ids, the closed enum), so embedding them in
+// the path and query is safe; the route validates _target again before aiming
+// a patch at it. clientID rides the query like every other mutation, so the
+// hub fan-out still excludes the acting tab.
+func panelToggleExpr(todoID, panelID, filter string) string {
+	return "@post('/api/todos/" + todoID + "/toggle?filter=" + filter + "&_target=" + panelID + "&clientID=' + encodeURIComponent($clientID || ''))"
+}
+
+// panelDeleteExpr posts one row's delete the same way: the route answers with
+// the panel minus the row, or with an in-place failure card when the
+// requester may not delete it. Direct, no confirm modal — the modal lives on
+// the todo page and this panel renders wherever a chat answer does.
+func panelDeleteExpr(todoID, panelID, filter string) string {
+	return "@post('/api/todos/" + todoID + "/delete?filter=" + filter + "&_target=" + panelID + "&clientID=' + encodeURIComponent($clientID || ''))"
+}
+
+// panelToggleTitle names what the checkbox will do, for sighted hover and
+// assistive tech alike (a bare checkbox otherwise announces nothing).
+func panelToggleTitle(row todo.PanelRows) string {
+	if row.Done {
+		return "Mark “" + row.Title + "” as open"
+	}
+	return "Mark “" + row.Title + "” as done"
 }
 
 // todoListHeading names the slice in the user's words. The filter is a
@@ -52,20 +99,6 @@ func todoListHeading(filter string) string {
 	default:
 		return "Your todos"
 	}
-}
-
-func todoRowMark(done bool) string {
-	if done {
-		return "✓"
-	}
-	return "•"
-}
-
-func todoRowMarkClass(done bool) string {
-	if done {
-		return "text-success"
-	}
-	return "opacity-50"
 }
 
 func todoRowTitleClass(done bool) string {

@@ -39,7 +39,7 @@ being one.
 - **Todo app + realtime** — DB actions (create/toggle/delete) stream visibility-scoped via `owner` + `visibility` (private rows to owner tabs, shared rows to every login). Ephemeral signals carry toasts, clients count, AI suggest.
 - **Background jobs + retry** — Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`).
 - **AI Suggest** — LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase`. Proves the queue+retry path against a real provider, including Biller metering when wired.
-- **Chat (conversation)** — The AI demo. Conversation where the answer is invented for the request: the model composes Tailwind/DaisyUI markup (`html_block`, advertised first in the prompt), sanitized server-side through a closed allowlist, and limited to a safelisted class vocabulary (anything outside it renders unstyled, so the prompt names the exact list), with the catalog kept for what markup cannot do — including `diagram` (Mermaid via vendored Pele; a ```mermaid fence anywhere in the answer renders as a diagram even when the JSON envelope failed); and `todo_list {filter}` for questions about the user's OWN todos, whose rows the worker hydrates from the store (the model picks the slice, never the content, and gets a bounded digest of the REAL rows in its prompt so a question about them is answered instead of invented; a panel that cannot be hydrated is replaced by an honest "couldn't load this" placeholder with a link, never dropped and never shown empty); prompts persist per owner and history is server-rendered on load, answers render inline as text plus components patched into the live column; a payload that fails validation degrades to the prose around it, never to raw JSON in the bubble; dedicated SSE hub (`/chat`). Proves persisted per-owner history with invented-but-safe visuals.
+- **Chat (conversation)** — The AI demo. Conversation where the answer is invented for the request: the model composes Tailwind/DaisyUI markup (`html_block`, advertised first in the prompt), sanitized server-side through a closed allowlist, and limited to a safelisted class vocabulary (anything outside it renders unstyled, so the prompt names the exact list), with the catalog kept for what markup cannot do — including `diagram` (Mermaid via vendored Pele; a ```mermaid fence anywhere in the answer renders as a diagram even when the JSON envelope failed); and `todo_list {filter}` for questions about the user's OWN todos, whose rows the worker hydrates from the store (the model picks the slice, never the content, and gets a bounded digest of the REAL rows in its prompt so a question about them is answered instead of invented; a panel that cannot be hydrated is replaced by an honest "couldn't load this" placeholder with a link, never dropped and never shown empty); panels are interactive — rows carry the feature's real toggle/delete actions with the panel's slot id (`_target`), answered in place by re-rendering that panel, so acting never leaves a stale list (adding stays on the Todos page; a mutation from another tab refreshes on reload); prompts persist per owner and history is server-rendered on load, answers render inline as text plus components patched into the live column; a payload that fails validation degrades to the prose around it, never to raw JSON in the bubble; dedicated SSE hub (`/chat`). Proves persisted per-owner history with invented-but-safe visuals.
 - **Review loop** — Writer → critic (bounded) → classifier judge, streamed verdict, discarded. Zero server-side artifacts (billing ledger only). Any jev-compatible judge via `JEV_*` env — see [Review loop](review.md). Proves a typed multi-role loop with a classifier judge, per-role cost attribution, and a confidence cascade to human approval.
 - **AI credits + BYOK** — Optional plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay.
 - **Search (one seam, three layers)** — One `Searcher` seam, three layers **selectable at runtime** from the search box (`Match`: exact / typo-tolerant / relevance) with `SEARCH_MODE` choosing the default a tab starts on: `substring` (default; SQL `LIKE` over the rows, no index, no extra write), `fuzzy` (in-memory tiers, typo tolerant: 1.00 verbatim → 0.95 all-tokens → 0.90 prefix → 0.80 one-edit → 0.75 subsequence), and `bm25` (an inverted index in the same DB, scored in Go: a rare term outranks a common one and a short doc outranks a long one repeating the term; always available, and a boot-time heal re-indexes rows that predate the index so enabling it never answers "no results" for data you can see). Search only ever NARROWS the caller's visible set — a hit whose row is not visible is dropped, never resurrected. In `bm25` the postings ride the row's own transaction, so no row exists without its index entry. No external engine because this driver ships no FTS5 (verified across tursogo v0.8.2/v0.8.3/v0.9.0-pre.1) and a second index store would put a row's truth in two places. Each layer's cost, contract and degrade path: [Search](search.md).
@@ -116,8 +116,8 @@ component an answer leads with (a hint, never a narrowing).
   model invents wholesale.
 - **`native`** — the app's own panels (`todo_list {filter}`). The APP owns
   the content (real rows from the store); the model picks only the slice.
-  Always on: an answer about the user's own data should come from the
-  app's data, and there is no reason to want a worse answer.
+  Greetings and other smalltalk never use it: a "hi" is answered briefly,
+  never with the user's rows.
 
 **Actions are declared by features, never written by the model.** A catalog
 component can offer a write (`plan_cards`' per-plan button,
@@ -146,10 +146,13 @@ fails does the same in place, because a plain-text error response renders
 nowhere when the form was submitted by `@post` from a card.
 
 Tune the bands with `GENUI_CHAT_SURFACES`
-(CSV; absent = the default above; an unknown name fails the boot).
+(CSV; absent = the default above; an unknown name fails the boot) or per
+request from the composer's `catalog` / `custom` / `native` toggles (plain
+DaisyUI toggles; all three off is prose-only and the chat still works).
 Turning `custom` off makes Chat catalog-only (the strict showcase: unknown
-types fail closed, one bounded repair attempt feeds the failure back);
-`native` cannot be turned off.
+types fail closed, one bounded repair attempt feeds the failure back).
+`none` is prose-only. Answers that reach for a band the tab turned off are
+repaired once, then replaced by an honest line instead of a silent hole.
 
 **Partial render, catch-all, metrics.** A partially valid envelope renders
 what validates: unknown types become a named `text_note` placeholder (the

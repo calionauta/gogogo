@@ -16,11 +16,11 @@ import (
 // GenUIConfig holds the Chat answer surfaces.
 //
 // Empty is the compatibility contract: an absent variable keeps the
-// documented default (Chat = catalog + custom + native). Native panels are
-// appended by the normalizer and cannot be turned off from here — an answer
-// about the user's own data should come from the app's data, always.
+// documented default (Chat = catalog + custom + native). Every band toggles
+// independently — "none" is the prose-only set — and the tab toggles the same
+// names per request from the composer.
 type GenUIConfig struct {
-	// ChatSurfaces is GENUI_CHAT_SURFACES: a CSV of catalog|custom|native.
+	// ChatSurfaces is GENUI_CHAT_SURFACES: a CSV of catalog|custom|native|none.
 	ChatSurfaces string
 }
 

@@ -382,6 +382,9 @@ func bootAI(
 	chatRouter := chathandlers.NewRouter(cfg)
 	chatH = chathandlers.NewHandler(cfg, a, chiQ, hub,
 		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM, chatRouter, chatSurfaces))
+	// Per-request surfaces: the tab toggles its own vocabulary on the job,
+	// so the worker rebuilds the leg from these plus the toggles.
+	chatH.SetModelLeg(realLLM, simulatedLLM, chatRouter, chatSurfaces)
 	// Registered here, not by the caller: BootChi needs only the handler for
 	// the mux, and hoisting registration keeps its error path to one line
 	// (the statement budget this helper exists to respect).

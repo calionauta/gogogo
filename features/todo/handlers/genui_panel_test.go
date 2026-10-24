@@ -7,6 +7,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/features/todo"
@@ -80,5 +81,50 @@ func TestTodoPanelFillListsTheOwnersRows(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("another owner saw %d rows", len(got))
+	}
+}
+
+// TestTodoPanelRendersOfficialRows pins that the native answer is the
+// feature's OWN component with the viewer's REAL rows — not an invented
+// list. Drop the Fill call from the worker and the titles go missing; let
+// the model write its own rows and there is no "Open in Todos" home link.
+// Both halves are what separate a native panel from a plausible fake.
+func TestTodoPanelRendersOfficialRows(t *testing.T) {
+	f := newHandlersFixture(t)
+	ctx := context.Background()
+	f.signup("render@example.com")
+	user, err := f.h.Q.GetUserByEmail(ctx, "render@example.com")
+	if err != nil {
+		t.Fatalf("get seeded user: %v", err)
+	}
+	now := dbschema.Now()
+	if _, cerr := f.h.Q.CreateTodo(ctx, dbgen.CreateTodoParams{
+		ID: "todo-real", Owner: user.ID, Title: "buy milk", Completed: false, IdemKey: "",
+		Visibility: todo.VisibilityPrivate, Created: now, Updated: now,
+	}); cerr != nil {
+		t.Fatalf("create todo: %v", cerr)
+	}
+
+	p := NewTodoPanel(f.h.Q)
+	filled, ferr := p.Fill(ctx, user.ID, map[string]any{"filter": "all"})
+	if ferr != nil {
+		t.Fatalf("Fill: %v", ferr)
+	}
+	rendered, rerr := p.Render(filled)
+	if rerr != nil {
+		t.Fatalf("Render: %v", rerr)
+	}
+	var buf strings.Builder
+	if err := rendered.Render(ctx, &buf); err != nil {
+		t.Fatalf("Render template: %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{"buy milk", "Open in Todos", "/todo"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("native panel missing %q (got %.300q…)", want, html)
+		}
+	}
+	if strings.Contains(html, "<script") {
+		t.Errorf("native panel carries script markup: %.200q…", html)
 	}
 }

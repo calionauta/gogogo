@@ -8,6 +8,16 @@ import "encoding/json"
 // the guidance leaves the column without a patch (the appended bubble
 // would otherwise sit under a "Ask anything" placeholder).
 //
+// ChatReady gates the composer: false until the stream handshake lands, so
+// a question can never be enqueued before the tab that must receive its
+// answer is registered. ChatWorking names the current stage inside the
+// thinking bubble ("Thinking…" by default, "Loading your data…" while the
+// worker hydrates panels) — the per-answer status, cleared with the answer.
+// The answer-vocabulary toggles below the composer are
+// plain form fields (one `surfaces` value per enabled band: the official
+// surface names catalog, custom, native) — not signals — so unchecking all
+// three posts a present-but-empty set (prose-only) with no JS involved.
+//
 // NOTE: the snake_case JSON keys are intentionally NOT tagliatelle-camel
 // — they are public Datastar signal names bound by the frontend, so
 // renaming would break the wire contract (same rule as review.Signals).
@@ -16,6 +26,8 @@ type Signals struct {
 	ChatThinking bool   `json:"chat_thinking"` //nolint:tagliatelle // public Datastar signal name, do not rename
 	ChatError    string `json:"chat_error"`    //nolint:tagliatelle // public Datastar signal name, do not rename
 	ChatEmpty    bool   `json:"chat_empty"`    //nolint:tagliatelle // public Datastar signal name, do not rename
+	ChatReady    bool   `json:"chat_ready"`    //nolint:tagliatelle // public Datastar signal name, do not rename
+	ChatWorking  string `json:"chat_working"`  //nolint:tagliatelle // public Datastar signal name, do not rename
 }
 
 // MarshalSignals renders Signals for data-signals. Never fails the page:

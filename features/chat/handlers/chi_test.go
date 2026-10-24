@@ -287,6 +287,7 @@ func TestHandlersChatEchoesPromptAsOwnBubble(t *testing.T) {
 		"mode append",
 		"plan my day",
 		"chat-end",
+		"scrollIntoView",
 	} {
 		if !strings.Contains(ack, want) {
 			t.Errorf("ask ack missing %q (got %.400q…)", want, ack)
@@ -368,7 +369,7 @@ func TestHandlersChatClearIsNewChat(t *testing.T) {
 	ack := rec.Body.String()
 	for _, want := range []string{
 		`"chat_empty":true`, "chat_thinking", "datastar-patch-elements",
-		"selector #chat-messages", "Ask anything",
+		"selector #chat-messages", "Ask your app anything",
 	} {
 		if !strings.Contains(ack, want) {
 			t.Errorf("clear ack missing %q (got %.400q…)", want, ack)

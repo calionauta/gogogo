@@ -142,19 +142,44 @@ func PromptForChat() string {
 // bands. The envelope and the closing "no prose" rule are shared; the middle is
 // the surface set.
 //
-// NormalizeSurfaces runs here (and in CatalogComponentsFor) so "native is
-// always on" holds for every caller, including one that passes a raw set —
-// the invariant lives in the normalizer, not in each constant being right.
+// An empty set is prose-only: no band is enabled, so there is no envelope to
+// fill and the model answers in plain prose (the worker degrades whatever
+// arrives to its text fallback). This is what keeps all-three-off a working
+// chat instead of a prompt that names zero components and still demands JSON.
+//
+// NormalizeSurfaces runs here (and in CatalogComponentsFor) so a nil set
+// means the Chat default for every caller, including one that passes a raw
+// set — the invariant lives in the normalizer, not in each constant being right.
 func promptForSurfaces(surfaces []Surface) string {
 	surfaces = NormalizeSurfaces(surfaces)
+	if len(surfaces) == 0 {
+		return "Answer briefly in plain prose for this request. " +
+			"No JSON object, no components, no markup — one or two short sentences. "
+	}
 	return envelopePrefix +
 		bandFragments(surfaces) +
 		customGuidance(surfaces) +
 		panelsFragment(surfaces) +
 		panelsGuidance(surfaces) +
+		smalltalkRule(surfaces) +
 		actionsFragmentIfAllowed(surfaces) +
 		dataRule(surfaces) +
 		"No prose outside the JSON object."
+}
+
+// smalltalkRule keeps greetings from becoming data answers. The model
+// reaches for panels whenever they are advertised — asked "hi" with a panel
+// in its vocabulary it renders the user's own rows (live report) — so the
+// prompt states the negative explicitly, next to the panel guidance it
+// constrains. It names no component on purpose: the rule must hold for every
+// surface set, including ones where text_note itself is not advertised.
+func smalltalkRule(surfaces []Surface) string {
+	if !HasSurfaces(surfaces, SurfaceNative) || len(panelNames()) == 0 {
+		return ""
+	}
+	return "Greetings, thanks and other smalltalk (hi, hello, hey, thanks, ok, " +
+		"goodbye) are never about the user's data: answer them briefly and " +
+		"never emit a panel or a data component for them. "
 }
 
 // advertisedAs reports whether a catalog name is inside the enabled vocabulary.
@@ -163,7 +188,7 @@ func promptForSurfaces(surfaces []Surface) string {
 // at a leg whose prompt does not advertise it.
 func advertisedAs(name string, surfaces []Surface) bool {
 	if IsPanel(name) {
-		// Panels are native, and native is always on (NormalizeSurfaces).
+		// Panels are native: advertised exactly when the native band is on.
 		return HasSurfaces(surfaces, SurfaceNative)
 	}
 	if name == htmlBlockName {

@@ -44,6 +44,11 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Prompt string `json:"prompt"`
 		UserID string `json:"userId"`
 		Idem   string `json:"idem"`
+		// Surfaces rides the job so each tab toggles its own vocabulary.
+		// Pointer distinguishes absent (nil = handler default) from all-off
+		// (non-nil, empty = prose-only): encoding/json leaves a missing key
+		// nil and decodes [] to a non-nil empty slice.
+		Surfaces *[]string `json:"surfaces"`
 	}
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
 		return fmt.Errorf("chat: decode chat payload: %w", err)
@@ -55,13 +60,14 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
+	effective := h.effectiveSurfaces(ctx, p.Surfaces)
 	// Scope the responder to the owner (real data) and carry the recent
 	// conversation. Both fix the same reported failure from two sides: the
 	// answer invented the user's data because it could not see it, and could not
 	// follow a follow-up ("and tomorrow?") because it could not see the thread.
 	// The store read happens BEFORE this turn's assistant reply is appended, so
 	// the context is the history the user is replying to.
-	responder := h.responder
+	responder := h.responderFor(effective)
 	if scoped, ok := responder.(store.OwnerContext); ok {
 		responder = scoped.WithOwner(p.UserID)
 	}
@@ -69,7 +75,18 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	if history := h.recentHistory(ctx, p.UserID); history != "" {
 		prompt = history + "\n" + prompt
 	}
-	_, raw, err := comp.AnswerWithRepair(ctx, responder, prompt, store.ParseChatAnswerForRepair)
+	// The repair gate is surface-aware: an answer that validates but reaches
+	// for a band the tab turned off is a failure the retry can fix (the
+	// feedback names it, the model re-answers within the enabled vocabulary).
+	// Without this the filter below would silently hollow answers the model
+	// thought were good. Pure prose bypasses the gate: the fallback bubble
+	// is the safety net, not a model choice, and it renders in every mode
+	// (it is what keeps all-three-off a working chat).
+	//nolint:contextcheck // pure CPU (parse + filter); ctx enters at Render.
+	parseForRepair := func(raw string) ([]comp.Directive, error) {
+		return parseSurfaceAware(raw, effective)
+	}
+	_, raw, err := comp.AnswerWithRepair(ctx, responder, prompt, parseForRepair)
 	var invalid *comp.ValidationError
 	if err != nil && !errors.As(err, &invalid) {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
@@ -91,6 +108,17 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	// raw answer.
 	//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
 	dirs, dropped, fallback, _ := store.ParseChatAnswer(raw)
+	if names := comp.PanelNamesIn(dirs); len(names) > 0 {
+		// Per-answer stage, CopilotKit-style: the tab already spins, so
+		// this names WHAT it waits for (real rows, not the model). The
+		// stem is the same one the stored answer will render with, so a
+		// later in-place update can address this answer by id.
+		h.send(ctx, target, job.ClientID, chatEnvelope{
+			Working:  "Loading your data…",
+			IDPrefix: store.IDPrefix(store.Message{IdemKey: p.Idem + "#answer"}),
+		})
+	}
+	dirs, fallback = enforceSurfaces(dirs, fallback, effective)
 	logChatOutcome(ctx, dirs, dropped, fallback)
 	// The app's own panels carry real state, so the worker fills their rows
 	// here — the renderer has no store and must not get one. A panel that
@@ -129,6 +157,71 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Text: text, Directives: dirs, IDPrefix: store.IDPrefix(answer),
 	})
 	return nil
+}
+
+// effectiveSurfaces resolves the job's surface choice, or the handler default
+// for old clients. Present-but-empty is prose-only (every band off); absent
+// (nil) is the boot default. Unknown names fail closed here: the ask path
+// already rejected them, so this is defense in depth, never a user-facing
+// error.
+func (h *Handler) effectiveSurfaces(ctx context.Context, job *[]string) []comp.Surface {
+	def := h.defaultSurfaces
+	if def == nil {
+		def = comp.DefaultSurfacesChat
+	}
+	if job == nil {
+		return comp.NormalizeSurfaces(def)
+	}
+	out := make([]comp.Surface, 0, len(*job))
+	for _, name := range *job {
+		s := comp.Surface(name)
+		if !s.Valid() {
+			observability.Warn(ctx, "chat: dropping unknown surface from job",
+				append(observability.WithComponent("chat", "feature"), "surface", name)...)
+			continue
+		}
+		out = append(out, s)
+	}
+	return comp.NormalizeSurfaces(out)
+}
+
+// parseSurfaceAware is the repair gate with the tab's vocabulary: an answer
+// that validates but reaches for a band the tab turned off is a failure the
+// retry can fix (the feedback names it, the model re-answers within the
+// enabled vocabulary). Without this the filter below would silently hollow
+// answers the model thought were good. Pure prose bypasses the gate: the
+// fallback bubble is the safety net, not a model choice, and it renders in
+// every mode (it is what keeps all-three-off a working chat).
+func parseSurfaceAware(raw string, effective []comp.Surface) ([]comp.Directive, error) {
+	dirs, err := store.ParseChatAnswerForRepair(raw)
+	if err != nil {
+		return nil, err
+	}
+	if fb, _, isFallback, _ := store.ParseChatAnswer(raw); isFallback && len(fb) == 1 {
+		return dirs, nil
+	}
+	if kept := comp.FilterDirectives(dirs, effective); len(kept) != len(dirs) {
+		return nil, errors.New("chat: answer used a component group that is turned off")
+	}
+	return dirs, nil
+}
+
+// enforceSurfaces drops final-answer directives outside the enabled
+// vocabulary (the repair above already had its chance to re-answer within
+// it). The prose fallback bypasses the gate — it is the safety net, not a
+// model choice. An answer left with nothing is replaced by an honest line:
+// the user turned the bands off, so the fix is one tap away, not a silent
+// hole.
+func enforceSurfaces(
+	dirs []comp.Directive, fallback bool, effective []comp.Surface,
+) ([]comp.Directive, bool) {
+	if fallback {
+		return dirs, fallback
+	}
+	if kept := comp.FilterDirectives(dirs, effective); len(kept) > 0 {
+		return kept, false
+	}
+	return proseOffFallback(), true
 }
 
 // logChatOutcome emits the countable answer-health signal (stdout is

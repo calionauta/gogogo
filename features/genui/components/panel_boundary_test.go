@@ -92,27 +92,31 @@ func TestHydratedPanelRenders(t *testing.T) {
 // TestSurfaceBoundedAdvertisement pins the advertisement boundary per SURFACE,
 // which is the contract that replaced "both are chat-only".
 //
-// todo_list is NATIVE: it shows the app's own data, so it is always
-// advertised. html_block is CUSTOM: the model invents the markup, so it is
-// in Chat's default and absent from a catalog-only set — and absent from
-// that set's ROUTER candidates too, so no classifier pick can reach a
-// surface the prompt never named.
+// todo_list is NATIVE: it shows the app's own data, so it is advertised
+// exactly when the native band is on. html_block is CUSTOM: the model invents
+// the markup, so it is in Chat's default and absent from a catalog-only set —
+// and absent from that set's ROUTER candidates too, so no classifier pick can
+// reach a surface the prompt never named. Every band toggles independently;
+// all off is prose-only.
 func TestSurfaceBoundedAdvertisement(t *testing.T) {
 	t.Parallel()
+	catalogNative := NormalizeSurfaces([]Surface{SurfaceCatalog, SurfaceNative})
 	catalogOnly := NormalizeSurfaces([]Surface{SurfaceCatalog})
 	chat := NormalizeSurfaces(DefaultSurfacesChat)
 
-	// Native is always on.
-	if !HasSurfaces(catalogOnly, SurfaceNative) || !HasSurfaces(chat, SurfaceNative) {
-		t.Fatalf("native is not always on: catalogOnly=%v chat=%v", Names(catalogOnly), Names(chat))
-	}
-	for _, set := range [][]Surface{catalogOnly, chat} {
+	for _, set := range [][]Surface{catalogNative, chat} {
 		if !slicesContain(CatalogComponentsFor(set), panelNameInTest) {
 			t.Errorf("native %s missing from the router's candidates for %v", panelNameInTest, Names(set))
 		}
 		if !strings.Contains(PromptForSurfaces(set), panelNameInTest) {
 			t.Errorf("native %s not advertised in the prompt for %v", panelNameInTest, Names(set))
 		}
+	}
+	if slicesContain(CatalogComponentsFor(catalogOnly), panelNameInTest) {
+		t.Errorf("native-off router still offers %s: %v", panelNameInTest, CatalogComponentsFor(catalogOnly))
+	}
+	if strings.Contains(PromptForSurfaces(catalogOnly), panelNameInTest) {
+		t.Errorf("native-off prompt still names %s", panelNameInTest)
 	}
 
 	// Custom is in Chat's default, by prompt AND by router candidates, and

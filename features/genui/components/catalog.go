@@ -361,6 +361,9 @@ func CatalogComponents() []string {
 // spelled out: a new component becomes routable by adding its one map entry,
 // and a toggle moves a name in or out automatically.
 //
+// An empty set (prose-only: every band off) offers nothing, not even the
+// section container — nesting with no leaves to nest is noise.
+//
 // This is what keeps a router on-but-misconfigured from changing the prompt
 // (a pick outside this set is ignored) AND what lets native panels become
 // routable the moment a leg advertises them.
@@ -378,7 +381,42 @@ func CatalogComponentsFor(surfaces []Surface) []string {
 			names = append(names, name)
 		}
 	}
-	names = append(names, sectionName)
+	if HasSurfaces(surfaces, SurfaceCatalog) {
+		names = append(names, sectionName)
+	}
 	slices.Sort(names)
 	return slices.Compact(names)
+}
+
+// FilterDirectives drops every directive (recursively) whose component is
+// unknown or outside the enabled vocabulary, so an answer that reaches for
+// a band the tab turned off degrades instead of rendering it. A section
+// left with no surviving child is dropped too — a titled box around nothing
+// is the half-render the catalog refuses. Aliases resolve to their panel
+// before the check, so a model spelling still filters as its panel. Nil in,
+// nil out; empty in, empty out.
+func FilterDirectives(dirs []Directive, surfaces []Surface) []Directive {
+	surfaces = NormalizeSurfaces(surfaces)
+	kept := make([]Directive, 0, len(dirs))
+	for _, d := range dirs {
+		if d.Component == sectionName {
+			if !HasSurfaces(surfaces, SurfaceCatalog) {
+				continue
+			}
+			children := FilterDirectives(d.Children, surfaces)
+			if len(children) == 0 {
+				continue
+			}
+			d.Children = children
+			kept = append(kept, d)
+			continue
+		}
+		canonical := ResolvePanelName(d.Component)
+		if !Registered(canonical) || !advertisedAs(canonical, surfaces) {
+			continue
+		}
+		d.Children = FilterDirectives(d.Children, surfaces)
+		kept = append(kept, d)
+	}
+	return kept
 }

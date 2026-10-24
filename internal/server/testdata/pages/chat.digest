@@ -2,6 +2,6 @@ route /chat
 ids app-rail chat-composer chat-empty chat-messages chat-prompt chat-stream-opener command-palette command-palette-input command-palette-list confirm-new-chat offline-banner offline-banner-text session-banner state-panel toast-container
 data-bind chatPrompt cmdQuery
 data-on data-on:click data-on:close
-signals chatPrompt chat_empty chat_error chat_thinking cmdQuery loading panelVisible railOpen sessionAuthed theme
+signals chatPrompt chat_empty chat_error chat_ready chat_thinking chat_working clientID cmdQuery loading panelVisible railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-live aria-pressed
-tags a=21 aside=2 body=1 button=19 details=2 dialog=2 div=46 form=4 h1=1 h2=1 h3=1 head=1 header=1 html=2 input=2 kbd=3 label=2 li=22 link=3 main=1 meta=2 nav=2 ol=1 p=8 path=25 script=13 span=63 strong=1 style=3 summary=2 svg=25 title=1 ul=3
+tags a=21 aside=2 body=1 button=22 details=2 dialog=2 div=51 fieldset=1 form=4 h1=1 h2=1 h3=1 head=1 header=1 html=2 input=6 kbd=3 label=5 legend=1 li=22 link=3 main=1 meta=2 nav=2 ol=1 p=8 path=25 script=13 span=72 strong=1 style=3 summary=2 svg=25 title=1 ul=3

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/calionauta/gogogo/features/chat/store"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -269,5 +270,59 @@ func TestWorkerDeliversComponentsForMalformedAnswer(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no chat envelope arrived on hub channel")
+	}
+}
+
+// TestWorkerNamesTheHydrationStage pins the per-answer status: an answer
+// with panels first names the stage ("Loading your data…", spinner kept),
+// then delivers the hydrated answer. Revert the worker to silent hydration
+// and the first envelope is the answer itself. Pure-text answers send no
+// stage — the thinking bubble is enough for them.
+func TestWorkerNamesTheHydrationStage(t *testing.T) {
+	t.Parallel()
+	if err := comp.InstallPanelRegistry([]comp.PanelProvider{stubPanel{}}); err != nil {
+		t.Fatalf("install panel registry: %v", err)
+	}
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+	mem := newMemStore()
+
+	raw := `{"components":[{"type":"todo_list","props":{"filter":"open"}}]}`
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{raw: raw}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "my todos", "userId": "u1", "idem": "k-stage"})
+	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
+
+	if err := h.handleChatJob(context.Background(), hub, job); err != nil {
+		t.Fatalf("handleChatJob: %v", err)
+	}
+	decode := func(b []byte) chatEnvelope {
+		t.Helper()
+		var j queue.Job
+		if err := json.Unmarshal(b, &j); err != nil {
+			t.Fatalf("decode job: %v", err)
+		}
+		var env chatEnvelope
+		if err := json.Unmarshal(j.Payload, &env); err != nil {
+			t.Fatalf("decode envelope: %v", err)
+		}
+		return env
+	}
+	select {
+	case first := <-ch:
+		if got := decode(first); got.Working == "" {
+			t.Fatalf("first envelope names no stage (working=%q)", got.Working)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no working envelope arrived on hub channel")
+	}
+	select {
+	case second := <-ch:
+		if got := decode(second); got.Working != "" || got.Directives == nil {
+			t.Fatalf("second envelope is not the answer: %+v", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no answer envelope arrived on hub channel")
 	}
 }

@@ -45,7 +45,8 @@ func dataContextBlock(ctx context.Context, owner string) string {
 	}
 	return "Reference data for the signed-in user below. Use it ONLY when the " +
 		"request is about the user's own items (their todos, notes, records); " +
-		"otherwise ignore it entirely -- do not mention, summarize, or render it:\n" + summary
+		"otherwise ignore it entirely -- do not mention, summarize, or render it. " +
+		"Greetings and other smalltalk are never about the user's data:\n" + summary
 }
 
 // llmResponder asks a real model for Chat directives. The router, when one
