@@ -57,8 +57,8 @@ templ StreamOpener(buttonID, streamURL string, openWhenHidden bool) {
 		data-on:resume__document={ "window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
 		data-on:pageshow__window={ "(evt.persisted || performance.now() > 1000) && window.__gogogoSSERefresh && window.__gogogoSSERefresh('" + buttonID + "')" }
 	></button>
-	<script defer type="module" src={ resources.StaticURL("sse-open.js") }></script>
-	<script type="module">
+	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("sse-open.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } type="module">
 		// Hidden-@get-button bootstrap (Datastar v1 never fires data-on:load
 		// on a div/body). The opener is found by attribute, so this script
 		// needs no id interpolation; the stable per-tab clientID rides

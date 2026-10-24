@@ -38,6 +38,7 @@ const (
 const (
 	roleAdmin  = "admin"
 	roleViewer = "viewer"
+	roleUser   = "user"
 )
 
 type demoAccount struct {
@@ -49,6 +50,39 @@ type demoAccount struct {
 var seededAccounts = []demoAccount{
 	{Email, Password, demoName, roleAdmin},
 	{Email2, Password, demoName2, roleViewer},
+}
+
+// Disable closes the published demo credentials on a deployment that did
+// not opt in. The rows stay (their data remains), but the password becomes
+// unusable, the role drops to plain user, and sessions plus pending magic
+// links are revoked. Idempotent: a boot after the first is a no-op.
+func Disable(ctx context.Context, q *dbgen.Queries) {
+	if q == nil {
+		return
+	}
+	for _, acc := range seededAccounts {
+		row, err := q.GetUserByEmail(ctx, acc.email)
+		if err != nil {
+			continue // never seeded
+		}
+		if row.PasswordHash == "!" && row.Role == roleUser {
+			continue // already disabled
+		}
+		if perr := q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
+			PasswordHash: "!", Updated: dbschema.Now(), ID: row.ID,
+		}); perr != nil {
+			slog.WarnContext(ctx, "demo: disable password", "email", acc.email, "error", perr)
+			continue
+		}
+		if rerr := q.SetUserRole(ctx, dbgen.SetUserRoleParams{
+			Role: roleUser, Updated: dbschema.Now(), Email: acc.email,
+		}); rerr != nil {
+			slog.WarnContext(ctx, "demo: disable role", "email", acc.email, "error", rerr)
+		}
+		_ = q.DeleteUserSessions(ctx, row.ID)
+		_ = q.DeleteMagicTokensForUser(ctx, row.ID)
+		slog.InfoContext(ctx, "demo: published credentials disabled", "email", acc.email)
+	}
 }
 
 // Ensure seeds the demo accounts and their roles. Best-effort by design: a
@@ -66,13 +100,29 @@ func Ensure(ctx context.Context, a *auth.Auth, q *dbgen.Queries) {
 	}
 }
 
+// restoreDisabledPassword resets only the explicit "!" marker left by
+// Disable. A user-changed password is left alone.
+func restoreDisabledPassword(ctx context.Context, a *auth.Auth, q *dbgen.Queries, acc demoAccount) {
+	row, err := q.GetUserByEmail(ctx, acc.email)
+	if err != nil || row.PasswordHash != "!" {
+		return
+	}
+	if rerr := a.SetPassword(ctx, row.ID, acc.password); rerr != nil {
+		slog.WarnContext(ctx, "demo: restore password", "email", acc.email, "error", rerr)
+		return
+	}
+	slog.InfoContext(ctx, "demo: published password restored", "email", acc.email)
+}
+
 func seedOne(ctx context.Context, a *auth.Auth, q *dbgen.Queries, acc demoAccount) {
 	if _, _, err := a.Signup(ctx, acc.email, acc.password, acc.name); err != nil {
 		if !errors.Is(err, auth.ErrBadCredentials) {
 			slog.WarnContext(ctx, "demo: seed skipped", "error", err)
 			return
 		}
-		// Already seeded (duplicate email): fall through to role assignment.
+		// Already seeded (duplicate email): restore a pair disabled by a
+		// previous production boot, then refresh the role.
+		restoreDisabledPassword(ctx, a, q, acc)
 	} else {
 		slog.InfoContext(ctx, "demo: seed created", "email", acc.email)
 	}
@@ -82,5 +132,11 @@ func seedOne(ctx context.Context, a *auth.Auth, q *dbgen.Queries, acc demoAccoun
 		Role: acc.role, Updated: dbschema.Now(), Email: acc.email,
 	}); err != nil {
 		slog.WarnContext(ctx, "demo: role skipped", "email", acc.email, "error", err)
+	}
+	// Demo accounts are operator-created fixtures, not public signups.
+	if row, err := q.GetUserByEmail(ctx, acc.email); err == nil {
+		_ = q.SetEmailVerified(ctx, dbgen.SetEmailVerifiedParams{
+			EmailVerifiedAt: dbschema.Now(), Updated: dbschema.Now(), ID: row.ID,
+		})
 	}
 }

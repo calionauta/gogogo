@@ -183,12 +183,14 @@ func TestGeneratedSessionQueries(t *testing.T) {
 	past := time.Now().UTC().Add(-time.Hour).Format(dbschema.TimeFormat)
 
 	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: "hash-live", UserID: user, Expires: future, Created: dbschema.Now(),
+		TokenHash: "hash-live", UserID: user, SessionID: "sid-live",
+		LastSeen: dbschema.Now(), Expires: future, Created: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("CreateSession(live): %v", err)
 	}
 	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: "hash-stale", UserID: user, Expires: past, Created: dbschema.Now(),
+		TokenHash: "hash-stale", UserID: user, SessionID: "sid-stale",
+		LastSeen: dbschema.Now(), Expires: past, Created: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("CreateSession(stale): %v", err)
 	}
@@ -216,7 +218,8 @@ func TestGeneratedSessionQueries(t *testing.T) {
 	}
 
 	if err := q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: "hash-2", UserID: user, Expires: future, Created: dbschema.Now(),
+		TokenHash: "hash-2", UserID: user, SessionID: "sid-2",
+		LastSeen: dbschema.Now(), Expires: future, Created: dbschema.Now(),
 	}); err != nil {
 		t.Fatalf("CreateSession(2): %v", err)
 	}

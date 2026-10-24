@@ -205,8 +205,8 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 // sounds trim drops the @sounds.SoundAssets() line from this file.
 templ notesDocHead() {
 	@sounds.SoundAssets()
-	<script defer src={ resources.StaticURL("throttle.js") }></script>
-	<script defer src={ notes.URL("notes.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("throttle.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ notes.URL("notes.js") }></script>
 }
 
 // notesSound is the shell's mute control; the trim drops the call inside it.

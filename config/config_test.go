@@ -201,3 +201,25 @@ func TestAskRouterEnvParsing(t *testing.T) {
 		}
 	}
 }
+
+// TestRBACDefaultsByEnvironment pins the secure default: production starts
+// enforcing, development starts open, and an explicit RBAC_ENABLED always
+// wins. Red-proof: change the fallback to false and the production case
+// goes red.
+func TestRBACDefaultsByEnvironment(t *testing.T) {
+	// Not parallel: t.Setenv forbids t.Parallel.
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("RBAC_ENABLED", "")
+	if got := Load(); !got.RBACEnabled {
+		t.Error("production default RBACEnabled = false, want true")
+	}
+	t.Setenv("RBAC_ENABLED", "false")
+	if got := Load(); got.RBACEnabled {
+		t.Error("explicit RBAC_ENABLED=false ignored")
+	}
+	t.Setenv("ENVIRONMENT", "development")
+	t.Setenv("RBAC_ENABLED", "")
+	if got := Load(); got.RBACEnabled {
+		t.Error("development default RBACEnabled = true, want false")
+	}
+}

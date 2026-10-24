@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/a-h/templ"
+
 	"github.com/calionauta/gogogo/config"
 )
 
@@ -17,7 +19,9 @@ import (
 // every surface, including the ones the router answers without a feature:
 // a 404 and a 405 must not be the only responses missing them.
 func TestSecurityHeadersOnEveryResponse(t *testing.T) {
-	okHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	var nonceSeen string
+	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonceSeen = templ.GetNonce(r.Context())
 		w.WriteHeader(http.StatusOK)
 	})
 	methodHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -33,15 +37,18 @@ func TestSecurityHeadersOnEveryResponse(t *testing.T) {
 		{"method", methodHandler, http.StatusMethodNotAllowed},
 	}
 	want := map[string]string{
-		"X-Content-Type-Options": "nosniff",
-		"Referrer-Policy":        "strict-origin-when-cross-origin",
-		"X-Frame-Options":        "SAMEORIGIN",
-		"Permissions-Policy":     "camera=(), microphone=(), geolocation=()",
+		"X-Content-Type-Options":       "nosniff",
+		"Referrer-Policy":              "strict-origin-when-cross-origin",
+		"X-Frame-Options":              "SAMEORIGIN",
+		"Cross-Origin-Opener-Policy":   "same-origin",
+		"Cross-Origin-Resource-Policy": "same-origin",
+		"Permissions-Policy":           "camera=(), microphone=(), geolocation=()",
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			nonceSeen = ""
 			rec := httptest.NewRecorder()
-			securityHeaders(tc.h).ServeHTTP(rec, httptest.NewRequestWithContext(
+			securityHeaders(&config.Config{Dev: true}, tc.h).ServeHTTP(rec, httptest.NewRequestWithContext(
 				context.Background(), http.MethodGet, "/anything", nil))
 			if rec.Code != tc.want {
 				t.Fatalf("status = %d, want %d", rec.Code, tc.want)
@@ -51,8 +58,39 @@ func TestSecurityHeadersOnEveryResponse(t *testing.T) {
 					t.Errorf("%s = %q, want %q", name, got, value)
 				}
 			}
+			if got := rec.Header().Get("Strict-Transport-Security"); got != "" {
+				t.Errorf("dev HSTS = %q, want empty", got)
+			}
+			csp := rec.Header().Get("Content-Security-Policy")
+			if tc.name == "ok" && (nonceSeen == "" || !strings.Contains(csp, "'nonce-"+nonceSeen+"'")) {
+				t.Fatalf("CSP nonce mismatch: nonce=%q csp=%q", nonceSeen, csp)
+			}
+			idx := strings.Index(csp, "script-src")
+			if idx < 0 {
+				t.Fatalf("CSP has no script-src: %q", csp)
+			}
+			scriptSrc := csp[idx:]
+			if end := strings.Index(scriptSrc, ";"); end >= 0 {
+				scriptSrc = scriptSrc[:end]
+			}
+			if strings.Contains(scriptSrc, "'unsafe-inline'") || strings.Contains(scriptSrc, "'unsafe-eval'") {
+				t.Errorf("script-src must not allow unsafe-inline/unsafe-eval: %q", scriptSrc)
+			}
 		})
 	}
+}
+
+func TestSecurityHeadersHSTSInProduction(t *testing.T) {
+	rec := httptest.NewRecorder()
+	securityHeaders(&config.Config{Dev: false}, okStatusHandler()).ServeHTTP(rec,
+		httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil))
+	if got := rec.Header().Get("Strict-Transport-Security"); got != "max-age=31536000" {
+		t.Fatalf("HSTS = %q", got)
+	}
+}
+
+func okStatusHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 }
 
 // flushSpy is a ResponseWriter that implements http.Flusher. The access log
@@ -126,7 +164,7 @@ func TestEdgeKeepsStreamFlushable(t *testing.T) {
 		called = true
 	})
 	var buf bytes.Buffer
-	chain := securityHeaders(accessLog(newTestLogger(&buf), stream))
+	chain := securityHeaders(&config.Config{Dev: true}, accessLog(newTestLogger(&buf), stream))
 	spy := &flushSpy{ResponseRecorder: httptest.NewRecorder()}
 	chain.ServeHTTP(spy, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/events", nil))
 	if !called {
@@ -245,5 +283,44 @@ func TestEdgeHandlerLogsOriginRejection(t *testing.T) {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("log line missing %q: %s", want, buf.String())
 		}
+	}
+}
+
+// TestSameOriginGuardRejectsCrossSiteFetchMetadata closes the Origin-less
+// gap for modern browsers: Sec-Fetch-Site is sent even when a client omits
+// Origin, and a cross-site unsafe write is never a legitimate app call.
+func TestSameOriginGuardRejectsCrossSiteFetchMetadata(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	cases := []struct {
+		name   string
+		method string
+		site   string
+		origin string
+		want   int
+	}{
+		{"cross-site POST", http.MethodPost, "cross-site", "", http.StatusForbidden},
+		{"same-site POST", http.MethodPost, "same-site", "", http.StatusNoContent},
+		{"same-origin POST", http.MethodPost, "same-origin", "", http.StatusNoContent},
+		{"cross-site GET", http.MethodGet, "cross-site", "", http.StatusNoContent},
+		{"custom scheme wins over cross-site", http.MethodPost, "cross-site", "wails://wails", http.StatusNoContent},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/api/todos", nil)
+			req.Host = "app.example.com"
+			if tc.site != "" {
+				req.Header.Set("Sec-Fetch-Site", tc.site)
+			}
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			rec := httptest.NewRecorder()
+			sameOriginGuard(next).ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.want)
+			}
+		})
 	}
 }

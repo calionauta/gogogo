@@ -6,8 +6,10 @@
 //  3. subjectOf below resolves a session to a decision subject,
 //  4. casbin/policy.csv decides subject + path + method.
 //
-// Enforcement lives ONLY in the policy. IsViewer is a display hint:
-// a wrong answer degrades to a 403, never to an unauthorized write.
+// Enforcement lives in the policy for ordinary routes. IsViewer is a display
+// hint: a wrong answer degrades to a 403, never to an unauthorized write.
+// IsAdmin is also the one always-on operator-surface gate (RequireAdmin),
+// because RBAC_ENABLED=false must not expose /config or the console.
 package rbac
 
 import (
@@ -35,11 +37,11 @@ func IsViewer(role string) bool {
 	return role == RoleViewer
 }
 
-// IsAdmin reports whether a session role is the admin role. A display hint, like
-// IsViewer: the shell uses it to hide the admin-only module from the sidebar, and
-// the route stays policy-enforced. A wrong answer costs a 403 on click, never an
-// unauthorized write — and the comparison lives here because a role comparison
-// anywhere else is a routing decision wearing a boolean.
+// IsAdmin reports whether a session role is the admin role. The shell uses it
+// to hide the admin-only module, and RequireAdmin uses it as the always-on
+// fence for operator surfaces when the policy is disabled. Ordinary route
+// decisions stay in the policy; a wrong answer here costs a 403, never an
+// unauthorized write.
 func IsAdmin(role string) bool {
 	return role == RoleAdmin
 }

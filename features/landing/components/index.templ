@@ -25,7 +25,7 @@ import (
 // landing page matches the shell's build feedback.
 templ Index(userEmail string, userRole string, buildLabel string, buildCommit string, skinName string) {
 	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs("")... }>
+	<html lang="en" { authviews.ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

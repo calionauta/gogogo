@@ -40,7 +40,20 @@ func OfflineSyncScript(enabled bool) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n      if ('serviceWorker' in navigator) {\n        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {\n          // SW registration failed — offline support degraded but the\n          // app still works (no caching, no offline queue).\n        });\n      }\n    </script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script nonce=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var2 string
+			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_sync.templ`, Line: 15, Col: 39}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n      if ('serviceWorker' in navigator) {\n        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {\n          // SW registration failed — offline support degraded but the\n          // app still works (no caching, no offline queue).\n        });\n      }\n    </script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

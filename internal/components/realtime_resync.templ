@@ -36,7 +36,7 @@ templ ListResync(buttonID, fragmentExpr string) {
 		data-list-resync="1"
 		aria-hidden="true"
 	></button>
-	<script type="module">
+	<script nonce={ templ.GetNonce(ctx) } type="module">
 		// Hidden-@get-button pattern (not data-on:load): Datastar v1 does
 		// not fire data-on:load on div/body, so a load attribute silently
 		// never opens anything. The button's @get is a real Datastar

@@ -14,6 +14,6 @@ import "github.com/calionauta/gogogo/web/resources"
 templ DefaultAssets() {
 	<link rel="stylesheet" href={ resources.StaticURL("app.min.css") }/>
 	<link rel="stylesheet" href={ resources.StaticURL("app.css") }/>
-	<script defer type="module" src={ resources.StaticURL("theme.js") }></script>
-	<script defer type="module" src={ resources.StaticURL("datastar.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("theme.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("datastar.js") }></script>
 }

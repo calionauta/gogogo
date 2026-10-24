@@ -44,6 +44,21 @@ type attemptTracker struct {
 // this is defense in depth plus CPU-DoS bounding (each guess burns argon).
 const signinAttemptMax = 30
 
+// signupAttemptMax is intentionally tighter: a legitimate person creates
+// one account, and each attempt costs a 128 MiB argon2id hash.
+const signupAttemptMax = 10
+
+// magicAttemptMax bounds link-request emails per client IP; the per-account
+// cooldown is separate and prevents one mailbox being hit repeatedly.
+const magicAttemptMax = 60
+
+// oauthStartAttemptMax bounds handshake starts per client IP. Each start
+// holds a state entry until the ten-minute TTL.
+const oauthStartAttemptMax = 60
+
+// resetAttemptMax bounds password-reset emails per client IP.
+const resetAttemptMax = 10
+
 // budget resolves the tracker's effective limits.
 func (t *attemptTracker) budget() (max int, window time.Duration) {
 	if t.max > 0 {

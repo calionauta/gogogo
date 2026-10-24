@@ -316,6 +316,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
+      # Client suites create their own users. A production-like environment
+      # on the runner would close signup by default; this is a test fixture,
+      # not a product default.
+      SIGNUP_ENABLED: "true"
     steps:
       - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually

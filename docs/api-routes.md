@@ -5,16 +5,24 @@
 > Coverage is enforced by TestTemplAPIURLsHaveRoutes (every ref below
 > must match a registered route); this file is the inventory it proves.
 
-## Registered routes (50)
+## Registered routes (61)
 
 Every `/api/*` literal in non-test, non-generated Go sources.
 
 - `/api/ai/request`
 - `/api/auth/magic`
 - `/api/auth/magic/request`
-- `/api/auth/magic?token=`
+- `/api/auth/magic?`
+- `/api/auth/oauth`
 - `/api/auth/oauth/{provider}`
 - `/api/auth/oauth/{provider}/callback`
+- `/api/auth/password`
+- `/api/auth/password/reset`
+- `/api/auth/password/reset/request`
+- `/api/auth/password/reset?token=`
+- `/api/auth/sessions`
+- `/api/auth/sessions/revoke-all`
+- `/api/auth/sessions/{id}`
 - `/api/auth/signin/credential`
 - `/api/auth/signout`
 - `/api/auth/signup/credential`
@@ -23,6 +31,9 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/auth/totp/login`
 - `/api/auth/totp/recovery`
 - `/api/auth/totp/verify`
+- `/api/auth/verify`
+- `/api/auth/verify/request`
+- `/api/auth/verify?token=`
 - `/api/byok/*`
 - `/api/chat/ask`
 - `/api/chat/stream`
@@ -60,11 +71,13 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboard/{docID}/update`
 - `/api/whiteboards/fragment`
 
-## Template and script refs (21)
+## Template and script refs (23)
 
 Every `/api/*` URL fired from `.templ` and `.js` sources.
 
 - `/api/`
+- `/api/auth/magic`
+- `/api/auth/password/reset`
 - `/api/chat/ask`
 - `/api/chat/stream`
 - `/api/genui/ask`

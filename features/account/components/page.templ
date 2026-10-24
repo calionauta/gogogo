@@ -1,0 +1,182 @@
+package components
+
+import (
+	"github.com/calionauta/gogogo/internal/ui"
+)
+
+// SessionView is one row of the account session list.
+type SessionView struct {
+	ID       string
+	Created  string
+	LastSeen string
+	Expires  string
+}
+
+// PageData is everything the account page renders.
+type PageData struct {
+	Email         string
+	Role          string
+	Verified      bool
+	TOTP          bool
+	SetupSecret   string
+	SetupURL      string
+	RecoveryCodes []string
+	Sessions      []SessionView
+	Notice        string
+	Error         string
+}
+
+// Page renders /account inside the shared shell.
+templ Page(data PageData, buildLabel string, buildCommit string, skinName string) {
+	@ui.Shell(ui.Data{
+		Title:       "Account — gogogo",
+		Module:      "account",
+		Heading:     "Account",
+		Context:     "security · sessions",
+		Email:       data.Email,
+		Role:        data.Role,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		Skin:        skinName,
+	}, nil, nil, nil, body(data))
+}
+
+templ body(data PageData) {
+	<div class="ui-page ui-stack">
+		if data.Notice != "" {
+			<div role="status" class="alert alert-success">
+				<span>{ data.Notice }</span>
+			</div>
+		}
+		if data.Error != "" {
+			<div role="alert" class="alert alert-error">
+				<span>{ data.Error }</span>
+			</div>
+		}
+
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">Email</h2>
+				<p class="text-sm">
+					{ data.Email }
+					if data.Verified {
+						<span class="badge badge-success badge-sm">verified</span>
+					} else {
+						<span class="badge badge-warning badge-sm">unverified</span>
+					}
+				</p>
+				if !data.Verified {
+					<form method="POST" action="/account/verify" class="mt-3">
+						<button type="submit" class="btn btn-sm">Resend verification email</button>
+					</form>
+				}
+			</div>
+		</section>
+
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">Password</h2>
+				<form method="POST" action="/account/password" class="space-y-3 max-w-md">
+					<label class="form-control w-full">
+						<div class="label"><span class="label-text">Current password</span></div>
+						<input type="password" name="current" class="input input-sm" required
+							autocomplete="current-password"/>
+					</label>
+					<label class="form-control w-full">
+						<div class="label"><span class="label-text">New password</span></div>
+						<input type="password" name="new" class="input input-sm" required
+							autocomplete="new-password" minlength="8"/>
+					</label>
+					<label class="form-control w-full">
+						<div class="label"><span class="label-text">Confirm new password</span></div>
+						<input type="password" name="confirm" class="input input-sm" required
+							autocomplete="new-password" minlength="8"/>
+					</label>
+					<button type="submit" class="btn btn-sm btn-primary">Change password</button>
+				</form>
+			</div>
+		</section>
+
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">Two-factor authentication</h2>
+				if data.TOTP {
+					<p class="text-sm">
+						<span class="badge badge-success badge-sm">enabled</span>
+						Authenticator codes are required at sign-in.
+					</p>
+					<form method="POST" action="/account/totp/disable" class="space-y-3 max-w-md mt-3">
+						<label class="form-control w-full">
+							<div class="label"><span class="label-text">Confirm with your password</span></div>
+							<input type="password" name="password" class="input input-sm" required
+								autocomplete="current-password"/>
+						</label>
+						<button type="submit" class="btn btn-sm btn-error">Disable two-factor</button>
+					</form>
+					<form method="POST" action="/account/totp/recovery" class="mt-3">
+						<button type="submit" class="btn btn-sm">Generate new recovery codes</button>
+					</form>
+				} else if data.SetupSecret != "" {
+					<p class="text-sm">
+						Add this secret to your authenticator app, then enter the code it shows.
+					</p>
+					<p class="text-xs break-all mt-2"><code>{ data.SetupSecret }</code></p>
+					<p class="text-xs break-all"><code>{ data.SetupURL }</code></p>
+					<form method="POST" action="/account/totp/verify" class="space-y-3 max-w-md mt-3">
+						<label class="form-control w-full">
+							<div class="label"><span class="label-text">Authenticator code</span></div>
+							<input type="text" name="code" class="input input-sm" required
+								inputmode="numeric" autocomplete="one-time-code"/>
+						</label>
+						<button type="submit" class="btn btn-sm btn-primary">Enable two-factor</button>
+					</form>
+				} else {
+					<p class="text-sm">Add a second factor for every sign-in.</p>
+					<form method="POST" action="/account/totp/begin" class="mt-3">
+						<button type="submit" class="btn btn-sm btn-primary">Enable two-factor</button>
+					</form>
+				}
+				if len(data.RecoveryCodes) > 0 {
+					<div class="alert alert-warning mt-4">
+						<div>
+							<strong>Save these recovery codes now.</strong>
+							<p class="text-xs mt-1">They are shown once and each works once.</p>
+							<ul class="grid grid-cols-2 gap-1 mt-2 font-mono text-xs">
+								for _, code := range data.RecoveryCodes {
+									<li>{ code }</li>
+								}
+							</ul>
+						</div>
+					</div>
+				}
+			</div>
+		</section>
+
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">Sessions</h2>
+				if len(data.Sessions) == 0 {
+					<p class="text-sm">No active sessions.</p>
+				} else {
+					<div class="space-y-2">
+						for _, session := range data.Sessions {
+							<div class="flex flex-wrap items-center justify-between gap-2 border border-base-300 rounded-lg p-3">
+								<div class="text-xs">
+									<p class="font-mono">{ session.ID }</p>
+									<p class="text-base-content/60">created { session.Created } · last seen { session.LastSeen } · expires { session.Expires }</p>
+								</div>
+								<form method="POST" action="/account/sessions/revoke">
+									<input type="hidden" name="session_id" value={ session.ID }/>
+									<button type="submit" class="btn btn-xs btn-error">Revoke</button>
+								</form>
+							</div>
+						}
+					</div>
+				}
+				<form method="POST" action="/account/sessions/revoke-all" class="mt-4">
+					<button type="submit" class="btn btn-sm btn-error">Sign out everywhere</button>
+				</form>
+			</div>
+		</section>
+	</div>
+}

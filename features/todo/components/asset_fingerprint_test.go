@@ -44,7 +44,7 @@ func renderAll(t *testing.T) string {
 	}
 	parts := []string{
 		renderOrFail(t, TodoList(signals)),
-		renderOrFail(t, authviews.LoginPage("", "", "daisyui")),
+		renderOrFail(t, authviews.LoginPage("", "", "daisyui", true, "", "")),
 		renderOrFail(t, authviews.UserMenu("u@example.com", "user")),
 		renderOrFail(t, authviews.ThemeHead()),
 		renderOrFail(t, ui.ThemeSelector()),

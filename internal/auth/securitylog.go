@@ -36,6 +36,7 @@ import (
 // next operator, not an implementation detail.
 const (
 	evLoginRejected     = "login rejected"
+	evSignupRejected    = "signup rejected"
 	evSecondFactorBad   = "second factor rejected"
 	evSecondFactorBlock = "second factor throttled"
 	evMagicRejected     = "magic link rejected"
@@ -52,7 +53,10 @@ const (
 	reasonExpiredToken    = "expired token"
 	reasonThrottled       = "attempt budget exhausted"
 	reasonSigninThrottled = "signin budget exhausted"
+	reasonSignupThrottled = "signup budget exhausted"
+	reasonEmailUnverified = "email not verified"
 	reasonBadCode         = "wrong code"
+	reasonBrowserMismatch = "browser mismatch"
 )
 
 // secReject logs a rejected authentication attempt. email is the address as

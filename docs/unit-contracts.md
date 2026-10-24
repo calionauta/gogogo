@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 36 — 13 core · 15 plugin · 8 feature
+- **Units:** 37 — 13 core · 15 plugin · 9 feature
 - **Offered to the installer:** 11
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -30,8 +30,8 @@ env config (single source of truth for vars + defaults)
 cookie sessions + middleware (flat auth + shared login UI)
 
 - **Owned:** `internal/auth`, `features/authviews`
-- **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`
-- **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.LatestMagicTokenForUser`, `dbgen.LinkOAuthAccount`, `dbgen.SetTOTPSecret`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
+- **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/password`, `/api/auth/password/reset`, `/api/auth/password/reset/request`, `/api/auth/sessions`, `/api/auth/sessions/revoke-all`, `/api/auth/sessions/{id}`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`, `/api/auth/verify`, `/api/auth/verify/request`
+- **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteMagicTokensForUserPurpose`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.DeleteSessionByID`, `dbgen.DeleteUserSessions`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.LatestMagicTokenForUser`, `dbgen.LatestMagicTokenForUserPurpose`, `dbgen.LinkOAuthAccount`, `dbgen.ListSessionsByUser`, `dbgen.SetEmailVerified`, `dbgen.SetTOTPSecret`, `dbgen.UpdateSessionLastSeen`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
 - **Trim:** manual (no installer unit)
 - **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login page and shell controls. No framework middleware remains; the owned stack is the whole story.
 
@@ -56,7 +56,7 @@ flat data layer: Turso Database connection + migrations + sqlc queries
 fresh-install demo account (one idempotent Signup)
 
 - **Owned:** `internal/demo`
-- **Store calls:** `dbgen.SetUserRole`
+- **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Trim:** manual (no installer unit)
 - **Note:** Core contract: a fresh clone has a way in. Boot (internal/server) and the native window both call it; Signup is idempotent.
 
@@ -99,7 +99,7 @@ RBAC with Casbin (embedded model + policy, enforced at the mux)
 - **Owned:** `internal/rbac`
 - **Store calls:** `dbgen.CountCasbinRules`, `dbgen.DeleteAllCasbinRules`, `dbgen.DeleteCasbinRule`, `dbgen.DeleteCasbinRuleByID`, `dbgen.InsertCasbinRule`, `dbgen.ListCasbinRules`
 - **Trim:** manual (no installer unit)
-- **Note:** Wired middleware, not a dormant package: BootChi builds one enforcer and wraps the whole mux (pass-through when RBAC_ENABLED=false, enforced denies with 403 + warn log when true). Roles come from users.role (migration 0008, ADMIN_EMAILS promotes existing rows at boot). /config is the admin-only surface; the policy test pins every mux route for user-or-admin.
+- **Note:** Wired middleware, not a dormant package: BootChi builds one enforcer and wraps the whole mux (pass-through when RBAC_ENABLED=false, enforced denies with 403 + warn log when true). Roles come from users.role (migration 0008, ADMIN_EMAILS promotes existing rows at boot). /config is admin-only in the handler too (rbac.RequireAdmin), so RBAC_ENABLED=false does not expose it; the console adds an ADMIN_EMAILS allowlist. The policy test pins every mux route for user-or-admin.
 
 ## `secrets` — core
 
@@ -124,7 +124,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 one app shell (sidebar + module header + work area), the theme catalog, and the skin registry that supplies its assets
 
 - **Owned:** `internal/ui`, `internal/icon`, `internal/themes`, `internal/demo`, `web/skins`
-- **Store calls:** `dbgen.SetUserRole`
+- **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: every module page renders a body inside ui.Shell, and the shell resolves the active skin's assets. One skin ships (DaisyUI); visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.
 
@@ -270,6 +270,16 @@ UI sound feedback (cuelume, vendored)
 - **Warning:** data-cuelume-* attributes stay in the markup but are inert without cuelume.js.
 - **Warning:** The installer re-runs `go tool templ generate`; if that fails, run `make templ` manually before building.
 
+## `account` — feature
+
+authenticated /account security page
+
+- **Owned:** `features/account`
+- **Routes:** `/account`, `/account/password`, `/account/sessions/revoke`, `/account/sessions/revoke-all`, `/account/totp/begin`, `/account/totp/disable`, `/account/totp/recovery`, `/account/totp/verify`, `/account/verify`
+- **Store calls:** `dbgen.DeleteSessionByID`, `dbgen.ListSessionsByUser`
+- **Trim:** manual (no installer unit)
+- **Note:** Core identity UX; remove manually with the menu link in features/authviews/controls.templ.
+
 ## `chat` — feature
 
 conversation demo (persisted history + catalog answers on genui)
@@ -282,11 +292,10 @@ conversation demo (persisted history + catalog answers on genui)
 
 ## `config-view` — feature
 
-auth-gated read-only /config view
+admin-only /config view + user role/session actions
 
 - **Owned:** `features/config`
-- **Routes:** `/config`
-- **Store calls:** `dbgen.GetUserByEmail`
+- **Store calls:** `dbgen.CountAdmins`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.ListUsers`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Warning:** The Config sidebar entry is stripped automatically.
@@ -339,7 +348,7 @@ Todo MVC demo (reference implementation)
 
 - **Owned:** `features/todo`
 - **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/login`, `/logout`, `/todo`
-- **Store calls:** `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosByOwner`, `dbgen.SetTodoCompletedByID`
+- **Store calls:** `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosByOwner`, `dbgen.SetTodoCompletedByID`
 - **Trim:** manual (no installer unit)
 - **Why that class:** Reference implementation — remove manually later per docs/scope-taxonomy.md.
 

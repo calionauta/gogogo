@@ -17,10 +17,19 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+)
+
+// Token purposes share one single-use, hashed table. A login token can never
+// be replayed as a reset token, and vice versa.
+const (
+	purposeLogin  = "login"
+	purposeVerify = "verify"
+	purposeReset  = "reset"
 )
 
 // magicLinkTTL bounds a login link's lifetime (10–15 minutes is the
@@ -44,7 +53,14 @@ type MagicSender func(to, link string) error
 // and no account is provisioned: passwordless signup is an explicit per-app
 // choice, not a spam vector in the template default. The link embeds the raw
 // token; only its hash is stored.
-func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL string, send MagicSender) error {
+//
+// bind is the browser-binding value the HTTP handler also stores in a
+// short-lived cookie. It travels in the link so a link forwarded to another
+// browser cannot open a session there (login CSRF). Empty omits it; the
+// handler is the only production caller and always supplies one.
+func (a *Auth) RequestMagicLink(
+	ctx context.Context, email, baseURL, bind string, send MagicSender,
+) error {
 	// Invalid shape and unknown addresses fall through to the same silent
 	// nil at the end: the anti-enumeration contract. Only genuine failures
 	// (no entropy, no storage, no sender) return errors.
@@ -74,7 +90,7 @@ func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL strin
 	}
 	_ = a.q.DeleteMagicTokensForUser(ctx, row.ID)
 	if err := a.q.CreateMagicToken(ctx, dbgen.CreateMagicTokenParams{
-		TokenHash: hash, UserID: row.ID,
+		TokenHash: hash, UserID: row.ID, Purpose: purposeLogin,
 		Expires: now.Add(magicLinkTTL).Format(dbschema.TimeFormat),
 		Created: now.Format(dbschema.TimeFormat),
 	}); err != nil {
@@ -84,7 +100,47 @@ func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL strin
 	if send == nil {
 		return errors.New("auth: no magic sender configured")
 	}
-	return send(addr, baseURL+"/api/auth/magic?token="+token)
+	q := url.Values{"token": {token}}
+	if bind != "" {
+		q.Set("bind", bind)
+	}
+	return send(addr, baseURL+"/api/auth/magic?"+q.Encode())
+}
+
+// RequestMagicLinkDefault is the form-facing wrapper: it uses the configured
+// APP_URL and the installed sender, and fails closed when either is absent.
+func (a *Auth) RequestMagicLinkDefault(ctx context.Context, email string) error {
+	send := a.magicSender()
+	if send == nil {
+		return errors.New("auth: no magic sender configured")
+	}
+	base := a.publicBaseURL()
+	if base == "" {
+		return errors.New("auth: APP_URL not configured")
+	}
+	return a.RequestMagicLink(ctx, email, base, "", send)
+}
+
+// LookupMagicToken resolves the account a login token belongs to without
+// consuming it. The emailed GET uses it to render the confirmation page; it
+// never deletes, so an email scanner prefetch cannot spend the link.
+func (a *Auth) LookupMagicToken(ctx context.Context, token string) (string, bool) {
+	if token == "" {
+		return "", false
+	}
+	row, err := a.q.GetMagicToken(ctx, tokenHash(token))
+	if err != nil || row.Purpose != purposeLogin {
+		return "", false
+	}
+	expires, err := time.Parse(dbschema.TimeFormat, row.Expires)
+	if err != nil || time.Now().UTC().After(expires) {
+		return "", false
+	}
+	user, err := a.q.GetUser(ctx, row.UserID)
+	if err != nil {
+		return "", false
+	}
+	return user.Email, true
 }
 
 // VerifyMagicLink consumes a login token and opens a session. Consumed by
@@ -95,7 +151,7 @@ func (a *Auth) VerifyMagicLink(ctx context.Context, token string) (string, error
 		return "", ErrBadCredentials
 	}
 	row, err := a.q.GetMagicToken(ctx, tokenHash(token))
-	if err != nil {
+	if err != nil || row.Purpose != purposeLogin {
 		secReject(ctx, evMagicRejected, reasonUnknownToken, "", "")
 		return "", ErrBadCredentials
 	}

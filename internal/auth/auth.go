@@ -25,6 +25,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/mail"
 	"strconv"
 	"strings"
@@ -124,12 +125,49 @@ type Auth struct {
 	oauth  map[string]OAuthProvider
 	states map[string]oauthState
 	sender MagicSender
+	// appURL is the configured public origin for out-of-band links. Empty
+	// disables them: the request Host is never trusted to build one.
+	appURL string
+	// signupDisabled closes public account creation (password signup and
+	// first-login OAuth provisioning). Zero value keeps the template's
+	// historical behaviour for package-level tests; BootChi always sets it
+	// from config, where production defaults to closed.
+	signupDisabled bool
+	// magicBindBrowser forces a magic link to be completed in the requesting
+	// browser. Off by default; cross-device is the expected UX.
+	magicBindBrowser bool
+	// magicConfirm renders the read-only email-link landing. Nil falls back
+	// to completing directly (package tests without the server UI).
+	magicConfirm func(w http.ResponseWriter, r *http.Request, email, token, bind, errMsg string)
+	// passwordResetPage renders the set-a-new-password form.
+	passwordResetPage func(w http.ResponseWriter, r *http.Request, email, token, errMsg string)
+	// mailer delivers verification/reset messages. Nil disables those flows.
+	mailer Mailer
+	// requireEmailVerification blocks password login until the address is
+	// verified. Off by default; OAuth-verified addresses bypass it.
+	requireEmailVerification bool
+	// sessionIdle is the inactivity window; zero keeps the absolute TTL only.
+	sessionIdle time.Duration
 	// totpAttempts throttles second-factor guessing (see ratelimit.go).
 	totpAttempts attemptTracker
 	// signinAttempts throttles password guessing per client IP (looser
 	// budget than TOTP: signinAttemptMax). Wired in New; zero value would
 	// inherit the TOTP budget, which is too tight for shared egress IPs.
 	signinAttempts attemptTracker
+	// signupAttempts bounds account-creation work per client IP. Each
+	// signup burns one argon2id hash (128 MiB), so an unthrottled public
+	// signup is a memory-exhaustion lever even when the account is valid.
+	signupAttempts attemptTracker
+	// magicAttempts bounds magic-link requests per client IP: the per-account
+	// cooldown stops one mailbox being spammed, not a list of mailboxes.
+	magicAttempts attemptTracker
+	// oauthStartAttempts bounds OAuth handshake starts per client IP; each
+	// one holds an in-process state entry for ten minutes.
+	oauthStartAttempts attemptTracker
+	// resetAttempts bounds password-reset mail requests per client IP.
+	resetAttempts attemptTracker
+	// verifyAttempts bounds verification-mail requests per client IP.
+	verifyAttempts attemptTracker
 	// totpKey seals TOTP secrets at rest (see totp_seal.go). Nil disables
 	// TOTP enrollment and verification; set it via SetTOTPEncKey (BootChi
 	// wires AUTH_ENC_KEY or the auto-created key file).
@@ -147,9 +185,14 @@ func New(q *dbgen.Queries, secureCookies bool) (*Auth, error) {
 		return nil, errors.New("auth: nil queries")
 	}
 	return &Auth{
-		q:              q,
-		secure:         secureCookies,
-		signinAttempts: attemptTracker{max: signinAttemptMax},
+		q:                  q,
+		secure:             secureCookies,
+		signinAttempts:     attemptTracker{max: signinAttemptMax},
+		signupAttempts:     attemptTracker{max: signupAttemptMax},
+		magicAttempts:      attemptTracker{max: magicAttemptMax},
+		oauthStartAttempts: attemptTracker{max: oauthStartAttemptMax},
+		resetAttempts:      attemptTracker{max: resetAttemptMax},
+		verifyAttempts:     attemptTracker{max: resetAttemptMax},
 	}, nil
 }
 
@@ -170,8 +213,8 @@ func normalizeEmail(email string) (string, error) {
 // hashPassword hashes with argon2id, encoded as argon2id$v=<n>$<salt>$<hash>
 // (raw base64, no padding) under the CURRENT version.
 func hashPassword(password string) (string, error) {
-	if len(password) < minPasswordLen {
-		return "", fmt.Errorf("auth: password too short (min %d chars)", minPasswordLen)
+	if err := validatePassword(password); err != nil {
+		return "", err
 	}
 	salt := make([]byte, argonSaltLen)
 	if _, err := rand.Read(salt); err != nil {
@@ -187,12 +230,28 @@ func hashPassword(password string) (string, error) {
 		"$" + base64.RawStdEncoding.EncodeToString(hash), nil
 }
 
+// validatePassword applies the length policy without paying argon2. The
+// password-change handler uses it before revoking sessions, so an invalid
+// new password does not log the user out for nothing.
+func validatePassword(password string) error {
+	if len(password) < minPasswordLen {
+		return fmt.Errorf("auth: password too short (min %d chars)", minPasswordLen)
+	}
+	if len(password) > maxPasswordLen {
+		return ErrPasswordTooLong
+	}
+	return nil
+}
+
 // verifyPassword compares in constant time under the hash's OWN version
 // (not the current one), reporting whether it verified and whether the
 // caller should rehash to the current version. Unknown formats and unknown
 // versions fail closed (a v=2 hash from the future never verifies here,
 // and a v=0 row never upgrades itself into validity).
 func verifyPassword(encoded, password string) (ok, stale bool) {
+	if len(password) > maxPasswordLen {
+		return false, false
+	}
 	parts := strings.Split(encoded, "$")
 	if len(parts) != 4 || parts[0] != "argon2id" || !strings.HasPrefix(parts[1], "v=") {
 		return false, false
@@ -271,9 +330,10 @@ func (a *Auth) openSession(ctx context.Context, userID string) (string, error) {
 	}
 	now := time.Now().UTC()
 	if err := a.q.CreateSession(ctx, dbgen.CreateSessionParams{
-		TokenHash: hash, UserID: userID,
-		Expires: now.Add(SessionTTL).Format(dbschema.TimeFormat),
-		Created: now.Format(dbschema.TimeFormat),
+		TokenHash: hash, UserID: userID, SessionID: dbschema.NewID(),
+		LastSeen: now.Format(dbschema.TimeFormat),
+		Expires:  now.Add(SessionTTL).Format(dbschema.TimeFormat),
+		Created:  now.Format(dbschema.TimeFormat),
 	}); err != nil {
 		return "", fmt.Errorf("auth: open session: %w", err)
 	}
@@ -317,6 +377,10 @@ func (a *Auth) Login(ctx context.Context, email, password string) (token string,
 				PasswordHash: fresh, Updated: dbschema.Now(), ID: row.ID,
 			})
 		}
+	}
+	if a.emailVerificationRequired() && row.EmailVerifiedAt == "" {
+		secReject(ctx, evLoginRejected, reasonEmailUnverified, addr, row.ID)
+		return "", false, ErrEmailUnverified
 	}
 	if row.TotpSecret != "" && row.TotpVerified != 0 {
 		return "", true, nil

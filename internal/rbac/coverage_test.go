@@ -18,26 +18,35 @@ import (
 // a plain `user`. It is the ONE place that decision is written down, so a
 // reviewer sees it in a diff instead of inferring it from an absent policy row.
 var adminOnlyRoutes = map[string]bool{
-	"/config":   true,
-	"/config/":  true,
-	"/config/*": true,
+	"/config":              true,
+	"/config/":             true,
+	"/config/*":            true,
+	"/config/users/role":   true,
+	"/config/users/revoke": true,
 }
 
 // publicRoutes declares the routes a signed-out visitor may reach. An
 // accidentally-public route (reachable through a wildcard nobody meant to
 // widen) fails here instead of shipping.
 var publicRoutes = map[string]bool{
-	"/":                           true,
-	"/login":                      true,
-	"/logout":                     true,
-	"/health":                     true,
-	"/sw.js":                      true,
-	"/api/auth/signup/credential": true,
-	"/api/auth/signin/credential": true,
-	"/api/auth/signout":           true,
-	"/api/auth/magic":             true,
-	"/api/auth/magic/request":     true,
-	"/api/session/stream":         true,
+	"/":                                   true,
+	"/login":                              true,
+	"/logout":                             true,
+	"/health":                             true,
+	"/sw.js":                              true,
+	"/api/auth/signup/credential":         true,
+	"/api/auth/signin/credential":         true,
+	"/api/auth/signout":                   true,
+	"/api/auth/magic":                     true,
+	"/api/auth/magic/request":             true,
+	"/api/auth/oauth/{provider}":          true,
+	"/api/auth/oauth/{provider}/callback": true,
+	"/api/auth/totp/login":                true,
+	"/api/auth/verify":                    true,
+	"/api/auth/verify/request":            true,
+	"/api/auth/password/reset":            true,
+	"/api/auth/password/reset/request":    true,
+	"/api/session/stream":                 true,
 }
 
 // TestRBACCoverageMatchesRoutes is the coverage lint that replaced the
@@ -324,5 +333,30 @@ func repoRoot(t *testing.T) string {
 			t.Fatal("go.mod not found above the test directory")
 		}
 		dir = parent
+	}
+}
+
+// TestRBACPrivateRoutesDenyAnonymous is the inverse of the public allowlist:
+// every route not declared public must be denied to anonymous when the policy
+// is enforced. A wildcard that accidentally publishes a route fails here even
+// if its handler also checks the session.
+func TestRBACPrivateRoutesDenyAnonymous(t *testing.T) {
+	e, err := NewEnforcer()
+	if err != nil {
+		t.Fatalf("NewEnforcer: %v", err)
+	}
+	for _, rt := range registeredRoutes(t) {
+		if rt.pattern == "" || publicRoutes[rt.pattern] {
+			continue
+		}
+		for _, method := range rt.methods {
+			allow, eerr := e.Enforce(RoleAnonymous, rt.pattern, method)
+			if eerr != nil {
+				t.Fatalf("enforce anonymous %s %s: %v", method, rt.pattern, eerr)
+			}
+			if allow {
+				t.Errorf("%s %s is anonymous-reachable but not in publicRoutes", method, rt.pattern)
+			}
+		}
 	}
 }

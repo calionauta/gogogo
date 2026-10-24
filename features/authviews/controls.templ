@@ -64,6 +64,14 @@ templ UserMenu(userEmail string, userRole string) {
 						<span class="text-xs text-base-content/60">Role: <strong class="font-mono">{ userRole }</strong></span>
 					</li>
 				}
+				<li>
+					<a href="/account" class="flex items-center gap-2">
+						<svg xmlns="http://www.w3.org/2000/svg" class="app-menu-icon" viewBox="0 0 20 20" fill="currentColor">
+							<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+						</svg>
+						Account
+					</a>
+				</li>
 				if userRole == "admin" {
 					<li>
 						<a href="/config" class="flex items-center gap-2">
@@ -74,14 +82,6 @@ templ UserMenu(userEmail string, userRole string) {
 						</a>
 					</li>
 				}
-				<li>
-					<a href="/dagnats/" class="flex items-center gap-2 cursor-pointer">
-						<svg xmlns="http://www.w3.org/2000/svg" class="app-menu-icon" viewBox="0 0 20 20" fill="currentColor">
-							<path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v3h10V5a1 1 0 00-1-1H5zm10 6H5v5a1 1 0 001 1h8a1 1 0 001-1v-5z" clip-rule="evenodd"/>
-						</svg>
-						DagNats
-					</a>
-				</li>
 				<li>
 					<form method="POST" action="/logout" data-on:submit__prevent="$loading = true; fetch('/logout', {method: 'POST', credentials: 'same-origin'}).then(function () { if (navigator.serviceWorker) { navigator.serviceWorker.ready.then(function (r) { r.active && r.active.postMessage({ type: 'clear-pages' }); }); } window.location.href = '/login'; })">
 						<button type="submit" class="w-full text-left flex items-center gap-2">

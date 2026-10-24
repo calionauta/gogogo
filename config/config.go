@@ -10,6 +10,14 @@
 //	HTTP_ACCESS_LOG     (default: false) — one structured line per request
 //	                     (opt-in; a stream logs when it closes)
 //	DATA_DIR            (default: "data")
+//	APP_URL             (default: "") — public origin for out-of-band links
+//	                     (magic links). Required when a magic sender is wired.
+//	SIGNUP_ENABLED      (default: true in dev, false in production) — public
+//	                     account creation (password + first OAuth login).
+//	DEMO_ACCOUNTS_ENABLED (default: true in dev, false in production) — seed
+//	                     the published demo1/demo2 credentials.
+//	RATE_LIMIT_RPM      (default: 1200) — per-session dynamic requests/minute
+//	                     (0 disables the in-process limiter; edge is primary)
 //	ADMIN_UNLOCK_TOKEN  (default: "") — master password for admin endpoints
 //	GOAI_API_KEY        (default: "") — LLM provider API key
 //	GOAI_BASE_URL       (default: "https://api.openai.com/v1") // LLM base URL
@@ -52,27 +60,12 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/calionauta/gogogo/internal/secrets"
 )
-
-// ── Runtime constants ──
-
-// DefaultReplayBufferSize is the per-client SSEHub ring-buffer length.
-// Sized for ~64KB of Datastar patch-signals at ~1KB each.
-const DefaultReplayBufferSize = 64
-
-// DefaultClientQueueSize is the per-client SSEHub channel buffer.
-// Both the todo and whiteboard SSE handlers use 64 slots — tune
-// this constant globally.
-const DefaultClientQueueSize = 64
-
-// DefaultSSEHeartbeatInterval is how often the SSE handler writes a
-// comment line (: heartbeat) to detect client disconnection. 15s is
-// the industry standard for SSE heartbeats.
-const DefaultSSEHeartbeatInterval = 15 * time.Second
 
 type Config struct {
 	// AppName is used as the scope for the secrets file
@@ -103,6 +96,23 @@ type Config struct {
 	HTTPAccessLog bool
 
 	DataDir string
+
+	// DemoAccounts seeds demo1/demo2 with published credentials and fixed
+	// roles. It defaults to development only: a production deploy must opt in
+	// explicitly, because those credentials are public and demo1 is an admin.
+	DemoAccounts bool
+
+	// SignupEnabled opens public account creation: the password signup
+	// route and first-login OAuth provisioning. It defaults to true in
+	// development and false in production. Magic links never provision
+	// accounts (they only log existing users in).
+	SignupEnabled bool
+
+	// RateLimitRPM bounds dynamic requests per session (or per client IP
+	// when signed out) in a sliding minute. 0 disables the in-process
+	// limiter. The edge remains the primary throttle for a fleet; this is
+	// the single-box default so a stock deployment is not unbounded.
+	RateLimitRPM int
 
 	// AdminToken, when non-empty, unlocks the admin endpoints (e.g. the
 	// Todo "clear all" via token). Loaded from the age-decrypted
@@ -220,6 +230,16 @@ type Config struct {
 		// Empty falls back to the auto-created key file. Malformed is
 		// dropped (fail-safe); set-but-malformed fails the boot instead.
 		TOTPEncKey []byte
+		// MagicLinkBindBrowser forces same-browser magic links.
+		MagicLinkBindBrowser bool
+		// RequireEmailVerification gates password login.
+		RequireEmailVerification bool
+		// SessionIdleTimeout ends inactive sessions; zero = absolute TTL.
+		SessionIdleTimeout time.Duration
+		// SMTP configures verification/reset delivery.
+		SMTP SMTPConfig
+		// AppURL is the browser-facing origin for out-of-band links.
+		AppURL string
 	}
 	// Turso holds the Turso Database connection settings — the Rust
 	// SQLite-compatible engine, driven from Go by turso.tech/database/tursogo.
@@ -338,12 +358,17 @@ func Load() *Config {
 		HTTPAccessLog: envBool("HTTP_ACCESS_LOG", false),
 		Dev:           dev,
 		DataDir:       getEnv("DATA_DIR", "data"),
+		DemoAccounts:  envBool("DEMO_ACCOUNTS_ENABLED", dev),
+
+		SignupEnabled: envBool("SIGNUP_ENABLED", dev),
+		RateLimitRPM:  int(envInt("RATE_LIMIT_RPM", defaultRateLimitRPM)),
 		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: GoAIConfig{
 			APIKey: os.Getenv("GOAI_API_KEY"),
 		},
 	}
 
+	cfg.Auth.AppURL = strings.TrimRight(getEnv("APP_URL", ""), "/")
 	cfg.NATS.Enabled = envBool("NATS_ENABLED", defaultNATSEnabled())
 	cfg.NATS.StoreDir = getEnv("NATS_STORE_DIR", "data/nats")
 	cfg.NATS.LeafNodeURL = getEnv("NATS_LEAFNODE_URL", "")
@@ -358,7 +383,7 @@ func Load() *Config {
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
-	cfg.loadRBACEnv()
+	cfg.loadRBACEnv(dev)
 	cfg.loadAuthEnv()
 	cfg.loadSearchEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")

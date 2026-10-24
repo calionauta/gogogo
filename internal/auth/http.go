@@ -30,8 +30,18 @@ func (a *Auth) Routes() chi.Router {
 	r.Post("/api/auth/signup/credential", a.handleSignup)
 	r.Post("/api/auth/signin/credential", a.handleSignin)
 	r.Post("/api/auth/signout", a.handleSignout)
+	r.Get("/api/auth/sessions", a.handleListSessions)
+	r.Delete("/api/auth/sessions/{id}", a.handleRevokeSession)
+	r.Post("/api/auth/sessions/revoke-all", a.handleRevokeAll)
+	r.Post("/api/auth/password", a.handlePasswordChange)
+	r.Post("/api/auth/verify/request", a.handleVerifyRequest)
+	r.Get("/api/auth/verify", a.handleVerifyEmail)
+	r.Post("/api/auth/password/reset/request", a.handlePasswordResetRequest)
+	r.Get("/api/auth/password/reset", a.handlePasswordResetForm)
+	r.Post("/api/auth/password/reset", a.handlePasswordResetComplete)
 	r.Post("/api/auth/magic/request", a.handleMagicRequest)
 	r.Get("/api/auth/magic", a.handleMagicVerify)
+	r.Post("/api/auth/magic", a.handleMagicComplete)
 	r.Post("/api/auth/totp/begin", a.handleTOTPBegin)
 	r.Post("/api/auth/totp/verify", a.handleTOTPVerify)
 	r.Post("/api/auth/totp/login", a.handleTOTPLogin)
@@ -66,6 +76,19 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
+	if a.signupClosed() {
+		http.Error(w, "signup closed", http.StatusForbidden)
+		return
+	}
+	if !a.signupAttempts.allow(signinIP(r)) {
+		secReject(r.Context(), evSignupRejected, reasonSignupThrottled, "", "")
+		http.Error(w, "too many attempts", http.StatusTooManyRequests)
+		return
+	}
+	if a.emailVerificationRequired() && (a.publicBaseURL() == "" || a.mailerFn() == nil) {
+		http.Error(w, "verification unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -82,6 +105,21 @@ func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if a.emailVerificationRequired() {
+		// The signup session is a credential too: revoke it, then send the
+		// verification link. The public verify endpoint needs no session.
+		_ = a.RevokeAllSessions(r.Context(), user.ID)
+		if a.publicBaseURL() == "" || a.mailerFn() == nil {
+			http.Error(w, "verification unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if verr := a.RequestEmailVerification(r.Context(), user.ID, user.Email, a.publicBaseURL()); verr != nil {
+			http.Error(w, "verification failed", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]string{jsonStatusKey: "verification_sent"})
 		return
 	}
 	http.SetCookie(w, a.sessionCookie(token))
@@ -115,6 +153,10 @@ func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrBadCredentials) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		if errors.Is(err, ErrEmailUnverified) {
+			http.Error(w, "email verification required", http.StatusForbidden)
 			return
 		}
 		http.Error(w, "login failed", http.StatusInternalServerError)

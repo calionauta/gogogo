@@ -15,7 +15,7 @@ import "github.com/calionauta/gogogo/web/resources"
 // gone with the component.
 templ ThemeHead() {
 	<link rel="stylesheet" href={ resources.StaticURL("chrome.css") }/>
-	<script>
+	<script nonce={ templ.GetNonce(ctx) }>
 		(function() {
 			try {
 				// Accept any stored theme name. The catalog (and which of its
@@ -56,5 +56,5 @@ templ ThemeHead() {
 			}
 		})();
 	</script>
-	<script defer src={ resources.StaticURL("command-palette.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("command-palette.js") }></script>
 }

@@ -27,6 +27,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -224,6 +225,17 @@ func oauthConfig(p OAuthProvider) *oauth2.Config {
 	}
 }
 
+// oauthStateMax bounds the in-process handshake map. Each entry expires in
+// ten minutes; without a cap, a public start endpoint is a memory sink.
+const oauthStateMax = 4096
+
+// oauthBindCookie binds a handshake to the browser that started it. The
+// state is already unguessable, but without a browser-bound copy a leaked
+// callback URL can be opened by another browser and turn into a login-CSRF
+// (the victim lands in the attacker's account). Path-scoped to the provider
+// subtree.
+const oauthBindCookie = "gogogo_oauth_bind"
+
 // newOAuthState mints an unguessable handshake id and remembers it.
 func (a *Auth) newOAuthState(provider string) (state, verifier string, err error) {
 	raw := make([]byte, oauthStateLen)
@@ -242,6 +254,9 @@ func (a *Auth) newOAuthState(provider string) (state, verifier string, err error
 		if now.After(v.expires) {
 			delete(a.states, k)
 		}
+	}
+	if len(a.states) >= oauthStateMax {
+		return "", "", errors.New("auth: oauth state capacity")
 	}
 	a.states[state] = oauthState{provider: provider, verifier: verifier, expires: now.Add(oauthStateTTL)}
 	return state, verifier, nil
@@ -269,11 +284,25 @@ func (a *Auth) OAuthStart(w http.ResponseWriter, r *http.Request, provider strin
 		http.NotFound(w, r)
 		return
 	}
+	if !a.oauthStartAttempts.allow(signinIP(r)) {
+		http.Error(w, "too many attempts", http.StatusTooManyRequests)
+		return
+	}
 	state, verifier, err := a.newOAuthState(provider)
 	if err != nil {
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
 	}
+	// #nosec G124 — Secure follows the environment; HttpOnly and SameSite set.
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthBindCookie,
+		Value:    state,
+		Path:     "/api/auth/oauth",
+		MaxAge:   int(oauthStateTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   a.secure,
+		SameSite: http.SameSiteLaxMode,
+	})
 	http.Redirect(w, r, oauthConfig(p).AuthCodeURL(state,
 		oauth2.SetAuthURLParam("code_challenge", oauth2.S256ChallengeFromVerifier(verifier)),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
@@ -288,7 +317,19 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 		http.NotFound(w, r)
 		return
 	}
-	verifier, ok := a.takeOAuthState(r.URL.Query().Get("state"), provider)
+	state := r.URL.Query().Get("state")
+	cookie, cerr := r.Cookie(oauthBindCookie)
+	if state == "" || cerr != nil ||
+		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(state)) != 1 {
+		http.Error(w, "invalid login state", http.StatusBadRequest)
+		return
+	}
+	// #nosec G124 — clearing cookie; Secure follows the environment.
+	http.SetCookie(w, &http.Cookie{
+		Name: oauthBindCookie, Value: "", Path: "/api/auth/oauth", MaxAge: -1,
+		HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode,
+	})
+	verifier, ok := a.takeOAuthState(state, provider)
 	if !ok {
 		http.Error(w, "invalid login state", http.StatusBadRequest)
 		return
@@ -305,6 +346,10 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 	}
 	user, err := a.findOrCreateOAuthUser(r.Context(), provider, email, subject)
 	if err != nil {
+		if errors.Is(err, ErrSignupClosed) {
+			http.Error(w, "signup closed", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
 	}
@@ -397,6 +442,9 @@ func (a *Auth) findOrCreateOAuthUser(
 		if !errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("auth: oauth lookup: %w", err)
 		}
+		if a.signupClosed() {
+			return nil, ErrSignupClosed
+		}
 		now := dbschema.Now()
 		row, err = a.q.CreateUser(ctx, dbgen.CreateUserParams{
 			ID: dbschema.NewID(), Email: email, PasswordHash: "!", Name: "",
@@ -411,6 +459,13 @@ func (a *Auth) findOrCreateOAuthUser(
 		Provider: provider, Subject: subject, UserID: row.ID, Created: now,
 	}); err != nil {
 		return nil, fmt.Errorf("auth: oauth link: %w", err)
+	}
+	// The provider already verified this address (fetchOAuthIdentity
+	// rejects unverified emails), so it satisfies the verification gate.
+	if verr := a.q.SetEmailVerified(ctx, dbgen.SetEmailVerifiedParams{
+		EmailVerifiedAt: now, Updated: now, ID: row.ID,
+	}); verr != nil {
+		return nil, fmt.Errorf("auth: oauth verify: %w", verr)
 	}
 	return &User{ID: row.ID, Email: row.Email}, nil
 }
