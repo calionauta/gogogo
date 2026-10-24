@@ -18,12 +18,22 @@ func init() {
 	if os.Getenv("LOG_LEVEL") == "DEBUG" {
 		lvl = slog.LevelDebug
 	}
-	baseLogger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
+	SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl})))
+}
+
+// SetDefault installs the process logger and makes it slog's default. The
+// init path uses it, and tests/embedders use it to capture the same pipeline
+// instead of bypassing observability with a private slog.SetDefault.
+func SetDefault(l *slog.Logger) {
+	if l == nil {
+		return
+	}
+	baseLogger = l
 	// The default logger is the JSON one: every bare slog call anywhere
 	// (including third-party libs that respect a custom default, like
 	// Genkit) emits JSONL on stdout. Structured stdout is the rule —
 	// nothing human-formatted may write here (see cmd/web, web/resources).
-	slog.SetDefault(baseLogger)
+	slog.SetDefault(l)
 }
 
 func L() *slog.Logger {
@@ -63,19 +73,19 @@ func WithComponent(part, layer string) []any {
 }
 
 func Info(ctx context.Context, msg string, args ...any) {
-	From(ctx).Info(msg, args...)
+	From(ctx).InfoContext(ctx, msg, args...)
 }
 
 func Debug(ctx context.Context, msg string, args ...any) {
-	From(ctx).Debug(msg, args...)
+	From(ctx).DebugContext(ctx, msg, args...)
 }
 
 func Error(ctx context.Context, msg string, args ...any) {
-	From(ctx).Error(msg, args...)
+	From(ctx).ErrorContext(ctx, msg, args...)
 }
 
 func Warn(ctx context.Context, msg string, args ...any) {
-	From(ctx).Warn(msg, args...)
+	From(ctx).WarnContext(ctx, msg, args...)
 }
 
 func WithFields(ctx context.Context, fields map[string]any) context.Context {

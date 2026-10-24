@@ -28,5 +28,8 @@ WHERE created >= ?
 GROUP BY event, reason
 ORDER BY count DESC, event, reason;
 
--- name: DeleteSecurityEventsBefore :exec
-DELETE FROM security_events WHERE created < ?;
+-- name: DeleteSecurityEventsBatchBefore :execrows
+DELETE FROM security_events WHERE id IN (
+    SELECT id FROM security_events AS old
+    WHERE old.created < ? ORDER BY old.created LIMIT ?
+);

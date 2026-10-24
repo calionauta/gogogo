@@ -115,7 +115,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
 - **Routes:** `/_ui/demo`, `/health`, `/sw.js`
-- **Store calls:** `dbgen.DeleteSecurityEventsBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
+- **Store calls:** `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 

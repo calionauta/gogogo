@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/internal/observability"
 )
 
 const (
@@ -37,7 +38,8 @@ func securityHeaders(cfg *config.Config, next http.Handler) http.Handler {
 			// Entropy failure is not a reason to serve a policy that would
 			// block every inline script; fail open on the header, never on
 			// the request.
-			slog.Error("server: csp nonce", "error", err)
+			observability.Error(r.Context(), "server: csp nonce",
+				append(observability.WithComponent("server", "core"), "error", err)...)
 		} else {
 			r = r.WithContext(templ.WithNonce(r.Context(), nonce))
 			w.Header().Set("Content-Security-Policy", cspPolicy(nonce))

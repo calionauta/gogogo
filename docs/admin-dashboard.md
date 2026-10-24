@@ -13,7 +13,7 @@ The built-in surfaces, available as soon as the binary boots:
 `/config` also carries the **security events** panel: the last 24 hours grouped
 by event/reason, a warning when rejected authentication crosses the alert
 threshold, and the most recent 100 rows from the `security_events` table
-(30-day retention, pruned at boot). Admin mutations (role change, session
+(30-day retention, pruned at boot and daily in 1000-row batches). Admin mutations (role change, session
 revoke) record both the target and the operator; the table links to
 `/config/audit.csv` for an incident review. The panel filters by event and
 pages through older rows; the CSV applies the same filter. Events never contain a password,

@@ -235,9 +235,12 @@ table plus one vocabulary:
 - **One vocabulary in `internal/auth/securitylog.go`**, called from the auth
   operations themselves. A handler that logs its own string can drift; the
   table and the log filter read the same constants.
-- **Retention is 30 days, pruned at boot.** An operator with a SIEM exports
-  through `/config/audit.csv` before the cutoff. The panel shows 24-hour
-  aggregates and the latest 100 rows; the CSV is admin-only and bounded.
+- **Retention is 30 days, pruned at boot and daily.** Deletes run in batches
+  of 1000 rows so SQLite's single write lock is released between statements,
+  with a 30-second deadline per pass; a failure is logged and retried the next
+  day. An operator with a SIEM exports through `/config/audit.csv` before the
+  cutoff. The panel shows 24-hour aggregates, filters by event and pages
+  through older rows; the CSV is admin-only and bounded.
 - **CSP reports are logged, not stored.** `report-uri` is the most widely
   honoured reporting mechanism in 2026; a report is untrusted input, so the
   sink caps the body at 64 KiB, strips control characters and drops the

@@ -29,7 +29,8 @@ package auth
 
 import (
 	"context"
-	"log/slog"
+
+	"github.com/calionauta/gogogo/internal/observability"
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
@@ -85,21 +86,20 @@ const (
 // submitted (never a hash: it is the spray-vs-target signal); userID is the
 // resolved account, empty when it could not be resolved.
 //
-// Deliberately not routed through internal/observability: that helper is used
-// by three files and provides a tracing seam nothing consumes yet, while the
-// rest of the flat stack calls log/slog directly. Consistency with the code
-// that is actually live beats consistency with the code that is not — see
-// docs/architecture-decision.md.
+// Routed through internal/observability so the line carries the auth component
+// tag and any logger attrs already on the request context.
 func secReject(ctx context.Context, event, reason, email, userID string) {
-	slog.WarnContext(ctx, "auth: "+event,
-		"event", event, "reason", reason, "email", email, "userID", userID)
+	observability.Warn(ctx, "auth: "+event,
+		append(observability.WithComponent("auth", "core"),
+			"event", event, "reason", reason, "email", email, "userID", userID)...)
 }
 
 // secEvent logs a non-rejection security event (a link consumed, a session
 // expired) at Info.
 func secEvent(ctx context.Context, event, userID string) {
-	slog.InfoContext(ctx, "auth: "+event,
-		"event", event, "userID", userID)
+	observability.Info(ctx, "auth: "+event,
+		append(observability.WithComponent("auth", "core"),
+			"event", event, "userID", userID)...)
 }
 
 // secReject and secEvent (methods) keep the slog line and add the durable
@@ -120,9 +120,10 @@ func (a *Auth) secEvent(ctx context.Context, event, userID string) {
 // and when" — a question the slog line alone cannot answer. reason is a short
 // outcome note; email/userID identify the TARGET and actorID the operator.
 func (a *Auth) RecordAudit(ctx context.Context, event, reason, email, userID, actorID string) {
-	slog.InfoContext(ctx, "auth: "+event,
-		"event", event, "reason", reason, "email", email, "userID", userID,
-		"actorID", actorID)
+	observability.Info(ctx, "auth: "+event,
+		append(observability.WithComponent("auth", "core"),
+			"event", event, "reason", reason, "email", email, "userID", userID,
+			"actorID", actorID)...)
 	a.recordSecurityEvent(ctx, event, reason, email, userID, actorID)
 }
 
@@ -138,7 +139,8 @@ func (a *Auth) recordSecurityEvent(ctx context.Context, event, reason, email, us
 		ID: dbschema.NewID(), Event: event, Reason: reason, Email: email,
 		UserID: userID, ActorID: actorID, Created: dbschema.Now(),
 	}); err != nil {
-		slog.WarnContext(ctx, "auth: security event persist failed",
-			"event", event, "error", err)
+		observability.Warn(ctx, "auth: security event persist failed",
+			append(observability.WithComponent("auth", "core"),
+				"event", event, "error", err)...)
 	}
 }

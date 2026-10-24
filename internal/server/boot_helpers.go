@@ -25,6 +25,7 @@ import (
 	"github.com/calionauta/gogogo/internal/instance"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/nats"
+	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
@@ -97,17 +98,33 @@ const (
 	auditRetention     = 30 * 24 * time.Hour
 	auditPruneInterval = 24 * time.Hour
 	auditPruneTimeout  = 30 * time.Second
+	auditPruneBatch    = 1000
 )
 
-// pruneSecurityEvents deletes rows older than auditRetention. Bounded by a
-// timeout so a locked database cannot hold the boot or the ticker forever;
-// the next run retries. Best-effort by design: retention is housekeeping, not
-// an auth decision.
+// pruneSecurityEvents deletes rows older than auditRetention in bounded
+// batches. A single large DELETE would hold SQLite's one write lock for the
+// whole statement and block logins; 1000 rows per statement keeps the worst
+// case short and releases the lock between batches. Bounded by a timeout so a
+// locked database cannot hold the boot or the ticker forever; the next run
+// retries. Best-effort by design: retention is housekeeping, not an auth
+// decision.
 func pruneSecurityEvents(ctx context.Context, q *dbgen.Queries) {
 	ctx, cancel := context.WithTimeout(ctx, auditPruneTimeout)
 	defer cancel()
 	cutoff := time.Now().UTC().Add(-auditRetention).Format(dbschema.TimeFormat)
-	_ = q.DeleteSecurityEventsBefore(ctx, cutoff)
+	for {
+		deleted, err := q.DeleteSecurityEventsBatchBefore(ctx, dbgen.DeleteSecurityEventsBatchBeforeParams{
+			Created: cutoff, Limit: auditPruneBatch,
+		})
+		if err != nil {
+			observability.Warn(ctx, "server: security-event prune failed",
+				append(observability.WithComponent("audit", "core"), "error", err)...)
+			return
+		}
+		if deleted < auditPruneBatch {
+			return
+		}
+	}
 }
 
 // startAuditRetention runs the prune once now and then daily until bootCtx is
