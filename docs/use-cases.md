@@ -293,7 +293,7 @@ What: unauthenticated `GET /`, brand home. Dropping it 404s `/`
 
 ### `config-view` — ops visibility (feature, offered)
 
-What: auth-gated read-only `/config` (env view for operators).
+What: admin-only `/config` (env view, user roles/sessions, audit panel and CSV).
 
 - Dashboards for admins, environment inspection without SSH.
 

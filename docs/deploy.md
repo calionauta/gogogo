@@ -372,6 +372,7 @@ library, which needs the musl loader and `libgcc_s`. Its healthcheck is
 
 ## Related
 
+- [Security model](security.md) — sessions, RBAC, audit, secrets and residual risks.
 - [Configuration](configuration.md) — the env vars the deploy writes.
 - [Local CI](local-ci.md) — run the same gate before pushing.
 

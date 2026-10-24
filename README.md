@@ -63,6 +63,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [db-concurrency](docs/db-concurrency.md) — Turso single-writer stance, the probed MVCC path, and revisit triggers.
 - [configuration](docs/configuration.md) — Every environment variable and runtime constant.
 - [rbac](docs/rbac.md) — Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex).
+- [security](docs/security.md) — The security map: sessions, RBAC, edge headers, step-up, secrets, audit retention, CSP reporting, supply chain, production defaults and residual risks.
 - [dependency-principles](docs/dependency-principles.md) — Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads.
 - [exception-to-go](docs/exception-to-go.md) — Go-first policy: why Zig is an exceptional native boundary, the agent decision procedure, and the isolation, testing, and removal rules.
 - [native-language-tradeoffs](docs/native-language-tradeoffs.md) — Evidence-backed tradeoffs of Zig, Rust, Nim, Odin, and Mojo as native exception languages, and what a non-Zig proposal must rebut.
@@ -159,6 +160,7 @@ dependencies and are left alone.
 | **Language** | Go 1.27 | Fast compilation, easy deploy, lean runtime. Go-first: Zig only as an exceptional native escape hatch ([exception-to-go](docs/exception-to-go.md); the why: [motivation](docs/motivation.md)) |
 | **Zero-config database and auth** | Turso Database (SQLite-compatible, sqlc) + owned argon2id sessions | Zero-config Turso, cookie sessions, file-local storage — no separate service |
 | **Access control without a service** | [Casbin](https://casbin.org) + `users.role` | Roles on the user row, policy in one model, enforced before the handler; embedded policy by default, DB-backed when evolving ([rbac](docs/rbac.md)) |
+| **Security you can audit** | Owned auth + `security_events` + CSP reporting | Sessions, step-up, admin actions and rejected logins leave a durable trail; `/config` shows 24h aggregates and exports CSV ([security](docs/security.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **One shell, switchable themes** | [DaisyUI v5](https://daisyui.com) + four palettes | One markup for every page; the theme picker swaps palette and radius, never layout |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
@@ -167,7 +169,7 @@ dependencies and are left alone.
 | **Shared state that merges offline edits** | [Loro CRDT](https://github.com/aholstenson/loro-go) + [Rough.js](https://roughjs.com) | Conflict-free state with no last-write-wins data loss |
 | **Realtime for one instance or many** | SSE Hub + NATS JetStream | Per-user record push, plus cross-instance broadcast |
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
-| **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption. No vault, no cloud |
+| **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Project-scoped local encryption. No vault, no cloud; name scoping is not a sandbox ([security](docs/security.md)) |
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
 | **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (33) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 

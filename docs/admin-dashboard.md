@@ -10,17 +10,22 @@ The built-in surfaces, available as soon as the binary boots:
 | **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `/console/` | Workflow runs, step inspection, JSON API for durable workflows (same-tunnel reverse proxy to the engine listener; admin **and** `ADMIN_EMAILS`-listed, always on — an empty list closes it) |
 
-`/config` also carries the **security events** panel: the last 24 hours grouped
-by event/reason, a warning when rejected authentication crosses the alert
-threshold, and the most recent 100 rows from the `security_events` table
-(30-day retention, pruned at boot and daily in 1000-row batches). Admin mutations (role change, session
-revoke) record both the target and the operator; the table links to
-`/config/audit.csv` for an incident review. The panel filters by event and
-pages through older rows; the CSV applies the same filter. Events never contain a password,
-session token, TOTP code or magic-link token, and a reported CSP URL drops its
-query string so a one-time token cannot ride into the log. Browser CSP
-violations are posted to `/api/security/csp-report` and logged, so a blocked
-inline script leaves a trace instead of an empty console.
+The map for these controls is [Security model](security.md).
+
+`/config` also carries the **security events** panel: the last 24 hours
+grouped by event/reason, a warning when rejected authentication crosses the
+alert threshold, and the most recent 100 rows from `security_events`
+(30-day retention, pruned at boot and daily in 1000-row batches). Admin
+mutations (role change, session revoke) record both the target and the
+operator; the table links to `/config/audit.csv` for an incident review. The
+panel filters by event and pages through older rows; the CSV applies the same
+filter.
+
+Events never contain a password, session token, TOTP code or magic-link
+token, and a reported CSP URL drops its query string so a one-time token
+cannot ride into the log. Browser CSP violations post to
+`/api/security/csp-report` and are logged, so a blocked inline script leaves a
+trace instead of an empty console.
 
 There is no database admin UI in the binary (no `/_/` dashboard ships
 away with the old framework). Inspect data with `sqlite3` against the Turso file

@@ -271,8 +271,8 @@ everything — the unified build era means you never pass `-tags`.
 3. Open `/todo` — sign in as `demo1@demo.app` / `demo1234456`, add a todo, and watch it
    stream through the SSE hub. (`demo2@demo.app`, same password, keeps
    a separate private list, plus shared todos both logins see live — verify in a second browser.)
-4. Open `/config` — admin-only read-only view of what the binary decided:
-   env-decrypted values, masked secrets, runtime constants.
+4. Open `/config` — admin-only view of what the binary decided: env-decrypted
+   values, masked secrets, runtime constants, users, sessions and the audit panel.
 5. Open `/whiteboard` — collaborative canvas; open it in a second window to
    see presence cursors and CRDT convergence.
 6. Open `/notes` — shared plain-text note; type in two windows to see
@@ -408,6 +408,7 @@ Full env-var reference in [Configuration](configuration.md).
 ## Related
 
 - [Features](features.md) — what you get out of the box, and how to remove it.
+- [Security model](security.md) — what is enforced, what the production defaults are, and what to review before exposing the app.
 - [Scope taxonomy](scope-taxonomy.md) — the rule for deciding what is safe to delete.
 - [Upgrading](upgrading.md) — when upstream moves and you want the diff, not a merge.
 - [Deploy to your own box](deploy.md) — when you're ready to ship.

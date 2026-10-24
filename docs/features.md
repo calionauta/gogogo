@@ -11,6 +11,7 @@ being one.
 |---|---|---|
 | **Auth** | Owned argon2id + sessions | — (middleware stays; login UI removable) |
 | **Access control (RBAC)** | Casbin v3 + `users.role` | — (middleware always wired; `RBAC_ENABLED=true` enforces) |
+| **Security audit trail** | `security_events` (Turso/sqlc) + `/config` panel + CSV | — (core; 30-day retention) |
 | **Todo app + realtime** | SSE Hub record-sync + ephemeral signals | — |
 | **Background jobs + retry** | `goqite` + `retry-go` | — |
 | **AI Suggest** | GoAI | `GOAI_API_KEY` unset |
@@ -34,6 +35,7 @@ being one.
 
 - **Auth** — Cookie sessions, demo login, per-request user loading, and the email magic-link / TOTP / password-reset / verification flows on `/login`.
 - **Access control (RBAC)** — Roles on the user row (`admin`, `user`, `viewer`, `anonymous`) with the policy in one Casbin model, enforced before the handler runs. Route+verb in policy; per-record ownership in `canDeleteDoc`/`canDeleteRow`. Embedded policy is the default; `RBAC_POLICY_SOURCE=db` moves it to `casbin_rule`. Coverage is checked by scanning every router, so a new route cannot ship unguarded. Demo accounts ship as admin/viewer. See [RBAC](rbac.md).
+- **Security audit trail** — Rejections and successful auth, credential changes, session revocation and admin mutations land in `security_events` (subject + actor, never a password/token/code). `/config` shows 24-hour aggregates, filters and pages the latest rows, and exports a filtered CSV; retention is 30 days, pruned at boot and daily in 1000-row batches. Browser CSP violations post to `/api/security/csp-report`. See [Security model](security.md) and [Admin & Dashboard](admin-dashboard.md).
 - **Todo app + realtime** — DB actions (create/toggle/delete) stream visibility-scoped via `owner` + `visibility` (private rows to owner tabs, shared rows to every login). Ephemeral signals carry toasts, clients count, AI suggest.
 - **Background jobs + retry** — Background jobs with backoff/jitter. Stepper UI streamed via SSE (`techStep` / `techPhase`).
 - **AI Suggest** — LLM call from the todo UI; button hidden when no key. Stepper signals `aiStep` / `aiPhase`. Proves the queue+retry path against a real provider, including Biller metering when wired.
@@ -51,7 +53,7 @@ being one.
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
 - **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
-- **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, plus user role changes and session revocation.
+- **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, user role changes, session revocation, the audit panel and CSV.
 
 ## Adding a new feature
 
