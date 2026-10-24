@@ -221,6 +221,37 @@ risk in defaults, not primitives, so the defaults changed:
   escalation**; the data volume and a 64 MB `/tmp` tmpfs are the writable
   paths.
 
+## Audit trail and CSP reporting (2026-10-24)
+
+Logging alone was rejected as the audit answer: a `grep` over rolling stdout
+cannot answer "which operator demoted this account last Tuesday", and a
+container restart takes the evidence with it. The choice is a small owned
+table plus one vocabulary:
+
+- **`security_events` is the durable twin of the slog line.** Rows carry the
+  event, an outcome reason, the subject (`email`, `user_id`), the operator
+  (`actor_id`) and a timestamp. Passwords, session tokens, TOTP codes and
+  magic-link tokens are never columns, by construction.
+- **One vocabulary in `internal/auth/securitylog.go`**, called from the auth
+  operations themselves. A handler that logs its own string can drift; the
+  table and the log filter read the same constants.
+- **Retention is 30 days, pruned at boot.** An operator with a SIEM exports
+  through `/config/audit.csv` before the cutoff. The panel shows 24-hour
+  aggregates and the latest 100 rows; the CSV is admin-only and bounded.
+- **CSP reports are logged, not stored.** `report-uri` is the most widely
+  honoured reporting mechanism in 2026; a report is untrusted input, so the
+  sink caps the body at 64 KiB, strips control characters and drops the
+  query/fragment before logging. A reset token that appeared in the address
+  bar must not become a log line.
+- **Step-up for sign-out-everywhere.** The session alone was too weak for a
+  destructive credential action: the page and the JSON API ask for the current
+  password. OAuth-only rows have no password (`!` sentinel), so they are
+  exempt rather than locked out; a failed proof is itself audited.
+
+What this is not: a SIEM, a streaming alerting daemon, or a replacement for
+edge logs. It is the smallest evidence store that survives a restart and is
+readable by the person who has to answer the question.
+
 ## Why a copy you own (and not a module you import)
 
 The alternative deserves stating, because it is the first question a reader from

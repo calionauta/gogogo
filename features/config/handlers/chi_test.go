@@ -265,3 +265,19 @@ func TestAdminRoleChangeIsAudited(t *testing.T) {
 	}
 	t.Fatalf("admin role change absent from audit rows: %+v", rows)
 }
+
+func TestCSVCellEscapesFormula(t *testing.T) {
+	cases := map[string]string{
+		"plain@example.com": "plain@example.com",
+		"=cmd()":            "'=cmd()",
+		"+1":                "'+1",
+		"-2":                "'-2",
+		"@SUM":              "'@SUM",
+		"":                  "",
+	}
+	for in, want := range cases {
+		if got := csvCell(in); got != want {
+			t.Fatalf("csvCell(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
