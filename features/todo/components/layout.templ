@@ -33,7 +33,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 		OfflineSync: offlineSync,
 		Stack:       todoStack(),
 		Demo:        demo,
-		Panel:       TodoStatePanel(signals),
+		Panel:       statePanelFor(signals),
 	}, todoHead(), todoSound(), TodoPresence(signals), todoBody(signals))
 }
 

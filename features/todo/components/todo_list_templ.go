@@ -484,15 +484,17 @@ func TodoListRegion(signals todo.Signals) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if signals.DagNatsEnabled {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "Or open Demo mode and use Run durable workflow to create examples.")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "The queue and AI suggestions live in Demo mode.")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
+			if !signals.IsViewer {
+				if signals.DagNatsEnabled {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "Or open Demo mode and use Run durable workflow to create examples.")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "The queue and AI suggestions live in Demo mode.")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				}
 			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</p></div>")
@@ -554,7 +556,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("$newTitle = " + safeJSString(s))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 314, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 316, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 			if templ_7745c5c3_Err != nil {
@@ -567,7 +569,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 315, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 317, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -585,7 +587,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 319, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 321, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -719,7 +721,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 467, Col: 139}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 469, Col: 139}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -732,7 +734,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 470, Col: 210}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 472, Col: 210}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -745,7 +747,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 471, Col: 232}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 473, Col: 232}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -758,7 +760,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 472, Col: 233}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 474, Col: 233}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
