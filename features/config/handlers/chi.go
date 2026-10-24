@@ -69,6 +69,23 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		role = sess.Role
 	}
 	data := components.BuildPageData(h.cfg)
+	// Admin mutations require a fresh proof. An OAuth-only admin without a
+	// verified factor has nothing VerifyStepUp can accept; the forms say so
+	// instead of silently failing.
+	if email != "" {
+		canStep, cerr := h.auth.CanStepUp(r.Context(), sess.User.ID)
+		if cerr != nil {
+			http.Error(w, "admin state unavailable", http.StatusInternalServerError)
+			return
+		}
+		data.AdminStepUp = canStep
+		passwordSet, perr := h.auth.HasPassword(r.Context(), sess.User.ID)
+		if perr != nil {
+			http.Error(w, "admin state unavailable", http.StatusInternalServerError)
+			return
+		}
+		data.AdminPasswordSet = passwordSet
+	}
 	// Role lookup is display-only here: a miss renders "unknown". The
 	// route gate is rbac.RequireAdmin above (always on), with the policy
 	// as the second layer.
@@ -173,6 +190,10 @@ func (h *Handler) loadAudit(r *http.Request, data *components.PageData) error {
 }
 
 func (h *Handler) handleRole(w http.ResponseWriter, r *http.Request) {
+	sess, ok := h.adminSession(w, r)
+	if !ok {
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		redirectConfig(w, r, "error", "Invalid form submission.")
 		return
@@ -186,6 +207,9 @@ func (h *Handler) handleRole(w http.ResponseWriter, r *http.Request) {
 	target, err := h.queries.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		redirectConfig(w, r, "error", "User not found.")
+		return
+	}
+	if !h.verifyAdminProof(w, r, sess, "role change", email, target.ID) {
 		return
 	}
 	if isAdminRole(target.Role) && !isAdminRole(role) {
@@ -211,6 +235,10 @@ func (h *Handler) handleRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRevokeSessions(w http.ResponseWriter, r *http.Request) {
+	sess, ok := h.adminSession(w, r)
+	if !ok {
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		redirectConfig(w, r, "error", "Invalid form submission.")
 		return
@@ -219,6 +247,9 @@ func (h *Handler) handleRevokeSessions(w http.ResponseWriter, r *http.Request) {
 	user, err := h.queries.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		redirectConfig(w, r, "error", "User not found.")
+		return
+	}
+	if !h.verifyAdminProof(w, r, sess, "session revoke", email, user.ID) {
 		return
 	}
 	// RevokeAllSessions also drops pending magic links: an admin "revoke" must
@@ -307,6 +338,38 @@ func csvCell(v string) string {
 		return "'" + v
 	}
 	return v
+}
+
+// adminSession resolves the operator behind an admin mutation. RequireAdmin
+// already proved the route; a miss here is a boot/wiring bug, so fail closed.
+func (h *Handler) adminSession(w http.ResponseWriter, r *http.Request) (*auth.ValidatedSession, bool) {
+	sess, err := h.auth.Session(r)
+	if err != nil || sess == nil || sess.User == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return nil, false
+	}
+	return sess, true
+}
+
+// verifyAdminProof checks the current admin's password or authenticator code
+// before a role/session mutation. A failed proof is audited; a store failure
+// is a 500, never a silent mutation.
+func (h *Handler) verifyAdminProof(
+	w http.ResponseWriter, r *http.Request, sess *auth.ValidatedSession,
+	action, targetEmail, targetID string,
+) bool {
+	ok, err := h.auth.VerifyStepUp(r.Context(), sess.User.ID, r.PostFormValue("proof"))
+	if err != nil {
+		redirectConfig(w, r, "error", "Could not verify the admin proof.")
+		return false
+	}
+	if !ok {
+		h.auth.RecordAudit(r.Context(), auth.EventStepUpRejected,
+			action, targetEmail, targetID, sess.User.ID)
+		redirectConfig(w, r, "error", "Admin confirmation failed.")
+		return false
+	}
+	return true
 }
 
 // actorID is the signed-in operator behind an admin mutation. RequireAdmin

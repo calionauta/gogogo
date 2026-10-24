@@ -156,7 +156,7 @@ func TestChiConfigUserAdminActions(t *testing.T) {
 		t.Fatalf("admin login: %v", lerr)
 	}
 	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/config/users/role",
-		strings.NewReader("email=target%40example.com&role=viewer"))
+		strings.NewReader("email=target%40example.com&role=viewer&proof=Correct-horse-99%21"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// #nosec G124 — test-only request cookie.
 	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: adminToken})
@@ -212,8 +212,26 @@ func TestAdminRoleChangeIsAudited(t *testing.T) {
 		t.Fatalf("resolve actor: %v", serr)
 	}
 
+	bad := httptest.NewRequestWithContext(ctx, http.MethodPost, "/config/users/role",
+		strings.NewReader("email=target%40example.com&role=viewer&proof=wrong"))
+	bad.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// #nosec G124 — test-only request cookie.
+	bad.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})
+	badRec := httptest.NewRecorder()
+	mux.ServeHTTP(badRec, bad)
+	if badRec.Code != http.StatusSeeOther {
+		t.Fatalf("bad-proof role change = %d, want redirect", badRec.Code)
+	}
+	unchanged, uerr := q.GetUserByEmail(ctx, "target@example.com")
+	if uerr != nil {
+		t.Fatalf("target after bad proof: %v", uerr)
+	}
+	if unchanged.Role != "user" {
+		t.Fatalf("role changed without proof: %q", unchanged.Role)
+	}
+
 	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/config/users/role",
-		strings.NewReader("email=target%40example.com&role=viewer"))
+		strings.NewReader("email=target%40example.com&role=viewer&proof=Correct-horse-99%21"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// #nosec G124 — test-only request cookie.
 	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})

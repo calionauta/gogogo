@@ -197,8 +197,9 @@ is per-process. The security properties here are owned:
   requests and OAuth starts carry per-IP budgets, and signin/TOTP keep their
   own; the per-session limiter covers everything authenticated.
 - sign-out-everywhere requires the current password when the account has one;
-  TOTP disable requires the password or a current authenticator/recovery code
-  on OAuth-only rows; recovery rotation requires the password when one exists.
+  TOTP disable and recovery rotation require the password or a current
+  authenticator/recovery code on OAuth-only rows. Admin role changes and
+  session revocation require the admin's own password when set, or a current code on a passwordless admin.
 - `security_events` is the durable audit twin of the security log: subject,
   actor and outcome only, 30-day retention pruned at boot and daily in
   1000-row batches. `/config` renders the 24-hour aggregates, the filtered

@@ -5,7 +5,7 @@ The built-in surfaces, available as soon as the binary boots:
 | Surface | URL | What it gives you |
 |---|---|---|
 | **Landing page** | `/` | Public marketing hero (tagline + CTA). Guests and signed-in users see the same page; no DB read, no auth gate |
-| **Config + admin users** | `/config` | Admin-only view of the running binary (masked secrets) plus user role changes and session revocation. The fence is always on, independent of `RBAC_ENABLED`. Source: `features/config/` |
+| **Config + admin users** | `/config` | Admin-only view of the running binary (masked secrets) plus user role changes and session revocation. Each mutation requires the admin's password when set, or a current authenticator/recovery code on a passwordless admin; the fence is always on, independent of `RBAC_ENABLED`. Source: `features/config/` |
 | **Session stream** | `/api/session/stream` | `data: {"type":"session","authed": bool}` frames for the shared session banner on pages with **no feature stream** (todo/room/chat carry the same state as a `sessionAuthed` signal on their own stream; notes/whiteboard use their frame). One VISIBLE tab per browser holds this stream (Web Locks + BroadcastChannel); going hidden hands the lock on. One frame on connect and one only when the state changes; the server closes after `authed:false` so the client stops reconnecting. Never 401s: this reports a state, it is not a gate |
 | **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `/console/` | Workflow runs, step inspection, JSON API for durable workflows (same-tunnel reverse proxy to the engine listener; admin **and** `ADMIN_EMAILS`-listed, always on — an empty list closes it) |

@@ -7387,6 +7387,9 @@
   .w-28 {
     width: calc(var(--spacing) * 28);
   }
+  .w-36 {
+    width: calc(var(--spacing) * 36);
+  }
   .w-auto {
     width: auto;
   }
@@ -8184,6 +8187,15 @@
     .floating-label:has(.input-sm) {
       --top-mul: 4;
       --font-size: 0.75rem;
+    }
+    .input-xs {
+      --in-size-mul: 6;
+      --font-size-min: 0.6875rem;
+      --spin-my: -1;
+    }
+    .floating-label:has(.input-xs) {
+      --top-mul: 3;
+      --font-size: 0.6875rem;
     }
     .select-sm {
       --sl-size-mul: 8;

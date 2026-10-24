@@ -141,6 +141,12 @@ templ body(data PageData) {
 								<input type="password" name="password" class="input input-sm" required
 									autocomplete="current-password"/>
 							</label>
+						} else {
+							<label class="form-control w-full">
+								<div class="label"><span class="label-text">Authenticator or recovery code</span></div>
+								<input type="text" name="code" class="input input-sm" required
+									inputmode="numeric" autocomplete="one-time-code"/>
+							</label>
 						}
 						<button type="submit" class="btn btn-sm">Generate new recovery codes</button>
 					</form>

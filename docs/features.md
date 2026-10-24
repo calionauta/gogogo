@@ -53,7 +53,7 @@ being one.
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
 - **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
-- **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, user role changes, session revocation, the audit panel and CSV.
+- **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, user role changes, session revocation, the audit panel and CSV. Role/session mutations require the admin's password (or a current code on a passwordless admin).
 
 ## Adding a new feature
 

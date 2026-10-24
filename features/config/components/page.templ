@@ -177,6 +177,15 @@ templ configBody(data PageData) {
 			<p class="text-sm text-base-content/70 mb-2">
 				Admin-only. Role changes apply on the next request; revoking sessions signs the user out everywhere.
 			</p>
+			if data.AdminStepUp {
+				<p class="text-xs text-base-content/60 mb-3">
+					Each mutation asks for your password or a current authenticator/recovery code.
+				</p>
+			} else {
+				<div role="alert" class="alert alert-warning mb-3">
+					<span>This admin account has no password or verified authenticator, so admin mutations are disabled. Enroll TOTP or set a password first.</span>
+				</div>
+			}
 			<div class="overflow-x-auto">
 				<table class="table table-sm">
 					<thead>
@@ -194,14 +203,16 @@ templ configBody(data PageData) {
 							<tr>
 								<td><code class="text-sm">{ user.Email }</code></td>
 								<td>
-									<form method="POST" action="/config/users/role" class="flex items-center gap-1">
+									<form method="POST" action="/config/users/role" class="flex flex-wrap items-center gap-1">
 										<input type="hidden" name="email" value={ user.Email }/>
 										<select name="role" class="select select-sm">
 											<option value="user" selected?={ user.Role == "user" }>user</option>
 											<option value="viewer" selected?={ user.Role == "viewer" }>viewer</option>
 											<option value="admin" selected?={ user.Role == "admin" }>admin</option>
 										</select>
-										<button type="submit" class="btn btn-xs"
+										<input type="password" name="proof" class="input input-xs w-36" required
+											placeholder={ adminProofLabel(data) } autocomplete="current-password"/>
+										<button type="submit" class="btn btn-xs" disabled?={ !data.AdminStepUp }
 											data-on:click="confirm('Change this user role?') || evt.preventDefault()">Save</button>
 									</form>
 								</td>
@@ -221,9 +232,11 @@ templ configBody(data PageData) {
 								</td>
 								<td class="text-xs text-base-content/60">{ user.Created }</td>
 								<td>
-									<form method="POST" action="/config/users/revoke">
+									<form method="POST" action="/config/users/revoke" class="flex flex-wrap items-center gap-1">
 										<input type="hidden" name="email" value={ user.Email }/>
-										<button type="submit" class="btn btn-xs btn-error"
+										<input type="password" name="proof" class="input input-xs w-36" required
+											placeholder={ adminProofLabel(data) } autocomplete="current-password"/>
+										<button type="submit" class="btn btn-xs btn-error" disabled?={ !data.AdminStepUp }
 											data-on:click="confirm('Revoke every session for this user?') || evt.preventDefault()">Revoke sessions</button>
 									</form>
 								</td>
@@ -316,6 +329,15 @@ templ configBody(data PageData) {
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
 	</footer>
 	</div>
+}
+
+// adminProofLabel names the accepted proof without pretending a password
+// exists on an OAuth-only row.
+func adminProofLabel(data PageData) string {
+	if data.AdminPasswordSet {
+		return "Password"
+	}
+	return "Authenticator/recovery code"
 }
 
 // configContext is the header's context slot: the two facts the page exists to

@@ -115,7 +115,7 @@ Blocking gates live at git level via lefthook (`make setup`; wrappers committed 
 - **Git:** `git stash drop` is destructive (use `pop` or snapshot a `wip-*` branch first). Commit msgs via `git commit -F - <<'EOF'` (quoted EOF), never `git commit -m "$(cat <<EOF"`.
 - **Deploy:** push-to-`master` ships in parallel with CI (deploy does NOT wait for it — PR CI is the pre-merge gate). CI builds the image once and the server **pulls it by digest** (`APP_IMAGE=…@sha256:…`); never a host-side binary, never a mutable tag. Container write via `setfacl`/`chmod`, NEVER `chown`. Never `scp` into the server clone. Healthcheck is `CMD ["/app","health"]` (`docs/deploy.md`).
 - **UI and themes:** one component library, DaisyUI v5 (`/static/app.min.css`; NEVER `daisyui.min.css` v4 relic). Visual variants are DaisyUI themes picked from the sidebar; the catalog lives in `internal/themes` and must stay in step with `src/css/input.css` — MUST read `docs/ui-themes.md` (via `skills/gogogo-ui/SKILL.md`) before any `.templ`/CSS edit.
-- **Config:** single source `config/config.go` (`docs/configuration.md`). Security defaults: `SIGNUP_ENABLED` and `DEMO_ACCOUNTS_ENABLED` are dev-on/production-off, `APP_URL` is required for out-of-band links (the request `Host` is never trusted), `REQUIRE_EMAIL_VERIFICATION`/`SESSION_IDLE_TIMEOUT` default off, and `RATE_LIMIT_RPM` bounds authenticated requests per session. Sign-out-everywhere requires the current password when the account has one; TOTP disable requires the password or a current authenticator/recovery code on OAuth-only rows; recovery rotation requires the password when one exists. The map is `docs/security.md`. Magic links are cross-device by default with a read-only GET + POST confirmation; `MAGIC_LINK_BIND_BROWSER=true` is strict. CSP/HSTS are app-owned (`internal/server/edge.go`); inline scripts carry the per-request nonce. **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
+- **Config:** single source `config/config.go` (`docs/configuration.md`). Security defaults: `SIGNUP_ENABLED` and `DEMO_ACCOUNTS_ENABLED` are dev-on/production-off, `APP_URL` is required for out-of-band links (the request `Host` is never trusted), `REQUIRE_EMAIL_VERIFICATION`/`SESSION_IDLE_TIMEOUT` default off, and `RATE_LIMIT_RPM` bounds authenticated requests per session. Sign-out-everywhere requires the current password when the account has one; TOTP disable and recovery rotation require the password or a current authenticator/recovery code on OAuth-only rows. Admin role/session mutations require the admin's own password when set, or a current code on a passwordless admin. The map is `docs/security.md`. Magic links are cross-device by default with a read-only GET + POST confirmation; `MAGIC_LINK_BIND_BROWSER=true` is strict. CSP/HSTS are app-owned (`internal/server/edge.go`); inline scripts carry the per-request nonce. **Docs:** `docs/*.md` is the source of truth — behaviour changes update the doc in the SAME commit; never edit `site/docs/` (generated, `make site`; `make site-check` green).
 
 ## Security invariants (agent gate)
 
@@ -142,8 +142,11 @@ review checklist, and no LLM should self-certify it (see the testing rule).
 - **Every password rotation, TOTP removal, and sign-out-everywhere**: revoke
   sessions and pending magic links; do not leave a 15-minute login window open.
   Sign-out-everywhere requires the password when the account has one; TOTP
-  disable requires the password or a current code. Recovery rotation requires
-  the password when one exists. A failed proof is audited, not silently ignored.
+  disable and recovery rotation require the password or a current code on
+  OAuth-only rows. A failed proof is audited, not silently ignored.
+- **Every admin mutation**: verify the signed-in admin's password or current
+  authenticator/recovery code before role changes/session revocation; audit a
+  failed proof and refuse the mutation.
 - **Every audit event**: `security_events` carries event, reason, subject and
   actor only — never a password, token, TOTP code or magic-link token. Keep the
   vocabulary in `internal/auth/securitylog.go`; `/config` and the CSV read it.
