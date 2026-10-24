@@ -2,7 +2,9 @@
 package auth
 
 import (
+	"context"
 	"crypto/subtle"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -230,19 +232,22 @@ func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if berr := readJSON(r, &body); berr != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-	// Fresh password proof before removing the second factor: a stolen
-	// session alone must not downgrade the account's protection.
-	row, err := a.q.GetUser(r.Context(), user.ID)
-	if err != nil {
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+	ok, perr := a.verifyTOTPDisableProof(r.Context(), user, body.Password, body.Code)
+	if perr != nil {
+		http.Error(w, "disable failed", http.StatusInternalServerError)
 		return
 	}
-	if ok, _ := verifyPassword(row.PasswordHash, body.Password); !ok {
+	if !ok {
+		// Fresh proof before removing the second factor: a stolen session
+		// alone must not downgrade the account's protection.
+		a.RecordAudit(r.Context(), EventStepUpRejected,
+			"disable second factor", user.Email, user.ID, "")
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -264,6 +269,26 @@ func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, a.sessionCookie(token))
 	writeJSON(w, map[string]string{jsonStatusKey: "ok"})
+}
+
+// verifyTOTPDisableProof accepts the password when the account has one, or a
+// current authenticator/recovery code on an OAuth-only row. A store failure is
+// an error, a wrong proof is (false, nil): the caller must not turn one into
+// the other.
+func (a *Auth) verifyTOTPDisableProof(ctx context.Context, user *User, password, code string) (bool, error) {
+	hasPassword, err := a.HasPassword(ctx, user.ID)
+	if err != nil {
+		return false, err
+	}
+	row, err := a.q.GetUser(ctx, user.ID)
+	if err != nil {
+		return false, fmt.Errorf("auth: totp disable proof: %w", err)
+	}
+	if hasPassword {
+		ok, _ := verifyPassword(row.PasswordHash, password)
+		return ok, nil
+	}
+	return a.verifySecondFactor(ctx, row, code), nil
 }
 
 // handleTOTPRecovery mints recovery codes for an authenticated user. The

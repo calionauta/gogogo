@@ -430,8 +430,8 @@ func TestTOTPThrottle(t *testing.T) {
 		t.Fatalf("begin: %v", err)
 	}
 	code, _ := totpCode(secret, time.Now())
-	if err := a.VerifyTOTPEnroll(ctx, user.ID, code); err != nil {
-		t.Fatalf("enroll: %v", err)
+	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
+		t.Fatalf("enroll: %v", verr)
 	}
 
 	// Mechanism, white-box: 10 failures fit the burst, the 11th does not,

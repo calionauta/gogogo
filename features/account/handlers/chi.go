@@ -158,10 +158,21 @@ func (h *Handler) disableTOTP(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "Invalid form submission.")
 		return
 	}
-	token, err := h.a.DisableTOTPWithPassword(r.Context(), sess.User.ID, r.PostFormValue("password"))
+	hasPassword, perr := h.a.HasPassword(r.Context(), sess.User.ID)
+	if perr != nil {
+		h.renderError(w, r, sess, "Could not verify this account. Try again.")
+		return
+	}
+	var token string
+	var err error
+	if hasPassword {
+		token, err = h.a.DisableTOTPWithPassword(r.Context(), sess.User.ID, r.PostFormValue("password"))
+	} else {
+		token, err = h.a.DisableTOTPWithCode(r.Context(), sess.User.ID, r.PostFormValue("code"))
+	}
 	if err != nil {
 		if errors.Is(err, auth.ErrBadCredentials) {
-			h.renderError(w, r, sess, "Password is wrong.")
+			h.renderError(w, r, sess, "The proof is wrong.")
 			return
 		}
 		h.renderError(w, r, sess, "Could not disable two-factor.")

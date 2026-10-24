@@ -108,11 +108,19 @@ templ body(data PageData) {
 						Authenticator codes are required at sign-in.
 					</p>
 					<form method="POST" action="/account/totp/disable" class="space-y-3 max-w-md mt-3">
-						<label class="form-control w-full">
-							<div class="label"><span class="label-text">Confirm with your password</span></div>
-							<input type="password" name="password" class="input input-sm" required
-								autocomplete="current-password"/>
-						</label>
+						if data.PasswordSet {
+							<label class="form-control w-full">
+								<div class="label"><span class="label-text">Confirm with your password</span></div>
+								<input type="password" name="password" class="input input-sm" required
+									autocomplete="current-password"/>
+							</label>
+						} else {
+							<label class="form-control w-full">
+								<div class="label"><span class="label-text">Authenticator or recovery code</span></div>
+								<input type="text" name="code" class="input input-sm" required
+									inputmode="numeric" autocomplete="one-time-code"/>
+							</label>
+						}
 						<button type="submit" class="btn btn-sm btn-error">Disable two-factor</button>
 					</form>
 					<form method="POST" action="/account/totp/recovery" class="mt-3 space-y-2 max-w-md">

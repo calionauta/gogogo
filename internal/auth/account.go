@@ -53,6 +53,28 @@ func (a *Auth) DisableTOTPWithPassword(ctx context.Context, userID, password str
 	return a.openSession(ctx, userID)
 }
 
+// DisableTOTPWithCode removes the second factor after proving a current
+// authenticator or recovery code. It is the passwordless path: an OAuth-only
+// row has no password, and a session alone must not be able to downgrade the
+// factor it just satisfied.
+func (a *Auth) DisableTOTPWithCode(ctx context.Context, userID, code string) (string, error) {
+	user, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return "", ErrBadCredentials
+	}
+	if !a.verifySecondFactor(ctx, user, code) {
+		a.secReject(ctx, evSecondFactorBad, reasonBadCode, user.Email, user.ID)
+		return "", ErrBadCredentials
+	}
+	if rerr := a.RevokeAllSessions(ctx, userID); rerr != nil {
+		return "", rerr
+	}
+	if derr := a.DisableTOTP(ctx, userID); derr != nil {
+		return "", derr
+	}
+	return a.openSession(ctx, userID)
+}
+
 // HasPassword reports whether the account can prove a password. OAuth-only
 // rows carry the "!" sentinel (see oauth.go): a destructive action that asks
 // for a password must not lock those users out of their own account.
