@@ -105,21 +105,12 @@ templ configBody(data PageData) {
 	if data.Error != "" {
 		<div role="alert" class="alert alert-error"><span>{ data.Error }</span></div>
 	}
-	<div class="flex flex-wrap gap-2" role="status" aria-label="Runtime status">
+	<div class="flex flex-wrap items-center gap-2" role="status" aria-label="Runtime status">
+		<span class="text-xs text-base-content/60">Status</span>
 		for _, item := range data.Status {
 			<span class={ "badge " + StatusBadgeClass(item.Tone) } title={ item.Hint }>{ item.Label }: { item.State }</span>
 		}
 	</div>
-	<nav aria-label="Config sections" class="sticky top-0 z-10 bg-base-100/95 backdrop-blur py-2">
-		<ul class="menu menu-horizontal flex-wrap gap-1 p-0">
-			<li><a href="#runtime">Runtime</a></li>
-			<li><a href="#users">Users</a></li>
-			<li><a href="#security-events">Security events</a></li>
-			<!-- trim-genui:components-nav:start -->
-			<li><a href="#answer-components">Components</a></li>
-			<!-- trim-genui:components-nav:end -->
-		</ul>
-	</nav>
 	<div class="alert" role="status">
 		<strong>Runtime view + admin actions.</strong>
 		This page shows what the running binary has loaded from the
@@ -140,6 +131,19 @@ templ configBody(data PageData) {
 			<span>RBAC enforcement is <strong>off</strong> (pass-through) — this page remains admin-only via its handler fence; set <code class="text-sm">RBAC_ENABLED=true</code> to enforce every route.</span>
 		}
 	</div>
+
+	// Radio tabs (DaisyUI tabs + tab-content, no JS): the checked radio IS
+	// the active mark, and only its panel shows. data-init maps a deep link
+	// (#users after a role change, #security-events after a filter) onto the
+	// matching tab — there is no Datastar primitive that reads
+	// location.hash on load without script, so the mapping lives here,
+	// adjacent to the markup it drives.
+	<div
+		class="tabs tabs-box"
+		data-init="var tabs = {'#runtime': 'config-tab-runtime', '#users': 'config-tab-users', '#security-events': 'config-tab-security', '#answer-components': 'config-tab-components'}; var id = tabs[window.location.hash]; if (id) { var el = document.getElementById(id); if (el) { el.checked = true; } }"
+	>
+		<input type="radio" name="config_tabs" id="config-tab-runtime" class="tab" aria-label="Runtime" checked/>
+		<div class="tab-content pt-4" role="tabpanel" aria-label="Runtime settings">
 
 	<section id="runtime" aria-label="Runtime settings">
 	for _, group := range data.Groups {
@@ -190,7 +194,10 @@ templ configBody(data PageData) {
 		</section>
 	}
 
-	</section>
+		</section>
+		</div>
+		<input type="radio" name="config_tabs" id="config-tab-users" class="tab" aria-label="Users"/>
+		<div class="tab-content pt-4" role="tabpanel" aria-label="Users">
 	<section class="ui-card" id="users">
 		<div class="ui-card-body">
 			<h2 class="ui-title">Users</h2>
@@ -268,7 +275,9 @@ templ configBody(data PageData) {
 			</div>
 		</div>
 	</section>
-
+		</div>
+		<input type="radio" name="config_tabs" id="config-tab-security" class="tab" aria-label="Security events"/>
+		<div class="tab-content pt-4" role="tabpanel" aria-label="Security events">
 	<section class="ui-card" id="security-events">
 		<div class="ui-card-body">
 			<h2 class="ui-title">Security events</h2>
@@ -347,8 +356,10 @@ templ configBody(data PageData) {
 			</div>
 		</div>
 	</section>
-
+		</div>
 	<!-- trim-genui:components-section:start -->
+		<input type="radio" name="config_tabs" id="config-tab-components" class="tab" aria-label="Components"/>
+		<div class="tab-content pt-4" role="tabpanel" aria-label="Answer components">
 	<section class="ui-card" id="answer-components">
 		<div class="ui-card-body">
 			<h2 class="ui-title">Answer components</h2>
@@ -371,7 +382,7 @@ templ configBody(data PageData) {
 						for _, info := range data.AnswerCatalog {
 							<tr>
 								<td><code class="text-sm">{ info.Name }</code></td>
-								<td><span class="badge badge-ghost badge-sm">{ string(info.Kind) }</span></td>
+								<td><span class="badge badge-neutral badge-sm">{ string(info.Kind) }</span></td>
 								<td class="text-sm text-base-content/70">{ info.Blurb }</td>
 							</tr>
 						}
@@ -407,7 +418,9 @@ templ configBody(data PageData) {
 		</div>
 	</section>
 
+		</div>
 	<!-- trim-genui:components-section:end -->
+	</div>
 	<footer class="text-xs text-base-content/60 mt-6">
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
 	</footer>

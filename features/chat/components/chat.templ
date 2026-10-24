@@ -119,22 +119,24 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 			data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'chat-composer' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($chat_thinking = false, $chat_error = 'Request failed \u2014 check your connection and try again.') : null"
 			data-cuelume="send"
 		>
-			<fieldset class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-				<legend class="fieldset-legend text-xs text-base-content/60 p-0">Answer with</legend>
-				<input type="hidden" name="surfaces" value=""/>
-				<label class="label cursor-pointer gap-1.5 p-0" title="Fixed components: notes, cards, tables, charts">
-					<span class="label-text text-xs">catalog</span>
-					<input type="checkbox" name="surfaces" value="catalog" class="toggle toggle-xs" checked?={ catalogOn }/>
-				</label>
-				<label class="label cursor-pointer gap-1.5 p-0" title="Visuals the model invents for this answer, sanitized before display">
-					<span class="label-text text-xs">custom</span>
-					<input type="checkbox" name="surfaces" value="custom" class="toggle toggle-xs" checked?={ customOn }/>
-				</label>
-				<label class="label cursor-pointer gap-1.5 p-0" title="Your own data panels, filled from the app (e.g. todo_list)">
-					<span class="label-text text-xs">native</span>
-					<input type="checkbox" name="surfaces" value="native" class="toggle toggle-xs" checked?={ nativeOn }/>
-				</label>
-			</fieldset>
+			<div class="mb-2 space-y-1" role="group" aria-label="Answer components">
+				<span class="block text-xs text-base-content/60">Answer components</span>
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+					<input type="hidden" name="surfaces" value=""/>
+					<label class="label cursor-pointer gap-1.5 p-0" title="Fixed components: notes, cards, tables, charts">
+						<span class="text-xs">catalog</span>
+						<input type="checkbox" name="surfaces" value="catalog" class="toggle toggle-xs" checked?={ catalogOn }/>
+					</label>
+					<label class="label cursor-pointer gap-1.5 p-0" title="Visuals the model invents for this answer, sanitized before display">
+						<span class="text-xs">custom</span>
+						<input type="checkbox" name="surfaces" value="custom" class="toggle toggle-xs" checked?={ customOn }/>
+					</label>
+					<label class="label cursor-pointer gap-1.5 p-0" title="Your own data panels, filled from the app (e.g. todo_list)">
+						<span class="text-xs">native</span>
+						<input type="checkbox" name="surfaces" value="native" class="toggle toggle-xs" checked?={ nativeOn }/>
+					</label>
+				</div>
+			</div>
 			<label for="chat-prompt" class="sr-only">Message</label>
 			<div class="join w-full">
 				<input
@@ -148,8 +150,8 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 					autocomplete="off"
 					inputmode="search"
 					enterkeyhint="send"
-					placeholder="Ask anything"
-					data-attr:placeholder="$chat_ready ? 'Ask anything' : 'Connecting…'"
+					placeholder="e.g. what are my open todos?"
+					data-attr:placeholder="$chat_ready ? 'e.g. what are my open todos?' : 'Connecting…'"
 					data-attr:disabled="!!($chat_thinking || !$chat_ready)"
 					class="input input-md sm:input-sm join-item grow"
 				/>

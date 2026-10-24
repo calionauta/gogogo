@@ -18,6 +18,7 @@ import (
 
 	"github.com/calionauta/gogogo/features/chat/store"
 	comp "github.com/calionauta/gogogo/features/genui/components"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
@@ -324,5 +325,33 @@ func TestWorkerNamesTheHydrationStage(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no answer envelope arrived on hub channel")
+	}
+}
+
+// TestResponderForPrefersModelLegOverStub pins the per-request dispatcher:
+// without a model leg the handler keeps its injected stub (tests, demos
+// without keys); once boot installs the leg, the stub is out of the path
+// and the tab's surfaces drive a rebuilt responder. Revert responderFor to
+// the bare stub and the leg case answers with stub text.
+func TestResponderForPrefersModelLegOverStub(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	h := &Handler{responder: stubResponder{raw: "stub answer"}}
+	if got, err := h.responderFor(comp.DefaultSurfacesChat).Respond(ctx, "x"); err != nil || got != "stub answer" {
+		t.Fatalf("no leg: got %q err %v, want the stub answer", got, err)
+	}
+
+	sim := llm.NewSimulatedWithDelay(time.Millisecond)
+	defer sim.Close()
+	h.SetModelLeg(nil, sim, nil, comp.DefaultSurfacesChat)
+	got, err := h.responderFor(comp.DefaultSurfacesChat).Respond(ctx, "x")
+	if err != nil {
+		t.Fatalf("model leg: %v", err)
+	}
+	if !strings.Contains(got, "html_block") {
+		t.Fatalf("model leg answered %q, want the demo responder (html_block), not the stub", got)
+	}
+	if strings.Contains(got, "stub answer") {
+		t.Fatalf("model leg leaked the stub answer: %q", got)
 	}
 }
