@@ -35,6 +35,10 @@ type Step struct {
 
 // StepList renders a phase sequence. `compact` drops the per-step detail line
 // (used where the detail is shown once in the panel header instead).
+//
+// The legend below the list is the state vocabulary made visible: hollow =
+// still to come, glowing = running now, filled = finished. One place, so
+// every panel reads the same without each one explaining it.
 templ StepList(steps []Step) {
 	<ol class="app-steps">
 		for _, s := range steps {
@@ -46,6 +50,11 @@ templ StepList(steps []Step) {
 			</li>
 		}
 	</ol>
+	<div class="app-steps-legend" aria-hidden="true">
+		<span class="app-steps-legend-item"><span class="dot"></span>pending</span>
+		<span class="app-steps-legend-item is-active"><span class="dot"></span>working</span>
+		<span class="app-steps-legend-item is-done"><span class="dot"></span>done</span>
+	</div>
 }
 
 // stepClasses builds the Datastar class object for one phase. Kept in Go so the

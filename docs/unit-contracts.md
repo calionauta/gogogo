@@ -284,7 +284,7 @@ authenticated /account security page
 conversation demo (persisted history + catalog answers on genui)
 
 - **Owned:** `features/chat`
-- **Routes:** `/api/chat/ask`, `/api/chat/stream`, `/chat`
+- **Routes:** `/api/chat/ask`, `/api/chat/clear`, `/api/chat/stream`, `/chat`
 - **Depends on:** genui
 - **Trim:** manual (no installer unit)
 - **Why that class:** Bundled into the genui unit: chat imports genui components (no-compile without it) — one unit is the honest shape, same as whiteboard+collab+notes.

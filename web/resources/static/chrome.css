@@ -894,6 +894,34 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
 }
 
+/* ---------- Phase list legend (internal/ui.StepList) ----------
+   The same three markers the steps use, as one quiet line: hollow =
+   still to come, glowing = running now, filled = finished. */
+.app-steps-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+  padding: 0 0.5rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+.app-steps-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.app-steps-legend-item .dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+.app-steps-legend-item.is-active { color: var(--color-primary); font-weight: 600; }
+.app-steps-legend-item.is-active .dot { box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent); }
+.app-steps-legend-item.is-done { color: var(--color-success); }
+.app-steps-legend-item.is-done .dot { background: currentColor; }
+
 /* ---------- Theme picker (internal/ui.ThemeSelector) ----------
    A native disclosure in the sidebar footer. */
 .app-theme-picker summary {

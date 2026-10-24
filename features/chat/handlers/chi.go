@@ -77,6 +77,7 @@ func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/chat", h.handleIndex)
 	r.Post("/api/chat/ask", h.handleAsk)
+	r.Post("/api/chat/clear", h.handleClear)
 	r.Get("/api/chat/stream", h.handleStream)
 	return r
 }
@@ -229,6 +230,45 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend()); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: prompt echo failed", obsArgs...)
+	}
+}
+
+func (h *Handler) handleClear(w http.ResponseWriter, r *http.Request) {
+	sess := h.session(r)
+	if sess == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if err := h.store.Clear(r.Context(), sess.User.ID); err != nil {
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: clear failed", obsArgs...)
+		writeText(w, http.StatusInternalServerError, "clear failed")
+		return
+	}
+	// New-chat ack: reset the composer-owned state the submit path sets
+	// ($chat_thinking, $chat_error) plus the empty flag, and swap the
+	// thread for the empty guidance. Morph (no append mode) replaces
+	// #chat-messages with the empty column, so the scroll anchor and hero
+	// come back. $chatPrompt is NOT written here: the input owns it (see
+	// the ask-ack contract above) and the confirm button clears it
+	// client-side before posting.
+	sse := sdk.NewSSE(w, r)
+	if err := dshelpers.MergeSignals(sse, map[string]any{
+		signalChatThinking: false,
+		signalChatError:    "",
+		"chat_empty":       true,
+	}); err != nil {
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: clear signals failed", obsArgs...)
+		return
+	}
+	//nolint:contextcheck // ends in datastar-go sinks, which take no context;
+	// a disconnect surfaces as a write error.
+	if err := dshelpers.RenderAndPatch(sse,
+		chatcomponents.ChatList(nil, ""),
+		sdk.WithSelector("#chat-messages")); err != nil {
+		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
+		observability.Error(r.Context(), "chat: clear patch failed", obsArgs...)
 	}
 }
 

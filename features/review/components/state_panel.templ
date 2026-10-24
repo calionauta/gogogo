@@ -12,35 +12,58 @@ import (
 
 // ReviewStatePanel renders the three phases and the verdict facts.
 templ ReviewStatePanel(signals Signals) {
-	<div class="app-state-panel-inner space-y-3">
-		<p class="text-xs text-base-content/60">
-			Three passes over one request: a writer drafts, a reviewer critiques, and a
-			judge decides. Each round is a model call, and the phases stream as they
-			happen — the button below the composer only starts it.
-		</p>
-		@ui.StepList([]ui.Step{
-			{
-				Label:  "Writer drafts",
-				Active: "$review_phase === 'writer'",
-				Done:   "$review_phase === 'reviewer' || $review_phase === 'judge' || $review_decision !== ''",
-			},
-			{
-				Label:  "Reviewer critiques",
-				Active: "$review_phase === 'reviewer'",
-				Done:   "$review_phase === 'judge' || $review_decision !== ''",
-			},
-			{
-				Label:  "Judge decides",
-				Active: "$review_phase === 'judge'",
-				Done:   "$review_decision !== ''",
-			},
-		})
-		<ul class="text-xs text-base-content/70 space-y-1">
-			<li>Rounds: <span class="font-mono" data-text="$review_rounds"></span></li>
-			<li>Decision: <span class="font-mono" data-text="$review_decision || '—'"></span></li>
-			<li>Confidence: <span class="font-mono" data-text="$review_confidence || '—'"></span></li>
-			<li>Provider: <span class="font-mono">{ providerLabel(signals) }</span></li>
-		</ul>
+	<div class="app-state-panel-inner">
+		<div class="card bg-base-100 shadow-sm border border-base-200">
+			<div class="card-body p-4">
+				<div class="flex items-center justify-between mb-2">
+					<div class="flex items-center gap-2">
+						<div class="w-7 h-7 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+								<path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+								<path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+							</svg>
+						</div>
+						<span class="text-xs font-semibold">Review pipeline</span>
+					</div>
+					<span class="badge badge-xs badge-accent">{ providerLabel(signals) }</span>
+				</div>
+				<div class="text-xs text-base-content/60 mb-3">
+					Three passes over one request: writer drafts, reviewer critiques, judge
+					decides. Phases stream as they happen.
+				</div>
+				@ui.StepList([]ui.Step{
+					{
+						Label:  "Writer drafts",
+						Active: "$review_phase === 'writer'",
+						Done:   "$review_phase === 'reviewer' || $review_phase === 'judge' || $review_decision !== ''",
+					},
+					{
+						Label:  "Reviewer critiques",
+						Active: "$review_phase === 'reviewer'",
+						Done:   "$review_phase === 'judge' || $review_decision !== ''",
+					},
+					{
+						Label:  "Judge decides",
+						Active: "$review_phase === 'judge'",
+						Done:   "$review_decision !== ''",
+					},
+				})
+				<div class="stats stats-horizontal shadow-sm border border-base-200 w-full mt-1">
+					<div class="stat px-3 py-2">
+						<div class="stat-title text-[0.65rem]">Rounds</div>
+						<div class="stat-value text-sm font-mono" data-text="$review_rounds || '—'"></div>
+					</div>
+					<div class="stat px-3 py-2">
+						<div class="stat-title text-[0.65rem]">Decision</div>
+						<div class="stat-value text-sm font-mono" data-text="$review_decision || '—'"></div>
+					</div>
+					<div class="stat px-3 py-2">
+						<div class="stat-title text-[0.65rem]">Confidence</div>
+						<div class="stat-value text-sm font-mono" data-text="$review_confidence || '—'"></div>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 }
 
@@ -49,5 +72,5 @@ func providerLabel(signals Signals) string {
 	if signals.ReviewEnabled {
 		return "configured"
 	}
-	return "not configured — the page renders its disabled state"
+	return "no provider"
 }

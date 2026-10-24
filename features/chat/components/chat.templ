@@ -83,6 +83,20 @@ func chatStack() []components.TechItem {
 // even with a short thread — sticky alone left it floating above it.
 templ chatBody(msgs []store.MessageView) {
 	<div class="ui-page ui-page-narrow chat-layout" data-class="{'is-empty': $chat_empty}">
+		<div class="flex items-center justify-end" data-show="!$chat_empty">
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs gap-1.5"
+				data-attr:disabled="!!$chat_thinking"
+				data-on:click="document.getElementById('confirm-new-chat').showModal()"
+				title="Clear this conversation and start a new one"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+					<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+				</svg>
+				<span>New chat</span>
+			</button>
+		</div>
 		<div class="flex-1">
 			@ChatList(msgs, "")
 		</div>
@@ -116,7 +130,45 @@ templ chatBody(msgs []store.MessageView) {
 			</div>
 		</form>
 		@components.StreamOpener("chat-stream-opener", "/api/chat/stream", false)
+		@newChatModal()
 	</div>
+}
+
+// newChatModal confirms before wiping the thread: a misclick must not eat
+// the conversation. Confirm clears the composer client-side (the input owns
+// $chatPrompt — the server never writes it, see handleClear) and posts to
+// /api/chat/clear, whose ack resets the state signals and swaps the thread
+// for the empty guidance. Disabled while thinking: an in-flight answer
+// would land on the fresh thread.
+templ newChatModal() {
+	<dialog id="confirm-new-chat" class="modal">
+		<div class="modal-box">
+			<h3 class="font-bold text-lg">Start a new chat?</h3>
+			<p class="py-4 text-sm">
+				This clears your current conversation. It can't be undone.
+			</p>
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-ghost btn-sm"
+					data-on:click="document.getElementById('confirm-new-chat').close()"
+				>
+					Keep chatting
+				</button>
+				<button
+					type="button"
+					class="btn btn-error btn-sm"
+					data-attr:disabled="!!$chat_thinking"
+					data-on:click="$chatPrompt = ''; $chat_error = ''; document.getElementById('confirm-new-chat').close(); @post('/api/chat/clear?clientID=' + encodeURIComponent(window.__gogogoClientID || ''))"
+				>
+					Start new
+				</button>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button data-on:click="document.getElementById('confirm-new-chat').close()">close</button>
+		</form>
+	</dialog>
 }
 
 // ChatList renders the message column: the container the stream patches
