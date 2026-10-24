@@ -123,6 +123,12 @@ seam.
 | **Mailtrap Sandbox** | hosted capture, free 50 emails/mo | yes | shared staging capture; never delivers |
 | **Sendtrap / SMTPBox / SendPit** | hosted sandbox free tiers | yes | newer alternatives; verify retention/API before adopting |
 
+Mailpit binds its UI to `127.0.0.1:8025` on purpose. The inbox contains live
+magic-link, verification and reset tokens, so exposing it publicly would hand
+every visitor a way into every pending account. A public demo user can trigger
+a link but cannot read it; the local operator opens the UI through SSH or a
+tailnet tunnel. `make mailpit` is a development/debug aid, not a mail service.
+
 ### Real delivery (demo or production)
 
 | Provider | SMTP | Free tier (verify current) |
