@@ -85,6 +85,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 |---|---|---|
 | Landing page | `/` | Public. Same page for guests and signed-in users |
 | Todo demo | `/todo` | Auth-gated. Seeded demo account |
+| Account security | `/account` | Auth-gated. Email verification, password change, TOTP enrollment/recovery, session list/revoke |
 | Ask AI demo | `/genui` | Auth-gated. Keyless demo answers; live model with `GOAI_API_KEY` |
 | Chat demo | `/chat` | Auth-gated. Persisted per-owner history; model-invented markup (sanitized) with catalog fallback |
 | Review loop | `/review` | Auth-gated. Writer → critic → classifier judge, streamed verdict, discarded. Runs on the `genkit` plugin |

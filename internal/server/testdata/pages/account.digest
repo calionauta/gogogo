@@ -1,0 +1,7 @@
+route /account
+ids app-rail command-palette command-palette-input command-palette-list offline-banner offline-banner-text session-banner toast-container
+data-bind cmdQuery
+data-on data-on:click data-on:close
+signals cmdQuery loading railOpen sessionAuthed theme
+aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-live
+tags a=20 aside=1 body=1 button=14 details=1 dialog=1 div=29 form=7 h1=1 h2=4 head=1 header=1 html=2 input=6 kbd=3 label=4 li=14 link=3 main=1 meta=2 nav=1 p=11 path=17 script=7 section=4 span=38 strong=1 style=2 summary=1 svg=17 title=1 ul=2

@@ -114,6 +114,30 @@ template uses `net/smtp` STARTTLS (port 587); implicit TLS (465) needs a
 provider that speaks STARTTLS or an HTTP mail API behind the same `Mailer`
 seam.
 
+### Local/demo providers (no real delivery)
+
+| Option | What it is | Free? | Use here |
+|---|---|---|---|
+| **Mailpit** | MIT single-binary SMTP sink + web UI, maintained successor to MailHog | yes, unlimited, self-hosted | `make mailpit`; point `SMTP_ADDR=127.0.0.1:1025`, `SMTP_FROM=dev@example.test`; UI `:8025` |
+| **Ethereal** | disposable SMTP by the Nodemailer maintainer, no signup, preview links | yes, ephemeral | one-off smoke tests; copy host/user/pass from ethereal.email |
+| **Mailtrap Sandbox** | hosted capture, free 50 emails/mo | yes | shared staging capture; never delivers |
+| **Sendtrap / SMTPBox / SendPit** | hosted sandbox free tiers | yes | newer alternatives; verify retention/API before adopting |
+
+### Real delivery (demo or production)
+
+| Provider | SMTP | Free tier (verify current) |
+|---|---|---|
+| **Resend** | `smtp.resend.com:587`, user `resend`, password = API key | ~3k/month, verified domain |
+| **Brevo** | `smtp-relay.brevo.com:587` | ~300/day |
+| **SendGrid** | `smtp.sendgrid.net:587`, user `apikey` | ~100/day |
+| **Postmark / SES / Mailgun** | provider SMTP | varies; SES is pay-as-you-go |
+
+The app only knows `SMTP_ADDR`/`SMTP_FROM`/`SMTP_USERNAME`/`SMTP_PASSWORD`;
+swapping provider is an env change, no code. For real delivery publish SPF,
+DKIM and DMARC first. `hdls.tools` is an MCP agent toolbox with a mailbox
+(create inbox, send/receive, 100 outbound/day); it is **not** an SMTP relay
+and is not wired here.
+
 ## First-time setup on the server
 
 1. Install Docker and create a `deploy` user with SSH key access.

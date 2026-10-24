@@ -436,6 +436,14 @@ var All = []Capability{
 		},
 	},
 	{
+		ID:      "account",
+		Kind:    KindFeature,
+		Summary: "authenticated /account security page",
+		Offered: false,
+		Dirs:    []string{"features/account"},
+		Note:    "Core identity UX; remove manually with the menu link in features/authviews/controls.templ.",
+	},
+	{
 		ID:      "config-view",
 		Kind:    KindFeature,
 		Summary: "admin-only read-only /config view",

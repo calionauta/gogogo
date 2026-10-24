@@ -32,7 +32,9 @@ Credential lifecycle is explicit over the API, because there is no profile
 page in the template: `POST /api/auth/password` (current + new password)
 rotates the hash, **revokes every session**, and issues a fresh cookie for
 the caller; `POST /api/auth/sessions/revoke-all` signs out everywhere.
-`GET /api/auth/sessions` lists the caller's sessions with opaque ids;
+The authenticated `/account` page is the user-facing home for email
+verification, password change, TOTP enrollment/recovery and session
+revocation. `GET /api/auth/sessions` lists the caller's sessions with opaque ids;
 `DELETE /api/auth/sessions/{id}` revokes one. `POST /api/auth/verify/request`
 sends the verification link, `POST /api/auth/password/reset/request` sends a
 reset link, and

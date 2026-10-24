@@ -75,6 +75,8 @@ p, user, /todo, .*
 p, user, /todo/*, .*
 p, user, /api/todos, .*
 p, user, /api/todos/*, .*
+p, user, /account, .*
+p, user, /account/*, .*
 p, user, /login, (GET|POST)
 p, user, /logout, (GET|POST)
 p, user, /whiteboard, .*
@@ -115,6 +117,8 @@ p, user, /api/auth/*, .*
 p, viewer, /_ui/demo, .*
 p, viewer, /todo, .*
 p, viewer, /todo/*, .*
+p, viewer, /account, .*
+p, viewer, /account/*, .*
 p, viewer, /login, (GET|POST)
 p, viewer, /logout, (GET|POST)
 p, viewer, /api/todos, (GET|POST)

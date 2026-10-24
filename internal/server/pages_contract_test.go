@@ -94,6 +94,10 @@ var pagesUnderTest = []pageUnderTest{
 	// only carries notes-list + the resync affordance.
 	{name: "notes", route: "/notes", must: []string{`id="notes-list"`}},
 	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`}},
+	{name: "account", route: "/account", must: []string{
+		"Sessions",
+		"Two-factor authentication",
+	}},
 	{name: "config", route: "/config", must: []string{
 		"Read-only.",
 		"Access control (Casbin).",

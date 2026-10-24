@@ -64,6 +64,14 @@ templ UserMenu(userEmail string, userRole string) {
 						<span class="text-xs text-base-content/60">Role: <strong class="font-mono">{ userRole }</strong></span>
 					</li>
 				}
+				<li>
+					<a href="/account" class="flex items-center gap-2">
+						<svg xmlns="http://www.w3.org/2000/svg" class="app-menu-icon" viewBox="0 0 20 20" fill="currentColor">
+							<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+						</svg>
+						Account
+					</a>
+				</li>
 				if userRole == "admin" {
 					<li>
 						<a href="/config" class="flex items-center gap-2">

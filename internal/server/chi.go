@@ -30,6 +30,7 @@ import (
 	natsio "github.com/nats-io/nats.go"
 
 	"github.com/calionauta/gogogo/config"
+	accounthandlers "github.com/calionauta/gogogo/features/account/handlers"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	"github.com/calionauta/gogogo/features/credits"
@@ -275,6 +276,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		creditsH,
 	)
 	mountOnboarding(mux, onboardingH)
+	// Account is an authenticated user surface, not a trimmable demo plugin.
+	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
 	// Console rides the same mount-after-composition rule: the engine
 	// listener is loopback-only, so browsers reach it only through here.
 	mountConsoleProxy(mux, a, cfg)

@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 36 — 13 core · 15 plugin · 8 feature
+- **Units:** 37 — 13 core · 15 plugin · 9 feature
 - **Offered to the installer:** 11
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -269,6 +269,16 @@ UI sound feedback (cuelume, vendored)
 - **Note:** Call sites are stripped automatically (this used to be manual).
 - **Warning:** data-cuelume-* attributes stay in the markup but are inert without cuelume.js.
 - **Warning:** The installer re-runs `go tool templ generate`; if that fails, run `make templ` manually before building.
+
+## `account` — feature
+
+authenticated /account security page
+
+- **Owned:** `features/account`
+- **Routes:** `/account`, `/account/password`, `/account/sessions/revoke`, `/account/sessions/revoke-all`, `/account/totp/begin`, `/account/totp/disable`, `/account/totp/recovery`, `/account/totp/verify`, `/account/verify`
+- **Store calls:** `dbgen.DeleteSessionByID`, `dbgen.ListSessionsByUser`
+- **Trim:** manual (no installer unit)
+- **Note:** Core identity UX; remove manually with the menu link in features/authviews/controls.templ.
 
 ## `chat` — feature
 
