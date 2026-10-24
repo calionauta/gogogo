@@ -97,11 +97,18 @@ templ configActions(data PageData) {
 // table, and the rotate-a-secret footer.
 templ configBody(data PageData) {
 	<div class="ui-page ui-stack">
+	if data.Notice != "" {
+		<div role="status" class="alert alert-success"><span>{ data.Notice }</span></div>
+	}
+	if data.Error != "" {
+		<div role="alert" class="alert alert-error"><span>{ data.Error }</span></div>
+	}
 	<div class="alert" role="status">
-		<strong>Read-only.</strong>
+		<strong>Runtime view + admin actions.</strong>
 		This page shows what the running binary has loaded from the
 		environment and the encrypted secrets file. Sensitive values
 		are masked; the literal key/token never reaches the browser.
+		The Users section can change roles and revoke sessions.
 	</div>
 	<div class="alert" role="status">
 		<strong>Access control (Casbin).</strong>
@@ -163,6 +170,68 @@ templ configBody(data PageData) {
 			</div>
 		</section>
 	}
+
+	<section class="ui-card">
+		<div class="ui-card-body">
+			<h2 class="ui-title">Users</h2>
+			<p class="text-sm text-base-content/70 mb-2">
+				Admin-only. Role changes apply on the next request; revoking sessions signs the user out everywhere.
+			</p>
+			<div class="overflow-x-auto">
+				<table class="table table-sm">
+					<thead>
+						<tr>
+							<th>Email</th>
+							<th>Role</th>
+							<th>Verified</th>
+							<th>2FA</th>
+							<th>Created</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, user := range data.Users {
+							<tr>
+								<td><code class="text-sm">{ user.Email }</code></td>
+								<td>
+									<form method="POST" action="/config/users/role" class="flex items-center gap-1">
+										<input type="hidden" name="email" value={ user.Email }/>
+										<select name="role" class="select select-sm">
+											<option value="user" selected?={ user.Role == "user" }>user</option>
+											<option value="viewer" selected?={ user.Role == "viewer" }>viewer</option>
+											<option value="admin" selected?={ user.Role == "admin" }>admin</option>
+										</select>
+										<button type="submit" class="btn btn-xs">Save</button>
+									</form>
+								</td>
+								<td>
+									if user.Verified {
+										<span class="badge badge-success badge-sm">yes</span>
+									} else {
+										<span class="badge badge-warning badge-sm">no</span>
+									}
+								</td>
+								<td>
+									if user.TOTP {
+										<span class="badge badge-success badge-sm">on</span>
+									} else {
+										<span class="badge badge-ghost badge-sm">off</span>
+									}
+								</td>
+								<td class="text-xs text-base-content/60">{ user.Created }</td>
+								<td>
+									<form method="POST" action="/config/users/revoke">
+										<input type="hidden" name="email" value={ user.Email }/>
+										<button type="submit" class="btn btn-xs btn-error">Revoke sessions</button>
+									</form>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</section>
 
 	<footer class="text-xs text-base-content/60 mt-6">
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>

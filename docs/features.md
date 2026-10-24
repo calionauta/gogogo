@@ -29,7 +29,7 @@ being one.
 | **Persistence** | Turso (sqlc) | — |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset |
 | **Landing page** | Templ | — |
-| **Read-only config view** | Templ | — |
+| **Config + admin users** | Templ | — |
 
 ## What each capability does
 
@@ -53,7 +53,7 @@ being one.
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
 - **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
 - **Landing page** — The app's own public page on `GET /` (not the GitHub Pages promo site, which is never installed). No auth, no DB. Todo demo lives at `/todo`.
-- **Read-only config view** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants. Never mutates state.
+- **Config + admin users** — Admin-only `GET /config` (always on, even with RBAC off): env-decrypted values, masked secrets, runtime constants, plus user role changes and session revocation.
 
 ## Adding a new feature
 
@@ -91,7 +91,7 @@ The [Todo feature](todo-example.md) is the full reference implementation.
 | Review loop | `/review` | Auth-gated. Writer → critic → classifier judge, streamed verdict, discarded. Runs on the `genkit` plugin |
 | Whiteboard | `/whiteboard` | Auth-gated |
 | Room demo | `/room` | Auth-gated. Heartbeat roster + presenter lock owned by a GoAkt grain |
-| Config view | `/config` | Admin-only, read-only |
+| Config view | `/config` | Admin-only runtime view; user role/session actions |
 | DagNats console | `:8090` / `/dagnats/` | Workflow runs and steps; admin + `ADMIN_EMAILS`, closed when the list is empty |
 
 Details in [Admin & Dashboard](admin-dashboard.md).

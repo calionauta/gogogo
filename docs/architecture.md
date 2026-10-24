@@ -44,7 +44,7 @@ features/
   app/                            AppContext bundle (consumed by cmd/gui only)
   authviews/                      Login page + shell controls (theme, user menu, palette)
   landing/                        Public marketing hero on GET /
-  config/                         Admin-only read-only /config view
+  config/                         Admin-only /config view + user actions
   todo/                           Todo MVC example
   whiteboard/                     Collaborative canvas
   room/                           Room presence demo (GoAkt grains)

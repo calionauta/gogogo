@@ -22,3 +22,10 @@ UPDATE users SET role = ?, updated = ? WHERE email = ?;
 
 -- name: CountUsers :one
 SELECT count(*) FROM users;
+
+-- name: ListUsers :many
+SELECT id, email, role, email_verified_at, totp_verified, created
+FROM users ORDER BY created, id;
+
+-- name: CountAdmins :one
+SELECT count(*) FROM users WHERE role = 'admin';

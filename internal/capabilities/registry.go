@@ -446,7 +446,7 @@ var All = []Capability{
 	{
 		ID:      "config-view",
 		Kind:    KindFeature,
-		Summary: "admin-only read-only /config view",
+		Summary: "admin-only /config view + user role/session actions",
 		Offered: true,
 		DependsOn: []string{
 			depSounds,

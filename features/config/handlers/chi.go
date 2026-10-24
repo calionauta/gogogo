@@ -8,6 +8,8 @@ package handlers
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/calionauta/gogogo/features/config/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/rbac"
 )
 
@@ -42,7 +45,10 @@ func (h *Handler) Routes() chi.Router {
 	// Operator surface: always admin, even when RBAC_ENABLED=false. The
 	// policy keeps the same rule; this fence is what makes it true on the
 	// template's default posture.
-	r.With(rbac.RequireAdmin(h.auth)).Get("/config", h.handleIndex)
+	gate := rbac.RequireAdmin(h.auth)
+	r.With(gate).Get("/config", h.handleIndex)
+	r.With(gate).Post("/config/users/role", h.handleRole)
+	r.With(gate).Post("/config/users/revoke", h.handleRevokeSessions)
 	return r
 }
 
@@ -67,9 +73,81 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 			data.Role = u.Role
 		}
 	}
+	rows, uerr := h.queries.ListUsers(r.Context())
+	if uerr != nil {
+		http.Error(w, "users unavailable", http.StatusInternalServerError)
+		return
+	}
+	data.Users = make([]components.UserRow, 0, len(rows))
+	for _, row := range rows {
+		data.Users = append(data.Users, components.UserRow{
+			ID: row.ID, Email: row.Email, Role: row.Role, Created: row.Created,
+			Verified: row.EmailVerifiedAt != "", TOTP: row.TotpVerified != 0,
+		})
+	}
+	data.Notice = r.URL.Query().Get("notice")
+	data.Error = r.URL.Query().Get("error")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = components.Page(
 		data, email, role, h.cfg.BuildLabel, h.cfg.BuildCommit,
 	).Render(r.Context(), w)
+}
+
+func (h *Handler) handleRole(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		redirectConfig(w, r, "error", "Invalid form submission.")
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(r.PostFormValue("email")))
+	role := strings.TrimSpace(r.PostFormValue("role"))
+	if !validRole(role) {
+		redirectConfig(w, r, "error", "Unknown role.")
+		return
+	}
+	target, err := h.queries.GetUserByEmail(r.Context(), email)
+	if err != nil {
+		redirectConfig(w, r, "error", "User not found.")
+		return
+	}
+	if isAdminRole(target.Role) && !isAdminRole(role) {
+		admins, cerr := h.queries.CountAdmins(r.Context())
+		if cerr != nil {
+			redirectConfig(w, r, "error", "Could not count admins.")
+			return
+		}
+		if admins <= 1 {
+			redirectConfig(w, r, "error", "Refusing to remove the last admin.")
+			return
+		}
+	}
+	if err := h.queries.SetUserRole(r.Context(), dbgen.SetUserRoleParams{
+		Role: role, Updated: dbschema.Now(), Email: email,
+	}); err != nil {
+		redirectConfig(w, r, "error", "Could not change role.")
+		return
+	}
+	redirectConfig(w, r, "notice", "Role updated.")
+}
+
+func (h *Handler) handleRevokeSessions(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		redirectConfig(w, r, "error", "Invalid form submission.")
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(r.PostFormValue("email")))
+	user, err := h.queries.GetUserByEmail(r.Context(), email)
+	if err != nil {
+		redirectConfig(w, r, "error", "User not found.")
+		return
+	}
+	if err := h.queries.DeleteUserSessions(r.Context(), user.ID); err != nil {
+		redirectConfig(w, r, "error", "Could not revoke sessions.")
+		return
+	}
+	redirectConfig(w, r, "notice", "Sessions revoked.")
+}
+
+func redirectConfig(w http.ResponseWriter, r *http.Request, key, msg string) {
+	http.Redirect(w, r, "/config?"+key+"="+url.QueryEscape(msg), http.StatusSeeOther)
 }

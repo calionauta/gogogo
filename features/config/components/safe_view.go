@@ -59,6 +59,21 @@ type PageData struct {
 	// RBACEnabled mirrors cfg.RBACEnabled: pass-through when false,
 	// enforced denies when true.
 	RBACEnabled bool
+	// Users is the admin-only account table. Empty in BuildPageData; the
+	// handler fills it from the user store.
+	Users  []UserRow
+	Notice string
+	Error  string
+}
+
+// UserRow is one row of the admin user table.
+type UserRow struct {
+	ID       string
+	Email    string
+	Role     string
+	Created  string
+	Verified bool
+	TOTP     bool
 }
 
 // Group is a labelled slice of Rows. Order is stable across

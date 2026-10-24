@@ -292,10 +292,10 @@ conversation demo (persisted history + catalog answers on genui)
 
 ## `config-view` — feature
 
-admin-only read-only /config view
+admin-only /config view + user role/session actions
 
 - **Owned:** `features/config`
-- **Store calls:** `dbgen.GetUserByEmail`
+- **Store calls:** `dbgen.CountAdmins`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.ListUsers`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Warning:** The Config sidebar entry is stripped automatically.

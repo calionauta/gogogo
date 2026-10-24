@@ -125,3 +125,52 @@ func promoteConfigAdmin(t *testing.T, q *dbgen.Queries, email string) {
 		t.Fatalf("promote %s: %v", email, err)
 	}
 }
+
+func TestChiConfigUserAdminActions(t *testing.T) {
+	sqlDB, err := db.OpenAt(t.TempDir() + "/config-users.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	q := dbgen.New(sqlDB)
+	a, aerr := auth.New(q, false)
+	if aerr != nil {
+		t.Fatalf("auth: %v", aerr)
+	}
+	cfg := config.Load()
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", a.Routes())
+	mux.Handle("/", NewHandler(cfg, a, q).Routes())
+	ctx := context.Background()
+	if _, _, serr := a.Signup(ctx, "admin2@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("admin signup: %v", serr)
+	}
+	if _, _, serr := a.Signup(ctx, "target@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("target signup: %v", serr)
+	}
+	promoteConfigAdmin(t, q, "admin2@example.com")
+	adminToken, _, lerr := a.Login(ctx, "admin2@example.com", "Correct-horse-99!")
+	if lerr != nil {
+		t.Fatalf("admin login: %v", lerr)
+	}
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/config/users/role",
+		strings.NewReader("email=target%40example.com&role=viewer"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// #nosec G124 — test-only request cookie.
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: adminToken})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("role change = %d (%s)", rec.Code, rec.Body.String())
+	}
+	row, err := q.GetUserByEmail(ctx, "target@example.com")
+	if err != nil {
+		t.Fatalf("target: %v", err)
+	}
+	if row.Role != "viewer" {
+		t.Fatalf("role = %q, want viewer", row.Role)
+	}
+}
