@@ -70,7 +70,7 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 			OfflineSync: offlineSync,
 			Stack:       todoStack(),
 			Demo:        demo,
-			Panel:       TodoStatePanel(signals),
+			Panel:       statePanelFor(signals),
 		}, todoHead(), todoSound(), TodoPresence(signals), todoBody(signals)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

@@ -272,10 +272,12 @@ templ TodoListRegion(signals todo.Signals) {
 				<p class="ui-empty-title">No todos here yet.</p>
 				<p class="ui-empty-body">
 					Add one below to get started.
-					if signals.DagNatsEnabled {
-						Or open Demo mode and use Run durable workflow to create examples.
-					} else {
-						The queue and AI suggestions live in Demo mode.
+					if !signals.IsViewer {
+						if signals.DagNatsEnabled {
+							Or open Demo mode and use Run durable workflow to create examples.
+						} else {
+							The queue and AI suggestions live in Demo mode.
+						}
 					}
 				</p>
 			</div>
