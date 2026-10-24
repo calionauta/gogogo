@@ -12,7 +12,7 @@ import (
 
 func TestMagicConfirmPageRendersAccountAndForm(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.MagicConfirmPage("user@example.com", "tok-1", "bind-1", "", "daisyui").
+	if err := authviews.MagicConfirmPage("user@example.com", "tok-1", "bind-1", "").
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestMagicConfirmPageRendersAccountAndForm(t *testing.T) {
 
 func TestPasswordResetPageRendersForm(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.PasswordResetPage("user@example.com", "tok-2", "Too short", "daisyui").
+	if err := authviews.PasswordResetPage("user@example.com", "tok-2", "Too short").
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render: %v", err)
 	}

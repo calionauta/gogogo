@@ -92,21 +92,21 @@ func TestHydratedPanelRenders(t *testing.T) {
 // TestSurfaceBoundedAdvertisement pins the advertisement boundary per SURFACE,
 // which is the contract that replaced "both are chat-only".
 //
-// todo_list is NATIVE: it shows the app's own data, so it is advertised on both
-// legs (this test used to require the opposite). html_block is CUSTOM: the
-// model invents the markup, so it is chat's default and absent from Ask — and
-// absent from Ask's ROUTER candidate set too, so no classifier pick can reach
-// a surface the prompt never named.
+// todo_list is NATIVE: it shows the app's own data, so it is always
+// advertised. html_block is CUSTOM: the model invents the markup, so it is
+// in Chat's default and absent from a catalog-only set — and absent from
+// that set's ROUTER candidates too, so no classifier pick can reach a
+// surface the prompt never named.
 func TestSurfaceBoundedAdvertisement(t *testing.T) {
 	t.Parallel()
-	ask := NormalizeSurfaces(DefaultSurfacesAsk)
+	catalogOnly := NormalizeSurfaces([]Surface{SurfaceCatalog})
 	chat := NormalizeSurfaces(DefaultSurfacesChat)
 
-	// Native on both legs, and routable on both.
-	if !HasSurfaces(ask, SurfaceNative) || !HasSurfaces(chat, SurfaceNative) {
-		t.Fatalf("native is not on both legs: ask=%v chat=%v", Names(ask), Names(chat))
+	// Native is always on.
+	if !HasSurfaces(catalogOnly, SurfaceNative) || !HasSurfaces(chat, SurfaceNative) {
+		t.Fatalf("native is not always on: catalogOnly=%v chat=%v", Names(catalogOnly), Names(chat))
 	}
-	for _, set := range [][]Surface{ask, chat} {
+	for _, set := range [][]Surface{catalogOnly, chat} {
 		if !slicesContain(CatalogComponentsFor(set), panelNameInTest) {
 			t.Errorf("native %s missing from the router's candidates for %v", panelNameInTest, Names(set))
 		}
@@ -115,23 +115,23 @@ func TestSurfaceBoundedAdvertisement(t *testing.T) {
 		}
 	}
 
-	// Custom is chat-only, by prompt AND by router candidates.
+	// Custom is in Chat's default, by prompt AND by router candidates, and
+	// withheld from a catalog-only set.
 	if !strings.Contains(PromptForChat(), htmlBlockName) {
 		t.Error("chat prompt does not advertise html_block")
 	}
-	if strings.Contains(PromptForCatalog(), htmlBlockName) {
-		t.Error("Ask prompt names html_block, want the invented-markup surface withheld")
+	if strings.Contains(PromptForSurfaces(catalogOnly), htmlBlockName) {
+		t.Error("catalog-only prompt names html_block, want the invented-markup surface withheld")
 	}
-	if slicesContain(CatalogComponentsFor(ask), htmlBlockName) {
-		t.Errorf("Ask's router offers %s: %v", htmlBlockName, CatalogComponentsFor(ask))
+	if slicesContain(CatalogComponentsFor(catalogOnly), htmlBlockName) {
+		t.Errorf("catalog-only router offers %s: %v", htmlBlockName, CatalogComponentsFor(catalogOnly))
 	}
-	if got := PromptForCatalogLeadSurfaces(htmlBlockName, ask); got != PromptForCatalog() {
-		t.Error("a chat-only lead changed Ask's prompt")
+	if got := PromptForCatalogLeadSurfaces(htmlBlockName, catalogOnly); got != PromptForSurfaces(catalogOnly) {
+		t.Error("a custom-only lead changed the catalog-only prompt")
 	}
 
-	// The catalog band is on by default for both, so a leaf is routable
-	// everywhere.
-	for _, set := range [][]Surface{ask, chat} {
+	// The catalog band is on by default, so a leaf is routable everywhere.
+	for _, set := range [][]Surface{catalogOnly, chat} {
 		if !slicesContain(CatalogComponentsFor(set), "data_table") {
 			t.Errorf("catalog leaf missing for %v", Names(set))
 		}

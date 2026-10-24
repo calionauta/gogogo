@@ -15,7 +15,7 @@ import "strings"
 import "github.com/calionauta/gogogo/web/resources"
 
 // querySep returns the separator to append a query parameter to streamURL.
-// Stream URLs may already carry one (e.g. a ?skin=... selection),
+// Stream URLs may already carry one (e.g. a ?filter=... selection),
 // and a second "?" would make the clientID part of the previous value.
 func querySep(streamURL string) string {
 	if strings.Contains(streamURL, "?") {
@@ -38,9 +38,9 @@ func streamOpts(openWhenHidden bool) string {
 	return "{ retry: 'always' }"
 }
 
-// StreamOpener is the ONE SSE opener every Datastar page renders (todo and
-// its skins, chat, genui, room). It was copied per feature until the copies
-// drifted: a skin kept calling a removed helper, and an option that does
+// StreamOpener is the ONE SSE opener every Datastar page renders (todo,
+// chat, genui, room). It was copied per feature until the copies
+// drifted: a copy kept calling a removed helper, and an option that does
 // not exist ({permanent}) survived in three of them.
 //
 // It renders a hidden button whose data-on:click runs the stream's @get

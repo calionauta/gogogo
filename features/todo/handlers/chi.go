@@ -43,10 +43,9 @@ import (
 // Hub is a chi-stack-private SSE hub so chi record events never leak
 // into other stacks' clients and vice versa.
 type Handler struct {
-	Q           *dbgen.Queries
-	Auth        *auth.Auth
-	Hub         *queue.SSEHub
-	DefaultSkin string
+	Q    *dbgen.Queries
+	Auth *auth.Auth
+	Hub  *queue.SSEHub
 	// LLM is the real suggest client (nil = disabled, 503 on the route).
 	LLM *llm.Client
 	// SimulatedLLM is the keyless fake used by the demo stepper.
@@ -151,12 +150,12 @@ func (h *Handler) SetQueue(q *queue.Queue) { h.Queue = q }
 
 // NewHandler builds the chi todo handler. All deps required — a nil Q,
 // Auth or Hub is a programming error, surfaced here and not per request.
-func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub, defaultSkin string) *Handler {
+func NewHandler(q *dbgen.Queries, a *auth.Auth, hub *queue.SSEHub) *Handler {
 	if q == nil || a == nil || hub == nil {
 		panic("todo: NewHandler with nil dependency")
 	}
 	return &Handler{
-		Q: q, Auth: a, Hub: hub, DefaultSkin: defaultSkin,
+		Q: q, Auth: a, Hub: hub,
 		bus: todo.NewBus(hubSink{hub: hub}, instance.ID()),
 	}
 }
@@ -279,19 +278,6 @@ func (h *Handler) fail(ctx context.Context, w http.ResponseWriter, logMsg string
 	obsArgs := append(observability.WithComponent("todo", "feature"), "error", err)
 	observability.Error(ctx, logMsg, obsArgs...)
 	writeText(w, http.StatusInternalServerError, publicMsg)
-}
-
-// skinName reports the skin to render with. One skin ships (DaisyUI); the
-// configured UI_SKIN is honoured when set, and an unknown value falls back
-// inside web/skins.ActiveAssets.
-//
-// This package is framework-free (see cmd/check-flatdeps), so it cannot import
-// web/skins to validate the name: the fallback lives there.
-func (h *Handler) skinName() string {
-	if h.DefaultSkin != "" {
-		return h.DefaultSkin
-	}
-	return "daisyui"
 }
 
 // emitToast appends one toast to #toast-container; it self-removes after 3s

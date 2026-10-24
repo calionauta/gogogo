@@ -2,8 +2,8 @@ package authviews
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/demo"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 
@@ -26,14 +26,14 @@ func demoValue(on bool, v string) string {
 	return ""
 }
 
-templ LoginPage(next string, errMsg string, skinName string, demoAccounts bool, totpUser string, notice string) {
+templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string) {
 	<!DOCTYPE html>
 	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Sign in — gogogo</title>
-			@skins.ActiveAssets(skinName)
+			@components.Assets()
 			@ThemeHead()
 			@sounds.SoundAssets()
 		</head>

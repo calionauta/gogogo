@@ -1,6 +1,6 @@
 // SCOPE:core - DO NOT REMOVE - Server entry point. This is the main binary.
 // Package main wires the binary's startup sequence: the flat chi stack
-// (internal/server), the goqite-backed chat/genui queues it owns, optional
+// (internal/server), the goqite-backed chat queue it owns, optional
 // NATS JetStream realtime, and the DagNats durable workflow engine (always
 // compiled; opt out at runtime via DAGNATS_ENABLED).
 //

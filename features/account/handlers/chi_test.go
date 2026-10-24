@@ -19,8 +19,6 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
-
-	_ "github.com/calionauta/gogogo/web/skins/daisyui"
 )
 
 func accountFixture(t *testing.T) (*auth.Auth, *dbgen.Queries, *http.ServeMux) {
@@ -39,7 +37,6 @@ func accountFixture(t *testing.T) (*auth.Auth, *dbgen.Queries, *http.ServeMux) {
 		t.Fatalf("auth: %v", aerr)
 	}
 	cfg := &config.Config{AppName: "gogogo", BuildLabel: "test"}
-	cfg.Skin = "daisyui"
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", a.Routes())
 	mux.Handle("/", NewHandler(cfg, a, q).Routes())

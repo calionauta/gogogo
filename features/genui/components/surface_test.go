@@ -21,7 +21,10 @@ func TestParseSurfaces(t *testing.T) {
 		want    []Surface
 		wantErr bool
 	}{
-		"empty keeps the default": {csv: "", def: DefaultSurfacesAsk, want: []Surface{SurfaceCatalog, SurfaceNative}},
+		"empty keeps the default": {
+			csv: "", def: DefaultSurfacesChat,
+			want: []Surface{SurfaceCustom, SurfaceCatalog, SurfaceNative},
+		},
 		"whitespace keeps the default": {
 			csv: "   ", def: DefaultSurfacesChat,
 			want: []Surface{SurfaceCustom, SurfaceCatalog, SurfaceNative},
@@ -137,7 +140,7 @@ func TestCatalogCanBeTurnedOff(t *testing.T) {
 
 // TestLegPromptsDifferByCustomOnly pins what actually distinguishes the two
 // legs at the prompt: the custom band, and nothing else. If this ever fails
-// because Ask grew the escape hatch (or Chat lost it), the two features have
+// because the demo grew the escape hatch, the surfaces have
 // collapsed into one and that is a product decision, not a refactor.
 func TestLegPromptsDifferByCustomOnly(t *testing.T) {
 	t.Parallel()

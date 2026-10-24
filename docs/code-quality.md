@@ -182,11 +182,11 @@ live in `.templ` markup rather than Go:
   `data-attr:*` expression is written `!!(...)`. An unset signal reads `""`, and
   `"" && !x` returns `""` — not `false` — so the natural conjunction disables its
   control on first paint. `Run durable workflow` and the delete-confirm `Delete`
-  on `/todo` were both permanently disabled in every skin we shipped
+  on `/todo` were both permanently disabled
   (`$onboardingActive && !$workflowCompleted` and `$deleting`, both steppers the
   page deliberately leaves unset). A Go test cannot see this: the render is
   correct and only the browser's evaluation is wrong.
-  `features/todo/components/disabled_attrs_test.go` renders both skins and fails
+  `features/todo/components/disabled_attrs_test.go` renders the page and fails
   on any `data-attr:disabled` value that is not `!!`-prefixed — keep the rule
   uniform (`!!($a || $b.trim())`, not bare comparisons) so the check needs no JS
   parser.

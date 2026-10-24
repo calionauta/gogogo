@@ -2,7 +2,7 @@
 //
 // Split out of trim_features.go for the file-size gate. genui is the AI
 // bundle: chat imports genui components (no-compile without it), so the two
-// legs are one unit (see the genui capability entry). It grew past its
+// are one unit (see the genui capability entry). It grew past its
 // neighbours because a bad answer surface must fail the BOOT, which means
 // the unit owns a boot helper (bootAI) rather than a handful of lines.
 
@@ -16,10 +16,9 @@ package installer
 // spelling beats three literals: a rename that missed one would leave a
 // dangling import in the trimmed tree.
 const (
-	chathandlersImport  = `chathandlers "github.com/calionauta/gogogo/features/chat/handlers"`
-	chatstoreImport     = `chatstore "github.com/calionauta/gogogo/features/chat/store"`
-	genuihandlersImport = `genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"`
-	genuiComponentsImp  = `comp "github.com/calionauta/gogogo/features/genui/components"`
+	chathandlersImport = `chathandlers "github.com/calionauta/gogogo/features/chat/handlers"`
+	chatstoreImport    = `chatstore "github.com/calionauta/gogogo/features/chat/store"`
+	genuiComponentsImp = `comp "github.com/calionauta/gogogo/features/genui/components"`
 )
 
 var genuiTrimUnits = []trimUnit{
@@ -39,15 +38,17 @@ var genuiTrimUnits = []trimUnit{
 				path: bootHelpersFile,
 				rules: []stripRule{
 					{
-						startMarker:       "// bootAI wires both AI legs",
+						startMarker:       "// bootAI wires the Chat demo",
 						endIsClosingBrace: true,
 						endBrace:          "}",
 					},
 				},
 			},
 			{
+				// The sidebar renders []Module, so the trimmed Chat
+				// destination is one dropped entry.
 				path:  modulesFile,
-				rules: []stripRule{{startMarker: `{ID: "genui"`, endMarker: "},"}},
+				rules: []stripRule{{startMarker: `{ID: "chat"`, endMarker: "},"}},
 			},
 		},
 		extraDrops: []fileDrop{
@@ -55,25 +56,21 @@ var genuiTrimUnits = []trimUnit{
 				path: chiGoFile,
 				substrs: []string{
 					// The helper call (one line) is dropped as a whole; the
-					// helper's body (including the RegisterHandlers calls it
+					// helper's body (including the RegisterHandlers call it
 					// now owns) goes via the strip rule above, because a
 					// multi-line construction cannot be removed by substring.
-					"chatH, genuiH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)",
+					"chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)",
 					// One argument per line: each drop removes exactly its
 					// feature's line, and add restores them.
 					"chatH,",
-					"genuiH,",
 					`r.MountFeature("chat", chatH.Routes())`,
-					`r.MountFeature("genui", genuiH.Routes())`,
 					chathandlersImport,
-					genuihandlersImport,
 					// chatstore and comp are NOT listed for chi.go: BootChi never
 					// imported them (bootAI owns those references), and a marker
 					// that no longer exists in the file is drift the sync test
 					// fails on. Their boot_helpers.go drops are in the fileDrop
 					// below.
 					"chatH *chathandlers.Handler,",
-					"genuiH *genuihandlers.Handler,",
 				},
 			},
 			{
@@ -85,28 +82,23 @@ var genuiTrimUnits = []trimUnit{
 				substrs: []string{
 					chathandlersImport,
 					chatstoreImport,
-					genuihandlersImport,
 					genuiComponentsImp,
 				},
 			},
 			{
-				// The server test's genui imports and handler constructions
-				// go as line drops (both call sites each); the mux table's
-				// "/chat" and "/genui" elements go too (one element per
-				// line, so combined trims stay order-independent). The
-				// model stubs go with the unit's Files entry (a file
-				// delete, not a strip — strips on chi_test.go have no
-				// add anchor).
+				// The server test's chat imports and handler constructions
+				// go as line drops; the mux table's "/chat" element goes too
+				// (one element per line, so combined trims stay
+				// order-independent). The model stubs go with the unit's Files
+				// entry (a file delete, not a strip — strips on chi_test.go
+				// have no add anchor).
 				path: chiTestFile,
 				substrs: []string{
 					chathandlersImport,
 					chatstoreImport,
-					genuihandlersImport,
 					"chathandlers.NewHandler(",
-					"genuihandlers.NewHandler(",
 					"stubResponder{raw: \"{}\"}),",
 					"\t\t\"/chat\",",
-					"\t\t\"/genui\",",
 				},
 			},
 		},

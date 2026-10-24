@@ -1,4 +1,4 @@
-// SCOPE:feature — The genui panel's data seam (chat/Ask AI <-> todos).
+// SCOPE:feature — The genui panel's data seam (Chat <-> todos).
 //
 // This path had no test, which is how "show my todos" could answer with an empty
 // panel and look like a model failure. Fill is the seam: it reads the viewer's

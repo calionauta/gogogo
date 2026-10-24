@@ -64,7 +64,7 @@ func receiveNone(t *testing.T, ch <-chan []byte, what string) {
 	}
 }
 
-// TestEphemeralSendCrossesInstances is the chat/genui case: the worker runs on
+// TestEphemeralSendCrossesInstances is the chat case: the worker runs on
 // instance A but the tab is connected to instance B, so the envelope must
 // reach B's hub and stop there.
 //

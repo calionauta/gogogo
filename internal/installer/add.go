@@ -234,8 +234,8 @@ func addFollowUps(u trimUnit) []string {
 				"401 JSON in internal/server/chi_test.go now the route is back.")
 	case unitGenUI:
 		out = append(out,
-			"TestBuildChiMux pins fewer demo routes: re-add \"/chat\", "+
-				"\"/genui\" to its target table in internal/server/chi_test.go "+
+			"TestBuildChiMux pins fewer demo routes: re-add \"/chat\" "+
+				"to its target table in internal/server/chi_test.go "+
 				"if the bundle is the front door again.")
 	}
 	return out

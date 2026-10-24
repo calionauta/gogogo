@@ -16,7 +16,6 @@ import (
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	comp "github.com/calionauta/gogogo/features/genui/components"
-	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	todohandlers "github.com/calionauta/gogogo/features/todo/handlers"
 	"github.com/calionauta/gogogo/internal/auth"
@@ -55,30 +54,24 @@ func wireAuth(a *auth.Auth, cfg *config.Config) error {
 	}
 	a.SetSignupEnabled(cfg.SignupEnabled)
 	a.SetMagicLinkBindBrowser(cfg.Auth.MagicLinkBindBrowser)
-	wireAuthPages(a, cfg)
+	wireAuthPages(a)
 	wireAuthMail(a, cfg)
 	return nil
 }
 
 // wireAuthPages installs the standalone email-link pages.
-func wireAuthPages(a *auth.Auth, cfg *config.Config) {
-	skin := func() string {
-		if cfg.Skin != "" {
-			return cfg.Skin
-		}
-		return "daisyui"
-	}
+func wireAuthPages(a *auth.Auth) {
 	a.SetMagicConfirmPage(func(w http.ResponseWriter, r *http.Request, email, token, bind, errMsg string) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		//nolint:contextcheck // templ components receive ctx from Render.
-		_ = authviews.MagicConfirmPage(email, token, bind, errMsg, skin()).Render(r.Context(), w)
+		_ = authviews.MagicConfirmPage(email, token, bind, errMsg).Render(r.Context(), w)
 	})
 	a.SetPasswordResetPage(func(w http.ResponseWriter, r *http.Request, email, token, errMsg string) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		//nolint:contextcheck // templ components receive ctx from Render.
-		_ = authviews.PasswordResetPage(email, token, errMsg, skin()).Render(r.Context(), w)
+		_ = authviews.PasswordResetPage(email, token, errMsg).Render(r.Context(), w)
 	})
 }
 
@@ -165,7 +158,7 @@ func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
 // wireTodoLLM builds the LLM clients and attaches the todo slice's queue,
 // suggest and retry handlers. Split out of BootChi for the funlen gate.
 // The clients are both consumed here (todo wiring, always compiled) and
-// returned for the chat/genui constructions in BootChi (dropped by the
+// returned for the chat construction in BootChi (dropped by the
 // genui trim): either side alone keeps the composition green.
 func wireTodoLLM(todoH *todohandlers.Handler, chiQ *queue.Queue, cfg *config.Config) (real, simulated *llm.Client) {
 	real = llm.New(cfg.GoAI.APIKey)
@@ -288,37 +281,30 @@ func bootFail(cancelConsumer context.CancelFunc, sqlDB *sql.DB, msg string, err 
 	return nil, fmt.Errorf("server: chi %s: %w", msg, err)
 }
 
-// bootAI wires both AI legs. One helper because the two legs deliberately
-// share everything except their surface set and their interaction shape —
-// splitting them would be the two-features-drift problem in code form.
+// bootAI wires the Chat demo: one surface set, one interaction shape. The
+// Ask one-shot leg is gone — its demonstrable behaviors (catalog-only
+// strictness via surfaces, fail-closed repair, router lead pick) live in
+// Chat through the same responder/router/prompt stack.
 //
 // The whole body has to stay in ONE function so the installer can strip it as
-// one brace-matched block (see the genui unit's extraStrips rule) and so the
-// two legs cannot disagree about "which surfaces exist". It lives here rather
-// than inline in BootChi for the statement budget.
+// one brace-matched block (see the genui unit's extraStrips rule). It lives
+// here rather than inline in BootChi for the statement budget.
 func bootAI(
 	cfg *config.Config, a *auth.Auth, chiQ *queue.Queue, hub *queue.SSEHub,
 	realLLM, simulatedLLM *llm.Client, queries *dbgen.Queries,
-) (chatH *chathandlers.Handler, genuiH *genuihandlers.Handler, err error) {
-	// One answer surface per leg (GENUI_ASK_SURFACES / GENUI_CHAT_SURFACES,
-	// absent = the documented defaults). An unknown name is a BOOT error, not
-	// a logged warning: the value decides what the model may emit, so a typo
-	// that silently fell back would be a surface change with no signal at all
-	// — the exact failure mode the variable exists to let an operator control.
-	askSurfaces, err := comp.ParseSurfaces(cfg.GenUI.AskSurfaces, comp.DefaultSurfacesAsk)
-	if err != nil {
-		return nil, nil, fmt.Errorf("config: GENUI_ASK_SURFACES: %w", err)
-	}
+) (chatH *chathandlers.Handler, err error) {
+	// Chat answer surfaces (GENUI_CHAT_SURFACES, absent = the documented
+	// default). An unknown name is a BOOT error, not a logged warning.
 	chatSurfaces, err := comp.ParseSurfaces(cfg.GenUI.ChatSurfaces, comp.DefaultSurfacesChat)
 	if err != nil {
-		return nil, nil, fmt.Errorf("config: GENUI_CHAT_SURFACES: %w", err)
+		return nil, fmt.Errorf("config: GENUI_CHAT_SURFACES: %w", err)
 	}
 	// The env path rejects an unknown name above; this is the same assertion
 	// for the set as it arrives here, so a future caller building one from
 	// literals cannot slip an unnamed band past the prompt (NormalizeSurfaces
 	// drops it silently, which would read as "the band did nothing").
-	if verr := comp.ValidateSurfaces(append(append([]comp.Surface(nil), askSurfaces...), chatSurfaces...)); verr != nil {
-		return nil, nil, verr
+	if verr := comp.ValidateSurfaces(chatSurfaces); verr != nil {
+		return nil, verr
 	}
 	// panels: the data half of the AI components. Installed as the process
 	// catalog — this is the ONE place that decides which of the app's own data
@@ -326,7 +312,7 @@ func bootAI(
 	// the advertised vocabulary and the renderable one cannot drift.
 	panels := []comp.PanelProvider{todohandlers.NewTodoPanel(queries)}
 	if perr := comp.InstallPanelRegistry(panels); perr != nil {
-		return nil, nil, perr
+		return nil, perr
 	}
 	// actions: what the app offers to model-authored cards. Same providers,
 	// same reasoning as the panel registry above — a feature declares the
@@ -341,19 +327,16 @@ func bootAI(
 		}
 	}
 	if aerr := comp.InstallActionRegistry(actionProviders); aerr != nil {
-		return nil, nil, aerr
+		return nil, aerr
 	}
-	// One router for both legs: deciding which component should lead is not a
-	// question specific to one-shot answers.
-	askRouter := genuihandlers.NewAskRouter(cfg)
+	// One router for the Chat leg: deciding which component should lead is
+	// still a classifier decision, now owned by the chat slice.
+	chatRouter := chathandlers.NewRouter(cfg)
 	chatH = chathandlers.NewHandler(cfg, a, chiQ, hub,
-		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM, askRouter, chatSurfaces))
-	genuiH = genuihandlers.NewHandler(cfg, a, chiQ, hub,
-		comp.NewResponder(realLLM, simulatedLLM, askRouter, askSurfaces))
-	// Registered here, not by the caller: BootChi needs only the handlers for
+		chatstore.NewMemStore(), chathandlers.ResponderFromLLM(realLLM, simulatedLLM, chatRouter, chatSurfaces))
+	// Registered here, not by the caller: BootChi needs only the handler for
 	// the mux, and hoisting registration keeps its error path to one line
 	// (the statement budget this helper exists to respect).
 	chatH.RegisterHandlers(chiQ.Registry())
-	genuiH.RegisterHandlers(chiQ.Registry())
-	return chatH, genuiH, nil
+	return chatH, nil
 }

@@ -35,7 +35,6 @@ import (
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	"github.com/calionauta/gogogo/features/credits"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
@@ -218,7 +217,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return bootFail(cancelConsumer, sqlDB, "queue", qerr)
 	}
 	hub := chiQ.Hub()
-	todoH := todohandlers.NewHandler(queries, a, hub, cfg.Skin)
+	todoH := todohandlers.NewHandler(queries, a, hub)
 	wireTodoDisplay(todoH, cfg)
 	if serr := bootSearch(bootCtx, cfg, todoH, sqlDB); serr != nil {
 		return bootFail(cancelConsumer, sqlDB, "search", serr)
@@ -241,7 +240,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// Retained for the trimmed tree: the genui trim drops the constructions
 	// below, and an unused local would not compile there.
 	_, _ = realLLM, simulatedLLM
-	chatH, genuiH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)
+	chatH, err := bootAI(cfg, a, chiQ, hub, realLLM, simulatedLLM, queries)
 	if err != nil {
 		cancelConsumer()
 		return nil, err
@@ -271,7 +270,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		noteshandlers.NewHandler(queries, a, hub, persister, docs, cfg),
 		roomH,
 		chatH,
-		genuiH,
 		reviewH,
 		creditsH,
 	)
@@ -319,7 +317,7 @@ func (s *ChiStack) AttachJetStream(ctx context.Context, js nats.JetStreamLike) {
 	startCrudConsumer(ctx, js, s.appName, s.TodoHandler)
 }
 
-// AttachEphemeral bridges the hub's ephemeral signals (chat/genui answers,
+// AttachEphemeral bridges the hub's ephemeral signals (chat answers,
 // onboarding progress, suggest/retry toasts) across instances over core NATS.
 // Nil (NATS off) leaves the hub in-process; record and collab fan-out keep
 // their own wires. Call once, after Boot.
@@ -435,7 +433,6 @@ func buildChiMux(
 	notesH *noteshandlers.Handler,
 	roomH *roomhandlers.Handler,
 	chatH *chathandlers.Handler,
-	genuiH *genuihandlers.Handler,
 	reviewH *reviewhandlers.Handler,
 	creditsH *creditshandlers.Handler,
 ) *Router {
@@ -464,7 +461,6 @@ func buildChiMux(
 	// handler answers nil from Routes() then, and MountFeature mounts nothing.
 	r.MountFeature("room", roomH.Routes())
 	r.MountFeature("chat", chatH.Routes())
-	r.MountFeature("genui", genuiH.Routes())
 	r.MountFeature("review", reviewH.Routes())
 	r.MountFeature("credits", creditsH.Routes())
 

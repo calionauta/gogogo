@@ -44,11 +44,9 @@ func TestRetryOnlyDrivesItsOwnStepper(t *testing.T) {
 		{"suggest success lights the ai stepper", signalJobSuggest, retryStatusSuccess, false, true},
 		{"simulated suggest lights the ai stepper", signalJobSuggestSimulated, retryStatusSuccess, false, true},
 		{"retry demo lights the demo stepper", signalJobRetryDemo, retryStatusSuccess, true, false},
-		// The regression: genui and chat deliver their own result + toast and
-		// return nil unconditionally, so their success envelope used to be read
-		// as the retry demo and mark all three of ITS steps done.
-		{"genui drives nothing", "genui_ask", retryStatusSuccess, false, false},
-		{"genui failure drives nothing", "genui_ask", "attempt", false, false},
+		// The regression: chat delivers its own result + toast and returns
+		// nil unconditionally, so its success envelope used to be read as the
+		// retry demo and mark all three of ITS steps done.
 		{"chat drives nothing", "chat_ask", retryStatusSuccess, false, false},
 		{"chat failure drives nothing", "chat_ask", "attempt", false, false},
 		{"unknown job drives nothing", "something_new", retryStatusSuccess, false, false},
@@ -78,7 +76,7 @@ func TestRetryOnlyDrivesItsOwnStepper(t *testing.T) {
 // made the bug visible in the first place, so both must be gone.
 func TestRetryWithoutStepperEmitsNothing(t *testing.T) {
 	h := &Handler{}
-	for _, op := range []string{"genui_ask", "chat_ask", "something_new"} {
+	for _, op := range []string{"chat_ask", "something_new"} {
 		t.Run(op, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			sse := sseGen(t, rec)

@@ -6,7 +6,7 @@
 // <iconify-icon> call sites depended on a runtime web component
 // (/static/iconify-icon.min.js) that lays out at 0x0 without its script,
 // needed a syncIcons() workaround in theme.js, and loaded twice per page
-// (ThemeHead AND the skin assets). Inline SVG has no script, no flash,
+// (ThemeHead AND the app assets). Inline SVG has no script, no flash,
 // and inherits the surrounding font size via width/height 1em.
 //
 // Keys keep the full "material-symbols:..." names so internal/ui/modules.go

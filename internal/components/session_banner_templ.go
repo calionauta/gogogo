@@ -7,7 +7,7 @@
 
 //   - notes/whiteboard send collab.SessionEvent frames;
 
-//   - todo/room/chat/genui carry a `sessionAuthed` signal on their feature
+//   - todo/room/chat carry a `sessionAuthed` signal on their feature
 
 //     stream, revalidated on its heartbeat (the banner's data-effect maps it
 

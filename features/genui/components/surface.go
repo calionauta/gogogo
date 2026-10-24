@@ -1,11 +1,9 @@
-// SCOPE:plugin — the answer-surface declaration shared by both AI legs.
+// SCOPE:plugin — the answer-surface declaration for the Chat demo.
 //
-// Ask AI and Chat were two features with two prompts, two vocabularies and two
-// hardcoded rules about what each could emit. The only real product difference
-// between them is the INTERACTION SHAPE (one-shot answer vs persisted
-// conversation), not which kinds of answer they may produce — so the surface
-// set is now data that both legs read, and the mode is what still separates
-// them.
+// Chat is the one AI demo: one surface set, one interaction shape
+// (persisted conversation). The Ask one-shot leg is deleted; its
+// demonstrable strictness (catalog-only, fail-closed repair) lives in Chat
+// through the surface set an operator toggles, not a second page.
 //
 // Three surfaces exist, and the split that matters is WHO OWNS THE CONTENT:
 //
@@ -16,12 +14,12 @@
 //	          the only surface whose output the model invents wholesale, which
 //	          is why it is the one worth toggling.
 //	native  — system panels. The APP owns the content (real rows from the
-//	          store); the model picks only the SLICE. Always on, on both legs:
-//	          it is the surface that makes an answer about the user's own data
-//	          correct instead of plausible, and there is no reason for a
-//	          deployment to want a worse answer. See panel.go.
+//	          store); the model picks only the SLICE. Always on: it is the
+//	          surface that makes an answer about the user's own data correct
+//	          instead of plausible, and there is no reason for a deployment to
+//	          want a worse answer. See panel.go.
 //
-// Surfaces are a property of the LEG (Ask vs Chat), not of a message: a
+// Surfaces are a property of the demo configuration, not of a message: a
 // conversation that sometimes allows invented markup and sometimes does not
 // would be a state machine with no user-facing explanation.
 package components
@@ -61,13 +59,8 @@ func (s Surface) Valid() bool { return slices.Contains(allSurfaces, s) }
 // when the catalog is listed first (see PromptForChat's history).
 var allSurfaces = []Surface{SurfaceCustom, SurfaceCatalog, SurfaceNative}
 
-// DefaultSurfacesAsk is Ask's default surface set: the catalog, plus native.
-//
-// Native is appended, never configured, on BOTH legs — see the file comment.
-var DefaultSurfacesAsk = []Surface{SurfaceCatalog}
-
-// DefaultSurfacesChat is Chat's default: the same set plus the invented-markup
-// escape hatch, which is what makes Chat Chat rather than Ask.
+// DefaultSurfacesChat is Chat's default: the catalog plus the invented-markup
+// escape hatch, plus native (appended by NormalizeSurfaces).
 var DefaultSurfacesChat = []Surface{SurfaceCatalog, SurfaceCustom}
 
 // ParseSurfaces reads a CSV surface list (e.g. "catalog,custom"), or returns

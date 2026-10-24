@@ -95,10 +95,6 @@ p, user, /chat, .*
 p, user, /chat/*, .*
 p, user, /api/chat, .*
 p, user, /api/chat/*, .*
-p, user, /genui, .*
-p, user, /genui/*, .*
-p, user, /api/genui, .*
-p, user, /api/genui/*, .*
 p, user, /review, .*
 p, user, /review/*, .*
 p, user, /api/review, .*

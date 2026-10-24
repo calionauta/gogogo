@@ -225,7 +225,7 @@ func TestThemeTogglePagesWireTheSignal(t *testing.T) {
 // SVG from internal/icon, so no template may reference the web component or
 // its script, and the asset itself must be gone from web/resources/static.
 // Unlike the old wiring test this scans EVERY .templ — the script's second
-// owner, web/skins/default_assets.templ, owns no <html> and slipped through
+// owner, internal/components/assets.templ, owns no <html> and slipped through
 // the old page-only scan, which is how the double-load shipped.
 //
 // red: re-adding an iconify tag or the script src anywhere in a .templ,

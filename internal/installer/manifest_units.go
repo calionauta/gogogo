@@ -10,7 +10,6 @@ import (
 )
 
 // Unit ids offered by the installer. Most map 1:1 to a capability;
-// skins-extra maps to the skins capability (partial removal) and
 // whiteboard covers whiteboard+collab+notes (the only honest shape:
 // notes is the second collab consumer, so collab cannot trim alone).
 const (
@@ -67,7 +66,7 @@ type trimUnit struct {
 	// desktop demo). Missing files are skipped.
 	extraStrips []fileStrip
 	// extraDrops remove matching lines from additional files (.templ
-	// call sites, skin blank imports). Missing files are skipped.
+	// call sites). Missing files are skipped.
 	extraDrops []fileDrop
 	// replaces rewrites one substring inside the first matching line of
 	// additional files (navbar brand retarget). Missing files skipped.
@@ -214,8 +213,7 @@ const (
 // chiMuxAnchor ends buildChiMux; capability route lines land above it.
 const chiMuxAnchor = "\treturn r"
 
-// Skin import suffixes dropped from handler dispatch + blank imports when
-// skins-extra is trimmed.
+// Import suffixes dropped from handler dispatch when their unit trims.
 const (
 	soundsImportSuffix = `features/sounds"`
 	// reviewImportSuffix is the review feature import dropped from every
@@ -367,7 +365,6 @@ var baseTrimUnits = []trimUnit{
 			{path: "features/whiteboard/components/board.templ", substrs: soundsPageLines},
 			{path: "features/notes/components/notes.templ", substrs: soundsPageLines},
 			{path: "features/chat/components/chat.templ", substrs: soundsPageLines},
-			{path: "features/genui/components/components.templ", substrs: soundsPageLines},
 			{path: "features/review/components/review.templ", substrs: soundsPageLines},
 			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},

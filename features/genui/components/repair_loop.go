@@ -59,13 +59,12 @@ func RepairFeedback(raw string, failure error) string {
 // AnswerWithRepair asks the model, validates through parse, and on failure
 // makes up to repairAttempts further attempts with the failure fed back.
 // It returns the first directive list that validates, or the last error
-// with a nil list — the caller decides how its own surface degrades (Ask
-// fails closed and shows the message; chat degrades to prose).
+// with a nil list — the caller decides how its surface degrades (Chat
+// degrades to prose).
 //
 // The loop lives here, not in each worker, because both legs have to agree
-// on it: an answer that a repair rescued in chat must be rescued in Ask
-// too, or the two features disagree about what the model is allowed to
-// produce.
+// on it: the loop lives here so every caller agrees on what the model
+// is allowed to produce.
 func AnswerWithRepair(
 	ctx context.Context, r Responder, request string, parse ParseFunc,
 ) ([]Directive, string, error) {

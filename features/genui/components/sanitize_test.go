@@ -92,6 +92,29 @@ func TestSanitizeHTMLDropsActiveContent(t *testing.T) {
 	}
 }
 
+// TestSanitizeHTMLClosesClassVocabulary pins the CopilotKit sandbox lesson:
+// the open-class pass-through let the model style with classes that render
+// unstyled (Tailwind never emitted them). Unknown classes are dropped, the
+// advertised vocabulary survives. Red-proof: allow everything through and
+// the unknown class survives.
+func TestSanitizeHTMLClosesClassVocabulary(t *testing.T) {
+	t.Parallel()
+	got, err := SanitizeHTML(`<div class="p-4 grid invented-thing text-neon">hi</div>`)
+	if err != nil {
+		t.Fatalf("SanitizeHTML: %v", err)
+	}
+	for _, want := range []string{"p-4", "grid"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("allowed class %q dropped in %q", want, got)
+		}
+	}
+	for _, notWant := range []string{"invented-thing", "text-neon"} {
+		if strings.Contains(got, notWant) {
+			t.Errorf("unknown class %q survives in %q", notWant, got)
+		}
+	}
+}
+
 // TestCatalogHTMLBlockPinsChatOnly pins the split: html_block resolves
 // in the shared registry (both features render it), but only the chat
 // prompt advertises it — the Ask showcase stays catalog-only. The split
@@ -104,7 +127,7 @@ func TestCatalogHTMLBlockPinsChatOnly(t *testing.T) {
 	if !Registered("html_block") {
 		t.Fatal("html_block must resolve in the registry")
 	}
-	if strings.Contains(PromptForCatalog(), "html_block") {
+	if strings.Contains(PromptForSurfaces([]Surface{SurfaceCatalog}), "html_block") {
 		t.Error("Ask prompt must not advertise html_block (catalog-only showcase)")
 	}
 	chat := PromptForChat()

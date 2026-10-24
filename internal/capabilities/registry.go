@@ -31,11 +31,11 @@ var All = []Capability{
 		ID:   "shell",
 		Kind: KindCore,
 		Summary: "one app shell (sidebar + module header + work area), the theme " +
-			"catalog, and the skin registry that supplies its assets",
-		Dirs: []string{"internal/ui", "internal/icon", "internal/themes", "internal/demo", "web/skins"},
+			"catalog, and the DaisyUI asset block every page renders",
+		Dirs: []string{"internal/ui", "internal/icon", "internal/themes", "internal/demo"},
 		Note: "Core: every module page renders a body inside ui.Shell, and the " +
-			"shell resolves the active skin's assets. One skin ships (DaisyUI); " +
-			"visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.",
+			"shell renders the DaisyUI asset block on every page. " +
+			"Visual variants are DaisyUI themes (docs/ui-themes.md), not bundles.",
 	},
 	{
 		ID:      "secrets",
@@ -209,7 +209,7 @@ var All = []Capability{
 	{
 		ID:      "genui",
 		Kind:    KindPlugin,
-		Summary: "generative UI: LLM answers render as Templ directives over the SSE hub",
+		Summary: "generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub",
 		Offered: true,
 		Dirs:    []string{"features/genui"},
 		// Owned by no dir: the composition test's model stubs, and the todo
@@ -231,20 +231,26 @@ var All = []Capability{
 			"features/todo/panel_filter_test.go",
 			"features/todo/components/panel.templ",
 			"features/todo/components/panel_templ.go",
+			// Diagram rendering is this unit's asset: the Pele bundle plus
+			// the mount helper serve only GenuiDiagram (Chat). A
+			// trimmed tree drops them so the binary does not carry 690KB
+			// of unused JS.
+			"web/resources/static/pele.global.js",
+			"web/resources/static/diagram.js",
 		},
 		Warns: []string{
 			"ci-local smoke: export SMOKE_FEATURES without genui " +
 				"(e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.",
 		},
-		Note: "Deletion removes the Ask demo + chat demo (one bundle: chat " +
+		Note: "Deletion removes the Chat demo (one bundle: chat " +
 			"imports genui components, so chat without genui does not " +
 			"compile — same honest shape as whiteboard+collab+notes). " +
-			"The Ask AI sidebar entry is stripped automatically.",
+			"The Chat sidebar entry is stripped automatically.",
 	},
 	{
 		ID:      "components",
 		Kind:    KindPlugin,
-		Summary: "shared UI helpers (Toast + OfflineBanner) + skin imports",
+		Summary: "shared UI helpers (Toast + OfflineBanner)",
 		Dirs:    []string{"internal/components", "features/todo/components"},
 		Reason:  "Every page layout calls into it; deletion is manual.",
 	},
@@ -332,8 +338,7 @@ var All = []Capability{
 		DependsOn: []string{"genui"},
 		Dirs:      []string{"features/chat"},
 		Reason: "Bundled into the genui unit: chat imports genui components " +
-			"(no-compile without it) and genui without chat is unproven " +
-			"surface — one unit is the honest shape, same as " +
+			"(no-compile without it) — one unit is the honest shape, same as " +
 			"whiteboard+collab+notes.",
 	},
 	{

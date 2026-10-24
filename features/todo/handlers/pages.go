@@ -34,7 +34,7 @@ func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render; the generated boundary is invisible to the lint.
-	_ = authviews.LoginPage(loginNext(r), "", h.skinName(), h.DemoAccounts, "", "").Render(r.Context(), w)
+	_ = authviews.LoginPage(loginNext(r), "", h.DemoAccounts, "", "").Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func (h *Handler) renderLogin(w http.ResponseWriter, r *http.Request, errMsg, no
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render.
-	_ = authviews.LoginPage(loginNext(r), errMsg, h.skinName(), h.DemoAccounts, totpUser, notice).
+	_ = authviews.LoginPage(loginNext(r), errMsg, h.DemoAccounts, totpUser, notice).
 		Render(r.Context(), w)
 }
 
@@ -181,7 +181,6 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	signals.StoreLabel = "Turso Database"
 	signals.OfflineLabel = h.offlineLabel()
 	signals.SidebarTab = "queue"
-	skin := h.skinName()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = components.Layout(
@@ -189,7 +188,6 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		signals, sess.User.Email, sess.Role,
 		h.BuildLabel, h.BuildCommit,
 		h.OfflineSyncEnabled,
-		skin,
 		demo.On(r),
 	).Render(r.Context(), w)
 }

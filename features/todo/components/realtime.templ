@@ -5,7 +5,7 @@ import ic "github.com/calionauta/gogogo/internal/components"
 // The persistent todo SSE stream is opened by the shared
 // components.StreamOpener (internal/components/stream_opener.templ), mounted
 // ONCE from Layout: hidden @get button + clientID bootstrap + verified open.
-// One opener for every feature and skin, so the wiring cannot drift per page.
+// One opener for every feature, so the wiring cannot drift per page.
 
 // RealtimeRecords composes the todo page's two refetch paths. Record
 // changes arrive live over the feature SSE stream (components.StreamOpener, mounted

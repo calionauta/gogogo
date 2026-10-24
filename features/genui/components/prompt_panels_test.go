@@ -19,7 +19,7 @@ import (
 // report. Soften the prohibition back into a suggestion ("reach for ... when the
 // request is about it") and the "NEVER invent" assertion goes red.
 func TestPanelsPromptForbidsInventingUserData(t *testing.T) {
-	got := PromptForCatalog()
+	got := PromptForChat()
 	if !strings.Contains(got, "NEVER invent the user's own data") {
 		t.Errorf("the catalog prompt must forbid inventing user data:\n%s", got)
 	}
@@ -33,7 +33,7 @@ func TestPanelsPromptForbidsInventingUserData(t *testing.T) {
 // is what a long vocabulary beats into background. Red-proof: drop dataRule
 // from promptForSurfaces and the trailing-reminder assertion goes red.
 func TestDataRuleLandsLast(t *testing.T) {
-	got := PromptForCatalog()
+	got := PromptForChat()
 	reminder := strings.Index(got, "Reminder: the user's own data is reachable ONLY")
 	noProse := strings.Index(got, "No prose outside the JSON object.")
 	if reminder < 0 {
@@ -45,12 +45,12 @@ func TestDataRuleLandsLast(t *testing.T) {
 	}
 }
 
-// TestPanelsPromptAppearsOnBothLegs pins that the rule reaches BOTH legs: the
-// failure was reported on Ask and would be identical on chat.
-func TestPanelsPromptAppearsOnBothLegs(t *testing.T) {
+// TestPanelsPromptAppearsOnSurfaces pins that the rule reaches every surface
+// set: the failure was invented user data.
+func TestPanelsPromptAppearsOnSurfaces(t *testing.T) {
 	for name, prompt := range map[string]string{
-		"ask":  PromptForCatalog(),
-		"chat": PromptForChat(),
+		"catalog-only": PromptForSurfaces([]Surface{SurfaceCatalog}),
+		"chat":         PromptForChat(),
 	} {
 		if !strings.Contains(prompt, "NEVER invent the user's own data") {
 			t.Errorf("%s prompt is missing the data rule:\n%s", name, prompt)

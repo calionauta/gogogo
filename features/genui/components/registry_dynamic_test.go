@@ -99,7 +99,7 @@ func TestAddingAPanelNeedsOnlyAProvider(t *testing.T) {
 	}
 
 	// 2. The router can offer it, on both legs.
-	for _, set := range [][]Surface{NormalizeSurfaces(DefaultSurfacesAsk), NormalizeSurfaces(DefaultSurfacesChat)} {
+	for _, set := range [][]Surface{NormalizeSurfaces(DefaultSurfacesChat), NormalizeSurfaces(DefaultSurfacesChat)} {
 		if !slices.Contains(CatalogComponentsFor(set), "notes_list") {
 			t.Errorf("router candidates for %v lack the new panel", Names(set))
 		}

@@ -33,11 +33,14 @@ const (
 // internal/server's route mounts; a module whose route is trimmed out of a
 // build is expected to be trimmed here too (the capability registry owns that
 // decision, not this list).
+//
+// IDs stay string literals: the installer trims destinations by matching
+// `{ID: "..."` lines, and `add` restores them the same way — a const would
+// hide the line from both.
 var Modules = []Module{
 	{ID: "todo", Title: "Todo", Group: GroupCollab, Icon: "material-symbols:checklist", URL: "/todo"},
 	{ID: "whiteboard", Title: "Whiteboard", Group: GroupCollab, Icon: "material-symbols:draw", URL: "/whiteboard"},
 	{ID: "notes", Title: "Notes", Group: GroupCollab, Icon: "material-symbols:description", URL: "/notes"},
-	{ID: "genui", Title: "Ask AI", Group: GroupAI, Icon: "material-symbols:auto-awesome", URL: "/genui"},
 	{ID: "chat", Title: "Chat", Group: GroupAI, Icon: "material-symbols:forum", URL: "/chat"},
 	{ID: "review", Title: "Review", Group: GroupAI, Icon: "material-symbols:fact-check", URL: "/review"},
 	{ID: "room", Title: "Room", Group: GroupOperate, Icon: "material-symbols:groups", URL: "/room"},

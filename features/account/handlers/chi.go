@@ -324,11 +324,7 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request, data components
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
-	skin := h.cfg.Skin
-	if skin == "" {
-		skin = "daisyui"
-	}
-	_ = components.Page(data, h.cfg.BuildLabel, h.cfg.BuildCommit, skin).Render(r.Context(), w)
+	_ = components.Page(data, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 func firstNonEmpty(values ...string) string {

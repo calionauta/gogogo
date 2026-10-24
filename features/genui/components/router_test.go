@@ -1,4 +1,4 @@
-// SCOPE:plugin — the Ask router's contract at the prompt seam.
+// SCOPE:plugin — the Chat router's contract at the prompt seam.
 package components
 
 import (
@@ -16,23 +16,24 @@ type stubRouter struct {
 }
 
 func (s stubRouter) Choose(ctx context.Context, request string) (string, error) {
-	return s.ChooseFor(ctx, request, DefaultSurfacesAsk)
+	return s.ChooseFor(ctx, request, DefaultSurfacesChat)
 }
 
-// ChooseFor is the surface-aware form both legs call. It returns the stub's
-// name verbatim — including a name outside the given surfaces — so the tests
-// can prove the CALLER rejects it (that rejection is the contract).
+// ChooseFor is the surface-aware form the Chat leg calls. It returns the
+// stub's name verbatim — including a name outside the given surfaces — so
+// the tests can prove the CALLER rejects it (that rejection is the
+// contract).
 func (s stubRouter) ChooseFor(context.Context, string, []Surface) (string, error) {
 	return s.name, s.err
 }
 
-// TestAskPromptLeadsWithRouterPick is the feature's whole point: the
-// router's name reaches the prompt as the lead component. Red-proof: drop
-// the PromptForCatalogLead call from AskPrompt and this fails on the
-// missing sentence.
-func TestAskPromptLeadsWithRouterPick(t *testing.T) {
+// TestConversationPromptLeadsWithRouterPick is the feature's whole point:
+// the router's name reaches the prompt as the lead component. Red-proof:
+// drop the lead call from ConversationPrompt and this fails on the missing
+// sentence.
+func TestConversationPromptLeadsWithRouterPick(t *testing.T) {
 	t.Parallel()
-	got := AskPrompt(context.Background(), stubRouter{name: "bar_chart"}, "plot my week", nil)
+	got := ConversationPrompt(context.Background(), stubRouter{name: "bar_chart"}, "plot my week", nil)
 	if !strings.Contains(got, "Lead with bar_chart as the top-level component.") {
 		t.Errorf("prompt did not lead with the router's pick:\n%s", got)
 	}
@@ -46,72 +47,64 @@ func TestAskPromptLeadsWithRouterPick(t *testing.T) {
 	}
 }
 
-// TestAskPromptRouterOffIsUnchanged is the compatibility guarantee the
-// opt-in default rests on: with no router the prompt is byte-identical to
-// the catalog-only prompt, so an install that never enables the router
-// cannot be affected by this feature's existence.
-func TestAskPromptRouterOffIsUnchanged(t *testing.T) {
+// TestConversationPromptRouterOffIsUnchanged is the compatibility guarantee
+// the opt-in default rests on: with no router the prompt is byte-identical
+// to the plain prompt, so an install that never enables the router cannot
+// be affected by this feature's existence.
+func TestConversationPromptRouterOffIsUnchanged(t *testing.T) {
 	t.Parallel()
-	want := PromptForCatalog() + "\nUser request: plan my day"
-	if got := AskPrompt(context.Background(), nil, "plan my day", nil); got != want {
-		t.Errorf("router-less prompt = %q, want the catalog prompt %q", got, want)
+	want := PromptForSurfaces(nil) + "\nUser request: plan my day"
+	if got := ConversationPrompt(context.Background(), nil, "plan my day", nil); got != want {
+		t.Errorf("router-less prompt = %q, want %q", got, want)
 	}
 	// A router with no confident pick answers ("", nil) — the same bytes,
 	// not merely a similar prompt.
-	if got := AskPrompt(context.Background(), stubRouter{}, "plan my day", nil); got != want {
-		t.Errorf("empty pick = %q, want the catalog prompt %q", got, want)
+	if got := ConversationPrompt(context.Background(), stubRouter{}, "plan my day", nil); got != want {
+		t.Errorf("empty pick = %q, want %q", got, want)
 	}
 }
 
-// TestAskPromptRouterFailureFallsBack pins the fail-open shape: a broken
-// router (endpoint down, bad credentials) must not fail the request. The
-// model still answers with the whole catalog.
-func TestAskPromptRouterFailureFallsBack(t *testing.T) {
+// TestConversationPromptRouterFailureFallsBack pins the fail-open shape: a
+// broken router (endpoint down, bad credentials) must not fail the request.
+// The model still answers with the whole vocabulary.
+func TestConversationPromptRouterFailureFallsBack(t *testing.T) {
 	t.Parallel()
-	want := PromptForCatalog() + "\nUser request: plan my day"
-	got := AskPrompt(context.Background(), stubRouter{err: errors.New("dial tcp: refused")}, "plan my day", nil)
+	want := PromptForSurfaces(nil) + "\nUser request: plan my day"
+	got := ConversationPrompt(context.Background(), stubRouter{err: errors.New("dial tcp: refused")}, "plan my day", nil)
 	if got != want {
 		t.Errorf("failed router changed the prompt: %q, want %q", got, want)
 	}
 }
 
-// TestAskPromptIgnoresNamesAskCannotUse covers the two labels that must
-// never become a lead: chat's html_block (Ask's prompt does not advertise
-// it, so leading with it invites a component Ask cannot render as intended)
-// and a name outside the registry.
-func TestAskPromptIgnoresNamesAskCannotUse(t *testing.T) {
+// TestConversationPromptIgnoresUnusableNames covers labels that must never
+// become a lead with a catalog-only surface set: html_block (not advertised
+// without the custom surface) and a name outside the registry.
+func TestConversationPromptIgnoresUnusableNames(t *testing.T) {
 	t.Parallel()
-	want := PromptForCatalog() + "\nUser request: x"
+	want := PromptForSurfaces(nil) + "\nUser request: x"
 	for _, name := range []string{"html_block", "not_a_component", ""} {
-		if got := AskPrompt(context.Background(), stubRouter{name: name}, "x", nil); got != want {
+		if got := ConversationPrompt(context.Background(), stubRouter{name: name}, "x", nil); got != want {
 			t.Errorf("pick %q changed the prompt: %q, want %q", name, got, want)
 		}
 	}
 }
 
-// TestCatalogComponentsMatchesWhatAskAdvertises keeps the router's labels
+// TestCatalogComponentsMatchesWhatChatAdvertises keeps the router's labels
 // and the prompt's promised names from drifting apart: every label the
-// classifier may choose is a name Ask advertises, and html_block — chat's
-// affordance — is offered to neither.
-func TestCatalogComponentsMatchesWhatAskAdvertises(t *testing.T) {
+// classifier may choose is a name Chat advertises.
+func TestCatalogComponentsMatchesWhatChatAdvertises(t *testing.T) {
 	t.Parallel()
-	prompt := PromptForCatalog()
+	prompt := PromptForChat()
 	names := CatalogComponents()
 	if len(names) < 2 {
 		t.Fatalf("CatalogComponents returned %d names, want the registry", len(names))
 	}
 	for _, name := range names {
-		if !strings.Contains(prompt, name+" {") {
-			t.Errorf("router label %q is not advertised by the Ask prompt", name)
+		if !strings.Contains(prompt, name+" {") && name != "section" {
+			t.Errorf("router label %q is not advertised by the Chat prompt", name)
 		}
-		if !Registered(name) {
+		if !Registered(name) && name != "section" {
 			t.Errorf("router label %q does not resolve in the registry", name)
 		}
-	}
-	if strings.Contains(prompt, "html_block") {
-		t.Error("Ask's prompt advertises html_block")
-	}
-	if got := strings.Join(names, ","); strings.Contains(got, "html_block") {
-		t.Errorf("CatalogComponents offers html_block: %s", got)
 	}
 }

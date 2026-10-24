@@ -23,7 +23,7 @@ const (
 type SearchConfig struct {
 	// Mode is SEARCH_MODE (default "substring"). An unknown value resets to
 	// the default with a warning instead of failing the boot — the same
-	// fail-safe shape loadAskRouterEnv uses: a typo degrades to the layer
+	// fail-safe shape loadChatRouterEnv uses: a typo degrades to the layer
 	// that always works (and needs no index), never to an unbootable
 	// server. The plugin still rejects an unknown mode it is handed, so a
 	// divergence between this list and the plugin's shows up as a boot

@@ -5,7 +5,7 @@
 > Coverage is enforced by TestTemplAPIURLsHaveRoutes (every ref below
 > must match a registered route); this file is the inventory it proves.
 
-## Registered routes (62)
+## Registered routes (60)
 
 Every `/api/*` literal in non-test, non-generated Go sources.
 
@@ -40,8 +40,6 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/credits`
 - `/api/credits/checkout`
 - `/api/credits/stripe-webhook`
-- `/api/genui/ask`
-- `/api/genui/stream`
 - `/api/notes/fragment`
 - `/api/notes/{docID}/caret`
 - `/api/notes/{docID}/delete`
@@ -72,7 +70,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboard/{docID}/update`
 - `/api/whiteboards/fragment`
 
-## Template and script refs (23)
+## Template and script refs (21)
 
 Every `/api/*` URL fired from `.templ` and `.js` sources.
 
@@ -81,8 +79,6 @@ Every `/api/*` URL fired from `.templ` and `.js` sources.
 - `/api/auth/password/reset`
 - `/api/chat/ask`
 - `/api/chat/stream`
-- `/api/genui/ask`
-- `/api/genui/stream`
 - `/api/notes/`
 - `/api/notes/fragment`
 - `/api/onboarding/start`

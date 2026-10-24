@@ -227,9 +227,9 @@ test grows past ~30s, or if a candidate ships offline emulation.
 Playwright overhead — it is deliberate waiting:
 
 - The offline-queue sweep runs on `/todo` (search + queue + delete replay). It
-used to fan out per skin, which is where "the other pass covers it" was learned
+used to fan out per page variant, which is where "the other pass covers it" was learned
 to be false: identical markup with a missing class renders broken and logs
-nothing. With one skin the sweep is one pass, not three.
+nothing. One vocabulary means the sweep is one pass.
 - `verifySuggestSurvivesSlowAck` holds the POST response for 2s while the
 worker's SSE result lands first — the ordering that produced the stuck
 "Asking AI..." spinner — then settles 500ms to let the late patch apply. That
@@ -297,7 +297,7 @@ timeout.
 ### A test may not import a trim-managed package from outside it
 
 `trim <unit>` deletes directories, so a test that imports one must live where
-the trim can take it too. A shared test that imported an optional skin package
+the trim can take it too. A shared test that imported an optional unit's package
 made `TestTrimmedTreeStillBuilds` and the `minimal` preset stop **compiling**
 once that unit was trimmed.
 
@@ -342,7 +342,7 @@ by hand, so when a step is added to one, add it to the other:
 |---|---|---|
 | templ generate | ✓ | ✓ |
 | generated `_templ.go` matches sources | ✓ `check-generated` | ✓ (also pre-commit, `**/*.templ`) |
-| CSS bundle matches sources | ✓ `css-check` (all skins) | ✓ (after `npm ci`) |
+| CSS bundle matches sources | ✓ `css-check` | ✓ (after `npm ci`) |
 | SCOPE annotations | ✓ | ✓ |
 | Flat-stack deps (no banned framework, no cross-feature imports, owned sql.Open) | ✓ `check-flatdeps` | ✓ |
 | Prose claims (no hand-written counts, live paths, real subcommands, every `docs/` page published or declared repo-facing) | ✓ `check-docs` | ✓ |

@@ -52,7 +52,6 @@ features/
   sounds/                         UI sound feedback (cuelume)
 web/
   resources/                      Embedded static assets (AssetHandler: /static/ + root /sw.js)
-  skins/                          Pluggable UI skin registry
 ```
 
 The annotated version of this tree, with SCOPE markers on every entry, is in

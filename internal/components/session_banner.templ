@@ -1,7 +1,7 @@
 // SCOPE:plugin - Session-expiry banner. ONE component for every authenticated
 // page. The state arrives on whichever stream the page already has:
 //   - notes/whiteboard send collab.SessionEvent frames;
-//   - todo/room/chat/genui carry a `sessionAuthed` signal on their feature
+//   - todo/room/chat carry a `sessionAuthed` signal on their feature
 //     stream, revalidated on its heartbeat (the banner's data-effect maps it
 //     into GogogoSession.set);
 //   - a page with NO feature stream opens /api/session/stream through the

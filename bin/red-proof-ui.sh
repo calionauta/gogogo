@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Red-proof the guards added for the one-skin/one-shell change: mutate the
+# Red-proof the guards added for the one-vocabulary/one-shell change: mutate the
 # source so each guard's defect is real, watch the test fail, restore, watch it
 # pass again. The mutation is never left behind.
 set -uo pipefail
@@ -42,9 +42,9 @@ prove() {
 echo "→ Red-proofing the no-legacy / no-dead-markup / theme-catalog guards"
 
 # 1. a removed surface named in a doc
-prove "removed brand in docs" "docs/ui-skins.md" "
+prove "removed brand in docs" "docs/ui-themes.md" "
 import pathlib
-p = pathlib.Path('docs/ui-skins.md'); s = p.read_text()
+p = pathlib.Path('docs/ui-themes.md'); s = p.read_text()
 p.write_text(s + '\nThe old Basecoat skin did this differently.\n')
 " ./internal/capabilities TestNoRemovedBrandsInSourcesOrDocs
 
@@ -96,7 +96,7 @@ prove "todo list patch root renamed" "features/todo/components/todo_list.templ" 
 import pathlib
 p = pathlib.Path('features/todo/components/todo_list.templ'); s = p.read_text()
 # target the ELEMENT, not the two doc comments that also quote the id
-p.write_text(s.replace('class=\"divide-y divide-base-200\" id=\"todo-list\"', 'class=\"divide-y divide-base-200\" id=\"todo-list-renamed\"', 1))
+p.write_text(s.replace('pb-6\" id=\"todo-list\"', 'pb-6\" id=\"todo-list-renamed\"', 1))
 " ./internal/server TestPagesContract
 
 # 8. admin-only module leaking into a non-admin sidebar

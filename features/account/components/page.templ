@@ -29,7 +29,7 @@ type PageData struct {
 }
 
 // Page renders /account inside the shared shell.
-templ Page(data PageData, buildLabel string, buildCommit string, skinName string) {
+templ Page(data PageData, buildLabel string, buildCommit string) {
 	@ui.Shell(ui.Data{
 		Title:       "Account — gogogo",
 		Module:      "account",
@@ -39,7 +39,6 @@ templ Page(data PageData, buildLabel string, buildCommit string, skinName string
 		Role:        data.Role,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 	}, nil, nil, nil, body(data))
 }
 

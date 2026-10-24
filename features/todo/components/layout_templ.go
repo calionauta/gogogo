@@ -37,8 +37,8 @@ import (
 )
 
 // Layout renders /todo inside the shell. The signature is the handlers'
-// contract (title, signals, session, build, offline, skin) and is unchanged.
-func Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, skinName string, demo bool) templ.Component {
+// contract (title, signals, session, build, offline) and is unchanged.
+func Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, demo bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -67,7 +67,6 @@ func Layout(title string, signals todo.Signals, userEmail string, userRole strin
 			Role:        userRole,
 			BuildLabel:  buildLabel,
 			BuildCommit: buildCommit,
-			Skin:        skinName,
 			OfflineSync: offlineSync,
 			Stack:       todoStack(),
 			Demo:        demo,

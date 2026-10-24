@@ -1,5 +1,5 @@
 // SCOPE:feature — the todo feature's native panel: one file that makes the
-// app's own todos answerable from Ask AI and Chat.
+// app's own todos answerable from Chat.
 //
 // This is the CONTRACT for becoming a native panel — a feature contributes a
 // PanelProvider and nothing else. Name, prompt line, writable props, data and

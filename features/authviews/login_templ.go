@@ -10,8 +10,8 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/demo"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // LoginPage is the standalone /login page (no shell chrome: the user isn't
@@ -33,7 +33,7 @@ func demoValue(on bool, v string) string {
 	return ""
 }
 
-func LoginPage(next string, errMsg string, skinName string, demoAccounts bool, totpUser string, notice string) templ.Component {
+func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, notice string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -66,7 +66,7 @@ func LoginPage(next string, errMsg string, skinName string, demoAccounts bool, t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = skins.ActiveAssets(skinName).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Assets().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

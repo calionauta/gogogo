@@ -16,21 +16,20 @@ import (
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/web/resources"
 	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Index renders the landing page. userEmail is empty for guests
 // (Sign in CTA shows) and the authed email for signed-in users.
 // buildLabel/buildCommit are surfaced on the version badge so the
 // landing page matches the shell's build feedback.
-templ Index(userEmail string, userRole string, buildLabel string, buildCommit string, skinName string) {
+templ Index(userEmail string, userRole string, buildLabel string, buildCommit string) {
 	<!DOCTYPE html>
 	<html lang="en" { authviews.ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>gogogo</title>
-			@skins.ActiveAssets(skinName)
+			@components.Assets()
 			@authviews.ThemeHead()
 			@sounds.SoundAssets()
 			<style>

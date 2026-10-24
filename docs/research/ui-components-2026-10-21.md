@@ -6,7 +6,11 @@ light and maintainable if an upstream stops.
 
 The short version: **keep DaisyUI as the base**, add Cally for dates, and take
 combobox/command behaviour from a small, Datastar-native source instead of
-adopting a whole design system. The four candidates were judged on Datastar/SSE
+adopting a whole design system.
+
+> Superseded in part: the pluggable-skins framing in the revisit triggers
+> below no longer applies — the template ships DaisyUI only, plus themes
+> (`docs/ui-themes.md`). The DaisyUI decision stands. The four candidates were judged on Datastar/SSE
 fit, lightness, performance, functionality, maturity, and forkability.
 
 ## Snapshots at review time

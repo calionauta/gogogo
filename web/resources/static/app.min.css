@@ -6225,6 +6225,23 @@
     [dir="rtl"] :is(.chat-start .chat-bubble):before {
       transform: rotateY(180deg);
     }
+    .dock-active:after {
+      width: calc(0.25rem * 10);
+      background-color: currentcolor;
+      color: currentcolor;
+    }
+    .dock-xs :is(:is(.dock-active), [aria-current]:not([aria-current="false"], [aria-current=""])):after {
+      bottom: -0.1rem;
+    }
+    .dock-sm :is(:is(.dock-active), [aria-current]:not([aria-current="false"], [aria-current=""])):after {
+      bottom: -0.1rem;
+    }
+    .dock-lg :is(:is(.dock-active), [aria-current]:not([aria-current="false"], [aria-current=""])):after {
+      bottom: 0.4rem;
+    }
+    .dock-xl :is(:is(.dock-active), [aria-current]:not([aria-current="false"], [aria-current=""])):after {
+      bottom: 0.4rem;
+    }
   }
   @layer daisyui.l1.l2.l3 {
     .textarea {
@@ -6699,6 +6716,40 @@
       --modal-br: var(--radius-box);
     }
   }
+  @layer daisyui.l1.l2.l3 {
+    .stat-value {
+      grid-column-start: 1;
+      white-space: nowrap;
+      font-size: 2rem;
+      font-weight: 800;
+    }
+    .stat-desc {
+      grid-column-start: 1;
+      white-space: nowrap;
+      color: var(--color-base-content);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .stat-desc {
+        color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+      }
+    }
+    .stat-desc {
+      font-size: 0.75rem;
+    }
+    .stat-title {
+      grid-column-start: 1;
+      white-space: nowrap;
+      color: var(--color-base-content);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .stat-title {
+        color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+      }
+    }
+    .stat-title {
+      font-size: 0.75rem;
+    }
+  }
   .container {
     width: 100%;
     @media (width >= 40rem) {
@@ -7069,6 +7120,47 @@
       place-items: start;
       gap: calc(0.25rem * 2);
     }
+    .stat {
+      display: inline-grid;
+      width: 100%;
+      column-gap: calc(0.25rem * 4);
+      padding-inline: calc(0.25rem * 6);
+      padding-block: calc(0.25rem * 4);
+      grid-template-columns: repeat(1, 1fr);
+    }
+    .stat:not(:last-child) {
+      border-inline-end: var(--border) dashed currentColor;
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .stat:not(:last-child) {
+        border-inline-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
+      }
+    }
+    .stat:not(:last-child) {
+      border-block-end: none;
+    }
+  }
+  @layer daisyui.l1.l2 {
+    .stats-horizontal .stat:not(:last-child) {
+      border-inline-end: var(--border) dashed currentColor;
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .stats-horizontal .stat:not(:last-child) {
+        border-inline-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
+      }
+    }
+    .stats-horizontal .stat:not(:last-child) {
+      border-block-end: none;
+    }
+    .stats-vertical .stat:not(:last-child) {
+      border-inline-end: none;
+      border-block-end: var(--border) dashed currentColor;
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .stats-vertical .stat:not(:last-child) {
+        border-block-end: var(--border) dashed color-mix(in oklab, currentColor 10%, #0000);
+      }
+    }
   }
   .alert {
     border-width: var(--border);
@@ -7259,9 +7351,6 @@
   }
   .min-h-0 {
     min-height: 0px;
-  }
-  .min-h-24 {
-    min-height: calc(var(--spacing) * 24);
   }
   .min-h-\[7rem\] {
     min-height: 7rem;
@@ -7815,6 +7904,21 @@
     line-height: var(--tw-leading, var(--text-xs--line-height));
   }
   @layer daisyui.l1.l2 {
+    .dock-xs .dock-label {
+      font-size: 0.625rem;
+    }
+    .dock-sm .dock-label {
+      font-size: 0.625rem;
+    }
+    .dock-md .dock-label {
+      font-size: 0.6875rem;
+    }
+    .dock-lg .dock-label {
+      font-size: 0.6875rem;
+    }
+    .dock-xl .dock-label {
+      font-size: 0.75rem;
+    }
     .tabs-sm {
       --tab-height: calc(var(--size-field, 0.25rem) * 8);
     }
@@ -8057,6 +8161,15 @@
     transition-timing-function: var(--ease-out);
   }
   @layer daisyui.l1.l2 {
+    .input-md {
+      --in-size-mul: 10;
+      --font-size-min: 0.875rem;
+      --spin-my: -3;
+    }
+    .floating-label:has(.input-md) {
+      --top-mul: 5;
+      --font-size: 0.875rem;
+    }
     .input-sm {
       --in-size-mul: 8;
       --font-size-min: 0.75rem;
@@ -8084,6 +8197,11 @@
       --btn-color: var(--color-error);
       --btn-fg: var(--color-error-content);
       --btn-soft-bg: initial;
+    }
+    .btn-md {
+      --fontsize: 0.875rem;
+      --btn-p: 1rem;
+      --size: calc(var(--size-field, 0.25rem) * 10);
     }
     .btn-primary {
       --btn-color: var(--color-primary);
@@ -8157,9 +8275,6 @@
       --aura-radius: var(--radius-selector);
     }
   }
-  .last\:mb-0:last-child {
-    margin-bottom: 0px;
-  }
   @media (hover: hover) {
     .hover\:scale-105:hover {
       --tw-scale-x: 105%;
@@ -8214,6 +8329,22 @@
     }
     .sm\:grid-cols-3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @layer daisyui.l1.l2 {
+      .sm\:input-sm {
+        --in-size-mul: 8;
+        --font-size-min: 0.75rem;
+        --spin-my: -2;
+      }
+      .floating-label:has(.sm\:input-sm) {
+        --top-mul: 4;
+        --font-size: 0.75rem;
+      }
+      .sm\:btn-sm {
+        --fontsize: 0.75rem;
+        --btn-p: 0.75rem;
+        --size: calc(var(--size-field, 0.25rem) * 8);
+      }
     }
   }
   @media (width >= 48rem) {

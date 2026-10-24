@@ -20,8 +20,8 @@ import (
 )
 
 // Layout renders /todo inside the shell. The signature is the handlers'
-// contract (title, signals, session, build, offline, skin) and is unchanged.
-templ Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, skinName string, demo bool) {
+// contract (title, signals, session, build, offline) and is unchanged.
+templ Layout(title string, signals todo.Signals, userEmail string, userRole string, buildLabel string, buildCommit string, offlineSync bool, demo bool) {
 	@ui.Shell(ui.Data{
 		Title:       title,
 		Module:      "todo",
@@ -30,7 +30,6 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		OfflineSync: offlineSync,
 		Stack:       todoStack(),
 		Demo:        demo,

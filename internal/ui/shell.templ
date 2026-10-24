@@ -2,9 +2,8 @@
 //
 // One sidebar, one module header, one work area, one toast root. Before this
 // file each page template owned its own <head>, navbar, banner stack and
-// re-declared the same assets — eleven copies, with the skin even forking a
-// whole alternate page template for /todo. Pages now render a body; the shell
-// owns everything around it.
+// re-declared the same assets — eleven copies. Pages now render a body; the
+// shell owns everything around it.
 //
 // Slots, not imports: `head` carries page-specific <head> extras (the sound
 // assets, for the modules that opt in), `sound` the sidebar's sound toggle, and
@@ -17,7 +16,6 @@ import (
 	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/icon"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Data is what the shell needs to render around a page body.
@@ -32,7 +30,6 @@ type Data struct {
 	Role        string             // session role ("admin" | "user" | "viewer" | "")
 	BuildLabel  string             // running build, shown in the sidebar footer
 	BuildCommit string             // commit, exposed via title= on the badge
-	Skin        string             // active skin name ("" = default)
 	Signals     string             // the page's own seeded signal JSON ("" = none)
 	StreamPage  bool               // marks a page that opens its own EventSource (session.js)
 	FullBleed   bool               // body without padding, for canvas pages
@@ -70,9 +67,9 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 	<html lang="en" { authviews.ThemeRootAttrs(ctx, d.Signals)... }>
 		<head>
 			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 			<title>{ d.Title }</title>
-			@skins.ActiveAssets(d.Skin)
+			@components.Assets()
 			@authviews.ThemeHead()
 			if head != nil {
 				@head
@@ -81,6 +78,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 		</head>
 		<body
 			class="bg-base-200 min-h-screen"
+			data-module={ d.Module }
 			if d.StreamPage {
 				data-stream-page="1"
 			}>
@@ -245,6 +243,42 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 				}
 			</div>
 			@components.ToastContainer()
+			@AppDock(d.Module)
 		</body>
 	</html>
+}
+
+// AppDock is the mobile webapp bottom bar: the three daily destinations
+// plus the drawer, one tap instead of two. Desktop never sees it (CSS shows
+// it ≤720px only) and the Chat page hides it (body[data-module="chat"]):
+// the composer owns the thumb zone there, and a fixed bar would cover the
+// docked input. Icons reuse the registry's own names so the dock
+// and the drawer can never disagree about artwork.
+templ AppDock(module string) {
+	<nav class="app-dock dock" aria-label="Primary">
+		@dockLink(module, "todo", "/todo", "material-symbols:checklist", "Todo")
+		@dockLink(module, "whiteboard", "/whiteboard", "material-symbols:draw", "Board")
+		@dockLink(module, "chat", "/chat", "material-symbols:forum", "Chat")
+		<button
+			type="button"
+			aria-label="Open navigation"
+			data-on:click="$railOpen = true"
+		>
+			@icon.Icon("material-symbols:menu", "app-dock-icon")
+			<span class="dock-label">Menu</span>
+		</button>
+	</nav>
+}
+
+// dockLink is one bar destination: same active treatment as the drawer
+// entries (dock-active + aria-current), one spelling for all three.
+templ dockLink(current string, id string, href string, iconName string, label string) {
+	<a
+		href={ templ.SafeURL(href) }
+		class={ templ.Classes(map[string]bool{"dock-active": current == id}) }
+		aria-current={ activeCurrent(current == id) }
+	>
+		@icon.Icon(iconName, "app-dock-icon")
+		<span class="dock-label">{ label }</span>
+	</a>
 }

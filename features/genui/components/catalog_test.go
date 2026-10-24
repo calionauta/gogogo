@@ -48,11 +48,14 @@ func TestParseToleratesFencesAndProse(t *testing.T) {
 // to emit components that fail closed at parse time.
 func TestCatalogListsRegistered(t *testing.T) {
 	t.Parallel()
-	for _, want := range []string{"text_note", "plan_cards", "data_table", "bar_chart", "action_buttons", "section"} {
+	for _, want := range []string{
+		"text_note", "plan_cards", "data_table", "bar_chart",
+		"action_buttons", "diagram", "section",
+	} {
 		if !Registered(want) {
 			t.Errorf("catalog missing %q (prompt advertises it)", want)
 		}
-		prompt := PromptForCatalog()
+		prompt := PromptForChat()
 		if prompt == "" || !strings.Contains(prompt, want) {
 			t.Errorf("prompt does not advertise %q", want)
 		}

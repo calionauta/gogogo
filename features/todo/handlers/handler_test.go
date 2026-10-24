@@ -56,7 +56,7 @@ func newHandlersFixture(tb testing.TB) *handlersFixture {
 	}
 
 	hub := queue.NewSSEHub()
-	h := NewHandler(dbgen.New(sqlDB), a, hub, "daisyui")
+	h := NewHandler(dbgen.New(sqlDB), a, hub)
 
 	r := http.NewServeMux()
 	// The auth handler already carries its /api/auth base path and the chi

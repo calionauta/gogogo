@@ -1,21 +1,21 @@
 package authviews
 
 import (
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/components"
 )
 
 // MagicConfirmPage is the read-only landing for a magic link. The emailed
 // GET never consumes the token; the user has to submit this form, which also
 // makes email-scanner prefetches harmless and keeps cross-device links
 // usable. `bind` is present only in strict same-browser mode.
-templ MagicConfirmPage(email, token, bind, errMsg, skinName string) {
+templ MagicConfirmPage(email, token, bind, errMsg string) {
 	<!DOCTYPE html>
 	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Continue sign-in — gogogo</title>
-			@skins.ActiveAssets(skinName)
+			@components.Assets()
 			@ThemeHead()
 		</head>
 		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
