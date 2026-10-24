@@ -128,6 +128,58 @@ func TestChatThreadFragmentCarriesNoContainerID(t *testing.T) {
 	}
 }
 
+// TestChatStatePanelStepsDisagree pins the reported bug: the middle step
+// never lit (no Done expression) and the first step claimed done on an
+// empty thread (Done: !$chat_thinking is true when idle). The contract:
+// empty = all pending, thinking = accepted done + working active,
+// settled = all done.
+func TestChatStatePanelStepsDisagree(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := chatcomponents.ChatStatePanel(3).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("ChatStatePanel: %v", err)
+	}
+	html := html2.UnescapeString(buf.String())
+	for _, want := range []string{
+		`'is-done': (!$chat_empty)`,
+		`'is-done': (!$chat_thinking && !$chat_empty)`,
+		`'is-active': ($chat_thinking)`,
+		`Answer pipeline`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("state panel missing %q", want)
+		}
+	}
+	if strings.Contains(html, `'is-done': (!$chat_thinking),`) {
+		t.Errorf("state panel still marks Question accepted done while idle-empty")
+	}
+}
+
+// TestChatNewChatAffordance pins the 2026 pattern: a New chat button (not
+// "clear") with a confirmation modal before anything is wiped. The modal
+// posts to /api/chat/clear and is inert while thinking.
+func TestChatNewChatAffordance(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	msgs := []store.MessageView{{Role: "user", Text: "hi"}}
+	if err := chatcomponents.ChatIndex(
+		"a@b.c", "user", "dev", "", msgs, false,
+	).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("ChatIndex: %v", err)
+	}
+	html := html2.UnescapeString(buf.String())
+	for _, want := range []string{
+		`New chat`,
+		`id="confirm-new-chat"`,
+		`Start a new chat?`,
+		`/api/chat/clear`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("chat page missing new-chat affordance %q", want)
+		}
+	}
+}
+
 // TestChatListRendersBubbles proves user/assistant messages render with
 // distinct alignment and that component directives render inside the
 // assistant bubble (generative UI inside chat, not beside it).

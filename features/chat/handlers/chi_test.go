@@ -330,6 +330,65 @@ func TestHandlersChatRendersHistory(t *testing.T) {
 	}
 }
 
+// TestHandlersChatClearIsNewChat pins the new-chat affordance: POST
+// /api/chat/clear drops only the caller's thread, answers SSE with the
+// empty-state signals, and swaps the column for the empty guidance —
+// without touching the client-owned $chatPrompt (see the ask-ack
+// contract: the input owns it, the server never writes it).
+func TestHandlersChatClearIsNewChat(t *testing.T) {
+	mux, a, mem := chatFixture(t, stubResponder{raw: "{}"})
+	cookie := chatSignup(t, mux, "clear@example.com")
+	otherCookie := chatSignup(t, mux, "clear-other@example.com")
+	owner := sessionOwner(t, a, cookie)
+	other := sessionOwner(t, a, otherCookie)
+	ctx := context.Background()
+	if err := mem.Append(ctx, owner, store.Message{Role: "user", Text: "mine", IdemKey: "k1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := mem.Append(ctx, other, store.Message{Role: "user", Text: "theirs", IdemKey: "k2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/chat/clear?clientID=clear-t1", nil)
+	req.AddCookie(cookie)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("clear content-type = %q, want SSE ack", ct)
+	}
+	if msgs, err := mem.List(ctx, owner); err != nil || len(msgs) != 0 {
+		t.Fatalf("owner thread after clear = %+v err=%v, want empty", msgs, err)
+	}
+	if msgs, err := mem.List(ctx, other); err != nil || len(msgs) != 1 {
+		t.Fatalf("other thread after clear = %+v err=%v, want untouched", msgs, err)
+	}
+	ack := rec.Body.String()
+	for _, want := range []string{
+		`"chat_empty":true`, "chat_thinking", "datastar-patch-elements",
+		"selector #chat-messages", "Ask anything",
+	} {
+		if !strings.Contains(ack, want) {
+			t.Errorf("clear ack missing %q (got %.400q…)", want, ack)
+		}
+	}
+	if strings.Contains(ack, `"chatPrompt"`) {
+		t.Errorf("clear ack writes the client-owned chatPrompt signal (got %.400q…)", ack)
+	}
+	if strings.Contains(ack, "mode append") {
+		t.Errorf("clear ack appends instead of replacing the thread (got %.400q…)", ack)
+	}
+
+	// Anon clears redirect to login, never 200 with an empty store claim.
+	anonRec := httptest.NewRecorder()
+	mux.ServeHTTP(anonRec, httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/chat/clear", nil))
+	if anonRec.Code != http.StatusSeeOther {
+		t.Fatalf("anon clear status = %d, want 303", anonRec.Code)
+	}
+}
+
 // sessionOwner resolves the test user's id through its cookie.
 func sessionOwner(t *testing.T, a *auth.Auth, cookie *http.Cookie) string {
 	t.Helper()

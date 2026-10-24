@@ -53,3 +53,23 @@ func (s *MemStore) List(_ context.Context, owner string) ([]Message, error) {
 	}
 	return out, nil
 }
+
+// Clear drops one owner's whole thread. Other owners are untouched; the
+// seen map drops the owner's idempotency keys so a re-ask after a clear
+// stores fresh instead of hitting a stale dedup.
+func (s *MemStore) Clear(_ context.Context, owner string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	kept := s.msgs[:0]
+	for _, m := range s.msgs {
+		if m.Owner != owner {
+			kept = append(kept, m)
+			continue
+		}
+		if m.IdemKey != "" {
+			delete(s.seen, owner+"\x00"+m.IdemKey)
+		}
+	}
+	s.msgs = kept
+	return nil
+}

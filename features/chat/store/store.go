@@ -28,7 +28,8 @@ type Message struct {
 // MessageStore is the persistence seam: production currently wires the
 // in-memory MemStore (history is volatile — lost on restart), tests wire
 // the in-memory stub. Append is idempotent on
-// (owner, idemKey); List returns created order for one owner only.
+// (owner, idemKey); List returns created order for one owner only; Clear
+// drops one owner's whole thread (new-chat affordance).
 //
 // The seam stays an interface with one production implementation on
 // purpose: chat history is the next Turso-backed store (owner-scoped rows
@@ -37,6 +38,7 @@ type Message struct {
 type MessageStore interface {
 	Append(ctx context.Context, owner string, m Message) error
 	List(ctx context.Context, owner string) ([]Message, error)
+	Clear(ctx context.Context, owner string) error
 }
 
 // Responder is the model leg: production passes an llm adapter, tests

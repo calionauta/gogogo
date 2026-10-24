@@ -60,6 +60,23 @@ func (s *memStore) List(_ context.Context, owner string) ([]store.Message, error
 	return out, nil
 }
 
+func (s *memStore) Clear(_ context.Context, owner string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	kept := s.msgs[:0]
+	for _, m := range s.msgs {
+		if m.Owner != owner {
+			kept = append(kept, m)
+			continue
+		}
+		if m.IdemKey != "" {
+			delete(s.seen, owner+"\x00"+m.IdemKey)
+		}
+	}
+	s.msgs = kept
+	return nil
+}
+
 // TestWorkerPersistsBothSides proves the conversation contract: one Ask
 // persists exactly two records (user prompt + assistant answer) in
 // created order, and the originator's hub gets a chat envelope. Uses a
