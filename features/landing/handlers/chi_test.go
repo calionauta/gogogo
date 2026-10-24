@@ -44,6 +44,12 @@ func TestHandlersLandingPublic(t *testing.T) {
 	if anon.Code != http.StatusOK {
 		t.Fatalf("anon / status = %d, want 200 (public page)", anon.Code)
 	}
+	// Guests must not be sent straight to /todo: anonymous GET /todo is
+	// denied by RBAC policy (403, fail-closed in production), so the CTA
+	// goes through /login?next=/todo and lands on /todo after sign-in.
+	if !strings.Contains(anon.Body.String(), `href="/login?next=/todo"`) {
+		t.Fatal("guest CTA missing href=\"/login?next=/todo\" (would 403 on /todo)")
+	}
 
 	// Signed-in users see the same hero with their email on it.
 	ctx := context.Background()
@@ -60,6 +66,10 @@ func TestHandlersLandingPublic(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "hero@example.com") {
 		t.Fatal("authed hero missing the shell email")
+	}
+	// Signed-in users already have a session, so the CTA goes straight in.
+	if !strings.Contains(rec.Body.String(), `href="/todo"`) {
+		t.Fatal("authed CTA missing href=\"/todo\"")
 	}
 }
 

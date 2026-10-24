@@ -533,7 +533,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = authviews.CommandPalette(d.Role).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.CommandPalette(d.Role, false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

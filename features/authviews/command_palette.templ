@@ -1,6 +1,5 @@
 package authviews
 
-
 // CommandPalette is the keyboard-first jump menu (Ctrl/Cmd+K). It is a
 // Datastar-native combobox/listbox: the input owns the filter signal, every
 // command is a real link, and ArrowUp/ArrowDown move focus through the
@@ -10,7 +9,20 @@ package authviews
 // The dialog is a native <dialog>, so Escape, focus trapping and the backdrop
 // come from the browser. Links close it on click; a reopen starts with a
 // clean query.
-templ CommandPalette(userRole string) {
+//
+// guest keeps logged-out surfaces trap-free: anonymous GETs on the app paths
+// below are denied by RBAC policy (403 fail-closed), so for guests every link
+// routes through /login?next=<path> and lands in the app after sign-in — the
+// same pattern as the landing CTA. The shell never passes guest=true (its
+// pages require a session before it renders).
+func appHref(path string, guest bool) string {
+	if guest {
+		return "/login?next=" + path
+	}
+	return path
+}
+
+templ CommandPalette(userRole string, guest bool) {
 	<div
 		data-signals={ `{"cmdQuery":""}` }
 		data-on:keydown__window="(evt.metaKey || evt.ctrlKey) && evt.key.toLowerCase() === 'k' ? (evt.preventDefault(), document.getElementById('command-palette').showModal()) : null"
@@ -23,13 +35,12 @@ templ CommandPalette(userRole string) {
 			data-on:click="document.getElementById('command-palette').showModal()"
 		>
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-				<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+				<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
 			</svg>
 			<span class="grow text-left opacity-50 hidden sm:inline">Search</span>
 			<kbd class="kbd kbd-xs hidden sm:inline-flex">⌘</kbd>
 			<kbd class="kbd kbd-xs hidden sm:inline-flex">K</kbd>
 		</button>
-
 		<dialog
 			id="command-palette"
 			class="modal"
@@ -39,7 +50,7 @@ templ CommandPalette(userRole string) {
 				<div class="border-b border-base-300 px-4 py-3">
 					<label class="input input-ghost w-full gap-2" for="command-palette-input">
 						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 opacity-60" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-							<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+							<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
 						</svg>
 						<input
 							id="command-palette-input"
@@ -59,12 +70,12 @@ templ CommandPalette(userRole string) {
 					</label>
 				</div>
 				<ul id="command-palette-list" role="listbox" class="menu w-full max-h-96 overflow-y-auto p-2">
-					@commandLink("Collab Todo", "/todo", "Tasks")
-					@commandLink("Collab whiteboard", "/whiteboard", "Canvas")
-					@commandLink("Collab notes", "/notes", "Docs")
-					@commandLink("Chat", "/chat", "AI")
-					@commandLink("Review", "/review", "AI")
-					@commandLink("Room", "/room", "Realtime")
+					@commandLink("Collab Todo", appHref("/todo", guest), "Tasks")
+					@commandLink("Collab whiteboard", appHref("/whiteboard", guest), "Canvas")
+					@commandLink("Collab notes", appHref("/notes", guest), "Docs")
+					@commandLink("Chat", appHref("/chat", guest), "AI")
+					@commandLink("Review", appHref("/review", guest), "AI")
+					@commandLink("Room", appHref("/room", guest), "Realtime")
 					if userRole == "admin" {
 						@commandLink("Config", "/config", "Operator")
 					}

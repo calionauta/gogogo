@@ -17,7 +17,20 @@ import templruntime "github.com/a-h/templ/runtime"
 // The dialog is a native <dialog>, so Escape, focus trapping and the backdrop
 // come from the browser. Links close it on click; a reopen starts with a
 // clean query.
-func CommandPalette(userRole string) templ.Component {
+//
+// guest keeps logged-out surfaces trap-free: anonymous GETs on the app paths
+// below are denied by RBAC policy (403 fail-closed), so for guests every link
+// routes through /login?next=<path> and lands in the app after sign-in — the
+// same pattern as the landing CTA. The shell never passes guest=true (its
+// pages require a session before it renders).
+func appHref(path string, guest bool) string {
+	if guest {
+		return "/login?next=" + path
+	}
+	return path
+}
+
+func CommandPalette(userRole string, guest bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -45,7 +58,7 @@ func CommandPalette(userRole string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{"cmdQuery":""}`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 15, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 27, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -55,27 +68,27 @@ func CommandPalette(userRole string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Collab Todo", "/todo", "Tasks").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = commandLink("Collab Todo", appHref("/todo", guest), "Tasks").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Collab whiteboard", "/whiteboard", "Canvas").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = commandLink("Collab whiteboard", appHref("/whiteboard", guest), "Canvas").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Collab notes", "/notes", "Docs").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = commandLink("Collab notes", appHref("/notes", guest), "Docs").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Chat", "/chat", "AI").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = commandLink("Chat", appHref("/chat", guest), "AI").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Review", "/review", "AI").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = commandLink("Review", appHref("/review", guest), "AI").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = commandLink("Room", "/room", "Realtime").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = commandLink("Room", appHref("/room", guest), "Realtime").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -121,7 +134,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("$cmdQuery === '' || el.textContent.toLowerCase().includes($cmdQuery.trim().toLowerCase())")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 81, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 92, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -134,7 +147,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var5 templ.SafeURL
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 82, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 93, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -147,7 +160,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 83, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 94, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -160,7 +173,7 @@ func commandLink(label string, href string, hint string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(hint)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 84, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/command_palette.templ`, Line: 95, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
