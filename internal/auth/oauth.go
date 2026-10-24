@@ -358,6 +358,7 @@ func (a *Auth) OAuthCallback(w http.ResponseWriter, r *http.Request, provider st
 		http.Error(w, "login failed", http.StatusInternalServerError)
 		return
 	}
+	a.secEvent(r.Context(), evLoginSucceeded, user.ID)
 	http.SetCookie(w, a.sessionCookie(token))
 	http.Redirect(w, r, "/todo", http.StatusSeeOther)
 }

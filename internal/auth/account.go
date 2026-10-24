@@ -17,6 +17,7 @@ func (a *Auth) ChangePassword(ctx context.Context, userID, current, next string)
 		return "", ErrBadCredentials
 	}
 	if ok, _ := verifyPassword(row.PasswordHash, current); !ok {
+		a.secReject(ctx, evPasswordChangeNo, reasonBadPassword, row.Email, userID)
 		return "", ErrBadCredentials
 	}
 	if verr := validatePassword(next); verr != nil {
@@ -40,6 +41,7 @@ func (a *Auth) DisableTOTPWithPassword(ctx context.Context, userID, password str
 		return "", ErrBadCredentials
 	}
 	if ok, _ := verifyPassword(row.PasswordHash, password); !ok {
+		a.secReject(ctx, evTOTPDisableNo, reasonBadPassword, row.Email, userID)
 		return "", ErrBadCredentials
 	}
 	if rerr := a.RevokeAllSessions(ctx, userID); rerr != nil {
