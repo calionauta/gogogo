@@ -4,7 +4,7 @@
 // WHY A BROWSER CHECK. The reported failure was "I clicked Apply and nothing
 // happened". The server half was correct — the row WAS created — and the whole
 // bug was that the response aimed at `#todo-list`, which the page hosting the
-// card (Ask, Chat) does not have: the browser matched nothing, so the card sat
+// card (Chat) does not have: the browser matched nothing, so the card sat
 // there unchanged and the click read as inert. A Go test cannot see that: it
 // asserts on the response body, and the body was always right. Only a real DOM
 // with the real Datastar runtime can assert "the card the user clicked is the
@@ -27,8 +27,8 @@ try {
   });
   const v = /gogogo_auth=([^;]+)/.exec(res.headers()["set-cookie"] || "")?.[1];
   await p.context().addCookies([{ name: "gogogo_auth", value: v, domain: "127.0.0.1", path: "/" }]);
-  await p.goto(BASE + "/genui", { waitUntil: "load" });
-  await p.waitForSelector("#genui-result", { timeout: 15000 });
+  await p.goto(BASE + "/chat", { waitUntil: "load" });
+  await p.waitForSelector("#chat-messages", { timeout: 15000 });
 
   // Simulate what the model answer would render: a plan card whose action is
   // the DECLARED /api/todos with a _target naming its own slot. This is the
@@ -48,12 +48,12 @@ try {
     </div>`;
   await p.evaluate((html) => {
     document.dispatchEvent(new CustomEvent("datastar-fetch", {
-      detail: { type: "datastar-patch-elements", argsRaw: { selector: "#genui-result", mode: "outer", elements: html } },
+      detail: { type: "datastar-patch-elements", argsRaw: { selector: "#chat-messages", mode: "append", elements: html } },
     }));
-  }, `<div id="genui-result" class="mt-6">${card}</div>`);
+  }, `<div class="chat chat-start"><div class="chat-bubble"><div id="card-slot-host">${card}</div></div></div>`);
 
   check(await p.locator("#card-slot-0").count() === 1, "the card renders with its own id");
-  check((await p.locator("#genui-result").innerText()).includes("Apply"), "the card shows its Apply button");
+  check((await p.locator("#card-slot-host").innerText()).includes("Apply"), "the card shows its Apply button");
 
   // THE REPORTED BUG: click Apply on a page that has no #todo-list.
   await p.click('#card-slot-0 button[type="submit"]');

@@ -20,14 +20,14 @@ This project (__PROJECT__) was scaffolded from
 The template already ships: auth (owned argon2id + sessions), todo + realtime, background
 jobs + retry (goqite + retry-go), durable workflows (DagNats over JetStream),
 collaborative whiteboard (Loro CRDT), hybrid offline sync (Service Worker +
-NATS Leaf Node + idempotency), three UI skins, AI suggest + credits/BYOK
+NATS Leaf Node + idempotency), DaisyUI + themes, AI suggest + credits/BYOK
 (GoAI + ai-credits), and admin surfaces. Do NOT add a dependency or a parallel
 implementation before checking whether upstream already has it.
 
 1. Fetch the map: https://calionauta.github.io/gogogo/llms.txt
 2. Read the relevant page: https://calionauta.github.io/gogogo/docs/<slug>/
    (slugs: overview, getting-started, architecture, stack-layers, async-layers,
-   features, scope-taxonomy, configuration, exception-to-go, todo-example, ui-skins, ui-sounds,
+   features, scope-taxonomy, configuration, exception-to-go, todo-example, ui-themes, ui-sounds,
    deploy, desktop-mobile, admin-dashboard, llm-and-credits, local-ci,
    code-quality, troubleshooting)
 3. For non-docs files, read the upstream blob at the same path:

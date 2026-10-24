@@ -7,7 +7,7 @@
 // handler's dependencies.
 //
 // The whole file exists because a card is not the todo page: it can be rendered
-// on Ask or Chat, which host neither #todo-list nor any other region this
+// on Chat, which hosts neither #todo-list nor any other region this
 // feature owns. Aiming a response there matched nothing, so the row was created
 // and the page in front of the user did not change ("I clicked and nothing
 // happened"). Everything here is about answering where the click happened.

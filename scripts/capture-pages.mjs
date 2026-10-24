@@ -41,7 +41,6 @@ const PAGES = [
   ["login", "/login"],
   ["todo", "/todo"],
   ["chat", "/chat"],
-  ["genui", "/genui"],
   ["review", "/review"],
   ["room", "/room"],
   ["notes", "/notes"],

@@ -132,7 +132,8 @@ terminal step — the flow does not care which backend answers.
 ## Generative UI catalog (and not a React GenUI SDK)
 
 The model picks components from a fixed registry — `text_note`, `plan_cards`,
-`data_table`, `bar_chart`, `action_buttons`, nestable `section`s — and the
+`data_table`, `bar_chart`, `action_buttons`, `diagram` (Mermaid via vendored
+Pele, client-rendered SVG with source fallback), nestable `section`s — and the
 server renders them as Templ over SSE: no client framework, no JS bundle,
 trimmable like every feature.
 
@@ -154,11 +155,10 @@ trimmable like every feature.
   carries raw JSON.
 - **Exception, scoped:** chat's `html_block` lets the model compose visual
   markup the catalog cannot express — but sanitized server-side through a
-  closed allowlist (structure + classes + safe links; scripts, styles,
-  handlers, media never survive), size-capped, red-proofed. It is chat's
-  default answer form, not a last resort: the chat prompt advertises it first
-  so the two demos do not read alike. Ask AI stays catalog-only and never
-  names raw HTML: constrained generation is its showcase.
+  closed allowlist (structure + closed class vocabulary + safe links; scripts,
+  styles, handlers, media never survive), size-capped, red-proofed. It is
+  chat's default answer form: the prompt advertises it first. `GENUI_CHAT_SURFACES=catalog`
+  is the strict showcase — unknown types fail closed with one bounded repair.
 - **Revisit when:** an external AG-UI client needs the stream, or a renderer the
   model can't express in server-rendered HTML.
 
@@ -379,7 +379,7 @@ step, no second source of truth to drift.
 `todo`, `whiteboard`, `room`, `notes` ship as working pages — not because every
 app needs a todo list, but because patterns teach better than prose: todo is the
 reference MVC, whiteboard the CRDT canvas, room the actor pattern, notes the
-collaborative text. The AI demos follow the same rule: Ask AI proves constrained
+collaborative text. The AI demo follows the same rule: Chat proves constrained
 generation, chat proves persisted history, review proves a typed multi-role loop
 with a classifier judge.
 
@@ -408,7 +408,7 @@ about 15,000 lines. Trimming every unit the installer offers removes 218 of them
 about 39,700 lines, near a third of the tree. Counted on a copy of the tree with
 generated bundles excluded. Each demo is a unit the installer
 offers to strip (`whiteboard`, `goakt`, `landing`, `config-view`, `credits`,
-`sounds`, `skins`, `review`, `genui`, `dagnats`) or a documented manual removal
+`sounds`, `review`, `genui`, `dagnats`) or a documented manual removal
 (`todo`, `notes`), and every demo rots if its pattern drifts from the core.
 Revisit per demo: anything nobody copies in real scaffolds is a deletion
 candidate, not heritage.

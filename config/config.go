@@ -28,8 +28,6 @@
 //	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
 //	DAGNATS_STORE_DIR   (default: "data/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
-//	UI_SKIN              (default: "daisyui") — active UI skin (one ships; see web/skins/)
-//	                       (see web/skins/)
 //	SEARCH_MODE          (default: "substring") — todo search layer:
 //	                       "substring" | "fuzzy" | "bm25"; unknown values
 //	                       fall back to substring (see config/search.go)
@@ -231,12 +229,6 @@ type Config struct {
 		DBPath    string // local file used when URL is empty
 	}
 
-	// Skin selects the active UI skin. One ships ("daisyui"), and it is the
-	// template's core theme; the registry in web/skins/ exists so adding another
-	// is a docs page, not a refactor. Visual variants are DaisyUI themes, not
-	// skins (docs/ui-skins.md). Resolved at runtime; no build tag.
-	Skin string
-
 	// ChiAddr overrides the flat-stack listen address (owned auth +
 	// sqlc todo slice + every ported feature). Empty uses Host:Port,
 	// the shape every other frontend binds. cmd/desktop sets it so the
@@ -250,10 +242,10 @@ type Config struct {
 	// and docs/review.md for the customization contract.
 	Review ReviewConfig
 
-	// AskRouter opts the Ask AI page into that same jev-compatible
+	// ChatRouter opts Chat into that same jev-compatible
 	// endpoint as a component router (JEV_ROUTER_* env, off by default).
-	// See config/ask_router.go and docs/configuration.md.
-	AskRouter AskRouterConfig
+	// See config/chat_router.go and docs/configuration.md.
+	ChatRouter ChatRouterConfig
 
 	// GenUI holds the per-leg AI answer surfaces (GENUI_*_SURFACES env).
 	// See config/genui.go.
@@ -365,9 +357,8 @@ func Load() *Config {
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")
 	cfg.Turso.DBPath = getEnv("TURSO_DB_PATH", "data/app.db")
 	cfg.ChiAddr = getEnv("CHI_ADDR", "")
-	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 	cfg.loadReviewEnv()
-	cfg.loadAskRouterEnv()
+	cfg.loadChatRouterEnv()
 	cfg.loadGenUIEnv()
 
 	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)

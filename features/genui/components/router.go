@@ -1,6 +1,6 @@
-// SCOPE:plugin — the optional decision router in front of the Ask prompt.
+// SCOPE:plugin — the optional decision router in front of the Chat prompt.
 // Split from responders.go for the file-size gate: responders.go holds the
-// model legs, this file holds the seam that picks what the prompt leads
+// model leg, this file holds the seam that picks what the prompt leads
 // with and the one place that pick reaches the model.
 package components
 
@@ -11,44 +11,26 @@ import (
 )
 
 // Router decides which component an answer should lead with. The production
-// implementation asks a jev-compatible classifier (features/genui/handlers);
-// tests pass a stub. It reports a NAME only — never props, never the answer —
-// because the router answers "which shape", and the model still composes the
-// content for the request it was given.
+// implementation is the chat slice's jev-compatible classifier
+// (features/chat/handlers); tests pass a stub. It reports a NAME only —
+// never props, never the answer — because the router answers "which shape",
+// and the model still composes the content for the request it was given.
 //
 // An empty name is not a failure: it means "no confident pick", and the
 // whole catalog is offered exactly as if no router existed. Only a
-// transport error is an error, and AskPrompt logs it and falls back too —
-// a router that is on but unusable must never fail a request.
+// transport error is an error, and ConversationPrompt logs it and falls
+// back too — a router that is on but unusable must never fail a request.
 type Router interface {
-	// Choose is the legacy 1-arg form: the Ask default vocabulary.
+	// Choose is the legacy 1-arg form: the Chat default vocabulary.
 	Choose(ctx context.Context, request string) (string, error)
-	// ChooseFor is the surface-aware form. Both legs call this, so a pick is
-	// always confined to the vocabulary the leg actually advertises.
+	// ChooseFor is the surface-aware form. The Chat leg calls this, so a
+	// pick is always confined to the vocabulary it advertises.
 	ChooseFor(ctx context.Context, request string, surfaces []Surface) (string, error)
 }
 
-// AskPrompt composes the Ask prompt for one request. This is the single
-// place the router's pick can reach the model, which is what makes "the
-// router changes nothing when off" provable instead of asserted: with no
-// router the result is byte-identical to
-// PromptForCatalog()+"\nUser request: "+request, and TestAskPromptRouterOff
-// pins that.
-//
-// surfaces is the enabled vocabulary (nil = the Ask defaults).
-func AskPrompt(ctx context.Context, router Router, request string, surfaces []Surface) string {
-	surfaces = NormalizeSurfaces(surfaces)
-	name, ok := routerPick(ctx, router, surfaces, request)
-	if !ok {
-		return promptForRequest(PromptForCatalogSurfaces(surfaces), request)
-	}
-	return promptForRequest(PromptForCatalogLeadSurfaces(name, surfaces), request)
-}
-
-// ConversationPrompt is the chat leg's counterpart. It exists so the router
-// reaches both legs through one implementation instead of chat building its
-// own prompt string inline, which is how the two legs drifted apart in the
-// first place.
+// ConversationPrompt composes the Chat prompt for one request. This is the
+// single place the router's pick can reach the model, which is what makes
+// "the router changes nothing when off" provable instead of asserted.
 func ConversationPrompt(ctx context.Context, router Router, request string, surfaces []Surface) string {
 	surfaces = NormalizeSurfaces(surfaces)
 	base := PromptForSurfaces(surfaces)
@@ -60,10 +42,10 @@ func ConversationPrompt(ctx context.Context, router Router, request string, surf
 
 // routerPick asks the router for a lead component and reports whether the
 // answer is usable for THIS surface set. Every miss — no router, a transport
-// error, a low-confidence pick, a name the leg does not advertise — is
-// (…, false), never an error: the tab is already showing a spinner, so the
-// fallback IS the feature working. The result is checked against the
-// announced set, so a router can never point a leg at a surface it lacks.
+// error, a low-confidence pick, a name not advertised — is (…, false), never
+// an error: the tab is already showing a spinner, so the fallback IS the
+// feature working. The result is checked against the announced set, so a
+// router can never point the leg at a surface it lacks.
 func routerPick(ctx context.Context, router Router, surfaces []Surface, request string) (string, bool) {
 	if router == nil {
 		return "", false
@@ -73,7 +55,7 @@ func routerPick(ctx context.Context, router Router, surfaces []Surface, request 
 		// Logged, because a router that always fails is a misconfiguration an
 		// operator has to be able to see (a silent fallback looks exactly like
 		// an unused router).
-		observability.Warn(ctx, "genui: ask router unavailable — offering the whole catalog",
+		observability.Warn(ctx, "genui: chat router unavailable — offering the whole catalog",
 			append(observability.WithComponent("genui", "feature"), "err", err.Error())...)
 		return "", false
 	}
@@ -83,7 +65,7 @@ func routerPick(ctx context.Context, router Router, surfaces []Surface, request 
 	return name, true
 }
 
-// promptForRequest is the one shape every leg shares, so the router path and
+// promptForRequest is the one shape the leg uses, so the router path and
 // the plain path cannot drift apart.
 //
 // NOTE: the envelope stays prompt-embedded on purpose. Wiring the provider's

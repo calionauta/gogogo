@@ -17,7 +17,7 @@ func TestNotesPageBreadcrumbsIndex(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	meta := components.NoteMeta{DocID: "n0te1", Author: "a@b.c", IsMine: true, CanDelete: true}
-	if err := components.NotesPage("a@b.c", "user", meta, "hello", 7, "dev", "", "daisyui").
+	if err := components.NotesPage("a@b.c", "user", meta, "hello", 7, "dev", "").
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("NotesPage: %v", err)
 	}

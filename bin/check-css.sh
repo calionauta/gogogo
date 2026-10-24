@@ -36,4 +36,4 @@ if [ ${#stale[@]} -gt 0 ]; then
   echo "   Run \`make css\` and stage web/resources/static/"
   exit 2
 fi
-echo "✅ CSS up to date (both skins)"
+echo "✅ CSS up to date"

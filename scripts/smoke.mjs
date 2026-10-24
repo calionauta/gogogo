@@ -27,14 +27,14 @@ const USER_PASS = "SmokeUserPass!123";
 // load, and its live column is a Datastar patch target (#chat-messages) whose
 // failure mode was invisible without a browser (nested container → doubled
 // answers). Loading it catches a broken patch target and any JS error on load.
-const ROUTES = ["/todo", "/chat", "/whiteboard", "/room", "/login", "/genui", "/review"];
+const ROUTES = ["/todo", "/chat", "/whiteboard", "/room", "/login", "/review"];
 
 // Trim-aware gating: a trimmed checkout must neither fail on routes that
 // no longer exist nor silently pass over them. SMOKE_FEATURES lists the
 // features present (default: the full template surface); trim output
 // (installer Warns) tells you the value to use. Unknown names fail fast:
 // a typo must never read as "trimmed".
-const ALL_FEATURES = ["todo", "chat", "whiteboard", "room", "login", "genui", "review"];
+const ALL_FEATURES = ["todo", "chat", "whiteboard", "room", "login", "review"];
 const FEATURES = (process.env.SMOKE_FEATURES || ALL_FEATURES.join(",")).split(",");
 for (const f of FEATURES) {
   if (!ALL_FEATURES.includes(f)) {
@@ -56,13 +56,13 @@ const fail = (msg) => {
 // and left /review's Run button disabled at load with no way to submit
 // (the only handler that clears the signal lives on the unwirable form).
 // Keyed by the routes this run visits (GATED_ROUTES).
-const SEEDED_SIGNALS = { "/genui": "genui_pending", "/review": "review_pending" };
+const SEEDED_SIGNALS = { "/review": "review_pending" };
 
 // Route → the submit control that must be USABLE on load. A disabled control
 // here means the page is born in a stuck state: nothing the user does can
 // clear a signal that only its own submit handler clears (and the form that
 // would is the one holding the dead button).
-const ENABLED_ON_LOAD = { "/genui": "button[data-attr\\:disabled]", "/review": "#review-composer button" };
+const ENABLED_ON_LOAD = { "/review": "#review-composer button" };
 
 const tmp = mkdtempSync(join(tmpdir(), "gogogo-smoke-"));
 const runtimeDir = join(tmp, "runtime");
@@ -774,7 +774,7 @@ try {
   // Every module page offers the panel: the machinery is a property of the
   // module, not of /todo. A page that stops passing a Panel loses its toggle
   // silently otherwise.
-  for (const route of ["/todo", "/chat", "/genui", "/review"]) {
+  for (const route of ["/todo", "/chat", "/review"]) {
     await page.goto(BASE + route, { waitUntil: "load", timeout: 20000 });
     if (!(await page.locator(".app-demo-toggle").isVisible())) {
       fail(`demo mode: ${route} has no How it works toggle (did it stop passing a Panel?)`);

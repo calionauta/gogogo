@@ -92,7 +92,8 @@ type ActionButtonsProps struct {
 // catalog cannot express (a timeline, a comparison, a dashboard invented
 // for this request). The HTML is sanitized at parse time — the model
 // styles with Tailwind/DaisyUI classes, never scripts, styles, handlers
-// or media. Chat-only affordance: the Ask prompt never advertises it.
+// or media. Chat advertises it through the custom surface; a catalog-only
+// surface set never does.
 type HTMLBlockProps struct {
 	instanceID
 	HTML string `json:"html"`
@@ -131,6 +132,16 @@ type DataTableProps struct {
 	Rows    [][]string `json:"rows"`
 }
 
+// DiagramProps is a Mermaid diagram rendered client-side with Pele.
+// Source is raw Mermaid syntax (flowchart, sequence, class, state, ER,
+// gantt, pie, mindmap, ...). The model emits text only; the browser
+// turns it into SVG. Server validates shape, never renders SVG.
+type DiagramProps struct {
+	instanceID
+	Source string `json:"source"`
+	Title  string `json:"title,omitempty"`
+}
+
 // catalogLeafNames is the shared catalog band: one spelling per component, so a
 // rename cannot land in the registry but miss the prompt (or the reverse).
 // Declared one per line on purpose — a const BLOCK gets its '=' signs aligned
@@ -141,11 +152,15 @@ const (
 	dataTableName     = "data_table"
 	barChartName      = "bar_chart"
 	actionButtonsName = "action_buttons"
+	diagramName       = "diagram"
 )
 
 // catalogLeafNames is the band's membership and order in one place: the
 // registry, the prompt fragments and the surface rules all read it.
-var catalogLeafNames = []string{textNoteName, planCardsName, dataTableName, barChartName, actionButtonsName}
+var catalogLeafNames = []string{
+	textNoteName, planCardsName, dataTableName,
+	barChartName, actionButtonsName, diagramName,
+}
 
 // renderer decodes untrusted props into a component or fails.
 type renderer func(map[string]any) (templ.Component, error)
@@ -154,9 +169,9 @@ type renderer func(map[string]any) (templ.Component, error)
 // (see Registered) and renders its children instead of props.
 const sectionName = "section"
 
-// htmlBlockName is chat's invented-markup affordance. Ask never
-// advertises it (see PromptForChat vs PromptForCatalog), so anything that
-// chooses a component for Ask must treat this name as out of catalog.
+// htmlBlockName is the invented-markup affordance, advertised only when
+// the custom surface is enabled (see advertisedAs), so a catalog-only
+// surface set must treat this name as out of catalog.
 const htmlBlockName = "html_block"
 
 func decodeProps[T any](props map[string]any) (T, error) {
@@ -176,7 +191,7 @@ func decodeProps[T any](props map[string]any) (T, error) {
 // renderers is the catalog: every name the prompt advertises resolves
 // here, or ParseDirectives rejects the whole answer. Add a component by
 // adding one entry plus its Templ renderer — the prompt, validation and
-// tests follow from this map (see Registered, PromptForCatalog).
+// tests follow from this map (see Registered, PromptForSurfaces).
 var renderers = map[string]renderer{
 	"text_note": func(props map[string]any) (templ.Component, error) {
 		p, err := decodeProps[TextNoteProps](props)
@@ -284,6 +299,17 @@ var renderers = map[string]renderer{
 		}
 		return GenuiHTMLBlock(p.ID, clean), nil
 	},
+	diagramName: func(props map[string]any) (templ.Component, error) {
+		p, err := decodeProps[DiagramProps](props)
+		if err != nil {
+			return nil, err
+		}
+		src, err := CleanDiagramSource(p.Source)
+		if err != nil {
+			return nil, err
+		}
+		return GenuiDiagram(p.ID, p.Title, src), nil
+	},
 }
 
 // checkAction enforces the same-origin contract: action buttons post
@@ -322,11 +348,11 @@ func Registered(name string) bool {
 	return ok
 }
 
-// CatalogComponents lists the names a leg may lead with under the DEFAULT Ask
-// surface set. Kept as a wrapper so existing callers (and the router's default
-// path) read unchanged; new code should pass its surface set explicitly.
+// CatalogComponents lists the names Chat may lead with under its default
+// surface set. Kept as a wrapper so the router's default path reads
+// unchanged; new code should pass its surface set explicitly.
 func CatalogComponents() []string {
-	return CatalogComponentsFor(DefaultSurfacesAsk)
+	return CatalogComponentsFor(DefaultSurfacesChat)
 }
 
 // CatalogComponentsFor lists the names a leg with this surface set may lead

@@ -51,7 +51,7 @@ const (
 // BoardListWithRealtime renders the board list with its live regions. The
 // document, assets, sidebar, header and toasts belong to internal/ui.Shell;
 // this file is the page.
-templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
+templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Collab whiteboard — gogogo",
 		Module:      "whiteboard",
@@ -60,7 +60,6 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		OfflineSync: offlineSync,
 		Stack:       boardsStack(),
 		StreamPage:  true,
@@ -202,7 +201,7 @@ templ deleteBoardModal() {
 // work area: the canvas owns the rectangle, so the shell drops its padding and
 // gives the column the height. data-doc-id rides the wrapper (whiteboard.js
 // reads it back as window.WB_DOC_ID) because the shell owns <main>.
-templ Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
+templ Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Collab whiteboard " + meta.DocID + " — gogogo",
 		Module:      "whiteboard",
@@ -214,7 +213,6 @@ templ Board(email string, userRole string, meta BoardMeta, buildLabel string, bu
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		OfflineSync: offlineSync,
 		Stack: []components.TechItem{
 			{Name: "SSEHub", Note: "shape ops fan out to every tab"},

@@ -14,12 +14,12 @@ import (
 	"github.com/calionauta/gogogo/internal/queue"
 )
 
-// TestDispatchIgnoresForeignResults pins that genui/chat result
-// envelopes are consumed silently (handled, no error) instead of
-// falling through to the lastJob debug merge.
+// TestDispatchIgnoresForeignResults pins that chat result envelopes are
+// consumed silently (handled, no error) instead of falling through to
+// the lastJob debug merge.
 func TestDispatchIgnoresForeignResults(t *testing.T) {
 	f := newSuggestFixture(t, false, false)
-	for _, typ := range []string{"genui", "chat"} {
+	for _, typ := range []string{"chat"} {
 		body, err := json.Marshal(queue.Job{Type: typ, Payload: json.RawMessage(`{}`)})
 		if err != nil {
 			t.Fatalf("marshal %s envelope: %v", typ, err)

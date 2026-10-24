@@ -241,7 +241,7 @@ or the CDN), never a stale asset: changed bytes are a different URL. A bare
 exists for old bookmarks, and a 304 from it proves the origin is current.
 
 Everything is versioned: the theme/app bundles and the scripts emitted by the
-skin asset blocks go through `resources.StaticURL`, the feature bundles through
+shared asset block go through `resources.StaticURL`, the feature bundles through
 their own `URL()` helper (`features/notes`, `features/whiteboard`), the two
 helpers baked into shared templates (`/static/sse-open.js`,
 `/static/session.js`) through `StaticURL`, and the scaffolded page

@@ -1,5 +1,9 @@
 # UI engine research (2026-10-21)
 
+> Superseded in part: the pluggable-skins architecture evaluated here was
+> removed — the template ships one component library (DaisyUI v5) plus
+> themes (`docs/ui-themes.md`). The engine decision (keep templ) stands.
+
 Evaluation date: **2026-10-21**. Scope: pick the UI engine and component line for
 this template after the `gsx` proposal in issue #188. Numbers below were
 measured on the shared ARM64 host (4 vCPU, Go 1.27.2, `GOMAXPROCS=2`), not

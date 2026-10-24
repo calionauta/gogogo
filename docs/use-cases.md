@@ -112,7 +112,7 @@ Runtime off: unset `GOAI_API_KEY` (suggest button hides).
   metering via `credits`.
 - Generative UI: the model picks cards/tables/sections from a fixed
   catalog and the server renders them (`features/genui`, demo at
-  `/genui`). Unknown component types fail closed — the model never
+  `/chat`). Unknown component types fail closed — the model never
   emits markup.
 
 Not for: orchestration, memory, tool loops, supervision — single
@@ -161,10 +161,9 @@ Runtime off: `OFFLINE_SYNC_ENABLED=false`.
 Not for: conflict *resolution* on merge (that is `collab`); pure
 read-only offline pages (a cached shell needs none of this).
 
-### `sounds`, `skins`, `datastar`, `components` (plugins)
+### `sounds`, `datastar`, `components` (plugins)
 
-Small surface: UI sound cues (`sounds`, offered), non-default skins
-(`skins-extra`, offered), rendering helpers and shared UI plumbing
+Small surface: UI sound cues (`sounds`, offered), rendering helpers and shared UI plumbing
 (`datastar`, `components` — manual removal). Audible feedback and
 theming only; no business logic depends on them.
 

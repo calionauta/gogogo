@@ -27,7 +27,6 @@ import (
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
 	"github.com/calionauta/gogogo/web/resources"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // bareAssetRE matches a static asset reference without a fingerprint.
@@ -44,11 +43,11 @@ func renderAll(t *testing.T) string {
 	}
 	parts := []string{
 		renderOrFail(t, TodoList(signals)),
-		renderOrFail(t, authviews.LoginPage("", "", "daisyui")),
+		renderOrFail(t, authviews.LoginPage("", "")),
 		renderOrFail(t, authviews.UserMenu("u@example.com", "user")),
 		renderOrFail(t, authviews.ThemeHead()),
 		renderOrFail(t, ui.ThemeSelector()),
-		renderOrFail(t, skins.ActiveAssets("daisyui")),
+		renderOrFail(t, components.Assets()),
 		renderOrFail(t, components.SessionBanner(true)),
 		renderOrFail(t, components.StreamOpener("tab-1", "/api/todos/stream", false)),
 	}

@@ -19,7 +19,7 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 
 `Data` carries: `Title`, `Module` (id used for the active nav item), `Heading`,
 `Context` (one line of state), `Email`, `Role`, `BuildLabel`, `BuildCommit`,
-`Skin`, `Signals` (the page's own seed JSON), `Stack` (`[]TechItem`), `Demo`,
+`Signals` (the page's own seed JSON), `Stack` (`[]TechItem`), `Demo`,
 `Panel`, `OfflineSync`, `StreamPage`, `FullBleed`.
 
 **`Panel` is nil for a reason.** A page passes a panel only when it has a
@@ -86,6 +86,6 @@ link.
 
 ## Related
 
-- [UI skins and themes](ui-skins.md)
+- [UI themes](ui-themes.md)
 - [UI sounds](ui-sounds.md)
 - [Local CI](local-ci.md) — `bin/red-proof-ui.sh` proves the guards around this.

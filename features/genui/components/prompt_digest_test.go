@@ -2,8 +2,8 @@
 //
 // The todo feature proves a ROW reaches the digest (features/todo/handlers).
 // This proves the WIRING: composePrompt concatenates that digest into the
-// prompt each leg sends. Without it, a refactor could drop the concatenation and
-// every other test would stay green while Ask and Chat silently went back to
+// prompt the leg sends. Without it, a refactor could drop the concatenation and
+// every other test would stay green while Chat silently went back to
 // inventing the user's data — the original reported bug.
 package components
 
@@ -13,26 +13,18 @@ import (
 	"testing"
 )
 
-// TestBothLegsComposeRealDataIntoThePrompt is the wiring proof.
+// TestComposeRealDataIntoThePrompt is the wiring proof.
 //
-// It calls the SAME composePrompt each Respond calls, so removing the
-// `+ dataContextBlock(...)` from either leg fails this test.
-func TestBothLegsComposeRealDataIntoThePrompt(t *testing.T) {
+// It calls the SAME composePrompt Respond calls, so removing the
+// `+ dataContextBlock(...)` fails this test.
+func TestComposeRealDataIntoThePrompt(t *testing.T) {
 	// The summarizing stub is installed once in TestMain (the registry is
 	// install-once), so its digest is a known constant here.
 	const summary = digestStubSummary
 	ctx := context.Background()
 	const owner = "wiring-owner"
 
-	ask := llmResponder{owner: owner}.composePrompt(ctx, "plan my day")
-	if !strings.Contains(ask, "Reference data for the signed-in user") {
-		t.Errorf("Ask prompt has no data section:\n%s", ask)
-	}
-	if !strings.Contains(ask, summary) {
-		t.Errorf("Ask prompt lost the digest text:\n%s", ask)
-	}
-
-	chat := chatLLMResponder{owner: owner}.composePrompt(ctx, "plan my day")
+	chat := llmResponder{owner: owner, chat: true}.composePrompt(ctx, "plan my day")
 	if !strings.Contains(chat, "Reference data for the signed-in user") {
 		t.Errorf("Chat prompt has no data section:\n%s", chat)
 	}

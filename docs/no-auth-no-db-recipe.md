@@ -20,7 +20,7 @@ Owner resolution has three choke points; everything else funnels through them:
 2. Per-feature owner helpers — `ownerSession` in
    `features/todo/handlers/chi.go` (the reference shape), plus session reads in
    `features/notes/handlers/chi.go`, `features/whiteboard/handlers/chi.go`,
-   `features/chat/handlers/chi.go`, `features/genui/handlers/chi.go`,
+   `features/chat/handlers/chi.go`,
    `features/room/handlers/chi.go`, `features/landing/handlers/chi.go`,
    `features/config/handlers/chi.go`, `features/credits/handlers/chi.go`,
    `features/onboarding/onboarding.go`. Fourteen call sites total —

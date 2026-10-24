@@ -14,7 +14,7 @@ individual notes.
 |---|---|---|
 | [UI engine research](ui-engine-research.md) | 2026-10-21 | templ vs gsx vs quicktemplate vs gomponents vs html/template: render performance, diagnostics and forkability |
 | [UI components comparison](ui-components-2026-10-21.md) | 2026-10-21 | DaisyUI vs Starbase vs datastar-ui vs dsx: Datastar/SSE fit, lightness, functionality, maintainability |
-| [UI skins](../ui-skins.md) | living | the chosen skin architecture and how DaisyUI, Basecoat and shadcn coexist |
+| [UI themes](../ui-themes.md) | living | the DaisyUI + themes architecture (single component library, palette catalog) |
 
 ## Stack and runtime tradeoffs
 

@@ -48,13 +48,14 @@ func dataContextBlock(ctx context.Context, owner string) string {
 		"otherwise ignore it entirely -- do not mention, summarize, or render it:\n" + summary
 }
 
-// llmResponder asks a real model for catalog directives. The router, when one
+// llmResponder asks a real model for Chat directives. The router, when one
 // is wired, only decides which component the prompt leads with.
 type llmResponder struct {
 	client   *llm.Client
 	router   Router
 	surfaces []Surface
 	owner    string
+	chat     bool
 }
 
 func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error) {
@@ -68,7 +69,7 @@ func (r llmResponder) Respond(ctx context.Context, prompt string) (string, error
 // network (or assert on source text) would not catch it. Respond is now the
 // transport call and nothing else.
 func (r llmResponder) composePrompt(ctx context.Context, prompt string) string {
-	return AskPrompt(ctx, r.router, prompt, r.surfaces) + dataContextBlock(ctx, r.owner)
+	return ConversationPrompt(ctx, r.router, prompt, r.surfaces) + dataContextBlock(ctx, r.owner)
 }
 
 // WithOwner implements OwnerContext.
@@ -77,62 +78,18 @@ func (r llmResponder) WithOwner(owner string) Responder {
 	return r
 }
 
-// chatLLMResponder asks a real model with the chat surface set (the catalog
-// plus, by default, the invented-visual html_block path) and, when one is
-// wired, the same router Ask uses — a conversation deserves the same decision
-// about which component should lead an answer.
-type chatLLMResponder struct {
-	client   *llm.Client
-	router   Router
-	surfaces []Surface
-	owner    string
-}
-
-func (r chatLLMResponder) Respond(ctx context.Context, prompt string) (string, error) {
-	return r.client.Chat(ctx, r.composePrompt(ctx, prompt))
-}
-
-// composePrompt is the chat leg's counterpart to llmResponder.composePrompt,
-// extracted for the same testability reason.
-func (r chatLLMResponder) composePrompt(ctx context.Context, prompt string) string {
-	return ConversationPrompt(ctx, r.router, prompt, r.surfaces) + dataContextBlock(ctx, r.owner)
-}
-
-// WithOwner implements OwnerContext.
-func (r chatLLMResponder) WithOwner(owner string) Responder {
-	r.owner = owner
-	return r
-}
-
 // demoResponder is the keyless showcase: deterministic directives,
 // labeled as demo data. Same role as SIMULATE_LLM in todo — the feature
-// works with zero keys. The answer is a field because the two legs
-// demonstrate different halves of the split: Ask shows the catalog, Chat
-// shows the visual the model composes for the request (demoChatAnswer).
+// works with zero keys.
 type demoResponder struct{ answer string }
 
+// demoAnswer is the keyless Chat showcase: the invented visual the model
+// composes for a request. It is sanitized and rendered exactly like a live
+// answer — one class-only grid, no styles, scripts or media — and HTML
+// attributes are single-quoted so the markup nests in JSON without escaping.
+// Red-proof: the assertion that the demo carries an html_block fails if the
+// answer is ever replaced by prose alone.
 const demoAnswer = `{"components":[` +
-	`{"type":"text_note","props":{"text":"Demo answer — connect GOAI_API_KEY for live model output."}},` +
-	`{"type":"bar_chart","props":{"title":"This week","bars":[` +
-	`{"label":"Mon","value":3},{"label":"Tue","value":5},{"label":"Wed","value":2}]}},` +
-	`{"type":"plan_cards","props":{"plans":[` +
-	`{"title":"Ship the Ask panel","detail":"wire a real prompt through this same path"},` +
-	`{"title":"Grow the catalog","detail":"one registry entry per new component"}]}},` +
-	`{"type":"action_buttons","props":{"actions":[` +
-	`{"label":"Add demo todo","method":"POST","url":"/api/todos","fields":{"title":"Demo from Ask"}}]}},` +
-	`{"type":"data_table","props":{"headers":["Component","Renders"],` +
-	`"rows":[["text_note","prose card"],["plan_cards","apply buttons"],["data_table","this table"]]}}]}`
-
-// demoChatAnswer is the keyless Chat showcase: the invented-visual half of
-// the split as its OWN answer, so a keyless run still shows the difference
-// between the two demos (both used to answer with the catalog). It is
-// sanitized and rendered exactly like a live answer — one class-only grid,
-// no styles, scripts or media — and HTML attributes are single-quoted so the
-// markup nests in JSON without escaping. Red-proof: render it without
-// SanitizeHTML and the class-only grid still works, but the assertion that
-// the chat demo carries an html_block is what fails if the two answers are
-// ever collapsed back into one.
-const demoChatAnswer = `{"components":[` +
 	`{"type":"html_block","props":{"html":"` +
 	`<div class='grid grid-cols-1 sm:grid-cols-3 gap-3'>` +
 	`<div class='card bg-base-200 p-4'><p class='text-xs uppercase opacity-60'>Monday</p>` +
@@ -175,33 +132,14 @@ func (e errResponder) WithOwner(string) Responder { return e }
 // the deterministic demo, neither is a fail-closed error (the worker
 // releases the spinner through the error result either way). router is
 // optional (nil = off) and is consulted only for the real-model leg: the
-// demo answers are fixed, so routing them would be a lie. surfaces is the
-// enabled answer vocabulary (nil = the Ask defaults).
+// demo answer is fixed, so routing it would be a lie. surfaces is the
+// enabled answer vocabulary (nil = Chat defaults).
 func NewResponder(real, simulated *llm.Client, router Router, surfaces []Surface) Responder {
 	if real != nil && real.Configured() {
-		return llmResponder{client: real, router: router, surfaces: surfaces}
+		return llmResponder{client: real, router: router, surfaces: surfaces, chat: true}
 	}
 	if simulated != nil && simulated.Configured() {
 		return demoResponder{answer: demoAnswer}
-	}
-	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
-}
-
-// NewChatResponder is the chat leg: same fallback shape as NewResponder,
-// but the real model gets the chat surface set (invented visual first,
-// catalog for what markup cannot do) instead of the Ask defaults, and the
-// keyless demo answers with its own invented-visual demoChatAnswer rather
-// than the catalog demo.
-//
-// The router is the SAME Router Ask uses (nil = off): once both legs speak
-// from one surface vocabulary, deciding which component should lead is not a
-// question specific to one-shot answers.
-func NewChatResponder(real, simulated *llm.Client, router Router, surfaces []Surface) Responder {
-	if real != nil && real.Configured() {
-		return chatLLMResponder{client: real, router: router, surfaces: surfaces}
-	}
-	if simulated != nil && simulated.Configured() {
-		return demoResponder{answer: demoChatAnswer}
 	}
 	return errResponder{err: errors.New("genui: no LLM configured (GOAI_API_KEY or SIMULATE_LLM=true)")}
 }

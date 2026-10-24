@@ -1,11 +1,11 @@
-// SCOPE:plugin — the model-facing instructions for both answer shapes.
+// SCOPE:plugin — the model-facing instructions for the Chat answer shape.
 // Split from catalog.go for the 500-line file gate: the registry decides
 // what RENDERS, this file decides what the model is TOLD.
 //
-// Both legs are built from the same pieces (fragments), and the SURFACE SET
-// decides which pieces appear — see surface.go. That is what lets the two legs
-// differ by mode and by an operator toggle rather than by two hand-maintained
-// prompts that drift.
+// The prompt is built from pieces (fragments), and the SURFACE SET
+// decides which pieces appear — see surface.go. That is what lets an operator
+// toggle the vocabulary rather than maintaining two hand-written prompts
+// that drift.
 package components
 
 import "strings"
@@ -43,6 +43,10 @@ func leafFragment(name string) string {
 			return actionButtonsName + " {actions:[{label, method:POST|GET, url:<one declared below>, fields:{}}]}, "
 		}
 		return ""
+	case diagramName:
+		return diagramName + " {source: mermaid code " +
+			"(flowchart, sequenceDiagram, classDiagram, stateDiagram, " +
+			"erDiagram, gantt, pie, mindmap, ...), title?}, "
 	}
 	return ""
 }
@@ -105,34 +109,15 @@ func customGuidance(surfaces []Surface) string {
 		"svg and images are stripped, so put every style in a class. "
 }
 
-// PromptForCatalog is the catalog-only leg (Ask's default).
-func PromptForCatalog() string {
-	return promptForSurfaces(DefaultSurfacesAsk)
-}
-
-// PromptForCatalogSurfaces is the catalog leg's prompt for an explicit surface
-// set — the entry AskPrompt uses, with PromptForCatalog as the default-set
-// convenience.
-func PromptForCatalogSurfaces(surfaces []Surface) string {
-	return promptForSurfaces(surfaces)
-}
-
-// PromptForSurfaces is the shared entry point: both legs build their prompt
-// through here, so the SURFACE SET — not the leg — decides the vocabulary.
+// PromptForSurfaces is the entry point: the SURFACE SET decides the
+// vocabulary. Chat calls it with its configured set.
 func PromptForSurfaces(surfaces []Surface) string {
 	return promptForSurfaces(surfaces)
 }
 
-// PromptForCatalogLead is the router's variant: the catalog stays fully
-// advertised on purpose (see router.go), and the lead hint is dropped when the
-// pick is not in the enabled vocabulary — including a chat-only name, which is
-// what keeps a classifier from reaching the invented-markup surface.
-func PromptForCatalogLead(lead string) string {
-	return PromptForCatalogLeadSurfaces(lead, DefaultSurfacesAsk)
-}
-
-// PromptForCatalogLeadSurfaces is PromptForCatalogLead for an explicit surface
-// set.
+// PromptForCatalogLeadSurfaces is the router's variant: the catalog stays
+// fully advertised on purpose (see router.go), and the lead hint is dropped
+// when the pick is not in the enabled vocabulary.
 func PromptForCatalogLeadSurfaces(lead string, surfaces []Surface) string {
 	base := promptForSurfaces(surfaces)
 	if lead == "" || !Registered(lead) || !advertisedAs(lead, surfaces) {
@@ -144,12 +129,11 @@ func PromptForCatalogLeadSurfaces(lead string, surfaces []Surface) string {
 // PromptForChat is Chat's default surface: the catalog plus the invented-visual
 // escape hatch.
 //
-// Ask demonstrates answers shaped by a fixed catalog, chat answers with a
-// component invented for THIS request; the model composes Tailwind/DaisyUI
-// markup itself — sanitized server-side, so scripts, styles, handlers and
-// media never reach the browser — and reaches for the catalog only where
-// markup cannot act (a form posting to this app) or would render a fact worse
-// than the catalog already does.
+// Chat answers with a component invented for THIS request; the model composes
+// Tailwind/DaisyUI markup itself — sanitized server-side, so scripts, styles,
+// handlers and media never reach the browser — and reaches for the catalog
+// only where markup cannot act (a form posting to this app) or would render
+// a fact worse than the catalog already does.
 func PromptForChat() string {
 	return promptForSurfaces(DefaultSurfacesChat)
 }

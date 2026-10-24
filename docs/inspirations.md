@@ -41,7 +41,7 @@ that names the Static → Declarative → Open-Ended spectrum we sit on.
 What carried over (no dependency, no vendored code — the shape only):
 
 - **Static + a sandboxed escape hatch in the same catalog** is the
-  pattern the report recommends; our Ask (catalog-only) and Chat
+  pattern the report recommends; our Chat (catalog + invented visual)
   (`html_block`) already are that pair, with the escape hatch constrained
   by sanitizer + class vocabulary instead of an iframe.
 - **Catalog advertised to the model** so "advertised" and "resolvable"

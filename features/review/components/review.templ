@@ -20,7 +20,7 @@ import (
 // The title, the one-line demo sentence and the stack pills that used to open
 // the page are gone: the layers live in the sidebar's stack key, and the
 // header carries state ("writer → critic → judge, N rounds") instead of prose.
-templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, skinName string, demo bool) {
+templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit string, signals Signals, demo bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Review — gogogo",
 		Module:      "review",
@@ -29,7 +29,6 @@ templ ReviewIndex(email string, userRole string, buildLabel string, buildCommit 
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		OfflineSync: true,
 		Signals:     MarshalSignals(signals),
 		Demo:        demo,

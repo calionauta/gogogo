@@ -7,7 +7,7 @@
 // included. So the natural-looking `data-attr:disabled="$a && !$b"` evaluates
 // to `""` on a fresh page (the `&&` returns its left operand) and the control is
 // BORN DISABLED: "Run durable workflow" and the delete-confirm "Delete" were
-// both permanently disabled on /todo in every skin. Nothing in a Go test could
+// both permanently disabled on /todo. Nothing in a Go test could
 // see it, because the render was correct and only the browser's evaluation was
 // wrong.
 //
@@ -56,29 +56,19 @@ func TestRenderedDisabledAttrsAreBoolean(t *testing.T) {
 	t.Parallel()
 	signals := todoSignalsForRender()
 
-	// Only trees THIS package owns: another skin's tree would live in
-	// another skin's tree, if one ever ships again: a trimmed build deletes
-	// optional skin packages, and importing one from here would make the whole
-	// package's tests unbuildable (lived: TestTrimmedTreeStillBuilds failed for
-	// exactly that shape).
-	cases := map[string]func() string{
-		"daisyui": func() string {
-			return renderOrFail(t, TodoStatePanel(signals))
-		},
+	// Only trees THIS package owns: importing another package's tree would
+	// make this package's tests unbuildable (lived: TestTrimmedTreeStillBuilds
+	// failed for exactly that shape).
+	html := renderOrFail(t, TodoStatePanel(signals))
+	matches := disabledAttrRE.FindAllStringSubmatch(html, -1)
+	if len(matches) == 0 {
+		t.Fatal("rendered no data-attr:disabled at all — the invariant would be vacuous")
 	}
-
-	for skin, render := range cases {
-		html := render()
-		matches := disabledAttrRE.FindAllStringSubmatch(html, -1)
-		if len(matches) == 0 {
-			t.Fatalf("%s: rendered no data-attr:disabled at all — the invariant would be vacuous", skin)
-		}
-		for _, m := range matches {
-			if !strings.HasPrefix(m[1], "!!") {
-				t.Errorf("%s: data-attr:disabled=%q must coerce to a real boolean with !!(...); "+
-					"an empty-string or undefined result SETS the attribute and disables the control",
-					skin, m[1])
-			}
+	for _, m := range matches {
+		if !strings.HasPrefix(m[1], "!!") {
+			t.Errorf("data-attr:disabled=%q must coerce to a real boolean with !!(...); "+
+				"an empty-string or undefined result SETS the attribute and disables the control",
+				m[1])
 		}
 	}
 }
@@ -90,19 +80,15 @@ func TestRenderedWorkflowButtonStartsEnabled(t *testing.T) {
 	t.Parallel()
 	signals := todoSignalsForRender()
 
-	for skin, render := range map[string]func() string{
-		"daisyui": func() string { return renderOrFail(t, TodoStatePanel(signals)) },
-	} {
-		html := render()
-		if !strings.Contains(html, "Run durable workflow") {
-			t.Fatalf("%s: the durable workflow trigger is not rendered", skin)
-		}
-		// The expression must be false on a fresh page. Evaluating it here is
-		// not possible in Go, so assert the shape that makes it false: the
-		// whole thing is negated by a leading `!!(` and reads from signals that
-		// are unset at first paint.
-		if !strings.Contains(html, `data-attr:disabled="!!($onboardingActive && !$workflowCompleted)"`) {
-			t.Errorf("%s: workflow trigger lost its boolean coercion — it renders disabled at load", skin)
-		}
+	html := renderOrFail(t, TodoStatePanel(signals))
+	if !strings.Contains(html, "Run durable workflow") {
+		t.Fatal("the durable workflow trigger is not rendered")
+	}
+	// The expression must be false on a fresh page. Evaluating it here is
+	// not possible in Go, so assert the shape that makes it false: the
+	// whole thing is negated by a leading `!!(` and reads from signals that
+	// are unset at first paint.
+	if !strings.Contains(html, `data-attr:disabled="!!($onboardingActive && !$workflowCompleted)"`) {
+		t.Error("workflow trigger lost its boolean coercion — it renders disabled at load")
 	}
 }

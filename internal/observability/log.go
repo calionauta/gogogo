@@ -22,7 +22,7 @@ func init() {
 	// The default logger is the JSON one: every bare slog call anywhere
 	// (including third-party libs that respect a custom default, like
 	// Genkit) emits JSONL on stdout. Structured stdout is the rule —
-	// nothing human-formatted may write here (see cmd/web, web/skins).
+	// nothing human-formatted may write here (see cmd/web, web/resources).
 	slog.SetDefault(baseLogger)
 }
 

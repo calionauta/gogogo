@@ -1,6 +1,6 @@
 ---
 name: gogogo-ui
-description: "UI standards for the gogogo template — DaisyUI v5 components, Templ markup, Datastar signals, themes. Triggers when: editing .templ files, src/css/input.css, web/ templates or skins, internal/ui shell, features/*/components, the theme catalog in internal/themes, or styling, designing or laying out any page. Enforces one skin, semantic colors, compiled app.min.css. Read before any UI or CSS change."
+description: "UI standards for the gogogo template — DaisyUI v5 components, Templ markup, Datastar signals, themes. Triggers when: editing .templ files, src/css/input.css, internal/ui shell, features/*/components, the theme catalog in internal/themes, or styling, designing or laying out any page. Enforces one vocabulary, semantic colors, compiled app.min.css. Read before any UI or CSS change."
 ---
 
 # gogogo-ui
@@ -18,7 +18,7 @@ Read in this order; each one answers a different question:
    makes the pin a lie. `bin/check-daisyui-drift.sh` (advisory in pre-commit)
    fails when the copy diverges from the pin or upstream has moved. To UPDATE
    it, run `scripts/refresh-daisyui.sh` — never copy by hand.
-2. `../../docs/ui-skins.md` — the one-skin rule, the theme list, the
+2. `../../docs/ui-themes.md` — the DaisyUI + themes guide, the theme list, the
    `make css` / `make css-check` flow. Normative for this repo.
 3. `../gogogo-coding-standards/references/datastar.md` — the Datastar gate
    (`.templ` attributes, Go SDK calls, signal ownership). UI markup that
@@ -40,10 +40,9 @@ contract (upstream component churn never touches it).
 
 ## Rules
 
-- One skin: DaisyUI. A skin supplies assets and at most class vocabulary
-  consumed through component props. It MUST NOT fork a page — no duplicated
-  markup per skin (`docs/ui-skins.md` records what the deleted second skin
-  cost).
+- One vocabulary: DaisyUI. Markup uses DaisyUI components plus Tailwind
+  utilities, rendered through `internal/components.Assets()`. It MUST NOT
+  fork a page — no duplicated markup per variant.
 - Semantic colors only: `bg-base-*`, `text-base-content`, `bg-primary`,
   `text-error` and their peers. Never `dark:` with a hard-coded color —
   the theme owns the palette, the markup only names the role.

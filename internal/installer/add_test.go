@@ -292,7 +292,7 @@ func TestImportRestorationFollowsUsage(t *testing.T) {
 	}
 	// Blank side-effect imports are always restored (usage is the import).
 	blank := []string{"package components", ""}
-	if !importUsed(blank, "\t_ \"github.com/x/web/skins/daisyui\"") {
+	if !importUsed(blank, "\t_ \"github.com/x/features/sounds\"") {
 		t.Errorf("blank import must always be restored")
 	}
 }

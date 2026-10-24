@@ -5,7 +5,7 @@ package capabilities
 
 // Kind follows the servant principle, not the directory: a plugin serves
 // other capabilities (nothing user-facing disappears, but something stops
-// working — jobs, metering, sounds, skins); a feature is a terminal user
+// working — jobs, metering, sounds); a feature is a terminal user
 // surface (a page or journey disappears — todo, whiteboard, landing,
 // config). Directories do not decide kinds (features/credits is a plugin:
 // it serves todo metering, not users directly).

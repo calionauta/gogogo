@@ -486,7 +486,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
    semantic tokens above (DaisyUI's --color-base-* / --color-primary), so a
    theme (or any future skin) restyles the shell without touching this file.
    Below 1024px the rail becomes a horizontal strip: navigation stays reachable
-   until the mobile collapse is designed (docs/ui-skins.md). */
+   until the mobile collapse is designed (docs/ui-themes.md). */
 
 .app-shell {
   display: flex;
@@ -501,6 +501,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--color-base-100);
   border-right: 1px solid var(--color-base-300);
@@ -643,6 +644,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   flex-direction: column;
   gap: 1rem;
   min-height: calc(100vh - 8rem);
+  min-height: calc(100dvh - 8rem);
   flex: 1 0 auto;
 }
 .chat-layout.is-empty { justify-content: center; }
@@ -775,6 +777,8 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
     z-index: 60;
     width: 17rem;
     height: 100vh;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
     transform: translateX(-100%);
     /* Offcanvas links stay in the Tab order under a bare transform, so a
        keyboard user tabs into an invisible drawer. visibility:hidden removes
@@ -1097,4 +1101,87 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 @media (max-width: 720px) {
   /* The toggle keeps its icon, loses the words: the header is for state. */
   .app-demo-label { display: none; }
+}
+
+/* ---------- Adaptive P1 (mobile-first affordances, DaisyUI tokens) ----------
+   Not "responsive" (reflow) but adaptive: touch size, safe-area, viewport
+   units, canvas gesture isolation, bottom-sheet modals. DaisyUI owns color
+   and radius; here only geometry and interaction. */
+button, a, summary, [role="button"] { touch-action: manipulation; }
+.composer-dock {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+#toast-container {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+}
+.app-state-panel {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#wb-canvas, #board-canvas { touch-action: none; }
+@media (max-width: 640px) {
+  .modal-box {
+    margin-top: auto;
+    margin-bottom: 0;
+    border-radius: 1rem 1rem 0 0;
+    max-height: calc(100dvh - 2rem);
+  }
+}
+/* ---------- App dock (mobile webapp bottom bar) ----------
+   DaisyUI `dock` supplies the bar; here only when/where it shows. Phone
+   only (≤720px), never on the Chat page (body[data-module="chat"]): the
+   composer owns the thumb zone there and a fixed bar would cover the
+   docked input. z-index sits below the drawer (60), the state sheet (55)
+   and toasts (100). */
+.app-dock { display: none; }
+@media (max-width: 720px) {
+  .app-dock.dock {
+    display: flex;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--color-base-300);
+  }
+  body[data-module="chat"] .app-dock { display: none; }
+  .app-dock-icon { font-size: 1.375rem; }
+  /* Toasts ride above the bar instead of behind it. */
+  #toast-container {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Pages with a dock give the content room to scroll clear of it. */
+  body:not([data-module="chat"]) .app-body { padding-bottom: 7rem; }
+}
+@media (min-width: 721px) {
+  .app-dock { display: none; }
+}
+@media (max-width: 720px) {
+  /* Primary composer + modal actions hit 44px without touching desktop. */
+  .composer-dock .btn { min-height: 2.75rem; }
+  .composer-dock .input { min-height: 2.75rem; font-size: 1rem; }
+  .modal-action .btn { min-height: 2.75rem; }
+  .app-seg-item { min-height: 2.75rem; }
+  /* iOS zooms any field under 16px on focus; keep every typing surface at
+     1rem so the layout never jumps when the keyboard opens. */
+  .input, .textarea, select { font-size: 1rem; }
+}
+/* Coarse pointers on narrow screens (phones, not touch-laptops) get 44px
+   targets on small buttons: a narrow desktop window keeps its dense
+   controls, a phone gets thumb-sized ones. min-height only — widths stay
+   layout-driven. */
+@media (max-width: 720px) and (pointer: coarse) {
+  .btn-xs, .btn-sm { min-height: 2.75rem; }
+  .todo-item .checkbox { width: 1.5rem; height: 1.5rem; }
+}
+/* ---------- Todo rows on narrow screens ----------
+   Title owns the row (min-w-0 so the flex item can actually shrink, then
+   ellipsis); authorship and age are progressive disclosure, dropped as the
+   viewport narrows. */
+@media (max-width: 480px) {
+  .todo-item .todo-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .todo-item .todo-author { display: none; }
+}
+@media (max-width: 380px) {
+  .todo-item .todo-age { display: none; }
 }

@@ -89,7 +89,7 @@ var advisePresets = []advisePreset{
 		},
 		Keep: []string{unitCredits, unitGenUI},
 		Note: "LLM itself is runtime (set GOAI_API_KEY); credits unit is " +
-			"the BYOK accounting, genui unit is the Ask + chat demos. Trim " +
+			"the BYOK accounting, genui unit is the Chat demo. Trim " +
 			"both (or the no-ai preset) for a tree with no model surface: " +
 			"catalog-constrained components over SSE, keyless demo via " +
 			"SIMULATE_LLM. " +
@@ -169,7 +169,7 @@ var adviseRules = []string{
 		"baseline benchmark is not a reason.",
 	"Prefer runtime switches over trim when unsure: NATS_ENABLED=false, " +
 		"DAGNATS_ENABLED=false, OFFLINE_SYNC_ENABLED=false, unset " +
-		"GOAI_API_KEY, UI_SKIN. Trim deletes; " +
+		"GOAI_API_KEY. Trim deletes; " +
 		"switches flip back.",
 	"Never add a dependency before checking the registry below and " +
 		"https://calionauta.github.io/gogogo/llms.txt — todo is the " +
@@ -191,11 +191,11 @@ var adviseRules = []string{
 		"(https://calionauta.github.io/gogogo/docs/use-cases/).",
 	"UI work reads the gogogo-ui skill first (skills/gogogo-ui/SKILL.md in " +
 		"the gogogo repo — install: npx skills add calionauta/gogogo): one " +
-		"DaisyUI skin, semantic colors, compiled app.min.css. The component " +
+		"DaisyUI components, semantic colors, compiled app.min.css. The component " +
 		"vocabulary is the vendored daisyui skill " +
 		"(skills/daisyui/SKILL.md, byte-identical to " +
 		"https://daisyui.com/SKILL.md and pinned in its UPSTREAM_SHA); the " +
-		"seam is docs/ui-skins.md and the theme catalog is internal/themes. " +
+		"guide is docs/ui-themes.md and the theme catalog is internal/themes. " +
 		"Read both before any .templ/CSS edit.",
 }
 

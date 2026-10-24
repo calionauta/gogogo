@@ -11,9 +11,8 @@
 //	/api/todos/suggest    aiPending, suggestions  → spinner stuck, results erased
 //	/api/todos/retry-demo  lastRetry               → the attempt text overwritten
 //	/api/chat/ask         chat_thinking           → Send button dead forever
-//	/api/genui/ask        genui_pending           → Ask button dead forever
 //
-// The last two are the worst: their button is `data-attr:disabled="!!$x"`, so a
+// That last one is the worst: its button is `data-attr:disabled="!!$x"`, so a
 // re-asserted `true` is a DEAD control, not a stuck spinner.
 //
 // The rule, in one line: an ack that enqueues a job writes NO state signal.

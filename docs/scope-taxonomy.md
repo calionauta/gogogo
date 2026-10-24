@@ -15,7 +15,7 @@ The annotation carries a single axis — the removal class — with three values
 | Class | Meaning | You would… |
 |------------|---------|-----------|
 | `core` 🔴 | The web binary **or its gates** do not work without it. Some have a runtime opt-out via env vars. | Customize, never remove. |
-| `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds, skins) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
+| `plugin` 🟡 | Binary works but loses a capability. A plugin serves other capabilities (jobs, metering, sounds) — no page disappears, but something stops working. | Swap for another implementation, or delete the package + wiring call (e.g. `BootChi` in `internal/server/chi.go`, `cmd/web/main.go`). |
 | `feature` 🟢 | A demo/add-on. A feature is a terminal user surface — a page or journey disappears (todo, whiteboard, landing, config). | Keep as a reference while building your own, then remove. |
 
 Three clarifications the table alone does not carry:
@@ -117,9 +117,8 @@ restore one) automates the common ones; when doing it by hand:
 Optional capabilities with UI must degrade through **signals, never 404s**:
 the tab/button/hint renders only when a `todo.Signals` bool is true, and
 that bool is registration truth (`config enabled && handler wired`), not
-config truth. Precedents: `DagNatsEnabled` (tab + container + empty-state
-hints across every skin), `LLMEnabled` (AI tab). When you add a
-removable capability with UI: add the signal, gate every skin, record it
+config truth. Precedents: `DagNatsEnabled` (tab + container + empty-state hints), `LLMEnabled` (AI tab). When you add a
+removable capability with UI: add the signal, gate every page that renders it, record it
 as `UISignal` in `internal/capabilities` — the conformance test fails if
 the field or a `.templ` reader goes missing.
 
@@ -129,7 +128,7 @@ The class is written twice — in the file's `SCOPE` line and as `Kind` in
 `internal/capabilities`. **The registry is the source of truth for kinds**;
 a file must not disagree with the unit that owns it, and
 `TestScopeAnnotationsMatchRegistryKind` fails the build when one does (it walks
-recursively, so a subpackage like `features/genui/handlers` is checked against
+recursively, so a subpackage like `features/chat/handlers` is checked against
 its top-level unit too).
 
 | Package | Class | Remove by |
@@ -158,13 +157,12 @@ its top-level unit too).
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/goakt/` | 🟡 PLUGIN | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
 | `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
-| `web/skins/` | 🟡 PLUGIN | Delete + drop blank imports in `features/todo/components/skin_imports.go` + drop the theme picker from the shell footer |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
 | `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
 | `features/onboarding/` | 🟡 PLUGIN | The workflow engine side of the durable run — goes with `internal/dagnats/` |
-| `features/genui/` | 🟡 PLUGIN | The rendering capability behind Ask AI and Chat; one bundle with `features/chat/` — delete both + `internal/server/genui_stubs_test.go` |
+| `features/genui/` | 🟡 PLUGIN | The rendering capability behind Chat; one bundle with `features/chat/` — delete both + `internal/server/genui_stubs_test.go` |
 | `features/todo/` | 🟢 FEATURE | Delete package + wiring call |
-| `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so the two trim together) |
+| `features/chat/` | 🟢 FEATURE | Bundled into the `genui` unit (chat imports genui components, so both trim together) |
 | `features/review/` | 🟢 FEATURE | Delete package + `bootReview`/`reviewH` lines + `/review` mounts in `internal/server/chi.go` (+ `newReviewHandlerForTest` in its test) + `go mod tidy` (drops genkit + go-jev) |
 | `features/whiteboard/` | 🟢 FEATURE | Delete package + `internal/collab/` |
 | `features/notes/` | 🟢 FEATURE | Manual: delete the dir + its roots in `buildChiMux` + the `[]Module` entry in `internal/ui/modules.go` |

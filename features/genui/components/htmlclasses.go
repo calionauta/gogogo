@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// ModelHTMLClasses is the skin-agnostic half of the vocabulary for
+// ModelHTMLClasses is the layout half of the vocabulary for
 // html_block markup: plain Tailwind layout, spacing, type and surface
-// utilities. Every entry must exist under BOTH skins, so it is
+// utilities. Every entry must exist in the bundle, so it is
 // safelisted in src/css/input.css (DaisyUI) and
 // src/css/input.css (the one bundle).
 //
@@ -43,18 +43,19 @@ var ModelHTMLClasses = []string{
 }
 
 // ModelHTMLComponents is the themed half: the DaisyUI components and
-// semantic colours the shipped skin provides. Themes change those tokens
-// per palette (docs/ui-skins.md), so this half is safelisted in the
+// semantic colours DaisyUI provides. Themes change those tokens
+// per palette (docs/ui-themes.md), so this half is safelisted in the
 // bundle — which is exactly why the
 // prompt asks the model to reach for a component here rather than
 // invent a themed surface, and why the assistant bubble keeps its shape
-// when the skin is switched.
+// when the theme changes.
 var ModelHTMLComponents = []string{
 	"card", "card-body", "card-title", "card-actions",
 	"badge", "badge-primary", "badge-success", "badge-warning", "badge-error", "badge-outline",
 	"alert", "alert-info", "alert-success", "alert-warning", "alert-error",
 	"progress", "progress-primary", "progress-success",
 	"table", "table-zebra", "table-sm",
+	"stats", "stat", "stat-title", "stat-value", "stat-desc",
 	"bg-base-100", "bg-base-200", "bg-base-300",
 	"text-base-content", "text-base-content/60", "text-primary", "text-error",
 }

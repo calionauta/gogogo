@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/features/chat/store"
+	genuicomp "github.com/calionauta/gogogo/features/genui/components"
 	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
@@ -19,7 +20,7 @@ import (
 // stream opener. The demo paragraph and the stack pills that used to sit above
 // the composer are gone from the page — the layers live in the sidebar's stack
 // key, and the header's context slot carries live state instead of prose.
-templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, skinName string, demo bool) {
+templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, demo bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Chat — gogogo",
 		Module:      "chat",
@@ -28,7 +29,6 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		OfflineSync: true,
 		FlushBottom: true,
 		Signals:     MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}),
@@ -43,6 +43,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 // wrapper keeps the shell's head slot satisfied when the feature is trimmed.
 templ chatHead() {
 	@sounds.SoundAssets()
+	@genuicomp.DiagramAssets()
 }
 
 // chatSound is the shell's mute control for this page. Same reason as chatHead:
@@ -103,10 +104,12 @@ templ chatBody(msgs []store.MessageView) {
 					minlength="1"
 					maxlength="2000"
 					autocomplete="off"
+					inputmode="search"
+					enterkeyhint="send"
 					placeholder="Ask anything"
-					class="input input-sm join-item grow"
+					class="input input-md sm:input-sm join-item grow"
 				/>
-				<button type="submit" class="btn btn-primary btn-sm join-item" data-attr:disabled="!!$chat_thinking">
+				<button type="submit" class="btn btn-primary btn-md sm:btn-sm join-item" data-attr:disabled="!!$chat_thinking">
 					<span data-show="!$chat_thinking">Send</span>
 					<span data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 				</button>

@@ -57,7 +57,7 @@ type SSEHub struct {
 	// so a shapes/note-text event for docA never lands on a docB stream:
 	// without it every tab adopted the last broadcast from ANY doc and
 	// each side's edits overwrote the other's view. Clients without a
-	// doc (todo/genui/chat streams) receive no doc-scoped events.
+	// doc (todo/chat streams) receive no doc-scoped events.
 	docOf map[string]string
 
 	// viewOf maps a connected clientID to the listing slice its tab last

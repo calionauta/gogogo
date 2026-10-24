@@ -34,7 +34,7 @@ const AutoScrollExpr = "(function () {" +
 	"}})()"
 
 // AutoScroll renders the scroll-to-latest anchor for an append-only feed
-// (the chat column, the Ask answer region).
+// (the chat column).
 //
 // Why an element and not a listener: Datastar re-runs `data-init` on every
 // node its element morph inserts. The anchor is the LAST child of the feed

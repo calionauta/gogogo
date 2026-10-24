@@ -121,12 +121,12 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 ## `shell` — core
 
-one app shell (sidebar + module header + work area), the theme catalog, and the skin registry that supplies its assets
+one app shell (sidebar + module header + work area), the theme catalog, and the DaisyUI asset block every page renders
 
-- **Owned:** `internal/ui`, `internal/icon`, `internal/themes`, `internal/demo`, `web/skins`
+- **Owned:** `internal/ui`, `internal/icon`, `internal/themes`, `internal/demo`
 - **Store calls:** `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
-- **Note:** Core: every module page renders a body inside ui.Shell, and the shell resolves the active skin's assets. One skin ships (DaisyUI); visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.
+- **Note:** Core: every module page renders a body inside ui.Shell, and the shell renders the DaisyUI asset block on every page. Visual variants are DaisyUI themes (docs/ui-themes.md), not bundles.
 
 ## `app` — plugin
 
@@ -156,7 +156,7 @@ Loro CRDT transport: DocStore, sync workers, presence
 
 ## `components` — plugin
 
-shared UI helpers (Toast + OfflineBanner) + skin imports
+shared UI helpers (Toast + OfflineBanner)
 
 - **Owned:** `internal/components`, `features/todo/components`
 - **Trim:** manual (no installer unit)
@@ -202,13 +202,12 @@ typed AI flows (Genkit Go): orchestration + traces above internal/llm
 
 ## `genui` — plugin
 
-generative UI: LLM answers render as Templ directives over the SSE hub
+generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub
 
-- **Owned:** `features/genui`, `internal/server/genui_stubs_test.go`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`
-- **Routes:** `/api/genui/ask`, `/api/genui/stream`, `/genui`
+- **Owned:** `features/genui`, `internal/server/genui_stubs_test.go`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
 - **Store calls:** `dbgen.ListTodosByOwner`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Note:** Deletion removes the Ask demo + chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Ask AI sidebar entry is stripped automatically.
+- **Note:** Deletion removes the Chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Chat sidebar entry is stripped automatically.
 - **Warning:** ci-local smoke: export SMOKE_FEATURES without genui (e.g. SMOKE_FEATURES=todo,room,login) or the harness fails on the trimmed route.
 
 ## `goakt` — plugin
@@ -278,7 +277,7 @@ conversation demo (persisted history + catalog answers on genui)
 - **Routes:** `/api/chat/ask`, `/api/chat/stream`, `/chat`
 - **Depends on:** genui
 - **Trim:** manual (no installer unit)
-- **Why that class:** Bundled into the genui unit: chat imports genui components (no-compile without it) and genui without chat is unproven surface — one unit is the honest shape, same as whiteboard+collab+notes.
+- **Why that class:** Bundled into the genui unit: chat imports genui components (no-compile without it) — one unit is the honest shape, same as whiteboard+collab+notes.
 
 ## `config-view` — feature
 

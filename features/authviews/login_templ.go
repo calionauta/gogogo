@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
-	"github.com/calionauta/gogogo/web/skins"
+	"github.com/calionauta/gogogo/internal/components"
 )
 
 // LoginPage is the standalone /login page (no shell chrome: the user isn't
@@ -22,7 +22,7 @@ import (
 // exercise. Agents adapting gogogo into their own product must delete
 // every element carrying a data-demo attribute — see
 // docs/scope-taxonomy.md#demo-only-markup.
-func LoginPage(next string, errMsg string, skinName string) templ.Component {
+func LoginPage(next string, errMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -55,7 +55,7 @@ func LoginPage(next string, errMsg string, skinName string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = skins.ActiveAssets(skinName).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Assets().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

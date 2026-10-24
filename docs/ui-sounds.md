@@ -89,4 +89,4 @@ checklist lives in the `SCOPE:plugin` doc comment in
 
 ## Related
 
-- [UI skins](ui-skins.md) — the other pluggable UI surface.
+- [UI themes](ui-themes.md) — the DaisyUI theme catalog.

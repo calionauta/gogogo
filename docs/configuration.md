@@ -27,11 +27,6 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
 | `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |
 
-### Skin
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `UI_SKIN` | `daisyui` | Active UI skin. One skin ships (`daisyui`); `?skin=` is still accepted and unknown values fall back to DaisyUI with a warning. Visual variants are DaisyUI themes, picked from the sidebar (`$theme`), not more bundles. |
 | `SEARCH_MODE` | `substring` | **Default** todo search layer: `substring`, `fuzzy` or `bm25` (see [Search](search.md)). **All three are always wired** and the search box's `Match` picker switches between them per request, so this value only decides which one a tab starts on. `bm25` therefore always writes an index (one postings row per distinct term per mutation); set `SEARCH_MODE=substring` and leave the picker alone if you want searches that cost no writes. An unknown value logs a warning and falls back to `substring` rather than failing the boot — a typo must never make the server unbootable. On upgrade, a boot-time heal re-indexes rows that predate the index, because postings are a cache of a Go stemming function and SQL cannot rebuild them. |
 
 ### Realtime and workflows
@@ -73,10 +68,9 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `JEV_API_KEY` | unset | Judge credential (age-encrypted secrets file). Empty = keyless demo, no `Authorization` header |
 | `JEV_TIMEOUT` | `10s` | Per-attempt judge HTTP timeout |
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
-| `JEV_ROUTER_ENABLED` | `false` | Let the same jev-compatible endpoint choose which component an answer leads with. Serves BOTH AI legs (Ask and Chat). Off = byte-identical prompt to the catalog-only one |
+| `JEV_ROUTER_ENABLED` | `false` | Let the same jev-compatible endpoint choose which component a Chat answer leads with. Off = byte-identical prompt to the router-less one |
 | `JEV_ROUTER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the pick is ignored and the whole catalog is offered |
-| `GENUI_ASK_SURFACES` | `catalog` | Ask AI's answer surfaces: CSV of `catalog,custom,native`. `native` (the app's own panels) is always added and cannot be turned off. Absent = the same value |
-| `GENUI_CHAT_SURFACES` | `catalog,custom` | Chat's answer surfaces, same CSV. `custom` is `html_block` (model-invented, sanitized markup) — the band the Chat leg has and Ask does not. Absent = the same value |
+| `GENUI_CHAT_SURFACES` | `catalog,custom` | Chat's answer surfaces: CSV of `catalog,custom,native`. `custom` is `html_block` (model-invented, sanitized markup). `native` (the app's own panels) is always added and cannot be turned off. Absent = the same value. `catalog` alone is the strict showcase (unknown types fail closed). |
 
 The router (`JEV_ROUTER_*`) is opt-in and reuses the endpoint above —
 one jev-compatible API serves the judge and the router, for BOTH AI legs.
@@ -84,7 +78,7 @@ Turning it on adds a leading hint to the prompt; it never removes a
 component from what the model may emit, and every failure (endpoint down,
 low confidence, a label
 outside the catalog) falls back to the full catalog, so a leg answers
-exactly as it did before. See [Ask AI](features.md).
+exactly as it did before. See [Chat](features.md).
 
 ### AI credits + BYOK
 

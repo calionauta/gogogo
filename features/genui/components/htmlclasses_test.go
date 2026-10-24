@@ -54,7 +54,7 @@ func TestModelHTMLClassVocabulary(t *testing.T) {
 		bundle string
 		want   []string
 	}{
-		{"daisyui", "../../../src/css/input.css", "../../../web/resources/static/app.min.css", daisyUI},
+		{"app", "../../../src/css/input.css", "../../../web/resources/static/app.min.css", daisyUI},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -85,7 +85,7 @@ func TestModelHTMLClassVocabulary(t *testing.T) {
 			for _, c := range tc.want {
 				if !strings.Contains(bundle, cssSelector(c)) {
 					t.Errorf("%q missing from %s — the safelist changed and the bundle is stale "+
-						"(or the class does not exist under this skin): run `make css`",
+						"(or the class does not exist under DaisyUI): run `make css`",
 						c, tc.bundle)
 				}
 			}

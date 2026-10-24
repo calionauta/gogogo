@@ -15,7 +15,7 @@ layered async topology see [Seven async layers](async-layers.md).
 | **Routing** | [chi](https://go-chi.io) v5 | Zero deps, stdlib-shaped middleware chains, URL params and router-level 405s — chosen for ergonomics, not speed ([why](stack-tradeoffs.md#routers-chi-for-ergonomics-not-speed)). |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via the Tailwind v4 CLI; no JS framework build step. |
-| **CSS / themes** | [DaisyUI v5](https://daisyui.com) + TailwindCSS, four palettes | One bundle; a palette switch is a theme, not a second bundle. See [UI skins](ui-skins.md). |
+| **CSS / themes** | [DaisyUI v5](https://daisyui.com) + TailwindCSS, four palettes | One bundle; a palette switch is a theme, not a second bundle. See [UI themes](ui-themes.md). |
 | **Task queue** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser, no Redis |
 | **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
 | **Durable workflows** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step durable workflows as declarative JSON over NATS JetStream |

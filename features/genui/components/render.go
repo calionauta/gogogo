@@ -30,7 +30,7 @@ func Render(d Directive) (templ.Component, error) {
 // An optional id prefix makes every id in this answer unique on a page that
 // already holds other answers: a chat thread keeps its history, so the second
 // answer's components would otherwise repeat the first one's ids. Callers that
-// replace a single region (Ask) pass nothing and let each component mint its
+// replace a single region pass nothing and let each component mint its
 // own; callers that append to a growing page (chat) pass a per-message stem.
 func RenderAll(dirs []Directive) ([]templ.Component, error) {
 	return RenderAllWithPrefix(dirs, "")

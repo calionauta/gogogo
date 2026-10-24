@@ -39,7 +39,7 @@ persistence — one knob would conflate both. Pick by traffic type:
 | Traffic | Mechanism | Default | Switch / fallback | Notes |
 |---|---|---|---|---|
 | Record mutations (CRUD) | SSE Hub record event + fragment re-fetch | always on | none (Hub-native; scoping comes from the owner + visibility columns) | the todo list resyncs its fragment on it; the notes/whiteboard INDEXES have no stream and refetch on load + tab visibility (`ListResync`), so a doc created in another tab appears when that tab is focused again (their per-doc streams carry the text/shapes themselves). Non-browser clients use `/api/todos/events` (JSON frames from the same event bus, same owner/visibility scope) instead of parsing Datastar |
-| Ephemeral signals (chat/genui answers, toasts, workflow progress) | SSE Hub (Datastar SSE) + core-NATS bridge | always on; bridge on with NATS | NATS off → in-process only; a failed publish falls back to local delivery | only `Send`/`Broadcast` ride `app.ephemeral`; record and doc fan-out keep their own wires so nothing is delivered twice. Best-effort (core NATS, no replay) |
+| Ephemeral signals (chat answers, toasts, workflow progress) | SSE Hub (Datastar SSE) + core-NATS bridge | always on; bridge on with NATS | NATS off → in-process only; a failed publish falls back to local delivery | only `Send`/`Broadcast` ride `app.ephemeral`; record and doc fan-out keep their own wires so nothing is delivered twice. Best-effort (core NATS, no replay) |
 | Cross-instance broadcast + CRUD proxy | NATS JetStream | on | `NATS_ENABLED=false` → in-memory hub; whiteboard/notes ops go SSE-only single-instance | `realtimeLabel()` surfaces the active transport in the UI |
 | Doc convergence (offline merges) | Loro CRDT + NATS subjects | on with collab | workers no-op when NATS is down | snapshots persist to Turso tables |
 | AI streams (tokens, run framing) | SSE Hub + AG-UI envelope | on with llm | unset `GOAI_API_KEY` hides the UI; envelope in `features/genui/` | byte-compatible with AG-UI clients, no new transport |
@@ -109,7 +109,7 @@ The rule of thumb: **commit on release, relay while moving.**
 > | `POST /api/todos/suggest` | `aiPending`, `suggestions` | spinner stuck on "Asking AI…", results erased |
 > | `POST /api/todos/retry-demo` | `lastRetry` | the last attempt's text overwritten by "queued" |
 > | `POST /api/chat/ask` | `chat_thinking` | **the Send button stays disabled forever** |
-> | `POST /api/genui/ask` | `genui_pending` | **the Ask button stays disabled forever** |
+> 
 >
 > The last two are worse than a stuck spinner: their button is
 > `data-attr:disabled="!!$chat_thinking"`, so a re-asserted `true` is a DEAD

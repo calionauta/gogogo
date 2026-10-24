@@ -180,29 +180,20 @@ try {
   const chatAfter = await scrolledFrom(page, chatBefore, "chat answer");
   console.log(`  ✓ chat scrolled to the answer (scrollY ${chatBefore} → ${chatAfter})`);
 
-  // ---- Ask leg ------------------------------------------------------
-  console.log("→ Ask AI: asking on the same viewport…");
-  await page.goto(BASE + "/genui", { waitUntil: "load", timeout: 20000 });
-  await page.waitForResponse((res) => res.url().includes("/api/genui/stream"), { timeout: 15000 });
-  // The empty state must NOT carry the anchor: loading the page must not
-  // jump. Pinned here (not only in the unit test) because it is a
-  // page-level regression a render test cannot see.
-  const askLoadY = await page.evaluate(() => window.scrollY);
-  if (askLoadY !== 0) fail(`Ask AI page scrolled to ${askLoadY} on load with no answer`);
-  else console.log("  ✓ Ask AI page did not jump on load");
-
-  const askBefore = await page.evaluate(() => window.scrollY);
-  await fillAndSubmit(page, "#genui-prompt", "plan my day");
+  // ---- Chat second turn (history kept, scroll follows) ----------------
+  // The thread persists per owner: a follow-up appends a second answer and
+  // the scroll anchor rides that patch. (Mermaid-fence → diagram rendering
+  // is pinned in Go by TestParseChatAnswerRendersMermaidFences plus the
+  // vendored Pele mount; the simulated demo answer carries no fence.)
+  console.log("\u2192 Chat: follow-up on the same viewport\u2026");
+  await fillAndSubmit(page, "#chat-prompt", "and tomorrow?");
   await page.waitForFunction(
-    () => {
-      const r = document.getElementById("genui-result");
-      return Boolean(r && r.querySelector(".card, table, [role=img], .genui-html"));
-    },
+    () => document.querySelectorAll("#chat-messages .chat-start").length >= 2,
     null,
-    { timeout: 25000 },
+    { timeout: 25000 }
   );
-  const askAfter = await scrolledFrom(page, askBefore, "ask answer");
-  console.log(`  ✓ ask scrolled to the answer (scrollY ${askBefore} → ${askAfter})`);
+  const chatAfter2 = await scrolledFrom(page, chatAfter, "second chat answer");
+  console.log(`  \u2713 chat kept history and scrolled to the follow-up (scrollY ${chatAfter} → ${chatAfter2})`);
 
   if (pageErrors.length > 0) fail(`uncaught JS errors: ${pageErrors.join(" | ")}`);
   else console.log("  ✓ zero uncaught JS errors");
@@ -229,5 +220,5 @@ try {
 if (process.exitCode === 1) {
   console.error("\n❌ chat scroll test FAILED");
 } else {
-  console.log("\n✅ chat scroll test passed (both AI legs scroll to the newest answer)");
+  console.log("\n✅ chat scroll test passed (answers scroll to the newest message)");
 }
