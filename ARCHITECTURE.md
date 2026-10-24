@@ -18,6 +18,8 @@
 
 > The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent). The `SCOPE` annotations in source files are the authoritative reference; this table is a summary.
 
+> **Security map.** Sessions, RBAC, step-up, audit retention, CSP reporting, secrets/email and the residual risks are in [docs/security.md](docs/security.md). The normative agent checklist is in [AGENTS.md](AGENTS.md#security-invariants-agent-gate).
+
 > **Native boundary (not a layer).** `native` is a reserved implementation boundary, not a fourth SCOPE value. There is no Zig code or toolchain in this repo. If a justified case ever arrives, the Go API lives in its normal package (`internal/<thing>/` with the usual SCOPE) and Zig sources stay inside it behind a small C ABI — see `docs/exception-to-go.md`. Do not create a top-level `native/` directory speculatively.
 
 ## Layer taxonomy (SCOPE)
@@ -40,7 +42,7 @@ These are **product-level demos** — what the end user sees. All are Feature la
 |---------|---------|:-----:|---------------|-----------|
 | **Auth** | `internal/auth/` + `features/authviews/` | 🟢/🔴 | `a.Handler()` mounted at `/api/auth/` in `buildChiMux` | Delete the login UI package; the middleware stays |
 | **Landing page** | `features/landing/` | 🟢 FEATURE | Mounted at `/` in `buildChiMux` | Delete package + remove call. The todo demo is at `/todo`; root becomes 404 or your replacement. |
-| **Read-only config view** | `features/config/` | 🟢 FEATURE | Mounted at `/config` in `buildChiMux` | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go` before render. |
+| **Config + admin users + audit** | `features/config/` | 🟢 FEATURE | Mounted at `/config` in `buildChiMux` | Delete package + remove call. Page is auth-gated; secrets are masked via `mask.go`; user roles, session revocation and the `security_events` panel/CSV are admin-only. |
 | **Todo** | `features/todo/` | 🟢 FEATURE | `todoH` mounted at `/todo` + `/api/todos` in `buildChiMux` | Delete package + remove block |
 | **Whiteboard** | `features/whiteboard/` + `internal/collab/` | 🟢 FEATURE | `wbH` mounted at `/whiteboard` + `/api/whiteboard/` in `buildChiMux` (one argument per line, so a trim drops exactly its lines) | Delete both dirs + remove call |
 | **Notes** | `features/notes/` (shares `internal/collab/`) | 🟢 FEATURE | `notesH` mounted at `/notes` + `/api/notes` in `buildChiMux` | Delete dir + remove call (+ sidebar entry in `internal/ui/modules.go`, seed, capability entry) |
@@ -249,7 +251,7 @@ features/                  Demo features (🟢 FEATURE, except auth middleware �
   authviews/                 Login page + shell controls (theme, user menu, palette; middleware in internal/auth 🔴)
   app/                       AppContext bundle for cmd/gui only (🟡 PLUGIN — cmd/web never links it)
   landing/                   Public marketing hero on GET / (🟢 FEATURE)
-  config/                    Auth-gated read-only /config view (🟢 FEATURE, with masked secrets)
+  config/                    Admin-only /config: masked env, user roles/sessions, audit panel/CSV (🟢 FEATURE)
   todo/                      Todo MVC (the reference implementation)
     handlers/                  HTTP routes + SSE stream + onboarding
     components/                Templ components (layout, todo_item, todo_list) — offline indicator is the shared `OfflineBanner` in `internal/components/`
