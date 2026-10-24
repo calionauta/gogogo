@@ -15,7 +15,8 @@ by event/reason, a warning when rejected authentication crosses the alert
 threshold, and the most recent 100 rows from the `security_events` table
 (30-day retention, pruned at boot). Admin mutations (role change, session
 revoke) record both the target and the operator; the table links to
-`/config/audit.csv` for an incident review. Events never contain a password,
+`/config/audit.csv` for an incident review. The panel filters by event and
+pages through older rows; the CSV applies the same filter. Events never contain a password,
 session token, TOTP code or magic-link token, and a reported CSP URL drops its
 query string so a one-time token cannot ride into the log. Browser CSP
 violations are posted to `/api/security/csp-report` and logged, so a blocked
@@ -49,7 +50,9 @@ The authenticated `/account` page is the user-facing home for email
 verification, password change, TOTP enrollment/recovery and session
 revocation. Rotating recovery codes and disabling the factor both require the
 current password when the account has one, or a current authenticator/recovery
-code on an OAuth-only row. `GET /api/auth/sessions` lists the caller's sessions with opaque ids;
+code on an OAuth-only row. The session list shows a browser/OS hint captured
+from the User-Agent (the raw string never leaves the owner's page), the short
+opaque id, and a "this device" badge; the full id stays in the row's title. `GET /api/auth/sessions` lists the caller's sessions with opaque ids;
 `DELETE /api/auth/sessions/{id}` revokes one. `POST /api/auth/verify/request`
 sends the verification link, `POST /api/auth/password/reset/request` sends a
 reset link, and

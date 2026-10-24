@@ -201,7 +201,8 @@ templ configBody(data PageData) {
 											<option value="viewer" selected?={ user.Role == "viewer" }>viewer</option>
 											<option value="admin" selected?={ user.Role == "admin" }>admin</option>
 										</select>
-										<button type="submit" class="btn btn-xs">Save</button>
+										<button type="submit" class="btn btn-xs"
+											data-on:click="confirm('Change this user role?') || evt.preventDefault()">Save</button>
 									</form>
 								</td>
 								<td>
@@ -222,7 +223,8 @@ templ configBody(data PageData) {
 								<td>
 									<form method="POST" action="/config/users/revoke">
 										<input type="hidden" name="email" value={ user.Email }/>
-										<button type="submit" class="btn btn-xs btn-error">Revoke sessions</button>
+										<button type="submit" class="btn btn-xs btn-error"
+											data-on:click="confirm('Revoke every session for this user?') || evt.preventDefault()">Revoke sessions</button>
 									</form>
 								</td>
 							</tr>
@@ -233,12 +235,27 @@ templ configBody(data PageData) {
 		</div>
 	</section>
 
-	<section class="ui-card">
+	<section class="ui-card" id="security-events">
 		<div class="ui-card-body">
 			<h2 class="ui-title">Security events</h2>
 			if data.AuditAlert != "" {
 				<div role="alert" class="alert alert-warning mb-3"><span>{ data.AuditAlert }</span></div>
 			}
+			<form method="GET" action="/config#security-events" class="flex flex-wrap items-end gap-2 mb-3">
+				<label class="form-control">
+					<div class="label py-1"><span class="label-text text-xs">Event</span></div>
+					<select name="event" class="select select-sm">
+						<option value="">All events</option>
+						for _, name := range data.EventNames {
+							<option value={ name } selected?={ data.EventFilter == name }>{ name }</option>
+						}
+					</select>
+				</label>
+				<button type="submit" class="btn btn-sm">Filter</button>
+				if data.EventFilter != "" {
+					<a href="/config#security-events" class="btn btn-ghost btn-sm">Clear</a>
+				}
+			</form>
 			<p class="text-sm text-base-content/70 mb-2">Last 24 hours, grouped by outcome.</p>
 			if len(data.EventCounts) == 0 {
 				<p class="text-sm">No security events recorded.</p>
@@ -256,10 +273,16 @@ templ configBody(data PageData) {
 			}
 			<div class="flex flex-wrap items-center justify-between gap-2 mb-2 mt-4">
 				<p class="text-sm text-base-content/70">Recent events (100).</p>
-				<a href="/config/audit.csv" class="btn btn-xs" download>Download CSV</a>
+				<a href={ data.CSVURL } class="btn btn-xs" download>Download CSV</a>
 			</div>
 			if len(data.Events) == 0 {
-				<p class="text-sm">No recent events.</p>
+				<p class="text-sm">
+					if data.EventFilter != "" {
+						No events match this filter.
+					} else {
+						No recent events.
+					}
+				</p>
 			} else {
 				<div class="overflow-x-auto">
 					<table class="table table-sm">
@@ -278,6 +301,14 @@ templ configBody(data PageData) {
 					</table>
 				</div>
 			}
+			<div class="flex flex-wrap items-center gap-2 mt-3">
+				if data.PrevURL != "" {
+					<a href={ data.PrevURL } class="btn btn-xs">Newer</a>
+				}
+				if data.NextURL != "" {
+					<a href={ data.NextURL } class="btn btn-xs">Older</a>
+				}
+			</div>
 		</div>
 	</section>
 

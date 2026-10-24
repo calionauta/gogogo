@@ -89,6 +89,8 @@ export default {
     desc: "The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment." },
   { group: "Research", slug: "ui-components", file: "research/ui-components-2026-10-21.md",
     desc: "The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability." },
+  { group: "Research", slug: "supply-chain-scanning", file: "research/supply-chain-scanning-2026.md",
+    desc: "The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
     desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",

@@ -85,6 +85,7 @@ type Session struct {
 	Created   string
 	LastSeen  string
 	SessionID string
+	UserAgent string
 }
 
 type Todo struct {

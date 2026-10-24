@@ -38,6 +38,7 @@ func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
+	r = r.WithContext(auth.WithUserAgent(r.Context(), r.UserAgent()))
 	if err := r.ParseForm(); err != nil {
 		h.renderLogin(w, r, "Invalid form submission", "", "")
 		return

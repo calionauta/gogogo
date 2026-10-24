@@ -90,11 +90,43 @@ func wireAuthMail(a *auth.Auth, cfg *config.Config) {
 	})
 }
 
-// pruneSecurityEvents keeps the audit table bounded. Thirty days is the
-// template's default retention; an operator with a SIEM exports before it.
-func pruneSecurityEvents(q *dbgen.Queries) {
-	cutoff := time.Now().UTC().Add(-30 * 24 * time.Hour).Format(dbschema.TimeFormat)
-	_ = q.DeleteSecurityEventsBefore(context.Background(), cutoff)
+// Audit retention. Thirty days is the template's default; an operator with a
+// SIEM exports through /config/audit.csv before the cutoff. The boot pass
+// handles a restart; the ticker handles an instance that stays up for months.
+const (
+	auditRetention     = 30 * 24 * time.Hour
+	auditPruneInterval = 24 * time.Hour
+	auditPruneTimeout  = 30 * time.Second
+)
+
+// pruneSecurityEvents deletes rows older than auditRetention. Bounded by a
+// timeout so a locked database cannot hold the boot or the ticker forever;
+// the next run retries. Best-effort by design: retention is housekeeping, not
+// an auth decision.
+func pruneSecurityEvents(ctx context.Context, q *dbgen.Queries) {
+	ctx, cancel := context.WithTimeout(ctx, auditPruneTimeout)
+	defer cancel()
+	cutoff := time.Now().UTC().Add(-auditRetention).Format(dbschema.TimeFormat)
+	_ = q.DeleteSecurityEventsBefore(ctx, cutoff)
+}
+
+// startAuditRetention runs the prune once now and then daily until bootCtx is
+// cancelled at shutdown. The goroutine has one select, so it cannot outlive
+// the stack.
+func startAuditRetention(ctx context.Context, q *dbgen.Queries) {
+	pruneSecurityEvents(ctx, q)
+	go func() {
+		ticker := time.NewTicker(auditPruneInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				pruneSecurityEvents(ctx, q)
+			}
+		}
+	}()
 }
 
 // demoQueries builds the shared query handle and seeds the demo pair only
@@ -107,7 +139,6 @@ func demoQueries(cfg *config.Config, a *auth.Auth, sqlDB *sql.DB) *dbgen.Queries
 	} else {
 		demo.Disable(context.Background(), q)
 	}
-	pruneSecurityEvents(q)
 	return q
 }
 

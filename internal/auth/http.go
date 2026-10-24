@@ -19,6 +19,15 @@ func noStore(next http.Handler) http.Handler {
 	})
 }
 
+// captureUserAgent puts the request's User-Agent on the context openSession
+// reads, so every auth entry point (signup, password, magic, OAuth) records
+// the same hint without growing each method signature.
+func captureUserAgent(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(WithUserAgent(r.Context(), r.UserAgent())))
+	})
+}
+
 // Routes returns the auth API router: signup, signin and signout, plus the
 // magic-link, TOTP second-factor and OAuth entry points. Every pattern is
 // absolute, so the composition root flattens it with MountFeature like any
@@ -26,7 +35,7 @@ func noStore(next http.Handler) http.Handler {
 // parameter, and the route table sees each endpoint.
 func (a *Auth) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Use(noStore)
+	r.Use(noStore, captureUserAgent)
 	r.Post("/api/auth/signup/credential", a.handleSignup)
 	r.Post("/api/auth/signin/credential", a.handleSignin)
 	r.Post("/api/auth/signout", a.handleSignout)

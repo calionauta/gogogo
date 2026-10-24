@@ -1,12 +1,24 @@
 package components
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/calionauta/gogogo/internal/ui"
 )
+
+// recoveryDownload is the one-shot plaintext export. The codes are already on
+// the page; this keeps the download local (no endpoint, no store) and avoids
+// an inline-script expression for a file the user may want to keep offline.
+func recoveryDownload(codes []string) string {
+	return "data:text/plain;charset=utf-8," + url.QueryEscape(strings.Join(codes, "\n"))
+}
 
 // SessionView is one row of the account session list.
 type SessionView struct {
 	ID       string
+	ShortID  string
+	Agent    string
 	Created  string
 	LastSeen string
 	Expires  string
@@ -136,8 +148,14 @@ templ body(data PageData) {
 					<p class="text-sm">
 						Add this secret to your authenticator app, then enter the code it shows.
 					</p>
-					<p class="text-xs break-all mt-2"><code>{ data.SetupSecret }</code></p>
-					<p class="text-xs break-all"><code>{ data.SetupURL }</code></p>
+					<p class="text-xs break-all mt-2"><code id="totp-secret">{ data.SetupSecret }</code></p>
+					<p class="text-xs break-all"><code id="totp-uri">{ data.SetupURL }</code></p>
+					<div class="flex flex-wrap gap-2 mt-2">
+						<button type="button" class="btn btn-xs"
+							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-secret').textContent)">Copy secret</button>
+						<button type="button" class="btn btn-xs"
+							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-uri').textContent)">Copy setup link</button>
+					</div>
 					<form method="POST" action="/account/totp/verify" class="space-y-3 max-w-md mt-3">
 						<label class="form-control w-full">
 							<div class="label"><span class="label-text">Authenticator code</span></div>
@@ -159,9 +177,14 @@ templ body(data PageData) {
 							<p class="text-xs mt-1">They are shown once and each works once.</p>
 							<ul class="grid grid-cols-2 gap-1 mt-2 font-mono text-xs">
 								for _, code := range data.RecoveryCodes {
-									<li>{ code }</li>
+									<li data-recovery-code>{ code }</li>
 								}
 							</ul>
+							<div class="flex flex-wrap gap-2 mt-3">
+								<button type="button" class="btn btn-xs"
+									data-on:click="navigator.clipboard.writeText(Array.from(document.querySelectorAll('[data-recovery-code]')).map(function (el) { return el.textContent }).join('\n'))">Copy all</button>
+								<a class="btn btn-xs" href={ recoveryDownload(data.RecoveryCodes) } download="recovery-codes.txt">Download</a>
+							</div>
 						</div>
 					</div>
 				}
@@ -172,18 +195,19 @@ templ body(data PageData) {
 			<div class="ui-card-body">
 				<h2 class="ui-title">Sessions</h2>
 				if len(data.Sessions) == 0 {
-					<p class="text-sm">No active sessions.</p>
+					<p class="text-sm">No sessions to show.</p>
 				} else {
 					<div class="space-y-2">
 						for _, session := range data.Sessions {
 							<div class="flex flex-wrap items-center justify-between gap-2 border border-base-300 rounded-lg p-3">
 								<div class="text-xs">
-									<p class="font-mono">
-										{ session.ID }
+									<p class="font-medium">
+										{ session.Agent }
 										if session.Current {
 											<span class="badge badge-sm badge-primary ml-1">this device</span>
 										}
 									</p>
+									<p class="font-mono text-base-content/60" title={ session.ID }>{ session.ShortID }</p>
 									<p class="text-base-content/60">
 										created { session.Created }
 										if session.LastSeen != "" {
