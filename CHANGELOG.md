@@ -15,6 +15,29 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.56.0 (2026-10-24)
+
+## What's Changed
+* feat(ui): fixed sidebar footer, centered chat/ask composers, todo capture reorder by @calionauta in https://github.com/calionauta/gogogo/pull/262
+* feat(ui): crumb-above-title back nav, true footer composer, conditional data context by @calionauta in https://github.com/calionauta/gogogo/pull/264
+* feat(chat): single Chat demo with diagrams, partial render, no skins by @calionauta in https://github.com/calionauta/gogogo/pull/266
+* fix(security): close audit gaps in auth, edge, and operator surfaces by @calionauta in https://github.com/calionauta/gogogo/pull/265
+* feat(security): device-aware sessions and audit retention by @calionauta in https://github.com/calionauta/gogogo/pull/267
+* ci: scan the production image with Syft and Grype by @calionauta in https://github.com/calionauta/gogogo/pull/268
+* fix(observability): route security logs through the standard logger by @calionauta in https://github.com/calionauta/gogogo/pull/269
+* fix: route guest landing CTA through login with next by @calionauta in https://github.com/calionauta/gogogo/pull/270
+* docs: publish the security model and audit map by @calionauta in https://github.com/calionauta/gogogo/pull/271
+* fix: hide viewer-denied destinations from shell nav, palette and dock by @calionauta in https://github.com/calionauta/gogogo/pull/272
+* fix: hide machinery dock from viewers (denied POSTs, no empty panel) by @calionauta in https://github.com/calionauta/gogogo/pull/273
+* feat(security): step-up for admin mutations and passwordless recovery by @calionauta in https://github.com/calionauta/gogogo/pull/274
+* fix(config): clarify admin proof label by @calionauta in https://github.com/calionauta/gogogo/pull/275
+* feat(chat): fix pipeline step states, visual panels, new-chat with confirm by @calionauta in https://github.com/calionauta/gogogo/pull/276
+* feat(security): best-available proof for sign-out-everywhere by @calionauta in https://github.com/calionauta/gogogo/pull/277
+* feat(chat): realtime hardening, answer toggles, interactive panels, config overhaul by @calionauta in https://github.com/calionauta/gogogo/pull/278
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.55.1...v0.56.0
+
 ## 0.55.1 (2026-10-23)
 
 ## What's Changed
