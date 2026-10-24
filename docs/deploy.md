@@ -141,8 +141,11 @@ tailnet tunnel. `make mailpit` is a development/debug aid, not a mail service.
 The app only knows `SMTP_ADDR`/`SMTP_FROM`/`SMTP_USERNAME`/`SMTP_PASSWORD`;
 swapping provider is an env change, no code. The secrets file is scoped by
 `APP_NAME` (`~/.secrets/<APP_NAME>.env.age`): a generated project must be
-renamed before boot, and must never reuse another project's secrets file. For
-real delivery publish SPF, DKIM and DMARC first. `hdls.tools` is an MCP agent toolbox with a mailbox
+renamed before boot, and must never reuse another project's secrets file. Name
+scoping prevents accidental reuse, not a hostile process: anything running as
+the same OS user can read every file in `~/.secrets`. Run an untrusted project
+under its own user or container instead of treating the filename as a sandbox.
+For real delivery publish SPF, DKIM and DMARC first. `hdls.tools` is an MCP agent toolbox with a mailbox
 (create inbox, send/receive, 100 outbound/day); it is **not** an SMTP relay
 and is not wired here.
 

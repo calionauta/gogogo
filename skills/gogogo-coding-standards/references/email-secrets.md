@@ -8,7 +8,9 @@
 - The secrets file is scoped by `APP_NAME`. A generated project MUST be
   renamed (`make rename` / `gogogo new`) before boot; running a second project
   as `APP_NAME=gogogo` on a host with the template's secrets would load that
-  file. Never copy another project's `.env.age`.
+  file. Never copy another project's `.env.age`. Name scoping is not a sandbox:
+  same-user code can read every file in `~/.secrets`, so isolate untrusted
+  projects with a separate OS user or container.
 - Empty SMTP config is the default and leaves magic/verification/reset closed
   (503). Local capture: `make mailpit` (`SMTP_ADDR=127.0.0.1:1025`,
   `SMTP_FROM=dev@example.test`). Real delivery: provider SMTP (Resend, Brevo,
