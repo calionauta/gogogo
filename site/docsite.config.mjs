@@ -56,6 +56,8 @@ export default {
     desc: "Every environment variable and runtime constant." },
   { group: "Core", slug: "rbac", file: "rbac.md",
     desc: "Casbin RBAC: role vocabulary, the feature checklist, hint-vs-enforcement, and the two invariants that bite (authentication is not authorization; policy objects are paths, not regex)." },
+  { group: "Core", slug: "security", file: "security.md",
+    desc: "The security map: sessions, RBAC, edge headers, step-up, secrets, audit retention, CSP reporting, supply chain, production defaults and residual risks." },
   { group: "Core", slug: "dependency-principles", file: "dependency-principles.md",
     desc: "Write it or take the library: six principles, the ordered decision procedure, the closed human gate, and the trade-off line a reviewer reads." },
   { group: "Core", slug: "exception-to-go", file: "exception-to-go.md",

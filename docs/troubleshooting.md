@@ -179,6 +179,18 @@ POST/PUT/PATCH/DELETE a 403, while curl and webhooks pass because they send no
 `Origin`. Keep the original `Host` at the proxy; cloudflared and Caddy do. See
 [Architecture](architecture.md#security-boundary).
 
+## Email links return 503, or no message arrives
+
+Empty `SMTP_ADDR`/`SMTP_FROM` is the secure default: verification, reset and
+magic-link endpoints answer 503 instead of pretending to send. For local work,
+run `make mailpit`, set `SMTP_ADDR=127.0.0.1:1025` and
+`SMTP_FROM=dev@example.test`, then open `http://127.0.0.1:8025`. Mailpit
+captures; it never delivers. The app has no inbox and does not log the message
+body, so the Mailpit UI is the only place to read it. For real delivery, set a
+provider SMTP plus `APP_URL` and publish SPF/DKIM/DMARC; see
+[Deploy](deploy.md#email-delivery-verification-reset-magic-links). The inbox is
+loopback-only because it holds live tokens — never publish it.
+
 ## The deploy says green but the live app is old
 
 **Start here — check whether the container was actually recreated:**

@@ -196,6 +196,15 @@ is per-process. The security properties here are owned:
   pair is disabled on boot when the flag is off. Signup, magic-link
   requests and OAuth starts carry per-IP budgets, and signin/TOTP keep their
   own; the per-session limiter covers everything authenticated.
+- sign-out-everywhere requires the current password when the account has one;
+  TOTP disable requires the password or a current authenticator/recovery code
+  on OAuth-only rows; recovery rotation requires the password when one exists.
+- `security_events` is the durable audit twin of the security log: subject,
+  actor and outcome only, 30-day retention pruned at boot and daily in
+  1000-row batches. `/config` renders the 24-hour aggregates, the filtered
+  rows and a CSV; browser CSP violations post to `/api/security/csp-report`
+  with the query stripped before logging. The full map is
+  [Security model](security.md).
 
 The edge reverse proxy still owns TLS, WAF and fleet-wide rate limiting, and
 the in-process limiter keys on the **session**, never the client IP (behind a

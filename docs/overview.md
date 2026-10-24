@@ -54,7 +54,8 @@ listed as removable units rather than hidden behind an API.
 - **You who care about supply chain security.** Go has no mass npm-style
   dependency tree. Every module is verified by content hash (`go.sum`).
   Built-in vulnerability auditing (`govulncheck`) scans the dependency graph
-  for known CVEs. No transitive dependency hell.
+  for known CVEs; a scheduled Syft + Grype workflow keeps an SBOM and scans
+  the built image. No transitive dependency hell.
 - **You who want an LLM client wired in without pulling in a whole
   orchestration framework.** `internal/llm` wraps GoAI (any OpenAI-compatible
   provider) behind an injectable interface, callable from handlers. It calls a
@@ -97,4 +98,5 @@ gives you: [Admin & Dashboard](admin-dashboard.md).
 - [Getting started](getting-started.md) — create your repo from the template, rename it, run it.
 - [Architecture](architecture.md) — how the layers depend on each other.
 - [Features](features.md) — every capability and its runtime opt-out.
+- [Security model](security.md) — sessions, RBAC, audit, CSP, secrets and residual risks.
 - [Configuration](configuration.md) — every environment variable.

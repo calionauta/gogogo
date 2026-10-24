@@ -26,6 +26,8 @@
 - Taking one unit into an app that already exists (read-only export bundle + porting checklist): docs/porting-into-an-existing-app.md
 - Realtime, queue, offline: docs/async-layers.md
 - Auth and sessions: internal/auth/ (owned argon2id sessions), features/authviews/ (login UI)
+- Security model, audit trail, CSP reporting, secrets/email, production defaults: docs/security.md
+  (details: docs/rbac.md, docs/admin-dashboard.md, docs/deploy.md, docs/architecture.md#security-boundary)
 - AI credits and billing: docs/llm-and-credits.md, features/credits/
 - Installer (scaffold/trim/add units): internal/installer/, cmd/gogogo/README.md
   (`gogogo new feature <name>` scaffolds one unit; MCP equivalent: `new_feature`)
@@ -46,4 +48,6 @@
 - Generated code is committed and drift-checked (`make check-generated`).
 - Counts are generated, never hand-written: `docs/unit-contracts.md` is the source; `make check-docs` gates counts, dead paths, invented subcommands, and MANIFEST coverage.
 - `//nolint` is last resort (skill documents the procedure; CI enforces it).
+- Security events are durable (`security_events`, 30-day batched retention); request-scoped
+  logs go through `internal/observability`, never bare `slog` in a handler.
 - Never edit `site/docs/` (generated output).
