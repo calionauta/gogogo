@@ -227,6 +227,16 @@ var All = []Capability{
 			"features/todo/handlers/genui_panel.go",
 			"features/todo/handlers/genui_panel_test.go",
 			"features/todo/handlers/genui_owner_test.go",
+			// Panel interactivity (real toggle/delete forms posting with
+			// _target, answered in place): same reason as the seam above —
+			// without genui no panel renders anywhere, so the actions that
+			// only panels post are dead code with no registry to serve.
+			"features/todo/handlers/panel_action.go",
+			"features/todo/handlers/panel_action_test.go",
+			// The config page's answer-components section is wired from the
+			// catalog: its wiring test asserts a section the trimmed page
+			// does not render.
+			"features/config/components/safe_view_catalog_test.go",
 			"features/todo/panel.go",
 			"features/todo/panel_filter_test.go",
 			"features/todo/components/panel.templ",

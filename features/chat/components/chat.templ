@@ -20,7 +20,7 @@ import (
 // stream opener. The demo paragraph and the stack pills that used to sit above
 // the composer are gone from the page — the layers live in the sidebar's stack
 // key, and the header's context slot carries live state instead of prose.
-templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, demo bool) {
+templ ChatIndex(email string, userRole string, buildLabel string, buildCommit string, msgs []store.MessageView, demo bool, catalogOn bool, customOn bool, nativeOn bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Chat — gogogo",
 		Module:      "chat",
@@ -35,7 +35,7 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 		Demo:        demo,
 		Panel:       ChatStatePanel(len(msgs)),
 		Stack:       chatStack(),
-	}, chatHead(), chatSound(), nil, chatBody(msgs))
+	}, chatHead(), chatSound(), nil, chatBody(msgs, catalogOn, customOn, nativeOn))
 }
 
 // chatHead is this page's own <head> extras. It is a one-line wrapper on
@@ -52,13 +52,14 @@ templ chatSound() {
 	@sounds.SoundToggle()
 }
 
-// chatContext is the header's context slot: thread size and transport, the two
-// facts this page is about.
+// chatContext is the header's context slot: thread size, in user words.
+// Transport jargon stays out of it — the sidebar's stack key already says
+// how answers travel, and a header is not the place to teach SSE.
 func chatContext(msgs []store.MessageView) string {
 	if len(msgs) == 0 {
-		return "no messages yet · answers stream over SSE"
+		return "New conversation — ask below"
 	}
-	return strconv.Itoa(len(msgs)) + " messages · answers stream over SSE"
+	return strconv.Itoa(len(msgs)) + " messages"
 }
 
 // chatStack is what this page demonstrates, in the sidebar's stack key.
@@ -81,7 +82,18 @@ func chatStack() []components.TechItem {
 // so there is no second form id to keep in sync. Filled docks with
 // margin-top:auto + sticky bottom so the composer sits ON the footer edge
 // even with a short thread — sticky alone left it floating above it.
-templ chatBody(msgs []store.MessageView) {
+//
+// The composer stays disabled until the stream handshake lands ($chat_ready):
+// a question enqueued before the tab registers is a broadcast to nobody —
+// the worker answers, the hub drops it, and the tab spins forever. The
+// toggles choose the answer vocabulary per request (catalog, custom, native:
+// the official surface names); all three off is prose-only.
+//
+// State ownership, same rule as the ask ack: the composer owns the optimistic
+// state ($chat_thinking on submit, off on fetch error) and the worker owns
+// the terminal state ($chat_thinking off with the answer). Neither writes the
+// other's half.
+templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn bool) {
 	<div class="ui-page ui-page-narrow chat-layout" data-class="{'is-empty': $chat_empty}">
 		<div class="flex items-center justify-end" data-show="!$chat_empty">
 			<button
@@ -103,10 +115,26 @@ templ chatBody(msgs []store.MessageView) {
 		<form
 			id="chat-composer"
 			class="composer-dock"
-			data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false; })" }
-			data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($chat_thinking = false, $chat_error = 'Request failed \u2014 check your connection and try again.') : null"
+			data-on:submit__prevent={ "$chat_thinking = true; $chat_error = ''; $chat_working = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent($clientID || window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false })" }
+			data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'chat-composer' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($chat_thinking = false, $chat_error = 'Request failed \u2014 check your connection and try again.') : null"
 			data-cuelume="send"
 		>
+			<fieldset class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+				<legend class="fieldset-legend text-xs text-base-content/60 p-0">Answer with</legend>
+				<input type="hidden" name="surfaces" value=""/>
+				<label class="label cursor-pointer gap-1.5 p-0" title="Fixed components: notes, cards, tables, charts">
+					<span class="label-text text-xs">catalog</span>
+					<input type="checkbox" name="surfaces" value="catalog" class="toggle toggle-xs" checked?={ catalogOn }/>
+				</label>
+				<label class="label cursor-pointer gap-1.5 p-0" title="Visuals the model invents for this answer, sanitized before display">
+					<span class="label-text text-xs">custom</span>
+					<input type="checkbox" name="surfaces" value="custom" class="toggle toggle-xs" checked?={ customOn }/>
+				</label>
+				<label class="label cursor-pointer gap-1.5 p-0" title="Your own data panels, filled from the app (e.g. todo_list)">
+					<span class="label-text text-xs">native</span>
+					<input type="checkbox" name="surfaces" value="native" class="toggle toggle-xs" checked?={ nativeOn }/>
+				</label>
+			</fieldset>
 			<label for="chat-prompt" class="sr-only">Message</label>
 			<div class="join w-full">
 				<input
@@ -121,14 +149,29 @@ templ chatBody(msgs []store.MessageView) {
 					inputmode="search"
 					enterkeyhint="send"
 					placeholder="Ask anything"
+					data-attr:placeholder="$chat_ready ? 'Ask anything' : 'Connecting…'"
+					data-attr:disabled="!!($chat_thinking || !$chat_ready)"
 					class="input input-md sm:input-sm join-item grow"
 				/>
-				<button type="submit" class="btn btn-primary btn-md sm:btn-sm join-item" data-attr:disabled="!!$chat_thinking">
-					<span data-show="!$chat_thinking">Send</span>
+				<button type="submit" class="btn btn-primary btn-md sm:btn-sm join-item" data-attr:disabled="!!($chat_thinking || !$chat_ready)">
+					<span data-show="!$chat_thinking && $chat_ready">Send</span>
+					<span data-show="!$chat_thinking && !$chat_ready">Wait</span>
 					<span data-show="$chat_thinking" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
 				</button>
 			</div>
 		</form>
+		<div data-show="!$chat_ready && !$chat_error" class="flex items-center gap-2 text-xs text-base-content/60" role="status">
+			<span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+			<span>Connecting to the live stream…</span>
+			<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">Reconnect</button>
+		</div>
+		<div data-show="$chat_error" class="alert alert-error alert-soft mt-2" role="alert">
+			<span class="text-sm" data-text="$chat_error"></span>
+			<div class="flex gap-1">
+				<button type="submit" form="chat-composer" class="btn btn-xs">Try again</button>
+				<button type="button" class="btn btn-ghost btn-xs" data-on:click="window.__gogogoSSERefresh && window.__gogogoSSERefresh('chat-stream-opener')">Reconnect</button>
+			</div>
+		</div>
 		@components.StreamOpener("chat-stream-opener", "/api/chat/stream", false)
 		@newChatModal()
 	</div>
@@ -177,10 +220,16 @@ templ newChatModal() {
 templ ChatList(msgs []store.MessageView, errMsg string) {
 	<div id="chat-messages" class="flex flex-col gap-3 pb-6" aria-live="polite">
 		<div id="chat-empty" data-show="$chat_empty" class="chat-hero">
-			<h2>Ask anything — answers stream below</h2>
-			<p>History persists per account; each answer is markup the model invented for that question.</p>
+			<h2>Ask your app anything</h2>
+			<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
 		</div>
 		@ChatThread(msgs, errMsg)
+		<div data-show="$chat_thinking" class="chat chat-start">
+			<div class="chat-bubble flex items-center gap-2">
+				<span class="loading loading-dots loading-sm" aria-hidden="true"></span>
+				<span class="text-sm" data-text="$chat_working || 'Thinking…'">Thinking…</span>
+			</div>
+		</div>
 	</div>
 }
 

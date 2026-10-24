@@ -14,10 +14,15 @@
 //	          the only surface whose output the model invents wholesale, which
 //	          is why it is the one worth toggling.
 //	native  — system panels. The APP owns the content (real rows from the
-//	          store); the model picks only the SLICE. Always on: it is the
-//	          surface that makes an answer about the user's own data correct
-//	          instead of plausible, and there is no reason for a deployment to
-//	          want a worse answer. See panel.go.
+//	          store); the model picks only the SLICE. It is the surface that
+//	          makes an answer about the user's own data correct instead of
+//	          plausible. See panel.go.
+//
+// Every surface is optional, including native: all three off is prose-only
+// (the model answers in plain prose and the worker degrades any envelope to
+// its text fallback). An operator disables a band from GENUI_CHAT_SURFACES,
+// a tab disables it from the chat composer toggles — both speak the same
+// names the parser reads.
 //
 // Surfaces are a property of the demo configuration, not of a message: a
 // conversation that sometimes allows invented markup and sometimes does not
@@ -59,9 +64,9 @@ func (s Surface) Valid() bool { return slices.Contains(allSurfaces, s) }
 // when the catalog is listed first (see PromptForChat's history).
 var allSurfaces = []Surface{SurfaceCustom, SurfaceCatalog, SurfaceNative}
 
-// DefaultSurfacesChat is Chat's default: the catalog plus the invented-markup
-// escape hatch, plus native (appended by NormalizeSurfaces).
-var DefaultSurfacesChat = []Surface{SurfaceCatalog, SurfaceCustom}
+// DefaultSurfacesChat is Chat's default: the catalog, the invented-markup
+// escape hatch, and the app's own panels.
+var DefaultSurfacesChat = []Surface{SurfaceCatalog, SurfaceCustom, SurfaceNative}
 
 // ParseSurfaces reads a CSV surface list (e.g. "catalog,custom"), or returns
 // the default when the value is empty.
@@ -69,27 +74,38 @@ var DefaultSurfacesChat = []Surface{SurfaceCatalog, SurfaceCustom}
 // An unknown name is an ERROR, not a silent drop: a typo in a variable that
 // controls what the model may emit would otherwise change the answer surface
 // with no signal at all, and the whole point of the variable is operator
-// control. An empty result (every name filtered out) is also an error — an
-// answer with no surface has no prompt.
+// control. "none" (or "prose") is the explicit prose-only set: no surface,
+// so the model answers in plain prose. A CSV that names nothing else is an
+// error — an answer with no surface and no explicit opt-out is a typo, not
+// a choice.
 func ParseSurfaces(csv string, def []Surface) ([]Surface, error) {
 	if strings.TrimSpace(csv) == "" {
 		return NormalizeSurfaces(def), nil
 	}
 	seen := make(map[Surface]bool, len(allSurfaces))
 	var out []Surface
+	proseOnly := false
 	for raw := range strings.SplitSeq(csv, ",") {
-		name := Surface(strings.ToLower(strings.TrimSpace(raw)))
+		name := strings.ToLower(strings.TrimSpace(raw))
 		if name == "" {
 			continue
 		}
-		if !name.Valid() {
-			return nil, fmt.Errorf("genui: unknown surface %q (valid: %s)", string(name), surfaceNames())
-		}
-		if seen[name] {
+		if name == "none" || name == "prose" {
+			proseOnly = true
 			continue
 		}
-		seen[name] = true
-		out = append(out, name)
+		s := Surface(name)
+		if !s.Valid() {
+			return nil, fmt.Errorf("genui: unknown surface %q (valid: %s)", string(s), surfaceNames())
+		}
+		if seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	if proseOnly && len(out) == 0 {
+		return []Surface{}, nil
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("genui: no surface enabled (valid: %s)", surfaceNames())
@@ -116,19 +132,21 @@ func ValidateSurfaces(set []Surface) error {
 	return nil
 }
 
-// NormalizeSurfaces returns surfaces in advertisement order, de-duplicated,
-// with native always present (it is not an operator choice — see the file
-// comment) and an empty input falling back to the catalog so no caller can
-// produce an empty vocabulary by passing nil. Unknown values are dropped;
-// ValidateSurfaces is what reports them.
+// NormalizeSurfaces returns surfaces in advertisement order, de-duplicated.
+//
+// Nil means "no opinion": the caller passed nothing, so the Chat default
+// (catalog + custom + native) applies. Any non-nil slice — including an
+// explicitly empty one — is respected as written: no band is forced on,
+// so all three off stays off (prose-only) instead of silently regaining a
+// vocabulary the operator or the tab just turned off. Unknown values are
+// dropped; ValidateSurfaces is what reports them.
 func NormalizeSurfaces(in []Surface) []Surface {
+	if in == nil {
+		in = DefaultSurfacesChat
+	}
 	seen := make(map[Surface]bool, len(allSurfaces))
 	for _, s := range in {
 		seen[s] = true
-	}
-	seen[SurfaceNative] = true
-	if len(seen) == 1 && seen[SurfaceNative] {
-		seen[SurfaceCatalog] = true
 	}
 	out := make([]Surface, 0, len(allSurfaces))
 	for _, s := range allSurfaces {

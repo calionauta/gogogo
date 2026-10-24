@@ -18,6 +18,7 @@ import (
 	"strconv"
 
 	"github.com/calionauta/gogogo/config"
+	comp "github.com/calionauta/gogogo/features/genui/components"
 )
 
 // ageSecretKey is the constant field name shown on the /config
@@ -45,12 +46,40 @@ type Row struct {
 	URLShape    bool   // true when Display is a URL we trust (LeafNodeURL after masking)
 }
 
+// Status tones are the closed DaisyUI badge vocabulary the strip speaks.
+// Declared once so StatusSummary and StatusBadgeClass cannot drift apart.
+const (
+	toneSuccess = "success"
+	toneWarning = "warning"
+	toneInfo    = "info"
+	toneError   = "error"
+	toneGhost   = "ghost"
+)
+
+// StatusItem is one badge of the /config status strip: the at-a-glance
+// answer to "is this thing on" without scrolling to its table. Tone is a
+// DaisyUI badge tone (success, warning, ghost, info, error) and State is
+// the one-word answer.
+type StatusItem struct {
+	Label string
+	State string
+	Tone  string
+	Hint  string
+}
+
 // PageData holds the rows grouped for rendering. Strings are
 // pre-grouped so the .templ stays presentation-only.
 type PageData struct {
 	AppName    string
 	BuildLabel string
 	Groups     []Group
+	// Status is the at-a-glance strip (environment, enforcement, keys,
+	// engines): derived from the same cfg as Groups, so the strip and the
+	// tables cannot disagree.
+	Status []StatusItem
+	// AnswerCatalog/AnswerPanels: answer-components data (genui-owned, trimmed with the unit).
+	AnswerCatalog []comp.ComponentInfo
+	AnswerPanels  []comp.ComponentInfo
 	// Role is the viewer's users.role at render time ("" when unknown).
 	// Display-only: enforcement stays in the RBAC middleware. The page
 	// template pairs it with RBACEnabled so the Casbin posture is
@@ -124,13 +153,16 @@ func BuildPageData(cfg *config.Config) PageData {
 		return PageData{}
 	}
 
-	pd := PageData{
-		AppName:     cfg.AppName,
-		BuildLabel:  cfg.BuildLabel,
-		RBACEnabled: cfg.RBACEnabled,
-	}
-
 	ageSet := os.Getenv("AGE_SECRET_KEY") != ""
+
+	pd := PageData{
+		AppName:       cfg.AppName,
+		BuildLabel:    cfg.BuildLabel,
+		RBACEnabled:   cfg.RBACEnabled,
+		Status:        StatusSummary(cfg, ageSet),
+		AnswerCatalog: catalogInfos(),
+		AnswerPanels:  panelInfos(),
+	}
 
 	// App group — never secret. Direct passthrough.
 	pd.Groups = append(pd.Groups, Group{
@@ -232,6 +264,98 @@ func BuildPageData(cfg *config.Config) PageData {
 	})
 
 	return pd
+}
+
+// StatusSummary derives the /config status strip from the runtime config:
+// one badge per thing an operator checks first. States are words, not bools,
+// so the strip reads without a legend.
+func StatusSummary(cfg *config.Config, ageSet bool) []StatusItem {
+	env, envTone := "production", toneSuccess
+	if cfg.Dev {
+		env, envTone = "development", toneWarning
+	}
+	rbac, rbacTone := "enforced", toneSuccess
+	if !cfg.RBACEnabled {
+		rbac, rbacTone = "pass-through", toneWarning
+	}
+	ai, aiTone := "configured", toneSuccess
+	if cfg.GoAI.APIKey == "" {
+		ai, aiTone = "missing", toneGhost
+	}
+	judge, judgeTone := "custom judge", toneInfo
+	if cfg.Review.APIKey == "" {
+		judge, judgeTone = "demo endpoint", toneGhost
+	}
+	nats, natsTone := "on", toneSuccess
+	if !cfg.NATS.Enabled {
+		nats, natsTone = "off", toneGhost
+	}
+	dag, dagTone := "on", toneSuccess
+	if !cfg.DagNats.Enabled {
+		dag, dagTone = "off", toneGhost
+	}
+	syncState, syncTone := "on", toneSuccess
+	if !cfg.OfflineSync.Enabled {
+		syncState, syncTone = "off", toneGhost
+	}
+	secrets, secretsTone := "set", toneSuccess
+	if !ageSet {
+		secrets, secretsTone = "missing", toneError
+	}
+	return []StatusItem{
+		{Label: "Environment", State: env, Tone: envTone, Hint: "ENVIRONMENT=production, or development otherwise."},
+		{Label: "RBAC", State: rbac, Tone: rbacTone, Hint: "RBAC_ENABLED: enforced denies, or pass-through."},
+		{Label: "AI key", State: ai, Tone: aiTone, Hint: "GOAI_API_KEY: live model, or keyless demo answers."},
+		{Label: "Review judge", State: judge, Tone: judgeTone, Hint: "JEV_API_KEY: custom judge, or keyless demo endpoint."},
+		{Label: "NATS", State: nats, Tone: natsTone, Hint: "Embedded NATS JetStream for realtime fan-out."},
+		{Label: "DagNats", State: dag, Tone: dagTone, Hint: "Durable workflow engine on its own port."},
+		{Label: "Offline sync", State: syncState, Tone: syncTone, Hint: "Service Worker + NATS CRUD proxy."},
+		{Label: "Secrets key", State: secrets, Tone: secretsTone, Hint: "AGE_SECRET_KEY: master key for ~/.secrets."},
+	}
+}
+
+// StatusBadgeClass maps a StatusItem tone to its DaisyUI badge class. One
+// mapping, next to the tones StatusSummary emits, so the template cannot
+// drift into a tone the strip never sends.
+func StatusBadgeClass(tone string) string {
+	switch tone {
+	case toneSuccess:
+		return "badge-success"
+	case toneWarning:
+		return "badge-warning"
+	case toneInfo:
+		return "badge-info"
+	case toneError:
+		return "badge-error"
+	default:
+		return "badge-ghost"
+	}
+}
+
+// catalogInfos lists the generative answer components (everything but
+// native panels): the fixed vocabulary the model fills with typed props.
+func catalogInfos() []comp.ComponentInfo {
+	var out []comp.ComponentInfo
+	for _, info := range comp.CatalogOverview() {
+		if info.Kind == comp.KindNative {
+			continue
+		}
+		out = append(out, info)
+	}
+	return out
+}
+
+// panelInfos lists the installed native panels: the app's own data the
+// model may answer with (slice chosen by the model, rows filled here).
+func panelInfos() []comp.ComponentInfo {
+	var out []comp.ComponentInfo
+	for _, info := range comp.CatalogOverview() {
+		if info.Kind != comp.KindNative {
+			continue
+		}
+		out = append(out, info)
+	}
+	return out
 }
 
 // reviewGroup builds the jev judge section: endpoint surfaced, API key

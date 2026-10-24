@@ -51,7 +51,7 @@ func (p *TodoPanel) Prompt() string {
 		"request involves the user's OWN todos or tasks (show/list/filter them, " +
 		"check what is left, plan a day around them, summarize progress): it " +
 		"renders their REAL rows, so it is the only component allowed to answer " +
-		"with todo content"
+		"with todo content. Never for greetings, thanks or other smalltalk."
 }
 
 // HomePage implements comp.PanelHomer: the page that shows this data in full.

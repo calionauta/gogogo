@@ -66,7 +66,11 @@ var pagesUnderTest = []pageUnderTest{
 		`for="chat-prompt"`,
 		`id="chat-messages"`,
 		`aria-live="polite"`,
-		"Ask anything — answers stream below",
+		"Ask your app anything",
+		`name="surfaces"`,
+		`value="catalog"`,
+		`value="custom"`,
+		`value="native"`,
 	}},
 	{name: "review", route: "/review", must: []string{
 		// The composer (review-composer / review-tab / review-content) is gated

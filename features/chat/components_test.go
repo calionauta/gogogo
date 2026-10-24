@@ -24,7 +24,7 @@ func TestChatPageWiring(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	if err := chatcomponents.ChatIndex(
-		"a@b.c", "user", "dev", "", nil, false,
+		"a@b.c", "user", "dev", "", nil, false, true, true, true,
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}
@@ -41,7 +41,13 @@ func TestChatPageWiring(t *testing.T) {
 		"/static/cuelume.js?v=",
 		`data-cuelume`,
 		`data-show="$chat_empty"`,
-		`Ask anything — answers stream below`,
+		`Ask your app anything`,
+		`name="surfaces"`,
+		`value="catalog"`,
+		`value="custom"`,
+		`value="native"`,
+		`Thinking…`,
+		`Connecting to the live stream`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("chat page missing %q", want)
@@ -75,7 +81,7 @@ func TestChatListStates(t *testing.T) {
 		return buf.String()
 	}
 	empty := render(nil, "")
-	for _, want := range []string{`id="chat-messages"`, "Ask anything", `data-show="$chat_empty"`} {
+	for _, want := range []string{`id="chat-messages"`, "Ask your app anything", `data-show="$chat_empty"`, "Thinking…"} {
 		if !strings.Contains(empty, want) {
 			t.Errorf("empty list missing %q", want)
 		}
@@ -163,7 +169,7 @@ func TestChatNewChatAffordance(t *testing.T) {
 	var buf bytes.Buffer
 	msgs := []store.MessageView{{Role: "user", Text: "hi"}}
 	if err := chatcomponents.ChatIndex(
-		"a@b.c", "user", "dev", "", msgs, false,
+		"a@b.c", "user", "dev", "", msgs, false, true, true, true,
 	).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("ChatIndex: %v", err)
 	}

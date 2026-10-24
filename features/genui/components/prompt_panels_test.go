@@ -46,15 +46,19 @@ func TestDataRuleLandsLast(t *testing.T) {
 }
 
 // TestPanelsPromptAppearsOnSurfaces pins that the rule reaches every surface
-// set: the failure was invented user data.
+// set that advertises panels: the failure was invented user data. A set
+// without native advertises no panels, so there is nothing to forbid.
 func TestPanelsPromptAppearsOnSurfaces(t *testing.T) {
 	for name, prompt := range map[string]string{
-		"catalog-only": PromptForSurfaces([]Surface{SurfaceCatalog}),
-		"chat":         PromptForChat(),
+		"catalog+native": PromptForSurfaces([]Surface{SurfaceCatalog, SurfaceNative}),
+		"chat":           PromptForChat(),
 	} {
 		if !strings.Contains(prompt, "NEVER invent the user's own data") {
 			t.Errorf("%s prompt is missing the data rule:\n%s", name, prompt)
 		}
+	}
+	if got := PromptForSurfaces([]Surface{SurfaceCatalog}); strings.Contains(got, "NEVER invent") {
+		t.Errorf("a set with no panels carries the panel rule:\n%s", got)
 	}
 }
 
@@ -80,5 +84,28 @@ func TestResolvePanelName_Aliases(t *testing.T) {
 	}
 	if IsPanel("invented_thing") {
 		t.Error("an unknown name must not report as a panel")
+	}
+}
+
+// TestSmalltalkRuleIsPanelGated pins the greeting guard next to the rule it
+// constrains: with panels advertised, greetings are ordered to never emit
+// one; without panels there is nothing to guard, so the rule stays out of
+// the prompt instead of naming components the set cannot render.
+func TestSmalltalkRuleIsPanelGated(t *testing.T) {
+	withPanels := PromptForSurfaces([]Surface{SurfaceCatalog, SurfaceNative})
+	if !strings.Contains(withPanels, "never emit a panel or a data component") {
+		t.Errorf("panelled prompt lost the smalltalk guard:\n%s", withPanels)
+	}
+	for name, prompt := range map[string]string{
+		"catalog-only": PromptForSurfaces([]Surface{SurfaceCatalog}),
+		"prose-only":   PromptForSurfaces([]Surface{}),
+		"custom-only":  PromptForSurfaces([]Surface{SurfaceCustom}),
+	} {
+		if strings.Contains(prompt, "never emit a panel") {
+			t.Errorf("%s prompt carries a panel rule with no panels:\n%s", name, prompt)
+		}
+		if strings.Contains(prompt, "text_note") && name == "custom-only" {
+			t.Errorf("%s prompt names a component it cannot render:\n%s", name, prompt)
+		}
 	}
 }

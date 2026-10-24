@@ -41,6 +41,14 @@ import (
 // This interface is the whole contract a feature implements to become a
 // native panel. Three methods and no registration call: the composition root
 // discovers providers by asking the feature for one.
+//
+// INTERACTIVE PANELS. A provider MAY render its feature's real action forms
+// (a toggle, a delete) inside the component Render returns, each carrying
+// the instance id as `_target`. The feature's own routes answer those posts
+// in place — re-rendering the panel through Fill+Render and patching
+// `#_target` — instead of a page region the host page does not own. That is
+// the same `_target` seam catalog cards already use, reused so a future
+// panel needs no new machinery: forms plus an in-place answer.
 type PanelProvider interface {
 	// Component is the catalog name this provider fills ("todo_list"). It is
 	// the model-facing name, so it must be stable, snake_case, and unique.

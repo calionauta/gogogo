@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -27,6 +28,7 @@ import (
 	"github.com/calionauta/gogogo/internal/auth"
 	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 	"github.com/calionauta/gogogo/internal/demo"
+	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -36,6 +38,8 @@ import (
 const (
 	signalChatThinking = "chat_thinking"
 	signalChatError    = "chat_error"
+	signalChatReady    = "chat_ready"
+	signalChatWorking  = "chat_working"
 )
 
 // chatEnvelope is the worker → tab envelope: answer text, rendered
@@ -44,10 +48,29 @@ type chatEnvelope struct {
 	Text       string `json:"text,omitempty"`
 	Directives any    `json:"directives,omitempty"`
 	Error      string `json:"error,omitempty"`
+	// Working is the mid-answer stage ("Loading your data…"): a signal-only
+	// envelope, no patch. The dispatcher keeps the spinner and names the
+	// stage in the thinking bubble; the terminal envelope clears it.
+	Working string `json:"working,omitempty"`
 	// IDPrefix is the DOM-id stem this answer's components render under. The
 	// worker computes it from the message it just stored (store.IDPrefix), so
 	// the live patch and a later reload agree on every id.
 	IDPrefix string `json:"idPrefix,omitempty"`
+}
+
+// chatJob is the queue payload: the prompt plus the tab's surface choice.
+// Surfaces rides the job (not the handler) so each tab toggles its own
+// vocabulary: the composer builds the CSV from its three signals and always
+// sends the param — even empty (all off = prose-only). Absent means an old
+// client that predates the toggles, which gets the handler default.
+type chatJob struct {
+	Prompt string `json:"prompt"`
+	UserID string `json:"userId"`
+	Idem   string `json:"idem"`
+	// Surfaces is nil when the client sent none (use the default), empty
+	// when the tab turned every band off (prose-only). No omitempty: the
+	// worker must tell "absent" (null) from "all off" ([]) apart.
+	Surfaces []string `json:"surfaces"`
 }
 
 // Handler serves the Chat demo on chi: page, enqueue, stream, worker.
@@ -58,6 +81,17 @@ type Handler struct {
 	hub       *queue.SSEHub
 	store     store.MessageStore
 	responder store.Responder
+	// defaultSurfaces is the boot vocabulary (GENUI_CHAT_SURFACES, or the
+	// Chat default). Per-request surfaces override it; nil (old clients,
+	// tests) falls back here.
+	defaultSurfaces []comp.Surface
+	// modelLeg rebuilds the responder per request. Kept as clients +
+	// router (not a responder) because the surfaces ride the job: one
+	// shared responder cannot serve two tabs with different toggles.
+	// Nil in tests, which inject a stub responder instead.
+	realLLM *llm.Client
+	simLLM  *llm.Client
+	router  comp.Router
 }
 
 // NewHandler builds the chi chat handler. Nil deps panic: wire errors
@@ -70,6 +104,17 @@ func NewHandler(
 		panic("chat chi: NewHandler with nil dependency")
 	}
 	return &Handler{cfg: cfg, auth: a, q: q, hub: hub, store: st, responder: responder}
+}
+
+// SetModelLeg installs the production model leg: the two LLM clients, the
+// optional lead-component router, and the boot surface default. The worker
+// rebuilds the responder per job from these plus the tab's toggles; tests
+// skip this and keep the injected stub responder.
+func (h *Handler) SetModelLeg(real, sim *llm.Client, router comp.Router, surfaces []comp.Surface) {
+	h.realLLM = real
+	h.simLLM = sim
+	h.router = router
+	h.defaultSurfaces = surfaces
 }
 
 // Routes returns the chi router with the chat pages and API.
@@ -122,22 +167,42 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	email := sess.User.Email
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	def := h.defaultSurfaces
+	if def == nil {
+		def = comp.DefaultSurfacesChat
+	}
 	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-		messageViews(r.Context(), msgs), demo.On(r)).Render(r.Context(), w)
+		messageViews(r.Context(), msgs), demo.On(r),
+		comp.HasSurfaces(def, comp.SurfaceCatalog),
+		comp.HasSurfaces(def, comp.SurfaceCustom),
+		comp.HasSurfaces(def, comp.SurfaceNative)).Render(r.Context(), w)
 }
 
 // messageViews maps stored records to render views, re-validating the
 // directives through the catalog on the way: history re-renders through
 // the same components a live answer used, never raw model markup.
+//
+// Panels re-hydrate from the store on the way (same Fill the worker ran),
+// so a reload shows the viewer's CURRENT rows, not the snapshot the answer
+// stored — a mutation from another tab lands on the next reload. A failed
+// fill keeps the stored snapshot instead of an honest hole: the rows were
+// real when stored, and a transient store error must not blank them.
 func messageViews(ctx context.Context, msgs []store.Message) []store.MessageView {
 	out := make([]store.MessageView, 0, len(msgs))
 	for _, m := range msgs {
+		dirs := m.Components
+		if hydrated, herr := comp.Hydrate(ctx, dirs, m.Owner); herr == nil {
+			dirs = hydrated
+		} else {
+			obsArgs := append(observability.WithComponent("chat", "feature"), "error", herr)
+			observability.Warn(ctx, "chat: history hydration failed, keeping stored rows", obsArgs...)
+		}
 		//nolint:contextcheck // pure CPU (catalog render); ctx is here for the log.
 		// Prefix by the message's own idempotency key: a thread keeps every
 		// answer on the page, so without a per-message stem the second answer's
 		// components would repeat the first one's DOM ids — invalid HTML, and a
 		// selector that silently means "the first match".
-		comps, err := comp.RenderAllWithPrefix(m.Components, store.IDPrefix(m))
+		comps, err := comp.RenderAllWithPrefix(dirs, store.IDPrefix(m))
 		if err != nil {
 			obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 			observability.Error(ctx, "chat: render stored answer failed", obsArgs...)
@@ -146,6 +211,38 @@ func messageViews(ctx context.Context, msgs []store.Message) []store.MessageView
 		out = append(out, store.MessageView{Role: m.Role, Text: m.Text, Components: comps})
 	}
 	return out
+}
+
+// requestSurfaces reads the tab's surface choice from the ask form: the
+// composer sends one `surfaces` value per enabled toggle (catalog, custom,
+// native — the official surface names) plus an always-present empty marker,
+// so "every band off" arrives as a present-but-empty set (prose-only) while
+// an old client without the toggles sends nothing at all (nil = handler
+// default). Unknown names are an error: the composer only sends names it
+// toggles, so this fires on a hand-made request, never on UI traffic.
+func requestSurfaces(r *http.Request) ([]string, error) {
+	vals, present := r.Form["surfaces"]
+	if !present {
+		return nil, nil
+	}
+	var names []string
+	for _, v := range vals {
+		if v = strings.TrimSpace(v); v != "" {
+			names = append(names, v)
+		}
+	}
+	if len(names) == 0 {
+		return []string{}, nil
+	}
+	set, err := comp.ParseSurfaces(strings.Join(names, ","), nil)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(set))
+	for _, name := range set {
+		out = append(out, string(name))
+	}
+	return out, nil
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
@@ -163,8 +260,13 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		writeText(w, http.StatusBadRequest, "prompt required")
 		return
 	}
-	payload, err := json.Marshal(map[string]string{
-		"prompt": prompt, "userId": sess.User.ID, "idem": uuid.NewString(),
+	surfaces, serr := requestSurfaces(r)
+	if serr != nil {
+		writeText(w, http.StatusBadRequest, "invalid surfaces")
+		return
+	}
+	payload, err := json.Marshal(chatJob{
+		Prompt: prompt, UserID: sess.User.ID, Idem: uuid.NewString(), Surfaces: surfaces,
 	})
 	if err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
@@ -246,8 +348,8 @@ func (h *Handler) handleClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// New-chat ack: reset the composer-owned state the submit path sets
-	// ($chat_thinking, $chat_error) plus the empty flag, and swap the
-	// thread for the empty guidance. Morph (no append mode) replaces
+	// ($chat_thinking, $chat_error, $chat_working) plus the empty flag, and
+	// swap the thread for the empty guidance. Morph (no append mode) replaces
 	// #chat-messages with the empty column, so the scroll anchor and hero
 	// come back. $chatPrompt is NOT written here: the input owns it (see
 	// the ask-ack contract above) and the confirm button clears it
@@ -256,6 +358,7 @@ func (h *Handler) handleClear(w http.ResponseWriter, r *http.Request) {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalChatThinking: false,
 		signalChatError:    "",
+		signalChatWorking:  "",
 		"chat_empty":       true,
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
@@ -290,6 +393,8 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	authed := h.session(r) != nil
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalChatThinking: false,
+		signalChatReady:    true,
+		signalChatWorking:  "",
 		"clientID":         clientID,
 		"sessionAuthed":    authed,
 	}); err != nil {
@@ -347,9 +452,21 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
 		return fmt.Errorf("chat: decode chat payload: %w", err)
 	}
+	if p.Working != "" {
+		// Working is the mid-answer stage (panel hydration): the spinner
+		// stays, the bubble names the stage, and nothing appends yet — the
+		// terminal patch below carries the answer. Not a second bubble, so
+		// a slow hydration reads as progress, not as a duplicate spinner.
+		return dshelpers.MergeSignals(sse, map[string]any{
+			signalChatThinking: true,
+			signalChatWorking:  p.Working,
+		})
+	}
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		signalChatThinking: false,
 		signalChatError:    p.Error,
+		signalChatWorking:  "",
+		signalChatReady:    true,
 	}); err != nil {
 		return err
 	}

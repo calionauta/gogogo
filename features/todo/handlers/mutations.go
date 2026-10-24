@@ -248,11 +248,20 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
+	// trim-genui:panel:start (toggle target)
+	// A panel row posts its own slot id as _target: the answer re-renders
+	// that panel in place (see panel_action.go) instead of the page list
+	// the host page does not have.
+	target := formTarget(r) // trim-genui:panel:end
 	// Visibility-scoped read: own rows plus public rows. A private row of
 	// another user reads as "not found" — indistinguishable from missing,
 	// so existence never leaks across tenants.
 	row, err := h.Q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
 	if err != nil {
+		// trim-genui:panel:start (toggle read)
+		if h.answerPanelReadErr(w, r, owner, target, id, "toggle", err) {
+			return
+		} // trim-genui:panel:end
 		if errors.Is(err, sql.ErrNoRows) {
 			writeText(w, http.StatusNotFound, "not found")
 			return
@@ -269,7 +278,13 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 	if serr := h.Q.SetTodoCompletedByID(ctx, dbgen.SetTodoCompletedByIDParams{
 		Completed: !current.Completed, Updated: now, ID: id,
 	}); serr != nil {
-		h.fail(r.Context(), w, "todo: toggle save failed", fmt.Errorf("id %s: %w", id, serr), "toggle failed")
+		// trim-genui:panel:start (toggle save)
+		serr = fmt.Errorf("id %s: %w", id, serr)
+		if h.answerPanelWriteErr(w, r, target,
+			"todo: toggle save failed", serr, "Couldn't save that change.") {
+			return
+		} // trim-genui:panel:end
+		h.fail(r.Context(), w, "todo: toggle save failed", serr, "toggle failed")
 		return
 	}
 
@@ -289,16 +304,8 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, role := h.roleOf(r)
-	todos, err := h.listVisible(ctx, owner, role, filterOf(r), scopeOf(r))
-	if err != nil {
-		h.fail(r.Context(), w, "todo: list after toggle failed", err, "error listing todos")
-		return
-	}
-	sse := sdk.NewSSE(w, r)
-	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
-		h.fail(r.Context(), w, "todo: toggle patch failed", err, "toggle failed")
-	}
+	// trim-genui:panel:start (toggle outcome)
+	h.answerToggleOutcome(ctx, w, r, owner, target) // trim-genui:panel:end
 }
 
 func (h *Handler) handleConfirmDelete(w http.ResponseWriter, r *http.Request) {
@@ -339,8 +346,6 @@ func (h *Handler) handleConfirmDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // context; disconnects surface as write errors, checked per call.
-//
-//nolint:contextcheck // SSE emission ends in datastar-go sinks, which take no
 func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	owner, err := h.ownerID(r)
 	if err != nil {
@@ -349,8 +354,17 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	ctx := r.Context()
+	// trim-genui:panel:start (delete target)
+	// A panel row posts its own slot id as _target (see panel_action.go):
+	// errors and the outcome all land on that slot, never on the page list
+	// the host page does not have.
+	target := formTarget(r) // trim-genui:panel:end
 	row, err := h.Q.GetTodoVisible(ctx, dbgen.GetTodoVisibleParams{ID: id, Owner: owner})
 	if err != nil {
+		// trim-genui:panel:start (delete read)
+		if h.answerPanelReadErr(w, r, owner, target, id, "delete", err) {
+			return
+		} // trim-genui:panel:end
 		if errors.Is(err, sql.ErrNoRows) {
 			writeText(w, http.StatusNotFound, "not found")
 			return
@@ -368,11 +382,22 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	// deletes own; admin deletes any visible row.
 	_, role := h.roleOf(r)
 	if !canDeleteRow(role, owner, item) {
+		// trim-genui:panel:start (delete forbidden)
+		if h.answerPanelWriteErr(w, r, target,
+			"todo: panel delete forbidden", fmt.Errorf("role %s id %s", role, id), "You can't delete this todo.") {
+			return
+		} // trim-genui:panel:end
 		writeText(w, http.StatusForbidden, "viewer role cannot delete")
 		return
 	}
 	if derr := deleteTodoIndexed(ctx, h.Q, h.Index, h.DB, owner, item.ID); derr != nil {
-		h.fail(r.Context(), w, "todo: delete failed", fmt.Errorf("id %s: %w", id, derr), "delete failed")
+		// trim-genui:panel:start (delete write)
+		derr = fmt.Errorf("id %s: %w", id, derr)
+		if h.answerPanelWriteErr(w, r, target,
+			"todo: delete failed", derr, "Couldn't delete that todo.") {
+			return
+		} // trim-genui:panel:end
+		h.fail(r.Context(), w, "todo: delete failed", derr, "delete failed")
 		return
 	}
 
@@ -392,26 +417,8 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todos, err := h.listVisible(ctx, owner, role, filterOf(r), scopeOf(r))
-	if err != nil {
-		h.fail(r.Context(), w, "todo: list after delete failed", err, "error listing todos")
-		return
-	}
-	sse := sdk.NewSSE(w, r)
-	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"confirmingDeleteId":    "",
-		"confirmingDeleteTitle": "",
-	}); err != nil {
-		h.fail(r.Context(), w, "todo: delete signals failed", err, "delete failed")
-		return
-	}
-	if err := h.patchListSelf(ctx, sse, todos, r); err != nil {
-		h.fail(r.Context(), w, "todo: delete patch failed", err, "delete failed")
-		return
-	}
-	if err := emitToast(sse, fmt.Sprintf("Deleted “%s”", item.Title), "info"); err != nil {
-		h.fail(r.Context(), w, "todo: delete toast failed", err, "delete failed")
-	}
+	// trim-genui:panel:start (delete outcome)
+	h.answerDeleteOutcome(ctx, w, r, owner, role, target, item.Title) // trim-genui:panel:end
 }
 
 // context; disconnects surface as write errors, checked per call.

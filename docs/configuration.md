@@ -77,7 +77,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `JEV_CONFIDENCE_THRESHOLD` | `0.7` | Below this the verdict escalates to a human; recalibrate per backend (see [Review loop](review.md)) |
 | `JEV_ROUTER_ENABLED` | `false` | Let the same jev-compatible endpoint choose which component a Chat answer leads with. Off = byte-identical prompt to the router-less one |
 | `JEV_ROUTER_CONFIDENCE_THRESHOLD` | `0.7` | Below this the pick is ignored and the whole catalog is offered |
-| `GENUI_CHAT_SURFACES` | `catalog,custom` | Chat's answer surfaces: CSV of `catalog,custom,native`. `custom` is `html_block` (model-invented, sanitized markup). `native` (the app's own panels) is always added and cannot be turned off. Absent = the same value. `catalog` alone is the strict showcase (unknown types fail closed). |
+| `GENUI_CHAT_SURFACES` | `catalog,custom,native` | Chat's answer surfaces: CSV of `catalog,custom,native` (every band toggles independently). `custom` is `html_block` (model-invented, sanitized markup). `native` is the app's own panels (real rows from the store). `none` is prose-only: the model answers in plain prose and the page still works. `catalog` alone is the strict showcase (unknown types fail closed). The tab toggles the same names per request from the composer. |
 
 The router (`JEV_ROUTER_*`) is opt-in and reuses the endpoint above —
 one jev-compatible API serves the judge and the router, for BOTH AI legs.

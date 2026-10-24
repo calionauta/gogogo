@@ -204,7 +204,7 @@ typed AI flows (Genkit Go): orchestration + traces above internal/llm
 
 generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub
 
-- **Owned:** `features/genui`, `internal/server/genui_stubs_test.go`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
+- **Owned:** `features/genui`, `internal/server/genui_stubs_test.go`, `features/todo/handlers/genui_panel.go`, `features/todo/handlers/genui_panel_test.go`, `features/todo/handlers/genui_owner_test.go`, `features/todo/handlers/panel_action.go`, `features/todo/handlers/panel_action_test.go`, `features/config/components/safe_view_catalog_test.go`, `features/todo/panel.go`, `features/todo/panel_filter_test.go`, `features/todo/components/panel.templ`, `features/todo/components/panel_templ.go`, `web/resources/static/pele.global.js`, `web/resources/static/diagram.js`
 - **Store calls:** `dbgen.ListTodosByOwner`
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Note:** Deletion removes the Chat demo (one bundle: chat imports genui components, so chat without genui does not compile — same honest shape as whiteboard+collab+notes). The Chat sidebar entry is stripped automatically.
