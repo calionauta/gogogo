@@ -11,7 +11,7 @@ the source of truth.
 | **Passwords and sessions** | argon2id hashes, opaque session tokens (only the SHA-256 reaches the DB), `HttpOnly` + `SameSite=Lax` cookie, `Secure` in production, absolute seven-day TTL, optional idle timeout | `internal/auth`; [Admin & Dashboard](admin-dashboard.md#app-session-cookie-why-one) |
 | **Authorization** | Casbin route + verb policy, a handler session check on every private route, owner-scoped SQL for records, always-on operator fences for `/config`, `/console` and `/dagnats` | `internal/rbac`, `features/*/handlers`; [RBAC](rbac.md) |
 | **Browser edge** | per-request CSP nonce (no `unsafe-inline`/`unsafe-eval` for scripts), HSTS outside dev, COOP/CORP, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, same-origin guard on unsafe writes, no-store on auth responses | `internal/server/edge.go`; [Architecture](architecture.md#security-boundary) |
-| **Credential changes** | password change, TOTP disable and sign-out-everywhere revoke sessions and pending magic links; recovery rotation invalidates the old batch. Sign-out-everywhere requires the current password when the account has one; TOTP disable and recovery rotation require the password or a current authenticator/recovery code on OAuth-only rows | `internal/auth/account.go`, `features/account` |
+| **Credential changes** | password change, TOTP disable and sign-out-everywhere revoke sessions and pending magic links; recovery rotation invalidates the old batch. Sign-out-everywhere uses the password when set, a current authenticator/recovery code when TOTP is enrolled, or the session only when the account has no factor. TOTP disable and recovery rotation require the password or a current code on OAuth-only rows | `internal/auth/account.go`, `features/account` |
 | **Admin mutations** | role changes and session revocation require the signed-in admin's password when set, or a current authenticator/recovery code on a passwordless admin; a failed proof is audited and the mutation is refused | `features/config`, `internal/auth/account.go` |
 | **Email-bound links** | links are built from `APP_URL`, never the request `Host`; single-use purpose-scoped tokens; magic link GET is read-only and POST confirms; `MAGIC_LINK_BIND_BROWSER=true` is the strict same-browser opt-in | `internal/auth/email_lifecycle.go`, `magiclink.go` |
 | **Secrets** | project-scoped age file at `~/.secrets/<APP_NAME>.env.age`; deploy renders `~/.secrets/<APP_NAME>.env` (600); empty SMTP closes email flows | `internal/secrets`, `config`, deploy workflow; [Deploy](deploy.md#email-delivery-verification-reset-magic-links) |
@@ -36,7 +36,7 @@ the source of truth.
 - **Mailpit is a local capture sink.** Its loopback-only inbox contains live magic-link/reset tokens; it must never be published. The app has no visitor-facing inbox.
 - **Name-scoped secrets are not a sandbox.** Anything running as the same OS user can read `~/.secrets`; isolate untrusted projects with another user or container.
 - **No real email in the public demo.** Magic, verification and reset stay closed until a provider and domain are configured; password login is the demo path.
-- **Passwordless sign-out-everywhere is session-authorized.** There is no password to prove and the page does not ask for a current authenticator code; TOTP disable and recovery rotation do.
+- **A passwordless account with no TOTP signs out with the session alone.** There is no password and no factor to prove; TOTP-enrolled accounts must supply the current code for sign-out-everywhere.
 
 ## Where to change what
 

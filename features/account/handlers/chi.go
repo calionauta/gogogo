@@ -255,19 +255,17 @@ func (h *Handler) revokeAll(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "Invalid form submission.")
 		return
 	}
-	hasPassword, perr := h.a.HasPassword(r.Context(), sess.User.ID)
-	if perr != nil {
-		h.renderError(w, r, sess, "Could not verify this account. Try again.")
-		return
+	proof := r.PostFormValue("password")
+	if proof == "" {
+		proof = r.PostFormValue("code")
 	}
-	if hasPassword &&
-		!h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
-		h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
-			"revoke all", sess.User.Email, sess.User.ID, sess.SessionID)
-		h.renderError(w, r, sess, "Password is wrong.")
-		return
-	}
-	if err := h.a.RevokeAllSessions(r.Context(), sess.User.ID); err != nil {
+	if err := h.a.RevokeAllSessionsWithProof(r.Context(), sess.User.ID, proof); err != nil {
+		if errors.Is(err, auth.ErrBadCredentials) {
+			h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
+				"revoke all", sess.User.Email, sess.User.ID, sess.SessionID)
+			h.renderError(w, r, sess, "The proof is wrong.")
+			return
+		}
 		h.renderError(w, r, sess, "Could not sign out every session.")
 		return
 	}

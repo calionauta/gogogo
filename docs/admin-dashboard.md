@@ -49,8 +49,8 @@ Credential lifecycle is also explicit over the API, for clients that never
 render the page: `POST /api/auth/password` (current + new password)
 rotates the hash, **revokes every session**, and issues a fresh cookie for
 the caller; `POST /api/auth/sessions/revoke-all` signs out everywhere and
-requires `{"password": "…"}` when the account has a password (an OAuth-only
-row has none, so the session itself authorizes it).
+uses the password when set, a current authenticator/recovery code when TOTP is
+enrolled, and the session only for an OAuth-only account with no factor.
 The authenticated `/account` page is the user-facing home for email
 verification, password change, TOTP enrollment/recovery and session
 revocation. Rotating recovery codes and disabling the factor both require the

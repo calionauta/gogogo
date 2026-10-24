@@ -111,3 +111,77 @@ func TestRotateRecoveryCodesWithCodeForPasswordlessRow(t *testing.T) {
 		t.Fatal("no recovery codes issued")
 	}
 }
+
+func TestRevokeAllSessionsWithProofPasswordless(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	now := dbschema.Now()
+	user, err := a.q.CreateUser(ctx, dbgen.CreateUserParams{
+		ID: dbschema.NewID(), Email: "oauth-revoke@example.com", PasswordHash: "!",
+		Created: now, Updated: now,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	token := "passwordless-revoke-token"
+	if serr := a.q.CreateSession(ctx, dbgen.CreateSessionParams{
+		TokenHash: tokenHash(token), UserID: user.ID, SessionID: dbschema.NewID(),
+		LastSeen: now, Expires: time.Now().UTC().Add(time.Hour).Format(dbschema.TimeFormat),
+		Created: now,
+	}); serr != nil {
+		t.Fatalf("create session: %v", serr)
+	}
+	if rerr := a.RevokeAllSessionsWithProof(ctx, user.ID, ""); rerr != nil {
+		t.Fatalf("passwordless revoke: %v", rerr)
+	}
+	if _, serr := a.SessionByToken(ctx, token); serr == nil {
+		t.Fatal("session survived passwordless revoke-all")
+	}
+}
+
+func TestRevokeAllSessionsWithProofTOTP(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	if err := a.SetTOTPEncKey(make([]byte, 32)); err != nil {
+		t.Fatalf("key: %v", err)
+	}
+	now := dbschema.Now()
+	user, err := a.q.CreateUser(ctx, dbgen.CreateUserParams{
+		ID: dbschema.NewID(), Email: "oauth-revoke-totp@example.com", PasswordHash: "!",
+		Created: now, Updated: now,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	secret, _, _, err := a.BeginTOTP(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	code, err := totpCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("code: %v", err)
+	}
+	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
+		t.Fatalf("enroll: %v", verr)
+	}
+	token := "passwordless-revoke-totp-token"
+	if serr := a.q.CreateSession(ctx, dbgen.CreateSessionParams{
+		TokenHash: tokenHash(token), UserID: user.ID, SessionID: dbschema.NewID(),
+		LastSeen: now, Expires: time.Now().UTC().Add(time.Hour).Format(dbschema.TimeFormat),
+		Created: now,
+	}); serr != nil {
+		t.Fatalf("create session: %v", serr)
+	}
+	if rerr := a.RevokeAllSessionsWithProof(ctx, user.ID, "000000"); rerr == nil {
+		t.Fatal("wrong code revoked sessions")
+	}
+	if _, serr := a.SessionByToken(ctx, token); serr != nil {
+		t.Fatal("session revoked on wrong code")
+	}
+	if rerr := a.RevokeAllSessionsWithProof(ctx, user.ID, code); rerr != nil {
+		t.Fatalf("code revoke: %v", rerr)
+	}
+	if _, serr := a.SessionByToken(ctx, token); serr == nil {
+		t.Fatal("session survived code-protected revoke-all")
+	}
+}
