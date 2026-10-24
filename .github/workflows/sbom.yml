@@ -1,0 +1,69 @@
+# SBOM + image vulnerability scan.
+#
+# Why a separate workflow: the deploy build is the artifact producer, but a
+# scan must never delay or block a deploy that is already healthy. This job
+# builds the same Dockerfile, keeps a CycloneDX SBOM as an artifact, and scans
+# that inventory with Grype. A scheduled run catches vulnerabilities disclosed
+# after the image was built without rebuilding the application.
+#
+# Tool choice and tradeoffs: docs/research/supply-chain-scanning-2026.md.
+# Actions are pinned by full commit SHA on purpose: a scanner is part of the
+# supply chain it is supposed to protect (the March 2026 Trivy incident is the
+# concrete precedent). Syft/Grype versions are pinned too.
+name: SBOM and image scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1" # weekly, Monday 04:17 UTC
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: sbom-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the production image
+        run: docker build -f deploy/Dockerfile.prod -t gogogo:sbom .
+
+      - name: Generate CycloneDX SBOM with Syft
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: gogogo:sbom
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom-cyclonedx
+          upload-artifact: true
+          upload-release-assets: false
+
+      - name: Scan the SBOM with Grype
+        id: grype
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          sbom: sbom.cdx.json
+          grype-version: v0.121.0
+          only-fixed: true
+          severity-cutoff: high
+          fail-build: true
+          output-format: sarif
+          output-file: grype.sarif
+          cache-db: true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: grype.sarif
+          category: grype
