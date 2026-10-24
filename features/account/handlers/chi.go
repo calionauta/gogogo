@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/calionauta/gogogo/features/account/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
 // Handler serves /account.
@@ -197,14 +199,9 @@ func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "Invalid form submission.")
 		return
 	}
-	id := r.PostFormValue("session_id")
-	if id != "" {
-		if err := h.q.DeleteSessionByID(r.Context(), dbgen.DeleteSessionByIDParams{
-			UserID: sess.User.ID, SessionID: id,
-		}); err != nil {
-			h.renderError(w, r, sess, "Could not revoke that session.")
-			return
-		}
+	if err := h.a.RevokeSessionByID(r.Context(), sess.User.ID, r.PostFormValue("session_id")); err != nil {
+		h.renderError(w, r, sess, "Could not revoke that session.")
+		return
 	}
 	http.Redirect(w, r, "/account?notice=Session+revoked", http.StatusSeeOther)
 }
@@ -212,6 +209,15 @@ func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) revokeAll(w http.ResponseWriter, r *http.Request) {
 	sess, ok := h.session(w, r)
 	if !ok {
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		h.renderError(w, r, sess, "Invalid form submission.")
+		return
+	}
+	if h.a.HasPassword(r.Context(), sess.User.ID) &&
+		!h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
+		h.renderError(w, r, sess, "Password is wrong.")
 		return
 	}
 	if err := h.a.RevokeAllSessions(r.Context(), sess.User.ID); err != nil {
@@ -243,12 +249,28 @@ func (h *Handler) pageData(r *http.Request, sess *auth.ValidatedSession) (compon
 	views := make([]components.SessionView, 0, len(rows))
 	for _, row := range rows {
 		views = append(views, components.SessionView{
-			ID: row.SessionID, Created: row.Created, LastSeen: row.LastSeen, Expires: row.Expires,
+			ID: row.SessionID, Created: formatWhen(row.Created),
+			LastSeen: formatWhen(row.LastSeen), Expires: formatWhen(row.Expires),
+			Current: row.SessionID == sess.SessionID,
 		})
 	}
 	return components.PageData{
-		Email: email, Role: sess.Role, Verified: verified, TOTP: totp, Sessions: views,
+		Email: email, Role: sess.Role, Verified: verified, TOTP: totp,
+		Sessions: views, PasswordSet: h.a.HasPassword(r.Context(), sess.User.ID),
 	}, nil
+}
+
+// formatWhen renders a stored timestamp for a human. The audit table keeps the
+// raw ISO string; the account page is about reading "when", not precision.
+func formatWhen(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	t, err := time.Parse(dbschema.TimeFormat, raw)
+	if err != nil {
+		return raw
+	}
+	return t.UTC().Format("2006-01-02 15:04 UTC")
 }
 
 func (h *Handler) renderError(w http.ResponseWriter, r *http.Request, sess *auth.ValidatedSession, msg string) {

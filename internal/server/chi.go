@@ -488,6 +488,8 @@ func buildChiMux(
 	// Healthcheck: the scratch image runs `app health`, which GETs this path
 	// on 127.0.0.1:PORT. HEAD rides GET per HTTP semantics; any other method
 	// is a 405 from the tree.
+	r.Claim("core", "POST", cspReportPath)
+	r.Post(cspReportPath, cspReportHandler)
 	r.Claim("core", "GET", "/health")
 	r.Claim("core", "HEAD", "/health")
 	r.Get("/health", healthHandler(todoH))

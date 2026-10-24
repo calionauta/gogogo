@@ -48,7 +48,7 @@ func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSess
 	now := time.Now().UTC()
 	if now.After(expires) {
 		_ = a.q.DeleteSession(ctx, row.TokenHash)
-		secEvent(ctx, evSessionExpired, row.UserID)
+		a.secEvent(ctx, evSessionExpired, row.UserID)
 		return nil, errors.New("auth: session expired")
 	}
 	if idle := a.sessionIdleWindow(); idle > 0 {
@@ -59,7 +59,7 @@ func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSess
 		last, lerr := time.Parse(dbschema.TimeFormat, lastRaw)
 		if lerr != nil || now.Sub(last) > idle {
 			_ = a.q.DeleteSession(ctx, row.TokenHash)
-			secEvent(ctx, evSessionExpired, row.UserID)
+			a.secEvent(ctx, evSessionExpired, row.UserID)
 			return nil, errors.New("auth: session idle")
 		}
 		// Touch at most once per five minutes: one write per active session
@@ -72,13 +72,16 @@ func (a *Auth) resolveSession(ctx context.Context, token string) (*ValidatedSess
 	}
 	user, err := a.q.GetUser(ctx, row.UserID)
 	if err != nil {
-		secEvent(ctx, evSessionOrphan, row.UserID)
+		a.secEvent(ctx, evSessionOrphan, row.UserID)
 		return nil, errors.New("auth: session owner gone")
 	}
 	if a.emailVerificationRequired() && user.EmailVerifiedAt == "" {
 		return nil, ErrEmailUnverified
 	}
-	return &ValidatedSession{User: &User{ID: user.ID, Email: user.Email}, Expires: expires, Role: user.Role}, nil
+	return &ValidatedSession{
+		User: &User{ID: user.ID, Email: user.Email}, Expires: expires,
+		Role: user.Role, SessionID: row.SessionID,
+	}, nil
 }
 
 // sessionCookie builds the cookie for a fresh login. Exported as

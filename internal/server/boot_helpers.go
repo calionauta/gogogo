@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/authviews"
@@ -96,6 +97,13 @@ func wireAuthMail(a *auth.Auth, cfg *config.Config) {
 	})
 }
 
+// pruneSecurityEvents keeps the audit table bounded. Thirty days is the
+// template's default retention; an operator with a SIEM exports before it.
+func pruneSecurityEvents(q *dbgen.Queries) {
+	cutoff := time.Now().UTC().Add(-30 * 24 * time.Hour).Format(dbschema.TimeFormat)
+	_ = q.DeleteSecurityEventsBefore(context.Background(), cutoff)
+}
+
 // demoQueries builds the shared query handle and seeds the demo pair only
 // when the deploy opted in. One call keeps BootChi inside the funlen gate
 // and the production default free of published credentials.
@@ -106,6 +114,7 @@ func demoQueries(cfg *config.Config, a *auth.Auth, sqlDB *sql.DB) *dbgen.Queries
 	} else {
 		demo.Disable(context.Background(), q)
 	}
+	pruneSecurityEvents(q)
 	return q
 }
 

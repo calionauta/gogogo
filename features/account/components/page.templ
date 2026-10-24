@@ -10,6 +10,7 @@ type SessionView struct {
 	Created  string
 	LastSeen string
 	Expires  string
+	Current  bool
 }
 
 // PageData is everything the account page renders.
@@ -22,6 +23,7 @@ type PageData struct {
 	SetupURL      string
 	RecoveryCodes []string
 	Sessions      []SessionView
+	PasswordSet   bool
 	Notice        string
 	Error         string
 }
@@ -162,8 +164,19 @@ templ body(data PageData) {
 						for _, session := range data.Sessions {
 							<div class="flex flex-wrap items-center justify-between gap-2 border border-base-300 rounded-lg p-3">
 								<div class="text-xs">
-									<p class="font-mono">{ session.ID }</p>
-									<p class="text-base-content/60">created { session.Created } · last seen { session.LastSeen } · expires { session.Expires }</p>
+									<p class="font-mono">
+										{ session.ID }
+										if session.Current {
+											<span class="badge badge-sm badge-primary ml-1">this device</span>
+										}
+									</p>
+									<p class="text-base-content/60">
+										created { session.Created }
+										if session.LastSeen != "" {
+											· last seen { session.LastSeen }
+										}
+										· expires { session.Expires }
+									</p>
 								</div>
 								<form method="POST" action="/account/sessions/revoke">
 									<input type="hidden" name="session_id" value={ session.ID }/>
@@ -173,7 +186,16 @@ templ body(data PageData) {
 						}
 					</div>
 				}
-				<form method="POST" action="/account/sessions/revoke-all" class="mt-4">
+				<form method="POST" action="/account/sessions/revoke-all" class="mt-4 space-y-2 max-w-md">
+					if data.PasswordSet {
+						<label class="form-control w-full">
+							<div class="label"><span class="label-text">Confirm with your password</span></div>
+							<input type="password" name="password" class="input input-sm" required
+								autocomplete="current-password"/>
+						</label>
+					} else {
+						<p class="text-xs text-base-content/60">This account signs in without a password; the session itself authorizes this action.</p>
+					}
 					<button type="submit" class="btn btn-sm btn-error">Sign out everywhere</button>
 				</form>
 			</div>

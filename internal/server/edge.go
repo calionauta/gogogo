@@ -79,6 +79,7 @@ func cspPolicy(nonce string) string {
 		"img-src 'self' data: blob:; " +
 		"font-src 'self'; media-src 'self'; worker-src 'self'; " +
 		"connect-src 'self'; manifest-src 'self'; " +
+		"report-uri " + cspReportPath + "; " +
 		"object-src 'none'; base-uri 'none'; form-action 'self'; " +
 		"frame-ancestors 'self'"
 }

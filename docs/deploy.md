@@ -133,8 +133,10 @@ seam.
 | **Postmark / SES / Mailgun** | provider SMTP | varies; SES is pay-as-you-go |
 
 The app only knows `SMTP_ADDR`/`SMTP_FROM`/`SMTP_USERNAME`/`SMTP_PASSWORD`;
-swapping provider is an env change, no code. For real delivery publish SPF,
-DKIM and DMARC first. `hdls.tools` is an MCP agent toolbox with a mailbox
+swapping provider is an env change, no code. The secrets file is scoped by
+`APP_NAME` (`~/.secrets/<APP_NAME>.env.age`): a generated project must be
+renamed before boot, and must never reuse another project's secrets file. For
+real delivery publish SPF, DKIM and DMARC first. `hdls.tools` is an MCP agent toolbox with a mailbox
 (create inbox, send/receive, 100 outbound/day); it is **not** an SMTP relay
 and is not wired here.
 

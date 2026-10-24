@@ -45,6 +45,11 @@ func TestHandlersConfigGate(t *testing.T) {
 	if anon.Code != http.StatusForbidden {
 		t.Fatalf("anon /config status = %d, want 403", anon.Code)
 	}
+	csvAnon := httptest.NewRecorder()
+	mux.ServeHTTP(csvAnon, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config/audit.csv", nil))
+	if csvAnon.Code != http.StatusForbidden {
+		t.Fatalf("anon /config/audit.csv status = %d, want 403", csvAnon.Code)
+	}
 
 	ctx := context.Background()
 	if _, _, err := a.Signup(ctx, "op@example.com", "Correct-horse-99!", ""); err != nil {
@@ -173,4 +178,90 @@ func TestChiConfigUserAdminActions(t *testing.T) {
 	if row.Role != "viewer" {
 		t.Fatalf("role = %q, want viewer", row.Role)
 	}
+}
+
+// TestAdminRoleChangeIsAudited pins the operator trail: a successful role
+// change must leave a row the security panel can render, naming the target
+// and the actor. Red-proof: drop the RecordAudit call and the event is gone.
+func TestAdminRoleChangeIsAudited(t *testing.T) {
+	sqlDB, err := db.OpenAt(t.TempDir() + "/config-audit.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	q := dbgen.New(sqlDB)
+	a, aerr := auth.New(q, false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", a.Routes())
+	mux.Handle("/", NewHandler(config.Load(), a, q).Routes())
+
+	ctx := context.Background()
+	if _, _, serr := a.Signup(ctx, "actor@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("signup actor: %v", serr)
+	}
+	if _, _, serr := a.Signup(ctx, "target@example.com", "Correct-horse-99!", ""); serr != nil {
+		t.Fatalf("signup target: %v", serr)
+	}
+	promoteConfigAdmin(t, q, "actor@example.com")
+	actor, _, lerr := a.Login(ctx, "actor@example.com", "Correct-horse-99!")
+	if lerr != nil {
+		t.Fatalf("login actor: %v", lerr)
+	}
+	actorSess, serr := a.SessionByToken(ctx, actor)
+	if serr != nil {
+		t.Fatalf("resolve actor: %v", serr)
+	}
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/config/users/role",
+		strings.NewReader("email=target%40example.com&role=viewer"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// #nosec G124 — test-only request cookie.
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("role change status = %d, want 303", rec.Code)
+	}
+
+	csvReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config/audit.csv", nil)
+	// #nosec G124 — test-only request cookie.
+	csvReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: actor})
+	csvRec := httptest.NewRecorder()
+	mux.ServeHTTP(csvRec, csvReq)
+	if csvRec.Code != http.StatusOK {
+		t.Fatalf("audit csv status = %d", csvRec.Code)
+	}
+	if ct := csvRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/csv") {
+		t.Fatalf("audit csv content-type = %q", ct)
+	}
+	if !strings.Contains(csvRec.Body.String(), "admin role changed") ||
+		!strings.Contains(csvRec.Body.String(), "target@example.com") {
+		t.Fatalf("audit csv missing the role change:\n%s", csvRec.Body.String())
+	}
+
+	rows, qerr := q.ListSecurityEvents(ctx, 50)
+	if qerr != nil {
+		t.Fatalf("events: %v", qerr)
+	}
+	for _, row := range rows {
+		if row.Event == auth.EventAdminRoleChanged && row.Email == "target@example.com" {
+			if row.UserID == "" {
+				t.Fatal("audit row has no target user id")
+			}
+			if row.ActorID != actorSess.User.ID {
+				t.Fatalf("audit actor = %q, want %q", row.ActorID, actorSess.User.ID)
+			}
+			if row.Reason != "role=viewer" {
+				t.Fatalf("audit reason = %q, want role=viewer", row.Reason)
+			}
+			return
+		}
+	}
+	t.Fatalf("admin role change absent from audit rows: %+v", rows)
 }

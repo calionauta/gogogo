@@ -1,6 +1,6 @@
 # Admin & Dashboard
 
-Three built-in surfaces, available as soon as the binary boots:
+The built-in surfaces, available as soon as the binary boots:
 
 | Surface | URL | What it gives you |
 |---|---|---|
@@ -9,6 +9,17 @@ Three built-in surfaces, available as soon as the binary boots:
 | **Session stream** | `/api/session/stream` | `data: {"type":"session","authed": bool}` frames for the shared session banner on pages with **no feature stream** (todo/room/chat/genui carry the same state as a `sessionAuthed` signal on their own stream; notes/whiteboard use their frame). One VISIBLE tab per browser holds this stream (Web Locks + BroadcastChannel); going hidden hands the lock on. One frame on connect and one only when the state changes; the server closes after `authed:false` so the client stops reconnecting. Never 401s: this reports a state, it is not a gate |
 | **Health + build tag** | `/health` | `"ok"` body (container healthcheck) + `X-Gogogo-Build` header (stale-tab reload across deploys) |
 | **DagNats console** | `/console/` | Workflow runs, step inspection, JSON API for durable workflows (same-tunnel reverse proxy to the engine listener; admin **and** `ADMIN_EMAILS`-listed, always on — an empty list closes it) |
+
+`/config` also carries the **security events** panel: the last 24 hours grouped
+by event/reason, a warning when rejected authentication crosses the alert
+threshold, and the most recent 100 rows from the `security_events` table
+(30-day retention, pruned at boot). Admin mutations (role change, session
+revoke) record both the target and the operator; the table links to
+`/config/audit.csv` for an incident review. Events never contain a password,
+session token, TOTP code or magic-link token, and a reported CSP URL drops its
+query string so a one-time token cannot ride into the log. Browser CSP
+violations are posted to `/api/security/csp-report` and logged, so a blocked
+inline script leaves a trace instead of an empty console.
 
 There is no database admin UI in the binary (no `/_/` dashboard ships
 away with the old framework). Inspect data with `sqlite3` against the Turso file
@@ -28,10 +39,12 @@ plain HTTP, on in production). Logout revokes the row; unknown and expired
 sessions fail closed. There is no second cookie and no separate admin
 namespace to clobber — one cookie, one session.
 
-Credential lifecycle is explicit over the API, because there is no profile
-page in the template: `POST /api/auth/password` (current + new password)
+Credential lifecycle is also explicit over the API, for clients that never
+render the page: `POST /api/auth/password` (current + new password)
 rotates the hash, **revokes every session**, and issues a fresh cookie for
-the caller; `POST /api/auth/sessions/revoke-all` signs out everywhere.
+the caller; `POST /api/auth/sessions/revoke-all` signs out everywhere and
+requires `{"password": "…"}` when the account has a password (an OAuth-only
+row has none, so the session itself authorizes it).
 The authenticated `/account` page is the user-facing home for email
 verification, password change, TOTP enrollment/recovery and session
 revocation. `GET /api/auth/sessions` lists the caller's sessions with opaque ids;
@@ -75,8 +88,9 @@ otherwise neither account exists. You do not need a third account or
 `VIEWER_EMAILS` to see enforcement when the seed is on.
 
 `/config` shows your role and the posture (pass-through vs enforced);
-`RBAC_ENABLED` defaults to **false**, so enforcement only appears once it
-is set. Under enforcement the two roles show the contract:
+`RBAC_ENABLED` defaults to **true in production** (false in development), so a
+deployed binary is enforced unless an operator opts out explicitly. Under
+enforcement the two roles show the contract:
 
 | | demo1 (admin) | demo2 (viewer) |
 |---|---|---|

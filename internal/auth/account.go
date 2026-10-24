@@ -5,6 +5,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // ChangePassword verifies the current password, validates the new one,
@@ -27,6 +28,7 @@ func (a *Auth) ChangePassword(ctx context.Context, userID, current, next string)
 	if serr := a.SetPassword(ctx, userID, next); serr != nil {
 		return "", serr
 	}
+	a.secEvent(ctx, evPasswordChanged, userID)
 	return a.openSession(ctx, userID)
 }
 
@@ -47,6 +49,17 @@ func (a *Auth) DisableTOTPWithPassword(ctx context.Context, userID, password str
 		return "", derr
 	}
 	return a.openSession(ctx, userID)
+}
+
+// HasPassword reports whether the account can prove a password. OAuth-only
+// rows carry the "!" sentinel (see oauth.go): a destructive action that asks
+// for a password must not lock those users out of their own account.
+func (a *Auth) HasPassword(ctx context.Context, userID string) bool {
+	row, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(row.PasswordHash, "argon2id$v=")
 }
 
 // VerifyUserPassword is the read-only proof used before destructive account

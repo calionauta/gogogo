@@ -244,3 +244,27 @@ func TestSessionListAndRevoke(t *testing.T) {
 		}
 	}
 }
+
+func TestSecurityEventIsPersisted(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	if _, _, err := a.Signup(ctx, "audit@example.com", "Correct-horse-99!", ""); err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	if _, _, err := a.Login(ctx, "audit@example.com", "wrong-password"); err == nil {
+		t.Fatal("bad login accepted")
+	}
+	rows, err := a.q.ListSecurityEvents(ctx, 10)
+	if err != nil {
+		t.Fatalf("events: %v", err)
+	}
+	found := false
+	for _, row := range rows {
+		if row.Event == evLoginRejected && row.Reason == reasonBadPassword {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("rejected login absent from audit rows: %+v", rows)
+	}
+}

@@ -176,6 +176,7 @@ func (a *Auth) VerifyEmail(ctx context.Context, token string) (string, error) {
 		return "", fmt.Errorf("auth: verify email: %w", err)
 	}
 	_ = a.q.DeleteMagicToken(ctx, row.TokenHash)
+	a.secEvent(ctx, evEmailVerified, row.UserID)
 	return user.Email, nil
 }
 
@@ -259,7 +260,11 @@ func (a *Auth) ResetPassword(ctx context.Context, token, newPassword string) err
 	if err := a.RevokeAllSessions(ctx, row.UserID); err != nil {
 		return err
 	}
-	return a.SetPassword(ctx, row.UserID, newPassword)
+	if err := a.SetPassword(ctx, row.UserID, newPassword); err != nil {
+		return err
+	}
+	a.secEvent(ctx, evPasswordReset, row.UserID)
+	return nil
 }
 
 // mailboxAddress is a tiny guard used by SMTP implementations; kept here so

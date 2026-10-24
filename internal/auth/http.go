@@ -81,7 +81,7 @@ func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !a.signupAttempts.allow(signinIP(r)) {
-		secReject(r.Context(), evSignupRejected, reasonSignupThrottled, "", "")
+		a.secReject(r.Context(), evSignupRejected, reasonSignupThrottled, "", "")
 		http.Error(w, "too many attempts", http.StatusTooManyRequests)
 		return
 	}
@@ -145,7 +145,7 @@ func (a *Auth) handleSignin(w http.ResponseWriter, r *http.Request) {
 	// a client-controlled header here would let attackers rotate past it.
 	ip := signinIP(r)
 	if !a.signinAttempts.allow(ip) {
-		secReject(r.Context(), evLoginRejected, reasonSigninThrottled, body.Credential, "")
+		a.secReject(r.Context(), evLoginRejected, reasonSigninThrottled, body.Credential, "")
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}

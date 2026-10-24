@@ -233,6 +233,54 @@ templ configBody(data PageData) {
 		</div>
 	</section>
 
+	<section class="ui-card">
+		<div class="ui-card-body">
+			<h2 class="ui-title">Security events</h2>
+			if data.AuditAlert != "" {
+				<div role="alert" class="alert alert-warning mb-3"><span>{ data.AuditAlert }</span></div>
+			}
+			<p class="text-sm text-base-content/70 mb-2">Last 24 hours, grouped by outcome.</p>
+			if len(data.EventCounts) == 0 {
+				<p class="text-sm">No security events recorded.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="table table-sm">
+						<thead><tr><th>Event</th><th>Reason</th><th>Count</th></tr></thead>
+						<tbody>
+							for _, count := range data.EventCounts {
+								<tr><td>{ count.Event }</td><td>{ count.Reason }</td><td>{ count.Count }</td></tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+			<div class="flex flex-wrap items-center justify-between gap-2 mb-2 mt-4">
+				<p class="text-sm text-base-content/70">Recent events (100).</p>
+				<a href="/config/audit.csv" class="btn btn-xs" download>Download CSV</a>
+			</div>
+			if len(data.Events) == 0 {
+				<p class="text-sm">No recent events.</p>
+			} else {
+				<div class="overflow-x-auto">
+					<table class="table table-sm">
+						<thead><tr><th>When</th><th>Event</th><th>Reason</th><th>Subject</th><th>Actor</th></tr></thead>
+						<tbody>
+							for _, event := range data.Events {
+								<tr>
+									<td class="text-xs text-base-content/60">{ event.Created }</td>
+									<td>{ event.Event }</td>
+									<td>{ event.Reason }</td>
+									<td class="text-xs"><code>{ event.Email }</code> <span class="text-base-content/60">{ event.UserID }</span></td>
+									<td class="text-xs text-base-content/60">{ event.ActorID }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</section>
+
 	<footer class="text-xs text-base-content/60 mt-6">
 		<p>Need to rotate a secret? Edit <code>~/.secrets/{ data.AppName }.env.age</code> (L2 in <code>cali-ops-server-security</code>) and restart the binary.</p>
 	</footer>

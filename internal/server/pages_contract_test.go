@@ -102,6 +102,7 @@ var pagesUnderTest = []pageUnderTest{
 		"Runtime view + admin actions.",
 		"Access control (Casbin).",
 		"Users",
+		"Security events",
 		"<th class=\"w-1/3\">Field</th>",
 	}},
 }

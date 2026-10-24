@@ -39,6 +39,7 @@ func TestNoMutatingRouteIsAnonymous(t *testing.T) {
 		"/api/auth/verify/request":         true, // anti-enumeration verification request
 		"/api/auth/password/reset/request": true, // anti-enumeration request
 		"/api/auth/password/reset":         true, // token-authenticated reset
+		"/api/security/csp-report":         true, // browser CSP reports
 		"/api/auth/totp/login":             true,
 		"/api/auth/signout":                true, // logging out must work with an expired session
 		"/login":                           true, // the credential form itself

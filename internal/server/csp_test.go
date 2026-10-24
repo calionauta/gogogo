@@ -36,13 +36,17 @@ func TestCSPNonceReachesDocumentAndScripts(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read: %v", err)
 			}
-			m := cspNonceRE.FindStringSubmatch(resp.Header.Get("Content-Security-Policy"))
+			csp := resp.Header.Get("Content-Security-Policy")
+			m := cspNonceRE.FindStringSubmatch(csp)
 			if m == nil {
 				t.Fatalf("%s: CSP carries no nonce", route)
 			}
 			nonce := m[1]
 			if !strings.Contains(string(body), `data-nonce="`+nonce+`"`) {
 				t.Errorf("%s: <html data-nonce> does not match the header", route)
+			}
+			if !strings.Contains(csp, "report-uri "+cspReportPath) {
+				t.Errorf("%s: CSP has no report-uri", route)
 			}
 			if !strings.Contains(string(body), `nonce="`+nonce+`"`) {
 				t.Errorf("%s: inline scripts do not carry the header nonce", route)

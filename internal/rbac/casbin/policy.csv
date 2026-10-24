@@ -67,6 +67,7 @@ p, anonymous, /api/auth/verify, GET
 p, anonymous, /api/auth/verify/request, POST
 p, anonymous, /api/auth/password/reset, (GET|POST)
 p, anonymous, /api/auth/password/reset/request, POST
+p, anonymous, /api/security/csp-report, POST
 p, anonymous, /api/auth/totp/login, POST
 p, anonymous, /api/auth/oauth/*, GET
 p, anonymous, /api/session/stream, GET

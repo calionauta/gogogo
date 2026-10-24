@@ -26,6 +26,19 @@ func (a *Auth) handleRevokeAll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	if a.HasPassword(r.Context(), user.ID) {
+		var body struct {
+			Password string `json:"password"`
+		}
+		if berr := readJSON(r, &body); berr != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		if !a.VerifyUserPassword(r.Context(), user.ID, body.Password) {
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+	}
 	if rerr := a.RevokeAllSessions(r.Context(), user.ID); rerr != nil {
 		http.Error(w, "revoke failed", http.StatusInternalServerError)
 		return
@@ -46,6 +59,23 @@ func (a *Auth) RevokeAllSessions(ctx context.Context, userID string) error {
 	if err := a.q.DeleteMagicTokensForUser(ctx, userID); err != nil {
 		return fmt.Errorf("auth: revoke magic links: %w", err)
 	}
+	a.secEvent(ctx, evSessionsRevoked, userID)
+	return nil
+}
+
+// RevokeSessionByID deletes one session owned by userID. Ownership is part of
+// the WHERE clause, so a guessed id from another account is a no-op. The audit
+// row names the owner, never the session id.
+func (a *Auth) RevokeSessionByID(ctx context.Context, userID, sessionID string) error {
+	if sessionID == "" {
+		return nil
+	}
+	if err := a.q.DeleteSessionByID(ctx, dbgen.DeleteSessionByIDParams{
+		UserID: userID, SessionID: sessionID,
+	}); err != nil {
+		return fmt.Errorf("auth: revoke session: %w", err)
+	}
+	a.secEvent(ctx, evSessionRevoked, userID)
 	return nil
 }
 

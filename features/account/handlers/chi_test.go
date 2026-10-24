@@ -155,7 +155,7 @@ func TestAccountSessionsRevoke(t *testing.T) {
 	// The newest session appears first in the page; revoke both through the
 	// form endpoint by reading the ids from the rendered page is brittle.
 	// Revoke-all is the deterministic page contract.
-	rec := accountDo(mux, http.MethodPost, "/account/sessions/revoke-all", "", first)
+	rec := accountDo(mux, http.MethodPost, "/account/sessions/revoke-all", "password=Correct-horse-99%21", first)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("revoke-all = %d", rec.Code)
 	}
@@ -184,4 +184,29 @@ func testTOTP(secret string) string {
 	code := (uint32(sum[off])&0x7f)<<24 | uint32(sum[off+1])<<16 |
 		uint32(sum[off+2])<<8 | uint32(sum[off+3])
 	return fmt.Sprintf("%06d", code%1000000)
+}
+
+func TestAccountRevokeAllRequiresPassword(t *testing.T) {
+	a, _, mux := accountFixture(t)
+	ctx := context.Background()
+	_, first, err := a.Signup(ctx, "sess-proof@example.com", "Correct-horse-99!", "")
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	second, _, err := a.Login(ctx, "sess-proof@example.com", "Correct-horse-99!")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	rec := accountDo(mux, http.MethodPost, "/account/sessions/revoke-all", "password=wrong-password", first)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("wrong-password revoke = %d, want the rendered error page", rec.Code)
+	}
+	for name, token := range map[string]string{"first": first, "second": second} {
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+		// #nosec G124 — test-only request cookie.
+		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: token})
+		if _, err := a.Session(req); err != nil {
+			t.Fatalf("%s session revoked without the password: %v", name, err)
+		}
+	}
 }

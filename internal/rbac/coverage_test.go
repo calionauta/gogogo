@@ -23,6 +23,7 @@ var adminOnlyRoutes = map[string]bool{
 	"/config/*":            true,
 	"/config/users/role":   true,
 	"/config/users/revoke": true,
+	"/config/audit.csv":    true,
 }
 
 // publicRoutes declares the routes a signed-out visitor may reach. An

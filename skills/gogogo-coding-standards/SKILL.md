@@ -455,3 +455,4 @@ warnings print and exit 0.
 | `references/go-testing.md` | race, synctest, httptest, B.Loop, SQLite strategy, fix modernizers |
 | `references/datastar.md` | wrapper, scope, PatchElements, whitelist, CSS scan roots |
 | `references/exception-to-go.md` | bans, decision, pin policy, what to vendor and when |
+| `references/email-secrets.md` | APP_URL + SMTP config, project-scoped age secrets, Mailpit vs real provider |

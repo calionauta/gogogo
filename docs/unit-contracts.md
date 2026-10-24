@@ -31,7 +31,7 @@ cookie sessions + middleware (flat auth + shared login UI)
 
 - **Owned:** `internal/auth`, `features/authviews`
 - **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/password`, `/api/auth/password/reset`, `/api/auth/password/reset/request`, `/api/auth/sessions`, `/api/auth/sessions/revoke-all`, `/api/auth/sessions/{id}`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`, `/api/auth/verify`, `/api/auth/verify/request`
-- **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteMagicTokensForUserPurpose`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.DeleteSessionByID`, `dbgen.DeleteUserSessions`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.LatestMagicTokenForUser`, `dbgen.LatestMagicTokenForUserPurpose`, `dbgen.LinkOAuthAccount`, `dbgen.ListSessionsByUser`, `dbgen.SetEmailVerified`, `dbgen.SetTOTPSecret`, `dbgen.UpdateSessionLastSeen`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
+- **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteMagicTokensForUserPurpose`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.DeleteSessionByID`, `dbgen.DeleteUserSessions`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.InsertSecurityEvent`, `dbgen.LatestMagicTokenForUser`, `dbgen.LatestMagicTokenForUserPurpose`, `dbgen.LinkOAuthAccount`, `dbgen.ListSessionsByUser`, `dbgen.SetEmailVerified`, `dbgen.SetTOTPSecret`, `dbgen.UpdateSessionLastSeen`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
 - **Trim:** manual (no installer unit)
 - **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login page and shell controls. No framework middleware remains; the owned stack is the whole story.
 
@@ -115,7 +115,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
 - **Routes:** `/_ui/demo`, `/health`, `/sw.js`
-- **Store calls:** `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
+- **Store calls:** `dbgen.DeleteSecurityEventsBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 
@@ -276,7 +276,7 @@ authenticated /account security page
 
 - **Owned:** `features/account`
 - **Routes:** `/account`, `/account/password`, `/account/sessions/revoke`, `/account/sessions/revoke-all`, `/account/totp/begin`, `/account/totp/disable`, `/account/totp/recovery`, `/account/totp/verify`, `/account/verify`
-- **Store calls:** `dbgen.DeleteSessionByID`, `dbgen.ListSessionsByUser`
+- **Store calls:** `dbgen.ListSessionsByUser`
 - **Trim:** manual (no installer unit)
 - **Note:** Core identity UX; remove manually with the menu link in features/authviews/controls.templ.
 
@@ -295,7 +295,8 @@ conversation demo (persisted history + catalog answers on genui)
 admin-only /config view + user role/session actions
 
 - **Owned:** `features/config`
-- **Store calls:** `dbgen.CountAdmins`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.ListUsers`, `dbgen.SetUserRole`
+- **Routes:** `/config`, `/config/audit.csv`, `/config/users/revoke`, `/config/users/role`
+- **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEvents`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
 - **Warning:** The Config sidebar entry is stripped automatically.

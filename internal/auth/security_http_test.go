@@ -306,8 +306,14 @@ func TestRevokeAllSessions(t *testing.T) {
 	}
 	mux := securityMux(a)
 	// #nosec G124 — test-only request cookie.
-	rec := postJSON(t, mux, "/api/auth/sessions/revoke-all", map[string]string{},
-		&http.Cookie{Name: CookieName, Value: token})
+	cookie := &http.Cookie{Name: CookieName, Value: token}
+	bad := postJSON(t, mux, "/api/auth/sessions/revoke-all",
+		map[string]string{"password": "wrong-password"}, cookie)
+	if bad.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong-password revoke-all = %d, want 401", bad.Code)
+	}
+	rec := postJSON(t, mux, "/api/auth/sessions/revoke-all",
+		map[string]string{"password": "Correct-horse-99!"}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("revoke-all = %d (%s)", rec.Code, rec.Body.String())
 	}

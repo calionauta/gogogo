@@ -312,6 +312,7 @@ func applyAndProve(ctx context.Context, opt options, drop []trimUnit, stdout io.
 // PORT is the scaffolded app's default; the binary reads it at boot.
 type nextSteps struct {
 	Dir   string `json:"dir"`
+	Email string `json:"email"`
 	Dev   string `json:"dev"`
 	App   string `json:"app"`
 	Todo  string `json:"todo"`

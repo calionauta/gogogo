@@ -28,7 +28,7 @@ import (
 // uses, the same shape the RBAC coverage lint scans for. Registration is the
 // only honest route source: a literal in a comment is not a route.
 var contractRouteRE = regexp.MustCompile(
-	`r\.(?:Get|Post|Put|Patch|Delete|Head)\(["\x60](/[^"\x60]*)["\x60]`)
+	`r\.(?:With\([^)]*\)\.)?(?:Get|Post|Put|Patch|Delete|Head)\(["\x60](/[^"\x60]*)["\x60]`)
 
 // contractQueryRE matches a method call whose name sqlc generated. Handlers
 // reach the store through a *dbgen.Queries field (`h.Q.CreateTodo(…)`), not

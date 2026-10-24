@@ -68,6 +68,16 @@ type SearchPosting struct {
 	Length int64
 }
 
+type SecurityEvent struct {
+	ID      string
+	Event   string
+	Reason  string
+	Email   string
+	UserID  string
+	ActorID string
+	Created string
+}
+
 type Session struct {
 	TokenHash string
 	UserID    string

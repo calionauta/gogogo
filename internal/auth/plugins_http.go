@@ -62,7 +62,7 @@ func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !a.magicAttempts.allow(signinIP(r)) {
-		secReject(r.Context(), evMagicRejected, reasonThrottled, "", "")
+		a.secReject(r.Context(), evMagicRejected, reasonThrottled, "", "")
 		http.Error(w, "too many attempts", http.StatusTooManyRequests)
 		return
 	}
@@ -109,7 +109,7 @@ func (a *Auth) handleMagicVerify(w http.ResponseWriter, r *http.Request) {
 		cookie, cerr := r.Cookie(magicBindCookie)
 		if bind == "" || cerr != nil ||
 			subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(bind)) != 1 {
-			secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
+			a.secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
 			a.renderMagicConfirm(w, r, email, token, bind,
 				"Open this link in the browser where you requested it, or request a new link.")
 			return
@@ -140,7 +140,7 @@ func (a *Auth) handleMagicComplete(w http.ResponseWriter, r *http.Request) {
 		cookie, cerr := r.Cookie(magicBindCookie)
 		if bind == "" || cerr != nil ||
 			subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(bind)) != 1 {
-			secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
+			a.secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
 			a.renderMagicConfirm(w, r, email, token, bind,
 				"Open this link in the browser where you requested it, or request a new link.")
 			return
