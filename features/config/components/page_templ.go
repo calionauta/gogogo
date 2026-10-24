@@ -457,7 +457,7 @@ func configBody(data PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.AdminStepUp {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<p class=\"text-xs text-base-content/60 mb-3\">Each mutation asks for your password or a current authenticator/recovery code.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<p class=\"text-xs text-base-content/60 mb-3\">Each mutation asks for your password; a passwordless admin proves it with a current authenticator/recovery code.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
