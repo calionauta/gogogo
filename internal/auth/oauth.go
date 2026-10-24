@@ -460,5 +460,12 @@ func (a *Auth) findOrCreateOAuthUser(
 	}); err != nil {
 		return nil, fmt.Errorf("auth: oauth link: %w", err)
 	}
+	// The provider already verified this address (fetchOAuthIdentity
+	// rejects unverified emails), so it satisfies the verification gate.
+	if verr := a.q.SetEmailVerified(ctx, dbgen.SetEmailVerifiedParams{
+		EmailVerifiedAt: now, Updated: now, ID: row.ID,
+	}); verr != nil {
+		return nil, fmt.Errorf("auth: oauth verify: %w", verr)
+	}
 	return &User{ID: row.ID, Email: row.Email}, nil
 }

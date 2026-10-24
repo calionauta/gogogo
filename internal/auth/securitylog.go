@@ -54,6 +54,7 @@ const (
 	reasonThrottled       = "attempt budget exhausted"
 	reasonSigninThrottled = "signin budget exhausted"
 	reasonSignupThrottled = "signup budget exhausted"
+	reasonEmailUnverified = "email not verified"
 	reasonBadCode         = "wrong code"
 	reasonBrowserMismatch = "browser mismatch"
 )

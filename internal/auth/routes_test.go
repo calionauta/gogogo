@@ -19,7 +19,7 @@ func TestRoutesAnswer405AtTheRouter(t *testing.T) {
 	}{
 		{http.MethodGet, "/api/auth/signup/credential"},
 		{http.MethodGet, "/api/auth/signin/credential"},
-		{http.MethodPost, "/api/auth/magic"},
+		{http.MethodPut, "/api/auth/magic"},
 		{http.MethodPut, "/api/auth/signout"},
 		{http.MethodPost, "/api/auth/oauth/github"},
 		{http.MethodGet, "/api/auth/oauth/github/callback/extra"},

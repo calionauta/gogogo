@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo/config"
+	"github.com/calionauta/gogogo/features/authviews"
 	chathandlers "github.com/calionauta/gogogo/features/chat/handlers"
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	comp "github.com/calionauta/gogogo/features/genui/components"
@@ -44,6 +45,57 @@ func seedDemoAccounts(a *auth.Auth, q *dbgen.Queries) {
 // enforced denies when on — the flag never rewires anything). Viewers
 // promote first so an address in both lists ends admin, never viewer.
 // ctx is the boot context: promotion stops if the boot is cancelled.
+// wireAuth applies the auth deployment switches and installs the standalone
+// email-link pages. The renderer is a callback so internal/auth stays free of
+// the feature/UI dependency.
+func wireAuth(a *auth.Auth, cfg *config.Config) error {
+	if err := a.SetAppURL(cfg.Auth.AppURL); err != nil {
+		return err
+	}
+	a.SetSignupEnabled(cfg.SignupEnabled)
+	a.SetMagicLinkBindBrowser(cfg.Auth.MagicLinkBindBrowser)
+	wireAuthPages(a, cfg)
+	wireAuthMail(a, cfg)
+	return nil
+}
+
+// wireAuthPages installs the standalone email-link pages.
+func wireAuthPages(a *auth.Auth, cfg *config.Config) {
+	skin := func() string {
+		if cfg.Skin != "" {
+			return cfg.Skin
+		}
+		return "daisyui"
+	}
+	a.SetMagicConfirmPage(func(w http.ResponseWriter, r *http.Request, email, token, bind, errMsg string) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		//nolint:contextcheck // templ components receive ctx from Render.
+		_ = authviews.MagicConfirmPage(email, token, bind, errMsg, skin()).Render(r.Context(), w)
+	})
+	a.SetPasswordResetPage(func(w http.ResponseWriter, r *http.Request, email, token, errMsg string) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		//nolint:contextcheck // templ components receive ctx from Render.
+		_ = authviews.PasswordResetPage(email, token, errMsg, skin()).Render(r.Context(), w)
+	})
+}
+
+// wireAuthMail installs SMTP delivery for verification/reset and adapts it to
+// the link-shaped magic sender. Empty SMTP config leaves both closed.
+func wireAuthMail(a *auth.Auth, cfg *config.Config) {
+	a.SetRequireEmailVerification(cfg.Auth.RequireEmailVerification)
+	a.SetSessionIdle(cfg.Auth.SessionIdleTimeout)
+	if cfg.Auth.SMTP.Addr == "" || cfg.Auth.SMTP.From == "" {
+		return
+	}
+	mailer := auth.NewSMTPMailer(cfg.Auth.SMTP.Addr, cfg.Auth.SMTP.From, cfg.Auth.SMTP.Username, cfg.Auth.SMTP.Password)
+	a.SetMailer(mailer)
+	a.SetMagicSender(func(to, link string) error {
+		return mailer(to, "Sign in to "+cfg.AppName, "Open this link to sign in:\n\n"+link+"\n")
+	})
+}
+
 // demoQueries builds the shared query handle and seeds the demo pair only
 // when the deploy opted in. One call keeps BootChi inside the funlen gate
 // and the production default free of published credentials.

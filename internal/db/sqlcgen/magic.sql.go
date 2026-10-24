@@ -11,22 +11,24 @@ import (
 
 const createMagicToken = `-- name: CreateMagicToken :exec
 
-INSERT INTO magic_tokens (token_hash, user_id, expires, created)
-VALUES (?, ?, ?, ?)
+INSERT INTO magic_tokens (token_hash, user_id, purpose, expires, created)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type CreateMagicTokenParams struct {
 	TokenHash string
 	UserID    string
+	Purpose   string
 	Expires   string
 	Created   string
 }
 
-// Magic-link tokens: single-use passwordless logins.
+// Magic-link and email-action tokens: single-use, hashed, purpose-scoped.
 func (q *Queries) CreateMagicToken(ctx context.Context, arg CreateMagicTokenParams) error {
 	_, err := q.db.ExecContext(ctx, createMagicToken,
 		arg.TokenHash,
 		arg.UserID,
+		arg.Purpose,
 		arg.Expires,
 		arg.Created,
 	)
@@ -60,8 +62,22 @@ func (q *Queries) DeleteMagicTokensForUser(ctx context.Context, userID string) e
 	return err
 }
 
+const deleteMagicTokensForUserPurpose = `-- name: DeleteMagicTokensForUserPurpose :exec
+DELETE FROM magic_tokens WHERE user_id = ? AND purpose = ?
+`
+
+type DeleteMagicTokensForUserPurposeParams struct {
+	UserID  string
+	Purpose string
+}
+
+func (q *Queries) DeleteMagicTokensForUserPurpose(ctx context.Context, arg DeleteMagicTokensForUserPurposeParams) error {
+	_, err := q.db.ExecContext(ctx, deleteMagicTokensForUserPurpose, arg.UserID, arg.Purpose)
+	return err
+}
+
 const getMagicToken = `-- name: GetMagicToken :one
-SELECT token_hash, user_id, expires, created FROM magic_tokens WHERE token_hash = ?
+SELECT token_hash, user_id, expires, created, purpose FROM magic_tokens WHERE token_hash = ?
 `
 
 func (q *Queries) GetMagicToken(ctx context.Context, tokenHash string) (MagicToken, error) {
@@ -72,12 +88,13 @@ func (q *Queries) GetMagicToken(ctx context.Context, tokenHash string) (MagicTok
 		&i.UserID,
 		&i.Expires,
 		&i.Created,
+		&i.Purpose,
 	)
 	return i, err
 }
 
 const latestMagicTokenForUser = `-- name: LatestMagicTokenForUser :one
-SELECT token_hash, user_id, expires, created FROM magic_tokens WHERE user_id = ? ORDER BY created DESC LIMIT 1
+SELECT token_hash, user_id, expires, created, purpose FROM magic_tokens WHERE user_id = ? ORDER BY created DESC LIMIT 1
 `
 
 func (q *Queries) LatestMagicTokenForUser(ctx context.Context, userID string) (MagicToken, error) {
@@ -88,6 +105,29 @@ func (q *Queries) LatestMagicTokenForUser(ctx context.Context, userID string) (M
 		&i.UserID,
 		&i.Expires,
 		&i.Created,
+		&i.Purpose,
+	)
+	return i, err
+}
+
+const latestMagicTokenForUserPurpose = `-- name: LatestMagicTokenForUserPurpose :one
+SELECT token_hash, user_id, expires, created, purpose FROM magic_tokens WHERE user_id = ? AND purpose = ? ORDER BY created DESC LIMIT 1
+`
+
+type LatestMagicTokenForUserPurposeParams struct {
+	UserID  string
+	Purpose string
+}
+
+func (q *Queries) LatestMagicTokenForUserPurpose(ctx context.Context, arg LatestMagicTokenForUserPurposeParams) (MagicToken, error) {
+	row := q.db.QueryRowContext(ctx, latestMagicTokenForUserPurpose, arg.UserID, arg.Purpose)
+	var i MagicToken
+	err := row.Scan(
+		&i.TokenHash,
+		&i.UserID,
+		&i.Expires,
+		&i.Created,
+		&i.Purpose,
 	)
 	return i, err
 }

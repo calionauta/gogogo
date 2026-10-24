@@ -56,6 +56,9 @@ const magicAttemptMax = 60
 // holds a state entry until the ten-minute TTL.
 const oauthStartAttemptMax = 60
 
+// resetAttemptMax bounds password-reset emails per client IP.
+const resetAttemptMax = 10
+
 // budget resolves the tracker's effective limits.
 func (t *attemptTracker) budget() (max int, window time.Duration) {
 	if t.max > 0 {

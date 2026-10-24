@@ -97,13 +97,6 @@ type Config struct {
 
 	DataDir string
 
-	// AppURL is the public origin used to build links that leave the
-	// process (the magic-link email). It must be the browser-facing URL,
-	// not the listen address: behind a TLS-terminating proxy the request
-	// Host is either http or an attacker-supplied value, so auth refuses
-	// to build a magic link without this. Empty disables magic links.
-	AppURL string
-
 	// DemoAccounts seeds demo1/demo2 with published credentials and fixed
 	// roles. It defaults to development only: a production deploy must opt in
 	// explicitly, because those credentials are public and demo1 is an admin.
@@ -237,6 +230,16 @@ type Config struct {
 		// Empty falls back to the auto-created key file. Malformed is
 		// dropped (fail-safe); set-but-malformed fails the boot instead.
 		TOTPEncKey []byte
+		// MagicLinkBindBrowser forces same-browser magic links.
+		MagicLinkBindBrowser bool
+		// RequireEmailVerification gates password login.
+		RequireEmailVerification bool
+		// SessionIdleTimeout ends inactive sessions; zero = absolute TTL.
+		SessionIdleTimeout time.Duration
+		// SMTP configures verification/reset delivery.
+		SMTP SMTPConfig
+		// AppURL is the browser-facing origin for out-of-band links.
+		AppURL string
 	}
 	// Turso holds the Turso Database connection settings — the Rust
 	// SQLite-compatible engine, driven from Go by turso.tech/database/tursogo.
@@ -355,8 +358,8 @@ func Load() *Config {
 		HTTPAccessLog: envBool("HTTP_ACCESS_LOG", false),
 		Dev:           dev,
 		DataDir:       getEnv("DATA_DIR", "data"),
-		AppURL:        strings.TrimRight(getEnv("APP_URL", ""), "/"),
 		DemoAccounts:  envBool("DEMO_ACCOUNTS_ENABLED", dev),
+
 		SignupEnabled: envBool("SIGNUP_ENABLED", dev),
 		RateLimitRPM:  int(envInt("RATE_LIMIT_RPM", defaultRateLimitRPM)),
 		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
@@ -365,6 +368,7 @@ func Load() *Config {
 		},
 	}
 
+	cfg.Auth.AppURL = strings.TrimRight(getEnv("APP_URL", ""), "/")
 	cfg.NATS.Enabled = envBool("NATS_ENABLED", defaultNATSEnabled())
 	cfg.NATS.StoreDir = getEnv("NATS_STORE_DIR", "data/nats")
 	cfg.NATS.LeafNodeURL = getEnv("NATS_LEAFNODE_URL", "")

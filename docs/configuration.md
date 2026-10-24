@@ -24,8 +24,13 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `LOG_LEVEL` | `INFO` | slog level |
 | `HTTP_ACCESS_LOG` | `false` | Emit one structured `http: request` line per request (method, path, status, bytes, duration, stream). A stream is logged when it closes, with its real duration. Off by default: a busy SSE page logs a line per stream. The write is flusher-preserving, so enabling it never breaks an SSE handler. |
 | `DATA_DIR` | `data` | Root for runtime data |
-| `APP_URL` | unset | Public origin used to build links that leave the process (the magic-link email), e.g. `https://app.example.com`. Required for magic links: without it the endpoint fails closed rather than trusting the request `Host` (which a proxy may rewrite and an attacker may forge). Malformed values fail the boot. A magic link must be opened in the browser that requested it (the link carries a browser-binding cookie). |
+| `APP_URL` | unset | Public origin used to build links that leave the process (the magic-link email), e.g. `https://app.example.com`. Required for magic links: without it the endpoint fails closed rather than trusting the request `Host` (which a proxy may rewrite and an attacker may forge). Malformed values fail the boot. Magic, verification and reset links are built from this origin. |
 | `RATE_LIMIT_RPM` | `1200` | Per-session dynamic-request budget per minute. `0` disables the in-process limiter; the edge reverse proxy remains the primary throttle for a fleet. Signed-out requests are not counted (their expensive surfaces have dedicated throttles). |
+| `MAGIC_LINK_BIND_BROWSER` | `false` | Strict mode: a magic link only completes in the browser that requested it (cookie + `bind`). Off by default because email clients open links in another browser/webview; cross-device works either way, and the emailed GET is read-only. |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | Block password login until the address confirms the emailed verification link. OAuth-verified addresses bypass it. |
+| `SESSION_IDLE_TIMEOUT` | `0` | Inactivity window (e.g. `30m`, `12h`). `0` keeps the absolute seven-day session TTL only. |
+| `SMTP_ADDR` / `SMTP_FROM` | unset | SMTP relay and envelope sender for verification/reset mail, e.g. `smtp.example.com:587` / `no-reply@example.com`. Empty leaves those endpoints closed (503). |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | unset | Optional SMTP AUTH credentials; keep them in the age-encrypted secrets file, never in git. |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
 | `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |
 

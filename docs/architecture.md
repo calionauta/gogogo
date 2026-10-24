@@ -168,8 +168,9 @@ is per-process. The security properties here are owned:
 - CSRF in layers: the cookie's `SameSite=Lax` keeps it off cross-site
   POSTs; `sameOriginGuard` refuses an unsafe method when
   `Sec-Fetch-Site: cross-site` or a browser `Origin` does not match the
-  request host; magic-link and OAuth logins are bound to the requesting
-  browser by a short-lived cookie. A reverse proxy
+  request host; magic links confirm on a POST (cross-device by default;
+  strict same-browser is opt-in) and the OAuth handshake is bound to the
+  requesting browser by a short-lived cookie. A reverse proxy
   in front must preserve the `Host` header (cloudflared and Caddy do); a
   proxy that rewrites it makes every browser write a 403. CLI clients,
   webhooks and the desktop webview send no `Origin` (or a custom scheme) and
@@ -187,9 +188,10 @@ is per-process. The security properties here are owned:
   `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, COOP/CORP,
   `Permissions-Policy`, and HSTS outside dev. `Cache-Control: no-store` on
   every auth handler response, plus a body cap on the auth surface.
-- magic links are built only from `APP_URL`, never from the request `Host`,
-  and are bound to the requesting browser by a short-lived cookie; the OAuth
-  handshake carries the same binding.
+- magic links are built only from `APP_URL`, never from the request `Host`;
+  the emailed GET is read-only and the POST confirms the account. Cross-device
+  works by default; `MAGIC_LINK_BIND_BROWSER=true` is the strict same-browser
+  mode. The OAuth handshake carries a browser-binding cookie.
 - public signup is closed by default in production; the demo seed is
   development-only unless `DEMO_ACCOUNTS_ENABLED=true`, and an existing demo
   pair is disabled on boot when the flag is off. Signup, magic-link

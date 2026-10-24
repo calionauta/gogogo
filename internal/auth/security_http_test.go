@@ -78,7 +78,14 @@ func TestPasswordTooLongRejected(t *testing.T) {
 	}
 }
 
-func TestMagicLinkUsesConfiguredOriginAndBrowserBinding(t *testing.T) {
+func magicPageStub(w http.ResponseWriter, _ *http.Request, email, token, bind, errMsg string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	// #nosec G705 — test-only plain-text probe, not an HTML response.
+	_, _ = w.Write([]byte(email + "|" + token + "|" + bind + "|" + errMsg))
+}
+
+func TestMagicLinkUsesConfiguredOriginAndStrictBinding(t *testing.T) {
 	ctx := context.Background()
 	a := pluginAuth(t)
 	if _, _, err := a.Signup(ctx, "magic@example.com", "Correct-horse-99!", ""); err != nil {
@@ -87,6 +94,8 @@ func TestMagicLinkUsesConfiguredOriginAndBrowserBinding(t *testing.T) {
 	if err := a.SetAppURL("https://app.example"); err != nil {
 		t.Fatalf("set app url: %v", err)
 	}
+	a.SetMagicLinkBindBrowser(true)
+	a.SetMagicConfirmPage(magicPageStub)
 	var sent string
 	a.SetMagicSender(func(_, link string) error { sent = link; return nil })
 	mux := securityMux(a)
@@ -103,7 +112,7 @@ func TestMagicLinkUsesConfiguredOriginAndBrowserBinding(t *testing.T) {
 	}
 	bind := bindCookie(rec.Result().Cookies(), magicBindCookie)
 	if bind == nil {
-		t.Fatal("request set no browser-binding cookie")
+		t.Fatal("strict mode set no browser-binding cookie")
 	}
 	u, err := url.Parse(sent)
 	if err != nil {
@@ -113,19 +122,23 @@ func TestMagicLinkUsesConfiguredOriginAndBrowserBinding(t *testing.T) {
 		t.Fatalf("link bind does not match cookie")
 	}
 
-	// Another browser (no cookie) must not open a session.
+	// GET is read-only for a foreign browser: it shows the error page, does
+	// not consume the token, and sets no session.
 	noCookie := httptest.NewRecorder()
 	mux.ServeHTTP(noCookie, httptest.NewRequestWithContext(ctx, http.MethodGet, u.RequestURI(), nil))
-	if noCookie.Code != http.StatusSeeOther {
-		t.Fatalf("foreign browser = %d, want redirect", noCookie.Code)
+	if noCookie.Code != http.StatusOK || !strings.Contains(noCookie.Body.String(), "Open this link") {
+		t.Fatalf("foreign browser GET = %d (%s)", noCookie.Code, noCookie.Body.String())
 	}
 	if c := sessionCookieOf(t, noCookie.Result().Cookies()); c != nil {
 		t.Fatal("foreign browser received a session cookie")
 	}
 
-	// The requesting browser succeeds.
+	// The requesting browser confirms with a POST.
 	ok := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(ctx, http.MethodGet, u.RequestURI(), nil)
+	form := url.Values{"token": {u.Query().Get("token")}, "bind": {bind.Value}}
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/auth/magic",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(bind)
 	mux.ServeHTTP(ok, req)
 	if ok.Code != http.StatusSeeOther {
@@ -133,6 +146,64 @@ func TestMagicLinkUsesConfiguredOriginAndBrowserBinding(t *testing.T) {
 	}
 	if c := sessionCookieOf(t, ok.Result().Cookies()); c == nil {
 		t.Fatal("bound browser received no session cookie")
+	}
+}
+
+func TestMagicLinkCrossDeviceConfirmation(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	if _, _, err := a.Signup(ctx, "cross@example.com", "Correct-horse-99!", ""); err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	if err := a.SetAppURL("https://app.example"); err != nil {
+		t.Fatalf("set app url: %v", err)
+	}
+	a.SetMagicConfirmPage(magicPageStub)
+	var sent string
+	a.SetMagicSender(func(_, link string) error { sent = link; return nil })
+	mux := securityMux(a)
+
+	rec := postJSON(t, mux, "/api/auth/magic/request", map[string]string{"email": "cross@example.com"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("request = %d", rec.Code)
+	}
+	u, err := url.Parse(sent)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if u.Query().Get("bind") != "" {
+		t.Fatal("default cross-device link unexpectedly carries a bind")
+	}
+
+	// A different browser opens the link: GET only renders the confirmation.
+	page := httptest.NewRecorder()
+	mux.ServeHTTP(page, httptest.NewRequestWithContext(ctx, http.MethodGet, u.RequestURI(), nil))
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "cross@example.com") {
+		t.Fatalf("confirmation GET = %d (%s)", page.Code, page.Body.String())
+	}
+	if c := sessionCookieOf(t, page.Result().Cookies()); c != nil {
+		t.Fatal("GET opened a session")
+	}
+
+	// The same other browser confirms: cross-device works.
+	ok := httptest.NewRecorder()
+	form := url.Values{"token": {u.Query().Get("token")}}
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/auth/magic",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mux.ServeHTTP(ok, req)
+	if ok.Code != http.StatusSeeOther {
+		t.Fatalf("confirmation POST = %d (%s)", ok.Code, ok.Body.String())
+	}
+	if c := sessionCookieOf(t, ok.Result().Cookies()); c == nil {
+		t.Fatal("confirmation POST opened no session")
+	}
+
+	// Consumed: a replay is just a redirect.
+	replay := httptest.NewRecorder()
+	mux.ServeHTTP(replay, httptest.NewRequestWithContext(ctx, http.MethodGet, u.RequestURI(), nil))
+	if replay.Code != http.StatusSeeOther {
+		t.Fatalf("replay GET = %d, want redirect", replay.Code)
 	}
 }
 

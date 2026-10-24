@@ -24,6 +24,14 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 )
 
+// Token purposes share one single-use, hashed table. A login token can never
+// be replayed as a reset token, and vice versa.
+const (
+	purposeLogin  = "login"
+	purposeVerify = "verify"
+	purposeReset  = "reset"
+)
+
 // magicLinkTTL bounds a login link's lifetime (10–15 minutes is the
 // industry consensus: slow inboxes still deliver, interception windows
 // stay small).
@@ -82,7 +90,7 @@ func (a *Auth) RequestMagicLink(
 	}
 	_ = a.q.DeleteMagicTokensForUser(ctx, row.ID)
 	if err := a.q.CreateMagicToken(ctx, dbgen.CreateMagicTokenParams{
-		TokenHash: hash, UserID: row.ID,
+		TokenHash: hash, UserID: row.ID, Purpose: purposeLogin,
 		Expires: now.Add(magicLinkTTL).Format(dbschema.TimeFormat),
 		Created: now.Format(dbschema.TimeFormat),
 	}); err != nil {
@@ -99,6 +107,28 @@ func (a *Auth) RequestMagicLink(
 	return send(addr, baseURL+"/api/auth/magic?"+q.Encode())
 }
 
+// LookupMagicToken resolves the account a login token belongs to without
+// consuming it. The emailed GET uses it to render the confirmation page; it
+// never deletes, so an email scanner prefetch cannot spend the link.
+func (a *Auth) LookupMagicToken(ctx context.Context, token string) (string, bool) {
+	if token == "" {
+		return "", false
+	}
+	row, err := a.q.GetMagicToken(ctx, tokenHash(token))
+	if err != nil || row.Purpose != purposeLogin {
+		return "", false
+	}
+	expires, err := time.Parse(dbschema.TimeFormat, row.Expires)
+	if err != nil || time.Now().UTC().After(expires) {
+		return "", false
+	}
+	user, err := a.q.GetUser(ctx, row.UserID)
+	if err != nil {
+		return "", false
+	}
+	return user.Email, true
+}
+
 // VerifyMagicLink consumes a login token and opens a session. Consumed by
 // DELETE: a used or unknown token simply misses, so replay and guessing
 // share one indistinguishable error.
@@ -107,7 +137,7 @@ func (a *Auth) VerifyMagicLink(ctx context.Context, token string) (string, error
 		return "", ErrBadCredentials
 	}
 	row, err := a.q.GetMagicToken(ctx, tokenHash(token))
-	if err != nil {
+	if err != nil || row.Purpose != purposeLogin {
 		secReject(ctx, evMagicRejected, reasonUnknownToken, "", "")
 		return "", ErrBadCredentials
 	}

@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 )
@@ -61,6 +63,52 @@ func (a *Auth) SetPassword(ctx context.Context, userID, password string) error {
 		return fmt.Errorf("auth: set password: %w", err)
 	}
 	return nil
+}
+
+// handleListSessions returns the caller's active sessions. Session ids are
+// opaque UUIDs; the token hash never leaves the server.
+func (a *Auth) handleListSessions(w http.ResponseWriter, r *http.Request) {
+	user, err := a.authedUser(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	rows, err := a.q.ListSessionsByUser(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "list failed", http.StatusInternalServerError)
+		return
+	}
+	type view struct {
+		ID       string `json:"id"`
+		Created  string `json:"created"`
+		Expires  string `json:"expires"`
+		LastSeen string `json:"lastSeen"`
+	}
+	out := make([]view, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, view{ID: row.SessionID, Created: row.Created, Expires: row.Expires, LastSeen: row.LastSeen})
+	}
+	writeJSON(w, map[string]any{"sessions": out})
+}
+
+// handleRevokeSession revokes one session by its opaque id, scoped to the
+// caller. Unknown ids are a no-op 200 (no oracle).
+func (a *Auth) handleRevokeSession(w http.ResponseWriter, r *http.Request) {
+	user, err := a.authedUser(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	id := chi.URLParam(r, "id")
+	if id != "" {
+		if derr := a.q.DeleteSessionByID(r.Context(), dbgen.DeleteSessionByIDParams{
+			UserID: user.ID, SessionID: id,
+		}); derr != nil {
+			http.Error(w, "revoke failed", http.StatusInternalServerError)
+			return
+		}
+	}
+	writeJSON(w, map[string]string{jsonStatusKey: "ok"})
 }
 
 // handlePasswordChange rotates the password, revokes every session, and

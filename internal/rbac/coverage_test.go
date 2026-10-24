@@ -40,6 +40,10 @@ var publicRoutes = map[string]bool{
 	"/api/auth/oauth/{provider}":          true,
 	"/api/auth/oauth/{provider}/callback": true,
 	"/api/auth/totp/login":                true,
+	"/api/auth/verify":                    true,
+	"/api/auth/verify/request":            true,
+	"/api/auth/password/reset":            true,
+	"/api/auth/password/reset/request":    true,
 	"/api/session/stream":                 true,
 }
 

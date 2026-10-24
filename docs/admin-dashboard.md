@@ -28,12 +28,19 @@ plain HTTP, on in production). Logout revokes the row; unknown and expired
 sessions fail closed. There is no second cookie and no separate admin
 namespace to clobber — one cookie, one session.
 
-Credential rotation is explicit over the API, because there is no profile
+Credential lifecycle is explicit over the API, because there is no profile
 page in the template: `POST /api/auth/password` (current + new password)
 rotates the hash, **revokes every session**, and issues a fresh cookie for
 the caller; `POST /api/auth/sessions/revoke-all` signs out everywhere.
-Disabling TOTP uses the same revocation, so a stolen cookie stops working
-the moment the factor is removed.
+`GET /api/auth/sessions` lists the caller's sessions with opaque ids;
+`DELETE /api/auth/sessions/{id}` revokes one. `POST /api/auth/verify/request`
+sends the verification link, `POST /api/auth/password/reset/request` sends a
+reset link, and
+`/api/auth/password/reset?token=…` is the set-a-new-password page. Reset
+consumes the token, rotates the password and revokes every session. Disabling
+TOTP uses the same revocation, so a stolen cookie stops working the moment the
+factor is removed. With `SESSION_IDLE_TIMEOUT` set, an inactive session ends
+before the absolute seven-day TTL.
 
 ## DagNats console
 

@@ -62,7 +62,11 @@ p, anonymous, /api/auth/signup/credential, POST
 p, anonymous, /api/auth/signin/credential, POST
 p, anonymous, /api/auth/signout, POST
 p, anonymous, /api/auth/magic/request, POST
-p, anonymous, /api/auth/magic, GET
+p, anonymous, /api/auth/magic, (GET|POST)
+p, anonymous, /api/auth/verify, GET
+p, anonymous, /api/auth/verify/request, POST
+p, anonymous, /api/auth/password/reset, (GET|POST)
+p, anonymous, /api/auth/password/reset/request, POST
 p, anonymous, /api/auth/totp/login, POST
 p, anonymous, /api/auth/oauth/*, GET
 p, anonymous, /api/session/stream, GET

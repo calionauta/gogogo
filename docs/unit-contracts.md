@@ -30,8 +30,8 @@ env config (single source of truth for vars + defaults)
 cookie sessions + middleware (flat auth + shared login UI)
 
 - **Owned:** `internal/auth`, `features/authviews`
-- **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/password`, `/api/auth/sessions/revoke-all`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`
-- **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.DeleteUserSessions`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.LatestMagicTokenForUser`, `dbgen.LinkOAuthAccount`, `dbgen.SetTOTPSecret`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
+- **Routes:** `/api/auth/magic`, `/api/auth/magic/request`, `/api/auth/oauth/{provider}`, `/api/auth/oauth/{provider}/callback`, `/api/auth/password`, `/api/auth/password/reset`, `/api/auth/password/reset/request`, `/api/auth/sessions`, `/api/auth/sessions/revoke-all`, `/api/auth/sessions/{id}`, `/api/auth/signin/credential`, `/api/auth/signout`, `/api/auth/signup/credential`, `/api/auth/totp/begin`, `/api/auth/totp/disable`, `/api/auth/totp/login`, `/api/auth/totp/recovery`, `/api/auth/totp/verify`, `/api/auth/verify`, `/api/auth/verify/request`
+- **Store calls:** `dbgen.ClearTOTP`, `dbgen.ConsumeRecoveryCode`, `dbgen.CreateMagicToken`, `dbgen.CreateRecoveryCode`, `dbgen.CreateSession`, `dbgen.CreateUser`, `dbgen.DeleteExpiredMagicTokens`, `dbgen.DeleteExpiredSessions`, `dbgen.DeleteMagicToken`, `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteMagicTokensForUserPurpose`, `dbgen.DeleteRecoveryCodesForUser`, `dbgen.DeleteSession`, `dbgen.DeleteSessionByID`, `dbgen.DeleteUserSessions`, `dbgen.GetMagicToken`, `dbgen.GetOAuthAccount`, `dbgen.GetSession`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.LatestMagicTokenForUser`, `dbgen.LatestMagicTokenForUserPurpose`, `dbgen.LinkOAuthAccount`, `dbgen.ListSessionsByUser`, `dbgen.SetEmailVerified`, `dbgen.SetTOTPSecret`, `dbgen.UpdateSessionLastSeen`, `dbgen.UpdateUserPassword`, `dbgen.VerifyTOTPFlag`
 - **Trim:** manual (no installer unit)
 - **Note:** Core middleware; the login page is a removable UI (manual). internal/auth is the owned argon2id stack (gogogo_auth cookie); features/authviews holds the login page and shell controls. No framework middleware remains; the owned stack is the whole story.
 
@@ -56,7 +56,7 @@ flat data layer: Turso Database connection + migrations + sqlc queries
 fresh-install demo account (one idempotent Signup)
 
 - **Owned:** `internal/demo`
-- **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
+- **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Trim:** manual (no installer unit)
 - **Note:** Core contract: a fresh clone has a way in. Boot (internal/server) and the native window both call it; Signup is idempotent.
 
@@ -124,7 +124,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 one app shell (sidebar + module header + work area), the theme catalog, and the skin registry that supplies its assets
 
 - **Owned:** `internal/ui`, `internal/icon`, `internal/themes`, `internal/demo`, `web/skins`
-- **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
+- **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: every module page renders a body inside ui.Shell, and the shell resolves the active skin's assets. One skin ships (DaisyUI); visual variants are DaisyUI themes (docs/ui-skins.md), not bundles.
 

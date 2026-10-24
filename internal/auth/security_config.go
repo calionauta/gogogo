@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // ErrSignupClosed is returned when public account creation is disabled and a
@@ -23,6 +25,10 @@ var ErrSignupClosed = errors.New("auth: signup closed")
 // constant in input length, but an unbounded field is still needless work
 // and an easy way to make password policy tests ambiguous.
 var ErrPasswordTooLong = errors.New("auth: password too long")
+
+// ErrEmailUnverified blocks password login when REQUIRE_EMAIL_VERIFICATION
+// is on and the address has not completed verification.
+var ErrEmailUnverified = errors.New("auth: email not verified")
 
 // maxPasswordLen is intentionally generous: passphrases are encouraged,
 // while a megabyte-scale secret is not a password.
@@ -76,6 +82,46 @@ func (a *Auth) publicBaseURL() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.appURL
+}
+
+// SetSessionIdle installs an inactivity window. Zero keeps the absolute
+// seven-day TTL only.
+func (a *Auth) SetSessionIdle(d time.Duration) {
+	a.mu.Lock()
+	a.sessionIdle = d
+	a.mu.Unlock()
+}
+
+func (a *Auth) sessionIdleWindow() time.Duration {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sessionIdle
+}
+
+// SetMagicLinkBindBrowser enables strict same-browser magic links.
+func (a *Auth) SetMagicLinkBindBrowser(enabled bool) {
+	a.mu.Lock()
+	a.magicBindBrowser = enabled
+	a.mu.Unlock()
+}
+
+func (a *Auth) magicBindEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.magicBindBrowser
+}
+
+// SetMagicConfirmPage installs the read-only email-link landing renderer.
+func (a *Auth) SetMagicConfirmPage(fn func(http.ResponseWriter, *http.Request, string, string, string, string)) {
+	a.mu.Lock()
+	a.magicConfirm = fn
+	a.mu.Unlock()
+}
+
+func (a *Auth) magicConfirmPage() func(http.ResponseWriter, *http.Request, string, string, string, string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.magicConfirm
 }
 
 // SetSignupEnabled opens or closes public account creation. BootChi wires

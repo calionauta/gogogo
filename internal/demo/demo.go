@@ -133,4 +133,10 @@ func seedOne(ctx context.Context, a *auth.Auth, q *dbgen.Queries, acc demoAccoun
 	}); err != nil {
 		slog.WarnContext(ctx, "demo: role skipped", "email", acc.email, "error", err)
 	}
+	// Demo accounts are operator-created fixtures, not public signups.
+	if row, err := q.GetUserByEmail(ctx, acc.email); err == nil {
+		_ = q.SetEmailVerified(ctx, dbgen.SetEmailVerifiedParams{
+			EmailVerifiedAt: dbschema.Now(), Updated: dbschema.Now(), ID: row.ID,
+		})
+	}
 }

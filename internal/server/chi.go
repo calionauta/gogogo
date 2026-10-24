@@ -182,11 +182,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
-	if uerr := a.SetAppURL(cfg.AppURL); uerr != nil {
+	if werr := wireAuth(a, cfg); werr != nil {
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("server: chi auth app url: %w", uerr)
+		return nil, fmt.Errorf("server: chi auth wiring: %w", werr)
 	}
-	a.SetSignupEnabled(cfg.SignupEnabled)
 	// Fresh-install contract: the demo accounts the login form advertises,
 	// including their roles (demo1 admin, demo2 viewer). Idempotent, so
 	// every boot after the first is a role refresh.

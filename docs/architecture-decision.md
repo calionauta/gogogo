@@ -202,9 +202,11 @@ risk in defaults, not primitives, so the defaults changed:
 - **Production closes public account creation and the published demo seed**
   (`SIGNUP_ENABLED`, `DEMO_ACCOUNTS_ENABLED` default to `dev`). The demo login
   page hides the pair when the seed is off.
-- **Out-of-band links use `APP_URL`, never the request `Host`**, and are bound
-  to the requesting browser; the OAuth handshake carries the same binding.
-  Without `APP_URL`, magic links fail closed.
+- **Out-of-band links use `APP_URL`, never the request `Host`**. Magic links
+  are cross-device by default with a read-only GET and a POST confirmation;
+  `MAGIC_LINK_BIND_BROWSER=true` is the strict same-browser mode. The OAuth
+  handshake keeps its browser-binding cookie. Without `APP_URL`, magic links
+  fail closed.
 - **The edge sets a per-request CSP nonce** (`script-src 'self' 'nonce-…'`,
   `data-nonce` for Datastar), plus HSTS, COOP/CORP and the existing headers.
   Inline scripts carry the nonce; there is no `unsafe-inline`/`unsafe-eval`

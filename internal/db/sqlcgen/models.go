@@ -35,6 +35,7 @@ type MagicToken struct {
 	UserID    string
 	Expires   string
 	Created   string
+	Purpose   string
 }
 
 type Note struct {
@@ -72,6 +73,8 @@ type Session struct {
 	UserID    string
 	Expires   string
 	Created   string
+	LastSeen  string
+	SessionID string
 }
 
 type Todo struct {
@@ -86,13 +89,14 @@ type Todo struct {
 }
 
 type User struct {
-	ID           string
-	Email        string
-	PasswordHash string
-	Name         string
-	Created      string
-	Updated      string
-	TotpSecret   string
-	TotpVerified int64
-	Role         string
+	ID              string
+	Email           string
+	PasswordHash    string
+	Name            string
+	Created         string
+	Updated         string
+	TotpSecret      string
+	TotpVerified    int64
+	Role            string
+	EmailVerifiedAt string
 }

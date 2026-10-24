@@ -14,6 +14,9 @@ RETURNING *;
 -- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = ?, updated = ? WHERE id = ?;
 
+-- name: SetEmailVerified :exec
+UPDATE users SET email_verified_at = ?, updated = ? WHERE id = ?;
+
 -- name: SetUserRole :exec
 UPDATE users SET role = ?, updated = ? WHERE email = ?;
 

@@ -102,6 +102,18 @@ this order:
 If you really want the open single-tenant posture, set `RBAC_ENABLED=false`
 explicitly; the default is enforcing.
 
+## Email delivery (verification, reset, magic links)
+
+Set `SMTP_ADDR` (587/STARTTLS), `SMTP_FROM`, and the optional
+`SMTP_USERNAME`/`SMTP_PASSWORD` in the age-encrypted secrets file. Set
+`APP_URL` to the public origin; both magic links and verification/reset
+links are built from it. Publish SPF, DKIM and DMARC for the sending domain
+before turning on `SIGNUP_ENABLED` or `REQUIRE_EMAIL_VERIFICATION`; without
+them, mail lands in spam and the account lifecycle looks broken. The
+template uses `net/smtp` STARTTLS (port 587); implicit TLS (465) needs a
+provider that speaks STARTTLS or an HTTP mail API behind the same `Mailer`
+seam.
+
 ## First-time setup on the server
 
 1. Install Docker and create a `deploy` user with SSH key access.

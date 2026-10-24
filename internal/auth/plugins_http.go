@@ -66,21 +66,25 @@ func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many attempts", http.StatusTooManyRequests)
 		return
 	}
-	bind, _, err := newToken()
-	if err != nil {
-		http.Error(w, "request failed", http.StatusInternalServerError)
-		return
+	var bind string
+	if a.magicBindEnabled() {
+		var err error
+		bind, _, err = newToken()
+		if err != nil {
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
+		// #nosec G124 — Secure follows the environment; HttpOnly and SameSite set.
+		http.SetCookie(w, &http.Cookie{
+			Name:     magicBindCookie,
+			Value:    bind,
+			Path:     "/api/auth/magic",
+			MaxAge:   int(magicLinkTTL.Seconds()),
+			HttpOnly: true,
+			Secure:   a.secure,
+			SameSite: http.SameSiteLaxMode,
+		})
 	}
-	// #nosec G124 — Secure follows the environment; HttpOnly and SameSite set.
-	http.SetCookie(w, &http.Cookie{
-		Name:     magicBindCookie,
-		Value:    bind,
-		Path:     "/api/auth/magic",
-		MaxAge:   int(magicLinkTTL.Seconds()),
-		HttpOnly: true,
-		Secure:   a.secure,
-		SameSite: http.SameSiteLaxMode,
-	})
 	// Always 200: success and unknown addresses are indistinguishable.
 	if err := a.RequestMagicLink(r.Context(), body.Email, base, bind, sender); err != nil {
 		http.Error(w, "request failed", http.StatusInternalServerError)
@@ -89,28 +93,81 @@ func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{jsonStatusKey: "ok"})
 }
 
+// handleMagicVerify is the emailed GET. It is deliberately read-only: it
+// resolves the account, checks the optional browser binding, and renders a
+// confirmation form. The POST consumes the token. This keeps email scanners
+// (which prefetch links) from spending it and makes cross-device links work.
 func (a *Auth) handleMagicVerify(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	cookie, cerr := r.Cookie(magicBindCookie)
-	bind := q.Get("bind")
-	if bind == "" || cerr != nil ||
-		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(bind)) != 1 {
-		secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
+	token := r.URL.Query().Get("token")
+	email, ok := a.LookupMagicToken(r.Context(), token)
+	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	// #nosec G124 — clearing cookie; Secure follows the environment.
-	http.SetCookie(w, &http.Cookie{
-		Name: magicBindCookie, Value: "", Path: "/api/auth/magic", MaxAge: -1,
-		HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode,
-	})
-	token, err := a.VerifyMagicLink(r.Context(), q.Get("token"))
+	bind := r.URL.Query().Get("bind")
+	if a.magicBindEnabled() {
+		cookie, cerr := r.Cookie(magicBindCookie)
+		if bind == "" || cerr != nil ||
+			subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(bind)) != 1 {
+			secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
+			a.renderMagicConfirm(w, r, email, token, bind,
+				"Open this link in the browser where you requested it, or request a new link.")
+			return
+		}
+	} else {
+		bind = ""
+	}
+	a.renderMagicConfirm(w, r, email, token, bind, "")
+}
+
+// handleMagicComplete consumes the token after the user submits the
+// confirmation page. The unsafe method is covered by SameSite + Origin +
+// Sec-Fetch-Site at the edge.
+func (a *Auth) handleMagicComplete(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxAuthBody)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	token := r.PostFormValue("token")
+	bind := r.PostFormValue("bind")
+	email, ok := a.LookupMagicToken(r.Context(), token)
+	if !ok {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if a.magicBindEnabled() {
+		cookie, cerr := r.Cookie(magicBindCookie)
+		if bind == "" || cerr != nil ||
+			subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(bind)) != 1 {
+			secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
+			a.renderMagicConfirm(w, r, email, token, bind,
+				"Open this link in the browser where you requested it, or request a new link.")
+			return
+		}
+		// #nosec G124 — clearing cookie; Secure follows the environment.
+		http.SetCookie(w, &http.Cookie{
+			Name: magicBindCookie, Value: "", Path: "/api/auth/magic", MaxAge: -1,
+			HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode,
+		})
+	}
+	session, err := a.VerifyMagicLink(r.Context(), token)
 	if err != nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	http.SetCookie(w, a.sessionCookie(token))
+	http.SetCookie(w, a.sessionCookie(session))
 	http.Redirect(w, r, "/todo", http.StatusSeeOther)
+}
+
+// renderMagicConfirm renders the read-only landing. No renderer is a boot
+// wiring error: fail closed instead of silently completing from a GET.
+func (a *Auth) renderMagicConfirm(w http.ResponseWriter, r *http.Request, email, token, bind, errMsg string) {
+	if page := a.magicConfirmPage(); page != nil {
+		page(w, r, email, token, bind, errMsg)
+		return
+	}
+	http.Error(w, "magic link confirmation unavailable", http.StatusInternalServerError)
 }
 
 func (a *Auth) handleTOTPBegin(w http.ResponseWriter, r *http.Request) {

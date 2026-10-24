@@ -23,7 +23,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash, name, created, updated)
 VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, email, password_hash, name, created, updated, totp_secret, totp_verified, role
+RETURNING id, email, password_hash, name, created, updated, totp_secret, totp_verified, role, email_verified_at
 `
 
 type CreateUserParams struct {
@@ -55,13 +55,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.TotpSecret,
 		&i.TotpVerified,
 		&i.Role,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
 
-SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role FROM users WHERE id = ?
+SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role, email_verified_at FROM users WHERE id = ?
 `
 
 // Users: the identity table owned by internal/auth (argon2id hashes).
@@ -78,12 +79,13 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 		&i.TotpSecret,
 		&i.TotpVerified,
 		&i.Role,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role FROM users WHERE email = ?
+SELECT id, email, password_hash, name, created, updated, totp_secret, totp_verified, role, email_verified_at FROM users WHERE email = ?
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -99,8 +101,24 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.TotpSecret,
 		&i.TotpVerified,
 		&i.Role,
+		&i.EmailVerifiedAt,
 	)
 	return i, err
+}
+
+const setEmailVerified = `-- name: SetEmailVerified :exec
+UPDATE users SET email_verified_at = ?, updated = ? WHERE id = ?
+`
+
+type SetEmailVerifiedParams struct {
+	EmailVerifiedAt string
+	Updated         string
+	ID              string
+}
+
+func (q *Queries) SetEmailVerified(ctx context.Context, arg SetEmailVerifiedParams) error {
+	_, err := q.db.ExecContext(ctx, setEmailVerified, arg.EmailVerifiedAt, arg.Updated, arg.ID)
+	return err
 }
 
 const setUserRole = `-- name: SetUserRole :exec

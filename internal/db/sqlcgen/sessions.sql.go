@@ -11,13 +11,15 @@ import (
 
 const createSession = `-- name: CreateSession :exec
 
-INSERT INTO sessions (token_hash, user_id, expires, created)
-VALUES (?, ?, ?, ?)
+INSERT INTO sessions (token_hash, user_id, session_id, last_seen, expires, created)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateSessionParams struct {
 	TokenHash string
 	UserID    string
+	SessionID string
+	LastSeen  string
 	Expires   string
 	Created   string
 }
@@ -27,6 +29,8 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 	_, err := q.db.ExecContext(ctx, createSession,
 		arg.TokenHash,
 		arg.UserID,
+		arg.SessionID,
+		arg.LastSeen,
 		arg.Expires,
 		arg.Created,
 	)
@@ -51,6 +55,20 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash string) error {
 	return err
 }
 
+const deleteSessionByID = `-- name: DeleteSessionByID :exec
+DELETE FROM sessions WHERE user_id = ? AND session_id = ?
+`
+
+type DeleteSessionByIDParams struct {
+	UserID    string
+	SessionID string
+}
+
+func (q *Queries) DeleteSessionByID(ctx context.Context, arg DeleteSessionByIDParams) error {
+	_, err := q.db.ExecContext(ctx, deleteSessionByID, arg.UserID, arg.SessionID)
+	return err
+}
+
 const deleteUserSessions = `-- name: DeleteUserSessions :exec
 DELETE FROM sessions WHERE user_id = ?
 `
@@ -61,7 +79,7 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID string) error {
 }
 
 const getSession = `-- name: GetSession :one
-SELECT token_hash, user_id, expires, created FROM sessions WHERE token_hash = ?
+SELECT token_hash, user_id, expires, created, last_seen, session_id FROM sessions WHERE token_hash = ?
 `
 
 func (q *Queries) GetSession(ctx context.Context, tokenHash string) (Session, error) {
@@ -72,6 +90,62 @@ func (q *Queries) GetSession(ctx context.Context, tokenHash string) (Session, er
 		&i.UserID,
 		&i.Expires,
 		&i.Created,
+		&i.LastSeen,
+		&i.SessionID,
 	)
 	return i, err
+}
+
+const listSessionsByUser = `-- name: ListSessionsByUser :many
+SELECT session_id, created, expires, last_seen FROM sessions
+WHERE user_id = ? AND session_id <> '' ORDER BY created DESC
+`
+
+type ListSessionsByUserRow struct {
+	SessionID string
+	Created   string
+	Expires   string
+	LastSeen  string
+}
+
+func (q *Queries) ListSessionsByUser(ctx context.Context, userID string) ([]ListSessionsByUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSessionsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSessionsByUserRow{}
+	for rows.Next() {
+		var i ListSessionsByUserRow
+		if err := rows.Scan(
+			&i.SessionID,
+			&i.Created,
+			&i.Expires,
+			&i.LastSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateSessionLastSeen = `-- name: UpdateSessionLastSeen :exec
+UPDATE sessions SET last_seen = ? WHERE token_hash = ?
+`
+
+type UpdateSessionLastSeenParams struct {
+	LastSeen  string
+	TokenHash string
+}
+
+func (q *Queries) UpdateSessionLastSeen(ctx context.Context, arg UpdateSessionLastSeenParams) error {
+	_, err := q.db.ExecContext(ctx, updateSessionLastSeen, arg.LastSeen, arg.TokenHash)
+	return err
 }
