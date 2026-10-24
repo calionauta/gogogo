@@ -150,8 +150,8 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 					autocomplete="off"
 					inputmode="search"
 					enterkeyhint="send"
-					placeholder="Ask anything"
-					data-attr:placeholder="$chat_ready ? 'Ask anything' : 'Connecting…'"
+					placeholder="e.g. what are my open todos?"
+					data-attr:placeholder="$chat_ready ? 'e.g. what are my open todos?' : 'Connecting…'"
 					data-attr:disabled="!!($chat_thinking || !$chat_ready)"
 					class="input input-md sm:input-sm join-item grow"
 				/>
