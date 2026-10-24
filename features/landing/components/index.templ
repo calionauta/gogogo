@@ -85,7 +85,7 @@ templ Index(userEmail string, userRole string, buildLabel string, buildCommit st
 					<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
 				</div>
 				<div class="app-nav-end">
-					@authviews.CommandPalette(userRole)
+					@authviews.CommandPalette(userRole, userEmail == "")
 					@authviews.ThemeToggle()
 					@sounds.SoundToggle()
 					@authviews.UserMenu(userEmail, userRole)

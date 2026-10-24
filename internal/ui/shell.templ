@@ -215,7 +215,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									<span class="app-demo-label">How it works</span>
 								</button>
 							}
-							@authviews.CommandPalette(d.Role)
+							@authviews.CommandPalette(d.Role, false)
 							if actions != nil {
 								@actions
 							}

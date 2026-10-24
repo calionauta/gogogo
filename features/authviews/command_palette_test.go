@@ -13,16 +13,16 @@ import (
 )
 
 func TestCommandPaletteRendersCommandsAndAdminGate(t *testing.T) {
-	render := func(role string) string {
+	render := func(role string, guest bool) string {
 		t.Helper()
 		var buf bytes.Buffer
-		if err := authviews.CommandPalette(role).Render(context.Background(), &buf); err != nil {
+		if err := authviews.CommandPalette(role, guest).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("render palette: %v", err)
 		}
 		return buf.String()
 	}
 
-	admin := render("admin")
+	admin := render("admin", false)
 	for _, want := range []string{
 		`id="command-palette"`,
 		`data-on:keydown__window`,
@@ -42,7 +42,35 @@ func TestCommandPaletteRendersCommandsAndAdminGate(t *testing.T) {
 		}
 	}
 
-	if strings.Contains(render("viewer"), `href="/config"`) {
+	if strings.Contains(render("viewer", false), `href="/config"`) {
 		t.Error("non-admin palette must not link the operator Config surface")
+	}
+
+	// Guests never reach app paths directly (RBAC denies anonymous with 403),
+	// so every guest link must route through login with next preserved.
+	guest := render("", true)
+	for _, want := range []string{
+		`href="/login?next=/todo"`,
+		`href="/login?next=/whiteboard"`,
+		`href="/login?next=/notes"`,
+		`href="/login?next=/chat"`,
+		`href="/login?next=/review"`,
+		`href="/login?next=/room"`,
+	} {
+		if !strings.Contains(guest, want) {
+			t.Errorf("guest palette missing %q (would 403 on the app path)", want)
+		}
+	}
+	for _, banned := range []string{
+		`href="/todo"`,
+		`href="/whiteboard"`,
+		`href="/notes"`,
+		`href="/chat"`,
+		`href="/review"`,
+		`href="/room"`,
+	} {
+		if strings.Contains(guest, banned) {
+			t.Errorf("guest palette leaks direct app link %q (anonymous 403s)", banned)
+		}
 	}
 }
