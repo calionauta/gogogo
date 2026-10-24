@@ -176,6 +176,21 @@ func (h *Handler) recoveryCodes(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if err := r.ParseForm(); err != nil {
+		h.renderError(w, r, sess, "Invalid form submission.")
+		return
+	}
+	hasPassword, perr := h.a.HasPassword(r.Context(), sess.User.ID)
+	if perr != nil {
+		h.renderError(w, r, sess, "Could not verify this account. Try again.")
+		return
+	}
+	if hasPassword && !h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
+		h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
+			"recovery codes", sess.User.Email, sess.User.ID, sess.SessionID)
+		h.renderError(w, r, sess, "Password is wrong.")
+		return
+	}
 	codes, err := h.a.RotateRecoveryCodes(r.Context(), sess.User.ID)
 	if err != nil {
 		h.renderError(w, r, sess, "Could not generate recovery codes.")

@@ -275,6 +275,26 @@ func (a *Auth) handleTOTPRecovery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	hasPassword, herr := a.HasPassword(r.Context(), user.ID)
+	if herr != nil {
+		http.Error(w, "issue failed", http.StatusInternalServerError)
+		return
+	}
+	if hasPassword {
+		var body struct {
+			Password string `json:"password"`
+		}
+		if berr := readJSON(r, &body); berr != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+		if !a.VerifyUserPassword(r.Context(), user.ID, body.Password) {
+			a.RecordAudit(r.Context(), EventStepUpRejected,
+				"recovery codes", user.Email, user.ID, "")
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+	}
 	codes, err := a.RotateRecoveryCodes(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "issue failed", http.StatusInternalServerError)

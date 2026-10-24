@@ -47,7 +47,8 @@ requires `{"password": "…"}` when the account has a password (an OAuth-only
 row has none, so the session itself authorizes it).
 The authenticated `/account` page is the user-facing home for email
 verification, password change, TOTP enrollment/recovery and session
-revocation. `GET /api/auth/sessions` lists the caller's sessions with opaque ids;
+revocation. Rotating recovery codes and disabling the factor both require the
+current password when the account has one. `GET /api/auth/sessions` lists the caller's sessions with opaque ids;
 `DELETE /api/auth/sessions/{id}` revokes one. `POST /api/auth/verify/request`
 sends the verification link, `POST /api/auth/password/reset/request` sends a
 reset link, and

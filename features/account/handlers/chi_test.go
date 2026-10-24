@@ -220,3 +220,44 @@ func TestAccountRevokeAllRequiresPassword(t *testing.T) {
 	}
 	t.Fatalf("failed step-up absent from audit rows: %+v", rows)
 }
+
+func TestAccountRecoveryCodesRequirePassword(t *testing.T) {
+	a, q, mux := accountFixture(t)
+	if err := a.SetTOTPEncKey(make([]byte, 32)); err != nil {
+		t.Fatalf("key: %v", err)
+	}
+	ctx := context.Background()
+	user, token, err := a.Signup(ctx, "recovery-acct@example.com", "Correct-horse-99!", "")
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	if _, _, lerr := a.Login(ctx, "recovery-acct@example.com", "Correct-horse-99!"); lerr != nil {
+		t.Fatalf("login: %v", lerr)
+	}
+	secret, _, _, err := a.BeginTOTP(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("begin totp: %v", err)
+	}
+	if verr := a.VerifyTOTPEnroll(ctx, user.ID, testTOTP(secret)); verr != nil {
+		t.Fatalf("enroll: %v", verr)
+	}
+	before, err := q.CountRecoveryCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("count before: %v", err)
+	}
+	bad := accountDo(mux, http.MethodPost, "/account/totp/recovery", "password=wrong", token)
+	if bad.Code != http.StatusOK || !strings.Contains(bad.Body.String(), "Password is wrong.") {
+		t.Fatalf("wrong-password recovery = %d (%s)", bad.Code, bad.Body.String())
+	}
+	after, err := q.CountRecoveryCodes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("count after: %v", err)
+	}
+	if before != after {
+		t.Fatalf("recovery codes rotated without a password: %d -> %d", before, after)
+	}
+	ok := accountDo(mux, http.MethodPost, "/account/totp/recovery", "password=Correct-horse-99%21", token)
+	if ok.Code != http.StatusOK || !strings.Contains(ok.Body.String(), "Save these recovery codes now.") {
+		t.Fatalf("correct-password recovery = %d", ok.Code)
+	}
+}

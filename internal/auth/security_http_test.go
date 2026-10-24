@@ -458,3 +458,24 @@ func TestOAuthStartThrottlePerIP(t *testing.T) {
 		t.Fatalf("start %d = %d, want 429", oauthStartAttemptMax+1, rec.Code)
 	}
 }
+
+func TestTOTPRecoveryRequiresPassword(t *testing.T) {
+	ctx := context.Background()
+	a := pluginAuth(t)
+	_, token, err := a.Signup(ctx, "recovery-api@example.com", "Correct-horse-99!", "")
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	mux := securityMux(a)
+	// #nosec G124 — test-only request cookie.
+	cookie := &http.Cookie{Name: CookieName, Value: token}
+	bad := postJSON(t, mux, "/api/auth/totp/recovery", map[string]string{}, cookie)
+	if bad.Code != http.StatusUnauthorized {
+		t.Fatalf("no-password recovery = %d, want 401", bad.Code)
+	}
+	ok := postJSON(t, mux, "/api/auth/totp/recovery",
+		map[string]string{"password": "Correct-horse-99!"}, cookie)
+	if ok.Code != http.StatusOK {
+		t.Fatalf("recovery = %d (%s)", ok.Code, ok.Body.String())
+	}
+}
