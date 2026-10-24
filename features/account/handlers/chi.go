@@ -198,13 +198,25 @@ func (h *Handler) recoveryCodes(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, sess, "Could not verify this account. Try again.")
 		return
 	}
-	if hasPassword && !h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
-		h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
-			"recovery codes", sess.User.Email, sess.User.ID, sess.SessionID)
-		h.renderError(w, r, sess, "Password is wrong.")
-		return
+	var codes []string
+	var err error
+	if hasPassword {
+		if !h.a.VerifyUserPassword(r.Context(), sess.User.ID, r.PostFormValue("password")) {
+			h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
+				"recovery codes", sess.User.Email, sess.User.ID, sess.SessionID)
+			h.renderError(w, r, sess, "Password is wrong.")
+			return
+		}
+		codes, err = h.a.RotateRecoveryCodes(r.Context(), sess.User.ID)
+	} else {
+		codes, err = h.a.RotateRecoveryCodesWithCode(r.Context(), sess.User.ID, r.PostFormValue("code"))
+		if errors.Is(err, auth.ErrBadCredentials) {
+			h.a.RecordAudit(r.Context(), auth.EventStepUpRejected,
+				"recovery codes", sess.User.Email, sess.User.ID, sess.SessionID)
+			h.renderError(w, r, sess, "The authenticator or recovery code is wrong.")
+			return
+		}
 	}
-	codes, err := h.a.RotateRecoveryCodes(r.Context(), sess.User.ID)
 	if err != nil {
 		h.renderError(w, r, sess, "Could not generate recovery codes.")
 		return

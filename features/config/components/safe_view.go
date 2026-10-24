@@ -61,17 +61,19 @@ type PageData struct {
 	RBACEnabled bool
 	// Users is the admin-only account table. Empty in BuildPageData; the
 	// handler fills it from the user store.
-	Users       []UserRow
-	Events      []SecurityEventRow
-	EventCounts []SecurityEventCount
-	EventNames  []string
-	EventFilter string
-	PrevURL     string
-	NextURL     string
-	CSVURL      string
-	AuditAlert  string
-	Notice      string
-	Error       string
+	Users            []UserRow
+	AdminStepUp      bool
+	AdminPasswordSet bool
+	Events           []SecurityEventRow
+	EventCounts      []SecurityEventCount
+	EventNames       []string
+	EventFilter      string
+	PrevURL          string
+	NextURL          string
+	CSVURL           string
+	AuditAlert       string
+	Notice           string
+	Error            string
 }
 
 // UserRow is one row of the admin user table.

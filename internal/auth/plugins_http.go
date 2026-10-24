@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -305,22 +306,32 @@ func (a *Auth) handleTOTPRecovery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "issue failed", http.StatusInternalServerError)
 		return
 	}
+	var body struct {
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	if berr := readJSON(r, &body); berr != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	var codes []string
 	if hasPassword {
-		var body struct {
-			Password string `json:"password"`
-		}
-		if berr := readJSON(r, &body); berr != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
 		if !a.VerifyUserPassword(r.Context(), user.ID, body.Password) {
 			a.RecordAudit(r.Context(), EventStepUpRejected,
 				"recovery codes", user.Email, user.ID, "")
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
+		codes, err = a.RotateRecoveryCodes(r.Context(), user.ID)
+	} else {
+		codes, err = a.RotateRecoveryCodesWithCode(r.Context(), user.ID, body.Code)
+		if errors.Is(err, ErrBadCredentials) {
+			a.RecordAudit(r.Context(), EventStepUpRejected,
+				"recovery codes", user.Email, user.ID, "")
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
 	}
-	codes, err := a.RotateRecoveryCodes(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "issue failed", http.StatusInternalServerError)
 		return

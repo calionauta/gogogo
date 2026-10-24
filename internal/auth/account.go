@@ -75,6 +75,52 @@ func (a *Auth) DisableTOTPWithCode(ctx context.Context, userID, code string) (st
 	return a.openSession(ctx, userID)
 }
 
+// VerifyStepUp accepts a password when the account has one, or a current
+// authenticator/recovery code when it has a verified factor. It is the shared
+// proof for destructive owner actions and admin mutations. A store failure is
+// an error; a wrong proof is (false, nil) so a caller cannot turn one into the
+// other.
+func (a *Auth) VerifyStepUp(ctx context.Context, userID, proof string) (bool, error) {
+	row, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("auth: step-up lookup: %w", err)
+	}
+	if strings.HasPrefix(row.PasswordHash, "argon2id$v=") {
+		ok, _ := verifyPassword(row.PasswordHash, proof)
+		return ok, nil
+	}
+	if row.TotpSecret != "" && row.TotpVerified != 0 {
+		return a.verifySecondFactor(ctx, row, proof), nil
+	}
+	return false, nil
+}
+
+// RotateRecoveryCodesWithCode is the passwordless recovery path: the caller
+// proves the factor it is rotating with a current authenticator/recovery code.
+func (a *Auth) RotateRecoveryCodesWithCode(ctx context.Context, userID, code string) ([]string, error) {
+	user, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return nil, ErrBadCredentials
+	}
+	if !a.verifySecondFactor(ctx, user, code) {
+		a.secReject(ctx, evSecondFactorBad, reasonBadCode, user.Email, user.ID)
+		return nil, ErrBadCredentials
+	}
+	return a.RotateRecoveryCodes(ctx, userID)
+}
+
+// CanStepUp reports whether the account has a proof that VerifyStepUp can
+// accept: a password or a verified TOTP factor. OAuth-only rows without TOTP
+// cannot perform admin mutations until they enroll a factor or set a password.
+func (a *Auth) CanStepUp(ctx context.Context, userID string) (bool, error) {
+	row, err := a.q.GetUser(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("auth: step-up state: %w", err)
+	}
+	return strings.HasPrefix(row.PasswordHash, "argon2id$v=") ||
+		(row.TotpSecret != "" && row.TotpVerified != 0), nil
+}
+
 // HasPassword reports whether the account can prove a password. OAuth-only
 // rows carry the "!" sentinel (see oauth.go): a destructive action that asks
 // for a password must not lock those users out of their own account.
