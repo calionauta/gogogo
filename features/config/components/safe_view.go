@@ -53,7 +53,7 @@ const (
 	toneWarning = "warning"
 	toneInfo    = "info"
 	toneError   = "error"
-	toneGhost   = "ghost"
+	toneNeutral = "neutral"
 )
 
 // StatusItem is one badge of the /config status strip: the at-a-glance
@@ -280,23 +280,23 @@ func StatusSummary(cfg *config.Config, ageSet bool) []StatusItem {
 	}
 	ai, aiTone := "configured", toneSuccess
 	if cfg.GoAI.APIKey == "" {
-		ai, aiTone = "missing", toneGhost
+		ai, aiTone = "missing", toneNeutral
 	}
 	judge, judgeTone := "custom judge", toneInfo
 	if cfg.Review.APIKey == "" {
-		judge, judgeTone = "demo endpoint", toneGhost
+		judge, judgeTone = "demo endpoint", toneNeutral
 	}
 	nats, natsTone := "on", toneSuccess
 	if !cfg.NATS.Enabled {
-		nats, natsTone = "off", toneGhost
+		nats, natsTone = "off", toneNeutral
 	}
 	dag, dagTone := "on", toneSuccess
 	if !cfg.DagNats.Enabled {
-		dag, dagTone = "off", toneGhost
+		dag, dagTone = "off", toneNeutral
 	}
 	syncState, syncTone := "on", toneSuccess
 	if !cfg.OfflineSync.Enabled {
-		syncState, syncTone = "off", toneGhost
+		syncState, syncTone = "off", toneNeutral
 	}
 	secrets, secretsTone := "set", toneSuccess
 	if !ageSet {
@@ -328,7 +328,7 @@ func StatusBadgeClass(tone string) string {
 	case toneError:
 		return "badge-error"
 	default:
-		return "badge-ghost"
+		return "badge-neutral"
 	}
 }
 

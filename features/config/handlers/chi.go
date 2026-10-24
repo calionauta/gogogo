@@ -384,6 +384,9 @@ func (h *Handler) actorID(r *http.Request) string {
 	return sess.User.ID
 }
 
+// redirectConfig lands back on the Users tab: every caller is a role,
+// session or proof mutation, and without the anchor a POST would return to
+// the first (Runtime) tab with the notice stranded out of view.
 func redirectConfig(w http.ResponseWriter, r *http.Request, key, msg string) {
-	http.Redirect(w, r, "/config?"+key+"="+url.QueryEscape(msg), http.StatusSeeOther)
+	http.Redirect(w, r, "/config?"+key+"="+url.QueryEscape(msg)+"#users", http.StatusSeeOther)
 }

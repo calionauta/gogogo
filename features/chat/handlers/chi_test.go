@@ -219,8 +219,11 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	// Fresh clientID with no prior ask: nothing is buffered for it, so the
+	// handshake below is the ONLY frame the stream can deliver — readiness
+	// must ride the handshake, not a later terminal patch.
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet,
-		srv.URL+"/api/chat/stream?clientID=chat-t1", nil)
+		srv.URL+"/api/chat/stream?clientID=chat-t1-handshake", nil)
 	req.AddCookie(cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -249,7 +252,11 @@ func TestHandlersChatAskAndAnswer(t *testing.T) {
 		select {
 		case res := <-readCh:
 			body.Write(buf[:res.n])
-			if strings.Contains(body.String(), "chat_thinking") {
+			// The ready gate and the working stage ride the same handshake:
+			// a stream that clears thinking but never arms readiness leaves
+			// the composer disabled forever, so both must land together.
+			if strings.Contains(body.String(), "chat_thinking") &&
+				strings.Contains(body.String(), "chat_ready") {
 				return
 			}
 			if res.err != nil {

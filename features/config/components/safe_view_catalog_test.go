@@ -40,7 +40,7 @@ func TestStatusBadgeClassMapsEveryEmittedTone(t *testing.T) {
 			t.Errorf("tone %q maps to nothing", tone)
 		}
 	}
-	if got := StatusBadgeClass("bogus"); got != "badge-ghost" {
+	if got := StatusBadgeClass("bogus"); got != "badge-neutral" {
 		t.Errorf("unknown tone maps to %q, want the muted badge", got)
 	}
 }
