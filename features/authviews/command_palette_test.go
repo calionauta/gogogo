@@ -46,6 +46,44 @@ func TestCommandPaletteRendersCommandsAndAdminGate(t *testing.T) {
 		t.Error("non-admin palette must not link the operator Config surface")
 	}
 
+	// Signed-in viewers are offered only what their policy allows: the AI +
+	// Room links would 403, so the palette hides them (sidebar mirrors this
+	// via ui.Visible; visibility_policy_test.go pins the policy side).
+	viewer := render("viewer", false)
+	for _, want := range []string{
+		`href="/todo"`,
+		`href="/whiteboard"`,
+		`href="/notes"`,
+	} {
+		if !strings.Contains(viewer, want) {
+			t.Errorf("viewer palette missing %q (viewer policy allows it)", want)
+		}
+	}
+	for _, banned := range []string{
+		`href="/chat"`,
+		`href="/review"`,
+		`href="/room"`,
+	} {
+		if strings.Contains(viewer, banned) {
+			t.Errorf("viewer palette links %q (viewer policy denies it: click 403s)", banned)
+		}
+	}
+
+	// Plain users keep every non-operator destination.
+	user := render("user", false)
+	for _, want := range []string{
+		`href="/todo"`,
+		`href="/whiteboard"`,
+		`href="/notes"`,
+		`href="/chat"`,
+		`href="/review"`,
+		`href="/room"`,
+	} {
+		if !strings.Contains(user, want) {
+			t.Errorf("user palette missing %q", want)
+		}
+	}
+
 	// Guests never reach app paths directly (RBAC denies anonymous with 403),
 	// so every guest link must route through login with next preserved.
 	guest := render("", true)
