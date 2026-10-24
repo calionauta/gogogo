@@ -70,6 +70,9 @@ shares the same shape — siblings differ only by name:
     ├── data/                        ← persistent volume, survives restarts
     │   (bind-mounted into the container at /var/lib/<app>/data —
     │   app.db, queue.db, nats/, dagnats/; see deploy/docker-compose.prod.yml)
+    │   The container is non-root (65532), read-only rootfs, all caps
+    │   dropped, no-new-privileges; /tmp is a 64 MB tmpfs and this data
+    │   volume is the only other writable path.
 
 /home/deploy/.secrets/gogogo.env       ← mode 600, dir 700, rendered every deploy
                                          from GH Secrets; outside the services tree

@@ -10,19 +10,30 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/web/skins"
 )
 
 // LoginPage is the standalone /login page (no shell chrome: the user isn't
-// logged in yet). DaisyUI form with the demo credentials prefilled so
-// the user just has to click "Sign in".
+// logged in yet). DaisyUI form; with DEMO_ACCOUNTS_ENABLED the demo pair is
+// prefilled/advertised, otherwise the fields start empty and the demo block
+// is absent.
 //
 // The demo block below (data-demo="demo-accounts") is TEMPLATE DEMO-ONLY:
 // it advertises the seeded demo pair, their roles, and the Casbin
 // exercise. Agents adapting gogogo into their own product must delete
 // every element carrying a data-demo attribute — see
 // docs/scope-taxonomy.md#demo-only-markup.
-func LoginPage(next string, errMsg string, skinName string) templ.Component {
+// demoValue keeps the login form empty when the demo seed is off, so a
+// production deploy never advertises credentials that do not exist.
+func demoValue(on bool, v string) string {
+	if on {
+		return v
+	}
+	return ""
+}
+
+func LoginPage(next string, errMsg string, skinName string, demoAccounts bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -47,7 +58,7 @@ func LoginPage(next string, errMsg string, skinName string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, ThemeRootAttrs(""))
+		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, ThemeRootAttrs(ctx, ""))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -79,7 +90,7 @@ func LoginPage(next string, errMsg string, skinName string) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 39, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 50, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -97,13 +108,59 @@ func LoginPage(next string, errMsg string, skinName string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 44, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 55, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo1@demo.app\" class=\"input input-sm\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo 1 prefilled — click <strong>Sign in</strong> to enter.</div></form><div class=\"divider text-xs text-base-content/40\">or be both at once</div><div data-demo=\"demo-accounts\" class=\"space-y-3\"><div class=\"grid grid-cols-2 gap-2\"><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-primary badge-sm\">Demo 1</span> <span class=\"badge badge-outline badge-sm\">admin</span></div><code class=\"text-xs font-mono break-all\">demo1@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full access + <code>/config</code> + Dashboard menu.</p></div><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-secondary badge-sm\">Demo 2</span> <span class=\"badge badge-outline badge-sm\">viewer</span></div><code class=\"text-xs font-mono break-all\">demo2@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full rights over own todos; reads, creates, toggles shared. No paid actions.</p></div></div><div class=\"rounded-lg bg-base-200/60 p-3 text-xs space-y-1.5\"><p><strong>Password for both:</strong> <code>demo1234456</code></p><p><strong>Prove collab:</strong> open a <strong>second browser or incognito window</strong>, sign in as the other demo, toggle a shared todo — both screens update live.</p></div><details class=\"text-xs text-base-content/60\"><summary class=\"cursor-pointer font-medium\">How permissions work (Casbin)</summary><p class=\"mt-1\">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p></details></div></div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(demoValue(demoAccounts, demo.Email))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 63, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"input input-sm\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(demoValue(demoAccounts, demo.Password))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/authviews/login.templ`, Line: 77, Col: 54}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\">Sign in</button> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if demoAccounts {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"text-xs text-center text-base-content/40 mt-4\">Demo 1 prefilled — click <strong>Sign in</strong> to enter.</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</form>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if demoAccounts {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"divider text-xs text-base-content/40\">or be both at once</div><div data-demo=\"demo-accounts\" class=\"space-y-3\"><div class=\"grid grid-cols-2 gap-2\"><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-primary badge-sm\">Demo 1</span> <span class=\"badge badge-outline badge-sm\">admin</span></div><code class=\"text-xs font-mono break-all\">demo1@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full access + <code>/config</code> + Dashboard menu.</p></div><div class=\"rounded-lg border border-base-300 p-3\"><div class=\"flex items-center gap-1.5 mb-1\"><span class=\"badge badge-secondary badge-sm\">Demo 2</span> <span class=\"badge badge-outline badge-sm\">viewer</span></div><code class=\"text-xs font-mono break-all\">demo2@demo.app</code><p class=\"text-xs text-base-content/60 mt-1\">Full rights over own todos; reads, creates, toggles shared. No paid actions.</p></div></div><div class=\"rounded-lg bg-base-200/60 p-3 text-xs space-y-1.5\"><p><strong>Password for both:</strong> <code>demo1234456</code></p><p><strong>Prove collab:</strong> open a <strong>second browser or incognito window</strong>, sign in as the other demo, toggle a shared todo — both screens update live.</p></div><details class=\"text-xs text-base-content/60\"><summary class=\"cursor-pointer font-medium\">How permissions work (Casbin)</summary><p class=\"mt-1\">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p></details></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

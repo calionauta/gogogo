@@ -2,8 +2,9 @@
 //
 // The engine serves its operator UI on its own listener
 // (DAGNATS_HTTP_ADDR, loopback-only in prod), which browsers cannot
-// reach. This mounts it on the app mux instead: same origin, same
-// session cookie, same RBAC policy (admin-only rows in policy.csv).
+// reach. This mounts it on the app mux instead: same origin and session
+// cookie, with an always-on admin fence plus an explicit ADMIN_EMAILS
+// allowlist (the RBAC policy is the second layer).
 // Paths pass through untouched — upstream serves /console/ with
 // absolute asset paths, so any prefix rewriting would break it.
 // Disabled engine (DAGNATS_ENABLED=false): no mount, /console/ 404s.
@@ -19,6 +20,7 @@ import (
 
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/rbac"
 )
 
 // consoleMount and dagnatsMount are the two prefixes the engine console
@@ -49,8 +51,11 @@ func mountConsoleProxy(r chi.Router, a *auth.Auth, cfg *config.Config) {
 		},
 	}
 	// Mount covers the bare path and the whole subtree; the GET on the bare
-	// path only redirects browsers to the trailing slash.
-	gated := a.RequireSession(forwardConsoleUser(proxy))
+	// path only redirects browsers to the trailing slash. The admin fence is
+	// always on: with RBAC_ENABLED=false the policy is inert, and this console
+	// must not become reachable by every signed-in account.
+	operator := operatorGate(cfg.AdminEmails)
+	gated := a.RequireSession(operator(rbac.RequireAdmin(a)(forwardConsoleUser(proxy))))
 	r.Mount(consoleMount, gated)
 	r.Get(consoleMount, func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, consoleMount+"/", http.StatusMovedPermanently)
@@ -71,11 +76,31 @@ func mountConsoleProxy(r chi.Router, a *auth.Auth, cfg *config.Config) {
 			http.Error(w, "workflow engine unavailable", http.StatusBadGateway)
 		},
 	}
-	aliasGated := a.RequireSession(forwardConsoleUser(alias))
+	aliasGated := a.RequireSession(operator(rbac.RequireAdmin(a)(forwardConsoleUser(alias))))
 	r.Mount(dagnatsMount, aliasGated)
 	r.Get(dagnatsMount, func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, dagnatsMount+"/", http.StatusMovedPermanently)
 	})
+}
+
+// operatorGate requires the session address to be in ADMIN_EMAILS. The
+// demo seed makes demo1 an admin with published credentials, so "is admin"
+// alone is not an operator identity on a public demo. An empty list closes
+// the console: an operator must name themselves explicitly.
+func operatorGate(emails []string) func(http.Handler) http.Handler {
+	allowed := make(map[string]bool, len(emails))
+	for _, e := range emails {
+		allowed[strings.ToLower(strings.TrimSpace(e))] = true
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !allowed[strings.ToLower(sessionEmail(r))] {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // forwardConsoleUser stamps the validated session email for the

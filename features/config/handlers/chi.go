@@ -1,9 +1,9 @@
-// SCOPE:feature — HTTP config view (auth-gated, secrets masked)
+// SCOPE:feature — HTTP config view (admin-only, secrets masked)
 //
-// Same path, same component (shared Page over BuildPageData): any
-// logged-in user may view; guests bounce to /login. Nothing secret-shaped
-// ever renders raw — the masking lives in the components package, shared
-// with the previous stack, so both pages redact identically.
+// Same path, same component (shared Page over BuildPageData): the route is
+// fenced to admins by rbac.RequireAdmin, independent of RBAC_ENABLED. Nothing
+// secret-shaped ever renders raw — the masking lives in the components
+// package, shared with the previous stack, so both pages redact identically.
 package handlers
 
 import (
@@ -15,6 +15,7 @@ import (
 	"github.com/calionauta/gogogo/features/config/components"
 	"github.com/calionauta/gogogo/internal/auth"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
+	"github.com/calionauta/gogogo/internal/rbac"
 )
 
 // Handler serves the config view on chi.
@@ -38,7 +39,10 @@ func NewHandler(cfg *config.Config, a *auth.Auth, q *dbgen.Queries) *Handler {
 // Routes returns the chi router with the config view.
 func (h *Handler) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/config", h.handleIndex)
+	// Operator surface: always admin, even when RBAC_ENABLED=false. The
+	// policy keeps the same rule; this fence is what makes it true on the
+	// template's default posture.
+	r.With(rbac.RequireAdmin(h.auth)).Get("/config", h.handleIndex)
 	return r
 }
 
@@ -55,8 +59,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 		role = sess.Role
 	}
 	data := components.BuildPageData(h.cfg)
-	// Role lookup is display-only: a miss renders "unknown", never a
-	// gate. Enforcement lives in the RBAC middleware.
+	// Role lookup is display-only here: a miss renders "unknown". The
+	// route gate is rbac.RequireAdmin above (always on), with the policy
+	// as the second layer.
 	if email != "" {
 		if u, err := h.queries.GetUserByEmail(r.Context(), email); err == nil {
 			data.Role = u.Role

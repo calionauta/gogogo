@@ -54,6 +54,7 @@ func TestStartChiBoot(t *testing.T) {
 	cfg := config.Load()
 	cfg.ChiAddr = "127.0.0.1:0"
 	cfg.Dev = true
+	cfg.SignupEnabled = true
 	cfg.Turso.DBPath = t.TempDir() + "/boot.db"
 
 	stop, err := StartChi(cfg, nil, nil)
@@ -102,6 +103,7 @@ func TestStartChiBoot(t *testing.T) {
 func TestServeChiOnListener(t *testing.T) {
 	cfg := config.Load()
 	cfg.Dev = true
+	cfg.SignupEnabled = true
 	cfg.Turso.DBPath = t.TempDir() + "/serve.db"
 	// DataDir MUST be temp: the default ("data") would plant chi/queue.db
 	// + totp_seal.key inside the repo on every run (hygiene leak).
@@ -338,8 +340,8 @@ func TestBuildChiMux(t *testing.T) {
 	}
 	configRec := httptest.NewRecorder()
 	mux.ServeHTTP(configRec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil))
-	if configRec.Code != http.StatusSeeOther {
-		t.Fatalf("mux anon /config status = %d, want 303", configRec.Code)
+	if configRec.Code != http.StatusForbidden {
+		t.Fatalf("mux anon /config status = %d, want 403", configRec.Code)
 	}
 	// One element per line, deliberately: trimming a demo drops its lines
 	// without touching its neighbours (same rule as the buildChiMux call

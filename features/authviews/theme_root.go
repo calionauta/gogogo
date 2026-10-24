@@ -14,6 +14,8 @@
 package authviews
 
 import (
+	"context"
+
 	"github.com/a-h/templ"
 
 	"github.com/calionauta/gogogo/internal/themes"
@@ -34,7 +36,7 @@ const themeSignalSeed = `{"theme":"light"}`
 //
 // Use it as a spread, which keeps the caller's own signals:
 //
-//	<html lang="en" { authviews.ThemeRootAttrs(self.Signals)... }>
+//	<html lang="en" { authviews.ThemeRootAttrs(ctx, self.Signals)... }>
 //
 // `signals` is the caller's own seeded JSON (its page-specific state); pass
 // "" for a page that has none. The returned map is fresh on every call so a
@@ -43,11 +45,11 @@ const themeSignalSeed = `{"theme":"light"}`
 // The third attribute is the one that is easy to think is redundant: the icon
 // CSS reveals the moon only under `html.dark`, so without the class the base
 // rule hides it — both icons disappear and the toggle looks dead.
-func ThemeRootAttrs(signals string) templ.Attributes {
+func ThemeRootAttrs(ctx context.Context, signals string) templ.Attributes {
 	if signals == "" {
 		signals = themeSignalSeed
 	}
-	return templ.Attributes{
+	attrs := templ.Attributes{
 		"data-signals": signals,
 		// data-theme-dark carries the dark palettes from internal/themes so the
 		// pre-paint bootstrap and theme.js never keep a second copy.
@@ -55,4 +57,11 @@ func ThemeRootAttrs(signals string) templ.Attributes {
 		"data-attr:data-theme": `$theme`,
 		"data-class:dark":      `(window.Theme && Theme.isDark) ? Theme.isDark($theme) : $theme === 'dark'`,
 	}
+	// The CSP nonce travels on the document element because Datastar reads it
+	// before it evaluates any data-* expression. Empty in direct component
+	// renders (no middleware), which keeps those pages script-free under CSP.
+	if nonce := templ.GetNonce(ctx); nonce != "" {
+		attrs["data-nonce"] = nonce
+	}
+	return attrs
 }

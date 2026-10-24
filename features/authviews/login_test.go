@@ -20,7 +20,7 @@ import (
 func TestLoginPageExplainsDemoRoles(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := authviews.LoginPage("/", "", "daisyui").Render(context.Background(), &buf); err != nil {
+	if err := authviews.LoginPage("/", "", "daisyui", true).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("LoginPage: %v", err)
 	}
 	html := buf.String()
@@ -33,5 +33,24 @@ func TestLoginPageExplainsDemoRoles(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("login page missing demo-role explanation %q", want)
 		}
+	}
+}
+
+// TestLoginPageHidesDemoWhenDisabled pins the production default: with the
+// seed off, the page must not advertise credentials that do not exist or
+// prefill them into the form. Red-proof: pass true unconditionally and the
+// demo handle returns.
+func TestLoginPageHidesDemoWhenDisabled(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := authviews.LoginPage("/", "", "daisyui", false).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("LoginPage: %v", err)
+	}
+	html := buf.String()
+	if strings.Contains(html, `data-demo="demo-accounts"`) {
+		t.Fatal("disabled demo still advertises the demo accounts")
+	}
+	if strings.Contains(html, "demo1@demo.app") || strings.Contains(html, "demo1234456") {
+		t.Fatal("disabled demo still prefills credentials")
 	}
 }

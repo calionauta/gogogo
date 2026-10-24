@@ -17,6 +17,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
@@ -44,7 +45,14 @@ type MagicSender func(to, link string) error
 // and no account is provisioned: passwordless signup is an explicit per-app
 // choice, not a spam vector in the template default. The link embeds the raw
 // token; only its hash is stored.
-func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL string, send MagicSender) error {
+//
+// bind is the browser-binding value the HTTP handler also stores in a
+// short-lived cookie. It travels in the link so a link forwarded to another
+// browser cannot open a session there (login CSRF). Empty omits it; the
+// handler is the only production caller and always supplies one.
+func (a *Auth) RequestMagicLink(
+	ctx context.Context, email, baseURL, bind string, send MagicSender,
+) error {
 	// Invalid shape and unknown addresses fall through to the same silent
 	// nil at the end: the anti-enumeration contract. Only genuine failures
 	// (no entropy, no storage, no sender) return errors.
@@ -84,7 +92,11 @@ func (a *Auth) RequestMagicLink(ctx context.Context, email string, baseURL strin
 	if send == nil {
 		return errors.New("auth: no magic sender configured")
 	}
-	return send(addr, baseURL+"/api/auth/magic?token="+token)
+	q := url.Values{"token": {token}}
+	if bind != "" {
+		q.Set("bind", bind)
+	}
+	return send(addr, baseURL+"/api/auth/magic?"+q.Encode())
 }
 
 // VerifyMagicLink consumes a login token and opens a session. Consumed by

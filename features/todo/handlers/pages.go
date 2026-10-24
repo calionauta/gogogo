@@ -32,21 +32,24 @@ func loginNext(r *http.Request) string {
 func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = authviews.LoginPage(loginNext(r), "", h.skinName()).Render(r.Context(), w)
+	//nolint:contextcheck // templ components receive ctx from Render; the generated boundary is invisible to the lint.
+	_ = authviews.LoginPage(loginNext(r), "", h.skinName(), h.DemoAccounts).Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Invalid form submission", h.skinName()).Render(r.Context(), w)
+		//nolint:contextcheck // same templ boundary as the GET handler.
+		_ = authviews.LoginPage(loginNext(r), "Invalid form submission", h.skinName(), h.DemoAccounts).Render(r.Context(), w)
 		return
 	}
 	token, totpRequired, err := h.authLogin(r)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_ = authviews.LoginPage(loginNext(r), "Wrong email or password", h.skinName()).Render(r.Context(), w)
+		//nolint:contextcheck // same templ boundary as the GET handler.
+		_ = authviews.LoginPage(loginNext(r), "Wrong email or password", h.skinName(), h.DemoAccounts).Render(r.Context(), w)
 		return
 	}
 	if totpRequired {
@@ -55,8 +58,9 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 		// instead of failing opaquely.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
+		//nolint:contextcheck // same templ boundary as the GET handler.
 		_ = authviews.LoginPage(
-			loginNext(r), "Two-factor required — finish login via an API client", h.skinName(),
+			loginNext(r), "Two-factor required — finish login via an API client", h.skinName(), h.DemoAccounts,
 		).Render(r.Context(), w)
 		return
 	}

@@ -44,7 +44,7 @@ features/
   app/                            AppContext bundle (consumed by cmd/gui only)
   authviews/                      Login page + shell controls (theme, user menu, palette)
   landing/                        Public marketing hero on GET /
-  config/                         Auth-gated read-only /config view
+  config/                         Admin-only read-only /config view
   todo/                           Todo MVC example
   whiteboard/                     Collaborative canvas
   room/                           Room presence demo (GoAkt grains)
@@ -165,25 +165,49 @@ is per-process. The security properties here are owned:
 
 - argon2id passwords, opaque sessions, a `SameSite=Lax` + `HttpOnly` cookie
   that is `Secure` in production (`internal/auth`).
-- CSRF in two layers: the cookie's `SameSite=Lax` keeps it off cross-site
-  POSTs, and `sameOriginGuard` refuses an unsafe method when a browser
-  `Origin` is present and does not match the request host. A reverse proxy
+- CSRF in layers: the cookie's `SameSite=Lax` keeps it off cross-site
+  POSTs; `sameOriginGuard` refuses an unsafe method when
+  `Sec-Fetch-Site: cross-site` or a browser `Origin` does not match the
+  request host; magic-link and OAuth logins are bound to the requesting
+  browser by a short-lived cookie. A reverse proxy
   in front must preserve the `Host` header (cloudflared and Caddy do); a
   proxy that rewrites it makes every browser write a 403. CLI clients,
   webhooks and the desktop webview send no `Origin` (or a custom scheme) and
   pass; two loopback origins share the dev trust boundary.
 - Casbin policy at the edge of the router plus per-handler session checks,
-  because `RBAC_ENABLED` defaults to false (`docs/rbac.md`).
+  because `RBAC_ENABLED` defaults to false (`docs/rbac.md`). Operator surfaces
+  (`/config`, `/console/`, `/dagnats/`) carry an always-on fence that does not
+  depend on the flag: admin role for `/config`, and admin **plus** an
+  `ADMIN_EMAILS` match for the console (the public demo's `demo1` is an admin,
+  so "is admin" alone is not an operator identity).
 - templ escaping and sqlc parameters on the data paths.
-- four edge headers (`X-Content-Type-Options`, `Referrer-Policy`,
-  `X-Frame-Options`, `Permissions-Policy`) and `Cache-Control: no-store` on
+- a per-request CSP nonce (`script-src 'self' 'nonce-…'`), with the nonce on
+  `<html data-nonce>` for Datastar's expression evaluator; plus
+  `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, COOP/CORP,
+  `Permissions-Policy`, and HSTS outside dev. `Cache-Control: no-store` on
   every auth handler response, plus a body cap on the auth surface.
+- magic links are built only from `APP_URL`, never from the request `Host`,
+  and are bound to the requesting browser by a short-lived cookie; the OAuth
+  handshake carries the same binding.
+- public signup is closed by default in production; the demo seed is
+  development-only unless `DEMO_ACCOUNTS_ENABLED=true`, and an existing demo
+  pair is disabled on boot when the flag is off. Signup, magic-link
+  requests and OAuth starts carry per-IP budgets, and signin/TOTP keep their
+  own; the per-session limiter covers everything authenticated.
 
-Deployment owns the rest: HSTS and TLS at the tunnel, a WAF or rate limit in
-front, and a CSP that can only arrive with nonce plumbing for the inline
-scripts. The sign-in throttle keys on the TCP peer on purpose; behind a single
-proxy that collapses to one key, so throttle at the edge. These are documented
-gaps, not silent assumptions.
+The edge reverse proxy still owns TLS, WAF and fleet-wide rate limiting, and
+the in-process limiter keys on the **session**, never the client IP (behind a
+tunnel every request arrives from the same proxy address). The sign-in
+throttle deliberately keys on the TCP peer; behind a single proxy that
+collapses to one key, so throttle login at the edge. These are documented
+boundaries, not silent assumptions.
+
+Residual hardening deliberately left out of the audit pass: an idle session
+timeout (the template keeps the absolute seven-day TTL), the `__Host-` cookie
+prefix (it would rename the cookie and invalidate every session on deploy),
+TOTP last-step replay tracking (needs a schema column for a 30-second window),
+and breached-password checks (an external-service dependency). Each is a
+product or schema decision, not a missing primitive.
 
 ## SCOPE annotations
 

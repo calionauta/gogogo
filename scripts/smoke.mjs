@@ -73,6 +73,10 @@ const runtimeEnv = {
   DATABASE_PATH: join(runtimeDir, "app.db"),
   NATS_ENABLED: "false",
   DAGNATS_ENABLED: "false",
+  // The suite creates its own user. An operator secrets file on the host
+  // can set ENVIRONMENT=production, which closes public signup by default;
+  // this fixture opts in explicitly so the smoke is not host-dependent.
+  SIGNUP_ENABLED: "true",
   OFFLINE_SYNC_ENABLED: "true",
   // Belt-and-suspenders: router.Init already suppresses the first-run
   // installer for a non-TTY process, but an explicit flag means a future

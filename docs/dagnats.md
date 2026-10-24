@@ -7,7 +7,10 @@ tags, update the capability table below, and move the pin in the same commit.
 DagNats (`internal/dagnats/`, `SCOPE:plugin`) is the durable multi-step
 engine: declarative JSON workflows, state on the JetStream the binary
 already runs, console on `:8090` (`DAGNATS_HTTP_ADDR`), opt-out via
-`DAGNATS_ENABLED=false`. The reference workflow is onboarding
+`DAGNATS_ENABLED=false`. The browser-facing console is `/console/`
+(alias `/dagnats/`), and it is operator-only: admin **and** an
+`ADMIN_EMAILS` match, always on regardless of `RBAC_ENABLED`. An empty
+list closes it. The reference workflow is onboarding
 (`internal/dagnats/workflow.go` + `features/onboarding/`): greet →
 await-first-todo (signal) → 3× create-todo → finalize.
 

@@ -4,4 +4,4 @@ data-bind cmdQuery
 data-on data-on:click data-on:close
 signals cmdQuery confirmNoteAuthor confirmNoteId deletingNote loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-live
-tags a=21 aside=1 body=1 button=13 details=2 dialog=2 div=23 form=3 h1=1 h3=1 head=1 header=1 html=2 input=1 kbd=3 label=1 li=18 link=3 main=1 meta=2 nav=1 p=8 path=17 script=8 span=43 strong=1 style=2 summary=2 svg=17 title=1 ul=3
+tags a=20 aside=1 body=1 button=13 details=2 dialog=2 div=23 form=3 h1=1 h3=1 head=1 header=1 html=2 input=1 kbd=3 label=1 li=17 link=3 main=1 meta=2 nav=1 p=8 path=16 script=8 span=43 strong=1 style=2 summary=2 svg=16 title=1 ul=3

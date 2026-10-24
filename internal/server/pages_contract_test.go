@@ -108,6 +108,8 @@ func bootPages(t *testing.T) (base string, cookie *http.Cookie) {
 	t.Helper()
 	cfg := config.Load()
 	cfg.Dev = true
+	cfg.SignupEnabled = true
+	cfg.DemoAccounts = true
 	tmp := t.TempDir()
 	cfg.Turso.DBPath = filepath.Join(tmp, "pages.db")
 	cfg.DataDir = filepath.Join(tmp, "data")

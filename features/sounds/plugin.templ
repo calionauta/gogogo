@@ -5,10 +5,10 @@ import "github.com/calionauta/gogogo/internal/icon"
 
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
-// <script src="/static/cuelume.js"> with @sounds.SoundAssets() so the
+// <script nonce={ templ.GetNonce(ctx) } src="/static/cuelume.js"> with @sounds.SoundAssets() so the
 // plugin owns its own asset loading and can be removed in one spot.
 templ SoundAssets() {
-	<script defer type="module" src={ resources.StaticURL("cuelume.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("cuelume.js") }></script>
 }
 
 // SoundToggle renders the shell footer's mute button. Its state (aria-pressed and

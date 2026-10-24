@@ -30,6 +30,8 @@ func (a *Auth) Routes() chi.Router {
 	r.Post("/api/auth/signup/credential", a.handleSignup)
 	r.Post("/api/auth/signin/credential", a.handleSignin)
 	r.Post("/api/auth/signout", a.handleSignout)
+	r.Post("/api/auth/sessions/revoke-all", a.handleRevokeAll)
+	r.Post("/api/auth/password", a.handlePasswordChange)
 	r.Post("/api/auth/magic/request", a.handleMagicRequest)
 	r.Get("/api/auth/magic", a.handleMagicVerify)
 	r.Post("/api/auth/totp/begin", a.handleTOTPBegin)
@@ -66,6 +68,15 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func (a *Auth) handleSignup(w http.ResponseWriter, r *http.Request) {
+	if a.signupClosed() {
+		http.Error(w, "signup closed", http.StatusForbidden)
+		return
+	}
+	if !a.signupAttempts.allow(signinIP(r)) {
+		secReject(r.Context(), evSignupRejected, reasonSignupThrottled, "", "")
+		http.Error(w, "too many attempts", http.StatusTooManyRequests)
+		return
+	}
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`

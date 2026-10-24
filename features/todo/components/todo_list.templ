@@ -316,7 +316,7 @@ templ SuggestionsList(suggestions []string) {
 				</button>
 			}
 		</div>
-		<script>
+		<script nonce={ templ.GetNonce(ctx) }>
 			// Plain script on purpose (see DocVersionWatcher): data-effect
 			// evaluates at Datastar init, before deferred modules load.
 			window.__gogogoSuggestScroll = function (list) {

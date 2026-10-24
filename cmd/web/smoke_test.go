@@ -187,6 +187,9 @@ func TestSmoke_BootedBinaryServesAndSyncs(t *testing.T) {
 		"TURSO_DB_PATH="+filepath.Join(dataDir, "app.db"),
 		"HOST=127.0.0.1",
 		"PORT="+strconv.Itoa(port),
+		// The test signs in as the seeded demo account; a production-like
+		// environment in CI must not switch the seed off under it.
+		"DEMO_ACCOUNTS_ENABLED=true",
 		// Disable the background subsystems this test does not exercise. The
 		// DagNats engine binds fixed ports (HTTP :8090, NATS :4222); leaving
 		// it on makes the test fail whenever anything else on the machine

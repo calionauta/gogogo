@@ -182,11 +182,15 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("server: chi auth: %w", aerr)
 	}
+	if uerr := a.SetAppURL(cfg.AppURL); uerr != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("server: chi auth app url: %w", uerr)
+	}
+	a.SetSignupEnabled(cfg.SignupEnabled)
 	// Fresh-install contract: the demo accounts the login form advertises,
 	// including their roles (demo1 admin, demo2 viewer). Idempotent, so
 	// every boot after the first is a role refresh.
-	queries := dbgen.New(sqlDB)
-	seedDemoAccounts(a, queries)
+	queries := demoQueries(cfg, a, sqlDB)
 	// At-rest TOTP encryption is opt-in by env (AUTH_ENC_KEY): a malformed
 	// key fails the boot rather than running half-encrypted.
 	if kerr := wireTOTPKey(a, cfg); kerr != nil {
@@ -284,7 +288,9 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		return bootFail(cancelConsumer, sqlDB, "rbac", rerr)
 	}
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
-	// carry the same headers, and the access log sees both.
+	// carry the same headers, and the access log sees both. The rate limiter
+	// sits just inside them so a 429 gets the same headers.
+	handler = rateLimit(cfg.RateLimitRPM, handler)
 	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,

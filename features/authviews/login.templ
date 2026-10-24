@@ -2,22 +2,33 @@ package authviews
 
 import (
 	"github.com/calionauta/gogogo/features/sounds"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/web/skins"
 )
 
 
 // LoginPage is the standalone /login page (no shell chrome: the user isn't
-// logged in yet). DaisyUI form with the demo credentials prefilled so
-// the user just has to click "Sign in".
+// logged in yet). DaisyUI form; with DEMO_ACCOUNTS_ENABLED the demo pair is
+// prefilled/advertised, otherwise the fields start empty and the demo block
+// is absent.
 //
 // The demo block below (data-demo="demo-accounts") is TEMPLATE DEMO-ONLY:
 // it advertises the seeded demo pair, their roles, and the Casbin
 // exercise. Agents adapting gogogo into their own product must delete
 // every element carrying a data-demo attribute — see
 // docs/scope-taxonomy.md#demo-only-markup.
-templ LoginPage(next string, errMsg string, skinName string) {
+// demoValue keeps the login form empty when the demo seed is off, so a
+// production deploy never advertises credentials that do not exist.
+func demoValue(on bool, v string) string {
+	if on {
+		return v
+	}
+	return ""
+}
+
+templ LoginPage(next string, errMsg string, skinName string, demoAccounts bool) {
 	<!DOCTYPE html>
-	<html lang="en" { ThemeRootAttrs("")... }>
+	<html lang="en" { ThemeRootAttrs(ctx, "")... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -49,7 +60,7 @@ templ LoginPage(next string, errMsg string, skinName string) {
 							<input
 								type="email"
 								name="email"
-								value="demo1@demo.app"
+								value={ demoValue(demoAccounts, demo.Email) }
 								class="input input-sm"
 								required
 								autocomplete="email"
@@ -63,7 +74,7 @@ templ LoginPage(next string, errMsg string, skinName string) {
 							<input
 								type="password"
 								name="password"
-								value="demo1234456"
+								value={ demoValue(demoAccounts, demo.Password) }
 								class="input input-sm"
 								required
 								autocomplete="current-password"
@@ -74,10 +85,13 @@ templ LoginPage(next string, errMsg string, skinName string) {
 							Sign in
 						</button>
 
-						<div class="text-xs text-center text-base-content/40 mt-4">
-							Demo 1 prefilled — click <strong>Sign in</strong> to enter.
-						</div>
+						if demoAccounts {
+							<div class="text-xs text-center text-base-content/40 mt-4">
+								Demo 1 prefilled — click <strong>Sign in</strong> to enter.
+							</div>
+						}
 					</form>
+					if demoAccounts {
 					<div class="divider text-xs text-base-content/40">or be both at once</div>
 					<div data-demo="demo-accounts" class="space-y-3">
 						<div class="grid grid-cols-2 gap-2">
@@ -107,6 +121,7 @@ templ LoginPage(next string, errMsg string, skinName string) {
 							<p class="mt-1">Per-request decision over a <code>users.role</code> column (<code>internal/rbac</code>, see <code>docs/rbac.md</code>). Enforce with <code>RBAC_ENABLED=true</code>; re-map addresses without a rebuild via <code>ADMIN_EMAILS</code> / <code>VIEWER_EMAILS</code>.</p>
 						</details>
 					</div>
+					}
 				</div>
 			</div>
 		</body>

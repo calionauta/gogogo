@@ -2,6 +2,7 @@
 package auth
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -33,18 +34,19 @@ func (a *Auth) authedUser(r *http.Request) (*User, error) {
 	return sess.User, nil
 }
 
-// baseURL rebuilds the public base from the request (scheme + host) for
-// magic links. Behind TLS-terminating proxies the app should set the real
-// external URL — document, don't guess headers here.
-func baseURL(r *http.Request) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	return scheme + "://" + r.Host
-}
+// magicBindCookie binds the emailed link to the browser that requested it.
+// Path-scoped so it never travels with ordinary application requests.
+const magicBindCookie = "gogogo_magic_bind"
 
 func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
+	base := a.publicBaseURL()
+	if base == "" {
+		// Fail closed: building a link from r.Host lets a forged Host
+		// redirect the token to an attacker (and behind a TLS proxy the
+		// scheme would be http). APP_URL is the only trusted origin.
+		http.Error(w, "magic link unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	var body struct {
 		Email string `json:"email"`
 	}
@@ -52,8 +54,35 @@ func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+	sender := a.magicSender()
+	if sender == nil {
+		// Uniform answer for every address: a 500 only for known accounts
+		// would turn this endpoint into an existence oracle.
+		http.Error(w, "magic link unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if !a.magicAttempts.allow(signinIP(r)) {
+		secReject(r.Context(), evMagicRejected, reasonThrottled, "", "")
+		http.Error(w, "too many attempts", http.StatusTooManyRequests)
+		return
+	}
+	bind, _, err := newToken()
+	if err != nil {
+		http.Error(w, "request failed", http.StatusInternalServerError)
+		return
+	}
+	// #nosec G124 — Secure follows the environment; HttpOnly and SameSite set.
+	http.SetCookie(w, &http.Cookie{
+		Name:     magicBindCookie,
+		Value:    bind,
+		Path:     "/api/auth/magic",
+		MaxAge:   int(magicLinkTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   a.secure,
+		SameSite: http.SameSiteLaxMode,
+	})
 	// Always 200: success and unknown addresses are indistinguishable.
-	if err := a.RequestMagicLink(r.Context(), body.Email, baseURL(r), a.magicSender()); err != nil {
+	if err := a.RequestMagicLink(r.Context(), body.Email, base, bind, sender); err != nil {
 		http.Error(w, "request failed", http.StatusInternalServerError)
 		return
 	}
@@ -61,7 +90,21 @@ func (a *Auth) handleMagicRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleMagicVerify(w http.ResponseWriter, r *http.Request) {
-	token, err := a.VerifyMagicLink(r.Context(), r.URL.Query().Get("token"))
+	q := r.URL.Query()
+	cookie, cerr := r.Cookie(magicBindCookie)
+	bind := q.Get("bind")
+	if bind == "" || cerr != nil ||
+		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(bind)) != 1 {
+		secReject(r.Context(), evMagicRejected, reasonBrowserMismatch, "", "")
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	// #nosec G124 — clearing cookie; Secure follows the environment.
+	http.SetCookie(w, &http.Cookie{
+		Name: magicBindCookie, Value: "", Path: "/api/auth/magic", MaxAge: -1,
+		HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode,
+	})
+	token, err := a.VerifyMagicLink(r.Context(), q.Get("token"))
 	if err != nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -146,10 +189,23 @@ func (a *Auth) handleTOTPDisable(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
-	if err := a.DisableTOTP(r.Context(), user.ID); err != nil {
+	// Revoke before lowering the factor: a failure leaves the account
+	// logged out with TOTP still on (safe) instead of weakening auth while
+	// older sessions survive.
+	if rerr := a.RevokeAllSessions(r.Context(), user.ID); rerr != nil {
 		http.Error(w, "disable failed", http.StatusInternalServerError)
 		return
 	}
+	if derr := a.DisableTOTP(r.Context(), user.ID); derr != nil {
+		http.Error(w, "disable failed", http.StatusInternalServerError)
+		return
+	}
+	token, err := a.openSession(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "disable failed", http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, a.sessionCookie(token))
 	writeJSON(w, map[string]string{jsonStatusKey: "ok"})
 }
 

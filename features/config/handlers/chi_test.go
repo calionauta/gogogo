@@ -13,6 +13,7 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/rbac"
 
 	// The page renders inside internal/ui.Shell, which injects the active
 	// skin's assets — production registers the skin from cmd/web's blank
@@ -41,14 +42,15 @@ func TestHandlersConfigGate(t *testing.T) {
 
 	anon := httptest.NewRecorder()
 	mux.ServeHTTP(anon, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil))
-	if anon.Code != http.StatusSeeOther {
-		t.Fatalf("anon /config status = %d, want 303", anon.Code)
+	if anon.Code != http.StatusForbidden {
+		t.Fatalf("anon /config status = %d, want 403", anon.Code)
 	}
 
 	ctx := context.Background()
 	if _, _, err := a.Signup(ctx, "op@example.com", "Correct-horse-99!", ""); err != nil {
 		t.Fatalf("signup: %v", err)
 	}
+	promoteConfigAdmin(t, dbgen.New(sqlDB), "op@example.com")
 	token, _, lerr := a.Login(ctx, "op@example.com", "Correct-horse-99!")
 	if lerr != nil {
 		t.Fatalf("login: %v", lerr)
@@ -93,6 +95,7 @@ func TestChiConfigRoleBanner(t *testing.T) {
 	if _, _, serr := a.Signup(ctx, "role@example.com", "Correct-horse-99!", ""); serr != nil {
 		t.Fatalf("signup: %v", serr)
 	}
+	promoteConfigAdmin(t, dbgen.New(sqlDB), "role@example.com")
 	token, _, lerr := a.Login(ctx, "role@example.com", "Correct-horse-99!")
 	if lerr != nil {
 		t.Fatalf("login: %v", err)
@@ -106,10 +109,19 @@ func TestChiConfigRoleBanner(t *testing.T) {
 		t.Fatalf("authed /config status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "user") {
+	if !strings.Contains(body, rbac.RoleAdmin) {
 		t.Fatalf("config view missing the viewer role:\n%s", body)
 	}
 	if !strings.Contains(body, "RBAC_ENABLED=true") {
 		t.Fatalf("config view missing the enforcement posture hint")
+	}
+}
+
+func promoteConfigAdmin(t *testing.T, q *dbgen.Queries, email string) {
+	t.Helper()
+	if err := q.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
+		Role: rbac.RoleAdmin, Updated: dbschema.Now(), Email: email,
+	}); err != nil {
+		t.Fatalf("promote %s: %v", email, err)
 	}
 }

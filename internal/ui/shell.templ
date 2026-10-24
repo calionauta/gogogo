@@ -67,7 +67,7 @@ func (d Data) HeadingText() string {
 // dependency (its capability unit deliberately carries none).
 templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.Component, body templ.Component) {
 	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs(d.Signals)... }>
+	<html lang="en" { authviews.ThemeRootAttrs(ctx, d.Signals)... }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -129,7 +129,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						@authviews.UserMenu(d.Email, d.Role)
 					</div>
 				</aside>
-				<script>
+				<script nonce={ templ.GetNonce(ctx) }>
 					// Drawer focus trap: Datastar owns $railOpen and every dismissal
 					// path (Escape, backdrop, destination tap); no Datastar primitive
 					// cycles Tab inside an open drawer or moves focus across the

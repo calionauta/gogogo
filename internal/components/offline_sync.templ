@@ -12,7 +12,7 @@ package components
 // and never intercept /api/* mutations.
 templ OfflineSyncScript(enabled bool) {
   if enabled {
-    <script>
+    <script nonce={ templ.GetNonce(ctx) }>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {
           // SW registration failed — offline support degraded but the

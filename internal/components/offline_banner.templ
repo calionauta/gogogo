@@ -53,7 +53,7 @@ templ OfflineBanner(offlineSync bool) {
 				color: #ffffff;
 			}
 	</style>
-	<script>
+	<script nonce={ templ.GetNonce(ctx) }>
 		(function () {
 			var banner = document.getElementById("offline-banner");
 			var text = document.getElementById("offline-banner-text");

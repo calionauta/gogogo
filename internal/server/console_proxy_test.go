@@ -39,6 +39,7 @@ func TestConsoleProxyForwardsPinsPath(t *testing.T) {
 	if serr != nil {
 		t.Fatalf("signup: %v", serr)
 	}
+	promoteTestAdmin(t, dbgen.New(sqlDB), "fwd@example.com")
 	var seenPath, seenUser string
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenPath = r.URL.RequestURI()
@@ -51,6 +52,7 @@ func TestConsoleProxyForwardsPinsPath(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
+	cfg.AdminEmails = []string{"fwd@example.com"}
 	mountConsoleProxy(mux, a, cfg)
 
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/console/triggers?x=1", nil)
@@ -97,6 +99,7 @@ func TestConsoleProxyRequiresSession(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
+	cfg.AdminEmails = []string{"alias@example.com"}
 	mountConsoleProxy(mux, a, cfg)
 
 	rec := httptest.NewRecorder()
@@ -197,6 +200,7 @@ func TestConsoleAliasRerootsPinsBrand(t *testing.T) {
 	if serr != nil {
 		t.Fatalf("signup: %v", serr)
 	}
+	promoteTestAdmin(t, dbgen.New(sqlDB), "alias@example.com")
 	var seenPath string
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenPath = r.URL.RequestURI()
@@ -208,6 +212,7 @@ func TestConsoleAliasRerootsPinsBrand(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.DagNats.Enabled = true
 	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
+	cfg.AdminEmails = []string{"alias@example.com"}
 	mountConsoleProxy(mux, a, cfg)
 
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/dagnats/triggers?x=1", nil)
@@ -220,5 +225,65 @@ func TestConsoleAliasRerootsPinsBrand(t *testing.T) {
 	}
 	if seenPath != "/console/triggers?x=1" {
 		t.Errorf("backend saw path %q, want rerooted /console/triggers?x=1", seenPath)
+	}
+}
+
+// promoteTestAdmin makes an existing row an admin. The console fence is
+// always on, so a plain signed-up user is no longer enough to reach it.
+func promoteTestAdmin(t *testing.T, q *dbgen.Queries, email string) {
+	t.Helper()
+	if err := q.SetUserRole(context.Background(), dbgen.SetUserRoleParams{
+		Role: "admin", Updated: dbschema.Now(), Email: email,
+	}); err != nil {
+		t.Fatalf("promote %s: %v", email, err)
+	}
+}
+
+// TestConsoleProxyRequiresOperatorEmail pins the second fence: the demo
+// admin (published credentials) is an admin, but not an operator. Only an
+// address in ADMIN_EMAILS reaches the console. Red-proof: drop operatorGate
+// and this goes green (200 + a hit).
+func TestConsoleProxyRequiresOperatorEmail(t *testing.T) {
+	ctx := context.Background()
+	hits := 0
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(backend.Close)
+
+	sqlDB, err := db.OpenAt(t.TempDir() + "/console-user.db")
+	if err != nil {
+		t.Fatalf("db open: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	if merr := dbschema.Migrate(sqlDB); merr != nil {
+		t.Fatalf("db migrate: %v", merr)
+	}
+	a, aerr := auth.New(dbgen.New(sqlDB), false)
+	if aerr != nil {
+		t.Fatalf("auth new: %v", aerr)
+	}
+	_, tok, serr := a.Signup(ctx, "plain@example.com", "Correct-horse-99!", "")
+	if serr != nil {
+		t.Fatalf("signup: %v", serr)
+	}
+	promoteTestAdmin(t, dbgen.New(sqlDB), "plain@example.com")
+	mux := chi.NewRouter()
+	cfg := &config.Config{}
+	cfg.DagNats.Enabled = true
+	cfg.DagNats.HTTPAddr = backend.Listener.Addr().String()
+	mountConsoleProxy(mux, a, cfg)
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/console/", nil)
+	// #nosec G124 — test-only request cookie.
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: tok})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("non-admin /console/ = %d, want 403", rec.Code)
+	}
+	if hits != 0 {
+		t.Fatalf("backend hits = %d, want 0", hits)
 	}
 }

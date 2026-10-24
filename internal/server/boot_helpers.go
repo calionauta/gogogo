@@ -44,6 +44,19 @@ func seedDemoAccounts(a *auth.Auth, q *dbgen.Queries) {
 // enforced denies when on — the flag never rewires anything). Viewers
 // promote first so an address in both lists ends admin, never viewer.
 // ctx is the boot context: promotion stops if the boot is cancelled.
+// demoQueries builds the shared query handle and seeds the demo pair only
+// when the deploy opted in. One call keeps BootChi inside the funlen gate
+// and the production default free of published credentials.
+func demoQueries(cfg *config.Config, a *auth.Auth, sqlDB *sql.DB) *dbgen.Queries {
+	q := dbgen.New(sqlDB)
+	if cfg.DemoAccounts {
+		seedDemoAccounts(a, q)
+	} else {
+		demo.Disable(context.Background(), q)
+	}
+	return q
+}
+
 func applyRBAC(
 	ctx context.Context, a *auth.Auth, cfg *config.Config, queries *dbgen.Queries, mux http.Handler,
 ) (http.Handler, error) {
@@ -85,6 +98,7 @@ func wireTodoDisplay(todoH *todohandlers.Handler, cfg *config.Config) {
 	todoH.BuildCommit = cfg.BuildCommit
 	todoH.OfflineSyncEnabled = cfg.OfflineSync.Enabled
 	todoH.NATSEnabled = cfg.NATS.Enabled
+	todoH.DemoAccounts = cfg.DemoAccounts
 }
 
 // wireTodoLLM builds the LLM clients and attaches the todo slice's queue,

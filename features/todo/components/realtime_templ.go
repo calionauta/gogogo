@@ -103,7 +103,20 @@ func searchModeScript() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n\t\twindow.searchModeValue = function () {\n\t\t\tvar sel = document.querySelector('select[name=\"mode\"]');\n\t\t\treturn sel ? sel.value : '';\n\t\t};\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script nonce=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 47, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\twindow.searchModeValue = function () {\n\t\t\tvar sel = document.querySelector('select[name=\"mode\"]');\n\t\t\treturn sel ? sel.value : '';\n\t\t};\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -137,12 +150,25 @@ func DocVersionWatcher() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script>\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"todo-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script nonce=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/realtime.templ`, Line: 66, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">\n\t\t// Plain (non-module, non-deferred) script on purpose: data-effect\n\t\t// evaluates at Datastar init, which runs before deferred module\n\t\t// scripts — a module-defined function is not yet defined then and\n\t\t// every evaluation throws (caught live by scripts/todo-docwatch).\n\t\t// The body only defines a function; nothing runs at parse time.\n\t\twindow.__gogogoDocWatch = function (v) {\n\t\t\tif (v == null) { return; }\n\t\t\tif (window.__gogogoDocVersionSeen === undefined) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\treturn;\n\t\t\t}\n\t\t\tif (v !== window.__gogogoDocVersionSeen) {\n\t\t\t\twindow.__gogogoDocVersionSeen = v;\n\t\t\t\tvar b = document.getElementById(\"todo-realtime-resync\");\n\t\t\t\tif (b) { b.click(); }\n\t\t\t}\n\t\t};\n\t</script><div data-effect=\"window.__gogogoDocWatch($docVersion)\" hidden aria-hidden=\"true\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
