@@ -2,7 +2,6 @@
 package components
 
 import (
-	"errors"
 	"maps"
 	"strconv"
 	"strings"
@@ -186,16 +185,30 @@ func (r *reader) skipSpace() {
 // against the catalog (same conversion as the strict path, so the two can
 // never disagree on what is legal).
 func parseTolerant(body string) ([]Directive, error) {
+	raw, err := parseTolerantRaw(body)
+	if err != nil {
+		return nil, err
+	}
+	return convertAll(raw)
+}
+
+// parseTolerantRaw is the shape half of parseTolerant: the component list
+// without validation, for lenient conversion to reuse.
+func parseTolerantRaw(body string) ([]rawDirective, error) {
 	start := strings.IndexByte(body, '{')
 	if start < 0 {
-		return nil, errors.New("genui: no JSON object found")
+		return nil, ErrNoEnvelope
 	}
 	r := &reader{src: body, pos: start}
 	root, ok := r.value().(map[string]any)
 	if !ok {
-		return nil, errors.New("genui: no JSON object found")
+		return nil, ErrNoEnvelope
 	}
-	return convertAll(toRaw(root["components"]))
+	raw := toRaw(root["components"])
+	if len(raw) == 0 {
+		return nil, ErrNoEnvelope
+	}
+	return raw, nil
 }
 
 // toRaw lifts every component object out of the tolerant tree. Arrays

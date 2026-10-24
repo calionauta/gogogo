@@ -23,7 +23,7 @@
 //	  lives in the HTTP layer and needs extracting to the store
 //	  before both frontends inherit it), no multi-user push (polling
 //	  only, no JetStream subscription), no theming parity with the
-//	  web skins.
+//	  web resources (vendored JS).
 //
 // Note there is no HTTP listener here. openGUIStore + dbschema.Migrate prepare the
 // database without serving; the store reads and writes through the

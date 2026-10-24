@@ -106,17 +106,51 @@ func renderNode(b *strings.Builder, n *html.Node, walk func(*html.Node)) {
 	}
 }
 
-// writeAttrs emits the surviving attributes: open class vocabulary,
-// href fenced to safe targets on anchors. Everything else dies here.
+// writeAttrs emits the surviving attributes: class vocabulary CLOSED to
+// the prompt list (unknown classes render unstyled, so dropping them keeps
+// "advertised and styled" the same set), href fenced to safe targets on
+// anchors. Everything else dies here.
 func writeAttrs(b *strings.Builder, n *html.Node) {
 	for _, a := range n.Attr {
 		switch {
 		case a.Key == "class":
-			b.WriteString(` class="` + html.EscapeString(a.Val) + `"`)
+			if filtered := filterClasses(a.Val); filtered != "" {
+				b.WriteString(` class="` + html.EscapeString(filtered) + `"`)
+			}
 		case a.Key == "href" && n.Data == "a" && safeHref(a.Val):
 			b.WriteString(` href="` + html.EscapeString(a.Val) + `"`)
 		}
 	}
+}
+
+// allowedClassSet is the closed class vocabulary, built once from the same
+// slices the prompt advertises. Unknown classes are dropped, not escaped:
+// Tailwind emits only what it scans, so a class outside this set renders
+// unstyled by construction.
+var allowedClassSet = func() map[string]bool {
+	out := make(map[string]bool, len(ModelHTMLClasses)+len(ModelHTMLComponents))
+	for _, c := range ModelHTMLClasses {
+		out[c] = true
+	}
+	for _, c := range ModelHTMLComponents {
+		out[c] = true
+	}
+	return out
+}()
+
+// filterClasses keeps only allowlisted classes, preserving order and
+// de-duplicating. Empty when nothing survives (the attribute is dropped).
+func filterClasses(raw string) string {
+	var kept []string
+	seen := map[string]bool{}
+	for f := range strings.FieldsSeq(raw) {
+		if !allowedClassSet[f] || seen[f] {
+			continue
+		}
+		seen[f] = true
+		kept = append(kept, f)
+	}
+	return strings.Join(kept, " ")
 }
 
 // findBody locates the implied (or explicit) body element of a parse

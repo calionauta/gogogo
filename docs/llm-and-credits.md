@@ -26,7 +26,7 @@ GOAI_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 ```
 
 The deploy default is OpenRouter with that free model (verified live and
-$0 in/out in Oct 2026; text→text with structured outputs, so Ask AI's
+$0 in/out in Oct 2026; text→text with structured outputs, so Chat's
 JSON directives parse). A Groq key works the same way with its own slug:
 
 ```bash
@@ -54,7 +54,7 @@ workflow renders (GH secret `GOAI_API_KEY` + GH vars `GOAI_BASE_URL` /
 LLM defaults of its own, because compose `environment` always wins over
 `env_file` — a default there would silently shadow the matching values
 and split the triple across providers (a real outage: Groq key +
-OpenRouter base). Provider auth failures in Ask/Chat/Suggest surface a
+OpenRouter base). Provider auth failures in Chat/Suggest surface a
 key↔base hint (`llm.WithAuthHint`) pointing at this invariant.
 
 #### Sharing one provider key across production users
@@ -76,7 +76,7 @@ on the provider). If you do it anyway:
   better at whole dollars; either way the cap is a fuse, not a budget).
 - **Expect the free quota to die daily.** OpenRouter free is 20 req/min and
   50/day shared across ALL your users (1,000/day after a one-time $10
-  credit purchase — the actual reason to add credits). Past that, every Ask
+  credit purchase — the actual reason to add credits). Past that, every Chat
   fails until midnight UTC. Size the feature for it or gate it.
 - **Read the training + ToS fine print.** Free-tier prompts may train
   third-party providers (check per-provider privacy switches), and proxying

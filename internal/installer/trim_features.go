@@ -402,7 +402,7 @@ var featureTrimUnits = []trimUnit{
 			},
 		},
 		// genkit goes with the page (review is its only consumer). go-jev
-		// stays: the Ask router (genui/handlers) imports it too, so dropping
+		// stays: the Chat router (features/chat/handlers) imports it too, so dropping
 		// the require would leave `trim review` with an unresolvable import.
 		goModDrops: []string{"github.com/firebase/genkit/go"},
 	},

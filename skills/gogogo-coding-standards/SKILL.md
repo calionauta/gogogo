@@ -441,7 +441,7 @@ warnings print and exit 0.
 
 ### Should NOT activate
 - "Write landing-page copy" (content, not Go)
-- "Design the pricing page CSS" (skin concern, see `docs/ui-skins.md`)
+- "Design the pricing page CSS" (theme concern, see `docs/ui-themes.md`)
 - "Create a Zig kernel because it might be faster" (speculation — gate refuses without profile)
 - "Add Zig to cmd/web so it draws the UI" (wrong direction — a native UI is a separate nanoui binary, see the gate)
 - "Bump the marketing site Tailwind" (`site/` has its own stylesheet)

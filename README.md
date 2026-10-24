@@ -79,7 +79,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 **Frontend**
 - [todo-example](docs/todo-example.md) — The Todo reference implementation and the contract to imitate.
 - [ui-shell](docs/ui-shell.md) — The shell anatomy, the page kit, and what a page owns.
-- [ui-skins](docs/ui-skins.md) — The one shell, the skin seam, and the DaisyUI themes.
+- [ui-themes](docs/ui-themes.md) — The one shell, DaisyUI, and the theme catalog.
 - [ui-sounds](docs/ui-sounds.md) — Vendored cuelume sound feedback and its accessibility contract.
 
 **Research**
@@ -204,8 +204,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | Todo app + live record-sync, stacked toasts, sound feedback | delete `features/todo/` |
 | Queue + retry with exponential backoff, SSE `lastRetry` signal | — (core) |
 | AI Suggest via GoAI, or keyless simulated LLM for the demo | no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
-| Ask AI: model renders catalog UI (cards, tables, sections) via SSE | `trim genui` (bundle with Chat), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
-| Chat: conversation over the same catalog, persisted per owner | `trim genui` (bundle with Ask AI), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` |
+| Chat: model renders catalog UI + invented visuals + diagrams via SSE, persisted per owner | `trim genui` (removes Chat), or no `GOAI_API_KEY` and `SIMULATE_LLM=false` (demo answers keyless) |
 | Review loop: writer → critic → classifier judge, streamed verdict | `trim review`, or no `GOAI_API_KEY` (real-LLM only; page shows a setup hint) |
 | Search layers for feature rows (substring in SQL, fuzzy tiers, BM25 over its own postings) | `trim search` (a consumer keeps the SQL substring layer) |
 | AI credits + BYOK relay + Stripe top-ups | `CREDITS_ENABLED=false` |

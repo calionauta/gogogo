@@ -130,9 +130,9 @@ css: css-install
 	@npm run build --silent
 	@echo "  ✓ built web/resources/static/app.min.css"
 
-# css-all is kept as an alias for css: one skin ships, but CI, the Docker build
+# css-all is kept as an alias for css: one bundle ships, but CI, the Docker build
 # and the pre-commit hook still call css-all, and a rename would have to touch
-# all three. (Visual variants are DaisyUI themes, not bundles — docs/ui-skins.md.)
+# all three. (Visual variants are DaisyUI themes, not bundles — docs/ui-themes.md.)
 css-all: css
 
 # css-check fails if the generated CSS is out-of-date. Used by the

@@ -26,7 +26,7 @@ What it asks (4 questions):
 1. **Project name** (`my-app`) — validates like `make rename` does.
 2. **GitHub owner** — for the module path (`github.com/<owner>/<name>`).
 3. **Plugins** — numbered menu from the registry (`dagnats`,
-   `credits`, `sounds`, `skins-extra` with one-line summaries). Answer
+   `credits`, `sounds` with one-line summaries). Answer
    with numbers (`1,3`), ids, or both; empty keeps all, `none` drops all.
    Unknown answers re-ask instead of mis-trimming. Plugin answers match
    plugin-kind units only.

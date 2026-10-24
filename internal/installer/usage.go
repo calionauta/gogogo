@@ -83,7 +83,7 @@ func PrintUsage(w io.Writer, fs *flag.FlagSet) {
        make dev in the new checkout (humans only; agents must not).
 
   Units (id, kind). Kind follows the servant principle, not the directory:
-  a plugin serves other capabilities (sounds, skins, credits serve pages);
+  a plugin serves other capabilities (sounds, credits serve pages);
   a feature is a terminal user surface (todo, whiteboard, landing, config).
   --plugins matches plugin-kind units, --features matches feature-kind units. Not offered here
   todo (reference implementation), auth (middleware is core), queue (core),

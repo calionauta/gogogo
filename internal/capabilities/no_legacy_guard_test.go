@@ -30,7 +30,7 @@ import (
 
 // removedBrands are names of surfaces this repo once shipped and no longer
 // does. Adding one here is how a removal becomes permanent.
-var removedBrands = []string{"basecoat"}
+var removedBrands = []string{"basecoat", "web/skins", "skin_imports", "ui_skin", "?skin="}
 
 // deadAttributes are attributes no stylesheet or script reads.
 var deadAttributes = []string{"data-variant", "data-size"}

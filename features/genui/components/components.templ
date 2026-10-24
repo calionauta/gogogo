@@ -1,152 +1,25 @@
-// SCOPE:plugin — gogen-ui Ask demo templates.
+// SCOPE:plugin — generative leaf templates (Chat catalog).
 package components
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/calionauta/gogogo/features/sounds"
-	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/web/resources"
 )
 
-// GenuiIndex renders the Ask demo page: one question form, one live
-// result region fed by the model through the catalog. Work pattern is
-// Decide (focused hero: ask → shaped answer), so the composition is a
-// single column: form first, result below — no dashboard density.
-// GenuiIndex renders the Ask AI page: a catalog-constrained answer region the
-// model fills by picking components. The document, assets, sidebar, header and
-// toast root belong to internal/ui.Shell; this file is the page.
-//
-// The demo paragraph and the stack pills that used to sit above the form are
-// gone from the page: the layers live in the sidebar's stack key, and the
-// header's context slot reports state instead of prose.
-templ GenuiIndex(email string, userRole string, buildLabel string, buildCommit string, skinName string, demo bool) {
-	@ui.Shell(ui.Data{
-		Title:       "Ask AI — gogogo",
-		Module:      "genui",
-		Context:     "fixed component catalog · answers stream over SSE",
-		Email:       email,
-		Role:        userRole,
-		BuildLabel:  buildLabel,
-		BuildCommit: buildCommit,
-		Skin:        skinName,
-		OfflineSync: true,
-		FlushBottom: true,
-		Signals:     `{"theme":"light","genui_pending":false,"genui_error":"","genui_empty":true}`,
-		Demo:        demo,
-		Panel:       GenuiStatePanel(),
-		Stack:       genuiStack(),
-	}, genuiHead(), genuiSound(), nil, genuiBody())
-}
-
-// genuiHead is this page's own <head> extras, as a one-line wrapper: the
-// installer's sounds trim drops that line by substring (see soundsDropLines).
-templ genuiHead() {
-	@sounds.SoundAssets()
-}
-
-// genuiSound is the shell's mute control for this page; the trim drops the call
-// inside the wrapper.
-templ genuiSound() {
-	@sounds.SoundToggle()
-}
-
-// genuiStack is what this page demonstrates, in the sidebar's stack key.
-func genuiStack() []components.TechItem {
-	return []components.TechItem{
-		{Name: "component catalog", Note: "fixed registry only — the model cannot emit raw HTML here"},
-		{Name: "SSE morphs", Note: "streams render in place"},
-		{Name: "goqite jobs", Note: "slow LLM calls run queued"},
-		{Name: "GoAI", Note: "provider client for the LLM"},
-	}
-}
-
-// genuiBody is the work area: the ask form, the answer region, the opener.
-//
-// Same empty/filled contract as Chat: empty = centered hero, filled =
-// answer on top with the composer docked at the footer. One form, two
-// positions via .is-empty from $genui_empty (cleared on first submit).
-// The hero lives inside GenuiResult's empty branch, styled as .chat-hero
-// exactly like Chat's, so both pages share one visual pattern.
-templ genuiBody() {
-	<div class="ui-page ui-page-narrow chat-layout" data-class="{'is-empty': $genui_empty}">
-			<div class="flex-1">
-				@GenuiResult(nil, "", false)
-			</div>
-			<form
-					id="genui-ask-form"
-					class="composer-dock"
-					data-on:submit__prevent={ "$genui_pending = true; $genui_error = ''; $genui_empty = false; var sent = $genuiPrompt; @post('/api/genui/ask?clientID=' + encodeURIComponent(window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($genuiPrompt === sent) $genuiPrompt = ''; }).catch(() => { $genui_pending = false; })" }
-					data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($genui_pending = false, $genui_error = 'Request failed — check your connection and try again.') : null"
-				>
-					<label for="genui-prompt" class="sr-only">What should the assistant shape for you?</label>
-					<div class="join w-full">
-						<input
-							id="genui-prompt"
-							name="prompt"
-							data-bind="genuiPrompt"
-							type="text"
-							required
-							minlength="3"
-							maxlength="500"
-							autocomplete="off"
-							placeholder="Plan my day from my todos"
-							class="input input-sm join-item grow"
-						/>
-						<button
-							type="submit"
-							class="btn btn-primary btn-sm join-item"
-							data-attr:disabled="!!$genui_pending"
-						>
-							<span data-show="!$genui_pending">Ask</span>
-							<span data-show="$genui_pending" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
-						</button>
-					</div>
-					<p class="ui-meta mt-2" data-show="$genui_pending" role="status">Streaming the answer above</p>
-				</form>
-		@components.StreamOpener("genui-stream-opener", "/api/genui/stream", false)
-	</div>
-}
-
-// GenuiResult renders the model answer region in its three states:
-// empty (guidance, never blank space), error (message + recovery,
-// role=alert so assistive tech announces it), full (the components).
-// The worker patches this whole region on every answer, so error and
-// success never leave stale siblings behind.
-templ GenuiResult(comps []templ.Component, errMsg string, isError bool) {
-	<div
-		id="genui-result"
-		class="mt-2 min-h-24"
-		aria-live="polite"
-	>
-		if isError {
-			<div class="alert alert-error" role="alert">
-				<span>{ errMsg }</span>
-			</div>
-			<p class="text-sm text-base-content/60 mt-2">Try asking again — the form above kept your question.</p>
-		} else if len(comps) == 0 {
-			<div class="chat-hero" data-show="$genui_empty">
-				<h2>Ask anything</h2>
-				<p>
-					For example: “plan my day”, “summarize my week in a table”,
-					“turn my notes into actions”. The answer renders here as cards and tables.
-				</p>
-			</div>
-		} else {
-			for _, comp := range comps {
-				<div class="mb-4 last:mb-0">
-					@comp
-				</div>
-			}
-			// The region is replaced (outer), not appended, so the anchor
-			// must live inside the success branch: it is the last thing the
-			// patch puts on screen, and whichever node it lands in scrolls
-			// itself into view. The empty and error states are short enough
-			// to already be visible.
-			@components.AutoScroll()
-		}
-	</div>
+// DiagramAssets loads the Mermaid renderer (Pele, vendored) plus the mount
+// helper. Both are progressive enhancement: without them a diagram renders
+// as readable source code. Pele theme vars follow the active DaisyUI theme
+// so diagrams track light/dark without re-rendering.
+templ DiagramAssets() {
+	<script defer src={ resources.StaticURL("pele.global.js") }></script>
+	<script defer src={ resources.StaticURL("diagram.js") }></script>
+	<style>
+		.pele { --pele-bg: var(--color-base-100); --pele-fg: var(--color-base-content); --pele-muted: color-mix(in oklab, var(--color-base-content) 60%, transparent); --pele-line: var(--color-base-content); --pele-surface: var(--color-base-200); --pele-surface-alt: var(--color-base-300); --pele-border: var(--color-base-300); }
+		pre.mermaid { max-width: 100%; }
+		pre.mermaid svg { max-width: 100%; height: auto; }
+	</style>
 }
 
 // GenuiSection groups nested components under a titled section, so
@@ -382,6 +255,26 @@ templ GenuiDataTable(id string, headers []string, rows [][]string) {
 					}
 				</tbody>
 			</table>
+		</div>
+	</div>
+}
+
+// GenuiDiagram renders a Mermaid diagram: server validates the source text,
+// the browser turns it into SVG with Pele (vendored). Without JS or without
+// Pele the source stays readable as code — never blank. The pre carries the
+// source as text (Templ escapes it); diagram.js mounts it on insert and on
+// SSE patches via MutationObserver.
+templ GenuiDiagram(id string, title string, source string) {
+	<div id={ id } class="rounded-lg border border-base-300 bg-base-100">
+		if title != "" {
+			<h3 class="font-semibold px-4 pt-3">{ title }</h3>
+		}
+		<div class="p-4 overflow-x-auto">
+			<pre class="mermaid text-sm" data-diagram="pele">{ source }</pre>
+			<details class="mt-2">
+				<summary class="link link-hover text-xs">View source</summary>
+				<pre class="mt-1 text-xs whitespace-pre-wrap opacity-70">{ source }</pre>
+			</details>
 		</div>
 	</div>
 }

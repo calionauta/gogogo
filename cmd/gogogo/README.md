@@ -93,9 +93,9 @@ go run ./cmd/gogogo --name my-app --no-tui --yes --dir ./my-app
   where used (no unused-import breakage). `.templ` call sites and the
   shell brand stay manual (warned). Refuses non-scaffolded trees
   instead of guessing. Fully mechanical only where every wiring edit is
-  anchored (`skins-extra` today): anything else refuses BEFORE mutating,
-  printing the exact lines to re-add by hand plus the unit's follow-ups
-  (writing a reversible subset and failing the proof mid-tree is worse
+  anchored (no unit qualifies today — every unit refuses BEFORE mutating,
+  printing the exact lines to re-add by hand plus the unit's follow-ups;
+  writing a reversible subset and failing the proof mid-tree is worse
   than refusing with a recipe).
 - Interactive menus are numbered (stable manifest order) and accept
   numbers, ids, or both; invalid answers re-ask. Scripted flags take ids
@@ -135,7 +135,7 @@ appear here (`TestReadmeDocumentsUnits`).
 | `config-view` | `features/config/` | Drop the `confighandlers.NewHandler` line, its import and the `/config` mounts; Config `[]Module` entry stripped |
 | `credits` | `features/credits/` | Drop the `bootCredits` line and the `/api/credits` + `/api/ai` + `/api/byok` mounts in `internal/server/chi.go`; drop `ai-credits` (+ `stripe-go` if unused) from `go.mod`. Warns: AI Suggest becomes unmetered |
 | `sounds` | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | `@sounds.*` calls + `features/sounds` imports stripped from all 5 page layouts (whichever remain); `go tool templ generate` re-runs automatically. Warns: `data-cuelume-*` attrs stay, inert |
-| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH`/`genuiH` handler lines and the `/chat` + `/genui` mounts in `internal/server/chi.go`; Ask AI `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
+| `genui` | `features/genui/`, `features/chat/`, `internal/server/genui_stubs_test.go` | Drop the `chatH` handler line and the `/chat` mount in `internal/server/chi.go`; Chat `[]Module` entry stripped; mux target table shrinks (re-add by hand, see follow-ups). Warns: `SMOKE_FEATURES` must drop `genui` |
 | `review` | `features/review/` | Drop the `bootReview` helper + `reviewH` line and the `/review` + `/api/review/` mounts in `internal/server/chi.go` (+ the `newReviewHandlerForTest` fixture in its test); Review `[]Module` entry stripped; `go mod tidy` drops `genkit` + `go-jev`. Warns: `SMOKE_FEATURES` must drop `review` |
 | `search` | `internal/search/` | Delete the package and the capability entry. A consumer keeps working with the SQL-only substring layer (it holds a `Searcher`), and `features/todo/handlers/search_source.go` goes with the unit because it exists only to feed the plugin |
 
@@ -161,10 +161,9 @@ env-blessed with the reason recorded.
 | Todo realtime (SSE Hub) | — (part of the Hub) | With `features/todo/` (manual, it is the reference) | ❌ |
 | LLM suggest (GoAI) | Unset `GOAI_API_KEY` (button hides) | Manual — handler + stepper UI live inside `features/todo` | ❌ env-blessed |
 | AI credits + BYOK | `CREDITS_ENABLED=false` (default) | `features/credits/` + wiring | ✅ `credits` |
-| Generative UI + chat | Unset `GOAI_API_KEY` (Ask shows unconfigured; chat stub in tests) | `features/genui/` + `features/chat/` + wiring | ✅ `genui` |
+| Generative UI + chat | Unset `GOAI_API_KEY` (chat stub in tests) | `features/genui/` + `features/chat/` + wiring | ✅ `genui` |
 | Review loop + typed AI flows | Unset `GOAI_API_KEY` (page shows setup hint; run 503s) | `features/review/` + wiring (Genkit bundled inside `review`) | ✅ `review` |
 | Offline sync | `OFFLINE_SYNC_ENABLED=false` | Manual — `config` struct field + `sw.js` + templ SW registration | ❌ env-blessed (struct-field cascade) |
-| UI skins | `UI_SKIN=daisyui` / `?skin=` | `web/skins/<name>/` + dispatch branches | ✅ `skins-extra` (non-default skins) |
 | Persistence (single Turso/sqlc store) | — (core, no switch) | — (core data layer, not trimmable) | ❌ |
 | Auth | — (core middleware) | Login UI removable manually; middleware stays | ❌ |
 | Sounds | — (client-side only) | `features/sounds/` + call sites | ✅ `sounds` |

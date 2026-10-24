@@ -1,12 +1,11 @@
-// Single source of truth for the AI answer surfaces (GENUI_*_SURFACES env).
-// Split from config.go the way ask_router.go and review.go are: the Config
+// Single source of truth for the Chat answer surfaces (GENUI_CHAT_SURFACES).
+// Split from config.go the way chat_router.go and review.go are: the Config
 // struct keeps one GenUI field.
 //
-// Ask AI and Chat are two views over ONE surface vocabulary (see
-// features/genui/components/surface.go). The difference between them is the
-// interaction shape — one-shot answer vs persisted conversation — not which
-// kinds of answer they may produce, so the vocabulary is configuration both
-// legs read rather than two prompts that drift.
+// Chat is the one demo: one surface vocabulary (catalog + custom + native,
+// see features/genui/components/surface.go) with a persisted conversation.
+// The Ask one-shot leg is deleted — its demonstrable strictness lives in
+// Chat through the surface set, not a second page.
 package config
 
 import (
@@ -14,17 +13,14 @@ import (
 	"strings"
 )
 
-// GenUIConfig holds the per-leg answer surfaces.
+// GenUIConfig holds the Chat answer surfaces.
 //
-// Empty is the compatibility contract: an absent variable keeps the leg's
-// documented default (Ask = catalog + native, Chat = catalog + custom +
-// native). Native panels are appended by the normalizer and cannot be turned
-// off from here — an answer about the user's own data should come from the
-// app's data, on both legs, always.
+// Empty is the compatibility contract: an absent variable keeps the
+// documented default (Chat = catalog + custom + native). Native panels are
+// appended by the normalizer and cannot be turned off from here — an answer
+// about the user's own data should come from the app's data, always.
 type GenUIConfig struct {
-	// AskSurfaces is GENUI_ASK_SURFACES: a CSV of catalog|custom|native.
-	AskSurfaces string
-	// ChatSurfaces is GENUI_CHAT_SURFACES: the same CSV for the chat leg.
+	// ChatSurfaces is GENUI_CHAT_SURFACES: a CSV of catalog|custom|native.
 	ChatSurfaces string
 }
 
@@ -34,9 +30,8 @@ type GenUIConfig struct {
 // reported, not a config loader whose only vocabulary is "logs a warning".
 //
 // Reads the env directly (not through getEnv) because "absent" and "empty"
-// are the same thing here: both mean "use the leg's default", which is what
+// are the same thing here: both mean "use the default", which is what
 // ParseSurfaces does with an empty string.
 func (c *Config) loadGenUIEnv() {
-	c.GenUI.AskSurfaces = strings.TrimSpace(os.Getenv("GENUI_ASK_SURFACES"))
 	c.GenUI.ChatSurfaces = strings.TrimSpace(os.Getenv("GENUI_CHAT_SURFACES"))
 }

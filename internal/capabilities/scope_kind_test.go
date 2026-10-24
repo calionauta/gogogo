@@ -25,8 +25,8 @@ import (
 //
 // Dirs owned by two units accept either class (features/room: goakt, room).
 // The walk is recursive: a package's subpackages belong to the same unit
-// (features/genui/handlers is genui), and that is where the deepest drift hid
-// (features/genui's five Go files said feature while its unit says plugin).
+// (features/genui is genui), and that is where the deepest drift hid
+// (features/genui's Go files said feature while its unit says plugin).
 func TestScopeAnnotationsMatchRegistryKind(t *testing.T) {
 	t.Parallel()
 	root := repoRoot(t)

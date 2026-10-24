@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/calionauta/gogogo/web/skins/daisyui"
-
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"

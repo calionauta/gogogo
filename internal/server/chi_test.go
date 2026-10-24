@@ -18,7 +18,6 @@ import (
 	chatstore "github.com/calionauta/gogogo/features/chat/store"
 	confighandlers "github.com/calionauta/gogogo/features/config/handlers"
 	creditshandlers "github.com/calionauta/gogogo/features/credits/handlers"
-	genuihandlers "github.com/calionauta/gogogo/features/genui/handlers"
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
@@ -246,7 +245,7 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 	}
 	docs := collab.NewDocStore()
 	hub := queue.NewSSEHub()
-	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub, "daisyui"),
+	mux := buildChiMux(a, todohandlers.NewHandler(q, a, hub),
 		landinghandlers.NewHandler(cfg, a),
 		confighandlers.NewHandler(cfg, a, dbgen.New(sqlDB)),
 		wbhandlers.NewHandler(q, a, hub, persister, docs, cfg),
@@ -254,7 +253,6 @@ func TestBuildChiMuxRoomDisabledPinsRouteAbsence(t *testing.T) {
 		nil, // roomHandler: engine disabled
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
 		newReviewHandlerForTest(cfg, a),
 		creditshandlers.NewHandler(a, nil))
 
@@ -278,7 +276,7 @@ func TestBuildChiMux(t *testing.T) {
 	if aerr != nil {
 		t.Fatalf("auth new: %v", aerr)
 	}
-	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub(), "daisyui")
+	todoH := todohandlers.NewHandler(dbgen.New(sqlDB), a, queue.NewSSEHub())
 	cfg := config.Load()
 	// Retained: combined trims (landing, config, room, chat, genui) drop
 	// every cfg consumer below, which would not compile. Same rule as the
@@ -298,7 +296,6 @@ func TestBuildChiMux(t *testing.T) {
 		roomhandlers.NewHandler(cfg, a, fakeRooms{}, queue.NewSSEHub()),
 		chathandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), chatstore.NewMemStore(),
 			stubResponder{raw: "{}"}),
-		genuihandlers.NewHandler(cfg, a, chiQForTest(t), queue.NewSSEHub(), stubGenuiResponder{}),
 		newReviewHandlerForTest(cfg, a),
 		creditshandlers.NewHandler(a, nil))
 	body := `{"email":"mux@example.com","password":"Correct-horse-99!"}`
@@ -347,7 +344,6 @@ func TestBuildChiMux(t *testing.T) {
 	for _, target := range []string{
 		"/room",
 		"/chat",
-		"/genui",
 		"/review",
 	} {
 		rec := httptest.NewRecorder()

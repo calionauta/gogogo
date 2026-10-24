@@ -40,7 +40,7 @@ type MessageStore interface {
 }
 
 // Responder is the model leg: production passes an llm adapter, tests
-// pass a stub. Same shape as the genui plugin — one prompt in, raw
+// pass a stub. Same shape as the generative catalog — one prompt in, raw
 // model text out, parsing stays in ParseChatAnswer.
 type Responder interface {
 	Respond(ctx context.Context, prompt string) (string, error)
@@ -48,7 +48,7 @@ type Responder interface {
 
 // OwnerContext is the optional seam a responder implements when it can scope
 // itself to one account, so the leg can put the user's REAL data in the prompt
-// instead of letting the model invent it. The genui plugin owns the
+// instead of letting the model invent it. The generative package owns the
 // implementation; declared here because this package consumes it (owning the
 // interface at the consumer is what keeps chat from depending on genui's
 // internals).
@@ -68,6 +68,17 @@ type MessageView struct {
 // truncates with an ellipsis instead of breaking layout.
 const proseCap = 2000
 
+// textNoteComponent and diagramComponent name the fallback directives
+// ParseChatAnswer mints without going through the catalog parser. Named
+// once so the three construction sites cannot drift.
+const (
+	textNoteComponent = "text_note"
+	diagramComponent  = "diagram"
+	// propText is the text_note payload key, shared by the fallback bubbles
+	// the worker, and the history views that read them back.
+	propText = "text"
+)
+
 // unrenderable is the fallback bubble for an answer whose payload failed
 // validation with no prose left around it. The raw payload is never shown (a
 // chat bubble holding a wall of JSON is the failure this replaces), but the
@@ -81,19 +92,91 @@ const proseCap = 2000
 // the actionable part is only ever "ask again, differently".
 const unrenderable = "I couldn't shape that into a visual answer. Ask again with a " +
 	"bit more detail — or, if you were asking about your own data (todos, " +
-	"records), the Ask AI page renders it directly from the app."
+	"records), the Chat panel renders it directly from the app."
 
 // ParseChatAnswer prefers catalog directives and degrades to prose.
-// Valid envelope with registered components renders as components;
-// anything else (prose, unknown types, bad props, markup, empty)
-// becomes one safe text_note bubble carrying the model's PROSE, with the
-// payload it failed on stripped out. Never errors — chat degrades,
-// it does not fail per message (unlike the Ask demo's fail-closed
-// showcase, where strictness is the point being demonstrated).
-func ParseChatAnswer(raw string) ([]components.Directive, bool, error) {
+// Valid envelope with registered components renders as components; a
+// partially valid envelope renders what validates (unknown types become a
+// text_note catch-all, undecodable props are dropped and counted, surviving
+// prose rides along); a ```mermaid fence anywhere renders as a diagram even
+// when the envelope failed; anything else becomes one safe text_note bubble
+// carrying the model's PROSE, with the payload it failed on stripped out.
+// Never errors — chat degrades, it does not fail per message: a
+// conversation that errors per message is unusable, so degradation is the
+// contract.
+//
+// dropped counts directives the lenient pass could not render, for the
+// worker's outcome log (repair rate per component is the number that says
+// whether the prompt or the catalog is the thing to fix).
+func ParseChatAnswer(raw string) ([]components.Directive, int, bool, error) {
+	dirs, failures, fallback := resolveChatAnswer(raw)
+	return dirs, components.DroppedCount(failures), fallback, nil
+}
+
+// resolveChatAnswer runs the full Chat pipeline once: strict, then lenient
+// with prose, then fences, then the prose fallback. ParseChatAnswer and
+// ParseChatAnswerForRepair are two views over it (counts vs repair), so the
+// render and the retry can never disagree about what the answer held.
+func resolveChatAnswer(raw string) (dirs []components.Directive, failures []error, fallback bool) {
 	if dirs, err := components.ParseDirectives(raw); err == nil {
-		return dirs, false, nil
+		return dirs, nil, false
 	}
+	if dirs, errs := components.ParseLenient(raw); len(dirs) > 0 {
+		merged := prependProse(dirs, raw)
+		merged = appendFenceDiagrams(merged, components.ExtractMermaidFences(raw))
+		return merged, errs, false
+	} else if len(errs) > 0 {
+		failures = errs
+	}
+	if fences := components.ExtractMermaidFences(raw); len(fences) > 0 {
+		return fenceDiagrams(fences, raw), failures, false
+	}
+	return proseFallback(raw), failures, true
+}
+
+// prependProse keeps the model's writing around a partially valid envelope:
+// the JSON payload is for reading by the parser, the prose is for reading
+// by the user, and dropping it turned a half-good answer into components
+// with no lead-in.
+func prependProse(dirs []components.Directive, raw string) []components.Directive {
+	text := stripPayload(raw)
+	if text == "" {
+		return dirs
+	}
+	if len(text) > proseCap {
+		text = text[:proseCap] + "…"
+	}
+	return append([]components.Directive{{
+		Component: textNoteComponent,
+		Props:     map[string]any{propText: text},
+	}}, dirs...)
+}
+
+// fenceDiagrams builds diagram directives from ```mermaid fences plus the
+// surrounding prose, for answers with no usable envelope at all.
+func fenceDiagrams(fences []string, raw string) []components.Directive {
+	var dirs []components.Directive
+	if text := stripPayload(raw); text != "" {
+		if len(text) > proseCap {
+			text = text[:proseCap] + "…"
+		}
+		dirs = append(dirs, components.Directive{
+			Component: textNoteComponent,
+			Props:     map[string]any{propText: text},
+		})
+	}
+	for _, src := range fences {
+		dirs = append(dirs, components.Directive{
+			Component: diagramComponent,
+			Props:     map[string]any{"source": src},
+		})
+	}
+	return dirs
+}
+
+// proseFallback is the last resort: one safe text_note bubble carrying the
+// model's prose (or the unrenderable placeholder when there is no prose).
+func proseFallback(raw string) []components.Directive {
 	text := stripPayload(raw)
 	if text == "" {
 		text = unrenderable
@@ -102,22 +185,52 @@ func ParseChatAnswer(raw string) ([]components.Directive, bool, error) {
 		text = text[:proseCap] + "…"
 	}
 	return []components.Directive{{
-		Component: "text_note",
-		Props:     map[string]any{"text": text},
-	}}, true, nil
+		Component: textNoteComponent,
+		Props:     map[string]any{propText: text},
+	}}
 }
 
-// ParseChatAnswerForRepair is ParseChatAnswer with the repair policy on
+// appendFenceDiagrams adds ```mermaid fences not already present as diagram
+// directives: a fence the envelope already shapes (as a diagram component)
+// is not duplicated, and a fence beside a broken envelope still renders.
+func appendFenceDiagrams(dirs []components.Directive, fences []string) []components.Directive {
+	if len(fences) == 0 {
+		return dirs
+	}
+	seen := map[string]bool{}
+	for _, d := range dirs {
+		if d.Component != diagramComponent {
+			continue
+		}
+		if src, _ := d.Props["source"].(string); src != "" {
+			seen[src] = true
+		}
+	}
+	for _, src := range fences {
+		if seen[src] {
+			continue
+		}
+		dirs = append(dirs, components.Directive{
+			Component: diagramComponent,
+			Props:     map[string]any{"source": src},
+		})
+	}
+	return dirs
+}
+
+// ParseChatAnswerForRepair is resolveChatAnswer with the repair policy on
 // top. Chat supports TWO answer shapes — a catalog envelope and prose —
-// so both validate here, and only the shape a repair can actually fix is
-// reported as a failure: a payload that failed validation with no prose
-// around it (the `unrenderable` bubble). Without this gate the repair
-// loop would spend a round-trip nudging a conversational prose answer
-// into JSON, making the bubble worse at the cost of a model call.
+// so both validate here, and only shapes a repair can actually fix are
+// reported as failures: dropped directives (a retry with the failure fed
+// back fixes the one component that broke) and a payload that failed
+// validation with no prose around it (the `unrenderable` bubble). Without
+// this gate the repair loop would spend a round-trip nudging a
+// conversational prose answer into JSON, making the bubble worse at the
+// cost of a model call.
 func ParseChatAnswerForRepair(raw string) ([]components.Directive, error) {
-	dirs, fallback, err := ParseChatAnswer(raw)
-	if err != nil {
-		return nil, err
+	dirs, failures, fallback := resolveChatAnswer(raw)
+	if dropped := components.DroppedCount(failures); dropped > 0 {
+		return nil, firstFailure(failures, dropped)
 	}
 	if fallback && isUnrenderable(dirs) {
 		return nil, errors.New("chat: answer was a payload with no prose to keep")
@@ -125,14 +238,30 @@ func ParseChatAnswerForRepair(raw string) ([]components.Directive, error) {
 	return dirs, nil
 }
 
+// firstFailure names the repair target: the first dropped component's
+// error plus the count, so the model fixes the one thing that broke
+// instead of re-rolling the whole answer.
+func firstFailure(failures []error, dropped int) error {
+	for _, err := range failures {
+		if errors.Is(err, components.ErrNoEnvelope) {
+			continue
+		}
+		if dropped > 1 {
+			return fmt.Errorf("chat: %d directives failed validation; first: %w", dropped, err)
+		}
+		return fmt.Errorf("chat: directive failed validation: %w", err)
+	}
+	return fmt.Errorf("chat: %d directive(s) failed validation", dropped)
+}
+
 // isUnrenderable reports whether the fallback bubble carries nothing but
 // the "could not be rendered" placeholder, i.e. the answer was a payload
 // and nothing else.
 func isUnrenderable(dirs []components.Directive) bool {
-	if len(dirs) != 1 || dirs[0].Component != "text_note" {
+	if len(dirs) != 1 || dirs[0].Component != textNoteComponent {
 		return false
 	}
-	text, _ := dirs[0].Props["text"].(string)
+	text, _ := dirs[0].Props[propText].(string)
 	return text == unrenderable
 }
 

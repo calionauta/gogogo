@@ -17,7 +17,6 @@ import (
 	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/llm"
 	"github.com/calionauta/gogogo/internal/observability"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Run signals (one spelling per signal, so painters and readers never drift).
@@ -103,7 +102,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = reviewcomponents.ReviewIndex(sess.User.Email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-		reviewcomponents.Signals{ReviewEnabled: h.reviewEnabled()}, skins.Resolve(r, h.cfg.Skin),
+		reviewcomponents.Signals{ReviewEnabled: h.reviewEnabled()},
 		demo.On(r)).Render(r.Context(), w)
 }
 

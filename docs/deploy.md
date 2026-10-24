@@ -212,7 +212,7 @@ by the deploy log's `pulling <ref>` line.
 
 ## Build pipeline and version badge metadata
 
-The compile steps **outside** `go build` are the CSS bundles (one per skin) and
+The compile steps **outside** `go build` are the CSS bundle and
 the Go ldflags that bake the version badge into the binary. All assets are
 embedded into the binary via `//go:embed` — there is no runtime CSS build step,
 no JS runtime, and no CDN.

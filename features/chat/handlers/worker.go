@@ -46,7 +46,7 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Idem   string `json:"idem"`
 	}
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
-		return fmt.Errorf("chat: decode ask payload: %w", err)
+		return fmt.Errorf("chat: decode chat payload: %w", err)
 	}
 	if p.UserID == "" {
 		return errors.New("chat: missing userId")
@@ -55,7 +55,7 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	_ = h.store.Append(ctx, p.UserID, store.Message{
 		Owner: p.UserID, Role: roleUser, Text: p.Prompt, IdemKey: p.Idem, Created: now,
 	})
-	// Scope the responder to the asker (real data) and carry the recent
+	// Scope the responder to the owner (real data) and carry the recent
 	// conversation. Both fix the same reported failure from two sides: the
 	// answer invented the user's data because it could not see it, and could not
 	// follow a follow-up ("and tomorrow?") because it could not see the thread.
@@ -90,7 +90,8 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	// nothing renders twice. ParseChatAnswer is deterministic on the same
 	// raw answer.
 	//nolint:contextcheck // pure CPU (prose strip); ctx enters at Render.
-	dirs, fallback, _ := store.ParseChatAnswer(raw)
+	dirs, dropped, fallback, _ := store.ParseChatAnswer(raw)
+	logChatOutcome(ctx, dirs, dropped, fallback)
 	// The app's own panels carry real state, so the worker fills their rows
 	// here — the renderer has no store and must not get one. A panel that
 	// cannot be hydrated is dropped rather than rendered empty (see
@@ -128,6 +129,26 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Text: text, Directives: dirs, IDPrefix: store.IDPrefix(answer),
 	})
 	return nil
+}
+
+// logChatOutcome emits the countable answer-health signal (stdout is
+// JSONL). components = what rendered, dropped = directives the lenient
+// pass could not render (repair rate per component says whether the prompt
+// or the catalog is the thing to fix), fallback = prose degradation,
+// diagrams = mermaid renders. Repair attempts already log in
+// AnswerWithRepair; this is the render half. Split out of handleChatJob
+// for the complexity gate.
+func logChatOutcome(ctx context.Context, dirs []comp.Directive, dropped int, fallback bool) {
+	diagrams := 0
+	for _, d := range dirs {
+		if d.Component == "diagram" {
+			diagrams++
+		}
+	}
+	observability.Info(ctx, "chat: answer ready",
+		append(observability.WithComponent("chat", "feature"),
+			"components", len(dirs), "dropped", dropped,
+			"fallback", fallback, "diagrams", diagrams)...)
 }
 
 // historyTurns bounds how many past messages ride the prompt, and

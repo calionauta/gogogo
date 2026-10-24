@@ -224,7 +224,6 @@ func TestCapabilityUISignalsWired(t *testing.T) {
 		}
 	}
 	collect("features")
-	collect(filepath.Join("web", "skins"))
 	for _, c := range All {
 		if c.UISignal == "" {
 			continue

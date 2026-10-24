@@ -13,7 +13,6 @@ import (
 	"github.com/calionauta/gogogo/config"
 	"github.com/calionauta/gogogo/features/landing/components"
 	"github.com/calionauta/gogogo/internal/auth"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // Handler serves the landing page on chi. Auth is optional: a session
@@ -49,6 +48,6 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = components.Index(
-		email, role, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin),
+		email, role, h.cfg.BuildLabel, h.cfg.BuildCommit,
 	).Render(r.Context(), w)
 }

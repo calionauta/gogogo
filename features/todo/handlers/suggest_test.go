@@ -41,7 +41,7 @@ func newSuggestFixture(tb testing.TB, withQueue, withLLM bool) *suggestFixture {
 		tb.Fatalf("auth new: %v", err)
 	}
 	hub := queue.NewSSEHub()
-	h := NewHandler(dbgen.New(sqlDB), a, hub, "daisyui")
+	h := NewHandler(dbgen.New(sqlDB), a, hub)
 	if withQueue {
 		q, qerr := queue.NewAt(tb.TempDir() + "/todoqueue")
 		if qerr != nil {

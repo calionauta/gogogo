@@ -232,7 +232,7 @@ func newLoopInstanceA(t *testing.T, h *nats.Handle) (http.Handler, *sql.DB) {
 	if aerr != nil {
 		t.Fatalf("auth A: %v", aerr)
 	}
-	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub(), "daisyui")
+	handlerA := NewHandler(dbgen.New(sqlA), authA, queue.NewSSEHub())
 	handlerA.SetPublisher(natswire.NewCrudPublisher(h.JS, "remote-1"))
 	muxA := http.NewServeMux()
 	muxA.Handle("/api/auth/", authA.Routes())

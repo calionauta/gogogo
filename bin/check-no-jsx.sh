@@ -41,7 +41,7 @@ fi
 # /static/app.min.css. Matches the daisyui skill's advertised alternatives.
 if grep -rEn --include='*.templ' --include='*.go' 'cdn\.jsdelivr\.net|unpkg\.com' "$ROOT/features" "$ROOT/web" "$ROOT/internal" 2>/dev/null \
   | grep -v '_test\.go' | grep -v '_templ\.go'; then
-  echo "  ❌ CDN link in app markup — bundle is /static/app.min.css only (see docs/ui-skins.md)" >&2
+  echo "  ❌ CDN link in app markup — bundle is /static/app.min.css only (see docs/ui-themes.md)" >&2
   fail=1
 fi
 

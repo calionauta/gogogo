@@ -39,7 +39,7 @@ const (
 // The "New note" action moved into the shell header's actions slot, and the
 // stack pills into the sidebar's stack key — the two places every module uses,
 // so this page no longer carries chrome of its own.
-templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string, skinName string) {
+templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string) {
 	@ui.Shell(ui.Data{
 		Title:       "Collab notes — gogogo",
 		Module:      "notes",
@@ -48,7 +48,6 @@ templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel str
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		Signals:     notesSignals,
 		Stack:       notesStack(),
 		StreamPage:  true,
@@ -183,7 +182,7 @@ templ deleteNoteModal() {
 // NotesPage renders one note: the CRDT textarea, the caret layer and the
 // presence pills. It opts into the raw-EventSource flag (session.js) and asks
 // the shell for a full-width body, because the editor is the page.
-templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev uint64, buildLabel string, buildCommit string, skinName string) {
+templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev uint64, buildLabel string, buildCommit string) {
 	@ui.Shell(ui.Data{
 		Title:       "Collab note — gogogo",
 		Module:      "notes",
@@ -195,7 +194,6 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 		Role:        userRole,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-		Skin:        skinName,
 		StreamPage:  true,
 	}, notesDocHead(), notesSound(), nil, notesDocBody(meta, text, rev))
 }

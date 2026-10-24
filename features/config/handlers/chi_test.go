@@ -13,12 +13,8 @@ import (
 	"github.com/calionauta/gogogo/internal/db"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
-
-	// The page renders inside internal/ui.Shell, which injects the active
-	// skin's assets — production registers the skin from cmd/web's blank
-	// imports, so the test must too (skins.Active panics on an empty
-	// registry, by design: a page rendering without a skin is a boot bug).
-	_ "github.com/calionauta/gogogo/web/skins/daisyui"
+	// The page renders inside internal/ui.Shell, which injects the shared
+	// DaisyUI asset block.
 )
 
 func TestHandlersConfigGate(t *testing.T) {

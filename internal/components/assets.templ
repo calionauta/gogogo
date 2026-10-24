@@ -1,0 +1,19 @@
+// SCOPE:core — the single app asset block (DaisyUI + runtime JS).
+package components
+
+import "github.com/calionauta/gogogo/web/resources"
+
+// Assets is the one stylesheet + runtime script block every page renders:
+// Tailwind v4 + DaisyUI v5 build output, project overrides, theme switcher,
+// Datastar core. One spelling for all pages (shell, login, landing), so a
+// URL change touches one file instead of eleven templates.
+//
+// Every URL is versioned through resources.StaticURL so the browser and any
+// CDN in front of the app can cache the file immutably instead of
+// revalidating it on every navigation (see resources.AssetHandler).
+templ Assets() {
+	<link rel="stylesheet" href={ resources.StaticURL("app.min.css") }/>
+	<link rel="stylesheet" href={ resources.StaticURL("app.css") }/>
+	<script defer type="module" src={ resources.StaticURL("theme.js") }></script>
+	<script defer type="module" src={ resources.StaticURL("datastar.js") }></script>
+}

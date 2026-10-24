@@ -1,7 +1,7 @@
 // SCOPE:feature — HTTP chat slice (conversation demo)
 //
 // Same routes, wire and components as the framework handlers: index page,
-// ask-to-queue with thinking ack, answer stream, background worker. History
+// question-to-queue with thinking ack, answer stream, background worker. History
 // persists through the MessageStore seam (memory in tests and demos) and
 // the model through the Responder seam (stub in tests). The chi slice runs
 // its own queue instance so its workers never compete with the other
@@ -29,10 +29,9 @@ import (
 	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
-// Signal names for the Ask panel (one spelling per signal, so painters
+// Signal names for the Chat panel (one spelling per signal, so painters
 // and readers never drift).
 const (
 	signalChatThinking = "chat_thinking"
@@ -51,7 +50,7 @@ type chatEnvelope struct {
 	IDPrefix string `json:"idPrefix,omitempty"`
 }
 
-// Handler serves the Ask demo on chi: page, enqueue, stream, worker.
+// Handler serves the Chat demo on chi: page, enqueue, stream, worker.
 type Handler struct {
 	cfg       *config.Config
 	auth      *auth.Auth
@@ -123,7 +122,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = chatcomponents.ChatIndex(email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit,
-		messageViews(r.Context(), msgs), skins.Resolve(r, h.cfg.Skin), demo.On(r)).Render(r.Context(), w)
+		messageViews(r.Context(), msgs), demo.On(r)).Render(r.Context(), w)
 }
 
 // messageViews maps stored records to render views, re-validating the

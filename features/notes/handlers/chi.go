@@ -28,7 +28,6 @@ import (
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
-	"github.com/calionauta/gogogo/web/skins"
 )
 
 // maxBodyBytes caps op/presence POST bodies (1 MiB). Batches and cursors
@@ -146,7 +145,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = notescomponents.NotesIndex(
-		email, sess.Role, notes, h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin),
+		email, sess.Role, notes, h.cfg.BuildLabel, h.cfg.BuildCommit,
 	).Render(r.Context(), w)
 }
 
@@ -242,7 +241,7 @@ func (h *Handler) handleNote(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = notescomponents.NotesPage(sess.User.Email, sess.Role, meta, text, rev,
-		h.cfg.BuildLabel, h.cfg.BuildCommit, skins.Resolve(r, h.cfg.Skin)).Render(r.Context(), w)
+		h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 // docMeta assembles the row the page and the index both render: the doc id

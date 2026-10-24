@@ -150,7 +150,7 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) {
 //
 // Two callers, two shapes, and the difference is what the FIRST of them can
 // show. The todo page's composer owns #todo-list, so it gets the list patch and
-// a short toast. A model-authored card (plan_cards' Apply on /chat or /genui)
+// a short toast. A model-authored card (plan_cards' Apply on /chat)
 // owns neither: it sends `_target`, so the response replaces THAT slot with the
 // outcome and the list patch is skipped — aiming at a region the page does not
 // have is exactly what made the click look inert while the row was created.

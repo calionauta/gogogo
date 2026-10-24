@@ -64,9 +64,38 @@ func ParseDirectives(raw string) ([]Directive, error) {
 // parseStrict is the well-formed path: the answer's outer object, decoded
 // by encoding/json and converted.
 func parseStrict(body string) ([]Directive, error) {
+	raw, err := parseStrictRaw(body)
+	if err != nil {
+		return nil, err
+	}
+	return convertAll(raw)
+}
+
+// ErrNoEnvelope reports an answer with nothing to convert: no JSON object,
+// or an envelope with no component list. Callers use errors.Is to tell the
+// prose path (nothing failed) from dropped components (repair path).
+var ErrNoEnvelope = errors.New("genui: no components in answer")
+
+// DroppedCount reports how many conversion errors describe real components
+// that failed, ignoring envelope-absence noise (a prose answer).
+func DroppedCount(errs []error) int {
+	n := 0
+	for _, err := range errs {
+		if errors.Is(err, ErrNoEnvelope) {
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+// parseStrictRaw extracts the model's component list without validating it:
+// the shape half of parseStrict, so lenient conversion reuses the same
+// reading and can never disagree about what the answer contained.
+func parseStrictRaw(body string) ([]rawDirective, error) {
 	start, end := strings.IndexByte(body, '{'), strings.LastIndexByte(body, '}')
 	if start < 0 || end <= start {
-		return nil, errors.New("genui: no JSON object found")
+		return nil, ErrNoEnvelope
 	}
 	var envelope struct {
 		Components []rawDirective `json:"components"`
@@ -74,7 +103,10 @@ func parseStrict(body string) ([]Directive, error) {
 	if err := json.Unmarshal([]byte(body[start:end+1]), &envelope); err != nil {
 		return nil, fmt.Errorf("genui: decode directives: %w", err)
 	}
-	return convertAll(envelope.Components)
+	if len(envelope.Components) == 0 {
+		return nil, ErrNoEnvelope
+	}
+	return envelope.Components, nil
 }
 
 // convertAll validates a directive list, stopping at the first failure.
@@ -82,7 +114,7 @@ func parseStrict(body string) ([]Directive, error) {
 // about what the catalog accepts.
 func convertAll(raw []rawDirective) ([]Directive, error) {
 	if len(raw) == 0 {
-		return nil, errors.New("genui: no components in answer")
+		return nil, ErrNoEnvelope
 	}
 	dirs := make([]Directive, 0, len(raw))
 	for _, c := range raw {
@@ -93,6 +125,79 @@ func convertAll(raw []rawDirective) ([]Directive, error) {
 		dirs = append(dirs, d)
 	}
 	return dirs, nil
+}
+
+// maxCatchAllTypeLen bounds the model-supplied type name echoed by the
+// catch-all placeholder: the name rides into a text bubble, so an
+// unbounded string is a way to smuggle a wall of text into the thread.
+const maxCatchAllTypeLen = 64
+
+// ConvertLenient validates each top-level directive independently, for the
+// Chat leg: valid components render, unknown types become a text_note
+// catch-all naming what was asked for (CopilotKit's useDefaultRenderTool),
+// and undecodable props are dropped with their error. It fails only when
+// nothing usable remains — a half-rendered answer beats a prose fallback
+// that hides the parts the model got right.
+//
+// Strict ParseDirectives stays the contract for shape errors worth a repair
+// retry; lenient is what Chat renders with after the loop.
+func ConvertLenient(raw []rawDirective) ([]Directive, []error) {
+	dirs := make([]Directive, 0, len(raw))
+	var errs []error
+	for _, c := range raw {
+		if !Registered(c.Type) {
+			name := c.Type
+			if len(name) > maxCatchAllTypeLen {
+				name = name[:maxCatchAllTypeLen] + "…"
+			}
+			if strings.TrimSpace(name) == "" {
+				name = "an unnamed component"
+			}
+			dirs = append(dirs, Directive{
+				Component: "text_note",
+				Props:     map[string]any{"text": "The model asked for " + name + " here, which isn't available."},
+			})
+			dirs[len(dirs)-1].ensureInstanceID("")
+			continue
+		}
+		d, err := convertDirective(c, 0)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		dirs = append(dirs, d)
+	}
+	if len(dirs) == 0 {
+		if len(errs) == 0 {
+			errs = []error{ErrNoEnvelope}
+		}
+		return nil, errs
+	}
+	return dirs, errs
+}
+
+// ParseLenient extracts and validates each top-level component
+// independently: valid components render, unknown types become a text_note
+// catch-all, undecodable props are reported. It fails only when nothing
+// usable remains. Chat renders with this after the repair loop; the strict
+// ParseDirectives stays the shape contract a retry can fix.
+func ParseLenient(raw string) ([]Directive, []error) {
+	body := stripFences(strings.TrimSpace(raw))
+	components, err := rawComponents(body)
+	if err != nil {
+		return nil, []error{err}
+	}
+	return ConvertLenient(components)
+}
+
+// rawComponents extracts the model's component list without validating it:
+// strict JSON first, then the tolerant reader. Both end here, so the strict
+// and lenient validations can never disagree about what the answer held.
+func rawComponents(body string) ([]rawDirective, error) {
+	if raw, err := parseStrictRaw(body); err == nil {
+		return raw, nil
+	}
+	return parseTolerantRaw(body)
 }
 
 // childrenFromProps bridges the model's favorite nesting mistake:
@@ -190,7 +295,10 @@ func convertDirective(c rawDirective, depth int) (Directive, error) {
 	// here (rather than inside each component) is what makes that possible.
 	d.ensureInstanceID("")
 	if _, err := renderWithPrefix(d, "", new(int)); err != nil {
-		return Directive{}, err
+		// Wrap with the component name so RepairFeedback names the path
+		// (CopilotKit Zod-style field errors): the model fixes the one
+		// component that broke instead of re-rolling the whole answer.
+		return Directive{}, fmt.Errorf("genui: %s: %w", c.Type, err)
 	}
 	return d, nil
 }

@@ -85,7 +85,7 @@ func TestRender_TodoItemServerStampedAffordances(t *testing.T) {
 // TestRender_MutationURLsPreserveSlice pins the template half of the
 // tab-slice contract: every list-affecting endpoint (toggle, clear,
 // delete-confirm, realtime resync) carries filter + scope (+ clientID
-// where the handler needs originator exclusion), in both skins.
+// where the handler needs originator exclusion).
 // Red-proof: drop &scope= from any URL and this fails naming it.
 func TestRender_MutationURLsPreserveSlice(t *testing.T) {
 	t.Parallel()

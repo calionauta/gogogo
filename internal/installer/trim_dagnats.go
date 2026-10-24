@@ -29,7 +29,7 @@ var dagNatsTrimUnit = []trimUnit{
 		// prefer extending the mount pattern over reintroducing replaces.)
 		extraStrips: []fileStrip{
 			{
-				// The "Run durable workflow" entry button in both skins: the
+				// The "Run durable workflow" entry button in the todo layout: the
 				// only /api/onboarding refs in any kept template. Without the
 				// engine each would be a dead button firing a dead endpoint,
 				// so both go with the unit. The gated panels/tabs/hints around

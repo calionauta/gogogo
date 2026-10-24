@@ -7,7 +7,7 @@ teaches is visible here first — copy this shape when you add your own feature.
 
 - Full CRUD via Turso/SQLite (sqlc queries in `internal/db`).
 - Reactive frontend with Datastar inside the shared shell (one markup; the
-  sidebar picker swaps palette — see [UI skins](ui-skins.md)).
+  sidebar picker swaps palette — see [UI themes](ui-themes.md)).
 - **Database actions stream through the SSE Hub record event.** Todo
   `create`/`toggle`/`delete` fan out a record event; each subscribed
   client re-fetches the fragment and morphs `#todo-list`. Delivery follows

@@ -68,11 +68,6 @@ var pagesUnderTest = []pageUnderTest{
 		`aria-live="polite"`,
 		"Ask anything — answers stream below",
 	}},
-	{name: "genui", route: "/genui", must: []string{
-		`id="genui-ask-form"`,
-		`id="genui-prompt"`,
-		`id="genui-result"`,
-	}},
 	{name: "review", route: "/review", must: []string{
 		// The composer (review-composer / review-tab / review-content) is gated
 		// by signals.ReviewEnabled, which needs a real provider key; a stock

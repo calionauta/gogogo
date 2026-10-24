@@ -9,7 +9,7 @@
 
 // vendored SVG in icons.go, so there is no icon script to forget,
 
-// no 0x0 flash before it loads, and no second copy in the skin assets.
+// no 0x0 flash before it loads, and no second copy in the app assets.
 
 //
 

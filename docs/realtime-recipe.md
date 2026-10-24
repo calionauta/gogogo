@@ -43,7 +43,7 @@ its text mid-typing because six call sites wrote `searchQuery` (the stream
 handshake, both list endpoints, the mutation re-list, and the `/search`
 response echoing its own `?q=`). The same class hit the composers: the create
 response cleared `newTitle`, and both ask acks cleared `chatPrompt`/
-`genuiPrompt` — a late answer erased whatever the user had started typing, which
+`chatPrompt` — a late answer erased whatever the user had started typing, which
 is exactly when an ask ack lands. In every case the fix is the same shape: the
 response raises only the in-flight guard, and the **client** clears the box
 after its own request succeeds.
@@ -96,7 +96,7 @@ text.
    `internal/components/stream_opener.templ` — hidden `@get(url, {retry:
    'always'})` button opened by `data-on:datastar-ready__document` (+300ms
    verified fallback for an already-fired ready), plus the per-tab clientID
-   bootstrap. Every feature and skin calls it; do not copy it (copies drifted
+   bootstrap. Every feature calls it; do not copy it (copies drifted
    into a removed helper and a nonexistent `{permanent}` option).
    Never `data-on:load` on div/body (v1 never fires it — silent no-op).
    Never a blind click: every open resolves through `__gogogoOpenVerified`
@@ -130,7 +130,7 @@ text.
    item — an anchor in the empty state scrolls the page on load.
 6. **Failure release**: server-owned spinners need a client-side release
    for dead requests: `data-on:datastar-fetch` error stages on the form
-   (reference: genui Ask form). Otherwise a network failure locks the UI
+   (reference: chat composer). Otherwise a network failure locks the UI
    until reload.
 
 ## Verified open (streams must prove they opened)
@@ -179,7 +179,7 @@ in `skills/gogogo-coding-standards/references/datastar.md`.
 - **Ephemeral** → the shared queue hub (`chiQ.Hub()` — BootChi wires every
   stream and every worker to this ONE hub; a second hub object silently
   swallows worker feedback) + worker `hub.Send(clientID, …)`; stream
-  loop with heartbeat (see `handleStream` in genui/whiteboard).
+  loop with heartbeat (see `handleStream` in chat/whiteboard).
   Collaborative docs scope fan-out per doc (`BroadcastExceptToDoc` /
   `BroadcastToDoc` + a client-side `msg.doc` guard): a global broadcast
   let any board/note overwrite every other board/note's view.
@@ -187,7 +187,7 @@ in `skills/gogogo-coding-standards/references/datastar.md`.
   failure is transient for the whole job. Otherwise deliver the error result
   to the originator and return nil: `llm.Chat` already retries transient
   faults natively, and a pool retry re-runs the whole job while
-  broadcasting retry noise to a foreign tab (lived bug: Ask answers
+  broadcasting retry noise to a foreign tab (lived bug: Chat answers
   surfaced on Todo). One attempt, immediate user-visible result.
 - **Mutations** → `fail()` on 500 (never `+err.Error()` — ruleguard
   blocks it); 400s carry the recovery reason for the same-trust client.
