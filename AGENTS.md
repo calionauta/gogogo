@@ -139,8 +139,8 @@ review checklist, and no LLM should self-certify it (see the testing rule).
 - **Every inline script**: `nonce={ templ.GetNonce(ctx) }` and the page carries
   `data-nonce` (CSP tests fail otherwise). No `unsafe-inline`/`unsafe-eval`
   for scripts.
-- **Every credential change**: revoke sessions and pending magic links; do not
-  leave a 15-minute login window open. Sign-out-everywhere requires the
+- **Every password rotation, TOTP removal, and sign-out-everywhere**: revoke
+  sessions and pending magic links; do not leave a 15-minute login window open. Sign-out-everywhere requires the
   password when the account has one; TOTP disable requires the password or a
   current code. Recovery rotation requires the password when one exists. A
   failed proof is audited, not silently ignored.

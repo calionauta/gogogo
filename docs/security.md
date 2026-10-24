@@ -55,5 +55,6 @@ The normative checklist lives in [AGENTS.md](../AGENTS.md#security-invariants-ag
 - **Every record**: owner-scoped SQL, with deletes through `canDeleteDoc`/`canDeleteRow`.
 - **Every sink**: Templ escaping, sqlc parameters, `os.Root` for paths, no request-derived URL/command.
 - **Every inline script**: the per-request nonce and `data-nonce`.
-- **Every credential change**: revoke sessions and pending links; require a fresh proof for destructive account actions.
+- **Every password rotation, TOTP removal, and sign-out-everywhere**: revoke
+  sessions and pending links. Require a fresh proof for destructive account actions.
 - **Every new dependency**: pass [dependency principles](dependency-principles.md), pin it, run `govulncheck`, and record the trade-off.
