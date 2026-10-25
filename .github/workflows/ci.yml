@@ -133,10 +133,12 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
-      - name: daisyui-lint (standalone binary, dogfood)
-        # check-classes is the gate; this proves the standalone binary still runs
-        # on a real tree — the product has users outside this repo.
-        run: make daisyui-lint
+      - name: Standalone binaries (dogfood)
+        # check-classes is the gate; this proves the shipped CLIs still run on a
+        # real tree — the product has users outside this repo.
+        run: |
+          make daisyui-lint
+          go run ./cmd/ui-registry list > /dev/null
       - name: Check-classes (markup ↔ stylesheet ↔ doc)
         # The UI rules as a gate: an app-*/ui-* class must exist in chrome.css
         # and be used, the kit table must match, and the DaisyUI part rules

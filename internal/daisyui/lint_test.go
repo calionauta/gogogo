@@ -331,3 +331,51 @@ func TestLoadAllowSkipsCommentsAndBlanks(t *testing.T) {
 		t.Fatalf("unexpected allowlist: %v", got)
 	}
 }
+
+// The embedded snapshot must be exactly what the vendored skill parses to:
+// commit the artifact, let CI prove regeneration produces no diff. This is the
+// rule the repo already applies to _templ.go and app.min.css, and the 2026
+// answer to "committed generated code drifts silently" (Safeguard, Oct 2026).
+func TestBundledVocabularyMatchesSkill(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join("..", "..")
+	skill, err := FindSkill(root)
+	if err != nil {
+		t.Skipf("no vendored skill in this tree: %v", err)
+	}
+	vocab, err := LoadSkillFile(skill)
+	if err != nil {
+		t.Fatalf("LoadSkillFile: %v", err)
+	}
+	want, err := VocabularyJSON(vocab, SkillVersion(skill))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile("vocabulary.json")
+	if err != nil {
+		t.Fatalf("read vocabulary.json: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("internal/daisyui/vocabulary.json is stale: run `make vocabulary`")
+	}
+}
+
+// The snapshot must load and carry a version: it is what a consumer without a
+// vendored skill is linted against, so an empty snapshot would silently pass
+// everything.
+func TestBundledVocabularyLoads(t *testing.T) {
+	t.Parallel()
+	vocab, version, err := LoadBundled()
+	if err != nil {
+		t.Fatalf("LoadBundled: %v", err)
+	}
+	if len(vocab) < minComponents {
+		t.Fatalf("bundled vocabulary has %d components", len(vocab))
+	}
+	if version == "" || version == "pending" {
+		t.Fatalf("bundled vocabulary has no skill version (%q)", version)
+	}
+	if spec, ok := vocab["toggle"]; !ok || !spec.Classes["toggle-sm"] {
+		t.Fatalf("bundled vocabulary lost the toggle component")
+	}
+}

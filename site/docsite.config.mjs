@@ -87,6 +87,8 @@ export default {
     desc: "Vendored cuelume sound feedback and its accessibility contract." },
   { group: "Research", slug: "research", file: "research/index.md",
     desc: "One place for every research note, comparison and tradeoff decision in this repo: what was evaluated, when, and what was chosen." },
+  { group: "Research", slug: "daisyui-vocabulary-source", file: "research/daisyui-vocabulary-source.md",
+    desc: "Where a linter's vocabulary lives: authored map versus derived snapshot, the 2026 drift-check evidence, and why daisyui-lint embeds one." },
   { group: "Research", slug: "auth-libraries", file: "research/auth-libraries-2026-10.md",
     desc: "The 2026-10-21 evaluation of limen against owning argon2id and sessions: schema ownership, version skew, and what flips the decision." },
   { group: "Research", slug: "ui-engine-research", file: "research/ui-engine-research.md",

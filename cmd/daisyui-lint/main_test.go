@@ -170,3 +170,32 @@ func TestCLINotesUnmatchedCSSGlob(t *testing.T) {
 		t.Fatalf("expected a note about the empty glob, got %q", errOut)
 	}
 }
+
+// A project with NO vendored skill is the normal case for a user who does not
+// use gogogo: the binary must still work, say which vocabulary it used, and
+// actually enforce it.
+func TestCLIFallsBackToBundledVocabulary(t *testing.T) {
+	root := t.TempDir()
+	page := filepath.Join(root, "index.html")
+
+	if err := os.WriteFile(page, []byte(`<input type="checkbox" class="toggle toggle-sm"/>`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut := runCLIAll(t, "--strict", root)
+	if code != 0 {
+		t.Fatalf("expected clean, got code=%d out=%s err=%s", code, out, errOut)
+	}
+	if !strings.Contains(errOut, "using the bundled vocabulary") {
+		t.Fatalf("the fallback must be announced, got %q", errOut)
+	}
+
+	// A class the bundled vocabulary declares is clean; one it does not must
+	// fail, which proves the run really linted instead of skipping.
+	if err := os.WriteFile(page, []byte(`<span class="label-text">x</span>`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ = runCLIAll(t, root)
+	if code != 1 || !strings.Contains(out, "RETIRED_CLASS") {
+		t.Fatalf("expected RETIRED_CLASS with exit 1, got code=%d out=%s", code, out)
+	}
+}

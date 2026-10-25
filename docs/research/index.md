@@ -14,6 +14,7 @@ individual notes.
 |---|---|---|
 | [UI engine research](ui-engine-research.md) | 2026-10-21 | templ vs gsx vs quicktemplate vs gomponents vs html/template: render performance, diagnostics and forkability |
 | [UI components comparison](ui-components-2026-10-21.md) | 2026-10-21 | DaisyUI vs Starbase vs datastar-ui vs dsx: Datastar/SSE fit, lightness, functionality, maintainability |
+| [Linter vocabulary source](daisyui-vocabulary-source.md) | 2026-10-25 | where a linter's class vocabulary lives (authored map vs derived snapshot), how it stays true, and why `daisyui-lint` embeds a generated snapshot |
 | [UI themes](../ui-themes.md) | living | the DaisyUI + themes architecture (single component library, palette catalog) |
 
 ## Stack and runtime tradeoffs

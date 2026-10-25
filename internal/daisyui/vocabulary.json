@@ -1,0 +1,1689 @@
+{
+  "skillVersion": "5.7.x",
+  "components": [
+    {
+      "base": "alert",
+      "name": "Alert",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "alert",
+        "alert-dash",
+        "alert-error",
+        "alert-horizontal",
+        "alert-info",
+        "alert-outline",
+        "alert-soft",
+        "alert-success",
+        "alert-vertical",
+        "alert-warning"
+      ],
+      "colors": [
+        "alert-error",
+        "alert-info",
+        "alert-success",
+        "alert-warning"
+      ]
+    },
+    {
+      "base": "aura",
+      "name": "Aura",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "aura",
+        "aura-dual",
+        "aura-glow",
+        "aura-gold",
+        "aura-holo",
+        "aura-lg",
+        "aura-md",
+        "aura-rainbow",
+        "aura-silver",
+        "aura-sm",
+        "aura-xl",
+        "aura-xs"
+      ],
+      "sizes": [
+        "aura-lg",
+        "aura-md",
+        "aura-sm",
+        "aura-xl",
+        "aura-xs"
+      ]
+    },
+    {
+      "base": "avatar",
+      "name": "Avatar",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "avatar",
+        "avatar-group",
+        "avatar-offline",
+        "avatar-online",
+        "avatar-placeholder"
+      ]
+    },
+    {
+      "base": "avatar-group",
+      "name": "Avatar",
+      "classes": [
+        "avatar",
+        "avatar-group",
+        "avatar-offline",
+        "avatar-online",
+        "avatar-placeholder"
+      ]
+    },
+    {
+      "base": "badge",
+      "name": "Badge",
+      "hosts": [
+        "span"
+      ],
+      "classes": [
+        "badge",
+        "badge-accent",
+        "badge-dash",
+        "badge-error",
+        "badge-ghost",
+        "badge-info",
+        "badge-lg",
+        "badge-md",
+        "badge-neutral",
+        "badge-outline",
+        "badge-primary",
+        "badge-secondary",
+        "badge-sm",
+        "badge-soft",
+        "badge-success",
+        "badge-warning",
+        "badge-xl",
+        "badge-xs"
+      ],
+      "sizes": [
+        "badge-lg",
+        "badge-md",
+        "badge-sm",
+        "badge-xl",
+        "badge-xs"
+      ],
+      "colors": [
+        "badge-accent",
+        "badge-error",
+        "badge-info",
+        "badge-neutral",
+        "badge-primary",
+        "badge-secondary",
+        "badge-success",
+        "badge-warning"
+      ]
+    },
+    {
+      "base": "breadcrumbs",
+      "name": "Breadcrumbs",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "breadcrumbs"
+      ]
+    },
+    {
+      "base": "btn",
+      "name": "Button",
+      "hosts": [
+        "a",
+        "button",
+        "div",
+        "div\u003e{label1}\u003cbutton",
+        "div\u003e{label2}\u003cbutton",
+        "div\u003e{label3}\u003cbutton",
+        "input",
+        "label"
+      ],
+      "classes": [
+        "btn",
+        "btn-accent",
+        "btn-active",
+        "btn-block",
+        "btn-circle",
+        "btn-dash",
+        "btn-disabled",
+        "btn-error",
+        "btn-ghost",
+        "btn-info",
+        "btn-lg",
+        "btn-link",
+        "btn-md",
+        "btn-neutral",
+        "btn-outline",
+        "btn-primary",
+        "btn-secondary",
+        "btn-sm",
+        "btn-soft",
+        "btn-square",
+        "btn-success",
+        "btn-warning",
+        "btn-wide",
+        "btn-xl",
+        "btn-xs"
+      ],
+      "sizes": [
+        "btn-lg",
+        "btn-md",
+        "btn-sm",
+        "btn-xl",
+        "btn-xs"
+      ],
+      "colors": [
+        "btn-accent",
+        "btn-error",
+        "btn-info",
+        "btn-neutral",
+        "btn-primary",
+        "btn-secondary",
+        "btn-success",
+        "btn-warning"
+      ]
+    },
+    {
+      "base": "cally",
+      "name": "Calendar",
+      "hosts": [
+        "calendar-date"
+      ],
+      "classes": [
+        "cally",
+        "react-day-picker",
+        "vc"
+      ]
+    },
+    {
+      "base": "card",
+      "name": "Card",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "card",
+        "card-actions",
+        "card-body",
+        "card-border",
+        "card-dash",
+        "card-lg",
+        "card-md",
+        "card-side",
+        "card-sm",
+        "card-title",
+        "card-xl",
+        "card-xs",
+        "image-full"
+      ],
+      "parts": [
+        "card-actions",
+        "card-body",
+        "card-title"
+      ],
+      "sizes": [
+        "card-lg",
+        "card-md",
+        "card-sm",
+        "card-xl",
+        "card-xs"
+      ]
+    },
+    {
+      "base": "carousel",
+      "name": "Carousel",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "carousel",
+        "carousel-center",
+        "carousel-end",
+        "carousel-horizontal",
+        "carousel-item",
+        "carousel-start",
+        "carousel-vertical"
+      ],
+      "parts": [
+        "carousel-item"
+      ]
+    },
+    {
+      "base": "chat",
+      "name": "Chat",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "chat",
+        "chat-bubble",
+        "chat-bubble-accent",
+        "chat-bubble-error",
+        "chat-bubble-info",
+        "chat-bubble-neutral",
+        "chat-bubble-primary",
+        "chat-bubble-secondary",
+        "chat-bubble-success",
+        "chat-bubble-warning",
+        "chat-end",
+        "chat-footer",
+        "chat-header",
+        "chat-image",
+        "chat-start"
+      ],
+      "parts": [
+        "chat-bubble",
+        "chat-footer",
+        "chat-header",
+        "chat-image"
+      ],
+      "colors": [
+        "chat-bubble-accent",
+        "chat-bubble-error",
+        "chat-bubble-info",
+        "chat-bubble-neutral",
+        "chat-bubble-primary",
+        "chat-bubble-secondary",
+        "chat-bubble-success",
+        "chat-bubble-warning"
+      ]
+    },
+    {
+      "base": "checkbox",
+      "name": "Checkbox",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "checkbox",
+        "checkbox-accent",
+        "checkbox-error",
+        "checkbox-info",
+        "checkbox-lg",
+        "checkbox-md",
+        "checkbox-neutral",
+        "checkbox-primary",
+        "checkbox-secondary",
+        "checkbox-sm",
+        "checkbox-success",
+        "checkbox-warning",
+        "checkbox-xl",
+        "checkbox-xs"
+      ],
+      "sizes": [
+        "checkbox-lg",
+        "checkbox-md",
+        "checkbox-sm",
+        "checkbox-xl",
+        "checkbox-xs"
+      ],
+      "colors": [
+        "checkbox-accent",
+        "checkbox-error",
+        "checkbox-info",
+        "checkbox-neutral",
+        "checkbox-primary",
+        "checkbox-secondary",
+        "checkbox-success",
+        "checkbox-warning"
+      ]
+    },
+    {
+      "base": "collapse",
+      "name": "Collapse",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "collapse",
+        "collapse-arrow",
+        "collapse-close",
+        "collapse-content",
+        "collapse-open",
+        "collapse-plus",
+        "collapse-title"
+      ],
+      "parts": [
+        "collapse-content",
+        "collapse-title"
+      ]
+    },
+    {
+      "base": "countdown",
+      "name": "Countdown",
+      "hosts": [
+        "span"
+      ],
+      "classes": [
+        "countdown"
+      ]
+    },
+    {
+      "base": "diff",
+      "name": "Diff",
+      "hosts": [
+        "figure"
+      ],
+      "classes": [
+        "diff",
+        "diff-item-1",
+        "diff-item-2",
+        "diff-resizer"
+      ],
+      "parts": [
+        "diff-item-1",
+        "diff-item-2",
+        "diff-resizer"
+      ]
+    },
+    {
+      "base": "divider",
+      "name": "Divider",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "divider",
+        "divider-accent",
+        "divider-end",
+        "divider-error",
+        "divider-horizontal",
+        "divider-info",
+        "divider-neutral",
+        "divider-primary",
+        "divider-secondary",
+        "divider-start",
+        "divider-success",
+        "divider-vertical",
+        "divider-warning"
+      ],
+      "colors": [
+        "divider-accent",
+        "divider-error",
+        "divider-info",
+        "divider-neutral",
+        "divider-primary",
+        "divider-secondary",
+        "divider-success",
+        "divider-warning"
+      ]
+    },
+    {
+      "base": "dock",
+      "name": "Dock",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "dock",
+        "dock-active",
+        "dock-label",
+        "dock-lg",
+        "dock-md",
+        "dock-sm",
+        "dock-xl",
+        "dock-xs"
+      ],
+      "parts": [
+        "dock-label"
+      ],
+      "sizes": [
+        "dock-lg",
+        "dock-md",
+        "dock-sm",
+        "dock-xl",
+        "dock-xs"
+      ]
+    },
+    {
+      "base": "drawer",
+      "name": "Drawer",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "drawer",
+        "drawer-button",
+        "drawer-content",
+        "drawer-end",
+        "drawer-open",
+        "drawer-overlay",
+        "drawer-side",
+        "drawer-toggle"
+      ],
+      "parts": [
+        "drawer-button",
+        "drawer-content",
+        "drawer-overlay",
+        "drawer-side",
+        "drawer-toggle"
+      ]
+    },
+    {
+      "base": "dropdown",
+      "name": "Dropdown",
+      "hosts": [
+        "details",
+        "ul"
+      ],
+      "classes": [
+        "dropdown",
+        "dropdown-bottom",
+        "dropdown-center",
+        "dropdown-close",
+        "dropdown-content",
+        "dropdown-end",
+        "dropdown-hover",
+        "dropdown-left",
+        "dropdown-open",
+        "dropdown-right",
+        "dropdown-start",
+        "dropdown-top"
+      ],
+      "parts": [
+        "dropdown-content"
+      ]
+    },
+    {
+      "base": "fab",
+      "name": "FAB",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "fab",
+        "fab-close",
+        "fab-flower",
+        "fab-main-action"
+      ],
+      "parts": [
+        "fab-close",
+        "fab-main-action"
+      ]
+    },
+    {
+      "base": "fieldset",
+      "name": "Fieldset",
+      "hosts": [
+        "fieldset"
+      ],
+      "classes": [
+        "fieldset",
+        "fieldset-legend",
+        "label"
+      ],
+      "parts": [
+        "fieldset-legend"
+      ]
+    },
+    {
+      "base": "file-input",
+      "name": "File input",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "file-input",
+        "file-input-accent",
+        "file-input-error",
+        "file-input-ghost",
+        "file-input-info",
+        "file-input-lg",
+        "file-input-md",
+        "file-input-neutral",
+        "file-input-primary",
+        "file-input-secondary",
+        "file-input-sm",
+        "file-input-success",
+        "file-input-warning",
+        "file-input-xl",
+        "file-input-xs"
+      ],
+      "sizes": [
+        "file-input-lg",
+        "file-input-md",
+        "file-input-sm",
+        "file-input-xl",
+        "file-input-xs"
+      ],
+      "colors": [
+        "file-input-accent",
+        "file-input-error",
+        "file-input-info",
+        "file-input-neutral",
+        "file-input-primary",
+        "file-input-secondary",
+        "file-input-success",
+        "file-input-warning"
+      ]
+    },
+    {
+      "base": "filter",
+      "name": "Filter",
+      "hosts": [
+        "div",
+        "form"
+      ],
+      "classes": [
+        "filter",
+        "filter-reset"
+      ],
+      "parts": [
+        "filter-reset"
+      ]
+    },
+    {
+      "base": "floating-label",
+      "name": "Label",
+      "hosts": [
+        "label"
+      ],
+      "classes": [
+        "floating-label",
+        "label"
+      ]
+    },
+    {
+      "base": "footer",
+      "name": "Footer",
+      "hosts": [
+        "footer"
+      ],
+      "classes": [
+        "footer",
+        "footer-center",
+        "footer-horizontal",
+        "footer-title",
+        "footer-vertical"
+      ],
+      "parts": [
+        "footer-title"
+      ]
+    },
+    {
+      "base": "hero",
+      "name": "Hero",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "hero",
+        "hero-content",
+        "hero-overlay"
+      ],
+      "parts": [
+        "hero-content",
+        "hero-overlay"
+      ]
+    },
+    {
+      "base": "hover-3d",
+      "name": "Hover 3D",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "hover-3d"
+      ]
+    },
+    {
+      "base": "hover-gallery",
+      "name": "Hover gallery",
+      "hosts": [
+        "figure"
+      ],
+      "classes": [
+        "hover-gallery"
+      ]
+    },
+    {
+      "base": "indicator",
+      "name": "Indicator",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "indicator",
+        "indicator-bottom",
+        "indicator-center",
+        "indicator-end",
+        "indicator-item",
+        "indicator-middle",
+        "indicator-start",
+        "indicator-top"
+      ],
+      "parts": [
+        "indicator-item"
+      ]
+    },
+    {
+      "base": "input",
+      "name": "Input",
+      "hosts": [
+        "input",
+        "label"
+      ],
+      "classes": [
+        "input",
+        "input-accent",
+        "input-error",
+        "input-ghost",
+        "input-info",
+        "input-lg",
+        "input-md",
+        "input-neutral",
+        "input-primary",
+        "input-secondary",
+        "input-sm",
+        "input-success",
+        "input-warning",
+        "input-xl",
+        "input-xs"
+      ],
+      "sizes": [
+        "input-lg",
+        "input-md",
+        "input-sm",
+        "input-xl",
+        "input-xs"
+      ],
+      "colors": [
+        "input-accent",
+        "input-error",
+        "input-info",
+        "input-neutral",
+        "input-primary",
+        "input-secondary",
+        "input-success",
+        "input-warning"
+      ]
+    },
+    {
+      "base": "join",
+      "name": "Pagination",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "join",
+        "join-horizontal",
+        "join-item",
+        "join-vertical"
+      ],
+      "parts": [
+        "join-item"
+      ]
+    },
+    {
+      "base": "join-item",
+      "name": "Join",
+      "classes": [
+        "join",
+        "join-horizontal",
+        "join-item",
+        "join-vertical"
+      ]
+    },
+    {
+      "base": "kbd",
+      "name": "Kbd",
+      "hosts": [
+        "kbd"
+      ],
+      "classes": [
+        "kbd",
+        "kbd-lg",
+        "kbd-md",
+        "kbd-sm",
+        "kbd-xl",
+        "kbd-xs"
+      ],
+      "sizes": [
+        "kbd-lg",
+        "kbd-md",
+        "kbd-sm",
+        "kbd-xl",
+        "kbd-xs"
+      ]
+    },
+    {
+      "base": "label",
+      "name": "Label",
+      "hosts": [
+        "p",
+        "span"
+      ],
+      "classes": [
+        "floating-label",
+        "label"
+      ]
+    },
+    {
+      "base": "link",
+      "name": "Link",
+      "hosts": [
+        "a"
+      ],
+      "classes": [
+        "link",
+        "link-accent",
+        "link-error",
+        "link-hover",
+        "link-info",
+        "link-neutral",
+        "link-primary",
+        "link-secondary",
+        "link-success",
+        "link-warning"
+      ],
+      "colors": [
+        "link-accent",
+        "link-error",
+        "link-info",
+        "link-neutral",
+        "link-primary",
+        "link-secondary",
+        "link-success",
+        "link-warning"
+      ]
+    },
+    {
+      "base": "list",
+      "name": "List",
+      "hosts": [
+        "ul"
+      ],
+      "classes": [
+        "list",
+        "list-col-grow",
+        "list-col-wrap",
+        "list-row"
+      ]
+    },
+    {
+      "base": "list-row",
+      "name": "List",
+      "hosts": [
+        "li"
+      ],
+      "classes": [
+        "list",
+        "list-col-grow",
+        "list-col-wrap",
+        "list-row"
+      ]
+    },
+    {
+      "base": "loading",
+      "name": "Loading",
+      "hosts": [
+        "span"
+      ],
+      "classes": [
+        "loading",
+        "loading-ball",
+        "loading-bars",
+        "loading-dots",
+        "loading-infinity",
+        "loading-lg",
+        "loading-md",
+        "loading-ring",
+        "loading-sm",
+        "loading-spinner",
+        "loading-xl",
+        "loading-xs"
+      ],
+      "sizes": [
+        "loading-lg",
+        "loading-md",
+        "loading-sm",
+        "loading-xl",
+        "loading-xs"
+      ]
+    },
+    {
+      "base": "mask",
+      "name": "Mask",
+      "hosts": [
+        "div",
+        "img",
+        "input"
+      ],
+      "classes": [
+        "mask",
+        "mask-circle",
+        "mask-decagon",
+        "mask-diamond",
+        "mask-half-1",
+        "mask-half-2",
+        "mask-heart",
+        "mask-hexagon",
+        "mask-hexagon-2",
+        "mask-pentagon",
+        "mask-squircle",
+        "mask-star",
+        "mask-star-2",
+        "mask-triangle",
+        "mask-triangle-2",
+        "mask-triangle-3",
+        "mask-triangle-4"
+      ]
+    },
+    {
+      "base": "megamenu",
+      "name": "Megamenu",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "megamenu",
+        "megamenu-active",
+        "megamenu-full",
+        "megamenu-lg",
+        "megamenu-md",
+        "megamenu-sm",
+        "megamenu-vertical",
+        "megamenu-wide",
+        "megamenu-xl",
+        "megamenu-xs"
+      ],
+      "parts": [
+        "megamenu-active"
+      ],
+      "sizes": [
+        "megamenu-lg",
+        "megamenu-md",
+        "megamenu-sm",
+        "megamenu-xl",
+        "megamenu-xs"
+      ]
+    },
+    {
+      "base": "menu",
+      "name": "Menu",
+      "hosts": [
+        "ul"
+      ],
+      "classes": [
+        "menu",
+        "menu-active",
+        "menu-disabled",
+        "menu-dropdown",
+        "menu-dropdown-show",
+        "menu-dropdown-toggle",
+        "menu-focus",
+        "menu-horizontal",
+        "menu-lg",
+        "menu-md",
+        "menu-paged",
+        "menu-sm",
+        "menu-title",
+        "menu-vertical",
+        "menu-xl",
+        "menu-xs"
+      ],
+      "parts": [
+        "menu-dropdown",
+        "menu-dropdown-toggle",
+        "menu-title"
+      ],
+      "sizes": [
+        "menu-lg",
+        "menu-md",
+        "menu-sm",
+        "menu-xl",
+        "menu-xs"
+      ]
+    },
+    {
+      "base": "mockup-browser",
+      "name": "Browser mockup",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "mockup-browser",
+        "mockup-browser-toolbar"
+      ],
+      "parts": [
+        "mockup-browser-toolbar"
+      ]
+    },
+    {
+      "base": "mockup-code",
+      "name": "Code mockup",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "mockup-code"
+      ]
+    },
+    {
+      "base": "mockup-phone",
+      "name": "Phone mockup",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "mockup-phone",
+        "mockup-phone-camera",
+        "mockup-phone-display"
+      ],
+      "parts": [
+        "mockup-phone-camera",
+        "mockup-phone-display"
+      ]
+    },
+    {
+      "base": "mockup-window",
+      "name": "Window mockup",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "mockup-window"
+      ]
+    },
+    {
+      "base": "modal",
+      "name": "Modal",
+      "hosts": [
+        "dialog",
+        "div"
+      ],
+      "classes": [
+        "modal",
+        "modal-action",
+        "modal-backdrop",
+        "modal-bottom",
+        "modal-box",
+        "modal-end",
+        "modal-middle",
+        "modal-open",
+        "modal-start",
+        "modal-toggle",
+        "modal-top"
+      ],
+      "parts": [
+        "modal-action",
+        "modal-backdrop",
+        "modal-box",
+        "modal-toggle"
+      ]
+    },
+    {
+      "base": "navbar",
+      "name": "Navbar",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "navbar",
+        "navbar-center",
+        "navbar-end",
+        "navbar-start"
+      ],
+      "parts": [
+        "navbar-center",
+        "navbar-end",
+        "navbar-start"
+      ]
+    },
+    {
+      "base": "otp",
+      "name": "OTP",
+      "hosts": [
+        "label"
+      ],
+      "classes": [
+        "otp",
+        "otp-accent",
+        "otp-error",
+        "otp-info",
+        "otp-joined",
+        "otp-lg",
+        "otp-md",
+        "otp-neutral",
+        "otp-primary",
+        "otp-secondary",
+        "otp-sm",
+        "otp-success",
+        "otp-warning",
+        "otp-xl",
+        "otp-xs"
+      ],
+      "sizes": [
+        "otp-lg",
+        "otp-md",
+        "otp-sm",
+        "otp-xl",
+        "otp-xs"
+      ],
+      "colors": [
+        "otp-accent",
+        "otp-error",
+        "otp-info",
+        "otp-neutral",
+        "otp-primary",
+        "otp-secondary",
+        "otp-success",
+        "otp-warning"
+      ]
+    },
+    {
+      "base": "progress",
+      "name": "Progress",
+      "hosts": [
+        "progress"
+      ],
+      "classes": [
+        "progress",
+        "progress-accent",
+        "progress-error",
+        "progress-info",
+        "progress-neutral",
+        "progress-primary",
+        "progress-secondary",
+        "progress-success",
+        "progress-warning"
+      ],
+      "colors": [
+        "progress-accent",
+        "progress-error",
+        "progress-info",
+        "progress-neutral",
+        "progress-primary",
+        "progress-secondary",
+        "progress-success",
+        "progress-warning"
+      ]
+    },
+    {
+      "base": "radial-progress",
+      "name": "Radial progress",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "radial-progress"
+      ]
+    },
+    {
+      "base": "radio",
+      "name": "Radio",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "radio",
+        "radio-accent",
+        "radio-error",
+        "radio-info",
+        "radio-lg",
+        "radio-md",
+        "radio-neutral",
+        "radio-primary",
+        "radio-secondary",
+        "radio-sm",
+        "radio-success",
+        "radio-warning",
+        "radio-xl",
+        "radio-xs"
+      ],
+      "sizes": [
+        "radio-lg",
+        "radio-md",
+        "radio-sm",
+        "radio-xl",
+        "radio-xs"
+      ],
+      "colors": [
+        "radio-accent",
+        "radio-error",
+        "radio-info",
+        "radio-neutral",
+        "radio-primary",
+        "radio-secondary",
+        "radio-success",
+        "radio-warning"
+      ]
+    },
+    {
+      "base": "range",
+      "name": "Range",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "range",
+        "range-accent",
+        "range-error",
+        "range-info",
+        "range-lg",
+        "range-md",
+        "range-neutral",
+        "range-primary",
+        "range-secondary",
+        "range-sm",
+        "range-success",
+        "range-vertical",
+        "range-warning",
+        "range-xl",
+        "range-xs"
+      ],
+      "sizes": [
+        "range-lg",
+        "range-md",
+        "range-sm",
+        "range-xl",
+        "range-xs"
+      ],
+      "colors": [
+        "range-accent",
+        "range-error",
+        "range-info",
+        "range-neutral",
+        "range-primary",
+        "range-secondary",
+        "range-success",
+        "range-warning"
+      ]
+    },
+    {
+      "base": "rating",
+      "name": "Rating",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "rating",
+        "rating-half",
+        "rating-hidden",
+        "rating-lg",
+        "rating-md",
+        "rating-sm",
+        "rating-xl",
+        "rating-xs"
+      ],
+      "sizes": [
+        "rating-lg",
+        "rating-md",
+        "rating-sm",
+        "rating-xl",
+        "rating-xs"
+      ]
+    },
+    {
+      "base": "react-day-picker",
+      "name": "Calendar",
+      "classes": [
+        "cally",
+        "react-day-picker",
+        "vc"
+      ]
+    },
+    {
+      "base": "select",
+      "name": "Select",
+      "hosts": [
+        "select"
+      ],
+      "classes": [
+        "select",
+        "select-accent",
+        "select-error",
+        "select-ghost",
+        "select-info",
+        "select-lg",
+        "select-md",
+        "select-neutral",
+        "select-primary",
+        "select-secondary",
+        "select-sm",
+        "select-success",
+        "select-warning",
+        "select-xl",
+        "select-xs"
+      ],
+      "sizes": [
+        "select-lg",
+        "select-md",
+        "select-sm",
+        "select-xl",
+        "select-xs"
+      ],
+      "colors": [
+        "select-accent",
+        "select-error",
+        "select-info",
+        "select-neutral",
+        "select-primary",
+        "select-secondary",
+        "select-success",
+        "select-warning"
+      ]
+    },
+    {
+      "base": "skeleton",
+      "name": "Skeleton",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "skeleton",
+        "skeleton-text"
+      ]
+    },
+    {
+      "base": "stack",
+      "name": "Stack",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "stack",
+        "stack-bottom",
+        "stack-end",
+        "stack-start",
+        "stack-top"
+      ]
+    },
+    {
+      "base": "stats",
+      "name": "Stat",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "stat",
+        "stat-actions",
+        "stat-desc",
+        "stat-figure",
+        "stat-title",
+        "stat-value",
+        "stats",
+        "stats-horizontal",
+        "stats-vertical"
+      ],
+      "parts": [
+        "stat",
+        "stat-actions",
+        "stat-desc",
+        "stat-figure",
+        "stat-title",
+        "stat-value"
+      ]
+    },
+    {
+      "base": "status",
+      "name": "Status",
+      "hosts": [
+        "span"
+      ],
+      "classes": [
+        "status",
+        "status-accent",
+        "status-error",
+        "status-info",
+        "status-lg",
+        "status-md",
+        "status-neutral",
+        "status-primary",
+        "status-secondary",
+        "status-sm",
+        "status-success",
+        "status-warning",
+        "status-xl",
+        "status-xs"
+      ],
+      "sizes": [
+        "status-lg",
+        "status-md",
+        "status-sm",
+        "status-xl",
+        "status-xs"
+      ],
+      "colors": [
+        "status-accent",
+        "status-error",
+        "status-info",
+        "status-neutral",
+        "status-primary",
+        "status-secondary",
+        "status-success",
+        "status-warning"
+      ]
+    },
+    {
+      "base": "steps",
+      "name": "Steps",
+      "hosts": [
+        "ul"
+      ],
+      "classes": [
+        "step",
+        "step-accent",
+        "step-error",
+        "step-icon",
+        "step-info",
+        "step-neutral",
+        "step-primary",
+        "step-secondary",
+        "step-success",
+        "step-warning",
+        "steps",
+        "steps-horizontal",
+        "steps-vertical"
+      ],
+      "parts": [
+        "step",
+        "step-icon"
+      ],
+      "colors": [
+        "step-accent",
+        "step-error",
+        "step-info",
+        "step-neutral",
+        "step-primary",
+        "step-secondary",
+        "step-success",
+        "step-warning"
+      ]
+    },
+    {
+      "base": "swap",
+      "name": "Swap",
+      "hosts": [
+        "div",
+        "label"
+      ],
+      "classes": [
+        "swap",
+        "swap-active",
+        "swap-flip",
+        "swap-indeterminate",
+        "swap-off",
+        "swap-on",
+        "swap-rotate"
+      ],
+      "parts": [
+        "swap-indeterminate",
+        "swap-off",
+        "swap-on"
+      ]
+    },
+    {
+      "base": "table",
+      "name": "Table",
+      "hosts": [
+        "table"
+      ],
+      "classes": [
+        "table",
+        "table-lg",
+        "table-md",
+        "table-pin-cols",
+        "table-pin-rows",
+        "table-sm",
+        "table-xl",
+        "table-xs",
+        "table-zebra"
+      ],
+      "sizes": [
+        "table-lg",
+        "table-md",
+        "table-sm",
+        "table-xl",
+        "table-xs"
+      ]
+    },
+    {
+      "base": "tabs",
+      "name": "Tab",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "tab",
+        "tab-active",
+        "tab-content",
+        "tab-disabled",
+        "tabs",
+        "tabs-border",
+        "tabs-bottom",
+        "tabs-box",
+        "tabs-lg",
+        "tabs-lift",
+        "tabs-md",
+        "tabs-sm",
+        "tabs-top",
+        "tabs-xl",
+        "tabs-xs"
+      ],
+      "parts": [
+        "tab",
+        "tab-content"
+      ],
+      "sizes": [
+        "tabs-lg",
+        "tabs-md",
+        "tabs-sm",
+        "tabs-xl",
+        "tabs-xs"
+      ]
+    },
+    {
+      "base": "text-rotate",
+      "name": "Text rotate",
+      "hosts": [
+        "span"
+      ],
+      "classes": [
+        "text-rotate"
+      ]
+    },
+    {
+      "base": "textarea",
+      "name": "Textarea",
+      "hosts": [
+        "textarea"
+      ],
+      "classes": [
+        "textarea",
+        "textarea-accent",
+        "textarea-error",
+        "textarea-ghost",
+        "textarea-info",
+        "textarea-lg",
+        "textarea-md",
+        "textarea-neutral",
+        "textarea-primary",
+        "textarea-secondary",
+        "textarea-sm",
+        "textarea-success",
+        "textarea-warning",
+        "textarea-xl",
+        "textarea-xs"
+      ],
+      "sizes": [
+        "textarea-lg",
+        "textarea-md",
+        "textarea-sm",
+        "textarea-xl",
+        "textarea-xs"
+      ],
+      "colors": [
+        "textarea-accent",
+        "textarea-error",
+        "textarea-info",
+        "textarea-neutral",
+        "textarea-primary",
+        "textarea-secondary",
+        "textarea-success",
+        "textarea-warning"
+      ]
+    },
+    {
+      "base": "theme-controller",
+      "name": "Theme controller",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "theme-controller"
+      ]
+    },
+    {
+      "base": "timeline",
+      "name": "Timeline",
+      "hosts": [
+        "ul"
+      ],
+      "classes": [
+        "timeline",
+        "timeline-box",
+        "timeline-compact",
+        "timeline-end",
+        "timeline-horizontal",
+        "timeline-middle",
+        "timeline-snap-icon",
+        "timeline-start",
+        "timeline-vertical"
+      ],
+      "parts": [
+        "timeline-end",
+        "timeline-middle",
+        "timeline-start"
+      ]
+    },
+    {
+      "base": "toast",
+      "name": "Toast",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "toast",
+        "toast-bottom",
+        "toast-center",
+        "toast-end",
+        "toast-middle",
+        "toast-start",
+        "toast-top"
+      ]
+    },
+    {
+      "base": "toggle",
+      "name": "Toggle",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "toggle",
+        "toggle-accent",
+        "toggle-error",
+        "toggle-info",
+        "toggle-lg",
+        "toggle-md",
+        "toggle-neutral",
+        "toggle-primary",
+        "toggle-secondary",
+        "toggle-sm",
+        "toggle-success",
+        "toggle-warning",
+        "toggle-xl",
+        "toggle-xs"
+      ],
+      "sizes": [
+        "toggle-lg",
+        "toggle-md",
+        "toggle-sm",
+        "toggle-xl",
+        "toggle-xs"
+      ],
+      "colors": [
+        "toggle-accent",
+        "toggle-error",
+        "toggle-info",
+        "toggle-neutral",
+        "toggle-primary",
+        "toggle-secondary",
+        "toggle-success",
+        "toggle-warning"
+      ]
+    },
+    {
+      "base": "tooltip",
+      "name": "Tooltip",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "tooltip",
+        "tooltip-accent",
+        "tooltip-bottom",
+        "tooltip-center",
+        "tooltip-content",
+        "tooltip-end",
+        "tooltip-error",
+        "tooltip-info",
+        "tooltip-left",
+        "tooltip-open",
+        "tooltip-primary",
+        "tooltip-right",
+        "tooltip-secondary",
+        "tooltip-start",
+        "tooltip-success",
+        "tooltip-top",
+        "tooltip-warning"
+      ],
+      "parts": [
+        "tooltip-content"
+      ],
+      "colors": [
+        "tooltip-accent",
+        "tooltip-error",
+        "tooltip-info",
+        "tooltip-primary",
+        "tooltip-secondary",
+        "tooltip-success",
+        "tooltip-warning"
+      ]
+    },
+    {
+      "base": "validator",
+      "name": "Validator",
+      "hosts": [
+        "input"
+      ],
+      "classes": [
+        "validator",
+        "validator-hint"
+      ],
+      "parts": [
+        "validator-hint"
+      ]
+    },
+    {
+      "base": "vc",
+      "name": "Calendar",
+      "hosts": [
+        "div"
+      ],
+      "classes": [
+        "cally",
+        "react-day-picker",
+        "vc"
+      ]
+    }
+  ]
+}
