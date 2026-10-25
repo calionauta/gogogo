@@ -4,4 +4,4 @@ data-bind chatPrompt cmdQuery
 data-on data-on:click data-on:close
 signals chatPrompt chat_empty chat_error chat_ready chat_thinking chat_working clientID cmdQuery loading panelVisible railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-labelledby aria-live aria-pressed
-tags a=21 aside=2 body=1 button=21 dd=6 details=1 dialog=2 div=58 dl=1 dt=6 form=4 h1=1 h2=1 h3=1 head=1 header=1 html=2 input=8 kbd=3 label=6 li=24 link=3 main=1 meta=2 nav=2 ol=1 p=9 path=22 script=13 section=1 span=76 strong=1 style=3 summary=1 svg=22 title=1 ul=3
+tags a=21 aside=2 body=1 button=21 dd=6 details=1 dialog=2 div=58 dl=1 dt=6 form=4 h1=1 h2=1 h3=1 head=1 header=1 html=2 input=8 kbd=3 label=6 li=24 link=3 main=1 meta=2 nav=2 ol=1 p=9 path=22 script=13 section=3 span=76 strong=1 style=3 summary=1 svg=22 title=1 ul=3
