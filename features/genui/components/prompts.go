@@ -46,7 +46,8 @@ func leafFragment(name string) string {
 	case diagramName:
 		return diagramName + " {source: mermaid code " +
 			"(flowchart, sequenceDiagram, classDiagram, stateDiagram, " +
-			"erDiagram, gantt, pie, mindmap, ...), title?}, "
+			"erDiagram, gantt, pie, mindmap, kanban, timeline, journey, " +
+			"xychart, quadrantChart, ...), title?}, "
 	}
 	return ""
 }
@@ -99,7 +100,9 @@ func customGuidance(surfaces []Surface) string {
 		"plain elements (div, span, p, headings, lists, table) and these " +
 		"classes ONLY -- a class outside this list renders unstyled: " +
 		ModelHTMLVocabulary() + ". Prefer that visual over reaching for the " +
-		"nearest catalog component, and over answering in prose. "
+		"nearest catalog component, and over answering in prose. " +
+		"Exception: when the request asks for a flow, process, sequence, steps or " +
+		"diagram, use the diagram component with mermaid source instead of html_block. "
 	if HasSurfaces(surfaces, SurfaceCatalog) {
 		guidance += "Use the catalog where markup cannot act: action_buttons to " +
 			"post to this app, text_note for a single line of text. "

@@ -131,7 +131,11 @@ func TestCatalogHTMLBlockPinsChatOnly(t *testing.T) {
 		t.Error("Ask prompt must not advertise html_block (catalog-only showcase)")
 	}
 	chat := PromptForChat()
-	for _, want := range []string{"html_block", "visual"} {
+	for _, want := range []string{
+		"html_block",
+		"visual",
+		"use the diagram component with mermaid source instead of html_block",
+	} {
 		if !strings.Contains(chat, want) {
 			t.Errorf("chat prompt missing %q", want)
 		}
