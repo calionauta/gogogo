@@ -286,7 +286,7 @@ make dev           # Live reload with Air (also re-runs templ + vet)
 make templ         # Regenerate .templ Go files after a .templ edit
 make css           # Rebuild app.min.css from src/css/input.css (DaisyUI only)
 make css           # Rebuild the committed bundle (DaisyUI + its themes)
-make lint          # go vet + golangci-lint (33 linters), full repo
+make lint          # go vet + golangci-lint, full repo
 make datastar-lint # Datastar attribute / signal anti-patterns in .templ
 make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
 make test          # Race tests, parallel across packages

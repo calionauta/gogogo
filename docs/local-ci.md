@@ -355,7 +355,7 @@ by hand, so when a step is added to one, add it to the other:
 | the upgrade loop works against real releases | — | ✅ `update-loop.yml` (weekly: scaffold the previous tag, expect "behind" and the range) |
 | a newer Go **patch** is published | — | ✅ `go-auto-bump.yml` (weekly: opens a reviewed PR moving every pin; patch only — `make go-bump` by hand) |
 | `uses:` action pins move | — | ✅ Dependabot (weekly, one grouped PR; the Go pin is not its business, see below) |
-| golangci-lint (33 linters) | ✓ | ✓ |
+| golangci-lint (the `.golangci.yml` set) | ✓ | ✓ |
 | govulncheck (dependency CVEs; the scanner itself is pinned in `go.mod`) | ✅ pre-push hook | ✓ |
 | deadcode (advisory, host-gated + version-pinned) | ✅ pre-push hook | ✓ |
 | `go test -race` (parallel, all pkgs) | ✓ | ✓ |
@@ -584,6 +584,6 @@ pins.
 
 ## Related
 
-- [Code quality](code-quality.md) — the 33 linters and how to run them scoped.
+- [Code quality](code-quality.md) — the linter set and how to run it scoped.
 - [Troubleshooting](troubleshooting.md) — when the gate is green but behavior isn't.
 - [Deploy](deploy.md) — what happens after the push.

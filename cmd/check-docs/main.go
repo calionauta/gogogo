@@ -8,9 +8,10 @@
 //
 // The rules, each cheap and deterministic:
 //
-//  1. No hand-written counts of capabilities/slices/units — the generated
-//     docs/unit-contracts.md#registry-at-a-glance is the only place counts
-//     live, and its freshness test pins them.
+//  1. No hand-written counts of capabilities/slices/units/linters — the
+//     generated docs/unit-contracts.md#registry-at-a-glance is the only place
+//     unit counts live (and its freshness test pins them); the linter set is
+//     .golangci.yml, which a number in prose only drifts from.
 //  2. Every concrete repo path in backticks must exist (a moved package
 //     otherwise keeps being recommended for months).
 //  3. Every `gogogo <subcommand>` in backticks must be a real subcommand.
@@ -78,9 +79,19 @@ func skipPathFiles(rel string) bool {
 
 // countRE matches a number immediately followed by a PLURAL drifting noun.
 // Singular phrases ("restores one unit") are ordinary English; the drift that
-// shipped was "24 capabilities" and "nine slices".
+// shipped was "24 capabilities", "nine slices" and "33 linters" (the config
+// enables 37).
 var countRE = regexp.MustCompile(
-	`(?i)\b(\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen)\s+(capabilities|slices|units)\b`)
+	`(?i)\b(\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen)\s+(capabilities|slices|units|linters)\b`)
+
+// countHint names the source to use instead of a hand count: unit counts have
+// a generated table, and the linter set is the config file.
+func countHint(match string) string {
+	if strings.Contains(match, "linters") {
+		return "name `.golangci.yml` instead"
+	}
+	return "link docs/unit-contracts.md#registry-at-a-glance instead"
+}
 
 // tickRE extracts inline code spans.
 var tickRE = regexp.MustCompile("`([^`\n]+)`")
@@ -196,8 +207,8 @@ func checkCounts(root string, files []string) []string {
 		for i, line := range lines {
 			if m := countRE.FindString(line); m != "" {
 				out = append(out, fmt.Sprintf(
-					"%s:%d: hand-written count %q — link docs/unit-contracts.md#registry-at-a-glance instead",
-					rel, i+1, m))
+					"%s:%d: hand-written count %q — %s",
+					rel, i+1, m, countHint(m)))
 			}
 		}
 	}

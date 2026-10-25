@@ -19,6 +19,8 @@ func TestCountMatches(t *testing.T) {
 		{"the 24 capabilities + presets", true},
 		{"all nine slices implement it", true},
 		{"35 units in the registry", true},
+		{"golangci-lint (33 linters)", true},
+		{"the linter set in `.golangci.yml`", false},
 		{"`add` restores one unit back", false},
 		{"two roles cover the template", false},
 		{"three shared UI leaves", false},

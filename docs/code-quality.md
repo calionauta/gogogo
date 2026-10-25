@@ -1,6 +1,6 @@
 # Code quality
 
-The template ships a strict `golangci-lint` configuration (33 linters)
+The template ships a strict `golangci-lint` configuration (the list is `.golangci.yml`)
 designed to catch the kinds of mistakes LLMs make most often: unchecked errors,
 insecure patterns, broken context propagation, resource leaks, and inconsistent
 error wrapping. The goal is not to block development but to redirect agents
@@ -41,7 +41,7 @@ approach had a deeper issue.**
 
 | Command | What it checks |
 |---|---|
-| `make lint` | `go vet` + `golangci-lint` (33 linters) over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
+| `make lint` | `go vet` + `golangci-lint` over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
 | `make lint-safe` | Host-aware lint: sizes the run to free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Prefer over `make lint` on a shared host. |
 | `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
