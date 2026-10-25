@@ -108,7 +108,11 @@
   padding: 0.15rem 0.55rem;
   border-radius: 9999px;
   background-color: color-mix(in oklab, var(--color-success) 15%, transparent);
-  color: var(--color-success);
+  /* The dot is the semantic signal; the label must stay readable (AA) on the
+     tinted surface, where --color-success itself is 1.7:1. */
+  /* The dot is the semantic signal; the label must stay readable (AA) on the
+     tinted surface, where --color-success itself is 1.7:1. */
+  color: var(--color-base-content);
 }
 .online-pill .pulse-dot {
   display: inline-block;

@@ -1,0 +1,6 @@
+/* The project's own vocabulary. `card-grid` deliberately shares a DaisyUI
+   prefix: without --css the linter must report the ambiguity, with --css it
+   must accept it. */
+.acme-page { max-width: 60rem; margin: 0 auto; }
+.acme-muted { color: #555555; }
+.card-grid { display: grid; gap: 1rem; }

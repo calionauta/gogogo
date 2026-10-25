@@ -27,6 +27,9 @@ const DefaultSkillPath = ".agents/skills/daisyui/SKILL.md"
 // skillPath is kept as the internal alias the loader uses.
 const skillPath = DefaultSkillPath
 
+// DefaultAllowFile is the project's accepted-arbitrary-values list.
+const DefaultAllowFile = ".daisyui-allow"
+
 // minComponents is the floor the parser expects from the vendored skill. It is
 // a tripwire, not a target: daisyUI 5.7 ships 67 component sections. A parse
 // that suddenly yields a handful means the format moved.
@@ -71,6 +74,27 @@ func FindSkill(start string) (string, error) {
 		if parent == dir {
 			return "", fmt.Errorf("no daisyUI skill found above %s "+
 				"(expected %s or skills/daisyui/SKILL.md)", start, DefaultSkillPath)
+		}
+		dir = parent
+	}
+}
+
+// FindAllow walks up from start looking for `.daisyui-allow`, mirroring
+// FindSkill: a project keeps the file at its root and runs the linter from
+// anywhere inside it.
+func FindAllow(start string) (string, error) {
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		return "", err
+	}
+	for {
+		candidate := filepath.Join(dir, DefaultAllowFile)
+		if st, serr := os.Stat(candidate); serr == nil && !st.IsDir() {
+			return candidate, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", os.ErrNotExist
 		}
 		dir = parent
 	}

@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint check-docs docs-index
 
 all: build
 
@@ -220,6 +220,15 @@ check-classes:
 	@echo "→ check-classes (markup ↔ stylesheet ↔ doc)..."
 	@go run ./cmd/check-classes --strict
 	@echo "✅ classes and DaisyUI parts agree"
+
+# daisyui-lint dogfoods the STANDALONE binary on this repo. check-classes is the
+# gate; this target proves the product still runs (a break in cmd/daisyui-lint
+# would otherwise only fail its own unit tests).
+daisyui-lint:
+	@echo "→ daisyui-lint (standalone binary, dogfood)..."
+	@go run ./cmd/daisyui-lint --strict \
+		--css "web/resources/static/chrome.css,web/resources/static/app.css" \
+		features internal
 
 # check-quarantine fails when the known-flaky registry (internal/hostgate)
 # holds an entry that is malformed or EXPIRED — the part that keeps a
@@ -438,7 +447,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-classes check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.

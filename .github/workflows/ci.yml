@@ -133,6 +133,10 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
+      - name: daisyui-lint (standalone binary, dogfood)
+        # check-classes is the gate; this proves the standalone binary still runs
+        # on a real tree — the product has users outside this repo.
+        run: make daisyui-lint
       - name: Check-classes (markup ↔ stylesheet ↔ doc)
         # The UI rules as a gate: an app-*/ui-* class must exist in chrome.css
         # and be used, the kit table must match, and the DaisyUI part rules
@@ -326,6 +330,9 @@ jobs:
       # on the runner would close signup by default; this is a test fixture,
       # not a product default.
       SIGNUP_ENABLED: "true"
+      # Turn on the WCAG-grade axe pass in the structural UI checks. The
+      # dependency-free checks always run; this adds serious/critical axe rules.
+      SMOKE_A11Y: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually

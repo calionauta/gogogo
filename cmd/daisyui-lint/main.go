@@ -107,12 +107,22 @@ Exit codes: 0 clean, 1 findings at error severity, 2 usage/setup error.
 	}
 	opts := daisyui.Options{Strict: *strict}
 	if *cssGlobs != "" {
-		owned, oerr := ownClasses(*cssGlobs)
+		owned, unmatched, oerr := ownClasses(*cssGlobs)
 		if oerr != nil {
 			fmt.Fprintf(stderr, "daisyui-lint: %v\n", oerr)
 			return 2
 		}
+		for _, glob := range unmatched {
+			fmt.Fprintf(stderr, "daisyui-lint: note: --css glob %q matched no file\n", glob)
+		}
 		opts.RepoOwned = owned
+	}
+	if *allowPath == "" {
+		// Same convention as the skill: the project keeps .daisyui-allow at its
+		// root and the linter finds it from anywhere inside the tree.
+		if found, ferr := daisyui.FindAllow(paths[0]); ferr == nil {
+			*allowPath = found
+		}
 	}
 	if *allowPath != "" {
 		if opts.Allow, err = daisyui.LoadAllow(*allowPath); err != nil {
@@ -149,8 +159,9 @@ Exit codes: 0 clean, 1 findings at error severity, 2 usage/setup error.
 // DaisyUI prefix (`chat-layout`) is not judged against DaisyUI's `chat`. Without
 // --css the ambiguity is reported, which is the honest default: the linter
 // cannot know your vocabulary unless you point at it.
-func ownClasses(globs string) (map[string]bool, error) {
+func ownClasses(globs string) (map[string]bool, []string, error) {
 	out := map[string]bool{}
+	var unmatched []string
 	for glob := range strings.SplitSeq(globs, ",") {
 		glob = strings.TrimSpace(glob)
 		if glob == "" {
@@ -158,20 +169,23 @@ func ownClasses(globs string) (map[string]bool, error) {
 		}
 		matches, err := filepath.Glob(glob)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+		if len(matches) == 0 {
+			unmatched = append(unmatched, glob)
 		}
 		for _, m := range matches {
 			// #nosec G304 G703 -- local dev tool; the path is the caller's glob.
 			raw, rerr := os.ReadFile(m)
 			if rerr != nil {
-				return nil, rerr
+				return nil, nil, rerr
 			}
 			for class := range daisyui.CSSClasses(string(raw)) {
 				out[class] = true
 			}
 		}
 	}
-	return out, nil
+	return out, unmatched, nil
 }
 
 // lintFiles runs the rules over every file and sorts deterministically, so two

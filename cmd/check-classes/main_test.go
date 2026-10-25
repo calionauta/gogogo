@@ -182,3 +182,26 @@ func TestCommentIsNotADefinition(t *testing.T) {
 		t.Fatalf("a comment must not define a class, got:\n%s", got)
 	}
 }
+
+// The consumer path: a tree WITHOUT the vendored skill, the registry and the
+// compositions doc must still run the repo directions (with notices on stderr),
+// and --strict must refuse. A template user who trims a unit gets a working
+// gate; this repo gets a hard failure, which is why make check-classes passes
+// --strict.
+func TestDegradedModeStillChecksRepoDirections(t *testing.T) {
+	t.Parallel()
+	root := writeBare(t, map[string]string{
+		"web/resources/static/chrome.css":  cssFor("app-card"),
+		"features/x/components/page.templ": `<div class="app-card ui-nope"></div>`,
+	})
+	got, err := checkTree(root, false)
+	if err != nil {
+		t.Fatalf("degraded mode must not fail outright: %v", err)
+	}
+	if !hasFinding(got, `"ui-nope" is used but not defined`) {
+		t.Fatalf("the repo directions must still run, got:\n%v", got)
+	}
+	if _, err := checkTree(root, true); err == nil {
+		t.Fatal("--strict must refuse a tree without the skill and the registry")
+	}
+}

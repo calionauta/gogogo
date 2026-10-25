@@ -391,7 +391,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 .app-rail-item {
   display: flex;
@@ -541,7 +541,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 .app-pref-list {
   list-style: none;
@@ -667,7 +667,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   margin: 0.0625rem 0 0 0.875rem;
   font-size: 0.6875rem;
   line-height: 1.35;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 
 /* ---------- Demo panel sections: demos vs stack ----------
@@ -716,7 +716,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   line-height: 1.25;
   color: var(--color-base-content);
 }
-.chat-hero p { margin: 0.5rem 0 0; font-size: 0.875rem; color: color-mix(in oklab, var(--color-base-content) 60%, transparent); }
+.chat-hero p { margin: 0.5rem 0 0; font-size: 0.875rem; color: color-mix(in oklab, var(--color-base-content) 72%, transparent); }
 .composer-dock {
   position: sticky;
   bottom: 0;
@@ -757,7 +757,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
    it returns to — never buried in the right-aligned actions. */
 .app-crumb { margin: 0 0 0.125rem; font-size: 0.75rem; line-height: 1.2; }
 .app-crumb a {
-  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
   text-decoration: none;
 }
 .app-crumb a:hover { color: var(--color-primary); text-decoration: underline; }
@@ -774,7 +774,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   margin: 0.125rem 0 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
-  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
 }
 .app-module-actions { display: flex; align-items: center; gap: 0.5rem; }
 .app-body {
@@ -928,7 +928,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .app-step-detail {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.6875rem;
-  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
 }
 
 /* ---------- Phase list legend (internal/ui.StepList) ----------
@@ -941,7 +941,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   padding: 0 0.5rem;
   font-size: 0.6875rem;
   line-height: 1.35;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 .app-steps-legend-item {
   display: inline-flex;
@@ -1023,13 +1023,19 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   background: var(--color-base-100);
   border-left: 1px solid var(--color-base-300);
 }
+/* Inactive tabs: daisyUI's default is 3.3:1 on base-200, below AA. Scoped to the
+   app's own surfaces (.tabs-box ties on specificity and loads later). */
+.app-body .tabs .tab,
+.app-state-panel .tabs .tab { color: color-mix(in oklab, var(--color-base-content) 72%, transparent); }
+.app-body .tabs .tab-active,
+.app-state-panel .tabs .tab-active { color: var(--color-base-content); }
 .app-state-panel-head {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 .app-state-panel-head-row {
   display: flex;
@@ -1082,7 +1088,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .ui-meta {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.6875rem;
-  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
 }
 
 .ui-empty {

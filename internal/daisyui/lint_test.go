@@ -30,8 +30,13 @@ func testSkill() string {
 	b.WriteString(component("Toggle",
 		"- component: `toggle`\n- color: `toggle-primary`\n- size: `toggle-xs`, `toggle-sm`\n",
 		`<input type="checkbox" class="toggle {MODIFIER}" />`))
-	b.WriteString(component("Join", "- component: `join`\n- part: `join-item`\n",
+	// Mirrors the real skill: `join-item` is a second component, NOT a part.
+	b.WriteString(component("Join", "- component: `join`, `join-item`\n- direction: `join-vertical`\n",
 		`<div class="join"><input class="join-item" /><button class="join-item"></button></div>`))
+	// `card-body` IS a part of `card` in the real skill, so this is the shape the
+	// part rule is exercised on.
+	b.WriteString(component("Card", "- component: `card`\n- part: `card-title`, `card-body`, `card-actions`\n",
+		`<div class="card"><div class="card-body"><h2 class="card-title">x</h2></div></div>`))
 	b.WriteString(component("Dropdown", "- component: `dropdown`\n- part: `dropdown-content`\n",
 		`<details class="dropdown"><summary></summary><ul class="dropdown-content"></ul></details>`))
 	// `input` appears on two elements across the document (this section and the
@@ -153,11 +158,11 @@ func TestSkillFloorTripwire(t *testing.T) {
 func TestPartNeedsItsContainer(t *testing.T) {
 	t.Parallel()
 	v := veto(t)
-	got := lint(t, v, `<input class="input join-item"/>`, Options{})
-	if !has(got, CodePartWithoutParent, `"join-item"`, `"join"`) {
+	got := lint(t, v, `<div class="card-body">x</div>`, Options{})
+	if !has(got, CodePartWithoutParent, `"card-body"`, `"card"`) {
 		t.Fatalf("expected the orphan part to fail, got:\n%v", got)
 	}
-	if got := lint(t, v, `<div class="join"><input class="input join-item"/></div>`, Options{}); len(got) != 0 {
+	if got := lint(t, v, `<div class="card"><div class="card-body">x</div></div>`, Options{}); len(got) != 0 {
 		t.Fatalf("expected the part with its container to pass, got:\n%v", got)
 	}
 }
