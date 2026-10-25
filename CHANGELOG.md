@@ -15,6 +15,35 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.57.0 (2026-10-25)
+
+## What's Changed
+* fix(chat,config): toggles group label, config tabs, status badge tones by @calionauta in https://github.com/calionauta/gogogo/pull/279
+* feat(ui)!: the account row owns the rail's bottom, its panel owns the preferences by @calionauta in https://github.com/calionauta/gogogo/pull/285
+* feat(todo): restore the Cally calendar in the date filter by @calionauta in https://github.com/calionauta/gogogo/pull/287
+* chore(repo): drop the committed check-docs binary by @calionauta in https://github.com/calionauta/gogogo/pull/282
+* fix(docs): the linter count was 37, and nothing was counting it by @calionauta in https://github.com/calionauta/gogogo/pull/284
+* docs: credit Pele, re-measure the client, and drop the last "Ask" by @calionauta in https://github.com/calionauta/gogogo/pull/281
+* fix(docs): make `make check-docs` exist, and gate the Client weight table by @calionauta in https://github.com/calionauta/gogogo/pull/283
+* chore(deps): bump vendored Pele to 1.10.0, and let CI keep it fresh by @calionauta in https://github.com/calionauta/gogogo/pull/286
+* fix(todo): live presence count + demo panel stack layout by @calionauta in https://github.com/calionauta/gogogo/pull/289
+* feat(ui): executable UI rules, and a registry of approved compositions by @calionauta in https://github.com/calionauta/gogogo/pull/288
+* feat(ui): a standalone daisyUI linter, two new rules, and the template's contract by @calionauta in https://github.com/calionauta/gogogo/pull/290
+* feat(ui): axe in CI, an AA contrast pass, and the audit gaps closed by @calionauta in https://github.com/calionauta/gogogo/pull/291
+* feat(ui): bundle the linter's vocabulary, and make its source of truth explicit by @calionauta in https://github.com/calionauta/gogogo/pull/292
+* feat(ui): publish daisyui-lint, consume it as a pinned tool, sweep every theme by @calionauta in https://github.com/calionauta/gogogo/pull/293
+* test(ui): the pinned linter must not know more than the vendored skill by @calionauta in https://github.com/calionauta/gogogo/pull/294
+* chore(gates): pin both linters in go.mod's tool directive by @calionauta in https://github.com/calionauta/gogogo/pull/295
+* chore(deps): datastar-lint v0.18.0 (exact positions, templ coverage) by @calionauta in https://github.com/calionauta/gogogo/pull/296
+* fix(build): restore the 44 make targets a scripted edit deleted, and guard them by @calionauta in https://github.com/calionauta/gogogo/pull/297
+* chore(hooks): run daisyui-lint in pre-commit, where 0.2s beats a CI round-trip by @calionauta in https://github.com/calionauta/gogogo/pull/298
+* fix(skills): four dead reference links, and a gate that checks them by @calionauta in https://github.com/calionauta/gogogo/pull/300
+* docs(native): evidence-backed refinements from kernel PoCs by @calionauta in https://github.com/calionauta/gogogo/pull/299
+* docs(research): measure the skill reading policy, and switch to sections by @calionauta in https://github.com/calionauta/gogogo/pull/301
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.56.0...v0.57.0
+
 ## 0.56.0 (2026-10-24)
 
 ## What's Changed
