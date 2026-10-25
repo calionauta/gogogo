@@ -87,6 +87,8 @@ export default {
     desc: "Vendored cuelume sound feedback and its accessibility contract." },
   { group: "Research", slug: "research", file: "research/index.md",
     desc: "One place for every research note, comparison and tradeoff decision in this repo: what was evaluated, when, and what was chosen." },
+  { group: "Research", slug: "skill-reading-policy", file: "research/skill-reading-policy.md",
+    desc: "Whole vendored skill or component sections? A two-arm measurement: the full read cost +36% tokens and +74% wall clock with identical markup and gates." },
   { group: "Research", slug: "daisyui-vocabulary-source", file: "research/daisyui-vocabulary-source.md",
     desc: "Where a linter's vocabulary lives: authored map versus derived snapshot, the 2026 drift-check evidence, and why daisyui-lint embeds one." },
   { group: "Research", slug: "auth-libraries", file: "research/auth-libraries-2026-10.md",

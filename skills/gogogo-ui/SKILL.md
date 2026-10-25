@@ -13,11 +13,18 @@ Template UI rules. The component vocabulary itself lives in the vendored
 Read in this order; each one answers a different question:
 
 1. `../daisyui/SKILL.md` — the component vocabulary (class names, variants,
-   themes). Vendored byte-identical from `https://daisyui.com/SKILL.md`,
-   pinned in `../daisyui/UPSTREAM_SHA`. Never edit it in place — a local edit
-   makes the pin a lie. `bin/check-daisyui-drift.sh` (advisory in pre-commit)
-   fails when the copy diverges from the pin or upstream has moved. To UPDATE
-   it, run `scripts/refresh-daisyui.sh` — never copy by hand.
+   themes). Read the SECTIONS this change touches, not the whole file:
+   `grep -n '^### ' ../daisyui/SKILL.md` is the index; read the matching ranges
+   (a six-component card is ~7 KB of sections out of 80 KB). Measured side by
+   side on the same task: full read 163k tokens / 559s, section read 120k / 322s,
+   identical markup and identical gates — see
+   `../../docs/research/skill-reading-policy.md`. Read the whole file only to
+   audit the vocabulary or to work with components you cannot name yet.
+   It is vendored byte-identical from `https://daisyui.com/SKILL.md`, pinned in
+   `../daisyui/UPSTREAM_SHA`. Never edit it in place — a local edit makes the
+   pin a lie. `bin/check-daisyui-drift.sh` (advisory in pre-commit) fails when
+   the copy diverges from the pin or upstream has moved. To UPDATE it, run
+   `scripts/refresh-daisyui.sh` — never copy by hand.
 2. `../../docs/ui-themes.md` — the DaisyUI + themes guide, the theme list, the
    `make css` / `make css-check` flow. Normative for this repo.
 3. `../gogogo-coding-standards/references/datastar.md` — the Datastar gate
