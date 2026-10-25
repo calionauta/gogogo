@@ -66,7 +66,7 @@
   padding: 0.12rem 0.45rem;
   border-radius: 9999px;
   background: color-mix(in oklab, var(--primary, var(--color-primary, #4f46e5)) 12%, transparent);
-  color: var(--primary, var(--color-primary, #4f46e5));
+  color: color-mix(in oklab, var(--primary, var(--color-primary, #4f46e5)) 65%, var(--color-base-content));
   border: 1px solid color-mix(in oklab, var(--primary, var(--color-primary, #4f46e5)) 22%, transparent);
 }
 @media (min-width: 640px) {
@@ -411,7 +411,8 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .app-rail-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .app-rail-item.is-active {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);
-  color: var(--color-primary);
+  /* AA on the tint in every palette: raw primary is 3:1 in the dark themes. */
+  color: color-mix(in oklab, var(--color-primary) 65%, var(--color-base-content));
   font-weight: 600;
 }
 .app-rail-icon { font-size: 1.125rem; flex: 0 0 auto; }

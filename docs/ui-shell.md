@@ -90,11 +90,13 @@ as the machine half (`go run ./cmd/ui-registry list|show <id>`).
 
 ### The same rules travel: `daisyui-lint`
 
-The DaisyUI half of that gate is a package (`internal/daisyui`) with a standalone
-binary on top, so a project that is not gogogo can run the same checks:
+The DaisyUI half of that gate is a published linter
+([`calionauta/daisyui-lint`](https://github.com/calionauta/daisyui-lint)), so a
+project that is not gogogo can run the same checks. This repo consumes it as a
+pinned tool (`go tool daisyui-lint`, version in `go.mod`):
 
 ```bash
-go install github.com/calionauta/gogogo/cmd/daisyui-lint@latest
+go install github.com/calionauta/daisyui-lint/cmd/daisyui-lint@latest
 daisyui-lint --version                       # tool version + the daisyUI release it validates
 daisyui-lint --strict web/                   # fail CI on warnings too
 daisyui-lint --css "src/*.css" web/           # classes your own CSS defines are not DaisyUI's
