@@ -252,6 +252,56 @@ async function verifyTodoSearch(page) {
   console.log("  OK search narrowed the list to the matching row");
 }
 
+// verifyTodoCalendar proves the date filter's web component actually RENDERS.
+// The bug that shipped was structural: the <calendar-date> element stayed in
+// the markup while the module that defines it was dropped, so the popover
+// opened on an unknown tag and every server-side test still passed.
+//
+// Cally splits the work: <calendar-date> is the form-associated container and
+// <calendar-month> draws the grid inside its own shadow root, so the day cells
+// are one level deeper than the element — and a raw querySelector on
+// <calendar-date> finds nothing even when everything works. Playwright's CSS
+// engine pierces open shadow roots, so the plain locator is the assertion.
+//
+// The popover is closed again without picking a day, so the filter state the
+// offline checks rely on stays empty.
+async function verifyTodoCalendar(page) {
+  console.log("-> Exercising the Cally date filter...");
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+  await page.locator("#created-filter-btn").click();
+
+  const days = page.locator('[part~="day"]');
+  try {
+    // Attached, not visible: the upgrade is what broke, and the popover
+    // opening is a separate concern this check should not fail on.
+    await days.first().waitFor({ state: "attached", timeout: 8000 });
+  } catch {
+    // Report what the page actually has: the next reader should not need
+    // another CI run to learn which half is missing.
+    const diag = await page.evaluate(() => {
+      const date = document.querySelector("calendar-date");
+      const month = document.querySelector("calendar-month");
+      const script = document.querySelector('script[src*="cally.js"]');
+      return {
+        online: navigator.onLine,
+        script: script ? script.getAttribute("src") : null,
+        defined: !!customElements.get("calendar-date"),
+        dateShadow: !!(date && date.shadowRoot),
+        monthShadow: !!(month && month.shadowRoot),
+      };
+    });
+    fail(`the date filter's calendar never rendered: ${JSON.stringify(diag)}`);
+  }
+
+  const count = await days.count();
+  if (count < 28) fail(`calendar rendered ${count} day cells — Cally did not upgrade the element`);
+  console.log(`  ✓ calendar upgraded (${count} day cells)`);
+
+  // Close without selecting: the filter signal must stay empty for the
+  // offline queue checks that follow.
+  await page.keyboard.press("Escape");
+}
+
 async function verifyOfflineTodoQueue(page, context) {
   const title = `offline-smoke-${Date.now()}`;
   console.log("→ Exercising offline todo add + delete queue…");
@@ -794,6 +844,7 @@ try {
       fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
     }
   }
+  await verifyTodoCalendar(page);
   await verifyOfflineUx(page, context);
   if (pageErrors.length > 0) {
     fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);

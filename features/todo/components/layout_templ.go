@@ -34,6 +34,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/web/resources"
 )
 
 // Layout renders /todo inside the shell. The signature is the handlers'
@@ -108,7 +109,8 @@ func todoStack() []components.TechItem {
 }
 
 // todoHead carries the page's own <head> extras. The toast styles moved to the
-// shell; what stays is the sound assets and the list's motion rules.
+// shell; what stays is the sound assets, the Cally calendar module and the
+// list's motion rules.
 func todoHead() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -134,7 +136,33 @@ func todoHead() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<style>\n\t\t\t\t\tto { width: 0%; }\n\t\t\t\t}\n\n\t\t\t\t/* ---------- Todo item animations (self vs remote) ---------- */\n\n\t\t\t\t/* Default entry for the initial server-rendered list:\n\t\t\t\t   soft fade + tiny zoom. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tanimation: todo-enter-initial 300ms ease-out both;\n\t\t\t\t}\n\t\t\t\t@keyframes todo-enter-initial {\n\t\t\t\t\tfrom { opacity: 0; transform: scale(0.96); }\n\t\t\t\t\tto   { opacity: 1; transform: scale(1); }\n\t\t\t\t}\n\n\t\t\t\t/* Soft entry for every todo row (self or remote): fade + slight\n\t\t\t\t   zoom. The previous design tagged each row with a global\n\t\t\t\t   $lastItemSource signal, which — because the whole list is\n\t\t\t\t   re-rendered on every broadcast — stamped EVERY row as\n\t\t\t\t   \"remote\" and sprayed a floating \"↳ from elsewhere\" badge\n\t\t\t\t   above all tasks (the reported blank/cut-off tooltip bug).\n\t\t\t\t   A bulk re-render cannot scope an origin to a single new\n\t\t\t\t   row, so we dropped per-row source tagging and keep one\n\t\t\t\t   clean entry animation for all arrivals. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tposition: relative;\n\t\t\t\t\tanimation: todo-enter-initial 280ms ease-out both;\n\t\t\t\t}\n\n\t\t\t\t/* View Transitions: cross-fade when Datastar morphs the\n\t\t\t\t   list. Earlier we put `view-transition-name: todo-item`\n\t\t\t\t   on every .todo-item, which produced 'Unexpected\n\t\t\t\t   duplicate view-transition-name' + 'InvalidStateError'\n\t\t\t\t   in the console because multiple items in the same\n\t\t\t\t   patch share the same name. The View Transitions API\n\t\t\t\t   expects per-element unique names — which we can't\n\t\t\t\t   hand out cheaply from a static CSS rule. So we skip\n\t\t\t\t   the explicit `view-transition-name` and rely on the\n\t\t\t\t   entry keyframes below (self/remote slide+fade) to\n\t\t\t\t   animate new arrivals; Datastar still calls\n\t\t\t\t   `document.startViewTransition()` around the morph,\n\t\t\t\t   so deleted/reordered items get a smooth blend from\n\t\t\t\t   the default browser cross-fade. */\n\t\t\t\t::view-transition-old(todo-item),\n\t\t\t\t::view-transition-new(todo-item) {\n\t\t\t\t\tanimation-duration: 320ms;\n\t\t\t\t\tanimation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);\n\t\t\t\t}\n\t</style>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script nonce=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 80, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" type=\"module\" src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("cally.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 80, Col: 90}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"></script><style>\n\t\t\t\t\tto { width: 0%; }\n\t\t\t\t}\n\n\t\t\t\t/* ---------- Todo item animations (self vs remote) ---------- */\n\n\t\t\t\t/* Default entry for the initial server-rendered list:\n\t\t\t\t   soft fade + tiny zoom. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tanimation: todo-enter-initial 300ms ease-out both;\n\t\t\t\t}\n\t\t\t\t@keyframes todo-enter-initial {\n\t\t\t\t\tfrom { opacity: 0; transform: scale(0.96); }\n\t\t\t\t\tto   { opacity: 1; transform: scale(1); }\n\t\t\t\t}\n\n\t\t\t\t/* Soft entry for every todo row (self or remote): fade + slight\n\t\t\t\t   zoom. The previous design tagged each row with a global\n\t\t\t\t   $lastItemSource signal, which — because the whole list is\n\t\t\t\t   re-rendered on every broadcast — stamped EVERY row as\n\t\t\t\t   \"remote\" and sprayed a floating \"↳ from elsewhere\" badge\n\t\t\t\t   above all tasks (the reported blank/cut-off tooltip bug).\n\t\t\t\t   A bulk re-render cannot scope an origin to a single new\n\t\t\t\t   row, so we dropped per-row source tagging and keep one\n\t\t\t\t   clean entry animation for all arrivals. */\n\t\t\t\t.todo-item {\n\t\t\t\t\tposition: relative;\n\t\t\t\t\tanimation: todo-enter-initial 280ms ease-out both;\n\t\t\t\t}\n\n\t\t\t\t/* View Transitions: cross-fade when Datastar morphs the\n\t\t\t\t   list. Earlier we put `view-transition-name: todo-item`\n\t\t\t\t   on every .todo-item, which produced 'Unexpected\n\t\t\t\t   duplicate view-transition-name' + 'InvalidStateError'\n\t\t\t\t   in the console because multiple items in the same\n\t\t\t\t   patch share the same name. The View Transitions API\n\t\t\t\t   expects per-element unique names — which we can't\n\t\t\t\t   hand out cheaply from a static CSS rule. So we skip\n\t\t\t\t   the explicit `view-transition-name` and rely on the\n\t\t\t\t   entry keyframes below (self/remote slide+fade) to\n\t\t\t\t   animate new arrivals; Datastar still calls\n\t\t\t\t   `document.startViewTransition()` around the morph,\n\t\t\t\t   so deleted/reordered items get a smooth blend from\n\t\t\t\t   the default browser cross-fade. */\n\t\t\t\t::view-transition-old(todo-item),\n\t\t\t\t::view-transition-new(todo-item) {\n\t\t\t\t\tanimation-duration: 320ms;\n\t\t\t\t\tanimation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);\n\t\t\t\t}\n\t</style>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -164,9 +192,9 @@ func todoSound() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = sounds.SoundSwitch().Render(ctx, templ_7745c5c3_Buffer)
@@ -194,12 +222,12 @@ func todoBody(signals todo.Signals) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"ui-page\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"ui-page\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -207,7 +235,7 @@ func todoBody(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

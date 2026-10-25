@@ -13,19 +13,22 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 )
 
-func TestCreatedFilterUsesNativeDateAndRowDates(t *testing.T) {
+func TestCreatedFilterUsesCallyCalendarAndRowDates(t *testing.T) {
 	var filter bytes.Buffer
 	if err := createdFilter().Render(context.Background(), &filter); err != nil {
 		t.Fatalf("render filter: %v", err)
 	}
 	got := filter.String()
-	// The popover used to hold a <calendar-date> custom element that nothing
-	// defined, so it opened empty. It is a native date input plus presets now —
-	// the browser's own picker, no script, and it works on every platform.
+	// The calendar is a web component: DaisyUI styles `class="cally"`, Cally
+	// defines <calendar-date>. Assert the element, not just the class, because
+	// the failure that shipped was the element without its loader (the popover
+	// opened empty). todoHead() mounting the module is asserted below.
 	for _, want := range []string{
 		`id="created-filter-btn"`,
 		`popover`,
-		`type="date"`,
+		`<calendar-date`,
+		`class="cally`,
+		`<calendar-month`,
 		`7 days`,
 		`30 days`,
 		`$createdAfter`,
@@ -33,6 +36,17 @@ func TestCreatedFilterUsesNativeDateAndRowDates(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("date filter missing %q", want)
 		}
+	}
+
+	var head bytes.Buffer
+	if err := todoHead().Render(context.Background(), &head); err != nil {
+		t.Fatalf("render head extras: %v", err)
+	}
+	if !strings.Contains(head.String(), "cally.js") {
+		t.Errorf("todo page does not load cally.js — <calendar-date> would never upgrade")
+	}
+	if strings.Contains(head.String(), `type="date"`) {
+		t.Errorf("the native input is still rendered next to the calendar")
 	}
 
 	var row bytes.Buffer
