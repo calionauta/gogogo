@@ -123,10 +123,14 @@ skill, so it tracks daisyUI instead of drifting.
   three widths, and accessible names on `/login` and `/todo`. When you redesign
   the shell, update these together with it — they are the regression net for the
   defects this template has actually shipped.
-- **Accessibility: structural by default, axe on demand.** The default checks
-  need no dependency (names, labels, alt, overflow, panel geometry). For the
-  WCAG-grade pass install `@axe-core/playwright` and set `SMOKE_A11Y=1`; the repo
-  deliberately does not ship that dependency.
+- **Accessibility: structural + axe.** The dependency-free checks (names, labels,
+  alt, overflow, panel geometry) always run; `@axe-core/playwright` is a
+  devDependency and CI runs the browser suite with `SMOKE_A11Y=1`, so the
+  WCAG-grade pass (serious/critical, wcag2a) is a gate here. Its first run found
+  13 contrast nodes across `/login`, `/todo` and `/account`; the fixes raised the
+  muted-text floor to 70% and gave the presence pill and inactive tabs an
+  AA-compliant colour. Keep the pass on when you restyle: contrast is the one
+  accessibility failure a class gate cannot see.
 - **Off-scale values are a policy, not a bug.** `ARBITRARY_VALUE` warns so a
   deliberate `text-[10px]` is a conversation; accept it in `.daisyui-allow` or
   move it onto the scale.

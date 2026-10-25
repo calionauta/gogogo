@@ -20,28 +20,29 @@
 // found pixel diffs cost 3.8x longer review with 10x the comments and flag
 // differences nobody can see, so we assert the property, not the picture.
 
-/** Visible, focusable name sources, in the order assistive tech resolves them. */
-const NAME_JS = `(el) => {
-  const byLabelled = el.getAttribute && el.getAttribute("aria-labelledby");
-  if (byLabelled) {
-    const t = byLabelled.split(/\\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ");
-    if (t.trim()) return t;
-  }
-  if (el.getAttribute && el.getAttribute("aria-label")?.trim()) return el.getAttribute("aria-label");
-  if (el.labels && el.labels.length) {
-    const t = [...el.labels].map((l) => l.textContent).join(" ");
-    if (t.trim()) return t;
-  }
-  return el.getAttribute && el.getAttribute("title") || "";
-}`;
-
 /**
  * Check accessible names for form controls, interactive elements and images.
  * @returns {Promise<string[]>} problems, empty when the page is clean
  */
 export async function accessibleNameProblems(page) {
-  return page.evaluate((nameSrc) => {
-    const name = eval(nameSrc);
+  return page.evaluate(() => {
+    // Name resolution, in the order assistive tech applies it. Inline (not a
+    // string + eval) because the page runs under a CSP: CDP evaluation bypasses
+    // it, but a check that would break if it ever became a real script is a
+    // check waiting to lie.
+    const name = (el) => {
+      const labelled = el.getAttribute && el.getAttribute("aria-labelledby");
+      if (labelled) {
+        const text = labelled.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ");
+        if (text.trim()) return text;
+      }
+      if (el.getAttribute && el.getAttribute("aria-label")?.trim()) return el.getAttribute("aria-label");
+      if (el.labels && el.labels.length) {
+        const text = [...el.labels].map((l) => l.textContent).join(" ");
+        if (text.trim()) return text;
+      }
+      return (el.getAttribute && el.getAttribute("title")) || "";
+    };
     const visible = (el) => {
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
@@ -69,7 +70,7 @@ export async function accessibleNameProblems(page) {
     });
 
     return problems;
-  }, NAME_JS);
+  });
 }
 
 /**
@@ -123,21 +124,26 @@ export async function panelGeometry(page, triggerSelector, panelSelector, { expe
 
 /**
  * Opt-in axe run: the WCAG-grade pass, which this repo keeps optional so the
- * template ships without the dependency. `SMOKE_A11Y=1` turns it on when
- * @axe-core/playwright is installed.
- * @returns {Promise<{skipped: boolean, problems: string[]}>}
+ * template ships without the dependency.
+ *
+ * A SKIP IS NEVER SILENT: a check that quietly does nothing is worse than no
+ * check, because the suite still goes green. The reason is returned and the
+ * smoke prints it.
+ * @returns {Promise<{ran: boolean, reason: string, problems: string[]}>}
  */
 export async function axeProblems(page, ruleSet = "wcag2a") {
-  if (process.env.SMOKE_A11Y !== "1") return { skipped: true, problems: [] };
+  if (process.env.SMOKE_A11Y !== "1") {
+    return { ran: false, reason: "SMOKE_A11Y is not 1", problems: [] };
+  }
   let AxeBuilder;
   try {
     ({ default: AxeBuilder } = await import("@axe-core/playwright"));
-  } catch {
-    return { skipped: true, problems: [] };
+  } catch (err) {
+    return { ran: false, reason: `@axe-core/playwright not installed (${String(err).slice(0, 80)})`, problems: [] };
   }
   const result = await new AxeBuilder({ page }).withTags([ruleSet]).analyze();
   const problems = result.violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")
-    .map((v) => `${v.id} (${v.impact}): ${v.help} — ${v.nodes.length} node(s)`);
-  return { skipped: false, problems };
+    .map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s)`);
+  return { ran: true, reason: "", problems };
 }

@@ -118,3 +118,38 @@ func cssFor(classes ...string) string {
 	}
 	return b.String()
 }
+
+// writeBare materialises a tree with ONLY what the caller provides: no skill, no
+// registry, no compositions doc. It is the consumer path, where the gate must
+// degrade instead of refusing to run.
+func writeBare(t *testing.T, files map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	for rel, body := range files {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+// hasFinding reports whether any finding's message contains every substring.
+func hasFinding(findings []finding, substrings ...string) bool {
+	for _, f := range findings {
+		ok := true
+		for _, s := range substrings {
+			if !strings.Contains(f.msg, s) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}

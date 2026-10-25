@@ -293,7 +293,14 @@ async function verifyStructuralUi(page) {
     const names = await accessibleNameProblems(page);
     check(names.length === 0, `${route}: ${names.slice(0, 3).join("; ")}`);
     const axe = await axeProblems(page);
-    check(axe.skipped || axe.problems.length === 0, `${route} (axe): ${axe.problems.slice(0, 3).join("; ")}`);
+    if (axe.ran) {
+      check(axe.problems.length === 0, `${route} (axe): ${axe.problems.slice(0, 3).join("; ")}`);
+      if (axe.problems.length === 0) console.log(`  \u2713 axe ${route}: no serious/critical violations`);
+    } else {
+      // Never silent: an off axe run is reported, because "skipped" and "clean"
+      // must not look the same in a log.
+      console.log(`  - axe skipped (${axe.reason})`);
+    }
   }
 
   for (const width of [1280, 820, 500]) {

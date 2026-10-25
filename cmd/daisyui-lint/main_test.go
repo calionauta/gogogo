@@ -46,9 +46,15 @@ func fixture(t *testing.T, files map[string]string) (string, string) {
 // runCLI invokes the command in-process and returns its exit code and stdout.
 func runCLI(t *testing.T, args ...string) (int, string) {
 	t.Helper()
+	code, out, _ := runCLIAll(t, args...)
+	return code, out
+}
+
+func runCLIAll(t *testing.T, args ...string) (int, string, string) {
+	t.Helper()
 	var out, errOut strings.Builder
 	code := run(args, &out, &errOut)
-	return code, out.String()
+	return code, out.String(), errOut.String()
 }
 
 // RED-proof through the real CLI: a DaisyUI 4 relic fails, and the fix clears it.
@@ -135,5 +141,32 @@ func TestCollectFilesSkipsFixtures(t *testing.T) {
 	}
 	if len(files) != 1 {
 		t.Fatalf("expected only the page, got %v", files)
+	}
+}
+
+// A project keeps .daisyui-allow at its root; the linter finds it from anywhere
+// inside the tree, like it finds the skill.
+func TestCLIFindsAllowFileUpward(t *testing.T) {
+	root, skill := fixture(t, map[string]string{
+		"web/page.templ": `<p class="text-[13px]">x</p>`,
+		".daisyui-allow": "text-[13px]\n",
+	})
+	nested := filepath.Join(root, "web")
+	code, out := runCLI(t, "--skill", skill, "--strict", nested)
+	if code != 0 {
+		t.Fatalf("the allowlist at the root must be found from a subdirectory, got code=%d out=%s", code, out)
+	}
+}
+
+// A glob that matches nothing is a silent loss of the project's vocabulary: the
+// CLI says so instead of quietly judging local classes as DaisyUI's.
+func TestCLINotesUnmatchedCSSGlob(t *testing.T) {
+	root, skill := fixture(t, map[string]string{"web/page.templ": `<div class="chat"></div>`})
+	code, _, errOut := runCLIAll(t, "--skill", skill, "--css", filepath.Join(root, "nope/*.css"), root)
+	if code != 0 {
+		t.Fatalf("expected clean, got code=%d", code)
+	}
+	if !strings.Contains(errOut, "matched no file") {
+		t.Fatalf("expected a note about the empty glob, got %q", errOut)
 	}
 }
