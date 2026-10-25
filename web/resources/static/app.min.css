@@ -4214,6 +4214,32 @@
       }
     }
   }
+  @layer daisyui {
+    .btn-disabled {
+      pointer-events: none;
+      color: var(--color-base-content);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .btn-disabled {
+        color: color-mix(in oklch, var(--color-base-content) 20%, #0000);
+      }
+    }
+    .btn-disabled {
+      --btn-bg: #0000;
+      --btn-border: #0000;
+      background-image: none;
+      --btn-inset: 0 0 0 0 oklch(0% 0 0/0);
+      --btn-shadow: 0 0 0 0 oklch(0% 0 0/0);
+    }
+    :is(:is(.btn-disabled), .btn:is(:disabled, [disabled], [aria-disabled="true"])):not(.btn-link, .btn-ghost) {
+      background-color: var(--color-base-content);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      :is(:is(.btn-disabled), .btn:is(:disabled, [disabled], [aria-disabled="true"])):not(.btn-link, .btn-ghost) {
+        background-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+      }
+    }
+  }
   .pointer-events-none {
     pointer-events: none;
   }
@@ -7532,6 +7558,9 @@
   .min-h-0 {
     min-height: 0px;
   }
+  .min-h-28 {
+    min-height: calc(var(--spacing) * 28);
+  }
   .min-h-\[7rem\] {
     min-height: 7rem;
   }
@@ -7653,8 +7682,8 @@
   .max-w-5xl {
     max-width: var(--container-5xl);
   }
-  .max-w-\[8\.5rem\] {
-    max-width: 8.5rem;
+  .max-w-34 {
+    max-width: calc(var(--spacing) * 34);
   }
   .max-w-md {
     max-width: var(--container-md);
@@ -8240,6 +8269,22 @@
     .dock-xl .dock-label {
       font-size: 0.75rem;
     }
+    .tabs-lg {
+      --tab-height: calc(var(--size-field, 0.25rem) * 12);
+    }
+    .tabs-lg > .tab {
+      font-size: 1.125rem;
+      --tab-p: 1rem;
+      --tab-radius-min: calc(1.5rem - var(--border));
+    }
+    .tabs-md {
+      --tab-height: calc(var(--size-field, 0.25rem) * 10);
+    }
+    .tabs-md > .tab {
+      font-size: 0.875rem;
+      --tab-p: 0.75rem;
+      --tab-radius-min: calc(0.75rem - var(--border));
+    }
     .tabs-sm {
       --tab-height: calc(var(--size-field, 0.25rem) * 8);
     }
@@ -8264,9 +8309,6 @@
       --size: calc(var(--size-selector, 0.25rem) * 4);
       font-size: 0.625rem;
     }
-  }
-  .text-\[0\.65rem\] {
-    font-size: 0.65rem;
   }
   .leading-relaxed {
     --tw-leading: var(--leading-relaxed);
@@ -8678,6 +8720,9 @@
     }
     .sm\:grid-cols-3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .sm\:p-2 {
+      padding: calc(var(--spacing) * 2);
     }
     @layer daisyui.l1.l2 {
       .sm\:input-sm {

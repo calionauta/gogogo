@@ -72,7 +72,7 @@ func ChatStatePanel(msgs int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"stats stats-horizontal shadow-sm border border-base-200 w-full mt-1\"><div class=\"stat px-3 py-2\"><div class=\"stat-title text-[0.65rem]\">Messages</div><div class=\"stat-value text-sm font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"stats stats-horizontal shadow-sm border border-base-200 w-full mt-1\"><div class=\"stat px-3 py-2\"><div class=\"stat-title text-xs\">Messages</div><div class=\"stat-value text-sm font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -85,7 +85,7 @@ func ChatStatePanel(msgs int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div><div class=\"stat px-3 py-2\"><div class=\"stat-title text-[0.65rem]\">Transport</div><div class=\"stat-value text-sm font-mono\">SSE</div></div><div class=\"stat px-3 py-2\"><div class=\"stat-title text-[0.65rem]\">Queue</div><div class=\"stat-value text-sm font-mono\">goqite</div></div></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div><div class=\"stat px-3 py-2\"><div class=\"stat-title text-xs\">Transport</div><div class=\"stat-value text-sm font-mono\">SSE</div></div><div class=\"stat px-3 py-2\"><div class=\"stat-title text-xs\">Queue</div><div class=\"stat-value text-sm font-mono\">goqite</div></div></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

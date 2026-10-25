@@ -11,6 +11,7 @@
 // Requires: `npx playwright install chromium` (run by `make smoke`).
 
 import { chromium } from "playwright";
+import { accessibleNameProblems, axeProblems, horizontalOverflow, panelGeometry } from "./lib/a11y.mjs";
 import { spawn, spawnSync, execSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -271,6 +272,48 @@ async function verifyAccountMenu(page) {
   if (bad === 0) {
     console.log("  ✓ account panel opens upward, stays on screen, with a distinct surface");
   }
+}
+
+// Structural UI checks: the classes of defect a 2026 study names as dominant
+// (missing names, layout disorder) and the one that started this suite (an
+// anchored panel opening off-screen). They are invariants, not screenshots:
+// pixel baselines cost 3.8x longer review and flag changes nobody can see.
+async function verifyStructuralUi(page) {
+  console.log("-> Checking structural UI (names, overflow, panel geometry)...");
+  let bad = 0;
+  const check = (ok, msg) => {
+    if (!ok) {
+      fail(msg);
+      bad++;
+    }
+  };
+
+  for (const route of ["/login", "/todo"]) {
+    await page.goto(BASE + route, { waitUntil: "load", timeout: 20000 });
+    const names = await accessibleNameProblems(page);
+    check(names.length === 0, `${route}: ${names.slice(0, 3).join("; ")}`);
+    const axe = await axeProblems(page);
+    check(axe.skipped || axe.problems.length === 0, `${route} (axe): ${axe.problems.slice(0, 3).join("; ")}`);
+  }
+
+  for (const width of [1280, 820, 500]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    const overflow = await horizontalOverflow(page);
+    check(overflow === null, `at ${width}px: ${overflow}`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  // The demo panel is anchored to the right edge: it must land inside the view.
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+  const toggle = page.locator(".app-demo-toggle").first();
+  if (await toggle.count()) {
+    const problems = await panelGeometry(page, ".app-demo-toggle", "#state-panel", { expectAbove: false });
+    check(problems.length === 0, `demo panel: ${problems.join("; ")}`);
+    await toggle.click(); // close again
+  }
+
+  if (bad === 0) console.log("  \u2713 structural UI clean: names, overflow, panel geometry");
 }
 
 // Deliberately asserts on a MIDDLE substring: the default layer is the SQL
@@ -916,6 +959,8 @@ try {
   console.log("  ✓ demo mode: every module page offers the panel");
 
   await verifyAccountMenu(page);
+
+  await verifyStructuralUi(page);
 
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
