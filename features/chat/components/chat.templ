@@ -112,6 +112,7 @@ templ chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn
 		</div>
 		<div class="flex-1">
 			@ChatList(msgs, "")
+			@ChatThinking()
 		</div>
 		<form
 			id="chat-composer"
@@ -220,6 +221,12 @@ templ newChatModal() {
 // ChatList renders the message column: the container the stream patches
 // plus the thread itself. The container owns the `#chat-messages` id and
 // nothing else does — see ChatThread for why that matters.
+//
+// The thinking bubble lives OUTSIDE this container on purpose (see
+// ChatThinking): the ask ack and the answer APPEND fragments into
+// #chat-messages, so anything inside it after the thread would sit ABOVE
+// the user's own echo — the reported bug. As a sibling after the
+// container, the spinner always reads as the last message.
 templ ChatList(msgs []store.MessageView, errMsg string) {
 	<div id="chat-messages" class="flex flex-col gap-3 pb-6" aria-live="polite">
 		<div id="chat-empty" data-show="$chat_empty" class="chat-hero">
@@ -227,11 +234,18 @@ templ ChatList(msgs []store.MessageView, errMsg string) {
 			<p>Ask in plain words — answers render as visuals, tables, plans, or your own data when that's what you asked for.</p>
 		</div>
 		@ChatThread(msgs, errMsg)
-		<div data-show="$chat_thinking" class="chat chat-start">
-			<div class="chat-bubble flex items-center gap-2">
-				<span class="loading loading-dots loading-sm" aria-hidden="true"></span>
-				<span class="text-sm" data-text="$chat_working || 'Thinking…'">Thinking…</span>
-			</div>
+	</div>
+}
+
+// ChatThinking is the in-flight spinner, rendered as a sibling AFTER
+// #chat-messages so appends into the thread never land below it. Hidden
+// through $chat_thinking, owned by the composer (true on submit) and the
+// worker (false with the answer).
+templ ChatThinking() {
+	<div id="chat-thinking" data-show="$chat_thinking" class="chat chat-start">
+		<div class="chat-bubble flex items-center gap-2">
+			<span class="loading loading-dots loading-sm" aria-hidden="true"></span>
+			<span class="text-sm" data-text="$chat_working || 'Thinking…'">Thinking…</span>
 		</div>
 	</div>
 }

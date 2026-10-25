@@ -68,11 +68,20 @@ func TestChatPageWiring(t *testing.T) {
 	if strings.Contains(html, "play(") || strings.Contains(html, "AudioContext") {
 		t.Errorf("chat page carries custom sound JS (global cues cover it)")
 	}
+	// The spinner reads as the last message: appends into #chat-messages
+	// land before it in DOM order, so the user's echo never sits below it.
+	msgsIdx := strings.Index(html, `id="chat-messages"`)
+	thinkingIdx := strings.Index(html, `id="chat-thinking"`)
+	if msgsIdx < 0 || thinkingIdx < 0 || msgsIdx > thinkingIdx {
+		t.Errorf("thinking bubble must render after #chat-messages (msgs=%d thinking=%d)", msgsIdx, thinkingIdx)
+	}
 }
 
 // TestChatListStates pins the column states: empty guidance (never a
 // blank column) and the error bubble, plus the signal that hides the
-// guidance once a conversation starts.
+// guidance once a conversation starts. The thinking spinner lives outside
+// the patched container (see ChatThinking), so appends into #chat-messages
+// never land below it — the reported order bug.
 func TestChatListStates(t *testing.T) {
 	t.Parallel()
 	render := func(msgs []store.MessageView, errMsg string) string {
@@ -84,9 +93,21 @@ func TestChatListStates(t *testing.T) {
 		return buf.String()
 	}
 	empty := render(nil, "")
-	for _, want := range []string{`id="chat-messages"`, "Ask your app anything", `data-show="$chat_empty"`, "Thinking…"} {
+	for _, want := range []string{`id="chat-messages"`, "Ask your app anything", `data-show="$chat_empty"`} {
 		if !strings.Contains(empty, want) {
 			t.Errorf("empty list missing %q", want)
+		}
+	}
+	if strings.Contains(empty, "Thinking…") {
+		t.Errorf("ChatList carries the thinking bubble: appends into #chat-messages would land below it")
+	}
+	var thinking bytes.Buffer
+	if err := chatcomponents.ChatThinking().Render(context.Background(), &thinking); err != nil {
+		t.Fatalf("ChatThinking: %v", err)
+	}
+	for _, want := range []string{`id="chat-thinking"`, `data-show="$chat_thinking"`, "Thinking…"} {
+		if !strings.Contains(thinking.String(), want) {
+			t.Errorf("thinking bubble missing %q", want)
 		}
 	}
 	failed := render(nil, "model unavailable")
