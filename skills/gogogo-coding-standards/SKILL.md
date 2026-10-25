@@ -7,8 +7,9 @@ description: "Go backend standards for the gogogo template — Turso/SQLite, Tem
 
 Go + template rules only. Universal principles (KISS, DRY, LoB/SoC, YAGNI, sizes) live in `stelow-workflow-coding-standards` and are not repeated here.
 
-- **Local copy (read this):** `../stelow-workflow-coding-standards/SKILL.md`, with its
-  `references/file-function-sizes.md` and `references/ci-enforcement.md` beside it.
+- **Local copy (read this):** `../stelow-workflow-coding-standards/SKILL.md`, with
+  `../stelow-workflow-coding-standards/references/file-function-sizes.md` and
+  `../stelow-workflow-coding-standards/references/ci-enforcement.md`.
   Read the local path, not a URL: a skill's `references/` resolve only as relative
   paths to a locally present skill, so a URL link cannot reach them.
 - Upstream: https://github.com/calionauta/stelow/tree/main/skills/stelow-workflow-coding-standards
