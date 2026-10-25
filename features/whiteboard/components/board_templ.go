@@ -69,7 +69,7 @@ const (
 // BoardListWithRealtime renders the board list with its live regions. The
 // document, assets, sidebar, header and toasts belong to internal/ui.Shell;
 // this file is the page.
-func BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
+func BoardListWithRealtime(email string, userRole string, boards []BoardMeta, buildLabel string, buildCommit string, offlineSync bool, demo bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -100,6 +100,7 @@ func BoardListWithRealtime(email string, userRole string, boards []BoardMeta, bu
 			BuildCommit: buildCommit,
 			OfflineSync: offlineSync,
 			Stack:       boardsStack(),
+			Demo:        demo,
 			StreamPage:  true,
 		}, nil, nil, boardsActions(), boardsBody(boards)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
@@ -245,7 +246,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			var templ_7745c5c3_Var5 templ.SafeURL
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/whiteboard/" + b.DocID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 120, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 121, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -258,7 +259,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(b.DocID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 121, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 122, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -271,7 +272,7 @@ func WhiteboardListFragment(boards []BoardMeta) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(b.DocVer))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 123, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 124, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -340,7 +341,7 @@ func deleteBoardButton(docID string, author string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmBoardId = " + strconv.Quote(docID) + "; $confirmBoardAuthor = " + strconv.Quote(author) + "; document.getElementById('" + boardDialogID + "').showModal()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 144, Col: 190}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 145, Col: 190}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -394,7 +395,7 @@ func authorBadge(author string, isMine bool) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue("Author: " + author)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 154, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 155, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 				if templ_7745c5c3_Err != nil {
@@ -412,7 +413,7 @@ func authorBadge(author string, isMine bool) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(author)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 156, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 157, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -461,7 +462,7 @@ func deleteBoardModal() templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(boardDialogID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 167, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 168, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -474,7 +475,7 @@ func deleteBoardModal() templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById('" + boardDialogID + "').close()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 179, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 180, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -487,7 +488,7 @@ func deleteBoardModal() templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("$deletingBoard = true; document.getElementById('" + boardDialogID + "').close(); @post('/api/whiteboard/' + encodeURIComponent($confirmBoardId) + '/delete')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 186, Col: 179}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 187, Col: 179}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -500,7 +501,7 @@ func deleteBoardModal() templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById('" + boardDialogID + "').close()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 192, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 193, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -521,7 +522,7 @@ func deleteBoardModal() templ.Component {
 // work area: the canvas owns the rectangle, so the shell drops its padding and
 // gives the column the height. data-doc-id rides the wrapper (whiteboard.js
 // reads it back as window.WB_DOC_ID) because the shell owns <main>.
-func Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool) templ.Component {
+func Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool, demo bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -554,6 +555,7 @@ func Board(email string, userRole string, meta BoardMeta, buildLabel string, bui
 			BuildLabel:  buildLabel,
 			BuildCommit: buildCommit,
 			OfflineSync: offlineSync,
+			Demo:        demo,
 			Stack: []components.TechItem{
 				{Name: "SSEHub", Note: "shape ops fan out to every tab"},
 				{Name: "NATS", Note: "cross-instance sync"},
@@ -604,7 +606,7 @@ func boardHead() templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 232, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 234, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -617,7 +619,7 @@ func boardHead() templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(whiteboard.URL("rough.min.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 232, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 234, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -630,7 +632,7 @@ func boardHead() templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 233, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 235, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -643,7 +645,7 @@ func boardHead() templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("throttle.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 233, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 235, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -656,7 +658,7 @@ func boardHead() templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 234, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 236, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -669,7 +671,7 @@ func boardHead() templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(whiteboard.URL("whiteboard.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 234, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 236, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
@@ -705,7 +707,7 @@ func boardSound() templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = sounds.SoundToggle().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = sounds.SoundSwitch().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -743,7 +745,7 @@ func boardBody(meta BoardMeta) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.DocID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 245, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 247, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -764,7 +766,7 @@ func boardBody(meta BoardMeta) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 272, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 274, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {

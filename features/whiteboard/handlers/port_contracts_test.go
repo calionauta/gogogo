@@ -306,9 +306,11 @@ func TestWhiteboard_SingleOnlineLabel(t *testing.T) {
 	}
 }
 
-// TestWhiteboard_ThemeToggleWired pins the board page wiring: the
-// theme toggle button, its data-on:click signal flip, and both runtimes
-// it needs.
+// TestWhiteboard_ThemeToggleWired pins the board page wiring: the theme
+// preference in the account panel, its data-on:click signal flip, and both
+// runtimes it needs. The switch moved out of the header (a two-state sun/moon
+// toggle cannot express four palettes) into the account panel; the wiring
+// contract the board has to carry is unchanged.
 func TestWhiteboard_ThemeToggleWired(t *testing.T) {
 	server, _, cookie := wbPortFixture(t)
 	client := wbClient(t, server, cookie)
@@ -323,12 +325,12 @@ func TestWhiteboard_ThemeToggleWired(t *testing.T) {
 		t.Fatalf("board page status = %d", resp.StatusCode)
 	}
 	wants := []string{
-		"theme-toggle", "data-on:click=", "$theme =",
+		"app-pref-option", "data-on:click=", "$theme =",
 		"/static/theme.js", "/static/datastar.js",
 	}
 	for _, want := range wants {
 		if !strings.Contains(body, want) {
-			t.Errorf("board page missing %q (toggle would be inert)", want)
+			t.Errorf("board page missing %q (theme switch would be inert)", want)
 		}
 	}
 }

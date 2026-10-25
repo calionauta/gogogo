@@ -80,12 +80,12 @@ templ configHead() {
 
 // soundToggle is the shell's mute control for this page. It is a
 // one-line templ wrapper on purpose: the installer's sounds trim drops the
-// @sounds.SoundToggle() line, leaving an empty wrapper that still satisfies
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
 // the shell's slot (the import goes with it). Passing the call directly
 // would put it on the same line as the Shell invocation, and dropping that
 // line would break the call.
 templ configSound() {
-	@sounds.SoundToggle()
+	@sounds.SoundSwitch()
 }
 
 // configActions is the header's right-aligned build badge.

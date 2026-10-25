@@ -16,7 +16,7 @@ import (
 
 func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 	var buf bytes.Buffer
-	if err := authviews.UserMenu("demo1@demo.app", "admin").Render(context.Background(), &buf); err != nil {
+	if err := authviews.UserMenu("demo1@demo.app", "admin", nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render user menu: %v", err)
 	}
 	html := buf.String()

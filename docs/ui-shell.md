@@ -9,8 +9,8 @@ class to use so a new screen looks like the other eight.
 ```
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
-├── <aside id="app-rail">   brand · build badge · theme/sound (top-right) · []Module groups · footer
-│      footer: Theme section · Stack section · account menu
+├── <aside id="app-rail">   brand · build badge · []Module groups · account row
+│      account row → panel: identity · links · Tema list · sound · sign out
 ├── <header class="app-module-header">
 │      drawer trigger (≤1024px) · title · context slot · [ How it works ] · search input · actions
 ├── <main class="app-body">  ← the page
@@ -25,8 +25,14 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 **`Panel` is nil for a reason.** A page passes a panel only when it has a
 pipeline that runs *beside* the page — a queue, a model call, phases. `/config`,
 `/room`, `/notes` and `/whiteboard` do not: their demo **is** the page (a table,
-a lock, a canvas), so hiding it behind a toggle would hide the point. A page with
-no panel gets no `How it works` button.
+a lock, a canvas), so a machinery column would add nothing.
+
+The button is `[ How it works ]` and it appears whenever the page has *anything*
+to put there — a `Panel`, a `Stack`, or both (`Data.HasDemo`). The panel always
+ends with the stack key (`components.TechStack`, from `Data.Stack`): one shape
+for "what this page demonstrates", identical in every feature, rendered once by
+the shell instead of hand-rolled per page. Demo mode follows the session across
+modules, so a page whose demo *is* the page still opens its key.
 
 **Demo mode never reloads.** The toggle and the panel close button flip the
 `$panelVisible` signal and persist the choice with a background `fetch` to

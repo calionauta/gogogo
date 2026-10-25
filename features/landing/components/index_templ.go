@@ -140,7 +140,7 @@ func Index(userEmail string, userRole string, buildLabel string, buildCommit str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.UserMenu(userEmail, userRole).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.UserMenu(userEmail, userRole, nil).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

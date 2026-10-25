@@ -28,12 +28,24 @@ templ ThemeToggle() {
 // dropdown with identity, role, the admin Dashboard link, the DagNats console
 // and the sign-out form.
 //
+// One markup, two hosts, and the host's CSS decides the shape: the landing
+// header keeps a compact chip, while the sidebar renders it as the account ROW
+// that closes the rail (identity disc, address, role, caret) — the shape
+// shadcn calls SidebarFooter and every rail-based app people already know
+// ships. The panel direction is the host's too: the rail's copy opens upward,
+// because a menu anchored to the bottom edge that opened down lands off-screen.
+//
+// `prefs` is the host's own preference block (internal/ui.Preferences: palette
+// list + sound). The shell passes it because the panel is the app's account
+// surface; the landing header passes nil and keeps its quick controls in the
+// header, since a guest there has no account panel to open.
+//
 // The sign-out form posts via fetch rather than a plain submit: Datastar
 // preventDefaults every submit carrying data-on:submit, so a native POST would
 // never happen through the framework. method/action stay as the no-JS
 // fallback (native POST -> 303 -> /login still works), which is why the test
 // pins `method="POST"` and `action="/logout"`.
-templ UserMenu(userEmail string, userRole string) {
+templ UserMenu(userEmail string, userRole string, prefs templ.Component) {
 	if userEmail == "" {
 		<a
 			href="/login"
@@ -43,14 +55,17 @@ templ UserMenu(userEmail string, userRole string) {
 		</a>
 	} else {
 		<details class="app-dropdown app-dropdown-up">
-			<summary class="app-dropdown-trigger" title="Account" aria-haspopup="menu">
-				<svg xmlns="http://www.w3.org/2000/svg" class="app-user-icon" viewBox="0 0 20 20" fill="currentColor">
-					<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-				</svg>
-				<span class="app-user-email">{ userEmail }</span>
-				if userRole == "admin" {
-					<span class="badge badge-sm badge-primary">Admin</span>
-				}
+			<summary class="app-dropdown-trigger" title="Account" aria-haspopup="menu" aria-label={ "Account menu for " + userEmail }>
+				<div class="avatar avatar-placeholder app-account-avatar" aria-hidden="true">
+					<div>{ accountInitial(userEmail) }</div>
+				</div>
+				<span class="app-account-identity">
+					<span class="app-user-email">{ userEmail }</span>
+					if userRole == "admin" {
+						<span class="badge badge-sm badge-primary">Admin</span>
+					}
+				</span>
+				<span class="app-account-caret" aria-hidden="true"></span>
 			</summary>
 			<ul class="app-dropdown-menu">
 				<li class="app-menu-title">
@@ -81,6 +96,11 @@ templ UserMenu(userEmail string, userRole string) {
 							Dashboard
 						</a>
 					</li>
+				}
+				<li class="app-menu-sep" role="separator"></li>
+				if prefs != nil {
+					@prefs
+					<li class="app-menu-sep" role="separator"></li>
 				}
 				<li>
 					<form method="POST" action="/logout" data-on:submit__prevent="$loading = true; fetch('/logout', {method: 'POST', credentials: 'same-origin'}).then(function () { if (navigator.serviceWorker) { navigator.serviceWorker.ready.then(function (r) { r.active && r.active.postMessage({ type: 'clear-pages' }); }); } window.location.href = '/login'; })">

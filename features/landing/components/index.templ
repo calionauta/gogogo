@@ -88,7 +88,7 @@ templ Index(userEmail string, userRole string, buildLabel string, buildCommit st
 					@authviews.CommandPalette(userRole, userEmail == "")
 					@authviews.ThemeToggle()
 					@sounds.SoundToggle()
-					@authviews.UserMenu(userEmail, userRole)
+					@authviews.UserMenu(userEmail, userRole, nil)
 				</div>
 			</header>
 			<main class="landing-hero">

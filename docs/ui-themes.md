@@ -10,8 +10,11 @@ at runtime.
 | **Theme** | A DaisyUI palette: colours, radius, shadows | `src/css/input.css` (`@plugin "daisyui"`), catalogued in `internal/themes` |
 
 One library ships: **DaisyUI** (`app.min.css`). The palettes are `light`
-(default), `dark`, `lofi` ("Calm") and `dim` ("Zinc"), picked from the **Theme**
-disclosure in the sidebar footer. Visual variety comes from palettes, never
+(default), `dark`, `lofi` ("Calm") and `dim` ("Zinc"), picked from the **Tema**
+list in the account panel (the identity row at the foot of the sidebar). Theme
+and sound are preferences, so they live in the account surface, not as icon
+toggles competing with navigation — the placement PostHog moved to (#19001) and
+the one Linear, Notion and Vercel keep. Visual variety comes from palettes, never
 from a second component library or a second CSS bundle: one vocabulary,
 one bundle, zero forked markup.
 
@@ -38,7 +41,7 @@ direction: a catalog entry the bundle does not compile renders as the default
 palette (a picker option that changes nothing), and a compiled theme missing
 from the catalog is unreachable from the UI.
 
-The picker (`internal/ui/theme_selector.templ`) is markup only: it sets the
+The picker (`internal/ui/preferences.templ`) is markup only: it sets the
 `$theme` signal, and Datastar owns `data-theme` and the `dark` class through the
 bindings in `authviews.ThemeRootAttrs`. Nothing writes those attributes
 imperatively — Datastar reverts external writes to a bound attribute. The same

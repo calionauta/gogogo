@@ -9,9 +9,9 @@
 //
 //   - prefers-reduced-motion is respected by default — OS-level reduced
 //     motion auto-mutes and reacts to runtime preference changes.
-//   - Global mute: a persistent toggle in the shell footer (stored in
-//     localStorage under "gogogo_sound"), keyboard-accessible via
-//     aria-pressed on the button.
+//   - Global mute: the account panel's switch (a checkbox: `checked`) or the
+//     public header's icon button (`aria-pressed`), both persisted in
+//     localStorage under "gogogo_sound" and keyboard-accessible.
 //   - Subtle default volume (cuelume's mixer runs hot; 0.4 keeps the cues
 //     audible without being intrusive — tune DEFAULT_VOLUME in cuelume.js).
 //   - Sounds are additive only: every cue pairs with existing visual

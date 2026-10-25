@@ -1,0 +1,72 @@
+// SCOPE:core — Account-panel preferences: the palette list and the sound mute.
+//
+// Theme and sound are PREFERENCES, not navigation. A permanently visible
+// icon toggle in the chrome is the wrong home for them: it competes with the
+// identity row, and a two-state sun/moon control cannot express a catalog of
+// four palettes (two of them dark) — switching from "Calmo" to dark silently
+// threw the palette away. The research is one-sided: apps that moved the
+// switcher out of the navbar did it into the account popover (PostHog #19001,
+// Phoenix #14070, and the Vercel/Linear/Notion family keep preferences in
+// account or settings), and platform guidance puts infrequent preferences in
+// settings rather than in chrome (Material, Android, Windows). So: one place,
+// the account panel, next to the identity that already tells you whose
+// preferences they are.
+//
+// Rendered as <li> items because it composes into the account menu's list
+// (authviews.UserMenu takes it as a slot, so the landing header — which has no
+// account surface for its guests — keeps its own quick controls instead).
+//
+// The option is a toggle button carrying aria-pressed, not a single-select
+// widget role: this list sits inside a disclosure of links, not inside a
+// menu/listbox, and claiming those roles would promise arrow-key navigation
+// this markup does not implement (it tabs, like the links around it). One
+// pressed button out of four says the same thing to assistive tech and keeps
+// the promise it makes.
+//
+// Attribute values here are scanned as styling candidates (see the exclusions
+// in src/css/input.css), so a role or type named after a component library
+// class would ship that component's CSS unused. Keep the vocabulary plain.
+package ui
+
+import (
+	"github.com/calionauta/gogogo/internal/themes"
+)
+
+// Preferences renders the account panel's preference block: the palette list
+// (one option per shipped theme) and, when the page passes one, the sound
+// toggle it owns.
+//
+// Selection goes through the $theme SIGNAL (Datastar owns data-theme and the
+// dark class through the bindings in authviews.ThemeRootAttrs) — writing the
+// DOM directly is reverted. The names come from internal/themes, which
+// themes_test.go keeps in step with the `themes:` list compiled by
+// src/css/input.css.
+templ Preferences(sound templ.Component) {
+	<li class="app-pref">
+		<p class="app-pref-head" id="app-pref-theme">Tema</p>
+		<ul class="app-pref-list" aria-labelledby="app-pref-theme">
+			for _, t := range themes.All {
+				<li>
+					<button
+						type="button"
+						class="app-pref-option"
+						data-class={ "{'is-active': $theme === '" + t.Name + "'}" }
+						data-attr:aria-pressed={ "($theme === '" + t.Name + "') ? 'true' : 'false'" }
+						data-on:click={ "$theme = '" + t.Name + "'; localStorage.setItem('themeMode', $theme)" }>
+						<span class="app-pref-swatch" data-theme={ t.Name } aria-hidden="true"></span>
+						<span class="app-pref-label">{ t.Label }</span>
+						<span class="app-pref-check" aria-hidden="true"></span>
+					</button>
+				</li>
+			}
+		</ul>
+	</li>
+	if sound != nil {
+		<li class="app-pref-row">
+			<label class="app-pref-setting">
+				<span class="app-pref-label">Efeitos sonoros</span>
+				@sound
+			</label>
+		</li>
+	}
+}

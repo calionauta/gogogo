@@ -17,7 +17,7 @@ func TestBoardPageLinksBackToIndex(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	meta := components.BoardMeta{DocID: "b0ard1", DocVer: 3, Author: "a@b.c", IsMine: true, CanDelete: true}
-	if err := components.Board("a@b.c", "user", meta, "dev", "", false).
+	if err := components.Board("a@b.c", "user", meta, "dev", "", false, false).
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Board: %v", err)
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -161,7 +162,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = components.BoardListWithRealtime(sess.User.Email, sess.Role, boards,
-		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled).Render(r.Context(), w)
+		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled, demo.On(r)).Render(r.Context(), w)
 }
 
 func (h *Handler) handleNew(w http.ResponseWriter, r *http.Request) {
@@ -228,7 +229,7 @@ func (h *Handler) handleBoard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = components.Board(sess.User.Email, sess.Role, meta,
-		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled).Render(r.Context(), w)
+		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled, demo.On(r)).Render(r.Context(), w)
 }
 
 // docMeta assembles the row the page and the index both render: the doc id
