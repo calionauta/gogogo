@@ -24,7 +24,10 @@ source file that still holds the markup, the classes it promises, and the anchor
 of the section below. `make check-classes` validates all of it — the source
 exists, every promised class is still there, the anchor resolves, and every
 numbered section below has an entry — so the registry cannot drift into a
-plausible-looking lie.
+plausible-looking lie. The class vocabulary itself ships as a standalone binary
+too (`go install github.com/calionauta/gogogo/cmd/daisyui-lint@latest`; see
+[the shell page](ui-shell.md#the-same-rules-travel-daisyui-lint)), so a project
+outside gogogo can enforce the same rules.
 
 ## 1. Account row (the rail's footer)
 

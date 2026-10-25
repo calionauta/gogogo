@@ -218,7 +218,7 @@ check-scope:
 # gate in this repo.
 check-classes:
 	@echo "→ check-classes (markup ↔ stylesheet ↔ doc)..."
-	@go run ./cmd/check-classes
+	@go run ./cmd/check-classes --strict
 	@echo "✅ classes and DaisyUI parts agree"
 
 # check-quarantine fails when the known-flaky registry (internal/hostgate)

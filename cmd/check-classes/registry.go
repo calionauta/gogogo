@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/calionauta/gogogo/internal/daisyui"
 	"github.com/calionauta/gogogo/internal/uiregistry"
 )
 
@@ -81,8 +82,8 @@ func entryFindings(root string, e uiregistry.Entry) ([]finding, string) {
 	switch src := readUnder(root, e.Source); {
 	case src != "":
 		inMarkup := map[string]bool{}
-		for _, tok := range tokensInMarkup(src, e.Source) {
-			inMarkup[tok.name] = true
+		for _, tok := range daisyui.TokensInMarkup(src, e.Source) {
+			inMarkup[tok.Name] = true
 		}
 		for _, class := range e.Shows {
 			if !inMarkup[class] {

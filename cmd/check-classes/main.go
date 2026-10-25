@@ -42,6 +42,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -50,21 +51,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/calionauta/gogogo/internal/daisyui"
 	"github.com/calionauta/gogogo/internal/uiregistry"
 )
 
 const (
 	chromeCSS = "web/resources/static/chrome.css"
 	shellDoc  = "docs/ui-shell.md"
+	// allowFile is the project's own list of accepted arbitrary-value tokens.
+	allowFile = ".daisyui-allow"
 )
-
-// classToken is one class name plus where it was seen, so a failure can point
-// at the line the reviewer has to open.
-type classToken struct {
-	name string
-	file string
-	line int
-}
 
 // finding is one broken invariant, already formatted for a human.
 type finding struct {
@@ -82,8 +78,6 @@ func (f finding) String() string {
 
 // definedRE pulls `.class` selectors out of the stylesheet (comments already
 // stripped, so a mention in prose does not count as a definition).
-var definedRE = regexp.MustCompile(`\.((?:app|ui|is)-[a-z0-9-]+)`)
-
 // mentionRE is the permissive "did anyone at all name this class" probe used
 // by the dead-CSS direction: comments, docs and scripts all count, because a
 // class named only by a comment is still somebody's intent.
@@ -93,11 +87,14 @@ var mentionRE = regexp.MustCompile(`\b(?:app|ui|is)-[a-z0-9-]+`)
 var docClassRE = regexp.MustCompile(`\.((?:app|ui)-[a-z0-9-]+)`)
 
 func main() {
+	strict := flag.Bool("strict", false,
+		"require the vendored skill, the registry and the repo kit (the maintainer's mode)")
+	flag.Parse()
 	root := "."
-	if len(os.Args) > 1 {
-		root = os.Args[1]
+	if flag.NArg() > 0 {
+		root = flag.Arg(0)
 	}
-	findings, err := checkTree(root)
+	findings, err := checkTree(root, *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "check-classes: %v\n", err)
 		os.Exit(1)
@@ -117,6 +114,20 @@ func main() {
 	os.Exit(1)
 }
 
+// loadOptions assembles the DaisyUI rules' policy: the repo's own vocabulary
+// (so local prefixes win over DaisyUI's), and the arbitrary-value allowlist a
+// project keeps in .daisyui-allow (absent by default: a new off-scale value is a
+// question, not a default).
+func loadOptions(root string, defined, alive map[string]bool) (daisyui.Options, error) {
+	opts := daisyui.Options{RepoOwned: repoOwned(defined, alive)}
+	allow, err := daisyui.LoadAllow(filepath.Join(root, allowFile))
+	if err != nil && !os.IsNotExist(err) {
+		return opts, err
+	}
+	opts.Allow = allow
+	return opts, nil
+}
+
 // repoOwned is the set of class names the repo styles itself: its chrome kit
 // plus everything any shipped stylesheet defines. DaisyUI's namespace yields to
 // it, so a local `chat-layout` is never judged against DaisyUI's `chat`.
@@ -130,6 +141,12 @@ func repoOwned(sets ...map[string]bool) map[string]bool {
 	return out
 }
 
+// notice prints a degradation line on stderr: the gate keeps working, but the
+// reader knows which direction it did not run.
+func notice(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "check-classes: note: "+format+"\n", args...)
+}
+
 // isLocalKit reports whether a class belongs to this repo's own vocabulary, so
 // the failure can point at chrome.css instead of the generic stylesheet rule.
 func isLocalKit(name string) bool {
@@ -137,16 +154,43 @@ func isLocalKit(name string) bool {
 }
 
 // checkTree runs every direction over one checkout root.
-func checkTree(root string) ([]finding, error) {
+//
+// `strict` is the maintainer's mode: the vendored skill, the registry and the
+// repo kit must be present, because losing any of them would silently narrow the
+// gate. A consumer of the template may legitimately trim them, so the default
+// DEGRADES: the direction that needs the missing input prints one line and the
+// rest of the gate keeps working. The Makefile passes --strict.
+func checkTree(root string, strict bool) ([]finding, error) {
 	defined, err := loadDefined(root)
 	if err != nil {
-		return nil, err
+		if strict {
+			return nil, err
+		}
+		notice("repo kit checks skipped: %v", err)
+		defined = map[string]bool{}
 	}
-	specs, err := loadSkill(root)
-	if err != nil {
-		return nil, err
+	vocab := daisyui.Vocabulary{}
+	if skillPath, ferr := daisyui.FindSkill(root); ferr != nil {
+		if strict {
+			return nil, ferr
+		}
+		notice("daisyUI checks skipped: %v", ferr)
+	} else if vocab, err = daisyui.LoadSkillFile(skillPath); err != nil {
+		if strict {
+			return nil, err
+		}
+		notice("daisyUI checks skipped: %v", err)
+		vocab = daisyui.Vocabulary{}
 	}
 	alive, err := loadHandwritten(root)
+	if err != nil {
+		if strict {
+			return nil, err
+		}
+		notice("hand-written stylesheets not read: %v", err)
+		alive = map[string]bool{}
+	}
+	opts, err := loadOptions(root, defined, alive)
 	if err != nil {
 		return nil, err
 	}
@@ -154,36 +198,28 @@ func checkTree(root string) ([]finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	findings, mentioned, err := markupFindings(root, markup, defined, specs, alive)
+	findings, mentioned, err := markupFindings(root, markup, defined, vocab, opts)
 	if err != nil {
 		return nil, err
 	}
 	addMentions(root, mentioned)
 	findings = append(findings, deadSelectorFindings(defined, mentioned)...)
 	findings = append(findings, docTableFindings(root, defined)...)
-	reg, err := uiregistry.Load(root)
-	if err != nil {
-		return nil, err
+	if reg, rerr := uiregistry.Load(root); rerr == nil {
+		findings = append(findings, registryFindings(root, reg)...)
+	} else if strict {
+		return nil, rerr
+	} else {
+		notice("registry checks skipped: %v", rerr)
 	}
-	findings = append(findings, registryFindings(root, reg)...)
 	sortFindings(findings)
 	return findings, nil
-}
-
-// loadDefined reads the stylesheet once and returns its selector vocabulary.
-func loadDefined(root string) (map[string]bool, error) {
-	// #nosec G703 -- local dev tool; root comes from the developer's own shell.
-	raw, err := os.ReadFile(filepath.Join(root, chromeCSS))
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", chromeCSS, err)
-	}
-	return definedClasses(string(raw)), nil
 }
 
 // markupFindings walks the markup: direction 1 (used-but-undefined), the
 // DaisyUI part rules, and the loose mention index the dead-CSS direction needs.
 func markupFindings(root string, markup []string, defined map[string]bool,
-	specs map[string]*componentSpec, alive map[string]bool,
+	vocab daisyui.Vocabulary, opts daisyui.Options,
 ) ([]finding, map[string]bool, error) {
 	var findings []finding
 	mentioned := map[string]bool{}
@@ -194,21 +230,20 @@ func markupFindings(root string, markup []string, defined map[string]bool,
 			return nil, nil, err
 		}
 		src := string(raw)
-		for _, tok := range tokensInMarkup(src, rel) {
-			switch {
-			case defined[tok.name]:
-				// repo-owned kit, defined in chrome.css
-			case isLocalKit(tok.name):
-				findings = append(findings, finding{file: tok.file, line: tok.line, msg: fmt.Sprintf(
-					"class %q is used but not defined in %s (an invented component renders unstyled)",
-					tok.name, chromeCSS)})
-			case retiredClasses[tok.name].when != "":
-				findings = append(findings, finding{file: tok.file, line: tok.line, msg: fmt.Sprintf(
-					"class %q is retired in DaisyUI 5 (%s): use %s", tok.name,
-					retiredClasses[tok.name].when, retiredClasses[tok.name].replacement)})
+		for _, tok := range daisyui.TokensInMarkup(src, rel) {
+			if defined[tok.Name] || !isLocalKit(tok.Name) {
+				continue
 			}
+			findings = append(findings, finding{file: tok.File, line: tok.Line, msg: fmt.Sprintf(
+				"class %q is used but not defined in %s (an invented component renders unstyled)",
+				tok.Name, chromeCSS)})
 		}
-		findings = append(findings, daisyFindings(specs, src, rel, repoOwned(defined, alive))...)
+		for _, f := range daisyui.LintFile(vocab, src, rel, opts) {
+			findings = append(findings, finding{
+				file: f.File, line: f.Line,
+				msg: fmt.Sprintf("%s: %s", f.Code, f.Message),
+			})
+		}
 		markMentions(src, mentioned)
 	}
 	return findings, mentioned, nil

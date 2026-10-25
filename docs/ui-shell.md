@@ -88,6 +88,49 @@ The approved *compositions* — the shapes a page should copy rather than invent
 live in [UI compositions](ui-compositions.md), with `internal/ui/registry.json`
 as the machine half (`go run ./cmd/ui-registry list|show <id>`).
 
+### The same rules travel: `daisyui-lint`
+
+The DaisyUI half of that gate is a package (`internal/daisyui`) with a standalone
+binary on top, so a project that is not gogogo can run the same checks:
+
+```bash
+go install github.com/calionauta/gogogo/cmd/daisyui-lint@latest
+daisyui-lint --version                       # tool version + the daisyUI release it validates
+daisyui-lint --strict web/                   # fail CI on warnings too
+daisyui-lint --css "src/*.css" web/           # classes your own CSS defines are not DaisyUI's
+daisyui-lint --format json web/ | jq '.[]'    # machine-readable, stable codes
+```
+
+It reports stable codes — `UNKNOWN_CLASS`, `PART_WITHOUT_PARENT`, `HOST_MISMATCH`,
+`RETIRED_CLASS`, `DUPLICATE_MODIFIER`, `ARBITRARY_VALUE` — and every message is
+the fix (the nearest declared class, the v5 replacement, the scale value).
+Severity is the policy: `ARBITRARY_VALUE` warns by default, fails under
+`--strict`, and a project accepts a specific token in `.daisyui-allow` (one per
+line, `#` comments) instead of silencing a rule. Exit codes: `0` clean, `1`
+findings at error severity, `2` usage or setup. The vocabulary is parsed from the
+skill, so it tracks daisyUI instead of drifting.
+
+### What a consumer of this template inherits — and may change
+
+- **`make check-classes` degrades instead of breaking.** If the vendored skill,
+  the registry or `chrome.css` is absent (you trimmed a unit, or swapped the UI
+  library), the direction that needs it prints one line and the rest keeps
+  running. The maintainer's own run passes `--strict`, which turns every absence
+  into a failure — that is how *this* repo cannot silently lose its gate. Keep
+  `--strict` only if you keep all three inputs.
+- **The smoke assertions are the template's contract.** `scripts/smoke.mjs`
+  asserts the account panel's geometry, the demo panel, no horizontal overflow at
+  three widths, and accessible names on `/login` and `/todo`. When you redesign
+  the shell, update these together with it — they are the regression net for the
+  defects this template has actually shipped.
+- **Accessibility: structural by default, axe on demand.** The default checks
+  need no dependency (names, labels, alt, overflow, panel geometry). For the
+  WCAG-grade pass install `@axe-core/playwright` and set `SMOKE_A11Y=1`; the repo
+  deliberately does not ship that dependency.
+- **Off-scale values are a policy, not a bug.** `ARBITRARY_VALUE` warns so a
+  deliberate `text-[10px]` is a conversation; accept it in `.daisyui-allow` or
+  move it onto the scale.
+
 **Rhythm rules.** One `.ui-page` per body; one card per concern; one filled
 control per screen (the primary action); machine data in `.ui-meta`, prose in
 body text — never the reverse. The module header's context slot is for *state*

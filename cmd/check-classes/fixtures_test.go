@@ -97,7 +97,7 @@ func writeTree(t *testing.T, files map[string]string) string {
 // without caring which direction produced them.
 func findingsFor(t *testing.T, root string) string {
 	t.Helper()
-	found, err := checkTree(root)
+	found, err := checkTree(root, true)
 	if err != nil {
 		t.Fatalf("checkTree: %v", err)
 	}

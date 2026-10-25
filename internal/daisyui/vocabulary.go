@@ -1,31 +1,16 @@
-// SCOPE:core - DO NOT REMOVE - DaisyUI vocabulary, derived from the vendored skill.
+// SCOPE:core — DaisyUI vocabulary, derived from the vendored skill.
 //
-// The gate must not own a second copy of DaisyUI's vocabulary. Until this file
-// existed, cmd/check-classes hardcoded three part rules (`toggle` on an input,
-// `join-item` needs `join`, `dropdown-content` needs `dropdown`) that a human
-// transcribed from the skill by hand. That is the failure mode the gate exists
-// to prevent: a copy nobody re-reads. The skill is refreshed by
-// .github/workflows/daisyui-auto-bump.yml from https://daisyui.com/llms.txt
-// (byte-pinned in UPSTREAM_SHA), so deriving here means a version bump widens
-// the checks instead of leaving them behind.
+// This is the reusable half of the class gate, extracted so a project that does
+// NOT use gogogo can consume it: `cmd/daisyui-lint` is a standalone binary over
+// this package, and the gogogo gate (`cmd/check-classes`) uses the same code
+// rather than keeping a second copy.
 //
-// What is derived, and what stays a judgement call:
-//
-//   - CLASSES: every class the skill declares per component (component, part,
-//     modifier, color, size, placement, style). A token that starts with a
-//     known component but is not in that set is a typo or a stale skill.
-//   - PARTS: `- part: …` lines, so "part needs its container in the same file"
-//     generalises to every component instead of the two we happened to hit.
-//   - HOST: the element the skill's own syntax sample puts the component on.
-//     Enforced ONLY when that host is a form control (input/select/textarea):
-//     DaisyUI's classes are legitimately used on many elements (`btn` on <a>,
-//     `dropdown` on <details> or on a popover <ul>), so blanket host policing
-//     would be noise. The prose ("a toggle is a checkbox") is not a schema.
-//
-// If upstream ever reshapes a component section so this parser yields no
-// component class, that is an ERROR, not a silent skip: the bump PR must break
-// loudly rather than quietly narrow the gate.
-package main
+// The vocabulary is never hand-maintained. It is parsed from the vendored DaisyUI
+// skill (`.agents/skills/daisyui/SKILL.md`, refreshed from daisyui.com/llms.txt
+// and pinned by UPSTREAM_SHA), so a version bump widens the checks instead of
+// leaving them behind — and a reshape of a component section is an ERROR, not a
+// silent narrowing.
+package daisyui
 
 import (
 	"fmt"
@@ -36,7 +21,11 @@ import (
 	"strings"
 )
 
-const skillPath = ".agents/skills/daisyui/SKILL.md"
+// DefaultSkillPath is where the gate looks first, relative to the repo root.
+const DefaultSkillPath = ".agents/skills/daisyui/SKILL.md"
+
+// skillPath is kept as the internal alias the loader uses.
+const skillPath = DefaultSkillPath
 
 // minComponents is the floor the parser expects from the vendored skill. It is
 // a tripwire, not a target: daisyUI 5.7 ships 67 component sections. A parse
@@ -44,13 +33,18 @@ const skillPath = ".agents/skills/daisyui/SKILL.md"
 const minComponents = 40
 
 // componentSpec is one DaisyUI component as the skill declares it.
-type componentSpec struct {
+type Component struct {
 	Name    string          // the skill's heading, e.g. "Dropdown"
 	Base    string          // the component class, e.g. "dropdown"
 	Hosts   map[string]bool // every element the skill's syntax samples put this class on
 	Classes map[string]bool // every class name the skill allows for this component
 	Parts   map[string]bool // the subset that are parts of this component
+	Sizes   map[string]bool // the subset declared under `- size:`
+	Colors  map[string]bool // the subset declared under `- color:`
 }
+
+// Vocabulary is the parsed skill, keyed by component base class.
+type Vocabulary map[string]*Component
 
 // backtickRE pulls `class-name` out of a prose bullet.
 var backtickRE = regexp.MustCompile("`([^`]+)`")
@@ -58,13 +52,64 @@ var backtickRE = regexp.MustCompile("`([^`]+)`")
 // classTokenRE is what a usable class name looks like inside a backtick span.
 var classTokenRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
-// loadSkill parses the vendored skill into a component index, or explains why
-// it could not.
-func loadSkill(root string) (map[string]*componentSpec, error) {
-	// #nosec G703 -- local dev tool; the path is a package constant under root.
-	raw, err := os.ReadFile(filepath.Join(root, skillPath))
+// FindSkill walks up from start looking for the vendored skill, so a standalone
+// binary run anywhere inside a project finds it without a flag. The two shapes
+// are the repo layout (.agents/skills/… symlink) and the plain skills/ copy.
+func FindSkill(start string) (string, error) {
+	dir, err := filepath.Abs(start)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w (the gate derives DaisyUI's vocabulary from it)", skillPath, err)
+		return "", err
+	}
+	for {
+		for _, rel := range []string{DefaultSkillPath, "skills/daisyui/SKILL.md"} {
+			candidate := filepath.Join(dir, rel)
+			if st, serr := os.Stat(candidate); serr == nil && !st.IsDir() {
+				return candidate, nil
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("no daisyUI skill found above %s "+
+				"(expected %s or skills/daisyui/SKILL.md)", start, DefaultSkillPath)
+		}
+		dir = parent
+	}
+}
+
+// LoadAllow reads a plain-text allowlist of arbitrary-value tokens, one per
+// line, `#` starting a comment. Plain text on purpose: a policy file should not
+// add a YAML dependency to the gate.
+func LoadAllow(path string) ([]string, error) {
+	// #nosec G304 G703 -- local dev tool; the path comes from the developer's own flag.
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		out = append(out, line)
+	}
+	return out, nil
+}
+
+// LoadSkill parses the vendored skill into a component index, or explains why
+// it could not.
+func LoadSkill(root string) (Vocabulary, error) {
+	return LoadSkillFile(filepath.Join(root, filepath.FromSlash(skillPath)))
+}
+
+// LoadSkillFile parses one skill file. The standalone CLI takes a path, so the
+// loader has to accept one.
+func LoadSkillFile(path string) (Vocabulary, error) {
+	// #nosec G304 G703 -- local dev tool; the path comes from the caller's flag,
+	// a repo root, or the upward search.
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w (the gate derives DaisyUI's vocabulary from it)", path, err)
 	}
 	specs, parseErrs := parseSkill(string(raw))
 	if len(parseErrs) > 0 {
@@ -73,7 +118,7 @@ func loadSkill(root string) (map[string]*componentSpec, error) {
 	if len(specs) < minComponents {
 		return nil, fmt.Errorf("parsed only %d components from %s (expected at least %d): "+
 			"the skill's format moved, so the gate would silently stop checking it",
-			len(specs), skillPath, minComponents)
+			len(specs), path, minComponents)
 	}
 	return specs, nil
 }
@@ -81,8 +126,8 @@ func loadSkill(root string) (map[string]*componentSpec, error) {
 // parseSkill walks the `### ` sections that carry a `#### Class names` block.
 // Sections without one (CDN setup, themes, the discovery protocol) are not
 // components and are skipped.
-func parseSkill(md string) (map[string]*componentSpec, []string) {
-	specs := map[string]*componentSpec{}
+func parseSkill(md string) (Vocabulary, []string) {
+	specs := Vocabulary{}
 	var broken []string
 
 	// Hosts come from EVERY syntax sample in the document, not just the
@@ -98,18 +143,20 @@ func parseSkill(md string) (map[string]*componentSpec, []string) {
 		if cn == nil {
 			continue
 		}
-		base, classes, parts := parseClassNameBullets(cn)
+		base, classes, parts, sizes, colors := parseClassNameBullets(cn)
 		if len(base) == 0 {
 			broken = append(broken, fmt.Sprintf("%q declares classes but no component class", sec.name))
 			continue
 		}
 		for _, b := range base {
-			specs[b] = &componentSpec{
+			specs[b] = &Component{
 				Name:    sec.name,
 				Base:    b,
 				Hosts:   classHosts[b],
 				Classes: classes,
 				Parts:   parts,
+				Sizes:   sizes,
+				Colors:  colors,
 			}
 		}
 	}
@@ -172,9 +219,13 @@ func block(lines []string, heading string) []string {
 // `- part: a, b` and, for Calendar, a bare `- component` followed by nested
 // `- \`name (description)\“ items — both are handled so a new component using
 // the nested form broadens coverage instead of breaking the gate.
-func parseClassNameBullets(lines []string) ([]string, map[string]bool, map[string]bool) {
+func parseClassNameBullets(lines []string) ([]string, map[string]bool, map[string]bool,
+	map[string]bool, map[string]bool,
+) {
 	classes := map[string]bool{}
 	parts := map[string]bool{}
+	sizes := map[string]bool{}
+	colors := map[string]bool{}
 	var base []string
 	category := ""
 
@@ -207,10 +258,14 @@ func parseClassNameBullets(lines []string) ([]string, map[string]bool, map[strin
 				base = appendUnique(base, tok)
 			case "part":
 				parts[tok] = true
+			case "size":
+				sizes[tok] = true
+			case "color":
+				colors[tok] = true
 			}
 		}
 	}
-	return base, classes, parts
+	return base, classes, parts, sizes, colors
 }
 
 // namesIn extracts usable class names from a bullet's text.
@@ -312,4 +367,21 @@ func elementOf(line string) (string, string) {
 		return tag, ""
 	}
 	return tag, class
+}
+
+// SkillVersion reads the `version:` the skill declares about the DaisyUI release
+// it documents (frontmatter). It is what `daisyui-lint --version` prints, so a
+// consumer can tell which vocabulary the run used.
+var skillVersionRE = regexp.MustCompile(`(?m)^\s*version:\s*(\S+)\s*$`)
+
+func SkillVersion(path string) string {
+	// #nosec G304 G703 -- local dev tool; the path is the one being linted against.
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "unknown"
+	}
+	if m := skillVersionRE.FindStringSubmatch(string(raw)); len(m) == 2 {
+		return m[1]
+	}
+	return "unknown"
 }

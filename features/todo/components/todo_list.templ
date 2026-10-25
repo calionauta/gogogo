@@ -212,7 +212,7 @@ templ searchModeSelect(signals todo.Signals) {
 	if len(signals.SearchModes) > 1 {
 		<select
 			name="mode"
-			class="select select-sm join-item max-w-[8.5rem]"
+			class="select select-sm join-item max-w-34"
 			aria-label="How the search matches"
 			title="How the search matches"
 			data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
