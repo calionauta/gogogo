@@ -175,8 +175,8 @@ live in `.templ` markup rather than Go:
   `data-attr:disabled` sets the attribute for everything that is not `false` or
   `null` — `""` AND `undefined` included — so a wiped seed is a control born
   disabled. Only its own submit handler clears it, so the page cannot recover. A
-  stream handshake that re-seeds the signal (Ask and Chat merge `pending: false`
-  on connect) can hide the loss; don't rely on it.
+  stream handshake that re-seeds the signal (Chat merges `pending: false` on
+  connect) can hide the loss; don't rely on it.
 
   The same trap fires WITHOUT anyone wiping a seed, which is why every
   `data-attr:*` expression is written `!!(...)`. An unset signal reads `""`, and

@@ -8,7 +8,7 @@ import (
 
 // pinnedPele is the Pele version this repo vendors for Mermaid diagrams.
 // Bump it in the same commit that replaces web/resources/static/pele.global.js.
-const pinnedPele = "1.9.0"
+const pinnedPele = "1.10.0"
 
 // TestPeleVersionIsPinned keeps the asset and the constant in step: the
 // bundle's own banner is the source of truth, replacing the file without

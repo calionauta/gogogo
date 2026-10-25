@@ -163,6 +163,7 @@ dependencies and are left alone.
 | **Security you can audit** | Owned auth + `security_events` + CSP reporting | Sessions, credential/admin step-up, role changes and rejected logins leave a durable trail; `/config` shows 24h aggregates and exports CSV ([security](docs/security.md)) |
 | **Reactive UI with no JS framework** | [Templ](https://templ.guide) + [Datastar](https://data-star.dev) (SSE) + Tailwind v4 | Server-rendered HTML, ~12 KiB client, no JS framework build step |
 | **One shell, switchable themes** | [DaisyUI v5](https://daisyui.com) + four palettes | One markup for every page; the theme picker swaps palette and radius, never layout |
+| **Diagrams without a charting stack** | [Pele](https://pele.run) (vendored, Mermaid syntax) | A mermaid fence in a chat answer becomes themeable SVG in the browser — no Mermaid.js, no build step, and the source still reads as code without the script |
 | **Background jobs with retry** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | goqite executes with backoff; SSE Hub streams progress to the browser. No Redis |
 | **Workflows that survive a restart** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step workflows as declarative JSON; resume after a mid-run kill |
 | **Room ownership without races** | [GoAkt](https://github.com/Tochemey/goakt) | One grain per room: heartbeat roster plus exactly-one presenter lock, supervised |
@@ -305,7 +306,7 @@ preview second, mutation last. Full guides live in their own section:
 | `advise` | deciding what to keep (use-case → keep/drop + off-switches + Go/Zig rule). Changes nothing | `go run ./cmd/gogogo advise --need "..." --format json` |
 | trim `--dry-run` | previewing the scaffold as one JSON document | `--no-tui --dry-run --format json` (add `--yes` to apply) |
 | `add` / `--check` | restoring a unit into a scaffolded checkout / verifying markers | `add <unit> --from <pristine> --dir <proj> [--dry-run\|--yes]` |
-| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`, `check_tree`, `add_unit`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
+| MCP server | tool calls instead of shell (`advise_stack`, `capabilities_list`, `trim_plan`, `trim_apply`, `check_tree`, `version_status`, `migrate_plan`, `add_unit`, `export_unit`, `new_feature`) | `cmd/gogogo-mcp` (own module, stdio) + one JSON block in the client config |
 
 Destructive paths refuse without explicit confirmation (`--yes` /
 `confirm:true`). Strategy and the foreign-codebase boundary:
