@@ -51,8 +51,8 @@ github.com/bytedance/sonic/loader v0.5.2 h1:0QtP1gevc1OZ6/H8Lb9BRZiCXd1Ftjd3OKuj
 github.com/bytedance/sonic/loader v0.5.2/go.mod h1:AR4NYCk5DdzZizZ5djGqQ92eEhCCcdf5x77udYiSJRo=
 github.com/calionauta/ai-credits v0.5.0 h1:gN46dqF39rofJDUb1mok+hbMFVCxETKF0eghsKyEjNQ=
 github.com/calionauta/ai-credits v0.5.0/go.mod h1:O3cBco5rbYbLL9WVxjMpQzvqxPziLVkifWaxV1OUtkg=
-github.com/calionauta/daisyui-lint v0.2.0 h1:voUDq4s5qc4BmKZe0r/jctdi2vG4ZqiN3sp+dywzqq8=
-github.com/calionauta/daisyui-lint v0.2.0/go.mod h1:58PN+2u4Z0ktxmN8m3IuBuHvRki1IJr9jXXNM2Li7JU=
+github.com/calionauta/daisyui-lint v0.2.1 h1:Hoo5FtcWCiinqGlMuJbKH41WzHuP+Ktqi3YCNxqGhIQ=
+github.com/calionauta/daisyui-lint v0.2.1/go.mod h1:58PN+2u4Z0ktxmN8m3IuBuHvRki1IJr9jXXNM2Li7JU=
 github.com/calionauta/datastar-lint v0.18.0 h1:ymI/gNv5UDZfuoPEwW9Rah+Rs9BV2kc/4qvjw8PHk6k=
 github.com/calionauta/datastar-lint v0.18.0/go.mod h1:QH3+4dWDAusksLsxlK/ugayW+52bulxx+QcwaduWIZA=
 github.com/casbin/casbin/v3 v3.11.0 h1:xVlnpCGs0c2Hp2WuUF36o8iZgEsXUne9/j1qJjOgJPA=
