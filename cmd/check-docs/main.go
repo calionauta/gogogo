@@ -20,6 +20,8 @@
 //     neither reaches no reader.
 //  5. The README page index is generated from that MANIFEST, never hand-kept:
 //     `-write` regenerates it, and any other edit to the block fails here.
+//  6. Every Client weight row adds up: the scripts it names are summed from
+//     disk, because hand-measured numbers drifted while nothing checked them.
 //
 // Decision records (docs/architecture-decision.md) are exempt from rule 2:
 // they exist to record what was removed, so naming dead paths is their job.
@@ -144,9 +146,10 @@ func main() {
 	}
 }
 
-// writeIndex regenerates the README page index instead of checking it.
+// writeIndex regenerates what the guard treats as generated: the README page
+// index (from the site MANIFEST) and the measured numbers (from the files).
 var writeIndex = flag.Bool("write", false,
-	"regenerate the README page index from the site manifest")
+	"regenerate the README page index and the measured Client weight numbers")
 
 func run() error {
 	root, err := moduleRoot()
@@ -157,7 +160,10 @@ func run() error {
 		if werr := writeReadmeIndex(root); werr != nil {
 			return werr
 		}
-		fmt.Fprintln(os.Stdout, "check-docs: README page index regenerated from "+siteConfig)
+		if werr := writeClientWeight(root); werr != nil {
+			return werr
+		}
+		fmt.Fprintln(os.Stdout, "check-docs: README page index and measured numbers regenerated")
 	}
 	files, err := docFiles(root)
 	if err != nil {
@@ -173,10 +179,11 @@ func run() error {
 	problems = append(problems, checkStaleScopeDialect(root, files)...)
 	problems = append(problems, checkManifest(root)...)
 	problems = append(problems, checkReadmeIndex(root)...)
+	problems = append(problems, checkClientWeight(root)...)
 	if len(problems) > 0 {
 		return fmt.Errorf("docs claims drifted (%d):\n  %s", len(problems), strings.Join(problems, "\n  "))
 	}
-	fmt.Fprintln(os.Stdout, "check-docs: counts are generated, paths and commands exist")
+	fmt.Fprintln(os.Stdout, "check-docs: counts are generated, paths and commands exist, client weight matches the files")
 	return nil
 }
 
