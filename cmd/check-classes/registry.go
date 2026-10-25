@@ -21,7 +21,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/calionauta/gogogo/internal/daisyui"
+	"github.com/calionauta/daisyui-lint/daisyui"
+
 	"github.com/calionauta/gogogo/internal/uiregistry"
 )
 

@@ -303,6 +303,32 @@ async function verifyStructuralUi(page) {
     }
   }
 
+  // Every shipped palette, not just the default one: contrast is theme-specific
+  // (raw primary as text fails AA in the dark palettes and passes in light), and
+  // the catalog is read from the account panel's swatches — the same list
+  // internal/themes ships, so a new palette is swept without touching this file.
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+  const themes = await page.$$eval(".app-pref-swatch[data-theme]", (els) =>
+    [...new Set(els.map((el) => el.getAttribute("data-theme")).filter(Boolean))],
+  );
+  for (const theme of themes) {
+    await page.evaluate((value) => localStorage.setItem("themeMode", value), theme);
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    const applied = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+    const axe = await axeProblems(page);
+    if (!axe.ran) {
+      console.log(`  - axe skipped for theme ${theme} (${axe.reason})`);
+      continue;
+    }
+    check(
+      applied === theme,
+      `theme ${theme} did not apply (data-theme=${applied})`,
+    );
+    check(axe.problems.length === 0, `theme ${theme} (axe): ${axe.problems.slice(0, 3).join("; ")}`);
+    if (axe.problems.length === 0) console.log(`  \u2713 axe theme ${theme}: clean`);
+  }
+  await page.evaluate(() => localStorage.setItem("themeMode", "light"));
+
   for (const width of [1280, 820, 500]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });

@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/calionauta/gogogo/internal/daisyui"
+	"github.com/calionauta/daisyui-lint/daisyui"
 )
 
 // handwrittenStylesheets are the stylesheets a human edits.

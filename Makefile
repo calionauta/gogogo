@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint vocabulary check-docs docs-index
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes daisyui-lint check-docs docs-index
 
 all: build
 
@@ -221,12 +221,12 @@ check-classes:
 	@go run ./cmd/check-classes --strict
 	@echo "✅ classes and DaisyUI parts agree"
 
-# daisyui-lint dogfoods the STANDALONE binary on this repo. check-classes is the
-# gate; this target proves the product still runs (a break in cmd/daisyui-lint
-# would otherwise only fail its own unit tests).
+# daisyui-lint dogfoods the published linter on this repo. The version is pinned
+# by the `tool` directive in go.mod (same rule as templ/deadcode/govulncheck);
+# upgrading it is a reviewed dependency bump.
 daisyui-lint:
-	@echo "→ daisyui-lint (standalone binary, dogfood)..."
-	@go run ./cmd/daisyui-lint --strict \
+	@echo "→ daisyui-lint (pinned tool, dogfood)..."
+	@go tool daisyui-lint --strict \
 		--css "web/resources/static/chrome.css,web/resources/static/app.css" \
 		features internal
 

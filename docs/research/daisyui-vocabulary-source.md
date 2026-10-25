@@ -55,11 +55,11 @@ Decision, now implemented:
 
 1. **The skill is the upstream artifact; the repo vendors it** (byte-pinned,
    drift-checked). It is the one thing a maintainer reads.
-2. **The binary embeds a generated snapshot**
-   (`internal/daisyui/vocabulary.json`). A project that is not gogogo has no
-   vendored skill, so without the snapshot the tool is unusable there — it used
-   to exit 2. The snapshot is what makes `go install …/daisyui-lint@latest` a
-   working product rather than a repo-only script.
+2. **The binary embeds a generated snapshot** (`daisyui/vocabulary.json` in the
+   `daisyui-lint` repo). A project that is not gogogo has no vendored skill, so
+   without the snapshot the tool is unusable there — it used to exit 2. The
+   snapshot is what makes `go install …/daisyui-lint@latest` a working product
+   rather than a repo-only script.
 3. **CI proves the snapshot is current.** `TestBundledVocabularyMatchesSkill`
    re-parses the skill and fails on any difference; `make vocabulary` regenerates
    it. This is the "commit it and check regeneration" rule, and the same rule
@@ -90,12 +90,23 @@ on a fetch is how a linter gets disabled. The two projects then follow one
 policy: the vocabulary is data derived from a pinned upstream artifact, the
 derived artifact is committed *and* CI-checked, and the runtime never fetches.
 
-## When `daisyui-lint` becomes its own repository
+## The published repository (decided 2026-10-25)
 
-The extraction is already in place (`internal/daisyui` has no repo knowledge) and
-the binary is installable today. The trigger is a real second consumer, not a
-hypothetical one: the first outside user asking for a fix, or a second repo of
-ours using it. At that point the snapshot moves with the package, the skill is
-vendored in the lint repo (deterministic CI, no fetch), the diagnostic codes
-become the versioned contract, and `--check-update` / a CHANGELOG come from the
-`datastar-lint` playbook.
+`daisyui-lint` now lives at
+[`calionauta/daisyui-lint`](https://github.com/calionauta/daisyui-lint) (MIT,
+`v0.1.0`): package + binary, the vendored skill with its `UPSTREAM_SHA`, the
+snapshot, a CHANGELOG pinned to the `Version` constant by a test, a composite
+GitHub Action and its own CI (tests, snapshot-not-stale, vet, build, dogfood).
+
+This repo **consumes the module**: `go.mod` pins it in the `tool` directive (the
+same rule as `templ`, `deadcode` and `govulncheck`), `cmd/check-classes` imports
+the package, and there is no second copy of the rules here. The vocabulary at
+lint time still comes from THIS repo's vendored skill (`.agents/skills/daisyui/`),
+so a weekly DaisyUI drift refresh applies immediately; upgrading the *rules* is a
+reviewed dependency bump.
+
+What made publishing safe was the extraction being provable, not the date: the
+standalone tree was built in a temp directory and its full suite (rule tests,
+consumer fixture, SARIF, snapshot-vs-skill, version-vs-changelog) ran green
+before the repository existed.
+

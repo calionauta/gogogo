@@ -4,6 +4,7 @@ go 1.27.3
 
 tool (
 	github.com/a-h/templ/cmd/templ
+	github.com/calionauta/daisyui-lint/cmd/daisyui-lint
 	golang.org/x/tools/cmd/deadcode
 	golang.org/x/vuln/cmd/govulncheck
 )
@@ -14,6 +15,7 @@ require (
 	github.com/aholstenson/loro-go v0.5.0
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/calionauta/ai-credits v0.5.0
+	github.com/calionauta/daisyui-lint v0.1.0
 	github.com/casbin/casbin/v3 v3.11.0
 	github.com/danmestas/dagnats v0.0.30
 	github.com/firebase/genkit/go v1.13.1
