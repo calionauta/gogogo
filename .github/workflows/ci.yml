@@ -191,13 +191,11 @@ jobs:
         # a dev box always has everything warm.
         run: bash bin/check-ci-deps.sh
       - name: Datastar-lint
-        # Pinned, not @latest: a new release can raise a rule to ERROR severity
-        # and start failing the build with no code change here. Bump this
-        # deliberately, reading the release notes.
-        run: |
-          go install github.com/calionauta/datastar-lint@v0.16.2
-          export PATH="$HOME/go/bin:$PATH"
-          make datastar-lint
+        # Version lives in go.mod's `tool` directive — one place, resolved by
+        # the toolchain, the same contract as templ/deadcode/govulncheck. Bump
+        # it deliberately, reading the release notes: a new release can raise a
+        # rule to ERROR and fail the build with no code change here.
+        run: make datastar-lint
       - name: Lint
         uses: golangci/golangci-lint-action@v9
         with:

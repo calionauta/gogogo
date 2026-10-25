@@ -27,15 +27,25 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEFAULT_ANALYZERS="html,go,templ"
 
 run() {
-	if command -v datastar-lint &>/dev/null; then
-		exec datastar-lint "$@"
+	# Resolve the pinned tool through go.mod's `tool` directive, but exec it from
+	# the caller's cwd so relative path arguments mean what the caller meant.
+	# `go -C` is not usable for that: it changes the tool's working directory too.
+	if tool_bin="$(go -C "$ROOT" tool -n datastar-lint 2>/dev/null)" && [ -x "$tool_bin" ]; then
+		exec "$tool_bin" "$@"
 	fi
-	# Fallback: run from the sibling source checkout.
+	# Cold build cache: `go tool -n` names the path without building it. Run from
+	# the repo root instead, where relative paths are repo-relative — what every
+	# in-repo caller passes (Makefile, hooks, Air, CI).
+	cd "$ROOT"
+	exec go tool datastar-lint "$@"
+	# Fallback for developing the linter itself against a sibling checkout.
 	local repo="${DSLINT_REPO:-$HOME/Development/datastar-lint}"
 	if [ -d "$repo" ]; then
 		exec go run "$repo" "$@"
 	fi
-	echo "❌ datastar-lint not found. Install it with: go install github.com/calionauta/datastar-lint@latest"
+	# shellcheck disable=SC2317 # unreachable while the pinned tool resolves
+	echo "datastar-lint is not resolvable — run: go mod download" >&2
+	# shellcheck disable=SC2317
 	exit 1
 }
 

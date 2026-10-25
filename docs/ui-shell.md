@@ -96,12 +96,15 @@ project that is not gogogo can run the same checks. This repo consumes it as a
 pinned tool (`go tool daisyui-lint`, version in `go.mod`):
 
 ```bash
-go install github.com/calionauta/daisyui-lint/cmd/daisyui-lint@latest
-daisyui-lint --version                       # tool version + the daisyUI release it validates
-daisyui-lint --strict web/                   # fail CI on warnings too
-daisyui-lint --css "src/*.css" web/           # classes your own CSS defines are not DaisyUI's
-daisyui-lint --format json web/ | jq '.[]'    # machine-readable, stable codes
+go tool daisyui-lint --version                # tool version + the daisyUI release it validates
+go tool daisyui-lint --strict web/            # fail CI on warnings too
+go tool daisyui-lint --css "src/*.css" web/    # classes your own CSS defines are not DaisyUI's
+go tool daisyui-lint --format json web/ | jq '.[]'  # machine-readable, stable codes
 ```
+
+Outside this repo, pin the install (`go install github.com/calionauta/daisyui-lint/cmd/daisyui-lint@v0.2.0`)
+— `@latest` is a moving target for a gate, exactly the failure `go.mod`'s `tool`
+directive removes here.
 
 It reports stable codes — `UNKNOWN_CLASS`, `PART_WITHOUT_PARENT`, `HOST_MISMATCH`,
 `RETIRED_CLASS`, `DUPLICATE_MODIFIER`, `ARBITRARY_VALUE` — and every message is
