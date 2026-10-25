@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -40,8 +41,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 
 	sse := sdk.NewSSE(w, r)
 	ch := make(chan []byte, config.DefaultClientQueueSize)
-	h.Hub.Register(clientID, ownerStr, ch)
-	defer h.Hub.UnregisterIfCurrent(clientID, ch)
+	defer h.registerPresence(clientID, ownerStr, ch)()
 	// First frame: the open acknowledgement sse-open.js waits for. Sent
 	// after registration so "ack received" also means "the hub has me".
 	if err := dshelpers.AckStreamOpened(sse, clientID); err != nil {
@@ -115,6 +115,45 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// registerPresence registers one stream tab and wires live presence around
+// it. It returns the deferred cleanup: UnregisterIfCurrent stays the
+// authority on "was I still the current channel" (reconnect race), so only
+// a real departure re-broadcasts.
+//
+// The newcomer learns the count via the handshake below, every existing tab
+// learns it via the connect broadcast — without it the pill only refreshed
+// on page load (a second browser stayed "1 online" until refresh).
+// Anonymous streams carry no userID so they never change the count: skip
+// the noise in both directions.
+func (h *Handler) registerPresence(clientID, ownerID string, ch chan []byte) func() {
+	h.Hub.Register(clientID, ownerID, ch)
+	if ownerID != "" {
+		h.broadcastPresence(clientID)
+	}
+	return func() {
+		if h.Hub.UnregisterIfCurrent(clientID, ch) && ownerID != "" {
+			h.broadcastPresence("")
+		}
+	}
+}
+
+// broadcastPresence pushes the current CountUserClients to every login's
+// stream via the existing Job{Type:"clients"} envelope (streamClients merges
+// it into $connectedClients). exclude skips the newcomer on connect — it
+// gets the same number via the handshake a few lines below.
+func (h *Handler) broadcastPresence(exclude string) {
+	count := h.Hub.CountUserClients()
+	inner, err := json.Marshal(map[string]int{"count": count})
+	if err != nil {
+		return
+	}
+	outer, err := json.Marshal(queue.Job{Type: jobTypeClients, Payload: inner})
+	if err != nil {
+		return
+	}
+	h.Hub.BroadcastToAllUsers(outer, exclude)
+}
+
 // revalidateSession re-checks the request's cookie and patches the banner
 // signal when the state changed. Split from the loop for the complexity gate;
 // it runs on the heartbeat, never on a timer of its own.
@@ -127,7 +166,8 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 // really is signed out", so `sessionAuthed:false` rode every one of those and
 // raised the banner on a signed-in page (docs/features.md). The same argument
 // is why clientID/connectedClients/sidebarTab carry `json:"-"` and are merged
-// here instead: the page seed and this handshake are their only writers.
+// by name instead: the page seed, this handshake, and the presence broadcasts
+// (broadcastPresence, connectedClients only) are their only writers.
 func mergeHandshake(sse *sdk.ServerSentEventGenerator, signals todo.Signals, authed bool) error {
 	if err := dshelpers.MergeSignals(sse, signals); err != nil {
 		return err

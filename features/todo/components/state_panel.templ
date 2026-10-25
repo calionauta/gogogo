@@ -30,9 +30,9 @@ templ TodoStatePanel(signals todo.Signals) {
 				shows the DagNats event-sourced pipeline. -->
 				<div class="card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300 overflow-visible">
 					<div class="card-body p-4">
-						<div class="tabs tabs-box w-full mt-0 mb-2" role="tablist">
+						<div class="tabs tabs-box tabs-sm w-full mt-0 mb-2" role="tablist">
 							<button
-								class="tab tab-sm flex-1 transition-all"
+								class="tab flex-1 transition-all"
 								data-cuelume-hover="tick"
 								data-cuelume-press="toggle"
 								data-on:click="$sidebarTab = 'queue'"
@@ -42,7 +42,7 @@ templ TodoStatePanel(signals todo.Signals) {
 							</button>
 							if (signals.LLMEnabled || signals.SimulatedLLM) && !signals.IsViewer {
 								<button
-									class="tab tab-sm flex-1 transition-all"
+									class="tab flex-1 transition-all"
 									data-cuelume-hover="tick"
 									data-cuelume-press="toggle"
 									data-on:click="$sidebarTab = 'ai'"
@@ -53,7 +53,7 @@ templ TodoStatePanel(signals todo.Signals) {
 							}
 							if signals.DagNatsEnabled {
 								<button
-									class="tab tab-sm flex-1 transition-all"
+									class="tab flex-1 transition-all"
 									data-cuelume-hover="tick"
 									data-cuelume-press="toggle"
 									data-on:click="$sidebarTab = 'workflow'"

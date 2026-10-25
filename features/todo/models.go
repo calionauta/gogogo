@@ -150,7 +150,8 @@ type Signals struct {
 	// `clientID:""` and every later mutation went out with an empty id (echo
 	// suppression and worker feedback both address a client that no longer
 	// exists). Connection-owned signals are seeded by the page render
-	// (marshalSignals) and written afterwards only by the stream handshake.
+	// (marshalSignals) and written afterwards only by the stream handshake
+	// and the presence broadcasts (broadcastPresence, connectedClients only).
 	ClientID string `json:"-"`
 	// LLMEnabled reflects whether the server was started with a
 	// non-empty GOAI_API_KEY. When true, the UI renders the "Suggest"

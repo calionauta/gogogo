@@ -32,6 +32,12 @@ type TechItem struct {
 // competing with navigation (and definitely not a counter on a disclosure —
 // "stack 7" said nothing about which seven).
 //
+// The key is static evidence below the panel's interactive machinery
+// (STATE): one section per concern, divided, so neither pushes the other
+// out of view behind an undifferentiated scroll. Rows are block layout,
+// not grid: a grid with the dot as a grid item sized column 1 per-row
+// from the name length, staggering every note like a gantt chart.
+//
 // TEMPLATE DEMO-ONLY — this advertises the template's own internals,
 // which mean nothing to a product's users. Agents adapting gogogo into
 // their own product must delete it; the wrapper carries
@@ -70,7 +76,7 @@ func TechStack(items []TechItem) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(it.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techstack.templ`, Line: 37, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techstack.templ`, Line: 43, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -83,7 +89,7 @@ func TechStack(items []TechItem) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(it.Note)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techstack.templ`, Line: 38, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/techstack.templ`, Line: 44, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
