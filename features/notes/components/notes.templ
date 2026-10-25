@@ -39,7 +39,7 @@ const (
 // The "New note" action moved into the shell header's actions slot, and the
 // stack pills into the sidebar's stack key — the two places every module uses,
 // so this page no longer carries chrome of its own.
-templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string) {
+templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel string, buildCommit string, demo bool) {
 	@ui.Shell(ui.Data{
 		Title:       "Collab notes — gogogo",
 		Module:      "notes",
@@ -50,6 +50,7 @@ templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel str
 		BuildCommit: buildCommit,
 		Signals:     notesSignals,
 		Stack:       notesStack(),
+		Demo:        demo,
 		StreamPage:  true,
 	}, nil, nil, notesActions(), notesBody(notes))
 }
@@ -209,7 +210,7 @@ templ notesDocHead() {
 
 // notesSound is the shell's mute control; the trim drops the call inside it.
 templ notesSound() {
-	@sounds.SoundToggle()
+	@sounds.SoundSwitch()
 }
 
 // notesDocBody is the editor. data-doc-id / data-rev live on this wrapper

@@ -5,7 +5,7 @@
 // own head extras (sound assets + the todo item animations) and its body.
 //
 // The 7 stack layers this module demonstrates (C1) travel as data into the
-// shell's stack key, so they render in the sidebar footer instead of competing
+// shell's stack key, so they render in the How-it-works panel instead of competing
 // with the composer (that competition was defect 4 of the revamp brief).
 package components
 
@@ -123,12 +123,12 @@ templ todoHead() {
 
 // soundToggle is the shell's mute control for this page. It is a
 // one-line templ wrapper on purpose: the installer's sounds trim drops the
-// @sounds.SoundToggle() line, leaving an empty wrapper that still satisfies
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
 // the shell's slot (the import goes with it). Passing the call directly
 // would put it on the same line as the Shell invocation, and dropping that
 // line would break the call.
 templ todoSound() {
-	@sounds.SoundToggle()
+	@sounds.SoundSwitch()
 }
 
 // todoBody is the page itself plus the two stream scripts the list listens on.

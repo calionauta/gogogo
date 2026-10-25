@@ -15,7 +15,7 @@
 
 // The 7 stack layers this module demonstrates (C1) travel as data into the
 
-// shell's stack key, so they render in the sidebar footer instead of competing
+// shell's stack key, so they render in the How-it-works panel instead of competing
 
 // with the composer (that competition was defect 4 of the revamp brief).
 
@@ -144,7 +144,7 @@ func todoHead() templ.Component {
 
 // soundToggle is the shell's mute control for this page. It is a
 // one-line templ wrapper on purpose: the installer's sounds trim drops the
-// @sounds.SoundToggle() line, leaving an empty wrapper that still satisfies
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies
 // the shell's slot (the import goes with it). Passing the call directly
 // would put it on the same line as the Shell invocation, and dropping that
 // line would break the call.
@@ -169,7 +169,7 @@ func todoSound() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = sounds.SoundToggle().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = sounds.SoundSwitch().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

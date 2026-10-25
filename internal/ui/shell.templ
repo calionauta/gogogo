@@ -116,16 +116,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						}
 					</nav>
 					<div class="app-rail-foot">
-						@ThemeSelector()
-						if len(d.Stack) > 0 {
-							<details class="app-rail-stack">
-								<summary title="What this page demonstrates">Stack · { len(d.Stack) }</summary>
-								<div class="app-rail-stack-body">
-									@components.TechStackRows(d.Stack)
-								</div>
-							</details>
-						}
-						@authviews.UserMenu(d.Email, d.Role)
+						@authviews.UserMenu(d.Email, d.Role, Preferences(sound))
 					</div>
 				</aside>
 				<script nonce={ templ.GetNonce(ctx) }>
@@ -203,7 +194,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							}
 						</div>
 						<div class="app-module-actions">
-							if d.Panel != nil {
+							if d.HasDemo() {
 								<button
 									type="button"
 									class={ templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo}) }
@@ -228,10 +219,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						@body
 					</main>
 				</div>
-				if d.Panel != nil {
+				if d.HasDemo() {
 					<aside id="state-panel" class="app-state-panel" aria-label="State" data-signals={ panelVisibilitySignals(d.Demo) } data-show="$panelVisible">
 						<div class="app-state-panel-head-row">
-							<p class="app-state-panel-head">STATE</p>
+							if d.Panel != nil {
+								<p class="app-state-panel-head">STATE</p>
+							}
 							<button
 								type="button"
 								class="btn btn-ghost btn-xs"
@@ -239,7 +232,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								title="Close panel"
 								data-on:click="$panelVisible = false; fetch('/_ui/demo?on=0&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">✕</button>
 						</div>
-						@d.Panel
+						if d.Panel != nil {
+							@d.Panel
+						}
+						if len(d.Stack) > 0 {
+							@components.TechStack(d.Stack)
+						}
 					</aside>
 				}
 			</div>

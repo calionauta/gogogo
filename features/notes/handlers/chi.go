@@ -26,6 +26,7 @@ import (
 	"github.com/calionauta/gogogo/internal/collab"
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
+	"github.com/calionauta/gogogo/internal/demo"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
 )
@@ -145,7 +146,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = notescomponents.NotesIndex(
-		email, sess.Role, notes, h.cfg.BuildLabel, h.cfg.BuildCommit,
+		email, sess.Role, notes, h.cfg.BuildLabel, h.cfg.BuildCommit, demo.On(r),
 	).Render(r.Context(), w)
 }
 

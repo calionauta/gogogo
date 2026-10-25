@@ -1,4 +1,4 @@
-// SCOPE:plugin - shared stack-disclosure badge.
+// SCOPE:plugin - the shared stack key every feature shows in its demo panel.
 package components
 
 // TechItem is one stack tag plus its one-line role note: what the
@@ -10,46 +10,34 @@ type TechItem struct {
 	Note string
 }
 
-// TechStack renders the stack a page demonstrates in one visual
-// language: legible pill tags under the page subtitle, with the
-// per-layer role notes one click away in a <details>. Data comes
-// from the feature (it knows what it demonstrates); this component
-// owns the look, so every page teaches the architecture identically.
-// Display-only: no states, no interactivity, nothing to fail.
+// TechStack is THE standard shape for "what this page demonstrates": a STACK
+// caption and one row per layer — name, and what that layer does *here*.
 //
-// Pills use inline style (not a skin's badge classes) so the same
-// component reads well under every theme without a per-theme mapping.
+// One component, every feature: internal/ui.Shell renders it from Data.Stack,
+// so a page cannot invent its own stack presentation and two pages cannot
+// drift. The caption reuses the demo panel's head style (STATE / STACK) so the
+// key reads as part of the same evidence surface rather than a stray list.
+//
+// It lives in the "How it works" panel, not in the chrome: the stack is
+// evidence about the template, something you ask for, not a permanent column
+// competing with navigation (and definitely not a counter on a disclosure —
+// "stack 7" said nothing about which seven).
 //
 // TEMPLATE DEMO-ONLY — this advertises the template's own internals,
 // which mean nothing to a product's users. Agents adapting gogogo into
 // their own product must delete it; the wrapper carries
-// data-demo="tech-stack", so the removal is one grep away (see
+// data-demo="stack-key", so the removal is one grep away (see
 // docs/scope-taxonomy.md#demo-only-markup).
 templ TechStack(items []TechItem) {
-	<div data-demo="tech-stack" class="mt-2">
-		<div style="display:flex;flex-wrap:wrap;gap:0.375rem;">
+	<section class="app-stack-key" data-demo="stack-key" aria-label="Stack this page demonstrates">
+		<p class="app-state-panel-head">STACK</p>
+		<dl class="app-stack-list">
 			for _, it := range items {
-				<span title={ it.Note } style="display:inline-block;font-size:0.75rem;font-weight:600;line-height:1.5;padding:0.1rem 0.6rem;border:1px solid currentColor;border-radius:9999px;opacity:0.8;">{ it.Name }</span>
+				<div class="app-stack-row">
+					<dt class="app-stack-name">{ it.Name }</dt>
+					<dd class="app-stack-note">{ it.Note }</dd>
+				</div>
 			}
-		</div>
-		<details style="margin-top:0.375rem;">
-			<summary style="font-size:0.75rem;opacity:0.6;cursor:pointer;">What each layer does here</summary>
-			@TechStackRows(items)
-		</details>
-	</div>
-}
-
-// TechStackRows is the per-layer note list on its own, without the pills or the
-// disclosure: the shell's stack key owns the <details>, so it composes this and
-// there is still exactly one definition of "what each layer does here" (the
-// strings live with the feature, the markup lives here).
-templ TechStackRows(items []TechItem) {
-	<ul class="app-stack-list">
-		for _, it := range items {
-			<li class="app-stack-row">
-				<span class="app-stack-name">{ it.Name }</span>
-				<span class="app-stack-note">{ it.Note }</span>
-			</li>
-		}
-	</ul>
+		</dl>
+	</section>
 }

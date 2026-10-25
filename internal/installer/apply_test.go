@@ -217,7 +217,7 @@ func TestStripSoundsDropsCallSites(t *testing.T) {
 		"}\n" +
 		"\n" +
 		"templ chatSound() {\n" +
-		"\t@sounds.SoundToggle()\n" +
+		"\t@sounds.SoundSwitch()\n" +
 		"}\n" +
 		"\n" +
 		"templ keep() {\n" +

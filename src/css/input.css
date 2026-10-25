@@ -52,6 +52,16 @@
 @source not "../../features/**/*_test.go";
 @source not "../../web/**/*_test.go";
 
+/* Attribute VALUES are scanned too, not just class attributes. A role or input
+   type spelled like a daisyUI component ships that whole component: `role="..."`
+   with a single-choice widget name emitted `.radio` (96 lines, nothing using
+   it), and a Go comment containing the word for a profile picture emitted
+   `.avatar`. This is why the account panel's palette options are toggle
+   buttons with aria-pressed instead of claiming a widget role — the
+   accessibility reason came first, but the bundle stayed honest too. When you
+   add ARIA, check `git diff web/resources/static/app.min.css` after `make
+   css`: a component appearing that no markup uses is this bug. */
+
 @plugin "daisyui" {
   /* Two default modes plus two palettes: the visual variants are themes, not
      separate CSS bundles (docs/ui-themes.md). Adding a name here means adding

@@ -11,7 +11,7 @@ templ SoundAssets() {
 	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("cuelume.js") }></script>
 }
 
-// SoundToggle renders the shell footer's mute button. Its state (aria-pressed and
+// SoundToggle renders the public header's mute button. Its state (aria-pressed and
 // the visible icon) is driven by web/resources/static/cuelume.js, which
 // watches for clicks on [data-sound-toggle] and reflects the effective
 // state (user preference AND OS reduced-motion). Mirrors the theme toggle
@@ -41,4 +41,28 @@ templ SoundToggle() {
 		@icon.Icon("material-symbols:volume-up", "text-lg sound-toggle-icon icon-sound-on")
 		@icon.Icon("material-symbols:volume-off", "text-lg sound-toggle-icon icon-sound-off")
 	</button>
+}
+
+// SoundSwitch is the same preference as a switch, for the account panel's
+// preference row: a labelled setting wants an on/off control (daisyUI `toggle`),
+// not an icon button with no word next to it. Same contract as SoundToggle —
+// `data-sound-toggle` plus the plugin's delegated click — because the plugin has
+// to work on every page, including the board, which loads no Datastar bindings
+// of its own. `role="switch"` tells assistive tech it is an on/off setting, and
+// cuelume.js owns `checked` (it preventDefaults the click, so the native
+// checkbox state never drifts from the stored preference).
+//
+// One control per page: the plugin's sync targets the single
+// [data-sound-toggle] element, so a page renders either the header button or
+// this switch, never both.
+templ SoundSwitch() {
+	<input
+		type="checkbox"
+		class="toggle toggle-sm"
+		role="switch"
+		data-sound-toggle
+		aria-label="Sound effects"
+		checked
+		title="Mute sounds"
+	/>
 }

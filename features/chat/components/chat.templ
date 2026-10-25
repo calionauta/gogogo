@@ -49,7 +49,7 @@ templ chatHead() {
 // chatSound is the shell's mute control for this page. Same reason as chatHead:
 // the trim drops the call and leaves an empty wrapper.
 templ chatSound() {
-	@sounds.SoundToggle()
+	@sounds.SoundSwitch()
 }
 
 // chatContext is the header's context slot: thread size, in user words.

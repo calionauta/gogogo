@@ -79,13 +79,13 @@ description — it lists exactly what to remove in `internal/server/chi.go`
 ## Demo-only markup
 
 Some surfaces exist only to advertise the template itself: the
-`TechStack` pill + notes block every feature page renders, and the demo-accounts
+`TechStack` stack key every feature's "How it works" panel renders, and the demo-accounts
 block on `/login` (the seeded pair, their roles, and the Casbin
 exercise). They teach gogogo's architecture and say nothing about a
 product's own domain, so a trimmed product must delete them.
 
 The machine handle is a `data-demo="<name>"` attribute on the element's
-wrapper. Two ship: `data-demo="tech-stack"` (every `TechStack`) and
+wrapper. Two ship: `data-demo="stack-key"` (every `TechStack`) and
 `data-demo="demo-accounts"` (the login card). To strip them from a
 product build:
 
@@ -185,7 +185,7 @@ another package imports the deleted one. Check these when you trim:
 | **LLM** | `internal/llm/` | ⚠️ `features/todo/handlers/suggest_test.go` |
 | **Turso queries** | (only layer) | There is no strategy switch anymore: handlers call `dbgen.*` directly |
 | **Idempotency** | `internal/dbschema/migrations/0001_init.sql` (`todos_idem_key_unique`) + `features/todo/handlers/mutations.go` | Drop the partial unique index and the `GetTodoByIdemKey` dedupe branch, then the `idem_key` query param from `todo_list.templ` |
-| **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` from each page's `*Sound()` wrapper.ActiveAssets` in the shell |
+| **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` / `@sounds.SoundSwitch()` from each page's `*Sound()` wrapper.ActiveAssets` in the shell |
 
 **After any removal, run `make test`** (not a bare `go test ./...` — that
 compiles `cmd/desktop`/`cmd/gui`, which need GTK + WebKit headers; see

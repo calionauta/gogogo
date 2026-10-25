@@ -24,6 +24,7 @@ import (
 	"github.com/calionauta/gogogo/config"
 	roomcomponents "github.com/calionauta/gogogo/features/room/components"
 	"github.com/calionauta/gogogo/internal/auth"
+	"github.com/calionauta/gogogo/internal/demo"
 	appgoakt "github.com/calionauta/gogogo/internal/goakt"
 	"github.com/calionauta/gogogo/internal/observability"
 	"github.com/calionauta/gogogo/internal/queue"
@@ -187,7 +188,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = roomcomponents.Page(
-		email, role, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit,
+		email, role, id, roster, h.cfg.BuildLabel, h.cfg.BuildCommit, demo.On(r),
 	).Render(r.Context(), w)
 }
 

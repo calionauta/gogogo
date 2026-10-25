@@ -10,11 +10,10 @@ import (
 	"github.com/calionauta/gogogo/internal/components"
 )
 
-// TestTechStackListsStack pins the shared disclosure contract: every
-// feature page names the stack it demonstrates in one visual language
-// (legible pill tags + one-line role notes), so visitors learn the
-// architecture from any page instead of guessing which demo exercises
-// what.
+// TestTechStackListsStack pins the shared stack-key contract: every feature
+// names the stack it demonstrates in ONE visual language (a STACK caption plus
+// a name-and-role row per layer), rendered by the shell from Data.Stack so no
+// page hand-rolls its own.
 func TestTechStackListsStack(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
@@ -28,7 +27,7 @@ func TestTechStackListsStack(t *testing.T) {
 	for _, want := range []string{
 		"JetStream realtime", "SSE Hub",
 		"CRUD ops stream across instances", "every open tab re-lists live",
-		"What each layer does here",
+		"STACK",
 	} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("TechStack missing %q", want)
@@ -37,7 +36,12 @@ func TestTechStackListsStack(t *testing.T) {
 	// The demo-only handle is what lets an agent strip the template's
 	// self-advertisement with one grep. Red-proof: drop the attribute and
 	// this goes red. See docs/scope-taxonomy.md#demo-only-markup.
-	if !strings.Contains(buf.String(), `data-demo="tech-stack"`) {
+	if !strings.Contains(buf.String(), `data-demo="stack-key"`) {
 		t.Errorf("TechStack missing the data-demo handle for template removal")
+	}
+	// The disclosure died with the sidebar counter: the key is evidence you
+	// asked for (it lives in the demo panel), not a collapsible in the chrome.
+	if strings.Contains(buf.String(), "<details") {
+		t.Error("TechStack must not collapse itself: the demo panel is the surface")
 	}
 }
