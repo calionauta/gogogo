@@ -101,7 +101,7 @@ func actionSlotID(instanceID string, index int) string {
 templ GenuiTextNote(id string, text string) {
 	<div id={ id } class="ui-card">
 		<div class="ui-card-body">
-			<h3 class="card-title text-base">Note</h3>
+			<h3 class="ui-title text-base">Note</h3>
 			<p class="text-sm">{ text }</p>
 		</div>
 	</div>
@@ -127,12 +127,12 @@ templ GenuiPlanCards(id string, plans []Plan) {
 			for i, plan := range plans {
 				<li class="ui-card" id={ planCardID(id, i) }>
 					<div class="ui-card-body">
-						<h3 class="card-title text-base">{ plan.Title }</h3>
+						<h3 class="ui-title text-base">{ plan.Title }</h3>
 						if plan.Detail != "" {
 							<p class="text-sm text-base-content/70">{ plan.Detail }</p>
 						}
 						if plan.Action != nil {
-							<div class="card-actions justify-end mt-2">
+							<div class="flex items-center justify-end gap-2 mt-2">
 								@planAction(planCardID(id, i), *plan.Action)
 							</div>
 						}

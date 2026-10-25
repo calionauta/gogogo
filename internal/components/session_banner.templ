@@ -23,7 +23,7 @@ import "github.com/calionauta/gogogo/web/resources"
 templ SessionBanner(authed bool) {
 	<div
 		id="session-banner"
-		class="hidden alert alert-warning app-session-banner"
+		class="hidden alert alert-warning"
 		data-component="session-banner"
 		data-authed={ strconv.FormatBool(authed) }
 		data-effect={ "typeof $sessionAuthed === 'boolean' && window.GogogoSession && window.GogogoSession.set($sessionAuthed)" }

@@ -188,7 +188,7 @@ func body(data PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></section><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Password</h2><form method=\"POST\" action=\"/account/password\" class=\"space-y-3 max-w-md\"><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Current password</span></div><input type=\"password\" name=\"current\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">New password</span></div><input type=\"password\" name=\"new\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm new password</span></div><input type=\"password\" name=\"confirm\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <button type=\"submit\" class=\"btn btn-sm btn-primary\">Change password</button></form></div></section><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Two-factor authentication</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></section><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Password</h2><form method=\"POST\" action=\"/account/password\" class=\"space-y-3 max-w-md\"><label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Current password</span></div><input type=\"password\" name=\"current\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>New password</span></div><input type=\"password\" name=\"new\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Confirm new password</span></div><input type=\"password\" name=\"confirm\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <button type=\"submit\" class=\"btn btn-sm btn-primary\">Change password</button></form></div></section><section class=\"ui-card\"><div class=\"ui-card-body\"><h2 class=\"ui-title\">Two-factor authentication</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -198,12 +198,12 @@ func body(data PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.PasswordSet {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm with your password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Confirm with your password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Authenticator or recovery code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Authenticator or recovery code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -213,12 +213,12 @@ func body(data PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.PasswordSet {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm with your password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Confirm with your password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Authenticator or recovery code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Authenticator or recovery code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -254,7 +254,7 @@ func body(data PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</code></p><div class=\"flex flex-wrap gap-2 mt-2\"><button type=\"button\" class=\"btn btn-xs\" data-on:click=\"navigator.clipboard.writeText(document.getElementById('totp-secret').textContent)\">Copy secret</button> <button type=\"button\" class=\"btn btn-xs\" data-on:click=\"navigator.clipboard.writeText(document.getElementById('totp-uri').textContent)\">Copy setup link</button></div><form method=\"POST\" action=\"/account/totp/verify\" class=\"space-y-3 max-w-md mt-3\"><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Authenticator code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> <button type=\"submit\" class=\"btn btn-sm btn-primary\">Enable two-factor</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</code></p><div class=\"flex flex-wrap gap-2 mt-2\"><button type=\"button\" class=\"btn btn-xs\" data-on:click=\"navigator.clipboard.writeText(document.getElementById('totp-secret').textContent)\">Copy secret</button> <button type=\"button\" class=\"btn btn-xs\" data-on:click=\"navigator.clipboard.writeText(document.getElementById('totp-uri').textContent)\">Copy setup link</button></div><form method=\"POST\" action=\"/account/totp/verify\" class=\"space-y-3 max-w-md mt-3\"><label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Authenticator code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> <button type=\"submit\" class=\"btn btn-sm btn-primary\">Enable two-factor</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -447,12 +447,12 @@ func body(data PageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.PasswordSet {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm with your password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Confirm with your password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"current-password\"></label> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if data.TOTP {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Authenticator or recovery code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Authenticator or recovery code</span></div><input type=\"text\" name=\"code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\"></label> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

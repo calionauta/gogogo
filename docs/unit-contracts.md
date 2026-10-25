@@ -123,7 +123,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 one app shell (sidebar + module header + work area), the theme catalog, and the DaisyUI asset block every page renders
 
-- **Owned:** `internal/ui`, `internal/icon`, `internal/themes`, `internal/demo`
+- **Owned:** `internal/ui`, `internal/uiregistry`, `internal/icon`, `internal/themes`, `internal/demo`
 - **Store calls:** `dbgen.DeleteMagicTokensForUser`, `dbgen.DeleteUserSessions`, `dbgen.GetUserByEmail`, `dbgen.SetEmailVerified`, `dbgen.SetUserRole`, `dbgen.UpdateUserPassword`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: every module page renders a body inside ui.Shell, and the shell renders the DaisyUI asset block on every page. Visual variants are DaisyUI themes (docs/ui-themes.md), not bundles.

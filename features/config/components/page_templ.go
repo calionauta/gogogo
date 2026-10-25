@@ -753,7 +753,7 @@ func configBody(data PageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<form method=\"GET\" action=\"/config#security-events\" class=\"flex flex-wrap items-end gap-2 mb-3\"><label class=\"form-control\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Event</span></div><select name=\"event\" class=\"select select-sm\"><option value=\"\">All events</option> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<form method=\"GET\" action=\"/config#security-events\" class=\"flex flex-wrap items-end gap-2 mb-3\"><label><div class=\"label py-1\"><span class=\"text-xs\">Event</span></div><select name=\"event\" class=\"select select-sm\"><option value=\"\">All events</option> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

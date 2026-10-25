@@ -79,6 +79,8 @@ export default {
     desc: "The Todo reference implementation and the contract to imitate." },
   { group: "Frontend", slug: "ui-shell", file: "ui-shell.md",
     desc: "The shell anatomy, the page kit, and what a page owns." },
+  { group: "Frontend", slug: "ui-compositions", file: "ui-compositions.md",
+    desc: "The approved compositions — account row, preference row, join, empty state, stack key — the markup to copy instead of inventing." },
   { group: "Frontend", slug: "ui-themes", file: "ui-themes.md",
     desc: "The one shell, DaisyUI, and the theme catalog." },
   { group: "Frontend", slug: "ui-sounds", file: "ui-sounds.md",

@@ -61,9 +61,9 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 							<input type="hidden" name="intent" value="totp"/>
 							<input type="hidden" name="totp_user" value={ totpUser }/>
 							<input type="hidden" name="next" value={ next }/>
-							<label class="form-control w-full">
+							<label class="flex flex-col gap-1 w-full">
 								<div class="label">
-									<span class="label-text">Authenticator code</span>
+									<span>Authenticator code</span>
 								</div>
 								<input type="text" name="totp_code" class="input input-sm" required
 									inputmode="numeric" autocomplete="one-time-code" autofocus/>
@@ -74,9 +74,9 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 					<form method="POST" action="/login" class="space-y-4">
 						<input type="hidden" name="intent" value="password"/>
 						<input type="hidden" name="next" value={ next }/>
-						<label class="form-control w-full">
+						<label class="flex flex-col gap-1 w-full">
 							<div class="label">
-								<span class="label-text">Email</span>
+								<span>Email</span>
 							</div>
 							<input
 								type="email"
@@ -88,9 +88,9 @@ templ LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, 
 							/>
 						</label>
 
-						<label class="form-control w-full">
+						<label class="flex flex-col gap-1 w-full">
 							<div class="label">
-								<span class="label-text">Password</span>
+								<span>Password</span>
 							</div>
 							<input
 								type="password"

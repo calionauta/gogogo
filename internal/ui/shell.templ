@@ -233,12 +233,12 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 								data-on:click="$panelVisible = false; fetch('/_ui/demo?on=0&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">✕</button>
 						</div>
 						if d.Panel != nil {
-							<section class="app-panel-section app-panel-demos" aria-label="Demos">
+							<section class="app-panel-section" aria-label="Demos">
 								@d.Panel
 							</section>
 						}
 						if len(d.Stack) > 0 {
-							<section class="app-panel-section app-panel-stack" aria-label="Stack">
+							<section class="app-panel-section" aria-label="Stack">
 								@components.TechStack(d.Stack)
 							</section>
 						}

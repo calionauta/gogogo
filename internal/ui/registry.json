@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "note": "Approved UI compositions. Validated by `make check-classes` (every source exists, every listed class appears there, every doc anchor resolves, and every composition in docs/ui-compositions.md has an entry). Written for LLM agents: `go run ./cmd/ui-registry list` / `show <id>`.",
+  "entries": [
+    {
+      "id": "account-row",
+      "title": "Account row (rail footer)",
+      "when": "the signed-in user's identity in the sidebar footer; the panel that holds their preferences",
+      "avoid": "icon toggles beside the identity row, or a panel opening downward from the bottom edge",
+      "source": "features/authviews/controls.templ",
+      "shows": [
+        "app-dropdown-up",
+        "app-account-identity",
+        "avatar",
+        "badge"
+      ],
+      "doc": "docs/ui-compositions.md#1-account-row-the-rails-footer"
+    },
+    {
+      "id": "preference-row",
+      "title": "Preference row (inside the account panel)",
+      "when": "a theme/palette choice or any on/off setting the user owns",
+      "avoid": "two controls for the same choice (a sun/moon toggle plus a palette list), or a setting outside the account surface",
+      "source": "internal/ui/preferences.templ",
+      "shows": [
+        "app-pref-option",
+        "app-pref-swatch",
+        "app-pref-setting"
+      ],
+      "doc": "docs/ui-compositions.md#2-preference-row-inside-the-account-panel"
+    },
+    {
+      "id": "empty-state",
+      "title": "Empty state",
+      "when": "a list or card with nothing in it yet",
+      "avoid": "ad-hoc margins per page; the glyph is decorative, the copy is the content",
+      "source": "features/todo/components/todo_list.templ",
+      "shows": [
+        "ui-empty",
+        "ui-empty-title",
+        "ui-empty-body"
+      ],
+      "doc": "docs/ui-compositions.md#3-empty-state"
+    },
+    {
+      "id": "field-action",
+      "title": "Field plus its action",
+      "when": "an input and the button that submits it",
+      "avoid": "a bare wrapper div; pair the sizes (input-sm with btn-sm) or the joined pair reads as broken",
+      "source": "features/todo/components/todo_list.templ",
+      "shows": [
+        "join",
+        "join-item",
+        "input-sm",
+        "btn-sm"
+      ],
+      "doc": "docs/ui-compositions.md#4-field-plus-its-action"
+    },
+    {
+      "id": "stack-key",
+      "title": "Stack key (demo panel evidence)",
+      "when": "the `How it works` panel of a page that declares Data.Stack",
+      "avoid": "the sidebar, a counter in the label, or a per-page invention",
+      "source": "internal/components/techstack.templ",
+      "shows": [
+        "app-stack-key",
+        "app-stack-list",
+        "app-stack-row"
+      ],
+      "doc": "docs/ui-compositions.md#5-stack-key-the-demo-panels-evidence"
+    },
+    {
+      "id": "inline-state",
+      "title": "State, inline",
+      "when": "counts, verdicts, roles and statuses next to a row or a title",
+      "avoid": "putting `badge` on an element and stripping its padding/border/background in a scoped rule",
+      "source": "features/todo/components/todo_list.templ",
+      "shows": [
+        "badge",
+        "badge-sm"
+      ],
+      "doc": "docs/ui-compositions.md#6-state-inline"
+    }
+  ]
+}
