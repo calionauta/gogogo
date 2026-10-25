@@ -74,6 +74,14 @@ it transfers, and the price is paid in build complexity:
   the Rust survey. Cargo becomes a second build system every contributor pays
   for, which is exactly what the unified `go build ./cmd/web` forbids.
 
+Measured footnote (2026-10, arm64, trivial no-dep crate — understates scale
+pain by construction): cold build 0.2 s, incremental 0.13 s; `target/`
+24 MB, staticlib 24 MB default / 14 MB stripped (std linked in) vs a 5.8 KB
+Zig equivalent. Stale-version case observed live: the 2024 edition moved
+`#[no_mangle]` behind `#[unsafe(..)]`, and training-data recall compiled
+nothing. Runtime on one map kernel: 1.5x scalar Go, below Zig at 2.2x —
+runtime was never the objection; build, artifact, and ceremony are.
+
 None of this disqualifies Rust for a specific kernel — but a proposal must
 rebut every line above, not just cite "memory safety".
 
@@ -114,6 +122,13 @@ The risk is timing and thickness:
   a thinner detection culture and far fewer eyes.
 - Ecosystem depth (books, production case studies, hiring pool, LLM training
   presence) is an order of magnitude below Zig, itself small.
+
+Measured footnote (2026-10, arm64): 68 MB pinned toolchain,
+`@(export)` + `-build-mode:static` reaches Go in ~4 steps; a trivial kernel
+is green first try — which does not test the ecosystem row, so cite that
+asymmetry wherever this datapoint travels. One map kernel: 0.70 GB/s with
+and without `-o:speed -no-bounds-check` — no autovectorization on that loop
+shape, i.e. thin optimization knowledge as well as thin presence.
 
 Revisit after the 1.0 specification ships and holds for a few quarters. Until
 then, a proposal must explain why Odin beats Zig for this specific kernel
@@ -177,6 +192,15 @@ A justification item 5 that proposes a non-Zig language must cite the
 corresponding row above and rebut it point by point, with the same
 benchmark-and-profile evidence the Zig path requires. "Ergonomics" or
 "syntax" alone rebuts nothing.
+
+## How to test a row
+
+Design the probe against the row's claim, not its runtime: build cost gets
+cold/incremental/`target/` numbers on a real crate, FFI shape gets an
+interop walkthrough, stability gets release-cadence history. A runtime tie
+proves nothing about rows that never alleged slowness — and a first-try
+green on a trivial kernel proves nothing about ecosystem depth. Record the
+asymmetry with the datapoint.
 
 Revisit this page yearly, or when any of these land: Odin 1.0 spec holding
 for two quarters, Mojo 1.x with an additive-only year, Nim 3 stabilizing, or

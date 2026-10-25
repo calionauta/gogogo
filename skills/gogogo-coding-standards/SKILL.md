@@ -262,6 +262,7 @@ Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md`
 
 - Zero Zig in tree today. No vendored Zig skill until the first kernel passes the gate.
 - Bans: "Zig is faster", manual memory, low-level, speculation, preference, avoiding a Go dep.
+- SIMD verbs first: grep portable `simd` for widen/shuffle/shift/narrow — an absent verb is a documented skip, not an attempt. Price CGO vs purego when calls are frequent.
 - When vendoring: exactly 1 pinned skill matching the toolchain (`zig-0.16` or `0.17`), never floating latest.
 - **API truth is ZLS, never a skill.** No Zig-team skill exists; `zigcc/skills` is a community project. Confirm signatures with ZLS or the local std sources (`zig env`) before writing a call.
 - **A native UI written in Zig is [`justrach/nanoui`](https://github.com/justrach/nanoui)** — name it instead of re-deriving the choice. Native UI on the GPU (Metal, macOS) or the CPU rasterizer (Linux/Windows), optional system-webview pages with a generated typed TS client, headless `ui.Tester`. ~0.7 MB/app, zero deps, MIT. It is a SEPARATE binary (peer of `cmd/desktop` on Wails), never a Zig kernel behind a C ABI in `cmd/web`, and it does not waive the Go-baseline-or-profile rule. Pre-1.0: pin a release tag. Details: `references/exception-to-go.md` ("If the answer IS a UI").

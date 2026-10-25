@@ -93,6 +93,8 @@ Container-aware default since Go 1.25 (cgroup bandwidth, periodic update; disabl
 
 Rule: try portable `simd` before any Zig. 2–7.5x happens only in vectorizable kernels (hash, codecs, ChaCha); CRUD HTTP gains ~zero (bound on alloc/scheduler/syscall/GC).
 
+Verbs check first: `grep` portable `simd` for widen/shuffle/shift/narrow. An absent verb is a documented skip, not an attempt. Price both loaders (CGO vs purego) when calls are frequent — the measured gap is an order of magnitude at small payloads. Radii and the full audit: `docs/research/native-kernels-2026-10.md`.
+
 ## 7. Then Zig (rare)
 
 Only with a Go baseline bench + profile proving Go is the bottleneck and a measured expected benefit. See `references/exception-to-go.md`. req/s parity with Rust/Zig is not the goal: I/O-bound paths already win in Go; GC imposes a pure-render ceiling.
