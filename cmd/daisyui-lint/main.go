@@ -59,6 +59,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"comma-separated globs of YOUR stylesheets: classes they define are not judged as DaisyUI")
 	format := fs.String("format", "text", "output format: text or json")
 	showVersion := fs.Bool("version", false, "print the tool version and the daisyUI release it validates")
+	emitVocab := fs.Bool("emit-vocabulary", false,
+		"print the parsed skill as JSON (the bundled snapshot: make vocabulary)")
 	fs.Usage = func() {
 		fmt.Fprintf(stderr, `usage: daisyui-lint [flags] [paths...]
 
@@ -71,7 +73,8 @@ off-scale arbitrary values.
   --allow PATH   accepted arbitrary-value tokens, one per line
   --strict       warnings become errors (recommended in CI of an app)
   --format       text (default) or json
-  --version      tool version + the daisyUI release the skill declares
+  --version      tool version + where the vocabulary came from + its daisyUI release
+  --emit-vocabulary  print the parsed skill as JSON (make vocabulary)
 
 Exit codes: 0 clean, 1 findings at error severity, 2 usage/setup error.
 `)
@@ -85,50 +88,25 @@ Exit codes: 0 clean, 1 findings at error severity, 2 usage/setup error.
 		paths = []string{"."}
 	}
 
-	skill := *skillPath
-	if skill == "" {
-		found, err := daisyui.FindSkill(paths[0])
-		if err != nil {
-			fmt.Fprintf(stderr, "daisyui-lint: %v\n", err)
-			return 2
-		}
-		skill = found
+	if *emitVocab {
+		return emitVocabulary(stdout, stderr, paths[0], *skillPath)
+	}
+
+	vocab, source, skillVersion, verr := resolveVocabulary(stderr, paths[0], *skillPath)
+	if verr != nil {
+		fmt.Fprintf(stderr, "daisyui-lint: %v\n", verr)
+		return 2
 	}
 	if *showVersion {
-		fmt.Fprintf(stdout, "daisyui-lint %s\nskill: %s\ndaisyUI: %s\n",
-			Version, skill, daisyui.SkillVersion(skill))
+		fmt.Fprintf(stdout, "daisyui-lint %s\nsource: %s\ndaisyUI: %s\n",
+			Version, source, skillVersion)
 		return 0
 	}
 
-	vocab, err := daisyui.LoadSkillFile(skill)
-	if err != nil {
-		fmt.Fprintf(stderr, "daisyui-lint: %v\n", err)
+	opts, oerr := buildOptions(stderr, paths[0], daisyui.Options{Strict: *strict}, *cssGlobs, *allowPath)
+	if oerr != nil {
+		fmt.Fprintf(stderr, "daisyui-lint: %v\n", oerr)
 		return 2
-	}
-	opts := daisyui.Options{Strict: *strict}
-	if *cssGlobs != "" {
-		owned, unmatched, oerr := ownClasses(*cssGlobs)
-		if oerr != nil {
-			fmt.Fprintf(stderr, "daisyui-lint: %v\n", oerr)
-			return 2
-		}
-		for _, glob := range unmatched {
-			fmt.Fprintf(stderr, "daisyui-lint: note: --css glob %q matched no file\n", glob)
-		}
-		opts.RepoOwned = owned
-	}
-	if *allowPath == "" {
-		// Same convention as the skill: the project keeps .daisyui-allow at its
-		// root and the linter finds it from anywhere inside the tree.
-		if found, ferr := daisyui.FindAllow(paths[0]); ferr == nil {
-			*allowPath = found
-		}
-	}
-	if *allowPath != "" {
-		if opts.Allow, err = daisyui.LoadAllow(*allowPath); err != nil {
-			fmt.Fprintf(stderr, "daisyui-lint: %v\n", err)
-			return 2
-		}
 	}
 
 	files, err := collectFiles(paths)
@@ -148,7 +126,7 @@ Exit codes: 0 clean, 1 findings at error severity, 2 usage/setup error.
 		fmt.Fprintln(stdout, f)
 	}
 	if len(findings) == 0 {
-		fmt.Fprintf(stdout, "✅ %d files clean against %s (%s)\n", len(files), skill, daisyui.SkillVersion(skill))
+		fmt.Fprintf(stdout, "✅ %d files clean against %s (%s)\n", len(files), source, skillVersion)
 		return 0
 	}
 	fmt.Fprintf(stdout, "\n%d finding(s) in %d file(s)\n", len(findings), filesWith(findings))
@@ -186,6 +164,92 @@ func ownClasses(globs string) (map[string]bool, []string, error) {
 		}
 	}
 	return out, unmatched, nil
+}
+
+// buildOptions assembles the policy the caller owns: the project's own
+// stylesheets (so a local prefix is not judged as DaisyUI's) and the accepted
+// arbitrary values (the project's `.daisyui-allow`, found upward).
+func buildOptions(stderr io.Writer, root string, opts daisyui.Options,
+	cssGlobs, allowPath string,
+) (daisyui.Options, error) {
+	if cssGlobs != "" {
+		owned, unmatched, err := ownClasses(cssGlobs)
+		if err != nil {
+			return opts, err
+		}
+		for _, glob := range unmatched {
+			fmt.Fprintf(stderr, "daisyui-lint: note: --css glob %q matched no file\n", glob)
+		}
+		opts.RepoOwned = owned
+	}
+	if allowPath == "" {
+		// Same convention as the skill: the project keeps .daisyui-allow at its
+		// root and the linter finds it from anywhere inside the tree.
+		if found, err := daisyui.FindAllow(root); err == nil {
+			allowPath = found
+		}
+	}
+	if allowPath != "" {
+		allow, err := daisyui.LoadAllow(allowPath)
+		if err != nil {
+			return opts, err
+		}
+		opts.Allow = allow
+	}
+	return opts, nil
+}
+
+// resolveVocabulary picks the vocabulary to lint against. The skill wins; the
+// embedded snapshot is the fallback, so the binary works in a project with no
+// vendored copy at all. The source is returned because a run against a different
+// vocabulary must not look identical to a run against the tree's own.
+func resolveVocabulary(stderr io.Writer, path, skillFlag string) (daisyui.Vocabulary, string, string, error) {
+	skill := skillFlag
+	if skill == "" {
+		if found, err := daisyui.FindSkill(path); err == nil {
+			skill = found
+		}
+	}
+	if skill != "" {
+		vocab, err := daisyui.LoadSkillFile(skill)
+		if err != nil {
+			return nil, "", "", err
+		}
+		return vocab, skill, daisyui.SkillVersion(skill), nil
+	}
+	vocab, version, err := daisyui.LoadBundled()
+	if err != nil {
+		return nil, "", "", err
+	}
+	fmt.Fprintf(stderr, "daisyui-lint: note: no vendored skill found; "+
+		"using the bundled vocabulary (daisyUI %s). Pass --skill to lint against your own copy.\n", version)
+	return vocab, "bundled", version, nil
+}
+
+// emitVocabulary prints the parsed skill as JSON: it is how `make vocabulary`
+// regenerates the embedded snapshot.
+func emitVocabulary(stdout, stderr io.Writer, path, skillFlag string) int {
+	skill := skillFlag
+	if skill == "" {
+		found, err := daisyui.FindSkill(path)
+		if err != nil {
+			fmt.Fprintln(stderr, "daisyui-lint: --emit-vocabulary needs the skill (--skill or a vendored copy)")
+			return 2
+		}
+		skill = found
+	}
+	vocab, err := daisyui.LoadSkillFile(skill)
+	if err != nil {
+		fmt.Fprintf(stderr, "daisyui-lint: %v\n", err)
+		return 2
+	}
+	out, err := daisyui.VocabularyJSON(vocab, daisyui.SkillVersion(skill))
+	if err != nil {
+		fmt.Fprintf(stderr, "daisyui-lint: %v\n", err)
+		return 2
+	}
+	_, _ = stdout.Write(out)
+	return 0
 }
 
 // lintFiles runs the rules over every file and sorts deterministically, so two

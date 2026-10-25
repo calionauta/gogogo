@@ -41,21 +41,25 @@ func copyConsumer(t *testing.T, mutation func(string) string) string {
 	t.Helper()
 	root := t.TempDir()
 	src := filepath.Join(consumerDir, "index.html")
+	// #nosec G304 G703 -- test fixture path, not user input.
 	raw, err := os.ReadFile(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, "acme"), 0o755); err != nil {
+	if err = os.MkdirAll(filepath.Join(root, "acme"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte(mutation(string(raw))), 0o600); err != nil {
+	// #nosec G703 -- test fixture path, not user input.
+	if err = os.WriteFile(filepath.Join(root, "index.html"), []byte(mutation(string(raw))), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// #nosec G304 G703 -- test fixture path, not user input.
 	css, err := os.ReadFile(filepath.Join(consumerDir, "acme", "app.css"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "acme", "app.css"), css, 0o600); err != nil {
+	// #nosec G703 -- test fixture path, not user input.
+	if err = os.WriteFile(filepath.Join(root, "acme", "app.css"), css, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return root
