@@ -189,7 +189,7 @@
   text-underline-offset: 2px;
 }
 
-/* Cally month needs the full popover width; DaisyUI sets this, other skins do not. */
+/* Cally month takes the popover's width: the calendar is the only content. */
 .cally calendar-month { width: 100%; }
 
 /* Date filter popover: native popover gives light dismiss and Escape for free.

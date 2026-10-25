@@ -421,11 +421,18 @@ templ deleteConfirmModal() {
 	</dialog>
 }
 
-// createdFilter is the date-picker gap filled with Cally (DaisyUI styles the
-// web component). The filter is display-only: each row carries data-created,
-// and data-show compares it with the $createdAfter signal. No request, no
-// server round trip, and the filter survives list patches because the box
-// owns the signal.
+// createdFilter is the date filter: a Cally calendar inside a native
+// popover. The filter is display-only — each row carries data-created and
+// data-show compares it with the $createdAfter signal: no request, no server
+// round trip, and it survives list patches because the box owns the signal.
+//
+// The calendar is a web component (<calendar-date>), so it only renders once
+// web/resources/static/cally.js has loaded; layout.templ mounts that module on
+// this page. Without it the element stays an unknown tag and the popover opens
+// empty — which is exactly how the calendar broke before (the loader was
+// dropped in the one-shell rewrite while the element stayed). The presets
+// below do not depend on it, so the filter still works if the script fails.
+//
 // createdFilter uses the native Popover API (popovertarget + popover) rather
 // than a Datastar signal: nothing reacts to its open state, and the browser
 // supplies light dismiss, Escape and top-layer stacking with no listener or
@@ -462,12 +469,19 @@ templ createdFilter() {
 	</div>
 	<div id="created-filter-popover" popover class="app-date-popover bg-base-100 text-base-content border border-base-300 rounded-box shadow-lg p-3">
 		<p class="ui-meta">Created since</p>
-		<input
-			type="date"
-			class="input input-sm mt-1"
+		<calendar-date
+			class="cally mt-1"
 			aria-label="Created since"
 			data-on:change={ `$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }
-		/>
+		>
+			<svg slot="previous" aria-label="Previous month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+				<path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+			</svg>
+			<svg slot="next" aria-label="Next month" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+				<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+			</svg>
+			<calendar-month></calendar-month>
+		</calendar-date>
 		<div class="flex flex-wrap gap-1 mt-2">
 			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>Today</button>
 			<button type="button" class="btn btn-ghost btn-sm" data-on:click={ `$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()` }>7 days</button>

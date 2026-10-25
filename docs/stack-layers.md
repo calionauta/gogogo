@@ -28,6 +28,7 @@ layered async topology see [Seven async layers](async-layers.md).
 | **Collaboration (CRDT)** | [loro-go](https://github.com/aholstenson/loro-go) | Conflict-free merging of whiteboard/notes state; converges offline edits with no last-write-wins data loss |
 | **Room ownership** | [GoAkt](https://github.com/Tochemey/goakt) | One addressable owner per room: connection-scoped roster pushed over SSE plus exactly-one presenter lock, supervised |
 | **Hand-drawn canvas** | [Rough.js](https://roughjs.com) (embedded) | Minimalist sketchy whiteboard rendering, embedded in the binary so it is removed with the whiteboard feature |
+| **Date picker** | [Cally](https://wicky.nillia.ms/cally/) + DaisyUI's `calendar` styles | A web component that defines `<calendar-date>`: keyboard- and screen-reader-accessible, localized through `Intl`, themed through CSS parts (no React — DaisyUI's other calendar targets are React Day Picker and Vanilla Calendar Pro). Loaded as a module by the one page with the filter, so its 38 KB never reach the landing or the shell; the presets keep the filter usable if the script fails. Pinned by `web/resources/cally_version_test.go` |
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
 | **Observability** | `log/slog` + [OpenTelemetry](https://opentelemetry.io) | Structured logs and traces from one wiring point (`internal/observability`) — no vendor SDK in the build |

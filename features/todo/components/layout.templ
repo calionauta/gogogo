@@ -17,6 +17,7 @@ import (
 	"github.com/calionauta/gogogo/features/todo"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
+	"github.com/calionauta/gogogo/web/resources"
 )
 
 // Layout renders /todo inside the shell. The signature is the handlers'
@@ -66,9 +67,17 @@ func todoStack() []components.TechItem {
 }
 
 // todoHead carries the page's own <head> extras. The toast styles moved to the
-// shell; what stays is the sound assets and the list's motion rules.
+// shell; what stays is the sound assets, the Cally calendar module and the
+// list's motion rules.
 templ todoHead() {
 	@sounds.SoundAssets()
+	// Cally registers <calendar-date> / <calendar-month>, which createdFilter
+	// renders. It is an ES module, so it upgrades the element after parsing —
+	// the popover is only opened by a click, long after. Dropping this line is
+	// how the calendar broke once: the element stayed, the loader went, and the
+	// popover opened empty. cally_version_test.go pins the asset, and
+	// date_filter_test.go asserts this page mounts it.
+	<script nonce={ templ.GetNonce(ctx) } type="module" src={ resources.StaticURL("cally.js") }></script>
 	<style>
 					to { width: 0%; }
 				}
