@@ -2,6 +2,7 @@
 cali-go-stack
 tmp/
 /gogogo
+/check-docs
 
 # The repo tracks its own helper scripts under bin/ (check-*.sh, datastar-lint,
 # init-secrets, setup-hooks.sh). A global ~/.gitignore_global commonly ignores
