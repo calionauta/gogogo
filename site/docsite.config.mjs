@@ -106,7 +106,7 @@ export default {
   { group: "Operate", slug: "ci-triage", file: "ci-triage.md",
     desc: "When CI fails on something variable: the 60-second triage, flake diagnosis, quarantine with an expiry, and why 100% is not the target." },
   { group: "Operate", slug: "code-quality", file: "code-quality.md",
-    desc: "The 33 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
+    desc: "The linter set, how to scope it, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures." },
   { group: "Operate", slug: "troubleshooting", file: "troubleshooting.md",
     desc: "Symptoms and where they actually come from." },
   { group: "Operate", slug: "duckdb", file: "duckdb.md",

@@ -99,7 +99,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [upgrading](docs/upgrading.md) — Keeping a scaffolded project current: the recorded base revision, --check-update's two halves, and migrate as a list plus gates — never a merge.
 - [local-ci](docs/local-ci.md) — The five-tier feedback loop and make signoff.
 - [ci-triage](docs/ci-triage.md) — When CI fails on something variable: the 60-second triage, flake diagnosis, quarantine with an expiry, and why 100% is not the target.
-- [code-quality](docs/code-quality.md) — The 33 linters, how to scope them, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures.
+- [code-quality](docs/code-quality.md) — The linter set, how to scope it, the Datastar-specific rules, and the ruleguard rules that encode project footguns as CI failures.
 - [troubleshooting](docs/troubleshooting.md) — Symptoms and where they actually come from.
 - [duckdb](docs/duckdb.md) — Query JSONL logs and the Turso file with DuckDB: local operator recipe.
 <!-- docs-index:end -->
@@ -171,7 +171,7 @@ dependencies and are left alone.
 | **AI features on any provider** | [GoAI](https://github.com/zendev-sh/goai) + optional [ai-credits](https://github.com/calionauta/ai-credits) | Any OpenAI-compatible provider; optional billing ledger + BYOK |
 | **Secrets encrypted at rest** | [age](https://age-encryption.org) + `~/.secrets/` | Project-scoped local encryption. No vault, no cloud; name scoping is not a sandbox ([security](docs/security.md)) |
 | **Desktop apps on the same backend** | [Wails v3](https://wails.io) + [gogpu/ui](https://github.com/gogpu/ui) | Native shells over the same backend, plus a no-HTTP frontend |
-| **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) (33) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
+| **Linting tuned for AI-written code** | [golangci-lint](https://golangci-lint.run) + [datastar-lint](https://github.com/calionauta/datastar-lint) | Tuned for LLM-authored code: unchecked errors, context leaks, lost context propagation |
 
 Full table with the reasoning behind each choice:
 [stack-layers](docs/stack-layers.md). Client weight per feature

@@ -270,7 +270,7 @@ Full gate: `references/exception-to-go.md` (summary) + `docs/exception-to-go.md`
 | Check | Command |
 |---|---|
 | Format | `golangci-lint` gate (not bare `gofumpt`; versions differ) |
-| Lint | `make lint-safe` — sizes to the host's free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Manual: `golangci-lint run <changed-pkgs>` (33 linters, `.golangci.yml`) |
+| Lint | `make lint-safe` — sizes to the host's free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Manual: `golangci-lint run <changed-pkgs>` (the `.golangci.yml` set) |
 | Custom rules | `rules/rules.go` via `ruleguard` (`.golangci.yml` → `gocritic.settings.ruleguard`) — project footguns, CI-blocking |
 | Templ | `make templ && make datastar-lint` (when `.templ` changed) |
 | Sizes/scope | pre-commit `file-sizes` + `go run ./cmd/check-scope` |
