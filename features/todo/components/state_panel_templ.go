@@ -50,7 +50,7 @@ func TodoStatePanel(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"app-state-panel-inner\"><!-- Presence lives in exactly one place: the header pill above\n\t\t\t\t     (count + transport, with what-it-means in its tooltip). The\n\t\t\t\t     standalone Realtime card duplicating those signals was removed —\n\t\t\t\t     it carried no action, only a second copy. --><!-- ─── Async Demo Tabs: Queue + Retry | AI Suggest | Durable Workflow ───\n\t\t\t\tThis single card holds the three async-layer demos as DaisyUI tabs so\n\t\t\t\teach demo's content lives INSIDE its own tab container. $sidebarTab\n\t\t\t\tselects the active tab (seeded \"queue\"). Queue + Retry demos goqite +\n\t\t\t\tretry-go with HARD-CODED tasks (no LLM). AI Suggest is a SEPARATE\n\t\t\t\taffordance that calls the configured GoAI client. Durable Workflow\n\t\t\t\tshows the DagNats event-sourced pipeline. --><div class=\"card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300 overflow-visible\"><div class=\"card-body p-4\"><div class=\"tabs tabs-box w-full mt-0 mb-2\" role=\"tablist\"><button class=\"tab tab-sm flex-1 transition-all\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" data-on:click=\"$sidebarTab = 'queue'\" data-class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"app-state-panel-inner\"><!-- Presence lives in exactly one place: the header pill above\n\t\t\t\t     (count + transport, with what-it-means in its tooltip). The\n\t\t\t\t     standalone Realtime card duplicating those signals was removed —\n\t\t\t\t     it carried no action, only a second copy. --><!-- ─── Async Demo Tabs: Queue + Retry | AI Suggest | Durable Workflow ───\n\t\t\t\tThis single card holds the three async-layer demos as DaisyUI tabs so\n\t\t\t\teach demo's content lives INSIDE its own tab container. $sidebarTab\n\t\t\t\tselects the active tab (seeded \"queue\"). Queue + Retry demos goqite +\n\t\t\t\tretry-go with HARD-CODED tasks (no LLM). AI Suggest is a SEPARATE\n\t\t\t\taffordance that calls the configured GoAI client. Durable Workflow\n\t\t\t\tshows the DagNats event-sourced pipeline. --><div class=\"card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300 overflow-visible\"><div class=\"card-body p-4\"><div class=\"tabs tabs-box tabs-sm w-full mt-0 mb-2\" role=\"tablist\"><button class=\"tab flex-1 transition-all\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" data-on:click=\"$sidebarTab = 'queue'\" data-class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -68,7 +68,7 @@ func TodoStatePanel(signals todo.Signals) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if (signals.LLMEnabled || signals.SimulatedLLM) && !signals.IsViewer {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button class=\"tab tab-sm flex-1 transition-all\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" data-on:click=\"$sidebarTab = 'ai'\" data-class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button class=\"tab flex-1 transition-all\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" data-on:click=\"$sidebarTab = 'ai'\" data-class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -87,7 +87,7 @@ func TodoStatePanel(signals todo.Signals) templ.Component {
 			}
 		}
 		if signals.DagNatsEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<button class=\"tab tab-sm flex-1 transition-all\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" data-on:click=\"$sidebarTab = 'workflow'\" data-class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<button class=\"tab flex-1 transition-all\" data-cuelume-hover=\"tick\" data-cuelume-press=\"toggle\" data-on:click=\"$sidebarTab = 'workflow'\" data-class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
