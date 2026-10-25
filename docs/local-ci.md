@@ -354,6 +354,7 @@ by hand, so when a step is added to one, add it to the other:
 | vendored stelow skill matches its pin | ✓ `check-stelow-drift` | ✅ `stelow-drift.yml` (weekly, `--strict`) |
 | the upgrade loop works against real releases | — | ✅ `update-loop.yml` (weekly: scaffold the previous tag, expect "behind" and the range) |
 | a newer Go **patch** is published | — | ✅ `go-auto-bump.yml` (weekly: opens a reviewed PR moving every pin; patch only — `make go-bump` by hand) |
+| a newer **Pele** release is published (the Mermaid renderer behind chat diagrams) | ✓ `pele_version_test.go` (the bundle's banner and the constant must agree) | ✅ `pele-auto-bump.yml` (weekly: opens a reviewed PR with the bundle, the pin and the measured sizes — `scripts/bump-pele.sh`) |
 | `uses:` action pins move | — | ✅ Dependabot (weekly, one grouped PR; the Go pin is not its business, see below) |
 | golangci-lint (the `.golangci.yml` set) | ✓ | ✓ |
 | govulncheck (dependency CVEs; the scanner itself is pinned in `go.mod`) | ✅ pre-push hook | ✓ |
