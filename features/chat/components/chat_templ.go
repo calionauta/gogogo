@@ -155,6 +155,7 @@ func chatStack() []components.TechItem {
 		{Name: "custom components", Note: "the model invents markup for your question, sanitized server-side"},
 		{Name: "your own data", Note: "a component can render your real todos from the app's store"},
 		{Name: "component catalog", Note: "cards, tables, charts for what markup does worse"},
+		{Name: "Pele diagrams", Note: "a mermaid fence becomes themeable SVG in the browser"},
 		{Name: "SSE Hub", Note: "answers stream to this tab live"},
 		{Name: "goqite queue", Note: "model round-trips run off-request"},
 		{Name: "owned sessions", Note: "history is per account"},
@@ -176,7 +177,7 @@ func chatStack() []components.TechItem {
 // toggles choose the answer vocabulary per request (catalog, custom, native:
 // the official surface names); all three off is prose-only.
 //
-// State ownership, same rule as the ask ack: the composer owns the optimistic
+// State ownership, same rule as the suggest ack: the composer owns the optimistic
 // state ($chat_thinking on submit, off on fetch error) and the worker owns
 // the terminal state ($chat_thinking off with the answer). Neither writes the
 // other's half.
@@ -216,7 +217,7 @@ func chatBody(msgs []store.MessageView, catalogOn bool, customOn bool, nativeOn 
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("$chat_thinking = true; $chat_error = ''; $chat_working = ''; $chat_empty = false; var sent = $chatPrompt; @post('/api/chat/ask?clientID=' + encodeURIComponent($clientID || window.__gogogoClientID || ''), {contentType: 'form'}).then(() => { if ($chatPrompt === sent) $chatPrompt = ''; }).catch(() => { $chat_thinking = false })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 118, Col: 357}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 119, Col: 357}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -386,7 +387,7 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 251, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 252, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -406,7 +407,7 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 257, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 258, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -429,7 +430,7 @@ func ChatThread(msgs []store.MessageView, errMsg string) templ.Component {
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(m.Text)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 263, Col: 33}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/chat.templ`, Line: 264, Col: 33}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {

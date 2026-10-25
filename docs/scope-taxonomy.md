@@ -30,7 +30,7 @@ Three clarifications the table alone does not carry:
   is not coherent at all.
 - **The servant wins ties.** A unit that both powers other surfaces and ships a
   page is a plugin when the capability is the servant and the page is its demo.
-  `features/genui` is the precedent: the Ask AI/Chat pages disappear with it,
+  `features/genui` is the precedent: the Chat page disappears with it,
   but the unit exists to render answers for chat, todo panels and review, so it
   is classified plugin (and bundled with `features/chat` for trimming).
 
