@@ -285,8 +285,8 @@ templ configBody(data PageData) {
 				<div role="alert" class="alert alert-warning mb-3"><span>{ data.AuditAlert }</span></div>
 			}
 			<form method="GET" action="/config#security-events" class="flex flex-wrap items-end gap-2 mb-3">
-				<label class="form-control">
-					<div class="label py-1"><span class="label-text text-xs">Event</span></div>
+				<label>
+					<div class="label py-1"><span class="text-xs">Event</span></div>
 					<select name="event" class="select select-sm">
 						<option value="">All events</option>
 						for _, name := range data.EventNames {

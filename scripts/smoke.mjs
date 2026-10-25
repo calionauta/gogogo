@@ -194,6 +194,85 @@ async function timedWait(page, name, fn, arg, opts) {
 // that the endpoint, the layer and the `#todo-list` patch agree a unit test
 // can pass with the template wired to nothing.
 //
+// Verify the account row's panel, the one surface whose regression is invisible
+// in source: an anchored menu that opens the wrong way renders perfectly and
+// lands outside the viewport, so "clicking the account does nothing" has
+// shipped twice. Three assertions, each of which failed at least once: the
+// panel must be INSIDE the viewport, it must sit ABOVE its trigger (it opens
+// upward), and its surface must differ from the rail behind it (border or
+// background — a panel on the same colour is invisible against it).
+//
+// `fail()` records and continues by design (the suite reports every failure in
+// one run), so this verifier counts its own and prints the success line only
+// when nothing broke — a check that prints "✓" after a "❌" trains people to
+// read the wrong line.
+async function verifyAccountMenu(page) {
+  console.log("-> Exercising the account menu (rail footer)...");
+  let bad = 0;
+  const check = (ok, msg) => {
+    if (!ok) {
+      fail(msg);
+      bad++;
+    }
+  };
+
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+
+  const trigger = page.locator("#app-rail .app-rail-foot .app-dropdown > summary").first();
+  await trigger.waitFor({ state: "visible", timeout: 5000 });
+  await trigger.click();
+
+  const panel = page.locator("#app-rail .app-dropdown-menu").first();
+  await panel.waitFor({ state: "visible", timeout: 5000 });
+
+  const box = await panel.boundingBox();
+  const row = await trigger.boundingBox();
+  const viewport = page.viewportSize();
+  if (!box || !row || !viewport) {
+    fail("account menu: no geometry to verify (panel or trigger has no box)");
+    return;
+  }
+  check(
+    box.y >= -1 && box.y + box.height <= viewport.height + 1,
+    `account menu panel is outside the viewport: y=${Math.round(box.y)} h=${Math.round(box.height)} of ${viewport.height}`,
+  );
+  check(
+    box.y + box.height <= row.y + 2,
+    "account menu panel did not open upward (it must sit above its row)",
+  );
+
+  const surface = await panel.evaluate((el) => {
+    const rail = el.closest("#app-rail");
+    const panelBg = getComputedStyle(el).backgroundColor;
+    const railBg = rail ? getComputedStyle(rail).backgroundColor : panelBg;
+    return { border: getComputedStyle(el).borderTopWidth, panelBg, railBg };
+  });
+  check(
+    surface.border !== "0px" || surface.panelBg !== surface.railBg,
+    "account menu panel has no border and no surface difference: it is invisible against the rail",
+  );
+
+  // The preference block belongs to this panel (that is what it is for), and
+  // its sound setting must be an input-backed toggle, not a button wearing the
+  // component's class name.
+  check(
+    (await page.locator("#app-pref-theme").count()) > 0,
+    "account menu has no palette list (#app-pref-theme)",
+  );
+  check(
+    (await page.locator("#app-rail .app-pref-setting input[type=checkbox]").count()) > 0,
+    "account menu's sound setting is not an input-backed toggle",
+  );
+
+  await page.keyboard.press("Escape");
+  await trigger.click();
+  await panel.waitFor({ state: "hidden", timeout: 5000 });
+
+  if (bad === 0) {
+    console.log("  ✓ account panel opens upward, stays on screen, with a distinct surface");
+  }
+}
+
 // Deliberately asserts on a MIDDLE substring: the default layer is the SQL
 // filter, and an exact-match regression would show up here as "no match".
 async function verifyTodoSearch(page) {
@@ -835,6 +914,8 @@ try {
     }
   }
   console.log("  ✓ demo mode: every module page offers the panel");
+
+  await verifyAccountMenu(page);
 
   for (const skin of offlineSkins) {
     pageErrors.length = 0;

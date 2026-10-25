@@ -147,7 +147,7 @@ func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, n
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Authenticator code</span></div><input type=\"text\" name=\"totp_code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\" autofocus></label> <button type=\"submit\" class=\"btn btn-primary w-full\">Verify code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Authenticator code</span></div><input type=\"text\" name=\"totp_code\" class=\"input input-sm\" required inputmode=\"numeric\" autocomplete=\"one-time-code\" autofocus></label> <button type=\"submit\" class=\"btn btn-primary w-full\">Verify code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -165,7 +165,7 @@ func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, n
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Email</span></div><input type=\"email\" name=\"email\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -178,7 +178,7 @@ func LoginPage(next string, errMsg string, demoAccounts bool, totpUser string, n
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" class=\"input input-sm\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" class=\"input input-sm\" required autocomplete=\"email\"></label> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Password</span></div><input type=\"password\" name=\"password\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -30,6 +30,23 @@ Read in this order; each one answers a different question:
 A skill's `references/` resolve only as relative paths to a locally present
 skill, so read the local vendored copy — a URL link cannot reach them.
 
+## Approved compositions first
+
+Before writing markup for a shape this template already has, ask the registry
+instead of inventing one:
+
+```bash
+go run ./cmd/ui-registry list            # id, title, canonical source
+go run ./cmd/ui-registry show field-action
+```
+
+`docs/ui-compositions.md` is the human half (account row, preference row, empty
+state, field-plus-action, stack key, inline state); `internal/ui/registry.json`
+is the machine half. Copy the shape from the source the entry points at.
+`make check-classes` validates every entry against the repo — source exists,
+promised classes are still there, doc anchor resolves, every numbered
+composition has an entry — so a stale registry fails the build.
+
 ## Translate, don't transplant (daisyui examples are HTML/JSX, this repo is .templ)
 
 The vendored skill's framing and install section do not apply here. The
@@ -52,7 +69,13 @@ contract (upstream component churn never touches it).
 - Scan roots are `features/`, `web/`, `internal/` only (`src/css/input.css`).
   `site/` and `docs/` edits cannot stale the bundle — and must not be
   scanned to make them do so.
-- Markup follows the vendored DaisyUI vocabulary. Deterministic backstop:
+- Markup follows the vendored DaisyUI vocabulary, and `make check-classes`
+  enforces it: every `app-*`/`ui-*`/`is-*` class exists in `chrome.css`, every
+  DaisyUI class/modifier is one the **vendored skill** declares (the gate
+  derives it, so a version bump widens the checks), and a DaisyUI 4 name
+  (`label-text`, `form-control`, `tab-sm`, `textarea-bordered`) fails with its
+  v5 replacement in the message.
+- Deterministic backstop:
   `make check-no-jsx` fails on `className` in `.templ` (the one JSX-ism
   templ passes through silently — verified: compiles clean, renders
   verbatim, unstyled) and on CDN links in app markup. An invented component

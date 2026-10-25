@@ -54,20 +54,39 @@ All classes read the theme's semantic tokens (`--color-base-*`,
 `--color-primary`, `--color-error`…), so all four palettes and both modes come
 for free. Reach for these before writing new markup:
 
+The kit is **layout only**. Controls come from DaisyUI (`btn`, `input`,
+`select`, `checkbox`, `badge`, `table`, `alert`, `join`, `toggle`, `avatar`);
+do not invent a `.ui-` twin for one. A custom class wearing a component's name
+(a `.ui-btn` re-implementing `btn`) is how two vocabularies drift apart, and the
+first one to drift is the one nobody checks.
+
 | Class | Use |
 |---|---|
 | `.ui-page` / `.ui-page-narrow` | the page column, centred. Every module body starts with one. |
 | `.ui-stack` | vertical rhythm (1rem). Rows of unrelated controls use it instead of ad-hoc margins. |
 | `.ui-card` + `.ui-card-head` / `.ui-card-body` | a bordered surface with a title row. |
-| `.ui-btn` + `.ui-btn-primary` / `.ui-btn-ghost` / `.ui-btn-error` / `.ui-btn-sm` | the only button shapes. Height 2.25rem, one focus ring. |
-| `.ui-field` + `.ui-field-group` | inputs, selects, textareas; a field glued to its action is one control. |
-| `.ui-badge` + `-primary` / `-success` / `-error` | inline state (counts, "set", verdicts). |
-| `.ui-empty` / `.ui-empty-title` / `.ui-empty-body` | centred empty state. |
-| `.ui-table` | data tables (config). Header cells are uppercase micro-labels. |
-| `.ui-callout` (+ `-warning` / `-error`) | a note in the flow: read-only banners, disabled states. |
+| `.ui-empty` / `.ui-empty-title` / `.ui-empty-body` | centred empty state (icon, title, one line of copy). |
+| `.ui-row` | one horizontal row of controls, when a wrapper is genuinely needed. |
 | `.ui-meta` | monospace micro-text for machine facts (store, generation, attempts). |
 | `.ui-title` | a card or section title. |
 | `.ui-kbd` | keyboard hints. |
+
+`cmd/check-classes` (`make check-classes`) makes this list executable: every
+`app-*` / `ui-*` / `is-*` class in a `class=` attribute must be defined in
+`chrome.css`, every selector there must be used somewhere, every class named in
+this page must exist, and every class retired by the DaisyUI 5 migration
+(`label-text`, `form-control`, `tab-sm`, …) is reported with its replacement.
+
+DaisyUI's own vocabulary is **derived from the vendored skill**
+(`.agents/skills/daisyui/SKILL.md`), not transcribed here: the gate reads the
+skill's class lists and syntax samples, so a version bump widens the checks
+automatically — and a bump that reshapes a component section fails loudly
+instead of silently narrowing them. That is what makes the auto-bump PR a real
+review gate.
+
+The approved *compositions* — the shapes a page should copy rather than invent —
+live in [UI compositions](ui-compositions.md), with `internal/ui/registry.json`
+as the machine half (`go run ./cmd/ui-registry list|show <id>`).
 
 **Rhythm rules.** One `.ui-page` per body; one card per concern; one filled
 control per screen (the primary action); machine data in `.ui-meta`, prose in

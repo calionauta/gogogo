@@ -50,6 +50,12 @@ pre-commit:
       run: go run ./cmd/check-scope
       glob: "{internal,features}/**/*.go"
 
+    # Markup ↔ stylesheet ↔ doc, plus the DaisyUI part rules. Globs are the
+    # three things it compares: a change to any of them can break the invariant.
+    - name: class-integrity
+      run: go run ./cmd/check-classes
+      glob: "{**/*.templ,web/resources/static/chrome.css,web/resources/static/app.css,skills/daisyui/SKILL.md,internal/ui/registry.json,docs/ui-shell.md,docs/ui-compositions.md}"
+
     - name: flatdeps-lint
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"

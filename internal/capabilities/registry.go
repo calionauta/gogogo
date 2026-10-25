@@ -32,7 +32,10 @@ var All = []Capability{
 		Kind: KindCore,
 		Summary: "one app shell (sidebar + module header + work area), the theme " +
 			"catalog, and the DaisyUI asset block every page renders",
-		Dirs: []string{"internal/ui", "internal/icon", "internal/themes", "internal/demo"},
+		Dirs: []string{
+			"internal/ui", "internal/uiregistry", "internal/icon",
+			"internal/themes", "internal/demo",
+		},
 		Note: "Core: every module page renders a body inside ui.Shell, and the " +
 			"shell renders the DaisyUI asset block on every page. " +
 			"Visual variants are DaisyUI themes (docs/ui-themes.md), not bundles.",

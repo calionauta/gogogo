@@ -133,6 +133,12 @@ jobs:
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
+      - name: Check-classes (markup ↔ stylesheet ↔ doc)
+        # The UI rules as a gate: an app-*/ui-* class must exist in chrome.css
+        # and be used, the kit table must match, and the DaisyUI part rules
+        # (toggle on an <input>, join-item inside a join, dropdown-content
+        # inside a dropdown) hold. Cheap (text + one regex pass).
+        run: go run ./cmd/check-classes
       - name: Check-flatdeps (flat-stack dependencies)
         # Same gate as `make check-flatdeps` and the pre-commit
         # flatdeps-lint job: no banned framework in the closure, no

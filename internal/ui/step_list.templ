@@ -43,7 +43,7 @@ templ StepList(steps []Step) {
 	<ol class="app-steps">
 		for _, s := range steps {
 			<li class="app-step" data-class={ stepClasses(s) }>
-				<span class="app-step-label">{ s.Label }</span>
+				<span>{ s.Label }</span>
 				if s.Detail != "" {
 					<span class="app-step-detail" data-show={ s.DetailShow } data-text={ s.Detail }></span>
 				}

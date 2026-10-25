@@ -90,18 +90,18 @@ templ body(data PageData) {
 			<div class="ui-card-body">
 				<h2 class="ui-title">Password</h2>
 				<form method="POST" action="/account/password" class="space-y-3 max-w-md">
-					<label class="form-control w-full">
-						<div class="label"><span class="label-text">Current password</span></div>
+					<label class="flex flex-col gap-1 w-full">
+						<div class="label"><span>Current password</span></div>
 						<input type="password" name="current" class="input input-sm" required
 							autocomplete="current-password"/>
 					</label>
-					<label class="form-control w-full">
-						<div class="label"><span class="label-text">New password</span></div>
+					<label class="flex flex-col gap-1 w-full">
+						<div class="label"><span>New password</span></div>
 						<input type="password" name="new" class="input input-sm" required
 							autocomplete="new-password" minlength="8"/>
 					</label>
-					<label class="form-control w-full">
-						<div class="label"><span class="label-text">Confirm new password</span></div>
+					<label class="flex flex-col gap-1 w-full">
+						<div class="label"><span>Confirm new password</span></div>
 						<input type="password" name="confirm" class="input input-sm" required
 							autocomplete="new-password" minlength="8"/>
 					</label>
@@ -120,14 +120,14 @@ templ body(data PageData) {
 					</p>
 					<form method="POST" action="/account/totp/disable" class="space-y-3 max-w-md mt-3">
 						if data.PasswordSet {
-							<label class="form-control w-full">
-								<div class="label"><span class="label-text">Confirm with your password</span></div>
+							<label class="flex flex-col gap-1 w-full">
+								<div class="label"><span>Confirm with your password</span></div>
 								<input type="password" name="password" class="input input-sm" required
 									autocomplete="current-password"/>
 							</label>
 						} else {
-							<label class="form-control w-full">
-								<div class="label"><span class="label-text">Authenticator or recovery code</span></div>
+							<label class="flex flex-col gap-1 w-full">
+								<div class="label"><span>Authenticator or recovery code</span></div>
 								<input type="text" name="code" class="input input-sm" required
 									inputmode="numeric" autocomplete="one-time-code"/>
 							</label>
@@ -136,14 +136,14 @@ templ body(data PageData) {
 					</form>
 					<form method="POST" action="/account/totp/recovery" class="mt-3 space-y-2 max-w-md">
 						if data.PasswordSet {
-							<label class="form-control w-full">
-								<div class="label"><span class="label-text">Confirm with your password</span></div>
+							<label class="flex flex-col gap-1 w-full">
+								<div class="label"><span>Confirm with your password</span></div>
 								<input type="password" name="password" class="input input-sm" required
 									autocomplete="current-password"/>
 							</label>
 						} else {
-							<label class="form-control w-full">
-								<div class="label"><span class="label-text">Authenticator or recovery code</span></div>
+							<label class="flex flex-col gap-1 w-full">
+								<div class="label"><span>Authenticator or recovery code</span></div>
 								<input type="text" name="code" class="input input-sm" required
 									inputmode="numeric" autocomplete="one-time-code"/>
 							</label>
@@ -163,8 +163,8 @@ templ body(data PageData) {
 							data-on:click="navigator.clipboard.writeText(document.getElementById('totp-uri').textContent)">Copy setup link</button>
 					</div>
 					<form method="POST" action="/account/totp/verify" class="space-y-3 max-w-md mt-3">
-						<label class="form-control w-full">
-							<div class="label"><span class="label-text">Authenticator code</span></div>
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label"><span>Authenticator code</span></div>
 							<input type="text" name="code" class="input input-sm" required
 								inputmode="numeric" autocomplete="one-time-code"/>
 						</label>
@@ -232,14 +232,14 @@ templ body(data PageData) {
 				}
 				<form method="POST" action="/account/sessions/revoke-all" class="mt-4 space-y-2 max-w-md">
 					if data.PasswordSet {
-						<label class="form-control w-full">
-							<div class="label"><span class="label-text">Confirm with your password</span></div>
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label"><span>Confirm with your password</span></div>
 							<input type="password" name="password" class="input input-sm" required
 								autocomplete="current-password"/>
 						</label>
 					} else if data.TOTP {
-						<label class="form-control w-full">
-							<div class="label"><span class="label-text">Authenticator or recovery code</span></div>
+						<label class="flex flex-col gap-1 w-full">
+							<div class="label"><span>Authenticator or recovery code</span></div>
 							<input type="text" name="code" class="input input-sm" required
 								inputmode="numeric" autocomplete="one-time-code"/>
 						</label>

@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-docs docs-index
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
 all: build
 
@@ -208,6 +208,19 @@ check-scope:
 	@go run ./cmd/check-scope
 	@echo "✅ SCOPE annotations present"
 
+# check-classes makes the UI rules executable: every app-*/ui-*/is-* class in
+# a class attribute must be defined in chrome.css, every selector there must be
+# used somewhere, every class in docs/ui-shell.md's kit table must exist, and
+# the DaisyUI part rules (toggle on an <input>, join-item inside a join,
+# dropdown-content inside a dropdown) are enforced. The three failures it was
+# written for — .ui-field-group (used, never defined), the phantom .ui-btn doc
+# table, and a daisyUI component on the wrong element — all passed every other
+# gate in this repo.
+check-classes:
+	@echo "→ check-classes (markup ↔ stylesheet ↔ doc)..."
+	@go run ./cmd/check-classes
+	@echo "✅ classes and DaisyUI parts agree"
+
 # check-quarantine fails when the known-flaky registry (internal/hostgate)
 # holds an entry that is malformed or EXPIRED — the part that keeps a
 # quarantine from becoming a silent deletion. Empty is the healthy state.
@@ -287,7 +300,7 @@ cover-diff:
 #   make go-bump              # newest patch of the tree's line
 #   make go-bump DRY=1        # report what would move, write nothing
 #   make go-bump TO=1.27.4    # name the target explicitly
-.PHONY: go-bump
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 go-bump:
 	@go run ./cmd/bump-go-toolchain $(if $(TO),--to $(TO)) $(if $(DRY),--dry-run)
 
@@ -425,7 +438,7 @@ check-no-jsx:
 # so a CSS or installer tweak would otherwise pay for the whole suite. This
 # narrows on the changed packages, falling back to all packages when a shared
 # file (go.mod, config/, db/) changed.
-ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local-fast: check-fast-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-classes check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 # Pre-flight: check-fast-capacity refuses a wedged box (use CI instead).
 # Budget: more than $FAST_MAX_PARALLEL_PKGS (default 8) changed packages
 # runs serially (-p 1) to bound shared-host load.
@@ -496,9 +509,9 @@ reap-stale:
 	@echo "→ reaping stale smoke artifacts (6h+)..."
 	@bash scripts/reap-stale-smoke.sh
 
-.PHONY: ci-local ci-local-fast signoff check-host-capacity check-fast-capacity reap-stale
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
-.PHONY: site site-check
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-classes check-docs docs-index
 
 deps:
 	@go mod tidy

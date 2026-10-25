@@ -104,7 +104,7 @@ func PasswordResetPage(email, token, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">New password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm new password</span></div><input type=\"password\" name=\"confirm\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\">Set password</button></form><p class=\"text-xs text-center text-base-content/50 mt-4\">All existing sessions will be signed out.</p></div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>New password</span></div><input type=\"password\" name=\"password\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <label class=\"flex flex-col gap-1 w-full\"><div class=\"label\"><span>Confirm new password</span></div><input type=\"password\" name=\"confirm\" class=\"input input-sm\" required autocomplete=\"new-password\" minlength=\"8\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\">Set password</button></form><p class=\"text-xs text-center text-base-content/50 mt-4\">All existing sessions will be signed out.</p></div></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
