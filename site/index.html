@@ -107,6 +107,10 @@
           <li><code>--yes</code> — scaffold, trim, prove it builds</li>
           <li><code>add</code> — bring a trimmed unit back</li>
           <li><code>--check</code> — verify markers, catch drift</li>
+          <li><code>export</code> — port bundle for a non-gogogo tree</li>
+          <li><code>new feature</code> — scaffold one feature in your project</li>
+          <li><code>migrate</code> — every release since your base, plus the gates</li>
+          <li><code>--check-update</code> — is an update out? exit 3 means yes</li>
         </ul>
         <p class="off">Pin <code>--no-tui --yes</code> · never delete on an assumption</p>
       </div>
@@ -120,6 +124,10 @@
           <li><code>trim_apply</code> — scaffold, needs <code>confirm:true</code></li>
           <li><code>check_tree</code> — drift verdict per unit</li>
           <li><code>add_unit</code> — restore a unit, needs <code>confirm:true</code></li>
+          <li><code>version_status</code> — is the tool or the project behind?</li>
+          <li><code>migrate_plan</code> — releases between your base and the latest</li>
+          <li><code>export_unit</code> — port bundle, writes only <code>to</code></li>
+          <li><code>new_feature</code> — scaffold a feature, needs <code>confirm:true</code></li>
         </ul>
         <p class="off">One JSON block in your client config · <a href="./docs/mcp/">setup guide →</a></p>
       </div>
@@ -171,7 +179,7 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       </a>
       <a class="doc-card" href="./docs/mcp/#tools">
         <span class="doc-card-title">Tool catalog →</span>
-        <span class="doc-card-desc">The six tools, source included.</span>
+        <span class="doc-card-desc">Every tool, with its source.</span>
       </a>
     </div>
   </section>
@@ -270,7 +278,7 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
       </div>
       <div class="card">
         <p class="step">Chat (generative UI)</p>
-        <p class="tech">Catalog + invented visuals + diagrams, no client framework</p>
+        <p class="tech">Catalog + invented visuals + <a href="https://pele.run" rel="noopener">Pele</a> diagrams, no client framework</p>
         <p>The model answers in conversation with cards, tables, diagrams and invented markup; the server renders them. Keyless demo included. Proves constrained generation with unknown-type fail-closed.</p>
         <p class="off">Delete: <code>features/genui/</code> + <code>features/chat/</code></p>
       </div>
@@ -364,18 +372,23 @@ command = "~/.local/bin/gogogo-mcp"</code></pre>
         <p>Server-rendered pages. No client code beyond the shared core.</p>
       </div>
       <div class="card">
+        <p class="step">Chat diagrams</p>
+        <p class="tech">~692 KB raw · ~258 KB gzip</p>
+        <p>The one heavy asset: <a href="https://pele.run" rel="noopener">Pele</a> draws a Mermaid fence as themeable SVG. Only the chat page loads it, and without it the source stays readable as code.</p>
+      </div>
+      <div class="card">
         <p class="step">Shared notes</p>
-        <p class="tech">~19 KB raw · ~7 KB gzip</p>
+        <p class="tech">~36 KB raw · ~13 KB gzip</p>
         <p>Collaborative editing, presence, carets — one vendored file, no dependency.</p>
       </div>
       <div class="card">
         <p class="step">Collaborative whiteboard</p>
-        <p class="tech">~48 KB raw · ~16 KB gzip</p>
+        <p class="tech">~56 KB raw · ~19 KB gzip</p>
         <p>Canvas wiring plus the hand-drawn renderer. Still smaller than most framework runtimes alone.</p>
       </div>
       <div class="card">
         <p class="step">Shared core, every page</p>
-        <p class="tech">~40 KB raw · ~16 KB gzip</p>
+        <p class="tech">~36 KB raw · ~15 KB gzip</p>
         <p>Datastar plus theming. That is the whole client platform.</p>
       </div>
     </div>
