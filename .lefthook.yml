@@ -56,6 +56,13 @@ pre-commit:
       run: go run ./cmd/check-classes
       glob: "{**/*.templ,web/resources/static/chrome.css,web/resources/static/app.css,skills/daisyui/SKILL.md,internal/ui/registry.json,docs/ui-shell.md,docs/ui-compositions.md}"
 
+    # The published linter, locally: a typo'd or retired DaisyUI class renders
+    # with no styles and no error anywhere else. 0.2s, same vocabulary CI uses —
+    # the local half of the CI step (a fix here costs one edit, not a CI round-trip).
+    - name: daisyui-lint
+      run: make daisyui-lint
+      glob: "{**/*.templ,**/*.html,web/resources/static/chrome.css,skills/daisyui/SKILL.md}"
+
     - name: flatdeps-lint
       run: go run ./cmd/check-flatdeps
       glob: "{go.mod,internal/**,features/**}"
