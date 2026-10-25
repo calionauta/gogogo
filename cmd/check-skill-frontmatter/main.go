@@ -26,6 +26,10 @@
 //  5. `description` stays within the Agent Skills limit (1024 chars).
 //  6. No unknown top-level keys (typos like `descripton:` would otherwise be
 //     silently ignored by hosts).
+//  7. Every relative markdown path in the body (a link or a backticked path)
+//     resolves — including the cross-skill references like
+//     `../gogogo-coding-standards/references/datastar.md`, which no other gate
+//     reads and an agent cannot fall back to a URL for.
 package main
 
 import (
@@ -79,9 +83,10 @@ func main() {
 		}
 	}
 	problems = append(problems, checkRegistry(root, skills)...)
+	problems = append(problems, checkLinks(root, skills)...)
 
 	if len(problems) == 0 {
-		fmt.Fprintf(os.Stdout, "✅ SKILL.md frontmatter valid + registered (%d file(s))\n", len(skills))
+		fmt.Fprintf(os.Stdout, "✅ SKILL.md frontmatter valid, registered, references resolve (%d file(s))\n", len(skills))
 		return
 	}
 	for _, p := range problems {

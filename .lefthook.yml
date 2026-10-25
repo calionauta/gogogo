@@ -118,9 +118,11 @@ pre-commit:
     # never by this repo's build — so an unquoted ": " in the description
     # ships silently and surfaces as "Error in user YAML" in the host UI.
     # Validated with a real YAML parser, not a regex.
+    # Frontmatter, registry and reference links: a references/*.md edit can break
+    # the path a SKILL.md tells the reader to open, so both are inputs.
     - name: skill-frontmatter
       run: go run ./cmd/check-skill-frontmatter
-      glob: "**/SKILL.md"
+      glob: "{**/SKILL.md,skills/**/*.md}"
 
     - name: datastar-lint
       run: bin/check-datastar.sh
