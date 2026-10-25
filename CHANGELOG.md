@@ -15,6 +15,14 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.57.1 (2026-10-25)
+
+## What's Changed
+* chore(deps): daisyui-lint v0.2.1 by @calionauta in https://github.com/calionauta/gogogo/pull/302
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.57.0...v0.57.1
+
 ## 0.57.0 (2026-10-25)
 
 ## What's Changed
