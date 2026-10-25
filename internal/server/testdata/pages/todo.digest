@@ -4,4 +4,4 @@ data-bind cmdQuery newTitle searchQuery
 data-on data-on:change data-on:click data-on:close
 signals aiPending aiPhase aiStep clientID cmdQuery confirmingDeleteId confirmingDeleteTitle connectedClients createdAfter deleting demoStep docVersion filter itemCount lastItemSource lastRetryAttempt lastRetryStatus loading newTitle noMatches panelVisible permDenied railOpen realtimeKind scope searchQuery sessionAuthed sidebarTab suggestPending suggestions techPhase techStep theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-live aria-pressed
-tags a=22 aside=2 body=1 button=35 details=2 dialog=3 div=65 form=5 h1=1 h2=1 h3=2 head=1 header=1 html=2 input=5 kbd=3 label=2 li=26 link=3 main=1 meta=2 nav=2 ol=2 option=6 p=11 path=32 script=15 select=2 span=103 strong=1 style=3 summary=2 svg=32 title=1 ul=3
+tags a=22 aside=2 body=1 button=35 calendar=2 details=2 dialog=3 div=65 form=5 h1=1 h2=1 h3=2 head=1 header=1 html=2 input=4 kbd=3 label=2 li=26 link=3 main=1 meta=2 nav=2 ol=2 option=6 p=11 path=34 script=16 select=2 span=103 strong=1 style=3 summary=2 svg=34 title=1 ul=3

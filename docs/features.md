@@ -181,8 +181,9 @@ attributed per feature.
 
 | Feature | Files | Raw | Gzip |
 |---|---|---|---|
-| Todo, Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
+| Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
 | Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 690 KB | 257 KB |
+| Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
 | Shared notes | `notes.js` | 28 KB | 10 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 19 KB |
 | Shared core (every page) | `datastar.js` + `theme.js` | 40 KB | 16 KB |
