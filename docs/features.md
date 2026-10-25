@@ -175,22 +175,26 @@ from `internal/server/chi.go`, and — if it was a plugin — remove the
 
 ## Client weight
 
-Vendored JS per feature, measured deterministically (`wc -c` raw,
-`gzip -nc` for wire). A row that lists several files sums them before
-rounding up, so the number is what the page fetches, not what one file
-weighs. CSS is one shared bundle and is not attributed per feature.
+Vendored JS per feature, generated rather than typed: `make check-docs`
+measures every file a row names and refuses a number that disagrees, and
+`make docs-index` rewrites it. A row that lists several files sums them
+before rounding up, so the number is what the page fetches, not what one
+file weighs. Gzip is Go's `compress/gzip` (not byte-identical to GNU `gzip`,
+which is why one implementation owns the number). The landing quotes this
+table through `data-weight` spans and never re-types it. CSS is one shared
+bundle and is not attributed per feature.
 
 | Feature | Files | Raw | Gzip |
 |---|---|---|---|
 | Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
-| Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 692 KB | 258 KB |
+| Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 692 KB | 267 KB |
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
 | Shared notes | `notes.js` | 36 KB | 13 KB |
-| Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 19 KB |
-| Sounds (plugin, where the toggle renders) | `cuelume.js` + the four modules it imports under `web/resources/static/cuelume/` | 27 KB | 9 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 20 KB |
+| Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 28 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 7 KB | 3 KB |
 | Service worker (one fetch, registered on first authenticated load) | `sw.js` | 22 KB | 8 KB |
-| Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 19 KB |
+| Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle

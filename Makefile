@@ -18,7 +18,7 @@ SMOKE_BIN ?= $(OS_TMPDIR)/gogogo-ci-local-web
 # plain `go build`); the pin exists for `wails3 doctor` / `wails3 init` tooling.
 WAILS_VERSION := v3.0.0-beta.24
 
-.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard
+.PHONY: all build desktop sqlc sqlc-check desktop-setup-cross desktop-cross-windows desktop-cross-darwin desktop-cross-linux desktop-cross-universal desktop-cross wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff check-skill-frontmatter deps dev docker-image setup rename help smoke smoke-prod-image smoke-clean gui run-gui lint-gui check-generated install-sh-guard check-docs docs-index
 
 all: build
 
@@ -627,3 +627,15 @@ site:
 site-check:
 	@echo "→ Checking docs links and heading anchors..."
 	@node site/build.mjs --check
+
+# The prose-claim gate: no hand-written counts, dead repo paths, invented
+# `gogogo` subcommands, an unpublished page, or a Client weight row that no
+# longer matches the bytes it names. Same implementation the pre-commit
+# docs-claims job and CI run (they call `go run ./cmd/check-docs` directly).
+check-docs:
+	@go run ./cmd/check-docs
+
+# Rewrites the README page index from the site MANIFEST instead of checking
+# it. Run it after adding or renaming a page.
+docs-index:
+	@go run ./cmd/check-docs -write
