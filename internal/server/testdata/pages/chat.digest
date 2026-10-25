@@ -1,5 +1,5 @@
 route /chat
-ids app-pref-theme app-rail chat-composer chat-empty chat-messages chat-prompt chat-stream-opener command-palette command-palette-input command-palette-list confirm-new-chat offline-banner offline-banner-text session-banner state-panel toast-container
+ids app-pref-theme app-rail chat-composer chat-empty chat-messages chat-prompt chat-stream-opener chat-thinking command-palette command-palette-input command-palette-list confirm-new-chat offline-banner offline-banner-text session-banner state-panel toast-container
 data-bind chatPrompt cmdQuery
 data-on data-on:click data-on:close
 signals chatPrompt chat_empty chat_error chat_ready chat_thinking chat_working clientID cmdQuery loading panelVisible railOpen sessionAuthed theme
