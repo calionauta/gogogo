@@ -363,6 +363,15 @@ var exceptionToGoRules = []string{
 	"Still true without the template: one package, small C ABI, " +
 		"caller-owned buffers, pure-Go fallback from day one, removable in " +
 		"minutes. Byte-exact kernels are compared by checksum, not by vibes.",
+	"SIMD verbs check first: grep portable `simd` for widen/shuffle/shift/" +
+		"narrow — an absent verb is a documented skip, not an attempt. Price " +
+		"both loaders when calls are frequent (the measured CGO-vs-purego " +
+		"gap is an order of magnitude at small payloads).",
+	"Measured cases: FNV-1a tie → Go; grayscale survivor (Zig 2.2x scalar " +
+		"Go) still owes the arch-specific attempt, the purego story, a " +
+		"fallback, and the human gate. Full tables: " +
+		"docs/research/native-kernels-2026-10.md. Check the local toolchain " +
+		"version before writing FFI calls — stale recall fails at seams.",
 }
 
 // zigSignals is the tool's entire non-Go vocabulary: one entry, the one

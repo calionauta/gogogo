@@ -20,6 +20,19 @@ criteria:
 - performance: operations per second (median across runs, not one sample) and the actual gain when optimization was requested.
 - coexistence: the cost of living with the rest of the system — translation between languages, deployment environments, a fallback plan, and a clean exit if you ever strip it out.
 
+A PoC that reports only performance is incomplete. Each criterion ships
+with its instrument, or the gap is stated: correctness → golden vectors,
+cross-implementation agreement, edge statuses, and a red-proof (a mutation
+must fail); agent cost → rounds-to-green, build wall-clocks, and a note
+when tokens or session time were not instrumented; error type → every
+failure classified (grammar, outdated version, logic, hallucination,
+environment); performance → medians across runs on the same machine and
+workload, ranges on re-timing, never one sample. What the template cannot
+yet show (uninstrumented cost, untested scale, untested target) is listed
+as gaps, not silently skipped. The [2026-10 native-kernel
+note](research/native-kernels-2026-10.md) is the worked example: it grades
+itself against all four, gaps included.
+
 my take: LLMs need a language where failing is cheap — errors surface early
 and fixes are cheap — and humans can read whenever they step in.
 

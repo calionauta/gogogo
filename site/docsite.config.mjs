@@ -97,6 +97,8 @@ export default {
     desc: "The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability." },
   { group: "Research", slug: "supply-chain-scanning", file: "research/supply-chain-scanning-2026.md",
     desc: "The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate." },
+  { group: "Research", slug: "native-kernels", file: "research/native-kernels-2026-10.md",
+    desc: "The 2026-10-25 native-kernel PoCs: FNV-1a tie vs grayscale survivor, SIMD verbs audit, loader prices, Rust/Odin probes." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
     desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",

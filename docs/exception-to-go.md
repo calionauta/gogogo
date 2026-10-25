@@ -250,6 +250,18 @@ Zig. Before proposing native code, check whether Go's standard facilities,
 compiler optimizations, SIMD APIs, or existing Go libraries solve the
 problem. Document what you tried and the measured gap.
 
+Check the op set before attempting a rewrite: portable `simd` covers
+lane-wise arithmetic, convert, and reshape — no widen,
+shuffle/deinterleave, or narrow. Grep the package for each verb your kernel
+needs; an absent verb is documented grounds to skip the rung for that kernel
+shape — cite the miss, do not burn days proving it. (Measured case,
+2026-10, arm64: an RGB-interleaved map kernel needs deinterleave + widen +
+shift + narrow; portable `simd` in Go 1.27 has none of the four, and
+`archsimd` arm64 lacks logical shift-right and narrow for the needed types.
+Verbs audit: ~5 greps, zero lines written. Full table in the
+[research note](research/native-kernels-2026-10.md). Shuffles and reductions
+are a 1.28 plan — that plan is the revisit trigger, not a reason to wait.)
+
 ## Decision procedure
 
 Answer in order. The first "Go" wins — stop there.
@@ -405,6 +417,12 @@ is performance-critical.
   purego's `fakecgo` collides with goffi's at CGO-less link time
   (`cmd/gui` proved it: tursogo + wgpu cannot coexist without CGO), so a
   purego-loaded kernel is refused in any binary that already links goffi.
+  Measure the loader on your workload — the two differ by an order of
+  magnitude where calls are frequent and payloads small. Measured
+  (2026-10, arm64, small kernel, median-of-3): CGO ~60 ns/call, purego
+  ~700 ns/call plus 72 B/4 allocs per call on that path; parity at 64 KB
+  payloads. Re-measure on your machine and payload sizes; when call
+  frequency is high, price both loaders before choosing.
 
 ## Performance rule (no reputation-based optimization)
 
@@ -493,7 +511,13 @@ this cleanly," stay in Go. Concretely, evaluate the impact on `make dev`,
 - **Cross-compilation.** The deploy workflow cross-compiles
   (`GOOS=linux` from any runner). The proposal must state which
   `GOOS`/`GOARCH` pairs the kernel supports and what happens on the rest
-  (fallback vs build error).
+  (fallback vs build error). A one-file kernel cross-compiles as codegen in
+  well under a second per target (measured 2026-10: four pairs, each
+  <0.15 s) — but codegen is not a linked binary. The link-time story
+  (e.g. the darwin `-lresolv` case) needs its own run on the target.
+  Quote both artifact scales when arguing distribution: a static lib is
+  kilobytes (5.8 KB measured), a linked standalone binary carrying its
+  runtime is megabytes (~4 MB measured).
 - **Reproducibility.** Pinned toolchain, locked inputs, same bytes from the
   same source. No "install latest Zig" steps.
 - **Distribution into the musl image.** The runtime image is alpine with a
@@ -562,6 +586,17 @@ Zig.
 Potentially good candidate: a mature C library is required and Zig provides
 a clean, reproducible build/integration boundary around it. → Evaluate the
 wrapper, not a rewrite.
+
+Measured rejection: FNV-1a 64, three legs (pure Go, pure Zig,
+Zig-via-CGO) — the kernels tie (~0.65 GB/s both, arm64, 2026-10) and only
+the ~60 ns boundary cost shows. Verdict: Go. Full table in the
+[research note](research/native-kernels-2026-10.md).
+
+Measured survivor: RGB→grayscale map kernel — scalar Go ~0.94 GB/s vs
+Zig ~2.3 GB/s, stable across 12 KB–3 MB, portable Go SIMD inexpressive
+per the verbs audit above. A survivor still owes the arch-specific attempt
+cost (or its documented skip), the purego story, a fallback, and the human
+gate — numbers open the door, they do not walk through it.
 
 Bad candidate: an ordinary CRUD/API feature could be written in either
 language. → Go.

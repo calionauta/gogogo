@@ -14,6 +14,13 @@ There is no Zig code and no Zig toolchain in this repo today. That is the succes
 4. No profile/bench vs Go baseline, or no measurable benefit → Go.
 5. Else → write the 11-point justification (problem, Go baseline, evidence, benefit, why Zig, C-ABI boundary, portability, build/CI, maintenance, fallback, removal) or stay in Go.
 
+## Evidence order (cheapest first)
+
+Grep audit (SIMD verbs, ~5 greps) > cross-compile codegen matrix
+(<0.15 s/target) > new-loader leg on the existing kernel > full
+new-language leg. Do the cheap probes before the expensive ones, and
+record each miss — a documented miss is evidence, not a gap.
+
 ## If a kernel ever lands
 
 - One kernel, one owner (`internal/<thing>/zig/`), small C ABI, caller-owned buffers, who-allocates/who-frees documented, no Zig types/allocators leaking into Go, stateless where possible.
@@ -49,6 +56,9 @@ Pre-1.0: pin a release tag (the way `WAILS_VERSION` pins `wails/v3`). See
 
 ## Local-docs-first (when Zig exists)
 
+`zig version` before writing a call — and edition awareness for Rust,
+`odin --version` for Odin. Stale-version recall fails at FFI seams first:
+3 of 9 PoC failures were outdated API recall, none in kernel logic.
 `zig env` for `.lib_dir`/`.std_dir`/`.version` — never hardcode paths. Check `<lib_dir>/../doc/langref.html` + `.std_dir` sources + `zig std` server before web search.
 
 ## What to vendor, and when
