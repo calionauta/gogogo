@@ -54,7 +54,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | Variable | Default | Purpose |
 |---|---|---|
 
-| `OFFLINE_SYNC_ENABLED` | `true` | Hybrid offline sync. `false` disables the NATS CRUD proxy and the Service Worker offline queue — zero code paths traversed. |
+| `OFFLINE_SYNC_ENABLED` | `true` | Hybrid offline sync. `false` disables the NATS CRUD proxy and the Service Worker offline queue — zero code paths traversed — and retires a worker an earlier deployment installed (plus its caches) on the next page load. |
 | `COLLAB_SNAPSHOTS` | `turso` | CRDT snapshot store behind whiteboard/notes. `memory` keeps snapshots process-local (draw without persistence — docs start empty after restart). Unknown values fail closed at boot. |
 
 ### LLM

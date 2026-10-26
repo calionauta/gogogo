@@ -235,6 +235,13 @@ type Signals struct {
 	// its close button (same lifecycle as the other ephemeral signals).
 	PermDenied bool `json:"-"`
 
+	// SyncFailed drives the create form's "not saved" alert. It is
+	// client-owned: the form sets it from a failed request (a 503 from the
+	// offline queue, a network error, a refused write) and clears it on the
+	// next submit. It is never merged, because the server has no way to know
+	// whether the browser stored the mutation.
+	SyncFailed bool `json:"-"`
+
 	// ReviewEnabled reflects whether the review-loop UI should render:
 	// the review routes are wired AND a real LLM is configured
 	// (GOAI_API_KEY set — the review loop is real-LLM only, never

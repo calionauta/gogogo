@@ -120,10 +120,17 @@ templ TodoList(signals todo.Signals) {
 // viewport bottom: a sticky footer composer made capture feel detached
 // from the rows it creates. Buttons disable themselves via Datastar
 // signals so the user can't double-fire.
+//
+// The pending state belongs to the REQUEST, not to the Service Worker: the
+// action clears $loading when its promise settles (204 = queued, error =
+// failed), so a queue write that never completes or a page that lost the SW
+// message bridge cannot freeze the button. A failed request keeps the typed
+// title and shows the alert instead of silently dropping the user's text.
 templ createForm(signals todo.Signals) {
 	<form
+		id="todo-create"
 		class="w-full mt-3"
-		data-on:submit__prevent="if (!$loading) { $loading = true; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form'}).then(() => { if ($newTitle === sent) $newTitle = ''; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.type === 'error' || evt.detail.type === 'retries-failed' ? ($loading = false) : null"
+		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form', retryMaxCount: 0}).then(() => { if (!$syncFailed && $newTitle === sent) $newTitle = ''; $loading = false; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'todo-create' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($loading = false, $syncFailed = true) : null"
 	>
 		<div class="join w-full">
 			<input
@@ -148,6 +155,9 @@ templ createForm(signals todo.Signals) {
 			<input type="checkbox" name="visibility" value="public" class="checkbox checkbox-xs checkbox-info"/>
 			<span>Shared — every login sees this todo (private by default)</span>
 		</label>
+		<div class="alert alert-warning mt-2" role="alert" id="todo-save-error" data-show="$syncFailed">
+			<span>Not saved — the request failed. Your text is still in the box; try again.</span>
+		</div>
 	</form>
 }
 
