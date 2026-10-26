@@ -34,6 +34,7 @@ templ OfflineBanner(offlineSync bool) {
 		data-offline-sync={ strconv.FormatBool(offlineSync) }
 		data-on:online__window="window.__gogogoBannerOnline()"
 		data-on:offline__window="window.__gogogoBannerOffline()"
+		data-on:visibilitychange__document="window.__gogogoBannerVisible()"
 		aria-live="polite"
 	>
 		<span id="offline-banner-text">Online</span>
@@ -45,6 +46,11 @@ templ OfflineBanner(offlineSync bool) {
 		#offline-banner.is-syncing {
 				display: block;
 				background-color: #3b82f6;
+				color: #ffffff;
+			}
+		#offline-banner.is-queued {
+				display: block;
+				background-color: #f59e0b;
 				color: #ffffff;
 			}
 		#offline-banner.is-offline {
@@ -64,18 +70,27 @@ templ OfflineBanner(offlineSync bool) {
 			// interpolation is guaranteed) and read it from the element.
 			var OFFLINE_SYNC = banner.dataset.offlineSync === "true";
 
+			// queuedPending survives the online flap: a mutation queued while
+			// offline is still unsynced until the SW says "sync-end". Without
+			// it the banner flipped straight to "Online" on reconnect even
+			// when the replay had failed and the mutation was still in
+			// IndexedDB (the optimistic row then outlived every reload).
+			var queuedPending = false;
+
 			function setState(state) {
 				var cls = "is-" + state;
-				banner.classList.remove("is-online", "is-syncing", "is-offline");
+				banner.classList.remove("is-online", "is-syncing", "is-queued", "is-offline");
 				banner.classList.add(cls);
 				// display state handled by .is-* classes in chrome.css
 				text.textContent = state === "syncing"
 					? "Syncing changes\u2026"
-					: state === "offline"
-						? (OFFLINE_SYNC
-							? "Offline \u2014 changes are queued and will sync when you reconnect"
-							: "Offline \u2014 online-only mode; requests will fail when network is down")
-						: "Online";
+					: state === "queued"
+						? "Changes queued \u2014 retrying sync\u2026"
+						: state === "offline"
+							? (OFFLINE_SYNC
+								? "Offline \u2014 changes are queued and will sync when you reconnect"
+								: "Offline \u2014 online-only mode; requests will fail when network is down")
+							: "Online";
 			}
 
 			if (OFFLINE_SYNC && navigator.serviceWorker) {
@@ -87,12 +102,14 @@ templ OfflineBanner(offlineSync bool) {
 				navigator.serviceWorker.addEventListener("message", function (e) {
 					var data = e.data || {};
 					if (data.type === "sync-start") {
+						queuedPending = true;
 						setState("syncing");
 						// Connection is back — the SW is replaying queued
 						// mutations. Show the live presence count instead
 						// of stale offline styling.
 						reflectPresence(true);
 					} else if (data.type === "sync-end") {
+						queuedPending = false;
 						setState("online");
 						// Replay complete — remove offline styling from
 						// presence pills so the live "X online" count
@@ -106,7 +123,12 @@ templ OfflineBanner(offlineSync bool) {
 						// after offline, with nothing after it.
 						window.dispatchEvent(new CustomEvent("gogogo:synced"));
 					} else if (data.type === "sync-error") {
-						setState("offline");
+						// Still queued. Online means the replay attempted and
+						// did not drain (network not ready, 5xx, session
+						// expired); offline means the mutation was just
+						// queued. Never claim "Online" while items remain.
+						queuedPending = navigator.onLine;
+						setState(queuedPending ? "queued" : "offline");
 						// Check actual connectivity — a sync-error while
 						// online is just a queued mutation, not a disconnect.
 						reflectPresence(navigator.onLine);
@@ -119,11 +141,80 @@ templ OfflineBanner(offlineSync bool) {
 				});
 			}
 
+			// pendingCount reads the SW's IndexedDB queue from the page (same
+			// origin, same database). Used only to decide whether another
+			// replay kick is worth sending — the SW owns the queue itself.
+			//
+			// The open MUST carry the same upgrade handler as the SW: the page
+			// can run before the first offline mutation exists, and opening the
+			// name without creating the store would leave a v1 database with no
+			// "pending" store — after which the SW's own open never upgrades
+			// and every queued mutation is lost.
+			function pendingCount() {
+				if (!("indexedDB" in window)) return Promise.resolve(0);
+				return new Promise(function (resolve) {
+					try {
+						var open = indexedDB.open("gogogo-offline-queue", 1);
+						open.onupgradeneeded = function () {
+							if (!open.result.objectStoreNames.contains("pending")) {
+								open.result.createObjectStore("pending", { keyPath: "id", autoIncrement: true });
+							}
+						};
+						open.onerror = function () { resolve(0); };
+						open.onsuccess = function () {
+							var db = open.result;
+							if (!db.objectStoreNames.contains("pending")) {
+								db.close();
+								resolve(0);
+								return;
+							}
+							var count = db.transaction("pending", "readonly").objectStore("pending").count();
+							count.onsuccess = function () { db.close(); resolve(count.result); };
+							count.onerror = function () { db.close(); resolve(0); };
+						};
+					} catch (_) {
+						resolve(0);
+					}
+				});
+			}
+
+			function askSWToDrain() {
+				if (!OFFLINE_SYNC || !navigator.serviceWorker) return;
+				navigator.serviceWorker.ready.then(function (registration) {
+					if (registration.active) {
+						registration.active.postMessage({ type: "replay-queue" });
+					}
+				}).catch(function () {});
+			}
+
+			// kickSync asks the SW to drain, then VERIFIES the queue actually
+			// moved and asks again with backoff while items remain. The online
+			// event fires before the network is usable, so the first attempt
+			// can fail; without this retry the mutation sat in IndexedDB with
+			// nothing scheduled and the user had to keep toggling offline to
+			// flush it. Bounded: after the budget the SW's Background Sync
+			// registration owns the retry.
+			var KICK_DELAYS = [1000, 2500, 5000, 10000];
+
+			function kickSync(attempt) {
+				if (!navigator.onLine) return;
+				askSWToDrain();
+				if (attempt >= KICK_DELAYS.length) return;
+				setTimeout(function () {
+					if (!navigator.onLine) return;
+					pendingCount().then(function (n) {
+						if (n > 0) kickSync(attempt + 1);
+					});
+				}, KICK_DELAYS[attempt]);
+			}
+
 			// Fallback when SW is not registered (dev, unsupported browsers,
 			// or OFFLINE_SYNC_ENABLED=false). navigator.onLine flips a
 			// coarse offline/online signal so users still see *something*.
 			function updateOnline() {
-				setState(navigator.onLine ? "online" : "offline");
+				// A queued mutation outranks the coarse connectivity flag: the
+				// browser is online, but the change is not saved yet.
+				setState(!navigator.onLine ? "offline" : (queuedPending ? "queued" : "online"));
 				// The realtime/SSE presence pill (".online-pill", rendered in
 				// the todo list, realtime card, and whiteboard) is fed only by
 				// server broadcasts and never learns about a client-side
@@ -153,21 +244,38 @@ templ OfflineBanner(offlineSync bool) {
 			// kick — that multi-step imperative sequence (postMessage, wait,
 			// conditional update) has no declarative shape and stays here.
 			window.__gogogoBannerOnline = function () {
-				if (OFFLINE_SYNC && navigator.serviceWorker) {
-					navigator.serviceWorker.ready.then(function (registration) {
-						if (registration.active) {
-							registration.active.postMessage({ type: "replay-queue" });
-						}
-					}).catch(function () {});
-				}
-				// Give replayQueue a tick to publish sync-start. Do not overwrite
-				// its syncing state while queued mutations are still draining.
-				setTimeout(function () {
-					if (!banner.classList.contains("is-syncing")) updateOnline();
-				}, 500);
+				// Reset the queued flag only when nothing is really pending;
+				// the SW messages keep it accurate from here on.
+				pendingCount().then(function (n) {
+					queuedPending = n > 0;
+					kickSync(0);
+					setTimeout(function () {
+						if (!banner.classList.contains("is-syncing")) updateOnline();
+					}, 500);
+				});
 			};
 			window.__gogogoBannerOffline = function () { updateOnline(); };
+			// A hidden tab's replay can fail while it is in the background
+			// (timers throttled, socket asleep). Re-check the queue when the
+			// tab is visible again instead of waiting for another online flap.
+			window.__gogogoBannerVisible = function () {
+				if (document.visibilityState !== "visible") return;
+				pendingCount().then(function (n) {
+					if (n > 0 && navigator.onLine) kickSync(0);
+				});
+			};
 			updateOnline();
+			// A page that loads with queued mutations (reload while offline,
+			// or a failed replay from a previous visit) must resume the drain
+			// without waiting for another online flap.
+			if (OFFLINE_SYNC) {
+				pendingCount().then(function (n) {
+					if (n === 0) return;
+					queuedPending = true;
+					updateOnline();
+					if (navigator.onLine) kickSync(0);
+				});
+			}
 		})();
 	</script>
 }

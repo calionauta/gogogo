@@ -192,8 +192,8 @@ bundle and is not attributed per feature.
 | Shared notes | `notes.js` | 36 KB | 13 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 20 KB |
 | Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 28 KB | 10 KB |
-| Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 7 KB | 3 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 22 KB | 8 KB |
+| Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
+| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 24 KB | 9 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared

@@ -451,6 +451,71 @@ self.addEventListener("message", function (e) {
   }
 });
 
+// REPLAY_RETRY_DELAYS is the transient-failure budget for ONE queued request.
+// The `online` event fires when the OS reports a link, not when packets move:
+// the first replay fetch can (and on a real machine does) fail with
+// "Failed to fetch" a few hundred ms before the network is usable. The old
+// single-shot loop treated that as "still offline", stopped, and left the
+// mutation in IndexedDB with nothing scheduled to retry it — the optimistic
+// row stuck forever, other tabs never told. A bounded backoff rides out that
+// window; a still-failing queue stays queued and registers Background Sync
+// again, never silently dropped.
+var REPLAY_RETRY_DELAYS = [500, 1000, 2000, 4000];
+
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+// replayOne sends one queued mutation, retrying transient failures (network
+// error, 5xx) with backoff. Returns true when the item is settled (2xx, or 404
+// = already deleted) and false when it must stay queued (network still down,
+// 5xx, or an auth/throttle status a later attempt can satisfy). Other 4xx
+// responses are permanent: replaying the same body cannot fix them, so the
+// item is dropped with a log line instead of blocking every later item.
+async function replayOne(item) {
+  var headers = new Headers();
+  (item.headers || []).forEach(function (pair) {
+    headers.append(pair[0], pair[1]);
+  });
+  // Tag replayed requests so the server can return a lightweight
+  // response (no Datastar SSE body) — the tab still learns of the
+  // change via the hub record broadcast, which replays never exclude
+  // (the queued clientID rides along verbatim, but a background
+  // replay is not the originating interaction, so the no-echo rule
+  // does not apply to it).
+  headers.append("X-Offline-Replay", "1");
+  var opts = { method: item.method, headers: headers };
+  if (item.body && item.method !== "GET" && item.method !== "HEAD") {
+    opts.body = item.body;
+  }
+
+  for (var attempt = 0; ; attempt++) {
+    try {
+      var resp = await fetch(item.url, opts);
+      if (resp.ok || resp.status === 404) {
+        // 404 means the resource was already deleted — safe to remove.
+        return true;
+      }
+      if (resp.status === 401 || resp.status === 403 || resp.status === 429) {
+        // Session expired, forbidden, or throttled: the SAME body may replay
+        // successfully later (after sign-in / backoff), so keep it queued.
+        return false;
+      }
+      if (resp.status >= 400 && resp.status < 500) {
+        // Permanent client error (validation, malformed body): replaying the
+        // same request cannot fix it, and one bad mutation would otherwise
+        // wedge every mutation behind it forever.
+        console.warn("sw: dropping un-replayable mutation", resp.status, item.url);
+        return true;
+      }
+    } catch (_) {
+      // Network not usable yet (or still offline) — fall through to backoff.
+    }
+    if (attempt >= REPLAY_RETRY_DELAYS.length) return false;
+    await sleep(REPLAY_RETRY_DELAYS[attempt]);
+  }
+}
+
 async function replayQueue() {
   var items;
   try {
@@ -465,41 +530,19 @@ async function replayQueue() {
 
   var remaining = 0;
   for (var i = 0; i < items.length; i++) {
-    var item = items[i];
-    try {
-      var headers = new Headers();
-      (item.headers || []).forEach(function (pair) {
-        headers.append(pair[0], pair[1]);
-      });
-      // Tag replayed requests so the server can return a lightweight
-      // response (no Datastar SSE body) — the tab still learns of the
-      // change via the hub record broadcast, which replays never exclude
-      // (the queued clientID rides along verbatim, but a background
-      // replay is not the originating interaction, so the no-echo rule
-      // does not apply to it).
-      headers.append("X-Offline-Replay", "1");
-      var opts = {
-        method: item.method,
-        headers: headers
-      };
-      if (item.body && item.method !== "GET" && item.method !== "HEAD") {
-        opts.body = item.body;
-      }
-      var resp = await fetch(item.url, opts);
-      if (resp.ok || resp.status === 404) {
-        // 404 means the resource was already deleted — safe to remove.
-        await deletePending(item.id);
-      } else {
-        // Non-ok status (5xx) — leave in queue, retry next sync.
-        remaining++;
-      }
-    } catch (_) {
-      // Network still unavailable — stop replay, try again later.
+    if (await replayOne(items[i])) {
+      await deletePending(items[i].id);
+    } else {
       remaining++;
-      break;
     }
   }
 
-  // Replay finished: online if nothing left, offline if items remain.
+  // Anything left keeps a Background Sync registration, so a device that
+  // stays online still retries without a reload or another online event.
+  if (remaining > 0 && self.registration && self.registration.sync) {
+    self.registration.sync.register("gogogo-sync").catch(function () {});
+  }
+
+  // Replay finished: online if nothing left, queued if items remain.
   await notifyClients(remaining === 0 ? "sync-end" : "sync-error");
 }

@@ -602,6 +602,71 @@ async function verifyOfflineTodoQueue(page, context) {
     await context.setOffline(false);
     await row.waitFor({ state: "detached", timeout: 20000 });
     console.log("  ✓ offline add resets UI, queues, replays; offline delete replays");
+
+    // --- a transient replay failure must be retried, not silently dropped ---
+    // The `online` event fires when the OS reports a link, not when packets
+    // move, so the first replay fetch can fail a moment before the network is
+    // usable. The queue used to give up on that first failure and leave the
+    // mutation in IndexedDB forever (optimistic row stuck, other tabs never
+    // told). Inject two failed commits in the Service Worker and require the
+    // queue to drain WITHOUT a reload. Red-proof: revert replayOne's backoff
+    // and the pending count stays 1.
+    const sw = context.serviceWorkers()[0];
+    if (!sw) throw new Error("no service worker to inject the transient replay failure into");
+    await sw.evaluate(() => {
+      const orig = self.fetch;
+      self.__failReplays = 2;
+      self.fetch = function (input, init) {
+        const url = typeof input === "string" ? input : input.url;
+        const method = (init && init.method) || (input && input.method) || "GET";
+        if (self.__failReplays > 0 && method === "POST" && url.indexOf("/api/todos") !== -1) {
+          self.__failReplays--;
+          return Promise.reject(new TypeError("Failed to fetch (injected transient)"));
+        }
+        return orig.apply(self, arguments);
+      };
+    });
+
+    const retryTitle = `offline-retry-${Date.now()}`;
+    await context.setOffline(true);
+    await timedWait(page, "offline-retry-banner", () =>
+      document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
+    );
+    await titleInput.fill(retryTitle);
+    await titleInput.press("Enter");
+    {
+      const deadline = Date.now() + 10000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 1 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 200));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 1) throw new Error("the offline retry probe was not queued in IndexedDB");
+    }
+    await context.setOffline(false);
+    {
+      const deadline = Date.now() + 20000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 0) {
+        throw new Error("a transient replay failure left the mutation queued forever (no retry)");
+      }
+    }
+    await page.waitForFunction(
+      (t) => {
+        const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
+        for (const el of els) {
+          if (el.textContent?.includes(t) && el.getAttribute("data-pending") !== "true") return true;
+        }
+        return false;
+      },
+      retryTitle,
+      { timeout: 20000 },
+    );
+    console.log("  ✓ a failed replay is retried until the queue drains (no reload)");
   } finally {
     await context.setOffline(false);
   }

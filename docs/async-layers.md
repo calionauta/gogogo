@@ -157,6 +157,19 @@ cross-instance traffic.
 POST/PUT/DELETE mutations when the browser is offline, queues them in
 IndexedDB, and replays them via Background Sync when connectivity returns.
 
+A replay is NOT single-shot. The window's `online` event fires when the OS
+reports a link, not when packets move, so the first replay fetch can fail a
+few hundred milliseconds before the network is usable (measured live
+against the production deploy). The queue therefore retries each item with
+bounded backoff (`REPLAY_RETRY_DELAYS`), re-registers Background Sync while
+anything remains, and the page keeps asking for a drain while its own
+`pendingCount` still sees rows (bounded `KICK_DELAYS`). Until the SW
+reports `sync-end`, the offline banner says "Changes queued — retrying
+sync…" instead of claiming "Online": a pending mutation must never look
+saved. A 401/403/429 keeps the item queued (a new session or a backoff can
+fix it); another 4xx is dropped with a console warning, so one invalid
+mutation cannot wedge every later one.
+
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the
 Leaf Node reconnects to the server. No Service Worker needed.

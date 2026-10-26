@@ -65,7 +65,10 @@ func TestChatPageWiring(t *testing.T) {
 	if !strings.Contains(seeded, "chat_empty = false") {
 		t.Errorf("composer never clears $chat_empty — the guidance would sit under every answer")
 	}
-	if strings.Contains(html, "play(") || strings.Contains(html, "AudioContext") {
+	// `\.play(` is the HTMLMediaElement cue call. A bare "play(" matched any
+	// identifier ending in those letters (postReplay, kickReplay), which is a
+	// name collision rather than a sound implementation.
+	if strings.Contains(html, ".play(") || strings.Contains(html, "AudioContext") {
 		t.Errorf("chat page carries custom sound JS (global cues cover it)")
 	}
 	// The spinner reads as the last message: appends into #chat-messages

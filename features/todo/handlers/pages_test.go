@@ -31,6 +31,16 @@ func TestHandlersLoginPage(t *testing.T) {
 		t.Fatal("login page missing the email field")
 	}
 
+	// A bounce from the auth guard explains itself instead of looking like a
+	// page the user navigated to on purpose.
+	bounced := f.do(http.MethodGet, "/login?next=%2Ftodo&auth=required", "", nil)
+	if bounced.Code != http.StatusOK {
+		t.Fatalf("bounced GET /login status = %d, want 200", bounced.Code)
+	}
+	if !strings.Contains(bounced.Body.String(), "You need to sign in to open that page.") {
+		t.Fatalf("bounced login page missing the explanation (body: %s)", bounced.Body.String())
+	}
+
 	bad := f.do(http.MethodPost, "/login", "email=nobody@example.com&password=wrong-password-00", nil)
 	if bad.Code != http.StatusOK {
 		t.Fatalf("bad POST /login status = %d, want 200 with the error page", bad.Code)
