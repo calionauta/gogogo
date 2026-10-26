@@ -15,6 +15,20 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.57.2 (2026-10-26)
+
+## What's Changed
+* fix(chat): thinking bubble after thread, diagram vocabulary for flows by @calionauta in https://github.com/calionauta/gogogo/pull/303
+* fix: prove every stream open, retry offline replays, bounce signed-out pages by @calionauta in https://github.com/calionauta/gogogo/pull/306
+* fix(offline): release the todo form when the queue write fails by @calionauta in https://github.com/calionauta/gogogo/pull/307
+* fix(offline): settle queue writes on commit and bound the open, not the write by @calionauta in https://github.com/calionauta/gogogo/pull/308
+* fix(offline): queue a mutation the edge could not deliver by @calionauta in https://github.com/calionauta/gogogo/pull/309
+* ci(desktop): run only where it can break, and bound the apt step by @calionauta in https://github.com/calionauta/gogogo/pull/310
+* fix(ui): render the landing inside the shared shell by @calionauta in https://github.com/calionauta/gogogo/pull/311
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.57.1...v0.57.2
+
 ## 0.57.1 (2026-10-25)
 
 ## What's Changed
