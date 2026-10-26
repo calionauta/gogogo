@@ -1,61 +1,9 @@
-/* chrome.css — the app chrome: top bar (pages outside the shell), shell sidebar
-   and module header, segmented control, phase list, theme picker.
-   Loaded for EVERY page (via authviews.ThemeHead). Everything is expressed with
-   the semantic tokens a theme defines (--color-base-*, --color-primary,
-   --color-base-content), so every palette gets the same structure with its own
-   colours — including dark mode, which a hard-coded light palette ignores. */
-
-.app-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-height: 3.25rem;
-  padding: 0 0.75rem;
-  background: color-mix(in oklab, var(--card, var(--color-base-100, #fff)) 88%, transparent);
-  border-bottom: 1px solid var(--border, var(--color-base-300, #e5e7eb));
-  color: var(--foreground, var(--color-base-content, #0f172a));
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  backdrop-filter: saturate(140%) blur(10px);
-  -webkit-backdrop-filter: saturate(140%) blur(10px);
-}
-@media (min-width: 640px) {
-  .app-nav { padding: 0 1.5rem; }
-}
-
-.app-nav-start,
-.app-nav-end {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
-}
-.app-nav-start { flex: 1 1 auto; }
-
-.app-nav-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  white-space: nowrap;
-  color: inherit;
-  text-decoration: none;
-}
-.app-nav-brand::before {
-  content: "";
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, var(--primary, var(--color-primary, #4f46e5)), color-mix(in oklab, var(--primary, var(--color-primary, #4f46e5)) 45%, #22d3ee));
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, var(--color-primary, #4f46e5)) 14%, transparent);
-}
-@media (min-width: 640px) {
-  .app-nav-brand { font-size: 1.125rem; }
-}
+/* chrome.css — the app chrome: shell sidebar and module header, segmented
+   control, phase list, theme picker. Loaded for EVERY page (via
+   authviews.ThemeHead). Everything is expressed with the semantic tokens a
+   theme defines (--color-base-*, --color-primary, --color-base-content), so
+   every palette gets the same structure with its own colours — including dark
+   mode, which a hard-coded light palette ignores. */
 
 .app-nav-badge {
   display: none;
@@ -73,8 +21,8 @@
   .app-nav-badge { display: inline-flex; }
 }
 
-/* Progressive disclosure: the secondary destinations live behind "More".
-   Native <details> keeps it keyboard accessible with no JS. */
+/* Shared action button: page actions (New note, New board) and the guest
+   Sign in CTA. The shell's rail footer stretches the same button into a row. */
 .app-nav-btn {
   display: inline-flex;
   align-items: center;
@@ -183,10 +131,6 @@
 .app-dropdown-menu button:hover { background: var(--muted, var(--color-base-200, #f1f5f9)); }
 
 .app-menu-icon { width: 1rem; height: 1rem; flex: 0 0 auto; opacity: 0.7; }
-/* The end bar never shrinks: the email, the toggles and the user menu are
-   fixed-size controls, and letting them squeeze is how the email ran off the
-   right edge of a tablet viewport. The link row above absorbs the slack. */
-.app-nav-end { flex: 0 0 auto; }
 
 .app-user-email {
   display: none;
@@ -195,16 +139,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* From xl only. Between 640 and 1279 the bar has the nav links (or the Menu
-   button) plus the command palette, skin, theme, sound and user controls to
-   fit, and the email was the 160px that pushed the user menu off-screen
-   entirely — the reported "encavalado com os menus da navbar" on tablets.
-   The address is still readable in the dropdown itself. */
+/* From xl only: the rail is narrow, and the account row keeps its identity
+   disc, role and caret at every width. The address is still readable in the
+   dropdown itself. */
 @media (min-width: 1280px) { .app-user-email { display: inline; } }
 
-/* theme + sound toggles */
-.app-theme-toggle,
-.app-sound-toggle {
+/* theme toggle */
+.app-theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -218,19 +159,11 @@
   cursor: pointer;
   transition: background-color 0.15s;
 }
-.app-theme-toggle:hover,
-.app-sound-toggle:hover { background: var(--muted, var(--color-base-200, #f1f5f9)); }
-.app-theme-toggle .theme-toggle-icon,
-.app-sound-toggle .sound-toggle-icon { font-size: 1.125rem; }
+.app-theme-toggle:hover { background: var(--muted, var(--color-base-200, #f1f5f9)); }
+.app-theme-toggle .theme-toggle-icon { font-size: 1.125rem; }
 .app-theme-toggle .icon-dark-mode { display: none; }
 html.dark .app-theme-toggle .icon-dark-mode { display: inline-flex; }
 html.dark .app-theme-toggle .icon-light-mode { display: none; }
-
-/* Pre-JS default: sound is on (volume-up visible). cuelume.js overrides
-   via inline style + aria-pressed after load. */
-.app-sound-toggle .icon-sound-off { display: none; }
-.app-sound-toggle[aria-pressed="false"] .icon-sound-on { display: none; }
-.app-sound-toggle[aria-pressed="false"] .icon-sound-off { display: inline-flex; }
 
 /* skin selector */
 .skin-selector { position: relative; display: inline-block; }
@@ -304,21 +237,10 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   color: var(--warning-foreground, var(--color-warning-content, #111827));
 }
 
-/* Tablet and small-laptop range. The full link row needs about 1100px once
-   the command palette, skin, theme, sound and user controls are on the bar,
-   so below that the links collapse into the Menu button — the same dropdown
-   the phones get, one breakpoint earlier. Before this the row stayed inline
-   from 761px up, could not shrink, and spilled over the command-palette
-   button and the user menu (measured: the row's right edge 718px inside a
-   768px viewport, with the user email at 897px). */
-@media (max-width: 1099px) {
-  .app-nav { gap: 0.4rem; padding: 0 0.65rem; }
-}
-
-/* Phones: the skin picker and the sound toggle are the first things to go,
-   since the Menu button already covers navigation. */
+/* Phones: the skin picker is the first thing to go, since the Menu button
+   already covers navigation. */
 @media (max-width: 760px) {
-  .skin-selector, .app-sound-toggle { display: none; }
+  .skin-selector { display: none; }
 }
 
 /* Command palette: the keyboard cursor lives on the input's
@@ -371,8 +293,7 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   text-decoration: none;
 }
 .app-rail-brand-spacer { flex: 1 1 auto; }
-.app-rail-brand .app-theme-toggle,
-.app-rail-brand .app-sound-toggle {
+.app-rail-brand .app-theme-toggle {
   width: 1.75rem;
   height: 1.75rem;
 }

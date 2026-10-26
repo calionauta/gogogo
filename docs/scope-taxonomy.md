@@ -185,7 +185,7 @@ another package imports the deleted one. Check these when you trim:
 | **LLM** | `internal/llm/` | ⚠️ `features/todo/handlers/suggest_test.go` |
 | **Turso queries** | (only layer) | There is no strategy switch anymore: handlers call `dbgen.*` directly |
 | **Idempotency** | `internal/dbschema/migrations/0001_init.sql` (`todos_idem_key_unique`) + `features/todo/handlers/mutations.go` | Drop the partial unique index and the `GetTodoByIdemKey` dedupe branch, then the `idem_key` query param from `todo_list.templ` |
-| **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundToggle()` / `@sounds.SoundSwitch()` from each page's `*Sound()` wrapper.ActiveAssets` in the shell |
+| **Sounds** | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | Drop `@sounds.SoundAssets()` from page layouts and `@sounds.SoundSwitch()` from each page's `*Sound()` wrapper. |
 
 **After any removal, run `make test`** (not a bare `go test ./...` — that
 compiles `cmd/desktop`/`cmd/gui`, which need GTK + WebKit headers; see

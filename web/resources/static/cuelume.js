@@ -12,10 +12,9 @@
 //      Opt out by clearing your OS setting; there is no in-app override
 //      because this is an accessibility preference, not a taste setting.
 //   2. Global mute — a [data-sound-toggle] control persists a preference in
-//      localStorage ("gogogo_sound", "on"|"off"): the header's icon button
-//      (aria-pressed) or the account panel's switch (a checkbox's `checked`).
-//      Both are keyboard-accessible and survive Datastar morphs (delegated
-//      click, same pattern as theme.js).
+//      localStorage ("gogogo_sound", "on"|"off"): the account panel's switch
+//      (a checkbox's `checked`). It is keyboard-accessible and survives
+//      Datastar morphs (delegated change, same pattern as theme.js).
 //   3. Subtle default volume — cuelume's mixer runs hotter than libraries
 //      tuned for a 30% default; 0.4 keeps every cue audible without being
 //      intrusive. Tune DEFAULT_VOLUME here (the API below also exposes
@@ -38,12 +37,12 @@
 //
 // Removing the plugin: delete features/sounds/, this file, the
 // /static/cuelume/ directory, and the @sounds.SoundAssets() /
-// @sounds.SoundToggle() calls from the templates.
+// @sounds.SoundSwitch() calls from the templates.
 import { bind, play, setEnabled, setVolume } from "./cuelume/index.js";
 
 var STORAGE_KEY = "gogogo_sound";
 var DEFAULT_VOLUME = 0.4;
-// Played when the user RE-ENABLES sound from the navbar toggle: a distinct,
+// Played when the user RE-ENABLES sound from the sound switch: a distinct,
 // pleasant confirmation that the sound system is live. Muting plays nothing
 // on purpose. Tune the cue here (cuelume's "chime" is a soft ascending bell).
 var ENABLE_SOUND = "chime";
@@ -62,7 +61,7 @@ setVolume(DEFAULT_VOLUME);
 
 // --- preference state -----------------------------------------------------
 // Two independent inputs, combined with logical AND:
-//   userPref      — explicit navbar toggle, persisted in localStorage.
+//   userPref      — explicit sound switch, persisted in localStorage.
 //   reducedMotion — OS-level prefers-reduced-motion (auto-mute).
 var state = {
   userPref: readPref(),
@@ -86,35 +85,23 @@ function apply() {
   syncToggleUI();
 }
 
-// Keep the control in sync — whichever shape the page rendered: the header's
-// icon button (aria-pressed + swapped icons) or the account panel's switch
-// (native `checked`). Both reflect the USER preference, so they respond even
-// when prefers-reduced-motion keeps playback muted. The title explains the
-// override so a muted-but-on state is never silent confusion.
+// Keep the switch in sync with the stored preference. It reflects the USER
+// preference, so it responds even when prefers-reduced-motion keeps playback
+// muted. The title explains the override so a muted-but-on state is never
+// silent confusion.
 function syncToggleUI() {
-  var el = document.querySelector("[data-sound-toggle]");
-  if (!el) return;
+  var els = document.querySelectorAll("[data-sound-toggle]");
+  if (!els.length) return;
   var prefOn = state.userPref === "on";
-  if (el.tagName === "INPUT") {
-    // A switch (the account panel's preference row): the native checked state
-    // IS the preference. Safe because the delegated click preventDefaults, so
-    // the browser never writes `checked` behind this function's back.
+  var title = state.reducedMotion && prefOn
+    ? "Sound on — muted by your device's reduced-motion setting"
+    : prefOn ? "Mute sounds" : "Unmute sounds";
+  // The native checked state IS the preference. Safe because the delegated
+  // change handler owns writes, so the browser never drifts from this value.
+  els.forEach(function (el) {
     el.checked = prefOn;
-  } else {
-    // Icon button (the public header, which has no room for a label).
-    el.setAttribute("aria-pressed", String(prefOn));
-    var icons = el.querySelectorAll(".sound-toggle-icon");
-    icons.forEach(function (node) {
-      var isOffIcon = node.classList.contains("icon-sound-off");
-      node.style.display = (prefOn !== isOffIcon) ? "" : "none";
-    });
-  }
-  el.setAttribute(
-    "title",
-    state.reducedMotion && prefOn
-      ? "Sound on — muted by your device's reduced-motion setting"
-      : prefOn ? "Mute sounds" : "Unmute sounds"
-  );
+    el.setAttribute("title", title);
+  });
 }
 
 function setPref(on) {
@@ -134,15 +121,10 @@ function setPref(on) {
   }
 }
 
-function onToggleClick() {
-  setPref(state.userPref !== "on");
-}
-
-// Resolve a selector along the composed event path. A click/pointer event
-// fired on an <svg> icon inside the button has a target whose .closest()
-// still resolves, but walking composedPath() covers every nesting (including
-// any shadow root a future icon might render in), so delegated handlers never
-// miss the host button regardless of where the event landed.
+// Resolve a selector along the composed event path. A pointer event fired on
+// an <svg> inside a button has a target whose .closest() still resolves, but
+// walking composedPath() covers every nesting (including any shadow root a
+// future icon might render in), so delegated handlers never miss the host.
 function closestInComposedPath(e, sel) {
   var path = e.composedPath ? e.composedPath() : e.path || [e.target];
   for (var i = 0; i < path.length; i++) {
@@ -156,22 +138,9 @@ function closestInComposedPath(e, sel) {
 }
 
 // Delegated wiring, so it survives Datastar morphs and re-renders (same
-// pattern as theme.js).
-//
-// Two shapes, two events. The header's icon button has no state of its own, so
-// a click flips the preference (preventDefault keeps the browser out of it).
-// The account panel's switch IS a checkbox: the browser has already flipped it
-// by the time the event bubbles, so that shape is read back on `change` —
-// writing `checked` from the click races the activation behaviour.
-document.addEventListener("click", function (e) {
-  var t = closestInComposedPath(e, "[data-sound-toggle]");
-  if (!t || t.tagName === "INPUT") return;
-  e.preventDefault();
-  onToggleClick();
-});
-
-// The switch shape: adopt the state the user just produced, then let apply()
-// reconcile playback and the title with it.
+// pattern as theme.js). The switch IS a checkbox: the browser has already
+// flipped it by the time the event bubbles, so read the new state on `change`
+// — writing `checked` from a click handler races the activation behaviour.
 document.addEventListener("change", function (e) {
   var t = closestInComposedPath(e, "input[data-sound-toggle]");
   if (!t) return;

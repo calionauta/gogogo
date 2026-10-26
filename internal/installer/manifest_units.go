@@ -170,24 +170,19 @@ var soundsDropLines = []string{
 }
 
 // soundsPageLines is for layouts that carry the assets (in their head templ)
-// plus a mute control. The control sits inside a one-line templ wrapper on
+// plus the mute switch. The switch sits inside a one-line templ wrapper on
 // purpose — dropping that line leaves an empty wrapper that still satisfies the
 // shell's slot, whereas passing the call inline would put it on the same line as
 // the Shell invocation and dropping that line would break the call.
 //
-// The control has two shapes and a file carries exactly one: the public header
-// renders the icon button (no room for a label), every signed-in page renders
-// the account panel's switch. The conformance check verifies the shape it
-// expects is really in the file, so a page that switches shape without touching
-// the manifest fails CI instead of shipping a trim that misses its line.
-func soundsPageLines(control string) []string {
-	return []string{`sounds.SoundAssets()`, control, soundsImportSuffix}
+// The conformance check verifies the call is really in the file, so a page
+// that drops it without touching the manifest fails CI instead of shipping a
+// trim that misses its line.
+func soundsPageLines() []string {
+	return []string{`sounds.SoundAssets()`, soundsPanelControl, soundsImportSuffix}
 }
 
-const (
-	soundsHeaderControl = `sounds.SoundToggle()` // icon button (public header)
-	soundsPanelControl  = `sounds.SoundSwitch()` // switch (account panel)
-)
+const soundsPanelControl = `sounds.SoundSwitch()` // account-panel switch
 
 // modulesFile is the shell's navigation registry: one line per module, which
 // is what trim units drop when they remove a destination. The brand lives in
@@ -368,13 +363,13 @@ var baseTrimUnits = []trimUnit{
 	{
 		id: unitSounds,
 		extraDrops: []fileDrop{
-			{path: "features/todo/components/layout.templ", substrs: soundsPageLines(soundsPanelControl)},
-			{path: "features/config/components/page.templ", substrs: soundsPageLines(soundsPanelControl)},
-			{path: "features/landing/components/index.templ", substrs: soundsPageLines(soundsHeaderControl)},
-			{path: "features/whiteboard/components/board.templ", substrs: soundsPageLines(soundsPanelControl)},
-			{path: "features/notes/components/notes.templ", substrs: soundsPageLines(soundsPanelControl)},
-			{path: "features/chat/components/chat.templ", substrs: soundsPageLines(soundsPanelControl)},
-			{path: "features/review/components/review.templ", substrs: soundsPageLines(soundsPanelControl)},
+			{path: "features/todo/components/layout.templ", substrs: soundsPageLines()},
+			{path: "features/config/components/page.templ", substrs: soundsPageLines()},
+			{path: "features/landing/components/index.templ", substrs: soundsPageLines()},
+			{path: "features/whiteboard/components/board.templ", substrs: soundsPageLines()},
+			{path: "features/notes/components/notes.templ", substrs: soundsPageLines()},
+			{path: "features/chat/components/chat.templ", substrs: soundsPageLines()},
+			{path: "features/review/components/review.templ", substrs: soundsPageLines()},
 			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},
 	},

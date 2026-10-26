@@ -284,12 +284,12 @@ admin) deletes one.
 Not for: rich text (no marks); offline-first editing
 (ops need the server — a dropped connection holds text in the tab only).
 
-### `landing` — public marketing page (feature, offered)
+### `landing` — public entry page (feature, offered)
 
-What: unauthenticated `GET /`, brand home. Dropping it 404s `/`
-(brand retargets to `/todo`).
+What: unauthenticated `GET /`, rendered inside the shared shell. Dropping it
+404s `/` (brand retargets to `/todo`).
 
-- Homepage, hero, public product surface.
+- Homepage, public product surface, the demo CTA.
 
 ### `config-view` — ops visibility (feature, offered)
 

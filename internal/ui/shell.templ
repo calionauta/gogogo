@@ -212,7 +212,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									<span class="app-demo-label">How it works</span>
 								</button>
 							}
-							@authviews.CommandPalette(d.Role, false)
+							@authviews.CommandPalette(d.Role, d.Email == "")
 							if actions != nil {
 								@actions
 							}

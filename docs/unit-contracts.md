@@ -302,7 +302,7 @@ admin-only /config view + user role/session actions
 
 ## `landing` — feature
 
-public marketing page on GET /
+public entry page on GET / (inside the shared shell)
 
 - **Owned:** `features/landing`
 - **Routes:** `/`
