@@ -38,6 +38,7 @@ templ OfflineBanner(offlineSync bool) {
 		aria-live="polite"
 	>
 		<span id="offline-banner-text">Online</span>
+		<a id="offline-banner-signin" href="/login" hidden>Sign in</a>
 	</div>
 	<style>
 		#offline-banner.is-online {
@@ -48,7 +49,8 @@ templ OfflineBanner(offlineSync bool) {
 				background-color: #3b82f6;
 				color: #ffffff;
 			}
-		#offline-banner.is-queued {
+		#offline-banner.is-queued,
+		#offline-banner.is-needs-auth {
 				display: block;
 				background-color: #f59e0b;
 				color: #ffffff;
@@ -77,20 +79,37 @@ templ OfflineBanner(offlineSync bool) {
 			// IndexedDB (the optimistic row then outlived every reload).
 			var queuedPending = false;
 
+			// needsAuth is the 401 pause: the replay reached the server and the
+			// SESSION is gone. Retrying cannot fix that, so the queue stops
+			// re-arming (no Background Sync loop, no page kicks) and says so
+			// until a fresh sign-in / page load gets a valid session again.
+			var needsAuth = false;
+
 			function setState(state) {
 				var cls = "is-" + state;
-				banner.classList.remove("is-online", "is-syncing", "is-queued", "is-offline");
+				banner.classList.remove("is-online", "is-syncing", "is-queued", "is-needs-auth", "is-offline");
 				banner.classList.add(cls);
+				// The auth pause needs an ACTION, not just a sentence: the one
+				// thing that fixes it is a sign-in, and it must return here.
+				var signin = document.getElementById("offline-banner-signin");
+				if (signin) {
+					signin.hidden = state !== "needs-auth";
+					if (state === "needs-auth") {
+						signin.href = "/login?next=" + encodeURIComponent(location.pathname + location.search);
+					}
+				}
 				// display state handled by .is-* classes in chrome.css
 				text.textContent = state === "syncing"
 					? "Syncing changes\u2026"
-					: state === "queued"
-						? "Changes queued \u2014 retrying sync\u2026"
-						: state === "offline"
-							? (OFFLINE_SYNC
-								? "Offline \u2014 changes are queued and will sync when you reconnect"
-								: "Offline \u2014 online-only mode; requests will fail when network is down")
-							: "Online";
+					: state === "needs-auth"
+						? "Changes queued \u2014 sign in to sync"
+						: state === "queued"
+							? "Changes queued \u2014 retrying sync\u2026"
+							: state === "offline"
+								? (OFFLINE_SYNC
+									? "Offline \u2014 changes are queued and will sync when you reconnect"
+									: "Offline \u2014 online-only mode; requests will fail when network is down")
+								: "Online";
 			}
 
 			if (OFFLINE_SYNC && navigator.serviceWorker) {
@@ -101,7 +120,13 @@ templ OfflineBanner(offlineSync bool) {
 				// gogogo:queued (see data-on:gogogo:queued__window consumers).
 				navigator.serviceWorker.addEventListener("message", function (e) {
 					var data = e.data || {};
-					if (data.type === "sync-start") {
+					if (data.type === "queue-status") {
+						var waiter = countWaiters[data.id];
+						if (waiter) {
+							delete countWaiters[data.id];
+							waiter(data.count);
+						}
+					} else if (data.type === "sync-start") {
 						queuedPending = true;
 						setState("syncing");
 						// Connection is back — the SW is replaying queued
@@ -110,6 +135,7 @@ templ OfflineBanner(offlineSync bool) {
 						reflectPresence(true);
 					} else if (data.type === "sync-end") {
 						queuedPending = false;
+						needsAuth = false;
 						setState("online");
 						// Replay complete — remove offline styling from
 						// presence pills so the live "X online" count
@@ -122,6 +148,13 @@ templ OfflineBanner(offlineSync bool) {
 						// while the tab's stream is still re-establishing
 						// after offline, with nothing after it.
 						window.dispatchEvent(new CustomEvent("gogogo:synced"));
+					} else if (data.type === "sync-auth") {
+						// Session gone mid-queue. Keep the mutations, stop the
+						// retry loop, and ask for the one action that helps.
+						queuedPending = true;
+						needsAuth = true;
+						setState("needs-auth");
+						window.dispatchEvent(new CustomEvent("gogogo:queued"));
 					} else if (data.type === "sync-error") {
 						// Still queued. Online means the replay attempted and
 						// did not drain (network not ready, 5xx, session
@@ -141,40 +174,38 @@ templ OfflineBanner(offlineSync bool) {
 				});
 			}
 
-			// pendingCount reads the SW's IndexedDB queue from the page (same
-			// origin, same database). Used only to decide whether another
-			// replay kick is worth sending — the SW owns the queue itself.
-			//
-			// The open MUST carry the same upgrade handler as the SW: the page
-			// can run before the first offline mutation exists, and opening the
-			// name without creating the store would leave a v1 database with no
-			// "pending" store — after which the SW's own open never upgrades
-			// and every queued mutation is lost.
-			function pendingCount() {
-				if (!("indexedDB" in window)) return Promise.resolve(0);
+			// queueCount asks the OWNER of the queue (the service worker) how
+			// many mutations are waiting. The page must not open the queue
+			// database itself: a second opener without the SW's upgrade
+			// handler once created a v1 database with no store, after which
+			// every queued mutation was lost. One schema, one owner.
+			var countWaiters = {};
+			var countSeq = 0;
+
+			function queueCount() {
+				if (!OFFLINE_SYNC || !navigator.serviceWorker) return Promise.resolve(0);
 				return new Promise(function (resolve) {
-					try {
-						var open = indexedDB.open("gogogo-offline-queue", 1);
-						open.onupgradeneeded = function () {
-							if (!open.result.objectStoreNames.contains("pending")) {
-								open.result.createObjectStore("pending", { keyPath: "id", autoIncrement: true });
-							}
-						};
-						open.onerror = function () { resolve(0); };
-						open.onsuccess = function () {
-							var db = open.result;
-							if (!db.objectStoreNames.contains("pending")) {
-								db.close();
-								resolve(0);
-								return;
-							}
-							var count = db.transaction("pending", "readonly").objectStore("pending").count();
-							count.onsuccess = function () { db.close(); resolve(count.result); };
-							count.onerror = function () { db.close(); resolve(0); };
-						};
-					} catch (_) {
+					var id = ++countSeq;
+					countWaiters[id] = resolve;
+					navigator.serviceWorker.ready.then(function (registration) {
+						if (registration.active) {
+							registration.active.postMessage({ type: "queue-status", id: id });
+						} else {
+							delete countWaiters[id];
+							resolve(0);
+						}
+					}).catch(function () {
+						delete countWaiters[id];
 						resolve(0);
-					}
+					});
+					// A terminated/overloaded worker must not leave the caller
+					// hanging: fall back to "unknown, assume empty".
+					setTimeout(function () {
+						if (countWaiters[id]) {
+							delete countWaiters[id];
+							resolve(0);
+						}
+					}, 2000);
 				});
 			}
 
@@ -197,12 +228,12 @@ templ OfflineBanner(offlineSync bool) {
 			var KICK_DELAYS = [1000, 2500, 5000, 10000];
 
 			function kickSync(attempt) {
-				if (!navigator.onLine) return;
+				if (!navigator.onLine || needsAuth) return;
 				askSWToDrain();
 				if (attempt >= KICK_DELAYS.length) return;
 				setTimeout(function () {
-					if (!navigator.onLine) return;
-					pendingCount().then(function (n) {
+					if (!navigator.onLine || needsAuth) return;
+					queueCount().then(function (n) {
 						if (n > 0) kickSync(attempt + 1);
 					});
 				}, KICK_DELAYS[attempt]);
@@ -214,7 +245,9 @@ templ OfflineBanner(offlineSync bool) {
 			function updateOnline() {
 				// A queued mutation outranks the coarse connectivity flag: the
 				// browser is online, but the change is not saved yet.
-				setState(!navigator.onLine ? "offline" : (queuedPending ? "queued" : "online"));
+				setState(!navigator.onLine
+					? "offline"
+					: (needsAuth ? "needs-auth" : (queuedPending ? "queued" : "online")));
 				// The realtime/SSE presence pill (".online-pill", rendered in
 				// the todo list, realtime card, and whiteboard) is fed only by
 				// server broadcasts and never learns about a client-side
@@ -244,9 +277,12 @@ templ OfflineBanner(offlineSync bool) {
 			// kick — that multi-step imperative sequence (postMessage, wait,
 			// conditional update) has no declarative shape and stays here.
 			window.__gogogoBannerOnline = function () {
-				// Reset the queued flag only when nothing is really pending;
-				// the SW messages keep it accurate from here on.
-				pendingCount().then(function (n) {
+				// A connectivity event is also the cheapest place to retry the
+				// one thing an auth pause is waiting for: a session that came
+				// back (a sign-in in any tab shares the cookie). One attempt;
+				// a still-expired session pauses again.
+				needsAuth = false;
+				queueCount().then(function (n) {
 					queuedPending = n > 0;
 					kickSync(0);
 					setTimeout(function () {
@@ -260,7 +296,8 @@ templ OfflineBanner(offlineSync bool) {
 			// tab is visible again instead of waiting for another online flap.
 			window.__gogogoBannerVisible = function () {
 				if (document.visibilityState !== "visible") return;
-				pendingCount().then(function (n) {
+				needsAuth = false;
+				queueCount().then(function (n) {
 					if (n > 0 && navigator.onLine) kickSync(0);
 				});
 			};
@@ -269,7 +306,7 @@ templ OfflineBanner(offlineSync bool) {
 			// or a failed replay from a previous visit) must resume the drain
 			// without waiting for another online flap.
 			if (OFFLINE_SYNC) {
-				pendingCount().then(function (n) {
+				queueCount().then(function (n) {
 					if (n === 0) return;
 					queuedPending = true;
 					updateOnline();

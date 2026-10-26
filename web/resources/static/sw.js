@@ -439,39 +439,64 @@ self.addEventListener("sync", function (e) {
 // not. Pages explicitly request a replay on reconnect, covering browsers and
 // headless contexts where Background Sync is absent or delayed.
 self.addEventListener("message", function (e) {
-  if (e.data && e.data.type === "replay-queue") {
+  var data = e.data || {};
+  if (data.type === "replay-queue") {
     e.waitUntil(requestReplay());
+    return;
+  }
+  if (data.type === "queue-status") {
+    // The PAGE never opens the queue database. It asks the owner of the
+    // queue (this worker) for the count, so the schema lives in exactly one
+    // place: a second opener without the upgrade handler once created a v1
+    // database with no store, after which every queued mutation was lost.
+    e.waitUntil(queueCount().then(function (count) {
+      if (e.source && e.source.postMessage) {
+        e.source.postMessage({ type: "queue-status", id: data.id, count: count });
+      }
+    }));
+    return;
   }
   // Clear cached pages on logout so a different user on a shared device
   // does not receive stale authenticated pages. The auth Navbar's logout
   // form posts to /logout; the page reloads after the response, but the
   // cached HTML is already gone. See auth/views.templ.
-  if (e.data && e.data.type === "clear-pages") {
+  if (data.type === "clear-pages") {
     caches.delete(PAGE_CACHE).catch(function () {});
   }
 });
 
-// REPLAY_RETRY_DELAYS is the transient-failure budget for ONE queued request.
+// REPLAY_BACKOFF_MS is the transient-failure budget for ONE queued request.
 // The `online` event fires when the OS reports a link, not when packets move:
 // the first replay fetch can (and on a real machine does) fail with
-// "Failed to fetch" a few hundred ms before the network is usable. The old
+// "Failed to fetch" a few hundred ms before the network is usable. A
 // single-shot loop treated that as "still offline", stopped, and left the
 // mutation in IndexedDB with nothing scheduled to retry it — the optimistic
 // row stuck forever, other tabs never told. A bounded backoff rides out that
 // window; a still-failing queue stays queued and registers Background Sync
 // again, never silently dropped.
-var REPLAY_RETRY_DELAYS = [500, 1000, 2000, 4000];
+var REPLAY_BACKOFF_MS = [500, 1000, 2000, 4000];
+
+// One outcome vocabulary for a replayed item, so the caller never has to
+// infer policy from a boolean pair:
+//   OK       settled — drop it (2xx, or 404 = already gone)
+//   RETRY    transient — keep it and stop the pass (network, 5xx, 429)
+//   AUTH     session expired — keep it, pause the whole queue, ask to sign in
+//   REJECT   permanent 4xx — replaying cannot fix it, drop it with a warning
+var REPLAY_OK = "ok";
+var REPLAY_RETRY = "retry";
+var REPLAY_AUTH = "auth";
+var REPLAY_REJECT = "reject";
 
 function sleep(ms) {
   return new Promise(function (resolve) { setTimeout(resolve, ms); });
 }
 
-// replayOne sends one queued mutation, retrying transient failures (network
-// error, 5xx) with backoff. Returns true when the item is settled (2xx, or 404
-// = already deleted) and false when it must stay queued (network still down,
-// 5xx, or an auth/throttle status a later attempt can satisfy). Other 4xx
-// responses are permanent: replaying the same body cannot fix them, so the
-// item is dropped with a log line instead of blocking every later item.
+// replayOne sends one queued mutation, retrying transient failures with
+// backoff, and reports the POLICY rather than a bare pass/fail. A 401 is not
+// "retry forever": no amount of retrying signs the user in, so it pauses the
+// queue. A 403 is not "retry after signing in" either — the policy refused
+// the action — so it is permanent like other 4xx. Retrying either one in the
+// background is how a queue hammers a server it can never satisfy.
 async function replayOne(item) {
   var headers = new Headers();
   (item.headers || []).forEach(function (pair) {
@@ -493,26 +518,21 @@ async function replayOne(item) {
     try {
       var resp = await fetch(item.url, opts);
       if (resp.ok || resp.status === 404) {
-        // 404 means the resource was already deleted — safe to remove.
-        return true;
+        return REPLAY_OK;
       }
-      if (resp.status === 401 || resp.status === 403 || resp.status === 429) {
-        // Session expired, forbidden, or throttled: the SAME body may replay
-        // successfully later (after sign-in / backoff), so keep it queued.
-        return false;
+      if (resp.status === 401) {
+        return REPLAY_AUTH;
       }
-      if (resp.status >= 400 && resp.status < 500) {
-        // Permanent client error (validation, malformed body): replaying the
-        // same request cannot fix it, and one bad mutation would otherwise
-        // wedge every mutation behind it forever.
+      if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
         console.warn("sw: dropping un-replayable mutation", resp.status, item.url);
-        return true;
+        return REPLAY_REJECT;
       }
+      // 429 and 5xx: the server is throttling or unhealthy; back off.
     } catch (_) {
       // Network not usable yet (or still offline) — fall through to backoff.
     }
-    if (attempt >= REPLAY_RETRY_DELAYS.length) return false;
-    await sleep(REPLAY_RETRY_DELAYS[attempt]);
+    if (attempt >= REPLAY_BACKOFF_MS.length) return REPLAY_RETRY;
+    await sleep(REPLAY_BACKOFF_MS[attempt]);
   }
 }
 
@@ -529,20 +549,37 @@ async function replayQueue() {
   await notifyClients("sync-start");
 
   var remaining = 0;
+  var needsAuth = false;
   for (var i = 0; i < items.length; i++) {
-    if (await replayOne(items[i])) {
+    var outcome = await replayOne(items[i]);
+    if (outcome === REPLAY_OK || outcome === REPLAY_REJECT) {
       await deletePending(items[i].id);
-    } else {
-      remaining++;
+      continue;
     }
+    if (outcome === REPLAY_AUTH) needsAuth = true;
+    // RETRY means the network or the server is not usable right now. Every
+    // item behind this one shares that condition, so retrying them here only
+    // repeats the same failure: keep them all and end the pass.
+    remaining += items.length - i;
+    break;
   }
 
-  // Anything left keeps a Background Sync registration, so a device that
-  // stays online still retries without a reload or another online event.
-  if (remaining > 0 && self.registration && self.registration.sync) {
+  // Background Sync is the retry for a transient failure. An auth pause is
+  // NOT: it would fire forever against a session that needs a human. A
+  // rejected item is already dropped, so nothing is left to schedule.
+  if (remaining > 0 && !needsAuth && self.registration && self.registration.sync) {
     self.registration.sync.register("gogogo-sync").catch(function () {});
   }
 
-  // Replay finished: online if nothing left, queued if items remain.
-  await notifyClients(remaining === 0 ? "sync-end" : "sync-error");
+  await notifyClients(needsAuth ? "sync-auth" : remaining === 0 ? "sync-end" : "sync-error");
+}
+
+// queueCount reports how many mutations are waiting. The page asks for this
+// instead of opening IndexedDB itself (see the queue-status message).
+async function queueCount() {
+  try {
+    return (await loadAllPending()).length;
+  } catch (_) {
+    return 0;
+  }
 }

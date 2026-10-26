@@ -161,14 +161,28 @@ A replay is NOT single-shot. The window's `online` event fires when the OS
 reports a link, not when packets move, so the first replay fetch can fail a
 few hundred milliseconds before the network is usable (measured live
 against the production deploy). The queue therefore retries each item with
-bounded backoff (`REPLAY_RETRY_DELAYS`), re-registers Background Sync while
-anything remains, and the page keeps asking for a drain while its own
-`pendingCount` still sees rows (bounded `KICK_DELAYS`). Until the SW
+bounded backoff (`REPLAY_BACKOFF_MS`), re-registers Background Sync while a
+transient failure remains, and the page keeps asking for a drain while its
+own `queueCount` (a SW round-trip) still sees rows (bounded `KICK_DELAYS`). Until the SW
 reports `sync-end`, the offline banner says "Changes queued — retrying
 sync…" instead of claiming "Online": a pending mutation must never look
-saved. A 401/403/429 keeps the item queued (a new session or a backoff can
-fix it); another 4xx is dropped with a console warning, so one invalid
-mutation cannot wedge every later one.
+saved.
+
+Each outcome has its own policy, not a generic retry:
+
+- **2xx / 404** — settled (404 means the row is already gone).
+- **network, 5xx, 429** — transient: keep the item, stop the PASS (every
+  later item shares the condition), and register Background Sync.
+- **401** — the session is gone: keep the item, pause the queue, stop both
+  retry layers, and show "Changes queued — sign in to sync". Retrying an
+  expired session is a loop, not a retry.
+- **other 4xx** — permanent for this body: drop it with a console warning so
+  one invalid mutation cannot wedge every later one.
+
+The page asks the SW for the queue count (`queue-status` message) instead
+of opening the queue database: the schema then has one owner. A second
+opener without the SW's upgrade handler once left a v1 database with no
+`pending` store, which silently lost every queued mutation.
 
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the

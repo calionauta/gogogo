@@ -26,6 +26,11 @@ func TestOfflineBannerDispatchesSyncEvents(t *testing.T) {
 	for _, want := range []string{
 		`gogogo:queued`,
 		`gogogo:synced`,
+		// A 401 mid-queue pauses the replay and offers the fix (a link that
+		// returns to this page). Both halves are easy to delete without any
+		// other test noticing.
+		`sync-auth`,
+		`offline-banner-signin`,
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Errorf("banner render missing %q", want)

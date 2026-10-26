@@ -667,6 +667,75 @@ async function verifyOfflineTodoQueue(page, context) {
       { timeout: 20000 },
     );
     console.log("  ✓ a failed replay is retried until the queue drains (no reload)");
+
+    // --- an expired session pauses the queue; it must not retry forever ---
+    // A 401 cannot be fixed by replaying: the SW must keep the mutation,
+    // stop BOTH retry layers and ask for the one action that helps (sign in).
+    // Before this policy the queue re-registered Background Sync on every
+    // auth failure, so a signed-out device replayed in a loop forever.
+    await sw.evaluate(() => {
+      const prev = self.fetch;
+      self.__force401 = 1;
+      self.fetch = function (input, init) {
+        const hdrs = new Headers((init && init.headers) || undefined);
+        if (self.__force401 > 0 && hdrs.get("X-Offline-Replay") === "1") {
+          self.__force401--;
+          return Promise.resolve(new Response("sign-in required", { status: 401 }));
+        }
+        return prev.apply(self, arguments);
+      };
+    });
+
+    const authTitle = `offline-auth-${Date.now()}`;
+    await context.setOffline(true);
+    await timedWait(page, "offline-auth-banner", () =>
+      document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
+    );
+    await titleInput.fill(authTitle);
+    await titleInput.press("Enter");
+    {
+      const deadline = Date.now() + 10000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 1 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 200));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 1) throw new Error("the auth-pause probe was not queued");
+    }
+    await context.setOffline(false);
+    await timedWait(page, "offline-auth-pause", () =>
+      document.querySelector("#offline-banner-text")?.textContent?.includes("sign in to sync"),
+    null, { timeout: 20000 });
+    // Hold: a paused queue neither drains nor drops its mutation.
+    await new Promise((r) => setTimeout(r, 2000));
+    if ((await pendingMutationCount(page)) !== 1) {
+      throw new Error("a 401 must keep the mutation queued while it asks for sign-in");
+    }
+    // A valid session again = the next page load resumes the drain.
+    await sw.evaluate(() => { self.__force401 = 0; });
+    await page.reload({ waitUntil: "load" });
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    {
+      const deadline = Date.now() + 20000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 0) throw new Error("the paused queue never resumed after a fresh page load");
+    }
+    await page.waitForFunction(
+      (t) => {
+        const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
+        for (const el of els) {
+          if (el.textContent?.includes(t) && el.getAttribute("data-pending") !== "true") return true;
+        }
+        return false;
+      },
+      authTitle,
+      { timeout: 20000 },
+    );
+    console.log("  ✓ a 401 pauses the queue (kept, no retry loop) and resumes on a fresh session");
   } finally {
     await context.setOffline(false);
   }
