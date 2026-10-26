@@ -3,7 +3,9 @@ package datastar
 
 import (
 	"context"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/a-h/templ"
 	datastarsdk "github.com/starfederation/datastar-go/datastar"
@@ -32,7 +34,8 @@ func MergeSignals(sse *datastarsdk.ServerSentEventGenerator, signals any) error 
 }
 
 // StreamOpenedSignal is the signal name a Datastar stream writes as its
-// first frame. The value is the tab's clientID.
+// first frame. The value is the tab's clientID plus a per-open nonce
+// (see AckStreamOpened).
 const StreamOpenedSignal = "streamOpen"
 
 // AckStreamOpened is the FIRST frame of every Datastar SSE stream. The
@@ -43,6 +46,17 @@ const StreamOpenedSignal = "streamOpen"
 // the page is about to use. sse-open.js waits for this signal instead of
 // asking the server whether the hub registered a client (a second request
 // per open that proved less: registration says nothing about delivery).
+//
+// The value carries a NONCE after the clientID because Datastar dispatches
+// `datastar-signal-patch` only when a value actually CHANGES. On a reconnect
+// the tab reuses its clientID (sessionStorage), so a bare clientID was the
+// same value the page already held: no signal-patch event fired, the opener
+// concluded the stream never opened, and it re-clicked — cancelling the
+// healthy stream and looping until it declared failure. The ack must be
+// observable on EVERY open, not just the first.
 func AckStreamOpened(sse *datastarsdk.ServerSentEventGenerator, clientID string) error {
-	return sse.MarshalAndPatchSignals(map[string]string{StreamOpenedSignal: clientID})
+	nonce := strconv.FormatInt(time.Now().UnixNano(), 36)
+	return sse.MarshalAndPatchSignals(map[string]string{
+		StreamOpenedSignal: clientID + ":" + nonce,
+	})
 }

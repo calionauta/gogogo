@@ -1,7 +1,7 @@
 route /
-ids command-palette command-palette-input command-palette-list offline-banner offline-banner-text
+ids command-palette command-palette-input command-palette-list offline-banner offline-banner-signin offline-banner-text
 data-bind cmdQuery
 data-on data-on:click data-on:close
 signals cmdQuery loading theme
 aria aria-autocomplete aria-controls aria-expanded aria-hidden aria-label aria-live aria-pressed
-tags a=9 body=1 button=4 dialog=1 div=8 form=1 head=1 header=2 html=2 img=1 input=1 kbd=3 label=1 li=6 link=3 main=1 meta=2 p=2 path=6 script=6 section=1 span=15 style=2 svg=6 title=1 ul=1
+tags a=10 body=1 button=4 dialog=1 div=8 form=1 head=1 header=2 html=2 img=1 input=1 kbd=3 label=1 li=6 link=3 main=1 meta=2 p=2 path=6 script=6 section=1 span=15 style=2 svg=6 title=1 ul=1

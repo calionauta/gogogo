@@ -146,10 +146,22 @@ bootstrap) and resolves through `window.__gogogoOpenVerified(buttonId)`
 (`web/resources/static/sse-open.js`): click, then wait for the stream's
 OWN first frame — the `streamOpen` ack signal every stream sends
 (`internal/datastar.AckStreamOpened`) — and re-click while it is missing,
-throwing loudly past ~10s. The ack proves the click bound, the handler ran,
+throwing loudly past ~12s. The ack proves the click bound, the handler ran,
 and the browser APPLIED the response; an HTTP status probe proved only that
 the hub held a registration, cost a second request per open, and said
 nothing about delivery.
+
+**The ack value must CHANGE on every open.** Datastar dispatches
+`datastar-signal-patch` only when a value actually differs, and a tab reuses
+its clientID across reloads/reconnects (`sessionStorage`). A bare-clientID
+ack was therefore a no-op patch on the second open: the opener saw no ack,
+re-clicked (cancelling the perfectly healthy stream), and burned every retry
+until it declared failure — realtime churned for ~10s and then went quiet.
+The ack is now `<clientID>:<nonce>` (`sse-open.js` matches the prefix), and
+a verified open is remembered in an `opened` map so a later
+bootstrap-fallback call cannot re-enter the loop on a live stream.
+Red-proof: `TestAckStreamOpenedChangesOnEveryOpen` (Go) plus the
+"every reconnect re-acknowledges" case in `scripts/sse-reopen.test.mjs`.
 
 Datastar owns the rest of the lifecycle (v1.0.4): a `@get` stream closes
 when the tab is hidden and reopens when it is visible (`openWhenHidden`

@@ -419,3 +419,75 @@ func TestServerTimeouts(t *testing.T) {
 		t.Errorf("MaxHeaderBytes = %d, want %d", srv.MaxHeaderBytes, 64<<10)
 	}
 }
+
+// TestBootAnonymousNavigationRedirectsToLogin is the end-to-end guard for the
+// signed-out experience: with RBAC enforced (the production posture), a
+// browser opening a feature URL must land on the login page with the reason
+// carried along — not on a bare "forbidden" it cannot act on. A data request
+// keeps a machine-readable 401 instead of receiving an HTML page.
+//
+// Red-proof: answer the anonymous deny with 403 unconditionally (the old
+// middleware) and the first assertion fails with 403.
+func TestBootAnonymousNavigationRedirectsToLogin(t *testing.T) {
+	cfg := config.Load()
+	cfg.Dev = true
+	cfg.SignupEnabled = true
+	cfg.RBACEnabled = true
+	cfg.Turso.DBPath = t.TempDir() + "/rbac-serve.db"
+	cfg.DataDir = t.TempDir() + "/data"
+
+	bundle, err := BootChi(cfg)
+	if err != nil {
+		t.Fatalf("BootChi: %v", err)
+	}
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	stop := serveChiOnListener(ln, srvHandler(bundle.mux), bundle)
+	defer stop()
+	base := "http://" + ln.Addr().String()
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	get := func(target string, headers map[string]string) *http.Response {
+		t.Helper()
+		req, rerr := http.NewRequestWithContext(context.Background(), http.MethodGet, base+target, nil)
+		if rerr != nil {
+			t.Fatalf("request %s: %v", target, rerr)
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, derr := client.Do(req)
+		if derr != nil {
+			t.Fatalf("GET %s: %v", target, derr)
+		}
+		t.Cleanup(func() { resp.Body.Close() })
+		return resp
+	}
+
+	page := get("/todo?filter=active", map[string]string{
+		"Sec-Fetch-Mode": "navigate",
+		"Accept":         "text/html,application/xhtml+xml",
+	})
+	if page.StatusCode != http.StatusSeeOther {
+		t.Fatalf("anonymous navigation /todo = %d, want 303 to /login", page.StatusCode)
+	}
+	loc := page.Header.Get("Location")
+	if !strings.HasPrefix(loc, "/login?") || !strings.Contains(loc, "auth=required") {
+		t.Fatalf("Location = %q, want /login?next=…&auth=required", loc)
+	}
+	if !strings.Contains(loc, url.QueryEscape("/todo?filter=active")) {
+		t.Fatalf("Location = %q, want the requested page preserved", loc)
+	}
+
+	data := get("/todo", map[string]string{
+		"Sec-Fetch-Mode": "same-origin",
+		"Accept":         "application/json",
+	})
+	if data.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous data request /todo = %d, want 401 sign-in required", data.StatusCode)
+	}
+}

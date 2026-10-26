@@ -1,7 +1,7 @@
 route /config
-ids answer-components app-pref-theme app-rail command-palette command-palette-input command-palette-list config-tab-components config-tab-runtime config-tab-security config-tab-users offline-banner offline-banner-text runtime security-events session-banner toast-container users
+ids answer-components app-pref-theme app-rail command-palette command-palette-input command-palette-list config-tab-components config-tab-runtime config-tab-security config-tab-users offline-banner offline-banner-signin offline-banner-text runtime security-events session-banner toast-container users
 data-bind cmdQuery
-data-on data-on:click data-on:close
+data-on data-on:click data-on:close data-on:submit
 signals cmdQuery loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-labelledby aria-live
-tags a=22 aside=1 body=1 button=15 caption=14 code=63 details=1 dialog=1 div=54 footer=1 form=7 h1=1 h2=12 h3=2 head=1 header=1 html=2 input=15 kbd=3 label=3 li=21 link=3 main=1 meta=2 nav=2 option=9 p=13 path=19 script=9 section=13 select=3 span=115 strong=4 style=3 summary=1 svg=19 table=14 tbody=14 td=168 th=56 thead=14 title=1 tr=57 ul=3
+tags a=23 aside=1 body=1 button=15 caption=14 code=63 details=1 dialog=1 div=54 footer=1 form=7 h1=1 h2=12 h3=2 head=1 header=1 html=2 input=15 kbd=3 label=3 li=21 link=3 main=1 meta=2 nav=2 option=9 p=13 path=19 script=9 section=13 select=3 span=115 strong=4 style=3 summary=1 svg=19 table=14 tbody=14 td=168 th=56 thead=14 title=1 tr=57 ul=3

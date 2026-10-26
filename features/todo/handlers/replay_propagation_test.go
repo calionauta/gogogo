@@ -15,6 +15,7 @@ package handlers
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -24,6 +25,111 @@ import (
 	"testing"
 	"time"
 )
+
+// TestHandlersTodoReplayReachesOtherTab is the same contract for a DIFFERENT
+// tab, which is the shape a user reports: "added a task offline in one browser
+// and the other one never showed it". The replay's broadcast must fan out to
+// every stream of the owner (not just the queueing tab), so an already-open tab
+// re-lists without a refresh.
+func TestHandlersTodoReplayReachesOtherTab(t *testing.T) {
+	f := newHandlersFixture(t)
+	srv := httptest.NewServer(f.r)
+	defer srv.Close()
+
+	const (
+		email    = "replay-other@example.com"
+		password = "Correct-horse-99!"
+		title    = "Replayed-to-tab-B"
+	)
+
+	clientA, err := signupClient(srv.URL, email, password)
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+
+	// Tab B is a second session of the same owner, opened BEFORE the replay.
+	tokenB, _, lerr := f.auth.Login(context.Background(), email, password)
+	if lerr != nil {
+		t.Fatalf("second-session login: %v", lerr)
+	}
+	streamCtx, cancelStream := context.WithCancel(context.Background())
+	defer cancelStream()
+	streamReq, err := http.NewRequestWithContext(streamCtx,
+		http.MethodGet, srv.URL+"/api/todos/stream?clientID=tab-b", nil)
+	if err != nil {
+		t.Fatalf("stream request: %v", err)
+	}
+	streamReq.AddCookie(f.auth.SetSessionCookie(tokenB))
+	streamResp, err := http.DefaultClient.Do(streamReq)
+	if err != nil {
+		t.Fatalf("open stream: %v", err)
+	}
+	defer streamResp.Body.Close()
+	if streamResp.StatusCode != http.StatusOK {
+		t.Fatalf("stream status = %d", streamResp.StatusCode)
+	}
+
+	sawTitle := make(chan struct{})
+	go func() {
+		defer close(sawTitle)
+		scanner := bufio.NewScanner(streamResp.Body)
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			if bytesContains(scanner.Bytes(), []byte(title)) {
+				return
+			}
+		}
+	}()
+
+	replayReq, err := http.NewRequestWithContext(context.Background(),
+		http.MethodPost, srv.URL+"/api/todos?filter=all&clientID=tab-a",
+		strings.NewReader(url.Values{"title": {title}}.Encode()))
+	if err != nil {
+		t.Fatalf("replay request: %v", err)
+	}
+	replayReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	replayReq.Header.Set("X-Offline-Replay", "1")
+	replayResp, err := clientA.Do(replayReq)
+	if err != nil {
+		t.Fatalf("replay: %v", err)
+	}
+	replayResp.Body.Close()
+	if replayResp.StatusCode != http.StatusOK {
+		t.Fatalf("replay status = %d", replayResp.StatusCode)
+	}
+
+	select {
+	case <-sawTitle:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("tab B never saw %q after an offline replay (other tabs must refresh live)", title)
+	}
+}
+
+// signupClient registers email and returns an HTTP client carrying its session
+// cookie (the offline-replay tests drive the real HTTP surface this way).
+func signupClient(base, email, password string) (*http.Client, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{Jar: jar, Timeout: 15 * time.Second}
+	body := strings.NewReader(`{"email":` + strconv.Quote(email) + `,"password":"` + password + `"}`)
+	req, err := http.NewRequestWithContext(context.Background(),
+		http.MethodPost, base+"/api/auth/signup/credential", body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("signup status %d", resp.StatusCode)
+	}
+	return client, nil
+}
 
 // TestHandlersTodoReplayReachesOriginator opens one tab's stream and issues
 // the create as an offline replay from that same tab (same clientID,

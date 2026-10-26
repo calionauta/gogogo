@@ -220,7 +220,10 @@ or option.
 1. `retry` semantics, backoff and the 204 stop (`retry: 'always'` on every opener).
 2. `openWhenHidden` default for GET (the room depends on opting in).
 3. `datastar-fetch` event `type` values and the `datastar-signal-patch`
-   `detail` shape (sse-open.js matches `detail.streamOpen`).
+   `detail` shape (sse-open.js matches `detail.streamOpen`, which carries
+   `<clientID>:<nonce>` — a bare clientID repeats on reconnect and
+   Datastar never dispatches an unchanged value, so the ack must differ
+   per open).
 4. `requestCancellation` by method+URL (the forced refresh depends on it).
 5. Markov/morph behavior for `mode: outer` (the room patches `#room-card-content`).
 6. Attribute existence in the bundle (the docs can be ahead of the pin).

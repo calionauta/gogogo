@@ -12,8 +12,22 @@ tests fail naming the exact gap when you skip a step.
    `viewer`, or `anonymous`. Unknown `users.role` values fall back to
    `user` — never up, never lockout.
 2. It calls `Enforce(subject, path, method)` against the embedded
-   policy. Deny (or enforcer error) answers **403 with no body** and a
-   warn log carrying subject/object/action.
+   policy, and every deny leaves a warn log carrying
+   subject/object/action. The RESPONSE depends on who is asking:
+   - **anonymous page navigation** (a typed URL, bookmark or link:
+     `Sec-Fetch-Mode: navigate`) → **303 to
+     `/login?next=<requested path>&auth=required`**. The login page then
+     explains itself ("You need to sign in to open that page.") instead
+     of showing a bare `forbidden` a visitor cannot act on.
+   - **anonymous data request** (XHR, Datastar action, SSE) → **401
+     `sign-in required`**, never an HTML page patched into a live UI. The
+     shell listens for that status on `datastar-fetch` and sends the browser
+     to `/login?next=<current page>`, so an expired session during an action
+     is a recovery, not a dead click.
+   - **signed-in but not allowed** (e.g. a `user` opening `/config`) →
+     **403 with no body**; signing in again cannot fix a role gap.
+   - **enforcer error** → the same audience split, failing closed (an
+     anonymous caller is still anonymous, not suddenly allowed).
 3. Disabled (`RBAC_ENABLED=false`) the middleware passes everything
    through with identical wiring.
 
@@ -92,8 +106,9 @@ policy in a table is an editable privilege surface).
   deliberate is the set of SUBTREES (the shape test's allowlist), because
   widening that is what actually grants a new surface.
 - **Fail-closed by construction**: a route with no row denies everyone
-  but admin. Adding a route without adding its rows is a 403 bug, and
-  the coverage test names it.
+  but admin. Adding a route without adding its rows is a deny bug (a
+  login bounce for anonymous, 403 once signed in), and the coverage test
+  names it.
 
 ## Adding a feature (checklist)
 

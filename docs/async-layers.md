@@ -157,6 +157,54 @@ cross-instance traffic.
 POST/PUT/DELETE mutations when the browser is offline, queues them in
 IndexedDB, and replays them via Background Sync when connectivity returns.
 
+A replay is NOT single-shot. The window's `online` event fires when the OS
+reports a link, not when packets move, so the first replay fetch can fail a
+few hundred milliseconds before the network is usable (measured live
+against the production deploy). The queue therefore retries each item with
+bounded backoff (`REPLAY_BACKOFF_MS`), re-registers Background Sync while a
+transient failure remains, and the page keeps asking for a drain while its
+own `queueCount` (a SW round-trip) still sees rows (bounded `KICK_DELAYS`). Until the SW
+reports `sync-end`, the offline banner says "Changes queued — retrying
+sync…" instead of claiming "Online": a pending mutation must never look
+saved.
+
+Each outcome has its own policy, not a generic retry:
+
+- **2xx / 404** — settled (404 means the row is already gone).
+- **network, 5xx, 429** — transient: keep the item, stop the PASS (every
+  later item shares the condition), and register Background Sync. A
+  `Retry-After` up to 5s is honoured before the retry; a longer one is
+  Background Sync's job.
+- **401** — the session is gone: keep the item, pause the queue, stop both
+  retry layers, and show "Changes queued — sign in to sync" with a link back
+  to the page. Retrying an expired session is a loop, not a retry. The shell
+  also recovers a 401 from any scripted action by sending the user to
+  `/login?next=…` (a page load is bounced server-side).
+- **other 4xx** — permanent for this body: drop it so one invalid mutation
+  cannot wedge every later one, and tell the user (toast), not just the
+  console.
+
+The queue is a **per-account** outbox. Each entry carries the owner key the
+page computed (SHA-256 of the signed-in email) and a `queuedAt` stamp; a
+replay only touches entries for the currently signed-in owner and drops
+entries older than `MAX_QUEUE_AGE_MS` (one week) or beyond
+`MAX_QUEUE_ITEMS` (100). Dropped entries (foreign account, stale, rejected,
+or evicted from a full queue) surface as a toast: a change that will never be
+saved must say so. Sign-out asks before discarding queued changes and then
+posts `clear-user-data`, which clears both the page cache and the queue —
+otherwise the next person on a shared device would inherit them.
+
+The page asks the SW for the queue count (`queue-status` message) instead
+of opening the queue database: the schema then has one owner. A second
+opener without the SW's upgrade handler once left a v1 database with no
+`pending` store, which silently lost every queued mutation.
+
+The SW knows nothing about feature markup: it reports the queued request and
+answers `204`, and the FEATURE renders its optimistic state. For todo that is
+`web/resources/static/todo-offline.js` (row, toggle, delete, clear); a second
+feature registers its own listener for `gogogo:queued` instead of editing the
+worker.
+
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the
 Leaf Node reconnects to the server. No Service Worker needed.

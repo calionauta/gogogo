@@ -23,20 +23,27 @@ package components
 
 import "strconv"
 
+import "github.com/calionauta/gogogo/web/resources"
+
 // OfflineBanner renders the sticky top banner for transport state. Pass
 // offlineSync=false to switch to honest online-only copy when the SW +
-// queue are disabled.
-templ OfflineBanner(offlineSync bool) {
+// queue are disabled. userEmail is hashed in the browser and sent to the
+// service worker as the queue owner, so a queued mutation can never replay
+// into another account on a shared device.
+templ OfflineBanner(offlineSync bool, userEmail string) {
 	<div
 		id="offline-banner"
 		class="app-banner"
 		data-component="offline-banner"
 		data-offline-sync={ strconv.FormatBool(offlineSync) }
+		data-user-email={ userEmail }
 		data-on:online__window="window.__gogogoBannerOnline()"
 		data-on:offline__window="window.__gogogoBannerOffline()"
+		data-on:visibilitychange__document="window.__gogogoBannerVisible()"
 		aria-live="polite"
 	>
 		<span id="offline-banner-text">Online</span>
+		<a id="offline-banner-signin" href="/login" hidden>Sign in</a>
 	</div>
 	<style>
 		#offline-banner.is-online {
@@ -47,127 +54,17 @@ templ OfflineBanner(offlineSync bool) {
 				background-color: #3b82f6;
 				color: #ffffff;
 			}
+		#offline-banner.is-queued,
+		#offline-banner.is-needs-auth {
+				display: block;
+				background-color: #f59e0b;
+				color: #ffffff;
+			}
 		#offline-banner.is-offline {
 				display: block;
 				background-color: #f59e0b;
 				color: #ffffff;
 			}
 	</style>
-	<script nonce={ templ.GetNonce(ctx) }>
-		(function () {
-			var banner = document.getElementById("offline-banner");
-			var text = document.getElementById("offline-banner-text");
-			if (!banner || !text) return;
-
-			// Templ does not interpolate Go expressions inside script text.
-			// Render the flag as an HTML data attribute (where Templ's typed
-			// interpolation is guaranteed) and read it from the element.
-			var OFFLINE_SYNC = banner.dataset.offlineSync === "true";
-
-			function setState(state) {
-				var cls = "is-" + state;
-				banner.classList.remove("is-online", "is-syncing", "is-offline");
-				banner.classList.add(cls);
-				// display state handled by .is-* classes in chrome.css
-				text.textContent = state === "syncing"
-					? "Syncing changes\u2026"
-					: state === "offline"
-						? (OFFLINE_SYNC
-							? "Offline \u2014 changes are queued and will sync when you reconnect"
-							: "Offline \u2014 online-only mode; requests will fail when network is down")
-						: "Online";
-			}
-
-			if (OFFLINE_SYNC && navigator.serviceWorker) {
-				// SW postMessage bridge — see web/resources/static/sw.js.
-				// TRUE VANILLA EXCEPTION: no Datastar primitive receives
-				// service-worker messages; nothing declarative can own this
-				// subscription. The bridge re-enters Datastar by dispatching
-				// gogogo:queued (see data-on:gogogo:queued__window consumers).
-				navigator.serviceWorker.addEventListener("message", function (e) {
-					var data = e.data || {};
-					if (data.type === "sync-start") {
-						setState("syncing");
-						// Connection is back — the SW is replaying queued
-						// mutations. Show the live presence count instead
-						// of stale offline styling.
-						reflectPresence(true);
-					} else if (data.type === "sync-end") {
-						setState("online");
-						// Replay complete — remove offline styling from
-						// presence pills so the live "X online" count
-						// appears with the green pulse again.
-						reflectPresence(true);
-						// Notify Datastar consumers: the queue drained, so
-						// list pages refetch through their resync button
-						// (see ListResync's gogogo:synced listener). The live
-						// SSE broadcast is not enough on its own — it can land
-						// while the tab's stream is still re-establishing
-						// after offline, with nothing after it.
-						window.dispatchEvent(new CustomEvent("gogogo:synced"));
-					} else if (data.type === "sync-error") {
-						setState("offline");
-						// Check actual connectivity — a sync-error while
-						// online is just a queued mutation, not a disconnect.
-						reflectPresence(navigator.onLine);
-						// Notify Datastar consumers: a mutation just queued
-						// offline, so forms that set a pending signal before
-						// posting can reset immediately. This SW postMessage is
-						// awaited before the intercepted request completes.
-						window.dispatchEvent(new CustomEvent("gogogo:queued"));
-					}
-				});
-			}
-
-			// Fallback when SW is not registered (dev, unsupported browsers,
-			// or OFFLINE_SYNC_ENABLED=false). navigator.onLine flips a
-			// coarse offline/online signal so users still see *something*.
-			function updateOnline() {
-				setState(navigator.onLine ? "online" : "offline");
-				// The realtime/SSE presence pill (".online-pill", rendered in
-				// the todo list, realtime card, and whiteboard) is fed only by
-				// server broadcasts and never learns about a client-side
-				// disconnect on its own — so it keeps showing the last "X
-				// online" count with a live-green pulse while offline. Tie it to
-				// navigator.onLine here so it greys out the moment the network
-				// drops (see the .online-pill.is-offline rule in app.css).
-				reflectPresence(navigator.onLine);
-			}
-
-			// Toggle the stale/offline styling on every presence pill. We only
-			// react to navigator.onLine (not the SW sync-* states): "syncing"
-			// means the connection is already back, so the live count should
-				// stay visible; a SW sync-error while actually online is just a
-			// queued mutation and must not blank the presence indicator.
-			function reflectPresence(online) {
-				var pills = document.querySelectorAll(".online-pill");
-				for (var i = 0; i < pills.length; i++) {
-					pills[i].classList.toggle("is-offline", !online);
-				}
-			}
-
-			// Owned by the data-on:online__window / data-on:offline__window
-			// attributes on the banner div (not vanilla listeners): the
-			// functions below are pure state writers, Datastar owns the
-			// subscriptions. The online path still orchestrates the SW replay
-			// kick — that multi-step imperative sequence (postMessage, wait,
-			// conditional update) has no declarative shape and stays here.
-			window.__gogogoBannerOnline = function () {
-				if (OFFLINE_SYNC && navigator.serviceWorker) {
-					navigator.serviceWorker.ready.then(function (registration) {
-						if (registration.active) {
-							registration.active.postMessage({ type: "replay-queue" });
-						}
-					}).catch(function () {});
-				}
-				// Give replayQueue a tick to publish sync-start. Do not overwrite
-				// its syncing state while queued mutations are still draining.
-				setTimeout(function () {
-					if (!banner.classList.contains("is-syncing")) updateOnline();
-				}, 500);
-			};
-			window.__gogogoBannerOffline = function () { updateOnline(); };
-			updateOnline();
-		})();
-	</script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-banner.js") }></script>
 }
