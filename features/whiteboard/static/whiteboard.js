@@ -186,6 +186,11 @@
   // In-memory outbox for fast runtime access; IndexedDB for persistence.
   var outbox = [];
   var flushing = false;
+  // The retry vocabulary is shared with the worker and the notes client
+  // (web/resources/static/offline-policy.js, loaded by the page template
+  // before this file). One definition: an answer the worker retries must not
+  // be dropped as poison here, and vice versa.
+  var offlinePolicy = window.GogogoOffline;
   // retryDelay grows while a replay keeps failing. A dead edge would
   // otherwise be retried every 300ms for as long as the queue is non-empty —
   // a request storm against a gateway that is already struggling.
@@ -265,11 +270,16 @@
         // A stale replay must NOT be requeued: retrying it would either fail
         // forever or, if it ever won, clobber the peer's newer edit.
         if (handleConflict(resp, op)) return;
-        if (!resp.ok) {
+        if (resp.ok) return;
+        if (offlinePolicy.isTransientStatus(resp.status) || offlinePolicy.isAuthStatus(resp.status)) {
           failed++;
           outbox.push(op);
           idbSaveOp(op).catch(function () {});
+          return;
         }
+        // Permanent 4xx (400 bad op, 404 board deleted): replaying cannot fix
+        // it, and keeping it would wedge every later op behind a poison entry.
+        console.warn("offline: dropping an un-replayable op", resp.status, docID);
       }).catch(function (e) {
         failed++;
         outbox.push(op);
@@ -282,7 +292,7 @@
         retryDelay = 300;
         return;
       }
-      retryDelay = failed ? Math.min(retryDelay * 2, RETRY_MAX_MS) : 300;
+      retryDelay = failed ? offlinePolicy.retryDelay(retryDelay, 300, RETRY_MAX_MS) : 300;
       setTimeout(flushOutbox, retryDelay);
     });
   }

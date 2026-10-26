@@ -601,15 +601,27 @@ async function main() {
   await A5.locator("#note-text").click();
   await typeText(A5, "base line", 10);
   const outKey = "notes-outbox:" + docOffline;
-  await sleep(600); // let the 100ms debounce fire: the baseline sends itself
+  // Wait for the round trip, not a nap: #rtt-pill only shows a duration once
+  // the server answered the batch (setPending swaps "saving…" for the last
+  // RTT on success). Polling the outbox alone would pass before the 100ms
+  // debounce even queued the first batch.
   try {
     await A5.waitForFunction(
-      (key) => !JSON.parse(localStorage.getItem(key) || "[]").length,
-      outKey,
+      () => (document.getElementById("rtt-pill")?.textContent || "").includes("ms"),
+      null,
       { timeout: 15000 },
     );
   } catch {
     bad("the baseline note text never reached the server (cannot test the transient path)");
+  }
+  try {
+    await A5.waitForFunction(
+      (key) => !JSON.parse(localStorage.getItem(key) || "[]").length,
+      outKey,
+      { timeout: 5000 },
+    );
+  } catch {
+    bad("the baseline batch stayed in the outbox after its round trip");
   }
   await A5.evaluate((doc) => {
     const orig = window.fetch;
@@ -624,7 +636,18 @@ async function main() {
   }, docOffline);
   const tail = " tail-survives";
   await typeText(A5, tail, 10);
-  await sleep(1500); // one send + the queued retry tick
+  // Wait for the FAILED send, not a nap: the transient branch reveals
+  // #net-status ("reconnecting…") when the 521 comes back and the batch is
+  // kept. That is the exact moment the assertions below describe.
+  try {
+    await A5.waitForFunction(
+      () => !document.getElementById("net-status").classList.contains("hidden"),
+      null,
+      { timeout: 15000 },
+    );
+  } catch {
+    bad("the transient failure never surfaced (no reconnecting hint)");
+  }
   const kept = await A5.evaluate((key) => ({
     text: document.getElementById("note-text").value,
     outbox: JSON.parse(localStorage.getItem(key) || "[]").length,

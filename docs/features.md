@@ -195,12 +195,15 @@ bundle and is not attributed per feature.
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
 | Offline outbox (every shell page) | `offline-banner.js` | 17 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 5 KB | 2 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 31 KB | 12 KB |
+| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 31 KB | 11 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
-for cursor/caret reports, one implementation for both features.
+for cursor/caret reports, one implementation for both features — and
+`offline-policy.js` (~3 KB raw, ~1 KB gzip): one definition of which HTTP
+answers are transient (retry) and which are a verdict (drop), shared with the
+Service Worker, so the three offline writers cannot disagree.
 
 Split rule (Datastar vs vanilla, enforced by review): list fragments
 and UI state that patch cleanly go through the Datastar runtime (todo,

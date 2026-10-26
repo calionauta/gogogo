@@ -924,7 +924,7 @@ async function main() {
   } else {
     bad(`offline drawing left no ink in the region (${localInk} px)`);
   }
-  const pendingOps = await off.evaluate(() => new Promise((resolve) => {
+  const countOutbox = () => off.evaluate(() => new Promise((resolve) => {
     const open = indexedDB.open("whiteboard-outbox");
     open.onerror = () => resolve(-1);
     open.onsuccess = () => {
@@ -936,6 +936,7 @@ async function main() {
       c.onerror = () => { db.close(); resolve(-3); };
     };
   }));
+  const pendingOps = await countOutbox();
   if (pendingOps >= 1) {
     ok("the offline shape is persisted in the outbox");
   } else {
@@ -963,6 +964,39 @@ async function main() {
   } else {
     bad("the offline shape never reached the server after reconnect");
   }
+
+  // ---------------------------------------------------------------------------
+  // A PERMANENT 4xx MUST NOT WEDGE THE OUTBOX. The replay used to requeue on
+  // ANY failed response, so a 400 (bad op) or 404 (board deleted while the tab
+  // was offline) stayed in IndexedDB forever and every later drawing queued
+  // behind it. Same rule as the worker and the notes client: transient answers
+  // are retried, a definitive refusal is dropped (with a console warning).
+  //
+  // RED-PROOFED: with `if (!resp.ok) requeue`, the count below never returns
+  // to 0.
+  // ---------------------------------------------------------------------------
+  await offCtx.setOffline(true);
+  await drawRect(off, 200, 40, 280, 120);
+  {
+    const deadline = Date.now() + 10000;
+    let n = await countOutbox();
+    while (n < 1 && Date.now() < deadline) { await sleep(200); n = await countOutbox(); }
+    if (n < 1) bad("the second offline shape was not buffered (cannot test the permanent 4xx)");
+  }
+  await offCtx.route("**/api/whiteboard/**/update*", (route) =>
+    route.fulfill({ status: 400, contentType: "text/plain", body: "bad op" }));
+  await offCtx.setOffline(false);
+  {
+    const deadline = Date.now() + 15000;
+    let n = await countOutbox();
+    while (n !== 0 && Date.now() < deadline) { await sleep(200); n = await countOutbox(); }
+    if (n === 0) {
+      ok("a permanently rejected op leaves the outbox instead of wedging it");
+    } else {
+      bad(`a 400 kept the op queued forever (pending_ops=${n}) — later drawings are stuck behind it`);
+    }
+  }
+  await offCtx.unroute("**/api/whiteboard/**/update*");
   await offCtx.close();
 
   if (pageErrors.length) {

@@ -21,6 +21,11 @@
 // work because the dedup state lives in the database. See
 // docs/decisions.md for the full rationale.
 
+// The retry vocabulary is shared with the page-side outboxes (notes,
+// whiteboard): one file, so "the request did not complete" cannot mean two
+// different things depending on which writer answers.
+importScripts("/static/offline-policy.js");
+
 var CACHE_NAME = "flat-api-v1";
 var PAGE_CACHE = "gogogo-pages-v1";
 var API_PREFIX = "/api/";
@@ -185,23 +190,16 @@ function networkFirstPage(request) {
 }
 
 // isTransientStatus reports whether an HTTP status means "the request never
-// completed", as opposed to a verdict on the mutation:
+// completed", as opposed to a verdict on the mutation. The vocabulary lives in
+// ONE place (web/resources/static/offline-policy.js) because the page-side
+// outboxes (notes, whiteboard) make the same decision; when the worker and a
+// feature disagree, a gateway 5xx is queued here and dropped there.
 //
-//   - 5xx — the gateway or the app did not answer. Behind Cloudflare an
-//     unreachable origin is 520/521/522/523/524 and a dead upstream is 502;
-//     the app never saw the request. (A plain 500 is the app failing mid-
-//     flight: the create path is still safe because it carries idem_key and
-//     the replay is deduped server-side.)
-//   - 429 — rate limited before the handler ran.
-//   - 408 — the edge gave up waiting before the handler ran.
-//
-// The SAME rule already decides a replay outcome (REPLAY_RETRY below): a 5xx
-// keeps the item and retries. The initial submit used to disagree — it passed
-// the 5xx through, so the page showed "Not saved" and dropped the user's text
-// while the app was merely unreachable. One vocabulary, one answer.
-function isTransientStatus(status) {
-  return status === 408 || status === 429 || status >= 500;
-}
+// The SAME rule decides a replay outcome (REPLAY_RETRY below): a 5xx keeps
+// the item and retries. The initial submit used to disagree — it passed the
+// 5xx through, so the page showed "Not saved" and dropped the user's text
+// while the app was merely unreachable.
+var isTransientStatus = GogogoOffline.isTransientStatus;
 
 // QUEUE_OWNED_PREFIXES are the routes whose mutations this queue replays end
 // to end: the feature draws an optimistic state for a queued item, and a

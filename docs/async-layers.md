@@ -252,10 +252,13 @@ Notes and the whiteboard keep their OWN outboxes on the page
 (`features/notes/static/notes.js` in `localStorage`,
 `features/whiteboard/static/whiteboard.js` in IndexedDB): their endpoints are
 excluded from the worker because an op stream carries its own convergence
-rules. They follow the same transient/permanent split — a 5xx/429/408 keeps the
-batch and retries, only a poison 4xx is dropped. The notes client used to treat
-a gateway 5xx as an invalid op and drop the batch, so the server never received
-text typed while the app was unreachable behind the edge.
+rules. They follow the same transient/permanent split, from the same file the
+worker imports (`web/resources/static/offline-policy.js`): a 5xx/429/408 keeps
+the batch and retries, an auth 4xx keeps it but stops hammering, and any other
+4xx is a verdict, so it is dropped instead of wedging every later op. The
+notes client used to treat a gateway 5xx as an invalid op and drop the batch,
+so the server never received text typed while the app was unreachable behind
+the edge.
 
 ### Replay is dedup'd at the server
 
