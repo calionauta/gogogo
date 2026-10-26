@@ -40,8 +40,19 @@ jobs:
     # Wails v3's default Linux backend is GTK4 + WebKitGTK 6.0. Pin the
     # runner instead of relying on ubuntu-latest's changing package set.
     runs-on: ubuntu-24.04
+    # A hung apt step sat here for 30+ minutes on three runs in a row and
+    # blocked the PR; without this key the only bound was the runner's 6h
+    # default. A healthy run measures ~3m21s, so 20m is >5x headroom.
+    timeout-minutes: 20
     env:
       GOTOOLCHAIN: local
+      # apt must never wait for a human. debconf gets its defaults, and
+      # needrestart does not stop to ask which services to restart — the
+      # classic Ubuntu 24.04 CI hang (the runner image's apt upgrades libc
+      # mid-install). Both are passed through `sudo env` below as well: sudo's
+      # env_reset drops job-level variables before apt runs.
+      DEBIAN_FRONTEND: noninteractive
+      NEEDRESTART_SUSPEND: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
@@ -53,9 +64,19 @@ jobs:
         # apt-get update exits 100 when a third-party source in the runner
         # image is broken (403 or unsigned), even though the Ubuntu indexes
         # updated. The install is the gate.
+        #
+        # A stuck step here is diagnosed by its bound, not by its silence:
+        # this one fails after 12 minutes instead of hanging through the job.
+        # DPkg::Lock::Timeout covers unattended-upgrades still holding the
+        # lock at runner boot; Acquire::Retries covers a flaky mirror.
+        timeout-minutes: 12
         run: |
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 \
+            apt-get install -y \
+              -o DPkg::Lock::Timeout=120 \
+              -o Acquire::Retries=3 \
+              build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
           pkg-config --modversion gtk4
       - name: Verify Wails environment
         # Kept as an environment sanity check (GTK4/WebKitGTK headers present).
@@ -80,8 +101,12 @@ jobs:
     # ~800MB download the first time (cached by the Docker layer; setup is idempotent).
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
+    # Same apt step as linux-desktop, plus an ~800MB docker image build.
+    timeout-minutes: 45
     env:
       GOTOOLCHAIN: local
+      DEBIAN_FRONTEND: noninteractive
+      NEEDRESTART_SUSPEND: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
@@ -90,10 +115,16 @@ jobs:
       - name: Install Wails Linux build dependencies
         # apt-get update exits 100 when a third-party source in the runner
         # image is broken (403 or unsigned), even though the Ubuntu indexes
-        # updated. The install is the gate.
+        # updated. The install is the gate. Same hardening as linux-desktop:
+        # noninteractive, no needrestart prompt, bounded lock wait.
+        timeout-minutes: 12
         run: |
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 \
+            apt-get install -y \
+              -o DPkg::Lock::Timeout=120 \
+              -o Acquire::Retries=3 \
+              build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
           pkg-config --modversion gtk4
       - name: Setup wails-cross image (one-time, cached)
         # Built from the wails source checkout — `wails3 task setup:docker`
