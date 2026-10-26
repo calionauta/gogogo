@@ -11,6 +11,11 @@
 // POLICY must not fork, which is how a gateway 5xx was transient for the
 // worker's replay but a "poison batch" for the notes client — the same answer
 // ate the user's typing in one place and retried in the other.
+//
+// MAINTENANCE: an installed worker re-fetches an imported script only while
+// it installs, and it reinstalls only when sw.js itself changes bytes. A change
+// to this policy therefore ships with a touch in sw.js (a comment is enough);
+// the page-side clients load the bare URL and pick it up on their next load.
 (function (global) {
   "use strict";
 
