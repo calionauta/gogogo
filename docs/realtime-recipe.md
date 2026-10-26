@@ -131,8 +131,11 @@ text.
    item — an anchor in the empty state scrolls the page on load.
 6. **Failure release**: server-owned spinners need a client-side release
    for dead requests: `data-on:datastar-fetch` error stages on the form
-   (reference: chat composer). Otherwise a network failure locks the UI
-   until reload.
+   (reference: chat composer). Also release when the action SETTLES
+   (`.then`/`.catch`): a Service Worker can answer `204` for a queued
+   mutation with no follow-up message, and a spinner that waits for that
+   message (or for an error event that never fires) locks the UI until
+   reload (reference: the todo create form).
 
 ## Verified open (streams must prove they opened)
 

@@ -195,7 +195,7 @@ bundle and is not attributed per feature.
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
 | Offline outbox (every shell page) | `offline-banner.js` | 15 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 5 KB | 2 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 26 KB | 10 KB |
+| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 28 KB | 11 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared

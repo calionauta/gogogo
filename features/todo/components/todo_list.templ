@@ -130,7 +130,7 @@ templ createForm(signals todo.Signals) {
 	<form
 		id="todo-create"
 		class="w-full mt-3"
-		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form', retryMaxCount: 0}).then(() => { if (!$syncFailed && $newTitle === sent) $newTitle = ''; $loading = false; }).catch(() => { $loading = false; }); }" data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'todo-create' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($loading = false, $syncFailed = true) : null"
+		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form', retryMaxCount: 0}).then(() => { if (!$syncFailed && $newTitle === sent) $newTitle = ''; $loading = false; }).catch(() => { $loading = false; $syncFailed = true; }); }" data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'todo-create' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($loading = false, $syncFailed = true) : null"
 	>
 		<div class="join w-full">
 			<input
@@ -157,6 +157,7 @@ templ createForm(signals todo.Signals) {
 		</label>
 		<div class="alert alert-warning mt-2" role="alert" id="todo-save-error" data-show="$syncFailed">
 			<span>Not saved — the request failed. Your text is still in the box; try again.</span>
+			<button type="button" class="btn btn-ghost btn-sm" data-on:click="$syncFailed = false">dismiss</button>
 		</div>
 	</form>
 }

@@ -206,15 +206,18 @@ feature registers its own listener for `gogogo:queued` instead of editing the
 worker.
 
 A queue write that cannot complete is NOT a success. The worker bounds the
-IndexedDB hand-off with `QUEUE_TIMEOUT_MS` — a blocked upgrade, disabled
-storage or a full disk can open neither success nor error — answers `503` when
-it fails, and announces the loss (`queue-lost`, reason `storage`). Answering
-`204` anyway told the page "queued" while nothing was stored: the Add button
-stayed in its loading state forever and the todo was gone. On the page side
-the pending state belongs to the REQUEST: the create action releases its
-spinner when the action settles, even if the SW message never arrives (the
-message drives the optimistic row, not the form), and a failed request keeps
-the typed title plus an inline "not saved" alert.
+IndexedDB OPEN with `IDB_OPEN_TIMEOUT_MS` (and gives an `onblocked` upgrade a
+short grace before failing) — a blocked upgrade or disabled storage can open
+neither success nor error — answers `503` when it fails, and announces the loss
+(`queue-lost`, reason `storage`). A `503` means nothing was written: it comes
+from a failed/blocked open or an aborted transaction, never from a write that
+may still land, so a client retry cannot duplicate it. Answering `204` anyway
+told the page "queued" while nothing was stored: the Add button stayed in its
+loading state forever and the todo was gone. On the page side the pending state
+belongs to the REQUEST: the create action releases its spinner when the action
+settles, even if the SW message never arrives (the message drives the
+optimistic row, not the form), and a failed request keeps the typed title plus
+an inline "not saved" alert.
 
 **Online-only mode** (`OFFLINE_SYNC_ENABLED=false`) retires a worker an
 earlier deployment installed. The flag only stops the registration; an

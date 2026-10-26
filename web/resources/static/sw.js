@@ -209,7 +209,7 @@ async function networkFirstWithQueue(request) {
     // after a failed write is a lie: the page resets its optimistic state on
     // a message the worker never sent, so the Add button stayed in its
     // loading state forever and the mutation was silently lost.
-    var entry = await withTimeout(queueRequest(replayable), QUEUE_TIMEOUT_MS);
+    var entry = await queueRequest(replayable);
     // Tell the feature what was queued BEFORE the action resolves, so the
     // optimistic row is in the DOM by the time Datastar clears the form.
     await notifyClients("queued-item", {
@@ -250,35 +250,31 @@ var OWNER_KEY = "owner";
 var MAX_QUEUE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 var MAX_QUEUE_ITEMS = 100;
 
-// QUEUE_TIMEOUT_MS bounds the IndexedDB hand-off. Every intercepted mutation
-// awaits the queue write before answering the page; a write that cannot even
-// start (blocked upgrade, storage disabled) must not hold that response — the
-// page's action would never settle and its form would stay in the loading
-// state forever. Past this budget the worker answers 503 and says the change
-// was lost, which is recoverable; a spinner that never moves is not.
-var QUEUE_TIMEOUT_MS = 5000;
+// IDB_OPEN_TIMEOUT_MS bounds ONE IndexedDB open. Every intercepted mutation
+// awaits the queue write before answering the page; an open that cannot
+// complete (blocked upgrade, storage disabled) must not hold that response —
+// the page's action would never settle and its form would stay in the loading
+// state forever. A rejected open is recoverable (the page keeps the text and
+// says "not saved"); a spinner that never moves is not.
+//
+// The timeout covers the OPEN, not the write. Once the connection exists the
+// transaction either commits or aborts, so there is no window where a 503 is
+// answered while the entry is still being written — which would let a user
+// retry (new idem_key) and create a duplicate when the late write landed.
+var IDB_OPEN_TIMEOUT_MS = 5000;
 
-function withTimeout(promise, ms) {
-  return new Promise(function (resolve, reject) {
-    var timer = setTimeout(function () {
-      reject(new Error("offline queue: timed out"));
-    }, ms);
-    promise.then(function (value) {
-      clearTimeout(timer);
-      resolve(value);
-    }, function (err) {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
-}
+// IDB_BLOCKED_GRACE_MS is how long an onblocked open may wait for the old
+// connection to close before it is failed. The common holder is a retiring
+// worker finishing one operation; failing instantly turned a deploy-window
+// race into a lost mutation.
+var IDB_BLOCKED_GRACE_MS = 1500;
 
 function idbOpen() {
   return new Promise(function (resolve, reject) {
     var settled = false;
     var timer = setTimeout(function () {
       finish(reject, new Error("offline queue: open timed out"));
-    }, QUEUE_TIMEOUT_MS);
+    }, IDB_OPEN_TIMEOUT_MS);
     function finish(fn, value) {
       if (settled) return;
       settled = true;
@@ -315,7 +311,9 @@ function idbOpen() {
     // Without a handler the open request neither succeeds nor errors, so the
     // queued mutation would hang the intercepted request forever.
     req.onblocked = function () {
-      finish(reject, new Error("offline queue: open blocked"));
+      setTimeout(function () {
+        finish(reject, new Error("offline queue: open blocked"));
+      }, IDB_BLOCKED_GRACE_MS);
     };
   });
 }
@@ -330,14 +328,37 @@ async function withStore(store, mode, fn) {
   });
 }
 
-async function addPending(entry) {
-  var db = await idbOpen();
-  return new Promise(function (resolve, reject) {
-    var tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).add(entry);
-    tx.oncomplete = function () { db.close(); resolve(); };
-    tx.onerror = function () { db.close(); reject(tx.error); };
+// withWrite settles on COMMIT, not on the request's success. A "deleted"
+// entry that never committed would be replayed again on the next pass — for a
+// toggle that flips the state back. onabort matters for the same reason: a
+// transaction can abort without the request's error event reaching us, and a
+// promise that never settles is the hang this file exists to prevent.
+function withWrite(store, fn) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx;
+      function settle(err) {
+        db.close();
+        if (err) reject(err); else resolve();
+      }
+      try {
+        tx = db.transaction(store, "readwrite");
+        fn(tx.objectStore(store));
+      } catch (err) {
+        settle(err);
+        return;
+      }
+      tx.oncomplete = function () { settle(null); };
+      tx.onerror = function () { settle(tx.error); };
+      tx.onabort = function () {
+        settle(tx.error || new Error("offline queue: transaction aborted"));
+      };
+    });
   });
+}
+
+function addPending(entry) {
+  return withWrite(STORE_NAME, function (store) { store.add(entry); });
 }
 
 function loadAllPending() {
@@ -345,20 +366,30 @@ function loadAllPending() {
 }
 
 function deletePending(id) {
-  return withStore(STORE_NAME, "readwrite", function (store) { return store.delete(id); });
+  return withWrite(STORE_NAME, function (store) { store.delete(id); });
+}
+
+// dropPending is deletePending without the throw: every caller in the replay
+// path must still reach its terminal notify, or the page never learns the
+// pass ended. A failed delete leaves the entry for the next pass (safe: a
+// create is idem-deduped and a delete 404s), so the caller decides whether to
+// keep going; it must never abandon the pass silently.
+async function dropPending(item) {
+  try {
+    await deletePending(item.id);
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function metaGet(key) {
   return withStore(META_STORE, "readonly", function (store) { return store.get(key); });
 }
 
-async function metaSet(key, value) {
-  var db = await idbOpen();
-  return new Promise(function (resolve, reject) {
-    var tx = db.transaction(META_STORE, "readwrite");
-    tx.objectStore(META_STORE).put({ key: key, value: value });
-    tx.oncomplete = function () { db.close(); resolve(); };
-    tx.onerror = function () { db.close(); reject(tx.error); };
+function metaSet(key, value) {
+  return withWrite(META_STORE, function (store) {
+    store.put({ key: key, value: value });
   });
 }
 
@@ -391,9 +422,12 @@ async function queueRequest(request) {
   var items = await loadAllPending();
   if (items.length >= MAX_QUEUE_ITEMS) {
     // Drop the OLDEST intent (least likely to still be wanted) and say so,
-    // instead of failing every future mutation when the queue is full.
-    await deletePending(items[0].id);
-    await notifyClients("queue-lost", { count: 1, reason: "queue-full" });
+    // instead of failing every future mutation when the queue is full. Best
+    // effort: an eviction that cannot commit must not cost the user the
+    // mutation they are submitting right now — the next add evicts again.
+    if (await dropPending(items[0])) {
+      await notifyClients("queue-lost", { count: 1, reason: "queue-full" });
+    }
   }
   var entry = {
     url: request.url,
@@ -474,7 +508,13 @@ self.addEventListener("message", function (e) {
       try {
         var items = await loadAllPending();
         for (var i = 0; i < items.length; i++) {
-          await deletePending(items[i].id);
+          // Per entry: one failed delete must not leave the rest of the
+          // previous account's queue behind on a shared device.
+          try {
+            await deletePending(items[i].id);
+          } catch (_) {
+            /* retried by the next clear; the page cache still goes */
+          }
         }
       } catch (_) {
         // IndexedDB unavailable: nothing to clear.
@@ -590,13 +630,13 @@ async function usablePending(items, owner) {
   for (var i = 0; i < items.length; i++) {
     var item = items[i];
     if (item.queuedAt && now - item.queuedAt > MAX_QUEUE_AGE_MS) {
-      await deletePending(item.id);
-      stale++;
+      // Counted only when the delete committed: a delete that failed leaves
+      // the entry for the next pass, and a toast per pass would be noise.
+      if (await dropPending(item)) stale++;
       continue;
     }
     if (item.owner && owner && item.owner !== owner) {
-      await deletePending(item.id);
-      foreign++;
+      if (await dropPending(item)) foreign++;
       continue;
     }
     usable.push(item);
@@ -634,11 +674,21 @@ async function replayQueue() {
   for (var i = 0; i < items.length; i++) {
     var outcome = await replayOne(items[i]);
     if (outcome === REPLAY_OK) {
-      await deletePending(items[i].id);
+      // The entry is settled server-side. If it cannot be removed locally,
+      // stop: replaying it again is a duplicate (a toggle would flip back).
+      if (!(await dropPending(items[i]))) {
+        remaining += items.length - i;
+        break;
+      }
       continue;
     }
     if (outcome === REPLAY_REJECT) {
-      await deletePending(items[i].id);
+      // Permanent 4xx: drop it so it cannot wedge later items. A failed drop
+      // means the same rejection would replay every pass, so stop instead.
+      if (!(await dropPending(items[i]))) {
+        remaining += items.length - i;
+        break;
+      }
       rejected++;
       continue;
     }
