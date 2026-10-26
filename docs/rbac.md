@@ -20,7 +20,10 @@ tests fail naming the exact gap when you skip a step.
      explains itself ("You need to sign in to open that page.") instead
      of showing a bare `forbidden` a visitor cannot act on.
    - **anonymous data request** (XHR, Datastar action, SSE) → **401
-     `sign-in required`**, never an HTML page patched into a live UI.
+     `sign-in required`**, never an HTML page patched into a live UI. The
+     shell listens for that status on `datastar-fetch` and sends the browser
+     to `/login?next=<current page>`, so an expired session during an action
+     is a recovery, not a dead click.
    - **signed-in but not allowed** (e.g. a `user` opening `/config`) →
      **403 with no body**; signing in again cannot fix a role gap.
    - **enforcer error** → the same audience split, failing closed (an
