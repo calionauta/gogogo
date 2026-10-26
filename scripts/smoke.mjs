@@ -464,6 +464,33 @@ async function verifyOfflineTodoQueue(page, context) {
   await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
   await waitForServiceWorkerControl(page);
 
+  // A service worker restart leaves a NEW global scope behind, and Chrome can
+  // keep several instances alive across a long suite (observed: three). An
+  // injection that only touches serviceWorkers()[0] can therefore miss the
+  // instance that actually handles the replay, which reads as a product flake
+  // ("the 401 never happened") when it is really an unpatched worker. Apply
+  // every injection to EVERY live instance and read aggregate counters.
+  const inEveryWorker = async (fn) => {
+    for (const worker of context.serviceWorkers()) {
+      try {
+        await worker.evaluate(fn);
+      } catch {
+        /* instance retired between the list and the call */
+      }
+    }
+  };
+  const workerSum = async (fn) => {
+    let total = 0;
+    for (const worker of context.serviceWorkers()) {
+      try {
+        total += await worker.evaluate(fn);
+      } catch {
+        /* instance retired */
+      }
+    }
+    return total;
+  };
+
   const banner = page.locator("#offline-banner");
   if ((await banner.getAttribute("data-offline-sync")) !== "true") {
     throw new Error("offline banner rendered with offline sync disabled");
@@ -626,7 +653,7 @@ async function verifyOfflineTodoQueue(page, context) {
     // and the pending count stays 1.
     const sw = context.serviceWorkers()[0];
     if (!sw) throw new Error("no service worker to inject the transient replay failure into");
-    await sw.evaluate(() => {
+    await inEveryWorker(() => {
       const orig = self.fetch;
       self.__failReplays = 2;
       self.fetch = function (input, init) {
@@ -691,13 +718,18 @@ async function verifyOfflineTodoQueue(page, context) {
     // stop BOTH retry layers and ask for the one action that helps (sign in).
     // Before this policy the queue re-registered Background Sync on every
     // auth failure, so a signed-out device replayed in a loop forever.
-    await sw.evaluate(() => {
+    await inEveryWorker(() => {
       const prev = self.fetch;
-      self.__force401 = 1;
+      // Sticky: a real expired session refuses EVERY replay, not just the
+      // first one. A one-shot mock let the second trigger of the same
+      // reconnect (page kick + an already-registered Background Sync event)
+      // succeed, which drained the queue and read as a retry-loop failure.
+      self.__force401 = true;
+      self.__force401Hits = 0;
       self.fetch = function (input, init) {
         const hdrs = new Headers((init && init.headers) || undefined);
-        if (self.__force401 > 0 && hdrs.get("X-Offline-Replay") === "1") {
-          self.__force401--;
+        if (self.__force401 && hdrs.get("X-Offline-Replay") === "1") {
+          self.__force401Hits++;
           return Promise.resolve(new Response("sign-in required", { status: 401 }));
         }
         return prev.apply(self, arguments);
@@ -705,6 +737,11 @@ async function verifyOfflineTodoQueue(page, context) {
     });
 
     const authTitle = `offline-auth-${Date.now()}`;
+    await page.evaluate(() => {
+      window.__swmsgs = [];
+      navigator.serviceWorker.addEventListener("message", (e) =>
+        window.__swmsgs.push(e.data && e.data.type));
+    });
     await context.setOffline(true);
     await timedWait(page, "offline-auth-banner", () =>
       document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
@@ -721,16 +758,47 @@ async function verifyOfflineTodoQueue(page, context) {
       if (pending !== 1) throw new Error("the auth-pause probe was not queued");
     }
     await context.setOffline(false);
-    await timedWait(page, "offline-auth-pause", () =>
-      document.querySelector("#offline-banner-text")?.textContent?.includes("sign in to sync"),
-    null, { timeout: 20000 });
+    try {
+      await timedWait(page, "offline-auth-pause", () =>
+        document.querySelector("#offline-banner-text")?.textContent?.includes("sign in to sync"),
+      null, { timeout: 20000 });
+    } catch (err) {
+      // The banner is the only surface of this state; when it never arrives,
+      // the worker messages say which half went missing (no replay vs no
+      // sync-auth vs a later sync-end that overwrote it).
+      const diag = await page.evaluate(() => ({
+        banner: document.querySelector("#offline-banner-text")?.textContent,
+        class: document.querySelector("#offline-banner")?.className,
+        online: navigator.onLine,
+        controller: Boolean(navigator.serviceWorker.controller),
+        messages: window.__swmsgs,
+      }));
+      console.error("auth-pause diagnostic:", JSON.stringify({
+        diag,
+        workers: context.serviceWorkers().length,
+        hits: await workerSum(() => self.__force401Hits || 0),
+        pending: await pendingMutationCount(page),
+      }));
+      throw err;
+    }
     // Hold: a paused queue neither drains nor drops its mutation.
     await new Promise((r) => setTimeout(r, 2000));
     if ((await pendingMutationCount(page)) !== 1) {
       throw new Error("a 401 must keep the mutation queued while it asks for sign-in");
     }
+    // ...and it must not replay again on its own: the triggers that raced the
+    // first pass are spent, so the 401 counter has to stay flat. A queue that
+    // re-arms Background Sync on an auth failure grows it every few seconds.
+    {
+      const before = await workerSum(() => self.__force401Hits || 0);
+      await new Promise((r) => setTimeout(r, 2000));
+      const after = await workerSum(() => self.__force401Hits || 0);
+      if (after !== before) {
+        throw new Error(`the paused queue kept replaying (${before} -> ${after} 401s)`);
+      }
+    }
     // A valid session again = the next page load resumes the drain.
-    await sw.evaluate(() => { self.__force401 = 0; });
+    await inEveryWorker(() => { self.__force401 = false; });
     await page.reload({ waitUntil: "load" });
     await page.evaluate(() => navigator.serviceWorker.ready);
     {
@@ -824,6 +892,123 @@ async function verifyOfflineTodoQueue(page, context) {
       { timeout: 20000 },
     );
     console.log("  ✓ foreign-account and stale queue entries are dropped with a visible notice");
+
+    // --- a failed queue write must FAIL the action, not fake success ---
+    // The worker used to answer 204 even when the IndexedDB write rejected.
+    // The page then heard neither queued-item nor sync-error, so the form
+    // stayed in its loading state forever and the todo vanished: no row, no
+    // error, no way to submit again. A 503 makes the action fail, which keeps
+    // the title (with a visible alert) and releases the button.
+    const failTitle = `offline-storefail-${Date.now()}`;
+    await inEveryWorker(() => {
+      self.__origAddPending = addPending;
+      self.addPending = () => Promise.reject(new Error("smoke: simulated IndexedDB failure"));
+    });
+    try {
+      await context.setOffline(true);
+      await timedWait(page, "offline-storefail-banner", () =>
+        document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
+      );
+      await titleInput.fill(failTitle);
+      await titleInput.press("Enter");
+      await timedWait(
+        page,
+        "offline-storefail-reset",
+        (t) => {
+          const input = document.querySelector('input[name="title"]');
+          const add = document.querySelector('form#todo-create button[type="submit"]');
+          return !!input && input.value === t && !!add && !add.disabled;
+        },
+        failTitle,
+        { timeout: 10000 },
+      );
+      if (!(await page.locator("#todo-save-error").isVisible())) {
+        throw new Error("a failed queue write left no visible error");
+      }
+      const optimistic = await page.evaluate((t) =>
+        [...document.querySelectorAll('[id^="todo-"]:not(#todo-list)')]
+          .some((el) => el.textContent?.includes(t)), failTitle);
+      if (optimistic) throw new Error("a failed queue write still rendered an optimistic row");
+      if ((await pendingMutationCount(page)) !== 0) {
+        throw new Error("a failed queue write still left an entry in IndexedDB");
+      }
+      const toasts = await page.evaluate(() => document.querySelector("#toast-container")?.textContent || "");
+      if (!toasts.includes("couldn't be saved")) {
+        throw new Error(`a failed queue write was not announced; saw: ${JSON.stringify(toasts)}`);
+      }
+      console.log("  ✓ a failed queue write fails the action, keeps the title, and says so");
+    } finally {
+      await inEveryWorker(() => { self.addPending = self.__origAddPending; });
+      await context.setOffline(false);
+    }
+
+    // --- a lost SW message must not hold the form ---
+    // The optimistic row is feature-owned (todo-offline.js), so the page
+    // cannot draw it without queued-item — but the PENDING state belongs to
+    // the request, not to the worker: once the action settles (204 queued),
+    // the button has to release even if no message ever arrives. Before the
+    // form cleared its own state, a dropped message (or a page that never
+    // loaded the bridge) left the first offline add spinning forever with
+    // the title already cleared.
+    const lostTitle = `offline-nomsg-${Date.now()}`;
+    await inEveryWorker(() => {
+      self.__origNotify = notifyClients;
+      self.notifyClients = () => Promise.resolve();
+    });
+    try {
+      await context.setOffline(true);
+      await timedWait(page, "offline-nomsg-banner", () =>
+        document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
+      );
+      await titleInput.fill(lostTitle);
+      await titleInput.press("Enter");
+      await timedWait(
+        page,
+        "offline-nomsg-release",
+        () => {
+          // The title is empty after a queued add, so the Add button is
+          // disabled for the RIGHT reason (nothing to submit). The pending
+          // state is the spinner's data-show binding.
+          const input = document.querySelector('input[name="title"]');
+          const spinner = document.querySelector('form#todo-create .loading-spinner');
+          return !!input && input.value === "" && !!spinner &&
+            getComputedStyle(spinner).display === "none";
+        },
+        null,
+        { timeout: 10000 },
+      );
+      if ((await pendingMutationCount(page)) !== 1) {
+        throw new Error("a silent queue write did not persist the mutation");
+      }
+      if (await page.locator("#todo-save-error").isVisible()) {
+        throw new Error("a successfully queued mutation reported a save failure");
+      }
+      console.log("  ✓ a queued mutation releases the form even when no SW message arrives");
+    } finally {
+      await inEveryWorker(() => { self.notifyClients = self.__origNotify; });
+      await context.setOffline(false);
+    }
+    // Durability never depended on the message: the replay still lands.
+    await page.waitForFunction(
+      (t) => {
+        const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
+        for (const el of els) {
+          if (el.textContent?.includes(t) && el.getAttribute("data-pending") !== "true") return true;
+        }
+        return false;
+      },
+      lostTitle,
+      { timeout: 20000 },
+    );
+    {
+      const deadline = Date.now() + 15000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 0) throw new Error("the silent queue write never replayed");
+    }
   } finally {
     await context.setOffline(false);
   }

@@ -193,9 +193,9 @@ bundle and is not attributed per feature.
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 20 KB |
 | Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 28 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
-| Offline outbox (every shell page) | `offline-banner.js` | 15 KB | 5 KB |
+| Offline outbox (every shell page) | `offline-banner.js` | 15 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 5 KB | 2 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 24 KB | 9 KB |
+| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 26 KB | 10 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared

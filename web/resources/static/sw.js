@@ -202,25 +202,39 @@ async function networkFirstWithQueue(request) {
     // Try the real request first.
     return await fetch(request);
   } catch (_) {
-    try {
-      var entry = await queueRequest(replayable);
-      // Tell the feature what was queued BEFORE the action resolves, so the
-      // optimistic row is in the DOM by the time Datastar clears the form.
-      await notifyClients("queued-item", {
-        item: { url: entry.url, method: entry.method, body: entry.body }
-      });
-      await notifyClients("sync-error");
-      // Register a Background Sync event if supported.
-      if (self.registration && self.registration.sync) {
-        self.registration.sync.register("gogogo-sync").catch(function () {});
-      }
-    } catch (_) {
-      // Queue failed — the mutation is lost. In practice this only
-      // happens if IndexedDB is unavailable (private browsing, disk full).
+    // Network unavailable — fall through to the queue.
+  }
+  try {
+    // Only claim "accepted" when the entry is actually PERSISTENT. A 204
+    // after a failed write is a lie: the page resets its optimistic state on
+    // a message the worker never sent, so the Add button stayed in its
+    // loading state forever and the mutation was silently lost.
+    var entry = await withTimeout(queueRequest(replayable), QUEUE_TIMEOUT_MS);
+    // Tell the feature what was queued BEFORE the action resolves, so the
+    // optimistic row is in the DOM by the time Datastar clears the form.
+    await notifyClients("queued-item", {
+      item: { url: entry.url, method: entry.method, body: entry.body }
+    });
+    await notifyClients("sync-error");
+    // Register a Background Sync event if supported.
+    if (self.registration && self.registration.sync) {
+      self.registration.sync.register("gogogo-sync").catch(function () {});
     }
     // 204 = "accepted, nothing to patch": Datastar completes the action,
     // does not retry, and does not replace any DOM node.
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+  } catch (_) {
+    // Storage unavailable (private mode, disk full, blocked upgrade) or the
+    // write did not settle in time. Tell the user the change is lost and
+    // answer 503 so the action FAILS instead of looking queued.
+    await notifyClients("queue-lost", { count: 1, reason: "storage" });
+    return new Response("offline queue unavailable", {
+      status: 503,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
+    });
   }
 }
 
@@ -236,9 +250,48 @@ var OWNER_KEY = "owner";
 var MAX_QUEUE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 var MAX_QUEUE_ITEMS = 100;
 
+// QUEUE_TIMEOUT_MS bounds the IndexedDB hand-off. Every intercepted mutation
+// awaits the queue write before answering the page; a write that cannot even
+// start (blocked upgrade, storage disabled) must not hold that response — the
+// page's action would never settle and its form would stay in the loading
+// state forever. Past this budget the worker answers 503 and says the change
+// was lost, which is recoverable; a spinner that never moves is not.
+var QUEUE_TIMEOUT_MS = 5000;
+
+function withTimeout(promise, ms) {
+  return new Promise(function (resolve, reject) {
+    var timer = setTimeout(function () {
+      reject(new Error("offline queue: timed out"));
+    }, ms);
+    promise.then(function (value) {
+      clearTimeout(timer);
+      resolve(value);
+    }, function (err) {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 function idbOpen() {
   return new Promise(function (resolve, reject) {
-    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    var settled = false;
+    var timer = setTimeout(function () {
+      finish(reject, new Error("offline queue: open timed out"));
+    }, QUEUE_TIMEOUT_MS);
+    function finish(fn, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    }
+    var req;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (err) {
+      finish(reject, err);
+      return;
+    }
     req.onupgradeneeded = function () {
       var db = req.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -248,8 +301,22 @@ function idbOpen() {
         db.createObjectStore(META_STORE, { keyPath: "key" });
       }
     };
-    req.onsuccess = function () { resolve(req.result); };
-    req.onerror = function () { reject(req.error); };
+    req.onsuccess = function () {
+      // A late success after the timeout/blocked path must not leak the
+      // connection: an open handle is what blocks the NEXT version upgrade.
+      if (settled) {
+        req.result.close();
+        return;
+      }
+      finish(resolve, req.result);
+    };
+    req.onerror = function () { finish(reject, req.error); };
+    // onblocked fires when another connection still holds an older version.
+    // Without a handler the open request neither succeeds nor errors, so the
+    // queued mutation would hang the intercepted request forever.
+    req.onblocked = function () {
+      finish(reject, new Error("offline queue: open blocked"));
+    };
   });
 }
 

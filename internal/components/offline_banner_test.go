@@ -38,7 +38,10 @@ func TestOfflineBannerDispatchesSyncEvents(t *testing.T) {
 
 	// The script carries the SW vocabulary. sync-auth is the 401 pause;
 	// gogogo:synced is the resync after a drain; queue-lost is a user-visible
-	// notice when a mutation can never be saved.
+	// notice when a mutation can never be saved. The retirement calls are the
+	// disabled-mode contract: OFFLINE_SYNC_ENABLED=false has to remove a
+	// worker an earlier deployment installed, or it keeps intercepting /api/*
+	// for a page that renders no optimistic state (the stuck Add button).
 	script, err := fs.ReadFile(resources.StaticFS(), "offline-banner.js")
 	if err != nil {
 		t.Fatalf("read offline-banner.js: %v", err)
@@ -49,6 +52,9 @@ func TestOfflineBannerDispatchesSyncEvents(t *testing.T) {
 		`"queue-lost"`,
 		`"gogogo:queued"`,
 		`"gogogo:synced"`,
+		"getRegistrations()",
+		"unregister()",
+		"caches.delete(key)",
 	} {
 		if !strings.Contains(string(script), want) {
 			t.Errorf("offline-banner.js missing %q", want)

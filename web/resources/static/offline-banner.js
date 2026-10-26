@@ -98,7 +98,8 @@
     var why = reason === "other-account" ? " (queued by another account)"
       : reason === "stale" ? " (older than a week)"
         : reason === "queue-full" ? " (the queue was full)"
-          : "";
+          : reason === "storage" ? " (this browser couldn't store it)"
+            : "";
     toast(plural(count, "change", "changes") + " couldn't be saved" + why, "warning");
   }
 
@@ -334,7 +335,24 @@
   };
 
   updateOnline();
-  if (!OFFLINE_SYNC) return;
+  if (!OFFLINE_SYNC) {
+    // Online-only mode RETIRES a worker an earlier deployment installed. A
+    // registration outlives the flag: it keeps intercepting /api/* and
+    // answering 204 for mutations this mode draws no optimistic state for,
+    // so an offline add froze on its spinner and never reached the list.
+    // Caches go with it — online-only mode must not serve stale pages.
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (reg) { reg.unregister(); });
+      }).catch(function () {});
+    }
+    if (window.caches) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (key) { caches.delete(key); });
+      }).catch(function () {});
+    }
+    return;
+  }
 
   // Bind the queue to this signed-in account before the first count/kick,
   // then resume whatever a previous visit left queued (a reload while
