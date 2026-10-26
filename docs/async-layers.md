@@ -171,7 +171,7 @@ saved.
 Each outcome has its own policy, not a generic retry:
 
 - **2xx / 404** — settled (404 means the row is already gone).
-- **network, 5xx, 429** — transient: keep the item, stop the PASS (every
+- **network, 5xx, 429, 408** — transient: keep the item, stop the PASS (every
   later item shares the condition), and register Background Sync. A
   `Retry-After` up to 5s is honoured before the retry; a longer one is
   Background Sync's job.
@@ -183,6 +183,24 @@ Each outcome has its own policy, not a generic retry:
 - **other 4xx** — permanent for this body: drop it so one invalid mutation
   cannot wedge every later one, and tell the user (toast), not just the
   console.
+
+The FIRST submit follows the same policy, not only a replay. The worker used
+to queue only when `fetch` threw, so an app that was reachable on the wire but
+down behind the gateway (Cloudflare answers 520/521/522 for an unreachable
+origin, 502 for a dead upstream, 503/504 for an overloaded edge) came back as a
+failed action — "Not saved", the title kept in the box, nothing queued. Only a
+DEFINITIVE answer (2xx/3xx/other 4xx) may settle an action; a transient status
+is queued exactly like a dropped connection. This is scoped to the routes the
+queue owns (`QUEUE_OWNED_PREFIXES`, the todo CRUD): a 5xx from a chat turn or a
+sign-in is an answer, and re-sending it later would duplicate a message or
+report a false success.
+
+`KICK_DELAYS` is bounded, so a queue that outlives it needs a slower owner. The
+page keeps a drain cadence (`DRAIN_DELAYS`, 5s growing to 30s) while
+`queuedPending` is set. It exists because the outage can be the APP while
+`navigator.onLine` stays true — a gateway 5xx, an origin restart, a deploy — and
+then neither the `online` event nor Background Sync is guaranteed to fire
+again; without it the row sat in IndexedDB until the next reload.
 
 The queue is a **per-account** outbox. Each entry carries the owner key the
 page computed (SHA-256 of the signed-in email) and a `queuedAt` stamp; a
@@ -229,6 +247,15 @@ caches it owns.
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the
 Leaf Node reconnects to the server. No Service Worker needed.
+
+Notes and the whiteboard keep their OWN outboxes on the page
+(`features/notes/static/notes.js` in `localStorage`,
+`features/whiteboard/static/whiteboard.js` in IndexedDB): their endpoints are
+excluded from the worker because an op stream carries its own convergence
+rules. They follow the same transient/permanent split — a 5xx/429/408 keeps the
+batch and retries, only a poison 4xx is dropped. The notes client used to treat
+a gateway 5xx as an invalid op and drop the batch, so the server never received
+text typed while the app was unreachable behind the edge.
 
 ### Replay is dedup'd at the server
 

@@ -186,6 +186,11 @@
   // In-memory outbox for fast runtime access; IndexedDB for persistence.
   var outbox = [];
   var flushing = false;
+  // retryDelay grows while a replay keeps failing. A dead edge would
+  // otherwise be retried every 300ms for as long as the queue is non-empty —
+  // a request storm against a gateway that is already struggling.
+  var retryDelay = 300;
+  var RETRY_MAX_MS = 5000;
 
   // Restore any pending ops from IndexedDB on first load (page reload
   // or cold open). Don't await — let the canvas render first, replay
@@ -248,6 +253,7 @@
     if (!navigator.onLine) return;
     flushing = true;
     var pending = outbox.splice(0, outbox.length);
+    var failed = 0;
     // Clear IndexedDB — pending ops are now in memory; if replay fails
     // they are re-persisted individually below.
     idbClear().catch(function () {});
@@ -260,15 +266,25 @@
         // forever or, if it ever won, clobber the peer's newer edit.
         if (handleConflict(resp, op)) return;
         if (!resp.ok) {
+          failed++;
           outbox.push(op);
           idbSaveOp(op).catch(function () {});
         }
       }).catch(function (e) {
+        failed++;
         outbox.push(op);
         idbSaveOp(op).catch(function () {});
         console.warn("op replay failed, requeued and re-persisted", e);
       });
-    })).finally(function () { flushing = false; if (outbox.length) setTimeout(flushOutbox, 300); });
+    })).finally(function () {
+      flushing = false;
+      if (!outbox.length) {
+        retryDelay = 300;
+        return;
+      }
+      retryDelay = failed ? Math.min(retryDelay * 2, RETRY_MAX_MS) : 300;
+      setTimeout(flushOutbox, retryDelay);
+    });
   }
   // ---- POST helpers ----
   function postOp(op) {

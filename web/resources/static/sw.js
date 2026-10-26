@@ -184,6 +184,46 @@ function networkFirstPage(request) {
     });
 }
 
+// isTransientStatus reports whether an HTTP status means "the request never
+// completed", as opposed to a verdict on the mutation:
+//
+//   - 5xx — the gateway or the app did not answer. Behind Cloudflare an
+//     unreachable origin is 520/521/522/523/524 and a dead upstream is 502;
+//     the app never saw the request. (A plain 500 is the app failing mid-
+//     flight: the create path is still safe because it carries idem_key and
+//     the replay is deduped server-side.)
+//   - 429 — rate limited before the handler ran.
+//   - 408 — the edge gave up waiting before the handler ran.
+//
+// The SAME rule already decides a replay outcome (REPLAY_RETRY below): a 5xx
+// keeps the item and retries. The initial submit used to disagree — it passed
+// the 5xx through, so the page showed "Not saved" and dropped the user's text
+// while the app was merely unreachable. One vocabulary, one answer.
+function isTransientStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+// QUEUE_OWNED_PREFIXES are the routes whose mutations this queue replays end
+// to end: the feature draws an optimistic state for a queued item, and a
+// replay is safe (the todo create carries idem_key and the server dedupes it;
+// a toggle and a delete converge). A transient STATUS elsewhere is an answer,
+// not a transport failure — queueing a chat turn would re-send it to the model
+// and a queued sign-in would report success — so those keep the older rule:
+// only a thrown fetch (no answer at all) is queued.
+var QUEUE_OWNED_PREFIXES = ["/api/todos"];
+
+function queueOwnsPath(url) {
+  try {
+    var path = new URL(url).pathname;
+    for (var i = 0; i < QUEUE_OWNED_PREFIXES.length; i++) {
+      if (path.indexOf(QUEUE_OWNED_PREFIXES[i]) === 0) return true;
+    }
+  } catch (_) {
+    /* an unparsable URL cannot be replayed anyway */
+  }
+  return false;
+}
+
 // ---- POST/PUT/PATCH/DELETE: network-first with offline queue ----
 //
 // Offline-first UX: when the network is down the mutation is queued and the
@@ -200,7 +240,16 @@ async function networkFirstWithQueue(request) {
   var replayable = request.clone();
   try {
     // Try the real request first.
-    return await fetch(request);
+    var response = await fetch(request);
+    // Only a DEFINITIVE answer settles the action. A transient status means
+    // the request did not complete, so the mutation is queued exactly like a
+    // dropped connection — an "offline" app behind a gateway that answers
+    // 502/521 must not read as a rejected change. Scoped to the routes this
+    // queue owns (see QUEUE_OWNED_PREFIXES): a 5xx from everything else is an
+    // answer the page has to see.
+    if (!isTransientStatus(response.status) || !queueOwnsPath(request.url)) {
+      return response;
+    }
   } catch (_) {
     // Network unavailable — fall through to the queue.
   }

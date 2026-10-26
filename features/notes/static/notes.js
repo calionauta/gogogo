@@ -518,6 +518,20 @@
     flush();
   }
 
+  // transientStatus reports whether an HTTP status means "the request never
+  // completed": 5xx (gateway/origin down, app failing), 429 (rate limited
+  // before the handler) and 408 (edge timeout). Such an answer is NOT a
+  // verdict on the ops, so the batch must be kept and retried. Same rule the
+  // Service Worker applies to todo mutations (web/resources/static/sw.js):
+  // treating a gateway 5xx as a poison op silently ate the typing.
+  function transientStatus(status) {
+    return status === 408 || status === 429 || status >= 500;
+  }
+  // transientRetryMs grows while the app keeps answering with a transient
+  // status: one retry per 1.5s would be a request storm against an edge that
+  // is already struggling, and one per 10s is enough to notice a recovery.
+  let transientRetryMs = 1500;
+
   function flush() {
     if (!outbox.length || flushing) return;
     flushing = true;
@@ -555,6 +569,17 @@
         return null;
       }
       if (r.status !== 200 && r.status !== 409) {
+        // The edge or the app did not answer (5xx, 429, 408): keep the batch
+        // and retry. This is the unreachable-app case the outbox exists for;
+        // dropping it here lost the user's text with the server merely down.
+        if (transientStatus(r.status)) {
+          flushing = false;
+          setPending(false);
+          net.classList.remove("hidden");
+          setTimeout(flush, transientRetryMs);
+          transientRetryMs = Math.min(transientRetryMs * 2, 10000);
+          return null;
+        }
         // Poison batch (invalid ops — only producible via devtools, our
         // UI only emits ins/del): drop it instead of retrying forever.
         // Network failures reject below and keep the batch.
@@ -598,6 +623,7 @@
         outbox = rest.length ? [{ ops: rest, base: REV }] : [];
         saveOutbox();
         clean = !outbox.length;
+        transientRetryMs = 1500;
         if (t0 && rtt) { lastRTT = "· " + Math.round(performance.now() - t0) + "ms"; rtt.textContent = lastRTT; }
         adoptRemote(d.text, d.rev);
         net.classList.add("hidden");

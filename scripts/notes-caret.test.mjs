@@ -1,4 +1,6 @@
-// Notes remote-caret regression tests — cross-viewport positioning under lag.
+// Notes client regression tests — remote-caret geometry under lag, and the
+// op outbox when the app is unreachable (a transient 5xx must be kept, not
+// dropped as a poison batch).
 //
 // WHY THIS EXISTS: the notes client draws every peer caret with a mirror-div
 // (see caretXY in features/notes/static/notes.js). The mirror must be measured
@@ -571,6 +573,112 @@ async function main() {
     if (!worst) ok("wrapped carets paint on the line the writer's caret is on");
   }
 
+  // ---------------------------------------------------------------------------
+  // OFFLINE / UNREACHABLE APP: an op batch answered by a transient status
+  // (5xx, 429, 408) must be KEPT and retried, never treated as a poison op.
+  //
+  // WHY THIS EXISTS: notes.js drops any status that is not 200/409/401/403 as
+  // "poison". A gateway with the origin down answers 521/522 (Cloudflare), a
+  // dead upstream 502, an overloaded edge 503 — none of them is a verdict on
+  // the ops, and the drop silently ate the user's typing while the app was
+  // merely unreachable. The Service Worker's todo queue already treats the
+  // same statuses as transient; the two must not disagree.
+  //
+  // RED-PROOFED: with the drop branch the outbox is empty after the failed
+  // send and the fresh-context read below never sees the tail.
+  // ---------------------------------------------------------------------------
+  const docOffline = "notes-offline-" + process.pid;
+  // Close every earlier page first. Each note page holds ONE long-lived SSE
+  // stream, and this server is HTTP/1.1: six of them saturate the per-origin
+  // connection pool, after which any fetch hangs forever (no request reaches
+  // the server, no error either). The earlier phases are finished, so their
+  // streams are only stealing sockets from this one.
+  for (const pg of await ctxA.pages()) await pg.close();
+  for (const pg of await ctxB.pages()) await pg.close();
+  const A5 = await ctxA.newPage();
+  A5.on("pageerror", (e) => pageErrors.push("A5: " + String(e)));
+  await gotoNote(A5, `${BASE}/notes/${docOffline}`);
+  await A5.locator("#note-text").click();
+  await typeText(A5, "base line", 10);
+  const outKey = "notes-outbox:" + docOffline;
+  await sleep(600); // let the 100ms debounce fire: the baseline sends itself
+  try {
+    await A5.waitForFunction(
+      (key) => !JSON.parse(localStorage.getItem(key) || "[]").length,
+      outKey,
+      { timeout: 15000 },
+    );
+  } catch {
+    bad("the baseline note text never reached the server (cannot test the transient path)");
+  }
+  await A5.evaluate((doc) => {
+    const orig = window.fetch;
+    window.__notesEdgeDown = true;
+    window.fetch = function (input, init) {
+      const url = typeof input === "string" ? input : input.url;
+      if (window.__notesEdgeDown && url.indexOf("/api/notes/" + encodeURIComponent(doc) + "/op") !== -1) {
+        return Promise.resolve(new Response("origin down", { status: 521 }));
+      }
+      return orig.apply(window, arguments);
+    };
+  }, docOffline);
+  const tail = " tail-survives";
+  await typeText(A5, tail, 10);
+  await sleep(1500); // one send + the queued retry tick
+  const kept = await A5.evaluate((key) => ({
+    text: document.getElementById("note-text").value,
+    outbox: JSON.parse(localStorage.getItem(key) || "[]").length,
+    net: !document.getElementById("net-status").classList.contains("hidden"),
+  }), outKey);
+  if (kept.text === "base line" + tail) {
+    ok("typing survives a transient status in the open editor");
+  } else {
+    bad(`typing was lost locally on a transient status: ${JSON.stringify(kept.text)}`);
+  }
+  if (kept.outbox > 0) {
+    ok("a transient status keeps the op batch queued for retry");
+  } else {
+    bad("a transient status dropped the op batch (nothing left to retry)");
+  }
+  if (kept.net) {
+    ok("the editor says it is reconnecting during a transient failure");
+  } else {
+    bad("no reconnecting hint while the ops could not be sent");
+  }
+  // The app answers again: the retained batch must flush on its own (no
+  // synthetic online event — the outage never dropped the link).
+  await A5.evaluate(() => { window.__notesEdgeDown = false; });
+  try {
+    await A5.waitForFunction(
+      (key) => !JSON.parse(localStorage.getItem(key) || "[]").length,
+      outKey,
+      { timeout: 15000 },
+    );
+    ok("the retained batch drains once the app answers again");
+  } catch {
+    const diag = await A5.evaluate((key) => ({
+      outbox: localStorage.getItem(key),
+      net: document.getElementById("net-status").className,
+      busy: document.getElementById("note-text").getAttribute("aria-busy"),
+      value: document.getElementById("note-text").value,
+      online: navigator.onLine,
+    }), outKey);
+    bad(`the retained batch never drained after the app recovered: ${JSON.stringify(diag)}`);
+  }
+  // Read it from a FRESH context (no localStorage draft to fall back on): only
+  // the server having the text proves the batch was applied.
+  const ctxFresh = await browser.newContext();
+  await ctxFresh.addCookies([{ name: "gogogo_auth", value: tokenA, url: BASE }]);
+  const F = await ctxFresh.newPage();
+  await gotoNote(F, `${BASE}/notes/${docOffline}`);
+  const serverText = await F.locator("#note-text").inputValue();
+  if (serverText === "base line" + tail) {
+    ok("the server has the text typed while the app was unreachable");
+  } else {
+    bad(`the server never received the offline tail: ${JSON.stringify(serverText)}`);
+  }
+  await ctxFresh.close();
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {
@@ -587,7 +695,7 @@ main()
     rmSync(tmp, { recursive: true, force: true });
     console.log(
       failures === 0
-        ? "\n\u2705 notes caret tests passed"
-        : `\n\u274c notes caret tests failed (${failures})`,
+        ? "\n\u2705 notes client tests passed"
+        : `\n\u274c notes client tests failed (${failures})`,
     );
   });

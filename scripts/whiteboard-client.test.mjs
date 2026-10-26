@@ -892,6 +892,79 @@ async function main() {
   }
   if (sameUserBadges === 2) ok("same-user tabs render as two cursor dots on the peer");
 
+  // ---------------------------------------------------------------------------
+  // OFFLINE DRAW + RECONNECT: a shape drawn while the link is down is buffered
+  // in the whiteboard's IndexedDB outbox and replayed on reconnect, so the
+  // shape is on the SERVER afterwards. This is the feature's offline claim and
+  // nothing asserted it before (the suite only ever drew online).
+  //
+  // The proof is the snapshot endpoint read from Node, not a reloaded canvas:
+  // a reload restores the pending outbox locally too, so "ink after reload"
+  // cannot tell a saved shape from a replayed-but-still-pending one.
+  //
+  // Close every earlier page first. Each board page holds one long-lived SSE
+  // stream and this server is HTTP/1.1: six open streams saturate the
+  // per-origin connection pool, after which the new fetches hang with no
+  // request on the wire.
+  // ---------------------------------------------------------------------------
+  for (const c of browser.contexts()) await c.close();
+  const offCtx = await browser.newContext();
+  await offCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const off = await offCtx.newPage();
+  off.on("pageerror", (e) => pageErrors.push("offline: " + String(e)));
+  const docOff = "wb-offline-" + process.pid;
+  await gotoBoard(off, `${BASE}/whiteboard/${docOff}`);
+  await waitForCanvas(off);
+  await offCtx.setOffline(true);
+  await drawRect(off, 40, 40, 150, 140);
+  await sleep(300); // local paint + the IndexedDB write
+  const localInk = await off.evaluate(inkInRegion(30, 30, 140, 130));
+  if (localInk > 0) {
+    ok("a shape drawn offline is painted locally");
+  } else {
+    bad(`offline drawing left no ink in the region (${localInk} px)`);
+  }
+  const pendingOps = await off.evaluate(() => new Promise((resolve) => {
+    const open = indexedDB.open("whiteboard-outbox");
+    open.onerror = () => resolve(-1);
+    open.onsuccess = () => {
+      const db = open.result;
+      if (!db.objectStoreNames.contains("pending_ops")) { db.close(); return resolve(-2); }
+      const tx = db.transaction("pending_ops", "readonly");
+      const c = tx.objectStore("pending_ops").count();
+      c.onsuccess = () => { db.close(); resolve(c.result); };
+      c.onerror = () => { db.close(); resolve(-3); };
+    };
+  }));
+  if (pendingOps >= 1) {
+    ok("the offline shape is persisted in the outbox");
+  } else {
+    bad(`the offline shape was not buffered (pending_ops=${pendingOps})`);
+  }
+  await offCtx.setOffline(false);
+  // The shape must reach the server without a reload: the `online` event and
+  // the reopened stream both flush the outbox.
+  let saved = false;
+  {
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline && !saved) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docOff}/snapshot`, {
+        headers: { Cookie: "gogogo_auth=" + cookie },
+      }).catch(() => null);
+      if (res && res.ok) {
+        const shapes = await res.json().catch(() => []);
+        saved = Array.isArray(shapes) && shapes.length >= 1;
+      }
+      if (!saved) await sleep(300);
+    }
+  }
+  if (saved) {
+    ok("the offline shape replayed to the server once the link returned");
+  } else {
+    bad("the offline shape never reached the server after reconnect");
+  }
+  await offCtx.close();
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

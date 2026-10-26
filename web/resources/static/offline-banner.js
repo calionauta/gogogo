@@ -192,6 +192,36 @@
     }, KICK_DELAYS[attempt]);
   }
 
+  // A queue can be non-empty while the browser still believes it is ONLINE:
+  // the outage is the APP (a gateway 5xx, an origin restart, a deploy), not
+  // the link. Neither the `online` event nor Background Sync is guaranteed to
+  // fire again in that case, so without a timer the row sits in IndexedDB
+  // until the next reload — "queued, never synced". A slow cadence owns that
+  // window; every pass stops the moment `sync-end` clears queuedPending.
+  var drainTimer = null;
+  var DRAIN_DELAYS = [5000, 10000, 20000, 30000];
+  var drainStep = 0;
+
+  function scheduleDrain() {
+    if (!OFFLINE_SYNC || drainTimer || needsAuth || !navigator.onLine || !queuedPending) return;
+    drainTimer = setTimeout(function () {
+      drainTimer = null;
+      if (!queuedPending || needsAuth || !navigator.onLine) {
+        drainStep = 0;
+        return;
+      }
+      askSWToDrain();
+      drainStep = Math.min(drainStep + 1, DRAIN_DELAYS.length - 1);
+      scheduleDrain();
+    }, DRAIN_DELAYS[drainStep]);
+  }
+
+  function stopDrain() {
+    if (drainTimer) clearTimeout(drainTimer);
+    drainTimer = null;
+    drainStep = 0;
+  }
+
   // updateOnline folds the coarse connectivity flag into the queue states.
   function updateOnline() {
     setState(!navigator.onLine
@@ -226,6 +256,7 @@
         // it queued. Re-enter Datastar with the item as event detail.
         queuedPending = true;
         window.dispatchEvent(new CustomEvent("gogogo:queued", { detail: data.item }));
+        scheduleDrain();
       } else if (data.type === "sync-start") {
         queuedPending = true;
         replaying = true;
@@ -235,6 +266,7 @@
         queuedPending = false;
         needsAuth = false;
         replaying = false;
+        stopDrain();
         setState("online");
         reflectPresence(true);
         // Notify Datastar consumers: the queue drained, so list pages refetch
@@ -251,6 +283,7 @@
         queuedPending = true;
         needsAuth = true;
         replaying = false;
+        stopDrain();
         setState("needs-auth");
       } else if (data.type === "sync-error") {
         // Still queued. Online means the replay attempted and did not drain
@@ -260,6 +293,7 @@
         replaying = false;
         setState(queuedPending ? "queued" : "offline");
         reflectPresence(navigator.onLine);
+        scheduleDrain();
         // Notify Datastar consumers: a mutation just queued offline, so
         // forms that set a pending signal before posting can reset
         // immediately. This SW postMessage is awaited before the intercepted
@@ -286,6 +320,7 @@
     queueCount().then(function (n) {
       queuedPending = n > 0;
       kickSync(0);
+      scheduleDrain();
       setTimeout(function () {
         if (!banner.classList.contains("is-syncing")) updateOnline();
       }, 500);
@@ -299,7 +334,11 @@
     if (document.visibilityState !== "visible") return;
     needsAuth = false;
     queueCount().then(function (n) {
-      if (n > 0 && navigator.onLine) kickSync(0);
+      if (n > 0 && navigator.onLine) {
+        queuedPending = true;
+        kickSync(0);
+        scheduleDrain();
+      }
     });
   };
 
@@ -366,6 +405,9 @@
     if (n === 0) return;
     queuedPending = true;
     updateOnline();
-    if (navigator.onLine) kickSync(0);
+    if (navigator.onLine) {
+      kickSync(0);
+      scheduleDrain();
+    }
   });
 })();
