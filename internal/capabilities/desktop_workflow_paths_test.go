@@ -51,8 +51,18 @@ var desktopWorkflowEvents = []string{"pull_request", "push"}
 func TestDesktopWorkflowCoversDirectImports(t *testing.T) {
 	t.Parallel()
 	root := repoRoot(t)
+	mainPath := filepath.Join(root, "cmd", "desktop", "main.go")
+	if _, err := os.Stat(mainPath); err != nil {
+		if os.IsNotExist(err) {
+			// The trim presets (minimal, no-ai) deliberately remove
+			// cmd/desktop. There is no desktop binary left for the workflow
+			// to guard in that tree, so this is not a failure.
+			t.Skip("cmd/desktop/main.go is absent in this trimmed tree; the desktop workflow has nothing to cover")
+		}
+		t.Fatalf("stat %s: %v", mainPath, err)
+	}
 
-	imports := desktopDirectImports(t, filepath.Join(root, "cmd", "desktop", "main.go"))
+	imports := desktopDirectImports(t, mainPath)
 	if len(imports) == 0 {
 		t.Fatal("cmd/desktop/main.go has no module imports; the guard has nothing to check")
 	}
