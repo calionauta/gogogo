@@ -189,18 +189,21 @@ bundle and is not attributed per feature.
 | Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
 | Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 695 KB | 269 KB |
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
-| Shared notes | `notes.js` | 36 KB | 13 KB |
-| Whiteboard | `whiteboard.js` + `rough.min.js` | 56 KB | 20 KB |
+| Shared notes | `notes.js` | 37 KB | 13 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 57 KB | 20 KB |
 | Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 28 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
-| Offline outbox (every shell page) | `offline-banner.js` | 15 KB | 6 KB |
+| Offline outbox (every shell page) | `offline-banner.js` | 17 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 5 KB | 2 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 28 KB | 11 KB |
+| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 31 KB | 11 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
-for cursor/caret reports, one implementation for both features.
+for cursor/caret reports, one implementation for both features — and
+`offline-policy.js` (~3 KB raw, ~1 KB gzip): one definition of which HTTP
+answers are transient (retry) and which are a verdict (drop), shared with the
+Service Worker, so the three offline writers cannot disagree.
 
 Split rule (Datastar vs vanilla, enforced by review): list fragments
 and UI state that patch cleanly go through the Datastar runtime (todo,

@@ -713,6 +713,86 @@ async function verifyOfflineTodoQueue(page, context) {
     );
     console.log("  ✓ a failed replay is retried until the queue drains (no reload)");
 
+    // --- a transient status from the edge is queued, not rejected ---
+    // The worker used to queue ONLY when fetch threw. An app that was up on
+    // the wire but down behind the gateway — Cloudflare answers 520/521/522
+    // for an unreachable origin, 502 for a dead upstream — came back as a
+    // failed action: "Not saved", the text kept in the box, nothing queued.
+    // That is the reported symptom, and it is the same "the request did not
+    // complete" the replay path already treats as transient (REPLAY_RETRY).
+    // Red-proof: restore `return await fetch(request)` in
+    // networkFirstWithQueue and this phase fails on the queue assertion with
+    // the alert visible.
+    await inEveryWorker(() => {
+      const orig = self.fetch;
+      self.__edgeDown = true;
+      self.fetch = function (input, init) {
+        const url = typeof input === "string" ? input : input.url;
+        const method = (init && init.method) || (input && input.method) || "GET";
+        if (self.__edgeDown && method === "POST" && url.indexOf("/api/todos?") !== -1) {
+          return Promise.resolve(new Response("origin down", { status: 521 }));
+        }
+        return orig.apply(self, arguments);
+      };
+    });
+    const edgeTitle = `offline-edge-${Date.now()}`;
+    try {
+      await titleInput.fill(edgeTitle);
+      await titleInput.press("Enter");
+      {
+        const deadline = Date.now() + 10000;
+        let pending = await pendingMutationCount(page);
+        while (pending !== 1 && Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 200));
+          pending = await pendingMutationCount(page);
+        }
+        if (pending !== 1) {
+          throw new Error(
+            `a gateway 5xx was not queued (pending=${pending}); ` +
+              `the page reported a save failure instead of keeping the mutation`,
+          );
+        }
+      }
+      if (await page.locator("#todo-save-error").isVisible()) {
+        throw new Error("a queued mutation reported a save failure");
+      }
+      if ((await titleInput.inputValue()) !== "") {
+        throw new Error("the composer kept the title of a mutation that was queued");
+      }
+      const optimistic = await page.evaluate((t) =>
+        [...document.querySelectorAll('[id^="todo-"]:not(#todo-list)')]
+          .some((el) => el.textContent?.includes(t)), edgeTitle);
+      if (!optimistic) throw new Error("a queued mutation drew no optimistic row");
+    } finally {
+      await inEveryWorker(() => { self.__edgeDown = false; });
+    }
+    // No `online` event fires for this outage (the link never dropped), so the
+    // page's own drain cadence is what has to notice. Keep the budget above
+    // its slowest step (30s).
+    {
+      const deadline = Date.now() + 35000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 0) {
+        throw new Error("a queued mutation never replayed after the edge recovered");
+      }
+    }
+    await page.waitForFunction(
+      (t) => {
+        const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
+        for (const el of els) {
+          if (el.textContent?.includes(t) && el.getAttribute("data-pending") !== "true") return true;
+        }
+        return false;
+      },
+      edgeTitle,
+      { timeout: 20000 },
+    );
+    console.log("  ✓ a gateway 5xx is queued and replays once the app answers again");
+
     // --- an expired session pauses the queue; it must not retry forever ---
     // A 401 cannot be fixed by replaying: the SW must keep the mutation,
     // stop BOTH retry layers and ask for the one action that helps (sign in).

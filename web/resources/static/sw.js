@@ -21,6 +21,11 @@
 // work because the dedup state lives in the database. See
 // docs/decisions.md for the full rationale.
 
+// The retry vocabulary is shared with the page-side outboxes (notes,
+// whiteboard): one file, so "the request did not complete" cannot mean two
+// different things depending on which writer answers.
+importScripts("/static/offline-policy.js");
+
 var CACHE_NAME = "flat-api-v1";
 var PAGE_CACHE = "gogogo-pages-v1";
 var API_PREFIX = "/api/";
@@ -184,6 +189,39 @@ function networkFirstPage(request) {
     });
 }
 
+// isTransientStatus reports whether an HTTP status means "the request never
+// completed", as opposed to a verdict on the mutation. The vocabulary lives in
+// ONE place (web/resources/static/offline-policy.js) because the page-side
+// outboxes (notes, whiteboard) make the same decision; when the worker and a
+// feature disagree, a gateway 5xx is queued here and dropped there.
+//
+// The SAME rule decides a replay outcome (REPLAY_RETRY below): a 5xx keeps
+// the item and retries. The initial submit used to disagree — it passed the
+// 5xx through, so the page showed "Not saved" and dropped the user's text
+// while the app was merely unreachable.
+var isTransientStatus = GogogoOffline.isTransientStatus;
+
+// QUEUE_OWNED_PREFIXES are the routes whose mutations this queue replays end
+// to end: the feature draws an optimistic state for a queued item, and a
+// replay is safe (the todo create carries idem_key and the server dedupes it;
+// a toggle and a delete converge). A transient STATUS elsewhere is an answer,
+// not a transport failure — queueing a chat turn would re-send it to the model
+// and a queued sign-in would report success — so those keep the older rule:
+// only a thrown fetch (no answer at all) is queued.
+var QUEUE_OWNED_PREFIXES = ["/api/todos"];
+
+function queueOwnsPath(url) {
+  try {
+    var path = new URL(url).pathname;
+    for (var i = 0; i < QUEUE_OWNED_PREFIXES.length; i++) {
+      if (path.indexOf(QUEUE_OWNED_PREFIXES[i]) === 0) return true;
+    }
+  } catch (_) {
+    /* an unparsable URL cannot be replayed anyway */
+  }
+  return false;
+}
+
 // ---- POST/PUT/PATCH/DELETE: network-first with offline queue ----
 //
 // Offline-first UX: when the network is down the mutation is queued and the
@@ -200,7 +238,16 @@ async function networkFirstWithQueue(request) {
   var replayable = request.clone();
   try {
     // Try the real request first.
-    return await fetch(request);
+    var response = await fetch(request);
+    // Only a DEFINITIVE answer settles the action. A transient status means
+    // the request did not complete, so the mutation is queued exactly like a
+    // dropped connection — an "offline" app behind a gateway that answers
+    // 502/521 must not read as a rejected change. Scoped to the routes this
+    // queue owns (see QUEUE_OWNED_PREFIXES): a 5xx from everything else is an
+    // answer the page has to see.
+    if (!isTransientStatus(response.status) || !queueOwnsPath(request.url)) {
+      return response;
+    }
   } catch (_) {
     // Network unavailable — fall through to the queue.
   }

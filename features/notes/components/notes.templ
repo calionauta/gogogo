@@ -205,6 +205,7 @@ templ NotesPage(email string, userRole string, meta NoteMeta, text string, rev u
 templ notesDocHead() {
 	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("throttle.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-policy.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer src={ notes.URL("notes.js") }></script>
 }
 
