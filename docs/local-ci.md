@@ -385,7 +385,9 @@ race+browser fan-out (`scripts/ci-fanout.sh`).
 
 The docs site is not part of `ci-local`. `pages.yml` runs `site-check`, builds
 `site/` (including the generated search index under `site/search/`) and runs
-`scripts/site-layout.test.mjs` before publishing. `docsite-drift.yml` checks the
+`scripts/site-layout.test.mjs` before publishing. `site-check` also runs
+`node site/build-landing.mjs --check`, which verifies the landing's unit and
+gate catalog against `docs/unit-contracts.md` and `.lefthook.yml`. `docsite-drift.yml` checks the
 vendored engine against `site/UPSTREAM_SHA` on PRs that touch it and weekly;
 `docsite-bump.yml` opens the bump PR.
 
