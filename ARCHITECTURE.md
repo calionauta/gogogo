@@ -250,7 +250,7 @@ internal/db/               Turso open + migrate + sqlc queries
 features/                  Demo features (🟢 FEATURE, except auth middleware 🔴)
   authviews/                 Login page + shell controls (theme, user menu, palette; middleware in internal/auth 🔴)
   app/                       AppContext bundle for cmd/gui only (🟡 PLUGIN — cmd/web never links it)
-  landing/                   Public marketing hero on GET / (🟢 FEATURE)
+  landing/                   Public entry page on GET / (inside the shared shell) (🟢 FEATURE)
   config/                    Admin-only /config: masked env, user roles/sessions, audit panel/CSV (🟢 FEATURE)
   todo/                      Todo MVC (the reference implementation)
     handlers/                  HTTP routes + SSE stream + onboarding

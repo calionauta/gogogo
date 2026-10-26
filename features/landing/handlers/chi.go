@@ -1,8 +1,8 @@
-// SCOPE:feature — HTTP landing page (public marketing hero)
+// SCOPE:feature — HTTP landing page (public entry surface)
 //
 // Same path, same component (shared Index), no auth gate: guests and
-// signed-in users see the same hero, with the account email filled when a
-// session exists.
+// signed-in users see the same page inside the shell, with the account email
+// filled and the CTA target chosen when a session exists.
 package handlers
 
 import (

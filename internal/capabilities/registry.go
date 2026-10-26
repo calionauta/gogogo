@@ -442,7 +442,7 @@ var All = []Capability{
 	{
 		ID:      "landing",
 		Kind:    KindFeature,
-		Summary: "public marketing page on GET /",
+		Summary: "public entry page on GET / (inside the shared shell)",
 		Offered: true,
 		DependsOn: []string{
 			depSounds,

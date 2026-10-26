@@ -1,8 +1,8 @@
 // SCOPE:core — Shell control contracts (red-proof).
 //
 // These used to live on Navbar, which is gone: the shell renders the account
-// menu on every module page and the landing renders it on the public header, so
-// the contract is asserted on the component both use.
+// menu on every page, landing included, so the contract is asserted on the
+// component the shell composes.
 package authviews_test
 
 import (

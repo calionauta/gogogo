@@ -3,15 +3,14 @@
 // Adds interaction sounds to the app through the vendored cuelume library
 // (web/resources/static/cuelume/, MIT — not a package dependency). This
 // package is the plugin's Go surface: it renders the script loader and the
-// footer mute toggle. All behavior lives in the self-contained glue module
+// mute switch. All behavior lives in the self-contained glue module
 // web/resources/static/cuelume.js, which ships the best practices out of
 // the box:
 //
 //   - prefers-reduced-motion is respected by default — OS-level reduced
 //     motion auto-mutes and reacts to runtime preference changes.
-//   - Global mute: the account panel's switch (a checkbox: `checked`) or the
-//     public header's icon button (`aria-pressed`), both persisted in
-//     localStorage under "gogogo_sound" and keyboard-accessible.
+//   - Global mute: the account panel's switch (a checkbox: `checked`),
+//     persisted in localStorage under "gogogo_sound" and keyboard-accessible.
 //   - Subtle default volume (cuelume's mixer runs hot; 0.4 keeps the cues
 //     audible without being intrusive — tune DEFAULT_VOLUME in cuelume.js).
 //   - Sounds are additive only: every cue pairs with existing visual
@@ -38,7 +37,7 @@
 //
 // REMOVE (plugin): delete this package, drop @sounds.SoundAssets() from
 // the page layouts (features/todo/components/layout.templ, landing,
-// config, auth LoginPage, whiteboard) and @sounds.SoundToggle() from the
-// shell (features/authviews/shell.templ), then delete
+// config, auth LoginPage, whiteboard) and @sounds.SoundSwitch() from each
+// page's *Sound() wrapper, then delete
 // web/resources/static/cuelume.js + web/resources/static/cuelume/.
 package sounds

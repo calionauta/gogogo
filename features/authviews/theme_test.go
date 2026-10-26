@@ -162,8 +162,8 @@ func TestThemeToggleSingleOwner(t *testing.T) {
 // drive every page's handler.
 //
 // The set of templates that own a `<html>` element is now small on purpose:
-// `internal/ui/shell.templ` (every module page) plus the two Decide surfaces
-// that stay outside the shell (landing, login). Each one must spread the shared
+// `internal/ui/shell.templ` (every page, landing included) plus the one Decide
+// surface that stays outside the shell (login). Each one must spread the shared
 // helper; the failure message names the file so a new page cannot ship with a
 // toggle that renders and does nothing.
 //

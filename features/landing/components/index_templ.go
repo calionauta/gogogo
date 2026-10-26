@@ -3,25 +3,21 @@
 // templ: version: v0.3.1070
 // SCOPE:feature - REMOVE by deleting features/landing/ (components move with it) + the
 
-// landing catch-all root in buildChiMux (internal/server/chi.go). The landing page is a marketing
+// landing catch-all root in buildChiMux (internal/server/chi.go). The landing page is the
 
-// shell: logo + about text + "Access demo site" CTA. It does NOT
+// public entry surface on GET /: a CTA inside the shared shell, so a guest sees the same
 
-// call the database, does NOT authenticate the user (guests and
+// navigation every signed-in page renders. It does NOT read app data and does NOT require
 
-// signed-in users see the same hero), and registers only the
+// a session (guests and signed-in users see the same page, with the CTA target depending
 
-// GET / route.
+// on the session).
 
 //
 
-// Content policy: the about text is sourced from the project's
+// The shell owns the document, the assets, the sidebar and the module header. This file
 
-// own README so the page mirrors the repo, not an LLM summary.
-
-// Source lines (README.md): the tagline block (~7-9) carries the
-
-// project positioning; the rest of the README is not surfaced.
+// is the page body: the demo CTA and, for guests, the note that sign-in comes next.
 
 package components
 
@@ -31,17 +27,10 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
-	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/resources"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
-// Index renders the landing page. userEmail is empty for guests
-// (Sign in CTA shows) and the authed email for signed-in users.
-// buildLabel/buildCommit are surfaced on the version badge so the
-// landing page matches the shell's build feedback.
-//
 // ctaHref keeps guests off the RBAC 403: anonymous GET /todo is denied by
 // policy (fail-closed, RBAC_ENABLED=true in production), so guests go to
 // /login?next=/todo and land on /todo after sign-in; signed-in users go
@@ -53,6 +42,9 @@ func ctaHref(userEmail string) string {
 	return "/todo"
 }
 
+// Index renders the landing page inside the shared shell. userEmail is empty
+// for guests (the shell renders Sign in) and the authed email for signed-in
+// users; buildLabel/buildCommit surface on the rail's version badge.
 func Index(userEmail string, userRole string, buildLabel string, buildCommit string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -74,121 +66,129 @@ func Index(userEmail string, userRole string, buildLabel string, buildCommit str
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"")
+		templ_7745c5c3_Err = ui.Shell(ui.Data{
+			Title:       "gogogo",
+			Heading:     "Home",
+			Email:       userEmail,
+			Role:        userRole,
+			BuildLabel:  buildLabel,
+			BuildCommit: buildCommit,
+		}, landingHead(), landingSound(), nil, landingBody(userEmail)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, authviews.ThemeRootAttrs(ctx, ""))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		return nil
+	})
+}
+
+// landingHead carries the page's own <head> extras: the sound assets, so the
+// shell's mute control works. A one-line wrapper on purpose: the installer's
+// sounds trim drops the call and leaves the shell's head slot satisfied.
+func landingHead() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>gogogo</title>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
 		}
-		templ_7745c5c3_Err = components.Assets().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var2 == nil {
+			templ_7745c5c3_Var2 = templ.NopComponent
 		}
-		templ_7745c5c3_Err = authviews.ThemeHead().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
+		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = sounds.SoundAssets().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<style>\n\t\t\t\t/* Hero layout: narrow column on desktop, full width on\n\t\t\t\t   mobile. The visual hierarchy is logo → about → CTA,\n\t\t\t\t   matching the README ordering. */\n\t\t\t\t.landing-hero {\n\t\t\t\t\tmin-height: calc(100vh - 4rem);\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: 2rem 1rem;\n\t\t\t\t}\n\t\t\t\t.landing-card {\n\t\t\t\t\tmax-width: 44rem;\n\t\t\t\t\twidth: 100%;\n\t\t\t\t}\n\t\t\t\t.landing-logo {\n\t\t\t\t\tmax-width: 28rem;\n\t\t\t\t\twidth: 100%;\n\t\t\t\t\theight: auto;\n\t\t\t\t\tmargin-left: auto;\n\t\t\t\t\tmargin-right: auto;\n\t\t\t\t\tdisplay: block;\n\t\t\t\t}\n\t\t\t\t.landing-about {\n\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\tline-height: 1.7;\n\t\t\t\t\tfont-size: 0.95rem;\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-100 min-h-screen\"><!-- The landing is a Decide surface, outside internal/ui.Shell: it\n\t\t\t     carries a public header (brand, build badge, palette, account)\n\t\t\t     instead of the module navigation, which belongs to the app. --><header class=\"app-nav\"><div class=\"app-nav-start\"><a href=\"/\" class=\"app-nav-brand\">gogogo</a> <span class=\"app-nav-badge\" title=\"")
+		return nil
+	})
+}
+
+// landingSound is the shell's mute control for this page. Same reason as
+// landingHead: the trim drops the call and leaves an empty wrapper.
+func landingSound() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = sounds.SoundSwitch().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buildCommit + " · built " + buildLabel)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/landing/components/index.templ`, Line: 85, Col: 80}
+		return nil
+	})
+}
+
+func landingBody(userEmail string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(buildLabel)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/landing/components/index.templ`, Line: 85, Col: 95}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></div><div class=\"app-nav-end\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = authviews.CommandPalette(userRole, userEmail == "").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = authviews.ThemeToggle().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = sounds.SoundToggle().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = authviews.UserMenu(userEmail, userRole, nil).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></header><main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("logo.png"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/landing/components/index.templ`, Line: 97, Col: 69}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" alt=\"gogogo\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"")
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"ui-page\"><section class=\"ui-card mx-auto max-w-md\"><div class=\"ui-card-body text-center\"><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 templ.SafeURL
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(ctaHref(userEmail))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/landing/components/index.templ`, Line: 108, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/landing/components/index.templ`, Line: 59, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"btn btn-primary\">Access demo site</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"btn btn-primary\">Access demo site</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if userEmail == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"text-sm text-base-content/60 mt-3\">You'll be asked to sign in with the demo credentials.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"text-sm text-base-content/60 mt-3\">You'll be asked to sign in with the demo credentials.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></div></main>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = components.OfflineBanner(true, "").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></section></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

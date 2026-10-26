@@ -13,10 +13,11 @@ import "github.com/calionauta/gogogo/internal/rbac"
 // clean query.
 //
 // guest keeps logged-out surfaces trap-free: anonymous GETs on the app paths
-// below are denied by RBAC policy (403 fail-closed), so for guests every link
-// routes through /login?next=<path> and lands in the app after sign-in — the
-// same pattern as the landing CTA. The shell never passes guest=true (its
-// pages require a session before it renders).
+// below are denied by RBAC policy, so for guests every link routes through
+// /login?next=<path> and lands in the app after sign-in — the same pattern as
+// the landing CTA. The shell passes guest=true only for the landing, the one
+// shell page a guest can reach; module pages require a session before they
+// render.
 func appHref(path string, guest bool) string {
 	if guest {
 		return "/login?next=" + path

@@ -191,7 +191,7 @@ bundle and is not attributed per feature.
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
 | Shared notes | `notes.js` | 37 KB | 13 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 57 KB | 20 KB |
-| Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 28 KB | 10 KB |
+| Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
 | Offline outbox (every shell page) | `offline-banner.js` | 17 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 5 KB | 2 KB |
@@ -213,7 +213,7 @@ op batching stay vanilla JS (no declarative equivalent, and the offline
 outbox needs exact control). Shared chrome counts as UI state: the
 shell's user menu carries `data-on` handlers, so every shell page loads
 the Datastar runtime too (board, notes doc, room, config, landing, login)
-landing) — a `data-on`/`data-bind` attribute on a page without the
+— a `data-on`/`data-bind` attribute on a page without the
 runtime is dead markup, and here it would silently skip the logout
 service-worker cleanup.
 
