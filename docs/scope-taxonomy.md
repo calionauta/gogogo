@@ -146,6 +146,8 @@ its top-level unit too).
 | `internal/demo/` | 🔴 CORE | Never — the fresh-clone way in (one idempotent seed) |
 | `internal/observability/` | 🔴 CORE | Never — slog + tracing |
 | `internal/hostgate/` | 🔴 CORE | Never — test-capacity gate (tune with `HOSTGATE_*`) |
+| `internal/ui/`, `internal/uiregistry/`, `internal/icon/`, `internal/themes/` | 🔴 CORE | Never — one shell, the module registry, the icon set and the DaisyUI theme catalog |
+| `internal/instance/` | 🔴 CORE | Never — instance identity used by the runtime |
 | `features/app/` | 🟡 PLUGIN | Delete it to drop `cmd/gui`'s dependency bundle; `cmd/web` never links it (handlers take their deps directly) |
 | `features/authviews/` | 🔴 CORE | Holds the shared shell controls (theme, user menu, palette) every page renders; the login page itself is manual removal |
 | `web/resources/` | 🔴 CORE | Never — embedded static assets |
@@ -156,6 +158,9 @@ its top-level unit too).
 | `internal/llm/` | 🟡 PLUGIN | Delete + wiring call (or unset `GOAI_API_KEY`) |
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/goakt/` | 🟡 PLUGIN | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
+| `internal/search/` | 🟡 PLUGIN | Delete the package + the search wiring; the SQL substring layer degrades rather than disappearing (the seam is swappable) |
+| `web/resources/static/sw.js` + `config/config.go` (offline-sync) | 🟡 PLUGIN | Manual; `OFFLINE_SYNC_ENABLED=false` disables the Service Worker queue and the NATS CRUD proxy together. On the async axis this is a mode, not one of the seven layers |
+| `features/review/` (Genkit flows) | 🟡 PLUGIN | The flow runtime behind the Review feature; `go mod tidy` drops Genkit + go-jev when the feature goes |
 | `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |
 | `features/credits/` | 🟡 PLUGIN | Optional ledger (`CREDITS_ENABLED=false` already the default) |
@@ -169,6 +174,25 @@ its top-level unit too).
 | `features/room/` | 🟢 FEATURE | The room demo page; the engine behind it is the `goakt` plugin (either class is accepted for this dir — both units own it) |
 | `features/landing/` | 🟢 FEATURE | Delete package + wiring call |
 | `features/config/` | 🟢 FEATURE | Delete package + wiring call |
+| `features/account/` | 🟢 FEATURE | Delete package + wiring call |
+
+
+## The unit registry
+
+The generated [unit contracts](unit-contracts.md) is the canonical per-unit map:
+it is rendered from `internal/capabilities` and pins each unit's kind, dirs,
+routes, runtime off and trim. The table above is the directory view; a
+directory can host more than one unit (for example `features/review/` holds
+the `review` feature and the `genkit` plugin).
+
+- **Core:** `appconfig`, `auth`, `crudwire`, `database`, `demo-seed`,
+  `hostgate`, `instance`, `observability`, `queue`, `rbac`, `secrets`,
+  `server`, `shell`.
+- **Plugin:** `app`, `capabilities`, `collab`, `components`, `credits`,
+  `dagnats`, `datastar`, `genkit`, `genui`, `goakt`, `llm`, `nats`,
+  `offline-sync`, `search`, `sounds`.
+- **Feature:** `account`, `chat`, `config-view`, `landing`, `notes`, `review`,
+  `room`, `todo`, `whiteboard`.
 
 ## Cross-package test dependencies
 

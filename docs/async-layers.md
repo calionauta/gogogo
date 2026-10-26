@@ -283,6 +283,9 @@ Set `OFFLINE_SYNC_ENABLED=false` for always-online deployments and **zero code
 paths are traversed** — the flag disables the NATS CRUD proxy and the Service
 Worker offline queue together.
 
+The SCOPE unit `offline-sync` is a plugin (it can be trimmed); on this async
+axis it is the mode above, not one of the seven layers.
+
 ## Related
 
 - [Stack in layers, not silos](stack-layers.md)
