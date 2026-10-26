@@ -8,8 +8,8 @@ export default {
   branch: "master",
   docsDir: "docs",
   outDir: "site",
-  // The landing header keeps its links until 620px, then shows the menu.
-  landingMenuBelow: 620,
+  // The landing header keeps its links until 900px, then shows the menu.
+  landingMenuBelow: 900,
   releases: [
   { file: "CHANGELOG.md", origin: "", repo: "calionauta/gogogo", tagPrefix: "v" },
 ],

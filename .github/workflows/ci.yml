@@ -466,6 +466,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Check landing catalog
+        run: node site/build-landing.mjs --check
       - name: Docs site layout
         # Builds the same site pages.yml publishes, then loads every page at
         # 7 widths. Fails on page-level scroll, a table that cannot fit at
