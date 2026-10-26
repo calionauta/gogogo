@@ -4,32 +4,47 @@ on:
   pull_request:
     # No base-branch filter: a stacked PR (base = another branch) ran no
     # desktop build at all, same trap as ci.yml — see the comment there.
-    # Docs, markdown, rules/ and the site/ landing page cannot affect the
-    # desktop shell.
-    # src/css/input.css scans only features/, web/ and internal/, so site/ edits
-    # no longer change the embedded web/resources/static/* either.
-    paths-ignore:
-      - "docs/**"
-      - "site/**"
-      - "**.md"
-      - "LICENSE"
-      - ".stelow/**"
-      - ".gitignore"
-      - "rules/**"
+    #
+    # Run ONLY when the desktop binary can break. `cmd/desktop` imports the
+    # whole app (config, features/*, internal/*, web/resources), so a directory
+    # allowlist would change nothing — but every one of those packages is also
+    # compiled by web CI, which leaves two desktop-ONLY surfaces: `cmd/desktop`
+    # itself, and the packages its main.go calls by name (a signature change
+    # there compiles fine everywhere else). Static JS/CSS, templ, docs and the
+    # site cannot break a Go compile and are embedded identically in cmd/web,
+    # so a web-only PR no longer pays for a GTK4/WebKitGTK install it cannot
+    # use. The list is guarded by TestDesktopWorkflowCoversDirectImports — add
+    # a direct import to main.go and that test fails until the path is here.
+    paths:
+      - "cmd/desktop/**"
+      # The direct module imports of cmd/desktop/main.go (see the guard).
+      - "config/**"
+      - "internal/collab/**"
+      - "internal/nats/**"
+      - "internal/server/**"
+      # Module graph + this build's own tooling.
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "scripts/desktop-build.sh"
+      - "bin/install-go-toolchain.sh"
+      - ".github/workflows/desktop.yml"
   push:
     branches: [master]
-    paths-ignore:
-      - "docs/**"
-      - "site/**"
-      - "**.md"
-      - "LICENSE"
-      - ".stelow/**"
-      - ".gitignore"
-      # rules/rules.go carries `//go:build ruleguard`, so it reaches only
-      # golangci-lint — the desktop build uses plain `go build` and never
-      # compiles it. Same reasoning as the deploy filter; measured there that a
-      # rules-only commit otherwise paid a full 6-minute pipeline.
-      - "rules/**"
+    # Same list as the PR trigger: a docs- or JS-only push to master cannot
+    # change the desktop build either.
+    paths:
+      - "cmd/desktop/**"
+      - "config/**"
+      - "internal/collab/**"
+      - "internal/nats/**"
+      - "internal/server/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "scripts/desktop-build.sh"
+      - "bin/install-go-toolchain.sh"
+      - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
 permissions:

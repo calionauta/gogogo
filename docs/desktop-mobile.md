@@ -64,8 +64,15 @@ Use previews for smoke tests without paying for three native runners. **macOS
 cross binaries are unsigned** — sign + notarize on a macOS runner before
 distributing. Release binaries always come from native runners.
 
-Linux desktop builds run in the dedicated `desktop.yml` workflow on every pull
-request and push to `master`, using Ubuntu 24.04 with GTK4 + WebKitGTK 6.0. The
+Linux desktop builds run in the dedicated `desktop.yml` workflow on pull
+requests and pushes to `master` **that can change the desktop binary**: the
+`cmd/desktop` package, one of its direct imports (`config`, `internal/collab`,
+`internal/nats`, `internal/server`), the module graph, or the desktop build
+tooling. A web-only change — templates, JS, CSS, docs — skips it: those
+packages are already compiled by web CI, and the desktop-only surface is
+`main.go`'s call sites. `TestDesktopWorkflowCoversDirectImports` fails CI when a
+new direct import is not covered. The job runs on Ubuntu 24.04 with GTK4 +
+WebKitGTK 6.0. The
 same workflow offers a manual `cross-preview` job (`gh workflow run Desktop`)
 that builds win+mac+linux previews and uploads them as an artifact.
 
