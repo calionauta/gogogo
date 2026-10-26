@@ -21,6 +21,11 @@
 // work because the dedup state lives in the database. See
 // docs/decisions.md for the full rationale.
 
+// The retry vocabulary is shared with the page-side outboxes (notes,
+// whiteboard): one file, so "the request did not complete" cannot mean two
+// different things depending on which writer answers.
+importScripts("/static/offline-policy.js");
+
 var CACHE_NAME = "flat-api-v1";
 var PAGE_CACHE = "gogogo-pages-v1";
 var API_PREFIX = "/api/";
@@ -56,15 +61,22 @@ self.addEventListener("activate", function (e) {
 });
 
 // ---- Notify clients of transport state ----
-// The OfflineBanner component (internal/components/offline_banner.templ)
-// listens for these messages. States: sync-start (replaying queued
-// mutations), sync-end (replay finished cleanly), sync-error (replay
-// stopped with items still pending, or queued while offline).
-function notifyClients(state) {
+// offline-banner.js (rendered by internal/components/offline_banner.templ)
+// listens for these messages: sync-start (a replay pass is running),
+// sync-end (queue drained), sync-error (still queued: offline, or a
+// transient failure), sync-auth (401: paused until sign-in), queued-item
+// (what was just queued, for the feature's optimistic UI), queue-lost (an
+// entry will never be saved: foreign account, stale, rejected, queue full)
+// and queue-status (the page's count request).
+function notifyClients(state, extra) {
+  var message = { type: state };
+  if (extra) {
+    Object.keys(extra).forEach(function (key) { message[key] = extra[key]; });
+  }
   return self.clients.matchAll({ includeUncontrolled: true, type: "window" })
     .then(function (clientsList) {
       clientsList.forEach(function (client) {
-        client.postMessage({ type: state });
+        client.postMessage(message);
       });
     })
     .catch(function () { /* no clients to notify */ });
@@ -177,241 +189,303 @@ function networkFirstPage(request) {
     });
 }
 
+// isTransientStatus reports whether an HTTP status means "the request never
+// completed", as opposed to a verdict on the mutation. The vocabulary lives in
+// ONE place (web/resources/static/offline-policy.js) because the page-side
+// outboxes (notes, whiteboard) make the same decision; when the worker and a
+// feature disagree, a gateway 5xx is queued here and dropped there.
+//
+// The SAME rule decides a replay outcome (REPLAY_RETRY below): a 5xx keeps
+// the item and retries. The initial submit used to disagree — it passed the
+// 5xx through, so the page showed "Not saved" and dropped the user's text
+// while the app was merely unreachable.
+var isTransientStatus = GogogoOffline.isTransientStatus;
+
+// QUEUE_OWNED_PREFIXES are the routes whose mutations this queue replays end
+// to end: the feature draws an optimistic state for a queued item, and a
+// replay is safe (the todo create carries idem_key and the server dedupes it;
+// a toggle and a delete converge). A transient STATUS elsewhere is an answer,
+// not a transport failure — queueing a chat turn would re-send it to the model
+// and a queued sign-in would report success — so those keep the older rule:
+// only a thrown fetch (no answer at all) is queued.
+var QUEUE_OWNED_PREFIXES = ["/api/todos"];
+
+function queueOwnsPath(url) {
+  try {
+    var path = new URL(url).pathname;
+    for (var i = 0; i < QUEUE_OWNED_PREFIXES.length; i++) {
+      if (path.indexOf(QUEUE_OWNED_PREFIXES[i]) === 0) return true;
+    }
+  } catch (_) {
+    /* an unparsable URL cannot be replayed anyway */
+  }
+  return false;
+}
+
 // ---- POST/PUT/PATCH/DELETE: network-first with offline queue ----
 //
-// Offline-first UX: when the network is down we still want the UI to
-// behave "as if online" — the row appears/disappears immediately, and the
-// queued request is replayed on reconnect. The server's realtime broadcast
-// then re-syncs the list with authoritative data (and any optimistic row
-// is replaced by the real one). buildOfflineMutation() returns a Datastar
-// HTML-patch for the known CRUD endpoints; everything else falls back to
-// the generic offline toast.
+// Offline-first UX: when the network is down the mutation is queued and the
+// FEATURE draws its optimistic state. This worker owns the queue and knows
+// nothing about todo markup, routes or ids: it reports the queued request
+// (queued-item message) and answers 204 so Datastar's action completes
+// without patching anything. The server's realtime broadcast replaces the
+// optimistic state later; the todo renderer lives in
+// web/resources/static/todo-offline.js.
 async function networkFirstWithQueue(request) {
   // Clone before fetch consumes the request body. Cloning in the catch block
   // loses form mutations because a failed fetch can still mark the original
   // body as used, making request.clone() throw before IndexedDB is reached.
   var replayable = request.clone();
-  // A separate clone for reading the body so we don't consume replayable's
-  // stream before queueRequest() clones it again.
-  var bodyProbe = request.clone();
-  var bodyText = "";
-  try {
-    bodyText = await bodyProbe.text();
-  } catch (_) { /* body read is best-effort */ }
   try {
     // Try the real request first.
-    return await fetch(request);
+    var response = await fetch(request);
+    // Only a DEFINITIVE answer settles the action. A transient status means
+    // the request did not complete, so the mutation is queued exactly like a
+    // dropped connection — an "offline" app behind a gateway that answers
+    // 502/521 must not read as a rejected change. Scoped to the routes this
+    // queue owns (see QUEUE_OWNED_PREFIXES): a 5xx from everything else is an
+    // answer the page has to see.
+    if (!isTransientStatus(response.status) || !queueOwnsPath(request.url)) {
+      return response;
+    }
   } catch (_) {
-    // Network unavailable — queue the preserved request and return a 200
-    // Datastar fragment (see below) so the client's @post action completes.
-    try {
-      await queueRequest(replayable);
-      // Tell the UI a mutation is now queued (offline / will-sync state).
-      // Await delivery so the request cannot finish before Datastar receives
-      // the event that resets its pending UI state.
-      await notifyClients("sync-error");
-      // Register a Background Sync event if supported.
-      if (self.registration && self.registration.sync) {
-        self.registration.sync.register("gogogo-sync").catch(function () {});
-      }
-    } catch (_) {
-      // Queue failed — the mutation is lost. In practice this only
-      // happens if IndexedDB is unavailable (private browsing, disk full).
+    // Network unavailable — fall through to the queue.
+  }
+  try {
+    // Only claim "accepted" when the entry is actually PERSISTENT. A 204
+    // after a failed write is a lie: the page resets its optimistic state on
+    // a message the worker never sent, so the Add button stayed in its
+    // loading state forever and the mutation was silently lost.
+    var entry = await queueRequest(replayable);
+    // Tell the feature what was queued BEFORE the action resolves, so the
+    // optimistic row is in the DOM by the time Datastar clears the form.
+    await notifyClients("queued-item", {
+      item: { url: entry.url, method: entry.method, body: entry.body }
+    });
+    await notifyClients("sync-error");
+    // Register a Background Sync event if supported.
+    if (self.registration && self.registration.sync) {
+      self.registration.sync.register("gogogo-sync").catch(function () {});
     }
-    // Optimistic UI for known CRUD endpoints; otherwise the generic toast.
-    var optimistic = buildOfflineMutation(new URL(request.url), bodyText, request.method);
-    if (optimistic) return optimistic;
-    return buildOfflineToastResponse();
-  }
-}
-
-// escapeHTML makes user-provided text (todo titles) safe inside an HTML
-// attribute / text node of the optimistic fragment we inject.
-function escapeHTML(str) {
-  return String(str == null ? "" : str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-// datastarPatchResponse wraps an HTML fragment in the Datastar single-patch
-// envelope (selector + mode headers) that @post/@get understand.
-function datastarPatchResponse(html, selector, mode) {
-  return new Response(html, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-      "datastar-selector": selector,
-      "datastar-mode": mode,
-    },
-  });
-}
-
-// BIN_SVG is the trash-can icon reused from the server-rendered rows so the
-// optimistic row matches the real ones.
-var BIN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
-
-// buildOfflineMutation returns an optimistic Datastar patch for the known
-// todo CRUD endpoints, or null to fall back to the generic offline toast.
-function buildOfflineMutation(url, bodyText, method) {
-  if (method !== "POST") return null;
-  var path = url.pathname;
-  if (path === "/api/todos" || path === "/api/todos/") {
-    var params = new URLSearchParams(bodyText || "");
-    var title = params.get("title") || "";
-    var idemKey = url.searchParams.get("idem_key") || "";
-    if (!idemKey && title.trim() === "") return null;
-    return optimisticCreateFragment(title, idemKey);
-  }
-  // Clear Completed has its own URL pattern — must be checked BEFORE the
-  // generic delete regex, otherwise /api/todos/completed/delete is matched
-  // as a delete of id="completed" (which silently does nothing).
-  if (path === "/api/todos/completed/delete" || path === "/api/todos/completed/delete/") {
-    return optimisticClearCompletedFragment();
-  }
-  var del = /\/api\/todos\/([^/]+)\/delete\/?$/.exec(path);
-  if (del) return optimisticDeleteFragment(del[1]);
-  var togg = /\/api\/todos\/([^/]+)\/toggle\/?$/.exec(path);
-  if (togg) return optimisticToggleFragment(togg[1]);
-  return null;
-}
-
-// optimisticCreateFragment appends a temporary row so the new todo is
-// visible immediately offline. The id is derived from idem_key so the
-// pending item is stable across re-renders; on reconnect the server's
-// realtime broadcast replaces the whole list with authoritative rows.
-function optimisticCreateFragment(title, idemKey) {
-  var id = "todo-" + escapeHTML(idemKey || "tmp-" + Date.now());
-  var safeTitle = escapeHTML(title);
-  var html =
-    '<div class="todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors opacity-70" id="' + id + '" data-pending="true">' +
-      '<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" disabled />' +
-      '<span class="flex-1">' + safeTitle + '</span>' +
-      '<span class="text-xs text-base-content/40">agora</span>' +
-      '<button type="button" class="btn btn-ghost btn-xs text-error" disabled aria-label="Delete todo">' + BIN_SVG + '</button>' +
-    '</div>' +
-    '<script id="__gogogo_add">var __e=document.getElementById("todo-empty-state");if(__e){__e.remove();}var __s=document.getElementById("__gogogo_add");if(__s){__s.remove();}</' + 'script>';
-  return datastarPatchResponse(html, "#todo-list", "append");
-}
-
-// optimisticDeleteFragment removes the row immediately so the list reflects
-// the deletion while offline.
-function optimisticDeleteFragment(todoID) {
-  var safeID = escapeHTML(todoID);
-  var html = '<script id="__gogogo_del">var __d=document.getElementById("todo-' + safeID + '");if(__d){__d.remove();}var __s=document.getElementById("__gogogo_del");if(__s){__s.remove();}</' + 'script>';
-  return datastarPatchResponse(html, "#todo-list", "append");
-}
-
-// optimisticClearCompletedFragment removes every visible todo row and shows
-// the empty state, so clearing completed items works offline too.
-function optimisticClearCompletedFragment() {
-  var html = '<script id="__gogogo_clr">var __items=document.querySelectorAll("#todo-list > .todo-item");if(__items){__items.forEach(function(e){e.remove();});}var __empty=document.getElementById("todo-empty-state");if(!__empty){var __list=document.getElementById("todo-list");if(__list){var __div=document.createElement("div");__div.id="todo-empty-state";__div.className="py-8 text-center text-base-content/40";__div.innerHTML=\'<p>No todos here yet.</p>\';__list.appendChild(__div);}}document.getElementById("__gogogo_clr")&&document.getElementById("__gogogo_clr").remove();<' + '/script>';
-  return datastarPatchResponse(html, "#todo-list", "append");
-}
-
-// optimisticToggleFragment flips the row's completed state immediately so
-// the checkbox reflects the offline toggle; the realtime broadcast corrects
-// it on reconnect.
-function optimisticToggleFragment(todoID) {
-  var safeID = escapeHTML(todoID);
-  var html = '<script id="__gogogo_tog">var __t=document.getElementById("todo-' + safeID + '");' +
-    'if(__t){var __c=__t.querySelector("input[type=checkbox]");if(__c){__c.checked=!__c.checked;}' +
-    'var __s=__t.querySelector(".flex-1");if(__s){__s.classList.toggle("line-through");__s.classList.toggle("text-base-content/50");}}' +
-    'var __ss=document.getElementById("__gogogo_tog");if(__ss){__ss.remove();}</' + 'script>';
-  return datastarPatchResponse(html, "#todo-list", "append");
-}
-
-// buildOfflineToastResponse returns the generic Datastar fragment for
-// mutations that don't have a dedicated optimistic UI (e.g. AI suggest).
-// The awaited service-worker postMessage above is the single source of the
-// `gogogo:queued` UI-reset event.
-function buildOfflineToastResponse() {
-  return new Response(
-    '<div data-offline-toast class="alert alert-warning mb-2">' +
-      '<span>Offline — request queued. Will sync when you reconnect.</span>' +
-    '</div>' +
-    '<script>' +
-      // Keep only one offline toast in the stack. The form reset
-      // ($loading/$newTitle) is driven solely by the offline-banner
-      // postMessage bridge, which is the single source of the
-      // gogogo:queued event (see internal/components/offline_banner.templ).
-      'var __old = document.querySelector("[data-offline-toast]");' +
-      'if (__old) __old.remove();' +
-    '</script>',
-    {
-      status: 200,
+    // 204 = "accepted, nothing to patch": Datastar completes the action,
+    // does not retry, and does not replace any DOM node.
+    return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+  } catch (_) {
+    // Storage unavailable (private mode, disk full, blocked upgrade) or the
+    // write did not settle in time. Tell the user the change is lost and
+    // answer 503 so the action FAILS instead of looking queued.
+    await notifyClients("queue-lost", { count: 1, reason: "storage" });
+    return new Response("offline queue unavailable", {
+      status: 503,
       headers: {
-        "Content-Type": "text/html",
-        // Append into the styled #toast-container stack so the offline
-        // toast renders in the same fixed bottom-right stack as the
-        // in-process toasts (Datastar falls back to <body> if absent).
-        "datastar-selector": "#toast-container",
-        "datastar-mode": "append",
-      },
-    }
-  );
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
+    });
+  }
 }
 
 // ---- IndexedDB queue ----
 var DB_NAME = "gogogo-offline-queue";
-var DB_VERSION = 1;
+var DB_VERSION = 2; // v2 adds the meta store (queue owner)
 var STORE_NAME = "pending";
+var META_STORE = "meta";
+var OWNER_KEY = "owner";
+// A queued mutation is unsaved work, not an archive: replaying a week-old
+// intent against a row that changed since is usually wrong. The cap protects
+// browser storage from a client that queues forever.
+var MAX_QUEUE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+var MAX_QUEUE_ITEMS = 100;
+
+// IDB_OPEN_TIMEOUT_MS bounds ONE IndexedDB open. Every intercepted mutation
+// awaits the queue write before answering the page; an open that cannot
+// complete (blocked upgrade, storage disabled) must not hold that response —
+// the page's action would never settle and its form would stay in the loading
+// state forever. A rejected open is recoverable (the page keeps the text and
+// says "not saved"); a spinner that never moves is not.
+//
+// The timeout covers the OPEN, not the write. Once the connection exists the
+// transaction either commits or aborts, so there is no window where a 503 is
+// answered while the entry is still being written — which would let a user
+// retry (new idem_key) and create a duplicate when the late write landed.
+var IDB_OPEN_TIMEOUT_MS = 5000;
+
+// IDB_BLOCKED_GRACE_MS is how long an onblocked open may wait for the old
+// connection to close before it is failed. The common holder is a retiring
+// worker finishing one operation; failing instantly turned a deploy-window
+// race into a lost mutation.
+var IDB_BLOCKED_GRACE_MS = 1500;
 
 function idbOpen() {
   return new Promise(function (resolve, reject) {
-    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    var settled = false;
+    var timer = setTimeout(function () {
+      finish(reject, new Error("offline queue: open timed out"));
+    }, IDB_OPEN_TIMEOUT_MS);
+    function finish(fn, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    }
+    var req;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (err) {
+      finish(reject, err);
+      return;
+    }
     req.onupgradeneeded = function () {
-      if (!req.result.objectStoreNames.contains(STORE_NAME)) {
-        req.result.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+      var db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(META_STORE)) {
+        db.createObjectStore(META_STORE, { keyPath: "key" });
       }
     };
-    req.onsuccess = function () { resolve(req.result); };
-    req.onerror = function () { reject(req.error); };
+    req.onsuccess = function () {
+      // A late success after the timeout/blocked path must not leak the
+      // connection: an open handle is what blocks the NEXT version upgrade.
+      if (settled) {
+        req.result.close();
+        return;
+      }
+      finish(resolve, req.result);
+    };
+    req.onerror = function () { finish(reject, req.error); };
+    // onblocked fires when another connection still holds an older version.
+    // Without a handler the open request neither succeeds nor errors, so the
+    // queued mutation would hang the intercepted request forever.
+    req.onblocked = function () {
+      setTimeout(function () {
+        finish(reject, new Error("offline queue: open blocked"));
+      }, IDB_BLOCKED_GRACE_MS);
+    };
   });
 }
 
-async function queueRequest(request) {
+async function withStore(store, mode, fn) {
   var db = await idbOpen();
+  return new Promise(function (resolve, reject) {
+    var tx = db.transaction(store, mode);
+    var request = fn(tx.objectStore(store));
+    request.onsuccess = function () { db.close(); resolve(request.result); };
+    request.onerror = function () { db.close(); reject(request.error); };
+  });
+}
+
+// withWrite settles on COMMIT, not on the request's success. A "deleted"
+// entry that never committed would be replayed again on the next pass — for a
+// toggle that flips the state back. onabort matters for the same reason: a
+// transaction can abort without the request's error event reaching us, and a
+// promise that never settles is the hang this file exists to prevent.
+function withWrite(store, fn) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx;
+      function settle(err) {
+        db.close();
+        if (err) reject(err); else resolve();
+      }
+      try {
+        tx = db.transaction(store, "readwrite");
+        fn(tx.objectStore(store));
+      } catch (err) {
+        settle(err);
+        return;
+      }
+      tx.oncomplete = function () { settle(null); };
+      tx.onerror = function () { settle(tx.error); };
+      tx.onabort = function () {
+        settle(tx.error || new Error("offline queue: transaction aborted"));
+      };
+    });
+  });
+}
+
+function addPending(entry) {
+  return withWrite(STORE_NAME, function (store) { store.add(entry); });
+}
+
+function loadAllPending() {
+  return withStore(STORE_NAME, "readonly", function (store) { return store.getAll(); });
+}
+
+function deletePending(id) {
+  return withWrite(STORE_NAME, function (store) { store.delete(id); });
+}
+
+// dropPending is deletePending without the throw: every caller in the replay
+// path must still reach its terminal notify, or the page never learns the
+// pass ended. A failed delete leaves the entry for the next pass (safe: a
+// create is idem-deduped and a delete 404s), so the caller decides whether to
+// keep going; it must never abandon the pass silently.
+async function dropPending(item) {
+  try {
+    await deletePending(item.id);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function metaGet(key) {
+  return withStore(META_STORE, "readonly", function (store) { return store.get(key); });
+}
+
+function metaSet(key, value) {
+  return withWrite(META_STORE, function (store) {
+    store.put({ key: key, value: value });
+  });
+}
+
+// queueOwner is the account key the page computed (SHA-256 of the signed-in
+// email, see offline-banner.js). Entries are stamped at queue time and a
+// replay only touches entries for the CURRENT owner: a mutation queued by one
+// person can never be written into another person's account after a
+// sign-out / sign-in on a shared device. Entries from before v2 carry no
+// owner and are replayed (same browser, pre-migration).
+async function queueOwner() {
+  try {
+    var row = await metaGet(OWNER_KEY);
+    return (row && row.value) || "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function setQueueOwner(owner) {
+  return metaSet(OWNER_KEY, String(owner || ""));
+}
+
+async function queueRequest(request) {
   // Read body + headers BEFORE the transaction to avoid an IndexedDB
   // auto-commit race: transactions commit when the synchronous block
   // finishes, so an async body read inside the Promise could fire after
   // the transaction is already closed, silently losing the mutation.
   var body = await request.clone().text().catch(function () { return ""; });
-  var entries = Array.from(request.headers.entries());
-  return new Promise(function (resolve, reject) {
-    var tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).add({
-      url: request.url,
-      method: request.method,
-      headers: entries,
-      body: body
-    });
-    tx.oncomplete = function () { db.close(); resolve(); };
-    tx.onerror = function () { db.close(); reject(tx.error); };
-  });
-}
-
-async function loadAllPending() {
-  var db = await idbOpen();
-  return new Promise(function (resolve, reject) {
-    var tx = db.transaction(STORE_NAME, "readonly");
-    var req = tx.objectStore(STORE_NAME).getAll();
-    req.onsuccess = function () { db.close(); resolve(req.result); };
-    req.onerror = function () { db.close(); reject(req.error); };
-  });
-}
-
-async function deletePending(id) {
-  var db = await idbOpen();
-  return new Promise(function (resolve, reject) {
-    var tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).delete(id);
-    tx.oncomplete = function () { db.close(); resolve(); };
-    tx.onerror = function () { db.close(); reject(tx.error); };
-  });
+  var headers = Array.from(request.headers.entries());
+  var items = await loadAllPending();
+  if (items.length >= MAX_QUEUE_ITEMS) {
+    // Drop the OLDEST intent (least likely to still be wanted) and say so,
+    // instead of failing every future mutation when the queue is full. Best
+    // effort: an eviction that cannot commit must not cost the user the
+    // mutation they are submitting right now — the next add evicts again.
+    if (await dropPending(items[0])) {
+      await notifyClients("queue-lost", { count: 1, reason: "queue-full" });
+    }
+  }
+  var entry = {
+    url: request.url,
+    method: request.method,
+    headers: headers,
+    body: body,
+    owner: await queueOwner(),
+    queuedAt: Date.now()
+  };
+  await addPending(entry);
+  return entry;
 }
 
 // ---- Background Sync ----
@@ -439,67 +513,259 @@ self.addEventListener("sync", function (e) {
 // not. Pages explicitly request a replay on reconnect, covering browsers and
 // headless contexts where Background Sync is absent or delayed.
 self.addEventListener("message", function (e) {
-  if (e.data && e.data.type === "replay-queue") {
-    e.waitUntil(requestReplay());
+  var data = e.data || {};
+  if (data.type === "owner") {
+    e.waitUntil(setQueueOwner(data.owner));
+    return;
   }
-  // Clear cached pages on logout so a different user on a shared device
-  // does not receive stale authenticated pages. The auth Navbar's logout
-  // form posts to /logout; the page reloads after the response, but the
-  // cached HTML is already gone. See auth/views.templ.
-  if (e.data && e.data.type === "clear-pages") {
+  if (data.type === "replay-queue") {
+    e.waitUntil((async function () {
+      // The page sends the owner with the kick, so a replay can never start
+      // against the PREVIOUS account while the owner write is still in
+      // flight (messages are independent async tasks).
+      if (data.owner) await setQueueOwner(data.owner);
+      await requestReplay();
+    })());
+    return;
+  }
+  if (data.type === "queue-status") {
+    // The PAGE never opens the queue database. It asks the owner of the
+    // queue (this worker) for the count, so the schema lives in exactly one
+    // place: a second opener without the upgrade handler once created a v1
+    // database with no store, after which every queued mutation was lost.
+    e.waitUntil(queueCount().then(function (count) {
+      if (e.source && e.source.postMessage) {
+        e.source.postMessage({ type: "queue-status", id: data.id, count: count });
+      }
+    }));
+    return;
+  }
+  // Sign-out discards local user data: cached pages (a different user on a
+  // shared device must not receive them) AND the queued mutations (an intent
+  // queued by the previous account must never replay under the next one).
+  // The page asks for the count first and confirms, so this is an explicit
+  // user decision, not a silent loss. clear-pages stays as the page-cache-only
+  // message for callers that have nothing queued.
+  if (data.type === "clear-pages") {
     caches.delete(PAGE_CACHE).catch(function () {});
+    return;
+  }
+  if (data.type === "clear-user-data") {
+    e.waitUntil((async function () {
+      try {
+        var items = await loadAllPending();
+        for (var i = 0; i < items.length; i++) {
+          // Per entry: one failed delete must not leave the rest of the
+          // previous account's queue behind on a shared device.
+          try {
+            await deletePending(items[i].id);
+          } catch (_) {
+            /* retried by the next clear; the page cache still goes */
+          }
+        }
+      } catch (_) {
+        // IndexedDB unavailable: nothing to clear.
+      }
+      await caches.delete(PAGE_CACHE).catch(function () {});
+    })());
   }
 });
 
+// REPLAY_BACKOFF_MS is the transient-failure budget for ONE queued request.
+// The `online` event fires when the OS reports a link, not when packets move:
+// the first replay fetch can (and on a real machine does) fail with
+// "Failed to fetch" a few hundred ms before the network is usable. A
+// single-shot loop treated that as "still offline", stopped, and left the
+// mutation in IndexedDB with nothing scheduled to retry it — the optimistic
+// row stuck forever, other tabs never told. A bounded backoff rides out that
+// window; a still-failing queue stays queued and registers Background Sync
+// again, never silently dropped.
+var REPLAY_BACKOFF_MS = [500, 1000, 2000, 4000];
+
+// One outcome vocabulary for a replayed item, so the caller never has to
+// infer policy from a boolean pair:
+//   OK       settled — drop it (2xx, or 404 = already gone)
+//   RETRY    transient — keep it and stop the pass (network, 5xx, 429)
+//   AUTH     session expired — keep it, pause the whole queue, ask to sign in
+//   REJECT   permanent 4xx — replaying cannot fix it, drop it with a notice
+var REPLAY_OK = "ok";
+var REPLAY_RETRY = "retry";
+var REPLAY_AUTH = "auth";
+var REPLAY_REJECT = "reject";
+
+// MAX_RETRY_AFTER_MS bounds a server-provided Retry-After: a queue that
+// waits longer than this is the Background Sync layer's job, not one
+// page's pass.
+var MAX_RETRY_AFTER_MS = 5000;
+
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+// retryAfterMs reads the Retry-After header (seconds or HTTP date). Returns
+// null when absent or unparseable.
+function retryAfterMs(resp) {
+  var raw = resp.headers.get("Retry-After");
+  if (!raw) return null;
+  var secs = Number(raw);
+  if (!Number.isNaN(secs)) return Math.max(0, secs * 1000);
+  var when = Date.parse(raw);
+  if (Number.isNaN(when)) return null;
+  return Math.max(0, when - Date.now());
+}
+
+// replayOne sends one queued mutation, retrying transient failures with
+// backoff, and reports the POLICY rather than a bare pass/fail. A 401 is not
+// "retry forever": no amount of retrying signs the user in, so it pauses the
+// queue. A 403 is not "retry after signing in" either — the policy refused
+// the action — so it is permanent like other 4xx. Retrying either one in the
+// background is how a queue hammers a server it can never satisfy.
+async function replayOne(item) {
+  var headers = new Headers();
+  (item.headers || []).forEach(function (pair) {
+    headers.append(pair[0], pair[1]);
+  });
+  // Tag replayed requests so the server can return a lightweight
+  // response (no Datastar SSE body) — the tab still learns of the
+  // change via the hub record broadcast, which replays never exclude
+  // (the queued clientID rides along verbatim, but a background
+  // replay is not the originating interaction, so the no-echo rule
+  // does not apply to it).
+  headers.append("X-Offline-Replay", "1");
+  var opts = { method: item.method, headers: headers };
+  if (item.body && item.method !== "GET" && item.method !== "HEAD") {
+    opts.body = item.body;
+  }
+
+  for (var attempt = 0; ; attempt++) {
+    try {
+      var resp = await fetch(item.url, opts);
+      if (resp.ok || resp.status === 404) {
+        return REPLAY_OK;
+      }
+      if (resp.status === 401) {
+        return REPLAY_AUTH;
+      }
+      if (resp.status === 429) {
+        var wait = retryAfterMs(resp);
+        if (wait !== null && wait <= MAX_RETRY_AFTER_MS) {
+          await sleep(wait);
+        } else {
+          return REPLAY_RETRY;
+        }
+      } else if (resp.status >= 400 && resp.status < 500) {
+        console.warn("sw: dropping un-replayable mutation", resp.status, item.url);
+        return REPLAY_REJECT;
+      }
+      // 5xx: the server is unhealthy; back off within the item budget.
+    } catch (_) {
+      // Network not usable yet (or still offline) — fall through to backoff.
+    }
+    if (attempt >= REPLAY_BACKOFF_MS.length) return REPLAY_RETRY;
+    await sleep(REPLAY_BACKOFF_MS[attempt]);
+  }
+}
+
+// usablePending drops entries that must never replay and returns the rest:
+// stale intents (older than a week) and another account's mutations. Both
+// deletions are reported to the page so the user is not silently ignored.
+async function usablePending(items, owner) {
+  var usable = [];
+  var stale = 0;
+  var foreign = 0;
+  var now = Date.now();
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (item.queuedAt && now - item.queuedAt > MAX_QUEUE_AGE_MS) {
+      // Counted only when the delete committed: a delete that failed leaves
+      // the entry for the next pass, and a toast per pass would be noise.
+      if (await dropPending(item)) stale++;
+      continue;
+    }
+    if (item.owner && owner && item.owner !== owner) {
+      if (await dropPending(item)) foreign++;
+      continue;
+    }
+    usable.push(item);
+  }
+  if (stale) await notifyClients("queue-lost", { count: stale, reason: "stale" });
+  if (foreign) await notifyClients("queue-lost", { count: foreign, reason: "other-account" });
+  return usable;
+}
+
 async function replayQueue() {
   var items;
+  var owner;
   try {
     items = await loadAllPending();
+    owner = await queueOwner();
   } catch (_) {
     return; // IndexedDB unavailable — try again later.
   }
   if (items.length === 0) return;
 
+  items = await usablePending(items, owner);
+  if (items.length === 0) {
+    // Everything was stale or belonged to another account: tell the UI the
+    // queue is settled (the lost notices already explained what was dropped).
+    await notifyClients("sync-end");
+    return;
+  }
+
   // Replay starting — switch the UI to the "syncing" state.
   await notifyClients("sync-start");
 
   var remaining = 0;
+  var needsAuth = false;
+  var rejected = 0;
   for (var i = 0; i < items.length; i++) {
-    var item = items[i];
-    try {
-      var headers = new Headers();
-      (item.headers || []).forEach(function (pair) {
-        headers.append(pair[0], pair[1]);
-      });
-      // Tag replayed requests so the server can return a lightweight
-      // response (no Datastar SSE body) — the tab still learns of the
-      // change via the hub record broadcast, which replays never exclude
-      // (the queued clientID rides along verbatim, but a background
-      // replay is not the originating interaction, so the no-echo rule
-      // does not apply to it).
-      headers.append("X-Offline-Replay", "1");
-      var opts = {
-        method: item.method,
-        headers: headers
-      };
-      if (item.body && item.method !== "GET" && item.method !== "HEAD") {
-        opts.body = item.body;
+    var outcome = await replayOne(items[i]);
+    if (outcome === REPLAY_OK) {
+      // The entry is settled server-side. If it cannot be removed locally,
+      // stop: replaying it again is a duplicate (a toggle would flip back).
+      if (!(await dropPending(items[i]))) {
+        remaining += items.length - i;
+        break;
       }
-      var resp = await fetch(item.url, opts);
-      if (resp.ok || resp.status === 404) {
-        // 404 means the resource was already deleted — safe to remove.
-        await deletePending(item.id);
-      } else {
-        // Non-ok status (5xx) — leave in queue, retry next sync.
-        remaining++;
-      }
-    } catch (_) {
-      // Network still unavailable — stop replay, try again later.
-      remaining++;
-      break;
+      continue;
     }
+    if (outcome === REPLAY_REJECT) {
+      // Permanent 4xx: drop it so it cannot wedge later items. A failed drop
+      // means the same rejection would replay every pass, so stop instead.
+      if (!(await dropPending(items[i]))) {
+        remaining += items.length - i;
+        break;
+      }
+      rejected++;
+      continue;
+    }
+    if (outcome === REPLAY_AUTH) needsAuth = true;
+    // RETRY means the network or the server is not usable right now. Every
+    // item behind this one shares that condition, so retrying them here only
+    // repeats the same failure: keep them all and end the pass.
+    remaining += items.length - i;
+    break;
+  }
+  if (rejected) {
+    await notifyClients("queue-lost", { count: rejected, reason: "rejected" });
   }
 
-  // Replay finished: online if nothing left, offline if items remain.
-  await notifyClients(remaining === 0 ? "sync-end" : "sync-error");
+  // Background Sync is the retry for a transient failure. An auth pause is
+  // NOT: it would fire forever against a session that needs a human. A
+  // rejected item is already dropped, so nothing is left to schedule.
+  if (remaining > 0 && !needsAuth && self.registration && self.registration.sync) {
+    self.registration.sync.register("gogogo-sync").catch(function () {});
+  }
+
+  await notifyClients(needsAuth ? "sync-auth" : remaining === 0 ? "sync-end" : "sync-error");
+}
+
+// queueCount reports how many mutations are waiting. The page asks for this
+// instead of opening IndexedDB itself (see the queue-status message).
+async function queueCount() {
+  try {
+    return (await loadAllPending()).length;
+  } catch (_) {
+    return 0;
+  }
 }

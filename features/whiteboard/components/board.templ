@@ -233,6 +233,7 @@ templ boardHead() {
 	@sounds.SoundAssets()
 	<script nonce={ templ.GetNonce(ctx) } src={ whiteboard.URL("rough.min.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("throttle.js") }></script>
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-policy.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer src={ whiteboard.URL("whiteboard.js") }></script>
 }
 

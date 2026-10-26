@@ -157,9 +157,108 @@ cross-instance traffic.
 POST/PUT/DELETE mutations when the browser is offline, queues them in
 IndexedDB, and replays them via Background Sync when connectivity returns.
 
+A replay is NOT single-shot. The window's `online` event fires when the OS
+reports a link, not when packets move, so the first replay fetch can fail a
+few hundred milliseconds before the network is usable (measured live
+against the production deploy). The queue therefore retries each item with
+bounded backoff (`REPLAY_BACKOFF_MS`), re-registers Background Sync while a
+transient failure remains, and the page keeps asking for a drain while its
+own `queueCount` (a SW round-trip) still sees rows (bounded `KICK_DELAYS`). Until the SW
+reports `sync-end`, the offline banner says "Changes queued — retrying
+sync…" instead of claiming "Online": a pending mutation must never look
+saved.
+
+Each outcome has its own policy, not a generic retry:
+
+- **2xx / 404** — settled (404 means the row is already gone).
+- **network, 5xx, 429, 408** — transient: keep the item, stop the PASS (every
+  later item shares the condition), and register Background Sync. A
+  `Retry-After` up to 5s is honoured before the retry; a longer one is
+  Background Sync's job.
+- **401** — the session is gone: keep the item, pause the queue, stop both
+  retry layers, and show "Changes queued — sign in to sync" with a link back
+  to the page. Retrying an expired session is a loop, not a retry. The shell
+  also recovers a 401 from any scripted action by sending the user to
+  `/login?next=…` (a page load is bounced server-side).
+- **other 4xx** — permanent for this body: drop it so one invalid mutation
+  cannot wedge every later one, and tell the user (toast), not just the
+  console.
+
+The FIRST submit follows the same policy, not only a replay. The worker used
+to queue only when `fetch` threw, so an app that was reachable on the wire but
+down behind the gateway (Cloudflare answers 520/521/522 for an unreachable
+origin, 502 for a dead upstream, 503/504 for an overloaded edge) came back as a
+failed action — "Not saved", the title kept in the box, nothing queued. Only a
+DEFINITIVE answer (2xx/3xx/other 4xx) may settle an action; a transient status
+is queued exactly like a dropped connection. This is scoped to the routes the
+queue owns (`QUEUE_OWNED_PREFIXES`, the todo CRUD): a 5xx from a chat turn or a
+sign-in is an answer, and re-sending it later would duplicate a message or
+report a false success.
+
+`KICK_DELAYS` is bounded, so a queue that outlives it needs a slower owner. The
+page keeps a drain cadence (`DRAIN_DELAYS`, 5s growing to 30s) while
+`queuedPending` is set. It exists because the outage can be the APP while
+`navigator.onLine` stays true — a gateway 5xx, an origin restart, a deploy — and
+then neither the `online` event nor Background Sync is guaranteed to fire
+again; without it the row sat in IndexedDB until the next reload.
+
+The queue is a **per-account** outbox. Each entry carries the owner key the
+page computed (SHA-256 of the signed-in email) and a `queuedAt` stamp; a
+replay only touches entries for the currently signed-in owner and drops
+entries older than `MAX_QUEUE_AGE_MS` (one week) or beyond
+`MAX_QUEUE_ITEMS` (100). Dropped entries (foreign account, stale, rejected,
+or evicted from a full queue) surface as a toast: a change that will never be
+saved must say so. Sign-out asks before discarding queued changes and then
+posts `clear-user-data`, which clears both the page cache and the queue —
+otherwise the next person on a shared device would inherit them.
+
+The page asks the SW for the queue count (`queue-status` message) instead
+of opening the queue database: the schema then has one owner. A second
+opener without the SW's upgrade handler once left a v1 database with no
+`pending` store, which silently lost every queued mutation.
+
+The SW knows nothing about feature markup: it reports the queued request and
+answers `204`, and the FEATURE renders its optimistic state. For todo that is
+`web/resources/static/todo-offline.js` (row, toggle, delete, clear); a second
+feature registers its own listener for `gogogo:queued` instead of editing the
+worker.
+
+A queue write that cannot complete is NOT a success. The worker bounds the
+IndexedDB OPEN with `IDB_OPEN_TIMEOUT_MS` (and gives an `onblocked` upgrade a
+short grace before failing) — a blocked upgrade or disabled storage can open
+neither success nor error — answers `503` when it fails, and announces the loss
+(`queue-lost`, reason `storage`). A `503` means nothing was written: it comes
+from a failed/blocked open or an aborted transaction, never from a write that
+may still land, so a client retry cannot duplicate it. Answering `204` anyway
+told the page "queued" while nothing was stored: the Add button stayed in its
+loading state forever and the todo was gone. On the page side the pending state
+belongs to the REQUEST: the create action releases its spinner when the action
+settles, even if the SW message never arrives (the message drives the
+optimistic row, not the form), and a failed request keeps the typed title plus
+an inline "not saved" alert.
+
+**Online-only mode** (`OFFLINE_SYNC_ENABLED=false`) retires a worker an
+earlier deployment installed. The flag only stops the registration; an
+existing registration keeps intercepting `/api/*` and answering `204` for a
+page that renders neither the bridge nor the optimistic renderer, which is the
+same stuck-spinner failure. `offline-banner.js` unregisters it and clears the
+caches it owns.
+
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the
 Leaf Node reconnects to the server. No Service Worker needed.
+
+Notes and the whiteboard keep their OWN outboxes on the page
+(`features/notes/static/notes.js` in `localStorage`,
+`features/whiteboard/static/whiteboard.js` in IndexedDB): their endpoints are
+excluded from the worker because an op stream carries its own convergence
+rules. They follow the same transient/permanent split, from the same file the
+worker imports (`web/resources/static/offline-policy.js`): a 5xx/429/408 keeps
+the batch and retries, an auth 4xx keeps it but stops hammering, and any other
+4xx is a verdict, so it is dropped instead of wedging every later op. The
+notes client used to treat a gateway 5xx as an invalid op and drop the batch,
+so the server never received text typed while the app was unreachable behind
+the edge.
 
 ### Replay is dedup'd at the server
 

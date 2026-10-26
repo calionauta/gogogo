@@ -35,7 +35,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, userRole stri
 		Stack:       todoStack(),
 		Demo:        demo,
 		Panel:       statePanelFor(signals),
-	}, todoHead(), todoSound(), TodoPresence(signals), todoBody(signals))
+	}, todoHead(), todoSound(), TodoPresence(signals), todoBody(signals, offlineSync))
 }
 
 // todoContext is the header's context slot: four short facts, one line. It
@@ -141,10 +141,15 @@ templ todoSound() {
 }
 
 // todoBody is the page itself plus the two stream scripts the list listens on.
-templ todoBody(signals todo.Signals) {
+// The optimistic offline renderer is the FEATURE's file: the service worker
+// queues requests but knows nothing about todo markup or routes.
+templ todoBody(signals todo.Signals, offlineSync bool) {
 	<div class="ui-page">
 		@TodoList(signals)
 	</div>
 	@components.StreamOpener("sse-opener", "/api/todos/stream", false)
 	@RealtimeRecords()
+	if offlineSync {
+		<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("todo-offline.js") }></script>
+	}
 }

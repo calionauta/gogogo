@@ -15,9 +15,9 @@
 
 // Sizing follows the caller's font size (width/height 1em, fill
 
-// currentColor), which is what the .app-rail-icon / .theme-toggle-icon /
+// currentColor), which is what the .app-rail-icon / .theme-toggle-icon rules
 
-// .sound-toggle-icon rules and the Tailwind text-* classes already drive.
+// and the Tailwind text-* classes already drive.
 
 // All icons are decorative (every host button carries its own aria-label or
 

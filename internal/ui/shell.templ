@@ -77,9 +77,14 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			}
 			@components.OfflineSyncScript(d.OfflineSync)
 		</head>
+		// data-on:datastar-fetch__document recovers an expired session: a 401
+		// from any action lands on the login page (returning here) instead of
+		// dying silently. The page itself never reaches this: a navigation is
+		// bounced server-side by the auth guard.
 		<body
 			class="bg-base-200 min-h-screen"
 			data-module={ d.Module }
+			data-on:datastar-fetch__document="evt.detail.type === 'error' && evt.detail.argsRaw && evt.detail.argsRaw.status === '401' ? window.location.assign('/login?next=' + encodeURIComponent(location.pathname + location.search)) : null"
 			if d.StreamPage {
 				data-stream-page="1"
 			}>
@@ -207,13 +212,13 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 									<span class="app-demo-label">How it works</span>
 								</button>
 							}
-							@authviews.CommandPalette(d.Role, false)
+							@authviews.CommandPalette(d.Role, d.Email == "")
 							if actions != nil {
 								@actions
 							}
 						</div>
 					</header>
-					@components.OfflineBanner(d.OfflineSync)
+					@components.OfflineBanner(d.OfflineSync, d.Email)
 					@components.SessionBanner(d.Email != "")
 					<main class={ templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed, "app-body-flush-bottom": d.FlushBottom}) }>
 						@body

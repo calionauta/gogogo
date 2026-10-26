@@ -9,7 +9,6 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/calionauta/gogogo/web/resources"
-import "github.com/calionauta/gogogo/internal/icon"
 
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
@@ -43,7 +42,7 @@ func SoundAssets() templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 11, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 10, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -56,7 +55,7 @@ func SoundAssets() templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("cuelume.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 11, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 10, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -70,25 +69,14 @@ func SoundAssets() templ.Component {
 	})
 }
 
-// SoundToggle renders the public header's mute button. Its state (aria-pressed and
-// the visible icon) is driven by web/resources/static/cuelume.js, which
-// watches for clicks on [data-sound-toggle] and reflects the effective
-// state (user preference AND OS reduced-motion). Mirrors the theme toggle
-// styling (app-theme-toggle) so it sits with the theme toggle.
-//
-// LOCALITY OF BEHAVIOR (why no data-on:click here): the sound plugin must
-// work on every page that renders the shell, including the whiteboard
-// board, which deliberately loads NO Datastar (its canvas wiring is plain
-// JS — verified in features/whiteboard/components.templ). Datastar's
-// data-on:* is inert on that page, so a data-on:click binding would
-// silently kill the toggle there (the theme toggle already has this quirk).
-// Instead the button declares its contract via data-sound-toggle and the
-// plugin's own module wires it with a delegated, idempotent click — the
-// same pattern theme.js uses for the theme toggle, and the closest
-// declarative approach that works on all pages. Sound-specific declarative
-// attributes (data-cuelume-*) on the nav tabs are handled by cuelume's own
-// bind(), which is Datastar-independent for the same reason.
-func SoundToggle() templ.Component {
+// SoundSwitch is the mute preference: a labelled setting wants an on/off
+// control (daisyUI `toggle`), not an icon button with no word next to it.
+// `data-sound-toggle` plus the plugin's delegated `change` is the whole
+// contract, because the plugin has to work on every page, including the board,
+// which loads no Datastar bindings of its own. `role="switch"` tells assistive
+// tech it is an on/off setting; cuelume.js writes `checked` from the stored
+// preference and reads the user's flip back on `change`.
+func SoundSwitch() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -109,60 +97,7 @@ func SoundToggle() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button type=\"button\" class=\"app-sound-toggle\" data-sound-toggle aria-label=\"Toggle sound\" aria-pressed=\"true\" title=\"Mute sounds\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = icon.Icon("material-symbols:volume-up", "text-lg sound-toggle-icon icon-sound-on").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = icon.Icon("material-symbols:volume-off", "text-lg sound-toggle-icon icon-sound-off").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</button>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-// SoundSwitch is the same preference as a switch, for the account panel's
-// preference row: a labelled setting wants an on/off control (daisyUI `toggle`),
-// not an icon button with no word next to it. Same contract as SoundToggle —
-// `data-sound-toggle` plus the plugin's delegated click — because the plugin has
-// to work on every page, including the board, which loads no Datastar bindings
-// of its own. `role="switch"` tells assistive tech it is an on/off setting, and
-// cuelume.js owns `checked` (it preventDefaults the click, so the native
-// checkbox state never drifts from the stored preference).
-//
-// One control per page: the plugin's sync targets the single
-// [data-sound-toggle] element, so a page renders either the header button or
-// this switch, never both.
-func SoundSwitch() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var5 == nil {
-			templ_7745c5c3_Var5 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<input type=\"checkbox\" class=\"toggle toggle-sm\" role=\"switch\" data-sound-toggle aria-label=\"Sound effects\" checked title=\"Mute sounds\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input type=\"checkbox\" class=\"toggle toggle-sm\" role=\"switch\" data-sound-toggle aria-label=\"Sound effects\" checked title=\"Mute sounds\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

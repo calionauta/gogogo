@@ -125,6 +125,23 @@ try {
     }
     console.log("  ✓ normal load registers the stream (verified open)");
 
+    // A FORCED reconnect must re-prove itself. The server's ack carries a
+    // per-open nonce precisely so the same tab's reconnect changes the signal
+    // and Datastar dispatches the patch; with a bare clientID the value was
+    // unchanged, no signal-patch event fired, and the opener concluded the
+    // healthy stream was dead — re-clicking (cancelling it) until failure.
+    // Red-proof: restore `StreamOpenedSignal: clientID` and this resolves
+    // false after REFRESH_WAIT_MS.
+    const refreshed = await page.evaluate(() => window.__gogogoSSERefresh("sse-opener"));
+    if (refreshed !== true) {
+      throw new Error("a live reconnect did not re-acknowledge (opener would churn on a healthy stream)");
+    }
+    const refreshedAgain = await page.evaluate(() => window.__gogogoSSERefresh("sse-opener"));
+    if (refreshedAgain !== true) {
+      throw new Error("a second reconnect did not re-acknowledge (ack is not unique per open)");
+    }
+    console.log("  ✓ every reconnect re-acknowledges (unique ack per open)");
+
     const extra = [];
     for (let i = 0; i < 2; i++) {
       const p = await context.newPage();

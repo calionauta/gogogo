@@ -30,11 +30,21 @@ func loginNext(r *http.Request) string {
 	return next
 }
 
+// loginNotice explains an automatic bounce from the auth guard
+// (?auth=required, set by internal/rbac), so the login page does not look like
+// a dead end the user reached by mistake.
+func loginNotice(r *http.Request) string {
+	if r.URL.Query().Get("auth") != "required" {
+		return ""
+	}
+	return "You need to sign in to open that page."
+}
+
 func (h *Handler) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render; the generated boundary is invisible to the lint.
-	_ = authviews.LoginPage(loginNext(r), "", h.DemoAccounts, "", "").Render(r.Context(), w)
+	_ = authviews.LoginPage(loginNext(r), "", h.DemoAccounts, "", loginNotice(r)).Render(r.Context(), w)
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +68,9 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) renderLogin(w http.ResponseWriter, r *http.Request, errMsg, notice, totpUser string) {
+	if notice == "" {
+		notice = loginNotice(r)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	//nolint:contextcheck // templ components receive ctx from Render.

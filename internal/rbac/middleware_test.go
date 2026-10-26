@@ -5,7 +5,11 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
+
+	"github.com/casbin/casbin/v3"
 
 	"github.com/calionauta/gogogo/internal/auth"
 	"github.com/calionauta/gogogo/internal/db"
@@ -104,8 +108,8 @@ func TestMiddlewareEnforcesPinsDecisions(t *testing.T) {
 		t.Fatalf("disabled anon /todo = %d, want pass-through 200", rec.Code)
 	}
 
-	if code := get("/todo", ""); code != http.StatusForbidden {
-		t.Errorf("anon /todo = %d, want 403", code)
+	if code := get("/todo", ""); code != http.StatusUnauthorized {
+		t.Errorf("anon /todo (data request) = %d, want 401 sign-in required", code)
 	}
 	if code := get("/login", ""); code != http.StatusOK {
 		t.Errorf("anon /login = %d, want 200 (public surface)", code)
@@ -119,8 +123,89 @@ func TestMiddlewareEnforcesPinsDecisions(t *testing.T) {
 	if code := get("/config", adminTok); code != http.StatusOK {
 		t.Errorf("admin /config = %d, want 200", code)
 	}
-	if code := get("/config", "bogus-token"); code != http.StatusForbidden {
-		t.Errorf("bogus session /config = %d, want 403", code)
+	// A bogus/expired cookie resolves to anonymous, so a data request gets the
+	// same 401 as a signed-out one (a page navigation would bounce to /login).
+	if code := get("/config", "bogus-token"); code != http.StatusUnauthorized {
+		t.Errorf("bogus session /config = %d, want 401 (anonymous, sign-in required)", code)
+	}
+
+	// A signed-out BROWSER opening a feature page must land on the login form
+	// with the requested page carried along — never a bare 403 it cannot act
+	// on. This is the shape of a typed URL / bookmark / link.
+	assertAnonymousNavigationBounces(ctx, t, a, e, next)
+
+	// Signed-in denials keep the plain 403: they are not a login problem.
+	navReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/config", nil)
+	navReq.Header.Set("Sec-Fetch-Mode", "navigate")
+	// #nosec G124 — test-only request cookie; never traverses a network.
+	navReq.AddCookie(&http.Cookie{Name: auth.CookieName, Value: userTok})
+	navRec := httptest.NewRecorder()
+	Middleware(a, e, true)(next).ServeHTTP(navRec, navReq)
+	if navRec.Code != http.StatusForbidden {
+		t.Errorf("user navigation /config = %d, want 403 (no login bounce)", navRec.Code)
+	}
+}
+
+// assertAnonymousNavigationBounces drives the page-navigation shape through
+// the real middleware: a typed URL must 303 to /login with the requested path
+// preserved and the explanation flag set.
+func assertAnonymousNavigationBounces(
+	ctx context.Context, t *testing.T, a *auth.Auth, e *casbin.Enforcer, next http.Handler,
+) {
+	t.Helper()
+	navReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/todo?filter=active", nil)
+	navReq.Header.Set("Sec-Fetch-Mode", "navigate")
+	navReq.Header.Set("Accept", "text/html,application/xhtml+xml")
+	navRec := httptest.NewRecorder()
+	Middleware(a, e, true)(next).ServeHTTP(navRec, navReq)
+	res := navRec.Result()
+
+	if res.StatusCode != http.StatusSeeOther {
+		t.Errorf("anon navigation /todo = %d, want 303 to /login", res.StatusCode)
+	}
+	loc := res.Header.Get("Location")
+	if !strings.HasPrefix(loc, "/login?") || !strings.Contains(loc, "auth=required") {
+		t.Errorf("anon navigation Location = %q, want /login?next=…&auth=required", loc)
+	}
+	if !strings.Contains(loc, url.QueryEscape("/todo?filter=active")) {
+		t.Errorf("anon navigation Location = %q, want the requested path preserved", loc)
+	}
+}
+
+// TestIsPageNavigationPinsThePageDataSplit keeps the redirect decision on the
+// right side: page loads redirect, data requests do not. A misclassified
+// Datastar call would patch an HTML login page into the DOM; a misclassified
+// page would show a data error to a human.
+func TestIsPageNavigationPinsThePageDataSplit(t *testing.T) {
+	cases := []struct {
+		name    string
+		method  string
+		headers map[string]string
+		want    bool
+	}{
+		{"browser navigation", http.MethodGet, map[string]string{"Sec-Fetch-Mode": "navigate"}, true},
+		{"xhr same-origin", http.MethodGet, map[string]string{"Sec-Fetch-Mode": "same-origin"}, false},
+		{"sse fetch", http.MethodGet, map[string]string{"Sec-Fetch-Mode": "cors", "Accept": "text/event-stream"}, false},
+		{
+			"datastar request", http.MethodGet,
+			map[string]string{"Datastar-Request": "true", "Accept": "text/html,text/event-stream"},
+			false,
+		},
+		{"legacy browser page", http.MethodGet, map[string]string{"Accept": "text/html,application/xhtml+xml"}, true},
+		{"json client", http.MethodGet, map[string]string{"Accept": "application/json"}, false},
+		{"head navigation", http.MethodHead, map[string]string{"Sec-Fetch-Mode": "navigate"}, true},
+		{"post is never a navigation", http.MethodPost, map[string]string{"Sec-Fetch-Mode": "navigate"}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(context.Background(), c.method, "/todo", nil)
+			for k, v := range c.headers {
+				req.Header.Set(k, v)
+			}
+			if got := isPageNavigation(req); got != c.want {
+				t.Errorf("isPageNavigation(%s) = %v, want %v", c.name, got, c.want)
+			}
+		})
 	}
 }
 

@@ -211,8 +211,8 @@ func addFollowUps(u trimUnit) []string {
 	case unitSounds:
 		out = append(out,
 			"sounds has no UI until call sites return: re-add "+
-				"@sounds.SoundAssets() to page layouts and "+
-				"@sounds.SoundToggle() to the navbar, then `make templ` "+
+				"@sounds.SoundAssets() to each page's head wrapper and "+
+				"@sounds.SoundSwitch() to its *Sound() wrapper, then `make templ` "+
 				"(checklist in features/sounds/sounds.go).")
 	case unitLanding:
 		out = append(out,

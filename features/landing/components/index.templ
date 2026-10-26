@@ -1,28 +1,19 @@
 // SCOPE:feature - REMOVE by deleting features/landing/ (components move with it) + the
-// landing catch-all root in buildChiMux (internal/server/chi.go). The landing page is a marketing
-// shell: logo + about text + "Access demo site" CTA. It does NOT
-// call the database, does NOT authenticate the user (guests and
-// signed-in users see the same hero), and registers only the
-// GET / route.
+// landing catch-all root in buildChiMux (internal/server/chi.go). The landing page is the
+// public entry surface on GET /: a CTA inside the shared shell, so a guest sees the same
+// navigation every signed-in page renders. It does NOT read app data and does NOT require
+// a session (guests and signed-in users see the same page, with the CTA target depending
+// on the session).
 //
-// Content policy: the about text is sourced from the project's
-// own README so the page mirrors the repo, not an LLM summary.
-// Source lines (README.md): the tagline block (~7-9) carries the
-// project positioning; the rest of the README is not surfaced.
+// The shell owns the document, the assets, the sidebar and the module header. This file
+// is the page body: the demo CTA and, for guests, the note that sign-in comes next.
 package components
 
 import (
-	"github.com/calionauta/gogogo/features/authviews"
 	"github.com/calionauta/gogogo/features/sounds"
-	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/resources"
+	"github.com/calionauta/gogogo/internal/ui"
 )
 
-// Index renders the landing page. userEmail is empty for guests
-// (Sign in CTA shows) and the authed email for signed-in users.
-// buildLabel/buildCommit are surfaced on the version badge so the
-// landing page matches the shell's build feedback.
-//
 // ctaHref keeps guests off the RBAC 403: anonymous GET /todo is denied by
 // policy (fail-closed, RBAC_ENABLED=true in production), so guests go to
 // /login?next=/todo and land on /todo after sign-in; signed-in users go
@@ -34,89 +25,46 @@ func ctaHref(userEmail string) string {
 	return "/todo"
 }
 
+// Index renders the landing page inside the shared shell. userEmail is empty
+// for guests (the shell renders Sign in) and the authed email for signed-in
+// users; buildLabel/buildCommit surface on the rail's version badge.
 templ Index(userEmail string, userRole string, buildLabel string, buildCommit string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs(ctx, "")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>gogogo</title>
-			@components.Assets()
-			@authviews.ThemeHead()
-			@sounds.SoundAssets()
-			<style>
-				/* Hero layout: narrow column on desktop, full width on
-				   mobile. The visual hierarchy is logo → about → CTA,
-				   matching the README ordering. */
-				.landing-hero {
-					min-height: calc(100vh - 4rem);
-					display: flex;
-					flex-direction: column;
-					align-items: center;
-					justify-content: center;
-					padding: 2rem 1rem;
+	@ui.Shell(ui.Data{
+		Title:       "gogogo",
+		Heading:     "Home",
+		Email:       userEmail,
+		Role:        userRole,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+	}, landingHead(), landingSound(), nil, landingBody(userEmail))
+}
+
+// landingHead carries the page's own <head> extras: the sound assets, so the
+// shell's mute control works. A one-line wrapper on purpose: the installer's
+// sounds trim drops the call and leaves the shell's head slot satisfied.
+templ landingHead() {
+	@sounds.SoundAssets()
+}
+
+// landingSound is the shell's mute control for this page. Same reason as
+// landingHead: the trim drops the call and leaves an empty wrapper.
+templ landingSound() {
+	@sounds.SoundSwitch()
+}
+
+templ landingBody(userEmail string) {
+	<div class="ui-page">
+		<section class="ui-card mx-auto max-w-md">
+			<div class="ui-card-body text-center">
+				<a href={ ctaHref(userEmail) } class="btn btn-primary">
+					Access demo site
+				</a>
+				if userEmail == "" {
+					<p class="text-sm text-base-content/60 mt-3">
+						You'll be asked to sign in with the demo credentials.
+					</p>
 				}
-				.landing-card {
-					max-width: 44rem;
-					width: 100%;
-				}
-				.landing-logo {
-					max-width: 28rem;
-					width: 100%;
-					height: auto;
-					margin-left: auto;
-					margin-right: auto;
-					display: block;
-				}
-				.landing-about {
-					color: var(--color-base-content);
-					line-height: 1.7;
-					font-size: 0.95rem;
-				}
-			</style>
-		</head>
-		<body class="bg-base-100 min-h-screen">
-			<!-- The landing is a Decide surface, outside internal/ui.Shell: it
-			     carries a public header (brand, build badge, palette, account)
-			     instead of the module navigation, which belongs to the app. -->
-			<header class="app-nav">
-				<div class="app-nav-start">
-					<a href="/" class="app-nav-brand">gogogo</a>
-					<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
-				</div>
-				<div class="app-nav-end">
-					@authviews.CommandPalette(userRole, userEmail == "")
-					@authviews.ThemeToggle()
-					@sounds.SoundToggle()
-					@authviews.UserMenu(userEmail, userRole, nil)
-				</div>
-			</header>
-			<main class="landing-hero">
-				<div class="landing-card">
-					<header class="text-center mb-6">
-						<img class="landing-logo" src={ resources.StaticURL("logo.png") } alt="gogogo"/>
-					</header>
-					<section class="landing-about mb-8">
-						<p>
-							Go full-stack template. Single binary, no dependencies.
-							Database &amp; Auth. Reactive UI. Background jobs.
-							Offline-first. Real-time multi-user. Durable workflows.
-							Desktop &amp; Android capable.
-						</p>
-					</section>
-					<div class="text-center">
-						<a href={ ctaHref(userEmail) } class="btn btn-primary">
-							Access demo site
-						</a>
-						if userEmail == "" {
-							<p class="text-sm text-base-content/60 mt-3">
-								You'll be asked to sign in with the demo credentials.
-							</p>
-						}
-					</div>
-				</div>
-			</main>
-			@components.OfflineBanner(true)
-		</body>
-	</html>
+			</div>
+		</section>
+	</div>
 }

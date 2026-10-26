@@ -1,17 +1,19 @@
 // SCOPE:core — Shell control contracts (red-proof).
 //
 // These used to live on Navbar, which is gone: the shell renders the account
-// menu on every module page and the landing renders it on the public header, so
-// the contract is asserted on the component both use.
+// menu on every page, landing included, so the contract is asserted on the
+// component the shell composes.
 package authviews_test
 
 import (
 	"bytes"
 	"context"
+	"io/fs"
 	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/features/authviews"
+	"github.com/calionauta/gogogo/web/resources"
 )
 
 func TestUserMenuLogoutActuallyPosts(t *testing.T) {
@@ -35,17 +37,23 @@ func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 	if !strings.Contains(form, `method="POST"`) {
 		t.Error("logout form must keep method=POST as the no-JS fallback")
 	}
-	if !strings.Contains(form, "data-on:submit__prevent") {
-		t.Error("logout form must prevent the dead native submit explicitly")
+	if !strings.Contains(form, "__gogogoLogout") {
+		t.Error("logout form must delegate to the transport helper (queue-aware sign-out)")
 	}
-	if !strings.Contains(form, "fetch('/logout', {method: 'POST'") {
-		t.Error("logout form must POST via fetch (native submit is swallowed by Datastar)")
+	// The helper owns the POST/navigation so it can ask about queued changes
+	// first. Pinning it here keeps the delegation from becoming a dead form:
+	// a native submit would land on /login, but a queued mutation would then
+	// replay under the next account on a shared device.
+	script, err := fs.ReadFile(resources.StaticFS(), "offline-banner.js")
+	if err != nil {
+		t.Fatalf("read offline-banner.js: %v", err)
 	}
-	if !strings.Contains(form, "window.location.href = '/login'") {
-		t.Error("logout form must navigate to /login by hand after the POST")
-	}
-	if !strings.Contains(form, "clear-pages") {
-		t.Error("logout form must still tell the service worker to drop cached pages")
+	for _, want := range []string{
+		`fetch("/logout"`, `method: "POST"`, `window.location.href = "/login"`, `"clear-user-data"`,
+	} {
+		if !strings.Contains(string(script), want) {
+			t.Errorf("offline-banner.js missing the sign-out contract %q", want)
+		}
 	}
 }
 

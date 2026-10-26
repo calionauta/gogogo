@@ -7,11 +7,13 @@
 //
 // The proof of an open is the stream's OWN first frame. Every Datastar
 // stream starts with an ack signal (internal/datastar.AckStreamOpened:
-// signal "streamOpen", value = this tab's clientID). Waiting for it proves
-// the click took, the request reached the handler, AND the browser applied
-// the response — where an HTTP status probe only proved server-side
-// registration, cost a second request per open, and said nothing about
-// delivery. No polling: the ack rides the connection the page is opening.
+// signal "streamOpen", value = this tab's clientID plus a per-open nonce, so
+// the value CHANGES on every reconnect and Datastar always dispatches the
+// patch). Waiting for it proves the click took, the request reached the
+// handler, AND the browser applied the response — where an HTTP status probe
+// only proved server-side registration, cost a second request per open, and
+// said nothing about delivery. No polling: the ack rides the connection the
+// page is opening.
 //
 // What Datastar owns (v1.0.4, pinned) — all of it configured on the opener,
 // not here:
@@ -38,17 +40,25 @@
 (function () {
 	var inFlight = {};
 	var live = {}; // buttonId -> request started and not finished
+	var opened = {}; // buttonId -> ack received at least once on this page
 	var SIGNAL = "streamOpen";
-	var ACK_WAIT_MS = 500;
-	var MAX_ATTEMPTS = 20;
-	var REFRESH_WAIT_MS = 2000;
+	var ACK_WAIT_MS = 1500;
+	var MAX_ATTEMPTS = 8;
+	var REFRESH_WAIT_MS = 2500;
 
+	// tagged matches the ack to this tab. The server sends
+	// "<clientID>:<nonce>" (internal/datastar.AckStreamOpened) so the value
+	// changes on EVERY open — a reconnect reuses the tab's clientID, and a
+	// bare clientID would be a no-op patch that Datastar never dispatches.
+	// A plain clientID is still accepted for a rolling deploy against an
+	// older server.
 	function tagged(detail, clientID) {
 		var v = detail && detail[SIGNAL];
 		if (typeof v !== "string" || v === "") return false;
 		// An empty clientID means the page skipped its bootstrap; accepting
 		// the ack still proves the stream delivered, so do not strand it.
-		return clientID === "" || v === clientID;
+		if (clientID === "") return true;
+		return v === clientID || v.indexOf(clientID + ":") === 0;
 	}
 
 	// waitAck resolves true when the stream's ack signal arrives, false on
@@ -102,11 +112,18 @@
 	window.__gogogoSSEOpenState = "idle";
 
 	// __gogogoOpenVerified(buttonId) resolves when the stream acknowledged
-	// this tab, re-clicking while the ack is missing. Bound: 20 attempts x
-	// 500ms (~10s) — past that the page is genuinely broken (Datastar or
+	// this tab, re-clicking while the ack is missing. Bound: 8 attempts x
+	// 1.5s (~12s) — past that the page is genuinely broken (Datastar or
 	// network down) and loud failure beats silent death.
+	//
+	// Once opened, a later call returns immediately. The old guard keyed on
+	// `live` (a Datastar fetch event the SSE stream may never emit on a slow
+	// link), so a second call — the 300ms bootstrap fallback — re-entered
+	// the loop on a HEALTHY stream, cancelled it, and burned all 20 attempts
+	// waiting for an ack the page already held: realtime churned for 10s and
+	// then gave up. `opened` records the proof, not the transport.
 	window.__gogogoOpenVerified = function (buttonId) {
-		if (live[buttonId] && window.__gogogoSSEOpenState === "open") {
+		if (opened[buttonId] || (live[buttonId] && window.__gogogoSSEOpenState === "open")) {
 			return Promise.resolve(true);
 		}
 		if (inFlight[buttonId]) return inFlight[buttonId];
@@ -120,6 +137,7 @@
 					if (b) b.click();
 				} catch (e) { /* transient: retry below */ }
 				if (await ack) {
+					opened[buttonId] = true;
 					window.__gogogoSSEOpenState = "open";
 					return true;
 				}
@@ -141,7 +159,8 @@
 	// cases Datastar cannot observe: `online`, Chromium mobile `resume`, and
 	// a bfcache `pageshow`. It re-clicks even a "live" opener, because a
 	// deep-slept socket is exactly the case where the fetch never settled
-	// (#1203); the same-URL cancel is what kills the zombie. Quiet on
+	// (#1203); the same-URL cancel is what kills the zombie. The ack is
+	// unique per open, so a healthy reconnect still proves itself. Quiet on
 	// failure: Datastar's own retry loop and the next event still apply, so
 	// a transient miss here must not throw.
 	window.__gogogoSSERefresh = function (buttonId) {
@@ -155,6 +174,12 @@
 		} catch (e) {
 			return Promise.resolve(false);
 		}
-		return ack;
+		return ack.then(function (ok) {
+			if (ok) {
+				opened[id] = true;
+				window.__gogogoSSEOpenState = "open";
+			}
+			return ok;
+		});
 	};
 })();

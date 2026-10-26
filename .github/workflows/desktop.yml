@@ -4,32 +4,47 @@ on:
   pull_request:
     # No base-branch filter: a stacked PR (base = another branch) ran no
     # desktop build at all, same trap as ci.yml — see the comment there.
-    # Docs, markdown, rules/ and the site/ landing page cannot affect the
-    # desktop shell.
-    # src/css/input.css scans only features/, web/ and internal/, so site/ edits
-    # no longer change the embedded web/resources/static/* either.
-    paths-ignore:
-      - "docs/**"
-      - "site/**"
-      - "**.md"
-      - "LICENSE"
-      - ".stelow/**"
-      - ".gitignore"
-      - "rules/**"
+    #
+    # Run ONLY when the desktop binary can break. `cmd/desktop` imports the
+    # whole app (config, features/*, internal/*, web/resources), so a directory
+    # allowlist would change nothing — but every one of those packages is also
+    # compiled by web CI, which leaves two desktop-ONLY surfaces: `cmd/desktop`
+    # itself, and the packages its main.go calls by name (a signature change
+    # there compiles fine everywhere else). Static JS/CSS, templ, docs and the
+    # site cannot break a Go compile and are embedded identically in cmd/web,
+    # so a web-only PR no longer pays for a GTK4/WebKitGTK install it cannot
+    # use. The list is guarded by TestDesktopWorkflowCoversDirectImports — add
+    # a direct import to main.go and that test fails until the path is here.
+    paths:
+      - "cmd/desktop/**"
+      # The direct module imports of cmd/desktop/main.go (see the guard).
+      - "config/**"
+      - "internal/collab/**"
+      - "internal/nats/**"
+      - "internal/server/**"
+      # Module graph + this build's own tooling.
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "scripts/desktop-build.sh"
+      - "bin/install-go-toolchain.sh"
+      - ".github/workflows/desktop.yml"
   push:
     branches: [master]
-    paths-ignore:
-      - "docs/**"
-      - "site/**"
-      - "**.md"
-      - "LICENSE"
-      - ".stelow/**"
-      - ".gitignore"
-      # rules/rules.go carries `//go:build ruleguard`, so it reaches only
-      # golangci-lint — the desktop build uses plain `go build` and never
-      # compiles it. Same reasoning as the deploy filter; measured there that a
-      # rules-only commit otherwise paid a full 6-minute pipeline.
-      - "rules/**"
+    # Same list as the PR trigger: a docs- or JS-only push to master cannot
+    # change the desktop build either.
+    paths:
+      - "cmd/desktop/**"
+      - "config/**"
+      - "internal/collab/**"
+      - "internal/nats/**"
+      - "internal/server/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "scripts/desktop-build.sh"
+      - "bin/install-go-toolchain.sh"
+      - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
 permissions:
@@ -40,8 +55,19 @@ jobs:
     # Wails v3's default Linux backend is GTK4 + WebKitGTK 6.0. Pin the
     # runner instead of relying on ubuntu-latest's changing package set.
     runs-on: ubuntu-24.04
+    # A hung apt step sat here for 30+ minutes on three runs in a row and
+    # blocked the PR; without this key the only bound was the runner's 6h
+    # default. A healthy run measures ~3m21s, so 20m is >5x headroom.
+    timeout-minutes: 20
     env:
       GOTOOLCHAIN: local
+      # apt must never wait for a human. debconf gets its defaults, and
+      # needrestart does not stop to ask which services to restart — the
+      # classic Ubuntu 24.04 CI hang (the runner image's apt upgrades libc
+      # mid-install). Both are passed through `sudo env` below as well: sudo's
+      # env_reset drops job-level variables before apt runs.
+      DEBIAN_FRONTEND: noninteractive
+      NEEDRESTART_SUSPEND: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
@@ -53,9 +79,19 @@ jobs:
         # apt-get update exits 100 when a third-party source in the runner
         # image is broken (403 or unsigned), even though the Ubuntu indexes
         # updated. The install is the gate.
+        #
+        # A stuck step here is diagnosed by its bound, not by its silence:
+        # this one fails after 12 minutes instead of hanging through the job.
+        # DPkg::Lock::Timeout covers unattended-upgrades still holding the
+        # lock at runner boot; Acquire::Retries covers a flaky mirror.
+        timeout-minutes: 12
         run: |
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 \
+            apt-get install -y \
+              -o DPkg::Lock::Timeout=120 \
+              -o Acquire::Retries=3 \
+              build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
           pkg-config --modversion gtk4
       - name: Verify Wails environment
         # Kept as an environment sanity check (GTK4/WebKitGTK headers present).
@@ -80,8 +116,12 @@ jobs:
     # ~800MB download the first time (cached by the Docker layer; setup is idempotent).
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
+    # Same apt step as linux-desktop, plus an ~800MB docker image build.
+    timeout-minutes: 45
     env:
       GOTOOLCHAIN: local
+      DEBIAN_FRONTEND: noninteractive
+      NEEDRESTART_SUSPEND: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Install the pinned Go toolchain manually
@@ -90,10 +130,16 @@ jobs:
       - name: Install Wails Linux build dependencies
         # apt-get update exits 100 when a third-party source in the runner
         # image is broken (403 or unsigned), even though the Ubuntu indexes
-        # updated. The install is the gate.
+        # updated. The install is the gate. Same hardening as linux-desktop:
+        # noninteractive, no needrestart prompt, bounded lock wait.
+        timeout-minutes: 12
         run: |
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
-          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 \
+            apt-get install -y \
+              -o DPkg::Lock::Timeout=120 \
+              -o Acquire::Retries=3 \
+              build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
           pkg-config --modversion gtk4
       - name: Setup wails-cross image (one-time, cached)
         # Built from the wails source checkout — `wails3 task setup:docker`

@@ -51,7 +51,7 @@ func TestHandlersLandingPublic(t *testing.T) {
 		t.Fatal("guest CTA missing href=\"/login?next=/todo\" (would 403 on /todo)")
 	}
 
-	// Signed-in users see the same hero with their email on it.
+	// Signed-in users see the same page with their email on it.
 	ctx := context.Background()
 	if _, _, err := a.Signup(ctx, "hero@example.com", "Correct-horse-99!", ""); err != nil {
 		t.Fatalf("signup: %v", err)

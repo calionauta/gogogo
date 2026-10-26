@@ -518,6 +518,17 @@
     flush();
   }
 
+  // The retry vocabulary is shared with the worker and the whiteboard
+  // (web/resources/static/offline-policy.js, loaded by the page template
+  // before this file). One definition: an answer the worker retries must not
+  // be a "poison batch" here.
+  const offlinePolicy = window.GogogoOffline;
+
+  // transientRetryMs grows while the app keeps answering with a transient
+  // status: one retry per 1.5s would be a request storm against an edge that
+  // is already struggling, and one per 10s is enough to notice a recovery.
+  let transientRetryMs = 1500;
+
   function flush() {
     if (!outbox.length || flushing) return;
     flushing = true;
@@ -555,6 +566,17 @@
         return null;
       }
       if (r.status !== 200 && r.status !== 409) {
+        // The edge or the app did not answer (5xx, 429, 408): keep the batch
+        // and retry. This is the unreachable-app case the outbox exists for;
+        // dropping it here lost the user's text with the server merely down.
+        if (offlinePolicy.isTransientStatus(r.status)) {
+          flushing = false;
+          setPending(false);
+          net.classList.remove("hidden");
+          setTimeout(flush, transientRetryMs);
+          transientRetryMs = offlinePolicy.retryDelay(transientRetryMs, 1500, 10000);
+          return null;
+        }
         // Poison batch (invalid ops — only producible via devtools, our
         // UI only emits ins/del): drop it instead of retrying forever.
         // Network failures reject below and keep the batch.
@@ -598,6 +620,7 @@
         outbox = rest.length ? [{ ops: rest, base: REV }] : [];
         saveOutbox();
         clean = !outbox.length;
+        transientRetryMs = 1500;
         if (t0 && rtt) { lastRTT = "· " + Math.round(performance.now() - t0) + "ms"; rtt.textContent = lastRTT; }
         adoptRemote(d.text, d.rev);
         net.classList.add("hidden");

@@ -154,8 +154,8 @@ live in `.templ` markup rather than Go:
 - **A template that owns `<html>` must wire `$theme`, or the picker looks
   broken.** Inside the app that is not a page's problem any more: module pages
   render a body through `internal/ui.Shell`, which spreads the helper itself.
-  The two surfaces outside the shell (landing, login) own the document, so they
-  spread it by hand:
+  The one surface outside the shell (login) owns the document, so it spreads it
+  by hand:
 
   ```templ
   <html lang="en" { authviews.ThemeRootAttrs("")... }>

@@ -13,8 +13,7 @@
 // preferences they are.
 //
 // Rendered as <li> items because it composes into the account menu's list
-// (authviews.UserMenu takes it as a slot, so the landing header — which has no
-// account surface for its guests — keeps its own quick controls instead).
+// (authviews.UserMenu takes it as a slot, and the shell is its only host).
 //
 // The option is a toggle button carrying aria-pressed, not a single-select
 // widget role: this list sits inside a disclosure of links, not inside a

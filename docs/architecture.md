@@ -43,7 +43,7 @@ internal/
 features/
   app/                            AppContext bundle (consumed by cmd/gui only)
   authviews/                      Login page + shell controls (theme, user menu, palette)
-  landing/                        Public marketing hero on GET /
+  landing/                        Public entry page on GET / (inside the shared shell)
   config/                         Admin-only /config view + user actions
   todo/                           Todo MVC example
   whiteboard/                     Collaborative canvas
