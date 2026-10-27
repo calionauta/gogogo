@@ -20,6 +20,10 @@ templ Assets() {
 	// its POLICY_VERSION with the worker's, so it must be present wherever the
 	// banner is, and before any script that reads window.GogogoOffline.
 	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-policy.js") }></script>
+	// offline-outbox.js is the page-side queue for independent requests (todo's
+	// create form when no worker controls the page). Before the feature scripts
+	// that create one.
+	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-outbox.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("theme.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("datastar.js") }></script>
 }

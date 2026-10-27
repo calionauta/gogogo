@@ -79,7 +79,15 @@ type Signals struct {
 	// filter. Every rendered row carries data-created, so filtering is a
 	// display decision and never needs a server round trip.
 	CreatedAfter string `json:"-"`
-	NoMatches    bool   `json:"noMatches"`
+
+	// ListOffline is client-owned (json:"-"): the toolbar sets it when a
+	// filter, scope, search or mode change was REFUSED because the browser is
+	// offline. The list is server-side, so firing the request would fail and
+	// leave $loading stuck (disabling the composer) over a view that never
+	// changed — the hint next to the controls reads this instead.
+	ListOffline bool `json:"-"`
+
+	NoMatches bool `json:"noMatches"`
 
 	// SessionAuthed is NOT a field here, and that is deliberate. The todo page
 	// carries the banner state on its OWN stream (no second long-lived

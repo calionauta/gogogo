@@ -261,6 +261,21 @@ install time (`POLICY_VERSION`, the file's own fingerprint, pinned by
 a worker from an older deploy, and the banner says "out of date — reload"
 instead of promising a queue the worker may not implement.
 
+**When there is no worker at all**, the todo create form has a page-side queue
+(`web/resources/static/offline-outbox.js`): the failure path enqueues the same
+request (idem_key included) and the page replays it, so the write is not lost;
+the banner counts it ("queued in this tab"). The engine is for INDEPENDENT
+requests — retry, drop or deliver one item at a time. Notes and the whiteboard
+keep their own queues because a 409 there rewrites the whole queued tail against
+the server's text/shapes, which is a queue-level decision, not a per-item retry.
+
+List changes are refused offline. Status, scope, search and match mode are
+SERVER-side queries: firing one while the link is down cannot succeed, and the
+action's `$loading = true` would stay set (nothing clears it on failure),
+disabling the composer over a view that never changed. The toolbar raises a hint
+instead (`$listOffline`), and the tab, the select and the text box keep the
+values the list is actually showing.
+
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the
 Leaf Node reconnects to the server. No Service Worker needed.

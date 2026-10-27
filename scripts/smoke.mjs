@@ -560,6 +560,33 @@ async function verifyOfflineTodoQueue(page, context) {
       document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
     );
 
+    // --- a filter change is REFUSED offline, not fired into the void ---
+    // The list is server-side, so the old handler set $loading and sent a GET
+    // that could not succeed: the tab claimed a view the list never showed and
+    // the composer stayed disabled behind a stuck $loading. The refusal raises
+    // the hint and leaves both the tab and the list alone.
+    const listTextBefore = await page.locator("#todo-list").textContent();
+    await page.getByRole("tab", { name: "Completed" }).click();
+    try {
+      await timedWait(page, "offline-filter-refused", () =>
+        getComputedStyle(document.getElementById("todo-list-offline")).display !== "none",
+      );
+    } catch {
+      const tabClass = await page.getByRole("tab", { name: "Completed" }).getAttribute("class");
+      throw new Error(
+        `a filter change offline was not refused (tab class ${JSON.stringify(tabClass)}) — ` +
+          "the list request fired and $loading may be stuck",
+      );
+    }
+    if (await page.getByRole("tab", { name: "Completed" }).evaluate((el) => el.classList.contains("tab-active"))) {
+      throw new Error("the completed tab became active although the list could not change");
+    }
+    if ((await page.locator("#todo-list").textContent()) !== listTextBefore) {
+      throw new Error("the list changed on a filter the offline guard refused");
+    }
+    await page.locator("#todo-list-offline button").click();
+    console.log("  ✓ a filter change offline is refused with a hint, leaving list and tab unchanged");
+
     const titleInput = page.getByPlaceholder(/what needs doing|add a new todo/i);
     const addButton = page.getByRole("button", { name: "Add" });
     await titleInput.fill(title);
@@ -1247,7 +1274,45 @@ async function verifyOfflineTodoQueue(page, context) {
         if ((copy || "").includes("will sync when you reconnect")) {
           throw new Error("the banner promised a queue with no worker controlling the page");
         }
-        console.log("  ✓ a page with no controlling worker says the queue is not active (no false promise)");
+        // ...and the page MUST be able to hold the write itself. The form's
+        // failure path hands the request to the page outbox when no worker is
+        // listening; the same gogogo:queued event draws the row.
+        const localTitle = `offline-pagequeue-${Date.now()}`;
+        const localInput = bare.getByPlaceholder(/what needs doing/i);
+        await localInput.fill(localTitle);
+        await localInput.press("Enter");
+        try {
+          await timedWait(bare, "offline-page-queue-queued", () =>
+            document.querySelector("#offline-banner-text")?.textContent?.includes("queued in this tab"),
+          );
+        } catch {
+          const copy = await bare.locator("#offline-banner-text").textContent();
+          throw new Error(
+            `a write made with no worker was not queued by the page; the banner says ${JSON.stringify(copy)}`,
+          );
+        }
+        const pendingRow = bare.locator("#todo-list .todo-item", { hasText: localTitle });
+        if ((await pendingRow.count()) !== 1) {
+          throw new Error("the page outbox queued the write but drew no optimistic row");
+        }
+        if (await bare.locator("#todo-save-error").isVisible()) {
+          throw new Error("a page-queued write reported a save failure");
+        }
+        // Reconnect: the page outbox drains and the optimistic row becomes the
+        // server row (the event stream re-lists on the record broadcast).
+        await noSw.setOffline(false);
+        await bare.waitForFunction(
+          (t) => {
+            const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
+            for (const el of els) {
+              if (el.textContent?.includes(t) && el.getAttribute("data-pending") !== "true") return true;
+            }
+            return false;
+          },
+          localTitle,
+          { timeout: 25000 },
+        );
+        console.log("  ✓ with no worker the page queues the write itself and replays it on reconnect");
       } finally {
         await noSw.setOffline(false);
         await noSw.close();

@@ -111,6 +111,16 @@
     // the last row, and the replay's re-render then moved the same todo to
     // first — a visible jump for a row that never changed its meaning.
     host.insertBefore(item, host.firstChild);
+    // The row can be hidden by the active filter (completed tab, an active
+    // search, scope=shared). Datastar applies data-show on insertion; if it
+    // stayed hidden, put the empty state back instead of leaving a blank list.
+    if (existingEmpty) {
+      setTimeout(function () {
+        if (getComputedStyle(item).display === "none") {
+          host.insertBefore(existingEmpty, item.nextSibling);
+        }
+      }, 0);
+    }
   }
 
   function remove(id) {
@@ -119,6 +129,49 @@
     el.remove();
     ensureEmptyState();
   }
+
+  // ---- page-side fallback ---------------------------------------------------
+  // The worker owns the queue when it is there. This is the other case: no
+  // controller (registration blocked, evicted, a browser that refused it), so
+  // the create form's failure path hands the request HERE and the page replays
+  // it. The request is the one the form would have sent — idem_key included —
+  // so a replay cannot duplicate it server-side, and the event is the same
+  // `gogogo:queued` the worker sends, so the row and the form reset stay
+  // feature-owned and do not fork by transport.
+  var pageQueue = null;
+
+  function pageOutbox() {
+    if (pageQueue || !window.GogogoOutbox) return pageQueue;
+    pageQueue = window.GogogoOutbox.create({
+      onQueued: function (entry) {
+        window.dispatchEvent(new CustomEvent("gogogo:queued", {
+          detail: { url: entry.url, method: entry.method, body: entry.body }
+        }));
+      }
+    });
+    pageQueue.start();
+    return pageQueue;
+  }
+
+  window.__gogogoTodoQueue = function (title, idemKey, shared) {
+    var queue = pageOutbox();
+    if (!queue || !title) return false;
+    var body = new URLSearchParams();
+    body.set("title", title);
+    if (shared) body.set("visibility", "public");
+    // Only idem_key matters for the replay (it is the server's dedupe key);
+    // the view parameters shape the response patch, which this path discards.
+    var url = location.origin + "/api/todos?idem_key=" + encodeURIComponent(idemKey || "");
+    // Same content type the form sends: the handler reads form values, and
+    // fetch would otherwise default a string body to text/plain (a 400).
+    queue.enqueue({
+      url: url,
+      method: "POST",
+      body: body.toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    });
+    return true;
+  };
 
   function toggle(id) {
     var el = row(id);
@@ -146,7 +199,7 @@
     if ((item.method || "").toUpperCase() !== "POST") return;
     var url;
     try {
-      url = new URL(item.url);
+      url = new URL(item.url, location.href);
     } catch (_) {
       return;
     }
