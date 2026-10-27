@@ -549,6 +549,18 @@ async function verifyOfflineTodoQueue(page, context) {
       throw new Error("offline create was not persisted in IndexedDB");
     }
 
+    // The list is NEWEST FIRST server-side (`ListVisibleTodos`: created DESC,
+    // id DESC), so the placeholder must already sit at index 0. Appending it
+    // was the reported jump: the row looked last while pending, then moved to
+    // first when the replay re-rendered the list.
+    const rowIndexOf = (t) => page.evaluate((title) => {
+      const rows = [...document.querySelectorAll("#todo-list .todo-item")];
+      return rows.findIndex((el) => el.textContent?.includes(title));
+    }, t);
+    if ((await rowIndexOf(title)) !== 0) {
+      throw new Error("the offline placeholder is not first: the list is newest-first");
+    }
+
     await context.setOffline(false);
     // Rows carry id="todo-<id>" and the container is #todo-list (which
     // itself starts with "todo-"). Scope by id prefix, exclude the list
@@ -596,6 +608,11 @@ async function verifyOfflineTodoQueue(page, context) {
         { timeout: 20000 },
       );
     }
+    // ...and the re-render must not move it: the row keeps the slot it had
+    // while pending (the bug moved it from last to first).
+    if ((await rowIndexOf(title)) !== 0) {
+      throw new Error("the replayed row moved from first: order is not stable across sync");
+    }
     await timedWait(page, "offline-queue-drain-2", async () => {
       const open = indexedDB.open("gogogo-offline-queue");
       const db = await new Promise((resolve, reject) => {
@@ -642,6 +659,67 @@ async function verifyOfflineTodoQueue(page, context) {
       if (pending !== 0) throw new Error("the offline delete never drained after reconnect");
     }
     console.log("  ✓ offline add resets UI, queues, replays; offline delete replays");
+
+    // --- a placeholder must not appear in a view that excludes it ---
+    // The list is filtered SERVER-side (status/scope/search are separate
+    // queries), so a todo created now cannot be in the "completed" tab. The
+    // placeholder used to be inserted unconditionally and float above a list
+    // it did not belong to. It now carries the same data-show contract as a
+    // server row; this phase renders the completed view and proves the
+    // placeholder is hidden while the mutation still lands.
+    const filteredTitle = `offline-filtered-${Date.now()}`;
+    // Switch while ONLINE: the server re-renders that view and merges
+    // filter=completed into the signals. The page load always starts on "all"
+    // (pages.go seeds displaySignalsWithQuery with "all", "all"), so a
+    // ?filter= URL is not a shortcut; clicking offline would leave the signal
+    // and the list disagreeing.
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/api/todos?filter=completed") && r.status() === 200,
+        { timeout: 20000 },
+      ),
+      page.getByRole("tab", { name: "Completed" }).click(),
+    ]);
+    await context.setOffline(true);
+    await timedWait(page, "offline-filtered-banner", () =>
+      document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
+    );
+    const filteredInput = page.getByPlaceholder(/what needs doing/i);
+    await filteredInput.fill(filteredTitle);
+    await filteredInput.press("Enter");
+    {
+      const deadline = Date.now() + 10000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 1 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 200));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 1) throw new Error("the filtered-view probe was not queued");
+    }
+    const filteredRow = page.locator("#todo-list .todo-item", { hasText: filteredTitle });
+    if ((await filteredRow.count()) !== 1) {
+      throw new Error("the placeholder was not inserted under a filter");
+    }
+    if (await filteredRow.isVisible()) {
+      throw new Error("the placeholder is visible in the completed view, which excludes an active todo");
+    }
+    await context.setOffline(false);
+    {
+      const deadline = Date.now() + 20000;
+      let pending = await pendingMutationCount(page);
+      while (pending !== 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending !== 0) throw new Error("the filtered-view probe never replayed");
+    }
+    // The mutation was real, not hidden: the row is in the unfiltered list.
+    await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+    await page
+      .locator("#todo-list .todo-item", { hasText: filteredTitle })
+      .first()
+      .waitFor({ state: "visible", timeout: 20000 });
+    console.log("  ✓ a queued todo hides in a view it does not belong to, and still lands");
 
     // --- a transient replay failure must be retried, not silently dropped ---
     // The `online` event fires when the OS reports a link, not when packets
@@ -922,6 +1000,19 @@ async function verifyOfflineTodoQueue(page, context) {
     );
     await titleInput.fill(foreignTitle);
     await titleInput.press("Enter");
+    // The composer drops a submit while the previous action is still in
+    // flight (`if (!$loading)`), so typing the second title before the first
+    // 204 lands queued only one item. Wait for the first to be accepted — the
+    // queue count is the observable that means "the form is free again".
+    {
+      const deadline = Date.now() + 10000;
+      let pending = await pendingMutationCount(page);
+      while (pending < 1 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 200));
+        pending = await pendingMutationCount(page);
+      }
+      if (pending < 1) throw new Error("the first scope probe was never queued");
+    }
     await titleInput.fill(staleTitle);
     await titleInput.press("Enter");
     {

@@ -32,13 +32,19 @@
     host.appendChild(empty);
   }
 
-  // create mirrors the server row's structure (classes and id scheme) so the
-  // placeholder looks like a todo and the later patch can replace it by id.
+  // create mirrors the server row's structure — classes, id scheme, the
+  // date attribute AND the visibility contract — so the placeholder looks
+  // like a todo, lands in the slot the server will use, and disappears under
+  // the same filters the server applies. Anything it does not mirror becomes
+  // a row that exists in a view it does not belong to, or moves when the
+  // replay re-renders.
   function create(url, body) {
     var host = list();
     if (!host) return;
     var params = new URLSearchParams(body || "");
     var title = params.get("title") || "";
+    // The create form names the visibility field only when it is checked.
+    var shared = params.get("visibility") === "public";
     var idem = url.searchParams.get("idem_key") || ("tmp-" + Date.now());
     if (row(idem)) return; // duplicate event (retry): one placeholder only
 
@@ -49,6 +55,23 @@
     item.id = "todo-" + idem;
     item.className = "todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors opacity-70";
     item.setAttribute("data-pending", "true");
+    // Same date contract as TodoItem, and the three client-side filters the
+    // SERVER expresses as separate queries: a todo created now is active,
+    // owned by me, and is not part of any search result.
+    //   - filter=completed  → it is active, so it does not belong;
+    //   - scope=shared      → "other people's shared rows" (ListVisibleTodos
+    //                         skips owner == me even when public);
+    //   - an active search  → the search endpoint cannot know a row that does
+    //                         not exist yet.
+    // Datastar evaluates data-show on insertion (it observes the document),
+    // so this follows the tab/scope/search state live.
+    item.dataset.created = new Date().toISOString().slice(0, 10);
+    item.setAttribute("data-show", [
+      "($createdAfter === '' || el.dataset.created >= $createdAfter)",
+      "($filter || 'all') !== 'completed'",
+      "!($searchQuery || '')",
+      "($scope || 'all') !== 'shared'",
+    ].join(" && "));
 
     var box = document.createElement("input");
     box.type = "checkbox";
@@ -56,12 +79,12 @@
     box.disabled = true;
 
     var label = document.createElement("span");
-    label.className = "flex-1";
+    label.className = "todo-title flex-1";
     label.textContent = title;
 
     var when = document.createElement("span");
-    when.className = "text-xs text-base-content/40";
-    when.textContent = "agora";
+    when.className = "todo-age text-xs text-base-content/40";
+    when.textContent = "now";
 
     var del = document.createElement("button");
     del.type = "button";
@@ -74,9 +97,20 @@
 
     item.appendChild(box);
     item.appendChild(label);
+    if (shared) {
+      var badge = document.createElement("span");
+      badge.className = "badge badge-info badge-xs";
+      badge.title = "Shared: every login sees this todo";
+      badge.textContent = "Shared";
+      item.appendChild(badge);
+    }
     item.appendChild(when);
     item.appendChild(del);
-    host.appendChild(item);
+    // The list is NEWEST FIRST (ListVisibleTodos: created DESC, id DESC), so
+    // the optimistic row belongs at the TOP. Appending it made the placeholder
+    // the last row, and the replay's re-render then moved the same todo to
+    // first — a visible jump for a row that never changed its meaning.
+    host.insertBefore(item, host.firstChild);
   }
 
   function remove(id) {
