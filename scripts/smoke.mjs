@@ -254,16 +254,17 @@ async function verifyAccountMenu(page) {
     "account menu panel has no border and no surface difference: it is invisible against the rail",
   );
 
-  // The preference block belongs to this panel (that is what it is for), and
-  // its sound setting must be an input-backed toggle, not a button wearing the
-  // component's class name.
+  // The palette list is the panel's preference (that is what the panel is
+  // for). The sound mute is NOT here: it is the one-bit shortcut in the rail
+  // brand, and it must stay an input-backed switch rather than a button
+  // wearing the component's class name.
   check(
     (await page.locator("#app-pref-theme").count()) > 0,
     "account menu has no palette list (#app-pref-theme)",
   );
   check(
-    (await page.locator("#app-rail .app-pref-setting input[type=checkbox]").count()) > 0,
-    "account menu's sound setting is not an input-backed toggle",
+    (await page.locator("#app-rail .app-sound-toggle input[data-sound-toggle]").count()) > 0,
+    "the rail's sound mute is not an input-backed switch",
   );
 
   await page.keyboard.press("Escape");

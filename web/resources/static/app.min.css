@@ -8582,12 +8582,6 @@
       --badge-color: var(--color-warning);
       --badge-fg: var(--color-warning-content);
     }
-    .toggle-sm:is([type="checkbox"]) {
-      --size: calc(var(--size-selector, 0.25rem) * 5);
-    }
-    .toggle-sm:has([type="checkbox"]) {
-      --size: calc(var(--size-selector, 0.25rem) * 5);
-    }
     .toggle-xs:is([type="checkbox"]) {
       --size: calc(var(--size-selector, 0.25rem) * 4);
     }

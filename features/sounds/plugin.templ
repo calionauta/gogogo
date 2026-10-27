@@ -1,6 +1,9 @@
 package sounds
 
-import "github.com/calionauta/gogogo/web/resources"
+import (
+	"github.com/calionauta/gogogo/internal/icon"
+	"github.com/calionauta/gogogo/web/resources"
+)
 
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
@@ -10,21 +13,30 @@ templ SoundAssets() {
 	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("cuelume.js") }></script>
 }
 
-// SoundSwitch is the mute preference: a labelled setting wants an on/off
-// control (daisyUI `toggle`), not an icon button with no word next to it.
-// `data-sound-toggle` plus the plugin's delegated `change` is the whole
-// contract, because the plugin has to work on every page, including the board,
-// which loads no Datastar bindings of its own. `role="switch"` tells assistive
-// tech it is an on/off setting; cuelume.js writes `checked` from the stored
-// preference and reads the user's flip back on `change`.
+// SoundSwitch is the mute control: a speaker icon, not a bare daisyUI toggle.
+// A switch with no word beside it sits next to the theme icon in the rail and
+// reads as part of that control; the speaker names the setting, and the glyph
+// itself carries the state — waves while sound is on, a slash while muted.
+//
+// The control is a <label> wrapping a visually hidden checkbox, so the plugin
+// contract does not move: cuelume.js still reads `checked` on `change` and
+// writes it from the stored preference. The two glyphs are CSS-switched from
+// that checkbox, the same trick ThemeToggle uses for its sun/moon pair, and
+// the label (not the clipped input) carries the tooltip cuelume.js writes.
+//
+// `role="switch"` tells assistive tech it is an on/off setting. The icon is
+// decorative: the accessible name comes from the input's aria-label.
 templ SoundSwitch() {
-	<input
-		type="checkbox"
-		class="toggle toggle-sm"
-		role="switch"
-		data-sound-toggle
-		aria-label="Sound effects"
-		checked
-		title="Mute sounds"
-	/>
+	<label class="app-sound-toggle" title="Mute sounds">
+		<input
+			type="checkbox"
+			class="sr-only"
+			role="switch"
+			data-sound-toggle
+			aria-label="Sound effects"
+			checked
+		/>
+		@icon.Icon("material-symbols:volume-up", "text-lg icon-sound-on")
+		@icon.Icon("material-symbols:volume-off", "text-lg icon-sound-off")
+	</label>
 }

@@ -11,11 +11,12 @@ at runtime.
 
 One library ships: **DaisyUI** (`app.min.css`). The palettes are `light`
 (default), `dark`, `lofi` ("Calm") and `dim` ("Zinc"), picked from the **Tema**
-list in the account panel (the identity row at the foot of the sidebar). Theme
-and sound are preferences, so they live in the account surface, not as icon
-toggles competing with navigation — the placement PostHog moved to (#19001) and
-the one Linear, Notion and Vercel keep. Visual variety comes from palettes, never
-from a second component library or a second CSS bundle: one vocabulary,
+list in the account panel (the identity row at the foot of the sidebar). The
+rail brand carries the two one-bit shortcuts every page needs, guest pages
+included: the light/dark flip and the sound mute. Both are state-bearing icon
+buttons — the glyph you see is the current state — and the palette list stays
+the one place that names all four palettes. Visual variety comes from palettes,
+never from a second component library or a second CSS bundle: one vocabulary,
 one bundle, zero forked markup.
 
 ## Themes

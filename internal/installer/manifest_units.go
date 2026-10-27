@@ -170,7 +170,7 @@ var soundsDropLines = []string{
 }
 
 // soundsPageLines is for layouts that carry the assets (in their head templ)
-// plus the mute switch. The switch sits inside a one-line templ wrapper on
+// plus the mute control. The control sits inside a one-line templ wrapper on
 // purpose — dropping that line leaves an empty wrapper that still satisfies the
 // shell's slot, whereas passing the call inline would put it on the same line as
 // the Shell invocation and dropping that line would break the call.
@@ -182,7 +182,7 @@ func soundsPageLines() []string {
 	return []string{`sounds.SoundAssets()`, soundsPanelControl, soundsImportSuffix}
 }
 
-const soundsPanelControl = `sounds.SoundSwitch()` // account-panel switch
+const soundsPanelControl = `sounds.SoundSwitch()` // the shell's mute control
 
 // modulesFile is the shell's navigation registry: one line per module, which
 // is what trim units drop when they remove a destination. The brand lives in

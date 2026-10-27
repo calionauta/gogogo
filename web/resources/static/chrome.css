@@ -165,6 +165,29 @@
 html.dark .app-theme-toggle .icon-dark-mode { display: inline-flex; }
 html.dark .app-theme-toggle .icon-light-mode { display: none; }
 
+/* sound mute — the speaker IS the state (waves when on, slash when muted).
+   The control is a <label> around a visually hidden checkbox: the input keeps
+   the plugin contract (cuelume.js reads `checked` on `change`), the label is
+   the button, and the two glyphs switch from that checkbox the way the theme
+   toggle switches sun/moon. */
+.app-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0.35rem;
+  border-radius: 0.5rem;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.app-sound-toggle:hover { background: var(--muted, var(--color-base-200, #f1f5f9)); }
+.app-sound-toggle:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.app-sound-toggle .icon-sound-on { display: none; }
+.app-sound-toggle:has(input:checked) .icon-sound-on { display: inline-flex; }
+.app-sound-toggle:has(input:checked) .icon-sound-off { display: none; }
+
 /* skin selector */
 .skin-selector { position: relative; display: inline-block; }
 .skin-toggle {
@@ -293,7 +316,8 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   text-decoration: none;
 }
 .app-rail-brand-spacer { flex: 1 1 auto; }
-.app-rail-brand .app-theme-toggle {
+.app-rail-brand .app-theme-toggle,
+.app-rail-brand .app-sound-toggle {
   width: 1.75rem;
   height: 1.75rem;
 }
@@ -524,20 +548,6 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   opacity: 0;
 }
 .app-dropdown-menu .app-pref-option.is-active .app-pref-check { opacity: 1; }
-.app-dropdown-menu .app-pref-row {
-  margin-top: 0.25rem;
-  padding: 0.25rem;
-  border-top: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
-}
-.app-pref-setting {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
 .app-menu-sep { height: 1px; margin: 0.25rem; background: var(--color-base-300); }
 
 /* ---------- The stack key: the demo panel's "what this page demonstrates" ----
