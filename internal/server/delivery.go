@@ -42,16 +42,6 @@ func buildDelivery(cfg *config.Config) *delivery.Router {
 	}
 }
 
-// mountOptionalSurfaces mounts what rides after the composition: the operator
-// console proxy and the inbox slice. One call keeps BootChi under the funlen
-// gate and gives the trim a single line to drop.
-func mountOptionalSurfaces(
-	mux *Router, a *auth.Auth, cfg *config.Config, q *dbgen.Queries,
-) *notificationshandlers.Handler {
-	mountConsoleProxy(mux, a, cfg)
-	return mountNotifications(mux, a, cfg, q)
-}
-
 // mountNotifications builds and mounts the inbox slice.
 func mountNotifications(
 	mux *Router, a *auth.Auth, cfg *config.Config, q *dbgen.Queries,

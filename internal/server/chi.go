@@ -272,8 +272,12 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	mountOnboarding(mux, onboardingH)
 	// Account is an authenticated user surface, not a trimmable demo plugin.
 	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
-	// Console and inbox mount after the composition, in one call.
-	notificationsH := mountOptionalSurfaces(mux, a, cfg, queries)
+	// Console rides the same mount-after-composition rule: the engine listener
+	// is loopback-only, so browsers reach it only through here. It stays a
+	// single core line because `gogogo new` anchors its mount below it.
+	mountConsoleProxy(mux, a, cfg)
+	// Inbox is an optional surface next to the console.
+	notificationsH := mountNotifications(mux, a, cfg, queries)
 
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced

@@ -4,4 +4,4 @@ data-bind cmdQuery
 data-on data-on:click data-on:close data-on:submit
 signals cmdQuery loading panelVisible railOpen review_confidence review_decision review_error review_phase review_rounds sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-labelledby aria-live aria-pressed
-tags a=22 aside=2 body=1 button=12 dd=4 details=1 dialog=1 div=43 dl=1 dt=4 form=2 h1=1 head=1 header=1 html=2 input=3 kbd=3 label=2 li=24 link=3 main=1 meta=2 nav=2 ol=1 p=7 path=22 script=9 section=3 span=63 strong=1 style=2 summary=1 svg=21 title=1 ul=3
+tags a=23 aside=2 body=1 button=12 dd=4 details=1 dialog=1 div=43 dl=1 dt=4 form=2 h1=1 head=1 header=1 html=2 input=3 kbd=3 label=2 li=24 link=3 main=1 meta=2 nav=2 ol=1 p=7 path=23 script=9 section=3 span=64 strong=1 style=2 summary=1 svg=22 title=1 ul=3
