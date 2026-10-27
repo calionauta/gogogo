@@ -427,6 +427,35 @@ async function verifyTodoSearch(page) {
 // `gogogo:synced` re-list may fire before the fragment's listener is wired on a
 // fresh page. Assertions about "the write landed" must read the database, not
 // the DOM; the UI assertion follows once the server is known to have it.
+// pageOutboxCount reads the PAGE-side queue (offline-outbox.js), the one that
+// holds a todo write when no worker controls the page.
+async function pageOutboxCount(page) {
+  return page.evaluate(() => new Promise((resolve) => {
+    const open = indexedDB.open("gogogo-page-outbox");
+    open.onerror = () => resolve(-1);
+    open.onsuccess = () => {
+      const db = open.result;
+      if (!db.objectStoreNames.contains("pending")) { db.close(); return resolve(0); }
+      const tx = db.transaction("pending", "readonly");
+      const c = tx.objectStore("pending").count();
+      c.onsuccess = () => { db.close(); resolve(c.result); };
+      c.onerror = () => { db.close(); resolve(-1); };
+    };
+  }));
+}
+
+async function waitPageOutbox(page, name, want, timeoutMs = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if ((await pageOutboxCount(page)) === want) {
+      console.log(`  \u23f1 ${name}: ${Date.now() - start}ms`);
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return false;
+}
+
 async function fragmentHas(page, title, wantChecked = false) {
   const res = await page.request.get(
     BASE + "/api/todos/fragment?filter=all&scope=all&q=&clientID=",
@@ -1361,19 +1390,9 @@ async function verifyOfflineTodoQueue(page, context) {
         // Wait for the replay to LAND before reloading: reloading mid-flight
         // aborts the fetch and the new page has to redo it (correct, but the
         // assertion below would then race the second pass).
-        await timedWait(bare, "offline-page-toggle-drained", () =>
-          new Promise((resolve) => {
-            const open = indexedDB.open("gogogo-page-outbox");
-            open.onerror = () => resolve(false);
-            open.onsuccess = () => {
-              const db = open.result;
-              if (!db.objectStoreNames.contains("pending")) { db.close(); return resolve(true); }
-              const tx = db.transaction("pending", "readonly");
-              const c = tx.objectStore("pending").count();
-              c.onsuccess = () => { db.close(); resolve(c.result === 0); };
-              c.onerror = () => { db.close(); resolve(false); };
-            };
-          }), null, { timeout: 20000 });
+        if (!(await waitPageOutbox(bare, "offline-page-toggle-drained", 0))) {
+          throw new Error("the queued toggle never left the page outbox");
+        }
         if (!(await waitFragment(bare, "offline-page-toggle-landed", localTitle, true))) {
           const diag = {
             banner: await bare.locator("#offline-banner-text").textContent(),
@@ -1418,11 +1437,17 @@ async function verifyOfflineTodoQueue(page, context) {
         await noSw.setOffline(true);
         await bare.getByRole("button", { name: "Clear my completed" }).click();
         await bare.locator("#confirm-clear-completed").getByRole("button", { name: "Clear completed" }).click();
-        await bare.locator("#todo-list .todo-item", { hasText: keepTitle }).waitFor({ state: "visible", timeout: 10000 });
-        if ((await bare.locator("#todo-list .todo-item", { hasText: localTitle }).count()) !== 0) {
-          throw new Error("a queued clear-completed left the completed row behind");
+        // The optimistic removal follows the enqueue's IndexedDB write (the
+        // event is dispatched when it commits), so wait for the row to detach
+        // instead of sampling the list in the same tick.
+        await bare.locator("#todo-list .todo-item", { hasText: localTitle }).waitFor({ state: "detached", timeout: 10000 });
+        if ((await bare.locator("#todo-list .todo-item", { hasText: keepTitle }).count()) !== 1) {
+          throw new Error("a queued clear-completed removed an active row");
         }
         await noSw.setOffline(false);
+        if (!(await waitPageOutbox(bare, "offline-page-clear-drained", 0))) {
+          throw new Error("the queued clear-completed never left the page outbox");
+        }
         console.log("  ✓ a queued toggle replays, and clear-completed keeps active rows");
 
         // --- the queue survives the page: a create queued earlier drains on
@@ -1433,11 +1458,10 @@ async function verifyOfflineTodoQueue(page, context) {
         const reloadInput = bare.getByPlaceholder(/what needs doing/i);
         await reloadInput.fill(reloadTitle);
         await reloadInput.press("Enter");
-        try {
-          await timedWait(bare, "offline-page-reload-queued", () =>
-            document.querySelector("#offline-banner-text")?.textContent?.includes("queued in this tab"),
-          );
-        } catch {
+        // Count the queue, not the banner: the banner text can still be the
+        // one from the previous queued write, which would let the close race
+        // this create's IndexedDB commit.
+        if (!(await waitPageOutbox(bare, "offline-page-reload-queued", 1))) {
           const copy = await bare.locator("#offline-banner-text").textContent();
           throw new Error(`a write made with no worker was not queued before the reload; banner: ${JSON.stringify(copy)}`);
         }
