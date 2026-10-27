@@ -4,10 +4,18 @@
 // Two modes, controlled by the offlineSync arg:
 //
 //   - offlineSync=true  (default deployment, OFFLINE_SYNC_ENABLED unset)
-//       Three states: online (hidden), syncing (info), offline (warning,
-//       "changes are queued and will sync when you reconnect"). The SW
-//       posts {sync-start|sync-end|sync-error} messages that drive the
+//       States: online (hidden), syncing (info), queued / needs-auth (warning),
+//       offline (warning), stale (error). The SW posts
+//       {sync-start|sync-end|sync-error|sync-auth} messages that drive the
 //       state — see web/resources/static/sw.js.
+//
+//       The offline copy is honest about WHO is listening: "changes are queued"
+//       only when a Service Worker controls this page. With no controller the
+//       banner says the queue is not active and asks for a reload, because a
+//       write made now would fail. The reload also answers a second failure
+//       mode: a worker older than the page (it keeps the policy it imported at
+//       install time), which the policy-version handshake detects and shows as
+//       "stale".
 //
 //   - offlineSync=false (OFFLINE_SYNC_ENABLED=false)
 //       Two states: online (hidden), offline (warning, honest copy
@@ -63,6 +71,11 @@ templ OfflineBanner(offlineSync bool, userEmail string) {
 		#offline-banner.is-offline {
 				display: block;
 				background-color: #f59e0b;
+				color: #ffffff;
+			}
+		#offline-banner.is-stale {
+				display: block;
+				background-color: #dc2626;
 				color: #ffffff;
 			}
 	</style>

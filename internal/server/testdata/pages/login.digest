@@ -4,4 +4,4 @@ data-bind
 data-on 
 signals theme
 aria 
-tags body=1 button=4 code=10 details=4 div=15 form=4 h1=1 head=1 html=2 input=11 label=2 link=3 meta=2 p=6 script=5 span=6 strong=4 summary=4 title=1
+tags body=1 button=4 code=10 details=4 div=15 form=4 h1=1 head=1 html=2 input=11 label=2 link=3 meta=2 p=6 script=6 span=6 strong=4 summary=4 title=1

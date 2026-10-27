@@ -224,7 +224,14 @@ The SW knows nothing about feature markup: it reports the queued request and
 answers `204`, and the FEATURE renders its optimistic state. For todo that is
 `web/resources/static/todo-offline.js` (row, toggle, delete, clear); a second
 feature registers its own listener for `gogogo:queued` instead of editing the
-worker.
+worker. The placeholder is inserted where the server list would put it — the
+list is newest first (`created DESC, id DESC`) — so the replay's re-render
+keeps the row in its slot; appending it made the same todo jump from last to
+first once the server answered. It also carries the row contract the server
+expresses as separate queries (`data-created` plus a `data-show` guard): a todo
+created now is active, owned by you and absent from any search result, so the
+placeholder hides under the completed tab, `scope=shared` and an active search
+instead of floating above a list it does not belong to.
 
 A queue write that cannot complete is NOT a success. The worker bounds the
 IndexedDB OPEN with `IDB_OPEN_TIMEOUT_MS` (and gives an `onblocked` upgrade a
@@ -246,6 +253,16 @@ existing registration keeps intercepting `/api/*` and answering `204` for a
 page that renders neither the bridge nor the optimistic renderer, which is the
 same stuck-spinner failure. `offline-banner.js` unregisters it and clears the
 caches it owns.
+
+The banner states only what is true. `offline-banner.js` says "changes are
+queued" ONLY when a Service Worker controls the page: with no controller
+(worker blocked, registration evicted, a browser that refused it) it says the
+queue is not active and asks for a reload, because a write made now fails. It
+also compares the policy version it loaded with the one the worker imported at
+install time (`POLICY_VERSION`, the file's own fingerprint, pinned by
+`TestOfflinePolicyVersionMatchesItsDigest`): a mismatch means the browser runs
+a worker from an older deploy, and the banner says "out of date — reload"
+instead of promising a queue the worker may not implement.
 
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the

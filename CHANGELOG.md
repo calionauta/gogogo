@@ -15,6 +15,15 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.58.0 (2026-10-27)
+
+## What's Changed
+* feat(site): make the Descent page the official landing by @calionauta in https://github.com/calionauta/gogogo/pull/312
+* fix(todo): keep the offline placeholder in the server's slot by @calionauta in https://github.com/calionauta/gogogo/pull/314
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.57.2...v0.58.0
+
 ## 0.57.2 (2026-10-26)
 
 ## What's Changed

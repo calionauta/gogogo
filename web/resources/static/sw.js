@@ -529,6 +529,16 @@ self.addEventListener("message", function (e) {
     })());
     return;
   }
+  if (data.type === "policy-version") {
+    // The page loaded this file itself; compare its version with the copy this
+    // worker imported at install time. They differ when the browser is still
+    // running a worker from an older deploy, which is exactly when the page
+    // must not promise a queue the worker may not implement.
+    e.waitUntil(notifyClients("policy-version", {
+      version: (typeof GogogoOffline !== "undefined" && GogogoOffline.POLICY_VERSION) || ""
+    }));
+    return;
+  }
   if (data.type === "queue-status") {
     // The PAGE never opens the queue database. It asks the owner of the
     // queue (this worker) for the count, so the schema lives in exactly one
