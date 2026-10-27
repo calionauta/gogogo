@@ -485,7 +485,7 @@ jobs:
     if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--branches--')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Proposed version stays inside 0.x
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
