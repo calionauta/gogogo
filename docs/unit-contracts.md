@@ -12,7 +12,7 @@ of the file you are about to touch.
 
 ## Registry at a glance
 
-- **Units:** 37 — 13 core · 15 plugin · 9 feature
+- **Units:** 39 — 13 core · 16 plugin · 10 feature
 - **Offered to the installer:** 11
 - **Source of truth:** `internal/capabilities/registry.go`; this doc is
   regenerated from it, so the counts above cannot drift.
@@ -177,7 +177,7 @@ AI credits + BYOK ledger (ai-credits)
 
 durable workflows (DagNats over JetStream) + onboarding worker
 
-- **Owned:** `internal/dagnats`, `features/onboarding`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/start_nats_test.go`
+- **Owned:** `internal/dagnats`, `features/onboarding`, `internal/nats/single_nats_test.go`, `cmd/web/dagnats.go`, `cmd/web/dagnats_reminder_test.go`, `cmd/web/start_nats_test.go`
 - **Routes:** `/api/onboarding/start`
 - **Runtime off:** `DAGNATS_ENABLED=false`
 - **UI signal:** `todo.Signals.DagNatsEnabled`
@@ -192,6 +192,15 @@ Datastar rendering helpers
 - **Owned:** `internal/datastar`
 - **Trim:** manual (no installer unit)
 - **Why that class:** Every .templ page renders through it; deletion is manual.
+
+## `delivery` — plugin
+
+delivery transport seam: channels (email today) carried by a provider (smtp or an external notify engine)
+
+- **Owned:** `internal/delivery`, `internal/server/delivery.go`
+- **Runtime off:** `DELIVERY_TRANSPORT=off`
+- **Trim:** manual (no installer unit)
+- **Note:** Without it the inbox still works: the form drops the external channel checkbox, and a delivery that asked for one is recorded skipped/provider. The template ships in_app and email only; other channel values are data a provider may know, not a gogogo surface. in_app is never a sender, which keeps one owner for the inbox.
 
 ## `genkit` — plugin
 
@@ -320,6 +329,16 @@ shared plain-text notes (server-owned Loro Text + SSE)
 - **Depends on:** collab, sounds
 - **Trim:** manual (no installer unit)
 - **Note:** Manual removal (or trim the whiteboard unit, which covers whiteboard+collab+notes): delete the dir + the notes roots in buildChiMux (internal/server/chi.go), remove the Notes sidebar entry in internal/ui/modules.go, and remove this entry.
+
+## `notifications` — feature
+
+inbox + durable reminders (DagNats sleep → delivery row) + email transport seam
+
+- **Owned:** `features/notifications`
+- **Routes:** `/api/notifications/read-all`, `/api/notifications/remind`, `/api/notifications/stream`, `/api/notifications/{id}/read`, `/notifications`
+- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CreateNotification`, `dbgen.ListNotificationsForOwner`, `dbgen.MarkAllNotificationsRead`, `dbgen.MarkNotificationRead`, `dbgen.SetNotificationStatus`
+- **Trim:** manual (no installer unit)
+- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` plugin.
 
 ## `review` — feature
 

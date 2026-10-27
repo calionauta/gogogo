@@ -25,19 +25,14 @@ func newHandlerSource(name, module string) string {
 	).Replace(newHandlerTemplate)
 }
 
-// newPageSource renders features/<name>/components/page.templ. Sounds is
-// optional because a scaffolded project may have trimmed the sounds unit;
-// importing a missing package would fail the proof build.
-func newPageSource(name, module string, withSounds bool) string {
-	src := strings.NewReplacer(
+// newPageSource renders features/<name>/components/page.templ. The page renders
+// a body inside internal/ui.Shell, so it imports no feature package and needs
+// no trimmed-tree variant: the shell owns the sidebar, assets and sound toggle.
+func newPageSource(name, module string) string {
+	return strings.NewReplacer(
 		"{{name}}", name,
 		"{{module}}", module,
 	).Replace(newPageTemplate)
-	if withSounds {
-		return src
-	}
-	src = strings.ReplaceAll(src, "\t\""+module+"/features/sounds\"\n", "")
-	return strings.ReplaceAll(src, "\t\t\t@sounds.SoundAssets()\n", "")
 }
 
 // editChiGo adds the feature to the composition root: one import and one
@@ -77,7 +72,7 @@ const chiBootAnchor = "\tmountConsoleProxy(mux, a, cfg)"
 // re-states a URL.
 func newMountBlock(name string) string {
 	return "\t// " + name + ": scaffolded by `gogogo new`; delete these lines to unmount.\n" +
-		"\t" + name + "H := " + name + "handlers.NewHandler(a)\n" +
+		"\t" + name + "H := " + name + "handlers.NewHandler(a, cfg)\n" +
 		"\tmux.MountFeature(\"" + name + "\", " + name + "H.Routes())\n"
 }
 
@@ -167,6 +162,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"{{module}}/config"
 	"{{module}}/features/{{name}}/components"
 	"{{module}}/internal/auth"
 )
@@ -174,15 +170,19 @@ import (
 // Handler serves the {{name}} feature on chi.
 type Handler struct {
 	auth *auth.Auth
+	cfg  *config.Config
 }
 
 // NewHandler builds the chi handler. Nil deps panic: wire errors surface at
 // boot, not per request.
-func NewHandler(a *auth.Auth) *Handler {
+func NewHandler(a *auth.Auth, cfg *config.Config) *Handler {
 	if a == nil {
 		panic("{{name}} chi: NewHandler with nil auth")
 	}
-	return &Handler{auth: a}
+	if cfg == nil {
+		panic("{{name}} chi: NewHandler with nil config")
+	}
+	return &Handler{auth: a, cfg: cfg}
 }
 
 // Routes returns the chi router with the page and the JSON probe.
@@ -207,7 +207,7 @@ func (h *Handler) handlePage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_ = components.Page(email, role).Render(r.Context(), w)
+	_ = components.Page(email, role, h.cfg.BuildLabel, h.cfg.BuildCommit).Render(r.Context(), w)
 }
 
 // handlePing is the cheapest end-to-end check that the route is mounted.
@@ -239,37 +239,32 @@ func (h *Handler) handlePing(w http.ResponseWriter, r *http.Request) {
 const newPageTemplate = `// SCOPE:feature — {{name}} page (scaffolded by ` + "`gogogo new`" + `)
 package components
 
-import (
-	"{{module}}/features/authviews"
-	"{{module}}/features/sounds"
-	"{{module}}/web/resources"
-)
+import "{{module}}/internal/ui"
 
-// Page renders the {{name}} page. The handler redirects guests before
-// rendering, so userEmail/userRole are the signed-in path; the navbar uses
-// the role for its admin-only links.
-templ Page(userEmail string, userRole string) {
-	<!DOCTYPE html>
-	<html lang="en" { authviews.ThemeRootAttrs(ctx, "")... }>
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{{name}}</title>
-			<link rel="stylesheet" href={ resources.StaticURL("app.min.css") }/>
-			<link rel="stylesheet" href={ resources.StaticURL("app.css") }/>
-			@authviews.ThemeHead()
-			// Theme + Datastar are the two core scripts every page loads.
-			<script defer type="module" src={ resources.StaticURL("theme.js") }></script>
-			<script defer type="module" src={ resources.StaticURL("datastar.js") }></script>
-			@sounds.SoundAssets()
-		</head>
-		<body class="min-h-screen bg-base-100">
-			@authviews.Navbar(userEmail, userRole, "{{name}}", "", "")
-			<main class="container mx-auto p-4">
-				<h1 class="text-2xl font-bold">{{name}}</h1>
+// Page renders the {{name}} page inside the shared shell. The handler
+// redirects guests before rendering, so email/role are the signed-in path;
+// the shell owns the sidebar, header, assets and theme scripts.
+templ Page(email string, role string, buildLabel string, buildCommit string) {
+	@ui.Shell(ui.Data{
+		Title:       "{{name}} — gogogo",
+		Module:      "{{name}}",
+		Heading:     "{{name}}",
+		Context:     "scaffolded",
+		Email:       email,
+		Role:        role,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+	}, nil, nil, nil, body())
+}
+
+templ body() {
+	<div class="ui-page ui-stack">
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<h2 class="ui-title">{{name}}</h2>
 				<p class="opacity-70">Edit features/{{name}}/components/page.templ and reload.</p>
-			</main>
-		</body>
-	</html>
+			</div>
+		</section>
+	</div>
 }
 `

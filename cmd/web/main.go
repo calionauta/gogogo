@@ -97,6 +97,11 @@ func run() error {
 	cfg := config.Get()
 	cfg.BuildLabel = Version
 	cfg.BuildCommit = ShortCommit()
+	// Fail the boot on a transport that cannot work (missing notify endpoint,
+	// unknown DELIVERY_TRANSPORT value) instead of the first delivery failing.
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 
 	// Boot the engine-free stack first: it owns the todo handler the
 	// DagNats onboarding worker writes through, and DagNats must be up
@@ -115,7 +120,7 @@ func run() error {
 	// DagNats owns the embedded NATS on :4222 and must boot before
 	// startNATS so the realtime broadcaster can attach to it. It's always
 	// compiled; when DAGNATS_ENABLED=false it no-ops.
-	startDagNats(lifecycleCtx, cfg, stack.TodoHandler)
+	startDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)
 	defer shutdownDagNats()
 
 	// GoAkt owns the room actor system (standalone, no network). It's

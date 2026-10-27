@@ -56,7 +56,7 @@
 
 <section class="hero">
   <div class="hero-copy">
-    <p class="kicker">Full-stack Go · one binary · zero external services</p>
+    <p class="kicker">Full-stack Go · one binary · nothing to operate</p>
     <h1>Your stack is ready.<br><em>Summon</em> your AI agent <span class="nowrap">to build.</span></h1>
     <p class="hero-sub">Not a framework. One binary.</p>
     <div class="hero-ctas">
@@ -326,7 +326,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Trim plan</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">15 of 15 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">16 of 16 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -401,6 +401,12 @@
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Datastar<span class="plan-tag">Go seam</span></span><span class="plan-desc">Datastar rendering helpers</span></span>
           <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="delivery">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">delivery</span><span class="plan-desc">delivery transport seam: channels (email today) carried by a provider (smtp or an external notify engine)</span></span>
+          <span class="plan-env">DELIVERY_TRANSPORT=off</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="genkit">
@@ -613,7 +619,7 @@
         <div class="build-head"><span class="prompt">$</span> go build ./cmd/web <span class="build-ok">✓</span></div>
         <div class="binary">
           <span class="binary-mark">gogogo</span>
-          <span class="binary-meta">one binary · no docker · no external services</span>
+          <span class="binary-meta">one binary · no docker · no services to run</span>
         </div>
         <div class="shells" aria-label="Delivery targets">
           <span class="label">Ships as</span>

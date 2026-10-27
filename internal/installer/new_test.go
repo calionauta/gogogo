@@ -59,7 +59,7 @@ func TestEditChiGoAddsWiring(t *testing.T) {
 	}
 	for _, want := range []string{
 		`reportshandlers "github.com/acme/app/features/reports/handlers"`,
-		"reportsH := reportshandlers.NewHandler(a)",
+		"reportsH := reportshandlers.NewHandler(a, cfg)",
 		`mux.MountFeature("reports", reportsH.Routes())`,
 	} {
 		if !strings.Contains(out, want) {
@@ -149,23 +149,23 @@ func TestAppendPolicyRows(t *testing.T) {
 	}
 }
 
-// TestNewSourcesParseAndDropSounds covers both template variants: the handler
-// must parse, and a tree without the sounds unit must not import it.
-func TestNewSourcesParseAndDropSounds(t *testing.T) {
+// TestNewSourcesParseAndUseTheShell covers the templates: the handler must
+// parse, and the page must render through internal/ui.Shell without importing a
+// feature package. The shell owns the sidebar, assets and sound toggle, so a
+// scaffolded page has no authviews/sounds variant to trim.
+func TestNewSourcesParseAndUseTheShell(t *testing.T) {
 	handler := newHandlerSource("reports", "github.com/acme/app")
 	if _, err := parser.ParseFile(token.NewFileSet(), "chi.go", handler, parser.AllErrors); err != nil {
 		t.Fatalf("handler template does not parse: %v\n%s", err, handler)
 	}
-	withSounds := newPageSource("reports", "github.com/acme/app", true)
-	if !strings.Contains(withSounds, "features/sounds") || !strings.Contains(withSounds, "@sounds.SoundAssets()") {
-		t.Errorf("page with sounds is missing its imports:\n%s", withSounds)
+	page := newPageSource("reports", "github.com/acme/app")
+	if !strings.Contains(page, `"github.com/acme/app/internal/ui"`) || !strings.Contains(page, "@ui.Shell(") {
+		t.Errorf("page does not render through internal/ui.Shell:\n%s", page)
 	}
-	without := newPageSource("reports", "github.com/acme/app", false)
-	if strings.Contains(without, "features/sounds") || strings.Contains(without, "@sounds.") {
-		t.Errorf("page without sounds still references the package:\n%s", without)
-	}
-	if !strings.Contains(without, `"github.com/acme/app/features/authviews"`) {
-		t.Errorf("page lost the authviews import (the shared navbar):\n%s", without)
+	for _, forbidden := range []string{"features/authviews", "features/sounds", "@sounds."} {
+		if strings.Contains(page, forbidden) {
+			t.Errorf("page imports %q; the shell owns it:\n%s", forbidden, page)
+		}
 	}
 }
 

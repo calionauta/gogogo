@@ -30,6 +30,8 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | `REQUIRE_EMAIL_VERIFICATION` | `false` | Block password login until the address confirms the emailed verification link. OAuth-verified addresses bypass it. |
 | `SESSION_IDLE_TIMEOUT` | `0` | Inactivity window (e.g. `30m`, `12h`). `0` keeps the absolute seven-day session TTL only. |
 | `SMTP_ADDR` / `SMTP_FROM` | unset | SMTP relay and envelope sender for verification/reset mail, e.g. `smtp.example.com:587` / `no-reply@example.com`. Empty leaves those endpoints closed (503). |
+| `DELIVERY_TRANSPORT` | `off` | Transport for the notifications feature's email channel: `off`, `smtp` or `notify`. `smtp` reuses `SMTP_ADDR`/`SMTP_FROM`; `notify` needs `NOTIFY_URL` and `NOTIFY_API_KEY`. An impossible combination fails the boot. |
+| `NOTIFY_URL` / `NOTIFY_API_KEY` | unset | External [notify](https://github.com/danmestas/notify) endpoint used when `DELIVERY_TRANSPORT=notify`. The workflow `gogogo-delivery` must exist there with one email step. See [Notifications](notifications.md). |
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | unset | Optional SMTP AUTH credentials; keep them in the age-encrypted secrets file, never in git. |
 | `TURSO_DB_PATH` | `data/app.db` | Turso Database file for the flat stack (used when `TURSO_DATABASE_URL` is empty) |
 | `CHI_ADDR` | unset | Listen-address override for the flat stack. Unset = `HOST:PORT`. `cmd/web` honors it since the flat-stack port (it used to be the staged-seam flag); `cmd/desktop` sets it itself from `HOST`/`PORT` |

@@ -279,7 +279,7 @@ func TestStripDagnatsMainKeepsStackWired(t *testing.T) {
 	give := "\tdefer stopLifecycle()\n" +
 		"\n" +
 		"\t// DagNats owns the embedded NATS on :4222 and must boot before\n" +
-		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +
+		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
 		"\tstack.AttachJetStream(lifecycleCtx, js)\n"

@@ -79,7 +79,7 @@ a native kernel, anything else needs a written case — the decision is made
 calmly, once, not re-derived by every agent under deadline pressure. The
 procedure and the removal plan are in [exception-to-go](exception-to-go.md).
 
-Install it, ask the LLM to build, no external services. Core is opinionated;
+Install it, ask the LLM to build, no infrastructure to run. Core is opinionated;
 plugins and features strip away at install. The live capability list is in
 [features](features.md).
 

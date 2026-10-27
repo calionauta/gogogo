@@ -207,10 +207,6 @@ type newPlan struct {
 	// module is the target project's module path (read from go.mod): every
 	// real checkout is renamed, so generated imports must use it.
 	module string
-	// sounds records whether the target tree still ships features/sounds;
-	// a trimmed tree gets a page without the sound import (importing a
-	// missing package would fail the proof build).
-	sounds bool
 }
 
 // buildNewPlan validates the checkout and prepares the edited file contents.
@@ -236,8 +232,6 @@ func buildNewPlan(opt newOptions) (newPlan, error) {
 		return plan, &ExitError{code: 1, msg: "read module path from go.mod: " + modErr.Error()}
 	}
 	plan.module = module
-	_, soundsErr := os.Stat(filepath.Join(root, "features", "sounds"))
-	plan.sounds = soundsErr == nil
 	targets, err := readNewTargets(root, plan.paths)
 	if err != nil {
 		return plan, err
@@ -326,7 +320,8 @@ func printNewPlan(w io.Writer, opt newOptions, plan newPlan) error {
 // newNextSteps is what the scaffold deliberately leaves to the author.
 func newNextSteps(name string) []string {
 	return []string{
-		"Add a navbar link in features/authviews/navbar.templ (trim rules strip it for bundled units).",
+		"Add a sidebar entry in internal/ui/modules.go and vendor its icon in " +
+			"internal/icon/icons.go (the shell has no navbar).",
 		"Replace the page body in features/" + name + "/components/page.templ; run `make css` for new Tailwind classes.",
 		"Read docs/unit-contracts.md for the routes/state your unit now owns.",
 	}
@@ -348,7 +343,7 @@ func applyNew(ctx context.Context, opt newOptions, plan newPlan, stdout io.Write
 	}
 	files := map[string]string{
 		plan.paths.handler: newHandlerSource(opt.name, plan.module),
-		plan.paths.page:    newPageSource(opt.name, plan.module, plan.sounds),
+		plan.paths.page:    newPageSource(opt.name, plan.module),
 	}
 	for rel, src := range files {
 		full := filepath.Join(root, filepath.FromSlash(rel))

@@ -29,6 +29,7 @@ individual notes.
 | [Auth libraries](auth-libraries-2026-10.md) | 2026-10-21 | limen against owning argon2id and sessions: schema ownership, version skew, and the trigger that flips the choice |
 | [Supply-chain scanning](supply-chain-scanning-2026.md) | 2026-10-24 | Syft+Grype vs Trivy vs Docker Scout vs OSV-Scanner for SBOM and image CVEs; SBOM-first, pinned actions, fixable-high gate |
 | [Native kernel PoCs](native-kernels-2026-10.md) | 2026-10-25 | FNV-1a tie (Go wins) vs grayscale survivor (Zig 2.2x, SIMD verbs gap), loader prices, Rust/Odin probes; procedure held, no threshold change |
+| [notify](notify-2026-10.md) | 2026-10-27 | a delivery engine adopted, embedded or mined for its contract: why the inbox stays local, delivery becomes a per-channel seam, and the DagNats engine is never shared |
 
 ## Decisions and rationale
 

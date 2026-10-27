@@ -5,6 +5,11 @@ database, no Redis, no queue service, no CDN, no JS build step. Turso
 (embedded Turso Database) provides the database, owned argon2id code provides auth,
 and Datastar delivers reactive UI over server-rendered HTML and SSE.
 
+That list is the point: the template replaces the **infrastructure you would
+have to operate**. Providers you choose to call — an LLM, a payment API, an
+SMTP server, an OAuth identity provider — stay external by nature, sit behind a
+config switch, and never block a fresh clone from booting.
+
 Built to be useful: every decision favors practical outcomes over abstract
 ideals. The stack optimizes for simplicity, consistency, and shipping software
 with minimal friction.
@@ -36,7 +41,7 @@ listed as removable units rather than hidden behind an API.
 ## Who it is for
 
 - **You who get tired of configuring the same stack over and over.**
-- **You who want everything in one binary, no external dependencies, no
+- **You who want everything in one binary, no services to run, no
   Docker required.** One self-contained file, environment-independent.
 - **You who need offline-first resilience.** A Service Worker + Background Sync
   queue (web) and a NATS Leaf Node (desktop) let clients keep working without

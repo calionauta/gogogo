@@ -57,6 +57,9 @@ var ownerFiles = []string{
 	"config/config.go",
 	"config/auth_env.go",
 	"config/review.go",
+	// Delivery holds NOTIFY_API_KEY: an external transport's key, read once
+	// at load and never written back (the same rule as the entries above).
+	"config/delivery_env.go",
 	// The age loader: decrypts ~/.secrets/*.env.age into the process
 	// env and writes nothing back to disk.
 	"internal/secrets/secrets.go",

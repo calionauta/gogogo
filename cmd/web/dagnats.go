@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/danmestas/dagnats/worker"
 
 	"github.com/calionauta/gogogo/config"
+	notificationhandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	appdagnats "github.com/calionauta/gogogo/internal/dagnats"
+	"github.com/calionauta/gogogo/internal/delivery"
 )
 
 // onboardingTodoCreator is what the DagNats onboarding worker needs from
@@ -19,6 +22,71 @@ import (
 // from a particular stack.
 type onboardingTodoCreator interface {
 	CreateTodoForOnboarding(ctx context.Context, title, owner string) error
+}
+
+// reminderDeliverer is what the engine workers need from the notifications
+// slice: write one delivery row for an owner. The row carries the dedupe
+// guard, so a retried step is a no-op.
+type reminderDeliverer interface {
+	Deliver(ctx context.Context, d notificationhandlers.Delivery) error
+}
+
+// reminderService is the notifications slice the engine wires at boot: the
+// deliverer plus the setter that hands it the workflow client. The setter keeps
+// the feature free of an internal/dagnats import, so trimming the engine leaves
+// no dangling import and the feature degrades to "no reminder form".
+type reminderService interface {
+	reminderDeliverer
+	SetRunStarter(r notificationhandlers.RunStarter)
+}
+
+// reminderDelivery reads the run payload the seed step forwarded and builds the
+// delivery the shared path expects. It is a named function so startDagNats stays
+// under the funlen gate and the JSON shape lives in one place.
+func reminderDelivery(raw []byte) (notificationhandlers.Delivery, error) {
+	var in struct {
+		Seed *struct {
+			User string `json:"user"`
+			//nolint:tagliatelle // the workflow input uses snake_case.
+			TransactionID string            `json:"transaction_id"`
+			Body          string            `json:"body"`
+			Channels      []string          `json:"channels"`
+			Recipients    map[string]string `json:"recipients"`
+		} `json:"seed"`
+	}
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return notificationhandlers.Delivery{}, err
+	}
+	if in.Seed == nil {
+		return notificationhandlers.Delivery{}, errors.New("dagnats: reminder input has no seed")
+	}
+	channels := make([]delivery.Channel, 0, len(in.Seed.Channels))
+	for _, ch := range in.Seed.Channels {
+		channels = append(channels, delivery.Channel(ch))
+	}
+	recipients := make(map[delivery.Channel]string, len(in.Seed.Recipients))
+	for ch, addr := range in.Seed.Recipients {
+		recipients[delivery.Channel(ch)] = addr
+	}
+	return notificationhandlers.Delivery{
+		Owner:         in.Seed.User,
+		TransactionID: in.Seed.TransactionID,
+		Workflow:      "reminder",
+		Subject:       "Reminder",
+		Body:          in.Seed.Body,
+		Channels:      channels,
+		Recipients:    recipients,
+	}, nil
+}
+
+// natsPort is the port the engine binds and the broadcaster dials. It reads
+// the config value so DAGNATS_NATS_PORT is honored on both sides; the constant
+// is the fallback when a zero value slipped through (tests, hand-built cfg).
+func natsPort(cfg *config.Config) int {
+	if cfg.DagNats.NATSPort > 0 {
+		return cfg.DagNats.NATSPort
+	}
+	return dagnatsNATSPort
 }
 
 // waitStep waits for d, returning early if ctx is cancelled first. Used for the
@@ -106,7 +174,12 @@ func createOnboardingTodo(ctx context.Context, todoH onboardingTodoCreator, step
 var dagNatsServer *server.Server
 
 const (
-	dagnatsNATSPort = 4222     // fixed conventional port — shared with the realtime broadcaster
+	// dagnatsNATSPort is the default NATS port the engine owns. It is only a
+	// fallback: DAGNATS_NATS_PORT is what config parses, and the engine and
+	// the broadcaster must agree — using the constant on both sides made the
+	// env var silently inert (the engine bound 4222 while the broadcaster
+	// dialed the configured port).
+	dagnatsNATSPort = 4222
 	dagnatsMaxStore = 10 << 30 // 10 GiB JetStream store cap (required by dagnats)
 )
 
@@ -124,16 +197,20 @@ const (
 // is ConnectExisting (called by startNATS right after), which uses
 // nats.RetryOnFailedConnect to block until the engine's NATS is
 // reachable — no polling loop in our code.
-func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoCreator) {
+func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoCreator, notifier reminderService) {
 	lifecycleCtx := ctx
 	if !cfg.DagNats.Enabled {
 		return
 	}
 
 	srv := appdagnats.NewServer(cfg.DagNats.StoreDir, cfg.DagNats.HTTPAddr,
-		dagnatsNATSPort, dagnatsMaxStore,
+		natsPort(cfg), dagnatsMaxStore,
 	)
 	dagNatsServer = srv
+	// The feature gets the workflow client here, where the engine lives, so
+	// features/notifications never imports internal/dagnats. A trimmed engine
+	// therefore leaves the inbox working and the reminder form hidden.
+	notifier.SetRunStarter(appdagnats.NewClient("http://" + cfg.DagNats.HTTPAddr))
 
 	// Register the onboarding worker handlers on the same NATS the engine
 	// uses. Handlers are plain functions keyed by task NAME (string), so
@@ -187,14 +264,59 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 	})
 	shim.Handle("onboarding-finalize", func(ctx worker.TaskContext) error {
 		slog.Info("dagnats: onboarding finalized")
+		// The same delivery path the reminder uses: onboarding ends with one
+		// inbox message, so the template has one answer for "tell the user",
+		// not one per workflow. The transaction id makes a retried finalize a
+		// no-op instead of a second welcome.
+		var in struct {
+			User string `json:"user"`
+		}
+		if err := json.Unmarshal(ctx.Input(), &in); err != nil {
+			return ctx.Fail(err)
+		}
+		if in.User != "" {
+			stepCtx := ctxForStep(lifecycleCtx, ctx)
+			if derr := notifier.Deliver(stepCtx, notificationhandlers.Delivery{
+				Owner:         in.User,
+				TransactionID: "onboarding-welcome:" + in.User,
+				Workflow:      "onboarding",
+				Subject:       "Onboarding complete",
+				Body:          "Your example todos are in the list. This message proves the shared delivery path.",
+			}); derr != nil {
+				slog.Error("dagnats: onboarding welcome failed", "error", derr)
+				return ctx.Fail(derr)
+			}
+		}
+		return ctx.Complete(ctx.Input())
+	})
+	// notification-deliver is the last step of the reminder workflow: the
+	// sleep step before it holds the delay, so this runs at the moment the
+	// user asked for. The payload rides the `seed` dependency (a sleep step
+	// has no output), and a duplicate delivery is a no-op (the row is deduped
+	// by owner + transaction + channel).
+	shim.Handle("reminder-seed", func(ctx worker.TaskContext) error {
+		// Root step: forward the run input so the deliver step can read it
+		// after the wait. Completing with an empty payload would make the
+		// delay lose the reminder.
+		return ctx.Complete(ctx.Input())
+	})
+	shim.Handle("notification-deliver", func(ctx worker.TaskContext) error {
+		d, derr := reminderDelivery(ctx.Input())
+		if derr != nil {
+			return ctx.Fail(derr)
+		}
+		if derr := notifier.Deliver(ctxForStep(lifecycleCtx, ctx), d); derr != nil {
+			slog.Error("dagnats: deliver reminder failed", "error", derr)
+			return ctx.Fail(derr)
+		}
 		return ctx.Complete(ctx.Input())
 	})
 
-	// Register the onboarding workflow definition idempotently so it is
-	// always in sync with this binary. The REST API only comes up once
-	// srv.Run() binds the port, so do it in a retry loop that waits for
-	// the API to be reachable.
-	go registerOnboardingWorkflowWithRetry(ctx, cfg.DagNats.HTTPAddr)
+	// Register every workflow definition this binary owns, idempotently, so
+	// they stay in sync with the code. The REST API only comes up once
+	// srv.Run() binds the port, so do it in a retry loop that waits for the
+	// API to be reachable.
+	go registerWorkflowsWithRetry(ctx, cfg.DagNats.HTTPAddr)
 
 	go func() {
 		if err := srv.Run(); err != nil {
@@ -204,9 +326,24 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 	slog.Info("dagnats: listening", "addr", cfg.DagNats.HTTPAddr)
 }
 
-// registerOnboardingWorkflowWithRetry registers the onboarding workflow,
-// retrying until the DagNats REST API is reachable (it boots after
-// srv.Run binds the port).
+// workflowDef is one definition this binary registers at boot. Names are for
+// the log line only; the JSON is the contract.
+type workflowDef struct {
+	name string
+	json string
+}
+
+// workflows returns the definitions this binary owns. Adding a durable flow
+// means adding a row here and a worker above — nothing else.
+func workflows() []workflowDef {
+	return []workflowDef{
+		{name: "onboarding", json: appdagnats.OnboardingWorkflowJSON},
+		{name: "reminder", json: appdagnats.ReminderWorkflowJSON},
+	}
+}
+
+// registerWorkflowsWithRetry registers every workflow, retrying until the
+// DagNats REST API is reachable (it boots after srv.Run binds the port).
 //
 // The retry lives in a goroutine, so its context CANNOT be the request's or a
 // short-lived one — it is the process lifecycle context from run(). That gives
@@ -220,14 +357,14 @@ func startDagNats(ctx context.Context, cfg *config.Config, todoH onboardingTodoC
 // Attempts still cap out (the API may genuinely never come up because
 // DAGNATS_ENABLED was flipped, or the port is taken), so this is a bounded
 // best-effort registration, not an infinite loop.
-func registerOnboardingWorkflowWithRetry(ctx context.Context, httpAddr string) {
+func registerWorkflowsWithRetry(ctx context.Context, httpAddr string) {
 	const (
 		attempts   = 30
 		retryDelay = 500 * time.Millisecond
 	)
 	client := appdagnats.NewClient("http://" + httpAddr)
 	for range attempts {
-		if err := client.RegisterWorkflow(ctx, []byte(appdagnats.OnboardingWorkflowJSON)); err != nil {
+		if err := registerWorkflows(ctx, client); err != nil {
 			if ctx.Err() != nil {
 				return // shutting down — not a registration failure
 			}
@@ -236,10 +373,22 @@ func registerOnboardingWorkflowWithRetry(ctx context.Context, httpAddr string) {
 			}
 			continue
 		}
-		slog.Info("dagnats: onboarding workflow registered")
 		return
 	}
 	slog.Warn("dagnats workflow register failed after retries")
+}
+
+// registerWorkflows posts every definition and names the one that failed.
+// A partial success is retried as a whole: re-registering an already-registered
+// definition is idempotent upstream.
+func registerWorkflows(ctx context.Context, client *appdagnats.Client) error {
+	for _, def := range workflows() {
+		if err := client.RegisterWorkflow(ctx, []byte(def.json)); err != nil {
+			return err
+		}
+		slog.Info("dagnats: workflow registered", "name", def.name)
+	}
+	return nil
 }
 
 // shutdownDagNats stops the DagNats engine if this process started one.
