@@ -36,6 +36,15 @@
   // piling messages on a slow pass is noise, not help).
   var replaying = false;
 
+  // staleWorker is the version handshake: the page loaded offline-policy.js,
+  // and the worker imported it at install time. A worker keeps the copy it
+  // imported until it reinstalls, so after a deploy a browser can run a page
+  // with the current policy over a worker with an older one — the state where
+  // the page promised "changes are queued" and the worker did not queue them.
+  // Compared on load, after a controller change, and answered by sw.js.
+  var staleWorker = false;
+  var versionTimer = null;
+
   // currentOwner is a hash of the signed-in email (no PII at rest). The SW
   // stamps each queue entry with it and only replays entries for the owner
   // currently signed in, so a mutation queued by one person can never be
@@ -48,7 +57,7 @@
 
   function setState(state) {
     var cls = "is-" + state;
-    banner.classList.remove("is-online", "is-syncing", "is-queued", "is-needs-auth", "is-offline");
+    banner.classList.remove("is-online", "is-syncing", "is-queued", "is-needs-auth", "is-offline", "is-stale");
     banner.classList.add(cls);
     // The auth pause needs an ACTION, not just a sentence: the one thing
     // that fixes it is a sign-in, and it must return here.
@@ -59,17 +68,33 @@
         signin.href = "/login?next=" + encodeURIComponent(location.pathname + location.search);
       }
     }
-    text.textContent = state === "syncing"
-      ? "Syncing changes\u2026"
-      : state === "needs-auth"
-        ? "Changes queued \u2014 sign in to sync"
-        : state === "queued"
-          ? "Changes queued \u2014 retrying sync\u2026"
-          : state === "offline"
-            ? (OFFLINE_SYNC
-              ? "Offline \u2014 changes are queued and will sync when you reconnect"
-              : "Offline \u2014 online-only mode; requests will fail when network is down")
-            : "Online";
+    text.textContent = bannerText(state);
+  }
+
+  // hasController answers the only question that makes "changes are queued"
+  // true: does a Service Worker control THIS page? navigator.onLine alone says
+  // the link is down; it says nothing about whether anything is listening.
+  function hasController() {
+    return Boolean(navigator.serviceWorker && navigator.serviceWorker.controller);
+  }
+
+  // bannerText is the one place the copy lives, so the offline branch cannot
+  // drift from the state machine.
+  function bannerText(state) {
+    if (state === "syncing") return "Syncing changes\u2026";
+    if (state === "needs-auth") return "Changes queued \u2014 sign in to sync";
+    if (state === "queued") return "Changes queued \u2014 retrying sync\u2026";
+    if (state === "stale") return "Offline sync is out of date \u2014 reload this page to update";
+    if (state === "offline") {
+      if (!OFFLINE_SYNC) return "Offline \u2014 online-only mode; requests will fail when network is down";
+      // Without a controlled worker nothing is queued: the request fails and
+      // the feature keeps the text. Saying "changes are queued" here was a lie
+      // that also hid the reason a write was rejected.
+      if (!hasController()) return "Offline \u2014 no offline queue in this browser; reload to activate it";
+      if (staleWorker) return "Offline \u2014 sync is out of date; reload before relying on the queue";
+      return "Offline \u2014 changes are queued and will sync when you reconnect";
+    }
+    return "Online";
   }
 
   // toast surfaces a dropped/no-longer-replayable change. The server-side
@@ -174,6 +199,24 @@
     }).catch(function () {});
   }
 
+  // askWorkerVersion is the other half of the handshake in sw.js. A worker that
+  // predates the handshake never answers, and silence past the budget is the
+  // same verdict as a wrong value: the worker is older than this page. Any
+  // reply clears the timer (see the message listener).
+  function askWorkerVersion() {
+    if (!OFFLINE_SYNC || !navigator.serviceWorker) return;
+    navigator.serviceWorker.ready.then(function (registration) {
+      if (!registration.active) return;
+      registration.active.postMessage({ type: "policy-version" });
+      if (versionTimer) clearTimeout(versionTimer);
+      versionTimer = setTimeout(function () {
+        versionTimer = null;
+        staleWorker = true;
+        updateOnline();
+      }, 5000);
+    }).catch(function () {});
+  }
+
   // kickSync asks the SW to drain, then VERIFIES the queue actually moved
   // and asks again with backoff while items remain. The online event fires
   // before the network is usable, so the first attempt can fail; without
@@ -224,9 +267,12 @@
 
   // updateOnline folds the coarse connectivity flag into the queue states.
   function updateOnline() {
-    setState(!navigator.onLine
-      ? "offline"
-      : (needsAuth ? "needs-auth" : (queuedPending ? "queued" : "online")));
+    var state = "online";
+    if (!navigator.onLine) state = "offline";
+    else if (needsAuth) state = "needs-auth";
+    else if (queuedPending) state = "queued";
+    else if (staleWorker) state = "stale";
+    setState(state);
     // The presence pill is fed only by server broadcasts and never learns
     // about a client-side disconnect on its own — tie it to navigator.onLine.
     reflectPresence(navigator.onLine);
@@ -243,6 +289,13 @@
   }
 
   if (OFFLINE_SYNC && navigator.serviceWorker) {
+    // A new worker claimed the page (deploy, update): its verdict replaces the
+    // previous instance's, so ask again instead of trusting a stale answer.
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      staleWorker = false;
+      askWorkerVersion();
+      updateOnline();
+    });
     navigator.serviceWorker.addEventListener("message", function (e) {
       var data = e.data || {};
       if (data.type === "queue-status") {
@@ -251,6 +304,17 @@
           delete countWaiters[data.id];
           waiter(data.count);
         }
+      } else if (data.type === "policy-version") {
+        // The worker reports the policy IT imported. A different value means
+        // this page is newer than the worker: say so instead of promising a
+        // queue, and let a reload pick up the worker that matches.
+        if (versionTimer) {
+          clearTimeout(versionTimer);
+          versionTimer = null;
+        }
+        var pageVersion = (window.GogogoOffline && window.GogogoOffline.POLICY_VERSION) || "";
+        staleWorker = Boolean(data.version) && String(data.version) !== pageVersion;
+        if (!replaying) updateOnline();
       } else if (data.type === "queued-item") {
         // The feature owns its optimistic DOM; the worker only reports what
         // it queued. Re-enter Datastar with the item as event detail.
@@ -267,8 +331,9 @@
         needsAuth = false;
         replaying = false;
         stopDrain();
-        setState("online");
-        reflectPresence(true);
+        // Not "online" outright: a stale worker is still stale after a pass,
+        // and the banner has to keep saying so until the page is reloaded.
+        updateOnline();
         // Notify Datastar consumers: the queue drained, so list pages refetch
         // through their resync button (see ListResync's gogogo:synced
         // listener). The live SSE broadcast is not enough on its own — it can
@@ -400,6 +465,7 @@
     currentOwner = owner;
     return postOwner();
   }).then(function () {
+    askWorkerVersion();
     return queueCount();
   }).then(function (n) {
     if (n === 0) return;

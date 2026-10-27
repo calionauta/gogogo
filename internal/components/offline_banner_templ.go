@@ -13,13 +13,29 @@
 
 //   - offlineSync=true  (default deployment, OFFLINE_SYNC_ENABLED unset)
 
-//       Three states: online (hidden), syncing (info), offline (warning,
+//       States: online (hidden), syncing (info), queued / needs-auth (warning),
 
-//       "changes are queued and will sync when you reconnect"). The SW
+//       offline (warning), stale (error). The SW posts
 
-//       posts {sync-start|sync-end|sync-error} messages that drive the
+//       {sync-start|sync-end|sync-error|sync-auth} messages that drive the
 
 //       state — see web/resources/static/sw.js.
+
+//
+
+//       The offline copy is honest about WHO is listening: "changes are queued"
+
+//       only when a Service Worker controls this page. With no controller the
+
+//       banner says the queue is not active and asks for a reload, because a
+
+//       write made now would fail. The reload also answers a second failure
+
+//       mode: a worker older than the page (it keeps the policy it imported at
+
+//       install time), which the policy-version handshake detects and shows as
+
+//       "stale".
 
 //
 
@@ -87,7 +103,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(offlineSync))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 38, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 46, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -100,20 +116,20 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(userEmail)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 39, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 47, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:online__window=\"window.__gogogoBannerOnline()\" data-on:offline__window=\"window.__gogogoBannerOffline()\" data-on:visibilitychange__document=\"window.__gogogoBannerVisible()\" aria-live=\"polite\"><span id=\"offline-banner-text\">Online</span> <a id=\"offline-banner-signin\" href=\"/login\" hidden>Sign in</a></div><style>\n\t\t#offline-banner.is-online {\n\t\t\t\tdisplay: none;\n\t\t\t}\n\t\t#offline-banner.is-syncing {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #3b82f6;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-queued,\n\t\t#offline-banner.is-needs-auth {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-offline {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t</style><script nonce=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:online__window=\"window.__gogogoBannerOnline()\" data-on:offline__window=\"window.__gogogoBannerOffline()\" data-on:visibilitychange__document=\"window.__gogogoBannerVisible()\" aria-live=\"polite\"><span id=\"offline-banner-text\">Online</span> <a id=\"offline-banner-signin\" href=\"/login\" hidden>Sign in</a></div><style>\n\t\t#offline-banner.is-online {\n\t\t\t\tdisplay: none;\n\t\t\t}\n\t\t#offline-banner.is-syncing {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #3b82f6;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-queued,\n\t\t#offline-banner.is-needs-auth {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-offline {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-stale {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #dc2626;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t</style><script nonce=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 69, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 82, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -126,7 +142,7 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("offline-banner.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 69, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 82, Col: 91}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {

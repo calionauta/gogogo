@@ -54,7 +54,18 @@
     return next > cap ? cap : next;
   }
 
+  // POLICY_VERSION is the CONTENT FINGERPRINT of this file: the first 6 hex of
+  // the sha256 of its bytes with the line below blanked. It exists so a PAGE
+  // can tell whether the installed WORKER imported this same policy — a worker
+  // keeps the copy it imported at install time, so a browser can run a worker
+  // from an older deploy for hours after the page updated. The page's copy and
+  // the worker's copy answering different values is exactly that case, and the
+  // banner says "reload". TestOfflinePolicyVersionMatchesItsDigest recomputes
+  // the value, so editing this file without updating it fails CI.
+  var POLICY_VERSION = "0d57ff";
+
   global.GogogoOffline = {
+    POLICY_VERSION: POLICY_VERSION,
     isTransientStatus: isTransientStatus,
     isAuthStatus: isAuthStatus,
     retryDelay: retryDelay
