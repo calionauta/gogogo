@@ -470,6 +470,20 @@ async function fragmentHas(page, title, wantChecked = false) {
   return html.slice(Math.max(0, idx - 900), idx).includes("checked");
 }
 
+// waitFragmentGone polls until the server no longer has the row: the optimistic
+// removal (or an empty queue) is not proof that the request was accepted.
+async function waitFragmentGone(page, name, title, timeoutMs = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (!(await fragmentHas(page, title))) {
+      console.log(`  \u23f1 ${name}: ${Date.now() - start}ms`);
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return false;
+}
+
 // waitFragment polls the server truth.
 async function waitFragment(page, name, title, wantChecked = false, timeoutMs = 25000) {
   const start = Date.now();
@@ -591,6 +605,28 @@ async function verifyOfflineTodoQueue(page, context) {
   );
   console.log("  ✓ an older worker raises the reload banner, a matching one clears it");
 
+  // A worker that never answers is the pre-handshake case: silence past the
+  // budget must be read as "older worker", not as "all good". Stub the worker's
+  // client notify so the ask gets no reply, then restore it and prove the next
+  // controller change clears the verdict.
+  await inEveryWorker(() => {
+    self.__origNotifyVersion = notifyClients;
+    self.notifyClients = () => Promise.resolve();
+  });
+  try {
+    await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event("controllerchange")));
+    await timedWait(page, "offline-banner-stale-silent", () =>
+      document.querySelector("#offline-banner-text")?.textContent?.includes("out of date"),
+    null, { timeout: 12000 });
+  } finally {
+    await inEveryWorker(() => { self.notifyClients = self.__origNotifyVersion; });
+  }
+  await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event("controllerchange")));
+  await timedWait(page, "offline-banner-stale-recovers", () =>
+    document.querySelector("#offline-banner")?.classList.contains("is-online"),
+  );
+  console.log("  ✓ a silent worker is treated as out of date, and a reply clears it");
+
   // CAL-34 regression guard: the SW postMessage bridge in
   // internal/components/offline_banner.templ dispatches the event as
   // `gogogo:queued` (Datastar event-namespace separator is the colon).
@@ -647,6 +683,43 @@ async function verifyOfflineTodoQueue(page, context) {
     }
     await page.locator("#todo-list-offline button").click();
     console.log("  ✓ a filter change offline is refused with a hint, leaving list and tab unchanged");
+
+    // The scope <select> refuses too, and must not keep a value the list never
+    // applied (it is not bound to the signal).
+    const scopeSelect = page.locator('select[aria-label="Listing scope"]');
+    const scopeBefore = await scopeSelect.inputValue();
+    await scopeSelect.selectOption(scopeBefore === "mine" ? "all" : "mine");
+    await timedWait(page, "offline-scope-refused", () =>
+      getComputedStyle(document.getElementById("todo-list-offline")).display !== "none",
+    );
+    if ((await scopeSelect.inputValue()) !== scopeBefore) {
+      throw new Error("the scope select kept a value the list never applied");
+    }
+    await page.locator("#todo-list-offline button").click();
+    console.log("  ✓ an offline scope change is refused and the control reverts");
+
+    // The search box keeps what the user typed but does not move the list: the
+    // search is a server query.
+    const searchInput = page.locator("#todo-search-input");
+    if (await searchInput.count()) {
+      const listBefore = await page.locator("#todo-list").textContent();
+      await searchInput.fill("offline-needle");
+      try {
+        await timedWait(page, "offline-search-refused", () =>
+          getComputedStyle(document.getElementById("todo-list-offline")).display !== "none",
+        );
+      } catch {
+        throw new Error("typing in the search box offline did not raise the hint");
+      }
+      if ((await page.locator("#todo-list").textContent()) !== listBefore) {
+        throw new Error("the list changed on a search the offline guard refused");
+      }
+      if ((await searchInput.inputValue()) !== "offline-needle") {
+        throw new Error("the search box lost the text the user typed offline");
+      }
+      await searchInput.fill("");
+      console.log("  ✓ an offline search keeps the typed text and leaves the list alone");
+    }
 
     const titleInput = page.getByPlaceholder(/what needs doing|add a new todo/i);
     const addButton = page.getByRole("button", { name: "Add" });
@@ -802,6 +875,7 @@ async function verifyOfflineTodoQueue(page, context) {
       ),
       page.getByRole("tab", { name: "Completed" }).click(),
     ]);
+    const completedViewEmpty = (await page.locator("#todo-empty-state").count()) === 1;
     await context.setOffline(true);
     await timedWait(page, "offline-filtered-banner", () =>
       document.querySelector("#offline-banner-text")?.textContent?.includes("queued"),
@@ -824,6 +898,11 @@ async function verifyOfflineTodoQueue(page, context) {
     }
     if (await filteredRow.isVisible()) {
       throw new Error("the placeholder is visible in the completed view, which excludes an active todo");
+    }
+    if (completedViewEmpty) {
+      // The declaration above removed the empty state; when the placeholder stays
+      // hidden the list must not look blank, so it is put back.
+      await page.locator("#todo-empty-state").waitFor({ state: "visible", timeout: 5000 });
     }
     await context.setOffline(false);
     {
@@ -1448,6 +1527,11 @@ async function verifyOfflineTodoQueue(page, context) {
         if (!(await waitPageOutbox(bare, "offline-page-clear-drained", 0))) {
           throw new Error("the queued clear-completed never left the page outbox");
         }
+        // An emptied queue is not proof the server accepted it (a 4xx would
+        // also drop the item): ask the server.
+        if (!(await waitFragmentGone(bare, "offline-page-clear-landed", localTitle))) {
+          throw new Error("the server still has the todo that clear-completed claimed to remove");
+        }
         console.log("  ✓ a queued toggle replays, and clear-completed keeps active rows");
 
         // --- the queue survives the page: a create queued earlier drains on
@@ -1484,6 +1568,49 @@ async function verifyOfflineTodoQueue(page, context) {
           console.log("  ✓ a create queued before the page closed drains on the next load");
         } finally {
           await bare2.close();
+        }
+
+        // --- a pending create is REDRAWN on load, and a transient failure is
+        // retried on a timer (not only on the `online` event) ---
+        const retryCtx = await browser.newContext();
+        await retryCtx.addCookies(await context.cookies());
+        await retryCtx.route("**/sw.js", (route) => route.abort());
+        let blockCreate = true;
+        await retryCtx.route(/\/api\/todos\?idem_key=/, (route) =>
+          blockCreate ? route.fulfill({ status: 503, body: "down" }) : route.continue());
+        const redraw = await retryCtx.newPage();
+        try {
+          const redrawTitle = `offline-redraw-${Date.now()}`;
+          await redraw.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+          await redraw.evaluate((t) => window.GogogoOutbox.enqueue({
+            url: location.origin + "/api/todos?idem_key=" + encodeURIComponent("redraw-" + t),
+            method: "POST",
+            body: "title=" + encodeURIComponent(t),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          }), redrawTitle);
+          // Reload: the queue is the only thing that knows about this write.
+          await redraw.reload({ waitUntil: "load", timeout: 20000 });
+          await redraw
+            .locator("#todo-list .todo-item", { hasText: redrawTitle })
+            .first()
+            .waitFor({ state: "visible", timeout: 15000 });
+          const markedPending = await redraw.evaluate((t) => {
+            const rows = [...document.querySelectorAll("#todo-list .todo-item")];
+            const row = rows.find((r) => r.textContent?.includes(t));
+            return row ? row.getAttribute("data-pending") === "true" : false;
+          }, redrawTitle);
+          if (!markedPending) {
+            throw new Error("a pending create restored from the page queue was not marked pending");
+          }
+          // Let it through: the retry must happen on its own (timer), with no
+          // online/visibility event to lean on.
+          blockCreate = false;
+          if (!(await waitFragment(redraw, "offline-page-redraw-landed", redrawTitle))) {
+            throw new Error("the page queue never retried a transient create failure while online");
+          }
+          console.log("  ✓ a pending create is redrawn on load and retried through a transient failure");
+        } finally {
+          await retryCtx.close();
         }
       } finally {
         await noSw.setOffline(false);

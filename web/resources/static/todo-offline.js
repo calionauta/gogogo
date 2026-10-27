@@ -179,6 +179,12 @@
   // A create queued in an earlier session has no row on the page — it was never
   // on the server. Draw the placeholders the queue is holding so the list says
   // what is actually pending.
+  //
+  // Re-applied after every list render: the SSE resync replaces #todo-list, so
+  // a placeholder drawn once at load is wiped by the first fragment. The queue
+  // is the source of truth; the server render is what it is waiting for.
+  var restoreScheduled = false;
+
   function restorePending() {
     var queue = pageOutbox();
     if (!queue || typeof queue.list !== "function") return;
@@ -192,6 +198,15 @@
         }
       }
     }).catch(function () {});
+  }
+
+  function scheduleRestore() {
+    if (restoreScheduled) return;
+    restoreScheduled = true;
+    setTimeout(function () {
+      restoreScheduled = false;
+      restorePending();
+    }, 0);
   }
 
   function toggle(id) {
@@ -250,6 +265,11 @@
 
   window.addEventListener("gogogo:queued", onQueued);
   // A queued create from an earlier session has no row here; draw it before the
-  // replay lands (the shared outbox started draining on page load).
+  // replay lands (the shared outbox started draining on page load), and again
+  // whenever a server render replaces the list.
   restorePending();
+  var listHost = list();
+  if (listHost && window.MutationObserver) {
+    new MutationObserver(scheduleRestore).observe(listHost, { childList: true });
+  }
 })();

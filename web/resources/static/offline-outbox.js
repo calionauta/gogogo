@@ -207,7 +207,14 @@
           // otherwise leave the list without the row it just saved.
           try { global.dispatchEvent(new CustomEvent("gogogo:synced")); } catch (_) { /* no window */ }
         }
-        if (remaining === 0) retryDelay = RETRY_INITIAL_MS;
+        if (remaining === 0) {
+          retryDelay = RETRY_INITIAL_MS;
+        } else if (navigator.onLine) {
+          // A transient failure (5xx, a request that threw) leaves items: retry
+          // on a backoff. Without this the queue waited for a visibility event
+          // or a reload, which is "never" for a tab the user is watching.
+          schedule();
+        }
         return remaining;
       })().finally(function () { draining = null; });
       return draining;
@@ -223,7 +230,11 @@
       };
       return add(entry).then(function () {
         if (typeof opts.onQueued === "function") opts.onQueued(entry);
-        return count();
+        return count().then(function (n) {
+          // Kick a pass when the link is up; offline the online event owns it.
+          if (navigator.onLine) drain();
+          return n;
+        });
       });
     }
 
