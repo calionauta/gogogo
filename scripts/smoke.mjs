@@ -422,6 +422,38 @@ async function verifyTodoSearch(page) {
 //
 // The popover is closed again without picking a day, so the filter state the
 // offline checks rely on stays empty.
+// fragmentHas asks the SERVER whether it already has this todo (and, for the
+// toggle case, whether it is checked). The page can lag a replay: the
+// `gogogo:synced` re-list may fire before the fragment's listener is wired on a
+// fresh page. Assertions about "the write landed" must read the database, not
+// the DOM; the UI assertion follows once the server is known to have it.
+async function fragmentHas(page, title, wantChecked = false) {
+  const res = await page.request.get(
+    BASE + "/api/todos/fragment?filter=all&scope=all&q=&clientID=",
+    { timeout: 10000 },
+  ).catch(() => null);
+  if (!res || !res.ok()) return false;
+  const html = await res.text();
+  const idx = html.indexOf(title);
+  if (idx < 0) return false;
+  if (!wantChecked) return true;
+  // The checkbox precedes the title inside the row.
+  return html.slice(Math.max(0, idx - 900), idx).includes("checked");
+}
+
+// waitFragment polls the server truth.
+async function waitFragment(page, name, title, wantChecked = false, timeoutMs = 25000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await fragmentHas(page, title, wantChecked)) {
+      console.log(`  \u23f1 ${name}: ${Date.now() - start}ms`);
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return false;
+}
+
 async function verifyTodoCalendar(page) {
   console.log("-> Exercising the Cally date filter...");
   await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
@@ -1342,6 +1374,28 @@ async function verifyOfflineTodoQueue(page, context) {
               c.onerror = () => { db.close(); resolve(false); };
             };
           }), null, { timeout: 20000 });
+        if (!(await waitFragment(bare, "offline-page-toggle-landed", localTitle, true))) {
+          const diag = {
+            banner: await bare.locator("#offline-banner-text").textContent(),
+            outbox: await bare.evaluate(() => new Promise((resolve) => {
+              const open = indexedDB.open("gogogo-page-outbox");
+              open.onerror = () => resolve("err");
+              open.onsuccess = () => {
+                const db = open.result;
+                if (!db.objectStoreNames.contains("pending")) { db.close(); return resolve([]); }
+                const items = [];
+                const tx = db.transaction("pending", "readonly");
+                const c = tx.objectStore("pending").openCursor();
+                c.onsuccess = () => { const cur = c.result; if (cur) { items.push(cur.value.url); cur.continue(); } };
+                tx.oncomplete = () => { db.close(); resolve(items); };
+              };
+            })),
+            rows: await bare.evaluate(() => [...document.querySelectorAll("#todo-list .todo-item")].map((r) => ({
+              id: r.id, pending: r.getAttribute("data-pending"), checked: r.querySelector('input[type=checkbox]')?.checked,
+            }))),
+          };
+          throw new Error(`a queued toggle never changed the server row: ${JSON.stringify(diag)}`);
+        }
         await bare.reload({ waitUntil: "load", timeout: 20000 });
         await bare.waitForFunction(
           (t) => {
@@ -1352,7 +1406,7 @@ async function verifyOfflineTodoQueue(page, context) {
             return false;
           },
           localTitle,
-          { timeout: 25000 },
+          { timeout: 15000 },
         );
         // Clear-completed must remove ONLY completed rows offline (it used to
         // wipe the whole list until the next server render).
@@ -1392,10 +1446,17 @@ async function verifyOfflineTodoQueue(page, context) {
         const bare2 = await noSw.newPage();
         try {
           await bare2.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+          if (!(await waitFragment(bare2, "offline-page-reload-landed", reloadTitle))) {
+            const diag = {
+              banner: await bare2.locator("#offline-banner-text").textContent(),
+              rows: await bare2.evaluate(() => [...document.querySelectorAll("#todo-list .todo-item")].map((r) => r.textContent?.slice(0, 40))),
+            };
+            throw new Error(`a create queued before the reload never reached the server: ${JSON.stringify(diag)}`);
+          }
           await bare2
             .locator("#todo-list .todo-item", { hasText: reloadTitle })
             .first()
-            .waitFor({ state: "visible", timeout: 25000 });
+            .waitFor({ state: "visible", timeout: 20000 });
           console.log("  ✓ a create queued before the page closed drains on the next load");
         } finally {
           await bare2.close();
