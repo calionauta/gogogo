@@ -9,11 +9,14 @@ cross-client state, and an **entity layer** when exactly one owner must
 decide (a lock, a turn, a roster).
 
 This template ships all seven in one unified build. Use what you need; the rest
-sits dormant until you don't.
+sits dormant until you don't. Delivery (`docs/notifications.md`) is an
+application of these, not an eighth layer: inbox rows are records, the delay is
+a `sleep` step, and the stream is the SSE hub.
 
 ```
 goqite       → background jobs + SSE Hub delivery (always on)
-dagnats      → durable multi-step workflows as JSON (opt-out: DAGNATS_ENABLED=false)
+dagnats      → durable multi-step workflows as JSON, e.g. onboarding and the
+               inbox reminder (opt-out: DAGNATS_ENABLED=false)
 Loro CRDT    → collaborative docs with offline merges (remove internal/collab/)
 SSE record   → record-change push, visibility-scoped (always on)
 SSE ephemeral→ UI signals via Datastar protocol (always on; core-NATS bridge

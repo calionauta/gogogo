@@ -11,7 +11,7 @@ var deliveryUnits = []Capability{
 	{
 		ID:      "notifications",
 		Kind:    KindFeature,
-		Summary: "inbox + durable reminders (DagNats sleep → delivery row) + email transport seam",
+		Summary: "inbox + durable reminders (DagNats sleep → delivery row)",
 		Dirs:    []string{"features/notifications"},
 		Reason: "Removal is manual: delete this unit, the sidebar entry in " +
 			"internal/ui/modules.go, the reminder definition in " +

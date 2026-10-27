@@ -332,7 +332,7 @@ shared plain-text notes (server-owned Loro Text + SSE)
 
 ## `notifications` — feature
 
-inbox + durable reminders (DagNats sleep → delivery row) + email transport seam
+inbox + durable reminders (DagNats sleep → delivery row)
 
 - **Owned:** `features/notifications`
 - **Routes:** `/api/notifications/read-all`, `/api/notifications/remind`, `/api/notifications/stream`, `/api/notifications/{id}/read`, `/notifications`

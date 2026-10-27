@@ -83,13 +83,14 @@ const display = {
   genui: "GenUI", goakt: "GoAkt", llm: "LLM", nats: "NATS", "offline-sync": "Offline sync",
   search: "Search", sounds: "Sounds",
   account: "Account", chat: "Chat", "config-view": "Config", landing: "Landing",
-  notes: "Notes", review: "Review", room: "Room", todo: "Todo", whiteboard: "Whiteboard",
+  notes: "Notes", notifications: "Inbox", review: "Review", room: "Room", todo: "Todo",
+  whiteboard: "Whiteboard",
 };
 const nameOf = (u) => display[u.id] || u.id;
 
-// ---------- features: nine units, four with a hand-built mini-UI ----------
+// ---------- features: ten units, four with a hand-built mini-UI ----------
 
-const featureOrder = ["todo", "notes", "whiteboard", "chat", "review", "room", "landing", "config-view", "account"];
+const featureOrder = ["todo", "notes", "whiteboard", "chat", "review", "room", "notifications", "landing", "config-view", "account"];
 const featureLinks = {
   todo: "./docs/todo-example/",
   notes: "./docs/features/#what-each-capability-does",
@@ -97,6 +98,7 @@ const featureLinks = {
   chat: "./docs/features/#chat-one-demo-one-vocabulary",
   review: "./docs/review/",
   room: "./docs/features/#what-each-capability-does",
+  notifications: "./docs/notifications/",
   landing: "./docs/features/",
   "config-view": "./docs/features/",
   account: "./docs/security/",
@@ -108,6 +110,7 @@ const featureNotes = {
   chat: "generative UI",
   review: "writer · critic · judge",
   room: "roster · presenter lock",
+  notifications: "durable · live",
   landing: "this page is a feature",
   "config-view": "operator surface",
   account: "security page",
@@ -115,6 +118,7 @@ const featureNotes = {
 const featureIcons = {
   review: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v5h-5"/><path d="m9 12 2 2 4-4"/></svg>',
   room: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17.5" cy="10" r="2.5"/><path d="M15 20a5 5 0 0 1 6.5-3.4"/></svg>',
+  notifications: '<svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 18a2 2 0 0 0 4 0"/></svg>',
   landing: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/></svg>',
   "config-view": '<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
   account: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
