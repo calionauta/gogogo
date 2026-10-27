@@ -181,11 +181,13 @@
         var items = await all();
         var remaining = 0;
         var dropped = 0;
+        var delivered = 0;
         for (var i = 0; i < items.length; i++) {
           var item = items[i];
           var outcome = await attempt(item, deliver);
           if (outcome === "ok") {
             try { await remove(item.id); } catch (_) { remaining += items.length - i; break; }
+            delivered++;
             continue;
           }
           if (outcome === "reject") {
@@ -199,6 +201,12 @@
         }
         if (dropped && typeof opts.onDropped === "function") opts.onDropped(dropped);
         await count();
+        if (delivered > 0) {
+          // The pages re-list on the same event the worker's sync-end uses: a
+          // replay that lands while the tab's stream is still connecting would
+          // otherwise leave the list without the row it just saved.
+          try { global.dispatchEvent(new CustomEvent("gogogo:synced")); } catch (_) { /* no window */ }
+        }
         if (remaining === 0) retryDelay = RETRY_INITIAL_MS;
         return remaining;
       })().finally(function () { draining = null; });
@@ -237,5 +245,41 @@
     return api;
   }
 
-  global.GogogoOutbox = { create: create, pending: function () { return totals; } };
+  // The DEFAULT instance: one per page, started as soon as the module loads,
+  // so a request queued in an earlier session drains even if the feature that
+  // queued it is not the page the user opened. Features enqueue through it and
+  // listen for "gogogo:queued", so the optimistic UI is feature-owned and the
+  // queue is not.
+  var sharedInstance = null;
+
+  function shared() {
+    if (sharedInstance) return sharedInstance;
+    sharedInstance = create({
+      onQueued: function (entry) {
+        try {
+          global.dispatchEvent(new CustomEvent("gogogo:queued", {
+            detail: { url: entry.url, method: entry.method, body: entry.body }
+          }));
+        } catch (_) {
+          /* no window (tests) */
+        }
+      }
+    });
+    sharedInstance.start();
+    return sharedInstance;
+  }
+
+  global.GogogoOutbox = {
+    create: create,
+    shared: shared,
+    enqueue: function (item) { return shared().enqueue(item); },
+    list: all,
+    pending: function () { return totals; }
+  };
+
+  // Start on load, not on first use: a request queued before a reload must
+  // drain even if the page the user opened never enqueues anything.
+  if (typeof indexedDB !== "undefined") {
+    try { shared(); } catch (_) { /* storage blocked: features still work */ }
+  }
 })(typeof self !== "undefined" ? self : this);

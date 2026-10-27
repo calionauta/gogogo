@@ -194,8 +194,8 @@ bundle and is not attributed per feature.
 | Sounds (plugin, the rail mute) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
 | Offline outbox (every shell page) | `offline-banner.js` | 21 KB | 7 KB |
-| Offline policy + page outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 12 KB | 5 KB |
-| Todo offline renderer (only with offline sync) | `todo-offline.js` | 9 KB | 4 KB |
+| Offline policy + page outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 14 KB | 6 KB |
+| Todo offline renderer (only with offline sync) | `todo-offline.js` | 11 KB | 4 KB |
 | Service worker (one fetch, registered on first authenticated load) | `sw.js` | 31 KB | 12 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
 

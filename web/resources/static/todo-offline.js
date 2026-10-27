@@ -133,24 +133,16 @@
   // ---- page-side fallback ---------------------------------------------------
   // The worker owns the queue when it is there. This is the other case: no
   // controller (registration blocked, evicted, a browser that refused it), so
-  // the create form's failure path hands the request HERE and the page replays
-  // it. The request is the one the form would have sent — idem_key included —
-  // so a replay cannot duplicate it server-side, and the event is the same
+  // the form's failure path hands the request HERE and the page replays it. The
+  // request is the one the form would have sent — idem_key included — so a
+  // replay cannot duplicate it server-side, and the event is the same
   // `gogogo:queued` the worker sends, so the row and the form reset stay
   // feature-owned and do not fork by transport.
-  var pageQueue = null;
-
+  //
+  // The queue itself is the SHARED page outbox (offline-outbox.js): it starts
+  // on every page load, so a request queued before a reload still drains.
   function pageOutbox() {
-    if (pageQueue || !window.GogogoOutbox) return pageQueue;
-    pageQueue = window.GogogoOutbox.create({
-      onQueued: function (entry) {
-        window.dispatchEvent(new CustomEvent("gogogo:queued", {
-          detail: { url: entry.url, method: entry.method, body: entry.body }
-        }));
-      }
-    });
-    pageQueue.start();
-    return pageQueue;
+    return window.GogogoOutbox || null;
   }
 
   window.__gogogoTodoQueue = function (title, idemKey, shared) {
@@ -173,6 +165,35 @@
     return true;
   };
 
+  // __gogogoTodoMutate covers toggle, delete and clear-completed: mutations
+  // with no body, whose optimistic effect the queued event already draws.
+  window.__gogogoTodoMutate = function (url) {
+    var queue = pageOutbox();
+    if (!queue || !url) return false;
+    var absolute;
+    try { absolute = new URL(url, location.href).toString(); } catch (_) { return false; }
+    queue.enqueue({ url: absolute, method: "POST", body: "" });
+    return true;
+  };
+
+  // A create queued in an earlier session has no row on the page — it was never
+  // on the server. Draw the placeholders the queue is holding so the list says
+  // what is actually pending.
+  function restorePending() {
+    var queue = pageOutbox();
+    if (!queue || typeof queue.list !== "function") return;
+    queue.list().then(function (items) {
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var parsed;
+        try { parsed = new URL(item.url, location.href); } catch (_) { continue; }
+        if (parsed.pathname === "/api/todos" || parsed.pathname === "/api/todos/") {
+          create(parsed, item.body);
+        }
+      }
+    }).catch(function () {});
+  }
+
   function toggle(id) {
     var el = row(id);
     if (!el) return;
@@ -188,8 +209,14 @@
   function clearCompleted() {
     var host = list();
     if (!host) return;
+    // Only the completed rows: the button says "clear my completed", and the
+    // list can be showing active rows at the same time (a queued clear used to
+    // wipe every row until the server re-rendered). A completed server row
+    // carries the line-through class on its title.
     var items = host.querySelectorAll(".todo-item");
-    for (var i = 0; i < items.length; i++) items[i].remove();
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].querySelector(".line-through")) items[i].remove();
+    }
     ensureEmptyState();
   }
 
@@ -222,4 +249,7 @@
   }
 
   window.addEventListener("gogogo:queued", onQueued);
+  // A queued create from an earlier session has no row here; draw it before the
+  // replay lands (the shared outbox started draining on page load).
+  restorePending();
 })();

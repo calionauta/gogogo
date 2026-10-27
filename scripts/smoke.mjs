@@ -1313,6 +1313,93 @@ async function verifyOfflineTodoQueue(page, context) {
           { timeout: 25000 },
         );
         console.log("  ✓ with no worker the page queues the write itself and replays it on reconnect");
+
+        // --- toggle and clear-completed use the same page queue ---
+        // Only the create form has a failure alert; without a worker the other
+        // mutations failed silently. They now enqueue too, and the optimistic
+        // renderer (todo-offline.js) draws them from the same event.
+        await noSw.setOffline(true);
+        await bare.locator("#todo-list .todo-item", { hasText: localTitle })
+          .locator('input[type="checkbox"]')
+          .click();
+        await timedWait(bare, "offline-page-toggle-queued", () =>
+          document.querySelector("#offline-banner-text")?.textContent?.includes("queued in this tab"),
+        );
+        await noSw.setOffline(false);
+        // Wait for the replay to LAND before reloading: reloading mid-flight
+        // aborts the fetch and the new page has to redo it (correct, but the
+        // assertion below would then race the second pass).
+        await timedWait(bare, "offline-page-toggle-drained", () =>
+          new Promise((resolve) => {
+            const open = indexedDB.open("gogogo-page-outbox");
+            open.onerror = () => resolve(false);
+            open.onsuccess = () => {
+              const db = open.result;
+              if (!db.objectStoreNames.contains("pending")) { db.close(); return resolve(true); }
+              const tx = db.transaction("pending", "readonly");
+              const c = tx.objectStore("pending").count();
+              c.onsuccess = () => { db.close(); resolve(c.result === 0); };
+              c.onerror = () => { db.close(); resolve(false); };
+            };
+          }), null, { timeout: 20000 });
+        await bare.reload({ waitUntil: "load", timeout: 20000 });
+        await bare.waitForFunction(
+          (t) => {
+            const rows = document.querySelectorAll("#todo-list .todo-item");
+            for (const row of rows) {
+              if (row.textContent?.includes(t)) return row.querySelector('input[type="checkbox"]')?.checked === true;
+            }
+            return false;
+          },
+          localTitle,
+          { timeout: 25000 },
+        );
+        // Clear-completed must remove ONLY completed rows offline (it used to
+        // wipe the whole list until the next server render).
+        const keepTitle = `offline-keep-${Date.now()}`;
+        const keepInput = bare.getByPlaceholder(/what needs doing/i);
+        await keepInput.fill(keepTitle);
+        await keepInput.press("Enter");
+        await bare.locator("#todo-list .todo-item", { hasText: keepTitle }).waitFor({ state: "visible", timeout: 20000 });
+        await noSw.setOffline(true);
+        await bare.getByRole("button", { name: "Clear my completed" }).click();
+        await bare.locator("#confirm-clear-completed").getByRole("button", { name: "Clear completed" }).click();
+        await bare.locator("#todo-list .todo-item", { hasText: keepTitle }).waitFor({ state: "visible", timeout: 10000 });
+        if ((await bare.locator("#todo-list .todo-item", { hasText: localTitle }).count()) !== 0) {
+          throw new Error("a queued clear-completed left the completed row behind");
+        }
+        await noSw.setOffline(false);
+        console.log("  ✓ a queued toggle replays, and clear-completed keeps active rows");
+
+        // --- the queue survives the page: a create queued earlier drains on
+        // the next load, even before any feature asks for it (the shared
+        // outbox starts with the module, not with a form failure) ---
+        const reloadTitle = `offline-reload-${Date.now()}`;
+        await noSw.setOffline(true);
+        const reloadInput = bare.getByPlaceholder(/what needs doing/i);
+        await reloadInput.fill(reloadTitle);
+        await reloadInput.press("Enter");
+        try {
+          await timedWait(bare, "offline-page-reload-queued", () =>
+            document.querySelector("#offline-banner-text")?.textContent?.includes("queued in this tab"),
+          );
+        } catch {
+          const copy = await bare.locator("#offline-banner-text").textContent();
+          throw new Error(`a write made with no worker was not queued before the reload; banner: ${JSON.stringify(copy)}`);
+        }
+        await bare.close();
+        await noSw.setOffline(false);
+        const bare2 = await noSw.newPage();
+        try {
+          await bare2.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+          await bare2
+            .locator("#todo-list .todo-item", { hasText: reloadTitle })
+            .first()
+            .waitFor({ state: "visible", timeout: 25000 });
+          console.log("  ✓ a create queued before the page closed drains on the next load");
+        } finally {
+          await bare2.close();
+        }
       } finally {
         await noSw.setOffline(false);
         await noSw.close();

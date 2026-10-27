@@ -710,7 +710,20 @@ func clearCompletedModal() templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<dialog id=\"confirm-clear-completed\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"ui-title text-error\">Clear completed todos?</h3><p class=\"py-4 text-sm\">This permanently removes every completed todo in the current view. It can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close()\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))\">Clear completed</button></div></div></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<dialog id=\"confirm-clear-completed\" class=\"modal\"><div class=\"modal-box\"><h3 class=\"ui-title text-error\">Clear completed todos?</h3><p class=\"py-4 text-sm\">This permanently removes every completed todo in the current view. It can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-clear-completed').close()\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm\" data-on:click=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var24 string
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById('confirm-clear-completed').close(); " + todoMutateOn("'/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 392, Col: 281}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\">Clear completed</button></div></div></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -734,17 +747,41 @@ func deleteConfirmModal() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var24 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var24 == nil {
-			templ_7745c5c3_Var24 = templ.NopComponent
+		templ_7745c5c3_Var25 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var25 == nil {
+			templ_7745c5c3_Var25 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<dialog id=\"confirm-delete-modal\" class=\"modal\" data-on:close=\"$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z\" clip-rule=\"evenodd\"></path></svg> Delete this todo?</h3><p class=\"py-4 text-sm\">This will permanently remove <span class=\"font-semibold\" data-text=\"$confirmingDeleteTitle\"></span>. This can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-delete-modal').close()\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm transition-all\" data-cuelume-press=\"droplet\" data-attr:disabled=\"!!$deleting\" data-on:click=\"$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))\"><span class=\"inline-flex items-center gap-2\"><span>Delete</span> <span class=\"loading loading-spinner loading-xs\" data-show=\"$deleting\"></span></span></button></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button data-on:click=\"document.getElementById('confirm-delete-modal').close()\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<dialog id=\"confirm-delete-modal\" class=\"modal\" data-on:close=\"$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false\"><div class=\"modal-box\"><h3 class=\"font-bold text-lg text-error flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z\" clip-rule=\"evenodd\"></path></svg> Delete this todo?</h3><p class=\"py-4 text-sm\">This will permanently remove <span class=\"font-semibold\" data-text=\"$confirmingDeleteTitle\"></span>. This can't be undone.</p><div class=\"modal-action\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"document.getElementById('confirm-delete-modal').close()\">Cancel</button> <button type=\"button\" class=\"btn btn-error btn-sm transition-all\" data-cuelume-press=\"droplet\" data-attr:disabled=\"!!$deleting\" data-on:click=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var26 string
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue("$deleting = true; document.getElementById('confirm-delete-modal').close(); " + todoMutateOn("'/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 425, Col: 314}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\"><span class=\"inline-flex items-center gap-2\"><span>Delete</span> <span class=\"loading loading-spinner loading-xs\" data-show=\"$deleting\"></span></span></button></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button data-on:click=\"document.getElementById('confirm-delete-modal').close()\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
+}
+
+// todoMutateOn wraps a todo mutation (toggle, delete, clear-completed) with the
+// page-side fallback: with no Service Worker controlling the page and the
+// browser offline, the request goes to the page outbox (offline-outbox.js)
+// instead of a fetch that cannot succeed. The optimistic state still comes from
+// the same `gogogo:queued` event the worker emits, so nothing forks by transport.
+func todoMutateOn(urlExpr string) string {
+	return "var url = " + urlExpr + "; if (!navigator.onLine && " +
+		"!(navigator.serviceWorker && navigator.serviceWorker.controller) && " +
+		"window.__gogogoTodoMutate && window.__gogogoTodoMutate(url)) { } else { @post(url) }"
 }
 
 // createdFilter is the date filter: a Cally calendar inside a native
@@ -787,64 +824,64 @@ func createdFilter() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var25 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var25 == nil {
-			templ_7745c5c3_Var25 = templ.NopComponent
+		templ_7745c5c3_Var27 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var27 == nil {
+			templ_7745c5c3_Var27 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"flex items-center gap-2 shrink-0\"><button type=\"button\" id=\"created-filter-btn\" popovertarget=\"created-filter-popover\" class=\"btn btn-ghost btn-sm gap-2\" style=\"anchor-name:--created-filter\" aria-label=\"Filter by creation date\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-70\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm10 6H4v7h12V8z\" clip-rule=\"evenodd\"></path></svg> <span data-text=\"$createdAfter === '' ? 'Any date' : 'Since ' + $createdAfter\"></span></button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-show=\"$createdAfter !== ''\" data-on:click=\"$createdAfter = ''; $noMatches = false\">clear</button></div><div id=\"created-filter-popover\" popover class=\"app-date-popover bg-base-100 text-base-content border border-base-300 rounded-box shadow-lg p-3\"><p class=\"ui-meta\">Created since</p><calendar-date class=\"cally mt-1\" aria-label=\"Created since\" data-on:change=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 490, Col: 139}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\"><svg slot=\"previous\" aria-label=\"Previous month\" xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z\" clip-rule=\"evenodd\"></path></svg> <svg slot=\"next\" aria-label=\"Next month\" xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z\" clip-rule=\"evenodd\"></path></svg> <calendar-month></calendar-month></calendar-date><div class=\"flex flex-wrap gap-1 mt-2\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 501, Col: 210}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\">Today</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div class=\"flex items-center gap-2 shrink-0\"><button type=\"button\" id=\"created-filter-btn\" popovertarget=\"created-filter-popover\" class=\"btn btn-ghost btn-sm gap-2\" style=\"anchor-name:--created-filter\" aria-label=\"Filter by creation date\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 opacity-70\" viewBox=\"0 0 20 20\" fill=\"currentColor\" aria-hidden=\"true\"><path fill-rule=\"evenodd\" d=\"M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm10 6H4v7h12V8z\" clip-rule=\"evenodd\"></path></svg> <span data-text=\"$createdAfter === '' ? 'Any date' : 'Since ' + $createdAfter\"></span></button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-show=\"$createdAfter !== ''\" data-on:click=\"$createdAfter = ''; $noMatches = false\">clear</button></div><div id=\"created-filter-popover\" popover class=\"app-date-popover bg-base-100 text-base-content border border-base-300 rounded-box shadow-lg p-3\"><p class=\"ui-meta\">Created since</p><calendar-date class=\"cally mt-1\" aria-label=\"Created since\" data-on:change=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var28 string
-		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
+		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 502, Col: 232}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 501, Col: 139}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\">7 days</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\"><svg slot=\"previous\" aria-label=\"Previous month\" xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z\" clip-rule=\"evenodd\"></path></svg> <svg slot=\"next\" aria-label=\"Next month\" xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z\" clip-rule=\"evenodd\"></path></svg> <calendar-month></calendar-month></calendar-date><div class=\"flex flex-wrap gap-1 mt-2\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var29 string
-		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
+		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 503, Col: 233}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 512, Col: 210}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\">30 days</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\">Today</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var30 string
+		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 513, Col: 232}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\">7 days</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var31 string
+		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 514, Col: 233}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\">30 days</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

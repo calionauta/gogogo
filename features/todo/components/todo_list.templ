@@ -389,7 +389,7 @@ templ clearCompletedModal() {
 				<button
 					type="button"
 					class="btn btn-error btn-sm"
-					data-on:click="document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
+					data-on:click={ "document.getElementById('confirm-clear-completed').close(); " + todoMutateOn("'/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')") }>
 					Clear completed
 				</button>
 			</div>
@@ -422,7 +422,7 @@ templ deleteConfirmModal() {
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
 					data-attr:disabled="!!$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
+					data-on:click={ "$deleting = true; document.getElementById('confirm-delete-modal').close(); " + todoMutateOn("'/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')") }>
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
 						<span class="loading loading-spinner loading-xs" data-show="$deleting"></span>
@@ -434,6 +434,17 @@ templ deleteConfirmModal() {
 			<button data-on:click="document.getElementById('confirm-delete-modal').close()">close</button>
 		</form>
 	</dialog>
+}
+
+// todoMutateOn wraps a todo mutation (toggle, delete, clear-completed) with the
+// page-side fallback: with no Service Worker controlling the page and the
+// browser offline, the request goes to the page outbox (offline-outbox.js)
+// instead of a fetch that cannot succeed. The optimistic state still comes from
+// the same `gogogo:queued` event the worker emits, so nothing forks by transport.
+func todoMutateOn(urlExpr string) string {
+	return "var url = " + urlExpr + "; if (!navigator.onLine && " +
+		"!(navigator.serviceWorker && navigator.serviceWorker.controller) && " +
+		"window.__gogogoTodoMutate && window.__gogogoTodoMutate(url)) { } else { @post(url) }"
 }
 
 // createdFilter is the date filter: a Cally calendar inside a native
