@@ -58,7 +58,7 @@ jobs:
     # A hung apt step sat here for 30+ minutes on three runs in a row and
     # blocked the PR; without this key the only bound was the runner's 6h
     # default. A healthy run measures ~3m21s, so 20m is >5x headroom.
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       GOTOOLCHAIN: local
       # apt must never wait for a human. debconf gets its defaults, and
@@ -80,15 +80,19 @@ jobs:
         # image is broken (403 or unsigned), even though the Ubuntu indexes
         # updated. The install is the gate.
         #
-        # A stuck step here is diagnosed by its bound, not by its silence:
-        # this one fails after 12 minutes instead of hanging through the job.
+        # A stuck step here is diagnosed by its bound, not by its silence.
+        # 20 minutes: a slow mirror installed the same set in >12 once (the
+        # 12-minute bound failed the job), while a healthy run is ~3. The job
+        # timeout stays above it.
+        # --no-install-recommends keeps the install to what the CGO build
+        # actually needs; the media/font recommends are megabytes of nothing.
         # DPkg::Lock::Timeout covers unattended-upgrades still holding the
         # lock at runner boot; Acquire::Retries covers a flaky mirror.
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: |
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 \
-            apt-get install -y \
+            apt-get install -y --no-install-recommends \
               -o DPkg::Lock::Timeout=120 \
               -o Acquire::Retries=3 \
               build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
@@ -132,11 +136,11 @@ jobs:
         # image is broken (403 or unsigned), even though the Ubuntu indexes
         # updated. The install is the gate. Same hardening as linux-desktop:
         # noninteractive, no needrestart prompt, bounded lock wait.
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: |
           sudo apt-get update -qq || echo "⚠️ apt update reported a broken third-party source; installing from the image's indexes"
           sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 \
-            apt-get install -y \
+            apt-get install -y --no-install-recommends \
               -o DPkg::Lock::Timeout=120 \
               -o Acquire::Retries=3 \
               build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev

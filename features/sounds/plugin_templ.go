@@ -8,7 +8,10 @@ package sounds
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/calionauta/gogogo/web/resources"
+import (
+	"github.com/calionauta/gogogo/internal/icon"
+	"github.com/calionauta/gogogo/web/resources"
+)
 
 // SoundAssets emits the module script that loads the cuelume glue. It is
 // the single place pages reference the sound plugin — replace the bare
@@ -42,7 +45,7 @@ func SoundAssets() templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 10, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 13, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -55,7 +58,7 @@ func SoundAssets() templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("cuelume.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 10, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/sounds/plugin.templ`, Line: 13, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -69,13 +72,19 @@ func SoundAssets() templ.Component {
 	})
 }
 
-// SoundSwitch is the mute preference: a labelled setting wants an on/off
-// control (daisyUI `toggle`), not an icon button with no word next to it.
-// `data-sound-toggle` plus the plugin's delegated `change` is the whole
-// contract, because the plugin has to work on every page, including the board,
-// which loads no Datastar bindings of its own. `role="switch"` tells assistive
-// tech it is an on/off setting; cuelume.js writes `checked` from the stored
-// preference and reads the user's flip back on `change`.
+// SoundSwitch is the mute control: a speaker icon, not a bare daisyUI toggle.
+// A switch with no word beside it sits next to the theme icon in the rail and
+// reads as part of that control; the speaker names the setting, and the glyph
+// itself carries the state — waves while sound is on, a slash while muted.
+//
+// The control is a <label> wrapping a visually hidden checkbox, so the plugin
+// contract does not move: cuelume.js still reads `checked` on `change` and
+// writes it from the stored preference. The two glyphs are CSS-switched from
+// that checkbox, the same trick ThemeToggle uses for its sun/moon pair, and
+// the label (not the clipped input) carries the tooltip cuelume.js writes.
+//
+// `role="switch"` tells assistive tech it is an on/off setting. The icon is
+// decorative: the accessible name comes from the input's aria-label.
 func SoundSwitch() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -97,7 +106,19 @@ func SoundSwitch() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input type=\"checkbox\" class=\"toggle toggle-sm\" role=\"switch\" data-sound-toggle aria-label=\"Sound effects\" checked title=\"Mute sounds\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<label class=\"app-sound-toggle\" title=\"Mute sounds\"><input type=\"checkbox\" class=\"sr-only\" role=\"switch\" data-sound-toggle aria-label=\"Sound effects\" checked>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = icon.Icon("material-symbols:volume-up", "text-lg icon-sound-on").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = icon.Icon("material-symbols:volume-off", "text-lg icon-sound-off").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

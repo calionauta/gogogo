@@ -41,16 +41,62 @@ templ Segmented(label string, segments []Segment) {
 // markup repeated it per tab and the copies had already drifted (only some
 // carried `q=`).
 func TodoScopeOn(value string) string {
-	return "$loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + " +
+	return TodoListQuery("'/api/todos?filter=' + encodeURIComponent($filter || 'all') + " +
 		"'&scope=" + value + "&q=' + encodeURIComponent($searchQuery || '') + " +
-		"'&clientID=' + encodeURIComponent($clientID || ''))"
+		"'&clientID=' + encodeURIComponent($clientID || '')")
 }
 
 // TodoFilterOn is the status-filter counterpart of TodoScopeOn.
 func TodoFilterOn(value string) string {
-	return "$loading = true; @get('/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + " +
+	return TodoListQuery("'/api/todos?filter=" + value + "&scope=' + encodeURIComponent($scope || 'all') + " +
 		"'&q=' + encodeURIComponent($searchQuery || '') + " +
-		"'&clientID=' + encodeURIComponent($clientID || ''))"
+		"'&clientID=' + encodeURIComponent($clientID || '')")
+}
+
+// TodoListQuery wraps a list request with the offline refusal. The list is
+// SERVER-side: while the browser is offline the request cannot succeed, and
+// `$loading = true` would stay set (nothing clears it on failure), disabling
+// the composer over a view that never changed. The refusal raises the
+// client-owned `$listOffline`, which renders the hint next to the controls.
+func TodoListQuery(urlExpr string) string {
+	return "if (!navigator.onLine) { $listOffline = true } else { $loading = true; @get(" + urlExpr + ") }"
+}
+
+// TodoScopeSelectOn is the scope <select>'s change handler. It differs from
+// the tabs in one way: the select is not bound to the signal, so a refused
+// change must also put the control back where the list actually is.
+func TodoScopeSelectOn() string {
+	return "if (!navigator.onLine) { evt.target.value = $scope || 'all'; $listOffline = true } " +
+		"else { $scope = evt.target.value; $loading = true; @get('/api/todos?filter=' + " +
+		"encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + " +
+		"'&q=' + encodeURIComponent($searchQuery || '') + " +
+		"'&clientID=' + encodeURIComponent($clientID || '')) }"
+}
+
+// TodoSearchOn is the search box's debounced request, refused offline like
+// every other list change: the box keeps what the user typed, the list does
+// not move, and the hint explains why.
+func TodoSearchOn() string {
+	return TodoListQuery("'/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + " +
+		"'&filter=' + encodeURIComponent($filter || 'all') + " +
+		"'&scope=' + encodeURIComponent($scope || 'all') + " +
+		"'&mode=' + encodeURIComponent(searchModeValue()) + " +
+		"'&clientID=' + encodeURIComponent($clientID || '')")
+}
+
+// TodoSearchModeOn is the search-layer picker's request.
+func TodoSearchModeOn() string {
+	return TodoSearchOn()
+}
+
+// TodoSearchClearOn clears the box and asks for the unfiltered list. Offline it
+// refuses BOTH halves: clearing the text while the list still shows the last
+// search would be a second lie, so the text stays until the connection does.
+func TodoSearchClearOn() string {
+	return "if (!navigator.onLine) { $listOffline = true } else { $searchQuery = ''; $loading = true; " +
+		"@get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + " +
+		"'&scope=' + encodeURIComponent($scope || 'all') + " +
+		"'&clientID=' + encodeURIComponent($clientID || '')) }"
 }
 
 // SignalOn is the click expression for a segment that just assigns a signal.

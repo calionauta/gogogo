@@ -12,9 +12,9 @@
 //      Opt out by clearing your OS setting; there is no in-app override
 //      because this is an accessibility preference, not a taste setting.
 //   2. Global mute — a [data-sound-toggle] control persists a preference in
-//      localStorage ("gogogo_sound", "on"|"off"): the account panel's switch
-//      (a checkbox's `checked`). It is keyboard-accessible and survives
-//      Datastar morphs (delegated change, same pattern as theme.js).
+//      localStorage ("gogogo_sound", "on"|"off"): the rail's speaker icon,
+//      a visually hidden checkbox's `checked`. It is keyboard-accessible and
+//      survives Datastar morphs (delegated change, same pattern as theme.js).
 //   3. Subtle default volume — cuelume's mixer runs hotter than libraries
 //      tuned for a 30% default; 0.4 keeps every cue audible without being
 //      intrusive. Tune DEFAULT_VOLUME here (the API below also exposes
@@ -85,10 +85,10 @@ function apply() {
   syncToggleUI();
 }
 
-// Keep the switch in sync with the stored preference. It reflects the USER
-// preference, so it responds even when prefers-reduced-motion keeps playback
-// muted. The title explains the override so a muted-but-on state is never
-// silent confusion.
+// Keep the mute control in sync with the stored preference. It reflects the
+// USER preference, so it responds even when prefers-reduced-motion keeps
+// playback muted. The title explains the override so a muted-but-on state is
+// never silent confusion.
 function syncToggleUI() {
   var els = document.querySelectorAll("[data-sound-toggle]");
   if (!els.length) return;
@@ -101,6 +101,10 @@ function syncToggleUI() {
   els.forEach(function (el) {
     el.checked = prefOn;
     el.setAttribute("title", title);
+    // The input is visually hidden, so the tooltip has to live on the label
+    // the user actually hovers (the speaker icon's hit area).
+    var label = el.closest("label");
+    if (label) label.setAttribute("title", title);
   });
 }
 

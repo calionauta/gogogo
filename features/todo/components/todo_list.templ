@@ -71,7 +71,7 @@ templ TodoList(signals todo.Signals) {
 									class="select select-sm w-28"
 									aria-label="Listing scope"
 									title="Which todos to list"
-									data-on:change="$scope = evt.target.value; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope) + '&q=' + encodeURIComponent($searchQuery || '') + '&clientID=' + encodeURIComponent($clientID || ''))">
+									data-on:change={ ui.TodoScopeSelectOn() }>
 									<option value="all" selected?={ signals.Scope == "" || signals.Scope == "all" }>All</option>
 									<option value="mine" selected?={ signals.Scope == "mine" }>Mine</option>
 									<option value="shared" selected?={ signals.Scope == "shared" }>Shared</option>
@@ -81,6 +81,10 @@ templ TodoList(signals todo.Signals) {
 							<div class="alert alert-warning mt-2" role="alert" data-show="$permDenied">
 								<span>You cannot delete this todo — its author or an admin can. Keep adding.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$permDenied = false" }>dismiss</button>
+							</div>
+							<div class="alert alert-info mt-2" role="status" id="todo-list-offline" data-show="$listOffline">
+								<span>Changing the list needs a connection — the view stays as it is until you reconnect.</span>
+								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$listOffline = false" }>dismiss</button>
 							</div>
 							@createForm(signals)
 
@@ -130,7 +134,7 @@ templ createForm(signals todo.Signals) {
 	<form
 		id="todo-create"
 		class="w-full mt-3"
-		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form', retryMaxCount: 0}).then(() => { if (!$syncFailed && $newTitle === sent) $newTitle = ''; $loading = false; }).catch(() => { $loading = false; $syncFailed = true; }); }" data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'todo-create' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($loading = false, $syncFailed = true) : null"
+		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form', retryMaxCount: 0}).then(() => { if (!$syncFailed && $newTitle === sent) $newTitle = ''; $loading = false; }).catch(() => { $loading = false; var shared = false; try { shared = evt.target.querySelector('input[name=visibility]').checked } catch (e) {} if (!navigator.onLine && !(navigator.serviceWorker && navigator.serviceWorker.controller) && window.__gogogoTodoQueue && window.__gogogoTodoQueue(sent, id, shared)) { $syncFailed = false; return; } $syncFailed = true; }); }" data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'todo-create' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($loading = false, $syncFailed = true) : null"
 	>
 		<div class="join w-full">
 			<input
@@ -189,14 +193,14 @@ templ searchBox(signals todo.Signals) {
 				aria-label="Search todos"
 				value={ signals.SearchQuery }
 				data-bind="searchQuery"
-				data-on:input__debounce.300ms="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
+				data-on:input__debounce.300ms={ ui.TodoSearchOn() }
 			/>
 			<button
 				type="button"
 				class="btn btn-ghost btn-sm join-item"
 				aria-label="Clear search"
 				data-show="$searchQuery"
-				data-on:click="$searchQuery = ''; $loading = true; @get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))">✕</button>
+				data-on:click={ ui.TodoSearchClearOn() }>✕</button>
 			@searchModeSelect(signals)
 		</div>
 	}
@@ -226,7 +230,7 @@ templ searchModeSelect(signals todo.Signals) {
 			class="select select-sm join-item max-w-34"
 			aria-label="How the search matches"
 			title="How the search matches"
-			data-on:change="$loading = true; @get('/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&mode=' + encodeURIComponent(searchModeValue()) + '&clientID=' + encodeURIComponent($clientID || ''))"
+			data-on:change={ ui.TodoSearchModeOn() }
 		>
 			for _, m := range signals.SearchModes {
 				<option value={ m } selected?={ m == signals.SearchMode }>{ searchModeLabel(m) }</option>
@@ -385,7 +389,7 @@ templ clearCompletedModal() {
 				<button
 					type="button"
 					class="btn btn-error btn-sm"
-					data-on:click="document.getElementById('confirm-clear-completed').close(); @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
+					data-on:click={ "document.getElementById('confirm-clear-completed').close(); " + todoMutateOn("'/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')") }>
 					Clear completed
 				</button>
 			</div>
@@ -418,7 +422,7 @@ templ deleteConfirmModal() {
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
 					data-attr:disabled="!!$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all'))">
+					data-on:click={ "$deleting = true; document.getElementById('confirm-delete-modal').close(); " + todoMutateOn("'/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')") }>
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
 						<span class="loading loading-spinner loading-xs" data-show="$deleting"></span>
@@ -430,6 +434,17 @@ templ deleteConfirmModal() {
 			<button data-on:click="document.getElementById('confirm-delete-modal').close()">close</button>
 		</form>
 	</dialog>
+}
+
+// todoMutateOn wraps a todo mutation (toggle, delete, clear-completed) with the
+// page-side fallback: with no Service Worker controlling the page and the
+// browser offline, the request goes to the page outbox (offline-outbox.js)
+// instead of a fetch that cannot succeed. The optimistic state still comes from
+// the same `gogogo:queued` event the worker emits, so nothing forks by transport.
+func todoMutateOn(urlExpr string) string {
+	return "var url = " + urlExpr + "; if (!navigator.onLine && " +
+		"!(navigator.serviceWorker && navigator.serviceWorker.controller) && " +
+		"window.__gogogoTodoMutate && window.__gogogoTodoMutate(url)) { } else { @post(url) }"
 }
 
 // createdFilter is the date filter: a Cally calendar inside a native

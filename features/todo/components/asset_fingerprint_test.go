@@ -46,7 +46,7 @@ func renderAll(t *testing.T) string {
 		renderOrFail(t, authviews.LoginPage("", "", true, "", "")),
 		renderOrFail(t, authviews.UserMenu("u@example.com", "user", nil)),
 		renderOrFail(t, authviews.ThemeHead()),
-		renderOrFail(t, ui.Preferences(nil)),
+		renderOrFail(t, ui.Preferences()),
 		renderOrFail(t, components.Assets()),
 		renderOrFail(t, components.SessionBanner(true)),
 		renderOrFail(t, components.StreamOpener("tab-1", "/api/todos/stream", false)),

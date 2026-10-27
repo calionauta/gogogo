@@ -318,7 +318,7 @@ func Shell(d Data, head templ.Component, sound templ.Component, actions templ.Co
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = authviews.UserMenu(d.Email, d.Role, Preferences(sound)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authviews.UserMenu(d.Email, d.Role, Preferences()).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

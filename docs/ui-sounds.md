@@ -11,8 +11,8 @@ Sounds are synthesized live with the Web Audio API — there are no audio files.
 The plugin (`features/sounds/`) owns its whole surface:
 
 - the script loader (`@sounds.SoundAssets()` in each page's `<head>`),
-- the mute switch in the account panel's preference block (each page passes it
-  as a one-line `*Sound()` wrapper, `@sounds.SoundSwitch()`),
+- the mute control in the rail's brand row (each page passes it as a one-line
+  `*Sound()` wrapper, `@sounds.SoundSwitch()`),
 - the client glue (`web/resources/static/cuelume.js`).
 
 The glue ships the sound accessibility contract out of the box.
@@ -22,14 +22,18 @@ The glue ships the sound accessibility contract out of the box.
 1. **`prefers-reduced-motion` respected by default.** OS-level reduced motion
    auto-mutes playback and reacts to runtime preference changes. There is no
    in-app override — it's an accessibility setting, not a preference.
-2. **Global mute with a real control.** The account panel's "Efeitos sonoros"
-   switch (daisyUI `toggle`, a real checkbox) toggles sound on/off, persists the
-   choice in `localStorage` (key `gogogo_sound`), and survives Datastar DOM
-   morphs (delegated events, same pattern as `theme.js`). The switch reads
-   `checked`, written by `cuelume.js` from the stored preference. The control
-   always reflects and responds to the user's own choice — if reduced-motion
-   keeps playback muted anyway, it still flips and its tooltip explains the
-   system override, so it never looks dead.
+2. **Global mute with a real control.** The speaker icon beside the theme
+   toggle in the rail (a `<label>` wrapping a visually hidden checkbox,
+   `role="switch"`) toggles sound on/off, persists the choice in
+   `localStorage` (key `gogogo_sound`), and survives Datastar DOM morphs
+   (delegated events, same pattern as `theme.js`). The icon is the state:
+   waves while sound is on, a slash while muted, with a tooltip naming the
+   action ("Mute sounds" / "Unmute sounds"). The checkbox reads `checked`,
+   written by `cuelume.js` from the stored preference. The control always
+   reflects and responds to the user's own choice — if reduced-motion keeps
+   playback muted anyway, it still flips and its tooltip explains the system
+   override, so it never looks dead. It is also the only mute a guest has:
+   the landing renders inside the shell and has no account panel to open.
 3. **Subtle default volume.** cuelume's mixer runs hotter than libraries tuned
    for a 30% default; `DEFAULT_VOLUME` (`0.4`) keeps every cue audible without
    being intrusive. Tune it in `cuelume.js`.

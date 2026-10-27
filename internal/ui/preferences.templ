@@ -1,16 +1,16 @@
-// SCOPE:core — Account-panel preferences: the palette list and the sound mute.
+// SCOPE:core — Account-panel preference: the palette list.
 //
-// Theme and sound are PREFERENCES, not navigation. A permanently visible
-// icon toggle in the chrome is the wrong home for them: it competes with the
-// identity row, and a two-state sun/moon control cannot express a catalog of
-// four palettes (two of them dark) — switching from "Calmo" to dark silently
-// threw the palette away. The research is one-sided: apps that moved the
-// switcher out of the navbar did it into the account popover (PostHog #19001,
-// Phoenix #14070, and the Vercel/Linear/Notion family keep preferences in
-// account or settings), and platform guidance puts infrequent preferences in
-// settings rather than in chrome (Material, Android, Windows). So: one place,
-// the account panel, next to the identity that already tells you whose
-// preferences they are.
+// The palette is the preference that needs room: four themes, two of them
+// dark, cannot be expressed by a two-state control — switching from "Calmo"
+// to dark through a sun/moon flip silently threw the palette away. So the
+// list lives in the account panel, next to the identity that already tells
+// you whose preferences they are. The rail brand's light/dark flip is a
+// one-bit shortcut, not the picker.
+//
+// The sound mute is not a row here. It is the speaker icon in the rail brand
+// (features/sounds), the one control every page can show: a guest on the
+// landing has no account panel, and the landing ships sounds too. Rendering
+// a second switch here would give one boolean two controls.
 //
 // Rendered as <li> items because it composes into the account menu's list
 // (authviews.UserMenu takes it as a slot, and the shell is its only host).
@@ -32,15 +32,14 @@ import (
 )
 
 // Preferences renders the account panel's preference block: the palette list
-// (one option per shipped theme) and, when the page passes one, the sound
-// toggle it owns.
+// (one option per shipped theme).
 //
 // Selection goes through the $theme SIGNAL (Datastar owns data-theme and the
 // dark class through the bindings in authviews.ThemeRootAttrs) — writing the
 // DOM directly is reverted. The names come from internal/themes, which
 // themes_test.go keeps in step with the `themes:` list compiled by
 // src/css/input.css.
-templ Preferences(sound templ.Component) {
+templ Preferences() {
 	<li class="app-pref">
 		<p class="app-pref-head" id="app-pref-theme">Tema</p>
 		<ul class="app-pref-list" aria-labelledby="app-pref-theme">
@@ -60,12 +59,4 @@ templ Preferences(sound templ.Component) {
 			}
 		</ul>
 	</li>
-	if sound != nil {
-		<li class="app-pref-row">
-			<label class="app-pref-setting">
-				<span class="app-pref-label">Efeitos sonoros</span>
-				@sound
-			</label>
-		</li>
-	}
 }

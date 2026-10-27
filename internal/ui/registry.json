@@ -19,13 +19,12 @@
     {
       "id": "preference-row",
       "title": "Preference row (inside the account panel)",
-      "when": "a theme/palette choice or any on/off setting the user owns",
-      "avoid": "two controls for the same choice (a sun/moon toggle plus a palette list), or a setting outside the account surface",
+      "when": "a theme/palette choice the user owns",
+      "avoid": "two controls for the same choice (a sun/moon toggle plus a palette list), or a palette control outside the account surface",
       "source": "internal/ui/preferences.templ",
       "shows": [
         "app-pref-option",
-        "app-pref-swatch",
-        "app-pref-setting"
+        "app-pref-swatch"
       ],
       "doc": "docs/ui-compositions.md#2-preference-row-inside-the-account-panel"
     },

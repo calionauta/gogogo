@@ -113,9 +113,9 @@ func TodoItem(item todo.Todo) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || ''))")
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(todoMutateOn("'/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '')"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 43, Col: 222}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 43, Col: 229}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
