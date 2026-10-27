@@ -42,6 +42,9 @@ jobs:
       - name: Check docs links and anchors
         run: node site/build.mjs --check
 
+      - name: Check landing catalog
+        run: node site/build-landing.mjs --check
+
       - name: Build docs site
         run: node site/build.mjs
 

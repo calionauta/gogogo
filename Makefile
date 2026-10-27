@@ -661,7 +661,7 @@ run-gui:
 	@./gogogo-gui
 
 # --- Docs site (GitHub Pages) ----------------------------------------------
-# site/index.html + styles.css + assets/ are hand-written sources; everything
+# site/index.html + descent.css + official.css + assets/ are hand-written sources; everything
 # under site/docs/ plus llms*.txt and sitemap.xml is generated from docs/*.md.
 # CI (.github/workflows/pages.yml) runs `site-check` then `site` before
 # publishing, so a broken internal link fails the deploy instead of shipping.
@@ -672,6 +672,8 @@ site:
 site-check:
 	@echo "→ Checking docs links and heading anchors..."
 	@node site/build.mjs --check
+	@echo "→ Checking the landing catalog against the unit contracts..."
+	@node site/build-landing.mjs --check
 
 # The prose-claim gate: no hand-written counts, dead repo paths, invented
 # `gogogo` subcommands, an unpublished page, or a Client weight row that no

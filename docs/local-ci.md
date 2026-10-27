@@ -385,7 +385,9 @@ race+browser fan-out (`scripts/ci-fanout.sh`).
 
 The docs site is not part of `ci-local`. `pages.yml` runs `site-check`, builds
 `site/` (including the generated search index under `site/search/`) and runs
-`scripts/site-layout.test.mjs` before publishing. `docsite-drift.yml` checks the
+`scripts/site-layout.test.mjs` before publishing. `site-check` also runs
+`node site/build-landing.mjs --check`, which verifies the landing's unit and
+gate catalog against `docs/unit-contracts.md` and `.lefthook.yml`. `docsite-drift.yml` checks the
 vendored engine against `site/UPSTREAM_SHA` on PRs that touch it and weekly;
 `docsite-bump.yml` opens the bump PR.
 
@@ -510,7 +512,7 @@ no-op when lefthook is not installed).
 
 | Hook | Jobs | When |
 |------|------|------|
-| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · install-sh · scope-lint · class-integrity · daisyui-lint · flatdeps-lint · test-value · docs-claims · secrets-env · secrets-scan · rbac-policy · dagnats-pin · skill-frontmatter · datastar-lint · api-routes · registry-conformance · generated-templ · css-check · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · docs-staleness (advisory) · stelow-drift (advisory) · govulncheck/ci-deps (glob-scoped) | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy · govulncheck · ci-deps · install-sh · scope-lint · class-integrity · daisyui-lint · flatdeps-lint · test-value · docs-claims · secrets-env · rbac-policy · dagnats-pin · secrets-scan · skill-frontmatter · datastar-lint · api-routes · mcp-tests · registry-conformance · generated-templ · css-check · no-jsx · golangci-lint (host-aware, `scripts/lint-safe.sh`) · agents-md-staleness · stelow-drift (advisory) · daisyui-drift (advisory) · docs-staleness (advisory) | every commit; glob-filtered jobs skip when nothing relevant is staged |
 | `pre-push` | govulncheck · deadcode | every push |
 | `post-merge` | regen-assets (templ + css when templ/go/css changed) | after pulls/merges |
 

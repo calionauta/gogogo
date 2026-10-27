@@ -43,9 +43,11 @@ approach had a deeper issue.**
 |---|---|
 | `make lint` | `go vet` + `golangci-lint` over the web packages — `scripts/web-packages.sh` excludes `cmd/desktop` and `cmd/gui` |
 | `make lint-safe` | Host-aware lint: sizes the run to free RAM/cores, scopes to changed packages when memory is tight, caps the run in a cgroup (`scripts/lint-safe.sh`). Prefer over `make lint` on a shared host. |
-| `make datastar-lint` | Datastar-specific anti-patterns in `.templ` files |
+| `make datastar-lint` | Datastar anti-patterns in `.templ` files and the Go SDK calls behind them (`bin/datastar-lint` runs the pinned `go tool datastar-lint` with the html, templ and go analyzers) |
+| `make daisyui-lint` | DaisyUI class vocabulary in `.templ`/HTML: a typo'd or retired class renders with no styles and no error anywhere else. Runs the pinned `go tool daisyui-lint --strict` (version in `go.mod`) over `features/` + `internal/` and reads `chrome.css`/`app.css`, so classes this repo defines are not reported as foreign |
+| `make check-classes` | The integrity half of the same vocabulary: a `ui-*`/`app-*`/`is-*` class used in a `.templ` but absent from `chrome.css`, a kit-table class in `docs/ui-shell.md` that no longer exists, a dead selector with no consumer, or a DaisyUI part (`join-item`, `dropdown-content`, `toggle`) on the wrong host element |
 | `make fmt` | `gofumpt` + `goimports` formatting only |
-| `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → check-scope → check-skill-frontmatter → install-sh-guard → check-sizes → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
+| `make ci-local` | Full local gate, identical to CI: check-generated → check-sizes → datastar-lint → css-check → check-no-jsx → check-scope → check-classes → daisyui-lint → check-flatdeps → check-secrets-env → check-dagnats-pin → check-skill-frontmatter → install-sh-guard → golangci-lint → race tests → build → binary boot smoke → Playwright smoke |
 | `make check-stelow-drift` | Verifies the vendored `stelow-workflow-coding-standards` copy still matches its pinned upstream commit AND that upstream `main` has not moved. Advisory in pre-commit (never blocks on a network call); `--strict` here and in the weekly `stelow-drift` workflow. Update with `scripts/refresh-stelow.sh` — never by hand. |
 
 We deliberately keep `gofumpt` and `goimports` as **formatters** (not linters)
@@ -121,11 +123,12 @@ the machine's free RAM.
 
 ## Git hooks
 
-The lefthook hooks (`make setup`) run `gofumpt`, `goimports`, `datastar-lint`, a
-CSS staleness check, `go mod tidy`, the SCOPE annotation linter, and a
-host-aware `golangci-lint` (`scripts/lint-safe.sh`) on every commit — so
-formatting and lint violations never reach the remote. Jobs are glob-filtered
-(only run when matching files are staged) and executed in parallel.
+The lefthook hooks (`make setup`) run `gofumpt`, `goimports`, `datastar-lint`,
+`daisyui-lint`, `check-classes`, a CSS staleness check, `go mod tidy`, the
+SCOPE annotation linter, and a host-aware `golangci-lint`
+(`scripts/lint-safe.sh`) on every commit — so formatting and lint violations
+never reach the remote. Jobs are glob-filtered (only run when matching files are
+staged) and executed in parallel.
 
 Run **`make signoff`** for the full gate before pushing. See
 [Local CI](local-ci.md) for the tier ladder and why it beats waiting on remote
@@ -245,6 +248,33 @@ project's own markers) are noise at that severity, so they live in
 `.datastar-lint.yaml` under `attributes.allowed` — each verified to have a
 consumer before listing, since an entry also hides a misspelling of a real
 attribute (`data-variant` was listed long after nothing read it).
+
+## DaisyUI-specific rules
+
+`make daisyui-lint` is the other vocabulary gate, and the one `golangci-lint`
+cannot replace: a retired or misspelled class is valid HTML, valid Templ and
+valid Go, so nothing fails — the element just renders with no styles. Two
+layers divide the job:
+
+- **`check-classes` (integrity).** Three directions of one invariant: every
+  `app-*`/`ui-*`/`is-*` class used in a `.templ` is defined in `chrome.css`;
+  every class a kit table in `docs/ui-shell.md` lists is still defined; every
+  selector in `chrome.css` has a consumer. It also enforces the DaisyUI part
+  rules a compiler cannot see (`toggle`/`checkbox`/`radio` on an `<input>`,
+  `join-item` under a `join`, `dropdown-content` under a `dropdown`).
+- **`daisyui-lint` (vocabulary).** The pinned `go tool daisyui-lint --strict`
+  (`go.mod` `tool` directive) validates the class names against the DaisyUI
+  release it embeds, over `features/` + `internal/`. `chrome.css` and
+  `app.css` are inputs, so a class this repo defines is not reported as
+  foreign; `--strict` makes a warning fail the commit.
+
+The split in the Descent page follows the code: `daisyui-lint` guards the
+DaisyUI vocabulary every page shares, owned by the `shell` core unit (the theme
+catalog and the asset block) and consumed by every feature. `datastar-lint`
+guards the Datastar attributes in `.templ`; the `datastar` plugin unit
+(`internal/datastar`) is the Go seam those pages render through, not the lint
+target. Details: [UI shell](ui-shell.md#the-same-rules-travel-daisyui-lint) and
+[UI themes](ui-themes.md).
 
 ## Concurrency and resources
 

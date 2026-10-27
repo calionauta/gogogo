@@ -3,524 +3,817 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GoGoGo — a full-stack Go web app template that ships as one binary</title>
-<meta name="description" content="Full-stack Go web app template: Turso/SQLite + Templ + Datastar + Tailwind in a single self-contained binary. Auth, database, queue, realtime, durable workflows and offline sync — no Docker, no external services.">
-<meta property="og:title" content="GoGoGo">
-<meta property="og:description" content="A full-stack Go web app template that ships as one binary. No Docker, no external services.">
-<meta property="og:image" content="./assets/logo.png">
+<meta name="color-scheme" content="light">
+<title>gogogo — Your stack is ready. Summon your agent.</title>
+<meta name="description" content="Full-stack Go web app template: Turso/SQLite, Templ, Datastar, auth, queue, realtime, durable workflows and offline sync in one self-contained binary. The full unit catalog, one build.">
+<meta property="og:title" content="gogogo — one binary, one stack, one agent">
+<meta property="og:description" content="Your stack is ready. Summon your AI agent to build. Not a framework. One binary.">
+<meta property="og:image" content="https://calionauta.github.io/gogogo/assets/logo.png">
+<meta property="og:url" content="https://calionauta.github.io/gogogo/">
+<link rel="canonical" href="https://calionauta.github.io/gogogo/">
 <link rel="icon" href="./assets/logo.png">
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./descent.css">
+<link rel="stylesheet" href="./official.css">
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
 
+<a class="skip-link" href="#descent">Skip to the stack</a>
+
 <header class="nav">
-  <a class="brand" href="#top" aria-label="GoGoGo home">GoGoGo</a>
-  <nav class="links" aria-label="Primary">
-    <details class="mobile-menu">
-      <summary aria-label="Open section menu">Menu</summary>
-      <div class="mobile-menu-body">
-        <a href="#stack">Stack</a>
-        <a href="#layers">Layers</a>
-        <a href="./docs/motivation/">Why Go</a>
-        <a href="#ai-ready">AI-ready</a>
-        <a href="./docs/">Docs</a>
-        <a href="./releases/">Releases</a>
-      </div>
-    </details>
-    <a href="#stack">Stack</a>
-    <a href="#layers">Layers</a>
-    <a href="./docs/motivation/">Why Go</a>
-    <a href="#ai-ready">AI-ready</a>
+  <a class="brand" href="#top" aria-label="gogogo home">
+    <span>gogogo</span>
+  </a>
+  <nav class="nav-links" aria-label="Primary">
+    <a href="#descent">Stack</a>
+    <a href="#async-layers">Async</a>
+    <a href="#agents">Agents</a>
+    <a href="#install">Install</a>
+    <a href="#why-go">Why Go</a>
     <a href="./docs/">Docs</a>
     <a href="./releases/">Releases</a>
-    <a class="btn small" href="#start">Get started</a>
-    <a class="icon-link" href="https://github.com/calionauta/gogogo" rel="noopener" aria-label="GoGoGo on GitHub">
-      <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-    </a>
   </nav>
+  <a class="nav-github" href="https://github.com/calionauta/gogogo" rel="noopener" aria-label="gogogo on GitHub">
+    <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+  </a>
+  <a class="btn nav-cta" href="#install">Get started</a>
+  <details class="nav-menu mobile-menu">
+    <summary aria-label="Open menu">Menu</summary>
+    <div class="nav-menu-body">
+      <a href="#descent">Stack</a>
+      <a href="#async-layers">Async</a>
+      <a href="#agents">Agents</a>
+      <a href="#install">Install</a>
+      <a href="#why-go">Why Go</a>
+      <a href="./docs/">Docs</a>
+      <a href="./releases/">Releases</a>
+      <a href="https://github.com/calionauta/gogogo" rel="noopener">GitHub</a>
+    </div>
+  </details>
 </header>
 
 <main id="top">
 
-  <section class="hero">
-    <div class="hero-copy">
-      <p class="kicker">Full-stack Go · one binary · zero external services</p>
-      <h1>Your stack is ready.<br>Come build.</h1>
-      <h2 class="hero-sub">Not a framework. One binary.</h2>
-      <p class="lede">Database, auth, realtime, background jobs, durable workflows,
-      offline sync and an LLM client — in one self-contained Go binary.</p>
-      <div class="cta-row">
-        <a class="btn primary" href="#start">Get started</a>
-        <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
-        <a class="btn" href="./docs/">Read the docs</a>
-      </div>
-      <p class="fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> — sign in as <code>demo1@demo.app</code> / <code>demo1234456</code> (<code>demo2@demo.app</code> same password for two-user contention).</p>
+<section class="hero">
+  <div class="hero-copy">
+    <p class="kicker">Full-stack Go · one binary · zero external services</p>
+    <h1>Your stack is ready.<br><em>Summon</em> your AI agent <span class="nowrap">to build.</span></h1>
+    <p class="hero-sub">Not a framework. One binary.</p>
+    <div class="hero-ctas">
+      <a class="btn primary" href="#install">Get started</a>
+      <a class="btn" href="https://gogogo.calionauta.com/" rel="noopener">Try it live</a>
+      <a class="btn" href="./docs/">Read the docs</a>
     </div>
-    <div class="hero-art">
-      <img src="./assets/logo.png" alt="gogogo" width="677" height="369">
-      <div class="install-block">
-        <p class="install-label">Start with the installer</p>
-        <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run</code></pre>
-        <p class="install-note">Needs curl and git — that's it. The command
-        does the rest. <a href="./docs/getting-started/">Getting started →</a></p>
-      </div>
-    </div>
-  </section>
+  </div>
+  <div class="hero-art">
+    <img src="./assets/logo.png" alt="gogogo" width="677" height="369">
+  </div>
+</section>
 
-  <section id="ai-ready" class="section">
-    <p class="kicker">AI-ready</p>
-    <h2>You decide what to build. Agents handle the how.</h2>
-    <p class="section-lede">Deterministic stack, scriptable installer, tool
-    calls — everything on this page is built for agents to drive without
-    babysitting. Why flat beats framework: <a href="./docs/architecture-decision/">the architecture decision →</a></p>
-    <div class="grid-4">
-      <div class="card slim">
-        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg></p>
-        <p class="step">Deterministic stack</p>
-        <p>The same choices in every project — agents stop re-deciding.</p>
-      </div>
-      <div class="card slim">
-        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2"/></svg></p>
-        <p class="step">SCOPE on every file</p>
-        <p>Tagged Core (customize, never remove), Plugin (env-off), or Feature (delete it) — agents know what is safe to trim. <a href="./docs/scope-taxonomy/">Scope taxonomy →</a></p>
-      </div>
-      <div class="card slim">
-        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></p>
-        <p class="step">Lint tuned for AI-written code</p>
-        <p>golangci-lint + datastar-lint + repo guard rules catch unchecked errors, leaked contexts, and template mistakes — enforced in hooks and CI, taught to agents via the <a href="https://github.com/calionauta/gogogo/tree/master/skills/gogogo-coding-standards" rel="noopener">gogogo-coding-standards</a> skill.</p>
-      </div>
-      <div class="card slim">
-        <p class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></p>
-        <p class="step">Docs change with the code</p>
-        <p>One place describes behavior — updated in the same commit, never stale.</p>
+<section class="hero-start" aria-label="Start with the installer">
+  <div class="install-block hero-install">
+    <p class="install-label">Start with the installer</p>
+    <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh -s -- --run</code></pre>
+    <p class="install-note">Needs curl and git — that's it. The command does the rest.</p>
+  </div>
+  <p class="hero-fine">Live demo: <a href="https://gogogo.calionauta.com/" rel="noopener">gogogo.calionauta.com</a> — <code>demo1@demo.app</code> / <code>demo1234456</code> (<code>demo2@demo.app</code> same password for two-user contention).</p>
+</section>
+
+<header class="intro">
+  <p class="kicker">The iceberg</p>
+  <h2>Seven levels.<br><em>One binary.</em></h2>
+  <p class="lede">The tip is the agent interface; the mass below is the stack that makes it safe to touch. Scroll to descend, or jump to a level.</p>
+  <nav class="chips" aria-label="Jump to a level">
+    <a href="#layer-contact" data-chip="contact" aria-current="true"><span>01</span> Agent interface</a>
+    <a href="#layer-features" data-chip="features"><span>02</span> Features</a>
+    <a href="#layer-plugins" data-chip="plugins"><span>03</span> Plugins</a>
+    <a href="#layer-core" data-chip="core"><span>04</span> Core</a>
+    <a href="#layer-tests" data-chip="tests"><span>05</span> Tests</a>
+    <a href="#layer-gates" data-chip="gates"><span>06</span> Gates</a>
+    <a href="#layer-go" data-chip="go"><span>07</span> Go</a>
+  </nav>
+  <p class="scope-legend"><span class="legend-label">Scope</span> <span class="badge b-agent">Agent</span> <span class="badge b-feature">Feature</span> <span class="badge b-plugin">Plugin</span> <span class="badge b-core">Core</span> <span class="badge b-proof">Proof</span> <span class="badge b-gate">Gate</span> <span class="badge b-substrate">Substrate</span></p>
+</header>
+
+<section class="descent" id="descent" aria-label="The seven levels">
+  <div class="stage-col">
+    <div class="stage-sticky">
+      <div class="stage" id="stage" data-active="contact">
+        <div class="stage-top">
+          <span class="stage-kicker">level</span>
+          <span class="stage-level" id="stage-level">01</span>
+        </div>
+
+        <div class="core" id="core">
+          <div class="stage-rail" aria-hidden="true"><span id="stage-rail" style="--level:.142"></span></div>
+          <a class="band band-contact band-tip" href="#layer-contact" data-layer="contact" data-active style="--w:64%">
+            <span class="band-line"><span class="band-num">01</span><span class="band-name">Agent interface</span></span>
+            <span class="band-chips"><span>skills</span><span>mcp</span><span>cli</span></span>
+          </a>
+          <div class="core-surface" aria-hidden="true"></div>
+
+          <a class="band band-features" href="#layer-features" data-layer="features" style="--w:100%">
+            <span class="band-line"><span class="band-num">02</span><span class="band-name">Features</span></span>
+            <span class="band-chips"><span>todo</span><span>notes</span><span>board</span></span>
+          </a>
+          <a class="band band-plugins" href="#layer-plugins" data-layer="plugins" style="--w:93%">
+            <span class="band-line"><span class="band-num">03</span><span class="band-name">Plugins</span></span>
+            <span class="band-chips"><span>nats</span><span>dagnats</span><span>goakt</span></span>
+          </a>
+          <a class="band band-core" href="#layer-core" data-layer="core" style="--w:86%">
+            <span class="band-line"><span class="band-num">04</span><span class="band-name">Core</span></span>
+            <span class="band-chips"><span>db</span><span>auth</span><span>router</span></span>
+          </a>
+          <a class="band band-tests" href="#layer-tests" data-layer="tests" style="--w:79%">
+            <span class="band-line"><span class="band-num">05</span><span class="band-name">Tests</span></span>
+            <span class="band-chips"><span>race</span><span>smoke</span><span>layout</span></span>
+          </a>
+          <a class="band band-gates" href="#layer-gates" data-layer="gates" style="--w:72%">
+            <span class="band-line"><span class="band-num">06</span><span class="band-name">Gates</span></span>
+            <span class="band-chips"><span>lint</span><span>scope</span><span>docs</span></span>
+          </a>
+          <a class="band band-go" href="#layer-go" data-layer="go" style="--w:65%">
+            <span class="band-line"><span class="band-num">07</span><span class="band-name">Go</span></span>
+            <span class="band-chips"><span>go 1.27</span><span>embed</span></span>
+            <span class="band-final">one binary</span>
+          </a>
+        </div>
+
+        <div class="stage-bottom">
+          <p class="stage-name" id="stage-name">Agent interface</p>
+          <p class="stage-line" id="stage-line">The three ways an agent meets the system.</p>
+          <p class="stage-meta" id="stage-meta">agent</p>
+        </div>
       </div>
     </div>
-    <h3 class="subhead">Humans type. Agents call.</h3>
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">GOGOGO CLI</p>
-        <p class="tech"><code>cmd/gogogo</code> · stdlib-only, no deps</p>
-        <ul class="cmd-list">
-          <li><code>--run</code> — scaffold a repo and run it, one command</li>
-          <li><code>advise</code> — which lib or language fits the use-case</li>
-          <li><code>--dry-run</code> — preview the plan as JSON, zero changes</li>
-          <li><code>--yes</code> — scaffold, trim, prove it builds</li>
-          <li><code>add</code> — bring a trimmed unit back</li>
-          <li><code>--check</code> — verify markers, catch drift</li>
-          <li><code>export</code> — port bundle for a non-gogogo tree</li>
-          <li><code>new feature</code> — scaffold one feature in your project</li>
-          <li><code>migrate</code> — every release since your base, plus the gates</li>
-          <li><code>--check-update</code> — is an update out? exit 3 means yes</li>
+  </div>
+
+  <div class="chapters" id="chapters">
+
+    <article class="chapter" id="layer-contact" data-layer="contact" data-name="Agent interface" data-scope="agent" data-line="The three ways an agent meets the system.">
+      <div class="chapter-head"><span class="chapter-num">01</span><span class="chapter-meta">agent</span></div>
+      <h2>Agent interface</h2>
+      <p class="chapter-lede">Skills say what to read. MCP says what to call. The CLI says what to run. None of them ship in the binary; all of them decide how the binary gets used.</p>
+
+      <div class="viz agent-desk">
+        <div class="agent-bar">
+          <span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span>
+          <span class="console-title">agent → gogogo</span>
+          <span class="console-tag">full surface</span>
+        </div>
+        <div class="agent-tabs">
+          <input type="radio" name="agent-tab" id="agent-skills" checked>
+          <input type="radio" name="agent-tab" id="agent-cli">
+          <input type="radio" name="agent-tab" id="agent-mcp">
+          <div class="agent-labels">
+            <label for="agent-skills">Skills</label>
+            <label for="agent-cli">CLI</label>
+            <label for="agent-mcp">MCP</label>
+          </div>
+          <div class="agent-panels">
+            <div class="agent-panel panel-skills">
+              <ul class="agent-list">
+                <li><code>gogogo-coding-standards</code><span>Go + template rules, concurrency, testing, Datastar.</span></li>
+                <li><code>gogogo-ui</code><span>DaisyUI vocabulary, shell, themes, compositions.</span></li>
+                <li><code>daisyui</code><span>Vendored component vocabulary.</span></li>
+                <li><code>stelow-workflow-coding-standards</code><span>Universal principles, vendored.</span></li>
+              </ul>
+            </div>
+            <div class="agent-panel panel-cli">
+              <ul class="agent-list">
+                <li><code>--run</code><span>Scaffold a repo and run it, one command.</span></li>
+                <li><code>advise</code><span>Which lib or language fits the use case.</span></li>
+                <li><code>--dry-run</code><span>Preview the plan as JSON, zero changes.</span></li>
+                <li><code>--yes</code><span>Scaffold, trim, prove it builds.</span></li>
+                <li><code>add</code><span>Bring a trimmed unit back.</span></li>
+                <li><code>--check</code><span>Verify markers, catch drift.</span></li>
+                <li><code>export</code><span>Port bundle for a non-gogogo tree.</span></li>
+                <li><code>new feature</code><span>Scaffold one feature in your project.</span></li>
+                <li><code>migrate</code><span>Every release since your base, plus gates.</span></li>
+                <li><code>--check-update</code><span>Is an update out? Exit 3 means yes.</span></li>
+              </ul>
+            </div>
+            <div class="agent-panel panel-mcp">
+              <ul class="agent-list">
+                <li><code>advise_stack</code><span>Same guidance as advise, over MCP.</span></li>
+                <li><code>capabilities_list</code><span>The full unit registry.</span></li>
+                <li><code>trim_plan</code><span>Preview a trim, changes nothing.</span></li>
+                <li><code>trim_apply</code><span>Scaffold, needs <code>confirm:true</code>.</span></li>
+                <li><code>check_tree</code><span>Drift verdict per unit.</span></li>
+                <li><code>add_unit</code><span>Restore a unit, needs <code>confirm:true</code>.</span></li>
+                <li><code>version_status</code><span>Is the tool or the project behind?</span></li>
+                <li><code>migrate_plan</code><span>Releases between your base and latest.</span></li>
+                <li><code>export_unit</code><span>Port bundle, writes only <code>to</code>.</span></li>
+                <li><code>new_feature</code><span>Scaffold a feature, needs <code>confirm:true</code>.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> <code>skills/gogogo-coding-standards</code> <code>cmd/gogogo</code> <code>cmd/gogogo-mcp</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>gogogo --check</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> The binary keeps running; the agent loses its map.</p>
+        <p class="foot-line doc"><a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a> · <a href="./docs/getting-started/">Getting started</a></p>
+      </div>
+    </article>
+
+    <article class="chapter" id="layer-features" data-layer="features" data-name="Features" data-scope="feature" data-line="Whole pages you can delete.">
+      <div class="chapter-head"><span class="chapter-num">02</span><span class="chapter-meta">feature</span></div>
+      <h2>Features</h2>
+      <p class="chapter-lede">The feature units. Each is a vertical slice with its own handler, template and proof. Todo is the reference; the rest are demos. Keep the one you are learning from; remove the rest in a single commit.</p>
+
+      <div class="viz tiles">
+        <!--FEATURES:START-->
+        <a class="tile" href="./docs/todo-example/">
+          <span class="tile-top"><span class="tile-dot live"></span> Todo<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui todo-ui">
+            <span class="todo-row"><i class="box checked">✓</i><i class="bar"></i></span>
+            <span class="todo-row"><i class="box"></i><i class="bar"></i></span>
+            <span class="todo-row"><i class="box"></i><i class="bar short"></i></span>
+          </span>
+          <span class="tile-desc">Todo MVC demo (reference implementation)</span>
+          <span class="tile-note">reference · offline-first</span>
+        </a>
+        <a class="tile tile-ghost" href="./docs/features/#what-each-capability-does">
+          <span class="tile-top"><span class="tile-dot live"></span> Notes<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui notes-ui">
+            <span class="text-line"></span><span class="text-line"></span><span class="text-line short"></span>
+            <span class="caret" aria-hidden="true"></span>
+          </span>
+          <span class="tile-desc">shared plain-text notes (server-owned Loro Text + SSE)</span>
+          <span class="tile-note">text CRDT · live</span>
+        </a>
+        <a class="tile" href="./docs/features/#what-each-capability-does">
+          <span class="tile-top"><span class="tile-dot live"></span> Whiteboard<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui board-ui">
+            <svg viewBox="0 0 100 40" aria-hidden="true">
+              <path d="M4 28 C 18 4, 30 36, 44 18 S 68 30, 82 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="20" cy="12" r="2.4"/><circle cx="72" cy="26" r="2.4"/>
+            </svg>
+          </span>
+          <span class="tile-desc">collaborative canvas (Loro + Rough.js + presence)</span>
+          <span class="tile-note">CRDT · live</span>
+        </a>
+        <a class="tile" href="./docs/features/#chat-one-demo-one-vocabulary">
+          <span class="tile-top"><span class="tile-dot live"></span> Chat<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui chat-ui">
+            <span class="bubble left"><i></i><i></i></span>
+            <span class="bubble right"><i></i></span>
+          </span>
+          <span class="tile-desc">conversation demo (persisted history + catalog answers on genui)</span>
+          <span class="tile-note">generative UI</span>
+        </a>
+        <a class="tile" href="./docs/review/">
+          <span class="tile-top"><span class="tile-dot live"></span> Review<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v5h-5"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <span class="tile-desc">review loop demo (writer → critic → classifier judge, streamed verdict)</span>
+          <span class="tile-note">writer · critic · judge</span>
+        </a>
+        <a class="tile" href="./docs/features/#what-each-capability-does">
+          <span class="tile-top"><span class="tile-dot live"></span> Room<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17.5" cy="10" r="2.5"/><path d="M15 20a5 5 0 0 1 6.5-3.4"/></svg></span>
+          <span class="tile-desc">room presence demo (one grain per room, crash hook included)</span>
+          <span class="tile-note">roster · presenter lock</span>
+        </a>
+        <a class="tile" href="./docs/features/">
+          <span class="tile-top"><span class="tile-dot live"></span> Landing<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/></svg></span>
+          <span class="tile-desc">public entry page on GET / (inside the shared shell)</span>
+          <span class="tile-note">this page is a feature</span>
+        </a>
+        <a class="tile" href="./docs/features/">
+          <span class="tile-top"><span class="tile-dot live"></span> Config<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>
+          <span class="tile-desc">admin-only /config view + user role/session actions</span>
+          <span class="tile-note">operator surface</span>
+        </a>
+        <a class="tile" href="./docs/security/">
+          <span class="tile-top"><span class="tile-dot live"></span> Account<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg></span>
+          <span class="tile-desc">authenticated /account security page</span>
+          <span class="tile-note">security page</span>
+        </a>
+        <!--FEATURES:END-->
+      </div>
+
+      <!--WEIGHTS:START-->
+        <div class="weights">
+        <p class="weights-title">Client weight <span>measured, not estimated</span></p>
+        <p class="weight"><span>Chat diagrams</span><span data-weight="Chat diagrams">~695 KB raw · ~269 KB gzip</span></p>
+        <p class="weight"><span>Shared notes</span><span data-weight="Shared notes">~36 KB raw · ~13 KB gzip</span></p>
+        <p class="weight"><span>Whiteboard</span><span data-weight="Whiteboard">~56 KB raw · ~20 KB gzip</span></p>
+        <p class="weight"><span>Shared shell (every page)</span><span data-weight="Shared shell (every page)">~48 KB raw · ~20 KB gzip</span></p>
+        <p class="weight zero"><span>Todo · Room · Landing · Config · Account</span><span>0 KB extra</span></p>
+      </div>
+        <!--WEIGHTS:END-->
+
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> units · <code>features/todo</code> <code>features/notes</code> <code>features/whiteboard</code> <code>features/chat</code> <code>features/review</code> <code>features/room</code> <code>features/landing</code> <code>features/config</code> <code>features/account</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>rm -rf features/notes</code> plus its wiring call</p>
+        <p class="foot-line remove"><span class="label">Remove it</span> The route disappears. Nothing below moves.</p>
+        <p class="foot-line doc"><a href="./docs/features/">Feature catalog</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
+      </div>
+    </article>
+
+    <article class="chapter" id="layer-plugins" data-layer="plugins" data-name="Plugins" data-scope="plugin" data-line="Capabilities with a switch.">
+      <div class="chapter-head"><span class="chapter-num">03</span><span class="chapter-meta">plugin</span></div>
+      <h2>Plugins</h2>
+      <p class="chapter-lede">Every plugin unit. The first group is the common opt-outs; the rest are the ones you meet later. One environment variable or one trim turns each off; the binary keeps working.</p>
+
+      <div class="viz trim" id="trim">
+        <!--PLUGINS:START-->
+        <div class="trim-head">
+          <span class="trim-title">Trim plan</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">15 of 15 kept</span>
+        </div>
+        <p class="plan-group">Common opt-outs</p>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="nats">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">NATS</span><span class="plan-desc">NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes</span></span>
+          <span class="plan-env">NATS_ENABLED=false (in-memory fallback)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="dagnats">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">DagNats</span><span class="plan-desc">durable workflows (DagNats over JetStream) + onboarding worker</span></span>
+          <span class="plan-env">DAGNATS_ENABLED=false</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="goakt">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">GoAkt</span><span class="plan-desc">entity actors (GoAkt rooms: roster + presenter lock)</span></span>
+          <span class="plan-env">GOAKT_ENABLED=false</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="llm">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">LLM</span><span class="plan-desc">GoAI LLM client behind an injectable interface</span></span>
+          <span class="plan-env">Unset GOAI_API_KEY (suggest button hides)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="collab">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Collab</span><span class="plan-desc">Loro CRDT transport: DocStore, sync workers, presence</span></span>
+          <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="offline-sync">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Offline sync<span class="plan-tag">async mode</span></span><span class="plan-desc">hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)</span></span>
+          <span class="plan-env">OFFLINE_SYNC_ENABLED=false</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="search">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Search</span><span class="plan-desc">search layers (substring, fuzzy, BM25) behind one seam</span></span>
+          <span class="plan-env">installer</span>
+        </label>
+        <p class="plan-group">The rest</p>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="app">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">App</span><span class="plan-desc">AppContext (dependency bundle for the native window)</span></span>
+          <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="capabilities">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Capabilities</span><span class="plan-desc">capability registry + installer engine (CLI and MCP share it)</span></span>
+          <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="components">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Components</span><span class="plan-desc">shared UI helpers (Toast + OfflineBanner)</span></span>
+          <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="credits">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Credits</span><span class="plan-desc">AI credits + BYOK ledger (ai-credits)</span></span>
+          <span class="plan-env">CREDITS_ENABLED=false (already the default)</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="datastar">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Datastar<span class="plan-tag">Go seam</span></span><span class="plan-desc">Datastar rendering helpers</span></span>
+          <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="genkit">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Genkit</span><span class="plan-desc">typed AI flows (Genkit Go): orchestration + traces above internal/llm</span></span>
+          <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="genui">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">GenUI</span><span class="plan-desc">generative UI: the Chat demo renders LLM answers as Templ directives over the SSE hub</span></span>
+          <span class="plan-env">installer</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="sounds">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">Sounds</span><span class="plan-desc">UI sound feedback (cuelume, vendored)</span></span>
+          <span class="plan-env">installer</span>
+        </label>
+        <p class="trim-summary" id="trim-summary" aria-live="polite">Every plugin unit on. The binary still builds.</p>
+        <p class="trim-note">Every plugin unit from the unit contracts. A preview, not a live switch; the real switch is the env var or the trim.</p>
+        <!--PLUGINS:END-->
+      </div>
+
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> units · <code>internal/nats</code> <code>internal/dagnats</code> <code>internal/goakt</code> <code>internal/llm</code> <code>internal/collab</code> <code>internal/datastar</code> <code>internal/components</code> <code>internal/search</code> <code>internal/capabilities</code> <code>internal/installer</code> <code>features/app</code> <code>features/credits</code> <code>features/genui</code> <code>features/sounds</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>DAGNATS_ENABLED=false go run ./cmd/web</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> The binary still works. One capability is gone.</p>
+        <p class="foot-line doc"><a href="./docs/configuration/">Configuration</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
+      </div>
+    </article>
+
+    <article class="chapter" id="layer-core" data-layer="core" data-name="Core" data-scope="core" data-line="The load-bearing walls.">
+      <div class="chapter-head"><span class="chapter-num">04</span><span class="chapter-meta">core</span></div>
+      <h2>Core</h2>
+      <p class="chapter-lede">The core units. The anchors — database, auth, server, queue — plus the bricks. Customize them as much as you want; remove one and the binary stops building.</p>
+
+      <div class="viz core-viz" id="core-viz">
+        <!--CORE:START-->
+        <div class="pillars">
+          <div class="pillar">
+            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
+            <span class="pillar-name">Database</span>
+            <span class="pillar-lock">anchor · locked</span>
+            <span class="pillar-desc">flat data layer: Turso Database connection + migrations + sqlc queries</span>
+          </div>
+          <div class="pillar">
+            <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+            <span class="pillar-name">Auth</span>
+            <span class="pillar-lock">anchor · locked</span>
+            <span class="pillar-desc">cookie sessions + middleware (flat auth + shared login UI)</span>
+          </div>
+          <div class="pillar">
+            <svg viewBox="0 0 24 24"><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 16h.01M11 16h.01M7 9a5 5 0 0 1 10 0"/></svg>
+            <span class="pillar-name">Server</span>
+            <span class="pillar-lock">anchor · locked</span>
+            <span class="pillar-desc">flat backend boot (Turso + auth + handlers + queues + workers)</span>
+          </div>
+          <div class="pillar">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            <span class="pillar-name">Queue</span>
+            <span class="pillar-lock">anchor · locked</span>
+            <span class="pillar-desc">SSE Hub (realtime fan-out) + goqite jobs + workers + retry</span>
+          </div>
+        </div>
+        <div class="bricks">
+          <div class="brick"><span class="brick-name">App config</span><span class="brick-desc">env config (single source of truth for vars + defaults)</span><span class="brick-path">config</span></div>
+          <div class="brick"><span class="brick-name">CRUD wire</span><span class="brick-desc">todo CRUD wire protocol (subjects + payloads + publisher)</span><span class="brick-path">natswire</span></div>
+          <div class="brick"><span class="brick-name">Demo seed</span><span class="brick-desc">fresh-install demo account (one idempotent Signup)</span><span class="brick-path">demo</span></div>
+          <div class="brick"><span class="brick-name">Host gate</span><span class="brick-desc">host-capacity gate for heavy Go tests (skip on saturated boxes)</span><span class="brick-path">hostgate</span></div>
+          <div class="brick"><span class="brick-name">Instance</span><span class="brick-desc">stable instance identity for cross-instance durables and event origins</span><span class="brick-path">instance</span></div>
+          <div class="brick"><span class="brick-name">Observability</span><span class="brick-desc">core observability (slog + tracing)</span><span class="brick-path">observability</span></div>
+          <div class="brick"><span class="brick-name">RBAC</span><span class="brick-desc">RBAC with Casbin (embedded model + policy, enforced at the mux)</span><span class="brick-path">rbac</span></div>
+          <div class="brick"><span class="brick-name">Secrets</span><span class="brick-desc">age-decrypted env loader</span><span class="brick-path">secrets</span></div>
+          <div class="brick"><span class="brick-name">Shell</span><span class="brick-desc">one app shell (sidebar + module header + work area), the theme catalog, and the DaisyUI asset block every page renders</span><span class="brick-path">ui</span></div>
+        </div>
+        <div class="core-actions">
+          <button class="try-remove" type="button" id="try-remove">Try to remove one</button>
+          <p class="refusal" id="refusal" hidden>It won't build. That is the line between trimming and forking.</p>
+        </div>
+        <!--CORE:END-->
+      </div>
+
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> units · <code>internal/db</code> <code>internal/dbschema</code> <code>internal/auth</code> <code>internal/rbac</code> <code>internal/server</code> <code>internal/queue</code> <code>internal/secrets</code> <code>internal/natswire</code> <code>internal/demo</code> <code>internal/observability</code> <code>internal/hostgate</code> <code>internal/instance</code> <code>internal/ui</code> <code>config</code> <code>web/resources</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>make build</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> The binary stops building.</p>
+        <p class="foot-line doc"><a href="./docs/architecture/">Architecture</a> · <a href="./docs/scope-taxonomy/">Scope taxonomy</a> · <a href="./docs/unit-contracts/">Unit contracts</a></p>
+      </div>
+    </article>
+
+    <article class="chapter" id="layer-tests" data-layer="tests" data-name="Tests" data-scope="proof" data-line="The part you never see.">
+      <div class="chapter-head"><span class="chapter-num">05</span><span class="chapter-meta">proof</span></div>
+      <h2>Tests</h2>
+      <p class="chapter-lede">Race tests, browser smokes, the site layout gate and the contract tests, behind a five-tier local loop. They do not change the binary; they are what lets you change the binary.</p>
+
+      <div class="viz runner" id="runner">
+        <div class="runner-head">
+          <span class="runner-cmd">$ make test</span>
+          <span class="runner-status">ok</span>
+        </div>
+        <div class="runner-bar"><span></span></div>
+        <p class="tiers-label">The local loop</p>
+        <div class="tiers">
+          <span class="tier"><b>T1</b> format + build</span>
+          <span class="tier"><b>T2</b> scoped lint</span>
+          <span class="tier"><b>T3</b> scoped tests</span>
+          <span class="tier"><b>T3.5</b> ci-local-fast</span>
+          <span class="tier"><b>T4</b> ci-local</span>
+          <span class="tier"><b>T5</b> signoff</span>
+        </div>
+        <ul class="runner-list">
+          <li style="--i:0"><span class="check">✓</span><span>race</span><span class="runner-detail">go test -race ./...</span></li>
+          <li style="--i:1"><span class="check">✓</span><span>browser smokes</span><span class="runner-detail">scripts/test-web.sh</span></li>
+          <li style="--i:2"><span class="check">✓</span><span>site layout</span><span class="runner-detail">scripts/site-layout.test.mjs</span></li>
+          <li style="--i:3"><span class="check">✓</span><span>contracts</span><span class="runner-detail">internal/capabilities</span></li>
+          <li style="--i:4"><span class="check">✓</span><span>host gate</span><span class="runner-detail">internal/hostgate</span></li>
+          <li style="--i:5"><span class="check">✓</span><span>RBAC coverage</span><span class="runner-detail">internal/rbac/coverage_test.go</span></li>
+          <li style="--i:6"><span class="check">✓</span><span>gate tools</span><span class="runner-detail">internal/gate_tools_test.go</span></li>
+          <li style="--i:7"><span class="check">✓</span><span>release policy</span><span class="runner-detail">internal/release_policy_test.go</span></li>
+          <li style="--i:8"><span class="check">✓</span><span>toolchain pin</span><span class="runner-detail">internal/toolchain_pin_test.go</span></li>
+          <li style="--i:9"><span class="check">✓</span><span>API routes</span><span class="runner-detail">docs/api-routes.md</span></li>
+          <li style="--i:10"><span class="check">✓</span><span>unit contracts</span><span class="runner-detail">docs/unit-contracts.md</span></li>
+          <li style="--i:11"><span class="check">✓</span><span>install</span><span class="runner-detail">install.sh</span></li>
+          <li style="--i:12"><span class="check">✓</span><span>smoke prod image</span><span class="runner-detail">scripts/assert-deploy-build.sh</span></li>
         </ul>
-        <p class="off">Pin <code>--no-tui --yes</code> · never delete on an assumption</p>
       </div>
-      <div class="card">
-        <p class="step">GOGOGO-MCP</p>
-        <p class="tech"><code>cmd/gogogo-mcp</code> · stdio, no port, no deploy</p>
-        <ul class="cmd-list">
-          <li><code>advise_stack</code> — same guidance as <code>advise</code></li>
-          <li><code>capabilities_list</code> — full capability registry</li>
-          <li><code>trim_plan</code> — preview, changes nothing</li>
-          <li><code>trim_apply</code> — scaffold, needs <code>confirm:true</code></li>
-          <li><code>check_tree</code> — drift verdict per unit</li>
-          <li><code>add_unit</code> — restore a unit, needs <code>confirm:true</code></li>
-          <li><code>version_status</code> — is the tool or the project behind?</li>
-          <li><code>migrate_plan</code> — releases between your base and the latest</li>
-          <li><code>export_unit</code> — port bundle, writes only <code>to</code></li>
-          <li><code>new_feature</code> — scaffold a feature, needs <code>confirm:true</code></li>
-        </ul>
-        <p class="off">One JSON block in your client config · <a href="./docs/mcp/">setup guide →</a></p>
+
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> <code>make test</code> <code>make ci-local-fast</code> <code>make ci-local</code> <code>make signoff</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>make test</code> · <code>make ci-local</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> Nothing changes at runtime. You lose the right to refactor.</p>
+        <p class="foot-line doc"><a href="./docs/code-quality/">Code quality</a> · <a href="./docs/local-ci/">Local CI</a></p>
       </div>
-    </div>
-    <div class="install-block wide">
-      <p class="install-label">Prerequisite — install the binary, once</p>
-      <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh</code></pre>
-      <p class="install-note">Puts <code>gogogo</code> + <code>gogogo-mcp</code> in <code>~/.local/bin</code> (or build from source: <code>cd cmd/gogogo-mcp && go build -o gogogo-mcp .</code>). Below, replace <code>~</code> with your absolute home path (<code>echo $HOME</code>) — clients spawn without a shell, so it may not expand.</p>
-    </div>
-    <div class="tabs">
-      <input type="radio" name="mcp-client" id="tab-claude" checked>
-      <input type="radio" name="mcp-client" id="tab-codex">
-      <input type="radio" name="mcp-client" id="tab-opencode">
-      <input type="radio" name="mcp-client" id="tab-pi">
-      <div class="tab-labels">
-        <label for="tab-claude">Claude Code</label>
-        <label for="tab-codex">Codex</label>
-        <label for="tab-opencode">OpenCode</label>
-        <label for="tab-pi">Pi</label>
-      </div>
-      <div class="panels">
-        <div class="panel panel-claude">
-          <pre><code>{ "mcpServers": { "gogogo": { "command": "~/.local/bin/gogogo-mcp" } } }</code></pre>
-          <p class="install-note">Save as <code>.mcp.json</code> in your project (shared with the team), or run <code>claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code> for just you. Verify: <code>claude mcp list</code>, then restart Claude Code.</p>
+    </article>
+
+    <article class="chapter" id="layer-gates" data-layer="gates" data-name="Gates" data-scope="gate" data-line="The net before the merge.">
+      <div class="chapter-head"><span class="chapter-num">06</span><span class="chapter-meta">gate</span></div>
+      <h2>Gates</h2>
+      <p class="chapter-lede">Every hook in the repo: pre-commit, pre-push, post-merge. Hooks run them locally; CI runs them again. A red gate is a finding, not an obstacle.</p>
+
+      <div class="viz gates" id="gates">
+        <!--GATES:START-->
+        <p class="gate-note" id="gate-note" aria-live="polite">Focus or tap a gate to see what it catches.</p>
+        <p class="gate-group">pre-commit</p>
+        <div class="gate-row">
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:0" data-note="a Go file over the size limit">file-sizes</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:1" data-note="unformatted Go">fmt-gofumpt</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:2" data-note="a dirty go.mod/go.sum">mod-tidy</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:3" data-note="a known CVE in a dependency">govulncheck</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:4" data-note="a workflow that uses Node or Go without installing it">ci-deps</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:5" data-note="an installer that plants a go entry in $BIN_DIR">install-sh</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:6" data-note="a file without a SCOPE line">scope-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:7" data-note="a DaisyUI class not in the registry">class-integrity</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:8" data-note="a retired or typo'd DaisyUI class">daisyui-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:9" data-note="a dependency that breaks the flat stack">flatdeps-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:10" data-note="a test that cannot fail">test-value</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:11" data-note="a hand-written count or a dead path">docs-claims</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:12" data-note="a secret read outside the loader">secrets-env</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:13" data-note="a route with no user row in the policy">rbac-policy</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:14" data-note="a DagNats version outside the pin">dagnats-pin</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:15" data-note="a key in a commit">secrets-scan</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:16" data-note="a skill not registered for the hosts">skill-frontmatter</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:17" data-note="a Datastar attribute that does nothing">datastar-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:18" data-note="a route missing from the generated inventory">api-routes</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:19" data-note="an MCP tool whose test stopped pinning it">mcp-tests</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:20" data-note="a unit that left the registry">registry-conformance</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:21" data-note="a committed _templ.go that drifted">generated-templ</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:22" data-note="a stale app.min.css">css-check</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:23" data-note="a template that slipped into JSX">no-jsx</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:24" data-note="unchecked errors, leaked contexts, template mistakes">golangci-lint</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:25" data-note="AGENTS.md drifted from the tree">agents-md-staleness</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:26" data-note="the vendored stelow skill drifted">stelow-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:27" data-note="the vendored DaisyUI skill drifted">daisyui-drift</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:28" data-note="docs that did not move with the code">docs-staleness</button>
         </div>
-        <div class="panel panel-codex">
-          <pre><code>[mcp_servers.gogogo]
-command = "~/.local/bin/gogogo-mcp"</code></pre>
-          <p class="install-note">In <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this project, must be trusted). Verify: <code>/mcp</code> in session, or <code>codex mcp list</code>.</p>
+        <p class="gate-group">pre-push</p>
+        <div class="gate-row">
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:29" data-note="a known CVE in a dependency">govulncheck</button>
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:30" data-note="code no test or route reaches">deadcode</button>
         </div>
-        <div class="panel panel-opencode">
-          <pre><code>opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
-          <p class="install-note">Or in <code>opencode.json</code>: <code>"mcp": {"gogogo": {"type": "local", "command": ["~/.local/bin/gogogo-mcp"]}}</code>. Verify: <code>opencode mcp list</code>.</p>
+        <p class="gate-group">post-merge</p>
+        <div class="gate-row">
+          <button class="gate" type="button" aria-describedby="gate-note" style="--i:31" data-note="templ/css artifacts out of date">regen-assets</button>
+          <span class="gate gate-merge">merge</span>
         </div>
-        <div class="panel panel-pi">
-          <pre><code>pi mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre>
-          <p class="install-note">Pi 1.0 reads the standard <code>mcpServers</code> format too — migrating from another client just works. Verify: <code>pi mcp list</code> (exits 1 on invalid entries).</p>
+
+        <!--GATES:END-->
+      </div>
+
+      <div class="gate-map">
+        <p class="gate-map-row"><code>daisyui-lint</code> <span>Pinned <code>go tool daisyui-lint --strict</code> over <code>features/</code> + <code>internal/</code>. Reads <code>chrome.css</code>/<code>app.css</code> so this repo's own classes are not flagged. Guards the DaisyUI vocabulary the <a href="#layer-core">shell</a> owns and every feature uses; <code>check-classes</code> is its integrity half.</span></p>
+        <p class="gate-map-row"><code>datastar-lint</code> <span>Datastar attributes in <code>.templ</code> and the Go SDK calls that drive them. The <a href="#layer-plugins">datastar</a> unit is the Go seam those pages render through (<code>internal/datastar</code>), not the lint target.</span></p>
+      </div>
+
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> <code>.lefthook.yml</code> <code>rules/rules.go</code> <code>cmd/check-*</code> <code>bin/check-*</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>make ci-local</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> The binary still ships. The net is gone.</p>
+        <p class="foot-line doc"><a href="./docs/local-ci/">Local CI</a> · <a href="./docs/code-quality/">Code quality</a></p>
+      </div>
+    </article>
+
+    <article class="chapter" id="layer-go" data-layer="go" data-name="Go" data-scope="substrate" data-line="The material, not a layer.">
+      <div class="chapter-head"><span class="chapter-num">07</span><span class="chapter-meta">substrate</span></div>
+      <h2>Go</h2>
+      <p class="chapter-lede">Every level above is Go. One backend, four shells: web, desktop, Android and a native window. Zig only enters with a profiled native need.</p>
+
+      <div class="viz build">
+        <div class="build-head"><span class="prompt">$</span> go build ./cmd/web <span class="build-ok">✓</span></div>
+        <div class="binary">
+          <span class="binary-mark">gogogo</span>
+          <span class="binary-meta">one binary · no docker · no external services</span>
         </div>
+        <div class="shells" aria-label="Delivery targets">
+          <span class="label">Ships as</span>
+          <span>web</span><span>desktop</span><span>Android</span><span>native</span>
+        </div>
+        <p class="build-fine">Go 1.27 · <code>//go:embed</code> · Zig only by exception</p>
       </div>
-    </div>
-    <div class="grid-3 docs-links">
-      <a class="doc-card" href="./docs/cli/">
-        <span class="doc-card-title">CLI reference →</span>
-        <span class="doc-card-desc">Scaffold, trim, advise, add, check — every flag.</span>
-      </a>
-      <a class="doc-card" href="./docs/mcp/">
-        <span class="doc-card-title">MCP setup →</span>
-        <span class="doc-card-desc">Transports, tools, per-client wiring.</span>
-      </a>
-      <a class="doc-card" href="./docs/mcp/#tools">
-        <span class="doc-card-title">Tool catalog →</span>
-        <span class="doc-card-desc">Every tool, with its source.</span>
-      </a>
-    </div>
-  </section>
 
-  <section id="stack" class="section">
-    <p class="kicker">In the box</p>
-    <h2>Every choice already made.</h2>
-    <p class="section-lede">Decisions you would otherwise spend weeks on. Each one is documented with its trade-offs in
-    <a href="./docs/stack-layers/">stack layers</a> — and why Go won in
-    <a href="./docs/motivation/">the thesis →</a>.</p>
-    <p class="lede-sub">No Docker. No Redis. No Postgres. No JS build step.</p>
-    <p class="group-label core">Core — always in <span>(customize, never remove)</span></p>
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">Database and auth — zero config</p>
-        <p class="tech">Turso · embedded SQLite</p>
-        <p>Cookie sessions and file-local storage. No separate service to run.</p>
-        <p class="off">Always in</p>
+      <div class="chapter-foot">
+        <p class="foot-line"><span class="label">Inside</span> Go 1.27 <code>go build ./cmd/web</code> <code>//go:embed</code> <code>cmd/desktop</code> <code>cmd/gui</code></p>
+        <p class="foot-line"><span class="label">Proof</span> <code>go build ./cmd/web</code></p>
+        <p class="foot-line remove"><span class="label">Remove it</span> There is no binary.</p>
+        <p class="foot-line doc"><a href="./docs/exception-to-go/">Exception to Go</a> · <a href="./docs/motivation/">Why Go</a> · <a href="./docs/desktop-mobile/">Desktop &amp; mobile</a></p>
       </div>
-      <div class="card">
-        <p class="step">Roles and permissions without a service</p>
-        <p class="tech">Casbin + <code>users.role</code></p>
-        <p>Roles ride the user row; one Casbin model enforces them at the mux. Embedded policy by default, DB-backed when rules must change at runtime.</p>
-        <p class="off">Always wired · enforce: <code>RBAC_ENABLED=true</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Reactive UI with no JS framework</p>
-        <p class="tech">Templ + Datastar over SSE</p>
-        <p>Type-safe templates generated at build time, ~12&nbsp;KiB client. A broken template is a compile error.</p>
-        <p class="off">Always in</p>
-      </div>
-      <div class="card">
-        <p class="step">Background jobs with retry</p>
-        <p class="tech">goqite + SSE Hub</p>
-        <p>goqite executes with exponential backoff + jitter; the SSE Hub streams progress to the browser. No Redis.</p>
-        <p class="off">Always in</p>
-      </div>
-      <div class="card">
-        <p class="step">Secrets encrypted at rest</p>
-        <p class="tech">age + <code>~/.secrets/</code></p>
-        <p>Decrypted at boot. No vault, no cloud dependency.</p>
-        <p class="off">Always in</p>
-      </div>
-    </div>
-    <p class="group-label plugin">Plugin — on by default <span>(env var to switch off)</span></p>
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">Durable multi-step workflows</p>
-        <p class="tech">DagNats over JetStream</p>
-        <p>Declarative JSON. Kill the process mid-run and it resumes where it left off.</p>
-        <p class="off">Off: <code>DAGNATS_ENABLED=false</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Broadcast across instances</p>
-        <p class="tech">NATS JetStream</p>
-        <p>Two or more instances behind a load balancer converge. Safe to enable on one.</p>
-        <p class="off">Off: <code>NATS_ENABLED=false</code></p>
-      </div>
-      <div class="card">
-        <p class="step">AI features on any provider</p>
-        <p class="tech">GoAI + ai-credits</p>
-        <p>Injectable LLM interface, plus optional credits and BYOK billing.</p>
-        <p class="off">Off: unset <code>GOAI_API_KEY</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Offline-first sync</p>
-        <p class="tech">Service Worker + Leaf Node</p>
-        <p>Offline edits queue locally and replay on reconnect; replays never duplicate.</p>
-        <p class="off">Off: <code>OFFLINE_SYNC_ENABLED=false</code></p>
-      </div>
-      <div class="card">
-        <p class="step">One shell, four palettes</p>
-        <p class="tech">DaisyUI v5 · themes</p>
-        <p>Every page renders one shell; the theme picker swaps palette and radius, never layout.</p>
-      </div>
-      <div class="card">
-        <p class="step">Room ownership without races</p>
-        <p class="tech">GoAkt grains</p>
-        <p>One grain per room: heartbeat roster plus an exactly-one presenter lock, supervised with restart budget. Demo at <code>/room/</code> with a crash hook.</p>
-        <p class="off">Off: <code>GOAKT_ENABLED=false</code></p>
-      </div>
-    </div>
-    <p class="group-label feature">Feature — optional extras <span>(keep it or delete it)</span></p>
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">Collaborative whiteboard</p>
-        <p class="tech">Loro CRDT + Rough.js</p>
-        <p>Presence cursors, offline outbox, Turso-persisted snapshots.</p>
-        <p class="off">Delete: <code>features/whiteboard/</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Shared notes</p>
-        <p class="tech">Loro Text + SSE Hub</p>
-        <p>Concurrent typing that merges, presence and typing indicators, offline outbox.</p>
-        <p class="off">Delete: <code>features/notes/</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Chat (generative UI)</p>
-        <p class="tech">Catalog + invented visuals + <a href="https://pele.run" rel="noopener">Pele</a> diagrams, no client framework</p>
-        <p>The model answers in conversation with cards, tables, diagrams and invented markup; the server renders them. Keyless demo included. Proves constrained generation with unknown-type fail-closed.</p>
-        <p class="off">Delete: <code>features/genui/</code> + <code>features/chat/</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Review loop</p>
-        <p class="tech">Genkit flows (plugin) + GoAI + Jev judge</p>
-        <p>A writer and a critic iterate, then a classifier judge delivers the verdict. Typed flows, per-step traces, any Jev-compatible judge via env. Proves a multi-role loop with per-role cost attribution and confidence cascade.</p>
-        <p class="off">Delete: <code>features/review/</code> · drops the <code>genkit</code> plugin</p>
-      </div>
-      <div class="card">
-        <p class="step">Desktop apps on the same backend</p>
-        <p class="tech">Wails v3 · gogpu/ui</p>
-        <p>Wails ships a desktop app with offline edge sync; gogpu/ui is a pure-Go window with no webview and no HTTP.</p>
-        <p class="off">Delete: <code>cmd/desktop/</code>, <code>cmd/gui/</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Todo reference app</p>
-        <p class="tech">SSE Hub record-sync</p>
-        <p>Full CRUD with per-user live updates. Copy the pattern, then remove it.</p>
-        <p class="off">Delete: <code>features/todo/</code></p>
-      </div>
-      <div class="card">
-        <p class="step">Room presence demo</p>
-        <p class="tech">GoAkt grains</p>
-        <p>Heartbeat roster plus an exactly-one presenter lock, supervised with restart budget. Copy the pattern for per-entity features, then remove it.</p>
-        <p class="off">Delete: <code>features/room/</code></p>
-      </div>
-    </div>
-  </section>
+    </article>
 
-  <section id="layers" class="section">
-    <p class="kicker">What makes it different</p>
-    <h2>Everything async your app will need.<br>Already inside.</h2>
-    <p class="section-lede">Every web app eventually needs a queue, a workflow runtime, a
-    collaboration layer, a realtime layer, and an owner for shared state. They solve different problems, so
-    gogogo compiles all of them into one build — and lets you switch each off with a
-    single environment variable when you don't need it.</p>
+  </div>
+</section>
 
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">Background jobs that update the UI</p>
-        <p class="tech">goqite + SSE Hub</p>
-        <p>Always on. Work longer than ~50ms goes here instead of blocking a request — progress streams back to the browser.</p>
-      </div>
-      <div class="card">
-        <p class="step">Workflows that survive a restart</p>
-        <p class="tech">DagNats over JetStream</p>
-        <p>Declarative JSON. Kill the server mid-run; it resumes at the last incomplete step.</p>
-      </div>
-      <div class="card">
-        <p class="step">Collaboration without data loss</p>
-        <p class="tech">Loro CRDT</p>
-        <p>Offline edits merge with no last-write-wins loss. Ops converge idempotently.</p>
-      </div>
-      <div class="card">
-        <p class="step">Live record updates, scoped per user</p>
-        <p class="tech">SSE Hub record-sync</p>
-        <p>The owner column decides who sees what — no extra channel to secure.</p>
-      </div>
-      <div class="card">
-        <p class="step">Ephemeral UI signals</p>
-        <p class="tech">SSE Hub over Datastar</p>
-        <p>Toasts, client counts, workflow progress — signals, not database-shaped events.</p>
-      </div>
-      <div class="card">
-        <p class="step">Broadcast across instances</p>
-        <p class="tech">NATS JetStream</p>
-        <p>Run two or more instances behind a load balancer and records converge. Safe to enable on one.</p>
-      </div>
-      <div class="card">
-        <p class="step">Room ownership without races</p>
-        <p class="tech">GoAkt grains</p>
-        <p>One addressable owner per room: heartbeat roster plus an exactly-one presenter lock, supervised with restart budget.</p>
-      </div>
-    </div>
+<section class="async-layers" id="async-layers">
+  <div class="cap-head">
+    <p class="kicker">The other axis</p>
+    <h2>The code has levels.<br><em>The runtime has layers.</em></h2>
+    <p class="cap-lede">A capability is not one folder. Real-time multi-user is the sum of the collaboration, live-record, signal, broadcast and room rows; durable workflows is DagNats; offline-first is the mode below.</p>
+  </div>
 
-    <p class="fine center">Seven layers, one <code>make build</code>. No build tags, no
-    stub files, no matrix. <a href="./docs/async-layers/">Read the async layers doc →</a></p>
-  </section>
+  <p class="outcome-label">Outcomes</p>
+  <div class="outcome-row" aria-label="Outcomes">
+    <span class="outcome" data-outcome="offline">Offline-first</span>
+    <span class="outcome" data-outcome="realtime">Real-time multi-user</span>
+    <span class="outcome" data-outcome="durable">Durable workflows</span>
+  </div>
 
-  <section id="thin-client" class="section">
-    <p class="kicker">Featherweight client</p>
-    <h2>Kilobytes of JS, not megabytes.</h2>
-    <p class="section-lede">The backend is the source of truth — the browser holds
-    ephemeral intent and cache, never authority. So the client stays tiny:
-    measured vendored JS per feature (<a href="./docs/features/#client-weight">full table</a>).</p>
-    <div class="grid-2">
-      <div class="card">
-        <p class="step">Todo, Room, Landing, Config</p>
-        <p class="tech">0 KB of extra JS</p>
-        <p>Server-rendered pages. No client code beyond the shared core.</p>
-      </div>
-      <div class="card">
-        <p class="step">Chat diagrams</p>
-        <p class="tech" data-weight="Chat diagrams">~695 KB raw · ~269 KB gzip</p>
-        <p>The one heavy asset: <a href="https://pele.run" rel="noopener">Pele</a> draws a Mermaid fence as themeable SVG. Only the chat page loads it, and without it the source stays readable as code.</p>
-      </div>
-      <div class="card">
-        <p class="step">Shared notes</p>
-        <p class="tech" data-weight="Shared notes">~37 KB raw · ~13 KB gzip</p>
-        <p>Collaborative editing, presence, carets — one vendored file, no dependency.</p>
-      </div>
-      <div class="card">
-        <p class="step">Collaborative whiteboard</p>
-        <p class="tech" data-weight="Whiteboard">~57 KB raw · ~20 KB gzip</p>
-        <p>Canvas wiring plus the hand-drawn renderer. Still smaller than most framework runtimes alone.</p>
-      </div>
-      <div class="card">
-        <p class="step">Shared core, every page</p>
-        <p class="tech" data-weight="Shared shell (every page)">~48 KB raw · ~20 KB gzip</p>
-        <p>Datastar plus theming. That is the whole client platform.</p>
-      </div>
-    </div>
-  </section>
+  <div class="table-wrap" role="region" aria-label="Async layers">
+  <table class="async-table">
+    <thead>
+      <tr><th scope="col">Async layer</th><th scope="col">What it does</th><th scope="col">Lives in</th><th scope="col">Switch</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">Background jobs</th><td data-label="What it does">goqite + SSE Hub delivery. Work longer than ~50 ms goes here instead of blocking a request.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
+      <tr><th scope="row">Durable workflows</th><td data-label="What it does">DagNats over JetStream. Kill the process mid-run; it resumes at the last incomplete step.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-plugins">Plugins</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><code>DAGNATS_ENABLED=false</code></td></tr>
+      <tr><th scope="row">Collaboration</th><td data-label="What it does">Loro CRDT. Offline edits merge; snapshots persist to Turso.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-features">Features</a><a href="#layer-plugins">Plugins</a></span></td><td data-label="Switch"><span class="async-switch">remove <code>internal/collab/</code></span></td></tr>
+      <tr><th scope="row">Live record updates</th><td data-label="What it does">SSE Hub record-sync, scoped by owner and visibility.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
+      <tr><th scope="row">Ephemeral signals</th><td data-label="What it does">SSE Hub over Datastar: toasts, progress, chat answers.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-core">Core</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><span class="async-switch">always on</span></td></tr>
+      <tr><th scope="row">Cross-instance</th><td data-label="What it does">NATS JetStream. Records and docs converge across instances.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-plugins">Plugins</a></span></td><td data-label="Switch"><code>NATS_ENABLED=false</code></td></tr>
+      <tr><th scope="row">Room ownership</th><td data-label="What it does">GoAkt grains. One owner per room: roster, locks, supervision.</td><td data-label="Lives in"><span class="async-lives"><a href="#layer-plugins">Plugins</a><a href="#layer-features">Features</a></span></td><td data-label="Switch"><code>GOAKT_ENABLED=false</code></td></tr>
+    </tbody>
+  </table>
+  </div>
 
-  <section id="scope" class="section">
-    <p class="kicker">Safe to trim</p>
-    <h2>Delete what you don't need, without guessing.</h2>
-    <p class="section-lede">Every file in the codebase carries a SCOPE annotation on two
-    axes: where it lives, and what happens if you delete it. A linter enforces it, so
-    you never have to guess whether a directory is load-bearing.</p>
-    <div class="compare">
-      <div class="scope-card core">
-        <p class="scope-badge">Core</p>
-        <p class="scope-desc">The binary does not work without it.</p>
-        <p class="fine mono">config · db · internal/queue<br>internal/secrets · features/app<br>router · web/resources</p>
-        <p class="scope-act">Customize, never remove.</p>
-      </div>
-      <div class="scope-card plugin">
-        <p class="scope-badge">Plugin</p>
-        <p class="scope-desc">The binary works but loses a capability.</p>
-        <p class="fine mono">internal/nats · internal/dagnats<br>internal/llm · internal/collab<br>internal/datastar · internal/goakt</p>
-        <p class="scope-act">Swap, or delete + remove the wiring call.</p>
-      </div>
-      <div class="scope-card feature">
-        <p class="scope-badge">Feature</p>
-        <p class="scope-desc">A demo or add-on.</p>
-        <p class="fine mono">features/todo · features/whiteboard<br>features/room · features/notes<br>features/genui · features/landing · features/config<br>features/onboarding · features/credits</p>
-        <p class="scope-act">Keep as reference, then remove.</p>
-      </div>
-    </div>
-    <p class="fine center"><code>make check-scope</code> runs in CI and in your pre-commit
-    hook. <a href="./docs/scope-taxonomy/">Scope taxonomy →</a></p>
-  </section>
+  <aside class="offline-callout">
+    <p class="offline-kicker">Offline-first is a mode, not one of the seven</p>
+    <p>Web: a Service Worker queues mutations in IndexedDB and replays on reconnect; the server dedupes by <code>idem_key</code>. Desktop: a NATS Leaf Node keeps a local JetStream replica and replays when it reconnects.</p>
+    <p class="offline-switch"><span class="label">Switch</span> <code>OFFLINE_SYNC_ENABLED=false</code> disables the Service Worker queue and the NATS CRUD proxy together.</p>
+    <p class="offline-meta"><span class="label">Lives in</span> <a href="#layer-features">Features</a> <a href="#layer-plugins">Plugins</a> <a href="#layer-core">Core</a> · <span class="label">Try it</span> disconnect, edit, reconnect.</p>
+    <p class="offline-unit">On the SCOPE axis, <a href="#layer-plugins">offline-sync</a> is a plugin unit; on this async axis it is the mode above, not one of the seven.</p>
+  </aside>
 
-  <section class="section exception-band">
+  <p class="async-fine">One <code>make build</code>. No build tags, no stub files, no matrix.</p>
+
+  <p class="async-link"><a href="./docs/async-layers/">Read the async layers doc →</a></p>
+</section>
+
+<section class="why-go" id="why-go">
+  <div class="why-copy">
     <p class="kicker">The exception</p>
-    <p class="exception-rule">Go for everything. Zig only as an exception.</p>
-    <p class="exception-sub">Zig enters in one case: a <strong>proven</strong>
-    native need — a profiled hot kernel, a codec, an OS integration.
-    Everything else stays Go.</p>
-    <p class="fine"><a href="./docs/exception-to-go/">When Zig is justified →</a> · <a href="./docs/motivation/">Why Go →</a></p>
-  </section>
+    <h2>Go for everything.<br><em>Zig only by exception.</em></h2>
+    <p class="why-lede">Zig enters in one case: a <strong>proven</strong> native need — a profiled hot kernel, a codec, an OS integration. Everything else stays Go. The burden of proof is on the native case, and the kernel is removable in minutes.</p>
+    <p class="why-links"><a href="./docs/motivation/">Why Go →</a> <a href="./docs/exception-to-go/">When Zig is justified →</a> <a href="./docs/native-language-tradeoffs/">Native trade-offs →</a></p>
+  </div>
+  <pre class="why-code" aria-label="The exception rule"><code>// Go is the product language.
+// Zig is a removed-by-default kernel,
+// never a second product language.</code></pre>
+</section>
 
-  <section id="start" class="section cta-section">
+<section class="agents" id="agents">
+  <div class="agents-head">
+    <p class="kicker">AI-ready</p>
+    <h2>You decide what to build.<br><em>Agents handle the how.</em></h2>
+    <p class="agents-lede">A deterministic stack, SCOPE on every file, lint tuned for AI-written code, and docs that change with the code. The agent stops re-deciding and starts shipping.</p>
+  </div>
+  <div class="principles">
+    <div class="principle">
+      <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg></span>
+      <h3>Deterministic stack</h3>
+      <p>The same choices in every project — agents stop re-deciding.</p>
+    </div>
+    <div class="principle">
+      <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.59 13.41 13.4 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.2"/></svg></span>
+      <h3>SCOPE on every file</h3>
+      <p>Core, Plugin or Feature — agents know what is safe to trim.</p>
+    </div>
+    <div class="principle">
+      <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      <h3>Lint for AI code</h3>
+      <p>Ruleguard, datastar-lint, daisyui-lint and the repo gates catch the classic failure modes.</p>
+    </div>
+    <div class="principle">
+      <span class="principle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>
+      <h3>Docs move with code</h3>
+      <p>One place describes behavior, updated in the same commit.</p>
+    </div>
+  </div>
+  <p class="agents-links"><a href="./docs/architecture-decision/">The flat-stack decision →</a> · <a href="./docs/cli/">CLI reference →</a> · <a href="./docs/mcp/">MCP setup →</a></p>
+</section>
+
+<section class="install" id="install">
+  <div class="install-head">
     <p class="kicker">Start here</p>
-    <h2>Run. Ship.</h2>
-    <p class="section-lede">The installer scaffolds your repo from this template,
-    renames it, and trims the plugins and features you skip. Nothing to install first
-    except Go.</p>
-    <div class="install-block wide">
-      <pre><code>curl -sSfL https://raw.githubusercontent.com/calionauta/gogogo/master/install.sh | sh -s -- --run</code></pre>
-    </div>
-    <div class="cta-row center">
-      <a class="btn primary" href="./docs/getting-started/">Start with the installer</a>
-      <a class="btn" href="./docs/">All docs</a>
-    </div>
-  </section>
+    <h2>Run. Ship. <em>Summon.</em></h2>
+    <p class="install-lede">One install puts the binary and the MCP server on your PATH. Then wire your agent. Humans type; agents call.</p>
+  </div>
 
-  <section class="section meta">
-    <p>Inspired by <a href="https://github.com/zangster300/northstar" rel="noopener">northstar</a> by Zangster — details in <a href="./docs/inspirations/">inspirations</a>.</p>
-    <p><strong>Early and moving fast.</strong> The most helpful contribution right now is using gogogo and reporting what breaks — an issue with a reproduction beats a PR. See <a href="https://github.com/calionauta/gogogo/blob/master/CONTRIBUTING.md" rel="noopener">CONTRIBUTING</a> or <a href="https://github.com/calionauta/gogogo/issues" rel="noopener">open an issue</a>.</p>
-    <p>MIT licensed.</p>
-  </section>
+  <ol class="steps">
+    <li class="step">
+      <p class="step-num">01</p>
+      <h3>Install the binary</h3>
+      <p class="step-copy">Needs curl and git. Puts <code>gogogo</code> and <code>gogogo-mcp</code> in <code>~/.local/bin</code>.</p>
+      <div class="install-block">
+        <pre><code>curl -sSfL https://<wbr>raw.githubusercontent.com/<wbr>calionauta/<wbr>gogogo/<wbr>master/<wbr>install.sh | sh</code></pre>
+      </div>
+    </li>
+    <li class="step">
+      <p class="step-num">02</p>
+      <h3>Scaffold and run</h3>
+      <p class="step-copy">Rename, trim the units you skipped, and prove it builds. Then open <code>localhost:8080</code>.</p>
+      <div class="install-block">
+        <pre><code>gogogo --run</code></pre>
+      </div>
+    </li>
+    <li class="step step-wide">
+      <p class="step-num">03</p>
+      <h3>Wire your agent</h3>
+      <p class="step-copy">One block in your client config. Clients spawn without a shell, so replace <code>~</code> with your absolute home path (<code>echo $HOME</code>).</p>
+
+      <div class="tabs mcp-tabs">
+        <input type="radio" name="mcp-client" id="tab-claude" checked>
+        <input type="radio" name="mcp-client" id="tab-codex">
+        <input type="radio" name="mcp-client" id="tab-opencode">
+        <input type="radio" name="mcp-client" id="tab-pi">
+        <div class="tab-labels">
+          <label for="tab-claude">Claude Code</label>
+          <label for="tab-codex">Codex</label>
+          <label for="tab-opencode">OpenCode</label>
+          <label for="tab-pi">Pi</label>
+        </div>
+        <div class="panels">
+          <div class="panel panel-claude"><pre><code>{ "mcpServers": { "gogogo": { "command": "/home/you/.local/bin/gogogo-mcp" } } }</code></pre><p class="install-note">Save as <code>.mcp.json</code> in your project, or run <code>claude mcp add gogogo -- ~/.local/bin/gogogo-mcp</code>.</p></div>
+          <div class="panel panel-codex"><pre><code>[mcp_servers.gogogo]
+command = "/home/you/.local/bin/gogogo-mcp"</code></pre><p class="install-note">In <code>~/.codex/config.toml</code> (every project) or <code>.codex/config.toml</code> (this project).</p></div>
+          <div class="panel panel-opencode"><pre><code>opencode mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Or in <code>opencode.json</code>: <code>"mcp": {"gogogo": {"type": "local", "command": ["/home/you/.local/bin/gogogo-mcp"]}}</code>.</p></div>
+          <div class="panel panel-pi"><pre><code>pi mcp add gogogo -- ~/.local/bin/gogogo-mcp</code></pre><p class="install-note">Pi reads the standard <code>mcpServers</code> format too — migrating from another client just works.</p></div>
+        </div>
+      </div>
+    </li>
+  </ol>
+
+  <p class="install-fine">Verify: <code>gogogo --check</code> · <code>gogogo-mcp</code> tool list · <a href="./docs/getting-started/">Getting started</a> · <a href="./docs/cli/">CLI reference</a> · <a href="./docs/mcp/">MCP setup</a></p>
+</section>
+
+<footer class="site-foot">
+  <div class="foot-brand">
+    <div>
+      <p class="foot-name">gogogo</p>
+      <p class="foot-line">A full-stack Go template that ships as one binary.</p>
+    </div>
+  </div>
+  <div class="foot-cols">
+    <div>
+      <p class="foot-head">Product</p>
+      <a href="#descent">The seven levels</a>
+      <a href="#async-layers">Async layers</a>
+      <a href="#why-go">Why Go</a>
+      <a href="#install">Install</a>
+    </div>
+    <div>
+      <p class="foot-head">Read</p>
+      <a href="./docs/">Docs</a>
+      <a href="./releases/">Releases</a>
+      <a href="./docs/architecture-decision/">Architecture</a>
+      <a href="./docs/inspirations/">Inspirations</a>
+    </div>
+    <div>
+      <p class="foot-head">Try</p>
+      <a href="https://gogogo.calionauta.com/" rel="noopener">Live demo</a>
+      <a href="https://github.com/calionauta/gogogo" rel="noopener">GitHub</a>
+      <a href="https://github.com/calionauta/gogogo/issues" rel="noopener">Issues</a>
+      <a href="https://github.com/calionauta/gogogo/blob/master/CONTRIBUTING.md" rel="noopener">Contributing</a>
+    </div>
+  </div>
+  <div class="foot-demo">
+    <p><strong>Live demo</strong> <code>demo1@demo.app</code> / <code>demo1234456</code> · <code>demo2@demo.app</code> same password for two-user contention.</p>
+    <p>Inspired by <a href="https://github.com/zangster300/northstar" rel="noopener">northstar</a>. MIT licensed. Early and moving fast — an issue with a reproduction beats a PR.</p>
+    <p class="foot-made">Made by <a href="https://github.com/calionauta" rel="noopener">calionauta</a> with 🖤 from Brazil.</p>
+  </div>
+</footer>
 
 </main>
 
-<footer class="foot">
-  <p>Made by <a href="http://github.com/calionauta">calionauta</a> with 🖤 from Brazil.</p>
-</footer>
-
-<script>
-(function () {
-  function copyText(text, done) {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done, function () { fallback(); });
-    } else {
-      fallback();
-    }
-    function fallback() {
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand("copy"); } catch (e) {}
-      document.body.removeChild(ta);
-      done();
-    }
-  }
-  document.querySelectorAll(".install-block pre").forEach(function (pre) {
-    var code = pre.querySelector("code");
-    if (!code) return;
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "copy-btn";
-    btn.textContent = "copy";
-    btn.setAttribute("aria-label", "Copy command to clipboard");
-    btn.addEventListener("click", function () {
-      copyText(code.innerText, function () {
-        btn.textContent = "copied";
-        btn.classList.add("copied");
-        setTimeout(function () {
-          btn.textContent = "copy";
-          btn.classList.remove("copied");
-        }, 1400);
-      });
-    });
-    pre.appendChild(btn);
-  });
-
-  // <details> opens natively; close it when a link is chosen, when the tap
-  // lands outside, or on Escape, so the panel never covers the section it
-  // opened from. Escape returns focus to the summary, where the user left it.
-  document.querySelectorAll(".mobile-menu").forEach(function (d) {
-    var summary = d.querySelector("summary");
-    d.addEventListener("click", function (e) {
-      if (e.target.closest("a")) d.open = false;
-    });
-    document.addEventListener("click", function (e) {
-      if (d.open && !d.contains(e.target)) d.open = false;
-    });
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && d.open) {
-        d.open = false;
-        if (summary) summary.focus();
-      }
-    });
-  });
-})();
-</script>
-
+<script src="./descent.js" defer></script>
+<script src="./official.js" defer></script>
 </body>
 </html>

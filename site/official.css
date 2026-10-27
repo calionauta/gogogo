@@ -1,0 +1,735 @@
+/* The shell around the Descent: nav, hero, Why Go, Agents, Install, footer. */
+
+html { scroll-padding-top: 84px; }
+
+/* ---------- nav ---------- */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  background: rgba(244, 241, 236, .93);
+  backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+  font-size: 13.5px;
+}
+
+.nav-links a { color: var(--muted); text-decoration: none; }
+.nav-links a:hover { color: var(--ink); }
+
+.nav-github { display: inline-flex; padding: 6px; border-radius: 6px; color: var(--muted); }
+.nav-github:hover { color: var(--ink); }
+
+.btn {
+  display: inline-block;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: 500 14px/1.2 var(--sans);
+  text-decoration: none;
+  transition: border-color .2s, background .2s, color .2s;
+}
+
+.btn:hover { border-color: var(--ink-soft); }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.btn.primary:hover { background: #000; border-color: #000; }
+
+.nav-cta { margin-left: 2px; padding: 8px 14px; font-size: 13px; }
+
+.nav-menu { display: none; position: relative; }
+
+.nav-menu summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 12px/1 var(--mono);
+  color: var(--ink-soft);
+}
+
+.nav-menu summary::-webkit-details-marker { display: none; }
+
+.nav-menu-body {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 230px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 16px 40px rgba(27, 26, 24, .16);
+  z-index: 70;
+}
+
+.nav-menu-body a {
+  display: block;
+  padding: 6px 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.nav-menu-body a:hover { color: var(--accent); }
+
+/* ---------- hero ---------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: 34px 48px;
+  align-items: center;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 64px 24px 44px;
+  text-align: left;
+}
+
+.hero-copy { max-width: 620px; }
+
+.hero .kicker { margin-bottom: 18px; }
+
+.hero h1 {
+  margin: 0 0 18px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 4.6vw, 56px);
+  line-height: .98;
+  letter-spacing: -.035em;
+}
+
+.hero h1 em { font-style: italic; color: var(--accent); }
+
+.hero-sub {
+  margin: 0 0 26px;
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+/* The logo is a sticker with lettering: it needs width to read. It sits at
+   the right edge of the hero, above the installer band. */
+.hero-art {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.hero-art img {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+}
+
+/* The installer is the first action after the hero: centered, full width,
+   not a side-car to the logo. */
+.hero-start {
+  max-width: 908px;
+  margin: 0 auto;
+  padding: 0 24px 52px;
+  text-align: center;
+}
+
+.hero-install { width: 100%; max-width: 860px; margin: 0 auto; }
+
+/* A 97-character command is clipped by any column narrower than the hero;
+   wrapping keeps all of it visible. Soft wraps do not enter innerText, so the
+   copy button still yields one line. */
+.hero-install pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.hero-install pre code { padding-right: 64px; }
+
+.hero-fine {
+  margin: 22px auto 0;
+  max-width: 860px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--faint);
+}
+
+.hero-fine a { color: var(--accent); }
+
+/* ---------- install blocks + copy ---------- */
+
+.install-block {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2);
+  text-align: left;
+}
+
+.install-label {
+  margin: 0;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--line);
+  font: 600 9.5px/1 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.install-block pre {
+  position: relative;
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  background: var(--deep);
+  color: var(--ice);
+  font: 12.5px/1.6 var(--mono);
+}
+
+.install-block pre code {
+  display: block;
+  padding: 0 64px 0 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+}
+
+.install-block pre {
+  white-space: pre-wrap;
+}
+
+.mcp-tabs .panel pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.install-note {
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.copy-btn {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  min-height: 26px;
+  padding: 5px 9px;
+  border: 1px solid #2c4354;
+  border-radius: 5px;
+  background: #0b1115;
+  color: #a9c6da;
+  font: 10.5px/1 var(--mono);
+  cursor: pointer;
+}
+
+.copy-btn:hover { border-color: var(--warm); color: var(--warm); }
+.copy-btn.copied { border-color: #6fbf8f; color: #6fbf8f; }
+
+/* ---------- why go ---------- */
+
+.why-go {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: 48px;
+  align-items: center;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 72px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.why-copy { max-width: 660px; }
+
+.why-go h2 {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(38px, 4.6vw, 52px);
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.why-go h2 em { font-style: italic; color: var(--accent); }
+
+.why-lede {
+  max-width: 58ch;
+  margin: 0;
+  font-size: 16.5px;
+  line-height: 1.62;
+  color: var(--muted);
+}
+
+.why-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0 0;
+}
+
+.why-links a {
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font: 11px/1 var(--mono);
+  text-decoration: none;
+  transition: border-color .2s, color .2s;
+}
+
+.why-links a:hover { border-color: var(--accent); color: var(--accent); }
+
+.nowrap { white-space: nowrap; }
+
+.why-code {
+  margin: 0;
+  padding: 26px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 14px;
+  background: var(--deep);
+  color: #b9d6e8;
+  font: 13px/1.7 var(--mono);
+}
+
+.why-code code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+/* ---------- agents ---------- */
+
+.agents {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 72px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.agents-head { max-width: 760px; }
+
+.agents h2 {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(38px, 4.8vw, 54px);
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.agents h2 em { font-style: italic; color: var(--accent); }
+
+.agents-lede {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.principles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 36px;
+}
+
+.principle { border-top: 1px solid var(--line); padding-top: 16px; }
+
+.principle-icon { color: var(--accent); }
+
+.principle-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.principle h3 { margin: 12px 0 6px; font-size: 15px; letter-spacing: -.01em; }
+.principle p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--muted); }
+
+.agents-links { margin: 26px 0 0; font-size: 13px; }
+.agents-links a { font-weight: 500; text-decoration: none; }
+.agents-links a:hover { text-decoration: underline; }
+
+/* ---------- install ---------- */
+
+.install {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 72px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.install-head { max-width: 760px; }
+
+.install h2 {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(40px, 5vw, 58px);
+  line-height: 1;
+  letter-spacing: -.03em;
+}
+
+.install h2 em { font-style: italic; color: var(--accent); }
+
+.install-lede {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 36px 0 0;
+  padding: 0;
+}
+
+.step {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-2);
+}
+
+.step-wide { grid-column: 1 / -1; }
+
+.step-num {
+  margin: 0 0 8px;
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .1em;
+  color: var(--accent);
+}
+
+.step h3 {
+  margin: 0 0 6px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 25px;
+  letter-spacing: -.02em;
+}
+
+.step-copy { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+
+.install-fine { margin: 22px 0 0; font-size: 12.5px; color: var(--faint); }
+.install-fine a { color: var(--accent); }
+
+/* ---------- mcp tabs ---------- */
+
+.mcp-tabs {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-2);
+}
+
+.mcp-tabs input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tab-labels {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-labels label {
+  flex: 1 1 auto;
+  margin-bottom: -1px;
+  padding: 9px 8px;
+  border-bottom: 2px solid transparent;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.tab-labels label:hover { color: var(--ink); }
+
+#tab-claude:checked ~ .tab-labels label[for="tab-claude"],
+#tab-codex:checked ~ .tab-labels label[for="tab-codex"],
+#tab-opencode:checked ~ .tab-labels label[for="tab-opencode"],
+#tab-pi:checked ~ .tab-labels label[for="tab-pi"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+#tab-claude:focus-visible ~ .tab-labels label[for="tab-claude"],
+#tab-codex:focus-visible ~ .tab-labels label[for="tab-codex"],
+#tab-opencode:focus-visible ~ .tab-labels label[for="tab-opencode"],
+#tab-pi:focus-visible ~ .tab-labels label[for="tab-pi"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.mcp-tabs .panel { display: none; }
+#tab-claude:checked ~ .panels .panel-claude,
+#tab-codex:checked ~ .panels .panel-codex,
+#tab-opencode:checked ~ .panels .panel-opencode,
+#tab-pi:checked ~ .panels .panel-pi { display: block; }
+
+.mcp-tabs .panel pre {
+  position: relative;
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: var(--deep);
+  color: var(--ice);
+  font: 11.5px/1.65 var(--mono);
+}
+
+.mcp-tabs .panel pre code { display: block; padding: 0 56px 0 0; border: 0; background: none; color: inherit; }
+.mcp-tabs .panel .install-note { border-top: 0; padding-top: 8px; }
+
+/* ---------- footer ---------- */
+
+.site-foot {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+  border-top: 1px solid var(--line);
+}
+
+.foot-brand { display: flex; align-items: center; gap: 14px; }
+.foot-name { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.foot-brand .foot-line { margin: 0; font-size: 13px; color: var(--faint); }
+
+.foot-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  margin: 32px 0;
+}
+
+.foot-head {
+  margin: 0 0 8px;
+  font: 600 9.5px/1 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.foot-cols a {
+  display: block;
+  padding: 3px 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.foot-cols a:hover { color: var(--accent); }
+
+.foot-demo {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+
+.foot-demo p { margin: 0 0 6px; }
+.foot-demo a { color: var(--accent); }
+.foot-made { margin-top: 12px !important; font: 10px/1.6 var(--mono); }
+
+/* ---------- mobile ---------- */
+
+@media (max-width: 900px) {
+  html { scroll-padding-top: 172px; }
+
+  .nav { padding: 10px 16px; gap: 10px; }
+  .nav-links { display: none; }
+  .nav-menu { display: block; margin-left: 0; }
+  .nav-cta { display: none; }
+  .nav-github { margin-left: auto; }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding: 48px 20px 30px;
+  }
+  .hero-copy { max-width: none; }
+  .hero h1 { font-size: clamp(40px, 10.5vw, 58px); }
+  .hero-art { justify-content: center; }
+  .hero-art img { max-width: 280px; }
+  .hero-start { padding: 0 20px 44px; }
+  .hero-fine { text-align: left; }
+
+  .why-go { grid-template-columns: 1fr; gap: 26px; padding: 56px 20px; }
+  .why-go h2 { font-size: clamp(36px, 8vw, 46px); }
+
+  .agents, .install { padding: 56px 20px; }
+  .agents h2, .install h2 { font-size: clamp(36px, 8vw, 48px); }
+  .principles { grid-template-columns: 1fr 1fr; gap: 20px; }
+  .steps { grid-template-columns: 1fr; }
+
+  .site-foot { padding: 40px 20px 56px; }
+  .foot-cols { grid-template-columns: 1fr 1fr; }
+
+  .stage-col { top: 52px; }
+}
+
+@media (max-width: 620px) {
+  .hero-ctas { flex-direction: column; align-items: stretch; }
+  .hero-ctas .btn { text-align: center; }
+  .hero-art img { max-width: 260px; }
+  .principles { grid-template-columns: 1fr; }
+  .foot-cols { grid-template-columns: 1fr; }
+  .install-block pre { font-size: 12px; }
+  .mcp-tabs .panel pre { font-size: 11.5px; }
+  .hero-fine { font-size: 11.5px; }
+}
+
+/* Grid items that contain a scrollable command must not inflate the page. */
+.step,
+.step .install-block,
+.step .mcp-tabs,
+.step .tabs { min-width: 0; }
+
+.install-block pre code { padding-right: 64px; }
+
+
+/* ---------- skip link ---------- */
+
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -64px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 0 0 8px 8px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 13px/1 var(--sans);
+  text-decoration: none;
+  transition: top .2s;
+}
+
+.skip-link:focus { top: 0; }
+
+/* ---------- micro-type floor ----------
+   The UX audit measured 9-10px captions at 3.0:1; the contrast token is fixed
+   above, and this keeps the smallest labels at 10.5px rather than 9px. */
+
+.stage-kicker,
+.stage-meta,
+.install-label,
+.foot-head,
+.foot-line .label,
+.plan-group,
+.plan-tag,
+.weights-title,
+.tiers-label,
+.plan-env,
+.band-num,
+.band-chips span,
+.band-final,
+.brick-path,
+.pillar-lock,
+.gate-group,
+.gate,
+.scope-legend,
+.offline-kicker,
+.offline-meta .label,
+.offline-switch .label {
+  font-size: 10.5px;
+}
+
+.async-table th,
+.trim-title,
+.trim-count,
+.tier,
+.tier b,
+.binary-meta,
+.shells span,
+.console-tag,
+.core-surface-label,
+.badge,
+.async-lives a,
+.async-switch code,
+.async-table td:last-child code,
+.step-num,
+.build-fine code {
+  font-size: 10.5px;
+}
+
+.tile-note,
+.runner-detail,
+.async-switch,
+.foot-made,
+.trim-note {
+  font-size: 11px;
+}
+
+.mcp-tabs .panel pre code { font-size: inherit; }
+.install-note code, .hero-fine code { font-size: 10.5px; }
+
+/* ---------- print and forced colors ---------- */
+
+@media print {
+  .runner-list li,
+  .gate,
+  .binary,
+  .intro h1,
+  .intro .lede,
+  .intro .chips {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .stage { border: 1px solid CanvasText; }
+  .ice-tip,
+  .core-surface { background: Canvas; border: 1px solid CanvasText; }
+  .band { border: 1px solid CanvasText; }
+  .band[data-active] { outline: 2px solid Highlight; }
+}
