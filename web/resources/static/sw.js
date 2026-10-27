@@ -30,11 +30,19 @@ var CACHE_NAME = "flat-api-v1";
 var PAGE_CACHE = "gogogo-pages-v1";
 var API_PREFIX = "/api/";
 
-// SSE and whiteboard paths that must NOT be intercepted.
+// SKIP_PATTERNS are the endpoints the service worker must never touch: an SSE
+// response has no end, so caching it buffers forever, and the browser's
+// EventSource sees an error and reconnects — one leaked connection per retry
+// (the session stream was the worst: its reconnect loop filled the six-per-host
+// budget after a handful of navigations). Every streaming route belongs here;
+// internal/server/sse_skip_test.go is the backstop for a new one that forgets.
 var SKIP_PATTERNS = [
-  "/api/todos/stream", // todo SSE stream (EventSource)
+  "/api/todos/stream", // todo SSE stream (Datastar)
+  "/api/todos/events", // todo raw event stream
+  "/api/chat/stream", // chat SSE stream (Datastar)
   "/api/notes/", // notes SSE stream + ops (EventSource + own convergence)
   "/api/notifications/stream", // inbox SSE stream (Datastar)
+  "/api/session/stream", // shared session + unread stream (EventSource)
   "/api/whiteboard/" // whiteboard ops + stream (own offline mechanism)
 ];
 

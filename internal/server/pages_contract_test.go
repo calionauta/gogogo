@@ -53,15 +53,25 @@ type pageUnderTest struct {
 // a caller depends on, not something a designer likes: a patch root, a signal
 // binding, an aria contract, or copy a render test already asserts.
 var pagesUnderTest = []pageUnderTest{
-	{name: "landing", route: "/", anon: true, must: []string{"Access demo site"}},
+	{name: "landing", route: "/", anon: true, must: []string{"Access demo site", `app-sound-toggle`}},
 	{name: "login", route: "/login", anon: true, must: []string{"Email", demo.Email}},
 	{name: "todo", route: "/todo", must: []string{
 		`id="todo-list"`,
 		`data-bind="newTitle"`,
 		`id="suggestions-region"`,
 		`id="toast-container"`,
+		// Every shell page that loads the sound runtime renders the rail's
+		// mute switch. A page added without it loses the one global control
+		// silently — that is how the inbox and account pages shipped.
+		`app-sound-toggle`,
+		// Two panel buttons, two sections: State opens the machinery, Stack
+		// the technology key. The split was a product request, so the header
+		// carrying both is a contract.
+		`data-panel-mode="state"`,
+		`data-panel-mode="stack"`,
 	}},
 	{name: "chat", route: "/chat", must: []string{
+		`app-sound-toggle`,
 		`id="chat-composer"`,
 		`for="chat-prompt"`,
 		`id="chat-messages"`,
@@ -73,6 +83,7 @@ var pagesUnderTest = []pageUnderTest{
 		`value="native"`,
 	}},
 	{name: "review", route: "/review", must: []string{
+		`app-sound-toggle`,
 		// The composer (review-composer / review-tab / review-content) is gated
 		// by signals.ReviewEnabled, which needs a real provider key; a stock
 		// boot (empty GOAI_API_KEY) renders the not-configured shape. Both
@@ -92,17 +103,20 @@ var pagesUnderTest = []pageUnderTest{
 	{name: "notifications", route: "/notifications", must: []string{
 		`id="inbox"`,
 		`id="inbox-stream"`,
+		`app-sound-toggle`,
 		"Nothing here yet.",
 	}},
 	// net-status lives on the DOC page (/notes/{id}), not the list: the list
 	// only carries notes-list + the resync affordance.
-	{name: "notes", route: "/notes", must: []string{`id="notes-list"`}},
-	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`}},
+	{name: "notes", route: "/notes", must: []string{`id="notes-list"`, `app-sound-toggle`}},
+	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`, `app-sound-toggle`}},
 	{name: "account", route: "/account", must: []string{
+		`app-sound-toggle`,
 		"Sessions",
 		"Two-factor authentication",
 	}},
 	{name: "config", route: "/config", must: []string{
+		`app-sound-toggle`,
 		"Runtime view + admin actions.",
 		"Access control (Casbin).",
 		"Users",

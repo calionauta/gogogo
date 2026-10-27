@@ -1,7 +1,7 @@
 route /whiteboard
-ids app-pref-theme app-rail command-palette command-palette-input command-palette-list confirm-delete-board offline-banner offline-banner-signin offline-banner-text session-banner state-panel toast-container wb-realtime-resync whiteboard-list
+ids app-pref-theme app-rail command-palette command-palette-input command-palette-list confirm-delete-board offline-banner offline-banner-signin offline-banner-text rail-inbox-badge session-banner state-panel toast-container wb-realtime-resync whiteboard-list
 data-bind cmdQuery
 data-on data-on:click data-on:close data-on:submit
-signals cmdQuery confirmBoardAuthor confirmBoardId deletingBoard loading panelVisible railOpen sessionAuthed theme
+signals cmdQuery confirmBoardAuthor confirmBoardId deletingBoard inboxUnread loading panelMode panelVisible railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-labelledby aria-live aria-pressed
-tags a=24 aside=2 body=1 button=16 dd=3 details=1 dialog=2 div=26 dl=1 dt=3 form=3 h1=1 h3=1 head=1 header=1 html=2 input=1 kbd=3 label=1 li=20 link=3 main=1 meta=2 nav=2 p=9 path=21 script=11 section=2 span=52 strong=1 style=2 summary=1 svg=21 title=1 ul=3
+tags a=23 aside=2 body=1 button=16 dd=3 details=1 dialog=2 div=26 dl=1 dt=3 form=3 h1=1 h3=1 head=1 header=1 html=2 input=2 kbd=3 label=2 li=20 link=3 main=1 meta=2 nav=2 p=9 path=22 script=12 section=2 span=53 strong=1 style=2 summary=1 svg=22 title=1 ul=3

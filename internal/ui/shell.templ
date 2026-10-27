@@ -88,7 +88,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 			if d.StreamPage {
 				data-stream-page="1"
 			}>
-			<div class="app-shell" data-signals='{"railOpen":false}'
+			<div class="app-shell" data-signals={ shellSignals(InboxUnread(ctx)) }
 				data-on:keydown__window="if (evt.key === 'Escape') { $railOpen = false; window.__gogogoDrawerReturn(); }">
 			<div data-effect="window.__gogogoDrawerFocus($railOpen)" hidden aria-hidden="true"></div>
 				<aside id="app-rail" class="app-rail" aria-label="Modules" data-class="{'is-open': $railOpen}">
@@ -105,18 +105,11 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					</div>
 					<nav class="app-rail-nav">
 						for _, group := range Grouped(d.Role) {
-							<p class="app-rail-group">{ group.Label }</p>
+							if group.Label != "" {
+								<p class="app-rail-group">{ group.Label }</p>
+							}
 							for _, m := range group.Modules {
-								<a
-									href={ templ.SafeURL(m.URL) }
-									class={ templ.Classes("app-rail-item", map[string]bool{"is-active": m.ID == d.Module}) }
-									aria-current={ activeCurrent(m.ID == d.Module) }
-									data-cuelume-hover="tick"
-									data-cuelume-press="toggle"
-									data-on:click="$railOpen = false">
-									@icon.Icon(m.Icon, "app-rail-icon")
-									<span class="app-rail-label">{ m.Title }</span>
-								</a>
+								@railItem(m, m.ID == d.Module, InboxUnread(ctx))
 							}
 						}
 					</nav>
@@ -199,17 +192,32 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 							}
 						</div>
 						<div class="app-module-actions">
-							if d.HasDemo() {
+							if d.HasState() {
 								<button
 									type="button"
-									class={ templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo}) }
-									data-class="{'is-on': $panelVisible}"
-									data-attr:aria-pressed="$panelVisible ? 'true' : 'false'"
-									aria-pressed={ ariaPressed(d.Demo) }
-									title={ demoTitle(d.Demo) }
-									data-on:click="$panelVisible = !$panelVisible; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">
-									@icon.Icon("material-symbols:layers", "app-demo-icon")
-									<span class="app-demo-label">How it works</span>
+									class={ templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo && d.HasState()}) }
+									data-panel-mode="state"
+									data-class="{'is-on': $panelVisible && $panelMode === 'state'}"
+									data-attr:aria-pressed="$panelVisible && $panelMode === 'state' ? 'true' : 'false'"
+									aria-pressed={ ariaPressed(d.Demo && d.HasState()) }
+									title={ stateTitle() }
+									data-on:click="$panelVisible = !($panelVisible && $panelMode === 'state'); $panelMode = 'state'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">
+									@icon.Icon("material-symbols:tune", "app-demo-icon")
+									<span class="app-demo-label">State</span>
+								</button>
+							}
+							if d.HasStack() {
+								<button
+									type="button"
+									class={ templ.Classes("app-demo-toggle", map[string]bool{"is-on": d.Demo && !d.HasState() && d.HasStack()}) }
+									data-panel-mode="stack"
+									data-class="{'is-on': $panelVisible && $panelMode === 'stack'}"
+									data-attr:aria-pressed="$panelVisible && $panelMode === 'stack' ? 'true' : 'false'"
+									aria-pressed={ ariaPressed(d.Demo && !d.HasState() && d.HasStack()) }
+									title={ stackTitle() }
+									data-on:click="$panelVisible = !($panelVisible && $panelMode === 'stack'); $panelMode = 'stack'; fetch('/_ui/demo?on=' + ($panelVisible ? '1' : '0') + '&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">
+									@icon.Icon("material-symbols:stack", "app-demo-icon")
+									<span class="app-demo-label">Stack</span>
 								</button>
 							}
 							@authviews.CommandPalette(d.Role, d.Email == "")
@@ -225,25 +233,29 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					</main>
 				</div>
 				if d.HasDemo() {
-					<aside id="state-panel" class="app-state-panel" aria-label="State" data-signals={ panelVisibilitySignals(d.Demo) } data-show="$panelVisible">
+					<aside id="state-panel" class="app-state-panel" aria-label="Demo panel" data-signals={ panelVisibilitySignals(d.Demo, d.HasState(), d.HasStack()) } data-show="$panelVisible">
 						<div class="app-state-panel-head-row">
-							if d.Panel != nil {
-								<p class="app-state-panel-head">STATE</p>
+							// The State section has no caption of its own, so the head
+							// names it. The Stack section carries its own STACK caption
+							// (components.TechStack), so naming it here would print the
+							// same word twice, one line apart.
+							if d.HasState() {
+								<p class="app-state-panel-head" data-show="$panelMode === 'state'">STATE</p>
 							}
 							<button
 								type="button"
-								class="btn btn-ghost btn-xs"
+								class="btn btn-ghost btn-xs app-state-panel-close"
 								aria-label="Close panel"
 								title="Close panel"
 								data-on:click="$panelVisible = false; fetch('/_ui/demo?on=0&next=' + encodeURIComponent(window.location.pathname), {credentials: 'same-origin'})">✕</button>
 						</div>
 						if d.Panel != nil {
-							<section class="app-panel-section" aria-label="Demos">
+							<section class="app-panel-section" aria-label="State" data-show="$panelMode === 'state'">
 								@d.Panel
 							</section>
 						}
 						if len(d.Stack) > 0 {
-							<section class="app-panel-section" aria-label="Stack">
+							<section class="app-panel-section" aria-label="Stack" data-show="$panelMode === 'stack'">
 								@components.TechStack(d.Stack)
 							</section>
 						}

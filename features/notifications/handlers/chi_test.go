@@ -4,6 +4,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -369,5 +370,121 @@ func TestDeliverChannelGuards(t *testing.T) {
 	}
 	if sms != 1 {
 		t.Fatalf("sms skipped/no_address rows = %d, want 1", sms)
+	}
+}
+
+// stubRunStarter accepts every schedule; the reminder handler only needs the
+// start to succeed, because the durable engine owns the wait.
+type stubRunStarter struct{}
+
+func (stubRunStarter) StartRun(context.Context, string, any) (string, error) {
+	return "run-test", nil
+}
+
+// signedInServer wires the real auth routes so a test can obtain a session
+// cookie the same way a browser does; the handler's own routes are mounted at
+// the root.
+func signedInServer(t *testing.T, h *Handler, email string) (*httptest.Server, *http.Cookie) {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", h.auth.Routes())
+	mux.Handle("/", h.Routes())
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	body := `{"email":"` + email + `","password":"[LEAKGUARD_REDACTED] — Password Assignment"}`
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		server.URL+"/api/auth/signup/credential", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("build signup: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("signup status = %d", resp.StatusCode)
+	}
+	for _, c := range resp.Cookies() {
+		if c.Name == auth.CookieName {
+			return server, c
+		}
+	}
+	t.Fatal("signup returned no session cookie")
+	return nil, nil
+}
+
+// postForm sends one authenticated form POST and returns the SSE transcript.
+func postForm(t *testing.T, server *httptest.Server, cookie *http.Cookie, path, form string) string {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		server.URL+path, strings.NewReader(form))
+	if err != nil {
+		t.Fatalf("build POST %s: %v", path, err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST %s: %v", path, err)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST %s status = %d (%s)", path, resp.StatusCode, raw)
+	}
+	return string(raw)
+}
+
+// TestReadAndRemindPatchTheShellSurfaces pins the two surfaces the inbox writes
+// outside #inbox: the rail's count bubble on both read actions, and the toast
+// that confirms a scheduled reminder. Both are easy to drop in a refactor
+// because the page still renders without them.
+func TestReadAndRemindPatchTheShellSurfaces(t *testing.T) {
+	h, q, _ := newFixture(t)
+	h.SetRunStarter(stubRunStarter{})
+	server, cookie := signedInServer(t, h, "surfaces@demo.app")
+	u, err := q.GetUserByEmail(context.Background(), "surfaces@demo.app")
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if err := h.Deliver(context.Background(), Delivery{
+		Owner: u.ID, TransactionID: "surfaces:1", Workflow: "reminder",
+		Subject: "Unread row", Body: "counts once",
+	}); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+
+	readAll := postForm(t, server, cookie, "/api/notifications/read-all?clientID=tab-test", "")
+	for _, want := range []string{
+		"data: selector #inbox\n", "event: datastar-patch-signals",
+		`data: signals {"inboxUnread":0}`,
+	} {
+		if !strings.Contains(readAll, want) {
+			t.Errorf("read-all patch missing %q:\n%s", want, readAll)
+		}
+	}
+
+	remind := postForm(t, server, cookie, "/api/notifications/remind", "text=Drink+water&delay=1m")
+	for _, want := range []string{
+		"data: selector #inbox\n", "data: selector #toast-container\n",
+		"data: mode append\n", "Reminder scheduled.", "toastmsg_",
+		`data: signals {"inboxUnread":0}`,
+	} {
+		if !strings.Contains(remind, want) {
+			t.Errorf("remind patch missing %q:\n%s", want, remind)
+		}
+	}
+	// The confirmation rides the toast frame, never the inbox frame: an inline
+	// notice would keep the sentence on the page after the toast is gone.
+	for frame := range strings.SplitSeq(remind, "event: datastar-patch-elements") {
+		if strings.Contains(frame, "selector #inbox") && strings.Contains(frame, "Reminder scheduled.") {
+			t.Errorf("the inbox patch still carries the scheduled notice:\n%s", frame)
+		}
 	}
 }

@@ -21,6 +21,8 @@ import (
 	"github.com/calionauta/gogogo/internal/observability"
 
 	"github.com/calionauta/gogogo/features/notifications"
+	ic "github.com/calionauta/gogogo/internal/components"
+	dshelpers "github.com/calionauta/gogogo/internal/datastar"
 )
 
 const (
@@ -100,7 +102,7 @@ func (h *Handler) handleRemind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not schedule", http.StatusBadGateway)
 		return
 	}
-	data, derr := h.pageData(r.Context(), sess.User.ID, "Reminder scheduled.")
+	data, derr := h.pageData(r.Context(), sess.User.ID)
 	if derr != nil {
 		h.logError(r, "notifications: reload inbox", derr)
 		http.Error(w, "inbox unavailable", http.StatusInternalServerError)
@@ -110,7 +112,24 @@ func (h *Handler) handleRemind(w http.ResponseWriter, r *http.Request) {
 	//nolint:contextcheck // datastar-go sink boundary: RenderAndPatch renders through templ; the SDK takes no ctx.
 	if perr := h.patchInboxData(sse, data); perr != nil {
 		h.logError(r, "notifications: patch inbox", perr)
+		return
 	}
+	// The confirmation is transient, so it is a toast: the shell renders the
+	// stack once, this appends one, and the toast removes itself. An inline
+	// Notice region would stay on the page and push the list down for a fact
+	// the user already knows.
+	//nolint:contextcheck // datastar-go sink boundary: RenderAndPatch renders through templ; the SDK takes no ctx.
+	if terr := scheduleToast(sse); terr != nil {
+		h.logError(r, "notifications: patch toast", terr)
+	}
+}
+
+// scheduleToast appends the "scheduled" confirmation to the shell's toast
+// stack. The component owns its own dismiss timer, so no server state tracks it.
+func scheduleToast(sse *sdk.ServerSentEventGenerator) error {
+	return dshelpers.RenderAndPatch(sse,
+		ic.Toast("Reminder scheduled.", "success", ic.NewToastID()),
+		sdk.WithSelectorID("toast-container"), sdk.WithModeAppend())
 }
 
 // reminderDueAt turns the form's delay into an RFC3339 instant. It is a pure

@@ -103,7 +103,7 @@ func (h *Handler) handlePage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login?next=/notifications&auth=required", http.StatusSeeOther)
 		return
 	}
-	data, err := h.pageData(r.Context(), sess.User.ID, "")
+	data, err := h.pageData(r.Context(), sess.User.ID)
 	if err != nil {
 		h.logError(r, "notifications: load inbox", err)
 		http.Error(w, "inbox unavailable", http.StatusInternalServerError)
@@ -158,7 +158,7 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request,
 		http.Error(w, "write failed", http.StatusInternalServerError)
 		return
 	}
-	data, derr := h.pageData(r.Context(), owner, "")
+	data, derr := h.pageData(r.Context(), owner)
 	if derr != nil {
 		h.logError(r, "notifications: reload inbox", derr)
 		http.Error(w, "inbox unavailable", http.StatusInternalServerError)
@@ -178,7 +178,7 @@ func (h *Handler) mutate(w http.ResponseWriter, r *http.Request,
 // pageData reads the rows and the unread count for one owner. The two reads
 // are deliberately separate: the count is a cheap index lookup and the list
 // is bounded, so a large inbox never changes the badge's cost.
-func (h *Handler) pageData(ctx context.Context, owner, notice string) (components.PageData, error) {
+func (h *Handler) pageData(ctx context.Context, owner string) (components.PageData, error) {
 	rows, err := h.q.ListNotificationsForOwner(ctx, dbgen.ListNotificationsForOwnerParams{
 		Owner: owner, Limit: listLimit,
 	})
@@ -202,7 +202,6 @@ func (h *Handler) pageData(ctx context.Context, owner, notice string) (component
 	return components.PageData{
 		Items:  items,
 		Unread: int(unread),
-		Notice: notice,
 		Wired:  h.wired(),
 	}, nil
 }
@@ -223,11 +222,15 @@ func (h *Handler) offeredChannels(userEmail string) []components.ChannelOption {
 	}}
 }
 
-// patchInboxData renders the inbox region and patches it. It is the one place
-// the stream and the read actions share, so a live push and a click cannot
-// drift.
+// patchInboxData renders the inbox region and patches the shell's unread
+// signal. It is the one place the stream and the read actions share, so a live
+// push and a click cannot drift, and the sidebar count moves with the rows it
+// counts on every page (session.js carries the same value to other tabs).
 func (h *Handler) patchInboxData(sse *sdk.ServerSentEventGenerator, data components.PageData) error {
-	return dshelpers.RenderAndPatch(sse, components.Inbox(data), sdk.WithSelector("#inbox"))
+	if err := dshelpers.RenderAndPatch(sse, components.Inbox(data), sdk.WithSelector("#inbox")); err != nil {
+		return err
+	}
+	return dshelpers.MergeSignals(sse, map[string]any{"inboxUnread": data.Unread})
 }
 
 // friendlyTime keeps the raw timestamp when it cannot be parsed. A broken

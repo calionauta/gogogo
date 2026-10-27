@@ -107,7 +107,7 @@ func (h *Handler) openStream(
 // and the read actions share patchInboxData, so a live push and a click cannot
 // drift.
 func (h *Handler) patchInbox(ctx context.Context, sse *sdk.ServerSentEventGenerator, owner string) error {
-	data, err := h.pageData(ctx, owner, "")
+	data, err := h.pageData(ctx, owner)
 	if err != nil {
 		return err
 	}

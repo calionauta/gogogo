@@ -13,19 +13,21 @@
 
 //     into GogogoSession.set);
 
-//   - a page with NO feature stream opens /api/session/stream through the
+//   - the shared leader stream (/api/session/stream, opened by session.js)
 
-//     shared /static/session.js (one visible tab per browser; the others hear
+//     runs on every page when Web Locks + BroadcastChannel exist, and its
 
-//     it over a BroadcastChannel).
+//     frames also carry the rail's unread count.
 
-// One long-lived connection per page: the dedicated stream exists only where
+// One long-lived connection per BROWSER, not per page or tab: browsers cap
 
-// there is nothing else, because browsers cap connections per host and a
+// connections per host, and a stream per tab has been measured to starve later
 
-// second one starves later navigations. Pass authed=true when the page
+// navigations. Without that coordination the dedicated stream exists only
 
-// rendered for a signed-in user; a public page passes false and never warns.
+// where there is nothing else. Pass authed=true when the page rendered for a
+
+// signed-in user; a public page passes false and never warns.
 
 package components
 
@@ -69,7 +71,7 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(authed))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 28, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 29, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -82,7 +84,7 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("typeof $sessionAuthed === 'boolean' && window.GogogoSession && window.GogogoSession.set($sessionAuthed)")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 29, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 30, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -95,7 +97,7 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 39, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 40, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -108,7 +110,7 @@ func SessionBanner(authed bool) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("session.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 39, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/session_banner.templ`, Line: 40, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {

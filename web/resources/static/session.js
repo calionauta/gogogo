@@ -1,12 +1,19 @@
-// Shared session banner controller — ONE implementation for every page.
+// Shared session banner + rail inbox controller — ONE implementation for
+// every page.
 //
-// Two signal sources feed the same banner:
+// Two signal sources feed the same frame:
 //   - live SSE streams (notes, whiteboard) receive a {type:"session"} frame
 //     and call GogogoSession.set(authed) immediately;
 //   - ONE VISIBLE tab of the browser holds /api/session/stream open and
 //     tells the others through a BroadcastChannel. That stream replaces the
 //     60s /api/session probe: no tab schedules a request, it hears about
 //     CHANGES.
+//
+// The same leader stream carries the rail's unread count in the session frame
+// (`unread`). A tab dispatches `gogogo:unread` on `document`; the shell badge
+// binds that event to $inboxUnread. That is what keeps the count live on a
+// page whose own feature stream says nothing about the inbox, without opening
+// a second connection per page.
 //
 // Why one tab and not one per tab: an SSE stream holds its HTTP connection
 // for the tab's lifetime and browsers cap connections per host (6 in
@@ -49,21 +56,41 @@
     bus = null;
   }
 
-  // publish is the leader's side: update this tab and tell the others.
+  // dispatchUnread hands one count to the shell's badge without touching the
+  // DOM directly: $inboxUnread is the binding, and Datastar owns the text and
+  // the hidden class. A page without a badge simply has no listener.
+  function dispatchUnread(unread) {
+    if (typeof unread !== "number") return;
+    document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: unread } }));
+  }
+
+  // publishUnread is the leader's side: update this tab and tell the others.
+  function publishUnread(unread) {
+    dispatchUnread(unread);
+    if (!bus) return;
+    try { bus.postMessage({ type: "unread", unread: unread }); } catch (_) {}
+  }
+
+  // publish is the leader's side for the session banner: update this tab and
+  // tell the others.
   function publish(authed) {
     set(authed);
     if (!bus) return;
     try { bus.postMessage({ type: "session", authed: authed }); } catch (_) {}
   }
 
-  // ownStream: this page has no feature stream, so the session banner needs
-  // its own connection. Pages that already hold one (the Datastar openers and
-  // the raw-EventSource doc pages) must NOT add a second long-lived
-  // connection: browsers cap connections per host, and the extra one starves
-  // a later same-tab navigation (measured: the smoke's seventh page stalled
-  // for its full timeout). Those pages carry the session state on their own
-  // stream; `data-stream-page` marks the raw-EventSource pages.
-  var ownStream = !document.querySelector("[data-stream-opener], [data-stream-page]");
+  // ownStream: this page may need its own connection for the banner and the
+  // inbox count. With Web Locks + BroadcastChannel only the leader holds it,
+  // so opening it on a page that already has a feature stream costs ONE
+  // connection per browser, not one per page — and the unread badge needs it
+  // there too. Without that coordination, keep the old rule: a feature page
+  // already has a stream and a second one has been measured to starve a later
+  // same-tab navigation (browsers cap connections per host). Those pages then
+  // update the badge on navigation only, which is the pre-existing behavior.
+  // `data-stream-page` marks the raw-EventSource pages.
+  var hasFeatureStream = !!document.querySelector("[data-stream-opener], [data-stream-page]");
+  var coordinated = !!(bus && navigator.locks);
+  var ownStream = coordinated || !hasFeatureStream;
 
   // stream is the leader tab's EventSource (nil while none is open).
   var stream = null;
@@ -91,6 +118,7 @@
       if (!e.data || e.data.charAt(0) === ":") return;
       var m;
       try { m = JSON.parse(e.data); } catch (_) { return; }
+      if (typeof m.unread === "number") publishUnread(m.unread);
       if (m.type !== "session" || typeof m.authed !== "boolean") return;
       publish(m.authed);
       if (!m.authed) {
@@ -153,7 +181,12 @@
   if (bus) {
     bus.onmessage = function (e) {
       var m = e.data;
-      if (!m || m.type !== "session" || typeof m.authed !== "boolean") return;
+      if (!m) return;
+      if (m.type === "unread") {
+        dispatchUnread(m.unread);
+        return;
+      }
+      if (m.type !== "session" || typeof m.authed !== "boolean") return;
       set(m.authed);
     };
   }

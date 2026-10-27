@@ -277,7 +277,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// single core line because `gogogo new` anchors its mount below it.
 	mountConsoleProxy(mux, a, cfg)
 	// Inbox is an optional surface next to the console.
-	notificationsH := mountNotifications(mux, a, cfg, queries)
+	notificationsH := mountInbox(mux, a, cfg, queries)
 
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
@@ -290,7 +290,7 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// The edge wrappers sit above RBAC on purpose: a 403 and a router 404
 	// carry the same headers, and the access log sees both. The rate limiter
 	// sits just inside them so a 429 gets the same headers.
-	handler = rateLimit(cfg.RateLimitRPM, handler)
+	handler = rateLimit(cfg.RateLimitRPM, inboxBadgeMiddleware(a, queries)(handler))
 	handler = edgeHandler(cfg, slog.Default(), handler)
 	return &ChiStack{
 		sqlDB:          sqlDB,

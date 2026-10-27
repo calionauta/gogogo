@@ -15,12 +15,43 @@ seam that would host one live in [notify](research/notify-2026-10.md).
 |---|---|---|
 | `/notifications` | GET | The inbox page: unread count, rows, reminder form |
 | `/api/notifications/stream` | GET | Datastar SSE: ack, initial inbox, then one patch per change |
-| `/api/notifications/remind` | POST | Schedule one reminder (`text`, `delay` of `1m`/`1h`/`24h`) |
-| `/api/notifications/{id}/read` | POST | Mark one row read; patches `#inbox` |
-| `/api/notifications/read-all` | POST | Mark every in-app row read; patches `#inbox` |
+| `/api/notifications/remind` | POST | Schedule one reminder (`text`, `delay` of `1m`/`1h`/`24h`); answers with the inbox patch plus a toast |
+| `/api/notifications/{id}/read` | POST | Mark one row read; patches `#inbox` and the rail count |
+| `/api/notifications/read-all` | POST | Mark every in-app row read; patches `#inbox` and the rail count |
 
 Every route checks the session itself. RBAC can be off, so a policy row is
 never the only guard, and every query is scoped by the session owner.
+
+## The rail indicator
+
+The sidebar's Inbox entry carries the unread count as a DaisyUI `indicator`
+bubble on its icon, above the first group heading. Three writers keep it honest:
+
+- `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`) resolves the count
+  once per page navigation and seeds the shell signal, so every page renders
+  the rail with the right number without importing the delivery store.
+- The inbox stream and both read actions merge `$inboxUnread` together with
+  the `#inbox` patch (`patchInboxData`), so reading a row on the inbox page
+  lowers the rail count in the same frame.
+- The browser's **leader session stream** (`/api/session/stream`, opened by
+  `session.js` with Web Locks and shared through a BroadcastChannel) carries an
+  `unread` field on its session frame. A delivery or a read on any tab wakes
+  it, it re-reads the count, and every tab updates its badge. That is the page
+  whose own feature stream says nothing about the inbox — one connection per
+  browser, the same one that already watches session expiry, never a second
+  stream.
+
+The badge node always exists (hidden at zero) and its text/visibility are bound
+to `$inboxUnread`: the server-rendered value is the pre-init fallback. The
+notifications bus is per-process; the stream's 60-second session recheck is the
+fallback that catches a delivery handled by another instance, and the docs say
+so rather than promising an instant cross-instance wire that is not built.
+
+Scheduling answers with a **toast** ("Reminder scheduled.") appended to the
+shell's `#toast-container`, not an inline notice: the result is transient, the
+list below is the evidence, and a notice would stay on the page until the next
+navigation. The rule is in `skills/gogogo-ui/SKILL.md` and
+[UI compositions](ui-compositions.md#7-transient-feedback-toast).
 
 ## The durable path
 

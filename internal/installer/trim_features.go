@@ -223,6 +223,16 @@ var featureTrimUnits = []trimUnit{
 				path:  modulesFile,
 				rules: []stripRule{{startMarker: `{ID: "config"`, endMarker: "},"}},
 			},
+			{
+				// The account menu's Config entry is the second way into the
+				// route. Without the unit it would open a 404 from the one
+				// menu every signed-in admin uses.
+				path: "features/authviews/controls.templ",
+				rules: []stripRule{{
+					startMarker: "<!-- trim:config-view removes this entry",
+					endMarker:   "}",
+				}},
+			},
 		},
 		replaces: []fileReplace{
 			{

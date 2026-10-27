@@ -79,7 +79,7 @@ description — it lists exactly what to remove in `internal/server/chi.go`
 ## Demo-only markup
 
 Some surfaces exist only to advertise the template itself: the
-`TechStack` stack key every feature's "How it works" panel renders, and the demo-accounts
+`TechStack` stack key the State/Stack panel renders (the Stack button), and the demo-accounts
 block on `/login` (the seeded pair, their roles, and the Casbin
 exercise). They teach gogogo's architecture and say nothing about a
 product's own domain, so a trimmed product must delete them.

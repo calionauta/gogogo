@@ -440,7 +440,9 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   flex: 1 1 auto;
 }
 .app-rail-foot .app-user-email { display: block; max-width: 100%; font-size: 0.8125rem; font-weight: 500; }
-/* Points up: this control opens a panel above it. */
+/* Points up: this control opens a panel above it. The caret flips to point
+   down while the panel is open, with the rotation transition DaisyUI's own
+   dropdown uses — the state and the direction agree, and the flip is visible. */
 .app-account-caret {
   flex: 0 0 auto;
   width: 0.42rem;
@@ -450,6 +452,10 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   border-bottom: 1.5px solid currentColor;
   transform: rotate(-135deg);
   opacity: 0.45;
+  transition: transform 0.2s ease;
+}
+.app-dropdown[open] .app-account-caret {
+  transform: rotate(45deg);
 }
 
 /* The panel sits on the same colour family as the rail, so the SURFACE is what
@@ -976,6 +982,13 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   gap: 0.5rem;
   margin: 0 0 0.5rem;
 }
+/* The close control is pinned to the panel's top-right corner in every
+   variation: with one section the head is the only other child, and without a
+   head (stack-only pages) the button must still sit right, not slide left into
+   the space-between gap. */
+.app-state-panel-close {
+  margin-left: auto;
+}
 .app-state-panel-inner .card { background: var(--color-base-200); border-color: var(--color-base-300); }
 
 @media (max-width: 1024px) {
@@ -1017,6 +1030,17 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 }
 .ui-card-body { padding: 1.25rem; }
 .ui-title { font-size: 0.9375rem; font-weight: 650; letter-spacing: -0.01em; }
+/* Inbox rows: a fixed left column keeps every subject on one vertical line.
+   Unread is a DaisyUI `status` dot in that column, read is the empty column —
+   a word badge ("new"/"read") pushed each row's text right by its own label
+   width, so a list of mixed rows read as diagonals. */
+.app-inbox-marker {
+  flex: 0 0 0.75rem;
+  width: 0.75rem;
+  display: flex;
+  justify-content: center;
+  padding-top: 0.5rem;
+}
 .ui-meta {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.6875rem;

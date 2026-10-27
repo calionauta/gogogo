@@ -20,7 +20,21 @@ type Module struct {
 	Icon  string // icon catalog key (material-symbols:* in internal/icon)
 	URL   string // link target
 	Admin bool   // only visible to admins; the route stays RBAC-enforced
+	// Pinned renders above the first group heading, with no heading of its
+	// own: the inbox is the rail's always-on surface, not a member of a
+	// themed block. A pinned module carries no Group.
+	Pinned bool
+	// MenuOnly keeps the module out of the rail and makes it reachable from
+	// the account menu only. Config is an operator surface, not a daily
+	// destination: it sits under Account, where the rest of the account
+	// surface lives.
+	MenuOnly bool
 }
+
+// ModuleInbox is the one module the rail decorates with a live count. The id
+// is spelled once here: modules.go, the shell and the notifications fragment
+// all address the same destination.
+const ModuleInbox = "notifications"
 
 // Group labels, in render order.
 const (
@@ -38,17 +52,17 @@ const (
 // `{ID: "..."` lines, and `add` restores them the same way — a const would
 // hide the line from both.
 var Modules = []Module{
+	{
+		ID: ModuleInbox, Title: "Inbox", Pinned: true,
+		Icon: "material-symbols:notifications", URL: "/notifications",
+	},
 	{ID: "todo", Title: "Todo", Group: GroupCollab, Icon: "material-symbols:checklist", URL: "/todo"},
 	{ID: "whiteboard", Title: "Whiteboard", Group: GroupCollab, Icon: "material-symbols:draw", URL: "/whiteboard"},
 	{ID: "notes", Title: "Notes", Group: GroupCollab, Icon: "material-symbols:description", URL: "/notes"},
 	{ID: "chat", Title: "Chat", Group: GroupAI, Icon: "material-symbols:forum", URL: "/chat"},
 	{ID: "review", Title: "Review", Group: GroupAI, Icon: "material-symbols:fact-check", URL: "/review"},
 	{ID: "room", Title: "Room", Group: GroupOperate, Icon: "material-symbols:groups", URL: "/room"},
-	{
-		ID: "notifications", Title: "Inbox", Group: GroupOperate,
-		Icon: "material-symbols:notifications", URL: "/notifications",
-	},
-	{ID: "config", Title: "Config", Group: GroupOperate, Icon: "material-symbols:settings", URL: "/config", Admin: true},
+	{ID: "config", Title: "Config", Admin: true, MenuOnly: true, Icon: "material-symbols:settings", URL: "/config"},
 }
 
 // viewerModules are the destinations the viewer role may see (the RBAC demo:
@@ -62,12 +76,16 @@ var Modules = []Module{
 // Modules, and `add` restores the same `{ID: ...}` line).
 var viewerModules = map[string]bool{"todo": true, "whiteboard": true, "notes": true}
 
-// Visible returns the modules the given role may see. An empty role (guest)
-// sees the non-admin surfaces, matching the navbar's previous behaviour; the
-// route itself is still enforced by the RBAC policy.
+// Visible returns the modules the given role may see in the rail. An empty
+// role (guest) sees the non-admin surfaces, matching the navbar's previous
+// behaviour; the route itself is still enforced by the RBAC policy. MenuOnly
+// modules never render here: their entry point is the account menu.
 func Visible(role string) []Module {
 	out := make([]Module, 0, len(Modules))
 	for _, m := range Modules {
+		if m.MenuOnly {
+			continue
+		}
 		if m.Admin && !rbac.IsAdmin(role) {
 			continue
 		}
@@ -79,21 +97,33 @@ func Visible(role string) []Module {
 	return out
 }
 
-// ModuleGroup is one labelled block of the sidebar.
+// ModuleGroup is one labelled block of the sidebar. The pinned block has an
+// empty label: it renders before the first heading, without one.
 type ModuleGroup struct {
 	Label   string
 	Modules []Module
 }
 
-// Grouped returns the visible modules grouped in render order, dropping empty
-// groups (so a role that only sees Collab renders one heading, not three).
+// Grouped returns the visible modules grouped in render order: the pinned
+// block first (no heading — the inbox reads as the rail's own surface), then
+// the labelled groups, dropping empty ones (so a role that only sees Collab
+// renders one heading, not three).
 func Grouped(role string) []ModuleGroup {
 	visible := Visible(role)
 	var out []ModuleGroup
+	var pinned []Module
+	for _, m := range visible {
+		if m.Pinned {
+			pinned = append(pinned, m)
+		}
+	}
+	if len(pinned) > 0 {
+		out = append(out, ModuleGroup{Modules: pinned})
+	}
 	for _, label := range []string{GroupCollab, GroupAI, GroupOperate} {
 		var group []Module
 		for _, m := range visible {
-			if m.Group == label {
+			if !m.Pinned && m.Group == label {
 				group = append(group, m)
 			}
 		}

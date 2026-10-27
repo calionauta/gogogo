@@ -4,13 +4,14 @@
 //   - todo/room/chat carry a `sessionAuthed` signal on their feature
 //     stream, revalidated on its heartbeat (the banner's data-effect maps it
 //     into GogogoSession.set);
-//   - a page with NO feature stream opens /api/session/stream through the
-//     shared /static/session.js (one visible tab per browser; the others hear
-//     it over a BroadcastChannel).
-// One long-lived connection per page: the dedicated stream exists only where
-// there is nothing else, because browsers cap connections per host and a
-// second one starves later navigations. Pass authed=true when the page
-// rendered for a signed-in user; a public page passes false and never warns.
+//   - the shared leader stream (/api/session/stream, opened by session.js)
+//     runs on every page when Web Locks + BroadcastChannel exist, and its
+//     frames also carry the rail's unread count.
+// One long-lived connection per BROWSER, not per page or tab: browsers cap
+// connections per host, and a stream per tab has been measured to starve later
+// navigations. Without that coordination the dedicated stream exists only
+// where there is nothing else. Pass authed=true when the page rendered for a
+// signed-in user; a public page passes false and never warns.
 package components
 
 import "strconv"

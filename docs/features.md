@@ -47,7 +47,7 @@ being one.
 - **Collaborative whiteboard** — Canvas, SSE + NATS broadcast, **live in-progress drawing** (the shape under the pointer is relayed on the volatile presence channel so peers watch it grow, then committed by the `add` op on release), offline-first outbox replay, Turso-persisted snapshots, server-stamped cursor identity (roster and cursors kept in separate maps; idle cursors expire on an 8 s TTL). Boards are **shared**: the index lists every board with its author, every signed-in user opens and draws on any of them, and deleting is author-or-admin (`canDeleteDoc`).
 - **Shared notes** — Plain-text collab notes: character ops merge server-side, resolved text streams to peers, presence + typing + line carets (each caret measured against the reporter's own text snapshot, so a dot never lands on the wrong line while the two editors are briefly diverged; the offset is measured with a Range over a mirror that holds the reporter's whole text at our font and width — the old zero-width-space marker counted as a character and sat on the PREVIOUS line at a soft wrap, so the dot jumped a row once per typed line; only a FOCUSED textarea ever reports a caret — an idle tab that adopted a peer's text owns no position to announce — and a standalone report is withheld while `ta.value !== serverText`, because it travels without its text and the op batch already carries the exact caret with it; the 5s heartbeat resends the last own caret instead of reading a borrowed selection; a closed tab announces `/leave` from `pagehide` instead of waiting out the 8s expiry), live index via the Hub record event + `ListResync` (no stream on the index page), snapshots in the `notes` table. Notes are **shared**: the index lists every note with its author, every signed-in user edits any of them, and deleting is author-or-admin (`canDeleteDoc`), which drops the metadata row and the snapshot together.
 - **Durable workflows** — JSON workflows — HTTP API on `:8090`, durable state on `:4222` (e.g. `WelcomeOnboarding`).
-- **Inbox + reminders** — `/notifications` lists delivery rows and schedules a reminder. The delay is a DagNats `sleep` step resolved from `due_at` (RFC3339), so it survives a restart; the delivery row is deduped by `(owner, transaction_id, channel)` and keeps `status` + `skip_reason`, so a delivery that did not happen is a record. An SSE stream patches the inbox live, and the onboarding workflow delivers through the same path. See [Notifications](notifications.md).
+- **Inbox + reminders** — `/notifications` lists delivery rows and schedules a reminder. The delay is a DagNats `sleep` step resolved from `due_at` (RFC3339), so it survives a restart; the delivery row is deduped by `(owner, transaction_id, channel)` and keeps `status` + `skip_reason`, so a delivery that did not happen is a record. An SSE stream patches the inbox live, the rail's inbox icon carries the unread count, and the onboarding workflow delivers through the same path. See [Notifications](notifications.md).
 - **Room presence (entity actors)** — One grain per room: connection-scoped roster (SSE join/leave, refcounted per tab) + exactly-one presenter lock, supervised with restart budget. The roster is pushed on every change and name-ordered (a map range shuffled it between pushes), the tab keeps its stream while hidden (`openWhenHidden`, or a tab switch would read as leaving), a crash restart replays the live connections into the fresh grain, re-acquiring your own lock succeeds, and the page renders only the actions the lock actually allows — Take while it is free, Release for the holder. Demo at `/room/` with a crash hook.
 - **Multi-instance realtime** — JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB.
 - **Hybrid offline sync** — NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync.
@@ -198,8 +198,8 @@ bundle and is not attributed per feature.
 | Offline outbox (every shell page) | `offline-banner.js` | 21 KB | 7 KB |
 | Offline policy + page outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 14 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 12 KB | 5 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 31 KB | 12 KB |
-| Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 48 KB | 20 KB |
+| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 32 KB | 12 KB |
+| Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 49 KB | 20 KB |
 
 Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
@@ -228,13 +228,15 @@ so a zero-valued field on a shared signals struct serializes as
 `sessionAuthed:false` and raises the banner on a perfectly signed-in tab (todo
 did exactly that on every list/search response, which is why `todo.Signals`
 has no such field and the stream merges the signal itself).
-Only a page with no feature stream opens `/api/session/stream` (one visible tab
-per browser via Web Locks, BroadcastChannel for the others). One long-lived
-connection per page is the rule: browsers cap connections per host, and a
-second stream per page has been measured to starve a later same-tab
-navigation (the session stream opening on top of a feature stream made the
-smoke's seventh page hang on `load`). No tab schedules a request, so every tab
-raises the same `components.SessionBanner` the moment a cookie expires. The
+The `/api/session/stream` leader stream (one VISIBLE tab per browser via Web
+Locks, BroadcastChannel for the others) is opened on every page when that
+coordination exists, because the same connection carries the rail's unread
+count — one extra connection per browser, not one per page. Without Web Locks +
+BroadcastChannel the old rule holds: only a page with no feature stream opens
+it, since a second connection per page has been measured to starve a later
+same-tab navigation (the smoke's seventh page hung on `load`). No tab schedules
+a request, so every tab raises the same `components.SessionBanner` the moment a
+cookie expires and updates the same inbox badge when the count changes. The
 banner never auto-redirects (unsent work would be stranded). It is opt-in per
 page via the render-time `authed` flag, so a public page never nags about a
 session it never had.

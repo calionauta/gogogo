@@ -115,7 +115,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
 - **Routes:** `/_ui/demo`, `/health`, `/sw.js`
-- **Store calls:** `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
+- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 
@@ -285,6 +285,7 @@ authenticated /account security page
 - **Owned:** `features/account`
 - **Routes:** `/account`, `/account/password`, `/account/sessions/revoke`, `/account/sessions/revoke-all`, `/account/totp/begin`, `/account/totp/disable`, `/account/totp/recovery`, `/account/totp/verify`, `/account/verify`
 - **Store calls:** `dbgen.ListSessionsByUser`
+- **Depends on:** sounds
 - **Trim:** manual (no installer unit)
 - **Note:** Core identity UX; remove manually with the menu link in features/authviews/controls.templ.
 
@@ -307,7 +308,7 @@ admin-only /config view + user role/session actions
 - **Store calls:** `dbgen.CountAdmins`, `dbgen.GetUserByEmail`, `dbgen.ListSecurityEventNames`, `dbgen.ListSecurityEventsByEvent`, `dbgen.ListSecurityEventsPage`, `dbgen.ListUsers`, `dbgen.SecurityEventCountsSince`, `dbgen.SetUserRole`
 - **Depends on:** sounds
 - **Trim:** offered to the installer (a scaffold's keep lists/presets drop it)
-- **Warning:** The Config sidebar entry is stripped automatically.
+- **Warning:** The Config rail and account-menu entries are stripped automatically.
 
 ## `landing` — feature
 
@@ -334,11 +335,12 @@ shared plain-text notes (server-owned Loro Text + SSE)
 
 inbox + durable reminders (DagNats sleep → delivery row)
 
-- **Owned:** `features/notifications`
+- **Owned:** `features/notifications`, `internal/server/inbox_badge.go`
 - **Routes:** `/api/notifications/read-all`, `/api/notifications/remind`, `/api/notifications/stream`, `/api/notifications/{id}/read`, `/notifications`
 - **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CreateNotification`, `dbgen.ListNotificationsForOwner`, `dbgen.MarkAllNotificationsRead`, `dbgen.MarkNotificationRead`, `dbgen.SetNotificationStatus`
+- **Depends on:** sounds
 - **Trim:** manual (no installer unit)
-- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` plugin.
+- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go (Pinned), the rail count middleware and the session-stream feed in internal/server/inbox_badge.go plus their r.Use / SetSessionStreamExtras lines in internal/server/chi.go, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` plugin.
 
 ## `review` — feature
 
