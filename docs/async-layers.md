@@ -251,6 +251,16 @@ page that renders neither the bridge nor the optimistic renderer, which is the
 same stuck-spinner failure. `offline-banner.js` unregisters it and clears the
 caches it owns.
 
+The banner states only what is true. `offline-banner.js` says "changes are
+queued" ONLY when a Service Worker controls the page: with no controller
+(worker blocked, registration evicted, a browser that refused it) it says the
+queue is not active and asks for a reload, because a write made now fails. It
+also compares the policy version it loaded with the one the worker imported at
+install time (`POLICY_VERSION`, the file's own fingerprint, pinned by
+`TestOfflinePolicyVersionMatchesItsDigest`): a mismatch means the browser runs
+a worker from an older deploy, and the banner says "out of date — reload"
+instead of promising a queue the worker may not implement.
+
 **On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
 sync; the local JetStream persists mutations to disk and replays them when the
 Leaf Node reconnects to the server. No Service Worker needed.

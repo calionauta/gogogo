@@ -496,6 +496,39 @@ async function verifyOfflineTodoQueue(page, context) {
     throw new Error("offline banner rendered with offline sync disabled");
   }
 
+  // --- the version handshake: a page must notice a worker from an old deploy ---
+  // The page loads offline-policy.js itself and asks the worker which version it
+  // imported at install time. A worker keeps that copy until it reinstalls, so
+  // after a deploy a browser can run a NEW page over an OLD worker — the state
+  // where the page promised "changes are queued" and the worker did not queue
+  // them. The banner must say "reload" instead. The worker's own reply is
+  // asserted below (it carries the matching version in CI); here the mismatch
+  // path is driven directly, because reproducing a stale worker needs a deploy.
+  await page.evaluate(() => {
+    navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+      data: { type: "policy-version", version: "older-deploy" },
+    }));
+  });
+  try {
+    await timedWait(page, "offline-banner-stale", () =>
+      document.querySelector("#offline-banner-text")?.textContent?.includes("out of date"),
+    );
+  } catch {
+    const copy = await page.locator("#offline-banner-text").textContent();
+    throw new Error(
+      `the page did not notice a worker from an older deploy; the banner says ${JSON.stringify(copy)}`,
+    );
+  }
+  await page.evaluate(() => {
+    navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+      data: { type: "policy-version", version: window.GogogoOffline.POLICY_VERSION },
+    }));
+  });
+  await timedWait(page, "offline-banner-stale-cleared", () =>
+    document.querySelector("#offline-banner")?.classList.contains("is-online"),
+  );
+  console.log("  ✓ an older worker raises the reload banner, a matching one clears it");
+
   // CAL-34 regression guard: the SW postMessage bridge in
   // internal/components/offline_banner.templ dispatches the event as
   // `gogogo:queued` (Datastar event-namespace separator is the colon).
@@ -1179,6 +1212,45 @@ async function verifyOfflineTodoQueue(page, context) {
         pending = await pendingMutationCount(page);
       }
       if (pending !== 0) throw new Error("the silent queue write never replayed");
+    }
+
+    // --- with no controlling worker the banner must not promise a queue ---
+    // navigator.onLine says the link is down; it says nothing about whether a
+    // worker is listening. Before this, a browser with no registration (blocked,
+    // evicted, private mode) still showed "changes are queued and will sync" —
+    // and then rejected the write, which is the report this closes. A blocked
+    // /sw.js reproduces that state deterministically.
+    {
+      const noSw = await browser.newContext();
+      await noSw.addCookies(await context.cookies());
+      await noSw.route("**/sw.js", (route) => route.abort());
+      const bare = await noSw.newPage();
+      try {
+        await bare.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+        if (await bare.evaluate(() => Boolean(navigator.serviceWorker.controller))) {
+          throw new Error("a service worker controlled the page even though /sw.js was blocked");
+        }
+        await noSw.setOffline(true);
+        try {
+          await timedWait(bare, "offline-banner-no-worker", () =>
+            document.querySelector("#offline-banner-text")?.textContent?.includes("no offline queue"),
+          );
+        } catch {
+          const copy = await bare.locator("#offline-banner-text").textContent();
+          throw new Error(
+            `no worker controls the page, but the banner says ${JSON.stringify(copy)} — ` +
+              "the copy is promising a queue that does not exist",
+          );
+        }
+        const copy = await bare.locator("#offline-banner-text").textContent();
+        if ((copy || "").includes("will sync when you reconnect")) {
+          throw new Error("the banner promised a queue with no worker controlling the page");
+        }
+        console.log("  ✓ a page with no controlling worker says the queue is not active (no false promise)");
+      } finally {
+        await noSw.setOffline(false);
+        await noSw.close();
+      }
     }
   } finally {
     await context.setOffline(false);
