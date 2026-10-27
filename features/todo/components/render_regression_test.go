@@ -3,6 +3,7 @@ package components
 import (
 	"bytes"
 	"context"
+	"html"
 	"strings"
 	"testing"
 
@@ -108,19 +109,26 @@ func TestRender_MutationURLsPreserveSlice(t *testing.T) {
 	if err := RealtimeRecords().Render(context.Background(), &bSync); err != nil {
 		t.Fatalf("render RealtimeRecords: %v", err)
 	}
+	// Compare the markup the BROWSER sees: templ escapes attribute values at
+	// render time (&#39; for '), and whether a value is static or built at render
+	// time changes that encoding without changing the URL. Unescaping keeps the
+	// assertion about the contract (endpoint + slice) rather than transport.
+	list := html.UnescapeString(bList.String())
+	item := html.UnescapeString(bItem.String())
+	sync := html.UnescapeString(bSync.String())
 	for _, want := range []string{
 		"toggle?filter=",
 		"completed/delete?clientID=",
 		"confirmingDeleteId + '/delete?clientID=",
 	} {
-		if !strings.Contains(bList.String(), want) && !strings.Contains(bItem.String(), want) {
+		if !strings.Contains(list, want) && !strings.Contains(item, want) {
 			t.Errorf("daisyui markup missing list endpoint carrying slice state: %q", want)
 		}
 	}
-	if !strings.Contains(bSync.String(), "fragment?filter=") {
+	if !strings.Contains(sync, "fragment?filter=") {
 		t.Error("realtime resync must re-fetch the list fragment")
 	}
-	pages := []string{bList.String(), bItem.String(), bSync.String()}
+	pages := []string{list, item, sync}
 	for _, page := range pages {
 		for _, endpoint := range []string{"toggle?", "completed/delete?", "/delete?clientID=", "fragment?filter="} {
 			idx := strings.Index(page, endpoint)
