@@ -183,7 +183,7 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	proj := t.TempDir()
 	src := "\tdefer stopLifecycle()\n" +
 		"\n" +
-		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler)\n" +
+		"\tstartDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)\n" +
 		"\tdefer shutdownDagNats()\n" +
 		"\n" +
 		"\tjs := startNATS(cfg)\n" +
@@ -212,7 +212,7 @@ func TestAddDagnatsRestoresBootOrder(t *testing.T) {
 	}
 	out, _ := os.ReadFile(filepath.Join(proj, "cmd", "web", "main.go"))
 	text := string(out)
-	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)")
+	boot := strings.Index(text, "startDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)")
 	nats := strings.Index(text, "js := startNATS(cfg)")
 	server := strings.Index(text, "// The process is the server now")
 	if boot == -1 || nats == -1 || server == -1 {

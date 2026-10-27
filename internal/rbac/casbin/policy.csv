@@ -146,3 +146,6 @@ p, admin, /console/*, .*
 p, admin, /dagnats, .*
 p, admin, /dagnats/, .*
 p, admin, /dagnats/*, .*
+# `gogogo new`: notifications (page + actions; add a row per route as it grows)
+p, user, /notifications, .*
+p, user, /api/notifications/*, .*

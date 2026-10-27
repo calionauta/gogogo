@@ -57,7 +57,9 @@ func wireAuth(a *auth.Auth, cfg *config.Config) error {
 	a.SetMagicLinkBindBrowser(cfg.Auth.MagicLinkBindBrowser)
 	wireAuthPages(a)
 	wireAuthMail(a, cfg)
-	return nil
+	// At-rest TOTP encryption is opt-in by env (AUTH_ENC_KEY): a malformed
+	// key fails the boot rather than running half-encrypted.
+	return wireTOTPKey(a, cfg)
 }
 
 // wireAuthPages installs the standalone email-link pages.

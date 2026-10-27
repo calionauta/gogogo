@@ -239,6 +239,9 @@ type Config struct {
 		// AppURL is the browser-facing origin for out-of-band links.
 		AppURL string
 	}
+	// Delivery picks the transport for external channels (email today).
+	// The inbox is not a channel here: in_app is written by the feature.
+	Delivery DeliveryConfig
 	// Turso holds the Turso Database connection settings — the Rust
 	// SQLite-compatible engine, driven from Go by turso.tech/database/tursogo.
 	// Consumed by the sqlc-backed data layer. An empty URL means a local file
@@ -377,6 +380,7 @@ func Load() *Config {
 	cfg.Collab.Snapshots = getEnv("COLLAB_SNAPSHOTS", "turso")
 	cfg.loadRBACEnv(dev)
 	cfg.loadAuthEnv()
+	cfg.loadDeliveryEnv()
 	cfg.loadSearchEnv()
 	cfg.Turso.URL = getEnv("TURSO_DATABASE_URL", "")
 	cfg.Turso.AuthToken = getEnv("TURSO_AUTH_TOKEN", "")

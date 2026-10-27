@@ -62,6 +62,18 @@ var advisePresets = []advisePreset{
 			"workflow; keep the engine, replace the demo with your own.",
 	},
 	{
+		Name: "notifications",
+		Idea: "a message that reaches a person later, with a record of whether it arrived",
+		Match: []string{
+			"notif", "reminder", "digest", "inbox", "delivery", "alert",
+		},
+		Keep: []string{"notifications", "delivery", unitDagnats},
+		Note: "The inbox is local (owner-scoped rows + SSE); the delay is a " +
+			"DagNats sleep; DELIVERY_TRANSPORT=off keeps the inbox and only skips " +
+			"external sends. Per-channel addresses and preferences belong to the " +
+			"provider (docs/research/notify-2026-10.md).",
+	},
+	{
 		Name: "offline-first",
 		Idea: "local-first writes queued in an outbox, replayed with idempotency keys",
 		Match: []string{

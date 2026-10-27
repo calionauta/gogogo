@@ -89,6 +89,11 @@ var pagesUnderTest = []pageUnderTest{
 		`id="room-leave"`,
 		`id="room-crash"`,
 	}},
+	{name: "notifications", route: "/notifications", must: []string{
+		`id="inbox"`,
+		`id="inbox-stream"`,
+		"Nothing here yet.",
+	}},
 	// net-status lives on the DOC page (/notes/{id}), not the list: the list
 	// only carries notes-list + the resync affordance.
 	{name: "notes", route: "/notes", must: []string{`id="notes-list"`}},

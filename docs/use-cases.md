@@ -83,6 +83,21 @@ Not for: single fire-and-forget jobs (that is `queue`); per-step undo
 on failure — DagNats retries and replays, it does not compensate
 (see saga note below); timers owned by one entity (no owner here).
 
+### `delivery` — transport seam (plugin, manual removal)
+
+What: one `Sender` per channel (`internal/delivery`). `DELIVERY_TRANSPORT`
+selects `off` (default), the in-process `smtp`, or an external `notify`
+engine. `in_app` is never a transport, so a provider cannot become a second
+owner of the inbox.
+
+- Sending email without running a service (`smtp` reuses the auth relay).
+- Handing every external channel to an engine that already owns providers,
+  preferences and retries (`notify`).
+
+Not for: deciding channels or addresses. The template ships `in_app` and
+`email`; anything else is the provider's business (see
+`docs/research/notify-2026-10.md`).
+
 ### `goakt` — entity actors with supervision (plugin, offered)
 
 What: one addressable grain per room (connection-scoped roster plus an
@@ -173,6 +188,21 @@ theming only; no business logic depends on them.
 
 What: the MVC demo every pattern in this repo points at. Keep it as
 the implementation reference; delete it manually when done reading.
+
+### `notifications` — inbox + durable reminders (feature, manual removal)
+
+What: owner-scoped delivery rows and a Datastar SSE inbox. The delay is a
+DagNats `sleep` (`seed` → `wait` → `deliver`), so it survives a restart.
+External channels go through `delivery`; `in_app` is written here and is never
+a transport.
+
+- Reminders, "tell the user later", and an audit of what was delivered
+  (`status`, `provider`, `skip_reason`).
+- A second producer is a `Deliver` call, not a new table: the onboarding
+  welcome uses the same path.
+
+Not for: per-channel addresses or preferences. Those belong to the external
+provider (see `delivery`); the app keeps `users.email` and the inbox.
 
 ### Decision pairs (same need, different unit — pick once)
 

@@ -34,6 +34,7 @@ var API_PREFIX = "/api/";
 var SKIP_PATTERNS = [
   "/api/todos/stream", // todo SSE stream (EventSource)
   "/api/notes/", // notes SSE stream + ops (EventSource + own convergence)
+  "/api/notifications/stream", // inbox SSE stream (Datastar)
   "/api/whiteboard/" // whiteboard ops + stream (own offline mechanism)
 ];
 

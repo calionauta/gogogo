@@ -169,6 +169,7 @@ Full rules: `references/datastar.md`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
 - **A `data-bind` signal is client-owned — never write it from a server response.** Linted by `datastar-lint` (`CLIENT_BOUND_SIGNAL_*`), not prose: all six write forms are checked (four Go, two mark-up). Preferred fix: keep the field off the wire (`json:"-"`) and seed the signal from the input's `value=`. The two traps the lint cannot see are in `references/datastar.md` § Rules 7.
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
+- **A new SSE endpoint must be added to `web/resources/static/sw.js` `SKIP_PATTERNS`.** The service worker intercepts `/api/*`; an unlisted stream is swallowed and never delivers. The inbox stream (`/api/notifications/stream`) is the reference.
 
 ## Where new code goes (read this before creating a file)
 
@@ -204,6 +205,11 @@ Full rules: `references/datastar.md`.
   means adding it to that list, which is the review moment the guarantee
   needs. Do not create an `internal/foo/` with a single file before checking
   whether it is a file of an existing package.
+- **A user-facing message goes through the notifications slice.** Write the row
+  with `notifications/handlers.Deliver` (owner, transaction id, channel); never
+  call a provider from a handler. The transport is `internal/delivery`
+  (`DELIVERY_TRANSPORT=off|smtp|notify`), and `in_app` is never a transport —
+  the inbox has one owner.
 - **A package with zero importers is opt-in, not dead.** State that in the
   package doc with the two exits: the trigger that wires it, and the exact
   removal step if it never fires.

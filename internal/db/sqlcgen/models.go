@@ -4,6 +4,10 @@
 
 package dbgen
 
+import (
+	"database/sql"
+)
+
 type Board struct {
 	DocID   string
 	Owner   string
@@ -43,6 +47,22 @@ type Note struct {
 	Owner   string
 	Updated string
 	Created string
+}
+
+type Notification struct {
+	ID            string
+	Owner         string
+	Workflow      string
+	TransactionID string
+	Channel       string
+	Status        string
+	SkipReason    string
+	ErrorText     string
+	Provider      string
+	Subject       string
+	Body          string
+	ReadAt        sql.NullString
+	Created       string
 }
 
 type OauthAccount struct {

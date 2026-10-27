@@ -71,6 +71,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 **Async**
 - [async-layers](docs/async-layers.md) — The seven async layers, SSE Hub record-sync vs ephemeral signals, cross-instance and offline sync.
 - [realtime-recipe](docs/realtime-recipe.md) — How to add live UI: client/server patterns, checklist, no invented transports.
+- [notifications](docs/notifications.md) — The inbox slice: a DagNats sleep for the delay, one owner-scoped delivery row, and the dedupe that makes a retry safe.
 - [dagnats](docs/dagnats.md) — DagNats capability table, version bounds, learned gotchas, and the add-a-workflow path for LLM agents.
 
 **AI**
@@ -93,6 +94,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [ui-components](docs/research/ui-components-2026-10-21.md) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability.
 - [supply-chain-scanning](docs/research/supply-chain-scanning-2026.md) — The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate.
 - [native-kernels](docs/research/native-kernels-2026-10.md) — The 2026-10-25 native-kernel PoCs: FNV-1a tie vs grayscale survivor, SIMD verbs audit, loader prices, Rust/Odin probes.
+- [notify](docs/research/notify-2026-10.md) — The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits.
 
 **Ship**
 - [deploy](docs/deploy.md) — Server layout, first-time setup, deploy workflow, build pipeline and version badge.

@@ -1,14 +1,13 @@
 // SCOPE:plugin — Capability registry entries (data only)
 //
 // Split from capabilities.go for the file-sizes gate: the type + API live
-// there, the table lives here, so the table can grow a capability without
-// pushing the file over the limit.
+// there, the table here. A growing slice moves to its own file.
 package capabilities
 
 // All is the full capability map. Installer units cover a subset (see
 // Offered); the rest are env-blessed, core, or manual-removal with the
 // reason recorded.
-var All = []Capability{
+var All = append([]Capability{
 	{
 		ID:      "capabilities",
 		Kind:    KindPlugin,
@@ -150,6 +149,9 @@ var All = []Capability{
 			// which import nothing from the engine, so it needs no entry.
 			"internal/nats/single_nats_test.go",
 			"cmd/web/dagnats.go",
+			// The reminder worker's payload/port tests reference symbols the
+			// engine owns, so they go with it or the trimmed tree fails vet.
+			"cmd/web/dagnats_reminder_test.go",
 			"cmd/web/start_nats_test.go",
 		},
 		Warns: []string{
@@ -495,4 +497,4 @@ var All = []Capability{
 			"the console adds an ADMIN_EMAILS allowlist. The policy test pins " +
 			"every mux route for user-or-admin.",
 	},
-}
+}, deliveryUnits...)

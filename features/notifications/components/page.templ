@@ -1,0 +1,179 @@
+// SCOPE:feature — notifications page (inbox + reminder form)
+package components
+
+import (
+	"github.com/calionauta/gogogo/internal/components"
+	"github.com/calionauta/gogogo/internal/ui"
+)
+
+// Item is one delivery row as the inbox renders it.
+type Item struct {
+	ID      string
+	Subject string
+	Body    string
+	When    string
+	Unread  bool
+}
+
+// ChannelOption is one optional channel the reminder form offers. It exists
+// only when the router has a transport AND the user has an address for it.
+type ChannelOption struct {
+	Channel string
+	Label   string
+}
+
+// PageData is everything the inbox renders. Wired gates the reminder form:
+// without a workflow client there is no durable delay, so offering the form
+// would be a control that always fails. Channels lists the external channels
+// the form offers; empty means "in-app only".
+type PageData struct {
+	Items    []Item
+	Unread   int
+	Notice   string
+	Wired    bool
+	Channels []ChannelOption
+}
+
+// Page renders /notifications inside the shared shell.
+templ Page(email string, role string, buildLabel string, buildCommit string, data PageData) {
+	@ui.Shell(ui.Data{
+		Title:       "Inbox — gogogo",
+		Module:      "notifications",
+		Heading:     "Inbox",
+		Context:     "delivery · durable reminders",
+		Email:       email,
+		Role:        role,
+		BuildLabel:  buildLabel,
+		BuildCommit: buildCommit,
+		StreamPage:  true,
+	}, nil, nil, nil, body(data))
+}
+
+templ body(data PageData) {
+	<div class="ui-page ui-stack">
+		@components.StreamOpener("inbox-stream", "/api/notifications/stream", false)
+		@remindForm(data)
+		@Inbox(data)
+	</div>
+}
+
+// remindForm schedules a reminder. The button clears the field in the client
+// promise, never by a server signal write: `$remindText` is data-bind-owned.
+templ remindForm(data PageData) {
+	if data.Wired {
+		<section class="ui-card">
+			<div class="ui-card-body ui-stack">
+				<h2 class="ui-title">Remind me</h2>
+				<form
+					id="remind-form"
+					class="w-full"
+					data-on:submit__prevent="if (!$reminding) { $reminding = true; @post('/api/notifications/remind', {contentType: 'form'}).then(() => { $remindText = ''; $reminding = false; }).catch(() => { $reminding = false; }); }"
+				>
+					<div class="join w-full">
+						<input
+							type="text"
+							name="text"
+							class="input input-sm join-item grow"
+							placeholder="What should I remember?"
+							aria-label="Reminder text"
+							maxlength="280"
+							data-bind="remindText"
+						/>
+						<select class="select select-sm join-item" name="delay" aria-label="Delay">
+							<option value="1m">in 1 minute</option>
+							<option value="1h">in 1 hour</option>
+							<option value="24h">in 1 day</option>
+						</select>
+						<button
+							type="submit"
+							class="btn btn-primary btn-sm join-item"
+							data-attr:disabled="!!($reminding || !$remindText.trim())"
+						>
+							<span class="inline-flex items-center gap-2">
+								Schedule
+								<span class="loading loading-spinner loading-xs" data-show="$reminding"></span>
+							</span>
+						</button>
+					</div>
+				</form>
+				if len(data.Channels) > 0 {
+					<fieldset class="flex flex-wrap items-center gap-4">
+						<legend class="sr-only">Also deliver to</legend>
+						for _, ch := range data.Channels {
+							<label class="ui-meta flex items-center gap-2 cursor-pointer">
+								<input type="checkbox" name="channels" value={ ch.Channel } class="checkbox checkbox-xs checkbox-info"/>
+								<span>{ ch.Label }</span>
+							</label>
+						}
+					</fieldset>
+				}
+				<p class="ui-meta">The delay is a DagNats <code>sleep</code> step: it survives a restart and holds no goroutine.</p>
+			</div>
+		</section>
+	} else {
+		<section class="ui-card">
+			<div class="ui-card-body">
+				<div class="alert alert-info" role="status">
+					<span>Reminders need the durable engine. Set <code>DAGNATS_ENABLED=true</code> (or keep the <code>dagnats</code> unit) to schedule.</span>
+				</div>
+			</div>
+		</section>
+	}
+}
+
+// Inbox is the patch target: the stream and every read action re-render this
+// region, so a live push and a click cannot drift.
+templ Inbox(data PageData) {
+	<section class="ui-card" id="inbox">
+		<div class="ui-card-body ui-stack">
+			<div class="flex items-center justify-between gap-2">
+				<h2 class="ui-title">Notifications</h2>
+				<span class="badge badge-sm">{ unreadLabel(data.Unread) }</span>
+			</div>
+			if data.Notice != "" {
+				<div class="alert alert-success" role="status"><span>{ data.Notice }</span></div>
+			}
+			if len(data.Items) == 0 {
+				<div class="ui-empty">
+					<p class="ui-empty-title">Nothing here yet.</p>
+					<p class="ui-empty-body">Schedule a reminder above; it arrives when the delay ends.</p>
+				</div>
+			} else {
+				<div class="flex justify-end">
+					<button
+						type="button"
+						class="btn btn-ghost btn-xs"
+						data-on:click={ readAllAction() }
+					>Mark all read</button>
+				</div>
+				<ul class="divide-y divide-base-200">
+					for _, item := range data.Items {
+						@itemRow(item)
+					}
+				</ul>
+			}
+		</div>
+	</section>
+}
+
+templ itemRow(item Item) {
+	<li class="flex items-start gap-3 py-3">
+		if item.Unread {
+			<span class="badge badge-primary badge-sm" aria-label="unread">new</span>
+		} else {
+			<span class="badge badge-ghost badge-sm" aria-label="read">read</span>
+		}
+		<div class="grow">
+			<p class="font-medium">{ item.Subject }</p>
+			<p class="text-sm opacity-80">{ item.Body }</p>
+			<p class="ui-meta">{ item.When }</p>
+		</div>
+		if item.Unread {
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs"
+				data-on:click={ readAction(item.ID) }
+			>mark read</button>
+		}
+	</li>
+}

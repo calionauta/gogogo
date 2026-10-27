@@ -38,6 +38,7 @@ import (
 	landinghandlers "github.com/calionauta/gogogo/features/landing/handlers"
 	"github.com/calionauta/gogogo/features/notes"
 	noteshandlers "github.com/calionauta/gogogo/features/notes/handlers"
+	notificationshandlers "github.com/calionauta/gogogo/features/notifications/handlers"
 	"github.com/calionauta/gogogo/features/onboarding"
 	reviewhandlers "github.com/calionauta/gogogo/features/review/handlers"
 	roomhandlers "github.com/calionauta/gogogo/features/room/handlers"
@@ -78,6 +79,10 @@ type ChiStack struct {
 	// DagNats onboarding worker creates example todos through it, so
 	// cmd/web passes this to startDagNats before NATS exists.
 	TodoHandler *todohandlers.Handler
+	// NotificationsHandler is the delivery side engines wire against: the
+	// DagNats reminder worker writes the notification row through it, so
+	// cmd/web passes this to startDagNats before NATS exists.
+	NotificationsHandler *notificationshandlers.Handler
 }
 
 // bootRoomActor starts the GoAkt actor system and returns the room grains
@@ -190,13 +195,6 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// including their roles (demo1 admin, demo2 viewer). Idempotent, so
 	// every boot after the first is a role refresh.
 	queries := demoQueries(cfg, a, sqlDB)
-	// At-rest TOTP encryption is opt-in by env (AUTH_ENC_KEY): a malformed
-	// key fails the boot rather than running half-encrypted.
-	if kerr := wireTOTPKey(a, cfg); kerr != nil {
-		_ = sqlDB.Close()
-		return nil, kerr
-	}
-
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
 	startAuditRetention(bootCtx, queries)
 	// bootCtx now owns the audit-retention ticker and the engines below
@@ -274,9 +272,13 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	mountOnboarding(mux, onboardingH)
 	// Account is an authenticated user surface, not a trimmable demo plugin.
 	mux.MountFeature("account", accounthandlers.NewHandler(cfg, a, queries).Routes())
-	// Console rides the same mount-after-composition rule: the engine
-	// listener is loopback-only, so browsers reach it only through here.
+	// Console rides the same mount-after-composition rule: the engine listener
+	// is loopback-only, so browsers reach it only through here. It stays a
+	// single core line because `gogogo new` anchors its mount below it.
 	mountConsoleProxy(mux, a, cfg)
+	// Inbox is an optional surface next to the console.
+	notificationsH := mountNotifications(mux, a, cfg, queries)
+
 	// RBAC is wired, not optional plumbing: one enforcer built here and the
 	// middleware wraps the whole mux (pass-through when disabled, enforced
 	// denies when on). A parse failure is a programmer error and fails the
@@ -299,6 +301,10 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 		queries:        queries,
 		hub:            hub,
 		TodoHandler:    todoH,
+		// NotificationsHandler is the delivery side engines wire against: the
+		// DagNats reminder worker writes the notification row through it, so
+		// cmd/web passes this to startDagNats before NATS exists.
+		NotificationsHandler: notificationsH,
 	}, nil
 }
 

@@ -92,7 +92,7 @@ var dagNatsTrimUnit = []trimUnit{
 		},
 		mainStrips: []stripRule{
 			{
-				startMarker: "startDagNats(lifecycleCtx, cfg, stack.TodoHandler)",
+				startMarker: "startDagNats(lifecycleCtx, cfg, stack.TodoHandler, stack.NotificationsHandler)",
 				endMarker:   "defer shutdownDagNats()",
 				addAfter:    mainCallsAnchor,
 				// The lifecycle context exists ONLY to bound DagNats boot work,

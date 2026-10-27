@@ -281,6 +281,12 @@ func adviseTrim(c capabilities.Capability, owners map[string]string, unitKind ma
 		if c.RuntimeOff != "" {
 			return "not an installer unit (runtime switch)"
 		}
+		if c.Kind != capabilities.KindCore {
+			// A manual-removal slice is not core: it can go, just not through
+			// the trim engine. Saying "core" here would tell the reader the
+			// opposite of the unit's own contract.
+			return "not an installer unit (manual removal)"
+		}
 		return "not an installer unit (core — always in)"
 	}
 	if unitKind[unit] == capabilities.KindFeature {

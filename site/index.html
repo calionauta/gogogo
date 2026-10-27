@@ -56,7 +56,7 @@
 
 <section class="hero">
   <div class="hero-copy">
-    <p class="kicker">Full-stack Go · one binary · zero external services</p>
+    <p class="kicker">Full-stack Go · one binary · nothing to operate</p>
     <h1>Your stack is ready.<br><em>Summon</em> your AI agent <span class="nowrap">to build.</span></h1>
     <p class="hero-sub">Not a framework. One binary.</p>
     <div class="hero-ctas">
@@ -277,6 +277,12 @@
           <span class="tile-desc">room presence demo (one grain per room, crash hook included)</span>
           <span class="tile-note">roster · presenter lock</span>
         </a>
+        <a class="tile" href="./docs/notifications/">
+          <span class="tile-top"><span class="tile-dot live"></span> Inbox<span class="tile-arrow" aria-hidden="true">↗</span></span>
+          <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 18a2 2 0 0 0 4 0"/></svg></span>
+          <span class="tile-desc">inbox + durable reminders (DagNats sleep → delivery row)</span>
+          <span class="tile-note">durable · live</span>
+        </a>
         <a class="tile" href="./docs/features/">
           <span class="tile-top"><span class="tile-dot live"></span> Landing<span class="tile-arrow" aria-hidden="true">↗</span></span>
           <span class="tile-ui generic-ui"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/></svg></span>
@@ -326,7 +332,7 @@
         <!--PLUGINS:START-->
         <div class="trim-head">
           <span class="trim-title">Trim plan</span>
-          <span class="trim-count" id="trim-count" aria-live="polite">15 of 15 kept</span>
+          <span class="trim-count" id="trim-count" aria-live="polite">16 of 16 kept</span>
         </div>
         <p class="plan-group">Common opt-outs</p>
         <label class="plan-row">
@@ -401,6 +407,12 @@
           <span class="plan-box" aria-hidden="true"></span>
           <span class="plan-main"><span class="plan-name">Datastar<span class="plan-tag">Go seam</span></span><span class="plan-desc">Datastar rendering helpers</span></span>
           <span class="plan-env">manual</span>
+        </label>
+        <label class="plan-row">
+          <input type="checkbox" checked data-cap="delivery">
+          <span class="plan-box" aria-hidden="true"></span>
+          <span class="plan-main"><span class="plan-name">delivery</span><span class="plan-desc">delivery transport seam: channels (email today) carried by a provider (smtp or an external notify engine)</span></span>
+          <span class="plan-env">DELIVERY_TRANSPORT=off</span>
         </label>
         <label class="plan-row">
           <input type="checkbox" checked data-cap="genkit">
@@ -613,7 +625,7 @@
         <div class="build-head"><span class="prompt">$</span> go build ./cmd/web <span class="build-ok">✓</span></div>
         <div class="binary">
           <span class="binary-mark">gogogo</span>
-          <span class="binary-meta">one binary · no docker · no external services</span>
+          <span class="binary-meta">one binary · no docker · no services to run</span>
         </div>
         <div class="shells" aria-label="Delivery targets">
           <span class="label">Ships as</span>

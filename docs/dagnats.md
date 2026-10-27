@@ -12,7 +12,10 @@ already runs, console on `:8090` (`DAGNATS_HTTP_ADDR`), opt-out via
 `ADMIN_EMAILS` match, always on regardless of `RBAC_ENABLED`. An empty
 list closes it. The reference workflow is onboarding
 (`internal/dagnats/workflow.go` + `features/onboarding/`): greet →
-await-first-todo (signal) → 3× create-todo → finalize.
+await-first-todo (signal) → 3× create-todo → finalize. A second reference is
+the reminder (`internal/dagnats/reminder.go`): seed → sleep until `due_at` →
+deliver to the inbox, the durable-delay path described in
+[Notifications](notifications.md).
 
 Remove via the `SCOPE` header in `internal/dagnats/dagnats.go` (package +
 `cmd/web/dagnats.go` + wiring calls).
@@ -27,11 +30,16 @@ dynamism" is the design position (upstream ADRs `adr-001`, `adr-002`,
 |---|---|---|
 | Linear multi-step, durable | JSON DAG, `depends_on`, per-step output persisted | `OnboardingWorkflowJSON` survives handler refactors (names, not Go symbols) |
 | Branch on result | `skip_if: ParentCond` — `==,!=,<,>,<=,>=` on parent step JSON output; pure, validated | `dag/condition.go`, `types.go`, `stepref.go:49` |
+| Durable delay | `sleep` steps: fixed `duration`, `until_input_path`, or `cron` with `cron_timezone`/`cron_timezone_input_path`; the engine owns the timer, no worker involved | `dag/config.go` (`SleepConfig`), `dag/builder.go` (`Sleep`) |
+| Dedupe at the trigger | `idempotency_key` names an input path whose value dedups run starts | `dag/types.go` (`WorkflowDef.IdempotencyKey`) |
 | Bounded loop | `StepTypeAgentLoop` + `Continue()/Checkpoint()` per iteration; `MaxIterations`/`MaxDuration` enforced | `internal/engine/step_handlers.go` (`checkLoopBounds`), ADR-002 |
 | Retry/backoff | fixed / linear / exponential per step | `dag/retry.go` |
+| Rate limits | per-step `rate_limit` (per task type) or `keyed_rate_limit` (`key` dot-path, `limit`/`period`/`units`); mutually exclusive and validated | `dag/ratelimit.go` (`RateLimit`, `KeyedRateLimit`) |
+| Fan-out | `map` steps: one task per input item, `MaxItems` caps the array | `dag/types.go` (`StepTypeMap`, `MapConfig`) |
 | Runtime-planned sub-DAG | planner steps emitting validated fragments (`MaxSteps` 1–100, `MaxDepth` 0–10, `AllowedTasks`) | `dag/planner.go`, `dag/dynamic.go` (`ValidateFragment`) |
 | Agent-spawned runs | bounded `ControlPlane` capability + audit KV | ADR-021 (accepted, Phase A shipped) |
 | Human/event gates | approval steps, `waitforevent` with match/dotpaths, `WaitForSignal` resume | `approval.go`, `waitforevent.go`; onboarding step 2 |
+| Scheduled starts | cron triggers, with `backfill` replaying missed minutes | `internal/trigger/registrar_cron.go` |
 | Subworkflows | child runs from KV defs | `dag/subworkflow.go` |
 | Multi-node cluster + leases | replicated JetStream, route/leaf config, `api.leases.*` request/reply, leader-routed loads | `server/config.go`, `internal/lease/`, `dagnatstest/cluster_test.go` |
 | Observability | OpenTelemetry traces/metrics/logs, OTLP export | `internal/observe/`, `server/config.go` (`OTLPEndpoint`) |
