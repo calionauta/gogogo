@@ -191,7 +191,7 @@ bundle and is not attributed per feature.
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
 | Shared notes | `notes.js` | 37 KB | 13 KB |
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 57 KB | 20 KB |
-| Sounds (plugin, where the toggle renders) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
+| Sounds (plugin, the rail mute) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
 | Offline outbox (every shell page) | `offline-banner.js` | 20 KB | 7 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 7 KB | 3 KB |

@@ -46,11 +46,15 @@ because a rail footer with five small controls has no visual anchor.
 
 ## 2. Preference row (inside the account panel)
 
-A preference is one row: the option list for a choice, a labelled switch for a
-boolean. Palettes get a real swatch (`[data-theme]` scopes DaisyUI variables, so
-a swatch declares its own theme) and a check on the active one; a setting gets
+A preference is one row: the option list for a choice, and — for a boolean —
 `toggle` on a real `<input>`, always inside a `<label>` so the whole row is the
-hit area.
+hit area. Palettes get a real swatch (`[data-theme]` scopes DaisyUI variables,
+so a swatch declares its own theme) and a check on the active one.
+
+The sound mute is the one boolean that does not live here: it is the speaker
+icon in the rail brand, because a guest page has no panel to open and the
+landing ships sounds too. One control, one owner — do not add a second switch
+to this panel.
 
 Markup: `internal/ui/preferences.templ`. The option carries
 `data-class="{'is-active': …}"` and `aria-pressed`; the click sets the

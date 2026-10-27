@@ -9,8 +9,8 @@ class to use so a new screen looks like the other eight.
 ```
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
-├── <aside id="app-rail">   brand · build badge · []Module groups · account row
-│      account row → panel: identity · links · Tema list · sound · sign out
+├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · []Module groups · account row
+│      account row → panel: identity · links · Tema list · sign out
 ├── <header class="app-module-header">
 │      drawer trigger (≤1024px) · title · context slot · [ How it works ] · search input · actions
 ├── <main class="app-body">  ← the page
@@ -43,8 +43,9 @@ or flash.
 ## What a page owns
 
 A page contributes: its `<head>` extras (as a one-line `*Head()` wrapper that the
-trim rules can empty), its mute toggle (a one-line `*Sound()` wrapper, same
-reason), optional header `actions`, its body, and — when it has one — its panel.
+trim rules can empty), its mute control (a one-line `*Sound()` wrapper, same
+reason — the shell renders it in the rail brand), optional header `actions`, its
+body, and — when it has one — its panel.
 
 The page never renders `<html>`, `<main>`, a banner stack or a toast root.
 
