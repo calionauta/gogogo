@@ -177,7 +177,11 @@ func templAPIRefs(t *testing.T, root string) []string {
 	}
 	defer func() { _ = rootFS.Close() }()
 	seen := map[string]bool{}
-	for _, tree := range []string{"features", "web"} {
+	// "internal" is scanned too: the shell, the offline banner and the shared
+	// toolbar helpers live there and they DO fire /api/* (a refacter that moved
+	// a URL from a feature template into internal/ui would otherwise leave the
+	// gate silently blind to it).
+	for _, tree := range []string{"features", "internal", "web"} {
 		err := filepath.WalkDir(filepath.Join(root, tree), func(p string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err

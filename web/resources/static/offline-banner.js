@@ -45,6 +45,11 @@
   var staleWorker = false;
   var versionTimer = null;
 
+  // pageQueued is the PAGE-side outbox count (web/resources/static/offline-outbox.js).
+  // It is the only queue that exists when no worker controls the page, so the
+  // banner must count it before claiming there is no queue at all.
+  var pageQueued = 0;
+
   // currentOwner is a hash of the signed-in email (no PII at rest). The SW
   // stamps each queue entry with it and only replays entries for the owner
   // currently signed in, so a mutation queued by one person can never be
@@ -87,6 +92,8 @@
     if (state === "stale") return "Offline sync is out of date \u2014 reload this page to update";
     if (state === "offline") {
       if (!OFFLINE_SYNC) return "Offline \u2014 online-only mode; requests will fail when network is down";
+      // The page outbox is a real queue even when no worker is listening.
+      if (pageQueued > 0) return "Offline \u2014 changes are queued in this tab; they sync when you reconnect";
       // Without a controlled worker nothing is queued: the request fails and
       // the feature keeps the text. Saying "changes are queued" here was a lie
       // that also hid the reason a write was rejected.
@@ -270,7 +277,7 @@
     var state = "online";
     if (!navigator.onLine) state = "offline";
     else if (needsAuth) state = "needs-auth";
-    else if (queuedPending) state = "queued";
+    else if (queuedPending || pageQueued > 0) state = "queued";
     else if (staleWorker) state = "stale";
     setState(state);
     // The presence pill is fed only by server broadcasts and never learns
@@ -437,6 +444,16 @@
       submit();
     }).catch(submit);
   };
+
+  // The page-side outbox (offline-outbox.js) publishes its global count; with
+  // no worker it is the only queue, so the banner counts it before deciding
+  // what to say.
+  if (OFFLINE_SYNC) {
+    window.addEventListener("gogogo:outbox", function (e) {
+      pageQueued = (e.detail && e.detail.count) || 0;
+      if (!replaying) updateOnline();
+    });
+  }
 
   updateOnline();
   if (!OFFLINE_SYNC) {

@@ -111,6 +111,16 @@
     // the last row, and the replay's re-render then moved the same todo to
     // first — a visible jump for a row that never changed its meaning.
     host.insertBefore(item, host.firstChild);
+    // The row can be hidden by the active filter (completed tab, an active
+    // search, scope=shared). Datastar applies data-show on insertion; if it
+    // stayed hidden, put the empty state back instead of leaving a blank list.
+    if (existingEmpty) {
+      setTimeout(function () {
+        if (getComputedStyle(item).display === "none") {
+          host.insertBefore(existingEmpty, item.nextSibling);
+        }
+      }, 0);
+    }
   }
 
   function remove(id) {
@@ -118,6 +128,85 @@
     if (!el) return;
     el.remove();
     ensureEmptyState();
+  }
+
+  // ---- page-side fallback ---------------------------------------------------
+  // The worker owns the queue when it is there. This is the other case: no
+  // controller (registration blocked, evicted, a browser that refused it), so
+  // the form's failure path hands the request HERE and the page replays it. The
+  // request is the one the form would have sent — idem_key included — so a
+  // replay cannot duplicate it server-side, and the event is the same
+  // `gogogo:queued` the worker sends, so the row and the form reset stay
+  // feature-owned and do not fork by transport.
+  //
+  // The queue itself is the SHARED page outbox (offline-outbox.js): it starts
+  // on every page load, so a request queued before a reload still drains.
+  function pageOutbox() {
+    return window.GogogoOutbox || null;
+  }
+
+  window.__gogogoTodoQueue = function (title, idemKey, shared) {
+    var queue = pageOutbox();
+    if (!queue || !title) return false;
+    var body = new URLSearchParams();
+    body.set("title", title);
+    if (shared) body.set("visibility", "public");
+    // Only idem_key matters for the replay (it is the server's dedupe key);
+    // the view parameters shape the response patch, which this path discards.
+    var url = location.origin + "/api/todos?idem_key=" + encodeURIComponent(idemKey || "");
+    // Same content type the form sends: the handler reads form values, and
+    // fetch would otherwise default a string body to text/plain (a 400).
+    queue.enqueue({
+      url: url,
+      method: "POST",
+      body: body.toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    });
+    return true;
+  };
+
+  // __gogogoTodoMutate covers toggle, delete and clear-completed: mutations
+  // with no body, whose optimistic effect the queued event already draws.
+  window.__gogogoTodoMutate = function (url) {
+    var queue = pageOutbox();
+    if (!queue || !url) return false;
+    var absolute;
+    try { absolute = new URL(url, location.href).toString(); } catch (_) { return false; }
+    queue.enqueue({ url: absolute, method: "POST", body: "" });
+    return true;
+  };
+
+  // A create queued in an earlier session has no row on the page — it was never
+  // on the server. Draw the placeholders the queue is holding so the list says
+  // what is actually pending.
+  //
+  // Re-applied after every list render: the SSE resync replaces #todo-list, so
+  // a placeholder drawn once at load is wiped by the first fragment. The queue
+  // is the source of truth; the server render is what it is waiting for.
+  var restoreScheduled = false;
+
+  function restorePending() {
+    var queue = pageOutbox();
+    if (!queue || typeof queue.list !== "function") return;
+    queue.list().then(function (items) {
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var parsed;
+        try { parsed = new URL(item.url, location.href); } catch (_) { continue; }
+        if (parsed.pathname === "/api/todos" || parsed.pathname === "/api/todos/") {
+          create(parsed, item.body);
+        }
+      }
+    }).catch(function () {});
+  }
+
+  function scheduleRestore() {
+    if (restoreScheduled) return;
+    restoreScheduled = true;
+    setTimeout(function () {
+      restoreScheduled = false;
+      restorePending();
+    }, 0);
   }
 
   function toggle(id) {
@@ -135,8 +224,14 @@
   function clearCompleted() {
     var host = list();
     if (!host) return;
+    // Only the completed rows: the button says "clear my completed", and the
+    // list can be showing active rows at the same time (a queued clear used to
+    // wipe every row until the server re-rendered). A completed server row
+    // carries the line-through class on its title.
     var items = host.querySelectorAll(".todo-item");
-    for (var i = 0; i < items.length; i++) items[i].remove();
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].querySelector(".line-through")) items[i].remove();
+    }
     ensureEmptyState();
   }
 
@@ -146,7 +241,7 @@
     if ((item.method || "").toUpperCase() !== "POST") return;
     var url;
     try {
-      url = new URL(item.url);
+      url = new URL(item.url, location.href);
     } catch (_) {
       return;
     }
@@ -169,4 +264,12 @@
   }
 
   window.addEventListener("gogogo:queued", onQueued);
+  // A queued create from an earlier session has no row here; draw it before the
+  // replay lands (the shared outbox started draining on page load), and again
+  // whenever a server render replaces the list.
+  restorePending();
+  var listHost = list();
+  if (listHost && window.MutationObserver) {
+    new MutationObserver(scheduleRestore).observe(listHost, { childList: true });
+  }
 })();
