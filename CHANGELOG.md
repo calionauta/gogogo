@@ -15,6 +15,21 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.59.0 (2026-10-28)
+
+## What's Changed
+* fix(offline): stop promising a queue the browser does not have by @calionauta in https://github.com/calionauta/gogogo/pull/315
+* fix(ui): give the sound mute an icon and one owner by @calionauta in https://github.com/calionauta/gogogo/pull/318
+* feat(offline): a page-side outbox, and list changes that refuse offline by @calionauta in https://github.com/calionauta/gogogo/pull/317
+* chore(skills): bump vendored stelow coding standards to 1ed37f9c1eaa by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/319
+* feat(notifications): add a durable inbox and a delivery transport by @calionauta in https://github.com/calionauta/gogogo/pull/320
+* chore(ci): bump actions/checkout from 4 to 7 in the actions group by @dependabot[bot] in https://github.com/calionauta/gogogo/pull/321
+* feat(ui): live inbox badge, split demo panel, and inbox corrections by @calionauta in https://github.com/calionauta/gogogo/pull/322
+* fix(notifications): subscribe before the stream handshake by @calionauta in https://github.com/calionauta/gogogo/pull/323
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.58.0...v0.59.0
+
 ## 0.58.0 (2026-10-27)
 
 ## What's Changed
