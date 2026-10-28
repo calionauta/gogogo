@@ -231,6 +231,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 						</div>
 					</header>
 					@components.OfflineBanner(d.OfflineSync, d.Email)
+					@components.OutboxRetireScript(d.OfflineSync)
 					@components.SessionBanner(d.Email != "")
 					<main class={ templ.Classes("app-body", map[string]bool{"app-body-flush": d.FullBleed, "app-body-flush-bottom": d.FlushBottom}) }>
 						@body

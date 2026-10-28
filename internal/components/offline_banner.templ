@@ -1,57 +1,158 @@
 // SCOPE:plugin - transport-state banner. Renders the sticky top banner that
 // reflects whether the client is online, replaying, or offline.
 //
+// The banner is DECLARATIVE: Datastar owns the state, the copy and the classes.
+// The durable outbox publishes counts and outcomes as window events, and the
+// attributes below turn them into signals — there is no banner script. The one
+// thing the page still has to do imperatively is hash the owner; the server does
+// that here, so the browser never sees the email and the outbox is stamped
+// before the first drain.
+//
+// Signals (seeded by the shell, internal/ui.shellSignals — the account menu's
+// sign-out reads bannerCount from outside this subtree):
+//   bannerOnline   navigator.onLine, seeded true and driven by online/offline
+//   bannerCount    intents waiting in the outbox
+//   bannerAuth     the drain reached the server and the session is gone
+//   bannerSyncing  a drain pass is running
+//   bannerDrop     changes that will never be saved (with bannerDropWhy)
+//
+// The STATE WORD (dropped | needs-auth | offline | syncing | queued | online) is
+// never stored: the class is a boolean object over the PRIMITIVE signals and the
+// copy is a ternary over the same ones. A derived `$bannerState` was tried and
+// removed — `data-computed` read by data-class on the same element was undefined
+// at init, and `data-effect` writing it re-ran the effect on its own DOM write
+// until the renderer stopped responding. Read-only bindings cannot do that.
+//
+// The outbox bridge is BroadcastChannel-backed: a page that RECEIVES a count
+// updates only its own banner (emitLocal). Re-announcing from onmessage makes
+// every tab re-broadcast every message — measured at ~5,500 events in three
+// seconds with two notes tabs, which pegged a renderer and hung the notes suite.
+//
 // Two modes, controlled by the offlineSync arg:
 //
 //   - offlineSync=true  (default deployment, OFFLINE_SYNC_ENABLED unset)
-//       States: online (hidden), syncing (info), queued / needs-auth (warning),
-//       offline (warning), stale (error). The SW posts
-//       {sync-start|sync-end|sync-error|sync-auth} messages that drive the
-//       state — see web/resources/static/sw.js.
-//
-//       The offline copy is honest about WHO is listening: "changes are queued"
-//       only when a Service Worker controls this page. With no controller the
-//       banner says the queue is not active and asks for a reload, because a
-//       write made now would fail. The reload also answers a second failure
-//       mode: a worker older than the page (it keeps the policy it imported at
-//       install time), which the policy-version handshake detects and shows as
-//       "stale".
+//       States: online (hidden), syncing (info), queued / needs-auth
+//       (warning), offline (warning). The copy is honest about WHAT is stored:
+//       "queued" means a durable intent exists in this browser, and the offline
+//       sentence says how many are waiting. Nothing here claims a background
+//       sync the platform cannot deliver (Background Sync is Chromium-only).
 //
 //   - offlineSync=false (OFFLINE_SYNC_ENABLED=false)
-//       Two states: online (hidden), offline (warning, honest copy
-//       "online-only — requests will fail when network is down"). The
-//       SW message bridge is omitted entirely (no SW is registered in
-//       this mode, so the listener would never fire and would only
-//       produce dead code + console noise).
-//
-// Both modes fall back to navigator.onLine for the coarse online /
-// offline signal, so users still see *something* on browsers / pages
-// where the SW did not register.
+//       The flag disables the app-shell CACHE and the cross-instance CRUD
+//       proxy; the write path is unchanged (the outbox has always run on every
+//       page). The copy says "page cache disabled" instead of claiming that
+//       requests will fail, and a worker from an earlier deployment is retired
+//       by OutboxRetireScript below.
 package components
 
-import "strconv"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strconv"
+	"strings"
+)
 
-import "github.com/calionauta/gogogo/web/resources"
+// ownerKey is the per-account stamp the outbox stores with every intent. It is
+// a hash so the browser never holds the address as a queue key, and it is
+// computed HERE so the page needs no crypto code: a replay may only touch
+// entries for the account signed in now (shared-device safety).
+func ownerKey(email string) string {
+	v := strings.ToLower(strings.TrimSpace(email))
+	if v == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(v))
+	return hex.EncodeToString(sum[:])
+}
 
-// OfflineBanner renders the sticky top banner for transport state. Pass
-// offlineSync=false to switch to honest online-only copy when the SW +
-// queue are disabled. userEmail is hashed in the browser and sent to the
-// service worker as the queue owner, so a queued mutation can never replay
-// into another account on a shared device.
+// bannerStateExpr folds the transport facts into one word. Precedence matters:
+// a lost change (dropped) outranks everything — it is the only state the user
+// must ACT on and it must stay visible after the queue empties; a dead session
+// outranks "offline", because signing in is the only action that helps; a
+// running pass outranks "queued" so the user sees progress, not a static count.
+func bannerStateExpr() string {
+	return `($bannerDrop > 0 ? 'dropped' : ($bannerAuth ? 'needs-auth' : (!$bannerOnline ? 'offline' : ($bannerSyncing ? 'syncing' : ($bannerCount > 0 ? 'queued' : 'online')))))`
+}
+
+// bannerClassExpr derives the container's state class from the PRIMITIVE
+// signals with plain booleans. It is read-only: a signal written by the same
+// element that binds it was the shape that wedged the renderer (see the header).
+func bannerClassExpr() string {
+	dropped := "!($bannerDrop > 0)"
+	return `{` +
+		`'is-dropped': $bannerDrop > 0, ` +
+		`'is-needs-auth': ` + dropped + ` && $bannerAuth, ` +
+		`'is-offline': ` + dropped + ` && !$bannerAuth && !$bannerOnline, ` +
+		`'is-syncing': ` + dropped + ` && !$bannerAuth && $bannerOnline && $bannerSyncing, ` +
+		`'is-queued': ` + dropped + ` && !$bannerAuth && $bannerOnline && !$bannerSyncing && $bannerCount > 0, ` +
+		`'is-online': ` + dropped + ` && !$bannerAuth && $bannerOnline && !$bannerSyncing && !($bannerCount > 0)` +
+		`}`
+}
+
+// outboxEventExpr is the ONE bridge between the outbox and the banner. The
+// outbox knows nothing about markup; this knows nothing about storage.
+const outboxEventExpr = `$bannerCount = evt.detail.count; ` +
+	`$bannerSyncing = evt.detail.replaying === true; ` +
+	`if (evt.detail.auth) $bannerAuth = true; ` +
+	`if (evt.detail.dropped) { $bannerDrop = evt.detail.dropped; $bannerDropWhy = evt.detail.reason === 'other-account' ? ' (queued by another account)' : evt.detail.reason === 'stale' ? ' (older than a week)' : evt.detail.reason === 'rejected' ? ' (the server refused it)' : ''; }`
+
+// dropTextExpr names what was lost. A change that will never be saved must say
+// so: an inline alert (not a toast) because it is an error the user has to
+// read, and it stays until dismissed.
+const dropTextExpr = `$bannerDrop + ($bannerDrop === 1 ? ' change' : ' changes') + ' couldn\'t be saved' + $bannerDropWhy`
+
+// bannerTextExpr is the one place the copy lives per mode. Every sentence is
+// TRUE of the transport it describes: "queued" means a durable intent exists
+// in this browser, and "offline" without a count means nothing was stored.
+func bannerTextExpr(offlineSync bool) string {
+	st := bannerStateExpr()
+	if !offlineSync {
+		// The flag disables the page CACHE and the cross-instance CRUD proxy,
+		// not the write path: the outbox runs on every page (it always did), so
+		// claiming "requests will fail" would be a lie. Say what is actually off.
+		return st + " === 'online' ? 'Online'" +
+			` : ($bannerCount > 0 ? ('Offline — page cache disabled; ' + $bannerCount + ($bannerCount === 1 ? ' change' : ' changes') + ' queued in this tab')` +
+			` : 'Offline — page cache disabled; new changes are stored and sync when you reconnect')`
+	}
+	one := `($bannerCount === 1 ? ' change' : ' changes')`
+	return st + " === 'online' ? 'Online'" +
+		` : ` + st + " === 'syncing' ? 'Syncing changes…'" +
+		` : ` + st + " === 'needs-auth' ? 'Changes queued — sign in to sync'" +
+		` : ` + st + ` === 'queued' ? ($bannerCount + ` + one + ` + ' — retrying sync…')` +
+		` : ($bannerCount > 0 ? ('Offline — ' + $bannerCount + ` + one + ` + ' queued in this tab; they sync when you reconnect')` +
+		` : 'Offline — nothing queued; new changes are stored and sync when you reconnect')`
+}
+
+// OfflineBanner renders the sticky top banner for transport state. offlineSync
+// selects the live-queue copy vs the cache-disabled copy; userEmail is hashed
+// into the outbox owner key (never rendered).
 templ OfflineBanner(offlineSync bool, userEmail string) {
 	<div
 		id="offline-banner"
-		class="app-banner"
+		class="app-banner is-online"
 		data-component="offline-banner"
 		data-offline-sync={ strconv.FormatBool(offlineSync) }
-		data-user-email={ userEmail }
-		data-on:online__window="window.__gogogoBannerOnline()"
-		data-on:offline__window="window.__gogogoBannerOffline()"
-		data-on:visibilitychange__document="window.__gogogoBannerVisible()"
+		data-owner={ ownerKey(userEmail) }
+		data-class={ bannerClassExpr() }
+		data-init="window.GogogoOutbox && window.GogogoOutbox.setOwner(el.dataset.owner)"
+		data-on:online__window="$bannerOnline = true; window.GogogoOutbox && window.GogogoOutbox.drain(true)"
+		data-on:offline__window="$bannerOnline = false"
+		data-on:gogogo:outbox__window={ outboxEventExpr }
+		data-on:gogogo:synced__window="$bannerCount = 0; $bannerAuth = false; $bannerSyncing = false"
 		aria-live="polite"
 	>
-		<span id="offline-banner-text">Online</span>
-		<a id="offline-banner-signin" href="/login" hidden>Sign in</a>
+		<span id="offline-banner-text" data-show="!($bannerDrop > 0)" data-text={ bannerTextExpr(offlineSync) }></span>
+		<a
+			id="offline-banner-signin"
+			class="hidden"
+			data-show="$bannerAuth && !($bannerDrop > 0)"
+			data-attr:href={ `'/login?next=' + encodeURIComponent(location.pathname + location.search)` }
+			href="/login"
+		>Sign in</a>
+		<span id="offline-banner-drop" class="hidden" data-class={ `{'hidden': !($bannerDrop > 0)}` }>
+			<span data-text={ dropTextExpr }></span>
+			<button type="button" class="btn btn-ghost btn-xs" data-on:click="$bannerDrop = 0">dismiss</button>
+		</span>
 	</div>
 	<style>
 		#offline-banner.is-online {
@@ -73,11 +174,30 @@ templ OfflineBanner(offlineSync bool, userEmail string) {
 				background-color: #f59e0b;
 				color: #ffffff;
 			}
-		#offline-banner.is-stale {
+		#offline-banner.is-dropped {
 				display: block;
 				background-color: #dc2626;
 				color: #ffffff;
 			}
 	</style>
-	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-banner.js") }></script>
+}
+
+// OutboxRetireScript is the online-only mode's cleanup: a registration outlives
+// the flag and keeps serving cached pages this mode must not claim. It is the
+// only script left in the offline surface, and it runs once.
+templ OutboxRetireScript(enabled bool) {
+	if !enabled {
+		<script nonce={ templ.GetNonce(ctx) }>
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.getRegistrations().then(function (regs) {
+					regs.forEach(function (reg) { reg.unregister(); });
+				}).catch(function () {});
+			}
+			if (window.caches) {
+				caches.keys().then(function (keys) {
+					keys.forEach(function (key) { caches.delete(key); });
+				}).catch(function () {});
+			}
+		</script>
+	}
 }

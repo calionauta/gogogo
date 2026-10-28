@@ -8,12 +8,10 @@ package authviews_test
 import (
 	"bytes"
 	"context"
-	"io/fs"
 	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/features/authviews"
-	"github.com/calionauta/gogogo/web/resources"
 )
 
 func TestUserMenuLogoutActuallyPosts(t *testing.T) {
@@ -37,22 +35,15 @@ func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 	if !strings.Contains(form, `method="POST"`) {
 		t.Error("logout form must keep method=POST as the no-JS fallback")
 	}
-	if !strings.Contains(form, "__gogogoLogout") {
-		t.Error("logout form must delegate to the transport helper (queue-aware sign-out)")
-	}
-	// The helper owns the POST/navigation so it can ask about queued changes
-	// first. Pinning it here keeps the delegation from becoming a dead form:
-	// a native submit would land on /login, but a queued mutation would then
-	// replay under the next account on a shared device.
-	script, err := fs.ReadFile(resources.StaticFS(), "offline-banner.js")
-	if err != nil {
-		t.Fatalf("read offline-banner.js: %v", err)
-	}
-	for _, want := range []string{
-		`fetch("/logout"`, `method: "POST"`, `window.location.href = "/login"`, `"clear-user-data"`,
-	} {
-		if !strings.Contains(string(script), want) {
-			t.Errorf("offline-banner.js missing the sign-out contract %q", want)
+	// The submit handler owns the POST and the navigation so it can ask about
+	// queued changes first: a native submit would land on /login, but a queued
+	// intent would then replay under the next account on a shared device. The
+	// storage purge itself is the server's Clear-Site-Data response header
+	// (asserted in the handlers package), so the handler only confirms and
+	// posts — no script file, no second state model.
+	for _, want := range []string{`@post('/logout')`, `confirm(`, `$bannerCount`, `window.location.href = '/login'`} {
+		if !strings.Contains(form, want) {
+			t.Errorf("logout form missing the sign-out contract %q", want)
 		}
 	}
 }

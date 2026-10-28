@@ -76,11 +76,10 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboard/{docID}/update`
 - `/api/whiteboards/fragment`
 
-## Template and script refs (26)
+## Template and script refs (24)
 
 Every `/api/*` URL fired from `.templ` and `.js` sources.
 
-- `/api/`
 - `/api/auth/magic`
 - `/api/auth/password/reset`
 - `/api/chat/ask`
@@ -98,7 +97,6 @@ Every `/api/*` URL fired from `.templ` and `.js` sources.
 - `/api/todos/`
 - `/api/todos/completed/delete`
 - `/api/todos/completed/delete/`
-- `/api/todos/events`
 - `/api/todos/fragment`
 - `/api/todos/retry-demo`
 - `/api/todos/search`

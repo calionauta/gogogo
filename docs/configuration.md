@@ -56,7 +56,7 @@ two-file layout (`.env.age` is read, `.env` is the plaintext working copy):
 | Variable | Default | Purpose |
 |---|---|---|
 
-| `OFFLINE_SYNC_ENABLED` | `true` | Hybrid offline sync. `false` disables the NATS CRUD proxy and the Service Worker offline queue — zero code paths traversed — and retires a worker an earlier deployment installed (plus its caches) on the next page load. |
+| `OFFLINE_SYNC_ENABLED` | `true` | Durable offline writes. `false` disables the app-shell cache (the service worker) and the NATS CRUD proxy, and retires a worker an earlier deployment installed (plus its caches) on the next page load. The page outbox is NOT disabled: it is the write path, it has always run on every page, and losing a queued write is worse than the cache it protects. |
 | `COLLAB_SNAPSHOTS` | `turso` | CRDT snapshot store behind whiteboard/notes. `memory` keeps snapshots process-local (draw without persistence — docs start empty after restart). Unknown values fail closed at boot. |
 
 ### LLM

@@ -260,7 +260,7 @@ templ boardBody(meta BoardMeta) {
 					<button class="btn btn-sm" data-tool="pen">Pen</button>
 					<input class="input input-sm w-16 cursor-pointer" type="color" value="#1f2937"
 					       id="color-input" name="color" aria-label="Shape color"/>
-					<div class="online-pill" title="People connected to this board">
+					<div class="online-pill" data-class="{'is-offline': !$bannerOnline}" title="People connected to this board">
 						<span class="pulse-dot"></span>
 						<span class="pill-online">
 							<span id="peer-count">1</span>

@@ -9,7 +9,7 @@ package components
 import "github.com/calionauta/gogogo/features/todo"
 
 templ TodoPresence(signals todo.Signals) {
-	<span class="online-pill" data-show="$connectedClients >= 0" title="Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.">
+	<span class="online-pill" data-class="{'is-offline': !$bannerOnline}" data-show="$connectedClients >= 0" title="Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.">
 		<span class="pulse-dot"></span>
 		<span class="pill-online" data-text="$connectedClients + ' online'"></span>
 		<span class="pill-offline">offline</span>

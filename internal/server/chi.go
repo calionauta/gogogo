@@ -196,8 +196,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	// every boot after the first is a role refresh.
 	queries := demoQueries(cfg, a, sqlDB)
 	bootCtx, cancelConsumer := context.WithCancel(context.Background())
-	startAuditRetention(bootCtx, queries)
-	// bootCtx now owns the audit-retention ticker and the engines below
+	startRetention(bootCtx, queries)
+	// bootCtx now owns the retention ticker and the engines below
 	// (DagNats, GoAkt, credits); cancellation at shutdown stops all of them.
 
 	// Chi-owned queue: feature workers run here so they never compete
@@ -214,6 +214,8 @@ func BootChi(cfg *config.Config) (*ChiStack, error) {
 	}
 	hub := chiQ.Hub()
 	todoH := todohandlers.NewHandler(queries, a, hub)
+	// Set before any route serves: the idempotency receipt transacts on it.
+	todoH.SetDatabase(sqlDB)
 	wireTodoDisplay(todoH, cfg)
 	if serr := bootSearch(bootCtx, cfg, todoH, sqlDB); serr != nil {
 		return bootFail(cancelConsumer, sqlDB, "search", serr)

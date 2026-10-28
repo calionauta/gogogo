@@ -154,157 +154,98 @@ When JetStream is enabled (default: on):
 The stream is safe to enable on a single instance — it simply carries no
 cross-instance traffic.
 
-## Offline sync uses yet another path
+## Offline writes use the outbox, not the worker
 
-**On the web**, the Service Worker (`web/resources/static/sw.js`) intercepts
-POST/PUT/DELETE mutations when the browser is offline, queues them in
-IndexedDB, and replays them via Background Sync when connectivity returns.
+**On the web**, every todo write goes through one durable outbox
+(`web/resources/static/offline-outbox.js`) that runs in the PAGE. The intent is
+stored before the request leaves, and the same intent is retried until the
+server confirms it.
 
-A replay is NOT single-shot. The window's `online` event fires when the OS
-reports a link, not when packets move, so the first replay fetch can fail a
-few hundred milliseconds before the network is usable (measured live
-against the production deploy). The queue therefore retries each item with
-bounded backoff (`REPLAY_BACKOFF_MS`), re-registers Background Sync while a
-transient failure remains, and the page keeps asking for a drain while its
-own `queueCount` (a SW round-trip) still sees rows (bounded `KICK_DELAYS`). Until the SW
-reports `sync-end`, the offline banner says "Changes queued — retrying
-sync…" instead of claiming "Online": a pending mutation must never look
-saved.
+Two stores, on purpose:
+
+- **`localStorage` is the crash journal**, because it is synchronous. `begin()`
+  writes the intent and returns its idempotency key in the same tick, so the
+  durable copy exists before the request — a tab closed during a hanging request
+  cannot lose the write.
+- **IndexedDB is the durable, queryable store** the drain reads. The write is
+  started immediately and the journal entry is cleared only after it commits; a
+  tab that dies mid-commit keeps the journal entry, and `recover()` merges it
+  back on the next load.
+
+Both live in the same browser bucket, so an eviction takes them together. The
+journal is a crash journal, not a second source of truth.
+
+**A replay is at-least-once, and the server makes it exactly-once.** Every
+request carries its key as `Idempotency-Key`; the handler claims it in
+`op_receipts` **inside the same transaction** as the mutation (`applyOnce`). A
+second delivery finds the receipt and answers without re-running the effect. That
+is what makes a read-then-flip toggle safe to retry — before the receipt, a
+response lost after the commit made the replay flip the row back.
+
+One drainer runs per origin: Web Locks elects it (`gogogo-outbox-drain`), and a
+BroadcastChannel fans the count to the other tabs. Without the lock (an older
+browser) two tabs could replay the same entry; the receipt makes that harmless.
+
+The banner (`internal/components/offline_banner.templ`) is declarative: the
+outbox publishes `gogogo:outbox` / `gogogo:synced` window events, Datastar turns
+them into `$bannerCount` / `$bannerAuth` / `$bannerSyncing` signals, and the
+markup derives one state word (`internal/ui.shellSignals` seeds them, because the
+account menu's sign-out reads the count from outside the banner subtree). There
+is no banner script.
+
+The drain runs on load, on `online`, on `visibilitychange` to visible, and on a
+bounded backoff while intents remain. It does **not** run while every tab is
+closed: Background Sync — the only API that could — is Chromium-only (Firefox has
+a negative standards position, Safari does not implement it), so it was never a
+cross-browser guarantee.
 
 Each outcome has its own policy, not a generic retry:
 
 - **2xx / 404** — settled (404 means the row is already gone).
-- **network, 5xx, 429, 408** — transient: keep the item, stop the PASS (every
-  later item shares the condition), and register Background Sync. A
-  `Retry-After` up to 5s is honoured before the retry; a longer one is
-  Background Sync's job.
-- **401** — the session is gone: keep the item, pause the queue, stop both
-  retry layers, and show "Changes queued — sign in to sync" with a link back
-  to the page. Retrying an expired session is a loop, not a retry. The shell
-  also recovers a 401 from any scripted action by sending the user to
-  `/login?next=…` (a page load is bounced server-side).
-- **other 4xx** — permanent for this body: drop it so one invalid mutation
-  cannot wedge every later one, and tell the user (toast), not just the
-  console.
+- **network, 5xx, 429, 408** — transient: keep the intent, stop the PASS (every
+  later intent shares the condition), and back off. A `Retry-After` up to 5s is
+  honoured before the retry.
+- **401 / 403** — the session is gone: keep the intent, pause the queue, and show
+  "Changes queued — sign in to sync" with a link back. Retrying an expired
+  session is a loop, not a retry.
+- **other 4xx** — permanent for this body: drop it so one invalid intent cannot
+  wedge every later one, and tell the user (toast), not just the console.
 
-The FIRST submit follows the same policy, not only a replay. The worker used
-to queue only when `fetch` threw, so an app that was reachable on the wire but
-down behind the gateway (Cloudflare answers 520/521/522 for an unreachable
-origin, 502 for a dead upstream, 503/504 for an overloaded edge) came back as a
-failed action — "Not saved", the title kept in the box, nothing queued. Only a
-DEFINITIVE answer (2xx/3xx/other 4xx) may settle an action; a transient status
-is queued exactly like a dropped connection. This is scoped to the routes the
-queue owns (`QUEUE_OWNED_PREFIXES`, the todo CRUD): a 5xx from a chat turn or a
-sign-in is an answer, and re-sending it later would duplicate a message or
-report a false success.
+The FIRST submit follows the same policy, not only a replay: the intent is
+stored before the request, so a request that never settles leaves a replayable
+intent instead of a spinner.
 
-`KICK_DELAYS` is bounded, so a queue that outlives it needs a slower owner. The
-page keeps a drain cadence (`DRAIN_DELAYS`, 5s growing to 30s) while
-`queuedPending` is set. It exists because the outage can be the APP while
-`navigator.onLine` stays true — a gateway 5xx, an origin restart, a deploy — and
-then neither the `online` event nor Background Sync is guaranteed to fire
-again; without it the row sat in IndexedDB until the next reload.
+`MAX_QUEUE_AGE_MS` (one week) and `MAX_QUEUE_ITEMS` (100) bound the store: a
+queued intent is unsaved work, not an archive. Dropped intents (foreign account,
+stale, rejected, or evicted from a full queue) surface as a toast — a change that
+will never be saved must say so.
 
-The queue is a **per-account** outbox. Each entry carries the owner key the
-page computed (SHA-256 of the signed-in email) and a `queuedAt` stamp; a
-replay only touches entries for the currently signed-in owner and drops
-entries older than `MAX_QUEUE_AGE_MS` (one week) or beyond
-`MAX_QUEUE_ITEMS` (100). Dropped entries (foreign account, stale, rejected,
-or evicted from a full queue) surface as a toast: a change that will never be
-saved must say so. Sign-out asks before discarding queued changes and then
-posts `clear-user-data`, which clears both the page cache and the queue —
-otherwise the next person on a shared device would inherit them.
+The queue is a **per-account** outbox. Each entry carries the owner key the page
+computed (SHA-256 of the signed-in email) and a `queuedAt` stamp; a replay only
+touches entries for the currently signed-in owner. Sign-out asks before
+discarding queued intents, and the server answers the logout with
+`Clear-Site-Data: "cache", "storage"` — one header that drops this origin's page
+cache, IndexedDB and the service-worker registration, so the next person on a
+shared device inherits nothing.
 
-The page asks the SW for the queue count (`queue-status` message) instead
-of opening the queue database: the schema then has one owner. A second
-opener without the SW's upgrade handler once left a v1 database with no
-`pending` store, which silently lost every queued mutation.
+The worker itself (`web/resources/static/sw.js`) is app-shell cache only: it
+caches successful navigations and never touches `/api/*`. That is structural, not
+a skip list — no stream, cached GET or mutation can pass through it
+(`TestServiceWorkerNeverInterceptsAPI`).
 
-The SW knows nothing about feature markup: it reports the queued request and
-answers `204`, and the FEATURE renders its optimistic state. For todo that is
-`web/resources/static/todo-offline.js` (row, toggle, delete, clear); a second
-feature registers its own listener for `gogogo:queued` instead of editing the
-worker. The placeholder is inserted where the server list would put it — the
-list is newest first (`created DESC, id DESC`) — so the replay's re-render
-keeps the row in its slot; appending it made the same todo jump from last to
-first once the server answered. It also carries the row contract the server
-expresses as separate queries (`data-created` plus a `data-show` guard): a todo
-created now is active, owned by you and absent from any search result, so the
-placeholder hides under the completed tab, `scope=shared` and an active search
-instead of floating above a list it does not belong to.
-
-A queue write that cannot complete is NOT a success. The worker bounds the
-IndexedDB OPEN with `IDB_OPEN_TIMEOUT_MS` (and gives an `onblocked` upgrade a
-short grace before failing) — a blocked upgrade or disabled storage can open
-neither success nor error — answers `503` when it fails, and announces the loss
-(`queue-lost`, reason `storage`). A `503` means nothing was written: it comes
-from a failed/blocked open or an aborted transaction, never from a write that
-may still land, so a client retry cannot duplicate it. Answering `204` anyway
-told the page "queued" while nothing was stored: the Add button stayed in its
-loading state forever and the todo was gone. On the page side the pending state
-belongs to the REQUEST: the create action releases its spinner when the action
-settles, even if the SW message never arrives (the message drives the
-optimistic row, not the form), and a failed request keeps the typed title plus
-an inline "not saved" alert.
-
-**Online-only mode** (`OFFLINE_SYNC_ENABLED=false`) retires a worker an
-earlier deployment installed. The flag only stops the registration; an
-existing registration keeps intercepting `/api/*` and answering `204` for a
-page that renders neither the bridge nor the optimistic renderer, which is the
-same stuck-spinner failure. `offline-banner.js` unregisters it and clears the
-caches it owns.
-
-The banner states only what is true. `offline-banner.js` says "changes are
-queued" ONLY when a Service Worker controls the page: with no controller
-(worker blocked, registration evicted, a browser that refused it) it says the
-queue is not active and asks for a reload, because a write made now fails. It
-also compares the policy version it loaded with the one the worker imported at
-install time (`POLICY_VERSION`, the file's own fingerprint, pinned by
-`TestOfflinePolicyVersionMatchesItsDigest`): a mismatch means the browser runs
-a worker from an older deploy, and the banner says "out of date — reload"
-instead of promising a queue the worker may not implement.
-
-**When there is no worker at all**, the todo page has a page-side queue
-(`web/resources/static/offline-outbox.js`): the create form's failure path and
-the toggle/delete/clear-completed handlers enqueue the same request (idem_key
-included for the create) and the page replays it, so the write is not lost; the
-banner counts it ("queued in this tab"). The queue starts on every page load —
-not on first use — so a request queued before a reload still drains, and the
-todo renderer draws the pending creates the queue is holding. The engine is for
-INDEPENDENT requests: retry, drop or deliver one item at a time. Notes and the
-whiteboard keep their own queues because a 409 there rewrites the whole queued
-tail against the server's text/shapes, which is a queue-level decision, not a
-per-item retry.
-
-List changes are refused offline. Status, scope, search and match mode are
-SERVER-side queries: firing one while the link is down cannot succeed, and the
-action's `$loading = true` would stay set (nothing clears it on failure),
-disabling the composer over a view that never changed. The toolbar raises a hint
-instead (`$listOffline`), and the tab, the select and the text box keep the
-values the list is actually showing.
-
-**On the desktop**, the NATS Leaf Node keeps its local JetStream replica in
-sync; the local JetStream persists mutations to disk and replays them when the
-Leaf Node reconnects to the server. No Service Worker needed.
-
-Notes and the whiteboard keep their OWN outboxes on the page
-(`features/notes/static/notes.js` in `localStorage`,
-`features/whiteboard/static/whiteboard.js` in IndexedDB): their endpoints are
-excluded from the worker because an op stream carries its own convergence
-rules. They follow the same transient/permanent split, from the same file the
-worker imports (`web/resources/static/offline-policy.js`): a 5xx/429/408 keeps
-the batch and retries, an auth 4xx keeps it but stops hammering, and any other
-4xx is a verdict, so it is dropped instead of wedging every later op. The
-notes client used to treat a gateway 5xx as an invalid op and drop the batch,
-so the server never received text typed while the app was unreachable behind
-the edge.
+**No-cache mode** (`OFFLINE_SYNC_ENABLED=false`) unregisters a worker an earlier
+deployment installed and clears its caches, so a navigation needs the network.
+The write path is unchanged: the outbox runs on every page, its intent is
+durable, and a replay still lands when the app answers again. The flag is about
+the cache, not about losing writes.
 
 ### Replay is dedup'd at the server
 
 The todo create form attaches a fresh `idem_key` UUID to every submit.
 The create path looks up `(idem_key, owner)` and returns the existing
-row on a match, so a Service Worker replay does not create a duplicate
-todo.
+row on a match, so a replay does not create a duplicate todo. Every other
+todo mutation carries an `Idempotency-Key` that `applyOnce` records in
+`op_receipts` in the same transaction as the change.
 
 The whiteboard needs no idempotency key for a different reason: a shape op is
 keyed by the shape's own id inside a LoroMap, so re-applying the same op resolves
@@ -411,15 +352,14 @@ attaches to it, so there is only one NATS process in the binary.
 
 ## Offline-first is baked in, not bolted on
 
-Web clients intercept mutations in a Service Worker and replay them via
-Background Sync; the desktop build becomes a NATS Leaf Node that keeps its
-JetStream replica in sync while offline. Replays are deduplicated server-side
-(the todo create form attaches an `idem_key` that the idempotency hook
-collapses).
+Web clients store each mutation in a durable outbox before sending it and replay
+it while the app is open; the desktop build becomes a NATS Leaf Node that keeps
+its JetStream replica in sync while offline. Replays are deduplicated server-side
+(creates by `idem_key`, every other mutation by the `Idempotency-Key` receipt).
 
 Set `OFFLINE_SYNC_ENABLED=false` for always-online deployments and **zero code
-paths are traversed** — the flag disables the NATS CRUD proxy and the Service
-Worker offline queue together.
+paths are traversed** — the flag disables the NATS CRUD proxy and the page
+outbox together.
 
 The SCOPE unit `offline-sync` is a plugin (it can be trimmed); on this async
 axis it is the mode above, not one of the seven layers.

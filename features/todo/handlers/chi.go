@@ -118,12 +118,24 @@ type OnboardingResumer interface {
 // Nil disables the resume hook without failing boot.
 func (h *Handler) SetOnboarding(o OnboardingResumer) { h.Onboarding = o }
 
+// SetDatabase wires the pool the mutation paths transact on: the idempotency
+// receipt (applyOnce) and the search postings. It is independent of SetSearch
+// on purpose — a build trimmed of the search plugin still needs exactly-once
+// replay, so the receipt cannot ride a dependency that may be absent.
+//
+// Nil is tolerated by the receipt (the mutation keeps at-least-once semantics)
+// so a hand-built handler in a test still works; boot always sets it.
+func (h *Handler) SetDatabase(db *sql.DB) { h.DB = db }
+
 // SetSearch wires the search plugin: the readers every list honours, the
 // optional indexer, and the pool its transactions ride. A nil indexer is
 // the norm (substring and fuzzy need no postings) and simply leaves the
 // mutations on their autocommit path. An empty set is the trimmed plugin.
 func (h *Handler) SetSearch(layers SearchLayers, ix SearchIndexer, db *sql.DB) {
-	h.Search, h.Index, h.DB = layers, ix, db
+	h.Search, h.Index = layers, ix
+	if db != nil {
+		h.DB = db
+	}
 }
 
 // SetPublisher installs the cross-instance publisher. Nil disables it.

@@ -109,10 +109,17 @@ func stackTitle() string {
 	return "Show or hide the stack key"
 }
 
-// shellSignals seeds the two signals the shell owns on every page: the mobile
-// drawer and the rail's unread count. The count is rendered server-side (the
-// page middleware) and then kept current by the leader session stream
-// (session.js → gogogo:unread), so the badge never needs a second connection.
+// shellSignals seeds the signals the shell owns on every page: the mobile
+// drawer, the rail's unread count, and the transport banner's state. The count
+// is rendered server-side (the page middleware) and then kept current by the
+// leader session stream (session.js → gogogo:unread), so the badge never needs
+// a second connection.
+//
+// The banner keys live HERE, not on the banner element, because the account
+// menu's sign-out reads $bannerCount to warn about queued changes and a sign-out
+// control is outside the banner's subtree. One scope, one truth.
 func shellSignals(unread int) string {
-	return `{"railOpen":false,"inboxUnread":` + strconv.Itoa(unread) + `}`
+	return `{"railOpen":false,"inboxUnread":` + strconv.Itoa(unread) + `,` +
+		`"bannerOnline":true,"bannerCount":0,` +
+		`"bannerAuth":false,"bannerSyncing":false,"bannerDrop":0,"bannerDropWhy":""}`
 }

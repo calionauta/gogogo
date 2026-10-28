@@ -165,6 +165,11 @@ func (h *Handler) handleLogoutPost(w http.ResponseWriter, r *http.Request) {
 		h.Auth.Logout(r.Context(), cookie.Value)
 	}
 	http.SetCookie(w, h.Auth.ClearSessionCookie())
+	// Sign-out is a shared-device boundary: drop this origin's caches,
+	// IndexedDB (the outbox) and the service-worker registration in ONE
+	// response header, so nothing queued by this account can replay under the
+	// next one. The browser applies it to a redirect like any other response.
+	w.Header().Set("Clear-Site-Data", `"cache", "storage"`)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 

@@ -1,0 +1,69 @@
+// SCOPE:feature — optimistic pending-row prototype (server-owned markup).
+package components
+
+// pendingRowShow is the visibility contract for a row that exists only in the
+// browser. A server row is filtered by the QUERY (status/scope/search are three
+// different SQL shapes), so its data-show only compares the creation date. The
+// pending row has no query behind it, so it reproduces all four conditions the
+// server would have applied:
+//
+//   - filter=completed  → a todo created now is active, so it does not belong;
+//   - scope=shared      → "other people's shared rows" skips the owner, so a
+//                         row I just created is not in that slice;
+//   - an active search  → the search endpoint cannot know a row that does not
+//                         exist yet;
+//   - created-after     → the same date clause every server row carries.
+//
+// Datastar re-evaluates data-show on insertion and on signal change, so the
+// placeholder follows the tab, the scope and the search box live — with no
+// listener and no second state model. Kept as one constant so the four clauses
+// cannot drift apart between the JS that used to build them and this markup.
+const pendingRowShow = "(!$createdAfter || el.dataset.created >= $createdAfter)" +
+	" && ($filter || 'all') !== 'completed'" +
+	" && !($searchQuery || '')" +
+	" && ($scope || 'all') !== 'shared'"
+
+// TodoPendingRow is the <template> the offline renderer clones for a queued
+// create. It exists so the pending row is SERVER-OWNED markup: the classes, the
+// id scheme and the data-show clauses come from the same package that renders
+// the real row, and TestPendingRowPrototypeMatchesTodoItem fails when the two
+// drift.
+//
+// Everything here is inert until cloned: <template> content is not rendered,
+// not matched by CSS selectors and not reachable by document.querySelector, so
+// the prototype costs no layout and cannot be confused with a real row.
+//
+// The clone owns the values the server cannot know at render time: the row id
+// (`todo-<idem_key>`), `data-created`, the title text, and the shared badge.
+// The controls start disabled: the replay's re-render is what enables them, so
+// a pending row cannot be toggled or deleted twice.
+templ TodoPendingRow() {
+	<template id="todo-pending-row">
+		<div
+			class="todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors opacity-70"
+			data-pending="true"
+			data-show={ pendingRowShow }
+		>
+			<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" disabled/>
+			<span class="todo-title flex-1"></span>
+			<span
+				class="badge badge-info badge-xs"
+				title="Shared: every login sees this todo"
+				data-pending-shared="1"
+				hidden
+			>Shared</span>
+			<span class="todo-age text-xs text-base-content/40">now</span>
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95"
+				title="Delete todo"
+				aria-label="Delete todo"
+				disabled
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+				</svg>
+			</button>
+		</div>
+	</template>
+}

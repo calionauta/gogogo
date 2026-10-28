@@ -255,6 +255,48 @@ What this is not: a SIEM, a streaming alerting daemon, or a replacement for
 edge logs. It is the smallest evidence store that survives a restart and is
 readable by the person who has to answer the question.
 
+## Offline writes: one page-side outbox, receipts at the server (2026-10-28)
+
+Status: accepted. Replaces the Service Worker queue.
+
+The worker used to intercept `/api/*`, queue failed mutations in IndexedDB and
+replay them via Background Sync. Two things were wrong with that shape:
+
+- **It could not see the intent.** A fetch interceptor only sees requests the
+  browser decided to make. A submit whose request hung never produced a failure,
+  so a tab closed during it lost the write — the queue never learned about it.
+- **It was a second queue.** The page already had an outbox for the case where
+  no worker controlled the page, so retry policy, storage schema and the version
+  handshake existed twice.
+
+The choice is one outbox in the page (`web/resources/static/offline-outbox.js`):
+
+- **Write before send.** `begin()` stores the intent in `localStorage`
+  synchronously and returns its key in the same tick; the IndexedDB copy is
+  started immediately and the journal entry is cleared only after it commits.
+  `localStorage` is the crash journal, IndexedDB the durable store.
+- **At-least-once with exactly-once effects.** Every request carries
+  `Idempotency-Key`; `op_receipts` is claimed in the SAME transaction as the
+  mutation (`applyOnce`). A read-then-flip toggle stopped being safe to retry
+  the moment the design started retrying it.
+- **One drainer.** Web Locks elects it, BroadcastChannel fans the count. The
+  previous code had no inter-tab or inter-instance lock at all; two SW instances
+  could replay the same entry concurrently.
+- **The worker caches navigations only.** No `/api/*` surface means no skip list
+  and no stream can be swallowed (`TestServiceWorkerNeverInterceptsAPI`).
+
+Evidence: `TestToggleReplayIsIdempotent` (a replayed toggle must be one flip),
+`scripts/outbox.test.mjs` (write-ahead while the request hangs, lost response,
+two draining tabs), and the receipt-retention test that pins the window to the
+outbox's one-week TTL.
+
+Cost, stated honestly: a queued intent replays while the app is open (next load,
+`online`, or visibility), not while every tab is closed. Background Sync — the
+only API that could — is Chromium-only (Firefox has a negative position, Safari
+does not implement it). And a 5xx on an explicit action reaches the UI as a
+failure answer, not a silent retry: Datastar's action promise does not expose the
+status, so the intent is settled and the user sees the alert.
+
 ## Why a copy you own (and not a module you import)
 
 The alternative deserves stating, because it is the first question a reader from

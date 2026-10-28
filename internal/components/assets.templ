@@ -14,15 +14,15 @@ import "github.com/calionauta/gogogo/web/resources"
 templ Assets() {
 	<link rel="stylesheet" href={ resources.StaticURL("app.min.css") }/>
 	<link rel="stylesheet" href={ resources.StaticURL("app.css") }/>
-	// offline-policy.js is the retry vocabulary shared by the Service Worker
-	// queue and the page-side outboxes (notes, whiteboard). It rides the
-	// shared block because the offline banner — on every shell page — compares
-	// its POLICY_VERSION with the worker's, so it must be present wherever the
-	// banner is, and before any script that reads window.GogogoOffline.
+	// offline-policy.js is the retry vocabulary shared by the three page-side
+	// outboxes (todo, notes, whiteboard). It rides the shared block because the
+	// feature scripts (notes/whiteboard) are classic scripts that read
+	// window.GogogoOffline in document order.
 	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-policy.js") }></script>
-	// offline-outbox.js is the page-side queue for independent requests (todo's
-	// create form when no worker controls the page). Before the feature scripts
-	// that create one.
+	// offline-outbox.js is the durable outbox every todo write goes through:
+	// the intent is stored before the request leaves, and replayed with its
+	// idempotency key on the next load / reconnect. Before the feature scripts
+	// that use it.
 	<script nonce={ templ.GetNonce(ctx) } defer src={ resources.StaticURL("offline-outbox.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("theme.js") }></script>
 	<script nonce={ templ.GetNonce(ctx) } defer type="module" src={ resources.StaticURL("datastar.js") }></script>

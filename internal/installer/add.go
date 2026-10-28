@@ -205,9 +205,6 @@ func addFollowUps(u trimUnit) []string {
 	var out []string
 	switch u.id {
 	case unitWhiteboard:
-		out = append(out,
-			"sw.js still skips the notes/whiteboard streams: re-add the "+
-				"two exclusion lines in web/resources/static/sw.js if the bundle is back.")
 	case unitSounds:
 		out = append(out,
 			"sounds has no UI until call sites return: re-add "+
@@ -234,9 +231,6 @@ func addFollowUps(u trimUnit) []string {
 				"401 JSON in internal/server/chi_test.go now the route is back.")
 	case unitGenUI:
 		out = append(out,
-			"sw.js still skips the chat stream: re-add the "+
-				`"/api/chat/stream" exclusion line in web/resources/static/sw.js `+
-				"if the chat/genui bundle is back.",
 			"TestBuildChiMux pins fewer demo routes: re-add \"/chat\" "+
 				"to its target table in internal/server/chi_test.go "+
 				"if the bundle is the front door again.")

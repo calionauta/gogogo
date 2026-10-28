@@ -1,7 +1,7 @@
 route /
-ids app-rail command-palette command-palette-input command-palette-list offline-banner offline-banner-signin offline-banner-text rail-inbox-badge session-banner toast-container
+ids app-rail command-palette command-palette-input command-palette-list offline-banner offline-banner-drop offline-banner-signin offline-banner-text rail-inbox-badge session-banner toast-container
 data-bind cmdQuery
-data-on data-on:click data-on:close
-signals cmdQuery inboxUnread loading railOpen sessionAuthed theme
+data-on data-on:click data-on:close data-on:gogogo:outbox__window data-on:gogogo:synced__window data-on:gogogo:unread__document data-on:keydown__window data-on:offline__window data-on:online__window
+signals bannerAuth bannerCount bannerDrop bannerDropWhy bannerOnline bannerSyncing cmdQuery inboxUnread loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-hidden aria-label aria-live
-tags a=21 aside=1 body=1 button=5 dialog=1 div=16 form=1 h1=1 head=1 header=1 html=2 input=2 kbd=3 label=2 li=6 link=3 main=1 meta=2 nav=2 p=4 path=18 script=10 section=1 span=30 style=2 svg=18 title=1 ul=1
+tags a=21 aside=1 body=1 button=6 dialog=1 div=16 form=1 h1=1 head=1 header=1 html=2 input=2 kbd=3 label=2 li=6 link=3 main=1 meta=2 nav=2 p=4 path=18 script=10 section=1 span=32 style=2 svg=18 title=1 ul=1

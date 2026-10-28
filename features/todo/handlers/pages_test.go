@@ -110,6 +110,16 @@ func TestHandlersLoginLogoutFlow(t *testing.T) {
 	if !cleared {
 		t.Fatal("logout did not expire the session cookie")
 	}
+	// Sign-out is a shared-device boundary: the response must purge this
+	// origin's caches AND script-writable storage (IndexedDB holds the
+	// outbox) in one header. Without it, the next account on this browser
+	// could inherit the previous user's queued intents and cached pages.
+	csd := out.Header().Get("Clear-Site-Data")
+	for _, want := range []string{`"cache"`, `"storage"`} {
+		if !strings.Contains(csd, want) {
+			t.Fatalf("logout Clear-Site-Data = %q, want %s", csd, want)
+		}
+	}
 	after := f.do(http.MethodGet, "/todo", "", cookie)
 	if after.Code != http.StatusSeeOther {
 		t.Fatalf("GET /todo after logout status = %d, want 303", after.Code)

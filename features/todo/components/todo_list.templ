@@ -125,16 +125,18 @@ templ TodoList(signals todo.Signals) {
 // from the rows it creates. Buttons disable themselves via Datastar
 // signals so the user can't double-fire.
 //
-// The pending state belongs to the REQUEST, not to the Service Worker: the
-// action clears $loading when its promise settles (204 = queued, error =
-// failed), so a queue write that never completes or a page that lost the SW
-// message bridge cannot freeze the button. A failed request keeps the typed
-// title and shows the alert instead of silently dropping the user's text.
+// The pending state belongs to the REQUEST: the action clears $loading when
+// its promise settles, so a queue write that never completes cannot freeze the
+// button. The intent is stored BEFORE the post (GogogoOutbox.begin), so a
+// failed or hanging request leaves a replayable intent rather than a lost
+// title. The alert is reserved for the one case that is a real loss: the
+// outbox could not store the intent (storage blocked), which fail() reports by
+// returning a zero count.
 templ createForm(signals todo.Signals) {
 	<form
 		id="todo-create"
 		class="w-full mt-3"
-		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var sent = $newTitle; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id), {contentType: 'form', retryMaxCount: 0}).then(() => { if (!$syncFailed && $newTitle === sent) $newTitle = ''; $loading = false; }).catch(() => { $loading = false; var shared = false; try { shared = evt.target.querySelector('input[name=visibility]').checked } catch (e) {} if (!navigator.onLine && !(navigator.serviceWorker && navigator.serviceWorker.controller) && window.__gogogoTodoQueue && window.__gogogoTodoQueue(sent, id, shared)) { $syncFailed = false; return; } $syncFailed = true; }); }" data-on:datastar-fetch="evt.detail.el && evt.detail.el.id === 'todo-create' && (evt.detail.type === 'error' || evt.detail.type === 'retries-failed') ? ($loading = false, $syncFailed = true) : null"
+		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var url = '/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id); var body = new URLSearchParams(new FormData(el)).toString(); var sent = $newTitle; var key = window.GogogoOutbox.begin({url: new URL(url, location.href).href, method: 'POST', body: body, headers: {'Content-Type': 'application/x-www-form-urlencoded'}}); el.dataset.opKey = key; @post(url, {contentType: 'form', retryMaxCount: 0, headers: {'Idempotency-Key': key}}).then(() => { $loading = false; var st = Number(el.dataset.opStatus || 0); delete el.dataset.opStatus; if (st === 0) { window.GogogoOutbox.ack(key); if ($newTitle === sent) $newTitle = ''; } else { window.GogogoOutbox.fail(key); if (st !== 408 && st !== 429 && st < 500) $syncFailed = true; } }).catch(() => { $loading = false; delete el.dataset.opStatus; window.GogogoOutbox.fail(key); }); }"
 	>
 		<div class="join w-full">
 			<input
@@ -278,7 +280,14 @@ func searchModeHint(mode string) string {
 // and remote tabs stay in sync. The `<div id="todo-list">` selector is
 // the merge target for RenderAndPatch.
 templ TodoListRegion(signals todo.Signals) {
+	// The prototype lives INSIDE #todo-list on purpose: every mutation patches
+	// that element by selector (mode outer), so the template is replaced with
+	// the region — exactly one copy. As a SIBLING it was never removed by the
+	// patch and accumulated one clone per re-list (three on screen after three
+	// mutations). <template> content is inert: it has no layout and is not
+	// matched by selectors, so it never counts as a row.
 	<div class="divide-y divide-base-200 pb-6" id="todo-list">
+		@TodoPendingRow()
 		if len(signals.Todos) == 0 {
 			<div class="ui-empty" id="todo-empty-state">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -480,15 +489,28 @@ templ deleteConfirmModal(spec deleteModalSpec) {
 	</dialog>
 }
 
-// todoMutateOn wraps a todo mutation (toggle, delete, clear-completed) with the
-// page-side fallback: with no Service Worker controlling the page and the
-// browser offline, the request goes to the page outbox (offline-outbox.js)
-// instead of a fetch that cannot succeed. The optimistic state still comes from
-// the same `gogogo:queued` event the worker emits, so nothing forks by transport.
+// todoMutateOn wraps a todo mutation (toggle, delete, clear-completed) with
+// the durable outbox: the intent is stored (synchronously, via the crash
+// journal) BEFORE the request leaves, and its key rides every retry so the
+// server can recognise a re-delivery. The optimistic state still comes from
+// the same `gogogo:queued` event, so nothing forks by transport.
+//
+// ack() on success and fail() on a failed request are what turn "one request"
+// into "one durable intent": a tab closed mid-flight leaves the intent in the
+// outbox, and the drain finishes it on the next load. fail() is also what
+// draws the pending row — this expression does not touch the DOM.
 func todoMutateOn(urlExpr string) string {
-	return "var url = " + urlExpr + "; if (!navigator.onLine && " +
-		"!(navigator.serviceWorker && navigator.serviceWorker.controller) && " +
-		"window.__gogogoTodoMutate && window.__gogogoTodoMutate(url)) { } else { @post(url) }"
+	// The element carries the op key so the page-wide `datastar-fetch` handler
+	// (todo-offline.js) can mark THIS mutation as answered with an error
+	// status. Datastar resolves the action on any HTTP answer, so without the
+	// mark a 5xx would look like success and the intent would be dropped;
+	// with it the intent stays queued and the drain classifies the status.
+	return "var url = " + urlExpr + "; " +
+		"var key = window.GogogoOutbox.begin({url: new URL(url, location.href).href, method: 'POST'}); " +
+		"el.dataset.opKey = key; " +
+		"@post(url, {headers: {'Idempotency-Key': key}, retryMaxCount: 0})" +
+		".then(() => { var st = Number(el.dataset.opStatus || 0); delete el.dataset.opStatus; if (st === 0) { window.GogogoOutbox.ack(key); } else { window.GogogoOutbox.fail(key); } })" +
+		".catch(() => { delete el.dataset.opStatus; window.GogogoOutbox.fail(key); })"
 }
 
 // createdFilter is the date filter: a Cally calendar inside a native

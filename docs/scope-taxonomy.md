@@ -159,7 +159,7 @@ its top-level unit too).
 | `internal/collab/` | 🟡 PLUGIN | Delete `features/whiteboard/` too |
 | `internal/goakt/` | 🟡 PLUGIN | Delete `features/room/` + `cmd/web/goakt.go` too (or `GOAKT_ENABLED=false`) |
 | `internal/search/` | 🟡 PLUGIN | Delete the package + the search wiring; the SQL substring layer degrades rather than disappearing (the seam is swappable) |
-| `web/resources/static/sw.js` + `config/config.go` (offline-sync) | 🟡 PLUGIN | Manual; `OFFLINE_SYNC_ENABLED=false` disables the Service Worker queue and the NATS CRUD proxy together. On the async axis this is a mode, not one of the seven layers |
+| `web/resources/static/offline-outbox.js` + `sw.js` + `config/config.go` (offline-sync) | 🟡 PLUGIN | Manual; `OFFLINE_SYNC_ENABLED=false` disables the page outbox and the NATS CRUD proxy together. On the async axis this is a mode, not one of the seven layers |
 | `features/review/` (Genkit flows) | 🟡 PLUGIN | The flow runtime behind the Review feature; `go mod tidy` drops Genkit + go-jev when the feature goes |
 | `internal/capabilities/`, `internal/installer/` | 🟡 PLUGIN | The installer itself: deleting breaks `cmd/gogogo`, not the web binary |
 | `features/sounds/` | 🟡 PLUGIN | Full checklist in the `SCOPE` doc comment in `features/sounds/sounds.go` |

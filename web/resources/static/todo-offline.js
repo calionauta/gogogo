@@ -1,22 +1,35 @@
-// todo-offline.js — the todo feature's optimistic state while offline.
+// todo-offline.js — the todo feature's optimistic state while a write is queued.
 //
-// The Service Worker owns the queue and reports each queued request
-// (gogogo:queued, detail = {url, method, body}). This file owns the TODO
-// DOM and routes, so sw.js stays feature-agnostic: a second feature adds its
-// own listener instead of teaching the worker its markup.
+// The queue reports each pending request (gogogo:queued, detail = {url,
+// method, body}). This file owns the TODO DOM and routes, so the queue stays
+// feature-agnostic: a second feature adds its own listener instead of teaching
+// the transport its markup.
 //
-// The row is a placeholder: it carries data-pending="true" and disabled
-// controls until the replay lands, at which point the record broadcast (or
-// the gogogo:synced resync) replaces it with the server row.
+// The row itself is a CLONE of the server-rendered <template
+// id="todo-pending-row"> (features/todo/components/pending_row.templ), never
+// markup built here. The classes, the id scheme, the disabled controls and the
+// data-show clauses live in the template package, where
+// TestPendingRowPrototypeMatchesTodoItem holds them to TodoItem.
 (function () {
-  var BIN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
-
   function list() {
     return document.getElementById("todo-list");
   }
 
   function row(id) {
     return document.getElementById("todo-" + id);
+  }
+
+  // prototype is the server-owned shape (features/todo/components/
+  // pending_row.templ). The optimistic row is a CLONE, never markup built
+  // here: the classes, the id scheme and the four data-show clauses live in
+  // the template package, and TestPendingRowPrototypeMatchesTodoItem fails
+  // when the prototype and TodoItem drift. A renderer without the prototype
+  // draws nothing rather than a row that looks foreign to the list.
+  function prototype() {
+    var tpl = document.getElementById("todo-pending-row");
+    if (!tpl || !tpl.content) return null;
+    var first = tpl.content.firstElementChild;
+    return first ? first.cloneNode(true) : null;
   }
 
   function ensureEmptyState() {
@@ -32,15 +45,19 @@
     host.appendChild(empty);
   }
 
-  // create mirrors the server row's structure — classes, id scheme, the
-  // date attribute AND the visibility contract — so the placeholder looks
-  // like a todo, lands in the slot the server will use, and disappears under
-  // the same filters the server applies. Anything it does not mirror becomes
-  // a row that exists in a view it does not belong to, or moves when the
-  // replay re-renders.
+  // create draws the placeholder a queued create is holding.
+  //
+  // The clone keeps every server contract for free: the pending dimming and
+  // marker, the disabled controls, the newest-first slot, the shared badge and
+  // the visibility guard. Only the values the server cannot know at render
+  // time are written here — the row id, its creation date, the title text and
+  // whether the badge shows. User-controlled text goes through textContent,
+  // so a title can never become markup.
   function create(url, body) {
     var host = list();
     if (!host) return;
+    var item = prototype();
+    if (!item) return;
     var params = new URLSearchParams(body || "");
     var title = params.get("title") || "";
     // The create form names the visibility field only when it is checked.
@@ -51,61 +68,12 @@
     var existingEmpty = document.getElementById("todo-empty-state");
     if (existingEmpty) existingEmpty.remove();
 
-    var item = document.createElement("div");
     item.id = "todo-" + idem;
-    item.className = "todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors opacity-70";
-    item.setAttribute("data-pending", "true");
-    // Same date contract as TodoItem, and the three client-side filters the
-    // SERVER expresses as separate queries: a todo created now is active,
-    // owned by me, and is not part of any search result.
-    //   - filter=completed  → it is active, so it does not belong;
-    //   - scope=shared      → "other people's shared rows" (ListVisibleTodos
-    //                         skips owner == me even when public);
-    //   - an active search  → the search endpoint cannot know a row that does
-    //                         not exist yet.
-    // Datastar evaluates data-show on insertion (it observes the document),
-    // so this follows the tab/scope/search state live.
     item.dataset.created = new Date().toISOString().slice(0, 10);
-    item.setAttribute("data-show", [
-      "($createdAfter === '' || el.dataset.created >= $createdAfter)",
-      "($filter || 'all') !== 'completed'",
-      "!($searchQuery || '')",
-      "($scope || 'all') !== 'shared'",
-    ].join(" && "));
-
-    var box = document.createElement("input");
-    box.type = "checkbox";
-    box.className = "checkbox checkbox-primary checkbox-sm";
-    box.disabled = true;
-
-    var label = document.createElement("span");
-    label.className = "todo-title flex-1";
-    label.textContent = title;
-
-    var when = document.createElement("span");
-    when.className = "todo-age text-xs text-base-content/40";
-    when.textContent = "now";
-
-    var del = document.createElement("button");
-    del.type = "button";
-    del.className = "btn btn-ghost btn-xs text-error";
-    del.disabled = true;
-    del.setAttribute("aria-label", "Delete todo");
-    // Static icon markup only; the user-controlled title went through
-    // textContent above.
-    del.innerHTML = BIN_SVG;
-
-    item.appendChild(box);
-    item.appendChild(label);
-    if (shared) {
-      var badge = document.createElement("span");
-      badge.className = "badge badge-info badge-xs";
-      badge.title = "Shared: every login sees this todo";
-      badge.textContent = "Shared";
-      item.appendChild(badge);
-    }
-    item.appendChild(when);
-    item.appendChild(del);
+    var label = item.querySelector(".todo-title");
+    if (label) label.textContent = title;
+    var badge = item.querySelector("[data-pending-shared]");
+    if (badge && !shared) badge.remove();
     // The list is NEWEST FIRST (ListVisibleTodos: created DESC, id DESC), so
     // the optimistic row belongs at the TOP. Appending it made the placeholder
     // the last row, and the replay's re-render then moved the same todo to
@@ -130,52 +98,6 @@
     ensureEmptyState();
   }
 
-  // ---- page-side fallback ---------------------------------------------------
-  // The worker owns the queue when it is there. This is the other case: no
-  // controller (registration blocked, evicted, a browser that refused it), so
-  // the form's failure path hands the request HERE and the page replays it. The
-  // request is the one the form would have sent — idem_key included — so a
-  // replay cannot duplicate it server-side, and the event is the same
-  // `gogogo:queued` the worker sends, so the row and the form reset stay
-  // feature-owned and do not fork by transport.
-  //
-  // The queue itself is the SHARED page outbox (offline-outbox.js): it starts
-  // on every page load, so a request queued before a reload still drains.
-  function pageOutbox() {
-    return window.GogogoOutbox || null;
-  }
-
-  window.__gogogoTodoQueue = function (title, idemKey, shared) {
-    var queue = pageOutbox();
-    if (!queue || !title) return false;
-    var body = new URLSearchParams();
-    body.set("title", title);
-    if (shared) body.set("visibility", "public");
-    // Only idem_key matters for the replay (it is the server's dedupe key);
-    // the view parameters shape the response patch, which this path discards.
-    var url = location.origin + "/api/todos?idem_key=" + encodeURIComponent(idemKey || "");
-    // Same content type the form sends: the handler reads form values, and
-    // fetch would otherwise default a string body to text/plain (a 400).
-    queue.enqueue({
-      url: url,
-      method: "POST",
-      body: body.toString(),
-      headers: { "Content-Type": "application/x-www-form-urlencoded" }
-    });
-    return true;
-  };
-
-  // __gogogoTodoMutate covers toggle, delete and clear-completed: mutations
-  // with no body, whose optimistic effect the queued event already draws.
-  window.__gogogoTodoMutate = function (url) {
-    var queue = pageOutbox();
-    if (!queue || !url) return false;
-    var absolute;
-    try { absolute = new URL(url, location.href).toString(); } catch (_) { return false; }
-    queue.enqueue({ url: absolute, method: "POST", body: "" });
-    return true;
-  };
-
   // A create queued in an earlier session has no row on the page — it was never
   // on the server. Draw the placeholders the queue is holding so the list says
   // what is actually pending.
@@ -185,12 +107,23 @@
   // is the source of truth; the server render is what it is waiting for.
   var restoreScheduled = false;
 
+  // pageStartedAt separates a leftover intent (queued by an earlier session)
+  // from one this page owns. It is the whole duplicate rule below.
+  var pageStartedAt = Date.now();
+
+  // restorePending draws the intents the queue is holding. An intent from an
+  // EARLIER session has no row yet — even while its replay is in flight — so a
+  // list patch must bring it back. An intent THIS page created is drawn by
+  // onQueued; if the drain is already delivering it, drawing it again would
+  // show the same todo twice (the patch that follows is its own row).
   function restorePending() {
-    var queue = pageOutbox();
+    var queue = window.GogogoOutbox;
     if (!queue || typeof queue.list !== "function") return;
     queue.list().then(function (items) {
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
+        var fromThisPage = item.queuedAt && item.queuedAt >= pageStartedAt;
+        if (fromThisPage && item.state === "inflight") continue;
         var parsed;
         try { parsed = new URL(item.url, location.href); } catch (_) { continue; }
         if (parsed.pathname === "/api/todos" || parsed.pathname === "/api/todos/") {
@@ -262,6 +195,18 @@
     var tog = /\/api\/todos\/([^/]+)\/toggle\/?$/.exec(path);
     if (tog) toggle(decodeURIComponent(tog[1]));
   }
+
+  // A mutation that came back with an ERROR STATUS is not a success: the
+  // outbox must keep the intent so the drain can classify it (a 5xx retries,
+  // a 4xx is dropped with a notice). Datastar resolves the action for any HTTP
+  // answer, so the page reads the status off the error event (argsRaw.status,
+  // set by the runtime) and stamps it on the element todoMutateOn started.
+  document.addEventListener("datastar-fetch", function (evt) {
+    var d = evt.detail || {};
+    if (d.type !== "error") return;
+    if (!d.el || !d.el.dataset || !d.el.dataset.opKey) return;
+    d.el.dataset.opStatus = String((d.argsRaw && d.argsRaw.status) || "0");
+  });
 
   window.addEventListener("gogogo:queued", onQueued);
   // A queued create from an earlier session has no row here; draw it before the

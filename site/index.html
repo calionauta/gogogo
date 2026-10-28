@@ -368,7 +368,7 @@
         <label class="plan-row">
           <input type="checkbox" checked data-cap="offline-sync">
           <span class="plan-box" aria-hidden="true"></span>
-          <span class="plan-main"><span class="plan-name">Offline sync<span class="plan-tag">async mode</span></span><span class="plan-desc">hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)</span></span>
+          <span class="plan-main"><span class="plan-name">Offline sync<span class="plan-tag">async mode</span></span><span class="plan-desc">durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)</span></span>
           <span class="plan-env">OFFLINE_SYNC_ENABLED=false</span>
         </label>
         <label class="plan-row">
