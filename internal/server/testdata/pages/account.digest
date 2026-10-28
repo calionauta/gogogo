@@ -1,7 +1,7 @@
 route /account
-ids app-pref-theme app-rail command-palette command-palette-input command-palette-list offline-banner offline-banner-signin offline-banner-text rail-inbox-badge session-banner toast-container
+ids app-pref-theme app-rail command-palette command-palette-input command-palette-list offline-banner offline-banner-signin offline-banner-text rail-inbox-badge rail-inbox-refresh session-banner toast-container
 data-bind cmdQuery
 data-on data-on:click data-on:close data-on:submit
 signals cmdQuery inboxUnread loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-labelledby aria-live
-tags a=22 aside=1 body=1 button=15 details=1 dialog=1 div=30 form=7 h1=1 h2=4 head=1 header=1 html=2 input=8 kbd=3 label=6 li=20 link=3 main=1 meta=2 nav=2 p=13 path=21 script=10 section=4 span=57 strong=1 style=2 summary=1 svg=21 title=1 ul=3
+tags a=22 aside=1 body=1 button=16 details=1 dialog=1 div=30 form=7 h1=1 h2=4 head=1 header=1 html=2 input=8 kbd=3 label=6 li=20 link=3 main=1 meta=2 nav=2 p=13 path=21 script=10 section=4 span=57 strong=1 style=2 summary=1 svg=21 title=1 ul=3

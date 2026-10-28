@@ -336,11 +336,11 @@ shared plain-text notes (server-owned Loro Text + SSE)
 inbox + durable reminders (DagNats sleep → delivery row)
 
 - **Owned:** `features/notifications`, `internal/server/inbox_badge.go`
-- **Routes:** `/api/notifications/read-all`, `/api/notifications/remind`, `/api/notifications/stream`, `/api/notifications/{id}/read`, `/notifications`
+- **Routes:** `/api/notifications/badge`, `/api/notifications/read-all`, `/api/notifications/remind`, `/api/notifications/stream`, `/api/notifications/{id}/read`, `/notifications`
 - **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.CreateNotification`, `dbgen.ListNotificationsForOwner`, `dbgen.MarkAllNotificationsRead`, `dbgen.MarkNotificationRead`, `dbgen.SetNotificationStatus`
 - **Depends on:** sounds
 - **Trim:** manual (no installer unit)
-- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go (Pinned), the rail count middleware and the session-stream feed in internal/server/inbox_badge.go plus their r.Use / SetSessionStreamExtras lines in internal/server/chi.go, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` plugin.
+- **Why that class:** Removal is manual: delete this unit, the sidebar entry in internal/ui/modules.go (Pinned), the rail count middleware and the session-stream feed in internal/server/inbox_badge.go plus their r.Use / SetSessionStreamExtras lines in internal/server/chi.go and internal/server/delivery.go, the badge refresh button in internal/ui/inbox.templ and its route in the handler, the reminder definition in internal/dagnats/reminder.go, the reminder-seed and notification-deliver workers plus the onboarding welcome call and the startDagNats argument in cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; drop the table with a new one if the data must go). The transport seam is the separate `delivery` plugin.
 
 ## `review` — feature
 

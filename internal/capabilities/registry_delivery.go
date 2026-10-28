@@ -19,7 +19,9 @@ var deliveryUnits = []Capability{
 		Reason: "Removal is manual: delete this unit, the sidebar entry in " +
 			"internal/ui/modules.go (Pinned), the rail count middleware and the " +
 			"session-stream feed in internal/server/inbox_badge.go plus their " +
-			"r.Use / SetSessionStreamExtras lines in internal/server/chi.go, the " +
+			"r.Use / SetSessionStreamExtras lines in internal/server/chi.go and " +
+			"internal/server/delivery.go, the badge refresh button in " +
+			"internal/ui/inbox.templ and its route in the handler, the " +
 			"reminder definition in " +
 			"internal/dagnats/reminder.go, the reminder-seed and notification-deliver " +
 			"workers plus the onboarding welcome call and the startDagNats argument in " +

@@ -42,6 +42,7 @@ var SKIP_PATTERNS = [
   "/api/chat/stream", // chat SSE stream (Datastar)
   "/api/notes/", // notes SSE stream + ops (EventSource + own convergence)
   "/api/notifications/stream", // inbox SSE stream (Datastar)
+  "/api/notifications/badge", // inbox count poll: signal patch, never cached
   "/api/session/stream", // shared session + unread stream (EventSource)
   "/api/whiteboard/" // whiteboard ops + stream (own offline mechanism)
 ];

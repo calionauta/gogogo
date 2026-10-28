@@ -32,6 +32,27 @@ templ RailInboxBadge(unread int) {
 	>{ unreadBadgeLabel(unread) }</span>
 }
 
+// railInboxRefresh is the badge's refresh affordance for pages that already
+// hold a feature stream: those pages must not open a second long-lived
+// connection (the browser's per-host cap is why), and a timer would be a poll.
+// It asks for the count only on events that mean the user is back or the
+// network changed — tab visible, window focused, bfcache restore, back online.
+// Any tab that already heard a change broadcasts it, so this is the fallback,
+// never the steady state. The endpoint answers with a signal patch, not markup.
+templ railInboxRefresh() {
+	<button
+		id="rail-inbox-refresh"
+		type="button"
+		class="hidden"
+		aria-hidden="true"
+		data-on:click="@get('/api/notifications/badge')"
+		data-on:visibilitychange__document="if (!document.hidden) document.getElementById('rail-inbox-refresh').click()"
+		data-on:focus__window="if (!document.hidden) document.getElementById('rail-inbox-refresh').click()"
+		data-on:pageshow__window="evt.persisted && document.getElementById('rail-inbox-refresh').click()"
+		data-on:online__window="document.getElementById('rail-inbox-refresh').click()"
+	></button>
+}
+
 // railItem is one destination in the rail: same markup for every module, with
 // the inbox icon wrapped in the indicator that carries its count.
 templ railItem(m Module, active bool, unread int) {

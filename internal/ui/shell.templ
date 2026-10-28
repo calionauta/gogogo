@@ -89,6 +89,7 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 				data-stream-page="1"
 			}>
 			<div class="app-shell" data-signals={ shellSignals(InboxUnread(ctx)) }
+				data-on:datastar-signal-patch__document="window.__gogogoUnreadChanged && window.__gogogoUnreadChanged($inboxUnread)"
 				data-on:keydown__window="if (evt.key === 'Escape') { $railOpen = false; window.__gogogoDrawerReturn(); }">
 			<div data-effect="window.__gogogoDrawerFocus($railOpen)" hidden aria-hidden="true"></div>
 				<aside id="app-rail" class="app-rail" aria-label="Modules" data-class="{'is-open': $railOpen}">
@@ -169,6 +170,9 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					});
 				</script>
 				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false; window.__gogogoDrawerReturn()"></div>
+				if d.Email != "" {
+					@railInboxRefresh()
+				}
 				<div class="app-main">
 					<header class="app-module-header">
 						<button

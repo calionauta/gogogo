@@ -13,21 +13,21 @@
 
 //     into GogogoSession.set);
 
-//   - the shared leader stream (/api/session/stream, opened by session.js)
+//   - the shared leader stream (/api/session/stream, opened by session.js on
 
-//     runs on every page when Web Locks + BroadcastChannel exist, and its
+//     pages with no feature stream) also carries the rail's unread count;
 
-//     frames also carry the rail's unread count.
+//     pages that already hold a feature stream refetch the badge every 30s
 
-// One long-lived connection per BROWSER, not per page or tab: browsers cap
+//     instead of opening a second connection.
 
-// connections per host, and a stream per tab has been measured to starve later
+// One long-lived connection per PAGE, not per tab or per signal: browsers cap
 
-// navigations. Without that coordination the dedicated stream exists only
+// connections per host, and five same-user tabs with feature streams already
 
-// where there is nothing else. Pass authed=true when the page rendered for a
+// fill the budget. Pass authed=true when the page rendered for a signed-in
 
-// signed-in user; a public page passes false and never warns.
+// user; a public page passes false and never warns.
 
 package components
 

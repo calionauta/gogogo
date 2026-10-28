@@ -25,12 +25,14 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 **The rail is ordered, not alphabetised.** The inbox is pinned above the first
 heading: it is the always-on surface, and it carries the unread count as a
 DaisyUI `indicator` bubble on its icon. The count is seeded once per page
-navigation by `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`) and
-kept live by the browser's leader session stream (`session.js`), which carries
-an `unread` field and fans it to every tab over a BroadcastChannel; the badge
-binds that value to `$inboxUnread`. The badge node always exists, hidden at
-zero. Config is `MenuOnly`: an operator surface, reached from the account menu
-right under Account, never a daily rail destination.
+navigation by `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`), kept
+live on pages without a feature stream by the leader session stream
+(`session.js`), and refreshed on visibility/focus/online on pages that already hold a stream —
+a second SSE connection would exhaust the browser's per-host budget at five
+same-user tabs. Every tab that hears a new count broadcasts it over the
+BroadcastChannel; the badge binds the value to `$inboxUnread` and always
+exists, hidden at zero. Config is `MenuOnly`: an operator surface, reached
+from the account menu right under Account, never a daily rail destination.
 
 **`Panel` is nil for a reason.** A page passes a panel only when it has a
 pipeline that runs *beside* the page — a queue, a model call, phases. `/config`,

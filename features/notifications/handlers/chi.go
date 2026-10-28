@@ -93,6 +93,7 @@ func (h *Handler) Routes() chi.Router {
 	r.Post("/api/notifications/remind", h.handleRemind)
 	r.Post("/api/notifications/read-all", h.handleReadAll)
 	r.Post("/api/notifications/{id}/read", h.handleRead)
+	r.Get("/api/notifications/badge", h.handleBadge)
 	return r
 }
 
@@ -139,6 +140,27 @@ func (h *Handler) handleReadAll(w http.ResponseWriter, r *http.Request) {
 		})
 		return err
 	})
+}
+
+// handleBadge answers the shell's refresh affordance: one signal patch with
+// the owner's count, no markup. Pages that already hold a feature stream use
+// this instead of opening a second SSE connection for the rail badge.
+func (h *Handler) handleBadge(w http.ResponseWriter, r *http.Request) {
+	sess, err := h.auth.Session(r)
+	if err != nil || sess == nil || sess.User == nil {
+		http.Error(w, "auth required", http.StatusUnauthorized)
+		return
+	}
+	n, cerr := h.q.CountUnreadInApp(r.Context(), sess.User.ID)
+	if cerr != nil {
+		h.logError(r, "notifications: count unread", cerr)
+		http.Error(w, "count unavailable", http.StatusInternalServerError)
+		return
+	}
+	sse := sdk.NewSSE(w, r)
+	if perr := dshelpers.MergeSignals(sse, map[string]any{"inboxUnread": int(n)}); perr != nil {
+		h.logError(r, "notifications: patch badge", perr)
+	}
 }
 
 // mutate is the shared body of the two read actions: session check, the

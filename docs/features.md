@@ -199,7 +199,7 @@ bundle and is not attributed per feature.
 | Offline policy + page outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 14 KB | 6 KB |
 | Todo offline renderer (only with offline sync) | `todo-offline.js` | 12 KB | 5 KB |
 | Service worker (one fetch, registered on first authenticated load) | `sw.js` | 32 KB | 12 KB |
-| Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 49 KB | 20 KB |
+| Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 51 KB | 21 KB |
 
 Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
@@ -228,14 +228,16 @@ so a zero-valued field on a shared signals struct serializes as
 `sessionAuthed:false` and raises the banner on a perfectly signed-in tab (todo
 did exactly that on every list/search response, which is why `todo.Signals`
 has no such field and the stream merges the signal itself).
-The `/api/session/stream` leader stream (one VISIBLE tab per browser via Web
-Locks, BroadcastChannel for the others) is opened on every page when that
-coordination exists, because the same connection carries the rail's unread
-count — one extra connection per browser, not one per page. Without Web Locks +
-BroadcastChannel the old rule holds: only a page with no feature stream opens
-it, since a second connection per page has been measured to starve a later
-same-tab navigation (the smoke's seventh page hung on `load`). No tab schedules
-a request, so every tab raises the same `components.SessionBanner` the moment a
+The `/api/session/stream` leader stream is opened only by a page with no
+feature stream (one VISIBLE tab per browser via Web Locks, BroadcastChannel for
+the others). One long-lived connection per page is the rule: browsers cap
+connections per host, and a second stream per page has been measured to starve
+a later same-tab navigation (the smoke's seventh page hung on `load`, and the
+notes caret suite fills the budget with five same-user tabs). The leader stream
+also carries the rail's unread count on those pages; a page that already holds
+a feature stream refetches the badge on visibility/focus/online instead of opening a second
+connection. No tab schedules a request, so every tab
+raises the same `components.SessionBanner` the moment a
 cookie expires and updates the same inbox badge when the count changes. The
 banner never auto-redirects (unsent work would be stranded). It is opt-in per
 page via the render-time `authed` flag, so a public page never nags about a
