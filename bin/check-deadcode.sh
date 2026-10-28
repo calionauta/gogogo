@@ -32,6 +32,7 @@
 #   DEADCODE_FORCE=1        run anyway, even on a box that cannot carry it
 #   DEADCODE_MIN_RAM_MB=N   MemAvailable floor (default 3584)
 #   DEADCODE_MAX_LOAD_PER_CORE=N  load5/core ceiling (default 1.0)
+#   DEADCODE_MAX_SWAP_PCT=N swap-in-use ceiling (default 50)
 set -uo pipefail
 
 # The scan patterns are module-relative, so resolve the repo root first: the
@@ -64,9 +65,11 @@ MAX_LOAD_PER_CORE=${DEADCODE_MAX_LOAD_PER_CORE:-1.0}
 
 mem_avail_mb=0
 load5=0
+swap_used_pct=0
 if [ -r /proc/meminfo ]; then
     mem_avail_mb=$(awk '/^MemAvailable:/{print int($2/1024)}' /proc/meminfo)
     load5=$(awk '{print $2}' /proc/loadavg)
+    swap_used_pct=$(awk '/^SwapTotal:/{t=$2} /^SwapFree:/{f=$2} END{if(t>0) printf "%d", ((t-f)*100)/t; else print 0}' /proc/meminfo)
 elif command -v sysctl >/dev/null 2>&1; then
     # macOS/BSD: no cheap "available" counter, use total (same compromise as
     # lint-safe.sh) and let the ceiling do the bounding.
@@ -83,6 +86,12 @@ if [ "$mem_avail_mb" -lt "$MIN_RAM_MB" ]; then
     refuse="RAM: ${mem_avail_mb} MB available < ${MIN_RAM_MB} MB required (measured peak 3.28 GB)"
 elif [ "$load_per_core_x100" -gt "$max_x100" ]; then
     refuse="load: 5-min avg per core ${load5}/${cores} > ${MAX_LOAD_PER_CORE} (box already saturated)"
+elif [ "$swap_used_pct" -ge "${DEADCODE_MAX_SWAP_PCT:-50}" ]; then
+    # The 5-min load average lags a box that just got busy, and MemAvailable
+    # can look healthy while swap is already carrying the working set. Two
+    # outages on this host (2026-10-28) were swap exhaustion, and this scan
+    # adds ~2.5 GB: on a box with swap half full that is a thrash, not a scan.
+    refuse="swap: ${swap_used_pct}% used (>= ${DEADCODE_MAX_SWAP_PCT:-50}%) — adding 2.5GB would page, not scan"
 fi
 
 if [ -n "$refuse" ] && [ "${DEADCODE_FORCE:-0}" != "1" ]; then
