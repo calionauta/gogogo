@@ -32,25 +32,23 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "auth required", http.StatusUnauthorized)
 		return
 	}
-	sse, clientID, ok := h.openStream(w, r, sess.User.ID)
-	if !ok {
+	owner := sess.User.ID
+	clientID := r.URL.Query().Get("clientID")
+	if clientID == "" {
+		clientID = uuid.NewString()
+	}
+
+	// Subscribe BEFORE the handshake. The client treats the initial frame as
+	// "ready", and an event delivered between that frame and the subscription
+	// was lost — the live-delivery test hung on exactly that window under the
+	// race detector (release PR #316).
+	wake, cancel := h.subscribeInbox(owner, clientID)
+	defer cancel()
+
+	sse := sdk.NewSSE(w, r)
+	if !h.writeHandshake(r, sse, owner, clientID) {
 		return
 	}
-	owner := sess.User.ID
-
-	// Size-1 wake channel: a burst of deliveries costs one re-render, and a
-	// slow tab can never block the publisher.
-	wake := make(chan struct{}, 1)
-	cancel := h.bus.Subscribe(func(ev notifications.Event) {
-		if !wakeFor(ev, owner, clientID) {
-			return
-		}
-		select {
-		case wake <- struct{}{}:
-		default:
-		}
-	})
-	defer cancel()
 
 	flusher, canFlush := w.(http.Flusher)
 	heartbeat := time.NewTicker(config.DefaultSSEHeartbeatInterval)
@@ -83,24 +81,37 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// openStream writes the two opening frames: the ack the shared opener waits
-// for, then the inbox itself, so a reconnect paints without a reload.
-func (h *Handler) openStream(
-	w http.ResponseWriter, r *http.Request, owner string,
-) (*sdk.ServerSentEventGenerator, string, bool) {
-	clientID := r.URL.Query().Get("clientID")
-	if clientID == "" {
-		clientID = uuid.NewString()
-	}
-	sse := sdk.NewSSE(w, r)
+// subscribeInbox registers this tab's wake channel before the handshake. A
+// size-1 channel coalesces bursts and keeps the bus callback non-blocking,
+// which is the bus's contract.
+func (h *Handler) subscribeInbox(owner, clientID string) (<-chan struct{}, func()) {
+	wake := make(chan struct{}, 1)
+	cancel := h.bus.Subscribe(func(ev notifications.Event) {
+		if !wakeFor(ev, owner, clientID) {
+			return
+		}
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	})
+	return wake, cancel
+}
+
+// writeHandshake writes the two opening frames: the ack the shared opener
+// waits for, then the inbox itself, so a reconnect paints without a reload.
+// The bus subscription is already in place before this runs.
+func (h *Handler) writeHandshake(
+	r *http.Request, sse *sdk.ServerSentEventGenerator, owner, clientID string,
+) bool {
 	if aerr := dshelpers.AckStreamOpened(sse, clientID); aerr != nil {
-		return nil, "", false
+		return false
 	}
 	if perr := h.patchInbox(r.Context(), sse, owner); perr != nil {
 		h.logError(r, "notifications: stream handshake failed", perr)
-		return nil, "", false
+		return false
 	}
-	return sse, clientID, true
+	return true
 }
 
 // patchInbox re-reads the owner's inbox and patches the region. The stream

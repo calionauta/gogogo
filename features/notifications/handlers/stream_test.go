@@ -3,10 +3,12 @@ package handlers
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -131,5 +133,103 @@ func TestStreamRefusesAnonymous(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), "datastar") {
 		t.Fatalf("anonymous stream leaked an SSE frame: %s", rec.Body.String())
+	}
+}
+
+// gatedSSE blocks the handler at the handshake's inbox frame, so a test can
+// deliver in the window between "the client sees the initial state" and the
+// bus subscription. That window is exactly what the live-delivery test lost
+// under the race detector: the handler subscribed after writing the handshake.
+type gatedSSE struct {
+	mu       sync.Mutex
+	buf      bytes.Buffer
+	hdr      http.Header
+	gateOnce sync.Once
+	gate     chan struct{}
+	started  chan struct{}
+}
+
+func newGatedSSE() *gatedSSE {
+	return &gatedSSE{
+		hdr:     make(http.Header),
+		gate:    make(chan struct{}),
+		started: make(chan struct{}),
+	}
+}
+
+func (g *gatedSSE) Header() http.Header { return g.hdr }
+func (g *gatedSSE) WriteHeader(int)     {}
+func (g *gatedSSE) Flush()              {}
+
+func (g *gatedSSE) Write(p []byte) (int, error) {
+	g.mu.Lock()
+	n, err := g.buf.Write(p)
+	body := g.buf.String()
+	g.mu.Unlock()
+	if strings.Contains(body, "Nothing here yet.") {
+		g.gateOnce.Do(func() {
+			close(g.started)
+			<-g.gate
+		})
+	}
+	return n, err
+}
+
+func (g *gatedSSE) String() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.buf.String()
+}
+
+// TestStreamSubscribesBeforeTheHandshake is the deterministic form of the
+// live-delivery regression: the handler is stopped with the initial inbox
+// frame already written (the client's "ready"), a delivery is published, and
+// only then is it released. A subscription created after the handshake misses
+// that event; one created before it buffers the wake and patches the row.
+func TestStreamSubscribesBeforeTheHandshake(t *testing.T) {
+	h, q, _ := newFixture(t)
+	_, cookie := signedInServer(t, h, "order@demo.app")
+	u, err := q.GetUserByEmail(context.Background(), "order@demo.app")
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet,
+		"/api/notifications/stream?clientID=tab-test", nil)
+	req.AddCookie(cookie)
+	gate := newGatedSSE()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		h.handleStream(gate, req)
+	}()
+
+	select {
+	case <-gate.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler never wrote the initial inbox frame")
+	}
+	if err := h.Deliver(context.Background(), Delivery{
+		Owner: u.ID, TransactionID: "order:1", Workflow: "reminder",
+		Subject: "Delivered in the gap", Body: "must not be lost",
+	}); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+	close(gate.gate)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for !strings.Contains(gate.String(), "Delivered in the gap") {
+		if time.Now().After(deadline) {
+			t.Fatalf("delivery was lost between the handshake and the subscription:\n%s", gate.String())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler did not stop")
 	}
 }
