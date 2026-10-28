@@ -87,6 +87,15 @@ at `/console/` behind the same tunnel; the branded alias `/dagnats/`
 re-roots onto the same tree. The public demo does not list one, so the
 console is closed there.
 
+The account menu carries the console entry (`/dagnats/`) exactly when that
+fence would answer: a workflow engine was started in this binary, the session is
+an admin, and the address is listed in `ADMIN_EMAILS`. The composition root
+resolves it once per page (`internal/server/operator.go` → `ui.WithOperator`),
+so an admin who is not an operator — the published demo account — is not offered
+a link that 403s, and a trimmed build without the engine offers no link at all
+(the console mount stays as the scaffold anchor, so a config-only gate would
+advertise a proxy with no upstream).
+
 ## RBAC demo (viewer role)
 
 The Casbin demo needs no new page — it reuses the surfaces with two roles,

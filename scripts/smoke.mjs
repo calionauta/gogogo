@@ -395,6 +395,40 @@ async function verifyStructuralUi(page) {
   if (bad === 0) console.log("  \u2713 structural UI clean: names, overflow, panel geometry");
 }
 
+// verifyToastFeedback proves a server-patched confirmation is actually SEEN.
+// The element existing in #toast-container was never enough: the per-toast
+// signal was declared with a dotted key, Datastar 1.x read it as one literal
+// name while every expression read another, so `.open` never applied and the
+// toast sat at opacity 0 for its entire 3s life. Text-only assertions passed
+// the whole time. This one fails on exactly that shape.
+async function verifyToastFeedback(page) {
+  console.log("-> Checking a confirmation toast is visible...");
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+  const marker = `toast-visible-${Date.now()}`;
+  await page.fill('#todo-create input[name="title"]', marker);
+  await page.click('#todo-create button[type="submit"]');
+  try {
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector("#toast-container .toast-msg");
+        if (!el) return false;
+        const cs = getComputedStyle(el);
+        return el.classList.contains("open") && Number(cs.opacity) > 0.5;
+      },
+      undefined,
+      { timeout: 8000 },
+    );
+    console.log("  ✓ the \u201cAdded\u201d toast opens (open class + real opacity)");
+  } catch {
+    const state = await page.evaluate(() => {
+      const el = document.querySelector("#toast-container .toast-msg");
+      if (!el) return "no .toast-msg in #toast-container";
+      return `open=${el.classList.contains("open")} opacity=${getComputedStyle(el).opacity} signals=${el.getAttribute("data-signals")}`;
+    });
+    fail(`no visible toast after a todo create: ${state}`);
+  }
+}
+
 // Deliberately asserts on a MIDDLE substring: the default layer is the SQL
 // filter, and an exact-match regression would show up here as "no match".
 async function verifyTodoSearch(page) {
@@ -1730,7 +1764,7 @@ try {
   // Every module page offers the panel: the machinery is a property of the
   // module, not of /todo. A page that stops passing a Panel loses its toggle
   // silently otherwise.
-  for (const route of ["/todo", "/chat", "/review"]) {
+  for (const route of ["/todo", "/chat", "/review", "/notifications"]) {
     await page.goto(BASE + route, { waitUntil: "load", timeout: 20000 });
     if (!(await page.locator(".app-demo-toggle").first().isVisible())) {
       fail(`demo mode: ${route} has no panel toggle (did it stop passing a Panel?)`);
@@ -1741,6 +1775,8 @@ try {
   await verifyAccountMenu(page);
 
   await verifyStructuralUi(page);
+
+  await verifyToastFeedback(page);
 
   for (const skin of offlineSkins) {
     pageErrors.length = 0;

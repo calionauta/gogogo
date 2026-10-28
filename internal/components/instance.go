@@ -41,6 +41,7 @@ package components
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"maps"
 	"regexp"
 	"strings"
 )
@@ -90,6 +91,12 @@ func digest(s string) string {
 	return hex.EncodeToString(sum[:4])
 }
 
+// signalGroup is the object every signal of one instance lives under:
+// signalGroup("toast", "t1") → "g_toast_t1".
+func signalGroup(component, key string) string {
+	return signalPrefix + sanitizeInstance(component) + "_" + sanitizeInstance(key)
+}
+
 // Signal returns the full dotted signal name for one signal of one instance:
 // Signal("toast", "t1", "vis") → "g_toast_t1.vis".
 //
@@ -103,22 +110,24 @@ func digest(s string) string {
 // at render time would yield a different name on the next patch, orphaning the
 // signal.
 func Signal(component, key, name string) string {
-	return signalPrefix + sanitizeInstance(component) + "_" + sanitizeInstance(key) + "." + name
+	return signalGroup(component, key) + "." + name
 }
 
-// Signals keys a props map under the instance path, so `data-signals` declares
-// the whole group at once:
+// Signals builds the `data-signals` payload for one instance: the group as a
+// NESTED object, which is what the attribute declares.
 //
 //	data-signals={ SafeJSON(Signals("toast", toastID, map[string]any{"vis": false})) }
-//	// → {"g_toast_<id>.vis":false}
+//	// → {"g_toast_<id>":{"vis":false}}
 //
-// `data-signals` merges a JSON object by dot path, so a nested object would
-// also work; the flat keys are used because that is what the existing payloads
-// look like and because a flat map is what a request-body inspection shows.
+// It must nest. Datastar 1.x merges `data-signals` by walking OBJECT depth
+// (`{"a":{"b":1}}`), and compiles `$a.b` to `$["a"]["b"]`; it never splits a
+// dotted key. A flat `{"g_toast_<id>.vis":false}` therefore declared a signal
+// literally named `g_toast_<id>.vis`, while every expression read a different,
+// lazily-created `g_toast_<id>` — so the toast's `open` class never applied
+// and the element stayed at opacity 0 for the whole 3s it existed. The browser
+// smoke now pins that a real toast is VISIBLE, not merely in the DOM.
 func Signals(component, key string, kv map[string]any) map[string]any {
 	out := make(map[string]any, len(kv))
-	for name, v := range kv {
-		out[Signal(component, key, name)] = v
-	}
-	return out
+	maps.Copy(out, kv)
+	return map[string]any{signalGroup(component, key): out}
 }

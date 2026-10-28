@@ -68,7 +68,7 @@ func (h *Handler) handleRemind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "auth required", http.StatusUnauthorized)
 		return
 	}
-	if !h.wired() {
+	if !h.Wired() {
 		http.Error(w, "durable workflows are not wired in this build", http.StatusServiceUnavailable)
 		return
 	}

@@ -69,3 +69,30 @@ func TestRequireAdminIgnoresRBACFlag(t *testing.T) {
 		})
 	}
 }
+
+// TestIsOperator pins the predicate the console fence and the shell's menu
+// share. A case or whitespace difference in ADMIN_EMAILS must not be the
+// difference between "the operator sees their console" and "the menu is
+// empty", and an empty list must admit nobody.
+func TestIsOperator(t *testing.T) {
+	t.Parallel()
+	emails := []string{" Ops@Example.COM ", "second@example.com"}
+	cases := []struct {
+		name  string
+		email string
+		want  bool
+	}{
+		{"exact", "second@example.com", true},
+		{"case and space folded", "ops@example.com", true},
+		{"not listed", "demo1@demo.app", false},
+		{"empty session", "", false},
+	}
+	for _, tc := range cases {
+		if got := IsOperator(emails, tc.email); got != tc.want {
+			t.Errorf("%s: IsOperator(%q) = %v, want %v", tc.name, tc.email, got, tc.want)
+		}
+	}
+	if IsOperator(nil, "ops@example.com") {
+		t.Error("an empty ADMIN_EMAILS admits nobody")
+	}
+}

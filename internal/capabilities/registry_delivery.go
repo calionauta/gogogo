@@ -20,7 +20,9 @@ var deliveryUnits = []Capability{
 			"internal/ui/modules.go (Pinned), the rail count middleware and the " +
 			"session-stream feed in internal/server/inbox_badge.go plus their " +
 			"r.Use / SetSessionStreamExtras lines in internal/server/chi.go and " +
-			"internal/server/delivery.go, the badge refresh button in " +
+			"internal/server/delivery.go, the operator middleware's engine " +
+			"argument in chi.go (the console link reads this handler's Wired), " +
+			"the badge refresh button in " +
 			"internal/ui/inbox.templ and its route in the handler, the " +
 			"reminder definition in " +
 			"internal/dagnats/reminder.go, the reminder-seed and notification-deliver " +
