@@ -135,6 +135,7 @@ templ OfflineBanner(offlineSync bool, userEmail string) {
 		data-owner={ ownerKey(userEmail) }
 		data-class={ bannerClassExpr() }
 		data-init="window.GogogoOutbox && window.GogogoOutbox.setOwner(el.dataset.owner)"
+		data-on:load__window="if (!navigator.onLine) $bannerOnline = false"
 		data-on:online__window="$bannerOnline = true; window.GogogoOutbox && window.GogogoOutbox.drain(true)"
 		data-on:offline__window="$bannerOnline = false"
 		data-on:gogogo:outbox__window={ outboxEventExpr }

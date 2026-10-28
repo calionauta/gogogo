@@ -176,11 +176,13 @@ Both live in the same browser bucket, so an eviction takes them together. The
 journal is a crash journal, not a second source of truth.
 
 **A replay is at-least-once, and the server makes it exactly-once.** Every
-request carries its key as `Idempotency-Key`; the handler claims it in
-`op_receipts` **inside the same transaction** as the mutation (`applyOnce`). A
-second delivery finds the receipt and answers without re-running the effect. That
-is what makes a read-then-flip toggle safe to retry — before the receipt, a
-response lost after the commit made the replay flip the row back.
+request carries its key as `Idempotency-Key`, but only a mutation that is NOT
+idempotent by construction needs a receipt: `toggle` is a read-then-flip, so
+`applyOnce` claims its key in `op_receipts` **inside the same transaction** as the
+update, and a second delivery answers without re-running the effect. Delete and
+clear-completed are idempotent already (a replay 404s / re-deletes nothing), and
+create dedupes on `idem_key`; none of them pays for a receipt row. Before this,
+a response lost after the commit made the replay flip the row back.
 
 One drainer runs per origin: Web Locks elects it (`gogogo-outbox-drain`), and a
 BroadcastChannel fans the count to the other tabs. Without the lock (an older
@@ -244,8 +246,8 @@ the cache, not about losing writes.
 The todo create form attaches a fresh `idem_key` UUID to every submit.
 The create path looks up `(idem_key, owner)` and returns the existing
 row on a match, so a replay does not create a duplicate todo. Every other
-todo mutation carries an `Idempotency-Key` that `applyOnce` records in
-`op_receipts` in the same transaction as the change.
+todo mutation carries an `Idempotency-Key`; the one non-idempotent operation
+(toggle) records it in `op_receipts` in the same transaction as the change.
 
 The whiteboard needs no idempotency key for a different reason: a shape op is
 keyed by the shape's own id inside a LoroMap, so re-applying the same op resolves
@@ -355,7 +357,7 @@ attaches to it, so there is only one NATS process in the binary.
 Web clients store each mutation in a durable outbox before sending it and replay
 it while the app is open; the desktop build becomes a NATS Leaf Node that keeps
 its JetStream replica in sync while offline. Replays are deduplicated server-side
-(creates by `idem_key`, every other mutation by the `Idempotency-Key` receipt).
+(creates by `idem_key`, the non-idempotent toggle by the `Idempotency-Key` receipt).
 
 Set `OFFLINE_SYNC_ENABLED=false` for always-online deployments and **zero code
 paths are traversed** — the flag disables the NATS CRUD proxy and the page

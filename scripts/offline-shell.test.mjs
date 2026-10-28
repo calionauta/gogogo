@@ -330,6 +330,12 @@ try {
     await ctx.setOffline(true);
     await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
     await input(page).waitFor({ state: "visible", timeout: 15000 });
+    // COLD START OFFLINE: no online/offline event fires on a load that was
+    // already offline, so the banner must read navigator.onLine at `load`.
+    await waitFor(async () => {
+      const text = await page.locator("#offline-banner-text").textContent();
+      return (text || "").includes("Offline");
+    }, 10000, "the offline banner on a cold start");
     await ctx.setOffline(false);
     await ctx.close();
   });
