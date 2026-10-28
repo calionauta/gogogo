@@ -53,7 +53,7 @@ type pageUnderTest struct {
 // a caller depends on, not something a designer likes: a patch root, a signal
 // binding, an aria contract, or copy a render test already asserts.
 var pagesUnderTest = []pageUnderTest{
-	{name: "landing", route: "/", anon: true, must: []string{"Access demo site", `app-sound-toggle`}},
+	{name: "landing", route: "/", anon: true, must: []string{"Access demo site"}},
 	{name: "login", route: "/login", anon: true, must: []string{"Email", demo.Email}},
 	{name: "todo", route: "/todo", must: []string{
 		`id="todo-list"`,
@@ -63,7 +63,6 @@ var pagesUnderTest = []pageUnderTest{
 		// Every shell page that loads the sound runtime renders the rail's
 		// mute switch. A page added without it loses the one global control
 		// silently — that is how the inbox and account pages shipped.
-		`app-sound-toggle`,
 		// Two panel buttons, two sections: State opens the machinery, Stack
 		// the technology key. The split was a product request, so the header
 		// carrying both is a contract.
@@ -71,7 +70,6 @@ var pagesUnderTest = []pageUnderTest{
 		`data-panel-mode="stack"`,
 	}},
 	{name: "chat", route: "/chat", must: []string{
-		`app-sound-toggle`,
 		`id="chat-composer"`,
 		`for="chat-prompt"`,
 		`id="chat-messages"`,
@@ -83,7 +81,6 @@ var pagesUnderTest = []pageUnderTest{
 		`value="native"`,
 	}},
 	{name: "review", route: "/review", must: []string{
-		`app-sound-toggle`,
 		// The composer (review-composer / review-tab / review-content) is gated
 		// by signals.ReviewEnabled, which needs a real provider key; a stock
 		// boot (empty GOAI_API_KEY) renders the not-configured shape. Both
@@ -103,7 +100,6 @@ var pagesUnderTest = []pageUnderTest{
 	{name: "notifications", route: "/notifications", must: []string{
 		`id="inbox"`,
 		`id="inbox-stream"`,
-		`app-sound-toggle`,
 		"Nothing here yet.",
 	}},
 	// net-status lives on the DOC page (/notes/{id}), not the list: the list
@@ -111,12 +107,10 @@ var pagesUnderTest = []pageUnderTest{
 	{name: "notes", route: "/notes", must: []string{`id="notes-list"`, `app-sound-toggle`}},
 	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`, `app-sound-toggle`}},
 	{name: "account", route: "/account", must: []string{
-		`app-sound-toggle`,
 		"Sessions",
 		"Two-factor authentication",
 	}},
 	{name: "config", route: "/config", must: []string{
-		`app-sound-toggle`,
 		"Runtime view + admin actions.",
 		"Access control (Casbin).",
 		"Users",
@@ -220,6 +214,14 @@ func fetchPage(t *testing.T, base string, c *http.Cookie, route string) string {
 	return string(body)
 }
 
+// soundsWired reports whether the trimmable sounds unit is present in this
+// tree. The page contract runs inside installer presets, where the unit (and
+// therefore the rail's mute) is legitimately gone.
+func soundsWired() bool {
+	_, err := os.Stat(filepath.Join("..", "..", "features", "sounds", "plugin.templ"))
+	return err == nil
+}
+
 // TestPagesContract fails when a route stops serving what callers depend on.
 func TestPagesContract(t *testing.T) {
 	base, cookie := bootPages(t)
@@ -230,7 +232,15 @@ func TestPagesContract(t *testing.T) {
 				c = nil
 			}
 			body := fetchPage(t, base, c, p.route)
-			for _, want := range p.must {
+			must := p.must
+			// The rail's mute comes from the trimmable sounds unit. A tree
+			// without it has no switch to assert (room never had one: its
+			// capability ships no sound runtime), so the page contract only
+			// holds the line where the unit is present.
+			if soundsWired() && p.name != "room" && p.name != "login" {
+				must = append(must, "app-sound-toggle")
+			}
+			for _, want := range must {
 				if !strings.Contains(body, want) {
 					t.Errorf("%s: missing %q (a revamp changed a contract — "+
 						"either restore it or update this table and the test that pins it)", p.route, want)
