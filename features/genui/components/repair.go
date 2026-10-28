@@ -236,15 +236,44 @@ func toRaw(v any) []rawDirective {
 // the props or inside them (where the envelope shape invites everything).
 // The child keys are removed from props so the catalog's strict prop
 // decoding still applies to what is left.
+//
+// Two shape slips are lifted here, both observed from a live model asked about
+// the user's own data:
+//
+//   - the type as the KEY (`{"todo_list":{"filter":"all"}}`), which is the
+//     envelope read as a map of component names. It used to reach the chat
+//     bubble as "the model asked for an unnamed component";
+//   - props inlined beside the type (`{"type":"todo_list","filter":"all"}`),
+//     which strict prop decoding saw as an empty props object.
+//
+// Neither can invent a component or a field: the lifted name must be
+// registered and the lifted props still go through the catalog's strict
+// decoder, so anything the component does not declare fails closed. The
+// shape is recovered; the content is still validated.
 func fromObject(o map[string]any) rawDirective {
-	d := rawDirective{Type: asString(o["type"])}
-	if props, ok := o["props"].(map[string]any); ok {
+	d := rawDirective{Type: asString(o[keyType])}
+	if d.Type == "" {
+		if name, inner, ok := nameAsKey(o); ok {
+			d.Type = name
+			o = inner
+		}
+	}
+	if props, ok := o[keyProps].(map[string]any); ok && props != nil {
 		d.Props = make(map[string]any, len(props))
 		maps.Copy(d.Props, props)
 	} else {
 		d.Props = map[string]any{}
+		if d.Type != "" {
+			for key, value := range o {
+				switch key {
+				case keyType, keyProps, keyChildren, keyComponents:
+					continue
+				}
+				d.Props[key] = value
+			}
+		}
 	}
-	for _, key := range []string{"children", "components"} {
+	for _, key := range []string{keyChildren, keyComponents} {
 		kids := o[key]
 		if kids == nil {
 			kids = d.Props[key]
@@ -253,6 +282,34 @@ func fromObject(o map[string]any) rawDirective {
 		delete(d.Props, key)
 	}
 	return d
+}
+
+// nameAsKey reports the type-as-key shape: no "type" field, and exactly one
+// object-valued key whose name the catalog knows. The name must be registered
+// (aliases included), so an object that is only props — or a name nobody
+// installed — is left alone and still fails closed downstream.
+func nameAsKey(o map[string]any) (string, map[string]any, bool) {
+	if _, has := o["type"]; has {
+		return "", nil, false
+	}
+	var (
+		name  string
+		inner map[string]any
+	)
+	for key, value := range o {
+		obj, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		if name != "" {
+			return "", nil, false // two object keys: ambiguous, do not guess
+		}
+		name, inner = key, obj
+	}
+	if name == "" || !Registered(name) {
+		return "", nil, false
+	}
+	return name, inner, true
 }
 
 // asString reads a node's type field; anything else is the empty string,

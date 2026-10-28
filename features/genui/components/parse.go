@@ -50,9 +50,10 @@ type rawDirective struct {
 // with retry).
 //
 // Strict JSON is tried first, so a well-formed answer decodes exactly as
-// encoding/json would decode it and no tolerance can bend it. Only when
-// that fails does the tolerant reader take over, and it feeds the SAME
-// catalog validation — it can recover a shape, never invent a component.
+// encoding/json would decode it — plus the two structural lifts documented at
+// parseStrictRaw, which still end in the catalog. Only when that fails does the
+// tolerant reader take over, and it feeds the SAME catalog validation — it can
+// recover a shape, never invent a component.
 func ParseDirectives(raw string) ([]Directive, error) {
 	body := stripFences(strings.TrimSpace(raw))
 	if dirs, err := parseStrict(body); err == nil {
@@ -92,13 +93,20 @@ func DroppedCount(errs []error) int {
 // parseStrictRaw extracts the model's component list without validating it:
 // the shape half of parseStrict, so lenient conversion reuses the same
 // reading and can never disagree about what the answer contained.
+//
+// Each component is decoded twice at most: once into rawDirective (the wire
+// shape), and — only when the type is missing or props are absent — once into
+// a generic object, so fromObject can lift the two shape slips models make
+// (type-as-key, props inlined beside the type). A component that decoded
+// cleanly is never re-read, so a well-formed answer keeps the exact
+// encoding/json semantics the strict path promises.
 func parseStrictRaw(body string) ([]rawDirective, error) {
 	start, end := strings.IndexByte(body, '{'), strings.LastIndexByte(body, '}')
 	if start < 0 || end <= start {
 		return nil, ErrNoEnvelope
 	}
 	var envelope struct {
-		Components []rawDirective `json:"components"`
+		Components []json.RawMessage `json:"components"`
 	}
 	if err := json.Unmarshal([]byte(body[start:end+1]), &envelope); err != nil {
 		return nil, fmt.Errorf("genui: decode directives: %w", err)
@@ -106,7 +114,21 @@ func parseStrictRaw(body string) ([]rawDirective, error) {
 	if len(envelope.Components) == 0 {
 		return nil, ErrNoEnvelope
 	}
-	return envelope.Components, nil
+	out := make([]rawDirective, 0, len(envelope.Components))
+	for _, item := range envelope.Components {
+		var c rawDirective
+		if err := json.Unmarshal(item, &c); err != nil {
+			return nil, fmt.Errorf("genui: decode directives: %w", err)
+		}
+		if c.Type == "" || c.Props == nil {
+			var obj map[string]any
+			if json.Unmarshal(item, &obj) == nil {
+				c = fromObject(obj)
+			}
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }
 
 // convertAll validates a directive list, stopping at the first failure.
@@ -132,12 +154,29 @@ func convertAll(raw []rawDirective) ([]Directive, error) {
 // unbounded string is a way to smuggle a wall of text into the thread.
 const maxCatchAllTypeLen = 64
 
+// Directive keys, named once: the strict decoder, the tolerant builder and the
+// children bridge all spell them, and "components" is both the envelope key
+// and one of the two child slots models use.
+const (
+	keyType       = "type"
+	keyProps      = "props"
+	keyChildren   = "children"
+	keyComponents = "components"
+)
+
 // ConvertLenient validates each top-level directive independently, for the
 // Chat leg: valid components render, unknown types become a text_note
 // catch-all naming what was asked for (CopilotKit's useDefaultRenderTool),
 // and undecodable props are dropped with their error. It fails only when
 // nothing usable remains — a half-rendered answer beats a prose fallback
 // that hides the parts the model got right.
+//
+// An UNNAMED directive is the one gap the catch-all cannot describe: there is
+// no name to put in the bubble, so "the model asked for an unnamed component"
+// reached a live user and read as an app error. It is counted as a failure
+// instead, which gives the repair loop its one retry ("component has no
+// type" is actionable); a retry that never finds a name degrades to Chat's
+// readable fallback rather than an internal sentence.
 //
 // Strict ParseDirectives stays the contract for shape errors worth a repair
 // retry; lenient is what Chat renders with after the loop.
@@ -151,7 +190,8 @@ func ConvertLenient(raw []rawDirective) ([]Directive, []error) {
 				name = name[:maxCatchAllTypeLen] + "…"
 			}
 			if strings.TrimSpace(name) == "" {
-				name = "an unnamed component"
+				errs = append(errs, errors.New(`genui: component has no "type"`))
+				continue
 			}
 			dirs = append(dirs, Directive{
 				Component: "text_note",
@@ -216,7 +256,7 @@ func rawComponents(body string) ([]rawDirective, error) {
 // the field the model actually got wrong, instead of "unknown field
 // children" from a struct that was never meant to carry it.
 func childrenFromProps(props map[string]any) ([]rawDirective, bool, error) {
-	for _, key := range []string{"children", "components"} {
+	for _, key := range []string{keyChildren, keyComponents} {
 		raw, ok := props[key]
 		if !ok || raw == nil {
 			continue

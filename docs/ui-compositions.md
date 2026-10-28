@@ -125,9 +125,19 @@ Counts, verdicts and statuses are DaisyUI `badge` with a semantic colour
 (`badge-primary`, `badge-success`, `badge-error`). A role or a mode reads as a
 badge too — `badge badge-sm`.
 
+A **grouped status card** (the `/config` runtime view) lists several states
+under captions, one aligned row per item: label on the left, DaisyUI `status`
+dot plus the state WORD on the right. The dot is decoration — the word carries
+the meaning, so colour is never the only signal. Put a summary badge in the
+card head (`1 needs attention` / `nothing to fix`) and keep the per-item hint in
+`title`.
+
 **Do not** put `badge` on an element and then strip `padding`, `border` and
 `background` in a scoped rule: that is a custom component wearing the library's
-class name, and the next reader believes it is a badge.
+class name, and the next reader believes it is a badge. **Do not** print eight
+identical `Label: state` badges in a `flex-wrap` row: posture and capability
+become indistinguishable, and the strip reads as a tag cloud (the reported
+`/config` status).
 
 ## 7. Transient feedback (toast)
 

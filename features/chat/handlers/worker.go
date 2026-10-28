@@ -138,12 +138,7 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 	// Fallback carries the whole raw answer inside its single text_note:
 	// Text stays empty so the bubble renders once (text + component with
 	// the same content rendered everything twice).
-	text := ""
-	if !fallback && len(dirs) == 1 && dirs[0].Component == "text_note" {
-		if t, ok := dirs[0].Props["text"].(string); ok {
-			text = t
-		}
-	}
+	text, dirs := singleNoteAsProse(dirs, fallback)
 	answer := store.Message{
 		Owner: p.UserID, Role: roleAssistant, Text: text,
 		Components: dirs, IdemKey: p.Idem + "#answer", Created: time.Now(),
@@ -157,6 +152,23 @@ func (h *Handler) handleChatJob(ctx context.Context, hub *queue.SSEHub, job queu
 		Text: text, Directives: dirs, IDPrefix: store.IDPrefix(answer),
 	})
 	return nil
+}
+
+// singleNoteAsProse promotes a lone text_note answer to the message text and
+// drops the card, so the bubble renders the sentence once. A valid single note
+// IS prose; keeping both rendered the same words twice — as the paragraph and
+// again under a "Note" heading (reported live, and visible in the transcript
+// that motivated this). The fallback keeps its component: it is the
+// deterministic path, and it never carries Text at all.
+func singleNoteAsProse(dirs []comp.Directive, fallback bool) (string, []comp.Directive) {
+	if fallback || len(dirs) != 1 || dirs[0].Component != "text_note" {
+		return "", dirs
+	}
+	text, _ := dirs[0].Props["text"].(string)
+	if text == "" {
+		return "", dirs
+	}
+	return text, nil
 }
 
 // effectiveSurfaces resolves the job's surface choice, or the handler default

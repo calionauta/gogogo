@@ -93,6 +93,20 @@
         "btn-circle"
       ],
       "doc": "docs/ui-compositions.md#7-transient-feedback-toast"
+    },
+    {
+      "id": "status-card",
+      "title": "Grouped status card",
+      "when": "several runtime states listed at once (the /config view): posture beside capability",
+      "avoid": "a flex-wrap row of identical `Label: state` badges \u2014 it reads as a tag cloud",
+      "source": "features/config/components/page.templ",
+      "shows": [
+        "ui-card",
+        "status",
+        "status-sm",
+        "badge-soft"
+      ],
+      "doc": "docs/ui-compositions.md#6-state-inline"
     }
   ]
 }

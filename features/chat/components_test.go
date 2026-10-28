@@ -161,6 +161,42 @@ func TestChatThreadFragmentCarriesNoContainerID(t *testing.T) {
 	}
 }
 
+// TestChatCounterTracksTheLiveThread pins the reported "Messages 0": the demo
+// panel printed the page-load count forever, so an answer already in the
+// thread still read as zero messages. The signal is seeded from history, the
+// appended fragment steps it, and server-rendered history must NOT step it.
+func TestChatCounterTracksTheLiveThread(t *testing.T) {
+	t.Parallel()
+	var page bytes.Buffer
+	msgs := []store.MessageView{{Role: "user", Text: "hi"}, {Role: "assistant", Text: "there"}}
+	if err := chatcomponents.ChatIndex(
+		"a@b.c", "user", "dev", "", msgs, true, true, true, true,
+	).Render(context.Background(), &page); err != nil {
+		t.Fatalf("ChatIndex: %v", err)
+	}
+	html := html2.UnescapeString(page.String())
+	if !strings.Contains(html, `"chat_messages":2`) {
+		t.Errorf("page did not seed $chat_messages from history")
+	}
+	if !strings.Contains(html, `data-text="$chat_messages"`) {
+		t.Errorf("state panel still prints a baked-in message count")
+	}
+
+	var live, history bytes.Buffer
+	if err := chatcomponents.LiveThread(nil, "").Render(context.Background(), &live); err != nil {
+		t.Fatalf("LiveThread: %v", err)
+	}
+	if !strings.Contains(live.String(), `data-init="$chat_messages++"`) {
+		t.Errorf("appended fragment does not step the counter")
+	}
+	if err := chatcomponents.ChatThread(nil, "").Render(context.Background(), &history); err != nil {
+		t.Fatalf("ChatThread: %v", err)
+	}
+	if strings.Contains(history.String(), "chat_messages++") {
+		t.Errorf("server-rendered history steps the counter (it would double on reload)")
+	}
+}
+
 // TestChatStatePanelStepsDisagree pins the reported bug: the middle step
 // never lit (no Done expression) and the first step claimed done on an
 // empty thread (Done: !$chat_thinking is true when idle). The contract:

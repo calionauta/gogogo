@@ -4,4 +4,4 @@ data-bind cmdQuery
 data-on data-on:click data-on:close data-on:submit
 signals cmdQuery inboxUnread loading railOpen sessionAuthed theme
 aria aria-autocomplete aria-controls aria-current aria-expanded aria-haspopup aria-hidden aria-label aria-labelledby aria-live
-tags a=23 aside=1 body=1 button=16 caption=14 code=63 details=1 dialog=1 div=54 footer=1 form=7 h1=1 h2=12 h3=2 head=1 header=1 html=2 input=14 kbd=3 label=3 li=20 link=3 main=1 meta=2 nav=2 option=9 p=13 path=21 script=11 section=13 select=3 span=116 strong=4 style=3 summary=1 svg=21 table=14 tbody=14 td=168 th=56 thead=14 title=1 tr=57 ul=3
+tags a=23 aside=1 body=1 button=16 caption=14 code=62 details=1 dialog=1 div=63 footer=1 form=7 h1=1 h2=13 h3=5 head=1 header=1 html=2 input=14 kbd=3 label=3 li=20 link=3 main=1 meta=2 nav=2 option=9 p=13 path=21 script=11 section=17 select=3 span=139 strong=2 style=3 summary=1 svg=21 table=14 tbody=14 td=168 th=56 thead=14 title=1 tr=57 ul=3

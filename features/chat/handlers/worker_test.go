@@ -127,6 +127,56 @@ func TestWorkerPersistsBothSides(t *testing.T) {
 	}
 }
 
+// TestWorkerPromotesASingleNoteToProse pins the reported duplication: a valid
+// single text_note answer rendered its sentence twice in one bubble — as the
+// message paragraph and again under the "Note" card heading. A lone note IS
+// prose, so it is stored as Text with no component left to render. Revert the
+// promotion and the stored answer carries both.
+func TestWorkerPromotesASingleNoteToProse(t *testing.T) {
+	t.Parallel()
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+	mem := newMemStore()
+
+	raw := `{"components":[{"type":"text_note","props":{"text":"one sentence"}}]}`
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{raw: raw}}
+	payload, _ := json.Marshal(map[string]string{"prompt": "hi", "userId": "u1", "idem": "k-note"})
+	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
+
+	if err := h.handleChatJob(context.Background(), hub, job); err != nil {
+		t.Fatalf("handleChatJob: %v", err)
+	}
+	msgs, err := mem.List(context.Background(), "u1")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	answer := msgs[1]
+	if answer.Text != "one sentence" {
+		t.Fatalf("Text = %q, want the note promoted to prose", answer.Text)
+	}
+	if len(answer.Components) != 0 {
+		t.Fatalf("Components = %+v, want none (the same text would render twice)", answer.Components)
+	}
+	select {
+	case rawEnv := <-ch:
+		var j queue.Job
+		if err := json.Unmarshal(rawEnv, &j); err != nil {
+			t.Fatalf("decode job: %v", err)
+		}
+		var env chatEnvelope
+		if err := json.Unmarshal(j.Payload, &env); err != nil {
+			t.Fatalf("decode envelope: %v", err)
+		}
+		if env.Text != "one sentence" || env.Directives != nil {
+			t.Fatalf("live envelope = %+v, want text only", env)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no answer envelope on hub channel")
+	}
+}
+
 // TestWorkerScopesOwners proves tenant isolation: tabs of another user
 // never see these messages, even on a shared hub.
 func TestWorkerScopesOwners(t *testing.T) {
@@ -271,6 +321,48 @@ func TestWorkerDeliversComponentsForMalformedAnswer(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no chat envelope arrived on hub channel")
+	}
+}
+
+// TestWorkerRendersTheReportedTodoShape is the reported transcript end to end:
+// asked "o que tenho de tarefas?", the live model answered with the component
+// name as the key. The stored answer must carry the hydrated todo_list panel —
+// not the "the model asked for an unnamed component" bubble the user saw.
+// Red-proof: revert the shape lift and the stored answer is the fallback prose.
+func TestWorkerRendersTheReportedTodoShape(t *testing.T) {
+	t.Parallel()
+	if err := comp.InstallPanelRegistry([]comp.PanelProvider{stubPanel{}}); err != nil {
+		t.Fatalf("install panel registry: %v", err)
+	}
+	hub := queue.NewSSEHub()
+	ch := make(chan []byte, 8)
+	hub.Register("c1", "u1", ch)
+	defer hub.Unregister("c1")
+	mem := newMemStore()
+
+	raw := `{"components":[{"todo_list":{"filter":"open"}}]}`
+	h := &Handler{hub: hub, store: mem, responder: stubResponder{raw: raw}}
+	payload, _ := json.Marshal(map[string]string{
+		"prompt": "o que tenho de tarefas?", "userId": "u1", "idem": "k-shape",
+	})
+	job := queue.Job{Type: "chat_ask", ClientID: "c1", Payload: payload}
+
+	if err := h.handleChatJob(context.Background(), hub, job); err != nil {
+		t.Fatalf("handleChatJob: %v", err)
+	}
+	msgs, err := mem.List(context.Background(), "u1")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	answer := msgs[1]
+	if answer.Text != "" {
+		t.Fatalf("Text = %q, want the panel to be the answer", answer.Text)
+	}
+	if len(answer.Components) != 1 || answer.Components[0].Component != "todo_list" {
+		t.Fatalf("Components = %+v, want the hydrated todo_list panel", answer.Components)
+	}
+	if got, _ := answer.Components[0].Props["filter"].(string); got != "open" {
+		t.Fatalf("filter = %q, want open (the model's slice survived the lift)", got)
 	}
 }
 

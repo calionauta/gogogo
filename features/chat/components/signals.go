@@ -28,6 +28,11 @@ type Signals struct {
 	ChatEmpty    bool   `json:"chat_empty"`    //nolint:tagliatelle // public Datastar signal name, do not rename
 	ChatReady    bool   `json:"chat_ready"`    //nolint:tagliatelle // public Datastar signal name, do not rename
 	ChatWorking  string `json:"chat_working"`  //nolint:tagliatelle // public Datastar signal name, do not rename
+	// ChatMessages is the thread's bubble count, seeded from the server-rendered
+	// history and stepped by each appended fragment. Without it the demo panel
+	// printed the page-load count forever (a live answer sat in the thread while
+	// the stat still said 0).
+	ChatMessages int `json:"chat_messages"` //nolint:tagliatelle // public Datastar signal name, do not rename
 }
 
 // MarshalSignals renders Signals for data-signals. Never fails the page:

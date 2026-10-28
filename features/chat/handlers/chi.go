@@ -39,6 +39,7 @@ const (
 	signalChatError    = "chat_error"
 	signalChatReady    = "chat_ready"
 	signalChatWorking  = "chat_working"
+	signalChatMessages = "chat_messages"
 )
 
 // chatEnvelope is the worker → tab envelope: answer text, rendered
@@ -280,7 +281,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	//nolint:contextcheck // ends in datastar-go sinks, which take no context;
 	// a disconnect surfaces as a write error.
 	if err := dshelpers.RenderAndPatch(sse,
-		chatcomponents.ChatThread([]store.MessageView{{Role: roleUser, Text: prompt}}, ""),
+		chatcomponents.LiveThread([]store.MessageView{{Role: roleUser, Text: prompt}}, ""),
 		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend()); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
 		observability.Error(r.Context(), "chat: prompt echo failed", obsArgs...)
@@ -311,6 +312,7 @@ func (h *Handler) handleClear(w http.ResponseWriter, r *http.Request) {
 		signalChatThinking: false,
 		signalChatError:    "",
 		signalChatWorking:  "",
+		signalChatMessages: 0,
 		"chat_empty":       true,
 	}); err != nil {
 		obsArgs := append(observability.WithComponent("chat", "feature"), "error", err)
@@ -428,7 +430,7 @@ func (h *Handler) dispatchStreamMessage(sse *sdk.ServerSentEventGenerator, msg [
 	}
 	comps := renderDirectivesWithPrefix(p.Directives, p.IDPrefix)
 	view := store.MessageView{Role: roleAssistant, Text: p.Text, Components: comps}
-	return dshelpers.RenderAndPatch(sse, chatcomponents.ChatThread([]store.MessageView{view}, ""),
+	return dshelpers.RenderAndPatch(sse, chatcomponents.LiveThread([]store.MessageView{view}, ""),
 		sdk.WithSelector("#chat-messages"), sdk.WithModeAppend())
 }
 

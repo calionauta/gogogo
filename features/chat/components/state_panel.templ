@@ -10,6 +10,10 @@
 //   - empty thread ($chat_empty): all pending — nothing happened yet.
 //   - thinking ($chat_thinking): accepted done, model active, streamed pending.
 //   - settled (!$chat_thinking && !$chat_empty): all done.
+//
+// The Message stat reads $chat_messages (seeded from the server-rendered
+// history, stepped by LiveThread): a number baked at page load said 0 while an
+// answer was already in the thread.
 package components
 
 import (
@@ -49,7 +53,7 @@ templ ChatStatePanel(msgs int) {
 				<div class="stats stats-horizontal shadow-sm border border-base-200 w-full mt-1">
 					<div class="stat px-3 py-2">
 						<div class="stat-title text-xs">Messages</div>
-						<div class="stat-value text-sm font-mono">{ strconv.Itoa(msgs) }</div>
+						<div class="stat-value text-sm font-mono" data-text="$chat_messages">{ strconv.Itoa(msgs) }</div>
 					</div>
 					<div class="stat px-3 py-2">
 						<div class="stat-title text-xs">Transport</div>
