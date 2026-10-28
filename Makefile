@@ -688,6 +688,7 @@ site-check:
 # longer matches the bytes it names. Same implementation the pre-commit
 # docs-claims job and CI run (they call `go run ./cmd/check-docs` directly).
 check-docs:
+	@node --check site/docsite.config.mjs
 	@go run ./cmd/check-docs
 
 # Rewrites the README page index from the site MANIFEST instead of checking

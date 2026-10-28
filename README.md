@@ -94,6 +94,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 - [ui-engine-research](docs/research/ui-engine-research.md) — The 2026-10-21 engine and component-library evaluation behind the UI stack, with local benchmarks and the Rocket assessment.
 - [ui-components](docs/research/ui-components-2026-10-21.md) — The 2026-10-21 comparison of DaisyUI, Starbase, datastar-ui and dsx on Datastar, SSE, lightness, performance, functionality and forkability.
 - [supply-chain-scanning](docs/research/supply-chain-scanning-2026.md) — The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate.
+- [native-kernels](docs/research/native-kernels-2026-10.md) — The 2026-10-25 native-kernel PoCs: FNV-1a tie vs grayscale survivor, SIMD verbs audit, loader prices, Rust/Odin probes.
 - [browser-automation](docs/research/browser-automation-2026-10.md) — chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down.
 - [notify](docs/research/notify-2026-10.md) — The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits.
 
