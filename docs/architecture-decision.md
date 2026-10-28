@@ -275,10 +275,11 @@ The choice is one outbox in the page (`web/resources/static/offline-outbox.js`):
   synchronously and returns its key in the same tick; the IndexedDB copy is
   started immediately and the journal entry is cleared only after it commits.
   `localStorage` is the crash journal, IndexedDB the durable store.
-- **At-least-once with exactly-once effects.** Every request carries
-  `Idempotency-Key`; `op_receipts` is claimed in the SAME transaction as the
-  mutation (`applyOnce`). A read-then-flip toggle stopped being safe to retry
-  the moment the design started retrying it.
+- **At-least-once with exactly-once effects.** Every request carries an
+  `Idempotency-Key`, and the one operation that is not idempotent by
+  construction (a read-then-flip toggle) claims it in `op_receipts` in the SAME
+  transaction as the change (`applyOnce`). Delete and clear re-apply harmlessly;
+  create dedupes on `idem_key`.
 - **One drainer.** Web Locks elects it, BroadcastChannel fans the count. The
   previous code had no inter-tab or inter-instance lock at all; two SW instances
   could replay the same entry concurrently.

@@ -212,8 +212,9 @@ were rejected for a *capability* reason, not a speed one:
 | full smoke run | 8.9s | — | — |
 
 Lightpanda has no `serviceWorker` and no Cache Storage — its own README
-`Status` list omits both — so the offline path (Service Worker + IndexedDB
-outbox + replay on reconnect) cannot run at all. ghostchrome drives real
+`Status` list omits both — so the offline path (the service-worker page
+cache plus the page outbox in IndexedDB, replayed on reconnect) cannot run at
+all. ghostchrome drives real
 Chrome and is ~300× faster per call, but exposes **no** offline-emulation verb,
 and `scripts/smoke.mjs` calls `context.setOffline(true)` seven times; it is
 also a CLI, not a library, so it cannot assert in-page JS state.

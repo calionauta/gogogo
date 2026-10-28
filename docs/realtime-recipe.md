@@ -133,10 +133,10 @@ text.
 6. **Failure release**: server-owned spinners need a client-side release
    for dead requests: `data-on:datastar-fetch` error stages on the form
    (reference: chat composer). Also release when the action SETTLES
-   (`.then`/`.catch`): a Service Worker can answer `204` for a queued
-   mutation with no follow-up message, and a spinner that waits for that
-   message (or for an error event that never fires) locks the UI until
-   reload (reference: the todo create form).
+   (`.then`/`.catch`): a write is durable in the outbox before the request
+   leaves, so the request can settle with no UI follow-up at all, and a
+   spinner that waits for a queue message (or for an error event that never
+   fires) locks the UI until reload (reference: the todo create form).
 
 ## Global state and the connection budget
 
