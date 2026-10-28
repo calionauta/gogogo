@@ -51,7 +51,7 @@ func TestCreatedFilterUsesCallyCalendarAndRowDates(t *testing.T) {
 
 	var row bytes.Buffer
 	item := todo.Todo{ID: "1", Title: "dated", CreatedAt: time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)}
-	if err := TodoItem(item).Render(context.Background(), &row); err != nil {
+	if err := TodoItem(item, TodoRowActions{}).Render(context.Background(), &row); err != nil {
 		t.Fatalf("render item: %v", err)
 	}
 	if !strings.Contains(row.String(), `data-created="2026-10-21"`) {

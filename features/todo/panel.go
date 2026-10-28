@@ -1,15 +1,17 @@
-// SCOPE:feature — the todo data shapes the app's own panel exposes.
+// SCOPE:feature — the todo panel's filter vocabulary.
 //
-// These used to live in features/genui/components/catalog.go, which made the
+// This used to live in features/genui/components/catalog.go, which made the
 // generative-UI plugin the owner of a feature's data shapes (and gave it a
 // filter list it had no way to validate). The panel seam is provider-based, so
-// the shapes belong to the feature that owns the page: the catalog knows names
-// and props in the abstract, never what a todo is.
+// the vocabulary belongs to the feature that owns the page: the catalog knows
+// names and props in the abstract, never what a todo is.
 //
 // The MODEL-FACING panel name is not declared here: the provider that owns it
 // returns it from `Component()` (features/todo/handlers/genui_panel.go), and a
-// second constant would be a second spelling of one name. These are the DATA
-// shapes only.
+// second constant would be a second spelling of one name. The panel's ROW shape
+// is todo.Todo — deliberately not a "panel row" type: the panel renders the
+// same TodoItem as the page, and a reduced shape is how the first panel lost
+// the shared badge, the author, the age and the delete gate.
 //
 // To remove: delete with features/todo/.
 package todo
@@ -73,12 +75,4 @@ var ListFilters = []string{FilterOpen, FilterDone, FilterAll}
 // feature, so a panel and the page validate against the same list.
 func FilterValid(filter string) bool {
 	return slices.Contains(ListFilters, filter)
-}
-
-// PanelRows is the panel's rendered view of one row: the app's truth, filled
-// server-side by the panel provider and never supplied by the model.
-type PanelRows struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Done  bool   `json:"done"`
 }

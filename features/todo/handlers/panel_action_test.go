@@ -18,6 +18,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calionauta/gogogo/features/todo"
 	todoscomp "github.com/calionauta/gogogo/features/todo/components"
@@ -142,6 +143,44 @@ func TestPanelDeletePatchesPanelInPlace(t *testing.T) {
 	}
 }
 
+// TestPanelTabsRefreshTheSlice pins the panel's own slice control: the tabs
+// ask the list route with the panel's slot id, so a wrong model pick (or a
+// second look at the same answer) is one click from the right rows without a
+// trip to /todo and without touching the page's #todo-list.
+func TestPanelTabsRefreshTheSlice(t *testing.T) {
+	f := newHandlersFixture(t)
+	cookie := f.signup("panel-tabs@example.com")
+	owner := panelOwnerID(t, f, cookie)
+	_ = panelRowID(t, f, cookie, owner, "open row")
+	doneID := panelRowID(t, f, cookie, owner, "done row")
+	if rec := f.do(http.MethodPost, "/api/todos/"+doneID+"/toggle?filter=all", "", cookie); rec.Code != http.StatusOK {
+		t.Fatalf("complete row: status = %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	const target = "genui-paneltabs1"
+	rec := f.do(http.MethodGet, "/api/todos?filter=done&_target="+target+"&clientID=chat-tab-1", "", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("panel tab status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	body := html.UnescapeString(rec.Body.String())
+	for _, want := range []string{
+		"selector #" + target,
+		"done row",
+		`id="` + target + `-delete"`, // the shared modal, scoped to the panel
+		"tab tab-active",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("panel tab refresh missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "open row") {
+		t.Errorf("filter=done still rendered the open row:\n%s", body)
+	}
+	if strings.Contains(body, "selector #todo-list") {
+		t.Errorf("a panel tab must not patch the page list:\n%s", body)
+	}
+}
+
 // TestPanelDeleteForbiddenStaysRejected pins that _target buys no rights: a
 // viewer deleting another login's shared row gets the in-place failure card
 // (same slot, visible), never a panel re-render and never a silent 403 the
@@ -236,25 +275,41 @@ func TestPanelToggleMissingRowRefreshesPanel(t *testing.T) {
 	}
 }
 
-// TestPanelRendersInteractiveControls pins the markup half: the panel owns
-// real toggle/delete posts carrying its slot id and slice. The previous
-// read-only panel rendered neither, so a revert of panel.templ fails here
-// before any HTTP runs.
+// TestPanelRendersInteractiveControls pins the markup half: the panel renders
+// the feature's own TodoItem (so toggle/delete are real posts carrying the
+// slot id and slice) and the same deleteConfirmModal as /todo. The previous
+// read-only panel rendered neither, and the first interactive version
+// reimplemented both.
+//
+// Red-proof: revert panel.templ to its own row markup and the todo-item id,
+// the shared modal id, or the `_target` confirm URL goes missing.
 func TestPanelRendersInteractiveControls(t *testing.T) {
 	const id = "genui-panelrender1"
 	var buf strings.Builder
-	rows := []todo.PanelRows{{ID: "row-1", Title: "Buy milk", Done: false}}
+	rows := []todo.Todo{{
+		ID: "row-1", Title: "Buy milk", IsMine: true, CanDelete: true,
+		CreatedAt: time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC),
+	}}
 	if err := todoscomp.Panel(id, "all", rows).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("render panel: %v", err)
 	}
 	got := html.UnescapeString(buf.String())
 	for _, want := range []string{
 		`id="` + id + `"`,
+		// TodoItem's own row identity/appearance, not a panel copy.
+		`id="genui-panelrender1-todo-row-1"`,
+		`class="todo-item`,
+		`data-created="2026-10-21"`,
+		// TodoItem's toggle, aimed at the panel slot and slice.
 		"/api/todos/row-1/toggle",
-		"/api/todos/row-1/delete",
 		"_target=" + id,
 		"filter=all",
 		"Buy milk",
+		// The SAME confirmation dialog as the page, scoped to this panel,
+		// whose confirm reads the row the trash put in the signal.
+		`id="` + id + "-delete" + `"`,
+		"'/api/todos/' + $confirmingDeleteId_genui_panelrender1 + '/delete",
+		"_target=" + id,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("panel markup missing %q:\n%s", want, got)

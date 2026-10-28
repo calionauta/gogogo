@@ -111,7 +111,7 @@ templ TodoList(signals todo.Signals) {
 
 			</div><!-- /grid -->
 
-			@deleteConfirmModal()
+			@deleteConfirmModal(pageDeleteModalSpec())
 		@clearCompletedModal()
 		</div>
 
@@ -298,9 +298,32 @@ templ TodoListRegion(signals todo.Signals) {
 			</div>
 		}
 		for _, item := range signals.Todos {
-			@TodoItem(item)
+			@TodoItem(item, pageRowActions(item))
 		}
 	</div>
+}
+
+// deleteDialogID is the page's single confirmation dialog. The panel scopes
+// its own dialog id by the panel instance; both render the SAME
+// deleteConfirmModal component, so the copy, the buttons and the close
+// behaviour cannot drift between the two surfaces.
+const deleteDialogID = "confirm-delete-modal"
+
+// pageRowActions is the /todo half of TodoItem: the URL carries the page's
+// filter/scope signals and the trash opens the page's shared dialog.
+func pageRowActions(item todo.Todo) TodoRowActions {
+	return TodoRowActions{
+		IDPrefix: "todo-",
+		Toggle: todoMutateOn("'/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '')"),
+		Delete: "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById(" + safeJSString(deleteDialogID) + ").showModal()",
+	}
+}
+
+// pageDeleteConfirmExpr is the confirm button's action on /todo: the row id
+// and title ride the signals the trash set, and the list slice rides the
+// page's filter/scope signals.
+func pageDeleteConfirmExpr() string {
+	return todoMutateOn("'/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')")
 }
 
 // SuggestionsList renders the AI-suggested completions as clickable
@@ -363,12 +386,6 @@ func safeJSString(s string) string {
 	return strconv.Quote(s)
 }
 
-// deleteConfirmModal renders the single DaisyUI dialog used for every
-// delete confirmation. Driven by the $confirmingDeleteId signal: when
-// it's non-empty, the modal opens and the user picks Cancel or
-// Confirm. Confirm fires `@post('/api/todos/<id>/delete')` and the
-// broadcaster patches every client. Single modal instance handles
-// every row — far simpler than per-row dialogs.
 // clearCompletedModal asks before a bulk delete. "Clear my completed" posted
 // immediately: one click removed every completed todo in the view, with no undo
 // and no confirmation, while a single-row delete already asked.
@@ -397,8 +414,35 @@ templ clearCompletedModal() {
 	</dialog>
 }
 
-templ deleteConfirmModal() {
-	<dialog id="confirm-delete-modal" class="modal" data-on:close="$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false">
+// deleteModalSpec is everything deleteConfirmModal needs that differs by
+// surface. The component owns the markup; the spec keeps a second dialog from
+// being written (the Chat panel used to duplicate it per row).
+type deleteModalSpec struct {
+	ID           string
+	ConfirmExpr  string
+	PendingID    string
+	PendingTitle string
+}
+
+// pageDeleteModalSpec is /todo: the page's shared signals and list URL.
+func pageDeleteModalSpec() deleteModalSpec {
+	return deleteModalSpec{
+		ID:           deleteDialogID,
+		ConfirmExpr:  pageDeleteConfirmExpr(),
+		PendingID:    "$confirmingDeleteId",
+		PendingTitle: "$confirmingDeleteTitle",
+	}
+}
+
+// deleteConfirmModal is the ONE confirmation dialog: /todo and a Chat
+// panel both render it, each through a deleteModalSpec that names the dialog
+// id, the confirm URL and the two "which row is pending" signals. The PANEL
+// scopes those signal names to its instance, so two answers on one thread
+// cannot share a pending row (a shared name would let one panel's dialog
+// confirm the other panel's row). The markup, copy, buttons and close
+// behaviour are one definition.
+templ deleteConfirmModal(spec deleteModalSpec) {
+	<dialog id={ spec.ID } class="modal" data-on:close={ spec.PendingID + " = ''; " + spec.PendingTitle + " = ''; $deleting = false" }>
 		<div class="modal-box">
 			<h3 class="font-bold text-lg text-error flex items-center gap-2">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -407,14 +451,14 @@ templ deleteConfirmModal() {
 				Delete this todo?
 			</h3>
 			<p class="py-4 text-sm">
-				This will permanently remove <span class="font-semibold" data-text="$confirmingDeleteTitle"></span>.
+				This will permanently remove <span class="font-semibold" data-text={ spec.PendingTitle }></span>.
 				This can't be undone.
 			</p>
 			<div class="modal-action">
 				<button
 					type="button"
 					class="btn btn-ghost btn-sm"
-					data-on:click="document.getElementById('confirm-delete-modal').close()">
+					data-on:click={ "document.getElementById(" + safeJSString(spec.ID) + ").close()" }>
 					Cancel
 				</button>
 				<button
@@ -422,7 +466,7 @@ templ deleteConfirmModal() {
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
 					data-attr:disabled="!!$deleting"
-					data-on:click={ "$deleting = true; document.getElementById('confirm-delete-modal').close(); " + todoMutateOn("'/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')") }>
+					data-on:click={ "$deleting = true; document.getElementById(" + safeJSString(spec.ID) + ").close(); " + spec.ConfirmExpr }>
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>
 						<span class="loading loading-spinner loading-xs" data-show="$deleting"></span>
@@ -431,7 +475,7 @@ templ deleteConfirmModal() {
 			</div>
 		</div>
 		<form method="dialog" class="modal-backdrop">
-			<button data-on:click="document.getElementById('confirm-delete-modal').close()">close</button>
+			<button data-on:click={ "document.getElementById(" + safeJSString(spec.ID) + ").close()" }>close</button>
 		</form>
 	</dialog>
 }

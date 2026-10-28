@@ -11,6 +11,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -114,6 +115,12 @@ func (p *TodoPanel) Writable() []string { return []string{"filter"} }
 // ListTodosByOwner — deliberately not the page's visibility-scoped query,
 // because a panel answering "my todos" must never become a window onto
 // someone else's shared board.
+//
+// The rows are the SAME todo.Todo the page renders (not a reduced row shape)
+// because the panel renders the same TodoItem: the shared badge, the author,
+// the age and the delete affordance all come from the row's server-stamped
+// fields. Own-only rows are always deletable by their owner (canDeleteRow),
+// so the viewer gate is computed with the same rule instead of assumed.
 func (p *TodoPanel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
 	// Normalize first, then write the normalized value through: the renderer
 	// re-validates (the history path reaches it without Fill), so storing the
@@ -127,7 +134,7 @@ func (p *TodoPanel) Fill(ctx context.Context, owner string, props map[string]any
 	if err != nil {
 		return nil, fmt.Errorf("todo: list for genui panel: %w", err)
 	}
-	out := make([]todo.PanelRows, 0, len(rows))
+	out := make([]todo.Todo, 0, len(rows))
 	for _, r := range rows {
 		switch filter {
 		case "open":
@@ -139,7 +146,13 @@ func (p *TodoPanel) Fill(ctx context.Context, owner string, props map[string]any
 				continue
 			}
 		}
-		out = append(out, todo.PanelRows{ID: r.ID, Title: r.Title, Done: r.Completed})
+		item, terr := toTodo(r)
+		if terr != nil {
+			return nil, fmt.Errorf("todo: map row for genui panel: %w", terr)
+		}
+		item.IsMine = owner != "" && item.Owner == owner
+		item.CanDelete = canDeleteRow("", owner, item)
+		out = append(out, item)
 	}
 	filled["rows"] = out
 	return filled, nil
@@ -228,28 +241,37 @@ func (p *TodoPanel) Render(props map[string]any) (templ.Component, error) {
 // panelRowsFromProps decodes the `rows` prop in the shapes it actually reaches
 // Render in.
 //
-// Fill writes []todo.PanelRows, and a page render (or a panel action) sees
-// exactly that. The live Chat patch is different: the worker's answer crosses
-// the queue and the SSE wire as JSON, so encoding/json hands Render
-// []any of map[string]any. The typed assertion alone used to fail there and
-// painted "No todos to show here" over a panel the store had filled correctly
-// — while a reload, which rendered the stored typed props, showed the rows.
-// That split is the reported "the answer had no todos until I refreshed".
-func panelRowsFromProps(props map[string]any) []todo.PanelRows {
+// Fill writes []todo.Todo, and a page render (or a panel action) sees exactly
+// that. The live Chat patch is different: the worker's answer crosses the
+// queue and the SSE wire as JSON, so encoding/json hands Render []any of
+// map[string]any. The typed assertion alone used to fail there and painted
+// "No todos to show here" over a panel the store had filled correctly — while
+// a reload, which rendered the stored typed props, showed the rows. That split
+// is the reported "the answer had no todos until I refreshed".
+//
+// Each wire row decodes through todo.Todo's own JSON tags, so the row shape
+// has one definition (the same one the page's JSON would use) instead of a
+// second hand-written field list here.
+func panelRowsFromProps(props map[string]any) []todo.Todo {
 	switch rows := props["rows"].(type) {
-	case []todo.PanelRows:
+	case []todo.Todo:
 		return rows
 	case []any:
-		out := make([]todo.PanelRows, 0, len(rows))
+		out := make([]todo.Todo, 0, len(rows))
 		for _, raw := range rows {
 			row, ok := raw.(map[string]any)
 			if !ok {
 				continue
 			}
-			id, _ := row["id"].(string)
-			title, _ := row["title"].(string)
-			done, _ := row["done"].(bool)
-			out = append(out, todo.PanelRows{ID: id, Title: title, Done: done})
+			blob, merr := json.Marshal(row)
+			if merr != nil {
+				continue
+			}
+			var item todo.Todo
+			if uerr := json.Unmarshal(blob, &item); uerr != nil {
+				continue
+			}
+			out = append(out, item)
 		}
 		return out
 	default:

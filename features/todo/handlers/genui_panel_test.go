@@ -44,13 +44,13 @@ func TestTodoPanelFillListsTheOwnersRows(t *testing.T) {
 
 	p := NewTodoPanel(f.h.Q)
 
-	rows := func(props map[string]any) []todo.PanelRows {
+	rows := func(props map[string]any) []todo.Todo {
 		t.Helper()
 		out, ferr := p.Fill(ctx, owner, props)
 		if ferr != nil {
 			t.Fatalf("Fill(%v): %v", props, ferr)
 		}
-		got, ok := out["rows"].([]todo.PanelRows)
+		got, ok := out["rows"].([]todo.Todo)
 		if !ok {
 			t.Fatalf("Fill(%v) returned no rows slice: %#v", props, out)
 		}
@@ -82,7 +82,7 @@ func TestTodoPanelFillListsTheOwnersRows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Fill for another owner: %v", err)
 	}
-	got, ok := out["rows"].([]todo.PanelRows)
+	got, ok := out["rows"].([]todo.Todo)
 	if !ok {
 		t.Fatalf("Fill for another owner returned no rows slice: %#v", out)
 	}

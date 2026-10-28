@@ -8278,6 +8278,14 @@
       --tab-p: 0.5rem;
       --tab-radius-min: calc(0.5rem - var(--border));
     }
+    .tabs-xs {
+      --tab-height: calc(var(--size-field, 0.25rem) * 6);
+    }
+    .tabs-xs > .tab {
+      font-size: 0.75rem;
+      --tab-p: 0.375rem;
+      --tab-radius-min: calc(0.5rem - var(--border));
+    }
     .badge-sm {
       --size: calc(var(--size-selector, 0.25rem) * 5);
       font-size: 0.75rem;

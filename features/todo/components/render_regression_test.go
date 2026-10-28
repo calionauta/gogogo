@@ -21,10 +21,10 @@ func TestRender_TodoItemCheckboxReflectsCompleted(t *testing.T) {
 	open := todo.Todo{ID: "def456", Title: "still open", Completed: false}
 
 	var bDone, bOpen bytes.Buffer
-	if err := TodoItem(done).Render(context.Background(), &bDone); err != nil {
+	if err := TodoItem(done, pageRowActions(done)).Render(context.Background(), &bDone); err != nil {
 		t.Fatalf("render done item: %v", err)
 	}
-	if err := TodoItem(open).Render(context.Background(), &bOpen); err != nil {
+	if err := TodoItem(open, pageRowActions(open)).Render(context.Background(), &bOpen); err != nil {
 		t.Fatalf("render open item: %v", err)
 	}
 	if !strings.Contains(bDone.String(), "checked") {
@@ -54,7 +54,7 @@ func TestRender_TodoItemServerStampedAffordances(t *testing.T) {
 		Owner: "u1", OwnerEmail: "mate@example.com", IsMine: false, CanDelete: false,
 	}
 	var bShared bytes.Buffer
-	if err := TodoItem(shared).Render(context.Background(), &bShared); err != nil {
+	if err := TodoItem(shared, pageRowActions(shared)).Render(context.Background(), &bShared); err != nil {
 		t.Fatalf("render shared item: %v", err)
 	}
 	html := bShared.String()
@@ -72,7 +72,7 @@ func TestRender_TodoItemServerStampedAffordances(t *testing.T) {
 		Owner: "me", IsMine: true, CanDelete: true,
 	}
 	var bMine bytes.Buffer
-	if err := TodoItem(mine).Render(context.Background(), &bMine); err != nil {
+	if err := TodoItem(mine, pageRowActions(mine)).Render(context.Background(), &bMine); err != nil {
 		t.Fatalf("render own item: %v", err)
 	}
 	if !strings.Contains(bMine.String(), "showModal()") {
@@ -101,7 +101,8 @@ func TestRender_MutationURLsPreserveSlice(t *testing.T) {
 	if err := TodoList(signals).Render(context.Background(), &bList); err != nil {
 		t.Fatalf("render TodoList: %v", err)
 	}
-	if err := TodoItem(signals.Todos[0]).Render(context.Background(), &bItem); err != nil {
+	first := signals.Todos[0]
+	if err := TodoItem(first, pageRowActions(first)).Render(context.Background(), &bItem); err != nil {
 		t.Fatalf("render TodoItem: %v", err)
 	}
 	// The realtime resync path renders separately (Layout mounts it once
