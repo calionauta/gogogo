@@ -169,7 +169,7 @@ Full rules: `references/datastar.md`.
 - Prefer Datastar attrs (`data-on:*`, signals, `__window`/`__document`) over vanilla JS. Intentional attrs go in `.datastar-lint.yaml` (`attributes.allowed`).
 - **A `data-bind` signal is client-owned — never write it from a server response.** Linted by `datastar-lint` (`CLIENT_BOUND_SIGNAL_*`), not prose: all six write forms are checked (four Go, two mark-up). Preferred fix: keep the field off the wire (`json:"-"`) and seed the signal from the input's `value=`. The two traps the lint cannot see are in `references/datastar.md` § Rules 7.
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
-- **A new SSE endpoint must be added to `web/resources/static/sw.js` `SKIP_PATTERNS`.** The service worker intercepts `/api/*`; an unlisted stream is swallowed and never delivers. The inbox stream (`/api/notifications/stream`) is the reference.
+- **The service worker never touches `/api/*`.** It caches navigations only, so a stream cannot be swallowed and there is no skip list to maintain (`TestServiceWorkerNeverInterceptsAPI`). Offline writes belong to `web/resources/static/offline-outbox.js`: store the intent BEFORE the request, send its key as `Idempotency-Key`, and let the server's `applyOnce` receipt dedupe the replay. A second queue — in the worker or a page — is the failure mode that design removed.
 
 ## Where new code goes (read this before creating a file)
 

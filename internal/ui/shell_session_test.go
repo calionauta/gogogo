@@ -4,6 +4,8 @@ package ui
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 
@@ -35,8 +37,14 @@ func TestShellRecoversAnExpiredSession(t *testing.T) {
 			t.Errorf("shell missing the expired-session recovery %q", want)
 		}
 	}
-	// The banner hashes this into the queue owner, so it must reach the page.
-	if !strings.Contains(html, `data-user-email="user@example.com"`) {
-		t.Error("shell did not pass the session email to the offline banner")
+	// The banner hashes the email into the queue owner: the HASH reaches the
+	// page, never the address. The shell also seeds the banner's signals in a
+	// scope the account menu's sign-out can read.
+	sum := sha256.Sum256([]byte("user@example.com"))
+	if !strings.Contains(html, `data-owner="`+hex.EncodeToString(sum[:])+`"`) {
+		t.Error("shell did not pass the hashed owner to the offline banner")
+	}
+	if !strings.Contains(html, "bannerCount") {
+		t.Error("shell did not seed the banner signals the sign-out reads")
 	}
 }

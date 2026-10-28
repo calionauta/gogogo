@@ -7,57 +7,89 @@
 
 //
 
+// The banner is DECLARATIVE: Datastar owns the state, the copy and the classes.
+
+// The durable outbox publishes counts and outcomes as window events, and the
+
+// attributes below turn them into signals — there is no banner script. The one
+
+// thing the page still has to do imperatively is hash the owner; the server does
+
+// that here, so the browser never sees the email and the outbox is stamped
+
+// before the first drain.
+
+//
+
+// Signals (seeded by the shell, internal/ui.shellSignals — the account menu's
+
+// sign-out reads bannerCount from outside this subtree):
+
+//   bannerOnline   navigator.onLine, seeded true and driven by online/offline
+
+//   bannerCount    intents waiting in the outbox
+
+//   bannerAuth     the drain reached the server and the session is gone
+
+//   bannerSyncing  a drain pass is running
+
+//   bannerDrop     changes that will never be saved (with bannerDropWhy)
+
+//
+
+// The STATE WORD (dropped | needs-auth | offline | syncing | queued | online) is
+
+// never stored: the class is a boolean object over the PRIMITIVE signals and the
+
+// copy is a ternary over the same ones. A derived `$bannerState` was tried and
+
+// removed — `data-computed` read by data-class on the same element was undefined
+
+// at init, and `data-effect` writing it re-ran the effect on its own DOM write
+
+// until the renderer stopped responding. Read-only bindings cannot do that.
+
+//
+
+// The outbox bridge is BroadcastChannel-backed: a page that RECEIVES a count
+
+// updates only its own banner (emitLocal). Re-announcing from onmessage makes
+
+// every tab re-broadcast every message — measured at ~5,500 events in three
+
+// seconds with two notes tabs, which pegged a renderer and hung the notes suite.
+
+//
+
 // Two modes, controlled by the offlineSync arg:
 
 //
 
 //   - offlineSync=true  (default deployment, OFFLINE_SYNC_ENABLED unset)
 
-//       States: online (hidden), syncing (info), queued / needs-auth (warning),
+//       States: online (hidden), syncing (info), queued / needs-auth
 
-//       offline (warning), stale (error). The SW posts
+//       (warning), offline (warning). The copy is honest about WHAT is stored:
 
-//       {sync-start|sync-end|sync-error|sync-auth} messages that drive the
+//       "queued" means a durable intent exists in this browser, and the offline
 
-//       state — see web/resources/static/sw.js.
+//       sentence says how many are waiting. Nothing here claims a background
 
-//
-
-//       The offline copy is honest about WHO is listening: "changes are queued"
-
-//       only when a Service Worker controls this page. With no controller the
-
-//       banner says the queue is not active and asks for a reload, because a
-
-//       write made now would fail. The reload also answers a second failure
-
-//       mode: a worker older than the page (it keeps the policy it imported at
-
-//       install time), which the policy-version handshake detects and shows as
-
-//       "stale".
+//       sync the platform cannot deliver (Background Sync is Chromium-only).
 
 //
 
 //   - offlineSync=false (OFFLINE_SYNC_ENABLED=false)
 
-//       Two states: online (hidden), offline (warning, honest copy
+//       The flag disables the app-shell CACHE and the cross-instance CRUD
 
-//       "online-only — requests will fail when network is down"). The
+//       proxy; the write path is unchanged (the outbox has always run on every
 
-//       SW message bridge is omitted entirely (no SW is registered in
+//       page). The copy says "page cache disabled" instead of claiming that
 
-//       this mode, so the listener would never fire and would only
+//       requests will fail, and a worker from an earlier deployment is retired
 
-//       produce dead code + console noise).
-
-//
-
-// Both modes fall back to navigator.onLine for the coarse online /
-
-// offline signal, so users still see *something* on browsers / pages
-
-// where the SW did not register.
+//       by OutboxRetireScript below.
 
 package components
 
@@ -66,15 +98,87 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "strconv"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strconv"
+	"strings"
+)
 
-import "github.com/calionauta/gogogo/web/resources"
+// ownerKey is the per-account stamp the outbox stores with every intent. It is
+// a hash so the browser never holds the address as a queue key, and it is
+// computed HERE so the page needs no crypto code: a replay may only touch
+// entries for the account signed in now (shared-device safety).
+func ownerKey(email string) string {
+	v := strings.ToLower(strings.TrimSpace(email))
+	if v == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(v))
+	return hex.EncodeToString(sum[:])
+}
 
-// OfflineBanner renders the sticky top banner for transport state. Pass
-// offlineSync=false to switch to honest online-only copy when the SW +
-// queue are disabled. userEmail is hashed in the browser and sent to the
-// service worker as the queue owner, so a queued mutation can never replay
-// into another account on a shared device.
+// bannerStateExpr folds the transport facts into one word. Precedence matters:
+// a lost change (dropped) outranks everything — it is the only state the user
+// must ACT on and it must stay visible after the queue empties; a dead session
+// outranks "offline", because signing in is the only action that helps; a
+// running pass outranks "queued" so the user sees progress, not a static count.
+func bannerStateExpr() string {
+	return `($bannerDrop > 0 ? 'dropped' : ($bannerAuth ? 'needs-auth' : (!$bannerOnline ? 'offline' : ($bannerSyncing ? 'syncing' : ($bannerCount > 0 ? 'queued' : 'online')))))`
+}
+
+// bannerClassExpr derives the container's state class from the PRIMITIVE
+// signals with plain booleans. It is read-only: a signal written by the same
+// element that binds it was the shape that wedged the renderer (see the header).
+func bannerClassExpr() string {
+	dropped := "!($bannerDrop > 0)"
+	return `{` +
+		`'is-dropped': $bannerDrop > 0, ` +
+		`'is-needs-auth': ` + dropped + ` && $bannerAuth, ` +
+		`'is-offline': ` + dropped + ` && !$bannerAuth && !$bannerOnline, ` +
+		`'is-syncing': ` + dropped + ` && !$bannerAuth && $bannerOnline && $bannerSyncing, ` +
+		`'is-queued': ` + dropped + ` && !$bannerAuth && $bannerOnline && !$bannerSyncing && $bannerCount > 0, ` +
+		`'is-online': ` + dropped + ` && !$bannerAuth && $bannerOnline && !$bannerSyncing && !($bannerCount > 0)` +
+		`}`
+}
+
+// outboxEventExpr is the ONE bridge between the outbox and the banner. The
+// outbox knows nothing about markup; this knows nothing about storage.
+const outboxEventExpr = `$bannerCount = evt.detail.count; ` +
+	`$bannerSyncing = evt.detail.replaying === true; ` +
+	`if (evt.detail.auth) $bannerAuth = true; ` +
+	`if (evt.detail.dropped) { $bannerDrop = evt.detail.dropped; $bannerDropWhy = evt.detail.reason === 'other-account' ? ' (queued by another account)' : evt.detail.reason === 'stale' ? ' (older than a week)' : evt.detail.reason === 'rejected' ? ' (the server refused it)' : ''; }`
+
+// dropTextExpr names what was lost. A change that will never be saved must say
+// so: an inline alert (not a toast) because it is an error the user has to
+// read, and it stays until dismissed.
+const dropTextExpr = `$bannerDrop + ($bannerDrop === 1 ? ' change' : ' changes') + ' couldn\'t be saved' + $bannerDropWhy`
+
+// bannerTextExpr is the one place the copy lives per mode. Every sentence is
+// TRUE of the transport it describes: "queued" means a durable intent exists
+// in this browser, and "offline" without a count means nothing was stored.
+func bannerTextExpr(offlineSync bool) string {
+	st := bannerStateExpr()
+	if !offlineSync {
+		// The flag disables the page CACHE and the cross-instance CRUD proxy,
+		// not the write path: the outbox runs on every page (it always did), so
+		// claiming "requests will fail" would be a lie. Say what is actually off.
+		return st + " === 'online' ? 'Online'" +
+			` : ($bannerCount > 0 ? ('Offline — page cache disabled; ' + $bannerCount + ($bannerCount === 1 ? ' change' : ' changes') + ' queued in this tab')` +
+			` : 'Offline — page cache disabled; new changes are stored and sync when you reconnect')`
+	}
+	one := `($bannerCount === 1 ? ' change' : ' changes')`
+	return st + " === 'online' ? 'Online'" +
+		` : ` + st + " === 'syncing' ? 'Syncing changes…'" +
+		` : ` + st + " === 'needs-auth' ? 'Changes queued — sign in to sync'" +
+		` : ` + st + ` === 'queued' ? ($bannerCount + ` + one + ` + ' — retrying sync…')` +
+		` : ($bannerCount > 0 ? ('Offline — ' + $bannerCount + ` + one + ` + ' queued in this tab; they sync when you reconnect')` +
+		` : 'Offline — nothing queued; new changes are stored and sync when you reconnect')`
+}
+
+// OfflineBanner renders the sticky top banner for transport state. offlineSync
+// selects the live-queue copy vs the cache-disabled copy; userEmail is hashed
+// into the outbox owner key (never rendered).
 func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -96,61 +200,160 @@ func OfflineBanner(offlineSync bool, userEmail string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"offline-banner\" class=\"app-banner\" data-component=\"offline-banner\" data-offline-sync=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"offline-banner\" class=\"app-banner is-online\" data-component=\"offline-banner\" data-offline-sync=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(offlineSync))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 46, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 134, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-user-email=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-owner=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(userEmail)
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ownerKey(userEmail))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 47, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 135, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-on:online__window=\"window.__gogogoBannerOnline()\" data-on:offline__window=\"window.__gogogoBannerOffline()\" data-on:visibilitychange__document=\"window.__gogogoBannerVisible()\" aria-live=\"polite\"><span id=\"offline-banner-text\">Online</span> <a id=\"offline-banner-signin\" href=\"/login\" hidden>Sign in</a></div><style>\n\t\t#offline-banner.is-online {\n\t\t\t\tdisplay: none;\n\t\t\t}\n\t\t#offline-banner.is-syncing {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #3b82f6;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-queued,\n\t\t#offline-banner.is-needs-auth {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-offline {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-stale {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #dc2626;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t</style><script nonce=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" data-class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(bannerClassExpr())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 82, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 136, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" defer src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-init=\"window.GogogoOutbox && window.GogogoOutbox.setOwner(el.dataset.owner)\" data-on:online__window=\"$bannerOnline = true; window.GogogoOutbox && window.GogogoOutbox.drain(true)\" data-on:offline__window=\"$bannerOnline = false\" data-on:gogogo:outbox__window=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(resources.StaticURL("offline-banner.js"))
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(outboxEventExpr)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 82, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 140, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-on:gogogo:synced__window=\"$bannerCount = 0; $bannerAuth = false; $bannerSyncing = false\" aria-live=\"polite\"><span id=\"offline-banner-text\" data-show=\"!($bannerDrop > 0)\" data-text=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(bannerTextExpr(offlineSync))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 144, Col: 103}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"></span> <a id=\"offline-banner-signin\" class=\"hidden\" data-show=\"$bannerAuth && !($bannerDrop > 0)\" data-attr:href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(`'/login?next=' + encodeURIComponent(location.pathname + location.search)`)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 149, Col: 94}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" href=\"/login\">Sign in</a> <span id=\"offline-banner-drop\" class=\"hidden\" data-class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(`{'hidden': !($bannerDrop > 0)}`)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 152, Col: 93}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><span data-text=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(dropTextExpr)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 153, Col: 33}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"></span> <button type=\"button\" class=\"btn btn-ghost btn-xs\" data-on:click=\"$bannerDrop = 0\">dismiss</button></span></div><style>\n\t\t#offline-banner.is-online {\n\t\t\t\tdisplay: none;\n\t\t\t}\n\t\t#offline-banner.is-syncing {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #3b82f6;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-queued,\n\t\t#offline-banner.is-needs-auth {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-offline {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #f59e0b;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t\t#offline-banner.is-dropped {\n\t\t\t\tdisplay: block;\n\t\t\t\tbackground-color: #dc2626;\n\t\t\t\tcolor: #ffffff;\n\t\t\t}\n\t</style>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// OutboxRetireScript is the online-only mode's cleanup: a registration outlives
+// the flag and keeps serving cached pages this mode must not claim. It is the
+// only script left in the offline surface, and it runs once.
+func OutboxRetireScript(enabled bool) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var10 == nil {
+			templ_7745c5c3_Var10 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		if !enabled {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<script nonce=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/offline_banner.templ`, Line: 190, Col: 37}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">\n\t\t\tif ('serviceWorker' in navigator) {\n\t\t\t\tnavigator.serviceWorker.getRegistrations().then(function (regs) {\n\t\t\t\t\tregs.forEach(function (reg) { reg.unregister(); });\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t\tif (window.caches) {\n\t\t\t\tcaches.keys().then(function (keys) {\n\t\t\t\t\tkeys.forEach(function (key) { caches.delete(key); });\n\t\t\t\t}).catch(function () {});\n\t\t\t}\n\t\t</script>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		return nil
 	})

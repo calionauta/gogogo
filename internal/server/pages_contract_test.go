@@ -253,7 +253,11 @@ func TestPagesContract(t *testing.T) {
 var (
 	rePageID   = regexp.MustCompile(`\sid="([^"]*)"`)
 	rePageBind = regexp.MustCompile(`data-bind="([^"]*)"`)
-	rePageOn   = regexp.MustCompile(`\s(data-on:[a-z:]+)=`)
+	// `_` is part of the name: a modifier (`__prevent`, `__window`,
+	// `__debounce.300ms`) sits between the event and `=`, and a class that
+	// stopped at [a-z:] made every modified handler invisible — the digest
+	// could not see a submit handler at all once both forms used __prevent.
+	rePageOn   = regexp.MustCompile(`\s(data-on:[a-z:_]+)=`)
 	rePageSig  = regexp.MustCompile(`\$([a-zA-Z_][a-zA-Z0-9_]*)`)
 	rePageAria = regexp.MustCompile(`\s(aria-[a-z]+)=`)
 	rePageTag  = regexp.MustCompile(`<([a-z][a-z0-9]*)`)

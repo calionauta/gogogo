@@ -169,17 +169,6 @@ var genuiTrimUnits = []trimUnit{
 				},
 			},
 			{
-				// The Service Worker's stream-exclusion list names the chat
-				// stream; the line goes with the unit or the shipped SW
-				// watches a route nothing serves. The trimmed tree's route
-				// gate catches exactly that. One-way (sw.js has no add
-				// anchor): re-add by hand, see addFollowUps.
-				path: "web/resources/static/sw.js",
-				substrs: []string{
-					`"/api/chat/stream", // chat`,
-				},
-			},
-			{
 				// The server test's chat imports and handler constructions
 				// go as line drops; the mux table's "/chat" element goes too
 				// (one element per line, so combined trims stay

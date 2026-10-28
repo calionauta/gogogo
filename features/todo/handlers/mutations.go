@@ -275,9 +275,16 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := dbschema.Now()
-	if serr := h.Q.SetTodoCompletedByID(ctx, dbgen.SetTodoCompletedByIDParams{
-		Completed: !current.Completed, Updated: now, ID: id,
-	}); serr != nil {
+	// The toggle is a read-then-flip, so it is NOT idempotent: a replayed
+	// intent (the outbox resends after a lost response) would flip the row
+	// straight back. applyOnce claims the intent's key in the same
+	// transaction as the update, so the second delivery is a no-op.
+	applied, serr := h.applyOnce(r, owner, func(ctx context.Context, q *dbgen.Queries) error {
+		return q.SetTodoCompletedByID(ctx, dbgen.SetTodoCompletedByIDParams{
+			Completed: !current.Completed, Updated: now, ID: id,
+		})
+	})
+	if serr != nil {
 		// trim-genui:panel:start (toggle save)
 		serr = fmt.Errorf("id %s: %w", id, serr)
 		if h.answerPanelWriteErr(w, r, target,
@@ -285,6 +292,12 @@ func (h *Handler) handleToggle(w http.ResponseWriter, r *http.Request) {
 			return
 		} // trim-genui:panel:end
 		h.fail(r.Context(), w, "todo: toggle save failed", serr, "toggle failed")
+		return
+	}
+	if !applied {
+		// The first delivery already applied this intent and published its
+		// record event. A second patch or broadcast would duplicate both.
+		writeText(w, http.StatusOK, "replayed")
 		return
 	}
 

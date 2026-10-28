@@ -43,7 +43,7 @@ listed as removable units rather than hidden behind an API.
 - **You who get tired of configuring the same stack over and over.**
 - **You who want everything in one binary, no services to run, no
   Docker required.** One self-contained file, environment-independent.
-- **You who need offline-first resilience.** A Service Worker + Background Sync
+- **You who need offline-first resilience.** A durable outbox + app-shell cache
   queue (web) and a NATS Leaf Node (desktop) let clients keep working without
   a connection and replay mutations on reconnect, with server-side idempotency
   so replays never duplicate.

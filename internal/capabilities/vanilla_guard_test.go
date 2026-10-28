@@ -35,9 +35,10 @@ type vanillaAllowed struct {
 // vanillaAllow pins every legitimate vanilla island. Each reason was
 // proven against the primitive list — a new entry needs the same proof.
 var vanillaAllow = map[string][]vanillaAllowed{
-	// The SW postMessage bridge moved to web/resources/static/offline-banner.js
-	// (it is a transport state machine, not markup). Static .js files are not
-	// scanned by this guard, which only inspects .templ islands.
+	// The transport banner is declarative now (internal/components/
+	// offline_banner.templ: Datastar signals, no script), so it needs no
+	// allowlist row. Static .js files are not scanned by this guard, which
+	// only inspects .templ islands.
 	// Drawer focus trap (internal/ui/shell.templ): Datastar owns $railOpen
 	// state and every dismissal path (Escape, backdrop, destination tap), but
 	// no Datastar primitive cycles Tab inside an open drawer or moves focus

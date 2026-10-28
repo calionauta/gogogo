@@ -1,21 +1,20 @@
 // offline-policy.js — the ONE definition of "the request did not complete"
 // and of how a retry backs off, shared by the three offline writers:
 //
-//   - the Service Worker queue          web/resources/static/sw.js
+//   - the todo outbox                   web/resources/static/offline-outbox.js
 //   - the notes op outbox               features/notes/static/notes.js
 //   - the whiteboard op outbox          features/whiteboard/static/whiteboard.js
 //
-// The three keep their own QUEUES on purpose: the worker survives a closed tab
-// and owns the todo endpoints, while notes and whiteboard carry ops that need
-// their own storage and conflict rules (Loro merge, 409 correction). The
-// POLICY must not fork, which is how a gateway 5xx was transient for the
-// worker's replay but a "poison batch" for the notes client — the same answer
-// ate the user's typing in one place and retried in the other.
+// The three keep their own QUEUES on purpose: todo entries are independent
+// requests, while notes and whiteboard carry ops that need their own storage
+// and conflict rules (Loro merge, 409 correction). The POLICY must not fork,
+// which is how a gateway 5xx was transient for one queue but a "poison batch"
+// for the notes client — the same answer ate the user's typing in one place
+// and retried in the other.
 //
-// MAINTENANCE: an installed worker re-fetches an imported script only while
-// it installs, and it reinstalls only when sw.js itself changes bytes. A change
-// to this policy therefore ships with a touch in sw.js (a comment is enough);
-// the page-side clients load the bare URL and pick it up on their next load.
+// The Service Worker does NOT import this file: it no longer intercepts the
+// API, so there is no worker-side policy to keep in step and no version
+// handshake between the page's copy and the worker's.
 (function (global) {
   "use strict";
 
@@ -54,18 +53,7 @@
     return next > cap ? cap : next;
   }
 
-  // POLICY_VERSION is the CONTENT FINGERPRINT of this file: the first 6 hex of
-  // the sha256 of its bytes with the line below blanked. It exists so a PAGE
-  // can tell whether the installed WORKER imported this same policy — a worker
-  // keeps the copy it imported at install time, so a browser can run a worker
-  // from an older deploy for hours after the page updated. The page's copy and
-  // the worker's copy answering different values is exactly that case, and the
-  // banner says "reload". TestOfflinePolicyVersionMatchesItsDigest recomputes
-  // the value, so editing this file without updating it fails CI.
-  var POLICY_VERSION = "0d57ff";
-
   global.GogogoOffline = {
-    POLICY_VERSION: POLICY_VERSION,
     isTransientStatus: isTransientStatus,
     isAuthStatus: isAuthStatus,
     retryDelay: retryDelay

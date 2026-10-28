@@ -115,7 +115,7 @@ flat backend boot (Turso + auth + handlers + queues + workers)
 
 - **Owned:** `internal/server`
 - **Routes:** `/_ui/demo`, `/health`, `/sw.js`
-- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
+- **Store calls:** `dbgen.CountUnreadInApp`, `dbgen.DeleteOpReceiptsBatchBefore`, `dbgen.DeleteSecurityEventsBatchBefore`, `dbgen.GetUserByEmail`, `dbgen.SetUserRole`
 - **Trim:** manual (no installer unit)
 - **Note:** Core: cmd/web and cmd/desktop both boot through BootChi/StartChi. attach JetStream, then serve.
 
@@ -251,12 +251,12 @@ NATS JetStream: cross-instance broadcast + CRUD proxy + leaf nodes
 
 ## `offline-sync` — plugin
 
-hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)
+durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)
 
-- **Owned:** `web/resources/static/sw.js`
+- **Owned:** `web/resources/static/offline-outbox.js`, `web/resources/static/sw.js`
 - **Runtime off:** `OFFLINE_SYNC_ENABLED=false`
 - **Trim:** manual (no installer unit)
-- **Why that class:** Spans a config struct field, sw.js, and templ registration; deletion is manual.
+- **Why that class:** Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.
 
 ## `search` — plugin
 
@@ -369,7 +369,7 @@ Todo MVC demo (reference implementation)
 
 - **Owned:** `features/todo`
 - **Routes:** `/api/todos`, `/api/todos/completed/delete`, `/api/todos/events`, `/api/todos/fragment`, `/api/todos/retry-demo`, `/api/todos/search`, `/api/todos/stream`, `/api/todos/suggest`, `/api/todos/suggest-simulated`, `/api/todos/{id}/confirm-delete`, `/api/todos/{id}/delete`, `/api/todos/{id}/toggle`, `/login`, `/logout`, `/todo`
-- **Store calls:** `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosByOwner`, `dbgen.SetTodoCompletedByID`
+- **Store calls:** `dbgen.ClaimOpReceipt`, `dbgen.CreateTodo`, `dbgen.DeleteCompletedByOwner`, `dbgen.DeleteTodo`, `dbgen.DeleteTodoByID`, `dbgen.GetTodo`, `dbgen.GetTodoByIdemKey`, `dbgen.GetTodoVisible`, `dbgen.GetUser`, `dbgen.GetUserByEmail`, `dbgen.ListCompletedIDsByOwner`, `dbgen.ListTodosByOwner`, `dbgen.ListTodosForIndex`, `dbgen.ListVisibleTodos`, `dbgen.SearchTodosByOwner`, `dbgen.SetTodoCompletedByID`
 - **Trim:** manual (no installer unit)
 - **Why that class:** Reference implementation — remove manually later per docs/scope-taxonomy.md.
 

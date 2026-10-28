@@ -254,6 +254,11 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
   background: var(--primary, var(--color-primary, #4f46e5));
   color: var(--primary-foreground, var(--color-primary-content, #fff));
 }
+.app-banner.is-dropped {
+  display: block;
+  background: var(--error, var(--color-error, #dc2626));
+  color: var(--error-content, var(--color-error-content, #fff));
+}
 .app-banner.is-offline {
   display: block;
   background: var(--warning, var(--color-warning, #f59e0b));

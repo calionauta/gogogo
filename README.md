@@ -223,7 +223,7 @@ Every capability is always compiled. Each has a documented opt-out.
 | Room presence demo (GoAkt grains: roster + presenter lock) | delete `features/room/` |
 | Shared notes (server-owned Loro Text, live peer text) | delete `features/notes/` |
 | Durable `WelcomeOnboarding` workflow | `DAGNATS_ENABLED=false` |
-| Hybrid offline sync (Service Worker + Leaf Node) | `OFFLINE_SYNC_ENABLED=false` |
+| Durable offline writes (page outbox + app-shell cache + Leaf Node) | `OFFLINE_SYNC_ENABLED=false` |
 | Single-store persistence (Turso Database via sqlc) | — (core) |
 | Multi-instance realtime | `NATS_ENABLED=false` |
 | Public landing page + auth-gated config view | delete `features/landing/`, `features/config/` |

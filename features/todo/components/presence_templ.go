@@ -43,7 +43,7 @@ func TodoPresence(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span class=\"online-pill\" data-show=\"$connectedClients >= 0\" title=\"Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.\"><span class=\"pulse-dot\"></span> <span class=\"pill-online\" data-text=\"$connectedClients + ' online'\"></span> <span class=\"pill-offline\">offline</span> <span class=\"hidden sm:inline\">· <span class=\"pill-online\" data-text=\"$realtimeKind\"></span></span></span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<span class=\"online-pill\" data-class=\"{'is-offline': !$bannerOnline}\" data-show=\"$connectedClients >= 0\" title=\"Live presence: every CRUD mutation streams through the SSE Hub. Open this page in two tabs (or two browsers) to watch todos sync live.\"><span class=\"pulse-dot\"></span> <span class=\"pill-online\" data-text=\"$connectedClients + ' online'\"></span> <span class=\"pill-offline\">offline</span> <span class=\"hidden sm:inline\">· <span class=\"pill-online\" data-text=\"$realtimeKind\"></span></span></span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

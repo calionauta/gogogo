@@ -66,19 +66,6 @@ var featureTrimUnits = []trimUnit{
 					"noteshandlers.NewHandler(",
 				},
 			},
-			{
-				// The Service Worker intercepts every /api/* fetch: its
-				// stream-exclusion list names the notes/whiteboard streams,
-				// so the lines go with the unit — otherwise the shipped SW
-				// watches routes nothing serves (and the route gate fails
-				// the trimmed tree for exactly that). One-way (sw.js has
-				// no add anchor): re-add by hand, see addFollowUps.
-				path: "web/resources/static/sw.js",
-				substrs: []string{
-					`"/api/notes/", // notes`,
-					`"/api/whiteboard/" // whiteboard`,
-				},
-			},
 		},
 		replaces: []fileReplace{
 			{

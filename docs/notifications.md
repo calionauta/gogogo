@@ -192,7 +192,8 @@ apprise-go) is in [notify → the channel model](research/notify-2026-10.md#the-
   time the user did not pick is worse than an error.
 - The inbox lists the newest 50 rows. A template demo does not paginate; the
   count is a separate index lookup so the badge stays cheap.
-- The service worker skips this stream (see `SKIP_PATTERNS` in `sw.js`); an
+- The service worker never intercepts `/api/*` at all (it caches navigations
+  only), so this stream cannot be swallowed; an
   intercepted `EventSource` would never deliver.
 
 ## What is not here

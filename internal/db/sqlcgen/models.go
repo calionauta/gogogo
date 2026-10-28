@@ -72,6 +72,12 @@ type OauthAccount struct {
 	Created  string
 }
 
+type OpReceipt struct {
+	Owner   string
+	OpKey   string
+	Created string
+}
+
 type RecoveryCode struct {
 	CodeHash string
 	UserID   string

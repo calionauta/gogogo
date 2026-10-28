@@ -332,13 +332,14 @@ var All = append([]Capability{
 	{
 		ID:         "offline-sync",
 		Kind:       KindPlugin,
-		Summary:    "hybrid offline sync (SW queue + NATS CRUD proxy + idempotency)",
+		Summary:    "durable page outbox + app-shell cache (idempotent replay, NATS CRUD proxy)",
 		RuntimeOff: "OFFLINE_SYNC_ENABLED=false",
-		// The unit used to own no path at all, which made its removal story
-		// unverifiable: sw.js IS the implementation (the banner + templ
-		// registration live in internal/components, owned by that unit).
-		Files:  []string{"web/resources/static/sw.js"},
-		Reason: "Spans a config struct field, sw.js, and templ registration; deletion is manual.",
+		// The unit owns both halves: the outbox stores the intent before the
+		// request leaves, and the worker caches navigations only. The banner
+		// and the SW registration live in internal/components, owned by that
+		// unit too.
+		Files:  []string{"web/resources/static/offline-outbox.js", "web/resources/static/sw.js"},
+		Reason: "Spans a config struct field, the outbox, the worker, and templ registration; deletion is manual.",
 	},
 	{
 		ID:      "todo",

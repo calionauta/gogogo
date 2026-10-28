@@ -101,6 +101,12 @@ const (
 	auditPruneInterval = 24 * time.Hour
 	auditPruneTimeout  = 30 * time.Second
 	auditPruneBatch    = 1000
+
+	// opReceiptRetention bounds the dedupe window for replayed mutations. It
+	// must OUTLIVE the client's outbox entry: the browser drops a queued op
+	// after a week, so a receipt that expires sooner would let a late replay
+	// apply a second time — the exact bug the receipt exists to prevent.
+	opReceiptRetention = 14 * 24 * time.Hour
 )
 
 // pruneSecurityEvents deletes rows older than auditRetention in bounded
@@ -129,11 +135,13 @@ func pruneSecurityEvents(ctx context.Context, q *dbgen.Queries) {
 	}
 }
 
-// startAuditRetention runs the prune once now and then daily until bootCtx is
-// cancelled at shutdown. The goroutine has one select, so it cannot outlive
-// the stack.
-func startAuditRetention(ctx context.Context, q *dbgen.Queries) {
+// startRetention runs the housekeeping prunes once now and then daily until
+// bootCtx is cancelled at shutdown. The goroutine has one select, so it cannot
+// outlive the stack. Both prunes are best-effort: retention is housekeeping,
+// never a decision the request path depends on.
+func startRetention(ctx context.Context, q *dbgen.Queries) {
 	pruneSecurityEvents(ctx, q)
+	pruneOpReceipts(ctx, q)
 	go func() {
 		ticker := time.NewTicker(auditPruneInterval)
 		defer ticker.Stop()
@@ -143,9 +151,32 @@ func startAuditRetention(ctx context.Context, q *dbgen.Queries) {
 				return
 			case <-ticker.C:
 				pruneSecurityEvents(ctx, q)
+				pruneOpReceipts(ctx, q)
 			}
 		}
 	}()
+}
+
+// pruneOpReceipts deletes dedupe receipts past their window, in the same
+// bounded batches as the audit prune (one large DELETE would hold SQLite's
+// single write lock and stall mutations).
+func pruneOpReceipts(ctx context.Context, q *dbgen.Queries) {
+	ctx, cancel := context.WithTimeout(ctx, auditPruneTimeout)
+	defer cancel()
+	cutoff := time.Now().UTC().Add(-opReceiptRetention).Format(dbschema.TimeFormat)
+	for {
+		deleted, err := q.DeleteOpReceiptsBatchBefore(ctx, dbgen.DeleteOpReceiptsBatchBeforeParams{
+			Created: cutoff, Limit: auditPruneBatch,
+		})
+		if err != nil {
+			observability.Warn(ctx, "server: op-receipt prune failed",
+				append(observability.WithComponent("offline-sync", "plugin"), "error", err)...)
+			return
+		}
+		if deleted < auditPruneBatch {
+			return
+		}
+	}
 }
 
 // demoQueries builds the shared query handle and seeds the demo pair only

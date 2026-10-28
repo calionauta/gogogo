@@ -25,7 +25,7 @@ being one.
 | **Inbox + reminders** | DagNats `sleep` → owner-scoped delivery row | `DAGNATS_ENABLED=false` hides the form; the inbox stays |
 | **Room presence (entity actors)** | GoAkt grains (standalone) | `GOAKT_ENABLED=false` |
 | **Multi-instance realtime** | NATS JetStream | `NATS_ENABLED=false` |
-| **Hybrid offline sync** | Service Worker + NATS Leaf Node + idempotency | `OFFLINE_SYNC_ENABLED=false` |
+| **Durable offline writes** | page outbox (write-ahead + receipts) + app-shell cache + NATS Leaf Node | `OFFLINE_SYNC_ENABLED=false` (cache + CRUD proxy only) |
 | **UI shell + themes** | DaisyUI v5, four palettes | — |
 | **Persistence** | Turso (sqlc) | — |
 | **Desktop-edge sync** | NATS Leaf Node | `NATS_LEAFNODE_URL` unset |
@@ -50,7 +50,7 @@ being one.
 - **Inbox + reminders** — `/notifications` lists delivery rows and schedules a reminder. The delay is a DagNats `sleep` step resolved from `due_at` (RFC3339), so it survives a restart; the delivery row is deduped by `(owner, transaction_id, channel)` and keeps `status` + `skip_reason`, so a delivery that did not happen is a record. An SSE stream patches the inbox live, the rail's inbox icon carries the unread count, and the onboarding workflow delivers through the same path. See [Notifications](notifications.md).
 - **Room presence (entity actors)** — One grain per room: connection-scoped roster (SSE join/leave, refcounted per tab) + exactly-one presenter lock, supervised with restart budget. The roster is pushed on every change and name-ordered (a map range shuffled it between pushes), the tab keeps its stream while hidden (`openWhenHidden`, or a tab switch would read as leaving), a crash restart replays the live connections into the fresh grain, re-acquiring your own lock succeeds, and the page renders only the actions the lock actually allows — Take while it is free, Release for the holder. Demo at `/room/` with a crash hook.
 - **Multi-instance realtime** — JetStream fan-out for todo + whiteboard sync across >1 instance behind a LB.
-- **Hybrid offline sync** — NATS CRUD proxy + Service Worker offline queue (default on). Desktop edges publish CRUD ops via JetStream; web clients use Service Worker + Background Sync.
+- **Durable offline writes** — one page-side outbox (write-ahead + idempotency receipts) plus an app-shell cache; NATS CRUD proxy for desktop edges (default on).
 - **UI shell + themes** — every page renders inside one shell (`internal/ui`); the palettes (`light`, `dark`, `lofi`, `dim`) are DaisyUI themes chosen from the account panel in the sidebar and catalogued in `internal/themes`. On phones (≤720px) a bottom dock (Todo/Board/Chat/Menu, DaisyUI `dock`) gives one-tap navigation; the Chat page hides it so the docked composer keeps the thumb zone. See [UI themes](ui-themes.md).
 - **Persistence** — One data layer: `internal/db` migrations + generated queries, no strategy switch.
 - **Desktop-edge sync** — Leaf-Node JetStream replication of Loro updates for desktop/edge clients.
@@ -214,18 +214,17 @@ bundle and is not attributed per feature.
 | Whiteboard | `whiteboard.js` + `rough.min.js` | 58 KB | 20 KB |
 | Sounds (plugin, the rail mute) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
-| Offline outbox (every shell page) | `offline-banner.js` | 21 KB | 7 KB |
-| Offline policy + page outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 14 KB | 6 KB |
-| Todo offline renderer (only with offline sync) | `todo-offline.js` | 12 KB | 5 KB |
-| Service worker (one fetch, registered on first authenticated load) | `sw.js` | 32 KB | 12 KB |
+| Offline policy + outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 25 KB | 9 KB |
+| Todo offline renderer (only with offline sync) | `todo-offline.js` | 9 KB | 4 KB |
+| Service worker (navigations only, registered on first authenticated load) | `sw.js` | 5 KB | 3 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 51 KB | 21 KB |
 
 Whiteboard and notes pages additionally load the shared
 `throttle.js` (~2 KB raw, ~1 KB gzip) — leading + trailing throttle
 for cursor/caret reports, one implementation for both features — and
 `offline-policy.js` (~3 KB raw, ~1 KB gzip): one definition of which HTTP
-answers are transient (retry) and which are a verdict (drop), shared with the
-Service Worker, so the three offline writers cannot disagree.
+answers are transient (retry) and which are a verdict (drop), shared by the
+three page-side outboxes, so they cannot disagree.
 
 Split rule (Datastar vs vanilla, enforced by review): list fragments
 and UI state that patch cleanly go through the Datastar runtime (todo,

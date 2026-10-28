@@ -1,63 +1,101 @@
-// SCOPE:core — OfflineBanner render + transport-script contract test.
+// SCOPE:core — OfflineBanner render contract.
 package components_test
 
 import (
 	"bytes"
 	"context"
-	"io/fs"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 
 	"github.com/calionauta/gogogo/internal/components"
-	"github.com/calionauta/gogogo/web/resources"
 )
 
-// TestOfflineBannerDispatchesSyncEvents pins the two halves of the offline
-// contract: the markup the banner renders (the sign-in affordance and the
-// per-page email the SW hashes into the queue owner) and the transport script
-// that owns the SW bridge. Both are easy to delete without another test
-// noticing; the browser smoke then exercises the behavior (queue, retry, 401
-// pause) on top of this.
-func TestOfflineBannerDispatchesSyncEvents(t *testing.T) {
+// TestOfflineBannerIsDeclarative pins the shape that replaced the banner
+// script: the state lives in Datastar signals, the outbox publishes window
+// events, and the markup carries the owner hash — never the email. A script
+// tag here would mean the banner grew a second state model again.
+func TestOfflineBannerIsDeclarative(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	if err := components.OfflineBanner(true, "owner@example.com").Render(context.Background(), &buf); err != nil {
+	if err := components.OfflineBanner(true, "Owner@Example.com").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("OfflineBanner: %v", err)
 	}
 	rendered := buf.String()
+
+	sum := sha256.Sum256([]byte("owner@example.com"))
+	wantOwner := hex.EncodeToString(sum[:])
 	for _, want := range []string{
 		`data-offline-sync="true"`,
-		`data-user-email="owner@example.com"`,
+		`data-class=`,
+		`data-owner="` + wantOwner + `"`,
+		`data-class=`,
+		`data-on:gogogo:outbox__window=`,
+		`data-on:gogogo:synced__window=`,
+		`data-on:online__window=`,
+		`data-on:offline__window=`,
+		`id="offline-banner-text"`,
 		`id="offline-banner-signin"`,
-		`/static/offline-banner.js?v=`,
+		`id="offline-banner-drop"`,
+		`window.GogogoOutbox.setOwner(el.dataset.owner)`,
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Errorf("banner render missing %q", want)
 		}
 	}
-
-	// The script carries the SW vocabulary. sync-auth is the 401 pause;
-	// gogogo:synced is the resync after a drain; queue-lost is a user-visible
-	// notice when a mutation can never be saved. The retirement calls are the
-	// disabled-mode contract: OFFLINE_SYNC_ENABLED=false has to remove a
-	// worker an earlier deployment installed, or it keeps intercepting /api/*
-	// for a page that renders no optimistic state (the stuck Add button).
-	script, err := fs.ReadFile(resources.StaticFS(), "offline-banner.js")
-	if err != nil {
-		t.Fatalf("read offline-banner.js: %v", err)
+	// The email must NOT be in the DOM: the queue key is the hash, and a log
+	// or a screenshot should not carry the signed-in address.
+	if strings.Contains(strings.ToLower(rendered), "owner@example.com") {
+		t.Error("banner renders the email; only its hash belongs in the page")
 	}
-	for _, want := range []string{
-		`"sync-auth"`,
-		`"queue-status"`,
-		`"queue-lost"`,
-		`"gogogo:queued"`,
-		`"gogogo:synced"`,
-		"getRegistrations()",
-		"unregister()",
-		"caches.delete(key)",
-	} {
-		if !strings.Contains(string(script), want) {
-			t.Errorf("offline-banner.js missing %q", want)
+	// No second state model.
+	if strings.Contains(rendered, "offline-banner.js") || strings.Contains(rendered, "<script") {
+		t.Error("banner must be declarative: no script tag and no banner script")
+	}
+}
+
+// TestOfflineBannerOnlineOnlyKeepsTheCopyHonest keeps the trimmed mode honest:
+// with OFFLINE_SYNC_ENABLED=false the queue words must be gone from the copy,
+// because every write posts directly and nothing is stored.
+func TestOfflineBannerOnlineOnlyKeepsTheCopyHonest(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	if err := components.OfflineBanner(false, "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("OfflineBanner: %v", err)
+	}
+	rendered := buf.String()
+	if !strings.Contains(rendered, "page cache disabled") {
+		t.Error("cache-disabled copy missing from the banner text expression")
+	}
+	// The write path is NOT disabled by the flag: the copy must not claim that
+	// requests fail, and it must not offer the sign-in pause the queue owns.
+	for _, banned := range []string{"requests will fail", "retrying sync", "sign in to sync"} {
+		if strings.Contains(rendered, banned) {
+			t.Errorf("cache-disabled banner carries stale copy %q", banned)
+		}
+	}
+}
+
+// TestOutboxRetireScriptOnlyWhenDisabled pins the one remaining script: it
+// retires a worker an earlier deployment installed, and must not exist when
+// offline sync is on.
+func TestOutboxRetireScriptOnlyWhenDisabled(t *testing.T) {
+	t.Parallel()
+	var on bytes.Buffer
+	if err := components.OutboxRetireScript(true).Render(context.Background(), &on); err != nil {
+		t.Fatalf("retire script (enabled): %v", err)
+	}
+	if strings.Contains(on.String(), "unregister()") {
+		t.Error("a healthy install must not retire its worker")
+	}
+	var off bytes.Buffer
+	if err := components.OutboxRetireScript(false).Render(context.Background(), &off); err != nil {
+		t.Fatalf("retire script (disabled): %v", err)
+	}
+	for _, want := range []string{"getRegistrations()", "unregister()", "caches.delete(key)"} {
+		if !strings.Contains(off.String(), want) {
+			t.Errorf("disabled mode missing the retirement call %q", want)
 		}
 	}
 }
