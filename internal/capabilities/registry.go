@@ -246,6 +246,7 @@ var All = append([]Capability{
 			"features/todo/panel_filter_test.go",
 			"features/todo/components/panel.templ",
 			"features/todo/components/panel_templ.go",
+			"features/todo/components/panel_delete_test.go",
 			// Diagram rendering is this unit's asset: the Pele bundle plus
 			// the mount helper serve only GenuiDiagram (Chat). A
 			// trimmed tree drops them so the binary does not carry 690KB
