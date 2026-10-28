@@ -90,6 +90,13 @@ contract (upstream component churn never touches it).
   tree contains the classes a model invents at runtime (the `@source inline`
   safelist in `src/css/input.css` is the bounded exception, kept in step
   with `features/genui/components/htmlclasses.go`).
+- **No timers for server state.** A `.templ` must not use `data-on-interval`
+  (or `setInterval`) to fetch: a timer that asks the server is a poll. The page
+  already has a stream; shell/global state uses the leader session stream +
+  BroadcastChannel (`web/resources/static/session.js`), and a page that cannot
+  carry the field refreshes on visibility/focus/online/pageshow only.
+  `TestNoPeriodicFetch` enforces it; the decision tree is
+  [Global state and the connection budget](../../docs/realtime-recipe.md#global-state-and-the-connection-budget).
 - **Transient feedback is a toast, never an inline notice.** An action's
   result ("saved", "scheduled", "deleted", "cleared") is appended to
   `#toast-container` with `components.Toast` +

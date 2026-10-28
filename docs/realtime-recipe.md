@@ -121,7 +121,8 @@ text.
 4. **Reactive trigger**: `data-effect="fn($signal)"` with a pure function
    in a *synchronous* script (module scripts load after Datastar init and
    throw — proven live by `scripts/todo-docwatch.test.mjs`). No polling
-   loops for signal changes, ever.
+   loops for signal changes, ever — see
+   [Global state and the connection budget](#global-state-and-the-connection-budget).
 5. **Append-only feed**: end the fragment with `ic.AutoScroll()`. The
    anchor travels inside the patch that carries the new item, and
    Datastar re-runs `data-init` on every node an element morph inserts,
@@ -136,6 +137,43 @@ text.
    mutation with no follow-up message, and a spinner that waits for that
    message (or for an error event that never fires) locks the UI until
    reload (reference: the todo create form).
+
+## Global state and the connection budget
+
+Read this before adding a stream, a timer, or a "live" counter to the shell.
+
+**The budget.** Chromium allows six HTTP/1.1 connections per host. An SSE holds
+one for the tab's lifetime. Five same-user tabs with a feature stream each is
+the measured ceiling: the notes caret suite opens five, and when the shell
+briefly opened a session stream on every page the sixth connection left no
+socket for the next POST and the suite hung. A second stream per page is not a
+style preference; it starves the work.
+
+**The strategy, in order:**
+
+1. **Does the page already hold a stream?** Put the field on that stream — the
+   handshake, the heartbeat revalidation, or the record envelope. No new
+   connection.
+2. **No feature stream?** `session.js` already opens the leader session stream
+   (Web Locks elects one visible tab; the BroadcastChannel fans frames to the
+   others). Add the field to the frame and handle it in `session.js`; that is
+   how `unread` reaches the rail badge.
+3. **A page whose stream cannot carry it?** Refresh on
+   visibility/focus/online/pageshow — never a timer — and broadcast any change
+   you do hear over the existing BroadcastChannel.
+4. **Multiple instances:** the notifications bus is in-process; the session
+   stream's 60s recheck is the fallback until a NATS wire exists.
+
+**Never:** `data-on-interval` (or `setInterval`) that fetches server state; a
+second EventSource per page; a per-tab copy of a global stream.
+`TestNoPeriodicFetch` fails the first; the notes caret suite and the
+six-per-host budget fail the second.
+
+Reference: `web/resources/static/session.js` (leader + BroadcastChannel),
+`internal/auth/session_stream.go` (frames + recheck),
+`internal/ui/inbox.templ` (`$inboxUnread` + event refresh),
+`features/notifications/handlers` (signal patch + badge endpoint),
+`docs/notifications.md#the-rail-indicator`.
 
 ## Verified open (streams must prove they opened)
 

@@ -24,7 +24,7 @@
 - Local CI and gates: docs/local-ci.md
 - Keeping a scaffolded project current (base marker, --check-update, migrate, `migrate --files` for which files apply to you, `advise --intent update`): docs/upgrading.md
 - Taking one unit into an app that already exists (read-only export bundle + porting checklist): docs/porting-into-an-existing-app.md
-- Realtime, queue, offline: docs/async-layers.md
+- Realtime, queue, offline: docs/async-layers.md; the transport decision tree (no poll, one stream per page, leader tab + BroadcastChannel): docs/realtime-recipe.md#global-state-and-the-connection-budget
 - Auth and sessions: internal/auth/ (owned argon2id sessions), features/authviews/ (login UI)
 - Security model, audit trail, CSP reporting, secrets/email, production defaults: docs/security.md
   (details: docs/rbac.md, docs/admin-dashboard.md, docs/deploy.md, docs/architecture.md#security-boundary)
@@ -50,4 +50,9 @@
 - `//nolint` is last resort (skill documents the procedure; CI enforces it).
 - Security events are durable (`security_events`, 30-day batched retention); request-scoped
   logs go through `internal/observability`, never bare `slog` in a handler.
+- Global/shell state reuses a stream; never poll. One long-lived connection per
+  page (six-per-host budget; five same-user tabs fill it). Pages without a
+  feature stream use `session.js` (leader + BroadcastChannel);
+  `TestNoPeriodicFetch` rejects `data-on-interval` fetches. Recipe:
+  docs/realtime-recipe.md#global-state-and-the-connection-budget.
 - Never edit `site/docs/` (generated output).
