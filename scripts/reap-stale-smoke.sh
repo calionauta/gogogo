@@ -51,3 +51,40 @@ for pattern in 'Test*' 'go-build*'; do
     reaped=1
   done < <(find "$tmpbase" -maxdepth 1 -name "$pattern" -mmin +"$TEST_STALE_MIN" 2>/dev/null || true)
 done
+
+# Playwright browser orphans (third loop, Linux only, self-contained).
+#
+# The two loops above reap FILES; a leaked browser is a PROCESS TREE. It is the
+# one this host died on: a suite that hangs keeps a Chromium tree alive at
+# ~600 MB per renderer, those pages land in swap, and once swap hits zero the
+# kernel parks co-tenant daemons in D-state. Age is the signal (a dead suite's
+# browser exits by itself — Playwright's --remote-debugging-pipe closes — so a
+# hang, not a crash, is what survives).
+#
+# Deliberately not delegating to the host's richer reaper: this file must stay
+# self-contained for any checkout, while ~/bin/reap-playwright-orphans.sh is a
+# server-blueprint artifact with orphan detection and a 10m host timer. Same
+# problem, two scopes; the host one is authoritative. Threshold here is loose
+# (60m) because this runs at the start of an ATTENDED gate where a long
+# `make ci-local` is legitimate.
+#
+# comm is allow-listed to Playwright's binary names, so a desktop Chrome on a
+# dev machine is never a candidate. /proc is required for per-process age.
+BROWSER_STALE_MIN=${BROWSER_STALE_MIN:-60}
+if [ -d /proc ]; then
+  browser_reaped=0
+  while IFS= read -r pid; do
+    [ -z "$pid" ] && continue
+    if kill -9 "$pid" 2>/dev/null; then
+      echo "  reaped stale browser pid $pid"
+      browser_reaped=1
+    fi
+  done < <(
+    ps -eo pid=,etimes=,comm= 2>/dev/null \
+      | awk -v max="$((BROWSER_STALE_MIN * 60))" \
+          '$3 ~ /^(chrome|chrome-headless|chrome_crashpad)$/ && $2 > max { print $1 }'
+  )
+  [ "$browser_reaped" -eq 0 ] && echo "  (no stale browser processes)"
+else
+  echo "  (browser reaping skipped: no /proc on this host)"
+fi

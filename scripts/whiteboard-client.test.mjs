@@ -33,6 +33,24 @@ import { join } from "node:path";
 // tmpdir() — never a hardcoded /tmp, which is wrong on Windows and
 // ignores $TMPDIR elsewhere). Matches the Makefile SMOKE_BIN default.
 const BIN = process.env.SMOKE_BIN || join(tmpdir(), "gogogo-ci-local-web");
+// A leaked browser is not hypothetical on this host: an abandoned Chromium
+// tree is ~600 MB per renderer, it lands in swap, and once swap is empty the
+// co-tenant daemons stop answering while still accepting TCP (2026-10-28).
+// The handle therefore lives at module scope and is closed in the .finally()
+// below, so a throw cannot leak it. The args drop the GPU/swiftshader paths
+// that burn CPU here without affecting the DOM geometry these assertions read;
+// per-context process isolation is left alone deliberately.
+const BROWSER_ARGS = [
+  "--no-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--disable-software-rasterizer",
+  "--disable-extensions",
+  "--js-flags=--max-old-space-size=512",
+];
+
+let browser;
+
 const PORT = Number(process.env.WB_TEST_PORT || 8131);
 const BASE = `http://127.0.0.1:${PORT}`;
 const USER_EMAIL = "wb-test-user@local.dev";
@@ -204,7 +222,7 @@ async function main() {
     return;
   }
 
-  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ headless: true, args: BROWSER_ARGS });
   const context = await browser.newContext();
   await context.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
   const page = await context.newPage();
@@ -1108,7 +1126,11 @@ async function main() {
 
 main()
   .catch((e) => bad("unexpected error: " + e.message))
-  .finally(() => {
+  .finally(async () => {
+    // Unconditional: the happy path closes the browser itself, so reaching
+    // here with a live handle means the run threw — and a throw used to leak
+    // the whole Chromium tree onto this shared host.
+    await browser?.close().catch(() => {});
     server.kill("SIGKILL");
     rmSync(tmp, { recursive: true, force: true });
     console.log(

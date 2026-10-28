@@ -306,6 +306,14 @@ check-dagnats-pin:
 # test-value job and CI run. Loud locally (warnings visible); the hook and
 # CI pass -quiet so only vacuous fails there — the warning list is the
 # review aid in `make cover-diff`, not a gate.
+# A Playwright suite that throws before its happy-path close() abandons a
+# Chromium tree (~600 MB per renderer) in swap, which on this shared host parks
+# co-tenant daemons in D-state. Two suites had that defect; this gate keeps a
+# third from shipping. See scripts/lib/browser.mjs.
+check-browser-cleanup:
+	@node scripts/check-browser-cleanup.mjs --self-test
+	@node scripts/check-browser-cleanup.mjs scripts
+
 check-test-value:
 	@echo "→ check-test-value (every Test pins behavior beyond err==nil)..."
 	@go run ./cmd/check-test-value -quiet
@@ -433,7 +441,7 @@ sqlc:
 	@echo "→ Generating sqlc queries..."
 	@cd internal/db && sqlc generate
 
-ci-local: check-host-capacity reap-stale check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
+ci-local: check-host-capacity reap-stale check-browser-cleanup check-generated check-sizes datastar-lint css-check check-no-jsx check-scope check-classes daisyui-lint check-flatdeps check-secrets-env check-dagnats-pin check-skill-frontmatter install-sh-guard
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ build (single build, reused by the smoke tests)"

@@ -48,10 +48,25 @@ const PAGES = [
   ["config", "/config"],
 ];
 
+// Hoisted out of the try so the finally below can close it as well: a throw
+// anywhere between launch and the happy-path close used to abandon a Chromium
+// tree (~600 MB per renderer) in swap on this shared host. See
+// scripts/reap-playwright-orphans.sh for what that costs.
+let browser;
+
 try {
   if (!(await ready())) throw new Error("server never became ready");
   console.log("server ready");
-  const browser = await chromium.launch();
+  browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-extensions",
+    ],
+  });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 
   // sign up a throwaway account and inject its session cookie: the seeded demo
@@ -111,5 +126,6 @@ try {
   await browser.close();
   console.log("captured", PAGES.length, "pages to", OUT);
 } finally {
+  if (browser) await browser.close().catch(() => {});
   server.kill("SIGTERM");
 }

@@ -31,6 +31,12 @@ individual notes.
 | [Native kernel PoCs](native-kernels-2026-10.md) | 2026-10-25 | FNV-1a tie (Go wins) vs grayscale survivor (Zig 2.2x, SIMD verbs gap), loader prices, Rust/Odin probes; procedure held, no threshold change |
 | [notify](notify-2026-10.md) | 2026-10-27 | a delivery engine adopted, embedded or mined for its contract: why the inbox stays local, delivery becomes a per-channel seam, and the DagNats engine is never shared |
 
+## Testing and host capacity
+
+| page | reviewed | answers |
+|---|---|---|
+| [Browser automation on a shared host](browser-automation-2026-10.md) | 2026-10-28 | chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a 4-vCPU / 8 GB box that also runs co-tenant agents; why the engine was never the failure and the lifecycle was |
+
 ## Decisions and rationale
 
 | page | reviewed | answers |
@@ -61,6 +67,6 @@ stack is, why, and what it replaced. Two rules keep it readable years later.
    document.
 2. Start with a title and a `Reviewed: YYYY-MM-DD` line (or `living` when the
    page is maintained instead of dated).
-3. Add the page to this hub and to the site MANIFEST in `site/build.mjs`.
+3. Add the page to this hub and to the site MANIFEST in `site/docsite.config.mjs`.
 4. Record the decision and its revisit trigger, not only the winner. A
    comparison without a trigger becomes stale silently.

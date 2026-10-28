@@ -344,6 +344,35 @@ native restart primitive — recheck it before building more machinery here; a
 native open-ack or restart handle replaces the ack loop and the
 finished-event reopen.
 
+### Browser suites: lifecycle first, host guardrail second (2026-10-28)
+
+A Playwright suite that throws before its happy-path `close()` abandons a
+Chromium tree at ~600 MB per renderer. On this shared host those pages filled
+swap, and empty swap parked co-tenant daemons in `D`-state **while they still
+accepted TCP** — the 2026-10-28 outage, where one leaked tree had been alive 20
+hours. The decision:
+
+- **The lifecycle lives in `scripts/lib/browser.mjs`** (`withBrowser`), not in
+  each suite. Eleven scripts launch Chromium and the two that leaked each owned
+  a private copy of the lifecycle, which is why the same defect existed twice.
+  Duplication was the root cause; the missing line was a symptom.
+- **`make check-browser-cleanup`** runs in `ci-local` and rejects a raw
+  `chromium.launch()` whose handle is never closed in a `finally`. It self-tests
+  that it can still fail on the original defect, because a gate that cannot go
+  red is green forever.
+- **The host carries its own guardrails**, because agents run suites straight
+  from ephemeral worktrees and bypass `ci-local`, `check-host-capacity` and
+  `reap-stale` entirely: `reap-playwright-orphans.sh` on a 5-minute timer, and
+  `browser-test-scope.sh` for a cgroup whose teardown kills every descendant.
+- **`check-host-capacity` is not host protection.** It guards only what enters
+  through `make ci-local`; the authoritative guardrail is OS-level.
+- **Cap swap, not only RAM.** A RAM-only cgroup limit is satisfied by paging to
+  swap, and empty swap is what kills the box.
+
+Engine choice — why Lightpanda is the right tool for scraping and the wrong one
+for an offline/service-worker suite, and when to revisit: [research
+hub](research/index.md#testing-and-host-capacity).
+
 ## Current state and remaining work
 
 The migration is complete. The flat stack is the only stack: auth, the

@@ -104,6 +104,8 @@ export default {
   { group: "Research", slug: "supply-chain-scanning", file: "research/supply-chain-scanning-2026.md",
     desc: "The 2026-10-24 SBOM/image-scanning comparison: Syft+Grype against Trivy, Docker Scout and OSV-Scanner, with the pinned-action and fixable-high gate." },
   { group: "Research", slug: "native-kernels", file: "research/native-kernels-2026-10.md",
+  { group: "Research", slug: "browser-automation", file: "research/browser-automation-2026-10.md",
+    desc: "chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down." },
     desc: "The 2026-10-25 native-kernel PoCs: FNV-1a tie vs grayscale survivor, SIMD verbs audit, loader prices, Rust/Odin probes." },
   { group: "Research", slug: "notify", file: "research/notify-2026-10.md",
     desc: "The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits." },

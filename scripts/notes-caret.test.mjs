@@ -34,6 +34,24 @@ import { join } from "node:path";
 // tmpdir() — never a hardcoded /tmp, which is wrong on Windows and
 // ignores $TMPDIR elsewhere). Matches the Makefile SMOKE_BIN default.
 const BIN = process.env.SMOKE_BIN || join(tmpdir(), "gogogo-ci-local-web");
+
+// A leaked browser is not a hypothetical here: this suite runs on a shared
+// 8 GB host where an abandoned Chromium tree (~600 MB per renderer) fills
+// swap and takes the co-tenant daemons down with it. So the handle lives at
+// module scope and is closed in the .finally() below, and the args drop the
+// GPU/swiftshader paths that burn CPU without affecting the layout geometry
+// these assertions measure. Per-context process isolation is deliberately
+// left alone: the two-user tests depend on it.
+const BROWSER_ARGS = [
+  "--no-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--disable-software-rasterizer",
+  "--disable-extensions",
+  "--js-flags=--max-old-space-size=512",
+];
+
+let browser;
 const PORT = Number(process.env.NOTES_TEST_PORT || 8132);
 const BASE = `http://127.0.0.1:${PORT}`;
 const A_EMAIL = "notes-test-a@local.dev";
@@ -177,7 +195,7 @@ async function main() {
     return;
   }
 
-  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+  browser = await chromium.launch({ headless: true, args: BROWSER_ARGS });
   const ctxA = await browser.newContext();
   const ctxB = await browser.newContext();
   await ctxA.addCookies([{ name: "gogogo_auth", value: tokenA, url: BASE }]);
@@ -713,7 +731,11 @@ async function main() {
 
 main()
   .catch((e) => bad("unexpected error: " + (e.stack || e.message)))
-  .finally(() => {
+  .finally(async () => {
+    // Close the browser FIRST and unconditionally: this is the only place a
+    // failed run gets here (the happy path calls browser.close() itself), so
+    // skipping it leaks the whole Chromium process tree onto the shared host.
+    await browser?.close().catch(() => {});
     server.kill("SIGKILL");
     rmSync(tmp, { recursive: true, force: true });
     console.log(
