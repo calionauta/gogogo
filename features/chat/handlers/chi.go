@@ -166,20 +166,20 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 // directives through the catalog on the way: history re-renders through
 // the same components a live answer used, never raw model markup.
 //
-// Panels re-hydrate from the store on the way (same Fill the worker ran),
-// so a reload shows the viewer's CURRENT rows, not the snapshot the answer
-// stored — a mutation from another tab lands on the next reload. A failed
-// fill keeps the stored snapshot instead of an honest hole: the rows were
-// real when stored, and a transient store error must not blank them.
+// Panels REFRESH from the store on the way (the same Fill the worker ran), so a
+// reload shows the viewer's CURRENT rows, not the snapshot the answer stored —
+// a mutation from another tab lands on the next reload. Rehydrate, not Hydrate:
+// the stored directive already carries Fill's output, which the parse-time
+// writable gate rejects (see components.Rehydrate). A failed re-fill keeps the
+// stored snapshot instead of an honest hole: the rows were real when stored,
+// and a transient store error must not blank them.
 func messageViews(ctx context.Context, msgs []store.Message) []store.MessageView {
 	out := make([]store.MessageView, 0, len(msgs))
 	for _, m := range msgs {
-		dirs := m.Components
-		if hydrated, herr := comp.Hydrate(ctx, dirs, m.Owner); herr == nil {
-			dirs = hydrated
-		} else {
-			obsArgs := append(observability.WithComponent("chat", "feature"), "error", herr)
-			observability.Warn(ctx, "chat: history hydration failed, keeping stored rows", obsArgs...)
+		dirs, rerr := comp.Rehydrate(ctx, m.Components, m.Owner)
+		if rerr != nil {
+			obsArgs := append(observability.WithComponent("chat", "feature"), "error", rerr)
+			observability.Warn(ctx, "chat: history re-fill failed, keeping stored panel rows", obsArgs...)
 		}
 		//nolint:contextcheck // pure CPU (catalog render); ctx is here for the log.
 		// Prefix by the message's own idempotency key: a thread keeps every

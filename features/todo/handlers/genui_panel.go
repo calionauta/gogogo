@@ -45,13 +45,20 @@ func (p *TodoPanel) Component() string { return "todo_list" }
 // It names the CONCRETE cases (a listing, a filter, an "anything I still have
 // to do?") rather than describing the component, because this sentence is the
 // only place the model learns the panel exists and a vague line loses to the
-// models' default of writing a plausible-looking list itself.
+// models' default of writing a plausible-looking list itself. The mapping from
+// request words to the enum is spelled out because a small model read
+// "open/left/pending" as a reason to show EVERYTHING it had a digest of: the
+// panel then answered "what are my open todos?" with completed rows mixed in.
 func (p *TodoPanel) Prompt() string {
 	return "todo_list {filter: " + strings.Join(todo.ListFilters, "|") + "} whenever the " +
 		"request involves the user's OWN todos or tasks (show/list/filter them, " +
 		"check what is left, plan a day around them, summarize progress): it " +
 		"renders their REAL rows, so it is the only component allowed to answer " +
-		"with todo content. Never for greetings, thanks or other smalltalk."
+		"with todo content. Pick the slice the user asked for: open/pending/" +
+		"remaining/left/active/unfinished => open; done/completed/finished => " +
+		"done; all ONLY when the user asks for everything or for completed rows " +
+		"too — a request about what is left is NEVER all. Always send filter " +
+		"inside props. Never for greetings, thanks or other smalltalk"
 }
 
 // HomePage implements comp.PanelHomer: the page that shows this data in full.
@@ -212,9 +219,40 @@ func (p *TodoPanel) Render(props map[string]any) (templ.Component, error) {
 	if !todo.FilterValid(filter) {
 		return nil, fmt.Errorf("todo panel: filter %q is not one of %v", filter, todo.ListFilters)
 	}
-	rows, _ := props["rows"].([]todo.PanelRows)
 	// The id comes from the renderer (comp.InstanceIDProp), so two todo panels
 	// on one page — a chat thread keeps its history — do not collide.
 	id, _ := normalized[comp.InstanceIDProp].(string)
-	return todoscomp.Panel(id, filter, rows), nil
+	return todoscomp.Panel(id, filter, panelRowsFromProps(props)), nil
+}
+
+// panelRowsFromProps decodes the `rows` prop in the shapes it actually reaches
+// Render in.
+//
+// Fill writes []todo.PanelRows, and a page render (or a panel action) sees
+// exactly that. The live Chat patch is different: the worker's answer crosses
+// the queue and the SSE wire as JSON, so encoding/json hands Render
+// []any of map[string]any. The typed assertion alone used to fail there and
+// painted "No todos to show here" over a panel the store had filled correctly
+// — while a reload, which rendered the stored typed props, showed the rows.
+// That split is the reported "the answer had no todos until I refreshed".
+func panelRowsFromProps(props map[string]any) []todo.PanelRows {
+	switch rows := props["rows"].(type) {
+	case []todo.PanelRows:
+		return rows
+	case []any:
+		out := make([]todo.PanelRows, 0, len(rows))
+		for _, raw := range rows {
+			row, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			id, _ := row["id"].(string)
+			title, _ := row["title"].(string)
+			done, _ := row["done"].(bool)
+			out = append(out, todo.PanelRows{ID: id, Title: title, Done: done})
+		}
+		return out
+	default:
+		return nil
+	}
 }

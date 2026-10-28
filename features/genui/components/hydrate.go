@@ -72,6 +72,78 @@ func Hydrate(
 	return kept, firstErr
 }
 
+// Rehydrate refreshes STORED directives before a history render.
+//
+// Hydrate is the parse-time gate: it validates the MODEL's props, so a panel
+// that carries rows (or any other Fill output) fails it by design ("prop rows
+// is not model-writable"). A stored answer is not model output — it is Fill's
+// result — so passing it back through Hydrate made every chat reload log that
+// warning and fall back to the snapshot from answer time, which meant a
+// mutation made after the answer never showed up on a reload. The path was
+// invisible in tests that stored a model-shaped directive, because that is the
+// one shape a real worker never stores.
+//
+// Rehydrate rebuilds the input from the model-WRITABLE props only, keeps the
+// server-minted instance id (a later patch aims at it), and runs Fill again.
+// A fill that fails keeps the stored directive rather than replacing it with
+// the unavailable placeholder: its rows were real when stored, and a transient
+// store error must not blank an answer the user can still read. The error is
+// returned for the caller to log; the slice is still the best renderable state.
+func Rehydrate(ctx context.Context, dirs []Directive, owner string) ([]Directive, error) {
+	var firstErr error
+	kept := make([]Directive, 0, len(dirs))
+	for _, d := range dirs {
+		if !IsPanel(d.Component) {
+			kept = append(kept, d)
+			continue
+		}
+		provider := panelProvider(d.Component)
+		if provider == nil {
+			// A boot bug (Hydrate drops these too), but a reload must not take
+			// the rest of the answer down over it.
+			kept = append(kept, d)
+			continue
+		}
+		filled, err := provider.Fill(ctx, owner, writableProps(provider, d.Props))
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			kept = append(kept, d)
+			continue
+		}
+		out := make(map[string]any, len(filled)+1)
+		maps.Copy(out, filled)
+		// Fill must not decide a slot's DOM address; keep the stored one even
+		// if a provider drops it from its return value.
+		if id, ok := d.Props[InstanceIDProp]; ok {
+			out[InstanceIDProp] = id
+		}
+		refreshed := d
+		refreshed.Props = out
+		kept = append(kept, refreshed)
+	}
+	return kept, firstErr
+}
+
+// writableProps is a stored panel's input, rebuilt: the props the MODEL owns
+// plus the instance id. Everything else in a stored directive is Fill's output
+// (rows, counts, cursors), and re-sending it to Fill is either rejected by the
+// writable gate or, worse, accepted by a provider that copies unknown keys
+// through — leaking a stale value into a fresh answer.
+func writableProps(p PanelProvider, props map[string]any) map[string]any {
+	out := make(map[string]any, len(p.Writable())+1)
+	for _, key := range p.Writable() {
+		if v, ok := props[key]; ok {
+			out[key] = v
+		}
+	}
+	if id, ok := props[InstanceIDProp]; ok {
+		out[InstanceIDProp] = id
+	}
+	return out
+}
+
 // unavailableDirective is the panel-shaped placeholder for a fill that
 // failed. It keeps the component NAME (so the answer still reads as the thing
 // the user asked for) and carries a short, human sentence instead of rows; the

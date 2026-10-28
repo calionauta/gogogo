@@ -29,12 +29,16 @@ const (
 	FilterAll  = "all"
 )
 
-// defaultFilter is the slice the model means when it omits `filter`: the
-// request was "show me my todos", and the panel's own prompt names that case.
-// Before this default existed an omitted filter failed validation, the panel
+// defaultFilter is the slice the model means when it omits `filter` — or
+// writes it outside `props`, which the parser correctly drops: a todo question
+// is about what is still to do. The Chat composer's own example is "what are
+// my open todos?", and an omitted filter answered it with completed rows mixed
+// in ("open todos" reported as all). The panel names the slice it opened, so a
+// wider request the model forgot to spell costs one glance, not a wrong list.
+// Before any default existed an omitted filter failed validation, the panel
 // was dropped by Hydrate, and the bubble came back empty — the model had
 // answered correctly and the user saw nothing.
-const defaultFilter = FilterAll
+const defaultFilter = FilterOpen
 
 // NormalizeFilter maps what a model actually writes onto the closed set.
 //
