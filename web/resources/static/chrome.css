@@ -729,7 +729,13 @@ html.dark .app-theme-toggle .icon-light-mode { display: none; }
 .app-rail-toggle { display: none; }
 
 @media (max-width: 1024px) {
-  .app-shell { display: block; }
+  /* Column flex, never block. `display: block` left .app-main sized to its
+     content (header + body), so the work area had no definite height and a
+     full-bleed page — the whiteboard canvas — collapsed to 0px: the board
+     rendered, but nothing could be drawn on it. Stacking with flex keeps the
+     single .app-main column filling the viewport, which is the height the
+     canvas chain (app-body → flex-1 → #canvas-wrap) needs. */
+  .app-shell { display: flex; flex-direction: column; }
   .app-rail-toggle {
     display: inline-flex;
     align-items: center;

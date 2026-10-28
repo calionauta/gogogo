@@ -489,8 +489,14 @@
       });
     });
   });
-  const colorInput = document.querySelector('input[data-bind="color"]');
+  // The swatch is plain <input type="color">, not a Datastar binding: the
+  // drawing code (not a signal) owns the value, so it reads the element by the
+  // id the toolbar renders. This used to look for `input[data-bind="color"]`,
+  // an attribute the template never carries — the picker silently did nothing
+  // and every shape kept the default ink whatever the user chose.
+  const colorInput = document.getElementById("color-input");
   if (colorInput) {
+    color = colorInput.value || color;
     colorInput.addEventListener("input", function () {
       color = colorInput.value;
     });
