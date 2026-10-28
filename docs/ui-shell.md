@@ -169,6 +169,13 @@ Below 1024px the rail is an offcanvas drawer: opened from the header trigger,
 closed by the backdrop, Escape, or tapping a destination. Datastar owns
 `$railOpen`; there is no script for it. The demo panel becomes a sheet.
 
+The stacked shell is a **column flex**, not a block: `.app-main` has to fill the
+viewport, or the work area has no definite height. That height is what a
+`FullBleed` page spends — the whiteboard's canvas chain (`app-body` → `flex-1` →
+`#canvas-wrap`) resolves to zero without it, so the board renders but cannot be
+drawn on. `scripts/whiteboard-client.test.mjs` pins the canvas height at 900px
+for exactly that reason.
+
 ## Adding a module
 
 1. One entry in `internal/ui/modules.go` (`ID`, `Title`, `Group`, `Icon`, `URL`,

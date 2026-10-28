@@ -893,6 +893,104 @@ async function main() {
   if (sameUserBadges === 2) ok("same-user tabs render as two cursor dots on the peer");
 
   // ---------------------------------------------------------------------------
+  // 11. The board must be DRAWABLE at the stacked breakpoint (≤1024px).
+  //
+  // The shell stacks there: the rail collapses into a drawer. While it did
+  // that with `display: block`, .app-main was sized to its content (header +
+  // body), so the work area had no definite height and #canvas-wrap resolved
+  // to 0px. The page rendered, the toolbar rendered, the pointer cursor was
+  // the plain arrow over a zero-height strip, and NOTHING could be drawn —
+  // the board was simply unusable on a phone, a tablet, or a window narrower
+  // than the breakpoint. Every test above runs at the desktop width, which is
+  // exactly why none of them noticed.
+  //
+  // The height assertion is the one that bites: `waitForCanvas` only asks for
+  // width > 0, and a collapsed canvas still reports the full width.
+  //
+  // RED-PROOFED: with `.app-shell { display: block }` the canvas measures
+  // 900x0, no ink lands, and both assertions fail.
+  // ---------------------------------------------------------------------------
+  const doc11 = "wb-stacked-" + process.pid;
+  const stackCtx = await browser.newContext({ viewport: { width: 900, height: 800 } });
+  await stackCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const stackPage = await stackCtx.newPage();
+  stackPage.on("pageerror", (e) => pageErrors.push("stacked: " + String(e)));
+  await gotoBoard(stackPage, `${BASE}/whiteboard/${doc11}?clientID=wb-stacked`);
+  await waitForCanvas(stackPage);
+
+  const stackWrap = await stackPage.evaluate(() => {
+    const r = document.getElementById("canvas-wrap").getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  if (stackWrap.h > 200) {
+    ok(`canvas fills the stacked layout (${stackWrap.w}x${stackWrap.h})`);
+  } else {
+    bad(`canvas collapsed in the stacked layout (${stackWrap.w}x${stackWrap.h}) — the work area has no height`);
+  }
+
+  const STACK_REGION = { x: 20, y: 20, w: 280, h: 240 };
+  await drawRect(stackPage, 40, 40, 260, 220);
+  await waitForInk(stackPage, [STACK_REGION]);
+  const stackInk = await stackPage.evaluate(inkInRegion(STACK_REGION.x, STACK_REGION.y, STACK_REGION.w, STACK_REGION.h));
+  if (stackInk > 0) {
+    ok(`drawing works below the stacked breakpoint (ink ${stackInk})`);
+  } else {
+    bad("drawing produced no ink in the stacked layout");
+  }
+  await stackCtx.close();
+
+  // ---------------------------------------------------------------------------
+  // 12. The toolbar's colour swatch must actually colour the shape.
+  //
+  // The page renders <input type="color" id="color-input">, but the client
+  // looked it up as `input[data-bind="color"]` — an attribute the template
+  // stopped carrying. The result was a picker that accepted a choice and
+  // changed nothing: every shape kept the default ink. It reads like a dead
+  // toolbar button, which is what a "nothing I click works" report looks like.
+  //
+  // Asserted on the SNAPSHOT, not on pixels: the stored colour is the
+  // contract (and pixels cannot name a hue).
+  //
+  // RED-PROOFED: with the stale selector the shape is stored as #1f2937.
+  // ---------------------------------------------------------------------------
+  const doc12 = "wb-color-" + process.pid;
+  const colorCtx = await browser.newContext();
+  await colorCtx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+  const colorPage = await colorCtx.newPage();
+  colorPage.on("pageerror", (e) => pageErrors.push("color: " + String(e)));
+  await gotoBoard(colorPage, `${BASE}/whiteboard/${doc12}?clientID=wb-color`);
+  await waitForCanvas(colorPage);
+
+  const PICKED = "#ff0000";
+  await colorPage.evaluate((hex) => {
+    const el = document.getElementById("color-input");
+    el.value = hex;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, PICKED);
+  await drawRect(colorPage, 60, 60, 220, 180);
+
+  let stored = "";
+  {
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline && !stored) {
+      const res = await fetch(`${BASE}/api/whiteboard/${doc12}/snapshot`, {
+        headers: { Cookie: "gogogo_auth=" + cookie },
+      }).catch(() => null);
+      if (res && res.ok) {
+        const shapes = await res.json().catch(() => []);
+        if (Array.isArray(shapes) && shapes.length) stored = String(shapes[0].color || "");
+      }
+      if (!stored) await sleep(200);
+    }
+  }
+  if (stored.toLowerCase() === PICKED) {
+    ok(`the colour swatch reaches the stored shape (${stored})`);
+  } else {
+    bad(`the drawn shape stored colour "${stored || "none"}", want ${PICKED} — the picker is not wired`);
+  }
+  await colorCtx.close();
+
+  // ---------------------------------------------------------------------------
   // OFFLINE DRAW + RECONNECT: a shape drawn while the link is down is buffered
   // in the whiteboard's IndexedDB outbox and replayed on reconnect, so the
   // shape is on the SERVER afterwards. This is the feature's offline claim and
