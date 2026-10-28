@@ -5,7 +5,7 @@
 > Coverage is enforced by TestTemplAPIURLsHaveRoutes (every ref below
 > must match a registered route); this file is the inventory it proves.
 
-## Registered routes (65)
+## Registered routes (66)
 
 Every `/api/*` literal in non-test, non-generated Go sources.
 
@@ -48,6 +48,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/notes/{docID}/op`
 - `/api/notes/{docID}/stream`
 - `/api/notes/{docID}/typing`
+- `/api/notifications/badge`
 - `/api/notifications/read-all`
 - `/api/notifications/remind`
 - `/api/notifications/stream`
@@ -75,7 +76,7 @@ Every `/api/*` literal in non-test, non-generated Go sources.
 - `/api/whiteboard/{docID}/update`
 - `/api/whiteboards/fragment`
 
-## Template and script refs (24)
+## Template and script refs (26)
 
 Every `/api/*` URL fired from `.templ` and `.js` sources.
 
@@ -87,6 +88,7 @@ Every `/api/*` URL fired from `.templ` and `.js` sources.
 - `/api/chat/stream`
 - `/api/notes/`
 - `/api/notes/fragment`
+- `/api/notifications/badge`
 - `/api/notifications/remind`
 - `/api/notifications/stream`
 - `/api/onboarding/start`
@@ -96,6 +98,7 @@ Every `/api/*` URL fired from `.templ` and `.js` sources.
 - `/api/todos/`
 - `/api/todos/completed/delete`
 - `/api/todos/completed/delete/`
+- `/api/todos/events`
 - `/api/todos/fragment`
 - `/api/todos/retry-demo`
 - `/api/todos/search`

@@ -2,6 +2,7 @@
 package components
 
 import (
+	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/components"
 	"github.com/calionauta/gogogo/internal/ui"
 )
@@ -29,7 +30,6 @@ type ChannelOption struct {
 type PageData struct {
 	Items    []Item
 	Unread   int
-	Notice   string
 	Wired    bool
 	Channels []ChannelOption
 }
@@ -46,7 +46,21 @@ templ Page(email string, role string, buildLabel string, buildCommit string, dat
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
 		StreamPage:  true,
-	}, nil, nil, nil, body(data))
+	}, notificationsHead(), notificationsSound(), nil, body(data))
+}
+
+// notificationsHead carries the page's own <head> extras: the sound assets, so
+// the rail's mute control works here too.
+templ notificationsHead() {
+	@sounds.SoundAssets()
+}
+
+// notificationsSound is the shell's mute control for this page. It is a
+// one-line templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies the
+// shell's slot (the import goes with it).
+templ notificationsSound() {
+	@sounds.SoundSwitch()
 }
 
 templ body(data PageData) {
@@ -130,22 +144,21 @@ templ Inbox(data PageData) {
 				<h2 class="ui-title">Notifications</h2>
 				<span class="badge badge-sm">{ unreadLabel(data.Unread) }</span>
 			</div>
-			if data.Notice != "" {
-				<div class="alert alert-success" role="status"><span>{ data.Notice }</span></div>
-			}
 			if len(data.Items) == 0 {
 				<div class="ui-empty">
 					<p class="ui-empty-title">Nothing here yet.</p>
 					<p class="ui-empty-body">Schedule a reminder above; it arrives when the delay ends.</p>
 				</div>
 			} else {
-				<div class="flex justify-end">
-					<button
-						type="button"
-						class="btn btn-ghost btn-xs"
-						data-on:click={ readAllAction() }
-					>Mark all read</button>
-				</div>
+				if data.Unread > 0 {
+					<div class="flex justify-end">
+						<button
+							type="button"
+							class="btn btn-ghost btn-xs"
+							data-on:click={ readAllAction() }
+						>Mark all read</button>
+					</div>
+				}
 				<ul class="divide-y divide-base-200">
 					for _, item := range data.Items {
 						@itemRow(item)
@@ -158,13 +171,18 @@ templ Inbox(data PageData) {
 
 templ itemRow(item Item) {
 	<li class="flex items-start gap-3 py-3">
-		if item.Unread {
-			<span class="badge badge-primary badge-sm" aria-label="unread">new</span>
-		} else {
-			<span class="badge badge-ghost badge-sm" aria-label="read">read</span>
-		}
+		<span class="app-inbox-marker" aria-hidden="true">
+			if item.Unread {
+				<span class="status status-primary"></span>
+			}
+		</span>
 		<div class="grow">
-			<p class="font-medium">{ item.Subject }</p>
+			<p class="font-medium">
+				if item.Unread {
+					<span class="sr-only">Unread: </span>
+				}
+				{ item.Subject }
+			</p>
 			<p class="text-sm opacity-80">{ item.Body }</p>
 			<p class="ui-meta">{ item.When }</p>
 		</div>

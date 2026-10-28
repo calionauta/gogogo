@@ -27,16 +27,16 @@ type TechItem struct {
 // drift. The caption reuses the demo panel's head style (STATE / STACK) so the
 // key reads as part of the same evidence surface rather than a stray list.
 //
-// It lives in the "How it works" panel, not in the chrome: the stack is
+// It lives in the Stack panel, not in the chrome: the stack is
 // evidence about the template, something you ask for, not a permanent column
 // competing with navigation (and definitely not a counter on a disclosure —
 // "stack 7" said nothing about which seven).
 //
-// The key is static evidence below the panel's interactive machinery
-// (STATE): one section per concern, divided, so neither pushes the other
-// out of view behind an undifferentiated scroll. Rows are block layout,
-// not grid: a grid with the dot as a grid item sized column 1 per-row
-// from the name length, staggering every note like a gantt chart.
+// The key is the panel's static section (STACK), opened by its own button:
+// the State button shows the page's interactive machinery, the Stack button
+// this key, and neither pushes the other out of view behind one scroll. Rows
+// are block layout, not grid: a grid with the dot as a grid item sized column
+// 1 per-row from the name length, staggering every note like a gantt chart.
 //
 // TEMPLATE DEMO-ONLY — this advertises the template's own internals,
 // which mean nothing to a product's users. Agents adapting gogogo into

@@ -13,13 +13,22 @@ var deliveryUnits = []Capability{
 		Kind:    KindFeature,
 		Summary: "inbox + durable reminders (DagNats sleep → delivery row)",
 		Dirs:    []string{"features/notifications"},
+		DependsOn: []string{
+			depSounds,
+		},
 		Reason: "Removal is manual: delete this unit, the sidebar entry in " +
-			"internal/ui/modules.go, the reminder definition in " +
+			"internal/ui/modules.go (Pinned), the rail count middleware and the " +
+			"session-stream feed in internal/server/inbox_badge.go plus their " +
+			"r.Use / SetSessionStreamExtras lines in internal/server/chi.go and " +
+			"internal/server/delivery.go, the badge refresh button in " +
+			"internal/ui/inbox.templ and its route in the handler, the " +
+			"reminder definition in " +
 			"internal/dagnats/reminder.go, the reminder-seed and notification-deliver " +
 			"workers plus the onboarding welcome call and the startDagNats argument in " +
 			"cmd/web/dagnats.go. Migration 0015 stays (migrations are append-only; " +
 			"drop the table with a new one if the data must go). The transport seam " +
 			"is the separate `delivery` plugin.",
+		Files: []string{"internal/server/inbox_badge.go"},
 	},
 	{
 		ID:   "delivery",

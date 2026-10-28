@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/calionauta/gogogo/features/sounds"
 	"github.com/calionauta/gogogo/internal/ui"
 )
 
@@ -51,7 +52,21 @@ templ Page(data PageData, buildLabel string, buildCommit string) {
 		Role:        data.Role,
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
-	}, nil, nil, nil, body(data))
+	}, accountHead(), accountSound(), nil, body(data))
+}
+
+// accountHead carries the page's own <head> extras: the sound assets, so the
+// rail's mute control works here too.
+templ accountHead() {
+	@sounds.SoundAssets()
+}
+
+// accountSound is the shell's mute control for this page. It is a one-line
+// templ wrapper on purpose: the installer's sounds trim drops the
+// @sounds.SoundSwitch() line, leaving an empty wrapper that still satisfies the
+// shell's slot (the import goes with it).
+templ accountSound() {
+	@sounds.SoundSwitch()
 }
 
 templ body(data PageData) {

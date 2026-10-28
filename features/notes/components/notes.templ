@@ -52,7 +52,14 @@ templ NotesIndex(email string, userRole string, notes []NoteMeta, buildLabel str
 		Stack:       notesStack(),
 		Demo:        demo,
 		StreamPage:  true,
-	}, nil, nil, notesActions(), notesBody(notes))
+	}, notesListHead(), notesSound(), notesActions(), notesBody(notes))
+}
+
+// notesListHead carries the list page's own <head> extras: only the sound
+// assets, so the rail's mute control works here too. The editor scripts stay on
+// the document page.
+templ notesListHead() {
+	@sounds.SoundAssets()
 }
 
 // notesActions is the header's right-aligned action.

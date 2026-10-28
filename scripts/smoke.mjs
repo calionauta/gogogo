@@ -267,6 +267,30 @@ async function verifyAccountMenu(page) {
     "the rail's sound mute is not an input-backed switch",
   );
 
+  // Config is an operator surface, not a daily destination: it must not render
+  // in the rail (the account menu carries it for admins; the signed-in smoke
+  // user is a plain user, so that link is asserted in the authviews render
+  // test instead).
+  check(
+    (await page.locator("#app-rail .app-rail-nav a[href='/config']").count()) === 0,
+    "Config is still a rail destination (it belongs in the account menu)",
+  );
+
+  // The inbox is the rail's first item, pinned above the Collab heading, with
+  // an indicator badge node the live inbox patches.
+  const firstRailHref = await page
+    .locator("#app-rail .app-rail-nav .app-rail-item")
+    .first()
+    .getAttribute("href");
+  check(
+    firstRailHref === "/notifications",
+    `first rail item is ${firstRailHref}, want the inbox (/notifications)`,
+  );
+  check(
+    (await page.locator("#app-rail #rail-inbox-badge.indicator-item").count()) === 1,
+    "the inbox rail item has no indicator badge node",
+  );
+
   await page.keyboard.press("Escape");
   await trigger.click();
   await panel.waitFor({ state: "hidden", timeout: 5000 });
@@ -347,6 +371,22 @@ async function verifyStructuralUi(page) {
     check(problems.length === 0, `demo panel: ${problems.join("; ")}`);
     await toggle.click(); // close again
   }
+
+  // The rail badge is signal-bound: session.js publishes counts as
+  // `gogogo:unread`, and the leader stream is what carries them between pages.
+  // Dispatching here proves the binding without waiting for a delivery.
+  const railBadge = page.locator("#rail-inbox-badge");
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: 7 } })),
+  );
+  await page.waitForTimeout(150);
+  check((await railBadge.innerText()) === "7", "rail inbox badge did not react to gogogo:unread");
+  check(await railBadge.isVisible(), "rail inbox badge stayed hidden after a non-zero count");
+  await page.evaluate(() =>
+    document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: 0 } })),
+  );
+  await page.waitForTimeout(150);
+  check(await railBadge.isHidden(), "rail inbox badge stayed visible at zero");
 
   if (bad === 0) console.log("  \u2713 structural UI clean: names, overflow, panel geometry");
 }
@@ -1976,11 +2016,32 @@ try {
     if (await page.locator("#state-panel").isVisible()) {
       fail("demo mode: the state panel is visible by default (product mode must start hidden)");
     }
-    const toggle = page.locator(".app-demo-toggle");
-    if (!(await toggle.isVisible())) fail("demo mode: no How it works toggle in the module header");
-    await toggle.click();
+    // Two buttons, two sections: State opens the machinery, Stack opens the
+    // technology key. Neither may show the other's content.
+    const stateToggle = page.locator(".app-demo-toggle[data-panel-mode='state']");
+    const stackToggle = page.locator(".app-demo-toggle[data-panel-mode='stack']");
+    if (!(await stateToggle.isVisible())) fail("demo mode: no State toggle in the module header");
+    if (!(await stackToggle.isVisible())) fail("demo mode: no Stack toggle in the module header");
+
+    await stateToggle.click();
     await page.waitForSelector("#state-panel", { state: "visible", timeout: 5000 });
-    console.log("  ✓ demo mode: the toggle shows the state panel without a reload");
+    if (!(await page.locator("#state-panel section[aria-label='State']").isVisible())) {
+      fail("demo mode: the State toggle did not open the State section");
+    }
+    if (await page.locator("#state-panel section[aria-label='Stack']").isVisible()) {
+      fail("demo mode: the State toggle also opened the Stack section");
+    }
+    console.log("  ✓ demo mode: the State toggle opens only the machinery, without a reload");
+
+    await stackToggle.click();
+    if (!(await page.locator("#state-panel section[aria-label='Stack']").isVisible())) {
+      fail("demo mode: the Stack toggle did not show the stack key");
+    }
+    if (await page.locator("#state-panel section[aria-label='State']").isVisible()) {
+      fail("demo mode: switching to Stack left the State section visible");
+    }
+    console.log("  ✓ demo mode: the Stack toggle switches the panel to the stack key");
+
     await page.reload({ waitUntil: "load" });
     if (!(await page.locator("#state-panel").isVisible())) {
       fail("demo mode: the panel did not survive a reload (the cookie is not being set)");
@@ -1988,12 +2049,25 @@ try {
     console.log("  ✓ demo mode: the cookie keeps it visible across a reload");
     const closeBtn = page.locator("#state-panel button[aria-label='Close panel']");
     if (!(await closeBtn.isVisible())) fail("demo mode: the panel has no close button");
+    // The close control is pinned to the panel's top-right corner in every
+    // variation. It once slid to the left on stack-only pages (no head label
+    // to fill the space-between row), so this is a geometry assertion.
+    const panelBox = await page.locator("#state-panel").boundingBox();
+    const closeBox = await closeBtn.boundingBox();
+    if (panelBox && closeBox) {
+      if (!(closeBox.x + closeBox.width > panelBox.x + panelBox.width - 32)) {
+        fail("demo mode: the close control is not in the panel's right corner");
+      }
+      if (!(closeBox.y < panelBox.y + 40)) {
+        fail("demo mode: the close control is not at the panel's top");
+      }
+    }
     await closeBtn.click();
     await page.waitForSelector("#state-panel", { state: "hidden", timeout: 5000 });
     console.log("  ✓ demo mode: the close button hides the panel without a reload");
-    await page.locator(".app-demo-toggle").click();
+    await stateToggle.click();
     await page.waitForSelector("#state-panel", { state: "visible", timeout: 5000 });
-    await page.locator(".app-demo-toggle").click();
+    await stateToggle.click();
     await page.waitForSelector("#state-panel", { state: "hidden", timeout: 5000 });
     console.log("  ✓ demo mode: the toggle hides it again");
   }
@@ -2003,8 +2077,8 @@ try {
   // silently otherwise.
   for (const route of ["/todo", "/chat", "/review"]) {
     await page.goto(BASE + route, { waitUntil: "load", timeout: 20000 });
-    if (!(await page.locator(".app-demo-toggle").isVisible())) {
-      fail(`demo mode: ${route} has no How it works toggle (did it stop passing a Panel?)`);
+    if (!(await page.locator(".app-demo-toggle").first().isVisible())) {
+      fail(`demo mode: ${route} has no panel toggle (did it stop passing a Panel?)`);
     }
   }
   console.log("  ✓ demo mode: every module page offers the panel");

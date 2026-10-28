@@ -42,12 +42,27 @@ func buildDelivery(cfg *config.Config) *delivery.Router {
 	}
 }
 
-// mountNotifications builds and mounts the inbox slice.
-func mountNotifications(
+// mountInbox mounts the inbox slice and wires its bus into the browser's
+// leader session stream, so the rail badge hears about a delivery without a
+// second connection per page. The two go together: without the inbox there is
+// no feed, and without the feed the stream stays session-only.
+func mountInbox(
 	mux *Router, a *auth.Auth, cfg *config.Config, q *dbgen.Queries,
 ) *notificationshandlers.Handler {
-	notificationsH := notificationshandlers.NewHandler(a, cfg, q,
-		notifications.NewBus(), buildDelivery(cfg))
+	h, bus := mountNotifications(mux, a, cfg, q)
+	a.SetSessionStreamExtras(inboxShellFeed{bus: bus, q: q})
+	return h
+}
+
+// mountNotifications builds and mounts the inbox slice. It returns the bus as
+// well as the handler: the composition root wires the same bus into the
+// session stream, so the rail badge hears about a delivery without a second
+// connection per page.
+func mountNotifications(
+	mux *Router, a *auth.Auth, cfg *config.Config, q *dbgen.Queries,
+) (*notificationshandlers.Handler, *notifications.Bus) {
+	bus := notifications.NewBus()
+	notificationsH := notificationshandlers.NewHandler(a, cfg, q, bus, buildDelivery(cfg))
 	mux.MountFeature("notifications", notificationsH.Routes())
-	return notificationsH
+	return notificationsH, bus
 }

@@ -64,7 +64,14 @@ templ BoardListWithRealtime(email string, userRole string, boards []BoardMeta, b
 		Stack:       boardsStack(),
 		Demo:        demo,
 		StreamPage:  true,
-	}, nil, nil, boardsActions(), boardsBody(boards))
+	}, boardsListHead(), boardSound(), boardsActions(), boardsBody(boards))
+}
+
+// boardsListHead carries the list page's own <head> extras: only the sound
+// assets, so the rail's mute control works here too. The canvas scripts stay on
+// the board page.
+templ boardsListHead() {
+	@sounds.SoundAssets()
 }
 
 // boardsActions is the header's right-aligned action.

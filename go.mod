@@ -37,7 +37,7 @@ require (
 	github.com/zendev-sh/goai v0.10.8
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.58.0
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 	maragu.dev/goqite v0.4.0

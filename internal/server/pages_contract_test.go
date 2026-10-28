@@ -60,6 +60,14 @@ var pagesUnderTest = []pageUnderTest{
 		`data-bind="newTitle"`,
 		`id="suggestions-region"`,
 		`id="toast-container"`,
+		// Every shell page that loads the sound runtime renders the rail's
+		// mute switch. A page added without it loses the one global control
+		// silently — that is how the inbox and account pages shipped.
+		// Two panel buttons, two sections: State opens the machinery, Stack
+		// the technology key. The split was a product request, so the header
+		// carrying both is a contract.
+		`data-panel-mode="state"`,
+		`data-panel-mode="stack"`,
 	}},
 	{name: "chat", route: "/chat", must: []string{
 		`id="chat-composer"`,
@@ -96,8 +104,8 @@ var pagesUnderTest = []pageUnderTest{
 	}},
 	// net-status lives on the DOC page (/notes/{id}), not the list: the list
 	// only carries notes-list + the resync affordance.
-	{name: "notes", route: "/notes", must: []string{`id="notes-list"`}},
-	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`}},
+	{name: "notes", route: "/notes", must: []string{`id="notes-list"`, `app-sound-toggle`}},
+	{name: "whiteboard", route: "/whiteboard", must: []string{`id="whiteboard-list"`, `app-sound-toggle`}},
 	{name: "account", route: "/account", must: []string{
 		"Sessions",
 		"Two-factor authentication",
@@ -206,6 +214,14 @@ func fetchPage(t *testing.T, base string, c *http.Cookie, route string) string {
 	return string(body)
 }
 
+// soundsWired reports whether the trimmable sounds unit is present in this
+// tree. The page contract runs inside installer presets, where the unit (and
+// therefore the rail's mute) is legitimately gone.
+func soundsWired() bool {
+	_, err := os.Stat(filepath.Join("..", "..", "features", "sounds", "plugin.templ"))
+	return err == nil
+}
+
 // TestPagesContract fails when a route stops serving what callers depend on.
 func TestPagesContract(t *testing.T) {
 	base, cookie := bootPages(t)
@@ -216,7 +232,15 @@ func TestPagesContract(t *testing.T) {
 				c = nil
 			}
 			body := fetchPage(t, base, c, p.route)
-			for _, want := range p.must {
+			must := p.must
+			// The rail's mute comes from the trimmable sounds unit. A tree
+			// without it has no switch to assert (room never had one: its
+			// capability ships no sound runtime), so the page contract only
+			// holds the line where the unit is present.
+			if soundsWired() && p.name != "room" && p.name != "login" {
+				must = append(must, "app-sound-toggle")
+			}
+			for _, want := range must {
 				if !strings.Contains(body, want) {
 					t.Errorf("%s: missing %q (a revamp changed a contract — "+
 						"either restore it or update this table and the test that pins it)", p.route, want)

@@ -1,0 +1,89 @@
+// SCOPE:core — The rail's inbox entry: the one nav item with a live count.
+//
+// The badge is a DaisyUI `indicator-item` on the module icon and always renders
+// (hidden at zero) because the notifications feature patches this exact node by
+// id: a fragment that only exists when non-zero would be un-patchable back to
+// zero. The count is seeded by inboxBadgeMiddleware and replaced live by the
+// inbox stream and by every mark-read action.
+package ui
+
+import (
+	"strconv"
+
+	"github.com/calionauta/gogogo/internal/icon"
+)
+
+// RailInboxBadge is the unread count bubble. tabular-nums keeps a count
+// change from shifting the icon; the label caps at 99+ so three digits cannot
+// stretch the rail row.
+//
+// The text/visibility are bound to $inboxUnread: the server seeds it from the
+// page middleware, and session.js updates it from the leader stream's frames
+// (BroadcastChannel fans the same value out to every tab). The server-rendered
+// text is the pre-init fallback; the JS expression mirrors unreadBadgeLabel so
+// the first paint and every later update agree on the 99+ cap.
+templ RailInboxBadge(unread int) {
+	<span
+		id="rail-inbox-badge"
+		class={ templ.Classes("indicator-item badge badge-primary badge-xs tabular-nums", map[string]bool{"hidden": unread <= 0}) }
+		data-class="{'hidden': $inboxUnread <= 0}"
+		data-text="$inboxUnread > 99 ? '99+' : ($inboxUnread > 0 ? $inboxUnread : '')"
+		data-on:gogogo:unread__document="$inboxUnread = evt.detail.unread"
+	>{ unreadBadgeLabel(unread) }</span>
+}
+
+// railInboxRefresh is the badge's refresh affordance for pages that already
+// hold a feature stream: those pages must not open a second long-lived
+// connection (the browser's per-host cap is why), and a timer would be a poll.
+// It asks for the count only on events that mean the user is back or the
+// network changed — tab visible, window focused, bfcache restore, back online.
+// Any tab that already heard a change broadcasts it, so this is the fallback,
+// never the steady state. The endpoint answers with a signal patch, not markup.
+templ railInboxRefresh() {
+	<button
+		id="rail-inbox-refresh"
+		type="button"
+		class="hidden"
+		aria-hidden="true"
+		data-on:click="@get('/api/notifications/badge')"
+		data-on:visibilitychange__document="if (!document.hidden) document.getElementById('rail-inbox-refresh').click()"
+		data-on:focus__window="if (!document.hidden) document.getElementById('rail-inbox-refresh').click()"
+		data-on:pageshow__window="evt.persisted && document.getElementById('rail-inbox-refresh').click()"
+		data-on:online__window="document.getElementById('rail-inbox-refresh').click()"
+	></button>
+}
+
+// railItem is one destination in the rail: same markup for every module, with
+// the inbox icon wrapped in the indicator that carries its count.
+templ railItem(m Module, active bool, unread int) {
+	<a
+		href={ templ.SafeURL(m.URL) }
+		class={ templ.Classes("app-rail-item", map[string]bool{"is-active": active}) }
+		aria-current={ activeCurrent(active) }
+		data-cuelume-hover="tick"
+		data-cuelume-press="toggle"
+		data-on:click="$railOpen = false">
+		if m.ID == ModuleInbox {
+			<span class="indicator">
+				@RailInboxBadge(unread)
+				@icon.Icon(m.Icon, "app-rail-icon")
+			</span>
+		} else {
+			@icon.Icon(m.Icon, "app-rail-icon")
+		}
+		<span class="app-rail-label">{ m.Title }</span>
+	</a>
+}
+
+// unreadBadgeLabel is the bubble's text. Zero renders nothing (the node stays
+// in the DOM for patching); past 99 the bubble says "99+" instead of growing.
+func unreadBadgeLabel(unread int) string {
+	switch {
+	case unread <= 0:
+		return ""
+	case unread > 99:
+		return "99+"
+	default:
+		return strconv.Itoa(unread)
+	}
+}

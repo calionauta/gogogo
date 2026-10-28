@@ -152,6 +152,10 @@ type Auth struct {
 	requireEmailVerification bool
 	// sessionIdle is the inactivity window; zero keeps the absolute TTL only.
 	sessionIdle time.Duration
+	// streamExtras is the optional feed the session stream carries besides
+	// auth state (the rail's unread count). Nil keeps the stream session-only;
+	// wired by the composition root, never by this package.
+	streamExtras SessionStreamExtras
 	// totpAttempts throttles second-factor guessing (see ratelimit.go).
 	totpAttempts attemptTracker
 	// signinAttempts throttles password guessing per client IP (looser

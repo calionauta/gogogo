@@ -58,7 +58,7 @@
     {
       "id": "stack-key",
       "title": "Stack key (demo panel evidence)",
-      "when": "the `How it works` panel of a page that declares Data.Stack",
+      "when": "the Stack panel of a page that declares Data.Stack",
       "avoid": "the sidebar, a counter in the label, or a per-page invention",
       "source": "internal/components/techstack.templ",
       "shows": [
@@ -79,6 +79,20 @@
         "badge-sm"
       ],
       "doc": "docs/ui-compositions.md#6-state-inline"
+    },
+    {
+      "id": "transient-feedback",
+      "title": "Transient feedback (toast)",
+      "when": "an action succeeded and the page already shows the result",
+      "avoid": "an inline alert that stays on the page for a message the user already saw",
+      "source": "internal/components/toast.templ",
+      "shows": [
+        "toast-msg",
+        "alert",
+        "alert-success",
+        "btn-circle"
+      ],
+      "doc": "docs/ui-compositions.md#7-transient-feedback-toast"
     }
   ]
 }

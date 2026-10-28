@@ -122,10 +122,17 @@ they can never be "missing a selector".
    canvas/op batching + Loro + outbox (`whiteboard.js`, `notes.js`),
    Service Worker + global controllers (`sw.js`, `session.js`,
    `theme.js`), stream bootstrap openers (no `data-on:load` on body),
-   Hub record-event subscribe (not Datastar events). A `setInterval`
-   polling loop or `innerHTML` render is never acceptable for signal
-   changes or fragment updates — use `data-effect` /
-   `data-on-interval` + fragment morph (`docs/realtime-recipe.md`).
+   Hub record-event subscribe (not Datastar events). **Never poll server
+   state — not with `setInterval`, not with `data-on-interval`.** A timer
+   that fetches is a poll even when it wears a Datastar attribute; the
+   measured cost is the browser's six-per-host connection cap (five
+   same-user tabs with a stream each leave no socket for a POST). Reuse
+   the stream the page already has; for shell/global state use the leader
+   session stream (`session.js`: Web Locks + BroadcastChannel) and refresh
+   on visibility/focus/online/pageshow, never on a timer.
+   `TestNoPeriodicFetch` fails a `.templ` that uses `data-on-interval`.
+   Reference: `session.js`, `internal/ui/inbox.templ`,
+   `docs/notifications.md`, `docs/realtime-recipe.md#global-state-and-the-connection-budget`.
 4. Intentional custom attributes (whiteboard `data-tool`/`data-doc-id`, cuelume `data-cuelume-*`) go in `.datastar-lint.yaml` under `attributes.allowed` — never silence with broad ignores.
 5. The action list tracks the Datastar core release: `@query()` is v1.0.4+. An action missing from the linter's regex falls through to the "no action matched" branch and silently skips the URL-format and method checks, so re-check this list on a core upgrade.
 6. Templ does not interpolate `{...}` inside `<script>` bodies or inside

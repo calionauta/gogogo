@@ -100,9 +100,12 @@ func TestStreamPushesADeliveryToTheOpenTab(t *testing.T) {
 		}
 	}
 
-	// Handshake first: the ack and the initial inbox frame.
+	// Handshake first: the ack, the initial inbox frame, and the shell count
+	// signal (the sidebar badge rides the same stream, so a delivery updates it
+	// without a reload).
 	waitFor("streamOpen")
 	waitFor("Nothing here yet.")
+	waitFor("inboxUnread")
 
 	if err := h.Deliver(context.Background(), Delivery{
 		Owner:         u.ID,

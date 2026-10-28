@@ -1,12 +1,21 @@
-// Shared session banner controller — ONE implementation for every page.
+// Shared session banner + rail inbox controller — ONE implementation for
+// every page.
 //
-// Two signal sources feed the same banner:
+// Two signal sources feed the same frame:
 //   - live SSE streams (notes, whiteboard) receive a {type:"session"} frame
 //     and call GogogoSession.set(authed) immediately;
 //   - ONE VISIBLE tab of the browser holds /api/session/stream open and
 //     tells the others through a BroadcastChannel. That stream replaces the
 //     60s /api/session probe: no tab schedules a request, it hears about
 //     CHANGES.
+//
+// The same leader stream carries the rail's unread count in the session frame
+// (`unread`) on pages that have no feature stream. A tab dispatches
+// `gogogo:unread` on `document`; the shell badge binds that event to
+// $inboxUnread. Pages that already hold a feature stream do not open a second
+// connection: they refetch on visibility/focus/online and any tab that hears
+// a change broadcasts it to the others here. No timer: the stack pushes, it
+// does not poll.
 //
 // Why one tab and not one per tab: an SSE stream holds its HTTP connection
 // for the tab's lifetime and browsers cap connections per host (6 in
@@ -49,20 +58,76 @@
     bus = null;
   }
 
-  // publish is the leader's side: update this tab and tell the others.
+  // dispatchUnread hands one count to the shell's badge without touching the
+  // DOM directly: $inboxUnread is the binding, and Datastar owns the text and
+  // the hidden class. A page without a badge simply has no listener.
+  function dispatchUnread(unread) {
+    if (typeof unread !== "number") return;
+    document.dispatchEvent(new CustomEvent("gogogo:unread", { detail: { unread: unread } }));
+  }
+
+  // lastUnread is the value this tab last heard, sent, or rendered. The first
+  // read comes from the badge's server-rendered text, not a data-init: the
+  // init attribute can run before the element's data-signals merge, which left
+  // the seed unset and silenced the broadcast (lived bug).
+  var lastUnread = null;
+
+  function renderedUnread() {
+    var el = document.getElementById("rail-inbox-badge");
+    if (!el) return 0;
+    var raw = el.textContent.trim();
+    if (raw === "99+") return 99;
+    var n = parseInt(raw, 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function seedUnread(unread) {
+    if (typeof unread === "number") lastUnread = unread;
+  }
+
+  // broadcastUnread is the generic side: any tab that learns a new count (its
+  // own feature stream, the visibility refetch, or the shared session stream) tells
+  // the others. The receiving tab seeds lastUnread before dispatching, so the
+  // shell's datastar-signal-patch listener does not echo it back.
+  function broadcastUnread(unread) {
+    if (typeof unread !== "number") return;
+    if (lastUnread === null) lastUnread = renderedUnread();
+    if (unread === lastUnread) return;
+    lastUnread = unread;
+    if (!bus) return;
+    try { bus.postMessage({ type: "unread", unread: unread }); } catch (_) {}
+  }
+
+  // The shell calls this on datastar-signal-patch: every local or server-side
+  // write to $inboxUnread goes through the same broadcast.
+  window.__gogogoUnreadChanged = broadcastUnread;
+
+  // publishUnread is the leader's side: update this tab and tell the others.
+  function publishUnread(unread) {
+    dispatchUnread(unread);
+    if (typeof unread !== "number") return;
+    lastUnread = unread;
+    if (!bus) return;
+    try { bus.postMessage({ type: "unread", unread: unread }); } catch (_) {}
+  }
+
+  // publish is the leader's side for the session banner: update this tab and
+  // tell the others.
   function publish(authed) {
     set(authed);
     if (!bus) return;
     try { bus.postMessage({ type: "session", authed: authed }); } catch (_) {}
   }
 
-  // ownStream: this page has no feature stream, so the session banner needs
-  // its own connection. Pages that already hold one (the Datastar openers and
-  // the raw-EventSource doc pages) must NOT add a second long-lived
-  // connection: browsers cap connections per host, and the extra one starves
-  // a later same-tab navigation (measured: the smoke's seventh page stalled
-  // for its full timeout). Those pages carry the session state on their own
-  // stream; `data-stream-page` marks the raw-EventSource pages.
+  // ownStream: this page has no feature stream, so it needs its own
+  // connection for the session banner and the inbox count. A page that already
+  // holds one (the Datastar openers and the raw-EventSource doc pages) must
+  // NOT add a second long-lived connection: browsers cap connections per host
+  // (6 in Chromium), and a context with five same-user tabs already fills the
+  // budget — measured again by the notes caret suite when the leader stream
+  // was briefly opened everywhere. Those pages refetch the badge on return
+  // (visibility/focus/online) and hear cross-tab changes over the bus.
+  // `data-stream-page` marks the raw-EventSource pages.
   var ownStream = !document.querySelector("[data-stream-opener], [data-stream-page]");
 
   // stream is the leader tab's EventSource (nil while none is open).
@@ -91,6 +156,7 @@
       if (!e.data || e.data.charAt(0) === ":") return;
       var m;
       try { m = JSON.parse(e.data); } catch (_) { return; }
+      if (typeof m.unread === "number") publishUnread(m.unread);
       if (m.type !== "session" || typeof m.authed !== "boolean") return;
       publish(m.authed);
       if (!m.authed) {
@@ -153,7 +219,13 @@
   if (bus) {
     bus.onmessage = function (e) {
       var m = e.data;
-      if (!m || m.type !== "session" || typeof m.authed !== "boolean") return;
+      if (!m) return;
+      if (m.type === "unread") {
+        seedUnread(m.unread);
+        dispatchUnread(m.unread);
+        return;
+      }
+      if (m.type !== "session" || typeof m.authed !== "boolean") return;
       set(m.authed);
     };
   }

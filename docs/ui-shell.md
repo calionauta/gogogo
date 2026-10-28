@@ -9,12 +9,12 @@ class to use so a new screen looks like the other eight.
 ```
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
-├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · []Module groups · account row
-│      account row → panel: identity · links · Tema list · sign out
+├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · pinned Inbox (indicator count) · []Module groups · account row
+│      account row → panel: identity · Account · Config (admin) · Tema list · sign out
 ├── <header class="app-module-header">
-│      drawer trigger (≤1024px) · title · context slot · [ How it works ] · search input · actions
+│      drawer trigger (≤1024px) · title · context slot · [ State ] [ Stack ] · search input · actions
 ├── <main class="app-body">  ← the page
-└── <aside id="state-panel"> ← when the page passes one; visibility is $panelVisible (signal, no reload)
+└── <aside id="state-panel"> ← when the page passes one; visibility is $panelVisible, section is $panelMode (signals, no reload)
 ```
 
 `Data` carries: `Title`, `Module` (id used for the active nav item), `Heading`,
@@ -22,23 +22,34 @@ internal/ui.Shell(d Data, head, sound, actions, body)
 `Signals` (the page's own seed JSON), `Stack` (`[]TechItem`), `Demo`,
 `Panel`, `OfflineSync`, `StreamPage`, `FullBleed`.
 
+**The rail is ordered, not alphabetised.** The inbox is pinned above the first
+heading: it is the always-on surface, and it carries the unread count as a
+DaisyUI `indicator` bubble on its icon. The count is seeded once per page
+navigation by `inboxBadgeMiddleware` (`internal/server/inbox_badge.go`), kept
+live on pages without a feature stream by the leader session stream
+(`session.js`), and refreshed on visibility/focus/online on pages that already hold a stream —
+a second SSE connection would exhaust the browser's per-host budget at five
+same-user tabs. Every tab that hears a new count broadcasts it over the
+BroadcastChannel; the badge binds the value to `$inboxUnread` and always
+exists, hidden at zero. Config is `MenuOnly`: an operator surface, reached
+from the account menu right under Account, never a daily rail destination.
+
 **`Panel` is nil for a reason.** A page passes a panel only when it has a
 pipeline that runs *beside* the page — a queue, a model call, phases. `/config`,
 `/room`, `/notes` and `/whiteboard` do not: their demo **is** the page (a table,
 a lock, a canvas), so a machinery column would add nothing.
 
-The button is `[ How it works ]` and it appears whenever the page has *anything*
-to put there — a `Panel`, a `Stack`, or both (`Data.HasDemo`). The panel always
-ends with the stack key (`components.TechStack`, from `Data.Stack`): one shape
-for "what this page demonstrates", identical in every feature, rendered once by
-the shell instead of hand-rolled per page. Demo mode follows the session across
-modules, so a page whose demo *is* the page still opens its key.
+The header carries up to two panel buttons, and each opens only its own
+section: `[ State ]` (`Data.Panel` — the running machinery) and `[ Stack ]`
+(`Data.Stack` — the technology key). A page with both gets both buttons; a
+page whose demo *is* the page still opens its key. The close control is pinned
+to the panel's top-right in every variation.
 
-**Demo mode never reloads.** The toggle and the panel close button flip the
-`$panelVisible` signal and persist the choice with a background `fetch` to
-`/_ui/demo` (session cookie). The cookie seeds the next server render, so the
-panel survives a reload — but opening or closing it does not navigate, morph,
-or flash.
+**Demo mode never reloads.** The buttons and the panel close control flip the
+`$panelVisible`/`$panelMode` signals and persist the on/off choice with a
+background `fetch` to `/_ui/demo` (session cookie). The cookie seeds the next
+server render, so the panel survives a reload — but opening, switching or
+closing a section does not navigate, morph, or flash.
 
 ## What a page owns
 
@@ -46,6 +57,12 @@ A page contributes: its `<head>` extras (as a one-line `*Head()` wrapper that th
 trim rules can empty), its mute control (a one-line `*Sound()` wrapper, same
 reason — the shell renders it in the rail brand), optional header `actions`, its
 body, and — when it has one — its panel.
+
+Every shell page that loads the sound runtime must render the mute switch;
+`internal/server/pages_contract_test.go` pins `app-sound-toggle` on each one, so
+a page added without it fails the contract instead of silently losing the rail's
+only global control. The room demo is the deliberate exception: its capability
+ships no sound runtime, so it passes `nil` and renders no speaker.
 
 The page never renders `<html>`, `<main>`, a banner stack or a toast root.
 
@@ -150,14 +167,20 @@ body text — never the reverse. The module header's context slot is for *state*
 
 Below 1024px the rail is an offcanvas drawer: opened from the header trigger,
 closed by the backdrop, Escape, or tapping a destination. Datastar owns
-`$railOpen`; there is no script for it. The state panel becomes a sheet.
+`$railOpen`; there is no script for it. The demo panel becomes a sheet.
 
 ## Adding a module
 
 1. One entry in `internal/ui/modules.go` (`ID`, `Title`, `Group`, `Icon`, `URL`,
-   `Admin`). The sidebar, the header title and the palette all read it.
+   `Admin`). The sidebar, the header title and the palette all read it. A
+   `Pinned` module renders above the group headings (no heading of its own);
+   a `MenuOnly` module is reached from the account menu and never renders in
+   the rail.
 2. A body inside `ui.Shell` (`// SCOPE:` per the taxonomy).
 3. If it has a pipeline, a `*StatePanel` and `Panel:` in the shell data.
+4. If it needs its own head extras or mute control, the one-line `*Head()` /
+   `*Sound()` wrappers (see "What a page owns") — never inline the call, or a
+   feature trim cannot drop just that line.
 
 Trim units drop the `[]Module` line, so a trimmed feature cannot leave a dead
 link.

@@ -61,3 +61,29 @@ func TestUserMenuLogoutActuallyPosts(t *testing.T) {
 // moved with the navigation: the sidebar renders []Module, and
 // internal/ui/modules_test.go pins both directions (the flag and the policy's
 // admin-only route set must agree).
+
+// TestUserMenuCarriesConfigOnlyForAdmins pins the account menu's operator
+// entry. Config is MenuOnly in the module registry (it has no rail item), so
+// this menu is its one entry point — and a plain user must not be offered a
+// route whose policy answers 403.
+func TestUserMenuCarriesConfigOnlyForAdmins(t *testing.T) {
+	render := func(role string) string {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := authviews.UserMenu("demo1@demo.app", role, nil).
+			Render(context.Background(), &buf); err != nil {
+			t.Fatalf("render user menu (%s): %v", role, err)
+		}
+		return buf.String()
+	}
+	for _, role := range []string{"admin"} {
+		if !strings.Contains(render(role), `href="/config"`) {
+			t.Errorf("%s menu missing the Config entry", role)
+		}
+	}
+	for _, role := range []string{"user", "viewer", ""} {
+		if strings.Contains(render(role), `href="/config"`) {
+			t.Errorf("role %q is offered /config (the policy denies it: a click 403s)", role)
+		}
+	}
+}

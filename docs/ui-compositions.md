@@ -40,6 +40,12 @@ Markup: `features/authviews/controls.templ` (`UserMenu`). Shape:
 with `avatar avatar-placeholder` + identity block (`badge` for the role) +
 CSS caret → `<ul class="app-dropdown-menu">`.
 
+The panel holds the account's links, in reading order: **Account**, then
+**Config** for admins (the operator surface lives here, not in the rail), the
+palette list, and sign out. The caret flips direction while the panel is open
+(`.app-dropdown[open] .app-account-caret`), with the same transition DaisyUI's
+own dropdown uses.
+
 **Do not** put icon toggles beside it (theme, sound, a disclosure). Preferences
 go **inside** the panel — see §2 — because that is the account surface, and
 because a rail footer with five small controls has no visual anchor.
@@ -100,8 +106,10 @@ heights.
 ## 5. Stack key (the demo panel's evidence)
 
 "What this page demonstrates" is one component, rendered by the shell from
-`Data.Stack`, in the `[ How it works ]` panel — never in the chrome, and never
-per page.
+`Data.Stack`, behind the `[ Stack ]` button — never in the chrome, and never
+per page. The `[ State ]` button opens the page's machinery instead; the two
+sections never show at once, and the panel's close control sits pinned at the
+top-right in both.
 
 Markup: `internal/components/techstack.templ` — a `STACK` caption plus one row
 per layer: `dd`/`dt` pair, a dot, the name, and what the layer does **here**
@@ -120,6 +128,29 @@ badge too — `badge badge-sm`.
 **Do not** put `badge` on an element and then strip `padding`, `border` and
 `background` in a scoped rule: that is a custom component wearing the library's
 class name, and the next reader believes it is a badge.
+
+## 7. Transient feedback (toast)
+
+An action's result — "saved", "scheduled", "deleted", "cleared" — is a toast
+appended to the shell's `#toast-container`, never an inline notice that stays on
+the page. The shell renders the container once (`components.ToastContainer`),
+the handler appends one toast, and the component removes itself (3s; 8s for
+`error`).
+
+```go
+dshelpers.RenderAndPatch(sse,
+	ic.Toast("Reminder scheduled.", "success", ic.NewToastID()),
+	sdk.WithSelectorID("toast-container"), sdk.WithModeAppend())
+```
+
+Markup: `internal/components/toast.templ`; the live example is
+`features/notifications/handlers/remind.go`.
+
+**Do not** render a success message as an `alert alert-success` inside the
+page. It stays until the next navigation, pushes the list down, and competes
+with the content that the action actually changed. Inline `alert` is for
+persistent state the user must act on: a warning, an error to fix, a feature
+that is switched off.
 
 ---
 

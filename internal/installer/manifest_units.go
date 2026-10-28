@@ -370,6 +370,8 @@ var baseTrimUnits = []trimUnit{
 			{path: "features/notes/components/notes.templ", substrs: soundsPageLines()},
 			{path: "features/chat/components/chat.templ", substrs: soundsPageLines()},
 			{path: "features/review/components/review.templ", substrs: soundsPageLines()},
+			{path: "features/notifications/components/page.templ", substrs: soundsPageLines()},
+			{path: "features/account/components/page.templ", substrs: soundsPageLines()},
 			{path: "features/authviews/login.templ", substrs: soundsDropLines},
 		},
 	},
