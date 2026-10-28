@@ -103,6 +103,25 @@ if [ -n "$refuse" ] && [ "${DEADCODE_FORCE:-0}" != "1" ]; then
     exit 0
 fi
 
+# One heavy gate at a time on this HOST. The probe above measures this machine
+# at a point in time; it cannot see that another worktree's agent is about to
+# start its own ~2.5GB scan, so two gates each pass the probe and then collide
+# (2026-10-28: pressure 97%, the bb UI went down for ~20 min). flock makes them
+# queue instead. Non-blocking on purpose — the scan is advisory, so a busy host
+# means skip, never wait-and-block a push. The lock path is host-global because
+# the colliding gates run in different worktrees. macOS ships no flock(1):
+# there the guard is simply absent and a capable laptop runs everything.
+LOCK="${TMPDIR:-/tmp}/gogogo-heavy-gate.lock"
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK"
+    if ! flock -n 9; then
+        echo "  ⚡ deadcode SKIPPED — another heavy gate is running on this host"
+        echo "     Not a finding and not a failure: CI runs this gate with"
+        echo "     dedicated capacity. Close the other run, or wait for it."
+        exit 0
+    fi
+fi
+
 echo "→ Running deadcode scan..."
 # stdout = findings, stderr = tool diagnostics. Kept apart on purpose.
 out_file=$(mktemp)

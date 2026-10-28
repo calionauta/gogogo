@@ -17,6 +17,23 @@ echo "→ govulncheck (${GOVULNCHECK_WHEN:-pre-push})..."
 #      to install and nothing to keep warm, and the scanner can never disagree
 #      with the toolchain about the module (the same reason `deadcode` and
 #      `templ` are pinned this way).
+# Bound the scanner ONLY on a box that cannot carry it; a capable machine
+# (the developer's laptop, a CI runner) runs it unbounded. This is a security
+# gate, so it is never skipped for capacity the way deadcode is — the worst a
+# constrained host gets is a smaller heap and fewer procs, which only makes the
+# scan slower. GOVULNCHECK_MIN_RAM_MB=6144 is the same floor the full gate uses.
+if [ -r /proc/meminfo ]; then
+  mem_avail_mb=$(awk '/^MemAvailable:/{printf "%d", $2/1024}' /proc/meminfo)
+  if [ "${mem_avail_mb:-0}" -lt "${GOVULNCHECK_MIN_RAM_MB:-6144}" ]; then
+    cap_mb=$(( mem_avail_mb / 2 ))
+    [ "$cap_mb" -gt 2048 ] && cap_mb=2048
+    [ "$cap_mb" -lt 512 ] && cap_mb=512
+    export GOMEMLIMIT="${cap_mb}MiB"
+    export GOMAXPROCS=2
+    echo "  (bounded: ${cap_mb}MiB heap / 2 procs — ${mem_avail_mb}MB available)"
+  fi
+fi
+
 PKGS=$(bash scripts/web-packages.sh)
 go tool govulncheck $PKGS || { echo "❌ Vulnerability scan failed"; exit 1; }
 echo "  ✓"
