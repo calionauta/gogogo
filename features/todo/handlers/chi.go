@@ -368,7 +368,8 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	if target := formTarget(r); target != "" {
 		h.answerPanelList(w, r, owner, target)
 		return
-	} // trim-genui:panel:end
+	}
+	// trim-genui:panel:end
 	filter, scope := filterOf(r), scopeOf(r)
 	_, role := h.roleOf(r)
 	// Remember the tab's listing slice on its stream registration, so
