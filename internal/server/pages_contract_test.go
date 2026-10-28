@@ -111,8 +111,8 @@ var pagesUnderTest = []pageUnderTest{
 		"Two-factor authentication",
 	}},
 	{name: "config", route: "/config", must: []string{
-		"Runtime view + admin actions.",
-		"Access control (Casbin).",
+		"Runtime status",
+		">RBAC<",
 		"Users",
 		"Security events",
 		"<th class=\"w-1/3\">Field</th>",

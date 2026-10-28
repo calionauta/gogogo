@@ -12,13 +12,13 @@ import (
 )
 
 // TestBuildPageDataWiresStatusAndCatalog pins that the page data carries
-// the strip and the answer catalog together: a strip without data, or a
+// the card and the answer catalog together: a card without data, or a
 // catalog section without components, is a heading over nothing.
 func TestBuildPageDataWiresStatusAndCatalog(t *testing.T) {
 	t.Parallel()
 	pd := BuildPageData(config.Load())
 	if len(pd.Status) == 0 {
-		t.Error("PageData carries no status strip")
+		t.Error("PageData carries no status rows")
 	}
 	if len(pd.AnswerCatalog) == 0 {
 		t.Error("PageData carries no answer catalog")

@@ -7531,6 +7531,12 @@
     width: var(--spacing);
     height: var(--spacing);
   }
+  @layer daisyui.l1.l2 {
+    .status-sm {
+      width: 0.25rem;
+      height: 0.25rem;
+    }
+  }
   .h-3 {
     height: calc(var(--spacing) * 3);
   }
@@ -7857,8 +7863,14 @@
   .gap-x-4 {
     column-gap: calc(var(--spacing) * 4);
   }
+  .gap-x-10 {
+    column-gap: calc(var(--spacing) * 10);
+  }
   .gap-y-1 {
     row-gap: var(--spacing);
+  }
+  .gap-y-5 {
+    row-gap: calc(var(--spacing) * 5);
   }
   :where(.divide-y > :not(:last-child)) {
     --tw-divide-y-reverse: 0;
@@ -7917,6 +7929,26 @@
       border-color: var(--color-base-200);
       background-color: var(--color-base-200);
       color: var(--color-base-content);
+      background-image: none;
+    }
+    .badge-soft {
+      color: var(--badge-color, var(--color-base-content));
+      background-color: var(--badge-color, var(--color-base-content));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .badge-soft {
+        background-color: color-mix( in oklab, var(--badge-color, var(--color-base-content)) 8%, var(--color-base-100) );
+      }
+    }
+    .badge-soft {
+      border-color: var(--badge-color, var(--color-base-content));
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .badge-soft {
+        border-color: color-mix( in oklab, var(--badge-color, var(--color-base-content)) 10%, var(--color-base-100) );
+      }
+    }
+    .badge-soft {
       background-image: none;
     }
     .input-ghost {
@@ -7990,9 +8022,29 @@
       background-color: var(--color-primary);
       color: var(--color-primary-content);
     }
+    .status-error {
+      background-color: var(--color-error);
+      color: var(--color-error);
+    }
+    .status-info {
+      background-color: var(--color-info);
+      color: var(--color-info);
+    }
+    .status-neutral {
+      background-color: var(--color-neutral);
+      color: var(--color-neutral);
+    }
     .status-primary {
       background-color: var(--color-primary);
       color: var(--color-primary);
+    }
+    .status-success {
+      background-color: var(--color-success);
+      color: var(--color-success);
+    }
+    .status-warning {
+      background-color: var(--color-warning);
+      color: var(--color-warning);
     }
     :is(.tabs-lift :checked, .tabs-lift label:has(:checked), .tabs-lift :is(:is(.tab-active), [aria-selected="true"], [aria-current="true"], [aria-current="page"])) + .tab-content:nth-child(1) {
       --tabcontent-radius-ss: var(--radius-box);
@@ -8196,6 +8248,9 @@
   }
   .py-1 {
     padding-block: var(--spacing);
+  }
+  .py-1\.5 {
+    padding-block: calc(var(--spacing) * 1.5);
   }
   .py-2 {
     padding-block: calc(var(--spacing) * 2);
@@ -8652,6 +8707,10 @@
       --aura-radius: var(--radius-selector);
     }
   }
+  .last\:border-0:last-child {
+    border-style: var(--tw-border-style);
+    border-width: 0px;
+  }
   @media (hover: hover) {
     .hover\:scale-105:hover {
       --tw-scale-x: 105%;
@@ -8735,6 +8794,9 @@
     }
     .lg\:w-56 {
       width: calc(var(--spacing) * 56);
+    }
+    .lg\:grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   .animate-in {

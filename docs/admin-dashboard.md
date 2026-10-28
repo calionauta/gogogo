@@ -97,10 +97,14 @@ is disabled on boot (unusable password, plain user role, sessions revoked). A pr
 otherwise neither account exists. You do not need a third account or
 `VIEWER_EMAILS` to see enforcement when the seed is on.
 
-`/config` shows your role and the posture (pass-through vs enforced);
-`RBAC_ENABLED` defaults to **true in production** (false in development), so a
-deployed binary is enforced unless an operator opts out explicitly. Under
-enforcement the two roles show the contract:
+`/config` opens with a grouped runtime status card (environment, RBAC, secrets,
+AI keys, engines) and shows your role in its header; the card's summary badge
+counts warnings and errors, while info/neutral states stay quiet. The RBAC row
+carries the posture (pass-through vs enforced), and a pass-through deployment
+also gets an explicit warning under the card. `RBAC_ENABLED` defaults to
+**true in production** (false in development), so a deployed binary is enforced
+unless an operator opts out explicitly. Under enforcement the two roles show the
+contract:
 
 | | demo1 (admin) | demo2 (viewer) |
 |---|---|---|

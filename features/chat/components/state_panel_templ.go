@@ -25,6 +25,14 @@
 
 //   - settled (!$chat_thinking && !$chat_empty): all done.
 
+//
+
+// The Message stat reads $chat_messages (seeded from the server-rendered
+
+// history, stepped by LiveThread): a number baked at page load said 0 while an
+
+// answer was already in the thread.
+
 package components
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -72,14 +80,14 @@ func ChatStatePanel(msgs int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"stats stats-horizontal shadow-sm border border-base-200 w-full mt-1\"><div class=\"stat px-3 py-2\"><div class=\"stat-title text-xs\">Messages</div><div class=\"stat-value text-sm font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"stats stats-horizontal shadow-sm border border-base-200 w-full mt-1\"><div class=\"stat px-3 py-2\"><div class=\"stat-title text-xs\">Messages</div><div class=\"stat-value text-sm font-mono\" data-text=\"$chat_messages\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(msgs))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/state_panel.templ`, Line: 52, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/chat/components/state_panel.templ`, Line: 56, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {

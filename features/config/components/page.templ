@@ -95,8 +95,11 @@ templ configActions(data PageData) {
 	}
 }
 
-// configBody is the page's work area: two honesty banners, the grouped field
-// table, and the rotate-a-secret footer.
+// configBody is the page's work area: the runtime status card, the grouped
+// field table, and the rotate-a-secret footer. The old page opened with two
+// banner paragraphs restating the page and the RBAC posture; both facts now
+// live where they are read (header context + status card), and only the
+// actionable warning — enforcement OFF — stays as an alert.
 templ configBody(data PageData) {
 	<div class="ui-page ui-stack">
 	if data.Notice != "" {
@@ -105,32 +108,47 @@ templ configBody(data PageData) {
 	if data.Error != "" {
 		<div role="alert" class="alert alert-error"><span>{ data.Error }</span></div>
 	}
-	<div class="flex flex-wrap items-center gap-2" role="status" aria-label="Runtime status">
-		<span class="text-xs text-base-content/60">Status</span>
-		for _, item := range data.Status {
-			<span class={ "badge " + StatusBadgeClass(item.Tone) } title={ item.Hint }>{ item.Label }: { item.State }</span>
-		}
-	</div>
-	<div class="alert" role="status">
-		<strong>Runtime view + admin actions.</strong>
-		This page shows what the running binary has loaded from the
-		environment and the encrypted secrets file. Sensitive values
-		are masked; the literal key/token never reaches the browser.
-		The Users section can change roles and revoke sessions.
-	</div>
-	<div class="alert" role="status">
-		<strong>Access control (Casbin).</strong>
-		if data.Role != "" {
-			<span>Signed in with role <code class="text-sm">{ data.Role }</code>.</span>
-		} else {
-			<span>Role unknown for this session.</span>
-		}
-		if data.RBACEnabled {
-			<span>RBAC enforcement is <strong>on</strong> — this page is admin-only.</span>
-		} else {
-			<span>RBAC enforcement is <strong>off</strong> (pass-through) — this page remains admin-only via its handler fence; set <code class="text-sm">RBAC_ENABLED=true</code> to enforce every route.</span>
-		}
-	</div>
+	// Status card: grouped rows, one per thing an operator checks first. The
+	// old strip printed eight identical badges in a wrap, so posture (RBAC,
+	// environment) and capability (keys, engines) could not be told apart at a
+	// glance — a tag cloud, not a status.
+	<section class="ui-card" aria-label="Runtime status">
+		<div class="ui-card-body">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<h2 class="ui-title">Runtime status</h2>
+				if n := StatusAttention(data.Status); n > 0 {
+					<span class={ "badge badge-sm badge-soft " + StatusBadgeClass(toneWarning) }>{ AttentionLabel(n) }</span>
+				} else {
+					<span class={ "badge badge-sm badge-soft " + StatusBadgeClass(toneSuccess) }>nothing to fix</span>
+				}
+			</div>
+			<div class="mt-4 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+				for _, group := range data.StatusGroups {
+					<section aria-label={ group.Name }>
+						<h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">{ group.Name }</h3>
+						for _, item := range group.Items {
+							<div class="flex items-center justify-between gap-3 border-b border-base-300 py-1.5 last:border-0">
+								<span class="text-sm text-base-content/70" title={ item.Hint }>{ item.Label }</span>
+								<span class="flex items-center gap-1.5">
+									<span class={ "status status-sm " + StatusDotClass(item.Tone) } aria-hidden="true"></span>
+									<span class="text-sm font-medium">{ item.State }</span>
+								</span>
+							</div>
+						}
+					</section>
+				}
+			</div>
+		</div>
+	</section>
+	if !data.RBACEnabled {
+		<div role="alert" class="alert alert-warning">
+			<span>
+				<strong>RBAC enforcement is off.</strong>
+				Every route passes the policy; this page stays admin-only through its own handler fence.
+				Set <code class="text-sm">RBAC_ENABLED=true</code> to enforce the policy.
+			</span>
+		</div>
+	}
 
 	// Radio tabs (DaisyUI tabs + tab-content, no JS): the checked radio IS
 	// the active mark, and only its panel shows. data-init maps a deep link

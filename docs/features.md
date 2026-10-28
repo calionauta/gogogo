@@ -156,6 +156,21 @@ types fail closed, one bounded repair attempt feeds the failure back).
 `none` is prose-only. Answers that reach for a band the tab turned off are
 repaired once, then replaced by an honest line instead of a silent hole.
 
+**The reader lifts shape slips, never content.** Two answers a live model
+produced for "what are my tasks?" — the component name as the KEY
+(`{"todo_list":{...}}`) and props inlined beside the type — are recovered
+before validation. The lifted name must be registered and every lifted prop
+still goes through the strict decoder, so a name nobody installed and a field
+the component does not declare both fail closed: the shape is recovered, the
+content is still checked.
+
+A directive with NO name is the one gap the catch-all cannot describe (there
+is nothing to put in the bubble), so it counts as a failure: the answer takes
+the one repair attempt, then the readable fallback — never an internal "the
+model asked for an unnamed component" line. A single `text_note` answer is
+stored as prose with no component, so one bubble does not print the same
+sentence twice.
+
 **Partial render, catch-all, metrics.** A partially valid envelope renders
 what validates: unknown types become a named `text_note` placeholder (the
 catch-all), undecodable props are dropped and counted, and the model's

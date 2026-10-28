@@ -227,6 +227,60 @@ func TestParseChatAnswerCatchAllUnknownType(t *testing.T) {
 	}
 }
 
+// TestParseChatAnswerRecoversShapesSeenFromLiveModel pins the two answers a
+// live model actually produced for "what are my tasks?": the component name
+// as the key, and props inlined beside the type. Both are shape slips the
+// reader lifts, so the conversation answers instead of apologizing. Red-proof:
+// revert the lift and each row falls back to prose (or the catch-all).
+func TestParseChatAnswerRecoversShapesSeenFromLiveModel(t *testing.T) {
+	t.Parallel()
+	for name, raw := range map[string]string{
+		"type as key":  `{"components":[{"bar_chart":{"title":"W","bars":[{"label":"a","value":1}]}}]}`,
+		"inline props": `{"components":[{"type":"bar_chart","title":"W","bars":[{"label":"a","value":1}]}]}`,
+	} {
+		dirs, dropped, fallback, err := ParseChatAnswer(raw)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if dropped != 0 || fallback {
+			t.Fatalf("%s: dropped=%d fallback=%v, want a rendered answer", name, dropped, fallback)
+		}
+		if len(dirs) != 1 || dirs[0].Component != "bar_chart" {
+			t.Fatalf("%s: dirs = %+v, want one bar_chart", name, dirs)
+		}
+		if _, err := ParseChatAnswerForRepair(raw); err != nil {
+			t.Fatalf("%s: sent back for repair: %v", name, err)
+		}
+	}
+}
+
+// TestParseChatAnswerRepairsUnnamedComponent pins the reported bubble away:
+// a directive with no type used to render "The model asked for an unnamed
+// component here, which isn't available." It is a payload the repair loop can
+// act on, so the repair gate must flag it, and the deterministic fallback must
+// be the readable line — never the internal sentence.
+func TestParseChatAnswerRepairsUnnamedComponent(t *testing.T) {
+	t.Parallel()
+	raw := `{"components":[{"props":{"title":"W","bars":[{"label":"a","value":1}]}}]}`
+	dirs, dropped, fallback, err := ParseChatAnswer(raw)
+	if err != nil {
+		t.Fatalf("ParseChatAnswer(unnamed): %v", err)
+	}
+	if !fallback || len(dirs) != 1 || dirs[0].Component != "text_note" {
+		t.Fatalf("unnamed = %+v fallback=%v, want the readable fallback", dirs, fallback)
+	}
+	text, _ := dirs[0].Props["text"].(string)
+	if strings.Contains(text, "unnamed component") || strings.Contains(text, "The model asked") {
+		t.Fatalf("bubble carries the internal sentence: %q", text)
+	}
+	if dropped != 1 {
+		t.Fatalf("dropped = %d, want the unnamed directive counted", dropped)
+	}
+	if _, err := ParseChatAnswerForRepair(raw); err == nil {
+		t.Fatal("unnamed payload passed the repair gate")
+	}
+}
+
 // TestParseChatAnswerRendersPartialEnvelope pins per-directive partial
 // rendering: the valid component renders, the undecodable one is dropped
 // and counted, and the model's prose around the envelope survives.

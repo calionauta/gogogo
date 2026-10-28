@@ -31,7 +31,9 @@ templ ChatIndex(email string, userRole string, buildLabel string, buildCommit st
 		BuildCommit: buildCommit,
 		OfflineSync: true,
 		FlushBottom: true,
-		Signals:     MarshalSignals(Signals{Theme: "light", ChatEmpty: len(msgs) == 0}),
+		Signals: MarshalSignals(Signals{
+			Theme: "light", ChatEmpty: len(msgs) == 0, ChatMessages: len(msgs),
+		}),
 		Demo:        demo,
 		Panel:       ChatStatePanel(len(msgs)),
 		Stack:       chatStack(),
@@ -250,12 +252,24 @@ templ ChatThinking() {
 	</div>
 }
 
+// LiveThread is the fragment the SSE hub appends: the thread plus one hidden
+// node that steps the demo panel's message count. It is a separate component
+// from ChatThread on purpose — server-rendered history must not count itself,
+// while a node Datastar inserts runs data-init exactly once.
+//
+// The tick goes FIRST so components.AutoScroll stays the fragment's last node
+// (that anchor scrolls the newest bubble into view).
+templ LiveThread(msgs []store.MessageView, errMsg string) {
+	<div data-init="$chat_messages++" aria-hidden="true"></div>
+	@ChatThread(msgs, errMsg)
+}
+
 // ChatThread renders the bubbles: user right-aligned, assistant
 // left-aligned, component directives inside the assistant bubble, and an
 // error as its own bubble. Deliberately NO container id and NO empty
-// state: this is the fragment the SSE hub appends into #chat-messages,
-// and a server-side patch targets EVERY match of its selector, so a
-// nested `#chat-messages` made each later answer append twice over.
+// state: this is what LiveThread appends into #chat-messages, and a
+// server-side patch targets EVERY match of its selector, so a nested
+// `#chat-messages` made each later answer append twice over.
 //
 // It ends with the scroll anchor (components.AutoScroll): the fragment IS
 // the newest message, so the node that arrives with it is the node that
