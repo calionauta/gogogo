@@ -14,7 +14,7 @@ func TestNormalizeFilter_AcceptsWhatModelsWrite(t *testing.T) {
 		"todos": "open", "pending": "open", "active": "open", "not done": "open",
 		"done": "done", "DONE": "done", "completed": "done", "Complete": "done",
 		"finished": "done", "all": "all", "ALL": "all", "Everything": "all",
-		"": "all", // omitted filter means "show me my todos"
+		"": "open", // omitted filter means "what is still to do"
 	}
 	for raw, want := range cases {
 		if got := NormalizeFilter(raw); got != want {

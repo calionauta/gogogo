@@ -25,22 +25,40 @@ import (
 //     the trash renders aria-disabled with the reason instead of
 //     opening the modal, and the click raises $permDenied. Enforcement
 //     stays server-side (policy.csv answers 403) — this only narrates.
+//
+//   - TodoRowActions is the ONLY surface-specific part. The row is rendered
+//     on /todo and inside a Chat answer, and both must show the same row; the
+//     host supplies where the two writes post, never a second copy of the
+//     markup. The Chat panel used to reimplement the row and lost the shared
+//     badge, the author, the age, the viewer gate and the native dialog.
+type TodoRowActions struct {
+	// IDPrefix scopes the row's DOM id. /todo uses "todo-"; a panel uses
+	// its own instance prefix so two answers holding the same row do not
+	// mint duplicate ids on one page.
+	IDPrefix string
+	// Toggle is the Datastar click expression for the checkbox.
+	Toggle string
+	// Delete is the Datastar click expression for the trash: set the
+	// confirming ids and open the host's confirmation dialog.
+	Delete string
+}
+
 // TodoItem renders one row. Delete + authorship affordances come
 // server-stamped on the item (IsMine/CanDelete via listVisible) — the
 // template never re-derives the rule, so the rule has exactly one home
 // (canDeleteRow, enforced by the handler on POST).
-templ TodoItem(item todo.Todo) {
+templ TodoItem(item todo.Todo, actions TodoRowActions) {
 	<div
 		class="todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors"
-		id={"todo-" + item.ID}
+		id={ actions.IDPrefix + item.ID }
 		data-created={ item.CreatedAt.UTC().Format("2006-01-02") }
-		data-show={ "$createdAfter === '' || el.dataset.created >= $createdAfter" }
+		data-show={ "!$createdAfter || el.dataset.created >= $createdAfter" }
 	>
 		<input
 			type="checkbox"
 			class="checkbox checkbox-primary checkbox-sm"
 			checked?={ item.Completed }
-			data-on:click__prevent={ todoMutateOn("'/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&clientID=' + encodeURIComponent($clientID || '')") }
+			data-on:click__prevent={ actions.Toggle }
 		/>
 		if item.Completed {
 			<span class="todo-title flex-1 line-through text-base-content/50">{ item.Title }</span>
@@ -60,7 +78,7 @@ templ TodoItem(item todo.Todo) {
 				class="btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95"
 				title="Delete todo"
 				data-cuelume-press="droplet"
-				data-on:click__prevent={ "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById('confirm-delete-modal').showModal()" }>
+				data-on:click__prevent={ actions.Delete }>
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
 					<path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
 				</svg>

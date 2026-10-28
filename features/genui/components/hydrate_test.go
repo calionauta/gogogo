@@ -95,6 +95,67 @@ func TestHydratePassesNonPanelsThrough(t *testing.T) {
 	}
 }
 
+// TestRehydrateRefreshesStoredPanel is the reload half of the panel contract:
+// a stored answer carries Fill's output (rows), which the parse-time writable
+// gate refuses — passing it back through Hydrate logged a warning on every
+// reload and kept the answer-time snapshot, so a mutation from another tab
+// never appeared. Rehydrate feeds Fill only the model-writable props, so the
+// stored rows are replaced by a fresh fill.
+//
+// Red-proof: point messageViews at Hydrate again (or let Rehydrate validate
+// the stored shape) and this returns an error with the stale rows.
+func TestRehydrateRefreshesStoredPanel(t *testing.T) {
+	t.Parallel()
+	stored := Directive{Component: panelNameInTest, Props: map[string]any{
+		"filter":       "open",
+		InstanceIDProp: "chat-answer1",
+		// The snapshot the worker stored: real when written, stale now.
+		"rows": []TodoRowInTest{{ID: "old", Title: "stale row"}},
+	}}
+	got, err := Rehydrate(context.Background(), []Directive{stored}, "owner")
+	if err != nil {
+		t.Fatalf("Rehydrate: %v", err)
+	}
+	if len(got) != 1 || got[0].Component != panelNameInTest {
+		t.Fatalf("got %+v, want the panel back", got)
+	}
+	if id, _ := got[0].Props[InstanceIDProp].(string); id != "chat-answer1" {
+		t.Errorf("instance id = %q, want the stored slot id", id)
+	}
+	rows, ok := got[0].Props["rows"].([]TodoRowInTest)
+	if !ok {
+		t.Fatalf("rows not refilled from the provider: %#v", got[0].Props["rows"])
+	}
+	if len(rows) != 0 {
+		t.Fatalf("stored rows survived the re-fill: %+v", rows)
+	}
+	if _, leaked := got[0].Props["unavailable"]; leaked {
+		t.Error("a reusable panel was replaced by the unavailable placeholder")
+	}
+}
+
+// TestRehydrateKeepsSnapshotWhenFillFails pins the fallback: a transient store
+// error must not blank rows that were real when the answer was stored — the
+// stored directive is returned unchanged and the error is reported for the log.
+func TestRehydrateKeepsSnapshotWhenFillFails(t *testing.T) {
+	t.Parallel()
+	stored := Directive{Component: failingPanelName, Props: map[string]any{
+		"filter": "open",
+		"rows":   []TodoRowInTest{{ID: "kept", Title: "still readable"}},
+	}}
+	got, err := Rehydrate(context.Background(), []Directive{stored}, "owner")
+	if err == nil {
+		t.Error("a failing fill was not reported")
+	}
+	if len(got) != 1 {
+		t.Fatalf("kept %d directives, want the stored panel", len(got))
+	}
+	rows, ok := got[0].Props["rows"].([]TodoRowInTest)
+	if !ok || len(rows) != 1 || rows[0].Title != "still readable" {
+		t.Errorf("stored snapshot was lost: %#v", got[0].Props["rows"])
+	}
+}
+
 // failingStubPanel is the ALWAYS-FAILING provider, installed once in TestMain
 // under its own name. A distinct name is what lets the drop test exist without
 // swapping the registry: two providers claiming one name is exactly what

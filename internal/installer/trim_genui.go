@@ -63,6 +63,18 @@ var genuiTrimUnits = []trimUnit{
 				},
 			},
 			{
+				// The panel's slice-tab branch in the list route answers
+				// through answerPanelList (panel_action.go), so it leaves with
+				// the unit; the page's own filter/scope path stays as it was.
+				path: "features/todo/handlers/chi.go",
+				rules: []stripRule{
+					{
+						startMarker: "// trim-genui:panel:start",
+						endMarker:   "// trim-genui:panel:end",
+					},
+				},
+			},
+			{
 				// The config page's answer-catalog helpers go with the unit:
 				// without the registry they reference a package the trimmed
 				// tree deleted. Two rules (one func each): a brace match stops

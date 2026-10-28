@@ -35,6 +35,7 @@
 - Going without auth/database (fork recipe): docs/no-auth-no-db-recipe.md
 - HTTP route inventory (generated, do not edit): docs/api-routes.md
 - UI work (MUST read before any .templ/CSS edit): skills/gogogo-ui/SKILL.md — template UI rules (DaisyUI vocabulary, semantic colors, compiled app.min.css) over the vendored skills/daisyui/SKILL.md vocabulary (byte-identical to https://daisyui.com/SKILL.md); guide in docs/ui-themes.md, theme catalog in internal/themes
+- Adding a native panel to Chat (`todo_list`-style): reuse the feature's own page components, never a copy — contract in features/genui/components/panel.go, reference in features/todo/handlers/genui_panel.go + features/todo/components/panel.templ; guide: docs/native-panels.md
 - Deploy: docs/deploy.md
 - Troubleshooting: docs/troubleshooting.md
 

@@ -88,6 +88,7 @@ Keep architecture explicit, thin, and easy for LLMs to evolve. Avoid creating a 
 - **Fail fast, explicit errors.** Keep contracts obvious; prefer compile-time checks over runtime magic.
 
 **Rules:**
+- **A native panel renders the feature's components, never a copy.** A genui `PanelProvider` fills data; its `Render` returns the SAME row/card/dialog the feature's page renders, parameterized only by the write target (`_target`), the slice, and instance ids. A chat-specific duplicate is a drift bug: the todo panel lost the shared badge, author, age, delete gate and native confirmation dialog, and only the page kept them. Reference: `features/todo/handlers/genui_panel.go` + `features/todo/components/panel.templ`.
 - Don't abstract prematurely. Duplicate a little > create wrong abstraction.
 - Don't hide dependencies behind globals/env checks deep in code - inject them.
 - Keep seams discoverable (small files, clear names). If an LLM can't copy-paste and adapt it, it's too clever.

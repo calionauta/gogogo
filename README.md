@@ -77,6 +77,7 @@ manifest, then `make docs-index`; `make check-docs` fails when this block drifts
 **AI**
 - [llm-and-credits](docs/llm-and-credits.md) — GoAI configuration and the optional ai-credits / BYOK plugin.
 - [review](docs/review.md) — The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge.
+- [native-panels](docs/native-panels.md) — Adding a native Chat panel: the provider contract, hydration, in-place actions, and the reuse rule — render the feature's own components, never a chat copy.
 
 **Frontend**
 - [todo-example](docs/todo-example.md) — The Todo reference implementation and the contract to imitate.

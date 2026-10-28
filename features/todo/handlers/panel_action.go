@@ -55,13 +55,15 @@ func panelFilterOf(r *http.Request) string {
 // panelRows is the store half of the panel's fill: the viewer's own rows,
 // narrowed to the closed-enum slice. Same store call the provider uses
 // (ListTodosByOwner — own rows only), so the re-render shows the truth the
-// mutation just wrote and invents nothing.
-func (h *Handler) panelRows(ctx context.Context, owner, filter string) ([]todo.PanelRows, error) {
+// mutation just wrote and invents nothing. The rows are the same todo.Todo
+// the page renders, with the same server-stamped IsMine/CanDelete, because
+// the panel renders the same TodoItem.
+func (h *Handler) panelRows(ctx context.Context, owner, filter string) ([]todo.Todo, error) {
 	rows, err := h.Q.ListTodosByOwner(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]todo.PanelRows, 0, len(rows))
+	out := make([]todo.Todo, 0, len(rows))
 	for _, r := range rows {
 		switch filter {
 		case todo.FilterOpen:
@@ -73,7 +75,13 @@ func (h *Handler) panelRows(ctx context.Context, owner, filter string) ([]todo.P
 				continue
 			}
 		}
-		out = append(out, todo.PanelRows{ID: r.ID, Title: r.Title, Done: r.Completed})
+		item, terr := toTodo(r)
+		if terr != nil {
+			return nil, fmt.Errorf("todo: map panel row: %w", terr)
+		}
+		item.IsMine = owner != "" && item.Owner == owner
+		item.CanDelete = canDeleteRow("", owner, item)
+		out = append(out, item)
 	}
 	return out, nil
 }
@@ -96,6 +104,26 @@ func (h *Handler) answerPanelSelf(w http.ResponseWriter, r *http.Request, owner,
 	}
 	sse := sdk.NewSSE(w, r)
 	return patchSSE(sse, todoscomp.Panel(target, filter, rows), sdk.WithSelector("#"+target))
+}
+
+// answerPanelList renders one panel's slice refresh at its slot: the GET list
+// route serves the panel's own tabs the same way the mutations serve its rows.
+// The rows come from panelRows (own rows, the panel's open/done/all enum), so
+// a tab click can never widen the panel into the page's shared scope.
+//
+//nolint:contextcheck // SSE emission ends in datastar-go sinks (no ctx param)
+func (h *Handler) answerPanelList(w http.ResponseWriter, r *http.Request, owner, target string) {
+	filter := panelFilterOf(r)
+	rows, err := h.panelRows(r.Context(), owner, filter)
+	if err != nil {
+		h.panelFailure(r.Context(), w, r, target,
+			"todo: panel tab list failed", err, "Couldn't reload this list. Open Todos to see it.")
+		return
+	}
+	sse := sdk.NewSSE(w, r)
+	if perr := patchSSE(sse, todoscomp.Panel(target, filter, rows), sdk.WithSelector("#"+target)); perr != nil {
+		h.fail(r.Context(), w, "todo: panel tab patch failed", perr, "error listing todos")
+	}
 }
 
 // panelFailure logs the cause and answers the failure card at the clicked

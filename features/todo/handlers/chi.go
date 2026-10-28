@@ -361,6 +361,15 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 		redirectLogin(w, r)
 		return
 	}
+	// trim-genui:panel:start (list refresh in a panel)
+	// A native panel's own slice tabs ask the list route with their slot id:
+	// answer with the same Panel component at that slot, never the page list
+	// the host page does not own.
+	if target := formTarget(r); target != "" {
+		h.answerPanelList(w, r, owner, target)
+		return
+	}
+	// trim-genui:panel:end
 	filter, scope := filterOf(r), scopeOf(r)
 	_, role := h.roleOf(r)
 	// Remember the tab's listing slice on its stream registration, so

@@ -6,11 +6,20 @@
 // rendering all live here, next to the feature that owns the page, so adding a
 // panel never means editing a shared map in features/genui.
 //
+// REUSE IS THE CONTRACT. Render returns the feature's own components — the
+// same TodoItem rows and deleteConfirmModal as /todo — never a chat-specific
+// copy, and the row actions reuse the page's todoMutateOn wrapper and the
+// feature's own routes. The provider chooses DATA and the surface-specific
+// write targets, not markup. A copy drifts: the first version lost the shared
+// badge, the author, the age, the delete gate and the native dialog. Checklist:
+// docs/native-panels.md.
+//
 // To remove: delete with features/todo/ (the genui unit lists this file).
 package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"strings"
@@ -45,13 +54,20 @@ func (p *TodoPanel) Component() string { return "todo_list" }
 // It names the CONCRETE cases (a listing, a filter, an "anything I still have
 // to do?") rather than describing the component, because this sentence is the
 // only place the model learns the panel exists and a vague line loses to the
-// models' default of writing a plausible-looking list itself.
+// models' default of writing a plausible-looking list itself. The mapping from
+// request words to the enum is spelled out because a small model read
+// "open/left/pending" as a reason to show EVERYTHING it had a digest of: the
+// panel then answered "what are my open todos?" with completed rows mixed in.
 func (p *TodoPanel) Prompt() string {
 	return "todo_list {filter: " + strings.Join(todo.ListFilters, "|") + "} whenever the " +
 		"request involves the user's OWN todos or tasks (show/list/filter them, " +
 		"check what is left, plan a day around them, summarize progress): it " +
 		"renders their REAL rows, so it is the only component allowed to answer " +
-		"with todo content. Never for greetings, thanks or other smalltalk."
+		"with todo content. Pick the slice the user asked for: open/pending/" +
+		"remaining/left/active/unfinished => open; done/completed/finished => " +
+		"done; all ONLY when the user asks for everything or for completed rows " +
+		"too — a request about what is left is NEVER all. Always send filter " +
+		"inside props. Never for greetings, thanks or other smalltalk"
 }
 
 // HomePage implements comp.PanelHomer: the page that shows this data in full.
@@ -107,6 +123,12 @@ func (p *TodoPanel) Writable() []string { return []string{"filter"} }
 // ListTodosByOwner — deliberately not the page's visibility-scoped query,
 // because a panel answering "my todos" must never become a window onto
 // someone else's shared board.
+//
+// The rows are the SAME todo.Todo the page renders (not a reduced row shape)
+// because the panel renders the same TodoItem: the shared badge, the author,
+// the age and the delete affordance all come from the row's server-stamped
+// fields. Own-only rows are always deletable by their owner (canDeleteRow),
+// so the viewer gate is computed with the same rule instead of assumed.
 func (p *TodoPanel) Fill(ctx context.Context, owner string, props map[string]any) (map[string]any, error) {
 	// Normalize first, then write the normalized value through: the renderer
 	// re-validates (the history path reaches it without Fill), so storing the
@@ -120,7 +142,7 @@ func (p *TodoPanel) Fill(ctx context.Context, owner string, props map[string]any
 	if err != nil {
 		return nil, fmt.Errorf("todo: list for genui panel: %w", err)
 	}
-	out := make([]todo.PanelRows, 0, len(rows))
+	out := make([]todo.Todo, 0, len(rows))
 	for _, r := range rows {
 		switch filter {
 		case "open":
@@ -132,7 +154,13 @@ func (p *TodoPanel) Fill(ctx context.Context, owner string, props map[string]any
 				continue
 			}
 		}
-		out = append(out, todo.PanelRows{ID: r.ID, Title: r.Title, Done: r.Completed})
+		item, terr := toTodo(r)
+		if terr != nil {
+			return nil, fmt.Errorf("todo: map row for genui panel: %w", terr)
+		}
+		item.IsMine = owner != "" && item.Owner == owner
+		item.CanDelete = canDeleteRow("", owner, item)
+		out = append(out, item)
 	}
 	filled["rows"] = out
 	return filled, nil
@@ -212,9 +240,49 @@ func (p *TodoPanel) Render(props map[string]any) (templ.Component, error) {
 	if !todo.FilterValid(filter) {
 		return nil, fmt.Errorf("todo panel: filter %q is not one of %v", filter, todo.ListFilters)
 	}
-	rows, _ := props["rows"].([]todo.PanelRows)
 	// The id comes from the renderer (comp.InstanceIDProp), so two todo panels
 	// on one page — a chat thread keeps its history — do not collide.
 	id, _ := normalized[comp.InstanceIDProp].(string)
-	return todoscomp.Panel(id, filter, rows), nil
+	return todoscomp.Panel(id, filter, panelRowsFromProps(props)), nil
+}
+
+// panelRowsFromProps decodes the `rows` prop in the shapes it actually reaches
+// Render in.
+//
+// Fill writes []todo.Todo, and a page render (or a panel action) sees exactly
+// that. The live Chat patch is different: the worker's answer crosses the
+// queue and the SSE wire as JSON, so encoding/json hands Render []any of
+// map[string]any. The typed assertion alone used to fail there and painted
+// "No todos to show here" over a panel the store had filled correctly — while
+// a reload, which rendered the stored typed props, showed the rows. That split
+// is the reported "the answer had no todos until I refreshed".
+//
+// Each wire row decodes through todo.Todo's own JSON tags, so the row shape
+// has one definition (the same one the page's JSON would use) instead of a
+// second hand-written field list here.
+func panelRowsFromProps(props map[string]any) []todo.Todo {
+	switch rows := props["rows"].(type) {
+	case []todo.Todo:
+		return rows
+	case []any:
+		out := make([]todo.Todo, 0, len(rows))
+		for _, raw := range rows {
+			row, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			blob, merr := json.Marshal(row)
+			if merr != nil {
+				continue
+			}
+			var item todo.Todo
+			if uerr := json.Unmarshal(blob, &item); uerr != nil {
+				continue
+			}
+			out = append(out, item)
+		}
+		return out
+	default:
+		return nil
+	}
 }

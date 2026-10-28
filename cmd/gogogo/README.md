@@ -54,6 +54,12 @@ the generated-docs regen, `check-scope`, `check-flatdeps` and
 `go build ./cmd/web`; a failing step exits 2 and leaves the tree for you to
 inspect. The generated unit's card appears in `docs/unit-contracts.md`.
 
+A feature that must also answer in Chat adds a `PanelProvider`. Its `Render`
+must reuse the feature's own page components (row, card, dialog), never a
+chat-specific copy — the contract is `features/genui/components/panel.go`, the
+reference is `features/todo/handlers/genui_panel.go`, and the checklist is
+`docs/native-panels.md`.
+
 ## CLI contract (humans + agents)
 
 `--help` prints the full matrix (units, flags, exit codes). The fast paths:

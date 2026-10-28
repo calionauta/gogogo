@@ -77,6 +77,8 @@ export default {
     desc: "GoAI configuration and the optional ai-credits / BYOK plugin." },
   { group: "AI", slug: "review", file: "review.md",
     desc: "The review loop: Genkit flows, goai generation, and a Jev-compatible classifier judge." },
+  { group: "AI", slug: "native-panels", file: "native-panels.md",
+    desc: "Adding a native Chat panel: the provider contract, hydration, in-place actions, and the reuse rule — render the feature's own components, never a chat copy." },
   { group: "Frontend", slug: "todo-example", file: "todo-example.md",
     desc: "The Todo reference implementation and the contract to imitate." },
   { group: "Frontend", slug: "ui-shell", file: "ui-shell.md",

@@ -67,6 +67,14 @@ contract (upstream component churn never touches it).
 - One vocabulary: DaisyUI. Markup uses DaisyUI components plus Tailwind
   utilities, rendered through `internal/components.Assets()`. It MUST NOT
   fork a page — no duplicated markup per variant.
+- **A native panel renders the page's components, never a copy.** When a
+  feature exposes a genui `PanelProvider` (the `native` Chat band), its
+  `Render` returns the SAME row/card/dialog the feature's page renders —
+  never a chat-specific reimplementation. Parameterize only where the writes
+  post (`_target`), the slice and the instance ids; the reference is
+  `features/todo/components/panel.templ`, which calls `TodoItem` and
+  `deleteConfirmModal`. A duplicated row loses fields the page keeps (shared
+  badge, author, age, delete gate) and drifts silently.
 - Semantic colors only: `bg-base-*`, `text-base-content`, `bg-primary`,
   `text-error` and their peers. Never `dark:` with a hard-coded color —
   the theme owns the palette, the markup only names the role.
