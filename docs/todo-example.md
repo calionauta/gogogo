@@ -92,8 +92,17 @@ task payload. (Per-step `metadata` *is* delivered as of DagNats v0.0.22, but
 the input/output chain is what guarantees each step sees only the todos that
 remain — migrating titles to `metadata` would hand every step all three.)
 
+## Native Chat panel (`todo_list`)
+
+The same feature answers in Chat without a second UI. `features/todo/handlers/genui_panel.go` fills the
+viewer's own rows and `features/todo/components/panel.templ` renders the SAME `TodoItem` rows and
+`deleteConfirmModal` as `/todo`; only the write expressions (panel slot id `_target` + slice) differ.
+A new panel must copy this shape: render the feature's own components, never a chat-specific row or
+dialog. Contract, hydration, in-place actions and the checklist: [Native panels](native-panels.md).
+
 ## Related
 
 - [Features](features.md)
+- [Native panels](native-panels.md) — the panel contract and the reuse rule.
 - [Architecture decision](architecture-decision.md) — what the flat stack serves and what it deliberately does not share.
 - [Adding your own feature](getting-started.md#adding-your-own-feature)

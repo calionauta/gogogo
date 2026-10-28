@@ -119,7 +119,11 @@ component an answer leads with (a hint, never a narrowing).
 - **`native`** — the app's own panels (`todo_list {filter}`). The APP owns
   the content (real rows from the store); the model picks only the slice.
   Greetings and other smalltalk never use it: a "hi" is answered briefly,
-  never with the user's rows.
+  never with the user's rows. A panel's `Render` MUST return the feature's own
+  page components (row, card, dialog), parameterized only by the write target
+  and slice; a chat-specific copy drifts (the first todo panel lost the shared
+  badge, author, age, delete gate and confirmation dialog). Contract and
+  checklist: [native panels](native-panels.md).
 
 **Actions are declared by features, never written by the model.** A catalog
 component can offer a write (`plan_cards`' per-plan button,

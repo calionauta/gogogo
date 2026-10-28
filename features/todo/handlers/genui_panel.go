@@ -6,6 +6,14 @@
 // rendering all live here, next to the feature that owns the page, so adding a
 // panel never means editing a shared map in features/genui.
 //
+// REUSE IS THE CONTRACT. Render returns the feature's own components — the
+// same TodoItem rows and deleteConfirmModal as /todo — never a chat-specific
+// copy, and the row actions reuse the page's todoMutateOn wrapper and the
+// feature's own routes. The provider chooses DATA and the surface-specific
+// write targets, not markup. A copy drifts: the first version lost the shared
+// badge, the author, the age, the delete gate and the native dialog. Checklist:
+// docs/native-panels.md.
+//
 // To remove: delete with features/todo/ (the genui unit lists this file).
 package handlers
 

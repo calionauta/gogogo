@@ -49,6 +49,22 @@ import (
 // `#_target` — instead of a page region the host page does not own. That is
 // the same `_target` seam catalog cards already use, reused so a future
 // panel needs no new machinery: forms plus an in-place answer.
+//
+// REUSE THE FEATURE'S OWN COMPONENTS. Render must return the component the
+// feature's page already renders — its row, card and dialog — parameterized
+// only by the surface-specific parts: where the writes post (`_target`), which
+// slice is shown, and the instance ids. It is NOT a second UI for the same
+// data. A hand-built "chat version" drifts silently: the first todo panel lost
+// the shared badge, the author, the age, the viewer gate and the native
+// confirmation dialog, and only the page kept them. The reference is
+// features/todo/handlers/genui_panel.go: Render returns the feature's own
+// Panel, which calls the same TodoItem and deleteConfirmModal as /todo. The
+// checklist lives in docs/native-panels.md.
+//
+// The same rule covers actions: reuse the page's action wrapper
+// (todoMutateOn) and the feature's own route, never a second endpoint for the
+// panel. A panel that needs a parameter the page does not have is a signal to
+// extract the shared component, not to fork it.
 type PanelProvider interface {
 	// Component is the catalog name this provider fills ("todo_list"). It is
 	// the model-facing name, so it must be stable, snake_case, and unique.
