@@ -373,10 +373,10 @@ by hand, so when a step is added to one, add it to the other:
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 | SSE verified-open (slow-init opener proof) | ✓ | ✓ |
 
-CI runs the rows above as `checks` | `race` (two shards) | `browser` |
-`prod-image`, plus `site` — wall-clock is the slowest job, not the sum. A `ci`
-aggregator job (green only when all are) preserves the single status context
-branch protection requires.
+CI runs the rows above as `checks` | `race` (three shards) | `browser` (two
+groups) | `prod-image`, plus `site` — wall-clock is the slowest job, not the
+sum. A `ci` aggregator job (green only when all are) preserves the single status
+context branch protection requires.
 
 The `race` shards are not a count-based split: `scripts/ci-shard-packages.sh`
 carries the measured per-package cost and gives an outlier its own shard before
@@ -386,6 +386,15 @@ plus their transitive dependents (test imports included), and a merged commit
 runs everything, so a selection error cannot accumulate across PRs. An
 unclassifiable changeset fails open to the full list. Numbers and the rejected
 alternatives: `docs/research/ci-wall-clock-2026-10.md`.
+
+A `workflow_dispatch` input exists for the paths a normal PR cannot reach:
+`scope_packages` runs an explicit list instead of the classified scope, which is
+how the narrow branch is verified and how a single shard's scope is reproduced
+without opening a PR:
+
+```
+gh workflow run ci.yml --ref <branch> -f scope_packages="internal/queue features/notes/handlers"
+```
 
 Those four skip on a **docs-only changeset** — a `changes` classifier job reads
 the PR (`base...HEAD`) or push (`before...after`) diff and marks it when every

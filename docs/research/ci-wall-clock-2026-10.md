@@ -42,19 +42,27 @@ roughly 1.8x, not 4x, because one package saturates it alone.
 
 ## Result
 
-Measured on the same workflow across nine runs. The progression matters more
-than any single number, because the caches have to fill before the numbers mean
-anything:
+Measured on the same workflow across the runs that shipped it. The progression
+matters more than any single number, because the caches have to fill before the
+numbers mean anything:
 
 | stage | wall-clock |
 |---|---|
-| before | 8.6–12 min (six runs) |
-| first run after the change, every cache cold | 7.6 min |
-| caches warm | 4.8–4.9 min |
-| cache written by the rejected experiment | 5.9 min |
-| **steady state, one cache per matrix leg** | **4.1 min** |
-| **a pull request, cache warm** | **3.9 min** |
-| the first pull request, cache cold | 8.1 min — see below |
+| before | 8.6–12 min (six master runs) |
+| first run after the sharding change, every cache cold | 7.6 min |
+| sharded + warm cache | 4.1–4.9 min |
+| client suites on two runners, module zips cached | 3.3 min |
+| **steady state now** | **3.3 min** |
+
+| job | before | after |
+|---|---|---|
+| `race` | 620s test, one job | 161s (installer shard), 94s and 134s (tail shards) |
+| `changes` (serial prefix on everything) | 60s, 50 of them `go mod download` | 24–31s |
+| `browser` | 265s | 122s and 129s on two runners |
+| `checks` | 232s | 94–115s (lint 107s → 18s) |
+| `prod-image` | 114s | 140–156s |
+
+The wall is now `race shard 0` — `internal/installer`, one package, one process.
 
 A pull request runs on its own merge ref, and a cache is scoped to the ref that
 wrote it, so the first PR after this change had nothing to restore even though
@@ -63,18 +71,6 @@ the branch's push runs did. Its own rerun restored what the first attempt saved
 refreshes the caches PRs restore from, so a PR should not normally pay that cold
 run — but the very first one on a fresh branch or a new `go.sum` will, and that
 is a cold start rather than a regression.
-
-| job | before | after |
-|---|---|---|
-| `race` (the wall) | 620s test | 134–168s (installer shard) and 160–168s (tail) |
-| `browser` | 265s | 186–197s (build 76s → 7s) |
-| `checks` | 232s | 105–121s (lint 107s → 18s) |
-| `prod-image` | 114s | 108–159s |
-
-The wall is now `browser`, which is where the next look goes: it builds the
-binary and then runs five client suites serially. That is a deliberate choice
-(parallel client suites starve each other's wall-clock waits — see
-local-ci.md), so the lever there is per-suite cost, not more concurrency.
 
 ## What shipped
 
@@ -103,6 +99,17 @@ written was shared and the first leg to finish overwrote the other's half-built
 cache: the same code measured 207s of installer test time in one run and 404s in
 another. `strategy.job-index` in the key made the installer shard land at 168s
 and hold there.
+
+**The module zip cache, not the module tree.** Caching `~/go/pkg/mod` was
+break-even to a loss. Caching only `~/go/pkg/mod/cache/download` (a third of the
+size) measured 7–8s to restore plus 9s to extract, against 25–50s of cold
+download — and it pays twice on the `changes` job, which is a serial prefix on
+every other job and was costing the whole run 50s of downloading.
+
+**Two runners for the client suites.** The five suites were 120s serial behind
+~80s of setup. Grouped by measured cost (smoke + whiteboard + scroll | notes +
+SSE) they land at 122s and 129s. The parallelism is across runners on purpose:
+the starvation `ci-fanout.sh` documents is suites sharing one runner's cores.
 
 ## Rejected, with the evidence
 
@@ -133,6 +140,14 @@ the core count, on the theory that a warm cache makes each unit cheaper, cost
 concurrent copies already oversubscribe four vCPUs and four of them thrash.
 The constant two stays.
 
+**A buildx layer cache for the production image.** Rejected on measurement, not
+on principle: the Dockerfile already layers `go.mod`/`go.sum` first, but
+`COPY . .` and the CGO Go build are invalidated by every commit, so the cache
+saved nothing (145s with buildx against 150s without) while `setup-buildx`
+added 21s to the job. A `--mount=type=cache` would cache the compile itself,
+but no buildx cache exporter carries mount contents, so it cannot survive an
+ephemeral runner. The plain `docker build` stays.
+
 **Dropping the browser suites from PRs.** They are the only coverage of the
 client transport (whiteboard ordering, notes caret, SSE opener) and each one
 encodes a regression that shipped. This is the one place the CI/CD rebalance
@@ -143,29 +158,36 @@ on each change.
 
 ## What is left, with numbers
 
-The wall is `browser` (186–210s), then `race shard 0` (134–186s) and
-`prod-image` (108–161s). Options, cheapest first:
+The wall is now `race shard 0` (161s: `internal/installer`, one package, one
+process), then `prod-image` (140s), the tail shards (94s and 134s), and the
+client groups (122s and 129s). Everything except the first two is already below
+the wall, so more shards there would buy nothing.
 
-**Docker layer cache for `prod-image`.** `deploy.yml` already builds with
-`cache-from`/`cache-to: type=gha`; `scripts/smoke-prod-image.sh` still runs a
-plain `docker build`, so the 161s job recompiles every layer on every run. A
-buildx cache there is a small change with no new dependency — but it buys **no
-wall-clock today**, because that job is not the wall. It is a prerequisite for
-the next two.
+**Two more shards for the trimmed-tree units.** Splitting those units by
+index across two runners lands each near 90s, which puts the wall at
+`prod-image` (140s) and takes the run from 3.3 to about 2.9 min. The cost is a
+fourth matrix leg plus a test-side env saying which half a process runs; it is
+the only lever left that does not trade coverage, and it is deferred rather than
+rejected — at 24s of wall-clock, the extra axis of CI a reader has to hold is
+the thing being weighed.
 
-**Two runners for the client suites.** The five suites are 120s serial plus
-~62s of shared setup (29s of it is `go mod download`). Two jobs would land near
-140s each. Separate runners do not starve each other — the documented starvation
-is about suites sharing one runner's four cores — so this is legitimate, at the
-cost of one more runner and duplicated setup per PR.
+**The production image (140s).** The separation between "build the image" and
+"boot the built image" is the gate that caught the 0.44.0 outage, so the lever
+is the compile inside it, not the gate. Its Go build runs with a cold cache on
+every runner: a buildx cache mount would fix that, and no buildx cache backend
+exports mount contents, so it cannot survive an ephemeral runner. Building the
+binary on the runner and copying it in would cache the compile and weaken the
+gate to "the image layout boots", which is a human decision about what that
+test is for.
 
 **A Go-native cache instead of an archive.** Go 1.24 added `GOCACHEPROG`: the
 toolchain pipes cache PUT/GETs to a long-running external program instead of
 archiving a directory ([Depot's write-up](https://depot.dev/blog/go-remote-cache)).
 That removes the tar-flake class this page inherited, and a shared backend makes
-the cache cross-branch, which fixes the one real weakness left: a PR's merge ref
-starts cold (measured at 8.1 min). It can serve the module cache through the
-`GOPROXY` protocol too, which would turn the break-even module cache into a win.
+the cache cross-branch, which closes the cold-start case a PR hits when its base
+branch has nothing cached (measured at 8.1 min on the run that merged the cache
+steps, before any push to master had populated them). It can serve the module
+cache through the `GOPROXY` protocol too.
 Implementations: [`gocica`](https://github.com/gocica-go/gocica) (backed by the
 GitHub Actions cache), [`cacheprog`](https://github.com/platacard/cacheprog) and
 [`gobuildcache`](https://github.com/richardartoul/gobuildcache) (S3). This one is
@@ -173,9 +195,9 @@ a supply-chain decision, not a tuning knob: a new third-party action or a bucket
 this repo does not have today, so it wants a human gate before an agent adds it.
 
 **Faster runners.** [CI Bench](https://cibench.com/compare/runson-vs-blacksmith-vs-depot-vs-namespace/)
-measured RunsOn at 1.2x and Blacksmith at 1.6x GitHub-hosted. At 4.4 min that is
-roughly 2.7–3.7 min, for money and trust in a runner vendor — a cost decision,
-not an engineering one. GitHub's own larger runners are paid too.
+measured RunsOn at 1.2x and Blacksmith at 1.6x GitHub-hosted — at a 3.3 min
+wall that is roughly 2.7–2.9 min, for money and trust in a runner vendor. A
+cost decision, not an engineering one.
 
 **Already taken, checked rather than assumed.** `concurrency` with
 `cancel-in-progress: true` is in `ci.yml`, so a superseded push does not race the

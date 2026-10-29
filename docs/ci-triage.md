@@ -24,8 +24,8 @@ away". A third run turns a signal into a coin flip.
 |---|---|---|
 | `checks` | a deterministic structural gate (sizes, scope, registry, generated artifacts, lint) | the log names the file and the rule |
 | `race shard 0` | the Go suite under `-race`, on **`internal/installer` alone** — the measured outlier that gets a shard to itself | the test name and the stack are in the log |
-| `race shard 1` | the same suite over the long tail of packages | same; the shard prints `N of M packages` so you can see what it ran |
-| `browser` | one of five Playwright suites against the real binary | `scripts/run-browser-suite.sh` prints which suite, and both attempts |
+| `race shard 1` / `race shard 2` | the same suite, the long tail split in two | same; each shard prints `N of M packages` so you can see what it ran |
+| `browser group 0` / `browser group 1` | one of five Playwright suites against the real binary, grouped by measured cost | `scripts/run-browser-suite.sh` prints which suite, and both attempts |
 | `site` | the docs site builds and every published page loads at seven widths | the suite names the page and the width |
 | `prod-image` / `gui` / `template` | packaging and downstream builds | the failing step |
 
