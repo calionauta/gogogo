@@ -101,6 +101,18 @@ jobs:
         run: |
           bash bin/install-go-toolchain.sh
       - if: steps.filter.outputs.docs_only != 'true'
+        name: Restore Go module download cache
+        # This job is the serial prefix on EVERY other job (`needs: [changes]`),
+        # so its cost is the wall's cost. It was 60s, 50s of it a cold
+        # `go mod download`; with the zip cache restored it is ~10s.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
+      - if: steps.filter.outputs.docs_only != 'true'
         name: Warm module cache
         # `go list` resolves the module graph; the proxy answers storms with
         # transient INTERNAL_ERRORs that go does not retry on its own.
@@ -713,12 +725,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Set up buildx
-        # Only for the layer cache. Without its own builder, `docker build`
-        # recompiles the Dockerfile's Go build from zero on every run; the
-        # github-actions cache lives behind buildx (deploy.yml builds the same
-        # way). The script keeps plain `docker build` for local runs.
-        uses: docker/setup-buildx-action@v4
       - name: Production image boot smoke test
         # Builds deploy/Dockerfile.prod, boots the FINAL image (uid 65532,
         # data volume, TURSO_GO_CACHE_DIR) and asserts /health → 200. This
@@ -729,8 +735,6 @@ jobs:
         # linux/amd64 here; the musl library exists per-arch, so the boot
         # mechanism proven here covers the arm64 server build too.
         run: bash scripts/smoke-prod-image.sh gogogo:prod-smoke-ci
-        env:
-          SMOKE_BUILDX_CACHE: '1'
 
   site:
     # Docs-site layout, in a real browser. docs/*.md is rendered by

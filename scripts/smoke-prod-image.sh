@@ -41,29 +41,17 @@ trap cleanup EXIT
 chmod 0777 "$DATA_DIR"
 
 echo "→ building $TAG from $ROOT/deploy/Dockerfile.prod"
-BTIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-if [ "${SMOKE_BUILDX_CACHE:-0}" = "1" ]; then
-	# CI path: buildx + the Actions layer cache, so an unchanged layer set is
-	# not rebuilt. The Go build inside the Dockerfile is the expensive layer and
-	# plain `docker build` recompiled it on every run. --load puts the result in
-	# the local daemon, which is what the boot check below runs. Locally this
-	# stays off: it needs a buildx builder that only the workflow sets up.
-	docker buildx build \
-		--cache-from type=gha,scope=prod-smoke \
-		--cache-to type=gha,mode=max,scope=prod-smoke \
-		--load \
-		-f "$ROOT/deploy/Dockerfile.prod" \
-		--build-arg VERSION=smoke \
-		--build-arg COMMIT=smoke \
-		--build-arg BUILDTIME="$BTIME" \
-		-t "$TAG" "$ROOT"
-else
-	docker build -f "$ROOT/deploy/Dockerfile.prod" \
-		--build-arg VERSION=smoke \
-		--build-arg COMMIT=smoke \
-		--build-arg BUILDTIME="$BTIME" \
-		-t "$TAG" "$ROOT"
-fi
+# A buildx layer cache was measured here and rejected: the Dockerfile already
+# layers go.mod/go.sum first, but `COPY . .` + the CGO Go build are invalidated
+# by every commit, so the github-actions cache saved nothing while setup-buildx
+# cost 21s of the job. What would help is the compile itself, and a cache mount
+# is not exported by any buildx cache backend across ephemeral runners (see
+# docs/research/ci-wall-clock-2026-10.md).
+docker build -f "$ROOT/deploy/Dockerfile.prod" \
+  --build-arg VERSION=smoke \
+  --build-arg COMMIT=smoke \
+  --build-arg BUILDTIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  -t "$TAG" "$ROOT"
 
 # Ephemeral host port: a fixed one collides with a dev server or a
 # parallel run. Ask the kernel via python (present on CI + server).
