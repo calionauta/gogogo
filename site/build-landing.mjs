@@ -104,7 +104,7 @@ const featureLinks = {
   account: "./docs/security/",
 };
 const featureNotes = {
-  todo: "reference · offline-first",
+  todo: "reference · durable writes",
   notes: "text CRDT · live",
   whiteboard: "CRDT · live",
   chat: "generative UI",

@@ -102,7 +102,7 @@ Snapshot of Oct 2026 — the live list with opt-outs is
 - **DagNats over JetStream** — durable multi-step workflows as declarative JSON; kill mid-run and it resumes.
 - **NATS JetStream** — broadcast across instances behind a load balancer.
 - **GoAI (+ optional ai-credits)** — LLM calls on any provider; optional credits ledger and BYOK billing.
-- **Page outbox + app-shell cache + NATS Leaf Node** — offline-first sync; an edit is durable before it is sent and replays without duplicating.
+- **Page outbox + app-shell cache + NATS Leaf Node** — offline-capable writes; an edit is durable before it is sent and replays without duplicating, while reads stay server-authoritative (the desktop Leaf Node makes them local).
 - **GoAkt grains** — one addressable owner per room: connection-scoped roster plus exactly-one presenter lock, supervised.
 - **Wails v3 + gogpu/ui** — desktop shells over the same backend.
 - **DaisyUI v5 + four palettes** — one shell and one markup; the theme picker swaps palette and radius, never layout.
