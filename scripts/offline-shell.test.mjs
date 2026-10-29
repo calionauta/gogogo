@@ -259,7 +259,7 @@ try {
     await input(page).fill(`quiet-${Date.now()}`);
     await input(page).press("Enter");
     await waitFor(() => page.locator("#todo-list .todo-item").first().isVisible(), 15000, "the created row");
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(800); // KEPT: absence check — past the 500 ms announce delay
     const bars = await page.evaluate(() => window.__bars);
     await page.unroute("**/api/todos?*");
     if (bars > 0) throw new Error(`the banner flashed ${bars} time(s) for a healthy online add`);

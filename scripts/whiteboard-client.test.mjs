@@ -1031,7 +1031,21 @@ async function main() {
   await gotoBoard(deskPage, `${BASE}/whiteboard/${docMobile}?clientID=wb-desk`);
   await waitForCanvas(deskPage);
   await drawRect(deskPage, 620, 300, 820, 460);
-  await sleep(700);
+  // Wait for the server to HAVE the shape before the phone asks for the page:
+  // a fixed nap here would be the synchronization this suite forbids.
+  {
+    const deadline = Date.now() + 10000;
+    let saved = 0;
+    while (Date.now() < deadline && saved === 0) {
+      const res = await fetch(`${BASE}/api/whiteboard/${docMobile}/snapshot`, { headers: { Cookie: "gogogo_auth=" + cookie } }).catch(() => null);
+      if (res && res.ok) {
+        const list = await res.json().catch(() => []);
+        saved = Array.isArray(list) ? list.length : 0;
+      }
+      if (saved === 0) await sleep(200);
+    }
+    if (saved === 0) bad("the desktop shape never reached the server");
+  }
   await deskCtx.close();
 
   const mobCtx = await browser.newContext({ ...devices["iPhone 13"] });
@@ -1039,8 +1053,10 @@ async function main() {
   const mobPage = await mobCtx.newPage();
   mobPage.on("pageerror", (e) => pageErrors.push("mobile: " + String(e)));
   await gotoBoard(mobPage, `${BASE}/whiteboard/${docMobile}?clientID=wb-mob`);
-  await sleep(1200); // fit runs on the first authoritative list
   const mobBox = await mobPage.locator("#wb-canvas").boundingBox();
+  // The fit runs on the first authoritative list; WAIT for the ink instead of
+  // guessing how long the round trip takes.
+  await waitForInk(mobPage, [{ x: 0, y: 0, w: mobBox.width, h: mobBox.height }], 15000);
   const mobInk = await mobPage.evaluate(inkInRegion(0, 0, mobBox.width, mobBox.height));
   if (mobInk > 0) {
     ok(`a desktop board is visible on a phone after fit (ink ${mobInk})`);
