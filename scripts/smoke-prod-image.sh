@@ -41,11 +41,29 @@ trap cleanup EXIT
 chmod 0777 "$DATA_DIR"
 
 echo "→ building $TAG from $ROOT/deploy/Dockerfile.prod"
-docker build -f "$ROOT/deploy/Dockerfile.prod" \
-  --build-arg VERSION=smoke \
-  --build-arg COMMIT=smoke \
-  --build-arg BUILDTIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  -t "$TAG" "$ROOT"
+BTIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if [ "${SMOKE_BUILDX_CACHE:-0}" = "1" ]; then
+	# CI path: buildx + the Actions layer cache, so an unchanged layer set is
+	# not rebuilt. The Go build inside the Dockerfile is the expensive layer and
+	# plain `docker build` recompiled it on every run. --load puts the result in
+	# the local daemon, which is what the boot check below runs. Locally this
+	# stays off: it needs a buildx builder that only the workflow sets up.
+	docker buildx build \
+		--cache-from type=gha,scope=prod-smoke \
+		--cache-to type=gha,mode=max,scope=prod-smoke \
+		--load \
+		-f "$ROOT/deploy/Dockerfile.prod" \
+		--build-arg VERSION=smoke \
+		--build-arg COMMIT=smoke \
+		--build-arg BUILDTIME="$BTIME" \
+		-t "$TAG" "$ROOT"
+else
+	docker build -f "$ROOT/deploy/Dockerfile.prod" \
+		--build-arg VERSION=smoke \
+		--build-arg COMMIT=smoke \
+		--build-arg BUILDTIME="$BTIME" \
+		-t "$TAG" "$ROOT"
+fi
 
 # Ephemeral host port: a fixed one collides with a dev server or a
 # parallel run. Ask the kernel via python (present on CI + server).

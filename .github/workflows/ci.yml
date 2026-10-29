@@ -9,6 +9,15 @@ on:
     # under it could only be judged by reading the diff (PR #154 shipped
     # that way). A PR against any base now gets the same gates.
   workflow_dispatch:
+    inputs:
+      scope_packages:
+        # Verifies the NARROW branch of the test selection on demand: a normal
+        # PR only reaches it when the changeset is Go-only, and the plumbing
+        # fail-open means this workflow's own PRs never do. Space or comma
+        # separated package dirs.
+        description: 'Package dirs to run instead of the classified scope (verifies the narrow path)'
+        required: false
+        default: ''
 concurrency:
   # Cancel in-progress runs when a newer commit lands on the same ref (push+
   # PR both trigger on the same branch, so without this every push to a branch
@@ -109,6 +118,24 @@ jobs:
           emit() { printf 'pkgs<<PKGS_EOF\n%s\nPKGS_EOF\n' "$1" >> "$GITHUB_OUTPUT"; }
           full() { bash scripts/web-packages.sh; }
 
+          # An explicit list from workflow_dispatch short-circuits everything
+          # below. It is the verification knob for the narrow path, and a way to
+          # reproduce a specific shard's scope without a PR.
+          #
+          # The trailing newline in the printf is load-bearing: without it the
+          # last entry is not read back (measured: two packages in, one out),
+          # and a silently short scope is exactly the class of bug the
+          # fail-opens below exist for.
+          EXPLICIT="${{ inputs.scope_packages }}"
+          if [ -n "$EXPLICIT" ]; then
+            emit "$(printf '%s\n' "$EXPLICIT" | tr ' ,' '\n\n' | while IFS= read -r p; do
+              [ -n "$p" ] && [ -d "$p" ] && (cd "$p" && pwd)
+            done)"
+            echo "kind=narrow" >> "$GITHUB_OUTPUT"
+            echo "scope: explicit packages from the dispatch input"
+            exit 0
+          fi
+
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             emit "$(full)"
             echo "kind=all" >> "$GITHUB_OUTPUT"
@@ -194,6 +221,19 @@ jobs:
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Restore Go module download cache
+        # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
+        # Measured: caching the whole module directory was break-even to a loss
+        # (23-33s restore vs 16-29s download). This is roughly a third of that
+        # size, and with the zips present `go mod download` extracts locally
+        # instead of going to the proxy.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -442,6 +482,19 @@ jobs:
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Restore Go module download cache
+        # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
+        # Measured: caching the whole module directory was break-even to a loss
+        # (23-33s restore vs 16-29s download). This is roughly a third of that
+        # size, and with the zips present `go mod download` extracts locally
+        # instead of going to the proxy.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -492,9 +545,17 @@ jobs:
   browser:
     needs: [changes]
     if: needs.changes.outputs.docs_only != 'true'
-    # Build + boot smoke stay first (cheap gate); the three client suites
-    # run serially — fast enough, and it avoids the parallel-load starvation
-    # that ci-fanout.sh documents for the local run.
+    # Two groups, one runner each. The five suites are ~120s serial and the
+    # setup around them ~62s, so the split buys the smaller half of that for the
+    # price of a second runner. The parallelism is across RUNNERS on purpose:
+    # the starvation ci-fanout.sh documents is suites sharing one runner's four
+    # cores, which this does not do. Groups are by measured cost, not by count:
+    # smoke 46s + scroll 3s | whiteboard 14s + notes 23s + SSE 34s.
+    strategy:
+      fail-fast: false
+      matrix:
+        client_group: [0, 1]
+    name: browser group ${{ matrix.client_group }}
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -526,6 +587,19 @@ jobs:
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Restore Go module download cache
+        # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
+        # Measured: caching the whole module directory was break-even to a loss
+        # (23-33s restore vs 16-29s download). This is roughly a third of that
+        # size, and with the zips present `go mod download` extracts locally
+        # instead of going to the proxy.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -579,13 +653,19 @@ jobs:
         # different one, and FAIL (without hanging) on a broken path. A
         # readiness gate that cannot fail is worse than none.
         run: bash scripts/assert-public-ready.test.sh
+      - name: Install Chromium
+        # Both groups need the browser, so the install is its own step rather
+        # than riding inside the smoke suite (it could ride there while the
+        # suites shared one runner). The download is cached; --with-deps still
+        # apt-installs the system libraries.
+        run: npx playwright install --with-deps chromium
       - name: Browser smoke test
+        if: matrix.client_group == 0
         # Datastar is a global client runtime; exercise the rendered app in
         # Chromium so upgrades cannot pass Go checks while breaking signals.
-        run: |
-          npx playwright install --with-deps chromium
-          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
+        run: SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
       - name: Whiteboard client regression tests
+        if: matrix.client_group == 1
         # The whiteboard client has no Go-side coverage for its transport
         # handling: response ordering and the 409 conflict path only exist in
         # whiteboard.js. A real regression lived here (adopting the server's
@@ -595,6 +675,7 @@ jobs:
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh whiteboard-client.test.mjs
       - name: Notes caret client regression tests
+        if: matrix.client_group == 1
         # Cross-user caret positioning: the mirror-div must be measured against
         # the reporter's text snapshot, not the observer's (possibly stale)
         # ta.value. The reported bug — a peer's end-of-line caret appearing at
@@ -604,6 +685,7 @@ jobs:
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh notes-caret.test.mjs
       - name: SSE verified-open regression test
+        if: matrix.client_group == 1
         # The opener must fail LOUDLY when Datastar cannot load (bounded
         # openState=failed), never leave a silent-dead stream: with Datastar
         # route-aborted, the old opener never opens anything (red-proofed by
@@ -611,6 +693,7 @@ jobs:
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh sse-reopen.test.mjs SSE_PROBE_PORT=8133
       - name: AI answer scroll regression test
+        if: matrix.client_group == 0
         # A new answer must scroll itself into view on a short window — the
         # region was appended below the fold and the reply arrived
         # off-screen (red-proofed by removing the anchors: scrollY 0 → 0).
@@ -628,6 +711,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Set up buildx
+        # Only for the layer cache. Without its own builder, `docker build`
+        # recompiles the Dockerfile's Go build from zero on every run; the
+        # github-actions cache lives behind buildx (deploy.yml builds the same
+        # way). The script keeps plain `docker build` for local runs.
+        uses: docker/setup-buildx-action@v4
       - name: Production image boot smoke test
         # Builds deploy/Dockerfile.prod, boots the FINAL image (uid 65532,
         # data volume, TURSO_GO_CACHE_DIR) and asserts /health → 200. This
@@ -638,6 +727,8 @@ jobs:
         # linux/amd64 here; the musl library exists per-arch, so the boot
         # mechanism proven here covers the arm64 server build too.
         run: bash scripts/smoke-prod-image.sh gogogo:prod-smoke-ci
+        env:
+          SMOKE_BUILDX_CACHE: '1'
 
   site:
     # Docs-site layout, in a real browser. docs/*.md is rendered by
