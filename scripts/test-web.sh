@@ -19,6 +19,24 @@
 #   bash scripts/test-web.sh -count=1           # test-fast (no race)
 set -euo pipefail
 
+# Resolve the package list BEFORE the capacity pre-flight: a run with nothing
+# to test must not need a 6 GB box to discover that.
+#
+# TEST_PKGS_FILE narrows the run to an explicit package list — CI test selection
+# writes it from scripts/changed-packages.sh --with-dependents (the affected
+# packages plus their transitive dependents). Unset means the full web suite,
+# which stays the local gate and the fail-open path when the changeset cannot be
+# classified: a wrong narrowing in the cheap direction costs a run, a wrong
+# narrowing in the other direction ships a regression.
+pkgs=$(bash scripts/web-packages.sh)
+if [ -n "${TEST_PKGS_FILE:-}" ]; then
+	pkgs=$(grep -v '^[[:space:]]*$' "$TEST_PKGS_FILE" || true)
+	if [ -z "$pkgs" ]; then
+		echo "test-web: no Go package affected by this changeset — nothing to run" >&2
+		exit 0
+	fi
+fi
+
 # Full-suite guard: this script runs EVERY web package (the T4-equivalent
 # workload). On a small shared host that wedges the box — and co-tenant
 # agents share these cores — so refuse first, exactly like `make ci-local`.
@@ -29,6 +47,5 @@ if [ "${CI:-}" != "true" ] && [ "${ALLOW_HEAVY:-0}" != "1" ]; then
 	bash scripts/check-host-capacity.sh
 fi
 
-pkgs=$(bash scripts/web-packages.sh)
 # shellcheck disable=SC2086
 exec go test "$@" $pkgs
