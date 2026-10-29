@@ -42,7 +42,17 @@
   const ctx = canvas.getContext("2d");
   const cursorsEl = document.getElementById("cursors");
 
-  let shapes = []; // authoritative shape list from server
+  // Seeded from the server-rendered page (data-shapes): the stream is the live
+  // channel, but an offline reload never reaches it, and an empty canvas
+  // looked like the board had been erased. The stream replaces this list on
+  // connect, so a stale seed never outlives a reconnect.
+  let shapes = [];
+  try {
+    const seeded = document.getElementById("canvas-wrap")?.dataset?.shapes;
+    if (seeded) shapes = JSON.parse(seeded) || [];
+  } catch (_) {
+    shapes = [];
+  }
   // Live in-progress shapes from peers, keyed by the peer's display name
   // (one pointer, one draft): {shape, ts}. Ephemeral view state only — the
   // CRDT/`shapes` list stays the single source of truth for committed
@@ -203,6 +213,11 @@
   idbLoadAll().then(function (ops) {
     if (ops.length > 0) {
       outbox = ops;
+      // Paint the unsent shapes on the seeded board before the replay: an
+      // offline reload must show what the user drew, not just what the server
+      // acknowledged.
+      for (var i = 0; i < ops.length; i++) applyLocal(ops[i]);
+      render();
       flushOutbox();
     }
   }).catch(function () {
@@ -251,6 +266,25 @@
       console.warn("op rejected as stale (shape changed elsewhere); resynced");
     }).catch(function () {});
     return true;
+  }
+
+  // applyLocal folds one queued op into the rendered list. The write protocol
+  // has two operations (add = upsert by id, clear = wipe), so this stays a
+  // mirror of the server's merge and never invents a third shape of state.
+  function applyLocal(op) {
+    if (!op || !op.op) return;
+    if (op.op === "clear") {
+      shapes = [];
+      return;
+    }
+    if (op.op !== "add" || !op.shape || !op.shape.id) return;
+    for (var i = 0; i < shapes.length; i++) {
+      if (shapes[i].id === op.shape.id) {
+        shapes[i] = op.shape;
+        return;
+      }
+    }
+    shapes.push(op.shape);
   }
 
   function flushOutbox() {

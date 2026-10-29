@@ -201,6 +201,21 @@ closed: Background Sync — the only API that could — is Chromium-only (Firefo
 a negative standards position, Safari does not implement it), so it was never a
 cross-browser guarantee.
 
+**Local persistence contract.** One rule — a mutation is durable locally before
+it is sent; reads are server-rendered (or seeded from the server) — and the store
+follows the shape of the data:
+
+| surface | local writes | local reads | convergence | store |
+|---|---|---|---|---|
+| Todo | pending intent (outbox) + composer draft | last visited page (service-worker page cache) | server re-list; `op_receipts` on the toggle | IndexedDB (ordered queue, unique key, transactions) + localStorage (sync crash journal, draft) |
+| Notes | op batch + full-text draft | the resolved text server-rendered into the cached page | 409 + authoritative text, recompute the tail | localStorage (small single blob, written on every keystroke) |
+| Whiteboard | op batch | `data-shapes` seeded by the page; the stream takes over on connect | 409 + authoritative shape list | IndexedDB (larger JSON, async, no 5 MB cap) |
+
+The split is deliberate: **localStorage is for small, synchronous, single-blob
+state** (the crash journal, a note draft) because the write must not be lost to
+an async commit; **IndexedDB is for queues** because they need ordering
+(`autoIncrement`), a unique key and transactions.
+
 Each outcome has its own policy, not a generic retry:
 
 - **2xx / 404** — settled (404 means the row is already gone).

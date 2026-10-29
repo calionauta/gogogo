@@ -554,7 +554,7 @@ func deleteBoardModal() templ.Component {
 // work area: the canvas owns the rectangle, so the shell drops its padding and
 // gives the column the height. data-doc-id rides the wrapper (whiteboard.js
 // reads it back as window.WB_DOC_ID) because the shell owns <main>.
-func Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool, demo bool) templ.Component {
+func Board(email string, userRole string, meta BoardMeta, buildLabel string, buildCommit string, offlineSync bool, demo bool, shapesJSON string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -596,7 +596,7 @@ func Board(email string, userRole string, meta BoardMeta, buildLabel string, bui
 			},
 			StreamPage: true,
 			FullBleed:  true,
-		}, boardHead(), boardSound(), nil, boardBody(meta)).Render(ctx, templ_7745c5c3_Buffer)
+		}, boardHead(), boardSound(), nil, boardBody(meta, shapesJSON)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -749,7 +749,7 @@ func boardSound() templ.Component {
 
 // boardBody is the work area: the toolbar, the canvas and the doc id the
 // scripts read.
-func boardBody(meta BoardMeta) templ.Component {
+func boardBody(meta BoardMeta, shapesJSON string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -791,20 +791,33 @@ func boardBody(meta BoardMeta) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</span></div><div class=\"relative flex-1 overflow-hidden\" id=\"canvas-wrap\" style=\"background-color:#ffffff;\"><canvas id=\"wb-canvas\" class=\"absolute inset-0 w-full h-full block cursor-crosshair\" style=\"background-color:#ffffff;\"></canvas><div id=\"cursors\" class=\"absolute inset-0 pointer-events-none\"></div></div></div><script nonce=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</span></div><div class=\"relative flex-1 overflow-hidden\" id=\"canvas-wrap\" data-shapes=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var30 string
-		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(shapesJSON)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 281, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 276, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\">\n\t\t// The doc id is carried on the wrapper's data-doc-id (templ escapes\n\t\t// attribute values safely). Reading it from the DOM avoids the earlier\n\t\t// JS-string-escaping pitfalls (templ.URL() emitted a full URL and\n\t\t// templ.JSEscape() produced unquoted output). The selector is the\n\t\t// attribute, not <main>: internal/ui.Shell owns the main element.\n\t\twindow.WB_DOC_ID = document.querySelector(\"[data-doc-id]\")?.dataset.docId || \"\";\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" style=\"background-color:#ffffff;\"><canvas id=\"wb-canvas\" class=\"absolute inset-0 w-full h-full block cursor-crosshair\" style=\"background-color:#ffffff;\"></canvas><div id=\"cursors\" class=\"absolute inset-0 pointer-events-none\"></div></div></div><script nonce=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var31 string
+		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components/board.templ`, Line: 281, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\">\n\t\t// The doc id is carried on the wrapper's data-doc-id (templ escapes\n\t\t// attribute values safely). Reading it from the DOM avoids the earlier\n\t\t// JS-string-escaping pitfalls (templ.URL() emitted a full URL and\n\t\t// templ.JSEscape() produced unquoted output). The selector is the\n\t\t// attribute, not <main>: internal/ui.Shell owns the main element.\n\t\twindow.WB_DOC_ID = document.querySelector(\"[data-doc-id]\")?.dataset.docId || \"\";\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

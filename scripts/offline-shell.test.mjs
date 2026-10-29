@@ -177,12 +177,15 @@ async function queueCreate(page, context, base, status = 503) {
   const title = `shell-${Date.now()}`;
   await input(page).fill(title);
   await input(page).press("Enter");
-  // PENDING, not merely stored: an intent still "inflight" is a request the
-  // page is waiting on, and reloading there leaves a 30s lease nobody drains.
+  // SETTLED, not merely stored: pending (waiting for a retry) or already gone
+  // (delivered/dropped). An intent still "inflight" is a request the page is
+  // waiting on, and reloading there leaves a 30s lease nobody drains. The
+  // permanent-4xx case can be dropped before the first poll sees it, which is
+  // a pass for every caller here.
   await waitFor(async () => {
     const states = await outboxStates(page);
-    return states.includes("pending");
-  }, 12000, "the intent to settle as pending");
+    return states.length === 0 || states.includes("pending");
+  }, 12000, "the intent to settle");
   return title;
 }
 
@@ -208,6 +211,27 @@ try {
     args: ENGINE === "webkit" ? [] : ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
   });
   console.log(`→ Browser: ${ENGINE}`);
+
+  // ---- 0: composer draft -------------------------------------------------
+  await check("todo draft: typing without submitting survives a reload", async () => {
+    const cookie = await freshCookie(BASE, "draft");
+    const ctx = await browser.newContext();
+    await ctx.addCookies([{ name: "gogogo_auth", value: cookie, url: BASE + "/" }]);
+    const page = await newPage(ctx, BASE, true);
+    const title = `draft-${Date.now()}`;
+    await input(page).fill(title);
+    // The draft write is debounced (200ms), like the search box: a human reload
+    // is slower than that, and the test must not race the debounce.
+    await new Promise((r) => setTimeout(r, 350));
+    await page.reload({ waitUntil: "load" });
+    await waitFor(async () => (await input(page).inputValue()) === title, 10000, "the draft to survive the reload");
+    // Submitting clears it: the draft must not resurrect a queued title.
+    await input(page).press("Enter");
+    await waitFor(async () => (await input(page).inputValue()) === "", 10000, "the composer to clear");
+    await page.reload({ waitUntil: "load" });
+    if ((await input(page).inputValue()) !== "") throw new Error("the draft survived a submit");
+    await ctx.close();
+  });
 
   // ---- 1: shared device --------------------------------------------------
   await check("shared device: sign-out purges the queue, the next account inherits nothing", async () => {

@@ -84,7 +84,7 @@ func TodoList(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:gogogo:queued__window=\"$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''\" data-on:keydown__window=\"evt.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable ? (evt.preventDefault(), document.getElementById('todo-search-input').focus()) : null\"><!-- ═══════════════ MAIN GRID ═══════════════ --><div class=\"grid grid-cols-1 gap-5\"><!-- ──────────── LEFT: TODO LIST (3/5) ──────────── --><div class=\"lg:col-span-3 space-y-5\"><div class=\"ui-card\"><div class=\"ui-card-head\"><h2 class=\"ui-title\">Tasks</h2><span class=\"badge badge-sm\" data-text=\"$itemCount + ' items'\"></span></div><div class=\"ui-card-body ui-stack\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-on:gogogo:queued__window=\"$loading = false; $newTitle = ''; localStorage.removeItem('todo-draft'); $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''\" data-on:keydown__window=\"evt.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable ? (evt.preventDefault(), document.getElementById('todo-search-input').focus()) : null\"><!-- ═══════════════ MAIN GRID ═══════════════ --><div class=\"grid grid-cols-1 gap-5\"><!-- ──────────── LEFT: TODO LIST (3/5) ──────────── --><div class=\"lg:col-span-3 space-y-5\"><div class=\"ui-card\"><div class=\"ui-card-head\"><h2 class=\"ui-title\">Tasks</h2><span class=\"badge badge-sm\" data-text=\"$itemCount + ' items'\"></span></div><div class=\"ui-card-body ui-stack\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -284,7 +284,7 @@ func createForm(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<form id=\"todo-create\" class=\"w-full mt-3\" data-on:submit__prevent=\"if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var url = '/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id); var body = new URLSearchParams(new FormData(el)).toString(); var sent = $newTitle; var key = window.GogogoOutbox.begin({url: new URL(url, location.href).href, method: 'POST', body: body, headers: {'Content-Type': 'application/x-www-form-urlencoded'}}); el.dataset.opKey = key; @post(url, {contentType: 'form', retryMaxCount: 0, headers: {'Idempotency-Key': key}}).then(() => { $loading = false; var st = Number(el.dataset.opStatus || 0); delete el.dataset.opStatus; if (st === 0) { window.GogogoOutbox.ack(key); if ($newTitle === sent) $newTitle = ''; } else { window.GogogoOutbox.fail(key); if (st !== 408 && st !== 429 && st < 500) $syncFailed = true; } }).catch(() => { $loading = false; delete el.dataset.opStatus; window.GogogoOutbox.fail(key); }); }\"><div class=\"join w-full\"><input type=\"text\" name=\"title\" class=\"input input-sm join-item grow\" placeholder=\"What needs doing?\" aria-label=\"New todo title\" data-bind=\"newTitle\"> <button type=\"submit\" class=\"btn btn-primary btn-sm join-item\" data-attr:disabled=\"!!($loading || !$newTitle.trim())\"><span class=\"inline-flex items-center gap-2\">Add <span class=\"loading loading-spinner loading-xs\" data-show=\"$loading\"></span></span></button></div><label class=\"ui-meta mt-2 flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"visibility\" value=\"public\" class=\"checkbox checkbox-xs checkbox-info\"> <span>Shared — every login sees this todo (private by default)</span></label><div class=\"alert alert-warning mt-2\" role=\"alert\" id=\"todo-save-error\" data-show=\"$syncFailed\"><span>Not saved — the request failed. Your text is still in the box; try again.</span> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"$syncFailed = false\">dismiss</button></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<form id=\"todo-create\" class=\"w-full mt-3\" data-init=\"var d = localStorage.getItem('todo-draft'); var i = document.getElementById('todo-create-title'); if (d && i && !i.value) { i.value = d; i.dispatchEvent(new Event('input', { bubbles: true })) }\" data-on:submit__prevent=\"if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var url = '/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id); var body = new URLSearchParams(new FormData(el)).toString(); var sent = $newTitle; var key = window.GogogoOutbox.begin({url: new URL(url, location.href).href, method: 'POST', body: body, headers: {'Content-Type': 'application/x-www-form-urlencoded'}}); el.dataset.opKey = key; @post(url, {contentType: 'form', retryMaxCount: 0, headers: {'Idempotency-Key': key}}).then(() => { $loading = false; var st = Number(el.dataset.opStatus || 0); delete el.dataset.opStatus; if (st === 0) { window.GogogoOutbox.ack(key); if ($newTitle === sent) { $newTitle = ''; localStorage.removeItem('todo-draft'); } } else { window.GogogoOutbox.fail(key); if (st !== 408 && st !== 429 && st < 500) $syncFailed = true; } }).catch(() => { $loading = false; delete el.dataset.opStatus; window.GogogoOutbox.fail(key); }); }\"><div class=\"join w-full\"><input id=\"todo-create-title\" type=\"text\" name=\"title\" class=\"input input-sm join-item grow\" placeholder=\"What needs doing?\" aria-label=\"New todo title\" data-bind=\"newTitle\" data-on:input__debounce.200ms=\"el.value ? localStorage.setItem('todo-draft', el.value) : localStorage.removeItem('todo-draft')\"> <button type=\"submit\" class=\"btn btn-primary btn-sm join-item\" data-attr:disabled=\"!!($loading || !$newTitle.trim())\"><span class=\"inline-flex items-center gap-2\">Add <span class=\"loading loading-spinner loading-xs\" data-show=\"$loading\"></span></span></button></div><label class=\"ui-meta mt-2 flex items-center gap-2 cursor-pointer\"><input type=\"checkbox\" name=\"visibility\" value=\"public\" class=\"checkbox checkbox-xs checkbox-info\"> <span>Shared — every login sees this todo (private by default)</span></label><div class=\"alert alert-warning mt-2\" role=\"alert\" id=\"todo-save-error\" data-show=\"$syncFailed\"><span>Not saved — the request failed. Your text is still in the box; try again.</span> <button type=\"button\" class=\"btn btn-ghost btn-sm\" data-on:click=\"$syncFailed = false\">dismiss</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -333,7 +333,7 @@ func searchBox(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(signals.SearchQuery)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 196, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 199, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -346,7 +346,7 @@ func searchBox(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.TodoSearchOn())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 198, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 201, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -359,7 +359,7 @@ func searchBox(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.TodoSearchClearOn())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 205, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 208, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -428,7 +428,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.TodoSearchModeOn())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 235, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 238, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 			if templ_7745c5c3_Err != nil {
@@ -446,7 +446,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(m)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 238, Col: 21}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 241, Col: 21}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 				if templ_7745c5c3_Err != nil {
@@ -469,7 +469,7 @@ func searchModeSelect(signals todo.Signals) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(searchModeLabel(m))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 238, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 241, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -656,7 +656,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue("$newTitle = " + safeJSString(s))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 363, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 366, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -669,7 +669,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 364, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 367, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -687,7 +687,7 @@ func SuggestionsList(suggestions []string) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 368, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 371, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -740,7 +740,7 @@ func clearCompletedModal() templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById('confirm-clear-completed').close(); " + todoMutateOn("'/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all')"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 418, Col: 281}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 421, Col: 281}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -809,7 +809,7 @@ func deleteConfirmModal(spec deleteModalSpec) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(spec.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 454, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 457, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
@@ -822,7 +822,7 @@ func deleteConfirmModal(spec deleteModalSpec) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(spec.PendingID + " = ''; " + spec.PendingTitle + " = ''; $deleting = false")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 454, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 457, Col: 129}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
@@ -835,7 +835,7 @@ func deleteConfirmModal(spec deleteModalSpec) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(spec.PendingTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 463, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 466, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -848,7 +848,7 @@ func deleteConfirmModal(spec deleteModalSpec) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById(" + safeJSString(spec.ID) + ").close()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 470, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 473, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 		if templ_7745c5c3_Err != nil {
@@ -861,7 +861,7 @@ func deleteConfirmModal(spec deleteModalSpec) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue("$deleting = true; document.getElementById(" + safeJSString(spec.ID) + ").close(); " + spec.ConfirmExpr)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 478, Col: 124}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 481, Col: 124}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -874,7 +874,7 @@ func deleteConfirmModal(spec deleteModalSpec) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue("document.getElementById(" + safeJSString(spec.ID) + ").close()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 487, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 490, Col: 91}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {
@@ -964,7 +964,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = evt.target.value; $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 567, Col: 139}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 570, Col: 139}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -977,7 +977,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date().toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 578, Col: 210}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 581, Col: 210}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -990,7 +990,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 579, Col: 232}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 582, Col: 232}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 		if templ_7745c5c3_Err != nil {
@@ -1003,7 +1003,7 @@ func createdFilter() templ.Component {
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(`$createdAfter = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); $noMatches = false; document.getElementById('created-filter-popover').hidePopover()`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 580, Col: 233}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 583, Col: 233}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
