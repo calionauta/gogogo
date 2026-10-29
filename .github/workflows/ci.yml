@@ -170,15 +170,6 @@ jobs:
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
-      - name: Restore Go module cache
-        # One key shared by every job — see the race job for the sizing reason.
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/go/pkg/mod
-          key: go-mod-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-          restore-keys: |
-            go-mod-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -420,21 +411,15 @@ jobs:
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
-      - name: Restore Go module cache
-        # One key for every job: the module graph is identical everywhere, so a
-        # single ~2 GB entry serves checks, race and browser instead of three
-        # competing for the 10 GB repo budget. bin/go-mod-download.sh below still
-        # runs as the retrying safety net for a proxy storm.
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/go/pkg/mod
-          key: go-mod-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-          restore-keys: |
-            go-mod-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
+        #
+        # Not cached, measured 2026-10-29 (runs 40865567690 cold and 40870630745
+        # warm): restoring ~/go/pkg/mod costs 23-33s per job and saves 16-29s of
+        # download, i.e. it is break-even to a net loss — and the winner is
+        # nondeterministic because it is I/O against a proxy. The build cache is
+        # the one that pays (it cut this job's test step 360s -> 207s).
         run: bash bin/go-mod-download.sh
       - name: Generate templ
         # Toolchain presence only — the checks job enforces that the
@@ -510,14 +495,6 @@ jobs:
           key: go-build-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ github.job }}-
-      - name: Restore Go module cache
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/go/pkg/mod
-          key: go-mod-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
-          restore-keys: |
-            go-mod-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
