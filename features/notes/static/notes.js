@@ -34,6 +34,13 @@
   const typing = document.getElementById("typing-pill");
   if (!ta) return;
 
+  // The retry vocabulary is shared with the todo outbox and the whiteboard
+  // (web/resources/static/offline-policy.js, loaded before this file). It is
+  // bound HERE because the initial drain (`if (outbox.length) flush()`) runs
+  // during this script's own evaluation — a const declared further down would
+  // still be in its temporal dead zone at that point.
+  const offlinePolicy = window.GogogoOffline;
+
   // Pending state: a textarea cannot style ranges, so per-character
   // grey ("only unsynced letters dimmed") is impossible without
   // contenteditable — and swapping the editor for a status light would
@@ -73,14 +80,27 @@
   // an applied batch, duplicating the insert — text inserts are not
   // idempotent. Demo-grade, documented.
   let outbox = [];
-  try {
-    const raw = JSON.parse(localStorage.getItem(outKey) || "[]");
-    for (const e of raw) {
-      if (e && Array.isArray(e.ops)) outbox.push(e);
-      else if (e && typeof e.t === "string") outbox.push({ ops: [e], base: 0 });
-    }
-  } catch (err) { outbox = []; }
-  function saveOutbox() { try { localStorage.setItem(outKey, JSON.stringify(outbox)); } catch (err) {} }
+  // loadOutbox decodes the persisted queue. An entry written before the batch
+  // shape existed is a bare op (`{t:"ins",...}`) and is wrapped.
+  function loadOutbox() {
+    const list = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(outKey) || "[]");
+      for (const e of raw) {
+        if (e && Array.isArray(e.ops)) list.push(e);
+        else if (e && typeof e.t === "string") list.push({ ops: [e], base: 0 });
+      }
+    } catch (err) { /* unreadable queue: start empty, the draft still holds the text */ }
+    return list;
+  }
+  // saveOutbox is FAIL-FAST: a queue that cannot be written is only in memory,
+  // and this tab is now the only copy. Reporting it is the difference between
+  // "your text is queued" and "your text is gone when you close this tab".
+  function saveOutbox() {
+    try { localStorage.setItem(outKey, JSON.stringify(outbox)); }
+    catch (err) { offlinePolicy.reportStorageDrop("notes"); }
+  }
+  outbox = loadOutbox();
   ta.addEventListener("input", function () {
     clearTimeout(timer);
     lastInputAt = Date.now();
@@ -508,7 +528,8 @@
   function sendDiff() {
     const ops = diffOps(ta.value, serverText);
     if (!ops.length) return;
-    try { localStorage.setItem(draftKey, ta.value); } catch (err) { /* private mode */ }
+    try { localStorage.setItem(draftKey, ta.value); }
+    catch (err) { offlinePolicy.reportStorageDrop("notes-draft"); }
     shiftPeerOffsets(ops);
     renderCarets();
     outbox.push({ ops: ops, base: REV });
@@ -518,21 +539,45 @@
     flush();
   }
 
-  // The retry vocabulary is shared with the worker and the whiteboard
-  // (web/resources/static/offline-policy.js, loaded by the page template
-  // before this file). One definition: an answer the worker retries must not
-  // be a "poison batch" here.
-  const offlinePolicy = window.GogogoOffline;
-
   // transientRetryMs grows while the app keeps answering with a transient
   // status: one retry per 1.5s would be a request storm against an edge that
   // is already struggling, and one per 10s is enough to notice a recovery.
   let transientRetryMs = 1500;
 
+  // flush drains ONE batch, under a per-document lock. The queue lives in
+  // localStorage, so two tabs of the same note hold the same entries; without
+  // the lock both replay the head batch and the insert lands twice (text ops
+  // are not idempotent). Under the lock the persisted queue is authoritative:
+  // a peer tab may already have delivered what this tab still remembers.
   function flush() {
     if (!outbox.length || flushing) return;
     flushing = true;
     setPending(true);
+    flushLocked().catch(function () {
+      flushing = false;
+      setPending(false);
+    });
+  }
+
+  function flushLocked() {
+    // ONE lock acquisition drains until the queue is empty: re-requesting the
+    // same lock from inside the holder queues behind itself and never resolves.
+    return offlinePolicy.withLock("gogogo:notes:" + DOC, function drain() {
+      outbox = loadOutbox();
+      if (!outbox.length) {
+        flushing = false;
+        setPending(false);
+        clean = true;
+        return;
+      }
+      return sendHead().then(function (again) { return again ? drain() : undefined; });
+    }).catch(function () {
+      flushing = false;
+      setPending(false);
+    });
+  }
+
+  function sendHead() {
     const t0 = (typeof performance !== "undefined") ? performance.now() : 0;
     const head = outbox[0];
     // Caret rides WITH the batch: the server echoes it on the same
@@ -549,7 +594,10 @@
     // approximate one, alternating on the peer's screen. This makes that
     // duplicate a no-op ("unchanged since the last report").
     caretSent = atSend;
-    fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
+    // RETURNED, not fired and forgotten: the caller runs this under a Web Lock,
+    // and the lock is only held while the returned promise is pending. Without
+    // it the lock covered the setup and released before the request.
+    return fetch("/api/notes/" + encodeURIComponent(DOC) + "/op?clientID=" + encodeURIComponent(CID), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sendBody),
@@ -563,7 +611,7 @@
         flushing = false;
         setPending(false);
         setSession(false);
-        return null;
+        return false;
       }
       if (r.status !== 200 && r.status !== 409) {
         // The edge or the app did not answer (5xx, 429, 408): keep the batch
@@ -575,7 +623,7 @@
           net.classList.remove("hidden");
           setTimeout(flush, transientRetryMs);
           transientRetryMs = offlinePolicy.retryDelay(transientRetryMs, 1500, 10000);
-          return null;
+          return false;
         }
         // Poison batch (invalid ops — only producible via devtools, our
         // UI only emits ins/del): drop it instead of retrying forever.
@@ -584,15 +632,15 @@
         saveOutbox();
         flushing = false;
         setPending(false);
-        if (outbox.length) setTimeout(flush, 1000);
-        return null;
+        // A poison entry must not wedge the rest: keep draining what is valid.
+        return outbox.length > 0;
       }
       return r.json().then(function (d) { return { status: r.status, body: d }; },
         function () { return { status: r.status, body: null }; });
     }).then(function (res) {
       flushing = false;
       setPending(false);
-      if (!res || !res.body) return;
+      if (!res || !res.body) return false;
       const d = res.body;
       if (res.status === 409) {
         // Stale base: adopt authority, recompute everything queued
@@ -604,9 +652,11 @@
         adoptRemote(res.body.text, res.body.rev);
         requeue();
         clean = !outbox.length;
-        if (outbox.length && attempts < 5) flush();
-        else attempts = 0;
-        return;
+        // Bounded: a second 409 means another race landed; the next local
+        // input recomputes anyway.
+        const again = outbox.length > 0 && attempts < 5;
+        if (!again) attempts = 0;
+        return again;
       }
       if (typeof d.text === "string") {
         serverText = d.text;
@@ -628,12 +678,14 @@
         // batch was in flight (arrow keys, a click) could not be reported
         // above, so report it now instead of waiting for the 5s heartbeat.
         maybeCaret();
-        if (outbox.length) flush();
+        return outbox.length > 0;
       }
+      return false;
     }).catch(function () {
       flushing = false;
       setPending(false);
       net.classList.remove("hidden");
+      return false;
     });
   }
 

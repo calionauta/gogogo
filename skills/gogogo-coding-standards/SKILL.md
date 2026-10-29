@@ -173,6 +173,8 @@ Full rules: `references/datastar.md`.
 - **A `data-bind` signal is client-owned — never write it from a server response.** Linted by `datastar-lint` (`CLIENT_BOUND_SIGNAL_*`), not prose: all six write forms are checked (four Go, two mark-up). Preferred fix: keep the field off the wire (`json:"-"`) and seed the signal from the input's `value=`. The two traps the lint cannot see are in `references/datastar.md` § Rules 7.
 - `site/` and `docs/` are outside the Tailwind scan (`features/`, `web/`, `internal/` only). Landing edits cannot stale `app.min.css`.
 - **The service worker never touches `/api/*`.** It caches navigations only, so a stream cannot be swallowed and there is no skip list to maintain (`TestServiceWorkerNeverInterceptsAPI`). Offline writes belong to `web/resources/static/offline-outbox.js`: store the intent BEFORE the request, send its key as `Idempotency-Key`, and let the server's `applyOnce` receipt dedupe the replay. A second queue — in the worker or a page — is the failure mode that design removed.
+- **One drainer per queue, and a store failure is a dropped change.** Every local queue is per-browser, so two tabs share it: take `GogogoOffline.withLock` and re-read the store under the lock (todo outbox, notes ops, whiteboard ops). A local write that fails (quota, blocked storage) is the user's work dying with the tab — report it (`GogogoOffline.reportStorageDrop`), never `catch () {}`.
+- **Offline reads are cached fragments, not a replica.** `web/resources/static/offline-views.js` keeps the last render of a view, bounded and labelled with its age; the next server render replaces it. Do not add a second read path (client DB, cached API JSON) without a decision record.
 
 ## Where new code goes (read this before creating a file)
 

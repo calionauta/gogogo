@@ -86,6 +86,10 @@ templ TodoList(signals todo.Signals) {
 								<span>Changing the list needs a connection — the view stays as it is until you reconnect.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$listOffline = false" }>dismiss</button>
 							</div>
+							// The restored fragment is a CACHED render, so it must say
+							// how old it is. todo-offline.js fills and reveals it; a
+							// server render (online) hides it again.
+							<div class="alert alert-info mt-2 hidden" role="status" id="todo-view-cache-note"></div>
 							@createForm(signals)
 
 							@SuggestionsList(signals.Suggestions)

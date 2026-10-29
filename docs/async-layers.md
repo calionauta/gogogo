@@ -207,14 +207,50 @@ follows the shape of the data:
 
 | surface | local writes | local reads | convergence | store |
 |---|---|---|---|---|
-| Todo | pending intent (outbox) + composer draft | last visited page (service-worker page cache) | server re-list; `op_receipts` on the toggle | IndexedDB (ordered queue, unique key, transactions) + localStorage (sync crash journal, draft) |
+| Todo | pending intent (outbox) + composer draft | last visited page (service-worker page cache) + per-view fragment cache | server re-list; `op_receipts` on the toggle | IndexedDB (ordered queue, unique key, transactions) + localStorage (sync crash journal, draft, view cache) |
 | Notes | op batch + full-text draft | the resolved text server-rendered into the cached page | 409 + authoritative text, recompute the tail | localStorage (small single blob, written on every keystroke) |
-| Whiteboard | op batch | `data-shapes` seeded by the page; the stream takes over on connect | 409 + authoritative shape list | IndexedDB (larger JSON, async, no 5 MB cap) |
+| Whiteboard | op batch, scoped by board | `data-shapes` seeded by the page (with its render time, shown offline); the stream takes over on connect and re-applies queued ops | 409 + authoritative shape list | IndexedDB (larger JSON, async, no 5 MB cap) |
 
 The split is deliberate: **localStorage is for small, synchronous, single-blob
-state** (the crash journal, a note draft) because the write must not be lost to
-an async commit; **IndexedDB is for queues** because they need ordering
-(`autoIncrement`), a unique key and transactions.
+state** (the crash journal, a note draft, one rendered view) because the write
+must not be lost to an async commit; **IndexedDB is for queues** because they
+need ordering (`autoIncrement`), a unique key and transactions.
+
+**One drainer per queue, not per tab.** Every local queue is shared by every tab
+of the same note, board or list, so the drain takes a Web Lock named after the
+resource (`gogogo:notes:<doc>`, `gogogo:whiteboard:<doc>`) before it reads and
+sends. Under the lock the STORE is authoritative: a peer tab may already have
+delivered what this tab still remembers, so the pass re-reads the queue and stops
+when it is empty. The board drain is also sequential (a `clear` must not overtake
+the `add` it follows) and deletes each op only AFTER the server accepts it — the
+old pass cleared the whole store up front, so a tab that died mid-flight lost the
+rest of the queue. Board rows carry the board id: the store is per-origin, and
+without it two open boards replayed each other's shapes.
+
+The three drains are deliberately NOT one generic engine. Their units differ in
+kind — independent idempotent requests with receipts (todo), ordered shape ops
+(whiteboard), a recomputed text diff (notes) — and a shared runner would have to
+abstract exactly the part that differs. What must not fork is shared instead, in
+`web/resources/static/offline-policy.js`: the retry vocabulary, the cross-tab
+lock, and the storage-failure report.
+
+**A view cache, not a read replica.** The todo list is still rendered by the
+server, and offline the page shows the LAST render of the view the user asks for
+(`web/resources/static/offline-views.js`): the fragment is cached after every
+online render, keyed by `filter`/`scope`/`query`/`date`, bounded to 8 views and 7
+days, and every restore is labelled "showing this view as it was at HH:MM". The
+next server render replaces it, and a control that asks for a view with no cached
+fragment refuses instead of moving the tab over a list that did not change. This
+is the "online-first with caching" column of the model below — the cache owns no
+data and answers no query, so it cannot merge a write or invent a row.
+
+**A queue that cannot be stored says so.** A full quota or a blocked
+`localStorage` used to be swallowed by the notes and whiteboard writers: the op
+lived in memory, the tab closed, and the change was gone with no signal. Both now
+report the failure through the same `gogogo:outbox` event the todo outbox uses
+(`reason: "storage"`); the banner names the reason, persists the notice, and
+restores it on the next load. Losing the VIEW cache is only a warning: it holds
+no user data.
 
 Each outcome has its own policy, not a generic retry:
 

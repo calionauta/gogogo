@@ -210,12 +210,12 @@ bundle and is not attributed per feature.
 | Room, Landing, Config | inline only (no extra JS) | 0 KB | 0 KB |
 | Chat diagrams | `pele.global.js` + `diagram.js` (progressive enhancement: source stays readable without them) | 695 KB | 269 KB |
 | Todo date filter | `cally.js` (the `<calendar-date>` web component DaisyUI styles as `class="cally"`) | 38 KB | 13 KB |
-| Shared notes | `notes.js` | 37 KB | 13 KB |
-| Whiteboard | `whiteboard.js` + `rough.min.js` | 59 KB | 21 KB |
+| Shared notes | `notes.js` | 39 KB | 14 KB |
+| Whiteboard | `whiteboard.js` + `rough.min.js` | 64 KB | 23 KB |
 | Sounds (plugin, the rail mute) | `cuelume.js` + the modules it imports under `web/resources/static/cuelume/` | 27 KB | 10 KB |
 | Pages with a live stream (Todo, Room, Chat) | `sse-open.js` | 8 KB | 4 KB |
-| Offline policy + outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 25 KB | 9 KB |
-| Todo offline renderer (only with offline sync) | `todo-offline.js` | 9 KB | 4 KB |
+| Offline policy + outbox (every shell page) | `offline-policy.js` + `offline-outbox.js` | 29 KB | 11 KB |
+| Todo offline renderer (only with offline sync) | `todo-offline.js` | 15 KB | 6 KB |
 | Service worker (navigations only, registered on first authenticated load) | `sw.js` | 5 KB | 3 KB |
 | Shared shell (every page) | `datastar.js` + `theme.js` + `session.js` + `command-palette.js` | 51 KB | 21 KB |
 
