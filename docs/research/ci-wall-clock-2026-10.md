@@ -141,6 +141,48 @@ does not apply.
 **`vendor/`.** Hermetic, but every template clone and every scanner pays for it
 on each change.
 
+## What is left, with numbers
+
+The wall is `browser` (186–210s), then `race shard 0` (134–186s) and
+`prod-image` (108–161s). Options, cheapest first:
+
+**Docker layer cache for `prod-image`.** `deploy.yml` already builds with
+`cache-from`/`cache-to: type=gha`; `scripts/smoke-prod-image.sh` still runs a
+plain `docker build`, so the 161s job recompiles every layer on every run. A
+buildx cache there is a small change with no new dependency — but it buys **no
+wall-clock today**, because that job is not the wall. It is a prerequisite for
+the next two.
+
+**Two runners for the client suites.** The five suites are 120s serial plus
+~62s of shared setup (29s of it is `go mod download`). Two jobs would land near
+140s each. Separate runners do not starve each other — the documented starvation
+is about suites sharing one runner's four cores — so this is legitimate, at the
+cost of one more runner and duplicated setup per PR.
+
+**A Go-native cache instead of an archive.** Go 1.24 added `GOCACHEPROG`: the
+toolchain pipes cache PUT/GETs to a long-running external program instead of
+archiving a directory ([Depot's write-up](https://depot.dev/blog/go-remote-cache)).
+That removes the tar-flake class this page inherited, and a shared backend makes
+the cache cross-branch, which fixes the one real weakness left: a PR's merge ref
+starts cold (measured at 8.1 min). It can serve the module cache through the
+`GOPROXY` protocol too, which would turn the break-even module cache into a win.
+Implementations: [`gocica`](https://github.com/gocica-go/gocica) (backed by the
+GitHub Actions cache), [`cacheprog`](https://github.com/platacard/cacheprog) and
+[`gobuildcache`](https://github.com/richardartoul/gobuildcache) (S3). This one is
+a supply-chain decision, not a tuning knob: a new third-party action or a bucket
+this repo does not have today, so it wants a human gate before an agent adds it.
+
+**Faster runners.** [CI Bench](https://cibench.com/compare/runson-vs-blacksmith-vs-depot-vs-namespace/)
+measured RunsOn at 1.2x and Blacksmith at 1.6x GitHub-hosted. At 4.4 min that is
+roughly 2.7–3.7 min, for money and trust in a runner vendor — a cost decision,
+not an engineering one. GitHub's own larger runners are paid too.
+
+**Already taken, checked rather than assumed.** `concurrency` with
+`cancel-in-progress: true` is in `ci.yml`, so a superseded push does not race the
+newer one. A merge queue would not help this shape: one maintainer, PRs that are
+already gated, and a queue that would add wait time before the run rather than
+shorten it.
+
 ## Revisit triggers
 
 - A `race` shard smaller than its own setup means the split has outgrown the
@@ -152,7 +194,7 @@ on each change.
 - If the module-cache restore ever gets cheap (a smaller graph, or a faster
   restore path), re-measure it rather than assuming the 2026-10 verdict holds.
 
-## A flake the split surfaced
+## Two flakes the work surfaced
 
 The first sharded run failed on three `goleak` assertions in `internal/queue`
 that had been passing for months: they called `t.Parallel()` while asserting on
@@ -161,3 +203,11 @@ a process-global goroutine count, so a paused sibling test
 reported as leaks. Sharding changed the scheduling enough to expose it, not to
 cause it. The assertions now run in the serial phase and ignore the paused-test
 frame, and a deliberately injected goroutine still turns them red.
+
+The second is the same shape of latent bug in `internal/auth`: eight security
+assertions used a hardcoded `"000000"` as the code that must be refused, and
+`verifyTOTP` accepts one step of clock skew either way — so the "wrong" code is
+a real code about once in 600,000 window samples (measured over 200k random
+secrets). One run hit it (`stepup_test.go:71: wrong code accepted`). The wrong
+code is now derived from a window ten steps away and checked against the three
+accepted ones, so it cannot collide by construction rather than by luck.

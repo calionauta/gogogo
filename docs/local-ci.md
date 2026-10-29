@@ -108,6 +108,14 @@ single-package Go change, versus ~6min full. It falls back to all packages when
 a shared file moves (`go.mod`, `config/`, `internal/db/`, `internal/capabilities/`) or
 when nothing changed.
 
+That narrowing is deliberately narrower than CI's: here it means "lint and test
+what I touched", while CI runs the touched packages **plus every package that
+depends on them** (`--with-dependents`) — a local run cannot see the caller 40
+packages away, and a PR can. CI reaches the same machinery through two env vars
+if you need to reproduce a shard locally: `TEST_PKGS_FILE` (the scope
+`scripts/test-web.sh` runs) and `SHARD_UNIVERSE_FILE` (the list
+`scripts/ci-shard-packages.sh` splits).
+
 Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
@@ -432,8 +440,8 @@ client, and a failed restore falls through to a cold build instead of failing
 the job. A repeated restore failure means deleting the step, not debugging CI
 infrastructure. The Go *module* cache is not cached at all: restoring it was
 measured at 23-33s per job against 16-29s of saved download, i.e. break-even to
-a loss, while the build cache cut `race`'s test step 360s→207s, `browser`'s
-build 76s→7s and `checks`' lint 107s→18s.
+a loss, while the build cache cut the installer shard's test step 360s→134-186s,
+`browser`'s build 76s→7s and `checks`' lint 107s→18s.
 
 Cold caches have a second cost: every Go job downloads the full module graph,
 and the proxy answers those storms with transient HTTP/2 `INTERNAL_ERROR`s
