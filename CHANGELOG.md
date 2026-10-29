@@ -15,6 +15,24 @@ merge commit and the branch commit. The `github` type takes its entries from the
 Pull Requests API instead (one entry per PR), which is why v0.43.0–v0.50.0 have
 no duplicates; `default` parsed raw commits and reintroduced them in 0.51.0.
 
+## 0.60.0 (2026-10-29)
+
+## What's Changed
+* feat(ui): group the runtime status, and render the model's real chat shapes by @calionauta in https://github.com/calionauta/gogogo/pull/326
+* fix(chat): render hydrated panels live, filter the asked slice, confirm deletes by @calionauta in https://github.com/calionauta/gogogo/pull/328
+* feat(offline): durable write-ahead outbox with idempotent replay by @calionauta in https://github.com/calionauta/gogogo/pull/329
+* fix(offline): cold-start banner + accurate receipt docs by @calionauta in https://github.com/calionauta/gogogo/pull/330
+* feat(inbox): visible toasts, operator console entry, and the State/Stack panels by @calionauta in https://github.com/calionauta/gogogo/pull/331
+* fix(offline): close the queue, storage and read gaps by @calionauta in https://github.com/calionauta/gogogo/pull/335
+* docs(offline): record the Background Sync extension point by @calionauta in https://github.com/calionauta/gogogo/pull/332
+* docs(offline): stop calling the web app offline-first by @calionauta in https://github.com/calionauta/gogogo/pull/333
+* perf(ci): shard the race suite and select tests per PR by @calionauta in https://github.com/calionauta/gogogo/pull/336
+* chore(deps): bump vendored Pele from 1.10.0 to 1.12.0 by @github-actions[bot] in https://github.com/calionauta/gogogo/pull/337
+* feat(offline): seed the board offline and keep the todo draft by @calionauta in https://github.com/calionauta/gogogo/pull/334
+
+
+**Full Changelog**: https://github.com/calionauta/gogogo/compare/v0.59.1...v0.60.0
+
 ## 0.59.1 (2026-10-28)
 
 ## What's Changed
