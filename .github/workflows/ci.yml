@@ -440,20 +440,21 @@ jobs:
     # packages for those is the waste this job now avoids, and `skipped` reports
     # through the aggregator as green by construction.
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.scope_kind != 'none'
-    # Two shards, not one. Measured on CI run 40789079197: the 68-package
-    # `go test -race` was 620s of test time, and internal/installer alone was
-    # 360s of it while saturating the 4 vCPUs (every unit copies the repo and
-    # forks a `go vet ./...`). Sharding by package COUNT would drop that outlier
-    # next to 33 others and change nothing measurable, so the shard key is
-    # measured cost: scripts/ci-shard-packages.sh isolates the outliers and
-    # bin-packs the long tail, and the union of all shards is exactly
-    # scripts/web-packages.sh.
+    # Three shards. The cost table isolates internal/installer (a third of the
+    # suite, and it saturates the box alone), so the split is: shard 0 = the
+    # outlier, shards 1-2 = the remaining ~79 packages bin-packed. Measured
+    # before the split: one tail shard ran the full 203s range on its own, which
+    # is what a count-based split would keep doing.
+    #
+    # The parallelism is across RUNNERS on purpose: Go already parallelizes
+    # packages inside a shard, so a shard's cost is ~max(slowest package,
+    # sum/cores) and adding packages to a shard mostly does not add wall-clock.
     strategy:
-      # One red shard must not cancel the other: the surviving log is what tells
+      # One red shard must not cancel the others: the surviving log is what tells
       # a real break from a broken split.
       fail-fast: false
       matrix:
-        shard: [0, 1]
+        shard: [0, 1, 2]
     name: race shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     env:
@@ -550,7 +551,7 @@ jobs:
           set -euo pipefail
           UNIVERSE="$RUNNER_TEMP/packages.txt"
           printf '%s\n' "${{ needs.changes.outputs.pkgs }}" | sed '/^[[:space:]]*$/d' > "$UNIVERSE"
-          SHARD_UNIVERSE_FILE="$UNIVERSE" bash scripts/ci-shard-packages.sh ${{ matrix.shard }} 2 > "$RUNNER_TEMP/shard.txt"
+          SHARD_UNIVERSE_FILE="$UNIVERSE" bash scripts/ci-shard-packages.sh ${{ matrix.shard }} 3 > "$RUNNER_TEMP/shard.txt"
           echo "shard ${{ matrix.shard }}: $(wc -l < "$RUNNER_TEMP/shard.txt") of $(wc -l < "$UNIVERSE") packages"
           TEST_PKGS_FILE="$RUNNER_TEMP/shard.txt" bash scripts/test-web.sh -race -count=1 -v
 
