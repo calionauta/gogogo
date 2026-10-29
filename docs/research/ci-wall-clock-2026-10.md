@@ -53,12 +53,22 @@ anything:
 | caches warm | 4.8–4.9 min |
 | cache written by the rejected experiment | 5.9 min |
 | **steady state, one cache per matrix leg** | **4.1 min** |
+| **a pull request, cache warm** | **3.9 min** |
+| the first pull request, cache cold | 8.1 min — see below |
+
+A pull request runs on its own merge ref, and a cache is scoped to the ref that
+wrote it, so the first PR after this change had nothing to restore even though
+the branch's push runs did. Its own rerun restored what the first attempt saved
+(3-8s restores) and came back at 3.9 min. After merge, each push to `master`
+refreshes the caches PRs restore from, so a PR should not normally pay that cold
+run — but the very first one on a fresh branch or a new `go.sum` will, and that
+is a cold start rather than a regression.
 
 | job | before | after |
 |---|---|---|
-| `race` (the wall) | 620s test | 168s (installer shard) and 160s (tail) |
-| `browser` | 265s | 190–197s (build 76s → 7s) |
-| `checks` | 232s | 105–114s (lint 107s → 18s) |
+| `race` (the wall) | 620s test | 134–168s (installer shard) and 160–168s (tail) |
+| `browser` | 265s | 186–197s (build 76s → 7s) |
+| `checks` | 232s | 105–121s (lint 107s → 18s) |
 | `prod-image` | 114s | 108–159s |
 
 The wall is now `browser`, which is where the next look goes: it builds the
