@@ -381,12 +381,26 @@ try {
     if (!(await page.getByText(title).first().isVisible())) throw new Error("the cached view lost its row");
     if (await page.locator("#todo-list-offline").isVisible()) throw new Error("a restored view also claimed the request was refused");
 
+
     // A view this browser has never rendered cannot be faked: the tab must not
     // move over a list that did not change.
     await page.getByRole("tab", { name: "Completed" }).click();
     await waitFor(() => page.locator("#todo-list-offline").isVisible(), 8000, "the refusal hint");
     const activeClass = (await page.getByRole("tab", { name: "Active" }).getAttribute("class")) || "";
     if (!activeClass.includes("tab-active")) throw new Error("a refused view still moved the tab");
+
+
+    // A restore must agree with the QUEUE, not just with the cache: a row
+    // deleted offline is still in the cached render, and showing it again
+    // would resurrect work the user already removed.
+    await page.getByText(title).first().locator("xpath=ancestor::div[contains(@class,'todo-item')]").locator('button[title*="Delete"]').click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await waitFor(async () => !(await page.getByText(title).first().isVisible()), 8000, "the deleted row to leave the list");
+    await page.getByRole("tab", { name: "All" }).click();
+    await waitFor(() => page.locator("#todo-view-cache-note").isVisible(), 8000, "the second restore");
+    if (await page.getByText(title).first().isVisible()) {
+      throw new Error("a restored view resurrected a row the queue had deleted");
+    }
 
     await ctx.setOffline(false);
     await ctx.close();
