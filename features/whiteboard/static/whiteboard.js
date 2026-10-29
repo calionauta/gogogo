@@ -42,7 +42,17 @@
   const ctx = canvas.getContext("2d");
   const cursorsEl = document.getElementById("cursors");
 
-  let shapes = []; // authoritative shape list from server
+  // Seeded from the server-rendered page (data-shapes): the stream is the live
+  // channel, but an offline reload never reaches it, and an empty canvas
+  // looked like the board had been erased. The stream replaces this list on
+  // connect, so a stale seed never outlives a reconnect.
+  let shapes = [];
+  try {
+    const seeded = document.getElementById("canvas-wrap")?.dataset?.shapes;
+    if (seeded) shapes = JSON.parse(seeded) || [];
+  } catch (_) {
+    shapes = [];
+  }
   // Live in-progress shapes from peers, keyed by the peer's display name
   // (one pointer, one draft): {shape, ts}. Ephemeral view state only — the
   // CRDT/`shapes` list stays the single source of truth for committed
@@ -81,6 +91,12 @@
     if (msg.doc && msg.doc !== docID) return;
     if (msg.type === "shapes") {
       shapes = msg.shapes || [];
+      // The list is authoritative for everything the SERVER has. A queued op is
+      // not on the server yet, so folding it back in is what stops a reconnect
+      // (or a reload) from erasing a drawing that is still waiting to replay.
+      for (var q = 0; q < outbox.length; q++) {
+        if (outbox[q] && outbox[q].op) applyLocal(outbox[q].op);
+      }
       dropCommittedDrafts();
       render();
     } else if (msg.type === "session") {
@@ -118,7 +134,17 @@
       el.classList.add("hidden");
     } else {
       el.classList.remove("hidden");
-      el.textContent = "offline — drawing is buffered";
+      // Date the seeded state: offline the canvas shows the shapes the page
+      // was RENDERED with (data-shapes) plus whatever is still queued, so the
+      // view is not live and must not pass for live.
+      var at = "";
+      try {
+        var seeded = new Date(wrap.dataset.seededAt || "");
+        if (!isNaN(seeded.getTime())) {
+          at = " · board as of " + ("0" + seeded.getHours()).slice(-2) + ":" + ("0" + seeded.getMinutes()).slice(-2);
+        }
+      } catch (_) { /* no seed time: the offline copy still says it is buffered */ }
+      el.textContent = "offline — drawing is buffered" + at;
     }
   }
   window.addEventListener("online", function () { updateNetStatus(); flushOutbox(); });
@@ -129,35 +155,49 @@
   // Ops drawn while offline are buffered here and replayed on reconnect.
   // The outbox is persisted to IndexedDB so it survives page close/reload.
   // The server merges each op into the shared Loro doc, so replay is
-  // convergent and safe regardless of order.
+  // convergent and safe regardless of order — but the ORDER of our own ops
+  // still matters (a clear after an add must not land first), so the drain is
+  // sequential.
   //
-  // IndexedDB schema: database "whiteboard-outbox", store "pending_ops"
-  // with auto-increment id. Each entry is a shape op { op, shape }.
+  // The store is per-ORIGIN, not per-board. A record therefore carries the
+  // board it belongs to: the first version stored bare ops, so two open boards
+  // replayed each other's shapes — board B painted A's drawing and then posted
+  // it at B. v2 adds `doc`, and the upgrade clears the un-attributable v1 rows
+  // (replaying a drawing onto the wrong canvas is worse than a drawing that
+  // only survives the tab that made it, which the in-memory queue still does).
   var DB_NAME = "whiteboard-outbox";
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
   var STORE_NAME = "pending_ops";
 
   function idbOpen() {
     return new Promise(function (resolve, reject) {
       var req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = function () {
-        if (!req.result.objectStoreNames.contains(STORE_NAME)) {
-          req.result.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-        }
+        var store = req.result.objectStoreNames.contains(STORE_NAME)
+          ? req.transaction.objectStore(STORE_NAME)
+          : req.result.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+        if (req.oldVersion < 2) store.clear();
       };
       req.onsuccess = function () { resolve(req.result); };
       req.onerror = function () { reject(req.error); };
     });
   }
 
+  // idbSaveOp persists one op for THIS board and resolves its row id (null when
+  // the write could not be stored). A failure is a dropped change — the op then
+  // lives only in memory and dies with the tab — so it is REPORTED, never
+  // swallowed: the banner says the browser could not store it.
   function idbSaveOp(op) {
     return idbOpen().then(function (db) {
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(STORE_NAME, "readwrite");
-        tx.objectStore(STORE_NAME).add(op);
-        tx.oncomplete = function () { db.close(); resolve(); };
+        var req = tx.objectStore(STORE_NAME).add({ doc: docID, op: op });
+        tx.oncomplete = function () { db.close(); resolve(req.result); };
         tx.onerror = function () { db.close(); reject(tx.error); };
       });
+    }).catch(function (err) {
+      offlinePolicy.reportStorageDrop("whiteboard");
+      return null;
     });
   }
 
@@ -166,25 +206,42 @@
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(STORE_NAME, "readonly");
         var req = tx.objectStore(STORE_NAME).getAll();
-        req.onsuccess = function () { db.close(); resolve(req.result); };
+        req.onsuccess = function () {
+          db.close();
+          var rows = req.result || [];
+          var mine = [];
+          for (var i = 0; i < rows.length; i++) {
+            // A v1 row has no `doc`: never replayable, never guessed.
+            if (rows[i] && rows[i].doc === docID && rows[i].op) {
+              mine.push({ id: rows[i].id, op: rows[i].op });
+            }
+          }
+          resolve(mine);
+        };
         req.onerror = function () { db.close(); reject(req.error); };
       });
     });
   }
 
-  function idbClear() {
+  // idbDelete removes ONE delivered op. The old drain cleared the whole store
+  // before sending: a tab that died mid-flight lost the rest of the queue, and
+  // a second board's rows were wiped with it. Delete after the answer instead.
+  function idbDelete(id) {
     return idbOpen().then(function (db) {
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(STORE_NAME, "readwrite");
-        tx.objectStore(STORE_NAME).clear();
+        tx.objectStore(STORE_NAME).delete(id);
         tx.oncomplete = function () { db.close(); resolve(); };
         tx.onerror = function () { db.close(); reject(tx.error); };
       });
     });
   }
 
-  // In-memory outbox for fast runtime access; IndexedDB for persistence.
+  // In-memory outbox (entries {id, op}) for fast runtime access; IndexedDB is
+  // the durable copy. `saving` serialises writes so a drain that starts right
+  // after a drawing still reads that drawing back.
   var outbox = [];
+  var saving = Promise.resolve();
   var flushing = false;
   // The retry vocabulary is shared with the worker and the notes client
   // (web/resources/static/offline-policy.js, loaded by the page template
@@ -197,16 +254,33 @@
   var retryDelay = 300;
   var RETRY_MAX_MS = 5000;
 
+  // enqueueOp is the ONLY way an op enters the queue: memory first (so the
+  // replay sees it immediately), then the durable row whose id we keep for the
+  // post-delivery delete.
+  function enqueueOp(op) {
+    var entry = { id: null, op: op };
+    outbox.push(entry);
+    saving = saving.then(function () {
+      return idbSaveOp(op).then(function (id) { entry.id = id; });
+    });
+    return saving;
+  }
+
   // Restore any pending ops from IndexedDB on first load (page reload
   // or cold open). Don't await — let the canvas render first, replay
   // ops asynchronously when they arrive.
-  idbLoadAll().then(function (ops) {
-    if (ops.length > 0) {
-      outbox = ops;
-      flushOutbox();
-    }
-  }).catch(function () {
-    // IndexedDB unavailable — fall back to in-memory only.
+  idbLoadAll().then(function (rows) {
+    if (rows.length === 0) return;
+    outbox = rows;
+    // Paint the unsent shapes on the seeded board before the replay: an
+    // offline reload must show what the user drew, not just what the server
+    // acknowledged.
+    for (var i = 0; i < rows.length; i++) applyLocal(rows[i].op);
+    render();
+    flushOutbox();
+  }).catch(function (err) {
+    // IndexedDB unavailable — the in-memory queue still works for this tab.
+    console.warn("whiteboard: pending ops unavailable", err);
   });
 
   // ---- conflict handling ----
@@ -253,96 +327,154 @@
     return true;
   }
 
-  function flushOutbox() {
-    if (flushing || outbox.length === 0) return;
-    if (!navigator.onLine) return;
-    flushing = true;
-    var pending = outbox.splice(0, outbox.length);
-    var failed = 0;
-    // Clear IndexedDB — pending ops are now in memory; if replay fails
-    // they are re-persisted individually below.
-    idbClear().catch(function () {});
-    Promise.all(pending.map(function (op) {
-      return fetch(
-        "/api/whiteboard/" + encodeURIComponent(docID) + "/update?clientID=" + encodeURIComponent(clientID),
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(op) }
-      ).then(function (resp) {
-        // A stale replay must NOT be requeued: retrying it would either fail
-        // forever or, if it ever won, clobber the peer's newer edit.
-        if (handleConflict(resp, op)) return;
-        if (resp.ok) return;
-        if (offlinePolicy.isTransientStatus(resp.status) || offlinePolicy.isAuthStatus(resp.status)) {
-          failed++;
-          outbox.push(op);
-          idbSaveOp(op).catch(function () {});
-          return;
-        }
-        // Permanent 4xx (400 bad op, 404 board deleted): replaying cannot fix
-        // it, and keeping it would wedge every later op behind a poison entry.
-        console.warn("offline: dropping an un-replayable op", resp.status, docID);
-      }).catch(function (e) {
-        failed++;
-        outbox.push(op);
-        idbSaveOp(op).catch(function () {});
-        console.warn("op replay failed, requeued and re-persisted", e);
-      });
-    })).finally(function () {
-      flushing = false;
-      if (!outbox.length) {
-        retryDelay = 300;
+  // applyLocal folds one queued op into the rendered list. The write protocol
+  // has two operations (add = upsert by id, clear = wipe), so this stays a
+  // mirror of the server's merge and never invents a third shape of state.
+  function applyLocal(op) {
+    if (!op || !op.op) return;
+    if (op.op === "clear") {
+      shapes = [];
+      return;
+    }
+    if (op.op !== "add" || !op.shape || !op.shape.id) return;
+    for (var i = 0; i < shapes.length; i++) {
+      if (shapes[i].id === op.shape.id) {
+        shapes[i] = op.shape;
         return;
       }
-      retryDelay = failed ? offlinePolicy.retryDelay(retryDelay, 300, RETRY_MAX_MS) : 300;
+    }
+    shapes.push(op.shape);
+  }
+
+  // flushOutbox drains the queue ONE op at a time, under a per-board lock.
+  // Sequential, because the server applies ops in arrival order: `clear` then
+  // `add` must not swap places. Locked, because the queue is shared by every
+  // tab of the board — the todo outbox has always serialised its drain, and
+  // without the same guard two tabs replay the identical rows twice.
+  function flushOutbox() {
+    if (flushing || !navigator.onLine) return;
+    flushing = true;
+    saving.then(function () {
+      return offlinePolicy.withLock("gogogo:whiteboard:" + docID, function () {
+        // Under the lock IndexedDB is authoritative: a peer tab may already
+        // have delivered what this tab still remembers. Ops whose durable write
+        // failed are still in memory and still go out — losing them twice would
+        // be the silent failure this drain exists to avoid.
+        return idbLoadAll().then(function (rows) {
+          outbox = rows.concat(outbox.filter(function (e) { return e.id == null && e.op; }));
+          return deliverFrom(outbox.slice(), 0);
+        }, function (err) {
+          console.warn("whiteboard: outbox storage unavailable, sending from memory", err);
+          outbox = outbox.filter(function (e) { return e && e.op; });
+          return deliverFrom(outbox.slice(), 0);
+        });
+      });
+    }).then(function (ran) {
+      flushing = false;
+      if (ran === "retry" || outbox.length) {
+        retryDelay = offlinePolicy.retryDelay(retryDelay, 300, RETRY_MAX_MS);
+        setTimeout(flushOutbox, retryDelay);
+        return;
+      }
+      retryDelay = 300;
+    }).catch(function (err) {
+      flushing = false;
+      console.warn("whiteboard: drain failed", err);
       setTimeout(flushOutbox, retryDelay);
     });
   }
+
+  // deliverFrom walks a SNAPSHOT so removing delivered entries cannot shift
+  // the index. "retry" stops the pass: the server did not answer, so the rest
+  // would fail too, and the order must hold.
+  function deliverFrom(queue, i) {
+    if (!navigator.onLine || i >= queue.length) return Promise.resolve("done");
+    var entry = queue[i];
+    if (!entry || !entry.op) return deliverFrom(queue, i + 1);
+    return sendOp(entry.op).then(function (outcome) {
+      if (outcome === "retry") return "retry";
+      var at = outbox.indexOf(entry);
+      if (at !== -1) outbox.splice(at, 1);
+      var done = entry.id != null
+        ? idbDelete(entry.id).catch(function (err) {
+            // The shape reached the server but its row remains: the next pass
+            // replays it, which the version check resolves as a conflict.
+            console.warn("whiteboard: could not delete a delivered op", err);
+          })
+        : Promise.resolve();
+      return done.then(function () { return deliverFrom(queue, i + 1); });
+    });
+  }
+
+  // sendOp is the single request for one shape op, shared by the live path and
+  // the replay. It resolves an OUTCOME, never a boolean:
+  //   "ok"    accepted (and our local version adopted)
+  //   "drop"  a definitive refusal, or a 409 the caller already resolved
+  //   "retry" no answer / 5xx / auth: keep it and stop the pass
+  function sendOp(op) {
+    return fetch(
+      "/api/whiteboard/" + encodeURIComponent(docID) + "/update?clientID=" + encodeURIComponent(clientID),
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(op) }
+    ).then(function (resp) {
+      // A stale replay must NOT be requeued: retrying it would either fail
+      // forever or, if it ever won, clobber the peer's newer edit.
+      if (handleConflict(resp, op)) return "drop";
+      if (resp.ok) {
+        adoptVersions(resp);
+        return "ok";
+      }
+      if (offlinePolicy.isTransientStatus(resp.status) || offlinePolicy.isAuthStatus(resp.status)) {
+        return "retry";
+      }
+      // Permanent 4xx (400 bad op, 404 board deleted): replaying cannot fix it,
+      // and keeping it would wedge every later op behind a poison entry.
+      console.warn("offline: dropping an un-replayable op", resp.status, docID);
+      return "drop";
+    }).catch(function (e) {
+      console.warn("op send failed, kept for replay", e);
+      return "retry";
+    });
+  }
+
+  // adoptVersions learns the revision the server assigned to the shapes we just
+  // sent, IN PLACE. The list is only authoritative when it arrives over the SSE
+  // stream, which is a single ordered channel: concurrent POST responses are not
+  // ordered relative to each other, so replacing the list here would let a slow
+  // response for an older op overwrite a newer local shape (draw X, draw Z, X's
+  // response lands last -> Z disappears until the next SSE event). The same
+  // reason the server uses no-echo.
+  //
+  // A replayed op needs this as much as a live one: without the version, the
+  // next edit of that shape sends baseVersion 0 and is refused as stale on
+  // every attempt.
+  function adoptVersions(resp) {
+    resp.json().then(function (body) {
+      if (!body || !body.shapes) return;
+      var byId = {};
+      for (var i = 0; i < body.shapes.length; i++) {
+        byId[body.shapes[i].id] = body.shapes[i].version || 0;
+      }
+      for (var j = 0; j < shapes.length; j++) {
+        if (byId[shapes[j].id] !== undefined) shapes[j].version = byId[shapes[j].id];
+      }
+      render();
+    }).catch(function () {});
+  }
+
   // ---- POST helpers ----
   function postOp(op) {
-    if (!navigator.onLine) {
-      outbox.push(op);
-      idbSaveOp(op).catch(function () {});
+    // While anything is queued, new ops queue too: sending this one now would
+    // overtake the queue (a clear could land before the adds it was meant to
+    // follow).
+    if (!navigator.onLine || outbox.length > 0) {
+      enqueueOp(op);
+      flushOutbox();
       return;
     }
-    fetch(
-      "/api/whiteboard/" + encodeURIComponent(docID) + "/update?clientID=" + encodeURIComponent(clientID),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(op),
-      }
-    ).then(function (resp) {
-      if (handleConflict(resp, op)) return;
-      // On success, adopt the VERSION the server assigned to the shape we just
-      // sent, in place — do NOT replace the whole list with body.shapes.
-      //
-      // The list is only authoritative when it arrives over the SSE stream,
-      // which is a single ordered channel. Concurrent POST responses are NOT
-      // ordered relative to each other, so replacing the list here would let a
-      // slow response for an older op overwrite a newer local shape (draw X,
-      // draw Z, X's response lands last -> Z disappears locally until the next
-      // SSE event). That is the same reason the server uses no-echo: the
-      // originator already holds its own optimistic state.
-      //
-      // All the client needs back is the assigned revision, so a later edit can
-      // send it as baseVersion. Without that, an edit built from a shape whose
-      // version we never learned would be rejected as stale on every attempt.
-      if (resp.ok) {
-        resp.json().then(function (body) {
-          if (!body || !body.shapes) return;
-          var byId = {};
-          for (var i = 0; i < body.shapes.length; i++) {
-            byId[body.shapes[i].id] = body.shapes[i].version || 0;
-          }
-          for (var j = 0; j < shapes.length; j++) {
-            if (byId[shapes[j].id] !== undefined) shapes[j].version = byId[shapes[j].id];
-          }
-          render();
-        }).catch(function () {});
-      }
-    }).catch(function (e) {
-      outbox.push(op);
-      idbSaveOp(op).catch(function () {});
-      console.warn("op post failed, buffered and persisted for replay", e);
+    sendOp(op).then(function (outcome) {
+      if (outcome !== "retry") return;
+      enqueueOp(op);
+      flushOutbox();
     });
   }
 

@@ -226,10 +226,23 @@ func (h *Handler) handleBoard(w http.ResponseWriter, r *http.Request) {
 		slog.Info("whiteboard: rehydrated doc", "doc", docID, "bytes", len(snap))
 	}
 	meta := h.docMeta(r.Context(), docID, sess.User.ID)
+	// Seed the canvas with the shapes the server already has: the stream is the
+	// live channel, but an offline reload never reaches it, and without this the
+	// board painted empty until the connection came back.
+	shapesJSON := []byte("[]")
+	if shapes := h.worker.Shapes(docID); len(shapes) > 0 {
+		if raw, merr := json.Marshal(shapes); merr == nil {
+			shapesJSON = raw
+		} else {
+			obsArgs := append(observability.WithComponent("whiteboard", "feature"), "error", merr)
+			observability.Warn(r.Context(), "whiteboard: marshal page shapes", obsArgs...)
+		}
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = components.Board(sess.User.Email, sess.Role, meta,
-		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled, demo.On(r)).Render(r.Context(), w)
+		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled, demo.On(r),
+		string(shapesJSON)).Render(r.Context(), w)
 }
 
 // docMeta assembles the row the page and the index both render: the doc id

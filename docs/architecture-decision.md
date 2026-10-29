@@ -298,6 +298,55 @@ does not implement it). And a 5xx on an explicit action reaches the UI as a
 failure answer, not a silent retry: Datastar's action promise does not expose the
 status, so the intent is settled and the user sees the alert.
 
+## Offline reads: a bounded per-view fragment cache, not a read replica (2026-10-29)
+
+Status: accepted. Extends the decision above; the write path does not change.
+
+The gap left by page caching alone: the service worker caches NAVIGATIONS, so an
+offline reload of the last URL shows the HTML from when it was fetched — before
+the toggles, adds and filters the user applied since. Switching to another view
+(`filter=active`, a search) is a different URL and a cache miss.
+
+Options considered:
+
+- **A client read store** (SQLite/WASM or a CRDT mirror). It answers queries
+  offline, and it costs a second rendering path or a worker that plays server —
+  plus a consistency story for reads the server has not confirmed. Rejected as a
+  local-first architecture change, not an offline fix.
+- **Cache the API responses** in the worker. Reintroduces the interceptor the
+  previous decision removed, and a cached JSON list is not a rendered view: the
+  page still needs Datastar to patch it, and a stale list would merge into the
+  signal state without any age signal.
+- **Cache the rendered fragment per view** (chosen). The server still renders and
+  still owns the query; the browser keeps the last HTML of each view it saw.
+
+The choice (`web/resources/static/offline-views.js`):
+
+- **Keyed by the view**, not the URL: `filter`/`scope`/`query`/`date` — the same
+  four inputs the server's list query takes. A view switch (tab, scope, clear
+  search) restores through one helper.
+- **Bounded and dated**: 8 views, 7 days, oldest evicted; every restore is
+  labelled "as of HH:MM", because undated stale content is indistinguishable from
+  live content.
+- **Replaced, never merged**: the next server render overwrites the fragment. A
+  restore that misses leaves the controls where they were (`$listOffline` says
+  why) instead of moving a tab over a list that did not change. The cached
+  render predates the queue, so a restore re-applies every stored intent
+  (create/toggle/delete/clear) before showing it.
+- **Never cached offline**: a restored fragment must not update its own
+  timestamp, and pending rows are stripped from the capture because the queue
+  rebuilds them.
+- **Not from the debounced search**: the search handler fires 300ms after the
+  last keystroke, so by then the user may have created a row — and a restore
+  replaces the whole list. It refuses offline instead; an immediate click can
+  restore safely.
+
+Rejected extension: caching per-view fragments for notes and whiteboard. Both
+already paint from a server-rendered seed (the note text, `data-shapes`) and
+their "view" is a whole document, not a list slice — a fragment cache would
+duplicate the document and double the storage for no new offline capability.
+
+
 ## Why a copy you own (and not a module you import)
 
 The alternative deserves stating, because it is the first question a reader from

@@ -17,12 +17,15 @@ func TestBoardPageLinksBackToIndex(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	meta := components.BoardMeta{DocID: "b0ard1", DocVer: 3, Author: "a@b.c", IsMine: true, CanDelete: true}
-	if err := components.Board("a@b.c", "user", meta, "dev", "", false, false).
+	if err := components.Board("a@b.c", "user", meta, "dev", "", false, false, `[{"id":"seed-1","type":"rect"}]`).
 		Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Board: %v", err)
 	}
 	html := buf.String()
-	for _, want := range []string{`href="/whiteboard"`, "Boards", `data-doc-id="b0ard1"`} {
+	for _, want := range []string{
+		`href="/whiteboard"`, "Boards", `data-doc-id="b0ard1"`,
+		`data-shapes=`, `data-seeded-at=`, "seed-1",
+	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("board page missing %q", want)
 		}

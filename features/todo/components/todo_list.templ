@@ -44,7 +44,7 @@ func marshalSignals(s todo.Signals) string {
 // other browser tabs share the same view via the broadcaster.
 templ TodoList(signals todo.Signals) {
 	<div class="max-w-5xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
-		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''" data-on:keydown__window="evt.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable ? (evt.preventDefault(), document.getElementById('todo-search-input').focus()) : null">
+		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; localStorage.removeItem('todo-draft'); $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''" data-on:keydown__window="evt.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable ? (evt.preventDefault(), document.getElementById('todo-search-input').focus()) : null">
 
 			<!-- ═══════════════ MAIN GRID ═══════════════ -->
 			<div class="grid grid-cols-1 gap-5">
@@ -86,6 +86,10 @@ templ TodoList(signals todo.Signals) {
 								<span>Changing the list needs a connection — the view stays as it is until you reconnect.</span>
 								<button type="button" class="btn btn-ghost btn-sm" data-on:click={ "$listOffline = false" }>dismiss</button>
 							</div>
+							// The restored fragment is a CACHED render, so it must say
+							// how old it is. todo-offline.js fills and reveals it; a
+							// server render (online) hides it again.
+							<div class="alert alert-info mt-2 hidden" role="status" id="todo-view-cache-note"></div>
 							@createForm(signals)
 
 							@SuggestionsList(signals.Suggestions)
@@ -136,16 +140,19 @@ templ createForm(signals todo.Signals) {
 	<form
 		id="todo-create"
 		class="w-full mt-3"
-		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var url = '/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id); var body = new URLSearchParams(new FormData(el)).toString(); var sent = $newTitle; var key = window.GogogoOutbox.begin({url: new URL(url, location.href).href, method: 'POST', body: body, headers: {'Content-Type': 'application/x-www-form-urlencoded'}}); el.dataset.opKey = key; @post(url, {contentType: 'form', retryMaxCount: 0, headers: {'Idempotency-Key': key}}).then(() => { $loading = false; var st = Number(el.dataset.opStatus || 0); delete el.dataset.opStatus; if (st === 0) { window.GogogoOutbox.ack(key); if ($newTitle === sent) $newTitle = ''; } else { window.GogogoOutbox.fail(key); if (st !== 408 && st !== 429 && st < 500) $syncFailed = true; } }).catch(() => { $loading = false; delete el.dataset.opStatus; window.GogogoOutbox.fail(key); }); }"
+		data-init="var d = localStorage.getItem('todo-draft'); var i = document.getElementById('todo-create-title'); if (d && i && !i.value) { i.value = d; i.dispatchEvent(new Event('input', { bubbles: true })) }"
+		data-on:submit__prevent="if (!$loading) { $loading = true; $syncFailed = false; var id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2); var url = '/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + '&idem_key=' + encodeURIComponent(id); var body = new URLSearchParams(new FormData(el)).toString(); var sent = $newTitle; var key = window.GogogoOutbox.begin({url: new URL(url, location.href).href, method: 'POST', body: body, headers: {'Content-Type': 'application/x-www-form-urlencoded'}}); el.dataset.opKey = key; @post(url, {contentType: 'form', retryMaxCount: 0, headers: {'Idempotency-Key': key}}).then(() => { $loading = false; var st = Number(el.dataset.opStatus || 0); delete el.dataset.opStatus; if (st === 0) { window.GogogoOutbox.ack(key); if ($newTitle === sent) { $newTitle = ''; localStorage.removeItem('todo-draft'); } } else { window.GogogoOutbox.fail(key); if (st !== 408 && st !== 429 && st < 500) $syncFailed = true; } }).catch(() => { $loading = false; delete el.dataset.opStatus; window.GogogoOutbox.fail(key); }); }"
 	>
 		<div class="join w-full">
 			<input
+				id="todo-create-title"
 				type="text"
 				name="title"
 				class="input input-sm join-item grow"
 				placeholder="What needs doing?"
 				aria-label="New todo title"
 				data-bind="newTitle"
+				data-on:input__debounce.200ms="el.value ? localStorage.setItem('todo-draft', el.value) : localStorage.removeItem('todo-draft')"
 			/>
 			<button
 				type="submit"
