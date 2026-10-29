@@ -546,11 +546,13 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.docs_only != 'true'
     # Two groups, one runner each. The five suites are ~120s serial and the
-    # setup around them ~62s, so the split buys the smaller half of that for the
+    # setup around them ~80s, so the split buys the smaller half of that for the
     # price of a second runner. The parallelism is across RUNNERS on purpose:
     # the starvation ci-fanout.sh documents is suites sharing one runner's four
     # cores, which this does not do. Groups are by measured cost, not by count:
-    # smoke 46s + scroll 3s | whiteboard 14s + notes 23s + SSE 34s.
+    # smoke 46s + whiteboard 14s + scroll 3s | notes 23s + SSE 34s. Costs are
+    # re-measured whenever a suite changes shape — the first split put whiteboard
+    # on the wrong side and cost 14s of wall.
     strategy:
       fail-fast: false
       matrix:
@@ -665,7 +667,7 @@ jobs:
         # Chromium so upgrades cannot pass Go checks while breaking signals.
         run: SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
       - name: Whiteboard client regression tests
-        if: matrix.client_group == 1
+        if: matrix.client_group == 0
         # The whiteboard client has no Go-side coverage for its transport
         # handling: response ordering and the 409 conflict path only exist in
         # whiteboard.js. A real regression lived here (adopting the server's
