@@ -72,15 +72,22 @@ func TestWaitOrStopWaitsWhenRunning(t *testing.T) {
 // The test closes the underlying queue to force ReceiveAndWait to error
 // repeatedly, then asserts Stop() completes well inside the old 1s window.
 func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
-	t.Parallel()
+	// NOT parallel: goleak asserts process-global state (see
+	// TestSSEHub_SynchronousReplay_NoGoroutineLeak). In the parallel phase a
+	// worker started by a concurrent test is indistinguishable from one this
+	// test leaked.
 
 	// goleak: a worker that survives Stop() is the leak this file exists
 	// to prevent (the old time.Sleep held every worker past shutdown).
 	// IgnoreCurrent covers test-runner goroutines; connectionOpener is the
 	// SQLite driver's own background goroutine, not ours.
+	// waitParallel: every other test in this package that pauses on
+	// t.Parallel() is still alive as a goroutine, and a process-global leak
+	// assertion sees it as ours (goroutine 669 on CI run 40872032798).
 	defer goleak.VerifyNone(t,
 		goleak.IgnoreCurrent(),
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+		goleak.IgnoreTopFunction("testing.(*testState).waitParallel"),
 	)
 
 	dir := t.TempDir()
@@ -122,13 +129,18 @@ func TestWorkerStopIsPromptWhenQueueFails(t *testing.T) {
 // observable contract (Close returns, and it returns promptly even with a live
 // worker loop).
 func TestQueueCloseStopsWorkers(t *testing.T) {
-	t.Parallel()
+	// NOT parallel: same reason as the leak test above — a process-global
+	// goroutine assertion cannot observe a process other tests are running in.
 
 	// Same leak assertion as above: Close() must stop the pool it owns,
 	// or workers loop against a dead database forever.
+	// waitParallel: every other test in this package that pauses on
+	// t.Parallel() is still alive as a goroutine, and a process-global leak
+	// assertion sees it as ours (goroutine 669 on CI run 40872032798).
 	defer goleak.VerifyNone(t,
 		goleak.IgnoreCurrent(),
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
+		goleak.IgnoreTopFunction("testing.(*testState).waitParallel"),
 	)
 
 	dir := t.TempDir()

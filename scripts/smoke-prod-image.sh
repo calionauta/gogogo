@@ -41,6 +41,12 @@ trap cleanup EXIT
 chmod 0777 "$DATA_DIR"
 
 echo "→ building $TAG from $ROOT/deploy/Dockerfile.prod"
+# A buildx layer cache was measured here and rejected: the Dockerfile already
+# layers go.mod/go.sum first, but `COPY . .` + the CGO Go build are invalidated
+# by every commit, so the github-actions cache saved nothing while setup-buildx
+# cost 21s of the job. What would help is the compile itself, and a cache mount
+# is not exported by any buildx cache backend across ephemeral runners (see
+# docs/research/ci-wall-clock-2026-10.md).
 docker build -f "$ROOT/deploy/Dockerfile.prod" \
   --build-arg VERSION=smoke \
   --build-arg COMMIT=smoke \

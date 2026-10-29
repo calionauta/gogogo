@@ -47,7 +47,7 @@ func TestTOTPRecoveryPasswordlessCode(t *testing.T) {
 	mux := securityMux(a)
 	// #nosec G124 — test-only request cookie.
 	cookie := &http.Cookie{Name: CookieName, Value: token}
-	bad := postJSON(t, mux, "/api/auth/totp/recovery", map[string]string{"code": "000000"}, cookie)
+	bad := postJSON(t, mux, "/api/auth/totp/recovery", map[string]string{"code": wrongTOTPCode(t, secret)}, cookie)
 	if bad.Code != http.StatusUnauthorized {
 		t.Fatalf("wrong-code recovery = %d, want 401", bad.Code)
 	}

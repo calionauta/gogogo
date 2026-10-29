@@ -102,7 +102,7 @@ func TestTOTPEnrollAndLogin(t *testing.T) {
 	if cerr != nil {
 		t.Fatalf("code: %v", cerr)
 	}
-	if verr := a.VerifyTOTPEnroll(ctx, user.ID, "000000"); verr == nil {
+	if verr := a.VerifyTOTPEnroll(ctx, user.ID, wrongTOTPCode(t, secret)); verr == nil {
 		t.Fatal("bad enroll code accepted")
 	}
 	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
@@ -114,7 +114,7 @@ func TestTOTPEnrollAndLogin(t *testing.T) {
 	if eerr != nil || !required || token != "" {
 		t.Fatalf("enforced login = %q, %v, %v; want empty, true, nil", token, required, eerr)
 	}
-	if _, err := a.VerifyTOTPLogin(ctx, user.ID, "000000"); err == nil {
+	if _, err := a.VerifyTOTPLogin(ctx, user.ID, wrongTOTPCode(t, secret)); err == nil {
 		t.Fatal("bad login code accepted")
 	}
 	code, _ = totpCode(secret, time.Now())
@@ -452,8 +452,9 @@ func TestTOTPThrottle(t *testing.T) {
 
 	// Behavior: ten wrong codes, then the RIGHT code still opens a
 	// session — throttling bounds guessing without locking the owner out.
+	wrong := wrongTOTPCode(t, secret)
 	for range 10 {
-		_, _ = a.VerifyTOTPLogin(ctx, user.ID, "000000")
+		_, _ = a.VerifyTOTPLogin(ctx, user.ID, wrong)
 	}
 	code, _ = totpCode(secret, time.Now())
 	if _, err := a.VerifyTOTPLogin(ctx, user.ID, code); err != nil {

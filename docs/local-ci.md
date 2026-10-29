@@ -108,6 +108,14 @@ single-package Go change, versus ~6min full. It falls back to all packages when
 a shared file moves (`go.mod`, `config/`, `internal/db/`, `internal/capabilities/`) or
 when nothing changed.
 
+That narrowing is deliberately narrower than CI's: here it means "lint and test
+what I touched", while CI runs the touched packages **plus every package that
+depends on them** (`--with-dependents`) — a local run cannot see the caller 40
+packages away, and a PR can. CI reaches the same machinery through two env vars
+if you need to reproduce a shard locally: `TEST_PKGS_FILE` (the scope
+`scripts/test-web.sh` runs) and `SHARD_UNIVERSE_FILE` (the list
+`scripts/ci-shard-packages.sh` splits).
+
 Use it while iterating; the full `ci-local` (and `make signoff`) remain the
 authoritative pre-push gate — `ci-local-fast` does not replace CI coverage, it
 just stops a CSS tweak from paying for the todo suite.
@@ -360,16 +368,34 @@ by hand, so when a step is added to one, add it to the other:
 | golangci-lint (the `.golangci.yml` set) | ✓ | ✓ |
 | govulncheck (dependency CVEs; the scanner itself is pinned in `go.mod`) | ✅ pre-push hook | ✓ |
 | deadcode (advisory, host-gated + version-pinned) | ✅ pre-push hook | ✓ |
-| `go test -race` (parallel, all pkgs) | ✓ | ✓ |
+| `go test -race` (parallel, sharded by measured cost; on a **PR** only the affected packages **and their transitive dependents**) | ✓ full suite | ✓ full on master, scoped on a PR |
 | build + **binary** boot smoke | ✓ | ✓ |
 | browser smoke (Playwright) | ✓ | ✓ |
 | whiteboard client (Playwright, canvas pixels) | ✓ | ✓ |
 | SSE verified-open (slow-init opener proof) | ✓ | ✓ |
 
-CI runs the rows above as four parallel jobs (`checks` | `race` | `browser` |
-`prod-image`) — wall-clock is the slowest job, not the sum. A `ci`
-aggregator job (green only when all four are) preserves the single status
+CI runs the rows above as `checks` | `race` (three shards) | `browser` (two
+groups) | `prod-image`, plus `site` — wall-clock is the slowest job, not the
+sum. A `ci` aggregator job (green only when all are) preserves the single status
 context branch protection requires.
+
+The `race` shards are not a count-based split: `scripts/ci-shard-packages.sh`
+carries the measured per-package cost and gives an outlier its own shard before
+bin-packing the rest, because `internal/installer` alone saturated the runner.
+The package scope comes from the `changes` job: a PR runs the touched packages
+plus their transitive dependents (test imports included), and a merged commit
+runs everything, so a selection error cannot accumulate across PRs. An
+unclassifiable changeset fails open to the full list. Numbers and the rejected
+alternatives: `docs/research/ci-wall-clock-2026-10.md`.
+
+A `workflow_dispatch` input exists for the paths a normal PR cannot reach:
+`scope_packages` runs an explicit list instead of the classified scope, which is
+how the narrow branch is verified and how a single shard's scope is reproduced
+without opening a PR:
+
+```
+gh workflow run ci.yml --ref <branch> -f scope_packages="internal/queue features/notes/handlers"
+```
 
 Those four skip on a **docs-only changeset** — a `changes` classifier job reads
 the PR (`base...HEAD`) or push (`before...after`) diff and marks it when every
@@ -414,6 +440,18 @@ commit `d50d0fb`, where caching was turned off deliberately rather than
 overlooked. Do not re-enable it to save seconds without reading that first;
 the CSS/templ diffs above add no such risk because they compare text, not
 extract archives.
+
+The one exception is narrow and deliberate (`docs/research/ci-wall-clock-2026-10.md`):
+explicit `actions/cache@v4` steps cache the Go build cache and the Playwright
+browsers, each with `continue-on-error`. The flake above was in the *internal*
+caches of `setup-go`/`setup-node`/`golangci-lint-action`, which use the system
+`tar` and are still off; the explicit action restores through its own JS/zstd
+client, and a failed restore falls through to a cold build instead of failing
+the job. A repeated restore failure means deleting the step, not debugging CI
+infrastructure. The Go *module* cache is not cached at all: restoring it was
+measured at 23-33s per job against 16-29s of saved download, i.e. break-even to
+a loss, while the build cache cut the installer shard's test step 360s→134-186s,
+`browser`'s build 76s→7s and `checks`' lint 107s→18s.
 
 Cold caches have a second cost: every Go job downloads the full module graph,
 and the proxy answers those storms with transient HTTP/2 `INTERNAL_ERROR`s

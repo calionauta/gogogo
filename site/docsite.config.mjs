@@ -109,6 +109,8 @@ export default {
     desc: "chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a shared 8 GB box, and why a Playwright suite's lifecycle, not its engine, is what took the host down." },
   { group: "Research", slug: "notify", file: "research/notify-2026-10.md",
     desc: "The 2026-10-27 notify evaluation: what to copy from a delivery engine, why the inbox stays local, and where an external provider fits." },
+  { group: "Research", slug: "ci-wall-clock", file: "research/ci-wall-clock-2026-10.md",
+    desc: "Where CI's minutes go, measured per job and per package: sharding by cost, PR-only test selection, narrow caches, and the options that were rejected with evidence." },
   { group: "Ship", slug: "deploy", file: "deploy.md",
     desc: "Server layout, first-time setup, deploy workflow, build pipeline and version badge." },
   { group: "Ship", slug: "desktop-mobile", file: "desktop-mobile.md",

@@ -67,7 +67,7 @@ func TestVerifyStepUpCodeForPasswordlessRow(t *testing.T) {
 	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
 		t.Fatalf("enroll: %v", verr)
 	}
-	if ok, verr := a.VerifyStepUp(ctx, user.ID, "000000"); verr != nil || ok {
+	if ok, verr := a.VerifyStepUp(ctx, user.ID, wrongTOTPCode(t, secret)); verr != nil || ok {
 		t.Fatalf("wrong code accepted: ok=%v err=%v", ok, verr)
 	}
 	if ok, verr := a.VerifyStepUp(ctx, user.ID, code); verr != nil || !ok {
@@ -100,7 +100,7 @@ func TestRotateRecoveryCodesWithCodeForPasswordlessRow(t *testing.T) {
 	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
 		t.Fatalf("enroll: %v", verr)
 	}
-	if _, rerr := a.RotateRecoveryCodesWithCode(ctx, user.ID, "000000"); rerr == nil {
+	if _, rerr := a.RotateRecoveryCodesWithCode(ctx, user.ID, wrongTOTPCode(t, secret)); rerr == nil {
 		t.Fatal("wrong code rotated recovery codes")
 	}
 	codes, rerr := a.RotateRecoveryCodesWithCode(ctx, user.ID, code)
@@ -172,7 +172,7 @@ func TestRevokeAllSessionsWithProofTOTP(t *testing.T) {
 	}); serr != nil {
 		t.Fatalf("create session: %v", serr)
 	}
-	if rerr := a.RevokeAllSessionsWithProof(ctx, user.ID, "000000"); rerr == nil {
+	if rerr := a.RevokeAllSessionsWithProof(ctx, user.ID, wrongTOTPCode(t, secret)); rerr == nil {
 		t.Fatal("wrong code revoked sessions")
 	}
 	if _, serr := a.SessionByToken(ctx, token); serr != nil {

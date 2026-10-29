@@ -37,7 +37,7 @@ func TestDisableTOTPWithCodeForPasswordlessRow(t *testing.T) {
 	if verr := a.VerifyTOTPEnroll(ctx, user.ID, code); verr != nil {
 		t.Fatalf("enroll: %v", verr)
 	}
-	if _, derr := a.DisableTOTPWithCode(ctx, user.ID, "000000"); derr == nil {
+	if _, derr := a.DisableTOTPWithCode(ctx, user.ID, wrongTOTPCode(t, secret)); derr == nil {
 		t.Fatal("wrong code removed the factor")
 	}
 	if _, derr := a.DisableTOTPWithCode(ctx, user.ID, code); derr != nil {
