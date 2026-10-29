@@ -40,6 +40,22 @@ parallelism — the suite runs in a single process per package:
 The whole suite was 1102s of test time in a 620s job: the machine carries
 roughly 1.8x, not 4x, because one package saturates it alone.
 
+## Result
+
+Measured on the same workflow, three runs (cold cache, warm cache, and warm
+cache with the trimmed-tree bound raised):
+
+| job | before | after |
+|---|---|---|
+| `race` (the wall) | 620s test | 207s (installer shard) / 130s (tail shard) |
+| `browser` | 265s | 190s (build 76s → 7s) |
+| `checks` | 232s | 105s (lint 107s → 18s) |
+| **CI wall-clock** | **11.1 min** | **4.9 min** |
+
+The first run of the new workflow was slower than the baseline on three jobs:
+with every cache empty, each job paid a cache *save* and got nothing back. The
+second run is the real number.
+
 ## What shipped
 
 **Shard by measured cost, not by count.** `scripts/ci-shard-packages.sh` holds
@@ -54,8 +70,13 @@ commit still runs everything, so a selection error cannot accumulate across
 PRs, and an unreadable diff fails open to the full list.
 
 **Cache only what is narrow, and never let a restore gate a build.** An
-explicit `actions/cache@v4` step covers the Go build cache, the Go module cache
-and the Playwright browsers, each `continue-on-error`.
+explicit `actions/cache@v4` step covers the Go build cache and the Playwright
+browsers, each `continue-on-error`. The Go *module* cache is deliberately not
+cached: measured across the same two runs, restoring it costs 23-33s per job
+and saves 16-29s of download — break-even to a net loss, decided by I/O against
+a proxy. The build cache is the one that pays, and it pays everywhere the Go
+toolchain compiles anything, including `golangci-lint` and `go vet` inside the
+trimmed trees.
 
 ## Rejected, with the evidence
 
@@ -79,6 +100,13 @@ proof that a trimmed tree still contains everything; they cover a path every
 a real safety net for about a minute. The shard split keeps the gate and moves
 the cost.
 
+**Raising the trimmed-tree concurrency.** The suite already bounds how many
+repo copies may fork a `go vet ./...` at once. Raising that bound from two to
+the core count, on the theory that a warm cache makes each unit cheaper, cost
++176s (207s → 383s test): `go vet` is itself parallel over every core, so two
+concurrent copies already oversubscribe four vCPUs and four of them thrash.
+The constant two stays.
+
 **Dropping the browser suites from PRs.** They are the only coverage of the
 client transport (whiteboard ordering, notes caret, SSE opener) and each one
 encodes a regression that shipped. This is the one place the CI/CD rebalance
@@ -95,3 +123,15 @@ on each change.
   the leftover bin.
 - If `internal/installer` stops being the outlier, the cost table is stale:
   refresh it with the command in the script's header before tuning anything.
+- If the module-cache restore ever gets cheap (a smaller graph, or a faster
+  restore path), re-measure it rather than assuming the 2026-10 verdict holds.
+
+## A flake the split surfaced
+
+The first sharded run failed on three `goleak` assertions in `internal/queue`
+that had been passing for months: they called `t.Parallel()` while asserting on
+a process-global goroutine count, so a paused sibling test
+(`testing.(*testState).waitParallel`) and another test's open transaction were
+reported as leaks. Sharding changed the scheduling enough to expose it, not to
+cause it. The assertions now run in the serial phase and ignore the paused-test
+frame, and a deliberately injected goroutine still turns them red.

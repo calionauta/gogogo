@@ -424,13 +424,16 @@ the CSS/templ diffs above add no such risk because they compare text, not
 extract archives.
 
 The one exception is narrow and deliberate (`docs/research/ci-wall-clock-2026-10.md`):
-explicit `actions/cache@v4` steps cache the Go build cache, the Go module cache
-and the Playwright browsers, each with `continue-on-error`. The flake above was
-in the *internal* caches of `setup-go`/`setup-node`/`golangci-lint-action`, which
-use the system `tar` and are still off; the explicit action restores through its
-own JS/zstd client, and a failed restore falls through to a cold build instead
-of failing the job. A repeated restore failure means deleting the step, not
-debugging CI infrastructure.
+explicit `actions/cache@v4` steps cache the Go build cache and the Playwright
+browsers, each with `continue-on-error`. The flake above was in the *internal*
+caches of `setup-go`/`setup-node`/`golangci-lint-action`, which use the system
+`tar` and are still off; the explicit action restores through its own JS/zstd
+client, and a failed restore falls through to a cold build instead of failing
+the job. A repeated restore failure means deleting the step, not debugging CI
+infrastructure. The Go *module* cache is not cached at all: restoring it was
+measured at 23-33s per job against 16-29s of saved download, i.e. break-even to
+a loss, while the build cache cut `race`'s test step 360s→207s, `browser`'s
+build 76s→7s and `checks`' lint 107s→18s.
 
 Cold caches have a second cost: every Go job downloads the full module graph,
 and the proxy answers those storms with transient HTTP/2 `INTERNAL_ERROR`s
