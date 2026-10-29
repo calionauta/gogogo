@@ -525,6 +525,58 @@
     return ops;
   }
 
+  // ---- rebase (the 409 that used to erase the peer's typing) --------------
+  //
+  // A stale batch was "fixed" by recomputing the whole tail from the local
+  // textarea: B's textarea never saw A's concurrent insert, so the recomputed
+  // diff DELETED A's characters at that spot. That is the reported "one browser
+  // lost typed text on the same line". The fix maps our op positions onto the
+  // peer's change instead: two inserts at the same spot both survive (ours
+  // after theirs), and an edit outside the change shifts by its delta.
+  //
+  // shiftPos maps a position in the OLD base to the new text. Obsolete
+  // positions (inside text the peer deleted) return -1: the caller must fall
+  // back to the old recompute, which is lossy but honest about the overlap.
+  function shiftPos(remote, i, after) {
+    let shift = 0;
+    for (let k = 0; k < remote.length; k++) {
+      const r = remote[k];
+      if (r.t === "ins") {
+        if (after ? r.i <= i : r.i < i) shift += r.s.length;
+        continue;
+      }
+      const end = r.i + r.n;
+      if (i >= end) { shift -= r.n; continue; }
+      if (i <= r.i) continue;
+      return -1; // inside the peer's deletion
+    }
+    return i + shift;
+  }
+
+  // transformOps rebases one batch. `after=true` at an insert puts ours after a
+  // peer insert at the same index; the delete start uses it so an insertion at
+  // the deleted range's first character is kept, while the end does not (an
+  // insert at the end boundary is outside the range).
+  function transformOps(ops, remote) {
+    const out = [];
+    for (let k = 0; k < ops.length; k++) {
+      const op = ops[k];
+      if (!op) return null;
+      if (op.t === "ins") {
+        const at = shiftPos(remote, op.i, true);
+        if (at < 0) return null;
+        out.push({ t: "ins", i: at, s: op.s });
+        continue;
+      }
+      if (op.t !== "del") return null;
+      const a = shiftPos(remote, op.i, true);
+      const b = shiftPos(remote, op.i + op.n, false);
+      if (a < 0 || b < 0 || b - a !== op.n) return null;
+      out.push({ t: "del", i: a, n: op.n });
+    }
+    return out;
+  }
+
   function sendDiff() {
     const ops = diffOps(ta.value, serverText);
     if (!ops.length) return;
@@ -543,6 +595,14 @@
   // status: one retry per 1.5s would be a request storm against an edge that
   // is already struggling, and one per 10s is enough to notice a recovery.
   let transientRetryMs = 1500;
+
+  // The batch on the wire, with the textarea text and the authoritative text it
+  // was diffed against. A 409 needs the BASE the ops were built on; by the time
+  // the answer lands, the stream may already have advanced serverText.
+  let sentOps = null;
+  let sentBase = "";
+  let lastSentText = "";
+  let rebasedRemote = null; // remote ops of the last 409 rebase (for the caret)
 
   // flush drains ONE batch, under a per-document lock. The queue lives in
   // localStorage, so two tabs of the same note hold the same entries; without
@@ -584,6 +644,9 @@
     // note-text event as the resolved text, so dot and letters arrive
     // atomically — no cross-channel race where the dot lands before its
     // text exists.
+    sentOps = (head.ops || []).slice();
+    sentBase = serverText;
+    lastSentText = ta.value;
     const atSend = ta.selectionStart || 0;
     const sendBody = { base: head.base, ops: head.ops,
       caret: { line: ta.value.slice(0, atSend).split("\n").length, pos: atSend } };
@@ -649,8 +712,20 @@
         attempts++;
         if (res.body.authed === true) setSession(true);
         else if (res.body.authed === false) setSession(false);
+        const remote = diffOps(res.body.text, sentBase || serverText);
         adoptRemote(res.body.text, res.body.rev);
-        requeue();
+        const moved = transformOps(sentOps || [], remote);
+        if (moved && moved.length) {
+          outbox = [{ ops: moved, base: REV }];
+          saveOutbox();
+          clean = false;
+          rebasedRemote = remote;
+        } else {
+          // Overlap we cannot map (a delete across the peer's edit): fall back
+          // to the recompute, the documented lossy path.
+          rebasedRemote = null;
+          requeue();
+        }
         clean = !outbox.length;
         // Bounded: a second 409 means another race landed; the next local
         // input recomputes anyway.
@@ -664,6 +739,18 @@
         if (d.authed === true) setSession(true);
         else if (d.authed === false) setSession(false);
         outbox.shift();
+        // A rebased batch landed: the server text is the MERGE (the peer's
+        // insert plus ours), while the textarea still holds only our side.
+        // Adopt it before recomputing, or the stale textarea produces a delete
+        // that erases the peer's text a second time. Only when the user has not
+        // typed since the send — newer keystrokes are recomputed as before.
+        if (!outbox.length && rebasedRemote && ta.value === lastSentText) {
+          const caret = shiftPos(rebasedRemote, ta.selectionStart || 0, true);
+          ta.value = d.text;
+          const at = caret < 0 ? d.text.length : Math.min(caret, d.text.length);
+          try { ta.setSelectionRange(at, at); } catch (err) { /* non-fatal */ }
+          rebasedRemote = null;
+        }
         // Recompute the remainder against the fresh base: queued ops were
         // positioned on older text and would 409 for sure.
         const rest = diffOps(ta.value, serverText);

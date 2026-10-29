@@ -39,16 +39,21 @@ templ RailInboxBadge(unread int) {
 // network changed — tab visible, window focused, bfcache restore, back online.
 // Any tab that already heard a change broadcasts it, so this is the fallback,
 // never the steady state. The endpoint answers with a signal patch, not markup.
+//
+// No signals in the URL: the badge needs none, and Datastar's default sends the
+// WHOLE signal set as a query param (the todos array made a 10 KB URL that
+// landed in logs). No retry either: a refused poll is an answer, not a transient
+// failure, and the default ten retries turned a single 403 into a console storm.
 templ railInboxRefresh() {
 	<button
 		id="rail-inbox-refresh"
 		type="button"
 		class="hidden"
 		aria-hidden="true"
-		data-on:click="@get('/api/notifications/badge')"
-		data-on:visibilitychange__document="if (!document.hidden) document.getElementById('rail-inbox-refresh').click()"
-		data-on:focus__window="if (!document.hidden) document.getElementById('rail-inbox-refresh').click()"
-		data-on:pageshow__window="evt.persisted && document.getElementById('rail-inbox-refresh').click()"
+		data-on:click="@get('/api/notifications/badge', {filterSignals: {exclude: /.*/}, retryMaxCount: 0})"
+		data-on:visibilitychange__document="if (!document.hidden && navigator.onLine) document.getElementById('rail-inbox-refresh').click()"
+		data-on:focus__window="if (!document.hidden && navigator.onLine) document.getElementById('rail-inbox-refresh').click()"
+		data-on:pageshow__window="evt.persisted && navigator.onLine && document.getElementById('rail-inbox-refresh').click()"
 		data-on:online__window="document.getElementById('rail-inbox-refresh').click()"
 	></button>
 }

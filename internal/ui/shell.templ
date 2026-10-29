@@ -170,7 +170,10 @@ templ Shell(d Data, head templ.Component, sound templ.Component, actions templ.C
 					});
 				</script>
 				<div class="app-rail-backdrop" style="display:none" data-show="$railOpen" data-on:click="$railOpen = false; window.__gogogoDrawerReturn()"></div>
-				if d.Email != "" {
+				// The badge route is `user`+ in policy.csv: a viewer's poll is a
+				// guaranteed 403 on every focus/visibility/online event, so it is
+				// not rendered for them at all.
+				if d.Email != "" && !rbac.IsViewer(d.Role) {
 					@railInboxRefresh()
 				}
 				<div class="app-main">

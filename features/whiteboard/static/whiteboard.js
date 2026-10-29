@@ -50,6 +50,7 @@
   try {
     const seeded = document.getElementById("canvas-wrap")?.dataset?.shapes;
     if (seeded) shapes = JSON.parse(seeded) || [];
+    if (shapes.length) setTimeout(maybeFit, 0);
   } catch (_) {
     shapes = [];
   }
@@ -63,14 +64,34 @@
   let drawing = null; // in-progress shape
   let rc = null;
 
+  // ---- viewport (world -> screen) ----
+  //
+  // Shapes are stored in WORLD coordinates (the canvas CSS px they were drawn
+  // at). The view maps the world onto this canvas, so a board drawn on a laptop
+  // can be panned/zoomed on a phone instead of showing an empty white area with
+  // every shape parked to the right of a 390 px screen.
+  //
+  // viewTouched means the user moved the view: a later authoritative shapes
+  // frame must never snap it back (a peer's join or a reconnect would undo the
+  // pan). The palette: wheel zooms, middle-drag pans, two fingers pan/zoom.
+  var view = { scale: 1, x: 0, y: 0 };
+  var viewTouched = false;
+  var MIN_SCALE = 0.15;
+  var MAX_SCALE = 8;
+  var FIT_PAD = 24;
+
+  function toScreen(x, y) {
+    return { x: x * view.scale + view.x, y: y * view.scale + view.y };
+  }
+
   function fitCanvas() {
     const r = wrap.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.floor(r.width * dpr));
     canvas.height = Math.max(1, Math.floor(r.height * dpr));
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (window.rough) rc = rough.canvas(canvas);
     render();
+    renderCursors();
   }
 
   // ---- SSE stream ----
@@ -91,6 +112,7 @@
     if (msg.doc && msg.doc !== docID) return;
     if (msg.type === "shapes") {
       shapes = msg.shapes || [];
+      maybeFit();
       // The list is authoritative for everything the SERVER has. A queued op is
       // not on the server yet, so folding it back in is what stops a reconnect
       // (or a reload) from erasing a drawing that is still waiting to replay.
@@ -270,12 +292,13 @@
   // or cold open). Don't await — let the canvas render first, replay
   // ops asynchronously when they arrive.
   idbLoadAll().then(function (rows) {
-    if (rows.length === 0) return;
+    if (rows.length === 0) { maybeFit(); return; }
     outbox = rows;
     // Paint the unsent shapes on the seeded board before the replay: an
     // offline reload must show what the user drew, not just what the server
     // acknowledged.
     for (var i = 0; i < rows.length; i++) applyLocal(rows[i].op);
+    maybeFit();
     render();
     flushOutbox();
   }).catch(function (err) {
@@ -521,14 +544,136 @@
   }
 
   // ---- drawing ----
+  // Screen point -> WORLD point. Every shape, draft and cursor frame uses the
+  // world space, so what a peer draws at (600, 400) means the same place on
+  // every screen; only the view differs.
   function localPos(e) {
     const r = canvas.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    return {
+      x: (e.clientX - r.left - view.x) / view.scale,
+      y: (e.clientY - r.top - view.y) / view.scale,
+    };
+  }
+
+  // ---- view controls -----------------------------------------------------
+  function zoomAt(clientX, clientY, factor) {
+    const r = canvas.getBoundingClientRect();
+    const px = clientX - r.left;
+    const py = clientY - r.top;
+    const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, view.scale * factor));
+    const k = scale / view.scale;
+    view = { scale: scale, x: px - (px - view.x) * k, y: py - (py - view.y) * k };
+    viewTouched = true;
+    render();
+    renderCursors();
+  }
+
+  function zoomCenter(factor) {
+    const r = canvas.getBoundingClientRect();
+    zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor);
+  }
+
+  // contentBounds is the world box of what is drawn. Pen strokes only carry
+  // their points, so the box has to walk them.
+  function contentBounds(list) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    function add(x, y) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      if (!s) continue;
+      if (s.type === "pen" && s.points && s.points.length >= 2) {
+        for (var j = 0; j < s.points.length; j += 2) add(s.points[j], s.points[j + 1]);
+      } else {
+        add(s.x, s.y);
+        add(s.x + s.w, s.y + s.h);
+      }
+    }
+    if (minX === Infinity) return null;
+    return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+  }
+
+  // maybeFit is the answer to "I opened a desktop board on my phone and saw
+  // nothing": content wider than the viewport is scaled down once, on the first
+  // authoritative list, until the user touches the view. Small boards keep
+  // identity, so nothing shifts under a user who was already drawing.
+  function maybeFit() {
+    if (viewTouched) return;
+    var b = contentBounds(shapes);
+    if (!b) return;
+    var r = wrap.getBoundingClientRect();
+    // "Fits" is about the VIEWPORT, not about size: a 200 px drawing parked at
+    // x=620 fits in no phone screen. The old check only compared sizes, so the
+    // common case (a laptop board opened on a phone) still showed nothing.
+    if (b.minX >= 0 && b.minY >= 0 && b.maxX <= r.width && b.maxY <= r.height) return;
+    var cw = Math.max(1, b.maxX - b.minX);
+    var ch = Math.max(1, b.maxY - b.minY);
+    var scale = Math.min((r.width - FIT_PAD * 2) / cw, (r.height - FIT_PAD * 2) / ch, 1);
+    scale = Math.max(MIN_SCALE, scale);
+    view = { scale: scale, x: FIT_PAD - b.minX * scale, y: FIT_PAD - b.minY * scale };
+    viewTouched = true;
+    render();
+    renderCursors();
+  }
+
+  function fitToContent() {
+    var b = contentBounds(shapes);
+    var r = wrap.getBoundingClientRect();
+    viewTouched = false;
+    if (!b) {
+      view = { scale: 1, x: 0, y: 0 };
+    } else {
+      var cw = Math.max(1, b.maxX - b.minX);
+      var ch = Math.max(1, b.maxY - b.minY);
+      var scale = Math.min((r.width - FIT_PAD * 2) / cw, (r.height - FIT_PAD * 2) / ch, MAX_SCALE);
+      scale = Math.max(MIN_SCALE, scale);
+      view = { scale: scale, x: FIT_PAD - b.minX * scale, y: FIT_PAD - b.minY * scale };
+    }
+    viewTouched = true;
+    render();
+    renderCursors();
+  }
+
+  // Active pointers on the canvas. ONE pointer draws; TWO navigate (pan/zoom,
+  // the touch gesture) and abandon the stroke the first finger started — a
+  // pinch is not a shape. Without tracking this a two-finger gesture left
+  // `drawing` set and the pen looked dead until a reload.
+  const pointers = new Map();
+  let pinch = null;
+  let panning = null;
+
+  function pinchState() {
+    const pts = Array.from(pointers.values());
+    const a = pts[0], b = pts[1];
+    return {
+      dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      mx: (a.x + b.x) / 2,
+      my: (a.y + b.y) / 2,
+      scale: view.scale, x: view.x, y: view.y,
+    };
   }
 
   canvas.addEventListener("pointerdown", function (e) {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* pointer already gone */ }
+    if (pointers.size === 2) {
+      if (drawing) { drawing = null; postFrame({ type: "draft-end", cts: Date.now() }); }
+      pinch = pinchState();
+      panning = null;
+      render();
+      return;
+    }
+    if (pointers.size > 2) return;
+    if (e.button === 1 || e.altKey) {
+      panning = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+      e.preventDefault();
+      return;
+    }
     const p = localPos(e);
-    canvas.setPointerCapture(e.pointerId);
     if (tool === "pen") {
       drawing = { id: "s-" + Math.random().toString(36).slice(2, 9), type: "pen", points: [p.x, p.y], color: color };
     } else {
@@ -560,15 +705,41 @@
   // at this throttle and shape scale. Delta-encoding would need sequencing.
 
   canvas.addEventListener("pointermove", function (e) {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pointers.size >= 2) {
+      // Keep the world point that was under the initial midpoint under the NEW
+      // midpoint, at the new distance ratio: one gesture pans and zooms.
+      const now = pinchState();
+      const r = canvas.getBoundingClientRect();
+      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinch.scale * (now.dist / pinch.dist)));
+      const wx = (pinch.mx - r.left - pinch.x) / pinch.scale;
+      const wy = (pinch.my - r.top - pinch.y) / pinch.scale;
+      view = { scale: scale, x: (now.mx - r.left) - wx * scale, y: (now.my - r.top) - wy * scale };
+      viewTouched = true;
+      render();
+      renderCursors();
+      return;
+    }
+    if (panning) {
+      view = {
+        scale: view.scale,
+        x: panning.vx + (e.clientX - panning.x),
+        y: panning.vy + (e.clientY - panning.y),
+      };
+      viewTouched = true;
+      render();
+      renderCursors();
+      return;
+    }
     const p = localPos(e);
-    const r = canvas.getBoundingClientRect();
     // The frame couples cursor and shape from the SAME pointer event: the dot
     // a peer renders IS the tip of the shape version it renders. cts is
     // captured here (not at send time) so a retried frame keeps its original
-    // age and loses to anything captured later.
+    // age and loses to anything captured later. Coordinates are WORLD px: the
+    // same point on every screen, regardless of each client's pan/zoom.
     const frame = {
-      x: parseFloat((p.x / r.width).toFixed(4)),
-      y: parseFloat((p.y / r.height).toFixed(4)),
+      x: Math.round(p.x * 100) / 100,
+      y: Math.round(p.y * 100) / 100,
       cts: Date.now(),
     };
     if (drawing) {
@@ -585,6 +756,9 @@
   });
 
   canvas.addEventListener("pointerup", function (e) {
+    pointers.delete(e.pointerId);
+    if (panning) { panning = null; return; }
+    if (pinch) { if (pointers.size < 2) pinch = null; return; }
     if (!drawing) return;
     // ignore degenerate shapes
     const tiny =
@@ -612,7 +786,36 @@
     postOp({ op: "add", shape: done });
   });
 
-  // toolbar (Datastar sets window signals; mirror here for plain JS)
+  // A cancelled pointer (the OS took the gesture: scroll, call, a system
+  // gesture) must drop the stroke. The old code had no handler, so `drawing`
+  // survived and the next pointerdown reused... nothing, but the canvas kept
+  // painting a ghost until the next event — the "pen stopped working" report.
+  canvas.addEventListener("pointercancel", function (e) {
+    pointers.delete(e.pointerId);
+    panning = null;
+    if (pinch && pointers.size < 2) pinch = null;
+    if (drawing) {
+      drawing = null;
+      postFrame({ type: "draft-end", cts: Date.now() });
+      render();
+    }
+  });
+
+  // Wheel zooms around the cursor (plain wheel: the canvas has nothing to
+  // scroll, and a page scroll would move the board out from under the pointer).
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+
+  // Toolbar (Datastar sets window signals; mirror here for plain JS)
+  const zoomIn = document.getElementById("wb-zoom-in");
+  if (zoomIn) zoomIn.addEventListener("click", function () { zoomCenter(1.25); });
+  const zoomOut = document.getElementById("wb-zoom-out");
+  if (zoomOut) zoomOut.addEventListener("click", function () { zoomCenter(1 / 1.25); });
+  const fitBtn = document.getElementById("wb-fit");
+  if (fitBtn) fitBtn.addEventListener("click", fitToContent);
+
   document.querySelectorAll("[data-tool]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       tool = btn.getAttribute("data-tool");
@@ -629,16 +832,23 @@
   const colorInput = document.getElementById("color-input");
   if (colorInput) {
     color = colorInput.value || color;
-    colorInput.addEventListener("input", function () {
-      color = colorInput.value;
-    });
+    // `input` while the picker moves, `change` when it closes. Some platforms
+    // (notably iOS Safari and Firefox's dialog) only guarantee the latter, so
+    // wiring one of them left the swatch looking dead on those browsers.
+    var applyColor = function () {
+      if (colorInput.value) color = colorInput.value;
+    };
+    colorInput.addEventListener("input", applyColor);
+    colorInput.addEventListener("change", applyColor);
   }
 
   // ---- rendering ----
   function render() {
     if (!ctx) return;
-    const r = wrap.getBoundingClientRect();
-    ctx.clearRect(0, 0, r.width, r.height);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr * view.scale, 0, 0, dpr * view.scale, dpr * view.x, dpr * view.y);
     const all = shapes.slice();
     // Peers' in-progress strokes, then our own — drawn after the committed
     // shapes so a live stroke is never hidden under one.
@@ -827,7 +1037,6 @@
     }
   }
   function renderCursors() {
-    const r = wrap.getBoundingClientRect();
     cursorsEl.innerHTML = "";
     const now = Date.now();
     Object.keys(cursors).forEach(function (id) {
@@ -842,9 +1051,10 @@
       for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
       const color = "hsl(" + (h % 360) + ",70%,45%)";
       const el = document.createElement("div");
+      const at = toScreen(p.x, p.y);
       el.style.position = "absolute";
-      el.style.left = (p.x * r.width) + "px";
-      el.style.top = (p.y * r.height) + "px";
+      el.style.left = at.x + "px";
+      el.style.top = at.y + "px";
       el.style.transform = "translate(-2px,-2px)";
       el.style.pointerEvents = "none";
       el.innerHTML =

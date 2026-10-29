@@ -27,6 +27,13 @@ import templruntime "github.com/a-h/templ/runtime"
 // the button itself (not a vanilla listener): the id interpolates into
 // attributes, so no script needs it. The load-time go() call stays a
 // script (bootstrap, same class as the SSE opener).
+
+// fragmentOpts keeps a re-list request small and non-retrying. The URL already
+// carries filter/scope/query, so Datastar's default signal blob is dead weight
+// (it rode every request as a `datastar=` param, todos included), and a
+// fragment that fails is re-fetched by the next event anyway.
+const fragmentOpts = "{filterSignals: {exclude: /.*/}, retryMaxCount: 0}"
+
 func ListResync(buttonID, fragmentExpr string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -55,7 +62,7 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buttonID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 30, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 37, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -66,9 +73,9 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ")")
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ", " + fragmentOpts + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 33, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 40, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -79,9 +86,9 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ")")
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get(" + fragmentExpr + ", " + fragmentOpts + ")")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 34, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 41, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -92,9 +99,9 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("if(!document.hidden){document.getElementById('" + buttonID + "').click()}")
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue("if(!document.hidden && navigator.onLine){document.getElementById('" + buttonID + "').click()}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 35, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 42, Col: 134}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -107,13 +114,13 @@ func ListResync(buttonID, fragmentExpr string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 39, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/realtime_resync.templ`, Line: 46, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" type=\"module\">\n\t\t// Hidden-@get-button pattern (not data-on:load): Datastar v1 does\n\t\t// not fire data-on:load on div/body, so a load attribute silently\n\t\t// never opens anything. The button's @get is a real Datastar\n\t\t// action (with proper context); this script clicks it.\n\t\tfunction el() { return document.querySelector('[data-list-resync]'); }\n\t\tfunction go() {\n\t\t\tvar b = el();\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\t// Refetch on load (a change from while the page was gone would\n\t\t// otherwise never arrive). Visibility return is the data-on\n\t\t// attribute above (backgrounded tabs get their streams\n\t\t// throttled/paused by the browser).\n\t\tgo();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" type=\"module\">\n\t\t// Hidden-@get-button pattern (not data-on:load): Datastar v1 does\n\t\t// not fire data-on:load on div/body, so a load attribute silently\n\t\t// never opens anything. The button's @get is a real Datastar\n\t\t// action (with proper context); this script clicks it.\n\t\tfunction el() { return document.querySelector('[data-list-resync]'); }\n\t\tfunction go() {\n\t\t\tvar b = el();\n\t\t\tif (b) { b.click(); }\n\t\t}\n\t\t// Refetch on load (a change from while the page was gone would\n\t\t// otherwise never arrive). Visibility return is the data-on\n\t\t// attribute above (backgrounded tabs get their streams\n\t\t// throttled/paused by the browser). Offline the request cannot\n\t\t// succeed and Datastar logs the failure, so a cold start on the\n\t\t// cached page waits for the online event instead.\n\t\tif (navigator.onLine) go();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

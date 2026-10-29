@@ -283,9 +283,12 @@
       // Storage unavailable (private mode, blocked upgrade). The mirror keeps
       // the intent for the next page load; drain reports 0 meanwhile.
     });
-    // The count lands on the next tick; announcing zero here would tell the
-    // banner the queue is empty while this intent is still in flight.
-    count();
+    // NO announcement here. begin() means "the feature's own request is about
+    // to go out": the intent is durable, but nothing has failed yet, and
+    // announcing count=1 painted the amber "queued" bar for the duration of a
+    // perfectly healthy create (the thin bar that flashed on every online add).
+    // fail() announces when the request actually did not land; a reload
+    // recovers the intent and the drain announces then.
     return entry.key;
   }
 
@@ -461,6 +464,28 @@
     });
   }
 
+  // A pass that finishes inside this window is the live request's OWN intent
+  // (the todo the user just added), not a replay worth watching. Announcing
+  // "syncing" on entry painted a blue bar for a few hundred milliseconds on
+  // every online add — noise that reads as "something went wrong".
+  var SYNCING_DELAY_MS = 500;
+  var syncingTimer = null;
+
+  function startSyncing(n) {
+    if (syncingTimer) return;
+    syncingTimer = setTimeout(function () {
+      syncingTimer = null;
+      announce(n, { replaying: true });
+    }, SYNCING_DELAY_MS);
+  }
+
+  // Always close the state, even when the pass stopped on a retry: without
+  // this the banner kept saying "Syncing changes…" until some unrelated event.
+  function stopSyncing(n) {
+    if (syncingTimer) { clearTimeout(syncingTimer); syncingTimer = null; }
+    announce(n, { replaying: false });
+  }
+
   function drainPass(force) {
     if (!navigator.onLine) return Promise.resolve(0);
     return all().then(function (items) {
@@ -479,7 +504,7 @@
       }
       var queue = replayable(items, now, force);
       if (!queue.length) return count();
-      announce(items.length, { replaying: true });
+      startSyncing(items.length);
       var remaining = 0;
       var chain = Promise.resolve();
       queue.forEach(function (item) {
@@ -519,6 +544,7 @@
       });
       return chain.then(function () {
         return count().then(function (n) {
+          stopSyncing(n);
           if (remaining === 0) {
             retryDelay = RETRY_INITIAL_MS;
             try { global.dispatchEvent(new CustomEvent("gogogo:synced")); } catch (_) { /* no window */ }

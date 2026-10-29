@@ -499,3 +499,29 @@ Conventions that outlive the transition: schema lives in
 `schema_migrations` — files are append-only history, never edited. Generated
 `sqlcgen` is committed. Docs describe structure and contracts; CHANGELOG
 keeps history.
+
+## Concurrent note edits: rebase the batch, do not recompute the tail (2026-10-29)
+
+Status: accepted. Extends the notes 409 policy.
+
+Two browsers typing on the same line both send a batch based on the same
+revision. One lands; the other gets a 409 carrying the winner's text. The old
+handler adopted that text and then recomputed the whole tail from the LOCAL
+textarea. That textarea never saw the winner's insert, so the recomputed diff
+contained a delete for it: the winner's characters were erased, and only one
+side's typing survived. Reported from manual use, reproduced with a barrier test
+that holds both POSTs until both are in flight.
+
+The 409 now rebases the batch it actually sent (`sentOps` against `sentBase`)
+onto the winner's change: positions shift by the change's delta, two inserts at
+the same index both survive (ours goes after theirs), and a delete that overlaps
+the peer's edit still falls back to the old recompute — the one case where the
+mapping is genuinely ambiguous. When the rebased batch lands, the merged text is
+adopted into the textarea (if the user has not typed since the send) so the next
+diff cannot delete the peer's text a second time.
+
+Cost, stated honestly: this is position mapping for the common shapes, not a
+client CRDT. A delete across a concurrent insert still resolves last-writer, and
+keystrokes typed during the rebased request are recomputed from the local text
+as before. Evidence: `scripts/notes-caret.test.mjs` holds both POSTs at a
+barrier and asserts both characters survive; with the old branch it fails.

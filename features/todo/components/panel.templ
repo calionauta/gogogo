@@ -74,7 +74,8 @@ func panelTabClass(current, candidate string) string {
 // route sees _target and answers with the Panel component patched to #target
 // (see handlers/panel_action.go), so the page's #todo-list is never touched.
 func panelFilterExpr(panelID, filter string) string {
-	return "@get('/api/todos?filter=" + filter + "&_target=" + panelID + "&clientID=' + encodeURIComponent($clientID || ''))"
+	return "@get('/api/todos?filter=" + filter + "&_target=" + panelID +
+		"&clientID=' + encodeURIComponent($clientID || ''), {filterSignals: {exclude: /.*/}, retryMaxCount: 0})"
 }
 
 // panelRowActions is the Chat panel half of TodoItem: the writes carry the

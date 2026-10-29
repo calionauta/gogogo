@@ -23,10 +23,14 @@ func querySep(streamURL string) string {
 // because a hidden tab normally drops its connection to save resources —
 // the room keeps it, since its presence IS the connection.
 func streamOpts(openWhenHidden bool) string {
+	// filterSignals: the stream needs the clientID (already in the URL) and
+	// nothing else; Datastar's default appends the whole signal set, which put
+	// the todos array in the stream URL and in every proxy log.
+	base := "{ retry: 'always', filterSignals: { exclude: /.*/ }"
 	if openWhenHidden {
-		return "{ retry: 'always', openWhenHidden: true }"
+		return base + ", openWhenHidden: true }"
 	}
-	return "{ retry: 'always' }"
+	return base + " }"
 }
 
 // StreamOpener is the ONE SSE opener every Datastar page renders (todo,

@@ -195,6 +195,15 @@ markup derives one state word (`internal/ui.shellSignals` seeds them, because th
 account menu's sign-out reads the count from outside the banner subtree). There
 is no banner script.
 
+The banner reports TRANSPORT TROUBLE, not work in progress. `begin()` stores the
+intent and stays silent: the feature's own request is about to go out, and
+announcing "1 queued" painted an amber bar for the length of every healthy
+create. Only a failed request (`fail()`) or a recovered queue (load/reconnect)
+announces a count. For the same reason "Syncing changes…" waits 500 ms before it
+shows: a replay that answers inside that window is noise, a slow one is
+information. Every pass closes the state when it ends, so a pass that stops on a
+retry cannot leave the bar up.
+
 The drain runs on load, on `online`, on `visibilitychange` to visible, and on a
 bounded backoff while intents remain. It does **not** run while every tab is
 closed: Background Sync — the only API that could — is Chromium-only (Firefox has
@@ -247,6 +256,23 @@ the one control that never restores: it fires after the user stopped typing, and
 replacing the list then could erase a row created in between. This is the
 "online-first with caching" column of the model below — the cache owns no data
 and answers no query, so it cannot merge a write or invent a row.
+
+**Background GETs carry no state.** Every Datastar `@get` on a page with a big
+signal set (the todo list) sent the WHOLE signal state as a `datastar=` query
+param — the todos array included, in every proxy log — and retried a refusal ten
+times. The list, resync, badge and stream actions pass
+`{filterSignals: {exclude: /.*/}, retryMaxCount: 0}`: the URL already carries
+filter/scope/query/clientID, and a failed list is re-requested by the next user
+action. A viewer's inbox poll is not rendered at all (the badge route is
+`user`+, so it was a guaranteed 403 on every focus/visibility event).
+
+**The board is a viewport, not a canvas copy.** Shapes are stored in WORLD
+coordinates; the view (pan/zoom) maps them onto each screen. The first
+authoritative list fits content that falls outside the viewport — a board drawn
+on a laptop used to open as an empty white area on a phone (every shape sat to
+the right of a 390 px canvas). Wheel zooms, middle-drag pans, two fingers
+pan/zoom, and the toolbar has −/+/Fit. Cursor and draft frames carry world
+coordinates too, so the same point means the same place on every screen.
 
 **A queue that cannot be stored says so.** A full quota or a blocked
 `localStorage` used to be swallowed by the notes and whiteboard writers: the op

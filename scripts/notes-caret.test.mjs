@@ -725,6 +725,79 @@ async function main() {
   }
   await ctxFresh.close();
 
+  // ---------------------------------------------------------------------------
+  // CONCURRENT TYPING AT THE SAME SPOT MUST KEEP BOTH EDITS.
+  //
+  // Both browsers type at the end of the same line while both batches are in
+  // flight (held at a barrier so they really share one base revision). Exactly
+  // one POST wins; the loser gets a 409. The old code "fixed" the 409 by
+  // recomputing the whole tail from the local textarea — which never saw the
+  // winner's insert — so the recomputed diff DELETED it. The rebase maps the
+  // loser's ops onto the winner's text instead: two inserts at the same index
+  // both survive.
+  //
+  // RED-PROOFED: with the 409 branch replaced by `requeue()`, the final text is
+  // "seedA" or "seedB" (one character lost) and this fails.
+  // ---------------------------------------------------------------------------
+  const docRace = "notes-race-" + process.pid;
+  // The offline phase closed every page in both contexts; open fresh ones.
+  const AR = await ctxA.newPage();
+  const BR = await ctxB.newPage();
+  AR.on("pageerror", (e) => pageErrors.push("AR: " + String(e)));
+  BR.on("pageerror", (e) => pageErrors.push("BR: " + String(e)));
+  await gotoNote(AR, `${BASE}/notes/${docRace}`);
+  await gotoNote(BR, `${BASE}/notes/${docRace}`);
+  await AR.locator("#note-text").click();
+  await typeText(AR, "seed", 20);
+  await BR.waitForFunction(() => document.getElementById("note-text").value === "seed", null, { timeout: 10000 });
+
+  // Hold the first op of EACH page until both are parked, then release both.
+  let arrived = 0;
+  let releaseBoth = null;
+  const bothParked = new Promise((resolve) => { releaseBoth = resolve; });
+  const holdOp = async (pg) => {
+    await pg.route("**/api/notes/*/op?*", async (route) => {
+      arrived++;
+      if (arrived === 2) releaseBoth();
+      await bothParked;
+      await route.continue();
+    });
+  };
+  await holdOp(AR);
+  await holdOp(BR);
+
+  await AR.evaluate(() => { const t = document.getElementById("note-text"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
+  await BR.evaluate(() => { const t = document.getElementById("note-text"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
+  await Promise.all([AR.keyboard.type("A"), BR.keyboard.type("B")]);
+
+  const merged = (t) => t === "seedAB" || t === "seedBA";
+  try {
+    await AR.waitForFunction((want) => {
+      const v = document.getElementById("note-text").value;
+      return want.includes(v);
+    }, ["seedAB", "seedBA"], { timeout: 15000 });
+    await BR.waitForFunction((want) => {
+      const v = document.getElementById("note-text").value;
+      return want.includes(v);
+    }, ["seedAB", "seedBA"], { timeout: 15000 });
+  } catch (e) {
+    // fall through to the assertion below for the diagnostic
+  }
+  const raceA = await AR.evaluate(() => document.getElementById("note-text").value);
+  const raceB = await BR.evaluate(() => document.getElementById("note-text").value);
+  const pageRes = await fetch(`${BASE}/notes/${docRace}`, { headers: { Cookie: "gogogo_auth=" + tokenA } });
+  const pageHtml = await pageRes.text();
+  const seedAt = pageHtml.indexOf('id="note-text"');
+  const tag = seedAt >= 0 ? pageHtml.slice(seedAt, pageHtml.indexOf("</textarea>", seedAt)) : "";
+  const serverRace = tag.includes(">") ? tag.slice(tag.indexOf(">") + 1) : "";
+  if (merged(raceA) && merged(raceB) && merged(serverRace)) {
+    ok(`concurrent same-spot typing kept both edits (${serverRace})`);
+  } else {
+    bad(`concurrent same-spot typing lost an edit: A=${JSON.stringify(raceA)} B=${JSON.stringify(raceB)} server=${JSON.stringify(serverRace)}`);
+  }
+  await AR.unroute("**/api/notes/*/op?*");
+  await BR.unroute("**/api/notes/*/op?*");
+
   if (pageErrors.length) {
     bad(`uncaught page errors: ${pageErrors.slice(0, 3).join(" | ")}`);
   } else {

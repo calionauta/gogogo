@@ -175,8 +175,15 @@ func TodoListQuery(urlExpr, viewExpr, applyExpr string) string {
 	return "if (!navigator.onLine) { " +
 		"if (window.GogogoTodoViews && window.GogogoTodoViews.restore(" + viewExpr + ")) { " + applyExpr + "$listOffline = false } " +
 		"else { $listOffline = true } " +
-		"} else { $loading = true; @get(" + urlExpr + ") }"
+		"} else { $loading = true; @get(" + urlExpr + ", " + listRequestOpts + ") }"
 }
+
+// listRequestOpts keeps a list request small and non-retrying. The URL already
+// carries filter/scope/query/clientID, so Datastar's default signal blob is dead
+// weight — it rode every GET as a `datastar=` param and put the whole todos
+// array in the URL. retryMaxCount 0: a refused or failed list is re-requested by
+// the next user action; ten automatic retries only multiplied the noise.
+const listRequestOpts = "{filterSignals: {exclude: /.*/}, retryMaxCount: 0}"
 
 // TodoScopeSelectOn is the scope <select>'s change handler. It differs from
 // the tabs in one way: the select is not bound to the signal, so a refused
@@ -189,7 +196,7 @@ func TodoScopeSelectOn() string {
 		"else { $scope = evt.target.value; $loading = true; @get('/api/todos?filter=' + " +
 		"encodeURIComponent($filter || 'all') + '&scope=' + encodeURIComponent($scope || 'all') + " +
 		"'&q=' + encodeURIComponent($searchQuery || '') + " +
-		"'&clientID=' + encodeURIComponent($clientID || '')) }"
+		"'&clientID=' + encodeURIComponent($clientID || ''), " + listRequestOpts + ") }"
 }
 
 // TodoSearchOn is the search box's DEBOUNCED request, and offline it refuses
@@ -205,7 +212,7 @@ func TodoSearchOn() string {
 		"'&filter=' + encodeURIComponent($filter || 'all') + " +
 		"'&scope=' + encodeURIComponent($scope || 'all') + " +
 		"'&mode=' + encodeURIComponent(searchModeValue()) + " +
-		"'&clientID=' + encodeURIComponent($clientID || '')) }"
+		"'&clientID=' + encodeURIComponent($clientID || ''), " + listRequestOpts + ") }"
 }
 
 // TodoSearchModeOn is the search-layer picker's request.
@@ -224,7 +231,7 @@ func TodoSearchClearOn() string {
 		"else { $searchQuery = ''; $loading = true; " +
 		"@get('/api/todos?filter=' + encodeURIComponent($filter || 'all') + " +
 		"'&scope=' + encodeURIComponent($scope || 'all') + " +
-		"'&clientID=' + encodeURIComponent($clientID || '')) }"
+		"'&clientID=' + encodeURIComponent($clientID || ''), " + listRequestOpts + ") }"
 }
 
 // SignalOn is the click expression for a segment that just assigns a signal.
