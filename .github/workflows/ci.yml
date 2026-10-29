@@ -132,7 +132,15 @@ jobs:
           # touching scripts/ or .github/ selects NOTHING (measured: this repo's
           # own CI changes did exactly that). Selecting nothing is not "nothing
           # can break", it is "the selector cannot see it": widen instead.
-          PLUMBING='^(\.github/|\.githooks/|scripts/|bin/|\.lefthook\.yml$|Makefile$)'
+          # .sql belongs here for the same reason and a sharper one: migrations
+          # under internal/dbschema are go:embed-ed into the binary and applied
+          # at boot, and queries under internal/db regenerate sqlcgen, so a
+          # SQL-only changeset can change what every DB-touching test sees
+          # while seeding no package at all.
+          # Anchored per alternative, not around the group: `^(\.sql$)` would
+          # only match a file literally named ".sql" (measured — the first
+          # version of this line was wrong and a test caught it).
+          PLUMBING='(^\.github/|^\.githooks/|^scripts/|^bin/|^Makefile$|^\.lefthook\.yml$|\.sql$)'
           CHANGED=$(git diff --name-only "$BASE...HEAD" 2>/dev/null || true)
           if [ -n "$CHANGED" ] && printf '%s\n' "$CHANGED" | grep -qE "$PLUMBING"; then
             SELECTED=$(full)
