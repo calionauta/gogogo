@@ -43,10 +43,11 @@ listed as removable units rather than hidden behind an API.
 - **You who get tired of configuring the same stack over and over.**
 - **You who want everything in one binary, no services to run, no
   Docker required.** One self-contained file, environment-independent.
-- **You who need offline-first resilience.** A durable outbox + app-shell cache
-  queue (web) and a NATS Leaf Node (desktop) let clients keep working without
-  a connection and replay mutations on reconnect, with server-side idempotency
-  so replays never duplicate.
+- **You who need offline resilience.** A durable outbox + app-shell cache
+  (web) and a NATS Leaf Node (desktop) let clients keep WRITING without a
+  connection and replay mutations on reconnect, with server-side idempotency so
+  replays never duplicate. Reads stay server-authoritative on the web (the page
+  cache serves the last visited view); the desktop Leaf Node makes them local.
 - **You who prefer one language for the whole stack and reactive frontend
   without heavy frontend frameworks.** Server-rendered HTML via SSE —
   lightweight, no bloated SPA, no JS build step.

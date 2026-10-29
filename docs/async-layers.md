@@ -352,16 +352,29 @@ No build tags, no stub files, no matrix. DagNats and NATS share a **single
 embedded JetStream on `:4222`** — DagNats boots it and the whiteboard SyncWorker
 attaches to it, so there is only one NATS process in the binary.
 
-## Offline-first is baked in, not bolted on
+## Offline-capable writes, not offline-first reads
 
 Web clients store each mutation in a durable outbox before sending it and replay
 it while the app is open; the desktop build becomes a NATS Leaf Node that keeps
 its JetStream replica in sync while offline. Replays are deduplicated server-side
 (creates by `idem_key`, the non-idempotent toggle by the `Idempotency-Key` receipt).
 
-Set `OFFLINE_SYNC_ENABLED=false` for always-online deployments and **zero code
-paths are traversed** — the flag disables the NATS CRUD proxy and the page
-outbox together.
+**What this is, precisely.** In the three-model split the 2026 guidance uses —
+online-first with caching, offline-first, local-first — gogogo sits in the middle
+for writes and the first column for reads: the *server stays the source of truth
+for reads* (list, search, filters and indexes are queries; the page cache serves
+the last visited view), while the *client owns writes offline* (the intent is
+recorded locally and pushed later). It is **not** local-first: there is no client
+read store, so the UI cannot list rows it has never synced, and a filter change
+offline is refused rather than answered from a local replica. The desktop build
+is the exception — with a Leaf Node the server is local, so reads work offline
+too. `docs/architecture-decision.md` records why the middle column was chosen
+over a local read store.
+
+Set `OFFLINE_SYNC_ENABLED=false` for always-online deployments: it retires the
+service worker (app-shell cache) and the NATS CRUD proxy. The write path is not
+gated by the flag — the outbox runs on every page, and losing a queued write is
+worse than the cache it protects.
 
 The SCOPE unit `offline-sync` is a plugin (it can be trimmed); on this async
 axis it is the mode above, not one of the seven layers.
