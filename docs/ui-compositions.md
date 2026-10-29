@@ -156,6 +156,15 @@ dshelpers.RenderAndPatch(sse,
 Markup: `internal/components/toast.templ`; the live example is
 `features/notifications/handlers/remind.go`.
 
+**The payload must nest.** The toast's open/dismiss state is a per-instance
+signal group (`internal/components/instance.go`), emitted as
+`{"g_toast_<id>":{"vis":false}}`. Datastar 1.x merges `data-signals` by object
+depth and compiles `$g_toast_<id>.vis` to `$["g_toast_<id>"]["vis"]`; it never
+splits a dotted key. A flat `{"g_toast_<id>.vis":false}` therefore declares one
+signal and every expression reads another — the toast stays at `opacity:0` for
+its whole life while the markup and its text are present. `scripts/smoke.mjs`
+now asserts a real toast is `open` with non-zero opacity, not merely in the DOM.
+
 **Do not** render a success message as an `alert alert-success` inside the
 page. It stays until the next navigation, pushes the list down, and competes
 with the content that the action actually changed. Inline `alert` is for

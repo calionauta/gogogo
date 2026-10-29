@@ -21,6 +21,7 @@ import (
 	dbgen "github.com/calionauta/gogogo/internal/db/sqlcgen"
 	"github.com/calionauta/gogogo/internal/dbschema"
 	"github.com/calionauta/gogogo/internal/delivery"
+	"github.com/calionauta/gogogo/internal/demo"
 
 	"github.com/calionauta/gogogo/features/notifications"
 	"github.com/calionauta/gogogo/features/notifications/components"
@@ -80,9 +81,10 @@ func NewHandler(
 // leaving a button that always fails.
 func (h *Handler) SetRunStarter(r RunStarter) { h.runs = r }
 
-// wired reports whether scheduling is possible. It is the single truth the
-// page and the endpoint share.
-func (h *Handler) wired() bool { return h.runs != nil }
+// Wired reports whether scheduling is possible: the engine was started in
+// THIS binary and handed over a run client. It is the single truth the page,
+// the endpoint and the shell's console link share.
+func (h *Handler) Wired() bool { return h.runs != nil }
 
 // Routes returns the chi router. Every path is absolute, so MountFeature
 // flattens it onto the root without a prefix.
@@ -114,7 +116,7 @@ func (h *Handler) handlePage(w http.ResponseWriter, r *http.Request) {
 	// the read actions patch #inbox, which does not contain the form.
 	data.Channels = h.offeredChannels(sess.User.Email)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = components.Page(sess.User.Email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit, data).
+	_ = components.Page(sess.User.Email, sess.Role, h.cfg.BuildLabel, h.cfg.BuildCommit, demo.On(r), data).
 		Render(r.Context(), w)
 }
 
@@ -221,10 +223,23 @@ func (h *Handler) pageData(ctx context.Context, owner string) (components.PageDa
 			Unread:  !row.ReadAt.Valid,
 		})
 	}
+	counts, err := h.q.CountNotificationsByChannelStatus(ctx, owner)
+	if err != nil {
+		return components.PageData{}, err
+	}
+	deliveries := make([]components.DeliveryCount, 0, len(counts))
+	for _, c := range counts {
+		deliveries = append(deliveries, components.DeliveryCount{
+			Channel: c.Channel,
+			Status:  c.Status,
+			Count:   int(c.N),
+		})
+	}
 	return components.PageData{
-		Items:  items,
-		Unread: int(unread),
-		Wired:  h.wired(),
+		Items:      items,
+		Unread:     int(unread),
+		Wired:      h.Wired(),
+		Deliveries: deliveries,
 	}, nil
 }
 

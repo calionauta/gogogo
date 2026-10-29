@@ -10,7 +10,7 @@ class to use so a new screen looks like the other eight.
 internal/ui.Shell(d Data, head, sound, actions, body)
 ├── <html>   data-signals (page seed), data-theme bindings, data-theme-dark
 ├── <aside id="app-rail">   brand · build badge · theme toggle · sound mute · pinned Inbox (indicator count) · []Module groups · account row
-│      account row → panel: identity · Account · Config (admin) · Tema list · sign out
+│      account row → panel: identity · Account · Config (admin) · DagNats console (operators) · Tema list · sign out
 ├── <header class="app-module-header">
 │      drawer trigger (≤1024px) · title · context slot · [ State ] [ Stack ] · search input · actions
 ├── <main class="app-body">  ← the page

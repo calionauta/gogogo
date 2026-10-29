@@ -42,4 +42,16 @@ WHERE owner = ? AND channel = 'in_app' AND read_at IS NULL;
 -- name: SetNotificationStatus :execrows
 UPDATE notifications
 SET status = ?, skip_reason = ?, error_text = ?
-WHERE id = ? AND owner = ?
+WHERE id = ? AND owner = ?;
+
+-- Delivery accounting for the page's State panel: one bucket per channel and
+-- status the owner has, so the pipeline shows evidence instead of a claim. An
+-- external channel (email) is invisible in the inbox list by design; here it
+-- is counted, which is what the panel is for.
+-- name: CountNotificationsByChannelStatus :many
+SELECT channel, status, count(*) AS n
+FROM notifications
+WHERE owner = ?
+GROUP BY channel, status
+ORDER BY channel, status, n DESC;
+

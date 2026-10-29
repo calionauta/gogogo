@@ -9,6 +9,15 @@ on:
     # under it could only be judged by reading the diff (PR #154 shipped
     # that way). A PR against any base now gets the same gates.
   workflow_dispatch:
+    inputs:
+      scope_packages:
+        # Verifies the NARROW branch of the test selection on demand: a normal
+        # PR only reaches it when the changeset is Go-only, and the plumbing
+        # fail-open means this workflow's own PRs never do. Space or comma
+        # separated package dirs.
+        description: 'Package dirs to run instead of the classified scope (verifies the narrow path)'
+        required: false
+        default: ''
 concurrency:
   # Cancel in-progress runs when a newer commit lands on the same ref (push+
   # PR both trigger on the same branch, so without this every push to a branch
@@ -48,6 +57,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       docs_only: ${{ steps.filter.outputs.docs_only }}
+      # pkgs: the packages the race suite must run, newline-separated, already
+      # expanded to their transitive dependents. Empty means "no Go package is
+      # affected". Written by the scope step below; consumed by the race job.
+      pkgs: ${{ steps.scope.outputs.pkgs }}
+      scope_kind: ${{ steps.scope.outputs.kind }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -76,6 +90,121 @@ jobs:
           fi
           echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
           echo "docs-only changeset: $DOCS_ONLY"
+      - if: steps.filter.outputs.docs_only != 'true'
+        name: Install the pinned Go toolchain manually
+        # The scope step below shells out to scripts/changed-packages.sh, which
+        # runs `go list`. Leaving that to the runner's preinstalled Go is the
+        # failure bin/check-ci-deps.sh exists to prevent — it cannot see a `go`
+        # call made inside a script, and an older runner Go would answer a
+        # DIFFERENT question than the pinned toolchain the gates use (or try to
+        # fetch one mid-step).
+        run: |
+          bash bin/install-go-toolchain.sh
+      - if: steps.filter.outputs.docs_only != 'true'
+        name: Restore Go module download cache
+        # This job is the serial prefix on EVERY other job (`needs: [changes]`),
+        # so its cost is the wall's cost. It was 60s, 50s of it a cold
+        # `go mod download`; with the zip cache restored it is ~10s.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
+      - if: steps.filter.outputs.docs_only != 'true'
+        name: Warm module cache
+        # `go list` resolves the module graph; the proxy answers storms with
+        # transient INTERNAL_ERRORs that go does not retry on its own.
+        run: bash bin/go-mod-download.sh
+      - id: scope
+        if: steps.filter.outputs.docs_only != 'true'
+        # Test selection, PR-only. A merged commit always runs the full suite:
+        # an error in the selection then cannot accumulate silently across PRs,
+        # and a master push does not block anything (deploy runs in parallel).
+        # Everything here fails OPEN to the full list — an unreadable diff, a
+        # missing base or a broken classifier must cost a runner, never a
+        # regression.
+        run: |
+          set -euo pipefail
+          emit() { printf 'pkgs<<PKGS_EOF\n%s\nPKGS_EOF\n' "$1" >> "$GITHUB_OUTPUT"; }
+          full() { bash scripts/web-packages.sh; }
+
+          # An explicit list from workflow_dispatch short-circuits everything
+          # below. It is the verification knob for the narrow path, and a way to
+          # reproduce a specific shard's scope without a PR.
+          #
+          # The trailing newline in the printf is load-bearing: without it the
+          # last entry is not read back (measured: two packages in, one out),
+          # and a silently short scope is exactly the class of bug the
+          # fail-opens below exist for.
+          EXPLICIT="${{ inputs.scope_packages }}"
+          if [ -n "$EXPLICIT" ]; then
+            emit "$(printf '%s\n' "$EXPLICIT" | tr ' ,' '\n\n' | while IFS= read -r p; do
+              [ -n "$p" ] && [ -d "$p" ] && (cd "$p" && pwd)
+            done)"
+            echo "kind=narrow" >> "$GITHUB_OUTPUT"
+            echo "scope: explicit packages from the dispatch input"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            emit "$(full)"
+            echo "kind=all" >> "$GITHUB_OUTPUT"
+            echo "scope: not a PR, running every package"
+            exit 0
+          fi
+
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            emit "$(full)"
+            echo "kind=all" >> "$GITHUB_OUTPUT"
+            echo "scope: base commit unreadable, running every package"
+            exit 0
+          fi
+
+          SELECTED=$(BASE="$BASE" bash scripts/changed-packages.sh --with-dependents || true)
+
+          # The test harness and the CI plumbing are shared inputs that no Go
+          # package owns, and the closure seeds only .go/.templ files — so a PR
+          # touching scripts/ or .github/ selects NOTHING (measured: this repo's
+          # own CI changes did exactly that). Selecting nothing is not "nothing
+          # can break", it is "the selector cannot see it": widen instead.
+          # .sql belongs here for the same reason and a sharper one: migrations
+          # under internal/dbschema are go:embed-ed into the binary and applied
+          # at boot, and queries under internal/db regenerate sqlcgen, so a
+          # SQL-only changeset can change what every DB-touching test sees
+          # while seeding no package at all.
+          # Anchored per alternative, not around the group: `^(\.sql$)` would
+          # only match a file literally named ".sql" (measured — the first
+          # version of this line was wrong and a test caught it).
+          PLUMBING='(^\.github/|^\.githooks/|^scripts/|^bin/|^Makefile$|^\.lefthook\.yml$|\.sql$)'
+          CHANGED=$(git diff --name-only "$BASE...HEAD" 2>/dev/null || true)
+          if [ -n "$CHANGED" ] && printf '%s\n' "$CHANGED" | grep -qE "$PLUMBING"; then
+            SELECTED=$(full)
+            echo "scope: changeset touches CI plumbing, running every package"
+          fi
+
+          # A path that does not exist on this runner means the classifier and
+          # the consumer disagree about the workspace; treat it as unclassified
+          # rather than running `go test` against a directory that is not there.
+          if [ -n "$SELECTED" ] && ! printf '%s\n' "$SELECTED" | while IFS= read -r p; do
+            [ -d "$p" ] || exit 1
+          done; then
+            SELECTED=$(full)
+          fi
+          emit "$SELECTED"
+          if [ -z "$SELECTED" ]; then
+            echo "kind=none" >> "$GITHUB_OUTPUT"
+            echo "scope: no Go package affected"
+          elif [ "$(printf '%s\n' "$SELECTED" | wc -l)" -ge "$(full | wc -l)" ]; then
+            echo "kind=all" >> "$GITHUB_OUTPUT"
+            echo "scope: every package selected"
+          else
+            echo "kind=narrow" >> "$GITHUB_OUTPUT"
+            echo "scope: $(printf '%s\n' "$SELECTED" | wc -l) of $(full | wc -l) packages"
+          fi
   checks:
     needs: [changes]
     if: needs.changes.outputs.docs_only != 'true'
@@ -92,6 +221,31 @@ jobs:
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
           bash bin/install-go-toolchain.sh
+      - name: Restore Go build cache
+        # Same guardrail as the race job: explicit actions/cache@v4 (JS/zstd
+        # restore, not /usr/bin/tar — see commit d50d0fb for the flake this repo
+        # turned caching off over) and continue-on-error, so an infra failure
+        # costs a cold build instead of a red gate.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Restore Go module download cache
+        # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
+        # Measured: caching the whole module directory was break-even to a loss
+        # (23-33s restore vs 16-29s download). This is roughly a third of that
+        # size, and with the zips present `go mod download` extracts locally
+        # instead of going to the proxy.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -130,6 +284,13 @@ jobs:
         # Cheap (grep + sh -n), so it stays at the top of the cheap fail-fast
         # block.
         run: bin/check-install-sh.sh
+      - name: Shard split contract
+        # The selector decides WHICH tests run, so its own test pins that the
+        # union of every shard is exactly web-packages.sh (no gap, no duplicate),
+        # that the measured outlier gets a shard to itself, and that an empty
+        # scope prints zero bytes — a blank line reaches `go test` as the
+        # current directory. Synthetic universe: no repo, no go list, instant.
+        run: bash scripts/ci-shard-packages.test.sh
       - name: Check-scope (SCOPE annotations)
         # Fast fail: validate annotations before heavy C toolchain installs
         run: go run ./cmd/check-scope
@@ -274,7 +435,27 @@ jobs:
 
   race:
     needs: [changes]
-    if: needs.changes.outputs.docs_only != 'true'
+    # A docs-only changeset skips the suite, and so does one that touches no Go
+    # package at all (scope_kind=none: CSS, markdown, deploy files). Running 80
+    # packages for those is the waste this job now avoids, and `skipped` reports
+    # through the aggregator as green by construction.
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.scope_kind != 'none'
+    # Three shards. The cost table isolates internal/installer (a third of the
+    # suite, and it saturates the box alone), so the split is: shard 0 = the
+    # outlier, shards 1-2 = the remaining ~79 packages bin-packed. Measured
+    # before the split: one tail shard ran the full 203s range on its own, which
+    # is what a count-based split would keep doing.
+    #
+    # The parallelism is across RUNNERS on purpose: Go already parallelizes
+    # packages inside a shard, so a shard's cost is ~max(slowest package,
+    # sum/cores) and adding packages to a shard mostly does not add wall-clock.
+    strategy:
+      # One red shard must not cancel the others: the surviving log is what tells
+      # a real break from a broken split.
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    name: race shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -288,9 +469,54 @@ jobs:
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
           bash bin/install-go-toolchain.sh
+      - name: Restore Go build cache
+        # Caching stays deliberately narrow, and it is a DIFFERENT mechanism from
+        # the one this repo turned off. Commit d50d0fb disabled caching after
+        # malformed restores ("/usr/bin/tar" exit 2) aborted jobs; that flake
+        # lived in the INTERNAL caches of setup-go / setup-node /
+        # golangci-lint-action, which stay off (`skip-cache: true` is untouched)
+        # and docs/local-ci.md still records why. This is an explicit
+        # actions/cache@v4 step, whose restore path is the JS client (zstd, not
+        # /usr/bin/tar), and it is continue-on-error: a failed or evicted
+        # restore costs a cold build, never a red job. What it buys is the cold
+        # `-race` compile of 80 packages plus the installer suite's first
+        # `go vet ./...` per trimmed tree.
+        #
+        # strategy.job-index is in the key on purpose: both race shards share the
+        # job id, so without it they restore the same entry and the first to
+        # finish overwrites the other's build cache with its own half — measured
+        # as the installer shard swinging between 207s and 404s of test time on
+        # identical code (runs 40875871811 and 40879126850). One key per leg, and
+        # each leg's cache stays useful.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Restore Go module download cache
+        # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
+        # Measured: caching the whole module directory was break-even to a loss
+        # (23-33s restore vs 16-29s download). This is roughly a third of that
+        # size, and with the zips present `go mod download` extracts locally
+        # instead of going to the proxy.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
+        #
+        # Not cached, measured 2026-10-29 (runs 40865567690 cold and 40870630745
+        # warm): restoring ~/go/pkg/mod costs 23-33s per job and saves 16-29s of
+        # download, i.e. it is break-even to a net loss — and the winner is
+        # nondeterministic because it is I/O against a proxy. The build cache is
+        # the one that pays (it cut this job's test step 360s -> 207s).
         run: bash bin/go-mod-download.sh
       - name: Generate templ
         # Toolchain presence only — the checks job enforces that the
@@ -315,14 +541,36 @@ jobs:
         # parallel (~110s vs ~255s). cmd/desktop is skipped: it is a Wails
         # build needing GTK/WebKit dev libraries only present on the desktop
         # runners.
-        run: bash scripts/test-web.sh -race -count=1 -v
+        #
+        # Scope: the changes job resolved the packages this PR can affect (the
+        # changed packages plus their transitive dependents) and this job shards
+        # that list. Outside a PR, and whenever the changeset cannot be
+        # classified, the universe is the full package list — the selection can
+        # only ever narrow a run that would otherwise be bigger.
+        run: |
+          set -euo pipefail
+          UNIVERSE="$RUNNER_TEMP/packages.txt"
+          printf '%s\n' "${{ needs.changes.outputs.pkgs }}" | sed '/^[[:space:]]*$/d' > "$UNIVERSE"
+          SHARD_UNIVERSE_FILE="$UNIVERSE" bash scripts/ci-shard-packages.sh ${{ matrix.shard }} 3 > "$RUNNER_TEMP/shard.txt"
+          echo "shard ${{ matrix.shard }}: $(wc -l < "$RUNNER_TEMP/shard.txt") of $(wc -l < "$UNIVERSE") packages"
+          TEST_PKGS_FILE="$RUNNER_TEMP/shard.txt" bash scripts/test-web.sh -race -count=1 -v
 
   browser:
     needs: [changes]
     if: needs.changes.outputs.docs_only != 'true'
-    # Build + boot smoke stay first (cheap gate); the three client suites
-    # run serially — fast enough, and it avoids the parallel-load starvation
-    # that ci-fanout.sh documents for the local run.
+    # Two groups, one runner each. The five suites are ~120s serial and the
+    # setup around them ~80s, so the split buys the smaller half of that for the
+    # price of a second runner. The parallelism is across RUNNERS on purpose:
+    # the starvation ci-fanout.sh documents is suites sharing one runner's four
+    # cores, which this does not do. Groups are by measured cost, not by count:
+    # smoke 46s + whiteboard 14s + scroll 3s | notes 23s + SSE 34s. Costs are
+    # re-measured whenever a suite changes shape — the first split put whiteboard
+    # on the wrong side and cost 14s of wall.
+    strategy:
+      fail-fast: false
+      matrix:
+        client_group: [0, 1]
+    name: browser group ${{ matrix.client_group }}
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -343,6 +591,30 @@ jobs:
         # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
           bash bin/install-go-toolchain.sh
+      - name: Restore Go build cache
+        # This job's cold `go build -o /tmp/gogo...` is 76s of CGO (loro-go) with
+        # an empty cache; the same guardrail as the other Go jobs keeps a failed
+        # restore from turning a gate red.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ github.job }}-${{ strategy.job-index }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ github.job }}-
+      - name: Restore Go module download cache
+        # Only ~/go/pkg/mod/cache/download (the zips), not the extracted tree.
+        # Measured: caching the whole module directory was break-even to a loss
+        # (23-33s restore vs 16-29s download). This is roughly a third of that
+        # size, and with the zips present `go mod download` extracts locally
+        # instead of going to the proxy.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/go/pkg/mod/cache/download
+          key: go-mod-dl-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-mod-dl-${{ runner.os }}-
       - name: Warm module cache
         # Cold runners download the full graph; the proxy answers storms
         # with transient INTERNAL_ERRORs, which go does not retry itself.
@@ -367,6 +639,16 @@ jobs:
         # lockfile. (Previously this arrived incidentally — make css ran npm
         # ci earlier on the same runner. Separate jobs get separate runners.)
         run: npm ci --no-audit --no-fund
+      - name: Restore Playwright browsers
+        # Keyed on the lockfile, so a Playwright bump refetches Chromium instead
+        # of running the new driver against a stale binary. `--with-deps` in the
+        # smoke step still apt-installs the system libraries; only the browser
+        # download is cached, and a failed restore falls through to a fetch.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Build
         # One binary for the client suites below (previously rebuilt per
         # suite). The boot smoke validates the endpoint contract from a fresh
@@ -386,13 +668,19 @@ jobs:
         # different one, and FAIL (without hanging) on a broken path. A
         # readiness gate that cannot fail is worse than none.
         run: bash scripts/assert-public-ready.test.sh
+      - name: Install Chromium
+        # Both groups need the browser, so the install is its own step rather
+        # than riding inside the smoke suite (it could ride there while the
+        # suites shared one runner). The download is cached; --with-deps still
+        # apt-installs the system libraries.
+        run: npx playwright install --with-deps chromium
       - name: Browser smoke test
+        if: matrix.client_group == 0
         # Datastar is a global client runtime; exercise the rendered app in
         # Chromium so upgrades cannot pass Go checks while breaking signals.
-        run: |
-          npx playwright install --with-deps chromium
-          SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
+        run: SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh smoke.mjs
       - name: Whiteboard client regression tests
+        if: matrix.client_group == 0
         # The whiteboard client has no Go-side coverage for its transport
         # handling: response ordering and the 409 conflict path only exist in
         # whiteboard.js. A real regression lived here (adopting the server's
@@ -402,6 +690,7 @@ jobs:
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh whiteboard-client.test.mjs
       - name: Notes caret client regression tests
+        if: matrix.client_group == 1
         # Cross-user caret positioning: the mirror-div must be measured against
         # the reporter's text snapshot, not the observer's (possibly stale)
         # ta.value. The reported bug — a peer's end-of-line caret appearing at
@@ -411,6 +700,7 @@ jobs:
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh notes-caret.test.mjs
       - name: SSE verified-open regression test
+        if: matrix.client_group == 1
         # The opener must fail LOUDLY when Datastar cannot load (bounded
         # openState=failed), never leave a silent-dead stream: with Datastar
         # route-aborted, the old opener never opens anything (red-proofed by
@@ -418,6 +708,7 @@ jobs:
         run: |
           SMOKE_BIN=/tmp/gogogo-ci-web bash scripts/run-browser-suite.sh sse-reopen.test.mjs SSE_PROBE_PORT=8133
       - name: AI answer scroll regression test
+        if: matrix.client_group == 0
         # A new answer must scroll itself into view on a short window — the
         # region was appended below the fold and the reply arrived
         # off-screen (red-proofed by removing the anchors: scrollY 0 → 0).
@@ -464,6 +755,14 @@ jobs:
           node-version: "20"
       - name: Install JS deps
         run: npm ci --no-audit --no-fund
+      - name: Restore Playwright browsers
+        # Same key as the browser job: this job loads every published page at 7
+        # widths, and a cold Chromium fetch is most of its 60-70s.
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Check landing catalog

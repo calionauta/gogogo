@@ -411,9 +411,13 @@ There is no staging environment by design — a second stack would duplicate
 ports, data dirs, secrets, tunnel routes and memory on the shared box while
 answering a question the local loop already answers.
 
-CI runs the same gate as `make ci-local` as four parallel jobs (`checks` |
-`race` | `browser` | `prod-image`); wall-clock is the slowest job, not the
-sum. The master deploy does not wait for CI (parallel workflows, [deploy](deploy.md)),
+CI runs the same gate as `make ci-local` as parallel jobs (`checks` |
+`race` | `browser` | `prod-image`, plus `site`); wall-clock is the slowest job,
+not the sum. `race` runs as two shards, and on a pull request it runs the
+affected packages plus their transitive dependents — a merged commit runs every
+package, so the narrowing cannot hide a regression across PRs
+([measurements](research/ci-wall-clock-2026-10.md)). The master deploy does not
+wait for CI (parallel workflows, [deploy](deploy.md)),
 so the pre-merge PR check is the gate that runs before code lands, and the
 schedule reconciler only ships SHAs with green CI.
 

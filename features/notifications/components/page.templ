@@ -26,16 +26,28 @@ type ChannelOption struct {
 // PageData is everything the inbox renders. Wired gates the reminder form:
 // without a workflow client there is no durable delay, so offering the form
 // would be a control that always fails. Channels lists the external channels
-// the form offers; empty means "in-app only".
+// the form offers; empty means "in-app only". Deliveries is the State panel's
+// accounting: one bucket per channel/status, including the external rows the
+// list deliberately hides.
 type PageData struct {
-	Items    []Item
-	Unread   int
-	Wired    bool
-	Channels []ChannelOption
+	Items      []Item
+	Unread     int
+	Wired      bool
+	Channels   []ChannelOption
+	Deliveries []DeliveryCount
 }
 
-// Page renders /notifications inside the shared shell.
-templ Page(email string, role string, buildLabel string, buildCommit string, data PageData) {
+// DeliveryCount is one (channel, status) bucket of the owner's delivery rows.
+type DeliveryCount struct {
+	Channel string
+	Status  string
+	Count   int
+}
+
+// Page renders /notifications inside the shared shell. `demo` docks the
+// State/Stack panel, exactly like the other modules: the toggle persists in the
+// demo cookie, so the inbox follows the same session-scoped choice.
+templ Page(email string, role string, buildLabel string, buildCommit string, demo bool, data PageData) {
 	@ui.Shell(ui.Data{
 		Title:       "Inbox — gogogo",
 		Module:      "notifications",
@@ -46,7 +58,22 @@ templ Page(email string, role string, buildLabel string, buildCommit string, dat
 		BuildLabel:  buildLabel,
 		BuildCommit: buildCommit,
 		StreamPage:  true,
+		Demo:        demo,
+		Panel:       StatePanel(data),
+		Stack:       notificationsStack(),
 	}, notificationsHead(), notificationsSound(), nil, body(data))
+}
+
+// notificationsStack is the page's technology key, rendered by the shell
+// behind [ Stack ]. Each note says what the layer does HERE, not what it is.
+func notificationsStack() []components.TechItem {
+	return []components.TechItem{
+		{Name: "DagNats workflows", Note: "the reminder delay is a durable sleep step"},
+		{Name: "delivery router", Note: "in-app row first, then one row per channel"},
+		{Name: "SSE hub", Note: "a new delivery patches the inbox without a reload"},
+		{Name: "Turso", Note: "owner-scoped rows, deduped by transaction id"},
+		{Name: "Datastar", Note: "the inbox patch and the rail count move together"},
+	}
 }
 
 // notificationsHead carries the page's own <head> extras: the sound assets, so
@@ -121,7 +148,9 @@ templ remindForm(data PageData) {
 						}
 					</fieldset>
 				}
-				<p class="ui-meta">The delay is a DagNats <code>sleep</code> step: it survives a restart and holds no goroutine.</p>
+				<p class="ui-meta">
+					The delay is a @dagNatsWord() <code>sleep</code> step: it survives a restart and holds no goroutine.
+				</p>
 			</div>
 		</section>
 	} else {
@@ -132,6 +161,18 @@ templ remindForm(data PageData) {
 				</div>
 			</div>
 		</section>
+	}
+}
+
+// dagNatsWord is the engine name in the reminder hint. It links to the console
+// only for a session the fence admits (admin AND an ADMIN_EMAILS match; see
+// internal/server/operator.go), so a non-operator reads the same sentence
+// without a link that would answer 403.
+templ dagNatsWord() {
+	if ui.Operator(ctx) {
+		<a class="link" href="/dagnats/" title="Open the DagNats console">DagNats</a>
+	} else {
+		DagNats
 	}
 }
 

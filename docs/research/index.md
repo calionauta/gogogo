@@ -36,6 +36,7 @@ individual notes.
 | page | reviewed | answers |
 |---|---|---|
 | [Browser automation on a shared host](browser-automation-2026-10.md) | 2026-10-28 | chrome-headless-shell vs Lightpanda vs happy-dom vs remote CDP on a 4-vCPU / 8 GB box that also runs co-tenant agents; why the engine was never the failure and the lifecycle was |
+| [CI wall-clock](ci-wall-clock-2026-10.md) | 2026-10-29 | measured per-job and per-package cost of CI: sharding by measured cost instead of count, PR-only test selection over the dependent closure, narrow caches behind `continue-on-error`, and why the installer suite and the browser suites stay on the pre-merge gate |
 
 ## Decisions and rationale
 

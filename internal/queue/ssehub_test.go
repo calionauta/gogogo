@@ -79,11 +79,26 @@ func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
 // as a coarse sanity check that the simpler code path doesn't grow
 // goroutines unboundedly.
 func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
-	t.Parallel()
+	// NOT parallel: goleak asserts PROCESS-GLOBAL state, so it must run in the
+	// serial phase. In the parallel phase another test's live goroutine (a
+	// blocked second writer, a worker that is mid-shutdown) is indistinguishable
+	// from a leak this test caused — measured as a flake on CI run 40872032798,
+	// where this test, TestQueueCloseStopsWorkers and
+	// TestWorkerStopIsPromptWhenQueueFails all failed together while the leaked
+	// goroutine named another test entirely.
 	// goleak, not runtime.NumGoroutine: the count is process-global and races
 	// other tests' goroutines. This asserts the design invariant directly
 	// replay is synchronous at Register(), so no goroutine outlives the loop.
-	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+	//
+	// waitParallel is the one class a package-level leak assertion cannot avoid:
+	// every OTHER test in this package that pauses on t.Parallel() stays alive
+	// as a goroutine until the serial phase ends, so goleak reported them as
+	// "leaks" (goroutine 669 on CI run 40872032798). Ignoring that frame keeps
+	// the assertion meaningful for this package's own code.
+	defer goleak.VerifyNone(t,
+		goleak.IgnoreCurrent(),
+		goleak.IgnoreTopFunction("testing.(*testState).waitParallel"),
+	)
 	for range 200 {
 		hub := NewSSEHub()
 		ch := make(chan []byte, 10)

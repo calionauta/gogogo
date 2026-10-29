@@ -87,14 +87,14 @@ func mountConsoleProxy(r chi.Router, a *auth.Auth, cfg *config.Config) {
 // demo seed makes demo1 an admin with published credentials, so "is admin"
 // alone is not an operator identity on a public demo. An empty list closes
 // the console: an operator must name themselves explicitly.
+//
+// The predicate lives in rbac.IsOperator because the shell's account menu
+// decides whether to link here; one rule, so the link can never point at a
+// fence that answers 403.
 func operatorGate(emails []string) func(http.Handler) http.Handler {
-	allowed := make(map[string]bool, len(emails))
-	for _, e := range emails {
-		allowed[strings.ToLower(strings.TrimSpace(e))] = true
-	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !allowed[strings.ToLower(sessionEmail(r))] {
+			if !rbac.IsOperator(emails, sessionEmail(r)) {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}

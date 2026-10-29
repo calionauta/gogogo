@@ -10,6 +10,47 @@ import (
 	"database/sql"
 )
 
+const countNotificationsByChannelStatus = `-- name: CountNotificationsByChannelStatus :many
+SELECT channel, status, count(*) AS n
+FROM notifications
+WHERE owner = ?
+GROUP BY channel, status
+ORDER BY channel, status, n DESC
+`
+
+type CountNotificationsByChannelStatusRow struct {
+	Channel string
+	Status  string
+	N       int64
+}
+
+// Delivery accounting for the page's State panel: one bucket per channel and
+// status the owner has, so the pipeline shows evidence instead of a claim. An
+// external channel (email) is invisible in the inbox list by design; here it
+// is counted, which is what the panel is for.
+func (q *Queries) CountNotificationsByChannelStatus(ctx context.Context, owner string) ([]CountNotificationsByChannelStatusRow, error) {
+	rows, err := q.db.QueryContext(ctx, countNotificationsByChannelStatus, owner)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountNotificationsByChannelStatusRow{}
+	for rows.Next() {
+		var i CountNotificationsByChannelStatusRow
+		if err := rows.Scan(&i.Channel, &i.Status, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countUnreadInApp = `-- name: CountUnreadInApp :one
 SELECT count(*) FROM notifications
 WHERE owner = ? AND channel = 'in_app' AND read_at IS NULL

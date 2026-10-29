@@ -256,6 +256,31 @@ report the failure through the same `gogogo:outbox` event the todo outbox uses
 restores it on the next load. Losing the VIEW cache is only a warning: it holds
 no user data.
 
+**Extension point: Background Sync (deliberately not implemented).** It is the
+only mechanism that drains with every tab closed, and it is worth adding ONLY
+when the product promises "write it, close the tab, it syncs" to a Chromium
+audience. It covers a narrow slice: the browser process must still be running,
+Chrome allows three attempts (~20 minutes), and an expired session pauses the
+queue anyway. Adding it obliges four things, none of them plumbing:
+
+- a shared queue module (`importScripts`), because the worker cannot use the
+  page's module and must not grow a second schema;
+- an owner handshake over `postMessage`: the worker has no session, so without
+  the current account's hash it could replay one user's intent under another
+  user's cookie;
+- a PERSISTED drop notice: with no page open, the banner cannot show that a
+  change was refused, so the drop has to be recorded and surfaced on the next
+  load;
+- a relaxed `TestServiceWorkerNeverInterceptsAPI` (it currently refuses
+  `addEventListener("sync"`) and a test that can only run through the DevTools
+  protocol (`ServiceWorker.dispatchSyncEvent`), because the event cannot be
+  fired from page JS.
+
+The receipt is what makes this safe to add later: a replay is already
+idempotent, so the extra driver would only call the same `drain()`. Until a
+product asks for the closed-tab guarantee, the narrow gain does not pay for the
+owner handshake and the notification path.
+
 Each outcome has its own policy, not a generic retry:
 
 - **2xx / 404** — settled (404 means the row is already gone).

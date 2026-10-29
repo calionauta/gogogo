@@ -23,10 +23,18 @@ away". A third run turns a signal into a coin flip.
 | Failing job | What it means | Where to look |
 |---|---|---|
 | `checks` | a deterministic structural gate (sizes, scope, registry, generated artifacts, lint) | the log names the file and the rule |
-| `race` | the Go suite under `-race`, or a conformance test | the test name and the stack are in the log |
-| `browser` | one of five Playwright suites against the real binary | `scripts/run-browser-suite.sh` prints which suite, and both attempts |
-| `behavior` | cross-package contract tests | the log names the contract |
+| `race shard 0` | the Go suite under `-race`, on **`internal/installer` alone** — the measured outlier that gets a shard to itself | the test name and the stack are in the log |
+| `race shard 1` / `race shard 2` | the same suite, the long tail split in two | same; each shard prints `N of M packages` so you can see what it ran |
+| `browser group 0` / `browser group 1` | one of five Playwright suites against the real binary, grouped by measured cost | `scripts/run-browser-suite.sh` prints which suite, and both attempts |
+| `site` | the docs site builds and every published page loads at seven widths | the suite names the page and the width |
 | `prod-image` / `gui` / `template` | packaging and downstream builds | the failing step |
+
+The `race` split is by measured cost, not by count: `scripts/ci-shard-packages.sh`
+keeps the cost table, and `internal/installer` earns a shard alone because its
+units each copy the repo and fork a `go vet ./...`. A Go failure is therefore
+most often in shard 0, and a shard that prints fewer packages than you expected
+means the PR narrowed the scope (or the cost table needs a refresh — the command
+is in the script's header).
 
 A `browser` failure is the only one that can be variable in a way that is not a
 product bug, which is why it is the only one with a retry.

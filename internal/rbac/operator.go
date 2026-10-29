@@ -14,9 +14,27 @@ package rbac
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/calionauta/gogogo/internal/auth"
 )
+
+// IsOperator reports whether the address is an operator: listed in
+// ADMIN_EMAILS. It is the predicate behind the console fences AND the shell's
+// link to them, so the menu can never advertise a surface the fence denies.
+// An empty list admits nobody.
+func IsOperator(emails []string, email string) bool {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return false
+	}
+	for _, e := range emails {
+		if strings.ToLower(strings.TrimSpace(e)) == email {
+			return true
+		}
+	}
+	return false
+}
 
 // RequireAdmin denies anyone who is not an admin. A missing session is a
 // 403, not a redirect: these are operator endpoints, not pages a browser

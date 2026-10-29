@@ -11,6 +11,7 @@
 package components_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -81,39 +82,76 @@ func TestSignalNamesSurviveHostileKeys(t *testing.T) {
 	}
 }
 
-// TestSignalsKeysTheWholeGroup pins the data-signals payload: a flat map keyed
-// by instance path, which is what the template hands to SafeJSON.
-func TestSignalsKeysTheWholeGroup(t *testing.T) {
+// resolveByPath walks a decoded JSON payload the way Datastar resolves a signal
+// path: one map level per dot segment. A flat key that merely CONTAINS a dot
+// does not match — which is precisely the bug this guards against.
+func resolveByPath(t *testing.T, payload map[string]any, path string) (any, bool) {
+	t.Helper()
+	var node any = payload
+	for part := range strings.SplitSeq(path, ".") {
+		m, ok := node.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		node, ok = m[part]
+		if !ok {
+			return nil, false
+		}
+	}
+	return node, true
+}
+
+// TestSignalsDeclaresTheInstanceAsANestedObject pins the data-signals payload
+// against the way Datastar actually reads it. A flat {"g_toast_t1.vis":false}
+// declared a signal named with a literal dot, while `$g_toast_t1.vis` read a
+// different, empty signal — the toast never opened (opacity 0 for its whole
+// life) and every assertion on "the toast rendered" still passed.
+func TestSignalsDeclaresTheInstanceAsANestedObject(t *testing.T) {
 	t.Parallel()
 	got := components.Signals("toast", "t1", map[string]any{"vis": false, "count": 2})
-	if len(got) != 2 {
-		t.Fatalf("Signals returned %d keys, want 2: %v", len(got), got)
+	if len(got) != 1 {
+		t.Fatalf("Signals returned %d top-level keys, want 1 (the instance object): %v", len(got), got)
 	}
-	if got["g_toast_t1.vis"] != false {
-		t.Errorf("Signals did not key on the instance path: %v", got)
+	encoded, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("marshal signals: %v", err)
 	}
-	if _, ok := got["g_toast_t1.count"]; !ok {
-		t.Errorf("Signals dropped a name: %v", got)
+	var decoded map[string]any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("decode signals: %v", err)
+	}
+	for path, want := range map[string]any{
+		"g_toast_t1.vis":   false,
+		"g_toast_t1.count": float64(2),
+	} {
+		if v, ok := resolveByPath(t, decoded, path); !ok || v != want {
+			t.Errorf("signal %s does not resolve to %v (got %v, present=%v) — payload %s",
+				path, want, v, ok, encoded)
+		}
 	}
 }
 
 // TestSignalsFeedsARealExpression is a guard against the silent failure mode
 // described in the helper's file comment: it builds the exact strings a
 // template would, so a change in the naming shape shows up here as a diff
-// rather than as cross-talk between instances in a browser.
+// rather than as an invisible toast in a browser.
 func TestSignalsFeedsARealExpression(t *testing.T) {
 	t.Parallel()
 	payload := components.Signals("toast", "t9", map[string]any{"vis": false})
-	rendered := ""
-	for k := range payload {
-		rendered = k
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal signals: %v", err)
 	}
-	if rendered != "g_toast_t9.vis" {
-		t.Errorf("payload key = %q, want g_toast_t9.vis", rendered)
+	var decoded map[string]any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("decode signals: %v", err)
 	}
 	// The expression form a template writes (toast.templ does exactly this).
-	expr := "$" + components.Signal("toast", "t9", "vis") + " = true"
-	if expr != "$g_toast_t9.vis = true" {
-		t.Errorf("expression = %q, want $g_toast_t9.vis = true", expr)
+	expr := "$" + components.Signal("toast", "t9", "vis")
+	if expr != "$g_toast_t9.vis" {
+		t.Fatalf("expression = %q, want $g_toast_t9.vis", expr)
+	}
+	if _, ok := resolveByPath(t, decoded, strings.TrimPrefix(expr, "$")); !ok {
+		t.Errorf("the template's expression %s does not resolve against its own payload %s", expr, encoded)
 	}
 }
