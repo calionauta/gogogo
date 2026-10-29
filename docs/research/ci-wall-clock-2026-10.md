@@ -43,18 +43,20 @@ roughly 1.8x, not 4x, because one package saturates it alone.
 ## Result
 
 Measured on the same workflow, three runs (cold cache, warm cache, and warm
-cache with the trimmed-tree bound raised):
+cache after the rejected experiment had thrashed it):
 
 | job | before | after |
 |---|---|---|
-| `race` (the wall) | 620s test | 207s (installer shard) / 130s (tail shard) |
-| `browser` | 265s | 190s (build 76s → 7s) |
-| `checks` | 232s | 105s (lint 107s → 18s) |
-| **CI wall-clock** | **11.1 min** | **4.9 min** |
+| `race` (the wall) | 620s test | 207–282s (installer shard) / 130–192s (tail shard) |
+| `browser` | 265s | 190–194s (build 76s → 7s) |
+| `checks` | 232s | 105–113s (lint 107s → 18s) |
+| **CI wall-clock** | **8.6–12 min** | **4.8–5.9 min** (two of three runs at 4.8–4.9) |
 
 The first run of the new workflow was slower than the baseline on three jobs:
 with every cache empty, each job paid a cache *save* and got nothing back. The
-second run is the real number.
+second run is the real number; the third, at 5.9 min, restored a build cache that
+the rejected concurrency experiment had written while thrashing, and it is the
+spread between those two that is the honest variance band.
 
 ## What shipped
 

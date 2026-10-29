@@ -81,7 +81,23 @@ jobs:
           fi
           echo "docs_only=$DOCS_ONLY" >> "$GITHUB_OUTPUT"
           echo "docs-only changeset: $DOCS_ONLY"
+      - if: steps.filter.outputs.docs_only != 'true'
+        name: Install the pinned Go toolchain manually
+        # The scope step below shells out to scripts/changed-packages.sh, which
+        # runs `go list`. Leaving that to the runner's preinstalled Go is the
+        # failure bin/check-ci-deps.sh exists to prevent — it cannot see a `go`
+        # call made inside a script, and an older runner Go would answer a
+        # DIFFERENT question than the pinned toolchain the gates use (or try to
+        # fetch one mid-step).
+        run: |
+          bash bin/install-go-toolchain.sh
+      - if: steps.filter.outputs.docs_only != 'true'
+        name: Warm module cache
+        # `go list` resolves the module graph; the proxy answers storms with
+        # transient INTERNAL_ERRORs that go does not retry on its own.
+        run: bash bin/go-mod-download.sh
       - id: scope
+        if: steps.filter.outputs.docs_only != 'true'
         # Test selection, PR-only. A merged commit always runs the full suite:
         # an error in the selection then cannot accumulate silently across PRs,
         # and a master push does not block anything (deploy runs in parallel).
