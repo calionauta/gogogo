@@ -240,9 +240,13 @@ server, and offline the page shows the LAST render of the view the user asks for
 online render, keyed by `filter`/`scope`/`query`/`date`, bounded to 8 views and 7
 days, and every restore is labelled "showing this view as it was at HH:MM". The
 next server render replaces it, and a control that asks for a view with no cached
-fragment refuses instead of moving the tab over a list that did not change. This
-is the "online-first with caching" column of the model below — the cache owns no
-data and answers no query, so it cannot merge a write or invent a row.
+fragment refuses instead of moving the tab over a list that did not change. A
+restore re-applies the queued intents (create/toggle/delete/clear) first, so the
+cached rows agree with the work the server has not seen. The debounced search is
+the one control that never restores: it fires after the user stopped typing, and
+replacing the list then could erase a row created in between. This is the
+"online-first with caching" column of the model below — the cache owns no data
+and answers no query, so it cannot merge a write or invent a row.
 
 **A queue that cannot be stored says so.** A full quota or a blocked
 `localStorage` used to be swallowed by the notes and whiteboard writers: the op

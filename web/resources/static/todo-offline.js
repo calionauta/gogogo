@@ -168,8 +168,12 @@
     ensureEmptyState();
   }
 
-  function onQueued(evt) {
-    var item = evt && evt.detail;
+  // applyIntent folds ONE queued intent into the rendered list: the same
+  // function the queued event uses, because that is the only place the shape of
+  // an intent is interpreted. A restore of a CACHED view replays the whole
+  // queue through it, so a tab switch offline cannot show a row the user has
+  // already deleted (or hide one they created).
+  function applyIntent(item) {
     if (!item || !item.url) return;
     if ((item.method || "").toUpperCase() !== "POST") return;
     var url;
@@ -194,6 +198,20 @@
     }
     var tog = /\/api\/todos\/([^/]+)\/toggle\/?$/.exec(path);
     if (tog) toggle(decodeURIComponent(tog[1]));
+  }
+
+  function onQueued(evt) {
+    applyIntent(evt && evt.detail);
+  }
+
+  // applyQueued re-applies every stored intent, oldest first, so a restored
+  // fragment agrees with the queue that the server has not seen yet.
+  function applyQueued() {
+    var queue = window.GogogoOutbox;
+    if (!queue || typeof queue.list !== "function") return;
+    queue.list().then(function (items) {
+      for (var i = 0; i < items.length; i++) applyIntent(items[i]);
+    }).catch(function () {});
   }
 
   // A mutation that came back with an ERROR STATUS is not a success: the
@@ -313,7 +331,11 @@
     host.outerHTML = entry.html;
     watch();
     showNote(entry.at);
+    // The cached render predates every queued mutation: draw the creates the
+    // queue is holding, then fold the whole queue in (toggle/delete/clear), so
+    // the view the user sees matches the work the server has not seen.
     restorePending();
+    applyQueued();
     return true;
   }
 

@@ -323,17 +323,23 @@ Options considered:
 The choice (`web/resources/static/offline-views.js`):
 
 - **Keyed by the view**, not the URL: `filter`/`scope`/`query`/`date` — the same
-  four inputs the server's list query takes. The tab click, the scope select and
-  the debounced search all restore through one helper.
+  four inputs the server's list query takes. A view switch (tab, scope, clear
+  search) restores through one helper.
 - **Bounded and dated**: 8 views, 7 days, oldest evicted; every restore is
   labelled "as of HH:MM", because undated stale content is indistinguishable from
   live content.
 - **Replaced, never merged**: the next server render overwrites the fragment. A
   restore that misses leaves the controls where they were (`$listOffline` says
-  why) instead of moving a tab over a list that did not change.
+  why) instead of moving a tab over a list that did not change. The cached
+  render predates the queue, so a restore re-applies every stored intent
+  (create/toggle/delete/clear) before showing it.
 - **Never cached offline**: a restored fragment must not update its own
   timestamp, and pending rows are stripped from the capture because the queue
   rebuilds them.
+- **Not from the debounced search**: the search handler fires 300ms after the
+  last keystroke, so by then the user may have created a row — and a restore
+  replaces the whole list. It refuses offline instead; an immediate click can
+  restore safely.
 
 Rejected extension: caching per-view fragments for notes and whiteboard. Both
 already paint from a server-rendered seed (the note text, `data-shapes`) and

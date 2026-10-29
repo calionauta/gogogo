@@ -95,17 +95,20 @@ func TodoScopeSelectOn() string {
 		"'&clientID=' + encodeURIComponent($clientID || '')) }"
 }
 
-// TodoSearchOn is the search box's debounced request. Offline it restores the
-// cached render of the same query; the box already holds what the user typed,
-// so only the list has to move.
+// TodoSearchOn is the search box's DEBOUNCED request, and offline it refuses
+// instead of restoring a cached view. The debounce is the reason: it fires
+// 300ms after the last keystroke, so by then the user may have created or
+// deleted a row — and a restore replaces the whole list, which would erase that
+// work from the screen (measured: the queued create's row vanished between the
+// replay and the delete click). A view switch is an immediate click and can
+// restore; a delayed query cannot.
 func TodoSearchOn() string {
-	return TodoListQuery("'/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + "+
-		"'&filter=' + encodeURIComponent($filter || 'all') + "+
-		"'&scope=' + encodeURIComponent($scope || 'all') + "+
-		"'&mode=' + encodeURIComponent(searchModeValue()) + "+
-		"'&clientID=' + encodeURIComponent($clientID || '')",
-		todoViewExpr("$filter || 'all'", "$scope || 'all'", "$searchQuery || ''"),
-		"")
+	return "if (!navigator.onLine) { $listOffline = true } else { $loading = true; @get(" +
+		"'/api/todos/search?q=' + encodeURIComponent($searchQuery || '') + " +
+		"'&filter=' + encodeURIComponent($filter || 'all') + " +
+		"'&scope=' + encodeURIComponent($scope || 'all') + " +
+		"'&mode=' + encodeURIComponent(searchModeValue()) + " +
+		"'&clientID=' + encodeURIComponent($clientID || '')) }"
 }
 
 // TodoSearchModeOn is the search-layer picker's request.
